@@ -48,7 +48,7 @@ public enum DefaultKeys {
 
     /// Bindings that only apply in one view, keyed by view name.
     public static let scoped: [String: [(String, String)]] = [
-        "repos": [("a", "repo.add"), ("n", "worktree.new"), ("R", "repo.scan")],
+        "repos": [("a", "repo.add"), ("n", "worktree.new"), ("R", "repo.scan"), ("I", "issues.visibility")],
         "history": [("R", "history.reopen"), ("O", "history.again"), ("t", "history.outcome")],
         "inbox": [
             ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("m", "items.read"),
@@ -56,7 +56,8 @@ public enum DefaultKeys {
         ],
         "issues": [
             ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("r", "github.sync"),
-            ("o", "open.reader"),
+            ("o", "open.reader"), ("t", "items.filter"), ("<Tab>", "issues.repo.next"),
+            ("<S-Tab>", "issues.repo.prev"), ("w", "issues.visibility"),
         ],
         "prs": [("r", "github.sync"), ("o", "open.reader")],
         /// The diff overlay.

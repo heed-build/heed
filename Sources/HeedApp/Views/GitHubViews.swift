@@ -189,10 +189,13 @@ struct IssuesView: View {
         let cursor = model.cursor(in: .issues)
         GeometryReader { geometry in
             HStack(spacing: 0) {
+                if geometry.size.width >= 900 { IssueRepoColumn() }
                 VStack(spacing: 0) {
-                    HStack {
-                        Text("Assigned to you").font(Theme.ui(12.5, weight: .medium))
-                        Text("\(rows.count) open").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    HStack(spacing: 8) {
+                        ForEach(IssueFilter.allCases, id: \.self) { filter in
+                            FilterChip(label: filter.rawValue, on: model.issueFilter == filter)
+                        }
+                        KeyCap(text: "t")
                         Spacer()
                         FilterPill(view: .issues)
                     }
@@ -204,7 +207,7 @@ struct IssuesView: View {
                         count: rows.count,
                         cursor: cursor,
                         ids: rows.map(\.id),
-                        empty: model.filter(for: .issues).isEmpty ? "No open issues assigned to you." : "Nothing matches /\(model.filter(for: .issues))."
+                        empty: emptyText
                     ) { index in
                         let issue = rows[index]
                         HStack(spacing: 10) {
@@ -217,6 +220,8 @@ struct IssuesView: View {
                                     .fixedSize()
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            if issue.assigned { InvolvementTag(text: "assigned") }
+                            if issue.mentioned { InvolvementTag(text: "mentioned") }
                             ForEach(issue.labels.prefix(2), id: \.self) { label in
                                 Text(label).font(Theme.mono(10.5)).foregroundStyle(Theme.fg2)
                                     .padding(.horizontal, 6)
@@ -229,9 +234,92 @@ struct IssuesView: View {
                         .rowStyle(isCursor: index == cursor, isPicked: picked.contains(issue.id))
                     }
                 }
-                if geometry.size.width >= 1100 { PickedPanel(count: max(picked.count, rows.isEmpty ? 0 : 1)) }
+                if geometry.size.width >= 1300 { PickedPanel(count: max(picked.count, rows.isEmpty ? 0 : 1)) }
             }
         }
+    }
+
+    private var emptyText: String {
+        let filter = model.filter(for: .issues)
+        if !filter.isEmpty { return "Nothing matches /\(filter)." }
+        switch model.issueFilter {
+        case .all: return "No open issues assigned to you, mentioning you, or in repos showing all issues."
+        case .assigned: return "No open issues assigned to you."
+        case .mentioned: return "No open issues mentioning you."
+        case .watched: return "No repos show all issues. w on an issue (I in Repos) turns it on for its repo."
+        }
+    }
+}
+
+/// The Issues repo column: repos with issues showing, most first. An eye marks repos that show every open issue;
+/// the rest show only issues assigned to you or mentioning you.
+private struct IssueRepoColumn: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let repos = model.issueRepoCounts
+        VStack(alignment: .leading, spacing: 0) {
+            SectionHeader(title: "Repos").padding(.horizontal, 16).padding(.vertical, 14)
+            row(name: "All", count: repos.map(\.count).reduce(0, +), repo: nil)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(repos, id: \.repo) { entry in
+                        row(name: entry.repo.name, count: entry.count, repo: entry.repo)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+            Theme.line.frame(height: 1)
+            VStack(alignment: .leading, spacing: 8) {
+                keyRow("⇥", "next repo")
+                keyRow("w", "all issues / only yours")
+                HStack(spacing: 8) {
+                    Image(systemName: "eye").font(.system(size: 11)).foregroundStyle(Theme.fg2).frame(width: 18)
+                    Text("shows all open issues").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                }
+            }
+            .padding(16)
+        }
+        .frame(width: 220)
+        .background(Theme.bg2)
+        .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
+    }
+
+    private func row(name: String, count: Int, repo: Repo?) -> some View {
+        let selected = model.issueRepo == repo
+        return HStack(spacing: 8) {
+            if let repo { OrgTile(org: repo.org, color: repo.color, size: 16) }
+            Text(name).font(Theme.mono(12.5)).foregroundStyle(selected ? Theme.fg : Theme.fg2)
+                .lineLimit(1).truncationMode(.middle)
+            if let repo, model.config.issues.visibility(repo) == .all {
+                Image(systemName: "eye").font(.system(size: 10)).foregroundStyle(Theme.fg3)
+            }
+            Spacer()
+            Text("\(count)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 7)
+        .background(selected ? Theme.bg3 : .clear)
+        .contentShape(Rectangle())
+        .onTapGesture { model.pickIssueRepo(repo) }
+    }
+
+    private func keyRow(_ key: String, _ label: String) -> some View {
+        HStack(spacing: 8) {
+            KeyCap(text: key).frame(width: 18)
+            Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+        }
+    }
+}
+
+private struct InvolvementTag: View {
+    let text: String
+
+    var body: some View {
+        Text(text).font(Theme.ui(11)).foregroundStyle(Theme.ask)
+            .padding(.horizontal, 6).padding(.vertical, 1)
+            .background(Capsule().strokeBorder(Theme.ask.opacity(0.5)))
+            .fixedSize()
     }
 }
 

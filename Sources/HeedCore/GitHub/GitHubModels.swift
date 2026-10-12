@@ -101,11 +101,18 @@ public struct Issue: Identifiable, Hashable, Sendable, Codable {
     public var labels: [String]
     public var author: String?
     public var updatedAt: Date
+    /// Assigned to you / mentions you. Neither: it is shown because its repo shows all issues.
+    public var assigned = false
+    public var mentioned = false
+
+    public var involvesYou: Bool { assigned || mentioned }
 
     public init(
         repo: Repo, number: Int, title: String, url: String, body: String, labels: [String], author: String?,
-        updatedAt: Date
+        updatedAt: Date, assigned: Bool = false, mentioned: Bool = false
     ) {
+        self.assigned = assigned
+        self.mentioned = mentioned
         self.repo = repo
         self.number = number
         self.title = title
@@ -234,5 +241,45 @@ public enum PullTracking {
             }
             return .sessionUpserted(updated)
         }
+    }
+}
+
+/// Which issues the Issues view shows for a repo. Issues assigned to you or mentioning you always show.
+public enum IssueVisibility: String, CaseIterable, Sendable, Codable {
+    /// Every open issue.
+    case all
+    /// Only those assigned to you or mentioning you.
+    case involved
+}
+
+/// `[issues] default`, `[orgs.<org>] issues` and `[repos."org/name"] issues`: the most specific one wins.
+public struct IssueRules: Equatable, Sendable {
+    public var fallback: IssueVisibility
+    public var orgs: [String: IssueVisibility]
+    public var repos: [String: IssueVisibility]
+
+    public init(
+        fallback: IssueVisibility = .involved, orgs: [String: IssueVisibility] = [:],
+        repos: [String: IssueVisibility] = [:]
+    ) {
+        self.fallback = fallback
+        self.orgs = orgs
+        self.repos = repos
+    }
+
+    public func visibility(_ repo: Repo) -> IssueVisibility {
+        repos[repo.slug] ?? orgs[repo.org] ?? fallback
+    }
+
+    /// Search qualifiers for the repos that show all issues: `org:` for orgs set to all (a repo there set to
+    /// involved is dropped after fetching), `repo:` for the rest, including local repos when the fallback is all.
+    public func watchQualifiers(local: [Repo]) -> [String] {
+        let watchedOrgs = orgs.filter { $0.value == .all }.keys.sorted()
+        var repoSlugs = Set(repos.filter { $0.value == .all }.keys)
+        if fallback == .all {
+            repoSlugs.formUnion(local.filter { orgs[$0.org] == nil && repos[$0.slug] == nil }.map(\.slug))
+        }
+        let outside = repoSlugs.filter { slug in !watchedOrgs.contains { slug.hasPrefix("\($0)/") } }.sorted()
+        return watchedOrgs.map { "org:\($0)" } + outside.map { "repo:\($0)" }
     }
 }

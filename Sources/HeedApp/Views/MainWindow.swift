@@ -234,7 +234,10 @@ struct StatusBar: View {
                         .padding(.horizontal, 12)
                 }
                 if let flash = model.flash {
-                    Text(flash).foregroundStyle(Theme.block).padding(.horizontal, 12)
+                    Text(flash).foregroundStyle(Theme.block).lineLimit(1).truncationMode(.middle).padding(
+                        .horizontal,
+                        12
+                    )
                 } else if let problem = model.configProblems.first {
                     Text("config.toml: \(problem.description)").foregroundStyle(Theme.err).lineLimit(1).padding(
                         .horizontal,
@@ -293,10 +296,10 @@ struct StatusBar: View {
         case .normal where model.issueReader != nil: "s start session · a add to session · gB browser · ⎋ back"
         case .normal where model.reader != nil || model.overlay == .pr:
             "j k item · space queue · s send · m auto-feed · ]p next PR · gS session · ⎋ back"
-        case .normal where model.view == .repos: "v select · n new worktree · R rescan · / filter · ⎋ back to sessions"
+        case .normal where model.view == .repos: "v select · n new worktree · R rescan · I issues all/yours · / filter"
         case .normal where model.view == .history: "j k move · / filter · R reopen · O new from prompt · t outcome"
         case .normal where model.view == .inbox: "space pick · v range · s start session · a add · m read · o open · t unread/all · / filter"
-        case .normal where model.view == .issues: "space pick · v range · s start session · a add · o open · / filter"
+        case .normal where model.view == .issues: "space pick · s start session · go read · t filter · ⇥ repo · w all/yours · / filter"
         case .normal where model.view == .prs: "j k move · o open · gS session · r sync · / filter"
         case .normal: "i insert · o start work · go PR overlay · : command · ? keys"
         case .insert: "\(KeyCapText.of(DefaultKeys.insertEscape)) normal · ⌘/ keys"
@@ -359,24 +362,5 @@ struct CommandLineView: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
         .shadow(color: .black.opacity(0.5), radius: 20)
-    }
-}
-
-/// Views not built yet say which step brings them.
-struct ComingView: View {
-    let view: AppView
-
-    var body: some View {
-        VStack(spacing: 10) {
-            Text(view.title).font(Theme.ui(15, weight: .medium))
-            Text("GitHub arrives in step 6.")
-                .foregroundStyle(Theme.fg3)
-            HStack(spacing: 6) {
-                KeyCap(text: "⎋")
-                Text("back to sessions").foregroundStyle(Theme.fg3)
-            }
-        }
-        .font(Theme.ui(12.5))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

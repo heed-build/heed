@@ -6,6 +6,9 @@ public enum Fixtures {
     /// `resume` is `main` opening on the resume dialog (the app handles that name).
     public static let names = ["main", "empty", "resume"]
 
+    /// What the fixtures' config would say about issues: docs-builder and the nullean org show all of them.
+    public static let issueRules = IssueRules(orgs: ["nullean": .all], repos: ["elastic/docs-builder": .all])
+
     public static func named(_ name: String) -> Domain? {
         switch name {
         case "main": main
@@ -280,7 +283,8 @@ public enum Fixtures {
                 body: "Moving a page drops its heading anchors from redirects.",
                 labels: ["bug"],
                 author: "reviewer",
-                updatedAt: ago(60)
+                updatedAt: ago(60),
+                assigned: true
             ),
             Issue(
                 repo: docsBuilder,
@@ -290,7 +294,8 @@ public enum Fixtures {
                 body: "/reference redirects to itself after the nav change.",
                 labels: ["bug", "redirects"],
                 author: "reviewer",
-                updatedAt: ago(120)
+                updatedAt: ago(120),
+                mentioned: true
             ),
             Issue(
                 repo: ingest,
@@ -300,7 +305,29 @@ public enum Fixtures {
                 body: "Under burst load the stage drops events instead of slowing producers.",
                 labels: [],
                 author: nil,
-                updatedAt: ago(300)
+                updatedAt: ago(300),
+                assigned: true
+            ),
+            // Shown because docs-builder shows all issues, not because it involves you.
+            Issue(
+                repo: docsBuilder,
+                number: 2851,
+                title: "Support nested includes in snippets",
+                url: "",
+                body: "Snippets cannot include other snippets yet.",
+                labels: ["enhancement"],
+                author: "contributor",
+                updatedAt: ago(400)
+            ),
+            Issue(
+                repo: mermaider,
+                number: 12,
+                title: "Arrow heads render detached at small zoom",
+                url: "",
+                body: "",
+                labels: ["bug"],
+                author: "someone",
+                updatedAt: ago(900)
             ),
         ]
         let pulls = [

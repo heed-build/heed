@@ -92,6 +92,9 @@ final class AppModel {
     private(set) var itemCursor: [AppView: Int] = [:]
     private(set) var picked: [AppView: Set<String>] = [:]
     private(set) var inboxFilter: InboxFilter = .unread
+    private(set) var issueFilter: IssueFilter = .all
+    /// The repo picked in the Issues repo column; nil is all of them.
+    private(set) var issueRepo: Repo?
 
     // Resume on launch
     private(set) var resume: ResumeForm?
@@ -170,6 +173,7 @@ final class AppModel {
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
+        if isFixture { config.issues = Fixtures.issueRules }
         replace(with: domain)
     }
 
@@ -314,7 +318,9 @@ final class AppModel {
         let previous = github
         let tracked = Array(Set(sessions.flatMap(\.trackedPRs)))
         do {
-            let state = try await GitHub.sync(tracked: tracked, previous: previous)
+            let state = try await GitHub.sync(
+                tracked: tracked, previous: previous, issueRules: config.issues, localRepos: repos.map(\.repo)
+            )
             commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
             await refreshWatchedDetails()
         } catch {
@@ -459,6 +465,7 @@ final class AppModel {
         configProblems = problems
         guard let decoded else { return }
         let toolsChanged = decoded.tools != config.tools
+        let issuesChanged = decoded.issues != config.issues
         config = decoded
         settings = decoded.work
         let built = decoded.keymaps()
@@ -467,6 +474,8 @@ final class AppModel {
         keyProblems = built.problems
         Palette.shared.apply(decoded)
         if toolsChanged, !isFixture { Task { await detectTools() } }
+        // Repos that now show all issues need fetching; ones that no longer do are hidden by issueRows right away.
+        if issuesChanged, !isFixture, github.syncedAt != nil { Task { await syncGitHub() } }
     }
 
     /// Finds git and gh (config, login shell PATH, usual places) and hands the search path to new panes.
@@ -866,7 +875,17 @@ final class AppModel {
         case "items.start": startFromItems()
         case "items.add": addItemsToSession()
         case "items.read": markItemsRead()
-        case "items.filter": inboxFilter = inboxFilter.next
+        case "items.filter":
+            if view == .issues {
+                issueFilter = issueFilter.next
+                itemCursor[.issues] = 0
+            } else {
+                inboxFilter = inboxFilter.next
+                itemCursor[.inbox] = 0
+            }
+        case "issues.repo.next": cycleIssueRepo(by: 1)
+        case "issues.repo.prev": cycleIssueRepo(by: -1)
+        case "issues.visibility": toggleIssueVisibility()
         case "open.reader": openReader()
         case "open.browser": openInBrowser()
         case "overlay.pr": togglePullOverlay()
@@ -902,9 +921,8 @@ final class AppModel {
             reader = nil
         } else if overlay != nil {
             overlay = nil
-        } else if view != .sessions {
-            view = .sessions
         }
+        // Never a view change: views are places of their own, not layers over Sessions.
     }
 
     private func submitCommandLine() {
@@ -1217,11 +1235,65 @@ final class AppModel {
         }
     }
 
+    /// Issues the rules show (involving you, or in a repo showing all), narrowed by the chip and the repo column.
+    var shownIssues: [Issue] {
+        github.issues
+            .filter { ($0.involvesYou || config.issues.visibility($0.repo) == .all) && issueFilter.matches($0) }
+    }
+
+    /// The Issues repo column: repos with shown issues, most first, then by name.
+    var issueRepoCounts: [(repo: Repo, count: Int)] {
+        let counts = Dictionary(grouping: shownIssues, by: \.repo).mapValues(\.count)
+        return counts.map { ($0.key, $0.value) }.sorted {
+            $0.count != $1.count ? $0.count > $1.count
+                : $0.repo.name.localizedCaseInsensitiveCompare($1.repo.name) == .orderedAscending
+        }
+    }
+
     var issueRows: [Issue] {
         let filter = filter(for: .issues)
-        return github.issues.filter {
-            FilterQuery.matches(filter, [$0.title, $0.repo.slug, "#\($0.number)", $0.author ?? ""] + $0.labels)
+        return shownIssues.filter {
+            (issueRepo == nil || $0.repo == issueRepo)
+                && FilterQuery.matches(filter, [$0.title, $0.repo.slug, "#\($0.number)", $0.author ?? ""] + $0.labels)
         }
+    }
+
+    private func cycleIssueRepo(by delta: Int) {
+        let options: [Repo?] = [nil] + issueRepoCounts.map(\.repo)
+        let index = options.firstIndex(of: issueRepo) ?? 0
+        issueRepo = options[((index + delta) % options.count + options.count) % options.count]
+        itemCursor[.issues] = 0
+    }
+
+    func pickIssueRepo(_ repo: Repo?) {
+        issueRepo = repo
+        itemCursor[.issues] = 0
+    }
+
+    /// `w` in Issues, `I` in Repos: the repo under the cursor flips between all issues and only yours.
+    private func toggleIssueVisibility() {
+        let repo: Repo?
+        switch view {
+        case .issues:
+            let rows = issueRows
+            let index = cursor(in: .issues)
+            repo = rows.indices.contains(index) ? rows[index].repo : issueRepo
+        case .repos:
+            let rows = worktreeRows
+            repo = rows.indices.contains(repoCursor) ? rows[repoCursor].repo : nil
+        default: repo = nil
+        }
+        guard let repo else {
+            flash = "no repo under the cursor"
+            return
+        }
+        let next: IssueVisibility = config.issues.visibility(repo) == .all ? .involved : .all
+        if isFixture {
+            config.issues.repos[repo.slug] = next
+        } else {
+            setConfig(["repos", repo.slug, "issues"], .string(next.rawValue))
+        }
+        flash = next == .all ? "\(repo.name): all open issues" : "\(repo.name): only issues involving you"
     }
 
     var pullRows: [PullRequest] {
@@ -1919,8 +1991,29 @@ struct AgentEvent: Hashable {
     let reason: String?
 }
 
+/// The Issues chips (`t`).
+enum IssueFilter: String, CaseIterable {
+    case all = "All", assigned = "Assigned", mentioned = "Mentioned", watched = "Watched repos"
+
+    var next: IssueFilter {
+        let all = Self.allCases
+        return all[(all.firstIndex(of: self)! + 1) % all.count]
+    }
+
+    func matches(_ issue: Issue) -> Bool {
+        switch self {
+        case .all: true
+        case .assigned: issue.assigned
+        case .mentioned: issue.mentioned
+        case .watched: !issue.involvesYou
+        }
+    }
+}
+
+/// The inbox chips (`t`). CI is GitHub Actions telling you a workflow run finished (failed, mostly) on your branch.
 enum InboxFilter: String, CaseIterable {
-    case unread = "Unread", all = "All", review = "Review requested", assigned = "Assigned", ci = "CI"
+    case unread = "Unread", all = "All", prs = "PRs", issues = "Issues", review = "Review requested",
+         assigned = "Assigned", ci = "CI runs"
 
     var next: InboxFilter {
         let all = Self.allCases
@@ -1931,6 +2024,8 @@ enum InboxFilter: String, CaseIterable {
         switch self {
         case .unread: item.unread
         case .all: true
+        case .prs: item.kind == .pr
+        case .issues: item.kind == .issue
         case .review: item.reason == "review_requested"
         case .assigned: item.reason == "assign"
         case .ci: item.kind == .ci || item.reason == "ci_activity"

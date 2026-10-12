@@ -15,14 +15,17 @@ public struct HeedConfig: Equatable, Sendable {
     public var cleanup: CleanupRule
     public var githubPollSeconds: Int
     public var tools = ToolSettings()
+    public var issues = IssueRules()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
+        public var issues: IssueVisibility?
         /// Pinned tasks (test, build, docs preview): name → command.
         public var tasks: [(String, String)]
 
         public static func == (lhs: RepoConfig, rhs: RepoConfig) -> Bool {
-            lhs.color == rhs.color && lhs.tasks.map(\.0) == rhs.tasks.map(\.0) && lhs.tasks.map(\.1) == rhs.tasks
+            lhs.color == rhs.color && lhs.issues == rhs.issues && lhs.tasks.map(\.0) == rhs.tasks.map(\.0) && lhs.tasks
+                .map(\.1) == rhs.tasks
                 .map(\.1)
         }
     }
@@ -42,7 +45,8 @@ public struct HeedConfig: Equatable, Sendable {
         }
         return lhs.work == rhs.work && lhs.insertEscape == rhs.insertEscape && flat(lhs.keys) == flat(rhs.keys)
             && flat(lhs.scopedKeys) == flat(rhs.scopedKeys) && lhs.orgColors == rhs.orgColors && lhs.repos == rhs.repos
-            && lhs.cleanup == rhs.cleanup && lhs.githubPollSeconds == rhs.githubPollSeconds && lhs.tools == rhs.tools
+            && lhs.cleanup == rhs.cleanup && lhs.githubPollSeconds == rhs.githubPollSeconds && lhs.tools == rhs
+            .tools && lhs.issues == rhs.issues
     }
 
     /// The keymaps this config asks for, with problems reported per entry.
@@ -181,6 +185,16 @@ public enum ConfigLoader {
         if let git = string(["tools", "git"]) { config.tools.git = git }
         if let gh = string(["tools", "gh"]) { config.tools.gh = gh }
         if let path = strings(["tools", "path"]) { config.tools.path = path }
+        func visibility(_ path: [String]) -> IssueVisibility? {
+            guard let text = string(path) else { return nil }
+            guard let parsed = IssueVisibility(rawValue: text) else {
+                problems.append(ConfigProblem(path: path.joined(separator: "."), message: "expected all or involved"))
+                return nil
+            }
+            return parsed
+        }
+        // [issues]
+        if let fallback = visibility(["issues", "default"]) { config.issues.fallback = fallback }
 
         // [agents.<name>]: built-ins are overridden field by field; other names are custom agents.
         if let agents = root.value(at: ["agents"])?.table {
@@ -248,14 +262,17 @@ public enum ConfigLoader {
         if let orgs = root.value(at: ["orgs"])?.table {
             for org in orgs.keys {
                 if let color = string(["orgs", org, "color"]) { config.orgColors[org] = color }
+                if let issues = visibility(["orgs", org, "issues"]) { config.issues.orgs[org] = issues }
             }
         }
         if let repos = root.value(at: ["repos"])?.table {
             for slug in repos.keys {
                 let repo = HeedConfig.RepoConfig(
-                    color: string(["repos", slug, "color"]), tasks: pairs(["repos", slug, "tasks"])
+                    color: string(["repos", slug, "color"]), issues: visibility(["repos", slug, "issues"]),
+                    tasks: pairs(["repos", slug, "tasks"])
                 )
                 config.repos[slug] = repo
+                if let issues = repo.issues { config.issues.repos[slug] = issues }
                 if !repo.tasks
                     .isEmpty { config.work.tasks[slug] = repo.tasks.map { TaskSpec(name: $0.0, command: $0.1) } }
             }
@@ -321,6 +338,12 @@ public enum ConfigLoader {
     [github]
     poll_seconds = 60
 
+    [issues]
+    # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open
+    # issues. Override per org ([orgs.<org>] issues = "all") or per repo ([repos."org/name"] issues = "involved");
+    # the most specific wins. w in Issues (I in Repos) flips the repo under the cursor.
+    default = "involved"
+
     [tools]
     # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
     # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.
@@ -348,6 +371,7 @@ public enum ConfigLoader {
     # Org and repo colors: teal, pink, lime, orange, periwinkle, sky. Repos inherit their org's.
     # [orgs.elastic]
     # color = "teal"
+    # issues = "all"
 
     # Pinned tasks per repo, each run in its own pane; the exit code sets the tab's glyph.
     # [repos."elastic/docs-builder".tasks]

@@ -16,17 +16,20 @@ public enum GitHub {
 
     // MARK: Sync
 
-    /// One full sync: viewer, notifications, your open PRs (plus `tracked` ones), and issues assigned to you, fetched
-    /// concurrently. Throws only when gh itself is unusable (missing, signed out, offline).
+    /// One full sync: viewer, notifications, your open PRs (plus `tracked` ones), and issues (those involving you,
+    /// plus every open one in repos `rules` shows all of), fetched concurrently. Throws only when gh itself is unusable
+    /// (missing, signed out, offline).
     public static func sync(
         tracked: [PullRef],
         previous _: GitHubState,
+        issueRules: IssueRules = IssueRules(),
+        localRepos: [Repo] = [],
         now: Date = Date()
     ) async throws -> GitHubState {
         async let viewer = viewer()
         async let inbox = notifications()
         async let pulls = pullRequests(tracked: tracked)
-        async let issues = assignedIssues()
+        async let issues = issues(rules: issueRules, local: localRepos)
         let login = try await viewer
         let fetchedInbox = try await inbox
         let fetchedPulls = try await pulls
@@ -67,10 +70,63 @@ public enum GitHub {
         return Fetched(value: pulls.sorted { $0.updatedAt > $1.updatedAt }, hidden: hidden)
     }
 
-    public static func assignedIssues() async throws -> Fetched<[Issue]> {
-        let data = try await graphql(issueSearchQuery, variables: ["q": "is:open is:issue assignee:@me archived:false"])
-        let (issues, hidden) = parseIssueSearch(data)
-        return Fetched(value: issues, hidden: hidden)
+    /// Issues assigned to you or mentioning you, anywhere, plus every open issue in the repos `rules` shows all of.
+    public static func issues(rules: IssueRules, local: [Repo]) async throws -> Fetched<[Issue]> {
+        let base = "is:open is:issue archived:false"
+        async let assigned = search("\(base) assignee:@me")
+        async let mentioned = search("\(base) mentions:@me")
+        var watched: [([Issue], Int)] = []
+        for query in watchQueries(base: base, qualifiers: rules.watchQualifiers(local: local)) {
+            try await watched.append(search(query))
+        }
+        let (mine, mineHidden) = try await assigned
+        let (mentions, mentionsHidden) = try await mentioned
+        let merged = mergeIssues(
+            assigned: mine, mentioned: mentions,
+            watched: watched.flatMap(\.0).filter { rules.visibility($0.repo) == .all }
+        )
+        return Fetched(value: merged, hidden: mineHidden + mentionsHidden + watched.map(\.1).reduce(0, +))
+    }
+
+    private static func search(_ query: String) async throws -> ([Issue], Int) {
+        try await parseIssueSearch(graphql(issueSearchQuery, variables: ["q": "\(query) sort:updated-desc"]))
+    }
+
+    /// GitHub caps a search query at 256 characters, so qualifiers are split over several queries (at most 8).
+    static func watchQueries(base: String, qualifiers: [String], limit: Int = 230) -> [String] {
+        var queries: [String] = []
+        var current: [String] = []
+        for qualifier in qualifiers {
+            let candidate = ([base] + current + [qualifier]).joined(separator: " ")
+            if candidate.count > limit, !current.isEmpty {
+                queries.append(([base] + current).joined(separator: " "))
+                current = []
+            }
+            current.append(qualifier)
+        }
+        if !current.isEmpty { queries.append(([base] + current).joined(separator: " ")) }
+        return Array(queries.prefix(8))
+    }
+
+    /// One entry per issue, flagged with how it involves you; newest first.
+    static func mergeIssues(assigned: [Issue], mentioned: [Issue], watched: [Issue]) -> [Issue] {
+        var byID: [String: Issue] = [:]
+        for var issue in watched {
+            issue.assigned = false
+            issue.mentioned = false
+            byID[issue.id] = issue
+        }
+        for issue in mentioned {
+            var merged = byID[issue.id] ?? issue
+            merged.mentioned = true
+            byID[issue.id] = merged
+        }
+        for issue in assigned {
+            var merged = byID[issue.id] ?? issue
+            merged.assigned = true
+            byID[issue.id] = merged
+        }
+        return byID.values.sorted { $0.updatedAt == $1.updatedAt ? $0.id < $1.id : $0.updatedAt > $1.updatedAt }
     }
 
     /// Marks a notification thread read.

@@ -161,6 +161,21 @@ private struct GeneralSettings: View {
                 }
                 .frame(width: 160)
             }
+            Field(
+                label: "Issues",
+                detail: "For orgs and repos without their own setting: every open issue, or only yours (assigned or mentioning you)."
+            ) {
+                Picker("", selection: Binding(
+                    get: { model.config.issues.fallback },
+                    set: { model.setConfig(["issues", "default"], .string($0.rawValue)) }
+                )) {
+                    Text("All issues").tag(IssueVisibility.all)
+                    Text("Only yours").tag(IssueVisibility.involved)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 220)
+            }
             Field(label: "git", detail: "Empty detects it. A path, or a name looked up on the search path.") {
                 ConfigTextField(path: ["tools", "git"], value: model.config.tools.git)
             }
@@ -243,7 +258,7 @@ private struct ColorSettings: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Repos & colors").font(Theme.ui(17, weight: .semibold))
             Text(
-                "Each org has a color; repos inherit it. Colors never use the state hues, so a chip is never mistaken for a status."
+                "Each org has a color; repos inherit it. Colors never use the state hues, so a chip is never mistaken for a status. Issues: all open issues of the org's repos, or only those assigned to you or mentioning you; a repo can differ (w in Issues, I in Repos)."
             )
             .font(Theme.ui(12))
             .foregroundStyle(Theme.fg3)
@@ -260,8 +275,19 @@ private struct ColorSettings: View {
                             .onTapGesture { model.setConfig(["orgs", org, "color"], .string(palette.rawValue)) }
                     }
                     Spacer()
+                    Picker("", selection: Binding(
+                        get: { model.config.issues.orgs[org] ?? model.config.issues.fallback },
+                        set: { model.setConfig(["orgs", org, "issues"], .string($0.rawValue)) }
+                    )) {
+                        Text("All issues").tag(IssueVisibility.all)
+                        Text("Only yours").tag(IssueVisibility.involved)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 190)
                     Text("\(model.repos.count { $0.repo.org == org }) repos").font(Theme.ui(11.5))
                         .foregroundStyle(Theme.fg3)
+                        .frame(width: 64, alignment: .trailing)
                 }
             }
             if orgs.isEmpty {

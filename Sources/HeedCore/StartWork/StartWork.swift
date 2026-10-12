@@ -8,6 +8,8 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var repoRoots: [String]
     public var agents: [AgentProfile]
     public var defaultAgent: String
+    /// Branch prefixes picked from the prompt's first word (`[worktrees.prefixes]`).
+    public var prefixes: BranchPrefixes = .default
     /// Pinned tasks per repo slug (`[repos."org/name".tasks]`), opened as tabs in new sessions.
     public var tasks: [String: [TaskSpec]] = [:]
     /// On launch: ask which sessions to resume, resume them all, or none.
@@ -32,8 +34,40 @@ public struct WorkSettings: Hashable, Sendable, Codable {
 
     public func agent(_ name: String) -> AgentProfile? { agents.first { $0.name == name } }
 
+    /// `<root>/<repo>/<branch with / as ->`: `fix/broken-anchors` lives in `fix-broken-anchors`.
     public func worktreePath(repo: Repo, name: String) -> String {
-        "\(Paths.expand(worktreeRoot))/\(repo.name)/\(name)"
+        "\(Paths.expand(worktreeRoot))/\(repo.name)/\(name.replacingOccurrences(of: "/", with: "-"))"
+    }
+}
+
+/// Branch prefixes: a prompt starting with one of a prefix's words gets that prefix (`fix/…`), else `defaultPrefix`.
+public struct BranchPrefixes: Hashable, Sendable, Codable {
+    /// Prefix → the first words that pick it, in order.
+    public var prefixes: [String: [String]]
+    /// Used when no word matches; empty means no prefix.
+    public var defaultPrefix: String
+
+    public init(prefixes: [String: [String]], defaultPrefix: String) {
+        self.prefixes = prefixes
+        self.defaultPrefix = defaultPrefix
+    }
+
+    public static let `default` = BranchPrefixes(
+        prefixes: [
+            "fix": ["fix", "bug", "broken", "crash", "repair", "resolve"],
+            "bump": ["bump", "upgrade", "update"],
+            "chore": ["chore", "cleanup", "tidy", "remove", "rename"],
+            "refactor": ["refactor", "restructure", "simplify"],
+            "docs": ["docs", "doc", "document", "readme"],
+            "test": ["test", "tests", "cover"],
+            "perf": ["perf", "speed", "optimize", "faster"],
+            "feature": ["add", "implement", "support", "create", "introduce", "build", "feature"],
+        ],
+        defaultPrefix: "feature"
+    )
+
+    public func prefix(forWord word: String) -> String? {
+        prefixes.keys.sorted().first { prefixes[$0]?.contains(word) == true }
     }
 }
 
@@ -124,8 +158,32 @@ public enum StartWork {
 
     /// A branch-safe worktree name from the prompt's first meaningful words: "Fix broken anchors in redirects.yml"
     /// becomes `fix-broken-anchors-redirects`.
+    /// A branch name from the prompt: a prefix picked by its first word (`fix/`, `bump/`, `feature/`, ...), then its
+    /// first meaningful words. "Fix broken anchors in redirects.yml" becomes `fix/broken-anchors-redirects`.
+    public static func branchName(
+        for prompt: String,
+        prefixes: BranchPrefixes = .default,
+        maxWords: Int = 4
+    ) -> String {
+        let words = slugWords(prompt)
+        guard let first = words.first else { return name(for: prompt, maxWords: maxWords) }
+        if let prefix = prefixes.prefix(forWord: first) {
+            let rest = words.dropFirst().prefix(maxWords).joined(separator: "-")
+            return rest.isEmpty ? "\(prefix)/\(first)" : "\(prefix)/\(String(rest.prefix(48)))"
+        }
+        return prefixes.defaultPrefix.isEmpty
+            ? name(for: prompt, maxWords: maxWords)
+            : "\(prefixes.defaultPrefix)/\(name(for: prompt, maxWords: maxWords))"
+    }
+
     public static func name(for prompt: String, maxWords: Int = 4) -> String {
-        let words = prompt.lowercased()
+        let words = slugWords(prompt)
+        let name = words.prefix(maxWords).joined(separator: "-")
+        return name.isEmpty ? "work-\(Int(Date().timeIntervalSince1970) % 100_000)" : String(name.prefix(48))
+    }
+
+    static func slugWords(_ prompt: String) -> [String] {
+        prompt.lowercased()
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "." })
             .map { word -> String in
                 // `redirects.yml` → `redirects`; keep version-like words (`0.17`) whole.
@@ -136,8 +194,6 @@ public enum StartWork {
                 return String(word).replacingOccurrences(of: ".", with: "-")
             }
             .filter { !$0.isEmpty && !stopWords.contains($0) }
-        let name = words.prefix(maxWords).joined(separator: "-")
-        return name.isEmpty ? "work-\(Int(Date().timeIntervalSince1970) % 100_000)" : String(name.prefix(48))
     }
 
     // MARK: Guessing repos

@@ -120,7 +120,7 @@ struct StartWorkView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .frame(width: 300)
+                .frame(width: 380)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
                 .overlay(RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(form.field == .worktree ? Theme.fg2 : Theme.line))

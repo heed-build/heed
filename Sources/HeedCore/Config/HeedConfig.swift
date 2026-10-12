@@ -146,6 +146,16 @@ public enum ConfigLoader {
         // [worktrees]
         if let root = string(["worktrees", "root"]) { config.work.worktreeRoot = root }
         if let roots = strings(["worktrees", "repo_roots"]) { config.work.repoRoots = roots }
+        if let prefix = string(["worktrees", "default_prefix"]) { config.work.prefixes.defaultPrefix = prefix }
+        if let table = root.value(at: ["worktrees", "prefixes"])?.table {
+            var prefixes: [String: [String]] = [:]
+            for prefix in table.keys {
+                if let words = strings(["worktrees", "prefixes", prefix]) {
+                    prefixes[prefix] = words.map { $0.lowercased() }
+                }
+            }
+            config.work.prefixes.prefixes = prefixes
+        }
         // [sessions]
         if let agent = string(["sessions", "default_agent"]) { config.work.defaultAgent = agent }
         if let policy = string(["sessions", "resume_on_launch"]) {
@@ -273,6 +283,19 @@ public enum ConfigLoader {
     root = "~/code/wt"
     # Directories scanned (two levels deep) for repositories.
     repo_roots = ["~/Projects", "~/code"]
+    # Branches get a prefix picked by the prompt's first word ("Fix broken anchors" → fix/broken-anchors), else this.
+    # "" means no prefix. The worktree folder uses - for /.
+    default_prefix = "feature"
+
+    [worktrees.prefixes]
+    fix = ["fix", "bug", "broken", "crash", "repair", "resolve"]
+    bump = ["bump", "upgrade", "update"]
+    chore = ["chore", "cleanup", "tidy", "remove", "rename"]
+    refactor = ["refactor", "restructure", "simplify"]
+    docs = ["docs", "doc", "document", "readme"]
+    test = ["test", "tests", "cover"]
+    perf = ["perf", "speed", "optimize", "faster"]
+    feature = ["add", "implement", "support", "create", "introduce", "build", "feature"]
 
     [sessions]
     default_agent = "claude"

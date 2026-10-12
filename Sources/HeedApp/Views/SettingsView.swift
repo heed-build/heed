@@ -317,6 +317,28 @@ private struct CleanupSettings: View {
     }
 }
 
+/// A comma-separated list of words, written as a TOML array.
+private struct WordsField: View {
+    @Environment(AppModel.self) private var model
+    let path: [String]
+    let words: [String]
+    @State private var text = ""
+
+    var body: some View {
+        TextField("", text: $text)
+            .textFieldStyle(.roundedBorder)
+            .font(Theme.mono(12))
+            .onAppear { text = words.joined(separator: ", ") }
+            .onChange(of: words) { text = words.joined(separator: ", ") }
+            .onSubmit {
+                let list = text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+                    .filter { !$0.isEmpty }
+                guard list != words else { return }
+                model.setConfig(path, .array(list.map { .string($0) }))
+            }
+    }
+}
+
 private struct RootsField: View {
     @Environment(AppModel.self) private var model
     let roots: [String]

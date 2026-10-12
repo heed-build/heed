@@ -43,6 +43,7 @@ public struct StartWorkForm: Sendable {
 
     private let repos: [RepoRecord]
     private let history: [Session]
+    private let prefixes: BranchPrefixes
     private let sessionID = UUID().uuidString.lowercased()
     private let integration: IntegrationFiles?
     private var nameEdited = false
@@ -54,6 +55,7 @@ public struct StartWorkForm: Sendable {
     ) {
         self.repos = repos
         self.history = history
+        prefixes = settings.prefixes
         self.integration = integration
         agents = settings.agents.map(Optional.some) + [nil]
         agentIndex = settings.agents.firstIndex { $0.name == settings.defaultAgent } ?? 0
@@ -233,7 +235,10 @@ public struct StartWorkForm: Sendable {
         prompt = text
         guesses = StartWork.guessRepos(for: text, in: repos, history: history)
         if !nameEdited {
-            name = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : StartWork.name(for: text)
+            name = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : StartWork.branchName(
+                for: text,
+                prefixes: prefixes
+            )
         }
         if !reposTouched {
             // The top guess, plus every repo the prompt names outright.

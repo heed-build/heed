@@ -64,6 +64,18 @@ struct StartWorkTests {
         #expect(StartWork.name(for: "The, a: of!").hasPrefix("work-"))
     }
 
+    @Test func branchNamesGetAPrefixFromTheFirstWord() {
+        #expect(StartWork.branchName(for: "Fix broken anchors in redirects.yml") == "fix/broken-anchors-redirects")
+        #expect(StartWork.branchName(for: "Bump spec tests to 0.17") == "bump/spec-tests-0-17")
+        #expect(StartWork.branchName(for: "Add link validation to assembler") == "feature/link-validation-assembler")
+        #expect(StartWork.branchName(for: "Sequence diagram arrowheads") == "feature/sequence-diagram-arrowheads")
+        let none = BranchPrefixes(prefixes: ["fix": ["fix"]], defaultPrefix: "")
+        #expect(StartWork
+            .branchName(for: "Sequence diagram arrowheads", prefixes: none) == "sequence-diagram-arrowheads")
+        #expect(WorkSettings(worktreeRoot: "/wt")
+            .worktreePath(repo: Repo(org: "o", name: "r"), name: "fix/a-b") == "/wt/r/fix-a-b")
+    }
+
     @Test func guessesNamedReposFirstWithReasons() {
         let records = ["docs-builder", "docs-content", "mermaider"].map {
             RepoRecord(repo: Repo(org: "elastic", name: $0), path: "/code/\($0)")
@@ -209,7 +221,7 @@ struct StartWorkFormTests {
     @Test func typingGuessesReposAndNamesTheWorktree() {
         var form = StartWorkForm(repos: records, history: [], settings: .default)
         type("Fix anchors in docs-builder and docs-content", into: &form)
-        #expect(form.name == "fix-anchors-docs-builder")
+        #expect(form.name == "fix/anchors-docs-builder-docs")
         #expect(form.selectedRepos == ["elastic/docs-builder", "elastic/docs-content"])
         #expect(form.plan.command == "claude 'Fix anchors in docs-builder and docs-content'")
     }

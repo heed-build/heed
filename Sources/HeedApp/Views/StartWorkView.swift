@@ -11,11 +11,13 @@ struct StartWorkView: View {
             GeometryReader { geometry in
                 ZStack {
                     Color.black.opacity(0.55)
-                    // Up to the design's 780pt, never wider than the window allows; tall content scrolls.
+                    // Up to the design's 780pt wide, never wider than the window; the prompt grows with what is typed
+                    // up to a cap and scrolls past it, and the whole dialog scrolls only if the window is very short.
                     ScrollView {
-                        dialog(form)
+                        dialog(form, promptCap: max(96, min(320, geometry.size.height * 0.35)))
                             .frame(width: min(780, max(geometry.size.width - 48, 360)))
                             .padding(.vertical, 24)
+                            .frame(minHeight: geometry.size.height)
                     }
                     .scrollIndicators(.never)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -24,7 +26,7 @@ struct StartWorkView: View {
         }
     }
 
-    private func dialog(_ form: StartWorkForm) -> some View {
+    private func dialog(_ form: StartWorkForm, promptCap: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Start work").font(Theme.ui(15, weight: .semibold))
@@ -37,7 +39,7 @@ struct StartWorkView: View {
             .font(Theme.ui(12))
             .padding(20)
 
-            promptBox(form).padding(.horizontal, 20).padding(.bottom, 16)
+            promptBox(form, cap: promptCap).padding(.horizontal, 20).padding(.bottom, 16)
             section("Repo", .repo, form) { repoField(form) }
             section("Worktree", .worktree, form) { worktreeField(form) }
             section("Agent", .agent, form) { agentField(form) }
@@ -51,17 +53,22 @@ struct StartWorkView: View {
         .shadow(color: .black.opacity(0.5), radius: 30)
     }
 
-    private func promptBox(_ form: StartWorkForm) -> some View {
+    private func promptBox(_ form: StartWorkForm, cap: CGFloat) -> some View {
         let active = form.field == .prompt
-        return HStack(alignment: .top, spacing: 0) {
+        // Grows with the text up to `cap`, then scrolls, kept at the end where the typing happens.
+        return ScrollView {
             (Text(form.prompt.isEmpty && !active ? "Describe the task…" : form.prompt)
                 .foregroundStyle(form.prompt.isEmpty ? Theme.fg3 : Theme.fg)
                 + Text(active && form.editing ? "▌" : "").foregroundStyle(Theme.done))
                 .font(Theme.mono(13))
                 .lineSpacing(4)
                 .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+                .padding(14)
         }
-        .padding(14)
+        .defaultScrollAnchor(.bottom)
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(minHeight: 92, maxHeight: cap)
+        .fixedSize(horizontal: false, vertical: true)
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.pane))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(active ? Theme.fg2 : Theme.line))
     }
@@ -85,7 +92,7 @@ struct StartWorkView: View {
     private func repoField(_ form: StartWorkForm) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             FlowLayout {
-                ForEach(Array(form.guesses.prefix(6).enumerated()), id: \.element.repo.id) { index, guess in
+                ForEach(Array(form.repoChoices.enumerated()), id: \.element.repo.id) { index, guess in
                     let selected = form.selectedRepos.contains(guess.repo.id)
                     let primary = form.selectedRepos.first == guess.repo.id
                     choice(
@@ -95,7 +102,15 @@ struct StartWorkView: View {
                         focused: form.field == .repo && form.repoCursor == index
                     )
                 }
+                if form.repoSearch == nil, !form.guesses.isEmpty {
+                    choice(
+                        "other repo…", detail: "/", selected: false,
+                        focused: form.field == .repo && form.repoCursor == form.repoChoices.count
+                    )
+                    .opacity(0.85)
+                }
             }
+            if let search = form.repoSearch { repoSearch(search) }
             if form.guesses.isEmpty {
                 Text("No repos known yet: they appear once the repo scan finishes.").foregroundStyle(Theme.fg3)
             } else if let reason = form.guesses.first(where: { form.selectedRepos.first == $0.repo.id })?.reason,
@@ -105,6 +120,41 @@ struct StartWorkView: View {
             }
         }
         .font(Theme.ui(12))
+    }
+
+    /// Any repo by name: what is typed, then the best matches (most worktrees first), the cursor on one.
+    private func repoSearch(_ search: Typeahead<RepoRecord>) -> some View {
+        let matches = search.matches
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
+                Text(search.query + "▌").font(Theme.mono(12.5))
+                Spacer()
+                Text("\(matches.count) of \(search.items.count)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+            ForEach(Array(matches.prefix(8).enumerated()), id: \.element.id) { index, record in
+                HStack(spacing: 8) {
+                    OrgTile(org: record.repo.org, color: record.repo.color, size: 14)
+                    Text(record.repo.slug).font(Theme.mono(12)).lineLimit(1)
+                    Spacer()
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(index == search.cursor ? Theme.bg3 : .clear)
+            }
+            if matches.count > 8 {
+                Text("\(matches.count - 8) more: keep typing").font(Theme.ui(11)).foregroundStyle(Theme.fg3)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+            }
+            Text("⌃n ⌃p move · ↩ add · ⎋ close").font(Theme.ui(11)).foregroundStyle(Theme.fg3)
+                .padding(.horizontal, 10).padding(.vertical, 6)
+        }
+        .frame(maxWidth: 460, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.fg2))
     }
 
     private func worktreeField(_ form: StartWorkForm) -> some View {

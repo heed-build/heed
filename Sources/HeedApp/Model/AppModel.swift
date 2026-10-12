@@ -795,6 +795,10 @@ final class AppModel {
             answerConfirmation(stroke)
             return true
         }
+        if importPicker != nil {
+            answerImportPicker(stroke)
+            return true
+        }
         if firstRun != nil {
             if stroke == KeyStroke("CR") || stroke == KeyStroke("CR", .command) || stroke == .escape {
                 firstRun = nil
@@ -903,6 +907,7 @@ final class AppModel {
         case "session.park": updateCurrent { $0.parked.toggle() }
         case "session.close": confirmClose()
         case "session.delete": confirmDelete()
+        case "session.import": openImportPicker()
         case "session.back": goBack()
         case "pin.jump": jumpToPin(Int(command.arguments.first ?? "") ?? 1)
         case "work.start": openStartWork(prompt: command.arguments.joined(separator: " "))
@@ -1128,6 +1133,8 @@ final class AppModel {
         /// What will be left alone, and why.
         var kept: [String] = []
         var accept: String
+        /// Red accept button for removals; neutral for the rest.
+        var destructive = true
         var action: @MainActor () -> Void
     }
 
@@ -1295,20 +1302,112 @@ final class AppModel {
         modeChanged(from: .visual)
     }
 
+    /// `↩` in Repos (`o` in VISUAL): a worktree with a session jumps to it; ones without are imported as sessions,
+    /// resuming the agent session kept there when there is one. Asks first, showing what each will resume.
     private func openSelected() {
-        guard let row = actionRows.first else { return }
-        engine.enter(.normal)
-        modeChanged(from: .visual)
-        if let session = session(for: row) {
-            view = .sessions
-            select(sessionID: session.id)
-        } else {
-            flash = "no session for \(row.branch ?? row.path)"
+        let rows = actionRows
+        if mode == .visual {
+            engine.enter(.normal)
+            modeChanged(from: .visual)
+        }
+        openOrImport(rows)
+    }
+
+    // MARK: Import picker
+
+    /// `I` in Sessions: pick a worktree without a session (main checkouts included) to import.
+    private(set) var importPicker: Typeahead<Worktree>?
+
+    private func openImportPicker() {
+        let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
+        let candidates = worktrees.filter { session(for: $0) == nil }.sorted {
+            if $0.isMain != $1.isMain { return !$0.isMain }
+            return $0.repo.slug == $1.repo.slug ? $0.path < $1.path
+                : (rank[$0.repo.slug] ?? .max, $0.repo.slug) < (rank[$1.repo.slug] ?? .max, $1.repo.slug)
+        }
+        guard !candidates.isEmpty else {
+            flash = "every worktree already has a session"
+            return
+        }
+        importPicker = Typeahead(items: candidates) { [$0.repo.slug, $0.branch ?? "", $0.path] }
+    }
+
+    private func answerImportPicker(_ stroke: KeyStroke) {
+        guard var picker = importPicker else { return }
+        switch picker.handle(stroke) {
+        case .handled: importPicker = picker
+        case .cancel: importPicker = nil
+        case let .picked(worktree):
+            importPicker = nil
+            openOrImport([worktree])
         }
     }
 
-    /// `d` in Repos: removes the selected worktrees now, with the sweep's safety: dirty or unpushed work and pinned
-    /// sessions' worktrees are skipped.
+    func pickImport(_ worktree: Worktree) {
+        importPicker = nil
+        openOrImport([worktree])
+    }
+
+    func cancelImportPicker() { importPicker = nil }
+
+    private func openOrImport(_ rows: [Worktree]) {
+        guard !rows.isEmpty else { return }
+        let missing = rows.filter { session(for: $0) == nil }
+        if missing.isEmpty, let session = session(for: rows[0]) {
+            view = .sessions
+            select(sessionID: session.id)
+            return
+        }
+        guard !isFixture else {
+            flash = "fixture: no IO"
+            return
+        }
+        let defaultAgent = settings.agent(settings.defaultAgent)
+        flash = "looking for agent sessions…"
+        Task {
+            let found = await Task.detached(priority: .userInitiated) {
+                missing.map { ($0, Import.claudeSessions(directory: $0.path).first) }
+            }.value
+            flash = nil
+            let lines = found.map { worktree, agentSession -> String in
+                let name = "\(worktree.repo.name)/\(worktree.branch ?? worktree.head)"
+                guard let agentSession else { return "\(name): starts \(defaultAgent?.name ?? "a shell") fresh" }
+                let age = agentSession.modified.formatted(.relative(presentation: .named))
+                let prompt = agentSession.prompt.map { " · “\($0.prefix(50))”" } ?? ""
+                return "\(name): resumes the claude session from \(age)\(prompt)"
+            }
+            ask(Confirmation(
+                title: found
+                    .count == 1 ? "Import this worktree as a session?" : "Import \(found.count) worktrees as sessions?",
+                lines: lines,
+                accept: "Import",
+                destructive: false
+            ) { [weak self] in self?.importWorktrees(found, defaultAgent: defaultAgent) })
+        }
+    }
+
+    private func importWorktrees(_ found: [(Worktree, Import.AgentSession?)], defaultAgent: AgentProfile?) {
+        var firstID: String?
+        for (worktree, agentSession) in found {
+            let agent = agentSession.flatMap { settings.agent($0.agent) } ?? defaultAgent
+            let changes = Import.session(for: worktree, agent: agent, resume: agentSession, integration: integration)
+            for case let .layoutChanged(_, layout) in changes {
+                for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
+                    TerminalSurfaces.shared.autostartPanes.insert(pane.id)
+                }
+            }
+            for case let .sessionUpserted(session) in changes where firstID == nil {
+                firstID = session.id
+            }
+            commit(changes)
+        }
+        view = .sessions
+        if let firstID { select(sessionID: firstID) }
+        if let tab = currentTab, let agent = tab.tree.panes.first(where: { $0.role == .agent }) { focusPane(agent.id) }
+        enterInsert()
+        flash = "imported \(found.count) session\(found.count == 1 ? "" : "s")"
+    }
+
     /// Which of `rows` can go (clean, pushed, not pinned) and why the rest stay.
     private func planRemoval(_ rows: [Worktree], sessionsFollow: Bool = true) -> (
         removals: [SweepPlan.Removal], kept: [String]

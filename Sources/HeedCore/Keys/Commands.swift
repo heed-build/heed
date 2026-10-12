@@ -35,6 +35,7 @@ public enum Commands {
         .init("session.park", "park session", .move),
         .init("session.close", "close session, keep worktree", .move),
         .init("session.delete", "delete session and its worktrees (asks first)", .move),
+        .init("session.import", "import a worktree as a session, resuming its agent session", .move),
         .init("session.pin", "pin / unpin session", .move),
         .init("session.back", "back to previous session", .move),
         .init("pin.jump", "jump to pinned session", .move, arguments: "<1-9>"),
@@ -126,7 +127,7 @@ public enum Commands {
         .init("select.remove", "remove the selected worktrees, or the one under the cursor (asks first)", .selection),
         .init("select.pin", "pin selected", .selection),
         .init("select.copy", "copy paths", .selection),
-        .init("select.open", "open selected", .selection),
+        .init("select.open", "open the worktree's session, importing it when it has none", .selection),
     ]
 
     public static let byName: [String: CommandSpec] = Dictionary(uniqueKeysWithValues: all.map { ($0.name, $0) })

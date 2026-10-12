@@ -56,6 +56,9 @@ struct MainWindow: View {
             if model.resume != nil { ResumeView() }
         }
         .overlay {
+            if let picker = model.importPicker { ImportPickerView(picker: picker) }
+        }
+        .overlay {
             if let confirmation = model.confirmation { ConfirmationView(confirmation: confirmation) }
         }
         .overlay {
@@ -192,8 +195,10 @@ struct TitleBar: View {
 
     /// The views as names with their key (`Inbox 7 gm`); narrow windows drop the keys, never the names.
     private func views(compact: Bool) -> some View {
-        HStack(spacing: 2) {
-            ForEach(AppView.allCases) { view in
+        HStack(spacing: 4) {
+            ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
+                // A hairline between views: separate without boxing them in.
+                if index > 0 { Theme.line.frame(width: 1, height: 14) }
                 ViewTab(
                     view: view,
                     active: model.view == view,
@@ -320,6 +325,7 @@ struct StatusBar: View {
     private var hints: String {
         switch model.mode {
         case .normal where model.confirmation != nil: "y or ↩ confirm · n, ⎋ or q cancel"
+        case .normal where model.importPicker != nil: "type to filter · ⌃n ⌃p move · ↩ import · ⎋ cancel"
         case .normal where model.filtering: "words match anywhere · ⌃w word · ⌃u clear · ↩ keep · ⎋ clear"
         case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
         case .normal where model.issueReader != nil: "s start session · a add to session · gB browser · ⎋ back"
@@ -408,7 +414,7 @@ struct ConfirmationView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(confirmation.lines, id: \.self) { line in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text("·").foregroundStyle(Theme.err)
+                            Text("·").foregroundStyle(confirmation.destructive ? Theme.err : Theme.fg3)
                             Text(line).fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -442,7 +448,8 @@ struct ConfirmationView: View {
                     .foregroundStyle(Theme.ink)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(Theme.err))
+                    .background(RoundedRectangle(cornerRadius: 6)
+                        .fill(confirmation.destructive ? Theme.err : Theme.inverse))
                     .contentShape(Rectangle())
                     .onTapGesture { model.acceptConfirmation() }
                 }
@@ -452,6 +459,76 @@ struct ConfirmationView: View {
             .frame(width: 480)
             .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
+            .shadow(color: .black.opacity(0.5), radius: 30)
+        }
+    }
+}
+
+/// `I` in Sessions: worktrees without a session (main checkouts last), narrowed as you type; ↩ imports one.
+struct ImportPickerView: View {
+    @Environment(AppModel.self) private var model
+    let picker: Typeahead<Worktree>
+
+    var body: some View {
+        let matches = picker.matches
+        ZStack {
+            Color.black.opacity(0.5)
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Import a worktree as a session").font(Theme.ui(15, weight: .semibold))
+                    Text("Resumes the agent session kept there when there is one; else starts the agent fresh.")
+                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                }
+                .padding(18)
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
+                    Text(picker.query + "▌").font(Theme.mono(12.5))
+                    Spacer()
+                    Text("\(matches.count) of \(picker.items.count)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+                .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(matches.enumerated()), id: \.element.id) { index, worktree in
+                                HStack(spacing: 10) {
+                                    RepoChip(repo: worktree.repo).fixedSize()
+                                    Text(worktree.branch ?? "detached \(worktree.head)").font(Theme.mono(12.5))
+                                        .lineLimit(1)
+                                    if worktree
+                                        .isMain { Text("main checkout").font(Theme.ui(11)).foregroundStyle(Theme.fg3) }
+                                    Spacer()
+                                    Text(Paths.abbreviate(worktree.path)).font(Theme.mono(11))
+                                        .foregroundStyle(Theme.fg3)
+                                        .lineLimit(1).truncationMode(.head)
+                                }
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 8)
+                                .background(index == picker.cursor ? Theme.bg3 : .clear)
+                                .contentShape(Rectangle())
+                                .onTapGesture { model.pickImport(worktree) }
+                                .id(index)
+                            }
+                        }
+                    }
+                    .onChange(of: picker.cursor) { proxy.scrollTo(picker.cursor) }
+                }
+                .frame(maxHeight: 380)
+                HStack {
+                    Text("⌃n ⌃p move · ↩ import · ⎋ cancel").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                    Spacer()
+                }
+                .padding(14)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+            }
+            .frame(width: 640)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.5), radius: 30)
         }
     }

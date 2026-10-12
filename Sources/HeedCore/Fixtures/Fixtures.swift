@@ -83,6 +83,18 @@ public enum Fixtures {
             }
             layouts[session.id] = SessionLayout(tabs: tabs(for: session, root: root))
         }
+        // Worktrees made outside Heed, with no session yet: what `I` in Sessions imports.
+        worktrees += [
+            Worktree(
+                repo: docsBuilder, path: "\(root)/wt/docs-builder/toc-ordering", branch: "toc-ordering",
+                head: "0000000", isMain: false, status: WorktreeStatus(upstream: "origin/toc-ordering")
+            ),
+            Worktree(
+                repo: mermaider, path: "\(root)/wt/mermaider/gantt-labels", branch: "gantt-labels", head: "0000000",
+                isMain: false, status: WorktreeStatus(upstream: nil)
+            ),
+            Worktree(repo: ingest, path: "\(root)/ingest", branch: "main", head: "0000000", isMain: true),
+        ]
         let detail = pullDetail
         var pipeline = PullFeedback(ref: detail.ref)
         pipeline.merge(detail)

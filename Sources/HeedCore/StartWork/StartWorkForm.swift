@@ -40,6 +40,20 @@ public struct StartWorkForm: Sendable {
     public private(set) var planFirst = false
     public private(set) var shellSplit = false
     public private(set) var error: String?
+    /// Picking any repo by name (the last chip in the repo field, or `/` there); nil when not searching.
+    public private(set) var repoSearch: Typeahead<RepoRecord>?
+
+    /// How many guesses get a chip of their own; the rest are a search away.
+    public static let chipCount = 6
+
+    /// The repo field's chips: the top guesses, plus anything picked from search that is not among them. The cursor
+    /// can also sit one past these, on the search chip.
+    public var repoChoices: [RepoGuess] {
+        let top = Array(guesses.prefix(Self.chipCount))
+        let extra = selectedRepos.filter { id in !top.contains { $0.repo.id == id } }
+            .compactMap { id in guesses.first { $0.repo.id == id } }
+        return top + extra
+    }
 
     private let repos: [RepoRecord]
     private let history: [Session]
@@ -98,6 +112,7 @@ public struct StartWorkForm: Sendable {
             }
             return .start(plan)
         }
+        if repoSearch != nil { return search(stroke) }
         if stroke == KeyStroke("n", .control) { return cycleGuess(by: 1) }
         if stroke == KeyStroke("p", .control) { return cycleGuess(by: -1) }
         if stroke.key == "Tab" {
@@ -157,8 +172,31 @@ public struct StartWorkForm: Sendable {
             if field == .prompt || field == .worktree { editing = true } else { toggle() }
         case KeyStroke("Space"):
             toggle()
+        case KeyStroke("/") where field == .repo:
+            openSearch()
         default:
             return .ignored
+        }
+        return .handled
+    }
+
+    private mutating func openSearch() {
+        let ranked = RepoOrder.sorted(repos, counts: worktreeCounts)
+        repoSearch = Typeahead(items: ranked) { [$0.repo.slug] }
+    }
+
+    private mutating func search(_ stroke: KeyStroke) -> Outcome {
+        guard var typeahead = repoSearch else { return .ignored }
+        switch typeahead.handle(stroke) {
+        case .handled:
+            repoSearch = typeahead
+        case .cancel:
+            repoSearch = nil
+        case let .picked(record):
+            repoSearch = nil
+            reposTouched = true
+            if !selectedRepos.contains(record.id) { selectedRepos.append(record.id) }
+            repoCursor = repoChoices.firstIndex { $0.repo.id == record.id } ?? repoCursor
         }
         return .handled
     }
@@ -185,8 +223,9 @@ public struct StartWorkForm: Sendable {
 
     private mutating func moveWithin(by delta: Int) {
         switch field {
-        case .repo where !guesses.isEmpty:
-            repoCursor = min(max(repoCursor + delta, 0), guesses.count - 1)
+        case .repo:
+            // The last stop is the search chip.
+            repoCursor = min(max(repoCursor + delta, 0), repoChoices.count)
         case .agent:
             agentIndex = ((agentIndex + delta) % agents.count + agents.count) % agents.count
         case .options:
@@ -198,9 +237,11 @@ public struct StartWorkForm: Sendable {
 
     private mutating func toggle() {
         switch field {
-        case .repo where guesses.indices.contains(repoCursor):
+        case .repo where repoCursor == repoChoices.count:
+            openSearch()
+        case .repo where repoChoices.indices.contains(repoCursor):
             reposTouched = true
-            let id = guesses[repoCursor].repo.id
+            let id = repoChoices[repoCursor].repo.id
             if let index = selectedRepos.firstIndex(of: id) {
                 selectedRepos.remove(at: index)
             } else {

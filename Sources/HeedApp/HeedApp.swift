@@ -6,6 +6,10 @@ import SwiftUI
 struct HeedApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
+    init() {
+        LaunchGuard.check()
+    }
+
     var body: some Scene {
         Window("Heed", id: "main") {
             MainWindow()

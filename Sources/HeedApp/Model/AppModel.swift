@@ -77,7 +77,7 @@ final class AppModel {
     let isFixture: Bool
     private var hookServer: HookServer?
     let integration = IntegrationFiles.default(
-        heedBinary: Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/heed").path
+        heedBinary: Helper.path ?? "true"
     )
     /// The latest hook events per session, newest first: shown in the inspector, not persisted (agents own history).
     private(set) var events: [String: [AgentEvent]] = [:]
@@ -191,10 +191,7 @@ final class AppModel {
     /// Starts from the cache, then refreshes from git. The window is already up showing whatever the cache holds.
     func start(cache file: URL) async {
         startConfig()
-        if !isFixture {
-            warmUpHelper()
-            await detectTools()
-        }
+        if !isFixture { await detectTools() }
         startHooks()
         let integration = integration
         Task.detached(priority: .utility) {
@@ -488,15 +485,6 @@ final class AppModel {
         if toolsChanged, !isFixture { Task { await detectTools() } }
         // Repos that now show all issues need fetching; ones that no longer do are hidden by issueRows right away.
         if issuesChanged, !isFixture, github.syncedAt != nil { Task { await syncGitHub() } }
-    }
-
-    /// Runs the bundled `heed` once at launch. macOS checks a new, unnotarized binary the first time it runs, which can
-    /// take seconds; better here than inside an agent's first hook, where it times out.
-    private func warmUpHelper() {
-        guard let helper = Bundle.main.url(forAuxiliaryExecutable: "heed")?.path else { return }
-        Task.detached(priority: .utility) {
-            _ = try? await ProcessRunner.run(helper, ["--help"], timeout: .seconds(60))
-        }
     }
 
     /// Finds git and gh (config, login shell PATH, usual places) and hands the search path to new panes.

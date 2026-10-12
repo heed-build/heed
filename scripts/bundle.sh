@@ -16,4 +16,9 @@ cp "$products/heed" "$app/Contents/Helpers/heed"
 sed "s/__VERSION__/$version/g" "$root/Resources/Info.plist" >"$app/Contents/Info.plist"
 codesign --force --sign - "$app/Contents/Helpers/heed"
 codesign --force --sign - "$app"
+# The helper must be the small CLI, never the app: hooks run it on every agent event.
+if ! "$app/Contents/Helpers/heed" --help 2>/dev/null | grep -q '^usage: heed'; then
+  echo "bundle: Contents/Helpers/heed is not the heed CLI" >&2
+  exit 1
+fi
 echo "bundle: $app ($version)"

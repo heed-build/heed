@@ -12,11 +12,10 @@
             let exists = fileManager.fileExists(atPath: pane.directory, isDirectory: &isDirectory) && isDirectory
                 .boolValue
             var env = environment
-            if let helpers = Bundle.main.url(forAuxiliaryExecutable: "heed")?.deletingLastPathComponent().path
-                ?? Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers").path as String?
-            {
+            if let helper = Helper.path {
+                let helpers = (helper as NSString).deletingLastPathComponent
                 env["PATH"] = "\(helpers):\(environment["PATH"] ?? ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin")"
-                env[HeedEnvironment.binary] = "\(helpers)/heed"
+                env[HeedEnvironment.binary] = helper
             }
             // A pane's command is typed into its shell only when its worktree exists, so a fixture or a cleaned-up
             // worktree opens a plain shell instead of starting an agent somewhere unexpected.

@@ -36,3 +36,9 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 7. PR overlay, reader, feedback queue, auto-feed.
 8. Diff overlay.
 9. Other agents, custom command, first run, empty and offline states, cleanup sweep, config file and Settings.
+
+## Open questions
+
+- **Leaving INSERT with Esc.** Today only `<C-\>` (configurable) leaves INSERT; Esc belongs to the terminal (claude's
+  interrupt, Esc Esc rewind, vim). Options weighed: Esc twice, Esc with `<C-\>` sending a real Esc, hold Esc. Parked
+  by the owner on 2026-10-12, to revisit.

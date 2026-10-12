@@ -11,7 +11,11 @@ struct HelpOverlay: View {
         (
             .insert,
             "Every key goes to the focused pty. Only the escape chord is caught.",
-            [("i", "enter on focused pane"), (KeyCapText.of(DefaultKeys.insertEscape), "leave (configurable)")]
+            [
+                ("i", "enter on focused pane"),
+                ("⇧⎋", "leave"),
+                (KeyCapText.of(DefaultKeys.insertEscape), "leave (configurable)"),
+            ]
         ),
         (
             .visual,

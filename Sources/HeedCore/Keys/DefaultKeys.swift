@@ -34,7 +34,7 @@ public enum DefaultKeys {
     ]
 
     public static let insert: [(String, String)] = [
-        (insertEscape, "mode.normal"), ("<D-/>", "overlay.help"),
+        (insertEscape, "mode.normal"), ("<S-Esc>", "mode.normal"), ("<D-/>", "overlay.help"),
     ]
 
     public static let command: [(String, String)] = [
@@ -108,7 +108,7 @@ public enum Keymaps {
             var keymap = Keymap()
             var table = DefaultKeys.table(for: mode)
             if mode == .insert {
-                table = table.map { $0.1 == "mode.normal" ? (insertEscape, "mode.normal") : $0 }
+                table = table.map { $0.0 == DefaultKeys.insertEscape ? (insertEscape, "mode.normal") : $0 }
             }
             for (notation, command) in table + (overrides[mode] ?? []) {
                 do {

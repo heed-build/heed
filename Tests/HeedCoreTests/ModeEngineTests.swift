@@ -209,3 +209,15 @@ struct HookCommandLineTests {
         #expect(reported.accepting(ObservedState(.done)).state == .done)
     }
 }
+
+struct InsertEscapeTests {
+    @Test func shiftEscapeLeavesInsertAndPlainEscapeReachesTheTerminal() {
+        let built = Keymaps.build(insertEscape: "<C-]>")
+        #expect(built.problems.isEmpty)
+        let insert = built.keymaps[.insert]
+        #expect(insert?.lookup([KeyStroke("Esc", .shift)]) == .command("mode.normal"))
+        #expect(insert?.lookup([KeyStroke("]", .control)]) == .command("mode.normal"))
+        #expect(insert?.lookup([KeyStroke("\\", .control)]) == Keymap.Lookup.none)
+        #expect(insert?.lookup([.escape]) == Keymap.Lookup.none)
+    }
+}

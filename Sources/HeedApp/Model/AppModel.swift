@@ -825,10 +825,6 @@ final class AppModel {
             return true
         }
         let before = engine.mode
-        if let used = countEscapeTap(stroke) {
-            if engine.mode != before { modeChanged(from: before) }
-            return used
-        }
         let outcome = engine.handle(stroke)
         switch outcome {
         case .terminal:
@@ -853,49 +849,6 @@ final class AppModel {
         }
         if engine.mode != before { modeChanged(from: before) }
         return true
-    }
-
-    // MARK: Escape taps
-
-    /// Escapes held back in INSERT while counting toward `escape_taps`.
-    private var heldEscapes = 0
-    private var escapeFlush: Task<Void, Never>?
-    /// How long a held Escape waits for the next tap before going to the terminal after all.
-    private static let escapeWindow: Duration = .milliseconds(300)
-
-    /// In INSERT, Escape tapped `escape_taps` times in a row leaves for NORMAL. Each tap is held back for a moment;
-    /// when the taps stop short, or another key arrives, the held ones are pressed in the terminal, in order, so the
-    /// agent still gets its Escape. Nil when the key is not part of this.
-    private func countEscapeTap(_ stroke: KeyStroke) -> Bool? {
-        guard engine.mode == .insert, config.escapeTaps >= 2 else { return nil }
-        guard stroke == .escape else {
-            flushEscapes()
-            return nil
-        }
-        heldEscapes += 1
-        escapeFlush?.cancel()
-        if heldEscapes >= config.escapeTaps {
-            heldEscapes = 0
-            engine.enter(.normal)
-            return true
-        }
-        escapeFlush = Task { [weak self] in
-            try? await Task.sleep(for: Self.escapeWindow)
-            guard !Task.isCancelled else { return }
-            self?.flushEscapes()
-        }
-        return true
-    }
-
-    private func flushEscapes() {
-        escapeFlush?.cancel()
-        escapeFlush = nil
-        let count = heldEscapes
-        heldEscapes = 0
-        guard count > 0, let pane = currentTab?.focused else { return }
-        for _ in 0 ..< count {
-            TerminalSurfaces.shared.pressEscape(paneID: pane)
-        }
     }
 
     private func modeChanged(from previous: Mode) {

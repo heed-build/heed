@@ -6,8 +6,6 @@ import Foundation
 public struct HeedConfig: Equatable, Sendable {
     public var work: WorkSettings
     public var insertEscape: String
-    /// Escape pressed this many times in a row leaves INSERT (`escape_taps`); 0 turns it off.
-    public var escapeTaps = 3
     /// `[keys.normal]`, `[keys.visual]`, ...: overrides laid over the defaults.
     public var keys: [Mode: [(String, String)]]
     /// `[keys.repos]`, `[keys.inbox]`, ...: per-view overrides.
@@ -45,8 +43,7 @@ public struct HeedConfig: Equatable, Sendable {
         func flat(_ table: [String: [(String, String)]]) -> [String] {
             table.sorted { $0.key < $1.key }.flatMap { scope, pairs in pairs.map { "\(scope):\($0)=\($1)" } }
         }
-        return lhs.work == rhs.work && lhs.insertEscape == rhs.insertEscape && lhs.escapeTaps == rhs
-            .escapeTaps && flat(lhs.keys) == flat(rhs.keys)
+        return lhs.work == rhs.work && lhs.insertEscape == rhs.insertEscape && flat(lhs.keys) == flat(rhs.keys)
             && flat(lhs.scopedKeys) == flat(rhs.scopedKeys) && lhs.orgColors == rhs.orgColors && lhs.repos == rhs.repos
             && lhs.cleanup == rhs.cleanup && lhs.githubPollSeconds == rhs.githubPollSeconds && lhs.tools == rhs
             .tools && lhs.issues == rhs.issues
@@ -284,18 +281,9 @@ public enum ConfigLoader {
 
         // [keys]
         if let escape = string(["keys", "insert_escape"]) { config.insertEscape = escape }
-        if let taps = integer(["keys", "escape_taps"], range: 0 ... 5) {
-            if taps == 1 {
-                problems.append(ConfigProblem(
-                    path: "keys.escape_taps",
-                    message: "1 would take Escape from the terminal; use 0 (off) or 2 to 5"
-                ))
-            } else {
-                config.escapeTaps = taps
-            }
-        }
+
         if let keys = root.value(at: ["keys"])?.table {
-            for name in keys.keys where name != "insert_escape" && name != "escape_taps" {
+            for name in keys.keys where name != "insert_escape" {
                 let entries = pairs(["keys", name])
                 if let mode = Mode(rawValue: name) {
                     config.keys[mode] = entries
@@ -396,9 +384,7 @@ public enum ConfigLoader {
     [keys]
     # Leaves INSERT. It is also the terminal's quit signal, so pick something else if you need that.
     insert_escape = "<C-\\\\>"
-    # Escape tapped this many times in quick succession also leaves INSERT (0 turns it off). Taps are held back for a
-    # moment and sent on to the terminal when fewer arrive, so a single Escape still reaches the agent, just later.
-    escape_taps = 3
+    # Shift+Escape leaves INSERT too; a plain Escape always goes to the terminal. [keys.insert] "<S-Esc>" = "" unbinds.
 
     # Bindings per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.inbox], [keys.history],
     # [keys.diff], [keys.pr]), in vim notation, each naming a command (the same names : completes). "" unbinds.

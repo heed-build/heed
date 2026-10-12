@@ -327,9 +327,7 @@ struct StatusBar: View {
         case .normal where model.view == .issues: "space pick · s start session · go read · t filter · ⇥ repo · w all/yours · / filter"
         case .normal where model.view == .prs: "j k move · o open · gS session · r sync · / filter"
         case .normal: "i insert · o start work · go PR overlay · : command · ? keys"
-        case .insert:
-            (model.config.escapeTaps >= 2 ? String(repeating: "⎋", count: model.config.escapeTaps) + " or " : "")
-                + "\(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
+        case .insert: "⇧⎋ or \(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
         case .command: "⇥ complete · ↩ run · ⎋ cancel"
         case .hint: "type a label · ⎋ cancel"

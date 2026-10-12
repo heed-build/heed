@@ -78,6 +78,8 @@ struct FirstRunView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         Text("i enters INSERT (keys go to the terminal);").foregroundStyle(Theme.fg2)
+                        KeyCap(text: "⇧⎋")
+                        Text("or").foregroundStyle(Theme.fg2)
                         KeyCap(text: KeyCapText.of(model.config.insertEscape))
                         Text("leaves it. ? shows every key.").foregroundStyle(Theme.fg2)
                     }

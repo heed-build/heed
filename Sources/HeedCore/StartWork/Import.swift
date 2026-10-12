@@ -21,7 +21,7 @@ public enum Import {
 
     /// Claude Code sessions kept for `directory`, newest first.
     public static func claudeSessions(directory: String, home: String = NSHomeDirectory()) -> [AgentSession] {
-        let folder = String(directory.map { $0 == "/" || $0 == "." ? "-" : $0 })
+        let folder = AgentIntegration.claudeProjectFolder(directory)
         let root = URL(fileURLWithPath: "\(home)/.claude/projects/\(folder)")
         guard let files = try? FileManager.default.contentsOfDirectory(
             at: root, includingPropertiesForKeys: [.contentModificationDateKey]

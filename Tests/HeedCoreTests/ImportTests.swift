@@ -62,7 +62,7 @@ struct StartWorkRepoSearchTests {
 struct ImportTests {
     private func home(with transcript: String, for directory: String) throws -> String {
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
-        let folder = String(directory.map { $0 == "/" || $0 == "." ? "-" : $0 })
+        let folder = AgentIntegration.claudeProjectFolder(directory)
         let project = "\(home)/.claude/projects/\(folder)"
         try FileManager.default.createDirectory(atPath: project, withIntermediateDirectories: true)
         try transcript.write(toFile: "\(project)/abc-123.jsonl", atomically: true, encoding: .utf8)
@@ -81,6 +81,12 @@ struct ImportTests {
         #expect(found.map(\.id) == ["abc-123"])
         #expect(found.first?.prompt == "Fix the redirect loop\nin /reference")
         #expect(Import.claudeSessions(directory: "/elsewhere", home: home).isEmpty)
+    }
+
+    @Test func claudeProjectFoldersReplaceEverythingButLettersAndDigits() {
+        // As found on disk: _ and . become - too.
+        #expect(AgentIntegration.claudeProjectFolder("/Users/me/atlas/.claude/worktrees/bridge-cse_01GML")
+            == "-Users-me-atlas--claude-worktrees-bridge-cse-01GML")
     }
 
     @Test func importResumesTheFoundSessionOrStartsFresh() {

@@ -217,14 +217,21 @@ public enum AgentIntegration {
     ) -> Bool? {
         switch agent {
         case "claude":
-            let folder = directory.map { $0 == "/" || $0 == "." ? "-" : $0 }
-            return FileManager.default.fileExists(atPath: "\(home)/.claude/projects/\(String(folder))/\(id).jsonl")
+            FileManager.default.fileExists(
+                atPath: "\(home)/.claude/projects/\(claudeProjectFolder(directory))/\(id).jsonl"
+            )
         default:
-            return nil
+            nil
         }
     }
 
     // MARK: Claude Code
+
+    /// The folder Claude Code keeps a directory's sessions in: every character that is not an ASCII letter or digit
+    /// becomes `-` (`/Users/me/wt/docs_x` → `-Users-me-wt-docs-x`).
+    public static func claudeProjectFolder(_ directory: String) -> String {
+        String(directory.map { $0.isASCII && ($0.isLetter || $0.isNumber) ? $0 : "-" })
+    }
 
     /// Hook events Heed listens to, and the matcher for each.
     static let claudeEvents: [(event: String, matcher: String?)] = [

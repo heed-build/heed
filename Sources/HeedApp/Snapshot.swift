@@ -10,7 +10,12 @@ enum Snapshot {
     static func runIfRequested(window: NSWindow, model: AppModel) {
         let environment = ProcessInfo.processInfo.environment
         guard let path = environment["HEED_SNAPSHOT"] else { return }
-        window.setFrame(NSRect(x: 0, y: 0, width: 1440, height: 900), display: true)
+        // HEED_SNAPSHOT_SIZE=900x700 checks narrow layouts; the default is the design boards' size.
+        let size = (environment["HEED_SNAPSHOT_SIZE"] ?? "1440x900").split(separator: "x").compactMap { Double($0) }
+        window.minSize = NSSize(width: 600, height: 400)
+        window.setFrame(
+            NSRect(x: 0, y: 0, width: size.first ?? 1440, height: size.count > 1 ? size[1] : 900), display: true
+        )
         Task { @MainActor in
             // HEED_SNAPSHOT_DELAY (ms) gives a live run time to load and refresh before the keys and the capture.
             let delay = Int(environment["HEED_SNAPSHOT_DELAY"] ?? "") ?? 400

@@ -10,7 +10,7 @@ struct HeedApp: App {
         Window("Heed", id: "main") {
             MainWindow()
                 .environment(delegate.model)
-                .frame(minWidth: 1100, minHeight: 640)
+                .frame(minWidth: 760, minHeight: 520)
                 .onAppear { delegate.windowAppeared() }
         }
         .windowStyle(.hiddenTitleBar)
@@ -55,7 +55,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func windowAppeared() {
-        guard let window = NSApp.windows.first(where: { $0.isVisible }) else { return }
+        // The window exists but may not be on screen yet when its content appears; it is the app's only window.
+        guard let window = NSApp.windows.first else { return }
         window.backgroundColor = NSColor(red: 0.067, green: 0.071, blue: 0.078, alpha: 1)
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = false

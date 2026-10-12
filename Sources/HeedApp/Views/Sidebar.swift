@@ -3,6 +3,7 @@ import SwiftUI
 
 struct Sidebar: View {
     @Environment(AppModel.self) private var model
+    var width: CGFloat = 330
 
     var body: some View {
         let list = model.list
@@ -61,7 +62,7 @@ struct Sidebar: View {
             .padding(.horizontal, 16)
             .frame(height: 40)
         }
-        .frame(width: 330)
+        .frame(width: width)
         .background(Theme.bg2)
         .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
     }

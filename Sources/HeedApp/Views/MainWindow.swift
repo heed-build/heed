@@ -7,16 +7,19 @@ struct MainWindow: View {
     var body: some View {
         VStack(spacing: 0) {
             TitleBar()
-            HStack(spacing: 0) {
-                switch model.view {
-                case .sessions:
-                    Sidebar()
-                    CenterArea()
-                    if model.inspectorVisible { Inspector() }
-                case .repos:
-                    ReposView()
-                default:
-                    ComingView(view: model.view)
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    switch model.view {
+                    case .sessions:
+                        Sidebar(width: geometry.size.width < 1000 ? 260 : 330)
+                        CenterArea()
+                        // The inspector gives way first on narrow windows; `gi` hides it outright.
+                        if model.inspectorVisible, geometry.size.width >= 1180 { Inspector() }
+                    case .repos:
+                        ReposView()
+                    default:
+                        ComingView(view: model.view)
+                    }
                 }
             }
             StatusBar()
@@ -40,50 +43,29 @@ struct TitleBar: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        HStack(spacing: 16) {
-            // Room for the window's own traffic lights.
-            Color.clear.frame(width: 60, height: 1)
-            if model.view != .sessions {
-                Text(model.view == .repos ? "Repos & worktrees" : model.view.title)
-                    .font(Theme.mono(12))
-                    .foregroundStyle(Theme.fg2)
-                    .lineLimit(1)
-            } else if let session = model.currentSession {
-                HStack(spacing: 4) {
-                    Text(session.repos.first?.name ?? "").foregroundStyle(Theme.fg2)
-                    Text("/").foregroundStyle(Theme.dim)
-                    Text(session.branch).fontWeight(.medium)
+        GeometryReader { geometry in
+            // Narrow windows keep only the active view's name and drop the hint text.
+            let compact = geometry.size.width < 1180
+            HStack(spacing: compact ? 10 : 16) {
+                // Room for the window's own traffic lights.
+                Color.clear.frame(width: 60, height: 1)
+                crumb
+                views(compact: compact)
+                Spacer(minLength: 0)
+                if model.blockedCount > 0 {
+                    Label { Text(compact ? "\(model.blockedCount)" : "\(model.blockedCount) blocked").fixedSize() }
+                        icon: { StateGlyph(state: .blocked) }
                 }
-                .font(Theme.mono(12))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .layoutPriority(-1)
-            }
-            HStack(spacing: 2) {
-                ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
-                    Text(verbatim: "\(index + 1) \(view.title)")
-                        .lineLimit(1)
-                        .fixedSize()
-                        .font(Theme.mono(11.5))
-                        .foregroundStyle(model.view == view ? Theme.fg : Theme.fg3)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 5)
-                            .fill(model.view == view ? Theme.selected : .clear))
+                if model.askingCount > 0 {
+                    Label { Text(compact ? "\(model.askingCount)" : "\(model.askingCount) asking").fixedSize() }
+                        icon: { StateGlyph(state: .asking) }
+                }
+                HStack(spacing: 6) {
+                    KeyCap(text: "ga")
+                    if !compact { Text("next attention").foregroundStyle(Theme.fg3).fixedSize() }
                 }
             }
-            .padding(.leading, 12)
-            Spacer()
-            if model.blockedCount > 0 {
-                Label { Text("\(model.blockedCount) blocked").fixedSize() } icon: { StateGlyph(state: .blocked) }
-            }
-            if model.askingCount > 0 {
-                Label { Text("\(model.askingCount) asking").fixedSize() } icon: { StateGlyph(state: .asking) }
-            }
-            HStack(spacing: 6) {
-                KeyCap(text: "ga")
-                Text("next attention").foregroundStyle(Theme.fg3).fixedSize()
-            }
+            .frame(maxHeight: .infinity)
         }
         .font(Theme.ui(12))
         .foregroundStyle(Theme.fg2)
@@ -91,6 +73,42 @@ struct TitleBar: View {
         .frame(height: 44)
         .background(Theme.bg2)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+
+    @ViewBuilder private var crumb: some View {
+        if model.view != .sessions {
+            Text(model.view == .repos ? "Repos & worktrees" : model.view.title)
+                .font(Theme.mono(12))
+                .foregroundStyle(Theme.fg2)
+                .lineLimit(1)
+        } else if let session = model.currentSession {
+            HStack(spacing: 4) {
+                Text(session.repos.first?.name ?? "").foregroundStyle(Theme.fg2)
+                Text("/").foregroundStyle(Theme.dim)
+                Text(session.branch).fontWeight(.medium)
+            }
+            .font(Theme.mono(12))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .frame(minWidth: 100, alignment: .leading)
+            .layoutPriority(-1)
+        }
+    }
+
+    private func views(compact: Bool) -> some View {
+        HStack(spacing: 2) {
+            ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
+                let active = model.view == view
+                Text(verbatim: compact && !active ? "\(index + 1)" : "\(index + 1) \(view.title)")
+                    .lineLimit(1)
+                    .fixedSize()
+                    .font(Theme.mono(11.5))
+                    .foregroundStyle(active ? Theme.fg : Theme.fg3)
+                    .padding(.horizontal, compact ? 7 : 10)
+                    .padding(.vertical, 3)
+                    .background(RoundedRectangle(cornerRadius: 5).fill(active ? Theme.selected : .clear))
+            }
+        }
     }
 }
 

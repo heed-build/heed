@@ -8,9 +8,18 @@ struct StartWorkView: View {
 
     var body: some View {
         if let form = model.startWork {
-            ZStack {
-                Color.black.opacity(0.55)
-                dialog(form)
+            GeometryReader { geometry in
+                ZStack {
+                    Color.black.opacity(0.55)
+                    // Up to the design's 780pt, never wider than the window allows; tall content scrolls.
+                    ScrollView {
+                        dialog(form)
+                            .frame(width: min(780, max(geometry.size.width - 48, 360)))
+                            .padding(.vertical, 24)
+                    }
+                    .scrollIndicators(.never)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
     }
@@ -36,7 +45,6 @@ struct StartWorkView: View {
             commandPreview(form)
             footer(form)
         }
-        .frame(width: 780)
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -63,10 +71,10 @@ struct StartWorkView: View {
     ) -> some View {
         HStack(alignment: .top, spacing: 0) {
             SectionHeader(title: title, tint: form.field == field ? Theme.fg : Theme.fg3)
-                .frame(width: 112, alignment: .leading)
+                .frame(width: 96, alignment: .leading)
                 .padding(.top, 6)
             VStack(alignment: .leading, spacing: 8) { content() }
-            Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
@@ -76,7 +84,7 @@ struct StartWorkView: View {
 
     private func repoField(_ form: StartWorkForm) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
+            FlowLayout {
                 ForEach(Array(form.guesses.prefix(6).enumerated()), id: \.element.repo.id) { index, guess in
                     let selected = form.selectedRepos.contains(guess.repo.id)
                     let primary = form.selectedRepos.first == guess.repo.id
@@ -101,16 +109,18 @@ struct StartWorkView: View {
 
     private func worktreeField(_ form: StartWorkForm) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+            FlowLayout {
                 HStack {
                     Text(form.name + (form.field == .worktree && form.editing ? "▌" : ""))
                         .font(Theme.mono(12.5))
-                    Spacer()
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 12)
                     Text("auto-named").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .frame(width: 440)
+                .frame(width: 300)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
                 .overlay(RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(form.field == .worktree ? Theme.fg2 : Theme.line))
@@ -122,12 +132,14 @@ struct StartWorkView: View {
                 Text(Paths.abbreviate(model.settings.worktreePath(repo: record.repo, name: form.name)))
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.fg3)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
         }
     }
 
     private func agentField(_ form: StartWorkForm) -> some View {
-        HStack(spacing: 8) {
+        FlowLayout {
             ForEach(Array(form.agents.enumerated()), id: \.offset) { index, agent in
                 choice(
                     agent?.name ?? "none, shell only", selected: index == form.agentIndex,
@@ -138,7 +150,7 @@ struct StartWorkView: View {
     }
 
     private func optionsField(_ form: StartWorkForm) -> some View {
-        HStack(spacing: 20) {
+        FlowLayout(spacing: 20) {
             toggle(
                 "Autostart agent with prompt",
                 form.autostart,
@@ -154,7 +166,8 @@ struct StartWorkView: View {
             SectionHeader(title: "Will run in pane 1")
             HStack(spacing: 6) {
                 Text("$").foregroundStyle(Theme.done)
-                Text(form.plan.command ?? "(shell only)").lineLimit(2).truncationMode(.tail)
+                Text(form.plan.command ?? "(shell only)").lineLimit(4).truncationMode(.middle)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .font(Theme.mono(12))
             if let error = form.error {
@@ -180,6 +193,8 @@ struct StartWorkView: View {
                 ? "⇥ next field · ⌃n ⌃p cycle guess · ⌘V paste · ⎋ then j k h l"
                 : "j k field · h l choose · space toggle · i edit · ⌘↩ start · ⎋ cancel")
                 .foregroundStyle(Theme.fg3)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .padding(.horizontal, 12)
             Spacer()
         }
@@ -213,7 +228,7 @@ struct StartWorkView: View {
                 .overlay(alignment: on ? .trailing : .leading) {
                     Circle().fill(Theme.fg).frame(width: 12, height: 12).padding(2)
                 }
-            Text(label).font(Theme.ui(12.5)).foregroundStyle(focused ? Theme.fg : Theme.fg2)
+            Text(label).font(Theme.ui(12.5)).foregroundStyle(focused ? Theme.fg : Theme.fg2).fixedSize()
         }
         .padding(4)
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(focused ? Theme.fg2 : .clear))

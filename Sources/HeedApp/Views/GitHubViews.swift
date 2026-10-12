@@ -129,15 +129,20 @@ struct InboxView: View {
                         ForEach(InboxFilter.allCases, id: \.self) { filter in
                             FilterChip(label: filter.rawValue, on: model.inboxFilter == filter)
                         }
-                        Spacer()
                         KeyCap(text: "t")
-                        Text("filter").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                        Spacer()
+                        FilterPill(view: .inbox)
                     }
                     .padding(.horizontal, 20)
                     .frame(height: 44)
                     .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
                     SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
-                    ListBody(count: rows.count, cursor: cursor, ids: rows.map(\.id), empty: "Inbox zero.") { index in
+                    ListBody(
+                        count: rows.count,
+                        cursor: cursor,
+                        ids: rows.map(\.id),
+                        empty: model.filter(for: .inbox).isEmpty ? "Inbox zero." : "Nothing matches /\(model.filter(for: .inbox))."
+                    ) { index in
                         let item = rows[index]
                         HStack(spacing: 10) {
                             RowNumber(index: index, cursor: cursor)
@@ -179,7 +184,7 @@ struct IssuesView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        let rows = model.github.issues
+        let rows = model.issueRows
         let picked = model.pickedIDs(.issues)
         let cursor = model.cursor(in: .issues)
         GeometryReader { geometry in
@@ -187,8 +192,9 @@ struct IssuesView: View {
                 VStack(spacing: 0) {
                     HStack {
                         Text("Assigned to you").font(Theme.ui(12.5, weight: .medium))
-                        Spacer()
                         Text("\(rows.count) open").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                        Spacer()
+                        FilterPill(view: .issues)
                     }
                     .padding(.horizontal, 20)
                     .frame(height: 44)
@@ -198,7 +204,7 @@ struct IssuesView: View {
                         count: rows.count,
                         cursor: cursor,
                         ids: rows.map(\.id),
-                        empty: "No open issues assigned to you."
+                        empty: model.filter(for: .issues).isEmpty ? "No open issues assigned to you." : "Nothing matches /\(model.filter(for: .issues))."
                     ) { index in
                         let issue = rows[index]
                         HStack(spacing: 10) {
@@ -233,7 +239,7 @@ struct PullRequestsView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        let rows = model.github.pulls
+        let rows = model.pullRows
         let cursor = model.cursor(in: .prs)
         GeometryReader { geometry in
             HStack(spacing: 0) {
@@ -249,6 +255,7 @@ struct PullRequestsView: View {
                         .font(Theme.ui(10.5, weight: .semibold))
                         .tracking(0.7)
                         .foregroundStyle(Theme.fg3)
+                        FilterPill(view: .prs).padding(.leading, 8)
                     }
                     .padding(.horizontal, 16)
                     .frame(height: 44)
@@ -258,7 +265,7 @@ struct PullRequestsView: View {
                         count: rows.count,
                         cursor: cursor,
                         ids: rows.map(\.id),
-                        empty: "No open PRs of yours."
+                        empty: model.filter(for: .prs).isEmpty ? "No open PRs of yours." : "Nothing matches /\(model.filter(for: .prs))."
                     ) { index in
                         PullRow(
                             pull: rows[index],
@@ -405,6 +412,42 @@ private struct PullDetail: View {
 }
 
 // MARK: Shared list pieces
+
+/// What `/` filters this view by. Typing happens in the status bar; the pill only shows the result, lights up while
+/// the filter is being typed, and clears on click.
+struct FilterPill: View {
+    @Environment(AppModel.self) private var model
+    let view: AppView
+
+    var body: some View {
+        let text = model.filter(for: view)
+        let typing = model.filtering && model.view == view
+        if text.isEmpty, !typing {
+            HStack(spacing: 6) {
+                KeyCap(text: "/")
+                Text("filter").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            }
+            .fixedSize()
+        } else {
+            HStack(spacing: 6) {
+                Image(systemName: "line.3.horizontal.decrease").font(.system(size: 10))
+                    .foregroundStyle(typing ? Theme.ask : Theme.fg3)
+                Text(text.isEmpty ? "…" : text).font(Theme.mono(12)).lineLimit(1).truncationMode(.head)
+                    .frame(maxWidth: 220, alignment: .leading)
+                if !text.isEmpty {
+                    Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.fg3)
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.clearFilter(view) }
+                }
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(Capsule().fill(typing ? Theme.ask.opacity(0.12) : Theme.bg3))
+            .overlay(Capsule().strokeBorder(typing ? Theme.ask.opacity(0.6) : Theme.line))
+            .fixedSize()
+        }
+    }
+}
 
 struct FilterChip: View {
     let label: String

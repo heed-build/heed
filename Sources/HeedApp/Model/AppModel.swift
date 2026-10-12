@@ -76,10 +76,15 @@ final class AppModel {
     /// The latest hook events per session, newest first: shown in the inspector, not persisted (agents own history).
     private(set) var events: [String: [AgentEvent]] = [:]
 
-    // Filtering (`/`): typed into while `filtering`; applies to the sessions list or the history list.
+    // Filtering (`/`): typed in the status bar while `filtering`, one filter per view; each view shows its own as a
+    // pill.
     private(set) var filtering = false
-    private(set) var sessionFilter = "" { didSet { rebuildList() } }
-    private(set) var historyFilter = ""
+    private(set) var filters: [AppView: String] = [:] {
+        didSet { if filters[.sessions] != oldValue[.sessions] { rebuildList() } }
+    }
+
+    func filter(for view: AppView) -> String { filters[view] ?? "" }
+    var sessionFilter: String { filter(for: .sessions) }
     private(set) var historyOutcome: Outcome?
     private(set) var historyCursor = 0
 
@@ -546,11 +551,13 @@ final class AppModel {
     func flush() async { await store?.flush() }
 
     private func rebuildList() {
-        let filter = sessionFilter.lowercased()
+        let filter = sessionFilter
         list = SessionList(filter.isEmpty ? sessions : sessions.filter { session in
-            ([session.title, session.branch, session.agent] + session.repos.map(\.name)
-                + session.trackedPRs.map { "#\($0.number)" })
-                .contains { $0.lowercased().contains(filter) }
+            FilterQuery.matches(
+                filter,
+                [session.title, session.branch, session.agent] + session.repos.map(\.name)
+                    + session.trackedPRs.map { "#\($0.number)" }
+            )
         })
     }
 
@@ -637,12 +644,20 @@ final class AppModel {
     var blockedCount: Int { sessions.count { $0.state.state == .blocked } }
     var askingCount: Int { sessions.count { $0.state.state == .asking } }
 
-    /// Added worktrees (not main checkouts), in table order: by repo, then path.
+    /// Added worktrees (not main checkouts), in table order: by repo, then path; narrowed by the Repos `/` filter.
     var worktreeRows: [Worktree] {
-        worktrees.filter { !$0.isMain }.sorted {
+        let filter = filter(for: .repos)
+        return worktrees.filter { worktree in
+            !worktree.isMain && FilterQuery.matches(
+                filter, [worktree.repo.slug, worktree.branch ?? "", worktree.path, session(for: worktree)?.agent ?? ""]
+            )
+        }.sorted {
             $0.repo.slug == $1.repo.slug ? $0.path < $1.path : $0.repo.slug < $1.repo.slug
         }
     }
+
+    /// Every added worktree, whatever the filter.
+    var worktreeCount: Int { worktrees.count { !$0.isMain } }
 
     func session(for worktree: Worktree) -> Session? {
         sessions.first { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }
@@ -1114,7 +1129,7 @@ final class AppModel {
         flash = "scanning \(settings.repoRoots.joined(separator: ", "))…"
         Task {
             await refreshRepos()
-            flash = "\(repos.count) repos · \(worktreeRows.count) worktrees"
+            flash = "\(repos.count) repos · \(worktreeCount) worktrees"
         }
     }
 
@@ -1122,11 +1137,14 @@ final class AppModel {
 
     /// History in display order (newest first), filtered by `/` text and the outcome chip.
     var historyRows: [HistoryEntry] {
-        let filter = historyFilter.lowercased()
+        let filter = filter(for: .history)
         return history.filter { entry in
             (historyOutcome == nil || entry.outcome == historyOutcome)
-                && (filter.isEmpty || [entry.session.title, entry.session.prompt, entry.session.branch]
-                    .contains { $0.lowercased().contains(filter) })
+                && FilterQuery.matches(
+                    filter,
+                    [entry.session.title, entry.session.prompt, entry.session.branch, entry.session.agent]
+                        + entry.session.repos.map(\.name)
+                )
         }
     }
 
@@ -1177,13 +1195,36 @@ final class AppModel {
 
     // MARK: GitHub lists
 
-    var inboxRows: [InboxItem] { github.inbox.filter(inboxFilter.matches) }
+    var inboxRows: [InboxItem] {
+        let filter = filter(for: .inbox)
+        return github.inbox.filter {
+            inboxFilter.matches($0)
+                && FilterQuery.matches(
+                    filter,
+                    [$0.title, $0.kind.rawValue, $0.repo.slug, $0.reason, $0.number.map { "#\($0)" } ?? ""]
+                )
+        }
+    }
+
+    var issueRows: [Issue] {
+        let filter = filter(for: .issues)
+        return github.issues.filter {
+            FilterQuery.matches(filter, [$0.title, $0.repo.slug, "#\($0.number)", $0.author ?? ""] + $0.labels)
+        }
+    }
+
+    var pullRows: [PullRequest] {
+        let filter = filter(for: .prs)
+        return github.pulls.filter {
+            FilterQuery.matches(filter, [$0.title, $0.ref.repo.slug, "#\($0.ref.number)", $0.headBranch])
+        }
+    }
 
     func itemIDs(_ view: AppView) -> [String] {
         switch view {
         case .inbox: inboxRows.map(\.id)
-        case .issues: github.issues.map(\.id)
-        case .prs: github.pulls.map(\.id)
+        case .issues: issueRows.map(\.id)
+        case .prs: pullRows.map(\.id)
         default: []
         }
     }
@@ -1280,8 +1321,8 @@ final class AppModel {
         let index = cursor(in: view)
         switch view {
         case .inbox: return inboxRows.indices.contains(index) ? inboxRows[index].url : nil
-        case .issues: return github.issues.indices.contains(index) ? github.issues[index].url : nil
-        case .prs: return github.pulls.indices.contains(index) ? github.pulls[index].url : nil
+        case .issues: return issueRows.indices.contains(index) ? issueRows[index].url : nil
+        case .prs: return pullRows.indices.contains(index) ? pullRows[index].url : nil
         case .sessions: return currentSession?.trackedPRs.first?.url
         default: return nil
         }
@@ -1301,8 +1342,9 @@ final class AppModel {
             ref = open
         } else {
             let index = cursor(in: .prs)
-            guard view == .prs, github.pulls.indices.contains(index) else { return }
-            ref = github.pulls[index].ref
+            let rows = pullRows
+            guard view == .prs, rows.indices.contains(index) else { return }
+            ref = rows[index].ref
         }
         reader = nil
         overlay = nil
@@ -1330,7 +1372,7 @@ final class AppModel {
     private var pullUnderCursor: PullRef? {
         let index = cursor(in: view)
         switch view {
-        case .prs: return github.pulls.indices.contains(index) ? github.pulls[index].ref : nil
+        case .prs: return pullRows.indices.contains(index) ? pullRows[index].ref : nil
         case .inbox:
             guard inboxRows.indices.contains(index), inboxRows[index].kind == .pr,
                   let number = inboxRows[index].number else { return nil }
@@ -1628,13 +1670,19 @@ final class AppModel {
 
     // MARK: Filter
 
+    /// `/` in any list view: typing goes to the status bar until ↩ (keep) or ⎋ (clear).
     private func startFilter() {
-        guard view == .sessions || view == .history else { return }
+        guard overlay == nil, reader == nil else { return }
         filtering = true
     }
 
+    func clearFilter(_ view: AppView) {
+        filters[view] = nil
+        resetCursor(view)
+    }
+
     private func typeFilter(_ stroke: KeyStroke) {
-        var text = view == .history ? historyFilter : sessionFilter
+        var text = filter(for: view)
         switch stroke {
         case .escape:
             text = ""
@@ -1643,18 +1691,37 @@ final class AppModel {
             filtering = false
         case KeyStroke("BS"):
             if text.isEmpty { filtering = false } else { text.removeLast() }
+        case KeyStroke("u", .control):
+            text = ""
+        case KeyStroke("w", .control):
+            text = FilterQuery.droppingLastWord(text)
         case KeyStroke("Space"):
             text += " "
         default:
             guard !stroke.isNamed, stroke.modifiers.isEmpty else { return }
             text += stroke.key
         }
-        if view == .history {
-            historyFilter = text
-            historyCursor = 0
-        } else {
-            sessionFilter = text
-            cursor = 0
+        guard text != filter(for: view) else { return }
+        filters[view] = text.isEmpty ? nil : text
+        resetCursor(view)
+    }
+
+    private func resetCursor(_ view: AppView) {
+        switch view {
+        case .sessions: cursor = 0
+        case .history: historyCursor = 0
+        case .repos: repoCursor = 0
+        case .inbox, .issues, .prs: itemCursor[view] = 0
+        }
+    }
+
+    /// How many rows the current view's filter leaves.
+    var filterMatches: Int {
+        switch view {
+        case .sessions: list.ordered.count
+        case .history: historyRows.count
+        case .repos: worktreeRows.count
+        case .inbox, .issues, .prs: itemIDs(view).count
         }
     }
 

@@ -95,12 +95,15 @@ struct ReposView: View {
             if model.config.cleanup.enabled { SweepBanner(plan: model.sweepPlan) }
             if rows.isEmpty {
                 VStack(spacing: 8) {
-                    Text(model.repos.isEmpty ? "No repos found yet." : "No worktrees yet.")
+                    Text(model.repos.isEmpty ? "No repos found yet."
+                        : model.worktreeCount > 0 ? "No worktrees match /\(model.filter(for: .repos))."
+                        : "No worktrees yet.")
                         .foregroundStyle(Theme.fg2)
-                    Text(model.repos.isEmpty
-                        ? "Scanning \(model.settings.repoRoots.joined(separator: ", ")) for repositories."
-                        : "Start work (o) creates one under \(model.settings.worktreeRoot).")
+                    if model.worktreeCount == 0 { Text(model.repos.isEmpty
+                            ? "Scanning \(model.settings.repoRoots.joined(separator: ", ")) for repositories."
+                            : "Start work (o) creates one under \(model.settings.worktreeRoot).")
                         .foregroundStyle(Theme.fg3)
+                    }
                 }
                 .font(Theme.ui(12.5))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -123,6 +126,7 @@ struct ReposView: View {
             .font(Theme.ui(10.5, weight: .semibold))
             .tracking(0.7)
             .foregroundStyle(Theme.fg3)
+            FilterPill(view: .repos).padding(.leading, 8)
         }
         .padding(.trailing, 16)
         .frame(height: 34)

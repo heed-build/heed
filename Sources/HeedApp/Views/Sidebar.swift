@@ -12,16 +12,7 @@ struct Sidebar: View {
                 SectionHeader(title: "Sessions")
                 Spacer()
                 CollapseButton(systemImage: "sidebar.left", key: "zs") { model.toggleSidebar() }
-                if model.filtering || !model.sessionFilter.isEmpty {
-                    HStack(spacing: 0) {
-                        Text("/").foregroundStyle(Theme.fg3)
-                        Text(model.sessionFilter).lineLimit(1)
-                        if model.filtering { Rectangle().fill(Theme.fg).frame(width: 7, height: 14) }
-                    }
-                    .font(Theme.mono(12))
-                } else {
-                    KeyCap(text: "/ filter")
-                }
+                FilterPill(view: .sessions)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
@@ -64,7 +55,7 @@ struct Sidebar: View {
             Spacer(minLength: 0)
             Theme.line.frame(height: 1)
             HStack {
-                Text("\(model.repos.count) repos · \(model.worktreeRows.count) worktrees").foregroundStyle(Theme.fg2)
+                Text("\(model.repos.count) repos · \(model.worktreeCount) worktrees").foregroundStyle(Theme.fg2)
                 Spacer()
                 KeyCap(text: "gr")
             }

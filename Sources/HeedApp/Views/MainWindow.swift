@@ -215,29 +215,36 @@ struct StatusBar: View {
                 .padding(.horizontal, 12)
                 .frame(maxHeight: .infinity)
                 .background(Theme.modeColor(model.mode))
-            if let session = model.currentSession {
-                HStack(spacing: 6) {
-                    Image(systemName: "arrow.triangle.branch").font(.system(size: 10))
-                    Text(session.branch)
-                }
-                .padding(.horizontal, 12)
-            }
-            if let tab = model.currentTab, let index = tab.tree.panes.firstIndex(where: { $0.id == tab.focused }) {
-                Text("pane \(index + 1) · \(tab.tree.panes[index].title)")
-                    .foregroundStyle(Theme.fg3)
+            if model.filtering {
+                filterLine
+            } else {
+                if let session = model.currentSession {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.triangle.branch").font(.system(size: 10))
+                        Text(session.branch)
+                    }
                     .padding(.horizontal, 12)
-            }
-            if let flash = model.flash {
-                Text(flash).foregroundStyle(Theme.block).padding(.horizontal, 12)
-            } else if let problem = model.configProblems.first {
-                Text("config.toml: \(problem.description)").foregroundStyle(Theme.err).lineLimit(1).padding(
-                    .horizontal,
-                    12
-                )
-            } else if let problem = model.keyProblems.first {
-                Text("config: \(problem.description)").foregroundStyle(Theme.err).padding(.horizontal, 12)
-            } else if let problem = model.tools?.problems.first {
-                Text(problem).foregroundStyle(Theme.err).lineLimit(1).truncationMode(.middle).padding(.horizontal, 12)
+                }
+                if let tab = model.currentTab, let index = tab.tree.panes.firstIndex(where: { $0.id == tab.focused }) {
+                    Text("pane \(index + 1) · \(tab.tree.panes[index].title)")
+                        .foregroundStyle(Theme.fg3)
+                        .padding(.horizontal, 12)
+                }
+                if let flash = model.flash {
+                    Text(flash).foregroundStyle(Theme.block).padding(.horizontal, 12)
+                } else if let problem = model.configProblems.first {
+                    Text("config.toml: \(problem.description)").foregroundStyle(Theme.err).lineLimit(1).padding(
+                        .horizontal,
+                        12
+                    )
+                } else if let problem = model.keyProblems.first {
+                    Text("config: \(problem.description)").foregroundStyle(Theme.err).padding(.horizontal, 12)
+                } else if let problem = model.tools?.problems.first {
+                    Text(problem).foregroundStyle(Theme.err).lineLimit(1).truncationMode(.middle).padding(
+                        .horizontal,
+                        12
+                    )
+                }
             }
             Spacer()
             Text(model.pendingKeys).foregroundStyle(Theme.fg).padding(.horizontal, 12)
@@ -261,17 +268,32 @@ struct StatusBar: View {
         }
     }
 
+    /// `/` types here, whichever view it filters; the view's pill mirrors it.
+    private var filterLine: some View {
+        HStack(spacing: 0) {
+            Text("/").foregroundStyle(Theme.ask)
+            Text(model.filter(for: model.view)).foregroundStyle(Theme.fg)
+            Rectangle().fill(Theme.fg).frame(width: 7, height: 14)
+            Text(
+                "  \(model.view.title.lowercased()) · \(model.filterMatches) match\(model.filterMatches == 1 ? "" : "es")"
+            )
+            .foregroundStyle(Theme.fg3)
+        }
+        .lineLimit(1)
+        .padding(.horizontal, 12)
+    }
+
     private var hints: String {
         switch model.mode {
-        case .normal where model.filtering: "type to filter · ↩ keep · ⎋ clear"
+        case .normal where model.filtering: "words match anywhere · ⌃w word · ⌃u clear · ↩ keep · ⎋ clear"
         case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
         case .normal where model.reader != nil || model.overlay == .pr:
             "j k item · space queue · s send · m auto-feed · ]p next PR · gS session · ⎋ back"
-        case .normal where model.view == .repos: "v select · n new worktree · R rescan · ⎋ back to sessions"
-        case .normal where model.view == .history: "j k move · / search · R reopen · O new from prompt · t outcome"
-        case .normal where model.view == .inbox: "space pick · v range · s start session · a add · m read · o open · t filter"
-        case .normal where model.view == .issues: "space pick · v range · s start session · a add · o open"
-        case .normal where model.view == .prs: "j k move · o open · gS session · r sync"
+        case .normal where model.view == .repos: "v select · n new worktree · R rescan · / filter · ⎋ back to sessions"
+        case .normal where model.view == .history: "j k move · / filter · R reopen · O new from prompt · t outcome"
+        case .normal where model.view == .inbox: "space pick · v range · s start session · a add · m read · o open · t unread/all · / filter"
+        case .normal where model.view == .issues: "space pick · v range · s start session · a add · o open · / filter"
+        case .normal where model.view == .prs: "j k move · o open · gS session · r sync · / filter"
         case .normal: "i insert · o start work · gp PR overlay · : command · ? keys"
         case .insert: "\(KeyCapText.of(DefaultKeys.insertEscape)) normal · ⌘/ keys"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"

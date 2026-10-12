@@ -30,7 +30,7 @@ public enum Commands {
         .init("row.prev", "previous session / row", .move),
         .init("row.first", "first session / row", .move),
         .init("row.last", "last session / row", .move),
-        .init("session.filter", "filter by repo, branch, PR, agent", .move),
+        .init("session.filter", "filter the current view (typed in the status bar)", .move),
         .init("session.attention", "next session needing you", .move),
         .init("session.park", "park session", .move),
         .init("session.close", "close session, keep worktree", .move),

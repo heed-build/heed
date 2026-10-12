@@ -27,17 +27,7 @@ struct HistoryView: View {
                     )
                 }
                 Spacer()
-                if model.filtering || !model.historyFilter.isEmpty {
-                    HStack(spacing: 0) {
-                        Text("/").foregroundStyle(Theme.fg3)
-                        Text(model.historyFilter)
-                        if model.filtering { Rectangle().fill(Theme.fg).frame(width: 7, height: 14) }
-                    }
-                    .font(Theme.mono(12))
-                } else {
-                    KeyCap(text: "/")
-                    Text("search").font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize()
-                }
+                FilterPill(view: .history)
             }
             .padding(.horizontal, 20)
             .frame(height: 44)

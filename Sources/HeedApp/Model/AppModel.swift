@@ -40,10 +40,16 @@ enum Overlay: Equatable {
 final class AppModel {
     static let mainWindowID = NSUserInterfaceItemIdentifier("heed.main")
     // Domain
-    private(set) var sessions: [Session] = [] { didSet { rebuildList() } }
+    private(set) var sessions: [Session] = [] {
+        didSet {
+            rebuildList()
+            if filters[.repos] != nil { rebuildWorktreeRows() }
+        }
+    }
+
     private(set) var layouts: [String: SessionLayout] = [:]
-    private(set) var repos: [RepoRecord] = []
-    private(set) var worktrees: [Worktree] = []
+    private(set) var repos: [RepoRecord] = [] { didSet { if repos != oldValue { rebuildWorktreeRows() } } }
+    private(set) var worktrees: [Worktree] = [] { didSet { if worktrees != oldValue { rebuildWorktreeRows() } } }
     private(set) var history: [HistoryEntry] = []
     private(set) var github = GitHubState()
     private(set) var pullDetails: [String: PullDetail] = [:]
@@ -80,7 +86,10 @@ final class AppModel {
     // pill.
     private(set) var filtering = false
     private(set) var filters: [AppView: String] = [:] {
-        didSet { if filters[.sessions] != oldValue[.sessions] { rebuildList() } }
+        didSet {
+            if filters[.sessions] != oldValue[.sessions] { rebuildList() }
+            if filters[.repos] != oldValue[.repos] { rebuildWorktreeRows() }
+        }
     }
 
     func filter(for view: AppView) -> String { filters[view] ?? "" }
@@ -667,26 +676,97 @@ final class AppModel {
     var blockedCount: Int { sessions.count { $0.state.state == .blocked } }
     var askingCount: Int { sessions.count { $0.state.state == .asking } }
 
-    /// Added worktrees (not main checkouts), in table order: grouped by repo in `sortedRepos` order, then by path;
-    /// narrowed by the Repos `/` filter.
-    var worktreeRows: [Worktree] {
-        let filter = filter(for: .repos)
-        let rank = Dictionary(uniqueKeysWithValues: sortedRepos.enumerated().map { ($1.id, $0) })
-        return worktrees.filter { worktree in
-            !worktree.isMain && FilterQuery.matches(
-                filter, [worktree.repo.slug, worktree.branch ?? "", worktree.path, session(for: worktree)?.agent ?? ""]
+    // MARK: Title
+
+    struct TitleContext: Equatable {
+        var lead: String?
+        var main: String
+        var detail: String?
+    }
+
+    /// The title bar's middle: what is open, else what the cursor is on in the current view.
+    var titleContext: TitleContext? {
+        if let issue = issueReader { return TitleContext(
+            lead: issue.repo.name,
+            main: "#\(issue.number)",
+            detail: issue.title
+        ) }
+        if let ref = reader ?? (overlay == .pr ? overlayPull : nil) { return pullContext(ref) }
+        let index = cursor(in: view)
+        switch view {
+        case .sessions:
+            guard let session = currentSession else { return nil }
+            return TitleContext(
+                lead: session.repos.first?.name, main: session.branch,
+                detail: session.trackedPRs.first.map { "#\($0.number)" }
             )
-        }.sorted {
-            $0.repo.slug == $1.repo.slug ? $0.path < $1.path
-                : (rank[$0.repo.slug] ?? .max, $0.repo.slug) < (rank[$1.repo.slug] ?? .max, $1.repo.slug)
+        case .inbox:
+            let rows = inboxRows
+            guard rows.indices.contains(index) else { return nil }
+            let item = rows[index]
+            return TitleContext(
+                lead: item.repo.name,
+                main: item.number.map { "#\($0)" } ?? item.kind.rawValue,
+                detail: item.title
+            )
+        case .issues:
+            let rows = issueRows
+            guard rows.indices.contains(index) else { return nil }
+            return TitleContext(lead: rows[index].repo.name, main: "#\(rows[index].number)", detail: rows[index].title)
+        case .prs:
+            let rows = pullRows
+            return rows.indices.contains(index) ? pullContext(rows[index].ref) : nil
+        case .repos:
+            guard worktreeRows.indices.contains(repoCursor) else { return nil }
+            let worktree = worktreeRows[repoCursor]
+            return TitleContext(lead: worktree.repo.name, main: worktree.branch ?? "detached \(worktree.head)")
+        case .history:
+            guard let entry = selectedHistory else { return nil }
+            return TitleContext(
+                lead: entry.session.repos.first?.name,
+                main: entry.session.branch,
+                detail: entry.session.title
+            )
         }
     }
 
-    /// Repos as Repos lists them: most worktrees first, then by name.
-    var sortedRepos: [RepoRecord] { RepoOrder.sorted(repos, counts: RepoOrder.worktreeCounts(worktrees)) }
+    private func pullContext(_ ref: PullRef) -> TitleContext {
+        TitleContext(
+            lead: ref.repo.name,
+            main: "#\(ref.number)",
+            detail: github.pull(ref)?.title ?? pullDetails[ref.description]?.title
+        )
+    }
 
+    // The Repos view's lists, kept rather than computed on every read: the table reads them per row and per repo.
+    /// Added worktrees (not main checkouts), in table order: grouped by repo in `sortedRepos` order, then by path;
+    /// narrowed by the Repos `/` filter.
+    private(set) var worktreeRows: [Worktree] = []
+    /// Repos as Repos lists them: most worktrees first, then by name.
+    private(set) var sortedRepos: [RepoRecord] = []
+    /// Rows per repo slug in `worktreeRows`.
+    private(set) var worktreeRowCounts: [String: Int] = [:]
     /// Every added worktree, whatever the filter.
-    var worktreeCount: Int { worktrees.count { !$0.isMain } }
+    private(set) var worktreeCount = 0
+
+    private func rebuildWorktreeRows() {
+        let counts = RepoOrder.worktreeCounts(worktrees)
+        sortedRepos = RepoOrder.sorted(repos, counts: counts)
+        worktreeCount = counts.values.reduce(0, +)
+        let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
+        let filter = filter(for: .repos)
+        let added = worktrees.filter { !$0.isMain }
+        let matching = filter.isEmpty ? added : added.filter { worktree in
+            FilterQuery.matches(
+                filter, [worktree.repo.slug, worktree.branch ?? "", worktree.path, session(for: worktree)?.agent ?? ""]
+            )
+        }
+        worktreeRows = matching.sorted {
+            $0.repo.slug == $1.repo.slug ? $0.path < $1.path
+                : (rank[$0.repo.slug] ?? .max, $0.repo.slug) < (rank[$1.repo.slug] ?? .max, $1.repo.slug)
+        }
+        worktreeRowCounts = Dictionary(grouping: worktreeRows, by: \.repo.slug).mapValues(\.count)
+    }
 
     func session(for worktree: Worktree) -> Session? {
         sessions.first { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }

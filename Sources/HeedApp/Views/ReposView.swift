@@ -26,7 +26,7 @@ struct ReposView: View {
                     ForEach(model.sortedRepos) { record in
                         row(
                             name: record.repo.name,
-                            count: model.worktreeRows.count { $0.repo == record.repo },
+                            count: model.worktreeRowCounts[record.id] ?? 0,
                             repo: record.repo
                         )
                     }

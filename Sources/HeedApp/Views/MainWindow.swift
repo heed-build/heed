@@ -77,29 +77,38 @@ struct MainWindow: View {
 
 struct TitleBar: View {
     @Environment(AppModel.self) private var model
+    @State private var leftWidth: CGFloat = 0
+    @State private var rightWidth: CGFloat = 0
 
     var body: some View {
         GeometryReader { geometry in
             // Narrow windows keep only the active view's name and drop the hint text.
             let compact = geometry.size.width < 1180
-            HStack(spacing: compact ? 10 : 16) {
-                // Room for the window's own traffic lights.
-                Color.clear.frame(width: 60, height: 1)
-                crumb
-                views(compact: compact)
-                Spacer(minLength: 0)
-                syncStatus
-                if model.blockedCount > 0 {
-                    Label { Text(compact ? "\(model.blockedCount)" : "\(model.blockedCount) blocked").fixedSize() }
-                        icon: { StateGlyph(state: .blocked) }
+            let width = geometry.size.width
+            // What you are looking at sits in the middle of the window when the middle is free, else in the gap
+            // between the views and the status.
+            let gap: CGFloat = 24
+            let centred = width - 2 * max(leftWidth, rightWidth) - 2 * gap
+            let between = width - leftWidth - rightWidth - 2 * gap
+            ZStack {
+                HStack(spacing: 0) {
+                    HStack(spacing: 0) {
+                        // Room for the window's own traffic lights.
+                        Color.clear.frame(width: 60, height: 1)
+                        views(compact: compact)
+                    }
+                    .fixedSize()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { leftWidth = $0 }
+                    Spacer(minLength: 0)
+                    HStack(spacing: compact ? 10 : 16) { status(compact: compact) }
+                        .fixedSize()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rightWidth = $0 }
                 }
-                if model.askingCount > 0 {
-                    Label { Text(compact ? "\(model.askingCount)" : "\(model.askingCount) asking").fixedSize() }
-                        icon: { StateGlyph(state: .asking) }
-                }
-                HStack(spacing: 6) {
-                    KeyCap(text: "ga")
-                    if !compact { Text("next attention").foregroundStyle(Theme.fg3).fixedSize() }
+                if centred >= 160 {
+                    crumb.frame(maxWidth: centred)
+                } else if between >= 80 {
+                    crumb.frame(maxWidth: between)
+                        .offset(x: (leftWidth - rightWidth) / 2)
                 }
             }
             .frame(maxHeight: .infinity)
@@ -110,6 +119,22 @@ struct TitleBar: View {
         .frame(height: 44)
         .background(Theme.bg2)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+
+    @ViewBuilder private func status(compact: Bool) -> some View {
+        syncStatus
+        if model.blockedCount > 0 {
+            Label { Text(compact ? "\(model.blockedCount)" : "\(model.blockedCount) blocked").fixedSize() }
+                icon: { StateGlyph(state: .blocked) }
+        }
+        if model.askingCount > 0 {
+            Label { Text(compact ? "\(model.askingCount)" : "\(model.askingCount) asking").fixedSize() }
+                icon: { StateGlyph(state: .asking) }
+        }
+        HStack(spacing: 6) {
+            KeyCap(text: "ga")
+            if !compact { Text("next attention").foregroundStyle(Theme.fg3).fixedSize() }
+        }
     }
 
     /// Unread inbox items; PRs that need you.
@@ -142,23 +167,23 @@ struct TitleBar: View {
         }
     }
 
+    /// What you are looking at: the session's branch and PR, or the PR, issue, worktree or history entry under the
+    /// cursor (or open in a reader).
     @ViewBuilder private var crumb: some View {
-        if model.view != .sessions {
-            Text(model.view == .repos ? "Repos & worktrees" : model.view.title)
-                .font(Theme.mono(12))
-                .foregroundStyle(Theme.fg2)
-                .lineLimit(1)
-        } else if let session = model.currentSession {
-            HStack(spacing: 4) {
-                Text(session.repos.first?.name ?? "").foregroundStyle(Theme.fg2)
-                Text("/").foregroundStyle(Theme.dim)
-                Text(session.branch).fontWeight(.medium)
+        if let context = model.titleContext {
+            HStack(spacing: 6) {
+                // The repo and the branch or number stay whole; the title gives way.
+                if let lead = context.lead {
+                    Text(lead).foregroundStyle(Theme.fg2).fixedSize()
+                    Text("/").foregroundStyle(Theme.dim).fixedSize()
+                }
+                Text(context.main).fontWeight(.medium).foregroundStyle(Theme.fg).truncationMode(.middle)
+                    .layoutPriority(1)
+                if let detail = context.detail { Text(detail).foregroundStyle(Theme.fg3).truncationMode(.tail) }
             }
             .font(Theme.mono(12))
             .lineLimit(1)
-            .truncationMode(.middle)
-            .frame(minWidth: 100, alignment: .leading)
-            .layoutPriority(-1)
+            .clipped()
         }
     }
 

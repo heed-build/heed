@@ -29,8 +29,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var router = KeyRouter(model: model)
 
     func applicationDidFinishLaunching(_: Notification) {
+        // No NSApp.activate(): Heed never takes focus, it only asks for attention.
         NSApp.setActivationPolicy(.regular)
-        NSApp.activate()
         router.start()
     }
 

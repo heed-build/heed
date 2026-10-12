@@ -73,6 +73,7 @@ public enum Commands {
         .init("config.edit", "open config.toml in $EDITOR", .views),
         .init("app.quit", "quit Heed", .views),
         .init("settings.open", "open Settings", .views),
+        .init("welcome", "show the getting-started checks again", .views),
         // Modes
         .init("mode.normal", "back to NORMAL", .modes),
         .init("mode.insert", "INSERT into the focused pane", .modes),

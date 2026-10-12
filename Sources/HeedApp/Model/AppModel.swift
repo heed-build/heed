@@ -406,11 +406,30 @@ final class AppModel {
     func showFirstRun(report: FirstRunReport? = nil) {
         firstRun = report ?? FirstRunReport()
         guard report == nil, !isFixture else { return }
-        let agents = settings.agents
-        Task {
-            let gathered = await FirstRunReport.gather(agents: agents)
-            if firstRun != nil { firstRun = gathered }
+        // Re-checks every few seconds while the screen is open, so `gh auth login` or installing an agent in another
+        // terminal shows up without a restart.
+        firstRunTask?.cancel()
+        firstRunTask = Task { [weak self] in
+            while !Task.isCancelled, self?.firstRun != nil {
+                await self?.refreshFirstRun()
+                try? await Task.sleep(for: .seconds(4))
+            }
         }
+    }
+
+    private var firstRunTask: Task<Void, Never>?
+    private(set) var firstRunChecking = false
+
+    /// Gathers the report again (`r`, or on its own every few seconds). Signing in to gh starts a GitHub sync now.
+    func refreshFirstRun() async {
+        guard firstRun != nil, !firstRunChecking else { return }
+        firstRunChecking = true
+        defer { firstRunChecking = false }
+        let wasSignedIn = firstRun?.githubUser != nil
+        let gathered = await FirstRunReport.gather(agents: settings.agents)
+        guard firstRun != nil else { return }
+        firstRun = gathered
+        if !wasSignedIn, gathered.githubUser != nil { await syncGitHub() }
     }
 
     /// Every org Heed shows: repos, sessions, GitHub items.
@@ -642,6 +661,9 @@ final class AppModel {
         if firstRun != nil {
             if stroke == KeyStroke("CR") || stroke == KeyStroke("CR", .command) || stroke == .escape {
                 firstRun = nil
+                firstRunTask?.cancel()
+            } else if stroke == KeyStroke("r") {
+                Task { await refreshFirstRun() }
             } else if stroke == KeyStroke("e") {
                 NSWorkspace.shared.open(configFile)
             }
@@ -818,6 +840,7 @@ final class AppModel {
         case "app.quit": NSApp.terminate(nil)
         case "config.edit": NSWorkspace.shared.open(configFile)
         case "settings.open": openSettings?()
+        case "welcome": showFirstRun()
         default:
             flash = "\(command.name): not built yet"
         }

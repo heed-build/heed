@@ -30,7 +30,7 @@ struct FirstRunView: View {
                     Text("Signed in to gh as \(user). Inbox, issues and PRs sync through gh only.")
                         .foregroundStyle(Theme.fg2)
                 } else if let problem = report.githubProblem {
-                    Text(problem).foregroundStyle(Theme.block)
+                    Text("\(problem). Run it in any terminal; this updates by itself.").foregroundStyle(Theme.block)
                 } else {
                     Text("Asking gh…").foregroundStyle(Theme.fg3)
                 }
@@ -82,6 +82,11 @@ struct FirstRunView: View {
             HStack {
                 Text(Paths.abbreviate(model.configFile.path)).font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
                 Spacer()
+                Text(model.firstRunChecking ? "checking…" : "checks again every few seconds")
+                    .font(Theme.ui(12))
+                    .foregroundStyle(Theme.fg3)
+                KeyCap(text: "r")
+                Text("check now").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 KeyCap(text: "e")
                 Text("open config").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 HStack(spacing: 6) {

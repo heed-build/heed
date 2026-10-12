@@ -199,6 +199,20 @@ public enum ConfigLoader {
                 for (profile, line) in pairs(["agents", name, "profiles"]) {
                     agent.profiles[profile] = line
                 }
+                for (state, pattern) in pairs(["agents", name, "patterns"]) {
+                    guard AgentState(rawValue: state) != nil else {
+                        problems.append(ConfigProblem(path: "agents.\(name).patterns.\(state)", message: "not a state"))
+                        continue
+                    }
+                    guard (try? NSRegularExpression(pattern: pattern)) != nil else {
+                        problems.append(ConfigProblem(
+                            path: "agents.\(name).patterns.\(state)",
+                            message: "not a valid regex"
+                        ))
+                        continue
+                    }
+                    agent.patterns[state] = pattern
+                }
                 if let index = config.work.agents.firstIndex(where: { $0.name == name }) {
                     config.work.agents[index] = agent
                 } else {
@@ -288,6 +302,10 @@ public enum ConfigLoader {
     # [agents.mytool]
     # command = "mytool"
     # prompt = "argument"
+    # Agents without hooks get their state read from the screen; patterns per state refine it (regex):
+    # [agents.mytool.patterns]
+    # blocked = "Allow this\\?"
+    # working = "Thinking"
 
     # Org and repo colors: teal, pink, lime, orange, periwinkle, sky. Repos inherit their org's.
     # [orgs.elastic]

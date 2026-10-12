@@ -26,6 +26,8 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     /// Arguments that resume the agent's session `{id}`, e.g. `--resume {id}`. Nil: the agent cannot resume, so a
     /// restored session starts fresh with its prompt.
     public var resumeArguments: String?
+    /// Screen patterns per state name (`blocked = "Allow\\?"`), for agents without hooks; see `ScreenGuess`.
+    public var patterns: [String: String] = [:]
 
     public init(
         name: String, command: String, prompt: PromptDelivery = .argument, profiles: [String: String] = [:],

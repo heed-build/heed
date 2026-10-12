@@ -65,6 +65,15 @@ final class TerminalSurfaces {
         #endif
     }
 
+    /// The visible screen of a pane's terminal, if it has one (for guessing agent states).
+    func visibleText(paneID: String) -> String? {
+        #if HEED_GHOSTTY
+            (views[paneID] as? GhosttySurfaceView)?.visibleText()
+        #else
+            nil
+        #endif
+    }
+
     /// Types text into a pane without pressing Return.
     func typeText(_ text: String, paneID: String) {
         #if HEED_GHOSTTY

@@ -106,3 +106,35 @@ struct HookServerTests {
         #expect(throws: HookServerError.self) { try HookServer(path: path).start() }
     }
 }
+
+struct ScreenGuessTests {
+    @Test func commonPromptsAreRecognised() {
+        let patterns = ScreenGuess.patterns(for: AgentProfile(name: "x", command: "x"))
+        #expect(ScreenGuess.guess("some output\nDo you want to proceed?\n❯ 1. Yes", patterns: patterns) == .blocked)
+        #expect(ScreenGuess.guess("✻ Thinking… (esc to interrupt)", patterns: patterns) == .working)
+        #expect(ScreenGuess.guess("Error: rate limit reached, retrying", patterns: patterns) == .limited)
+        #expect(ScreenGuess.guess("all done\n$ ", patterns: patterns) == nil)
+    }
+
+    @Test func onlyTheLastLinesCount() {
+        let patterns = ScreenGuess.patterns(for: AgentProfile(name: "x", command: "x"))
+        let screen = "Do you want to proceed?\n" + String(repeating: "line\n", count: 20)
+        #expect(ScreenGuess.guess(screen, patterns: patterns) == nil)
+    }
+
+    @Test func customPatternsReplaceAState() throws {
+        let (config, problems) = ConfigLoader.decode("""
+        [agents.mytool]
+        command = "mytool"
+        [agents.mytool.patterns]
+        working = "Pondering"
+        bogus = "x"
+        blocked = "(unclosed"
+        """)
+        #expect(Set(problems.map(\.path)) == ["agents.mytool.patterns.bogus", "agents.mytool.patterns.blocked"])
+        let agent = try #require(config?.work.agent("mytool"))
+        let patterns = ScreenGuess.patterns(for: agent)
+        #expect(ScreenGuess.guess("Pondering deeply", patterns: patterns) == .working)
+        #expect(ScreenGuess.guess("esc to interrupt", patterns: patterns) == nil)
+    }
+}

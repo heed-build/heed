@@ -172,8 +172,63 @@ final class AppModel {
         store = DomainStore(domain: cached, file: file)
         await offerResume(domain: cached)
         startGitHubSync()
+        startScreenReading()
         await refreshRepos()
         startSweepSchedule()
+    }
+
+    // MARK: Screen reading
+
+    private var screenTask: Task<Void, Never>?
+
+    /// Once a second, reads the agent pane of sessions whose agent does not report every state, and guesses the
+    /// missing ones from the screen. Matching runs off the main actor; a guess never overrides a reported state.
+    private func startScreenReading() {
+        screenTask?.cancel()
+        screenTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                await self?.readScreens()
+            }
+        }
+    }
+
+    private func readScreens() async {
+        var work: [(String, String, ScreenGuess.Patterns, Set<AgentState>)] = []
+        for session in sessions {
+            guard let agent = settings.agent(session.agent) else { continue }
+            let reported = ScreenGuess.reported(by: agent.name)
+            guard reported.count < 7, let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout),
+                  let text = TerminalSurfaces.shared.visibleText(paneID: paneID)
+            else { continue }
+            work.append((session.id, text, ScreenGuess.patterns(for: agent), reported))
+        }
+        guard !work.isEmpty else { return }
+        let guesses = await Task.detached(priority: .utility) {
+            work.map { id, text, patterns, reported -> (String, AgentState?) in
+                // Only states the agent cannot report are guessed, so such a guess may replace a reported state.
+                let state = ScreenGuess.guess(text, patterns: patterns)
+                return (id, state.flatMap { reported.contains($0) ? nil : $0 })
+            }
+        }.value
+        var changes: [DomainChange] = []
+        for (id, guess) in guesses {
+            guard var session = sessions.first(where: { $0.id == id }) else { continue }
+            let next: ObservedState
+            if let guess {
+                next = ObservedState(guess, source: .guessed, reason: "from the screen")
+            } else if session.state.source == .guessed, [.blocked, .asking, .limited].contains(session.state.state) {
+                // The prompt left the screen: the agent is past it.
+                next = ObservedState(.working, source: .guessed, reason: "from the screen")
+            } else {
+                continue
+            }
+            guard next.state != session.state.state || next.source != session.state.source else { continue }
+            session.state = next
+            session.activity = "\(next.state.rawValue) · guessed"
+            changes.append(.sessionUpserted(session))
+        }
+        commit(changes)
     }
 
     // MARK: Cleanup

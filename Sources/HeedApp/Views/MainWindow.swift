@@ -19,8 +19,12 @@ struct MainWindow: View {
                         ReposView()
                     case .history:
                         HistoryView()
-                    default:
-                        ComingView(view: model.view)
+                    case .inbox:
+                        InboxView()
+                    case .issues:
+                        IssuesView()
+                    case .prs:
+                        PullRequestsView()
                     }
                 }
             }
@@ -57,6 +61,7 @@ struct TitleBar: View {
                 crumb
                 views(compact: compact)
                 Spacer(minLength: 0)
+                syncStatus
                 if model.blockedCount > 0 {
                     Label { Text(compact ? "\(model.blockedCount)" : "\(model.blockedCount) blocked").fixedSize() }
                         icon: { StateGlyph(state: .blocked) }
@@ -78,6 +83,31 @@ struct TitleBar: View {
         .frame(height: 44)
         .background(Theme.bg2)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+
+    /// Unread inbox items; PRs that need you.
+    private func badge(_ view: AppView) -> Int {
+        switch view {
+        case .inbox: model.github.inbox.count(where: \.unread)
+        case .prs: model.github.pullsNeedingAttention
+        default: 0
+        }
+    }
+
+    @ViewBuilder private var syncStatus: some View {
+        if model.view == .inbox || model.view == .issues || model.view == .prs {
+            Group {
+                if model.syncing {
+                    Text("syncing…")
+                } else if model.github.status.isOffline {
+                    Text("offline").foregroundStyle(Theme.block)
+                } else if let synced = model.github.syncedAt {
+                    Text("synced \(synced.formatted(.relative(presentation: .numeric)))")
+                }
+            }
+            .foregroundStyle(Theme.fg3)
+            .fixedSize()
+        }
     }
 
     @ViewBuilder private var crumb: some View {
@@ -104,14 +134,18 @@ struct TitleBar: View {
         HStack(spacing: 2) {
             ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
                 let active = model.view == view
-                Text(verbatim: compact && !active ? "\(index + 1)" : "\(index + 1) \(view.title)")
-                    .lineLimit(1)
-                    .fixedSize()
-                    .font(Theme.mono(11.5))
-                    .foregroundStyle(active ? Theme.fg : Theme.fg3)
-                    .padding(.horizontal, compact ? 7 : 10)
-                    .padding(.vertical, 3)
-                    .background(RoundedRectangle(cornerRadius: 5).fill(active ? Theme.selected : .clear))
+                let count = badge(view)
+                HStack(spacing: 5) {
+                    Text(verbatim: compact && !active ? "\(index + 1)" : "\(index + 1) \(view.title)")
+                        .foregroundStyle(active ? Theme.fg : Theme.fg3)
+                    if count > 0 { Text("\(count)").foregroundStyle(Theme.block) }
+                }
+                .lineLimit(1)
+                .fixedSize()
+                .font(Theme.mono(11.5))
+                .padding(.horizontal, compact ? 7 : 10)
+                .padding(.vertical, 3)
+                .background(RoundedRectangle(cornerRadius: 5).fill(active ? Theme.selected : .clear))
             }
         }
     }
@@ -159,9 +193,12 @@ struct StatusBar: View {
 
     private var position: String {
         switch model.view {
-        case .repos: "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
-        case .history: "\(model.historyRows.isEmpty ? 0 : model.historyCursor + 1)/\(model.historyRows.count)"
-        default: "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
+        case .inbox, .issues, .prs:
+            let count = model.itemIDs(model.view).count
+            return "\(count == 0 ? 0 : model.cursor(in: model.view) + 1)/\(count)"
+        case .repos: return "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
+        case .history: return "\(model.historyRows.isEmpty ? 0 : model.historyCursor + 1)/\(model.historyRows.count)"
+        case .sessions: return "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
         }
     }
 
@@ -170,6 +207,9 @@ struct StatusBar: View {
         case .normal where model.filtering: "type to filter · ↩ keep · ⎋ clear"
         case .normal where model.view == .repos: "v select · n new worktree · R rescan · ⎋ back to sessions"
         case .normal where model.view == .history: "j k move · / search · R reopen · O new from prompt · t outcome"
+        case .normal where model.view == .inbox: "space pick · v range · s start session · a add · m read · o open · t filter"
+        case .normal where model.view == .issues: "space pick · v range · s start session · a add · o open"
+        case .normal where model.view == .prs: "j k move · o open · gS session · r sync"
         case .normal: "i insert · o start work · gp PR overlay · : command · ? keys"
         case .insert: "\(KeyCapText.of(DefaultKeys.insertEscape)) normal · ⌘/ keys"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"

@@ -231,7 +231,7 @@ struct StartWorkFormTests {
         _ = form.handle(KeyStroke("h"))
         #expect(form.agent == nil)
         guard case let .start(plan) = form.handle(KeyStroke("CR", .command)) else {
-            Issue.record("expected start")
+            Testing.Issue.record("expected start")
             return
         }
         #expect(plan.command == nil)

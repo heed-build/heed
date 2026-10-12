@@ -87,7 +87,7 @@ struct RepoChip: View {
                 .foregroundStyle(Theme.ink)
                 .frame(width: 12, height: 12)
                 .background(RoundedRectangle(cornerRadius: 3).fill(repo.color.foreground))
-            Text(repo.name).font(Theme.mono(10.5))
+            Text(repo.name).font(Theme.mono(10.5)).lineLimit(1).truncationMode(.middle)
         }
         .foregroundStyle(repo.color.foreground)
         .padding(.horizontal, 6)

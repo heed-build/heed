@@ -30,14 +30,29 @@ struct Inspector: View {
                             .font(Theme.ui(11.5))
                             .foregroundStyle(Theme.fg3)
                     }
-                    ForEach(session.trackedPRs, id: \.self) { pull in
+                    ForEach(session.trackedPRs, id: \.self) { ref in
+                        let pull = model.github.pull(ref)
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(verbatim: "\(pull.repo.name) #\(pull.number)").font(Theme.mono(11.5))
-                                .foregroundStyle(Theme.fg2)
-                            Text(session.title).font(Theme.ui(13, weight: .medium))
+                            HStack {
+                                Text(verbatim: "\(ref.repo.name) #\(ref.number)").font(Theme.mono(11.5))
+                                    .foregroundStyle(Theme.fg2)
+                                Spacer()
+                                if let pull { StateTag(state: pull.state, draft: pull.isDraft) }
+                            }
+                            Text(pull?.title ?? session.title).font(Theme.ui(13, weight: .medium)).lineLimit(2)
+                            if let pull {
+                                HStack(spacing: 8) {
+                                    CheckBar(checks: pull.checks)
+                                    Text(pull.checks.text)
+                                        .foregroundStyle(pull.checks.failed > 0 ? Theme.err : Theme.fg2)
+                                    Text("· \(pull.review?.text ?? "no review")").foregroundStyle(Theme.fg3)
+                                }
+                                .font(Theme.ui(11.5))
+                                .lineLimit(1)
+                            }
                             HStack(spacing: 4) {
                                 Circle().fill(Theme.busy).frame(width: 6, height: 6)
-                                Text("watching · ask").foregroundStyle(Theme.busy)
+                                Text(pull == nil ? "waiting for the next sync" : "watching").foregroundStyle(Theme.busy)
                             }
                             .font(Theme.mono(11))
                         }
@@ -105,5 +120,24 @@ struct WorktreeStatusLine: View {
                 .foregroundStyle(status.isDirty ? Theme.block : Theme.fg3)
         }
         .font(Theme.mono(11.5))
+    }
+}
+
+/// `open`, `draft`, `merged`, `closed`.
+struct StateTag: View {
+    let state: PullRequest.State
+    let draft: Bool
+
+    var body: some View {
+        let (text, tint): (String, Color) = switch state {
+        case .open: draft ? ("draft", Theme.fg2) : ("open", Theme.done)
+        case .merged: ("merged", Theme.ask)
+        case .closed: ("closed", Theme.err)
+        }
+        Text(text)
+            .font(Theme.mono(10.5))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 6)
+            .background(RoundedRectangle(cornerRadius: 4).fill(tint.opacity(0.16)))
     }
 }

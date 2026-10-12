@@ -20,12 +20,14 @@ public struct Domain: Hashable, Sendable, Codable {
     public var layouts: [String: SessionLayout]
     /// Closed sessions, newest first.
     public var history: [HistoryEntry]
+    public var github: GitHubState
 
     public init(
         repos: [RepoRecord] = [], worktrees: [Worktree] = [], sessions: [Session] = [],
-        layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = []
+        layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = [], github: GitHubState = GitHubState()
     ) {
         self.history = history
+        self.github = github
         self.repos = repos
         self.worktrees = worktrees
         self.sessions = sessions
@@ -53,6 +55,10 @@ public enum DomainChange: Hashable, Sendable, Codable {
     case sessionClosed(HistoryEntry)
     /// A history entry comes back as an active session (`R` reopen).
     case historyRemoved(String)
+    /// A GitHub sync finished (or failed: the status says so and the data is the previous data).
+    case githubSynced(GitHubState)
+    /// Notification threads marked read.
+    case inboxRead([String])
 }
 
 public extension Domain {
@@ -98,6 +104,12 @@ public extension Domain {
             history.insert(entry, at: 0)
         case let .historyRemoved(id):
             history.removeAll { $0.id == id }
+        case let .githubSynced(state):
+            github = state
+        case let .inboxRead(ids):
+            for index in github.inbox.indices where ids.contains(github.inbox[index].id) {
+                github.inbox[index].unread = false
+            }
         }
     }
 

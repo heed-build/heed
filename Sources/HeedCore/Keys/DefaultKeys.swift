@@ -50,6 +50,15 @@ public enum DefaultKeys {
     public static let scoped: [String: [(String, String)]] = [
         "repos": [("a", "repo.add"), ("n", "worktree.new"), ("R", "repo.scan")],
         "history": [("R", "history.reopen"), ("O", "history.again"), ("t", "history.outcome")],
+        "inbox": [
+            ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("m", "items.read"),
+            ("t", "items.filter"), ("r", "github.sync"), ("o", "open.reader"),
+        ],
+        "issues": [
+            ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("r", "github.sync"),
+            ("o", "open.reader"),
+        ],
+        "prs": [("r", "github.sync"), ("o", "open.reader")],
     ]
 
     public static func table(for mode: Mode) -> [(String, String)] {

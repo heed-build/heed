@@ -41,6 +41,7 @@ final class AppModel {
     private(set) var repos: [RepoRecord] = []
     private(set) var worktrees: [Worktree] = []
     private(set) var history: [HistoryEntry] = []
+    private(set) var github = GitHubState()
     private(set) var list = SessionList([])
     let settings: WorkSettings
     /// Nil for fixtures: nothing is persisted and no adapter runs.
@@ -57,6 +58,11 @@ final class AppModel {
     private(set) var historyFilter = ""
     private(set) var historyOutcome: Outcome?
     private(set) var historyCursor = 0
+
+    // GitHub lists: cursor and picked ids per view
+    private(set) var itemCursor: [AppView: Int] = [:]
+    private(set) var picked: [AppView: Set<String>] = [:]
+    private(set) var inboxFilter: InboxFilter = .unread
 
     // Resume on launch
     private(set) var resume: ResumeForm?
@@ -118,7 +124,40 @@ final class AppModel {
         replace(with: cached)
         store = DomainStore(domain: cached, file: file)
         await offerResume(domain: cached)
+        startGitHubSync()
         await refreshRepos()
+    }
+
+    // MARK: GitHub
+
+    private var githubTask: Task<Void, Never>?
+    private(set) var syncing = false
+
+    /// Syncs now and then every minute. A failed sync keeps the cached data and marks it offline.
+    private func startGitHubSync() {
+        githubTask?.cancel()
+        githubTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.syncGitHub()
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
+    }
+
+    func syncGitHub() async {
+        guard !isFixture, !syncing else { return }
+        syncing = true
+        defer { syncing = false }
+        let previous = github
+        let tracked = Array(Set(sessions.flatMap(\.trackedPRs)))
+        do {
+            let state = try await GitHub.sync(tracked: tracked, previous: previous)
+            commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
+        } catch {
+            var offline = previous
+            offline.status = .offline("\(error)")
+            commit(.githubSynced(offline))
+        }
     }
 
     // MARK: Resume on launch
@@ -267,15 +306,17 @@ final class AppModel {
         repos = domain.repos
         worktrees = domain.worktrees
         history = domain.history
+        github = domain.github
         cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
 
     /// The one way the domain changes. Only properties that actually changed are written, so only their readers redraw.
     func commit(_ changes: [DomainChange]) {
         guard !changes.isEmpty else { return }
-        let before = Domain(repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history)
+        let before = currentDomain
         let after = before.applying(changes)
         if after.history != before.history { history = after.history }
+        if after.github != before.github { github = after.github }
         if after.sessions != before.sessions { sessions = after.sessions }
         if after.layouts != before.layouts { layouts = after.layouts }
         if after.repos != before.repos { repos = after.repos }
@@ -284,6 +325,12 @@ final class AppModel {
     }
 
     func commit(_ change: DomainChange) { commit([change]) }
+
+    var currentDomain: Domain {
+        Domain(
+            repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github
+        )
+    }
 
     /// Scans the repo roots and lists every repo's worktrees with their status, concurrently and off the main actor.
     func refreshRepos() async {
@@ -403,7 +450,13 @@ final class AppModel {
             toggledRows = []
             visualAnchor = nil
         }
-        if mode == .visual { visualAnchor = view == .repos ? repoCursor : nil }
+        if mode == .visual {
+            visualAnchor = switch view {
+            case .repos: repoCursor
+            case .inbox, .issues: itemCursor[view] ?? 0
+            default: nil
+            }
+        }
         if mode == .insert { terminalFocusRequest += 1 }
     }
 
@@ -485,6 +538,13 @@ final class AppModel {
         case "select.open": openSelected()
         case "select.remove": removeSelected()
         case "session.filter": startFilter()
+        case "github.sync": Task { await syncGitHub() }
+        case "items.start": startFromItems()
+        case "items.add": addItemsToSession()
+        case "items.read": markItemsRead()
+        case "items.filter": inboxFilter = inboxFilter.next
+        case "open.reader", "open.browser": openInBrowser()
+        case "pr.session": jumpToPullSession()
         case "history.reopen": reopenSelected()
         case "history.again": openStartWork(prompt: selectedHistory?.session.prompt ?? "")
         case "history.outcome": cycleOutcome()
@@ -532,12 +592,17 @@ final class AppModel {
         switch view {
         case .repos: setRow(repoCursor + delta)
         case .history: setRow(historyCursor + delta)
-        default: setCursor(cursor + delta)
+        case .inbox, .issues, .prs: setRow((itemCursor[view] ?? 0) + delta)
+        case .sessions: setCursor(cursor + delta)
         }
     }
 
     private func setRow(_ index: Int) {
-        if view == .history {
+        if [.inbox, .issues, .prs].contains(view) {
+            let count = itemIDs(view).count
+            guard count > 0 else { return }
+            itemCursor[view] = min(max(index, 0), count - 1)
+        } else if view == .history {
             let count = historyRows.count
             guard count > 0 else { return }
             historyCursor = min(max(index, 0), count - 1)
@@ -627,6 +692,17 @@ final class AppModel {
     // MARK: Repos view
 
     private func toggleRow() {
+        if view == .inbox || view == .issues {
+            let ids = itemIDs(view)
+            let index = itemCursor[view] ?? 0
+            guard ids.indices.contains(index) else { return }
+            if picked[view, default: []].contains(ids[index]) {
+                picked[view]?.remove(ids[index])
+            } else {
+                picked[view, default: []].insert(ids[index])
+            }
+            return
+        }
         let rows = worktreeRows
         guard view == .repos, rows.indices.contains(repoCursor) else { return }
         let id = rows[repoCursor].id
@@ -710,7 +786,7 @@ final class AppModel {
             flash = "fixture: no IO"
             return
         }
-        let domain = Domain(repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history)
+        let domain = currentDomain
         let settings = settings
         let integration = integration
         flash = "reopening \(entry.session.title)…"
@@ -734,6 +810,137 @@ final class AppModel {
             } catch {
                 flash = "reopen failed: \(error)"
             }
+        }
+    }
+
+    // MARK: GitHub lists
+
+    var inboxRows: [InboxItem] { github.inbox.filter(inboxFilter.matches) }
+
+    func itemIDs(_ view: AppView) -> [String] {
+        switch view {
+        case .inbox: inboxRows.map(\.id)
+        case .issues: github.issues.map(\.id)
+        case .prs: github.pulls.map(\.id)
+        default: []
+        }
+    }
+
+    func cursor(in view: AppView) -> Int { itemCursor[view] ?? 0 }
+
+    /// Picked ids in a list: toggled ones plus the VISUAL range.
+    func pickedIDs(_ view: AppView) -> Set<String> {
+        var result = picked[view] ?? []
+        if mode == .visual, self.view == view, let anchor = visualAnchor {
+            let ids = itemIDs(view)
+            let current = cursor(in: view)
+            for index in min(anchor, current) ... max(anchor, current) where ids.indices.contains(index) {
+                result.insert(ids[index])
+            }
+        }
+        return result
+    }
+
+    /// What `s`, `a`, `m` act on: the picked items, else the one under the cursor.
+    private func actionIDs(_ view: AppView) -> [String] {
+        let ids = itemIDs(view)
+        let chosen = pickedIDs(view)
+        if !chosen.isEmpty { return ids.filter(chosen.contains) }
+        let index = cursor(in: view)
+        return ids.indices.contains(index) ? [ids[index]] : []
+    }
+
+    private func clearPicks() {
+        picked[view] = []
+        if mode == .visual {
+            engine.enter(.normal)
+            modeChanged(from: .visual)
+        }
+    }
+
+    private var itemsPrompt: String {
+        let ids = actionIDs(view)
+        switch view {
+        case .issues: return WorkPrompt.from(issues: github.issues.filter { ids.contains($0.id) })
+        case .inbox:
+            let items = inboxRows.filter { ids.contains($0.id) }
+            // Issues in the inbox get their full text when Issues has it.
+            let issues = items.compactMap { item in
+                github.issues.first { $0.repo == item.repo && $0.number == item.number }
+            }
+            return issues.count == items.count ? WorkPrompt.from(issues: issues) : WorkPrompt.from(inbox: items)
+        default: return ""
+        }
+    }
+
+    var itemsPromptPreview: String { itemsPrompt }
+
+    private func startFromItems() {
+        let prompt = itemsPrompt
+        guard !prompt.isEmpty else { return }
+        clearPicks()
+        openStartWork(prompt: prompt)
+    }
+
+    private func addItemsToSession() {
+        let prompt = itemsPrompt
+        guard !prompt.isEmpty, let session = currentSession, let layout = layouts[session.id],
+              let (_, paneID) = agentPane(in: layout)
+        else {
+            flash = "no session to add to"
+            return
+        }
+        guard session.state.state != .blocked, session.state.state != .asking else {
+            flash = "\(session.title) is waiting on you; answer it first"
+            return
+        }
+        TerminalSurfaces.shared.typeLine(prompt.replacingOccurrences(of: "\n", with: " "), paneID: paneID)
+        clearPicks()
+        flash = "added to \(session.title)"
+    }
+
+    private func markItemsRead() {
+        guard view == .inbox else { return }
+        let ids = actionIDs(.inbox)
+        guard !ids.isEmpty else { return }
+        commit(.inboxRead(ids))
+        clearPicks()
+        guard !isFixture else { return }
+        Task {
+            for id in ids {
+                try? await GitHub.markRead(threadID: id)
+            }
+        }
+    }
+
+    private var urlUnderCursor: String? {
+        let index = cursor(in: view)
+        switch view {
+        case .inbox: return inboxRows.indices.contains(index) ? inboxRows[index].url : nil
+        case .issues: return github.issues.indices.contains(index) ? github.issues[index].url : nil
+        case .prs: return github.pulls.indices.contains(index) ? github.pulls[index].url : nil
+        case .sessions: return currentSession?.trackedPRs.first?.url
+        default: return nil
+        }
+    }
+
+    private func openInBrowser() {
+        guard let text = urlUnderCursor, let url = URL(string: text) else {
+            flash = "nothing to open"
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
+    private func jumpToPullSession() {
+        let index = cursor(in: .prs)
+        guard view == .prs, github.pulls.indices.contains(index) else { return }
+        let ref = github.pulls[index].ref
+        if let session = sessions.first(where: { $0.trackedPRs.contains(ref) }) {
+            view = .sessions
+            select(sessionID: session.id)
+        } else {
+            flash = "no session tracks \(ref)"
         }
     }
 
@@ -895,6 +1102,25 @@ struct AgentEvent: Hashable {
     let at: Date
     let state: AgentState
     let reason: String?
+}
+
+enum InboxFilter: String, CaseIterable {
+    case unread = "Unread", all = "All", review = "Review requested", assigned = "Assigned", ci = "CI"
+
+    var next: InboxFilter {
+        let all = Self.allCases
+        return all[(all.firstIndex(of: self)! + 1) % all.count]
+    }
+
+    func matches(_ item: InboxItem) -> Bool {
+        switch self {
+        case .unread: item.unread
+        case .all: true
+        case .review: item.reason == "review_requested"
+        case .assigned: item.reason == "assign"
+        case .ci: item.kind == .ci || item.reason == "ci_activity"
+        }
+    }
 }
 
 enum HintTarget: Hashable {

@@ -80,7 +80,158 @@ public enum Fixtures {
             }
             layouts[session.id] = SessionLayout(tabs: tabs(for: session, root: root))
         }
-        return Domain(repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history)
+        return Domain(
+            repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github
+        )
+    }()
+
+    /// design/screens/Inbox.png and PRs.png.
+    static let github: GitHubState = {
+        let now = Date()
+        func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
+        func pull(
+            _ repo: Repo, _ number: Int, _ title: String, _ branch: String, _ checks: CheckSummary,
+            _ review: ReviewDecision?, threads: Int = 0
+        ) -> PullRequest {
+            PullRequest(
+                ref: PullRef(repo: repo, number: number), title: title, url: PullRef(repo: repo, number: number).url,
+                state: .open, isDraft: false, headBranch: branch, review: review, checks: checks,
+                unresolvedThreads: threads, updatedAt: ago(Double(number % 60))
+            )
+        }
+        let inbox = [
+            InboxItem(
+                id: "n1",
+                kind: .pr,
+                repo: docsBuilder,
+                number: 2845,
+                title: "Add link validation to assembler",
+                reason: "review_requested",
+                unread: true,
+                updatedAt: ago(4),
+                url: nil
+            ),
+            InboxItem(
+                id: "n2",
+                kind: .ci,
+                repo: docsBuilder,
+                number: nil,
+                title: "lint failed on #2841",
+                reason: "ci_activity",
+                unread: true,
+                updatedAt: ago(9),
+                url: nil
+            ),
+            InboxItem(
+                id: "n3",
+                kind: .pr,
+                repo: docsContent,
+                number: 1920,
+                title: "2 new review comments",
+                reason: "comment",
+                unread: true,
+                updatedAt: ago(12),
+                url: nil
+            ),
+            InboxItem(
+                id: "n4",
+                kind: .issue,
+                repo: docsBuilder,
+                number: 2830,
+                title: "Anchors lost when a page is moved",
+                reason: "assign",
+                unread: true,
+                updatedAt: ago(60),
+                url: nil
+            ),
+            InboxItem(
+                id: "n5",
+                kind: .issue,
+                repo: docsBuilder,
+                number: 2833,
+                title: "Redirect loop on /reference",
+                reason: "mention",
+                unread: true,
+                updatedAt: ago(120),
+                url: nil
+            ),
+            InboxItem(
+                id: "n6",
+                kind: .pr,
+                repo: mermaider,
+                number: 187,
+                title: "Arrowhead markers on sequence diagrams",
+                reason: "review_requested",
+                unread: true,
+                updatedAt: ago(180),
+                url: nil
+            ),
+            InboxItem(
+                id: "n7",
+                kind: .issue,
+                repo: ingest,
+                number: 94,
+                title: "Backpressure drops events under burst",
+                reason: "assign",
+                unread: true,
+                updatedAt: ago(300),
+                url: nil
+            ),
+        ]
+        let issues = [
+            Issue(
+                repo: docsBuilder,
+                number: 2830,
+                title: "Anchors lost when a page is moved",
+                url: "",
+                body: "Moving a page drops its heading anchors from redirects.",
+                labels: ["bug"],
+                author: "reviewer",
+                updatedAt: ago(60)
+            ),
+            Issue(
+                repo: docsBuilder,
+                number: 2833,
+                title: "Redirect loop on /reference",
+                url: "",
+                body: "/reference redirects to itself after the nav change.",
+                labels: ["bug", "redirects"],
+                author: "reviewer",
+                updatedAt: ago(120)
+            ),
+            Issue(
+                repo: ingest,
+                number: 94,
+                title: "Backpressure drops events under burst",
+                url: "",
+                body: "Under burst load the stage drops events instead of slowing producers.",
+                labels: [],
+                author: nil,
+                updatedAt: ago(300)
+            ),
+        ]
+        let pulls = [
+            pull(
+                docsBuilder,
+                2841,
+                "Fix broken anchors in redirects",
+                "fix-anchors-redirects",
+                CheckSummary(passed: 3, failed: 1, pending: 1, failedNames: ["lint"]),
+                .changesRequested,
+                threads: 2
+            ),
+            pull(docsContent, 1920, "Redirects for moved pages", "fix-anchors-redirects", CheckSummary(passed: 4), nil),
+            pull(
+                docsBuilder,
+                2838,
+                "Cross-link validator for assembler",
+                "cross-link-validator",
+                CheckSummary(passed: 2, pending: 3),
+                nil
+            ),
+            pull(editorconfig, 412, "Bump spec tests to 0.17", "bump-spec-tests", CheckSummary(passed: 3), .approved),
+        ]
+        return GitHubState(viewer: "you", inbox: inbox, issues: issues, pulls: pulls, syncedAt: ago(0.3), status: .ok)
     }()
 
     /// design/screens/History.png: closed sessions over the last week.

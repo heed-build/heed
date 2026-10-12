@@ -42,7 +42,9 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
    `--settings` + `--session-id` per launch, event log in the inspector; needs a hands-on check)*
 5. Persistence, resume on launch, pins, history. *(done: resume dialog per `resumeOnLaunch`, continue prompt once idle,
    history with outcomes and timelines, `R` reopen recreating cleaned-up worktrees, `/` filters)*
-6. GitHub: inbox, issues, PR watch, org icons and colors.
+6. GitHub: inbox, issues, PR watch, org icons and colors. *(done except org icons: gh sync every 60s into the cached
+   domain, Inbox/Issues/PRs views, start one session from picked items, mark read, PRs tracked by branch; SAML-hidden
+   items counted, offline keeps the cache. Org avatars need a non-gh download, so letter tiles stay for now)*
 7. PR overlay, reader, feedback queue, auto-feed.
 8. Diff overlay.
 9. Other agents, custom command, first run, empty and offline states, cleanup sweep, config file and Settings.

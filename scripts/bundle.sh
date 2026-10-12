@@ -6,7 +6,7 @@
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 config="${1:-debug}"
-products="$(cd "$root" && scripts/swift.sh build -c "$config" --show-bin-path)"
+products="$(cd "$root" && swift build -c "$config" --show-bin-path)"
 app="${BUILD_DIR:-$root/build}/Heed.app"
 version="0.1.0+$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo dev)"
 

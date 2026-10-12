@@ -4,16 +4,13 @@ swiftformat = "0.58"
 swiftlint = "0.61"
 
 [env]
-# Xcode when it is installed and its licence accepted (GhosttyKit needs the Metal toolchain), else the Command Line
-# Tools. Only this project uses Xcode; the system-wide xcode-select stays as it is.
-DEVELOPER_DIR = "{{exec(command='scripts/developer-dir.sh')}}"
 BUILD_DIR = "{{config_root}}/build"
 # The upstream Ghostty commit GhosttyKit is built from. ghostty.h is Ghostty's internal embedding API, so bump this
 # deliberately and fix Sources/HeedTerminal in the same commit.
 GHOSTTY_COMMIT = "1e9e14af5df14211892f5fc15fd21a49c7d94868"
 
 [tasks.doctor]
-description = "Check the toolchain: Xcode, its licence, the Metal toolchain, Zig, gh"
+description = "Check the toolchain: Xcode selected, its licence, the Metal toolchain, Zig, gh"
 run = "scripts/doctor.sh"
 
 [tasks.ghostty]
@@ -24,7 +21,7 @@ outputs = ["Vendor/GhosttyKit.xcframework/Info.plist"]
 
 [tasks.build]
 description = "Debug build, assemble build/Heed.app, then copy it to HEED_DEPLOY_DIR if set"
-run = ["scripts/swift.sh build", "scripts/bundle.sh debug", "scripts/deploy.sh"]
+run = ["swift build", "scripts/bundle.sh debug", "scripts/deploy.sh"]
 
 [tasks.dev]
 description = "Build and launch Heed.app"
@@ -33,7 +30,7 @@ run = "open $BUILD_DIR/Heed.app"
 
 [tasks.test]
 description = "Swift Testing suite"
-run = "scripts/swift.sh test --quiet"
+run = "swift test --quiet"
 
 [tasks.fmt]
 description = "Format Swift sources"
@@ -41,13 +38,11 @@ run = "swiftformat Sources Tests Package.swift"
 
 [tasks.lint]
 description = "Check formatting and lint"
-# SwiftLint needs a working SourceKit; use the pinned swift.org toolchain's.
-env = { TOOLCHAIN_DIR = "{{env.HOME}}/.local/share/mise/installs/swift/6.3.3" }
 run = ["swiftformat Sources Tests Package.swift --lint", "swiftlint lint --quiet Sources Tests"]
 
 [tasks.bundle]
 description = "Release build, ad-hoc signed build/Heed.app"
-run = ["scripts/swift.sh build -c release", "scripts/bundle.sh release"]
+run = ["swift build -c release", "scripts/bundle.sh release"]
 
 [tasks.deploy]
 description = "Copy build/Heed.app to HEED_DEPLOY_DIR (set it in mise.local.toml)"

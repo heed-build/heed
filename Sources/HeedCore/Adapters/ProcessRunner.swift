@@ -26,19 +26,34 @@ public enum ProcessRunner {
         _ executable: String, _ arguments: [String], in directory: String? = nil,
         environment: [String: String]? = nil, timeout: Duration = .seconds(30)
     ) async throws -> ProcessResult {
+        let command = ([executable] + arguments).joined(separator: " ")
+        // A bare name is resolved through tool detection (an app opened from Finder has a minimal PATH) and runs with
+        // the detected PATH, so gh finds git and git its helpers. A path runs as given.
+        var path = executable
+        var variables = environment ?? [:]
+        if !executable.contains("/") {
+            let found = await ToolLocator.shared.executable(executable)
+            guard let resolved = found.path else {
+                throw ProcessError(
+                    command: command, result: nil,
+                    reason: "\(executable) not found (set [tools] \(executable) in config.toml)"
+                )
+            }
+            path = resolved
+            if variables["PATH"] == nil { variables["PATH"] = found.pathVariable }
+        }
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = [executable] + arguments
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
         if let directory { process.currentDirectoryURL = URL(fileURLWithPath: directory) }
-        if let environment {
-            process.environment = ProcessInfo.processInfo.environment.merging(environment) { _, new in new }
+        if !variables.isEmpty {
+            process.environment = ProcessInfo.processInfo.environment.merging(variables) { _, new in new }
         }
         let stdout = Pipe()
         let stderr = Pipe()
         process.standardOutput = stdout
         process.standardError = stderr
         process.standardInput = FileHandle.nullDevice
-        let command = ([executable] + arguments).joined(separator: " ")
 
         let exited = AsyncStream<Int32> { continuation in
             process.terminationHandler = { finished in

@@ -4,7 +4,7 @@ import Foundation
 public struct FirstRunReport: Equatable, Sendable {
     public struct AgentFound: Equatable, Sendable {
         public let name: String
-        /// Where its command resolves in your login shell; nil when it is not installed.
+        /// Where its command resolves on the detected search path; nil when it is not installed.
         public let path: String?
 
         public init(name: String, path: String?) {
@@ -16,33 +16,33 @@ public struct FirstRunReport: Equatable, Sendable {
     public var githubUser: String?
     public var githubProblem: String?
     public var agents: [AgentFound]
+    /// git and gh, and the search path agents were looked up on.
+    public var tools: ToolReport?
 
-    public init(githubUser: String? = nil, githubProblem: String? = nil, agents: [AgentFound] = []) {
+    public init(
+        githubUser: String? = nil, githubProblem: String? = nil, agents: [AgentFound] = [], tools: ToolReport? = nil
+    ) {
         self.githubUser = githubUser
         self.githubProblem = githubProblem
         self.agents = agents
+        self.tools = tools
     }
 
-    /// Checks gh and resolves each agent's command in a login shell (an app opened from Finder has a minimal PATH;
-    /// panes use the login shell's).
+    /// Checks gh and looks each agent's command up on the detected search path (an app opened from Finder has a
+    /// minimal PATH; see `ToolDetection`).
     public static func gather(agents: [AgentProfile]) async -> FirstRunReport {
-        async let user: String? = try? GitHub.viewer()
-        var found: [AgentFound] = []
-        for agent in agents {
-            let command = agent.command.split(separator: " ").first.map(String.init) ?? agent.command
-            let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
-            let path = try? await ProcessRunner.output(
-                shell,
-                ["-lc", "command -v \(ShellQuote.quote(command))"],
-                timeout: .seconds(10)
-            )
-            let resolved = path?.trimmingCharacters(in: .whitespacesAndNewlines)
-            found.append(AgentFound(name: agent.name, path: resolved?.isEmpty == false ? resolved : nil))
+        let tools = await ToolLocator.shared.report()
+        var problem: String?
+        var login: String?
+        if let missing = tools.tool("gh"), missing.path == nil {
+            problem = missing.problem
+        } else {
+            do { login = try await GitHub.viewer() } catch { problem = "\(error)" }
         }
-        let login = await user
-        return FirstRunReport(
-            githubUser: login, githubProblem: login == nil ? "gh is not signed in: run gh auth login" : nil,
-            agents: found
-        )
+        let found = agents.map { agent in
+            let command = agent.command.split(separator: " ").first.map(String.init) ?? agent.command
+            return AgentFound(name: agent.name, path: ToolDetection.find(command, in: tools.searchPath))
+        }
+        return FirstRunReport(githubUser: login, githubProblem: problem, agents: found, tools: tools)
     }
 }

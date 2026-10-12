@@ -33,6 +33,8 @@ final class TerminalSurfaces {
     /// Panes whose command should be typed when their terminal is created: only those Start work just made. A pane
     /// restored from the cache opens a plain shell, so a relaunch never starts a second agent (resume is step 5).
     var autostartPanes: Set<String> = []
+    /// PATH for new panes: the detected search path (an app opened from Finder has a minimal one).
+    var searchPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
 
     func view(for pane: PaneSpec, sessionID: String) -> NSView {
         if let existing = views[pane.id] {
@@ -46,7 +48,9 @@ final class TerminalSurfaces {
         ]
         var launch = pane
         if autostartPanes.remove(pane.id) == nil { launch.command = nil }
-        let view = makeTerminalView(pane: launch, environment: environment)
+        var withPath = environment
+        withPath["PATH"] = searchPath
+        let view = makeTerminalView(pane: launch, environment: withPath)
         views[pane.id] = view
         return view
     }

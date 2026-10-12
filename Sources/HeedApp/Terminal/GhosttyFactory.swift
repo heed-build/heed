@@ -15,7 +15,7 @@
             if let helpers = Bundle.main.url(forAuxiliaryExecutable: "heed")?.deletingLastPathComponent().path
                 ?? Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers").path as String?
             {
-                env["PATH"] = "\(helpers):\(ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin")"
+                env["PATH"] = "\(helpers):\(environment["PATH"] ?? ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin")"
                 env[HeedEnvironment.binary] = "\(helpers)/heed"
             }
             // A pane's command is typed into its shell only when its worktree exists, so a fixture or a cleaned-up

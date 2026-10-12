@@ -13,6 +13,21 @@ if arguments.isEmpty || arguments.first == "--help" || arguments.first == "-h" {
     exit(0)
 }
 
+// `heed tools`: what the app's tool detection finds, from wherever this runs (`env -i heed tools` mimics Finder).
+if arguments.first == "tools" {
+    let source = (try? String(contentsOf: ConfigLoader.defaultFile(), encoding: .utf8)) ?? ""
+    let settings = ConfigLoader.decode(source).config?.tools ?? ToolSettings()
+    let report = await ToolDetection.detect(settings)
+    print("shell   \(report.shell) (\(report.shellPath == nil ? "did not report its PATH" : "PATH read"))")
+    for tool in report.tools {
+        print("\(tool.name.padding(toLength: 8, withPad: " ", startingAt: 0))\(tool.path ?? "not found")"
+            + [tool.version, tool.source.map { "from \($0.rawValue)" }].compactMap(\.self).map { "  \($0)" }.joined())
+        if let problem = tool.problem { print("        \(problem)") }
+    }
+    print("PATH    \(report.pathVariable)")
+    exit(report.tools.allSatisfy { $0.path != nil } ? 0 : 1)
+}
+
 let kinds: [HookMessage.Kind]
 do {
     kinds = try HookCommandLine.parse(arguments) { FileHandle.standardInput.readDataToEndOfFile() }

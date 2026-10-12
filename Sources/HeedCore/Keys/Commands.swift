@@ -75,6 +75,7 @@ public enum Commands {
         .init("inspector.toggle", "collapse / expand the inspector", .views),
         .init("sidebar.toggle", "collapse / expand the sessions sidebar", .views),
         .init("config.edit", "open config.toml in $EDITOR", .views),
+        .init("tools.detect", "find git and gh again (login shell PATH, usual places, [tools])", .views),
         .init("app.quit", "quit Heed", .views),
         .init("settings.open", "open Settings", .views),
         .init("welcome", "show the getting-started checks again", .views),

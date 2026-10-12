@@ -14,6 +14,7 @@ public struct HeedConfig: Equatable, Sendable {
     public var repos: [String: RepoConfig]
     public var cleanup: CleanupRule
     public var githubPollSeconds: Int
+    public var tools = ToolSettings()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -41,7 +42,7 @@ public struct HeedConfig: Equatable, Sendable {
         }
         return lhs.work == rhs.work && lhs.insertEscape == rhs.insertEscape && flat(lhs.keys) == flat(rhs.keys)
             && flat(lhs.scopedKeys) == flat(rhs.scopedKeys) && lhs.orgColors == rhs.orgColors && lhs.repos == rhs.repos
-            && lhs.cleanup == rhs.cleanup && lhs.githubPollSeconds == rhs.githubPollSeconds
+            && lhs.cleanup == rhs.cleanup && lhs.githubPollSeconds == rhs.githubPollSeconds && lhs.tools == rhs.tools
     }
 
     /// The keymaps this config asks for, with problems reported per entry.
@@ -176,6 +177,10 @@ public enum ConfigLoader {
         if let flag = bool(["cleanup", "ask_before_sweep"]) { config.cleanup.askBeforeSweep = flag }
         // [github]
         if let seconds = integer(["github", "poll_seconds"], range: 15 ... 3600) { config.githubPollSeconds = seconds }
+        // [tools]
+        if let git = string(["tools", "git"]) { config.tools.git = git }
+        if let gh = string(["tools", "gh"]) { config.tools.gh = gh }
+        if let path = strings(["tools", "path"]) { config.tools.path = path }
 
         // [agents.<name>]: built-ins are overridden field by field; other names are custom agents.
         if let agents = root.value(at: ["agents"])?.table {
@@ -315,6 +320,14 @@ public enum ConfigLoader {
 
     [github]
     poll_seconds = 60
+
+    [tools]
+    # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
+    # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.
+    git = ""                           # e.g. "/opt/homebrew/bin/git"
+    gh = ""
+    # Directories searched first, for git, gh and agent commands alike.
+    path = []
 
     # Agents. Built-ins (claude, codex, cursor, pi, opencode, gemini) can be overridden field by field; any other name
     # is a custom agent. Fields: command, prompt (argument | stdin | paste | file), plan, resume ("{id}" is the

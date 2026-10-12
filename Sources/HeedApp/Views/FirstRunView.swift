@@ -30,10 +30,17 @@ struct FirstRunView: View {
                     Text("Signed in to gh as \(user). Inbox, issues and PRs sync through gh only.")
                         .foregroundStyle(Theme.fg2)
                 } else if let problem = report.githubProblem {
-                    Text("\(problem). Run it in any terminal; this updates by itself.").foregroundStyle(Theme.block)
+                    Text(problem.contains("auth login")
+                        ? "\(problem). Run it in any terminal; this updates by itself."
+                        : problem)
+                        .foregroundStyle(Theme.block)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text("Asking gh…").foregroundStyle(Theme.fg3)
                 }
+            }
+            step("Tools", done: report.tools.map { $0.tools.allSatisfy { $0.path != nil } } ?? false) {
+                ToolsList(report: report.tools)
             }
             step("Repos", done: !model.repos.isEmpty) {
                 Text(model.repos.isEmpty
@@ -114,6 +121,46 @@ struct FirstRunView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(title).font(Theme.ui(14, weight: .semibold))
                 content().font(Theme.ui(12.5))
+            }
+        }
+    }
+}
+
+/// git and gh as detected: where, which version and why that one; shared by the first run and Settings.
+struct ToolsList: View {
+    let report: ToolReport?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let report {
+                ForEach(report.tools, id: \.name) { tool in
+                    HStack(spacing: 12) {
+                        Text(tool.name).font(Theme.mono(12.5)).frame(width: 90, alignment: .leading)
+                        if let path = tool.path {
+                            Text(Paths.abbreviate(path)).font(Theme.mono(11.5))
+                            Text([tool.version, tool.source.map { "from \($0.rawValue)" }].compactMap(\.self)
+                                .joined(separator: " · "))
+                                .foregroundStyle(Theme.fg3)
+                                .lineLimit(1)
+                        } else {
+                            Text("not found").foregroundStyle(Theme.block)
+                        }
+                    }
+                    .font(Theme.ui(12.5))
+                    if let problem = tool.problem {
+                        Text(problem).font(Theme.ui(12)).foregroundStyle(Theme.block)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Text(report.shellPath == nil
+                    ? "\(Paths.abbreviate(report.shell)) did not report its PATH; searched the usual places instead."
+                    :
+                    "Searched \(Paths.abbreviate(report.shell))'s PATH, then the usual places. Set [tools] in config.toml to pick another.")
+                    .font(Theme.ui(12))
+                    .foregroundStyle(Theme.fg3)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Looking for git and gh…").foregroundStyle(Theme.fg3)
             }
         }
     }

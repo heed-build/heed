@@ -236,6 +236,8 @@ struct StatusBar: View {
                 )
             } else if let problem = model.keyProblems.first {
                 Text("config: \(problem.description)").foregroundStyle(Theme.err).padding(.horizontal, 12)
+            } else if let problem = model.tools?.problems.first {
+                Text(problem).foregroundStyle(Theme.err).lineLimit(1).truncationMode(.middle).padding(.horizontal, 12)
             }
             Spacer()
             Text(model.pendingKeys).foregroundStyle(Theme.fg).padding(.horizontal, 12)

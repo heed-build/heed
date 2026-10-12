@@ -62,6 +62,8 @@ final class AppModel {
     private(set) var taskResults: [String: Int] = [:]
     /// The first-run screen, while shown.
     private(set) var firstRun: FirstRunReport?
+    /// Where git and gh were found, and the search path every command and pane runs with.
+    private(set) var tools: ToolReport?
     /// Opens the Settings window (set by the view, which has the SwiftUI action).
     var openSettings: (() -> Void)?
     /// Nil for fixtures: nothing is persisted and no adapter runs.
@@ -169,6 +171,7 @@ final class AppModel {
     /// Starts from the cache, then refreshes from git. The window is already up showing whatever the cache holds.
     func start(cache file: URL) async {
         startConfig()
+        if !isFixture { await detectTools() }
         startHooks()
         let integration = integration
         Task.detached(priority: .utility) {
@@ -448,6 +451,7 @@ final class AppModel {
         let (decoded, problems) = ConfigLoader.decode(source)
         configProblems = problems
         guard let decoded else { return }
+        let toolsChanged = decoded.tools != config.tools
         config = decoded
         settings = decoded.work
         let built = decoded.keymaps()
@@ -455,6 +459,18 @@ final class AppModel {
         updateScope()
         keyProblems = built.problems
         Palette.shared.apply(decoded)
+        if toolsChanged, !isFixture { Task { await detectTools() } }
+    }
+
+    /// Finds git and gh (config, login shell PATH, usual places) and hands the search path to new panes.
+    func detectTools(force: Bool = false) async {
+        let report = await ToolLocator.shared.configure(config.tools, force: force)
+        tools = report
+        TerminalSurfaces.shared.searchPath = report.pathVariable
+        if force {
+            flash = report.problems.first
+                ?? report.tools.map { "\($0.name): \(Paths.abbreviate($0.path ?? "?"))" }.joined(separator: "  ")
+        }
     }
 
     /// Settings writes one value into config.toml; the watcher picks the change up like any other edit.
@@ -846,6 +862,7 @@ final class AppModel {
         case "history.outcome": cycleOutcome()
         case "app.quit": NSApp.terminate(nil)
         case "config.edit": NSWorkspace.shared.open(configFile)
+        case "tools.detect": Task { await detectTools(force: true) }
         case "settings.open": openSettings?()
         case "welcome": showFirstRun()
         default:

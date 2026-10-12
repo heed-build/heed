@@ -161,6 +161,13 @@ private struct GeneralSettings: View {
                 }
                 .frame(width: 160)
             }
+            Field(label: "git", detail: "Empty detects it. A path, or a name looked up on the search path.") {
+                ConfigTextField(path: ["tools", "git"], value: model.config.tools.git)
+            }
+            Field(label: "gh", detail: "Empty detects it.") {
+                ConfigTextField(path: ["tools", "gh"], value: model.config.tools.gh)
+            }
+            ToolsList(report: model.tools)
         }
     }
 }

@@ -45,7 +45,9 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 6. GitHub: inbox, issues, PR watch, org icons and colors. *(done except org icons: gh sync every 60s into the cached
    domain, Inbox/Issues/PRs views, start one session from picked items, mark read, PRs tracked by branch; SAML-hidden
    items counted, offline keeps the cache. Org avatars need a non-gh download, so letter tiles stay for now)*
-7. PR overlay, reader, feedback queue, auto-feed.
+7. PR overlay, reader, feedback queue, auto-feed. *(done: `gp` overlay and `o` reader, pipeline New → Queued → Sent →
+   Addressed → Resolved, Off/Ask/Auto when idle, delivery only to an idle agent you are not typing to, 3-round stop,
+   CI loop reports checks that pass again; editing the prompt before sending is still to do)*
 8. Diff overlay.
 9. Other agents, custom command, first run, empty and offline states, cleanup sweep, config file and Settings.
 

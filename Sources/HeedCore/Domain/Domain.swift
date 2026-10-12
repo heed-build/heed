@@ -21,11 +21,18 @@ public struct Domain: Hashable, Sendable, Codable {
     /// Closed sessions, newest first.
     public var history: [HistoryEntry]
     public var github: GitHubState
+    /// PR details by `org/name#n`, for the reader (cached, so it opens offline).
+    public var pullDetails: [String: PullDetail]
+    /// Feedback pipelines by `org/name#n`.
+    public var feedback: [String: PullFeedback]
 
     public init(
         repos: [RepoRecord] = [], worktrees: [Worktree] = [], sessions: [Session] = [],
-        layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = [], github: GitHubState = GitHubState()
+        layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = [], github: GitHubState = GitHubState(),
+        pullDetails: [String: PullDetail] = [:], feedback: [String: PullFeedback] = [:]
     ) {
+        self.pullDetails = pullDetails
+        self.feedback = feedback
         self.history = history
         self.github = github
         self.repos = repos
@@ -59,6 +66,9 @@ public enum DomainChange: Hashable, Sendable, Codable {
     case githubSynced(GitHubState)
     /// Notification threads marked read.
     case inboxRead([String])
+    /// A PR's detail arrived; it is merged into the PR's feedback pipeline.
+    case pullDetailFetched(PullDetail)
+    case feedbackChanged(PullFeedback)
 }
 
 public extension Domain {
@@ -106,6 +116,13 @@ public extension Domain {
             history.removeAll { $0.id == id }
         case let .githubSynced(state):
             github = state
+        case let .pullDetailFetched(detail):
+            pullDetails[detail.ref.description] = detail
+            var pipeline = feedback[detail.ref.description] ?? PullFeedback(ref: detail.ref)
+            pipeline.merge(detail)
+            feedback[detail.ref.description] = pipeline
+        case let .feedbackChanged(pipeline):
+            feedback[pipeline.ref.description] = pipeline
         case let .inboxRead(ids):
             for index in github.inbox.indices where ids.contains(github.inbox[index].id) {
                 github.inbox[index].unread = false

@@ -59,6 +59,11 @@ public enum DefaultKeys {
             ("o", "open.reader"),
         ],
         "prs": [("r", "github.sync"), ("o", "open.reader")],
+        /// The PR overlay and the reader.
+        "pr": [
+            ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("m", "feedback.mode"), ("w", "feedback.watch"),
+            ("x", "feedback.dismiss"), ("S", "feedback.session"), ("<Esc>", "overlay.close"), ("r", "github.sync"),
+        ],
     ]
 
     public static func table(for mode: Mode) -> [(String, String)] {

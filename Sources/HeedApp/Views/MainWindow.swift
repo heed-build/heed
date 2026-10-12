@@ -33,6 +33,12 @@ struct MainWindow: View {
         .background(Theme.bg)
         .foregroundStyle(Theme.fg)
         .overlay {
+            if model.overlay == .pr { PullOverlayView().padding(.top, 44).padding(.bottom, 28) }
+        }
+        .overlay {
+            if model.reader != nil { ReaderView().padding(.top, 44).padding(.bottom, 28) }
+        }
+        .overlay {
             if model.startWork != nil { StartWorkView() }
         }
         .overlay {
@@ -205,6 +211,8 @@ struct StatusBar: View {
     private var hints: String {
         switch model.mode {
         case .normal where model.filtering: "type to filter · ↩ keep · ⎋ clear"
+        case .normal where model.reader != nil || model.overlay == .pr:
+            "j k item · space queue · s send · m auto-feed · ]p next PR · gS session · ⎋ back"
         case .normal where model.view == .repos: "v select · n new worktree · R rescan · ⎋ back to sessions"
         case .normal where model.view == .history: "j k move · / search · R reopen · O new from prompt · t outcome"
         case .normal where model.view == .inbox: "space pick · v range · s start session · a add · m read · o open · t filter"

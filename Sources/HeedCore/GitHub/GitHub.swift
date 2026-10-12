@@ -86,7 +86,8 @@ public enum GitHub {
     static func graphql(_ query: String, variables: [String: String]) async throws -> Data {
         var args = ["api", "graphql", "-f", "query=\(query)"]
         for (key, value) in variables.sorted(by: { $0.key < $1.key }) {
-            args += ["-f", "\(key)=\(value)"]
+            // -F sends a typed field, so `number` reaches GraphQL as an Int; -f keeps strings strings.
+            args += [key == "number" ? "-F" : "-f", "\(key)=\(value)"]
         }
         let result = try await ProcessRunner.run("gh", args, timeout: .seconds(45))
         let data = Data(result.stdout.utf8)
@@ -105,7 +106,32 @@ public enum GitHub {
         return text.split(separator: "\n").first.map(String.init) ?? "gh failed (exit \(result.status))"
     }
 
+    /// The reader's view of one PR.
+    public static func pullDetail(_ ref: PullRef, now: Date = Date()) async throws -> PullDetail {
+        let data = try await graphql(
+            pullDetailQuery, variables: ["owner": ref.repo.org, "name": ref.repo.name, "number": String(ref.number)]
+        )
+        guard let detail = parsePullDetail(data, ref: ref, now: now) else {
+            throw Failure(description: "\(ref) is not visible to gh")
+        }
+        return detail
+    }
+
     // MARK: Queries
+
+    static let pullDetailQuery = """
+    query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) {
+      number title body author { login } baseRefName headRefName additions deletions
+      commits(last: 1) { totalCount nodes { commit { oid statusCheckRollup { contexts(first: 100) { nodes {
+        __typename ... on CheckRun { name status conclusion title summary detailsUrl }
+        ... on StatusContext { context state description targetUrl }
+      } } } } } }
+      reviews(last: 30) { nodes { author { login } state } }
+      closingIssuesReferences(first: 10) { nodes { number repository { nameWithOwner } } }
+      reviewThreads(first: 100) { nodes { id isResolved path line
+        comments(first: 30) { totalCount nodes { author { login } body diffHunk url } } } }
+    } } }
+    """
 
     static let pullFields = """
     number title url isDraft state headRefName updatedAt
@@ -250,6 +276,73 @@ public enum GitHub {
             }
         }
         return summary
+    }
+
+    static func parsePullDetail(_ data: Data, ref: PullRef, now: Date) -> PullDetail? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let node = ((json["data"] as? [String: Any])?["repository"] as? [String: Any])?["pullRequest"]
+              as? [String: Any]
+        else { return nil }
+        let commits = node["commits"] as? [String: Any]
+        let commit = ((commits?["nodes"] as? [[String: Any]])?.first?["commit"] as? [String: Any])
+        let contexts = (((commit?["statusCheckRollup"] as? [String: Any])?["contexts"] as? [String: Any])?["nodes"]
+            as? [[String: Any]]) ?? []
+        let failing = contexts.compactMap { context -> PullDetail.FailingCheck? in
+            if context["__typename"] as? String == "StatusContext" {
+                guard ["FAILURE", "ERROR"].contains(context["state"] as? String ?? "") else { return nil }
+                return PullDetail.FailingCheck(
+                    name: context["context"] as? String ?? "status", summary: context["description"] as? String ?? "",
+                    url: context["targetUrl"] as? String
+                )
+            }
+            guard context["status"] as? String == "COMPLETED",
+                  ["FAILURE", "TIMED_OUT", "ACTION_REQUIRED", "STARTUP_FAILURE", "CANCELLED"]
+                  .contains(context["conclusion"] as? String ?? "")
+            else { return nil }
+            let summary = (context["title"] as? String) ?? (context["summary"] as? String) ?? ""
+            return PullDetail.FailingCheck(
+                name: context["name"] as? String ?? "check",
+                summary: summary.split(separator: "\n").first.map(String.init) ?? "",
+                url: context["detailsUrl"] as? String
+            )
+        }
+        let threadNodes = ((node["reviewThreads"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
+        let threads = threadNodes.compactMap { thread -> ReviewThread? in
+            guard let id = thread["id"] as? String else { return nil }
+            let comments = thread["comments"] as? [String: Any]
+            let first = (comments?["nodes"] as? [[String: Any]])?.first
+            let hunk = (first?["diffHunk"] as? String ?? "").split(separator: "\n", omittingEmptySubsequences: false)
+            return ReviewThread(
+                id: id, isResolved: thread["isResolved"] as? Bool ?? false, path: thread["path"] as? String ?? "",
+                line: thread["line"] as? Int,
+                author: (first?["author"] as? [String: Any])?["login"] as? String ?? "ghost",
+                body: first?["body"] as? String ?? "", diff: hunk.suffix(6).map(String.init),
+                replies: max((comments?["totalCount"] as? Int ?? 1) - 1, 0), url: first?["url"] as? String
+            )
+        }
+        let reviewNodes = ((node["reviews"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
+        let reviews = reviewNodes.compactMap { review -> PullDetail.Review? in
+            guard let author = (review["author"] as? [String: Any])?["login"] as? String,
+                  let state = review["state"] as? String
+            else { return nil }
+            return PullDetail.Review(author: author, state: state)
+        }
+        let closes = (((node["closingIssuesReferences"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
+            .compactMap { issue -> PullRef? in
+                guard let number = issue["number"] as? Int,
+                      let repo = repo((issue["repository"] as? [String: Any])?["nameWithOwner"] as? String)
+                else { return nil }
+                return PullRef(repo: repo, number: number)
+            }
+        return PullDetail(
+            ref: ref, title: node["title"] as? String ?? "", body: node["body"] as? String ?? "",
+            author: (node["author"] as? [String: Any])?["login"] as? String,
+            baseBranch: node["baseRefName"] as? String ?? "", headBranch: node["headRefName"] as? String ?? "",
+            additions: node["additions"] as? Int ?? 0, deletions: node["deletions"] as? Int ?? 0,
+            commitCount: commits?["totalCount"] as? Int ?? 0, headSHA: commit?["oid"] as? String ?? "",
+            reviews: reviews, threads: threads, failingChecks: failing, checks: checkSummary(contexts), closes: closes,
+            fetchedAt: now
+        )
     }
 
     static func parseIssueSearch(_ data: Data) -> ([Issue], Int) {

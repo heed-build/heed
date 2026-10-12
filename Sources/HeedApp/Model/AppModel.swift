@@ -42,6 +42,8 @@ final class AppModel {
     private(set) var worktrees: [Worktree] = []
     private(set) var history: [HistoryEntry] = []
     private(set) var github = GitHubState()
+    private(set) var pullDetails: [String: PullDetail] = [:]
+    private(set) var feedback: [String: PullFeedback] = [:]
     private(set) var list = SessionList([])
     let settings: WorkSettings
     /// Nil for fixtures: nothing is persisted and no adapter runs.
@@ -84,11 +86,23 @@ final class AppModel {
     var pendingKeys: String { engine.pendingDisplay }
 
     // Chrome
-    private(set) var view: AppView = .sessions {
-        didSet { engine.scope = view == .sessions ? nil : view.rawValue }
+    private(set) var view: AppView = .sessions { didSet { updateScope() } }
+    private(set) var overlay: Overlay? { didSet { updateScope() } }
+    /// The PR open in the reader, over whatever view it was opened from.
+    private(set) var reader: PullRef? { didSet { updateScope() } }
+    /// The PR the overlay shows (one of the current session's).
+    private(set) var overlayPull: PullRef?
+    private(set) var feedbackCursor = 0
+    /// When you last typed into each session's panes; feedback waits after that.
+    private var lastTyped: [String: Date] = [:]
+    /// PRs with queued feedback waiting for their agent to be idle.
+    private var pendingDelivery: Set<PullRef> = []
+
+    /// Scoped key bindings follow what has focus: the PR overlay or reader, else the view.
+    private func updateScope() {
+        engine.scope = (overlay == .pr || reader != nil) ? "pr" : (view == .sessions ? nil : view.rawValue)
     }
 
-    private(set) var overlay: Overlay?
     private(set) var inspectorVisible = true
     private(set) var commandText = ""
     private(set) var flash: String?
@@ -153,6 +167,7 @@ final class AppModel {
         do {
             let state = try await GitHub.sync(tracked: tracked, previous: previous)
             commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
+            await refreshWatchedDetails()
         } catch {
             var offline = previous
             offline.status = .offline("\(error)")
@@ -268,6 +283,14 @@ final class AppModel {
             var log = events[session.id] ?? []
             log.insert(AgentEvent(at: message.sentAt, state: state, reason: reason), at: 0)
             events[session.id] = Array(log.prefix(20))
+            if state == .idle || state == .done {
+                let waiting = pendingDelivery.filter { session.trackedPRs.contains($0) }
+                Task { @MainActor in
+                    for ref in waiting {
+                        self.deliver(ref, explicit: false)
+                    }
+                }
+            }
             if state == .idle, pendingContinue.remove(session.id) != nil,
                let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout)
             {
@@ -307,6 +330,8 @@ final class AppModel {
         worktrees = domain.worktrees
         history = domain.history
         github = domain.github
+        pullDetails = domain.pullDetails
+        feedback = domain.feedback
         cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
 
@@ -317,6 +342,8 @@ final class AppModel {
         let after = before.applying(changes)
         if after.history != before.history { history = after.history }
         if after.github != before.github { github = after.github }
+        if after.pullDetails != before.pullDetails { pullDetails = after.pullDetails }
+        if after.feedback != before.feedback { feedback = after.feedback }
         if after.sessions != before.sessions { sessions = after.sessions }
         if after.layouts != before.layouts { layouts = after.layouts }
         if after.repos != before.repos { repos = after.repos }
@@ -328,7 +355,8 @@ final class AppModel {
 
     var currentDomain: Domain {
         Domain(
-            repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github
+            repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
+            pullDetails: pullDetails, feedback: feedback
         )
     }
 
@@ -428,6 +456,7 @@ final class AppModel {
         let outcome = engine.handle(stroke)
         switch outcome {
         case .terminal:
+            if let id = currentSession?.id { lastTyped[id] = Date() }
             return false
         case let .text(stroke):
             typeText(stroke)
@@ -521,7 +550,6 @@ final class AppModel {
         case "view.history": view = .history
         case "view.repos": view = .repos
         case "overlay.help": overlay = overlay == .help ? nil : .help
-        case "overlay.pr": overlay = overlay == .pr ? nil : .pr
         case "overlay.diff": overlay = overlay == .diff ? nil : .diff
         case "overlay.close": closeTopmost()
         case "inspector.toggle": inspectorVisible.toggle()
@@ -543,7 +571,18 @@ final class AppModel {
         case "items.add": addItemsToSession()
         case "items.read": markItemsRead()
         case "items.filter": inboxFilter = inboxFilter.next
-        case "open.reader", "open.browser": openInBrowser()
+        case "open.reader": openReader()
+        case "open.browser": openInBrowser()
+        case "overlay.pr": togglePullOverlay()
+        case "pr.next": cyclePull(by: 1)
+        case "pr.prev": cyclePull(by: -1)
+        case "jump.back": closeReaderOrOverlay()
+        case "feedback.queue": toggleQueued()
+        case "feedback.send": if let ref = feedbackPull { deliver(ref, explicit: true) }
+        case "feedback.mode": updateFeedback { $0.autoFeed = $0.autoFeed.next }
+        case "feedback.watch": updateFeedback { $0.watching.toggle() }
+        case "feedback.dismiss": dismissItem()
+        case "feedback.session": startFromPull()
         case "pr.session": jumpToPullSession()
         case "history.reopen": reopenSelected()
         case "history.again": openStartWork(prompt: selectedHistory?.session.prompt ?? "")
@@ -554,9 +593,11 @@ final class AppModel {
         }
     }
 
-    /// `<Esc>` in NORMAL: an overlay first, then back from a view to Sessions.
+    /// `<Esc>` in NORMAL: the reader, an overlay, then back from a view to Sessions.
     private func closeTopmost() {
-        if overlay != nil {
+        if reader != nil {
+            reader = nil
+        } else if overlay != nil {
             overlay = nil
         } else if view != .sessions {
             view = .sessions
@@ -589,6 +630,11 @@ final class AppModel {
     // MARK: Rows
 
     private func moveRow(by delta: Int) {
+        if feedbackPull != nil, overlay == .pr || reader != nil {
+            let count = feedbackItems.count
+            if count > 0 { feedbackCursor = min(max(feedbackCursor + delta, 0), count - 1) }
+            return
+        }
         switch view {
         case .repos: setRow(repoCursor + delta)
         case .history: setRow(historyCursor + delta)
@@ -914,6 +960,7 @@ final class AppModel {
     }
 
     private var urlUnderCursor: String? {
+        if let ref = feedbackPull { return pullDetails[ref.description].map { _ in ref.url } ?? ref.url }
         let index = cursor(in: view)
         switch view {
         case .inbox: return inboxRows.indices.contains(index) ? inboxRows[index].url : nil
@@ -933,14 +980,187 @@ final class AppModel {
     }
 
     private func jumpToPullSession() {
-        let index = cursor(in: .prs)
-        guard view == .prs, github.pulls.indices.contains(index) else { return }
-        let ref = github.pulls[index].ref
+        let ref: PullRef
+        if let open = feedbackPull, overlay == .pr || reader != nil {
+            ref = open
+        } else {
+            let index = cursor(in: .prs)
+            guard view == .prs, github.pulls.indices.contains(index) else { return }
+            ref = github.pulls[index].ref
+        }
+        reader = nil
+        overlay = nil
         if let session = sessions.first(where: { $0.trackedPRs.contains(ref) }) {
             view = .sessions
             select(sessionID: session.id)
         } else {
             flash = "no session tracks \(ref)"
+        }
+    }
+
+    // MARK: PR overlay, reader and feedback
+
+    /// The PR the overlay or reader is about.
+    var feedbackPull: PullRef? { reader ?? (overlay == .pr ? overlayPull : nil) }
+
+    /// Items in display order: open ones first (queued, new, sent, addressed), then resolved.
+    var feedbackItems: [FeedbackItem] {
+        guard let ref = feedbackPull, let pipeline = feedback[ref.description] else { return [] }
+        let order: [FeedbackItem.Status] = [.queued, .new, .sent, .addressed, .resolved]
+        return pipeline.items.sorted { order.firstIndex(of: $0.status)! < order.firstIndex(of: $1.status)! }
+    }
+
+    /// The PR under the cursor where `o` was pressed: a PRs row, a PR in the inbox, or the session's first PR.
+    private var pullUnderCursor: PullRef? {
+        let index = cursor(in: view)
+        switch view {
+        case .prs: return github.pulls.indices.contains(index) ? github.pulls[index].ref : nil
+        case .inbox:
+            guard inboxRows.indices.contains(index), inboxRows[index].kind == .pr,
+                  let number = inboxRows[index].number else { return nil }
+            return PullRef(repo: inboxRows[index].repo, number: number)
+        case .sessions: return currentSession?.trackedPRs.first
+        default: return nil
+        }
+    }
+
+    private func openReader() {
+        guard let ref = pullUnderCursor else {
+            openInBrowser()
+            return
+        }
+        reader = ref
+        feedbackCursor = 0
+        fetchDetail(ref)
+    }
+
+    private func togglePullOverlay() {
+        if overlay == .pr {
+            overlay = nil
+            return
+        }
+        guard let first = currentSession?.trackedPRs.first else {
+            flash = "this session tracks no PR yet"
+            return
+        }
+        overlayPull = overlayPull.flatMap { currentSession?.trackedPRs.contains($0) == true ? $0 : nil } ?? first
+        overlay = .pr
+        feedbackCursor = 0
+        if let ref = overlayPull { fetchDetail(ref) }
+    }
+
+    private func cyclePull(by delta: Int) {
+        guard overlay == .pr, let prs = currentSession?.trackedPRs, !prs.isEmpty else { return }
+        let index = overlayPull.flatMap { prs.firstIndex(of: $0) } ?? 0
+        overlayPull = prs[((index + delta) % prs.count + prs.count) % prs.count]
+        feedbackCursor = 0
+        if let ref = overlayPull { fetchDetail(ref) }
+    }
+
+    private func closeReaderOrOverlay() {
+        if reader != nil { reader = nil } else if overlay != nil { overlay = nil } else { goBack() }
+    }
+
+    private func updateFeedback(_ edit: (inout PullFeedback) -> Void) {
+        guard let ref = feedbackPull else { return }
+        var pipeline = feedback[ref.description] ?? PullFeedback(ref: ref)
+        edit(&pipeline)
+        commit(.feedbackChanged(pipeline))
+        if pipeline.autoFeed == .auto { deliver(ref, explicit: false) }
+    }
+
+    private func toggleQueued() {
+        let items = feedbackItems
+        guard items.indices.contains(feedbackCursor) else { return }
+        let id = items[feedbackCursor].id
+        updateFeedback { pipeline in
+            guard let index = pipeline.items.firstIndex(where: { $0.id == id }) else { return }
+            switch pipeline.items[index].status {
+            case .new: pipeline.items[index].status = .queued
+            case .queued: pipeline.items[index].status = .new
+            default: break
+            }
+        }
+    }
+
+    private func dismissItem() {
+        let items = feedbackItems
+        guard items.indices.contains(feedbackCursor) else { return }
+        let id = items[feedbackCursor].id
+        updateFeedback { pipeline in pipeline.items.removeAll { $0.id == id } }
+    }
+
+    private func startFromPull() {
+        guard let ref = feedbackPull else { return }
+        let detail = pullDetails[ref.description]
+        let pipeline = feedback[ref.description]
+        var prompt = "Continue PR \(ref.repo.name)#\(ref.number): \(detail?.title ?? "")"
+        if let open = pipeline?.items.filter({ $0.status != .resolved }), !open.isEmpty {
+            prompt += "\n" + open.map { "- " + $0.promptLine }.joined(separator: "\n")
+        }
+        reader = nil
+        overlay = nil
+        openStartWork(prompt: prompt)
+    }
+
+    /// Fetches a PR's detail off the main actor; the merge into its pipeline happens in `commit`. Reports checks that
+    /// went from failing to passing (the CI loop).
+    func fetchDetail(_ ref: PullRef) {
+        guard !isFixture else { return }
+        Task {
+            guard let detail = try? await GitHub.pullDetail(ref) else { return }
+            let before = feedback[ref.description]?.items.filter { $0.status != .resolved }.map(\.id) ?? []
+            commit(.pullDetailFetched(detail))
+            let fixed = feedback[ref.description]?.items
+                .filter { before.contains($0.id) && $0.status == .resolved } ?? []
+            let checks = fixed.compactMap { if case let .check(name) = $0.kind { name } else { nil } }
+            if !checks.isEmpty { flash = "\(checks.joined(separator: ", ")) passing now on #\(ref.number)" }
+            if feedback[ref.description]?.autoFeed == .auto { deliver(ref, explicit: false) }
+        }
+    }
+
+    /// Details for every PR an active session tracks and watches, so auto-feed sees new feedback.
+    private func refreshWatchedDetails() async {
+        let refs = Set(sessions.flatMap(\.trackedPRs)).filter { feedback[$0.description]?.watching ?? true }
+        for ref in refs.prefix(10) {
+            fetchDetail(ref)
+        }
+    }
+
+    /// Sends a PR's queued feedback to the session tracking it, as one prompt, when delivery allows.
+    func deliver(_ ref: PullRef, explicit: Bool) {
+        guard var pipeline = feedback[ref.description], let prompt = pipeline.prompt() else {
+            if explicit { flash = "nothing queued (space queues an item)" }
+            return
+        }
+        guard explicit || (pipeline.autoFeed == .auto && pipeline.watching && !pipeline.roundsExhausted) else {
+            if pipeline.roundsExhausted, pipeline.autoFeed == .auto {
+                flash = "auto-feed stopped on #\(ref.number): \(PullFeedback.maxRounds) rounds without a new approval"
+            }
+            return
+        }
+        guard var session = sessions.first(where: { $0.trackedPRs.contains(ref) }), let layout = layouts[session.id],
+              let (_, paneID) = agentPane(in: layout)
+        else {
+            if explicit { flash = "no session tracks #\(ref.number)" }
+            return
+        }
+        switch Delivery.verdict(state: session.state.state, lastTyped: lastTyped[session.id]) {
+        case let .wait(reason):
+            pendingDelivery.insert(ref)
+            if explicit { flash = "waiting: \(reason); it goes once the agent is idle" }
+        case .deliver:
+            guard !isFixture else {
+                flash = "fixture: no IO"
+                return
+            }
+            pendingDelivery.remove(ref)
+            TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
+            let count = pipeline.queued.count
+            pipeline.markSent(at: pullDetails[ref.description]?.headSHA)
+            session.record("sent \(count) feedback item\(count == 1 ? "" : "s") for #\(ref.number)")
+            commit([.feedbackChanged(pipeline), .sessionUpserted(session)])
+            flash = "sent \(count) item\(count == 1 ? "" : "s") to \(session.title)"
         }
     }
 

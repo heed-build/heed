@@ -80,10 +80,53 @@ public enum Fixtures {
             }
             layouts[session.id] = SessionLayout(tabs: tabs(for: session, root: root))
         }
+        let detail = pullDetail
+        var pipeline = PullFeedback(ref: detail.ref)
+        pipeline.merge(detail)
+        if let index = pipeline.items.firstIndex(where: { $0.id == "T1" }) { pipeline.items[index].status = .queued }
+        if let index = pipeline.items
+            .firstIndex(where: { $0.id == "check:lint" }) { pipeline.items[index].status = .queued }
+        var resolved = FeedbackItem(
+            id: "T0",
+            kind: .review(location: "RedirectFile.cs:41", author: "reviewer"),
+            text: "Use the shared slug helper.",
+            status: .resolved
+        )
+        resolved.resolvedAt = Date()
+        pipeline.items.append(resolved)
         return Domain(
-            repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github
+            repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
+            pullDetails: [detail.ref.description: detail], feedback: [detail.ref.description: pipeline]
         )
     }()
+
+    /// design/screens/Reader.png.
+    static let pullDetail = PullDetail(
+        ref: PullRef(repo: docsBuilder, number: 2841), title: "Fix broken anchors in redirects",
+        body: "Validates redirect targets against real headings, so moved pages no longer lose their anchors.\nCloses #2830. Companion change in docs-content #1920.",
+        author: "you", baseBranch: "main", headBranch: "fix-anchors-redirects", additions: 82, deletions: 4,
+        commitCount: 3, headSHA: "a91e3d0",
+        reviews: [PullDetail.Review(author: "reviewer", state: "CHANGES_REQUESTED")],
+        threads: [
+            ReviewThread(
+                id: "T1", isResolved: false, path: "src/Redirects/RedirectFile.cs", line: 88, author: "reviewer",
+                body: "Anchor lookup is case sensitive. Heading slugs are lowercased, so this misses valid targets.",
+                diff: [
+                    "     var slug = Slugify(heading);",
+                    "-    var exists = anchors.Contains(target);",
+                    "+    var exists = anchors.Contains(target, StringComparer.Ordinal);",
+                ],
+                replies: 0, url: nil
+            ),
+            ReviewThread(
+                id: "T2", isResolved: false, path: "tests/Redirects/AnchorTests.cs", line: 12, author: "reviewer",
+                body: "Please cover the moved-page case.", diff: [], replies: 0, url: nil
+            ),
+        ],
+        failingChecks: [PullDetail.FailingCheck(name: "lint", summary: "docs/redirects.md:41 line too long", url: nil)],
+        checks: CheckSummary(passed: 3, failed: 1, pending: 1, failedNames: ["lint"]),
+        closes: [PullRef(repo: docsBuilder, number: 2830)], fetchedAt: Date()
+    )
 
     /// design/screens/Inbox.png and PRs.png.
     static let github: GitHubState = {

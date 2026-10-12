@@ -11,7 +11,7 @@ struct ReposView: View {
             HStack(spacing: 0) {
                 repoColumn
                 table
-                // The rules panel gives way first when the window is narrow; `gi` hides it outright.
+                // The rules panel gives way first when the window is narrow; `zi` hides it outright.
                 if model.inspectorVisible, geometry.size.width >= 1240 { rules }
             }
         }

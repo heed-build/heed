@@ -134,7 +134,7 @@ struct ReposView: View {
             HStack {
                 SectionHeader(title: "Auto cleanup rules")
                 Spacer()
-                KeyCap(text: "gi")
+                KeyCap(text: "zi")
             }
             let rule = model.config.cleanup
             ruleRow(
@@ -147,7 +147,7 @@ struct ReposView: View {
             ruleRow("Delete the local branch too\(rule.deleteBranch ? "" : " (off)")", "Remote branch is left alone.")
             ruleRow(
                 "Ask before each sweep\(rule.askBeforeSweep ? " (on)" : " (off)")",
-                rule.askBeforeSweep ? "Sweeps run only with gs." : "Sweeps run hourly; gs runs one now."
+                rule.askBeforeSweep ? "Sweeps run only with gC." : "Sweeps run hourly; gC runs one now."
             )
             Text("Edit in Settings (⌘,) or config.toml [cleanup].")
                 .font(Theme.ui(11.5))
@@ -246,7 +246,7 @@ private struct SweepBanner: View {
                 }
             }
             Spacer()
-            KeyCap(text: "gs")
+            KeyCap(text: "gC")
             Text("run now").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
         .padding(14)

@@ -11,7 +11,7 @@ struct Sidebar: View {
             HStack {
                 SectionHeader(title: "Sessions")
                 Spacer()
-                CollapseButton(systemImage: "sidebar.left", key: "gb") { model.toggleSidebar() }
+                CollapseButton(systemImage: "sidebar.left", key: "zs") { model.toggleSidebar() }
                 if model.filtering || !model.sessionFilter.isEmpty {
                     HStack(spacing: 0) {
                         Text("/").foregroundStyle(Theme.fg3)
@@ -176,7 +176,7 @@ struct SessionRail: View {
     var body: some View {
         let list = model.list
         VStack(spacing: 0) {
-            CollapseButton(systemImage: "sidebar.left", key: "gb") { model.toggleSidebar() }
+            CollapseButton(systemImage: "sidebar.left", key: "zs") { model.toggleSidebar() }
                 .padding(.vertical, 12)
             ScrollView {
                 VStack(spacing: 2) {

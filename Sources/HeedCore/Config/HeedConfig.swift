@@ -347,7 +347,7 @@ public enum ConfigLoader {
     # Bindings per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.inbox], [keys.history],
     # [keys.diff], [keys.pr]), in vim notation, each naming a command (the same names : completes). "" unbinds.
     # [keys.normal]
-    # "gs" = ""
+    # "gC" = ""
     # "<C-j>" = "row.next"
     """
 }

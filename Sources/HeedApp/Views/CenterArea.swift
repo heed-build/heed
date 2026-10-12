@@ -65,7 +65,7 @@ private struct TabStrip: View {
                 KeyCap(text: "⌃w v")
                 Text("split").foregroundStyle(Theme.fg3)
                 if !model.inspectorVisible {
-                    CollapseButton(systemImage: "sidebar.right", key: "gi") { model.toggleInspector() }
+                    CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
                 }
             }
             .font(Theme.ui(11.5))

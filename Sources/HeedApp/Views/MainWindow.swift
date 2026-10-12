@@ -159,24 +159,47 @@ struct TitleBar: View {
         }
     }
 
+    /// The views as names with their key (`Inbox 7 gm`); narrow windows drop the keys, never the names.
     private func views(compact: Bool) -> some View {
         HStack(spacing: 2) {
-            ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
-                let active = model.view == view
-                let count = badge(view)
-                HStack(spacing: 5) {
-                    Text(verbatim: compact && !active ? "\(index + 1)" : "\(index + 1) \(view.title)")
-                        .foregroundStyle(active ? Theme.fg : Theme.fg3)
-                    if count > 0 { Text("\(count)").foregroundStyle(Theme.block) }
-                }
-                .lineLimit(1)
-                .fixedSize()
-                .font(Theme.mono(11.5))
-                .padding(.horizontal, compact ? 7 : 10)
-                .padding(.vertical, 3)
-                .background(RoundedRectangle(cornerRadius: 5).fill(active ? Theme.selected : .clear))
+            ForEach(AppView.allCases) { view in
+                ViewTab(
+                    view: view,
+                    active: model.view == view,
+                    count: badge(view),
+                    key: compact ? nil : model.keyCap(for: view.command)
+                )
+                .onTapGesture { model.perform(CommandInvocation(name: view.command)) }
             }
         }
+    }
+}
+
+private struct ViewTab: View {
+    let view: AppView
+    let active: Bool
+    let count: Int
+    let key: String?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(view.title).foregroundStyle(active ? Theme.fg : Theme.fg2)
+            if count > 0 { Text("\(count)").foregroundStyle(Theme.block) }
+            if let key {
+                Text(key)
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(Theme.fg3)
+                    .padding(.horizontal, 4)
+                    .background(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.keyCapBorder))
+            }
+        }
+        .font(Theme.ui(12.5, weight: active ? .semibold : .regular))
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.horizontal, key == nil ? 7 : 10)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(active ? Theme.selected : .clear))
+        .contentShape(Rectangle())
     }
 }
 

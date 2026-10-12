@@ -12,7 +12,7 @@ struct Inspector: View {
                     HStack {
                         SectionHeader(title: "Worktree")
                         Spacer()
-                        CollapseButton(systemImage: "sidebar.right", key: "gi") { model.toggleInspector() }
+                        CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
                     }
                     ForEach(model.worktrees
                         .filter { $0.branch == session.branch && session.repos.contains($0.repo) })

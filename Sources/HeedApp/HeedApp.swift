@@ -16,7 +16,7 @@ struct HeedApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1440, height: 900)
         .commands {
-            // Keys are the mode engine's; the menu must not claim ⌘1..⌘6 or ⌘/ before it sees them.
+            // Keys are the mode engine's; the menu must not claim ⌘/ or other keys before it sees them.
             CommandGroup(replacing: .newItem) {}
             CommandGroup(replacing: .help) {}
         }

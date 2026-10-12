@@ -2,7 +2,7 @@ import AppKit
 import HeedCore
 import Observation
 
-/// The views behind `⌘1`..`⌘6`.
+/// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gP`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
     case sessions, inbox, issues, prs, repos, history
 
@@ -18,6 +18,9 @@ enum AppView: String, CaseIterable, Identifiable {
         case .history: "History"
         }
     }
+
+    /// The command that switches to this view; its key comes from the live keymap.
+    var command: String { "view.\(rawValue)" }
 }
 
 enum Overlay: Equatable {
@@ -785,6 +788,10 @@ final class AppModel {
         case "view": if let target = AppView(rawValue: command.arguments.first ?? "") { view = target }
         case "view.history": view = .history
         case "view.repos": view = .repos
+        case "view.sessions": view = .sessions
+        case "view.inbox": view = .inbox
+        case "view.issues": view = .issues
+        case "view.prs": view = .prs
         case "overlay.help": overlay = overlay == .help ? nil : .help
         case "overlay.diff": toggleDiff()
         case "diff.hunk.next": jumpHunk(by: 1)
@@ -1748,6 +1755,11 @@ final class AppModel {
 
     func selectTab(_ index: Int) {
         updateLayout { $0.activeTab = index }
+    }
+
+    /// The key bound to `command` in NORMAL (first binding), as key-cap text: what the title bar shows per view.
+    func keyCap(for command: String) -> String? {
+        (engine.keymaps[.normal] ?? Keymap()).keys(for: command).first.map(KeyCapText.of)
     }
 
     func toggleSidebar() { sidebarCollapsed.toggle() }

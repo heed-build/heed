@@ -125,7 +125,7 @@ struct HelpOverlay: View {
             let keys = keymap.bindings.filter { CommandInvocation(parsing: $0.command).name == spec.name }.map(\.keys)
             guard !keys.isEmpty else { return nil }
             if spec.name == "pin.jump" { return ("'1-'9", "jump to pinned 1 to 9") }
-            if spec.name == "view" { return ("⌘1-6", "sessions, inbox, issues, PRs, repos, history") }
+            if spec.name == "view" { return nil }
             return (keys.prefix(2).map(KeyCapText.of).joined(separator: " "), spec.summary)
         }
     }

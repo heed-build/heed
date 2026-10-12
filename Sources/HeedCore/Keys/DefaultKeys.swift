@@ -1,5 +1,5 @@
 /// The default bindings, per mode, in the same notation as `[keys.<mode>]` in config.toml. Config entries are laid over
-/// these; `"gs" = ""` unbinds a default.
+/// these; `"gC" = ""` unbinds a default.
 public enum DefaultKeys {
     /// INSERT's way out. Configurable as `insert_escape` because `<C-\>` is also SIGQUIT in a terminal.
     public static let insertEscape = "<C-\\>"
@@ -17,11 +17,10 @@ public enum DefaultKeys {
         ("<C-w>q", "pane.close"), ("<C-w>h", "pane.left"), ("<C-w>l", "pane.right"), ("<C-w>j", "pane.down"),
         ("<C-w>k", "pane.up"),
         ("gt", "tab.next"), ("gT", "tab.prev"), ("gn", "tab.new"),
-        ("<D-1>", "view sessions"), ("<D-2>", "view inbox"), ("<D-3>", "view issues"), ("<D-4>", "view prs"),
-        ("<D-5>", "view repos"), ("<D-6>", "view history"),
+        ("gs", "view.sessions"), ("gm", "view.inbox"), ("gi", "view.issues"), ("gP", "view.prs"),
         ("gp", "overlay.pr"), ("]p", "pr.next"), ("[p", "pr.prev"), ("gd", "overlay.diff"), ("gS", "pr.session"),
-        ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gP", "pr.track"), ("gs", "cleanup.sweep"),
-        ("gc", "cleanup.rules"), ("gi", "inspector.toggle"), ("gb", "sidebar.toggle"), ("<CR>", "open.reader"),
+        ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gU", "pr.track"), ("gC", "cleanup.sweep"),
+        ("gc", "cleanup.rules"), ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("<CR>", "open.reader"),
         ("i", "mode.insert"), ("v", "mode.visual"), ("V", "mode.visual"), (":", "mode.command"),
         ("f", "mode.hint"), ("F", "hint.insert"),
         ("?", "overlay.help"), ("<D-/>", "overlay.help"), ("<Esc>", "overlay.close"),

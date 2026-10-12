@@ -37,6 +37,15 @@ private struct TabStrip: View {
                 HStack(spacing: 8) {
                     if index == 0, let session = model.currentSession {
                         StateGlyph(state: session.state.state, guessed: session.state.source == .guessed, size: 11)
+                    } else if let task = tab.tree.panes.first(where: { $0.role == .task }),
+                              let code = model.taskResults[task.id]
+                    {
+                        // A pinned task's last run: done when it passed, a red square when it failed.
+                        if code == 0 {
+                            StateGlyph(state: .done, size: 11)
+                        } else {
+                            RoundedRectangle(cornerRadius: 2).fill(Theme.err).frame(width: 9, height: 9)
+                        }
                     }
                     Text(tab.title)
                 }

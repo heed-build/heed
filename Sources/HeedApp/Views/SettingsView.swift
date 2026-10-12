@@ -1,0 +1,367 @@
+import HeedCore
+import SwiftUI
+
+/// Settings (⌘,): a view of config.toml that writes single values back into it, comments and layout kept. Key
+/// bindings are shown but edited only in the file. design/screens/Agents.png, Colors.png.
+struct SettingsView: View {
+    @Environment(AppModel.self) private var model
+    @State private var section: Section = .general
+
+    enum Section: String, CaseIterable, Identifiable {
+        case general = "General", agents = "Agents", colors = "Repos & colors", cleanup = "Worktrees & cleanup"
+        case keys = "Keys & modes"
+
+        var id: String { rawValue }
+    }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Section.allCases) { item in
+                    Text(item.rawValue)
+                        .font(Theme.ui(13))
+                        .foregroundStyle(section == item ? Theme.fg : Theme.fg2)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(section == item ? Theme.bg3 : .clear)
+                        .contentShape(Rectangle())
+                        .onTapGesture { section = item }
+                }
+                Spacer()
+                Button("Open config.toml") { NSWorkspace.shared.open(model.configFile) }
+                    .buttonStyle(.link)
+                    .padding(14)
+                Text(Paths.abbreviate(model.configFile.path)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                    .padding(.horizontal, 14).padding(.bottom, 14)
+            }
+            .padding(.top, 14)
+            .frame(width: 190)
+            .background(Theme.bg2)
+            Theme.line.frame(width: 1)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    if let problem = model.configProblems.first {
+                        Text("config.toml: \(problem.description)")
+                            .font(Theme.ui(12))
+                            .foregroundStyle(Theme.err)
+                            .padding(10)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.err.opacity(0.1)))
+                    }
+                    switch section {
+                    case .general: GeneralSettings()
+                    case .agents: AgentSettings()
+                    case .colors: ColorSettings()
+                    case .cleanup: CleanupSettings()
+                    case .keys: KeySettings()
+                    }
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(minWidth: 780, minHeight: 520)
+        .background(Theme.bg)
+        .foregroundStyle(Theme.fg)
+    }
+}
+
+/// A labelled row.
+private struct Field<Content: View>: View {
+    let label: String
+    var detail: String?
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            Text(label).font(Theme.ui(13)).foregroundStyle(Theme.fg2).frame(width: 170, alignment: .leading).padding(
+                .top,
+                4
+            )
+            VStack(alignment: .leading, spacing: 4) {
+                content
+                if let detail {
+                    Text(detail).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(
+                        horizontal: false,
+                        vertical: true
+                    )
+                }
+            }
+        }
+    }
+}
+
+/// A text field that writes to config.toml when you press return or leave it.
+private struct ConfigTextField: View {
+    @Environment(AppModel.self) private var model
+    let path: [String]
+    let value: String
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField("", text: $text)
+            .textFieldStyle(.roundedBorder)
+            .font(Theme.mono(12.5))
+            .focused($focused)
+            .onAppear { text = value }
+            .onChange(of: value) { if !focused { text = value } }
+            .onSubmit(save)
+            .onChange(of: focused) { if !focused { save() } }
+    }
+
+    private func save() {
+        guard text != value else { return }
+        model.setConfig(path, .string(text))
+    }
+}
+
+private struct GeneralSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let work = model.config.work
+        VStack(alignment: .leading, spacing: 16) {
+            Text("General").font(Theme.ui(17, weight: .semibold))
+            Field(label: "Default agent") {
+                Picker("", selection: Binding(
+                    get: { work.defaultAgent }, set: { model.setConfig(["sessions", "default_agent"], .string($0)) }
+                )) {
+                    ForEach(work.agents) { Text($0.name).tag($0.name) }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
+            Field(
+                label: "Resume on launch",
+                detail: "Ask lists the sessions that were open; Always resumes them; Never starts empty."
+            ) {
+                Picker("", selection: Binding(
+                    get: { work.resumeOnLaunch },
+                    set: { model.setConfig(["sessions", "resume_on_launch"], .string($0.rawValue)) }
+                )) {
+                    ForEach(ResumePolicy.allCases, id: \.self) { Text($0.rawValue.capitalized).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 260)
+            }
+            Field(
+                label: "Continue prompt",
+                detail: "Typed into a resumed session that was mid-turn, once idle. Empty turns it off."
+            ) {
+                ConfigTextField(path: ["sessions", "continue_prompt"], value: work.continuePrompt)
+            }
+            Field(label: "GitHub poll", detail: "Seconds between gh syncs.") {
+                Stepper(value: Binding(
+                    get: { model.config.githubPollSeconds },
+                    set: { model.setConfig(["github", "poll_seconds"], .integer($0)) }
+                ), in: 15 ... 3600, step: 15) {
+                    Text("\(model.config.githubPollSeconds)s").font(Theme.mono(12.5))
+                }
+                .frame(width: 160)
+            }
+        }
+    }
+}
+
+private struct AgentSettings: View {
+    @Environment(AppModel.self) private var model
+    @State private var selected = "claude"
+
+    var body: some View {
+        let agents = model.config.work.agents
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Agents").font(Theme.ui(17, weight: .semibold))
+            Picker("", selection: $selected) {
+                ForEach(agents) { Text($0.name).tag($0.name) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            if let agent = agents.first(where: { $0.name == selected }) {
+                Field(label: "Command") {
+                    ConfigTextField(path: ["agents", agent.name, "command"], value: agent.command)
+                }
+                Field(label: "Prompt delivery", detail: "How Start work hands the prompt over.") {
+                    Picker("", selection: Binding(
+                        get: { agent.prompt },
+                        set: { model.setConfig(["agents", agent.name, "prompt"], .string($0.rawValue)) }
+                    )) {
+                        ForEach(PromptDelivery.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 300)
+                }
+                Field(label: "Plan first", detail: "Arguments added when Start work's “Plan first” is on.") {
+                    ConfigTextField(path: ["agents", agent.name, "plan"], value: agent.planArguments ?? "")
+                }
+                Field(
+                    label: "Resume",
+                    detail: "{id} is the agent's own session id. Empty: sessions start fresh after a restart."
+                ) {
+                    ConfigTextField(path: ["agents", agent.name, "resume"], value: agent.resumeArguments ?? "")
+                }
+                Field(label: "State", detail: integration(agent.name)) {
+                    Text(stateSource(agent.name)).font(Theme.mono(12)).foregroundStyle(Theme.done)
+                }
+            }
+            Text("Custom agents: add an [agents.<name>] table with a command in config.toml.")
+                .font(Theme.ui(11.5))
+                .foregroundStyle(Theme.fg3)
+        }
+    }
+
+    private func stateSource(_ name: String) -> String {
+        switch name {
+        case "claude": "full hooks (passed with --settings)"
+        case "codex": "hooks (passed with -c)"
+        case "cursor": "project hooks (written into the worktree)"
+        case "pi": "extension (passed with -e)"
+        case "opencode": "plugin (passed with OPENCODE_CONFIG_CONTENT)"
+        default: "read from the terminal"
+        }
+    }
+
+    private func integration(_: String) -> String {
+        "Heed never edits your own agent config; hooks are passed per run where the agent allows it."
+    }
+}
+
+private struct ColorSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let orgs = Array(Set(model.repos.map(\.repo.org))).sorted { $0.lowercased() < $1.lowercased() }
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Repos & colors").font(Theme.ui(17, weight: .semibold))
+            Text(
+                "Each org has a color; repos inherit it. Colors never use the state hues, so a chip is never mistaken for a status."
+            )
+            .font(Theme.ui(12))
+            .foregroundStyle(Theme.fg3)
+            .fixedSize(horizontal: false, vertical: true)
+            ForEach(orgs, id: \.self) { org in
+                HStack(spacing: 12) {
+                    RepoChip(repo: Repo(org: org, name: org)).frame(width: 200, alignment: .leading)
+                    ForEach(OrgPalette.allCases, id: \.self) { palette in
+                        let current = Palette.shared.color(for: Repo(org: org, name: ""))
+                        Circle()
+                            .fill(palette.swatch)
+                            .frame(width: 16, height: 16)
+                            .overlay(Circle().strokeBorder(Theme.fg, lineWidth: current == palette ? 2 : 0).padding(-3))
+                            .onTapGesture { model.setConfig(["orgs", org, "color"], .string(palette.rawValue)) }
+                    }
+                    Spacer()
+                    Text("\(model.repos.count { $0.repo.org == org }) repos").font(Theme.ui(11.5))
+                        .foregroundStyle(Theme.fg3)
+                }
+            }
+            if orgs.isEmpty {
+                Text("Repos appear here once the repo scan finds them.").foregroundStyle(Theme.fg3)
+            }
+        }
+    }
+}
+
+private struct CleanupSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let rule = model.config.cleanup
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Worktrees & cleanup").font(Theme.ui(17, weight: .semibold))
+            Field(label: "Worktree root", detail: "New worktrees go to <root>/<repo>/<name>.") {
+                ConfigTextField(path: ["worktrees", "root"], value: model.config.work.worktreeRoot)
+            }
+            Field(label: "Repo roots", detail: "Comma separated; scanned two levels deep.") {
+                RootsField(roots: model.config.work.repoRoots)
+            }
+            Field(
+                label: "Remove idle worktrees",
+                detail: "No agent output, keystrokes, commits or PR events for this long."
+            ) {
+                HStack {
+                    Toggle(
+                        "",
+                        isOn: Binding(
+                            get: { rule.enabled },
+                            set: { model.setConfig(["cleanup", "enabled"], .bool($0)) }
+                        )
+                    )
+                    .labelsHidden()
+                    Stepper(value: Binding(
+                        get: { rule.idleDays }, set: { model.setConfig(["cleanup", "idle_days"], .integer($0)) }
+                    ), in: 1 ... 365) {
+                        Text("\(rule.idleDays) days").font(Theme.mono(12.5))
+                    }
+                }
+            }
+            Field(
+                label: "Never remove dirty or unpushed work",
+                detail: "Always on. Skipped worktrees show a warning instead."
+            ) {
+                Toggle("", isOn: .constant(true)).labelsHidden().disabled(true)
+            }
+            Field(label: "Delete the local branch too", detail: "The remote branch is left alone.") {
+                Toggle("", isOn: Binding(
+                    get: { rule.deleteBranch }, set: { model.setConfig(["cleanup", "delete_branch"], .bool($0)) }
+                )).labelsHidden()
+            }
+            Field(label: "Ask before each sweep") {
+                Toggle("", isOn: Binding(
+                    get: { rule.askBeforeSweep }, set: { model.setConfig(["cleanup", "ask_before_sweep"], .bool($0)) }
+                )).labelsHidden()
+            }
+        }
+    }
+}
+
+private struct RootsField: View {
+    @Environment(AppModel.self) private var model
+    let roots: [String]
+    @State private var text = ""
+
+    var body: some View {
+        TextField("", text: $text)
+            .textFieldStyle(.roundedBorder)
+            .font(Theme.mono(12.5))
+            .onAppear { text = roots.joined(separator: ", ") }
+            .onSubmit {
+                let list = text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                model.setConfig(["worktrees", "repo_roots"], .array(list.map { .string($0) }))
+            }
+    }
+}
+
+private struct KeySettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let keymap = model.engine.keymaps[.normal] ?? Keymap()
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Keys & modes").font(Theme.ui(17, weight: .semibold))
+            Text(
+                "Bindings are edited in config.toml ([keys.normal], [keys.repos], ...): every binding names a command, the same names : completes."
+            )
+            .font(Theme.ui(12))
+            .foregroundStyle(Theme.fg3)
+            .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Text("Leave INSERT").font(Theme.ui(13)).foregroundStyle(Theme.fg2)
+                KeyCap(text: KeyCapText.of(model.config.insertEscape))
+            }
+            Button("Edit bindings in config.toml") { NSWorkspace.shared.open(model.configFile) }
+            ForEach(Array(keymap.bindings.enumerated()), id: \.offset) { _, binding in
+                HStack(spacing: 12) {
+                    Text(KeyCapText.of(binding.keys)).font(Theme.mono(12)).frame(width: 90, alignment: .leading)
+                    Text(binding.command).font(Theme.mono(12)).foregroundStyle(Theme.fg2)
+                    Text(Commands.spec(CommandInvocation(parsing: binding.command).name)?.summary ?? "")
+                        .font(Theme.ui(12))
+                        .foregroundStyle(Theme.fg3)
+                }
+            }
+        }
+    }
+}

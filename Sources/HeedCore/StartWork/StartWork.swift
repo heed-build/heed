@@ -8,6 +8,8 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var repoRoots: [String]
     public var agents: [AgentProfile]
     public var defaultAgent: String
+    /// Pinned tasks per repo slug (`[repos."org/name".tasks]`), opened as tabs in new sessions.
+    public var tasks: [String: [TaskSpec]] = [:]
     /// On launch: ask which sessions to resume, resume them all, or none.
     public var resumeOnLaunch: ResumePolicy
     /// Typed into a resumed session that was mid-turn, once the agent is idle again. Empty turns it off.
@@ -32,6 +34,17 @@ public struct WorkSettings: Hashable, Sendable, Codable {
 
     public func worktreePath(repo: Repo, name: String) -> String {
         "\(Paths.expand(worktreeRoot))/\(repo.name)/\(name)"
+    }
+}
+
+/// A repo's pinned task: test, build, docs preview.
+public struct TaskSpec: Hashable, Sendable, Codable {
+    public var name: String
+    public var command: String
+
+    public init(name: String, command: String) {
+        self.name = name
+        self.command = command
     }
 }
 
@@ -199,7 +212,8 @@ public enum StartWork {
             state: ObservedState(.idle, source: .guessed),
             activity: plan.command == nil ? "shell" : "starting", lastActivity: now
         )
-        let panes = layout(for: plan, session: session, worktrees: created).tabs.flatMap(\.tree.panes).count
+        let built = layout(for: plan, session: session, worktrees: created, tasks: settings.tasks)
+        let panes = built.tabs.flatMap(\.tree.panes).count
         session.record("started · \(plan.agent?.name ?? "shell") · \(panes) pane\(panes == 1 ? "" : "s")", at: now)
         var changes: [DomainChange] = []
         for record in plan.repos {
@@ -207,13 +221,15 @@ public enum StartWork {
             changes.append(.worktreesListed(repo: record.repo, listed))
         }
         changes.append(.sessionUpserted(session))
-        changes.append(.layoutChanged(session: session.id, layout(for: plan, session: session, worktrees: created)))
+        changes.append(.layoutChanged(session: session.id, built))
         return changes
     }
 
     /// The new session's tabs: the agent (or a shell) in the first repo's worktree, a shell split beside it, and a
     /// shell tab per extra repo of a cross-repo session.
-    public static func layout(for plan: StartWorkPlan, session: Session, worktrees: [Worktree]) -> SessionLayout {
+    public static func layout(
+        for plan: StartWorkPlan, session: Session, worktrees: [Worktree], tasks: [String: [TaskSpec]] = [:]
+    ) -> SessionLayout {
         let primary = worktrees.first?.path ?? NSHomeDirectory()
         let agentPane = PaneSpec(
             role: plan.command == nil ? .shell : .agent, title: plan.agent?.name ?? "zsh",
@@ -224,12 +240,19 @@ public enum StartWork {
             main.split(.horizontal, with: PaneSpec(role: .shell, title: "zsh \(session.branch)", directory: primary))
             main.focused = agentPane.id
         }
+        let primaryRepo = worktrees.first?.repo
+        let taskTabs = (primaryRepo.flatMap { tasks[$0.slug] } ?? []).map { task in
+            PaneTab(title: task.name, tree: .leaf(PaneSpec(
+                role: .task, title: task.name, directory: primary,
+                command: "\(task.command); \"${HEED_BIN:-true}\" task-exit $?"
+            )))
+        }
         let extra = worktrees.dropFirst().map { worktree in
             PaneTab(title: worktree.repo.name, tree: .leaf(PaneSpec(
                 role: .shell, title: "zsh \(worktree.repo.name)", directory: worktree.path
             )))
         }
-        return SessionLayout(tabs: [main] + extra)
+        return SessionLayout(tabs: [main] + taskTabs + extra)
     }
 }
 

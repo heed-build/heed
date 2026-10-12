@@ -24,6 +24,8 @@ public struct HookMessage: Codable, Equatable, Sendable {
         case title(String)
         /// The agent's own session id, captured from its start hook, so the session can be resumed later.
         case agentSession(id: String, agent: String)
+        /// A pinned task finished in its pane with this exit code.
+        case taskExit(code: Int)
     }
 
     public var session: String
@@ -61,6 +63,7 @@ public enum HookCommandLine {
            heed pr add <url>
            heed title "<title>"
            heed agent-session <agent> <id>
+           heed task-exit <code>
            heed hook <agent> <event>        (reads the agent's hook JSON on stdin)
     Reads \(HeedEnvironment.sessionID) and \(HeedEnvironment.socket) from the environment (set in every Heed pane).
     """
@@ -110,6 +113,11 @@ public enum HookCommandLine {
         case "title":
             guard let title = args.popFirst() else { throw UsageError(description: "heed title: expected a title") }
             return .title(title)
+        case "task-exit":
+            guard let code = args.popFirst().flatMap({ Int($0) }) else {
+                throw UsageError(description: "heed task-exit: expected an exit code")
+            }
+            return .taskExit(code: code)
         case "agent-session":
             guard let agent = args.popFirst(), let id = args.popFirst() else {
                 throw UsageError(description: "heed agent-session: expected <agent> <id>")

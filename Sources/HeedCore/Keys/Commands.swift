@@ -72,6 +72,7 @@ public enum Commands {
         .init("sidebar.toggle", "collapse / expand the sessions sidebar", .views),
         .init("config.edit", "open config.toml in $EDITOR", .views),
         .init("app.quit", "quit Heed", .views),
+        .init("settings.open", "open Settings", .views),
         // Modes
         .init("mode.normal", "back to NORMAL", .modes),
         .init("mode.insert", "INSERT into the focused pane", .modes),

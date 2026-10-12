@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MainWindow: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(spacing: 0) {
@@ -58,6 +59,10 @@ struct MainWindow: View {
             if model.mode == .command { CommandLineView().padding(.bottom, 28) }
         }
         .ignoresSafeArea()
+        .onAppear {
+            let open = openSettings
+            model.openSettings = { open() }
+        }
     }
 }
 
@@ -190,6 +195,11 @@ struct StatusBar: View {
             }
             if let flash = model.flash {
                 Text(flash).foregroundStyle(Theme.block).padding(.horizontal, 12)
+            } else if let problem = model.configProblems.first {
+                Text("config.toml: \(problem.description)").foregroundStyle(Theme.err).lineLimit(1).padding(
+                    .horizontal,
+                    12
+                )
             } else if let problem = model.keyProblems.first {
                 Text("config: \(problem.description)").foregroundStyle(Theme.err).padding(.horizontal, 12)
             }

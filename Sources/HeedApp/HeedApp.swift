@@ -20,6 +20,11 @@ struct HeedApp: App {
             CommandGroup(replacing: .newItem) {}
             CommandGroup(replacing: .help) {}
         }
+
+        Settings {
+            SettingsView()
+                .environment(delegate.model)
+        }
     }
 }
 
@@ -60,7 +65,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func windowAppeared() {
         // The window exists but may not be on screen yet when its content appears; it is the app's only window.
-        guard let window = NSApp.windows.first else { return }
+        guard let window = NSApp.windows.first(where: { $0.identifier == AppModel.mainWindowID })
+            ?? NSApp.windows.first(where: { $0.identifier?.rawValue.hasPrefix("main") == true })
+            ?? NSApp.windows.first
+        else { return }
+        window.identifier = AppModel.mainWindowID
         window.backgroundColor = NSColor(red: 0.067, green: 0.071, blue: 0.078, alpha: 1)
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = false

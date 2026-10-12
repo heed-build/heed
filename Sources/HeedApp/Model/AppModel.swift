@@ -35,6 +35,7 @@ enum Overlay: Equatable {
 @MainActor
 @Observable
 final class AppModel {
+    static let mainWindowID = NSUserInterfaceItemIdentifier("heed.main")
     // Domain
     private(set) var sessions: [Session] = [] { didSet { rebuildList() } }
     private(set) var layouts: [String: SessionLayout] = [:]
@@ -45,7 +46,16 @@ final class AppModel {
     private(set) var pullDetails: [String: PullDetail] = [:]
     private(set) var feedback: [String: PullFeedback] = [:]
     private(set) var list = SessionList([])
-    let settings: WorkSettings
+    private(set) var settings: WorkSettings
+    private(set) var config = HeedConfig.default
+    /// What is wrong with config.toml, if anything; the last good config stays in use.
+    private(set) var configProblems: [ConfigProblem] = []
+    let configFile = ConfigLoader.defaultFile()
+    private var configWatcher: ConfigWatcher?
+    /// Results of pinned tasks by pane: the exit code of the last run.
+    private(set) var taskResults: [String: Int] = [:]
+    /// Opens the Settings window (set by the view, which has the SwiftUI action).
+    var openSettings: (() -> Void)?
     /// Nil for fixtures: nothing is persisted and no adapter runs.
     private var store: DomainStore?
     let isFixture: Bool
@@ -148,6 +158,7 @@ final class AppModel {
 
     /// Starts from the cache, then refreshes from git. The window is already up showing whatever the cache holds.
     func start(cache file: URL) async {
+        startConfig()
         startHooks()
         let integration = integration
         Task.detached(priority: .utility) {
@@ -273,6 +284,39 @@ final class AppModel {
         return layout.tabs.first?.tree.panes.first.map { (0, $0.id) }
     }
 
+    // MARK: Config
+
+    /// Loads config.toml (writing the commented default the first time) and reloads it whenever it is saved.
+    private func startConfig() {
+        let watcher = ConfigWatcher(file: configFile) { [weak self] text in
+            Task { @MainActor in self?.applyConfig(source: text) }
+        }
+        configWatcher = watcher
+        applyConfig(source: watcher.start())
+    }
+
+    func applyConfig(source: String) {
+        let (decoded, problems) = ConfigLoader.decode(source)
+        configProblems = problems
+        guard let decoded else { return }
+        config = decoded
+        settings = decoded.work
+        let built = decoded.keymaps()
+        engine.setKeymaps(built.keymaps, scoped: built.scoped)
+        updateScope()
+        keyProblems = built.problems
+        Palette.shared.apply(decoded)
+    }
+
+    /// Settings writes one value into config.toml; the watcher picks the change up like any other edit.
+    func setConfig(_ path: [String], _ value: TOMLValue) {
+        do {
+            try ConfigWatcher.set(path, to: value, in: configFile)
+        } catch {
+            flash = "could not write config.toml: \(error)"
+        }
+    }
+
     // MARK: Hooks
 
     private func startHooks() {
@@ -326,6 +370,9 @@ final class AppModel {
             session.agentSessionID = id
         case let .notify(text):
             flash = "\(session.title): \(text)"
+            return
+        case let .taskExit(code):
+            if let pane = message.pane { taskResults[pane] = code }
             return
         }
         commit(.sessionUpserted(session))
@@ -619,6 +666,8 @@ final class AppModel {
         case "history.again": openStartWork(prompt: selectedHistory?.session.prompt ?? "")
         case "history.outcome": cycleOutcome()
         case "app.quit": NSApp.terminate(nil)
+        case "config.edit": NSWorkspace.shared.open(configFile)
+        case "settings.open": openSettings?()
         default:
             flash = "\(command.name): not built yet"
         }

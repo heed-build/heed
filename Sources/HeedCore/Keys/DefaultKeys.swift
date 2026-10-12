@@ -25,6 +25,7 @@ public enum DefaultKeys {
         ("i", "mode.insert"), ("v", "mode.visual"), ("V", "mode.visual"), (":", "mode.command"),
         ("f", "mode.hint"), ("F", "hint.insert"),
         ("?", "overlay.help"), ("<D-/>", "overlay.help"), ("<Esc>", "overlay.close"),
+        ("<D-,>", "settings.open"),
     ]
 
     public static let visual: [(String, String)] = [
@@ -96,6 +97,7 @@ public enum Keymaps {
     /// in config must not leave you without keys.
     public static func build(
         overrides: [Mode: [(String, String)]] = [:],
+        scopedOverrides: [String: [(String, String)]] = [:],
         insertEscape: String = DefaultKeys.insertEscape
     ) -> (keymaps: [Mode: Keymap], scoped: [String: Keymap], problems: [Problem]) {
         var keymaps: [Mode: Keymap] = [:]
@@ -135,10 +137,27 @@ public enum Keymaps {
             keymaps[mode] = keymap
         }
         var scoped: [String: Keymap] = [:]
-        for (scope, table) in DefaultKeys.scoped {
+        for scope in Set(DefaultKeys.scoped.keys).union(scopedOverrides.keys) {
             var keymap = Keymap()
-            for (notation, command) in table {
-                if let keys = try? KeyNotation.parse(notation) { try? keymap.bind(keys, to: command) }
+            for (notation, command) in (DefaultKeys.scoped[scope] ?? []) + (scopedOverrides[scope] ?? []) {
+                do {
+                    let keys = try KeyNotation.parse(notation)
+                    if command.isEmpty {
+                        keymap.unbind(keys)
+                        continue
+                    }
+                    guard Commands.spec(CommandInvocation(parsing: command).name) != nil else {
+                        problems.append(Problem(
+                            mode: .normal,
+                            keys: notation,
+                            message: "unknown command in [keys.\(scope)]"
+                        ))
+                        continue
+                    }
+                    try keymap.bind(keys, to: command)
+                } catch {
+                    problems.append(Problem(mode: .normal, keys: notation, message: "[keys.\(scope)]: \(error)"))
+                }
             }
             scoped[scope] = keymap
         }

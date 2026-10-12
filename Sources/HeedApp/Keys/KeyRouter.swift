@@ -21,7 +21,10 @@ final class KeyRouter {
     func start() {
         guard monitor == nil else { return }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            guard let stroke = KeyStroke(event: event) else { return event }
+            // Only the main window is Heed's keyboard; Settings and other windows get their keys untouched.
+            guard event.window?.identifier == AppModel.mainWindowID,
+                  let stroke = KeyStroke(event: event)
+            else { return event }
             let used = MainActor.assumeIsolated { self?.route(stroke) ?? false }
             return used ? nil : event
         }

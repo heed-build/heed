@@ -151,7 +151,7 @@ private struct PaneView: View {
             if let hint = model.hintLabel(for: .pane(pane.id)) { HintBadge(label: hint).padding(30) }
         }
         .contentShape(Rectangle())
-        .onTapGesture { model.focusPane(pane.id) }
+        .onTapGesture { model.clickedPane(pane.id) }
     }
 
     private func stateColor(_ state: AgentState) -> Color {

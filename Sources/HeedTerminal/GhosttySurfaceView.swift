@@ -273,7 +273,14 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
 
     // MARK: Mouse
 
-    override public func mouseDown(with event: NSEvent) { mouseButton(event, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_LEFT) }
+    /// Called on a left click, before the terminal sees it: the app focuses this pane and enters INSERT.
+    public var onClick: (() -> Void)?
+
+    override public func mouseDown(with event: NSEvent) {
+        onClick?()
+        mouseButton(event, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_LEFT)
+    }
+
     override public func mouseUp(with event: NSEvent) { mouseButton(event, GHOSTTY_MOUSE_RELEASE, GHOSTTY_MOUSE_LEFT) }
     override public func rightMouseDown(with event: NSEvent) {
         mouseButton(event, GHOSTTY_MOUSE_PRESS, GHOSTTY_MOUSE_RIGHT)

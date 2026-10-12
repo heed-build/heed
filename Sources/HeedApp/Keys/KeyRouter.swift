@@ -12,6 +12,7 @@ import HeedCore
 @MainActor
 final class KeyRouter {
     private var monitor: Any?
+    private var mouseMonitor: Any?
     private weak var model: AppModel?
 
     init(model: AppModel) {
@@ -20,6 +21,18 @@ final class KeyRouter {
 
     func start() {
         guard monitor == nil else { return }
+        // Clicks: one in a terminal enters INSERT there (the terminal view reports it); one anywhere else in the main
+        // window leaves INSERT, so keys never keep going to a terminal you clicked away from.
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
+            guard let window = event.window, window.identifier == AppModel.mainWindowID,
+                  let frame = window.contentView?.superview
+            else { return event }
+            let hit = frame.hitTest(frame.convert(event.locationInWindow, from: nil))
+            if !Self.isTerminal(hit) {
+                MainActor.assumeIsolated { self?.model?.clickedOutsideTerminal() }
+            }
+            return event
+        }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             // Only the main window is Heed's keyboard; Settings and other windows get their keys untouched.
             guard event.window?.identifier == AppModel.mainWindowID,
@@ -32,7 +45,18 @@ final class KeyRouter {
 
     func stop() {
         if let monitor { NSEvent.removeMonitor(monitor) }
+        if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor) }
         monitor = nil
+        mouseMonitor = nil
+    }
+
+    private static func isTerminal(_ view: NSView?) -> Bool {
+        var current = view
+        while let candidate = current {
+            if TerminalSurfaces.shared.isTerminalView(candidate) { return true }
+            current = candidate.superview
+        }
+        return false
     }
 
     /// True when the app used the key; false sends it on to the focused view (the terminal, a text field).

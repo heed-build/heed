@@ -19,8 +19,15 @@ struct TerminalPane: NSViewRepresentable {
     }
 
     func updateNSView(_ view: NSView, context _: Context) {
-        guard isFocused, let window = view.window else { return }
-        if window.firstResponder !== view { window.makeFirstResponder(view) }
+        guard isFocused else { return }
+        if let window = view.window {
+            if window.firstResponder !== view { window.makeFirstResponder(view) }
+        } else {
+            // A pane Start work just made is not in the window yet; focus it once it is.
+            DispatchQueue.main.async {
+                if let window = view.window, window.firstResponder !== view { window.makeFirstResponder(view) }
+            }
+        }
     }
 }
 
@@ -33,6 +40,8 @@ final class TerminalSurfaces {
     /// Panes whose command should be typed when their terminal is created: only those Start work just made. A pane
     /// restored from the cache opens a plain shell, so a relaunch never starts a second agent (resume is step 5).
     var autostartPanes: Set<String> = []
+    /// A left click in a pane's terminal (the model focuses it and enters INSERT).
+    var onPaneClick: ((String) -> Void)?
     /// PATH for new panes: the detected search path (an app opened from Finder has a minimal one).
     var searchPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
 
@@ -51,6 +60,10 @@ final class TerminalSurfaces {
         var withPath = environment
         withPath["PATH"] = searchPath
         let view = makeTerminalView(pane: launch, environment: withPath)
+        #if HEED_GHOSTTY
+            let paneID = pane.id
+            (view as? GhosttySurfaceView)?.onClick = { [weak self] in self?.onPaneClick?(paneID) }
+        #endif
         views[pane.id] = view
         return view
     }
@@ -83,6 +96,10 @@ final class TerminalSurfaces {
         #if HEED_GHOSTTY
             (views[paneID] as? GhosttySurfaceView)?.typeText(text)
         #endif
+    }
+
+    func isTerminalView(_ view: NSView) -> Bool {
+        views.values.contains { $0 === view }
     }
 
     func close(paneID: String) {

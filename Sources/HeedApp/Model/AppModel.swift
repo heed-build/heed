@@ -184,6 +184,7 @@ final class AppModel {
         keyProblems = built.problems
         if isFixture { config.issues = Fixtures.issueRules }
         replace(with: domain)
+        TerminalSurfaces.shared.onPaneClick = { [weak self] paneID in self?.clickedPane(paneID) }
     }
 
     // MARK: Domain
@@ -1988,6 +1989,11 @@ final class AppModel {
                 }) {
                     select(sessionID: session.id)
                 }
+                // A session starts with its agent pane taking your keys.
+                if let tab = currentTab, let agent = tab.tree.panes.first(where: { $0.role == .agent }) {
+                    focusPane(agent.id)
+                }
+                enterInsert()
                 flash = "started \(plan.name)"
             } catch {
                 flash = "start work failed: \(error)"
@@ -2061,6 +2067,34 @@ final class AppModel {
 
     func focusPane(_ paneID: String) {
         updateTab { $0.focused = paneID }
+    }
+
+    // MARK: Mouse
+
+    /// Clicking into a terminal means typing there: focus that pane and enter INSERT. Without this a click left
+    /// NORMAL on, and the next letters ran as commands (x closes the session).
+    func clickedPane(_ paneID: String) {
+        guard startWork == nil, resume == nil, firstRun == nil, !filtering else { return }
+        if currentTab?.focused != paneID { focusPane(paneID) }
+        enterInsert()
+    }
+
+    /// A click outside any terminal (a list, the sidebar, the title bar) hands the keyboard back to Heed.
+    func clickedOutsideTerminal() {
+        guard mode == .insert else { return }
+        let before = engine.mode
+        engine.enter(.normal)
+        modeChanged(from: before)
+    }
+
+    private func enterInsert() {
+        guard mode != .insert else {
+            terminalFocusRequest += 1
+            return
+        }
+        let before = engine.mode
+        engine.enter(.insert)
+        modeChanged(from: before)
     }
 }
 

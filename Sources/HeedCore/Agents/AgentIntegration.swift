@@ -3,14 +3,39 @@ import Foundation
 /// How each agent reports to Heed, and what Heed adds to its command line so it does. Hooks are always passed per
 /// run (`--settings`, `-c`, `-e`, env), never written into the user's own agent config.
 public enum AgentIntegration {
-    /// Extra arguments for launching `agent` in `session`, placed right after the agent's command.
-    public static func launchArguments(agent: AgentProfile, sessionID: String, files: IntegrationFiles) -> [String] {
+    /// Extra arguments for launching `agent` in `session`, placed right after the agent's command. When `resuming`,
+    /// only the hook wiring: the session id comes from the resume arguments.
+    public static func launchArguments(
+        agent: AgentProfile, sessionID: String, files: IntegrationFiles, resuming: Bool = false
+    ) -> [String] {
         switch agent.name {
         case "claude":
             // The session id is assigned up front, so resume works even if the start hook never fires.
-            ["--settings", files.claudeSettings, "--session-id", sessionID]
+            resuming ? ["--settings", files.claudeSettings] : [
+                "--settings",
+                files.claudeSettings,
+                "--session-id",
+                sessionID,
+            ]
         default:
             []
+        }
+    }
+
+    /// Whether the agent still has session `id` for `directory`: true or false when Heed can tell (claude keeps
+    /// `~/.claude/projects/<cwd with / and . as ->/<id>.jsonl`), nil when it cannot (assume it does).
+    public static func hasSession(
+        agent: String,
+        id: String,
+        directory: String,
+        home: String = NSHomeDirectory()
+    ) -> Bool? {
+        switch agent {
+        case "claude":
+            let folder = directory.map { $0 == "/" || $0 == "." ? "-" : $0 }
+            return FileManager.default.fileExists(atPath: "\(home)/.claude/projects/\(String(folder))/\(id).jsonl")
+        default:
+            return nil
         }
     }
 

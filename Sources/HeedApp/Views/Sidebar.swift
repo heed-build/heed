@@ -11,7 +11,16 @@ struct Sidebar: View {
             HStack {
                 SectionHeader(title: "Sessions")
                 Spacer()
-                KeyCap(text: "/ filter")
+                if model.filtering || !model.sessionFilter.isEmpty {
+                    HStack(spacing: 0) {
+                        Text("/").foregroundStyle(Theme.fg3)
+                        Text(model.sessionFilter).lineLimit(1)
+                        if model.filtering { Rectangle().fill(Theme.fg).frame(width: 7, height: 14) }
+                    }
+                    .font(Theme.mono(12))
+                } else {
+                    KeyCap(text: "/ filter")
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)

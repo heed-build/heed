@@ -30,7 +30,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model: AppModel = {
         let environment = ProcessInfo.processInfo.environment
         let fixture = environment["HEED_FIXTURE"] ?? (environment["HEED_SNAPSHOT"] != nil ? "main" : nil)
-        if let fixture, let domain = Fixtures.named(fixture) { return AppModel(domain: domain, isFixture: true) }
+        if let fixture, let domain = Fixtures.named(fixture == "resume" ? "main" : fixture) {
+            let model = AppModel(domain: domain, isFixture: true)
+            if fixture == "resume" { model.showResumeForFixture() }
+            return model
+        }
         return AppModel(domain: .empty, isFixture: false)
     }()
 

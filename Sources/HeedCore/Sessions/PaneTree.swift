@@ -48,6 +48,18 @@ public indirect enum PaneTree: Hashable, Sendable, Codable {
 
     public func contains(_ id: String) -> Bool { panes.contains { $0.id == id } }
 
+    /// The same tree with pane `id` edited.
+    public func updating(_ id: String, _ edit: (inout PaneSpec) -> Void) -> PaneTree {
+        switch self {
+        case var .leaf(pane):
+            guard pane.id == id else { return self }
+            edit(&pane)
+            return .leaf(pane)
+        case let .split(axis, first, second, ratio):
+            return .split(axis, first.updating(id, edit), second.updating(id, edit), ratio: ratio)
+        }
+    }
+
     /// Splits the pane `id`, putting `new` to its right (horizontal) or below it (vertical).
     public func splitting(_ id: String, axis: Axis, with new: PaneSpec) -> PaneTree {
         switch self {

@@ -71,6 +71,19 @@ public enum Git {
         )
     }
 
+    /// Re-adds a worktree for an existing local `branch` (a reopened session whose worktree was cleaned up).
+    public static func restoreWorktree(_ record: RepoRecord, path: String, branch: String) async throws -> Worktree {
+        try FileManager.default.createDirectory(
+            atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true
+        )
+        _ = try await ProcessRunner.output("git", ["-C", record.path, "worktree", "add", path, branch])
+        let head = try await ProcessRunner.output("git", ["-C", path, "rev-parse", "--short", "HEAD"])
+        return Worktree(
+            repo: record.repo, path: path, branch: branch, head: head.trimmingCharacters(in: .whitespacesAndNewlines),
+            isMain: false, status: WorktreeStatus()
+        )
+    }
+
     // MARK: Parsing (pure, tested)
 
     /// `git@github.com:org/name.git`, `https://github.com/org/name(.git)`, `ssh://git@host/org/name`.

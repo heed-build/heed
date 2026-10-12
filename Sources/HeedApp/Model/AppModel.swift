@@ -36,10 +36,11 @@ enum Overlay: Equatable {
 @Observable
 final class AppModel {
     // Domain
-    private(set) var sessions: [Session] = [] { didSet { list = SessionList(sessions) } }
+    private(set) var sessions: [Session] = [] { didSet { rebuildList() } }
     private(set) var layouts: [String: SessionLayout] = [:]
     private(set) var repos: [RepoRecord] = []
     private(set) var worktrees: [Worktree] = []
+    private(set) var history: [HistoryEntry] = []
     private(set) var list = SessionList([])
     let settings: WorkSettings
     /// Nil for fixtures: nothing is persisted and no adapter runs.
@@ -49,6 +50,18 @@ final class AppModel {
     let integration = IntegrationFiles.default()
     /// The latest hook events per session, newest first: shown in the inspector, not persisted (agents own history).
     private(set) var events: [String: [AgentEvent]] = [:]
+
+    // Filtering (`/`): typed into while `filtering`; applies to the sessions list or the history list.
+    private(set) var filtering = false
+    private(set) var sessionFilter = "" { didSet { rebuildList() } }
+    private(set) var historyFilter = ""
+    private(set) var historyOutcome: Outcome?
+    private(set) var historyCursor = 0
+
+    // Resume on launch
+    private(set) var resume: ResumeForm?
+    /// Resumed sessions that were mid-turn: they get the continue prompt once their agent reports idle.
+    private var pendingContinue: Set<String> = []
 
     // Cursors
     private(set) var cursor = 0
@@ -104,7 +117,87 @@ final class AppModel {
         let cached = await DomainStore.load(from: file)
         replace(with: cached)
         store = DomainStore(domain: cached, file: file)
+        await offerResume(domain: cached)
         await refreshRepos()
+    }
+
+    // MARK: Resume on launch
+
+    /// Works out what to resume (checking which agent sessions still exist, off the main actor) and asks, resumes or
+    /// does nothing, per `resumeOnLaunch`.
+    private func offerResume(domain: Domain) async {
+        guard settings.resumeOnLaunch != .never, !domain.sessions.isEmpty else { return }
+        let settings = settings
+        let integration = integration
+        let candidates = await Task.detached(priority: .userInitiated) {
+            Resume.candidates(domain: domain, settings: settings, integration: integration) { session in
+                let directory = domain.layouts[session.id]?.tabs.first?.tree.panes.first?.directory ?? ""
+                return AgentIntegration.hasSession(
+                    agent: session.agent,
+                    id: session.agentSessionID ?? "",
+                    directory: directory
+                )
+            }
+        }.value
+        guard !candidates.isEmpty else { return }
+        if settings.resumeOnLaunch == .always {
+            resumeSessions(candidates.filter(\.defaultSelected))
+        } else {
+            resume = ResumeForm(candidates: candidates)
+        }
+    }
+
+    /// Fixture: open on the resume dialog for the fixture's sessions, without checking any files.
+    func showResumeForFixture() {
+        resume = ResumeForm(candidates: Resume.candidates(
+            domain: Domain(sessions: sessions, layouts: layouts), settings: settings, integration: integration
+        ))
+    }
+
+    private func handleResume(_ stroke: KeyStroke) {
+        guard var form = resume else { return }
+        switch form.handle(stroke) {
+        case .handled:
+            resume = form
+        case let .resume(chosen):
+            resume = nil
+            resumeSessions(chosen)
+        case .startEmpty:
+            resume = nil
+        }
+    }
+
+    /// Starts each chosen session's agent pane on its resume (or fresh) command, now, even off screen.
+    private func resumeSessions(_ chosen: [ResumeCandidate]) {
+        guard !isFixture else {
+            flash = "fixture: no IO"
+            return
+        }
+        for candidate in chosen {
+            guard var layout = layouts[candidate.id], var session = sessions.first(where: { $0.id == candidate.id })
+            else { continue }
+            guard let (tabIndex, paneID) = agentPane(in: layout) else { continue }
+            layout.tabs[tabIndex].tree = layout.tabs[tabIndex].tree.updating(paneID) { $0.command = candidate.command }
+            session.record(candidate.mode == .startFresh ? "relaunched · started fresh" : "resumed after restart")
+            session.state = ObservedState(.idle, source: .guessed, reason: "resuming")
+            commit([.layoutChanged(session: session.id, layout), .sessionUpserted(session)])
+            TerminalSurfaces.shared.autostartPanes.insert(paneID)
+            if let pane = layout.tabs[tabIndex].tree.panes.first(where: { $0.id == paneID }) {
+                TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
+            }
+            if candidate.mode == .resumeThenContinue, !settings.continuePrompt.isEmpty {
+                pendingContinue.insert(session.id)
+            }
+        }
+        if !chosen.isEmpty { flash = "resumed \(chosen.count) session\(chosen.count == 1 ? "" : "s")" }
+    }
+
+    /// The pane the agent runs in: the first `.agent` pane, else the first pane.
+    private func agentPane(in layout: SessionLayout) -> (Int, String)? {
+        for (index, tab) in layout.tabs.enumerated() {
+            if let pane = tab.tree.panes.first(where: { $0.role == .agent }) { return (index, pane.id) }
+        }
+        return layout.tabs.first?.tree.panes.first.map { (0, $0.id) }
     }
 
     // MARK: Hooks
@@ -136,11 +229,18 @@ final class AppModel {
             var log = events[session.id] ?? []
             log.insert(AgentEvent(at: message.sentAt, state: state, reason: reason), at: 0)
             events[session.id] = Array(log.prefix(20))
+            if state == .idle, pendingContinue.remove(session.id) != nil,
+               let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout)
+            {
+                TerminalSurfaces.shared.typeLine(settings.continuePrompt, paneID: paneID)
+                session.record("sent “\(settings.continuePrompt)”")
+            }
         case let .title(title):
             session.title = title
         case let .prAdd(url):
             guard let pull = PullRef(url: url), !session.trackedPRs.contains(pull) else { return }
             session.trackedPRs.append(pull)
+            session.record("tracking PR \(pull.repo.name)#\(pull.number)")
         case let .agentSession(id, _):
             session.agentSessionID = id
         case let .notify(text):
@@ -152,19 +252,30 @@ final class AppModel {
 
     func flush() async { await store?.flush() }
 
+    private func rebuildList() {
+        let filter = sessionFilter.lowercased()
+        list = SessionList(filter.isEmpty ? sessions : sessions.filter { session in
+            ([session.title, session.branch, session.agent] + session.repos.map(\.name)
+                + session.trackedPRs.map { "#\($0.number)" })
+                .contains { $0.lowercased().contains(filter) }
+        })
+    }
+
     private func replace(with domain: Domain) {
         sessions = domain.sessions
         layouts = domain.layouts
         repos = domain.repos
         worktrees = domain.worktrees
+        history = domain.history
         cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
 
     /// The one way the domain changes. Only properties that actually changed are written, so only their readers redraw.
     func commit(_ changes: [DomainChange]) {
         guard !changes.isEmpty else { return }
-        let before = Domain(repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts)
+        let before = Domain(repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history)
         let after = before.applying(changes)
+        if after.history != before.history { history = after.history }
         if after.sessions != before.sessions { sessions = after.sessions }
         if after.layouts != before.layouts { layouts = after.layouts }
         if after.repos != before.repos { repos = after.repos }
@@ -254,6 +365,14 @@ final class AppModel {
 
     /// Returns true when the key was used by the app, false when it should go on to the terminal.
     func handle(_ stroke: KeyStroke) -> Bool {
+        if resume != nil {
+            handleResume(stroke)
+            return true
+        }
+        if filtering {
+            typeFilter(stroke)
+            return true
+        }
         if startWork != nil {
             handleStartWork(stroke)
             return true
@@ -365,6 +484,10 @@ final class AppModel {
         case "select.copy": copySelectedPaths()
         case "select.open": openSelected()
         case "select.remove": removeSelected()
+        case "session.filter": startFilter()
+        case "history.reopen": reopenSelected()
+        case "history.again": openStartWork(prompt: selectedHistory?.session.prompt ?? "")
+        case "history.outcome": cycleOutcome()
         case "app.quit": NSApp.terminate(nil)
         default:
             flash = "\(command.name): not built yet"
@@ -406,11 +529,19 @@ final class AppModel {
     // MARK: Rows
 
     private func moveRow(by delta: Int) {
-        if view == .repos { setRow(repoCursor + delta) } else { setCursor(cursor + delta) }
+        switch view {
+        case .repos: setRow(repoCursor + delta)
+        case .history: setRow(historyCursor + delta)
+        default: setCursor(cursor + delta)
+        }
     }
 
     private func setRow(_ index: Int) {
-        if view == .repos {
+        if view == .history {
+            let count = historyRows.count
+            guard count > 0 else { return }
+            historyCursor = min(max(index, 0), count - 1)
+        } else if view == .repos {
             let count = worktreeRows.count
             guard count > 0 else { return }
             repoCursor = min(max(index, 0), count - 1)
@@ -464,13 +595,18 @@ final class AppModel {
     }
 
     private func closeCurrent() {
-        guard let id = currentSession?.id else { return }
-        commit(.sessionRemoved(id))
+        guard var session = currentSession else { return }
+        let id = session.id
+        let minutes = Int(Date().timeIntervalSince(session.createdAt) / 60)
+        session.record("ended after \(minutes / 60)h \(minutes % 60)m")
+        commit(.sessionClosed(HistoryEntry(
+            session: session, closedAt: Date(), outcome: HistoryEntry.outcome(closing: session)
+        )))
         for pane in layouts[id]?.tabs.flatMap(\.tree.panes) ?? [] {
             TerminalSurfaces.shared.close(paneID: pane.id)
         }
         cursor = min(cursor, max(list.ordered.count - 1, 0))
-        flash = "closed; worktree kept"
+        flash = "closed; worktree kept · in history (gh)"
     }
 
     private func jump(to target: HintTarget) {
@@ -544,9 +680,99 @@ final class AppModel {
         }
     }
 
+    // MARK: History
+
+    /// History in display order (newest first), filtered by `/` text and the outcome chip.
+    var historyRows: [HistoryEntry] {
+        let filter = historyFilter.lowercased()
+        return history.filter { entry in
+            (historyOutcome == nil || entry.outcome == historyOutcome)
+                && (filter.isEmpty || [entry.session.title, entry.session.prompt, entry.session.branch]
+                    .contains { $0.lowercased().contains(filter) })
+        }
+    }
+
+    var selectedHistory: HistoryEntry? {
+        let rows = historyRows
+        return rows.indices.contains(historyCursor) ? rows[historyCursor] : nil
+    }
+
+    private func cycleOutcome() {
+        let all: [Outcome?] = [nil] + Outcome.allCases
+        let index = all.firstIndex(of: historyOutcome) ?? 0
+        historyOutcome = all[(index + 1) % all.count]
+        historyCursor = 0
+    }
+
+    private func reopenSelected() {
+        guard let entry = selectedHistory else { return }
+        guard !isFixture else {
+            flash = "fixture: no IO"
+            return
+        }
+        let domain = Domain(repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history)
+        let settings = settings
+        let integration = integration
+        flash = "reopening \(entry.session.title)…"
+        Task {
+            do {
+                let changes = try await Reopen.execute(
+                    entry,
+                    domain: domain,
+                    settings: settings,
+                    integration: integration
+                )
+                for case let .layoutChanged(_, layout) in changes {
+                    for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
+                        TerminalSurfaces.shared.autostartPanes.insert(pane.id)
+                    }
+                }
+                commit(changes)
+                view = .sessions
+                select(sessionID: entry.id)
+                flash = "reopened \(entry.session.title)"
+            } catch {
+                flash = "reopen failed: \(error)"
+            }
+        }
+    }
+
+    // MARK: Filter
+
+    private func startFilter() {
+        guard view == .sessions || view == .history else { return }
+        filtering = true
+    }
+
+    private func typeFilter(_ stroke: KeyStroke) {
+        var text = view == .history ? historyFilter : sessionFilter
+        switch stroke {
+        case .escape:
+            text = ""
+            filtering = false
+        case KeyStroke("CR"):
+            filtering = false
+        case KeyStroke("BS"):
+            if text.isEmpty { filtering = false } else { text.removeLast() }
+        case KeyStroke("Space"):
+            text += " "
+        default:
+            guard !stroke.isNamed, stroke.modifiers.isEmpty else { return }
+            text += stroke.key
+        }
+        if view == .history {
+            historyFilter = text
+            historyCursor = 0
+        } else {
+            sessionFilter = text
+            cursor = 0
+        }
+    }
+
     // MARK: Start work
 
     private func openStartWork(prompt: String) {
+        if view == .history { view = .sessions }
         startWork = StartWorkForm(
             repos: repos, history: sessions, settings: settings, prompt: prompt, integration: integration
         )

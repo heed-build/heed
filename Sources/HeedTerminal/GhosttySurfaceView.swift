@@ -97,6 +97,27 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
         return String(decoding: UnsafeRawBufferPointer(start: pointer, count: Int(text.text_len)), as: UTF8.self)
     }
 
+    /// Types `text` and presses Return, as if the user did: used to send the continue prompt to a resumed agent.
+    public func typeLine(_ text: String) {
+        guard let surface else { return }
+        text.withCString { ghostty_surface_text(surface, $0, UInt(text.utf8.count)) }
+        for action in [GHOSTTY_ACTION_PRESS, GHOSTTY_ACTION_RELEASE] {
+            var key = ghostty_input_key_s()
+            key.action = action
+            key.keycode = 36 // Return
+            key.mods = GHOSTTY_MODS_NONE
+            key.consumed_mods = GHOSTTY_MODS_NONE
+            if action == GHOSTTY_ACTION_PRESS {
+                _ = "\r".withCString { pointer in
+                    key.text = pointer
+                    return ghostty_surface_key(surface, key)
+                }
+            } else {
+                _ = ghostty_surface_key(surface, key)
+            }
+        }
+    }
+
     /// True once the surface's process has exited (the pane shows Ghostty's "process exited" state).
     public var processExited: Bool { surface.map(ghostty_surface_process_exited) ?? true }
 

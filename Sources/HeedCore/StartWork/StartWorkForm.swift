@@ -43,7 +43,7 @@ public struct StartWorkForm: Sendable {
 
     private let repos: [RepoRecord]
     private let history: [Session]
-    private let sessionID = UUID().uuidString
+    private let sessionID = UUID().uuidString.lowercased()
     private let integration: IntegrationFiles?
     private var nameEdited = false
     private var reposTouched = false

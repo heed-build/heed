@@ -54,11 +54,15 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var pinned: Bool
     public var parked: Bool
     public var lastActivity: Date
+    public var createdAt: Date
+    /// What happened, coarsely: started, PRs, resumed, ended. Kept with the session and in history; capped.
+    public var timeline: [TimelineEvent]
 
     public init(
-        id: String = UUID().uuidString, title: String, prompt: String = "", repos: [Repo], branch: String,
+        id: String = UUID().uuidString.lowercased(), title: String, prompt: String = "", repos: [Repo], branch: String,
         agent: String, agentSessionID: String? = nil, state: ObservedState, activity: String = "",
-        trackedPRs: [PullRef] = [], pinned: Bool = false, parked: Bool = false, lastActivity: Date = Date()
+        trackedPRs: [PullRef] = [], pinned: Bool = false, parked: Bool = false, lastActivity: Date = Date(),
+        createdAt: Date? = nil, timeline: [TimelineEvent] = []
     ) {
         self.id = id
         self.title = title
@@ -73,6 +77,15 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         self.pinned = pinned
         self.parked = parked
         self.lastActivity = lastActivity
+        self.createdAt = createdAt ?? lastActivity
+        self.timeline = timeline
+    }
+
+    public static let timelineLimit = 50
+
+    public mutating func record(_ text: String, at date: Date = Date()) {
+        timeline.append(TimelineEvent(at: date, text: text))
+        if timeline.count > Self.timelineLimit { timeline.removeFirst(timeline.count - Self.timelineLimit) }
     }
 }
 
@@ -130,5 +143,42 @@ public struct SessionList: Sendable {
             if ordered[index].state.state.needsYou { return index }
         }
         return nil
+    }
+}
+
+public struct TimelineEvent: Hashable, Sendable, Codable {
+    public var at: Date
+    public var text: String
+
+    public init(at: Date, text: String) {
+        self.at = at
+        self.text = text
+    }
+}
+
+/// How a session ended, for history.
+public enum Outcome: String, Hashable, Sendable, Codable, CaseIterable {
+    case merged, closed, abandoned
+    case cleanedUp = "cleaned up"
+}
+
+/// A session that is no longer active: kept for search, reopening and starting again from its prompt.
+public struct HistoryEntry: Identifiable, Hashable, Sendable, Codable {
+    public var id: String { session.id }
+    public var session: Session
+    public var closedAt: Date
+    public var outcome: Outcome
+
+    public init(session: Session, closedAt: Date, outcome: Outcome) {
+        self.session = session
+        self.closedAt = closedAt
+        self.outcome = outcome
+    }
+
+    public var duration: TimeInterval { closedAt.timeIntervalSince(session.createdAt) }
+
+    /// The outcome when a session is closed by hand, before GitHub knows better (step 6 refines it from PR state).
+    public static func outcome(closing session: Session) -> Outcome {
+        session.trackedPRs.isEmpty ? .abandoned : .closed
     }
 }

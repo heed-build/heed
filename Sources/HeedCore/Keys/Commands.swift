@@ -82,6 +82,9 @@ public enum Commands {
         .init("command.complete", "complete", .modes),
         // Selection
         .init("select.toggle", "toggle row", .selection),
+        .init("history.reopen", "reopen: resume, recreating the worktree if needed", .selection),
+        .init("history.again", "start a new session from this prompt", .selection),
+        .init("history.outcome", "cycle the outcome filter", .selection),
         .init("repo.add", "add repo", .selection),
         .init("repo.scan", "rescan repo roots", .selection),
         .init("worktree.new", "new worktree", .selection),

@@ -1,6 +1,9 @@
 import AppKit
 import HeedCore
 import SwiftUI
+#if HEED_GHOSTTY
+    import HeedTerminal
+#endif
 
 /// A terminal pane. With GhosttyKit built (`mise run ghostty`) this hosts a libghostty surface; without it, a
 /// placeholder that shows the pane's command and echoes INSERT keys, so key routing can be exercised either way.
@@ -46,6 +49,20 @@ final class TerminalSurfaces {
         let view = makeTerminalView(pane: launch, environment: environment)
         views[pane.id] = view
         return view
+    }
+
+    /// Creates a pane's terminal now, before it is on screen, so a resumed agent starts at launch rather than when
+    /// its session is first looked at.
+    func prepare(_ pane: PaneSpec, sessionID: String) {
+        guard views[pane.id] == nil else { return }
+        _ = view(for: pane, sessionID: sessionID)
+    }
+
+    /// Types a line into a pane's terminal (the continue prompt). No-op for placeholder panes.
+    func typeLine(_ text: String, paneID: String) {
+        #if HEED_GHOSTTY
+            (views[paneID] as? GhosttySurfaceView)?.typeLine(text)
+        #endif
     }
 
     func close(paneID: String) {

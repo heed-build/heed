@@ -18,11 +18,14 @@ public struct Domain: Hashable, Sendable, Codable {
     public var worktrees: [Worktree]
     public var sessions: [Session]
     public var layouts: [String: SessionLayout]
+    /// Closed sessions, newest first.
+    public var history: [HistoryEntry]
 
     public init(
         repos: [RepoRecord] = [], worktrees: [Worktree] = [], sessions: [Session] = [],
-        layouts: [String: SessionLayout] = [:]
+        layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = []
     ) {
+        self.history = history
         self.repos = repos
         self.worktrees = worktrees
         self.sessions = sessions
@@ -46,6 +49,10 @@ public enum DomainChange: Hashable, Sendable, Codable {
     case sessionUpserted(Session)
     case sessionRemoved(String)
     case layoutChanged(session: String, SessionLayout)
+    /// A session closes into history (its layout is dropped).
+    case sessionClosed(HistoryEntry)
+    /// A history entry comes back as an active session (`R` reopen).
+    case historyRemoved(String)
 }
 
 public extension Domain {
@@ -84,6 +91,13 @@ public extension Domain {
             layouts[id] = nil
         case let .layoutChanged(session, layout):
             layouts[session] = layout
+        case let .sessionClosed(entry):
+            sessions.removeAll { $0.id == entry.id }
+            layouts[entry.id] = nil
+            history.removeAll { $0.id == entry.id }
+            history.insert(entry, at: 0)
+        case let .historyRemoved(id):
+            history.removeAll { $0.id == id }
         }
     }
 

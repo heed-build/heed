@@ -17,6 +17,8 @@ struct MainWindow: View {
                         if model.inspectorVisible, geometry.size.width >= 1180 { Inspector() }
                     case .repos:
                         ReposView()
+                    case .history:
+                        HistoryView()
                     default:
                         ComingView(view: model.view)
                     }
@@ -28,6 +30,9 @@ struct MainWindow: View {
         .foregroundStyle(Theme.fg)
         .overlay {
             if model.startWork != nil { StartWorkView() }
+        }
+        .overlay {
+            if model.resume != nil { ResumeView() }
         }
         .overlay {
             if model.overlay == .help { HelpOverlay() }
@@ -143,7 +148,7 @@ struct StatusBar: View {
             }
             Spacer()
             Text(model.pendingKeys).foregroundStyle(Theme.fg).padding(.horizontal, 12)
-            Text(hints).foregroundStyle(Theme.fg3).padding(.horizontal, 12)
+            Text(hints).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.head).padding(.horizontal, 12)
             Text(position).foregroundStyle(Theme.fg2).padding(.horizontal, 12)
         }
         .font(Theme.mono(11.5))
@@ -153,14 +158,18 @@ struct StatusBar: View {
     }
 
     private var position: String {
-        model.view == .repos
-            ? "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
-            : "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
+        switch model.view {
+        case .repos: "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
+        case .history: "\(model.historyRows.isEmpty ? 0 : model.historyCursor + 1)/\(model.historyRows.count)"
+        default: "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
+        }
     }
 
     private var hints: String {
         switch model.mode {
+        case .normal where model.filtering: "type to filter · ↩ keep · ⎋ clear"
         case .normal where model.view == .repos: "v select · n new worktree · R rescan · ⎋ back to sessions"
+        case .normal where model.view == .history: "j k move · / search · R reopen · O new from prompt · t outcome"
         case .normal: "i insert · o start work · gp PR overlay · : command · ? keys"
         case .insert: "\(KeyCapText.of(DefaultKeys.insertEscape)) normal · ⌘/ keys"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
@@ -232,7 +241,7 @@ struct ComingView: View {
     var body: some View {
         VStack(spacing: 10) {
             Text(view.title).font(Theme.ui(15, weight: .medium))
-            Text(view == .history ? "History arrives with persistence (step 5)." : "GitHub arrives in step 6.")
+            Text("GitHub arrives in step 6.")
                 .foregroundStyle(Theme.fg3)
             HStack(spacing: 6) {
                 KeyCap(text: "⎋")

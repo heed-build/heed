@@ -8,11 +8,18 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var repoRoots: [String]
     public var agents: [AgentProfile]
     public var defaultAgent: String
+    /// On launch: ask which sessions to resume, resume them all, or none.
+    public var resumeOnLaunch: ResumePolicy
+    /// Typed into a resumed session that was mid-turn, once the agent is idle again. Empty turns it off.
+    public var continuePrompt: String
 
     public init(
         worktreeRoot: String = "~/code/wt", repoRoots: [String] = ["~/Projects", "~/code"],
-        agents: [AgentProfile] = AgentProfile.builtIn, defaultAgent: String = "claude"
+        agents: [AgentProfile] = AgentProfile.builtIn, defaultAgent: String = "claude",
+        resumeOnLaunch: ResumePolicy = .ask, continuePrompt: String = "Continue where you left off."
     ) {
+        self.resumeOnLaunch = resumeOnLaunch
+        self.continuePrompt = continuePrompt
         self.worktreeRoot = worktreeRoot
         self.repoRoots = repoRoots
         self.agents = agents
@@ -62,7 +69,7 @@ public struct StartWorkPlan: Hashable, Sendable {
 
     public init(
         prompt: String, repos: [RepoRecord], name: String, base: String? = nil, agent: AgentProfile?,
-        sessionID: String = UUID().uuidString, integration: IntegrationFiles? = nil
+        sessionID: String = UUID().uuidString.lowercased(), integration: IntegrationFiles? = nil
     ) {
         self.sessionID = sessionID
         self.integration = integration
@@ -181,7 +188,7 @@ public enum StartWork {
             }
             return result.sorted { $0.0 < $1.0 }.map(\.1)
         }
-        let session = Session(
+        var session = Session(
             id: plan.sessionID, title: plan.title, prompt: plan.prompt, repos: plan.repos.map(\.repo),
             branch: plan.name,
             agent: plan.agent?.name ?? "shell",
@@ -192,6 +199,8 @@ public enum StartWork {
             state: ObservedState(.idle, source: .guessed),
             activity: plan.command == nil ? "shell" : "starting", lastActivity: now
         )
+        let panes = layout(for: plan, session: session, worktrees: created).tabs.flatMap(\.tree.panes).count
+        session.record("started · \(plan.agent?.name ?? "shell") · \(panes) pane\(panes == 1 ? "" : "s")", at: now)
         var changes: [DomainChange] = []
         for record in plan.repos {
             let listed = try await Git.worktrees(of: record)
@@ -221,6 +230,80 @@ public enum StartWork {
             )))
         }
         return SessionLayout(tabs: [main] + extra)
+    }
+}
+
+/// Bringing a closed session back (`R` in History).
+public enum Reopen {
+    /// Recreates missing worktrees from the session's branch, then returns the changes that restore the session with
+    /// an agent pane that resumes it (or starts fresh from the prompt when the agent dropped it).
+    public static func execute(
+        _ entry: HistoryEntry, domain: Domain, settings: WorkSettings, integration: IntegrationFiles?,
+        now: Date = Date()
+    ) async throws -> [DomainChange] {
+        var session = entry.session
+        var paths: [String] = []
+        var changes: [DomainChange] = []
+        for repo in session.repos {
+            guard let record = domain.repo(repo.slug) else { throw ReopenError.unknownRepo(repo.slug) }
+            let existing = domain.worktrees.first { $0.repo == repo && $0.branch == session.branch }
+            if let existing, FileManager.default.fileExists(atPath: existing.path) {
+                paths.append(existing.path)
+            } else {
+                let path = settings.worktreePath(repo: repo, name: session.branch)
+                try await paths.append(Git.restoreWorktree(record, path: path, branch: session.branch).path)
+                session.record("worktree recreated from \(session.branch)", at: now)
+            }
+            try await changes.append(.worktreesListed(repo: repo, Git.worktrees(of: record)))
+        }
+        // Reopening is explicit, so the only question is whether the agent can still resume its session.
+        var command: String?
+        if let agent = settings.agent(session.agent) {
+            let hooks = { (resuming: Bool) in
+                integration.map {
+                    AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0, resuming: resuming)
+                } ?? []
+            }
+            let stillThere = session.agentSessionID.map {
+                AgentIntegration.hasSession(agent: agent.name, id: $0, directory: paths[0]) != false
+            } ?? false
+            if stillThere, let id = session.agentSessionID,
+               let resume = agent.resumeCommand(id: id, extraArguments: hooks(true))
+            {
+                command = resume
+                session.record("reopened", at: now)
+            } else {
+                command = agent.launchCommand(prompt: session.prompt, extraArguments: hooks(false))
+                session.record("reopened · started fresh", at: now)
+            }
+        } else {
+            session.record("reopened · shell only", at: now)
+        }
+        session.state = ObservedState(.idle, source: .guessed)
+        session.parked = false
+        session.lastActivity = now
+        let agentPane = PaneSpec(
+            role: command == nil ? .shell : .agent, title: command == nil ? "zsh" : session.agent, directory: paths[0],
+            command: command
+        )
+        var main = PaneTab(title: command == nil ? "shell" : "agent", tree: .leaf(agentPane))
+        main.split(.horizontal, with: PaneSpec(role: .shell, title: "zsh \(session.branch)", directory: paths[0]))
+        main.focused = agentPane.id
+        changes += [
+            .historyRemoved(session.id), .sessionUpserted(session),
+            .layoutChanged(session: session.id, SessionLayout(tabs: [main])),
+        ]
+        return changes
+    }
+}
+
+public enum ReopenError: Error, CustomStringConvertible {
+    case unknownRepo(String)
+
+    public var description: String {
+        switch self {
+        case let .unknownRepo(slug): "\(slug) is not a known repo any more"
+        }
     }
 }
 

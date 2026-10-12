@@ -27,6 +27,9 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
   editing global config: claude `--settings`, codex `-c` + `--dangerously-bypass-hook-trust`, pi `-e`, opencode
   `OPENCODE_CONFIG_CONTENT`, cursor a `.cursor/hooks.json` in the worktree excluded via `.git/info/exclude`.
   Gemini: to verify before building its integration. Screen reading only fills states an agent has no hook for.
+- **Resume**: claude `--resume <id>` (its session file under `~/.claude/projects/<cwd, / and . as ->/` tells whether
+  it still exists), codex `resume <id>`, cursor `--resume <id>`, pi and opencode `--session <id>`; gemini starts fresh
+  until verified. Resumed agent panes start at launch even off screen.
 - **Signing and deploy**: ad-hoc signed, rsync to the MacBook's SMB share after every build (`HEED_DEPLOY_DIR` in `mise.local.toml`).
 
 ## Build order
@@ -37,7 +40,8 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
    Start work; config file still to come, defaults live in `WorkSettings`)*
 4. The `heed` socket, claude hooks, live agent states, `ga`. *(done: HookServer, `heed hook claude <event>`,
    `--settings` + `--session-id` per launch, event log in the inspector; needs a hands-on check)*
-5. Persistence (SQLite), resume on launch, pins, history.
+5. Persistence, resume on launch, pins, history. *(done: resume dialog per `resumeOnLaunch`, continue prompt once idle,
+   history with outcomes and timelines, `R` reopen recreating cleaned-up worktrees, `/` filters)*
 6. GitHub: inbox, issues, PR watch, org icons and colors.
 7. PR overlay, reader, feedback queue, auto-feed.
 8. Diff overlay.

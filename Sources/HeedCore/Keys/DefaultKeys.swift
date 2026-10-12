@@ -49,6 +49,7 @@ public enum DefaultKeys {
     /// Bindings that only apply in one view, keyed by view name.
     public static let scoped: [String: [(String, String)]] = [
         "repos": [("a", "repo.add"), ("n", "worktree.new"), ("R", "repo.scan")],
+        "history": [("R", "history.reopen"), ("O", "history.again"), ("t", "history.outcome")],
     ]
 
     public static func table(for mode: Mode) -> [(String, String)] {

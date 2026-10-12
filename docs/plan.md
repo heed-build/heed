@@ -23,7 +23,7 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
   editing global config: claude `--settings`, codex `-c` + `--dangerously-bypass-hook-trust`, pi `-e`, opencode
   `OPENCODE_CONFIG_CONTENT`, cursor a `.cursor/hooks.json` in the worktree excluded via `.git/info/exclude`.
   Gemini: to verify before building its integration. Screen reading only fills states an agent has no hook for.
-- **Signing and deploy**: ad-hoc signed, rsync to the MacBook's SMB share after every build (like musicbox).
+- **Signing and deploy**: ad-hoc signed, rsync to the MacBook's SMB share after every build (`HEED_DEPLOY_DIR` in `mise.local.toml`).
 
 ## Build order
 

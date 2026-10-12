@@ -27,6 +27,9 @@ struct TerminalPane: NSViewRepresentable {
 final class TerminalSurfaces {
     static let shared = TerminalSurfaces()
     private var views: [String: NSView] = [:]
+    /// Panes whose command should be typed when their terminal is created: only those Start work just made. A pane
+    /// restored from the cache opens a plain shell, so a relaunch never starts a second agent (resume is step 5).
+    var autostartPanes: Set<String> = []
 
     func view(for pane: PaneSpec, sessionID: String) -> NSView {
         if let existing = views[pane.id] {
@@ -38,7 +41,9 @@ final class TerminalSurfaces {
             HeedEnvironment.socket: HeedEnvironment.defaultSocketPath(),
             HeedEnvironment.pane: pane.id,
         ]
-        let view = makeTerminalView(pane: pane, environment: environment)
+        var launch = pane
+        if autostartPanes.remove(pane.id) == nil { launch.command = nil }
+        let view = makeTerminalView(pane: launch, environment: environment)
         views[pane.id] = view
         return view
     }

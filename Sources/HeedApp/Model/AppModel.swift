@@ -583,6 +583,11 @@ final class AppModel {
             defer { startingWork = false }
             do {
                 let changes = try await StartWork.execute(plan, settings: settings)
+                for case let .layoutChanged(_, layout) in changes {
+                    for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
+                        TerminalSurfaces.shared.autostartPanes.insert(pane.id)
+                    }
+                }
                 commit(changes)
                 startWork = nil
                 view = .sessions

@@ -287,7 +287,7 @@ public enum ConfigLoader {
                 let entries = pairs(["keys", name])
                 if let mode = Mode(rawValue: name) {
                     config.keys[mode] = entries
-                } else if DefaultKeys.scoped[name] != nil || ["sessions", "issues", "prs"].contains(name) {
+                } else if DefaultKeys.scoped[name] != nil || ["issues", "prs"].contains(name) {
                     config.scopedKeys[name] = entries
                 } else {
                     problems.append(ConfigProblem(path: "keys.\(name)", message: "not a mode or a view"))

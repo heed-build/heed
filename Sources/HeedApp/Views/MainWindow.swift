@@ -56,6 +56,9 @@ struct MainWindow: View {
             if model.resume != nil { ResumeView() }
         }
         .overlay {
+            if let confirmation = model.confirmation { ConfirmationView(confirmation: confirmation) }
+        }
+        .overlay {
             if model.firstRun != nil { FirstRunView() }
         }
         .overlay {
@@ -316,12 +319,13 @@ struct StatusBar: View {
 
     private var hints: String {
         switch model.mode {
+        case .normal where model.confirmation != nil: "y or ↩ confirm · n, ⎋ or q cancel"
         case .normal where model.filtering: "words match anywhere · ⌃w word · ⌃u clear · ↩ keep · ⎋ clear"
         case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
         case .normal where model.issueReader != nil: "s start session · a add to session · gB browser · ⎋ back"
         case .normal where model.reader != nil || model.overlay == .pr:
             "j k item · space queue · s send · m auto-feed · ]p next PR · gS session · ⎋ back"
-        case .normal where model.view == .repos: "v select · n new worktree · R rescan · I issues all/yours · / filter"
+        case .normal where model.view == .repos: "v select · n new · dd remove · R rescan · I issues · / filter"
         case .normal where model.view == .history: "j k move · / filter · R reopen · O new from prompt · t outcome"
         case .normal where model.view == .inbox: "space pick · v range · s start session · a add · m read · o open · t unread/all · / filter"
         case .normal where model.view == .issues: "space pick · s start session · go read · t filter · ⇥ repo · w all/yours · / filter"
@@ -387,5 +391,68 @@ struct CommandLineView: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
         .shadow(color: .black.opacity(0.5), radius: 20)
+    }
+}
+
+/// Asks before anything destructive: what will happen, what is kept and why; y or ↩ goes ahead, n, ⎋ or q does not.
+struct ConfirmationView: View {
+    @Environment(AppModel.self) private var model
+    let confirmation: AppModel.Confirmation
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+            VStack(alignment: .leading, spacing: 14) {
+                Text(confirmation.title).font(Theme.ui(15, weight: .semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(confirmation.lines, id: \.self) { line in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("·").foregroundStyle(Theme.err)
+                            Text(line).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .font(Theme.ui(12.5))
+                .foregroundStyle(Theme.fg2)
+                if !confirmation.kept.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Kept").font(Theme.ui(11, weight: .semibold)).tracking(0.6).foregroundStyle(Theme.fg3)
+                        ForEach(confirmation.kept, id: \.self) { line in
+                            Text(line).font(Theme.mono(11.5)).foregroundStyle(Theme.block)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                HStack(spacing: 10) {
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Text("Cancel")
+                        KeyCap(text: "n")
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.cancelConfirmation() }
+                    HStack(spacing: 6) {
+                        Text(confirmation.accept).fontWeight(.semibold)
+                        KeyCap(text: "y")
+                    }
+                    .foregroundStyle(Theme.ink)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Theme.err))
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.acceptConfirmation() }
+                }
+                .font(Theme.ui(12.5))
+            }
+            .padding(22)
+            .frame(width: 480)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
+            .shadow(color: .black.opacity(0.5), radius: 30)
+        }
     }
 }

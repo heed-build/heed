@@ -38,6 +38,7 @@ struct ReposView: View {
                 keyRow("a", "add repo (rescan roots)")
                 keyRow("R", "rescan")
                 keyRow("n", "new worktree")
+                keyRow("dd", "remove worktree (asks)")
             }
             .padding(16)
         }
@@ -145,7 +146,7 @@ struct ReposView: View {
                 "Remove worktrees with no activity\(rule.enabled ? "" : " (off)")",
                 rule.enabled
                     ? "Nothing for \(rule.idleDays)d: no agent output, keystrokes, commits or PR events."
-                    : "Off. Turn it on in Settings (⌘,) or [cleanup] enabled; d removes worktrees by hand."
+                    : "Off. Turn it on in Settings (⌘,) or [cleanup] enabled; dd removes worktrees by hand."
             )
             ruleRow("Never remove dirty or unpushed work", "Always on. Skipped trees show a warning instead.")
             ruleRow("Delete the local branch too\(rule.deleteBranch ? "" : " (off)")", "Remote branch is left alone.")

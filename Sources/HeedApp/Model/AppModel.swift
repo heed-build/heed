@@ -142,7 +142,7 @@ final class AppModel {
     /// Scoped key bindings follow what has focus: the diff, the PR overlay or reader, else the view.
     private func updateScope() {
         engine.scope = overlay == .diff ? "diff" : issueReader != nil ? "issue"
-            : (overlay == .pr || reader != nil) ? "pr" : (view == .sessions ? nil : view.rawValue)
+            : (overlay == .pr || reader != nil) ? "pr" : view.rawValue
     }
 
     // Diff overlay
@@ -185,6 +185,7 @@ final class AppModel {
         if isFixture { config.issues = Fixtures.issueRules }
         replace(with: domain)
         TerminalSurfaces.shared.onPaneClick = { [weak self] paneID in self?.clickedPane(paneID) }
+        updateScope()
     }
 
     // MARK: Domain
@@ -289,7 +290,7 @@ final class AppModel {
         }
         guard config.cleanup.enabled else {
             if explicit {
-                flash = "automatic cleanup is off ([cleanup] enabled, or Settings); d removes worktrees by hand"
+                flash = "automatic cleanup is off ([cleanup] enabled, or Settings); dd removes worktrees by hand"
             }
             return
         }
@@ -790,6 +791,10 @@ final class AppModel {
 
     /// Returns true when the key was used by the app, false when it should go on to the terminal.
     func handle(_ stroke: KeyStroke) -> Bool {
+        if confirmation != nil {
+            answerConfirmation(stroke)
+            return true
+        }
         if firstRun != nil {
             if stroke == KeyStroke("CR") || stroke == KeyStroke("CR", .command) || stroke == .escape {
                 firstRun = nil
@@ -896,7 +901,8 @@ final class AppModel {
             if let next = list.nextNeedingYou(after: cursor) { setCursor(next) } else { flash = "nobody needs you" }
         case "session.pin": togglePin()
         case "session.park": updateCurrent { $0.parked.toggle() }
-        case "session.close": closeCurrent()
+        case "session.close": confirmClose()
+        case "session.delete": confirmDelete()
         case "session.back": goBack()
         case "pin.jump": jumpToPin(Int(command.arguments.first ?? "") ?? 1)
         case "work.start": openStartWork(prompt: command.arguments.joined(separator: " "))
@@ -910,7 +916,7 @@ final class AppModel {
         case "pane.split.right": split(.horizontal)
         case "pane.split.below": split(.vertical)
         case "pane.zoom": updateTab { $0.zoomed.toggle() }
-        case "pane.close": closePane()
+        case "pane.close": confirmClosePane()
         case "tab.next": cycleTab(by: count)
         case "tab.prev": cycleTab(by: -count)
         case "tab.new": newTab()
@@ -948,9 +954,9 @@ final class AppModel {
         case "select.toggle": toggleRow()
         case "select.copy": copySelectedPaths()
         case "select.open": openSelected()
-        case "select.remove": removeSelected()
+        case "select.remove": confirmRemoveSelected()
         case "session.filter": startFilter()
-        case "cleanup.sweep": Task { await runSweep(explicit: true) }
+        case "cleanup.sweep": confirmSweep()
         case "cleanup.rules": view = .repos
         case "github.sync": Task { await syncGitHub() }
         case "items.start": startFromItems()
@@ -1112,6 +1118,116 @@ final class AppModel {
         select(sessionID: session.id)
     }
 
+    // MARK: Confirmation
+
+    /// A destructive action waiting for y (or ↩) / n (or ⎋, q).
+    struct Confirmation {
+        var title: String
+        /// What will happen, one line each.
+        var lines: [String]
+        /// What will be left alone, and why.
+        var kept: [String] = []
+        var accept: String
+        var action: @MainActor () -> Void
+    }
+
+    private(set) var confirmation: Confirmation?
+
+    private func ask(_ confirmation: Confirmation) {
+        if mode == .insert {
+            engine.enter(.normal)
+            modeChanged(from: .insert)
+        }
+        self.confirmation = confirmation
+    }
+
+    private func answerConfirmation(_ stroke: KeyStroke) {
+        switch stroke {
+        case KeyStroke("y"), KeyStroke("CR"):
+            let action = confirmation?.action
+            confirmation = nil
+            action?()
+        case KeyStroke("n"), KeyStroke("q"), .escape:
+            confirmation = nil
+            flash = "cancelled"
+        default:
+            break
+        }
+    }
+
+    func acceptConfirmation() { answerConfirmation(KeyStroke("y")) }
+    func cancelConfirmation() { answerConfirmation(.escape) }
+
+    private func confirmClose() {
+        guard let session = currentSession else { return }
+        let running = [.working, .blocked, .asking].contains(session.state.state)
+        ask(Confirmation(
+            title: "Close \(session.title)?",
+            lines: [
+                running ? "\(session.agent) is \(session.state.state.rawValue): it stops with the panes" :
+                    "Its panes close",
+                "The worktree stays; the session moves to History, where R reopens it",
+            ],
+            accept: "Close"
+        ) { [weak self] in self?.closeCurrent() })
+    }
+
+    /// `dd` in Sessions: the session and its worktrees. Worktrees with unsaved work are kept (and said so).
+    private func confirmDelete() {
+        guard let session = currentSession else { return }
+        let mine = worktrees.filter { !$0.isMain && $0.branch == session.branch && session.repos.contains($0.repo) }
+        let (removals, kept) = planRemoval(mine, sessionsFollow: false)
+        ask(Confirmation(
+            title: "Delete \(session.title)?",
+            lines: ["The agent and its panes stop; the session moves to History"]
+                + removals.map { removal in
+                    "remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "")"
+                        + (removal.deleteBranch ? " and its local branch" : "")
+                }
+                + (mine.isEmpty ? ["No worktree to remove"] : []),
+            kept: kept,
+            accept: "Delete"
+        ) { [weak self] in
+            guard let self else { return }
+            closeCurrent()
+            if !removals.isEmpty { removeWorktrees(removals, kept: kept) }
+        })
+    }
+
+    private func confirmSweep() {
+        guard config.cleanup.enabled else {
+            flash = "automatic cleanup is off ([cleanup] enabled, or Settings); dd in Repos removes worktrees by hand"
+            return
+        }
+        let plan = sweepPlan
+        guard !plan.removals.isEmpty else {
+            flash = plan.summary
+            return
+        }
+        ask(Confirmation(
+            title: "Run the cleanup sweep?",
+            lines: plan.removals.map {
+                "remove \($0.worktree.repo.name)/\($0.worktree.branch ?? "") (idle \($0.idleDays)d)"
+            },
+            kept: plan.skips.map { "\($0.worktree.repo.name)/\($0.worktree.branch ?? ""): \($0.reason)" },
+            accept: "Sweep"
+        ) { [weak self] in Task { await self?.runSweep(explicit: true) } })
+    }
+
+    /// Shell panes close at once; an agent pane asks, since its agent stops with it.
+    private func confirmClosePane() {
+        guard let tab = currentTab, let pane = tab.tree.panes.first(where: { $0.id == tab.focused }) else { return }
+        guard pane.role == .agent else {
+            closePane()
+            return
+        }
+        ask(Confirmation(
+            title: "Close the \(pane.title) pane?",
+            lines: ["The agent in it stops; the session and its worktree stay"],
+            accept: "Close"
+        ) { [weak self] in self?.closePane() })
+    }
+
     private func closeCurrent() {
         guard var session = currentSession else { return }
         let id = session.id
@@ -1193,33 +1309,71 @@ final class AppModel {
 
     /// `d` in Repos: removes the selected worktrees now, with the sweep's safety: dirty or unpushed work and pinned
     /// sessions' worktrees are skipped.
-    private func removeSelected() {
-        let rows = actionRows
-        engine.enter(.normal)
-        modeChanged(from: .visual)
-        guard !isFixture else {
-            flash = "fixture: no IO"
-            return
-        }
-        var skipped: [String] = []
+    /// Which of `rows` can go (clean, pushed, not pinned) and why the rest stay.
+    private func planRemoval(_ rows: [Worktree], sessionsFollow: Bool = true) -> (
+        removals: [SweepPlan.Removal], kept: [String]
+    ) {
+        var kept: [String] = []
         var removals: [SweepPlan.Removal] = []
         for worktree in rows {
             let users = sessions.filter { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }
-            if users.contains(where: \.pinned) {
-                skipped.append("\(worktree.branch ?? worktree.path): pinned")
+            if sessionsFollow, users.contains(where: \.pinned) {
+                kept.append("\(worktree.repo.name)/\(worktree.branch ?? worktree.path): pinned session")
             } else if let reason = Sweep.unsafe(worktree) {
-                skipped.append("\(worktree.branch ?? worktree.path): \(reason)")
+                kept.append("\(worktree.repo.name)/\(worktree.branch ?? worktree.path): \(reason)")
             } else {
                 removals.append(SweepPlan.Removal(
-                    worktree: worktree, idleDays: 0, sessions: users.map(\.id),
+                    worktree: worktree, idleDays: 0, sessions: sessionsFollow ? users.map(\.id) : [],
                     deleteBranch: config.cleanup.deleteBranch && worktree.branch != nil
                 ))
             }
         }
-        guard !removals.isEmpty else {
-            flash = skipped.isEmpty ? "nothing selected" : "kept: \(skipped.joined(separator: "; "))"
+        return (removals, kept)
+    }
+
+    private func confirmRemoveSelected() {
+        let rows = actionRows
+        if mode == .visual {
+            engine.enter(.normal)
+            modeChanged(from: .visual)
+        }
+        guard !rows.isEmpty else {
+            flash = "nothing selected"
             return
         }
+        let (removals, kept) = planRemoval(rows)
+        guard !removals.isEmpty else {
+            flash = "kept: \(kept.joined(separator: "; "))"
+            return
+        }
+        let closing = Set(removals.flatMap(\.sessions)).count
+        ask(Confirmation(
+            title: removals.count == 1
+                ? "Remove \(removals[0].worktree.repo.name)/\(removals[0].worktree.branch ?? "worktree")?"
+                : "Remove \(removals.count) worktrees?",
+            lines: removals.map { removal in
+                "\(removal.worktree.repo.name)/\(removal.worktree.branch ?? removal.worktree.path)"
+                    + (removal.deleteBranch ? " · local branch too" : "")
+            } +
+                (closing > 0 ?
+                    ["\(closing) session\(closing == 1 ? "" : "s") on them move\(closing == 1 ? "s" : "") to History"] :
+                    []),
+            kept: kept,
+            accept: "Remove"
+        ) { [weak self] in self?.removeWorktrees(removals, kept: kept) })
+    }
+
+    private func removeWorktrees(_ removals: [SweepPlan.Removal], kept: [String]) {
+        guard !isFixture else {
+            flash = "fixture: no IO"
+            return
+        }
+        for id in Set(removals.flatMap(\.sessions)) {
+            for pane in layouts[id]?.tabs.flatMap(\.tree.panes) ?? [] {
+                TerminalSurfaces.shared.close(paneID: pane.id)
+            }
+        }
+        let skipped = kept
         Task {
             let (changes, failures) = await Sweep.execute(
                 SweepPlan(removals: removals, skips: [], next: nil), domain: currentDomain

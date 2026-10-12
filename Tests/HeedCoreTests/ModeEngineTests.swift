@@ -221,3 +221,15 @@ struct InsertEscapeTests {
         #expect(insert?.lookup([.escape]) == Keymap.Lookup.none)
     }
 }
+
+struct DeleteKeyTests {
+    @Test func ddDeletesInSessionsAndRemovesInRepos() {
+        let built = Keymaps.build()
+        #expect(built.problems.isEmpty)
+        let dd = [KeyStroke("d"), KeyStroke("d")]
+        #expect(built.scoped["sessions"]?.lookup(dd) == .command("session.delete"))
+        #expect(built.scoped["repos"]?.lookup(dd) == .command("select.remove"))
+        // Nowhere else: dd in Inbox must not delete the session you are not looking at.
+        #expect(built.keymaps[.normal]?.lookup(dd) == Keymap.Lookup.none)
+    }
+}

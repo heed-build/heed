@@ -65,6 +65,13 @@ final class TerminalSurfaces {
         #endif
     }
 
+    /// Types text into a pane without pressing Return.
+    func typeText(_ text: String, paneID: String) {
+        #if HEED_GHOSTTY
+            (views[paneID] as? GhosttySurfaceView)?.typeText(text)
+        #endif
+    }
+
     func close(paneID: String) {
         views.removeValue(forKey: paneID)?.removeFromSuperview()
     }

@@ -73,6 +73,7 @@ struct KeyCap: View {
             .padding(.horizontal, 5)
             .background(RoundedRectangle(cornerRadius: 4).fill(Theme.keyCap))
             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.keyCapBorder))
+            .fixedSize()
     }
 }
 

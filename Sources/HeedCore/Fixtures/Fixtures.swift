@@ -100,6 +100,56 @@ public enum Fixtures {
         )
     }()
 
+    /// design/screens/Diff.png.
+    public static let diffCommits = [
+        CommitSummary(sha: "4f2a1c0", subject: "Validate anchors against headings"),
+        CommitSummary(sha: "a91e3d0", subject: "Fix lint in redirects.md"),
+        CommitSummary(sha: "0be7d20", subject: "Add moved-page redirect fixtures"),
+    ]
+
+    public static let diff: [FileDiff] = {
+        let text = """
+        diff --git a/src/Elastic.Markdown/Redirects/RedirectFile.cs b/src/Elastic.Markdown/Redirects/RedirectFile.cs
+        --- a/src/Elastic.Markdown/Redirects/RedirectFile.cs
+        +++ b/src/Elastic.Markdown/Redirects/RedirectFile.cs
+        @@ -76,9 +76,11 @@ public sealed class RedirectFile
+             public bool TryResolve(string page, string fragment)
+             {
+        -        var anchors = _anchors.GetValueOrDefault(page);
+        +        var anchors = _anchors.GetValueOrDefault(page, EmptyAnchors);
+        +        var slug = Slugify(fragment);
+                 // headings are lowercased by the slugifier
+        -        if (!anchors.Contains(fragment))
+        +        if (!anchors.Contains(slug, StringComparer.Ordinal))
+                     return false;
+        +        _resolved[page] = new Resolved(page, slug);
+                 return true;
+             }
+        @@ -131,6 +133,8 @@ public sealed class RedirectFile
+             private static IReadOnlySet<string> EmptyAnchors
+        +        = new HashSet<string>(StringComparer.Ordinal);
+         }
+        diff --git a/tests/Redirects/AnchorTests.cs b/tests/Redirects/AnchorTests.cs
+        new file mode 100644
+        --- /dev/null
+        +++ b/tests/Redirects/AnchorTests.cs
+        @@ -0,0 +1,3 @@
+        +public class AnchorTests
+        +{
+        +}
+        diff --git a/docs/redirects.md b/docs/redirects.md
+        --- a/docs/redirects.md
+        +++ b/docs/redirects.md
+        @@ -40,2 +40,3 @@
+         Redirects keep anchors.
+        -A very long line that the linter rejects because it goes on and on.
+        +A shorter line.
+        +Another line.
+
+        """
+        return DiffParser.parse(text, repo: docsBuilder, staged: ["src/Elastic.Markdown/Redirects/RedirectFile.cs"])
+    }()
+
     /// design/screens/Reader.png.
     static let pullDetail = PullDetail(
         ref: PullRef(repo: docsBuilder, number: 2841), title: "Fix broken anchors in redirects",

@@ -98,10 +98,21 @@ final class AppModel {
     /// PRs with queued feedback waiting for their agent to be idle.
     private var pendingDelivery: Set<PullRef> = []
 
-    /// Scoped key bindings follow what has focus: the PR overlay or reader, else the view.
+    /// Scoped key bindings follow what has focus: the diff, the PR overlay or reader, else the view.
     private func updateScope() {
-        engine.scope = (overlay == .pr || reader != nil) ? "pr" : (view == .sessions ? nil : view.rawValue)
+        engine.scope = overlay == .diff ? "diff"
+            : (overlay == .pr || reader != nil) ? "pr" : (view == .sessions ? nil : view.rawValue)
     }
+
+    // Diff overlay
+    private(set) var diffScope: DiffScope = .all
+    private(set) var diffFiles: [FileDiff] = []
+    private(set) var diffCommits: [CommitSummary] = []
+    private(set) var diffFileIndex = 0
+    private(set) var diffRow = 0
+    private(set) var diffSplit = false
+    private(set) var diffLoading = false
+    private var diffTask: Task<Void, Never>?
 
     private(set) var inspectorVisible = true
     private(set) var commandText = ""
@@ -550,7 +561,18 @@ final class AppModel {
         case "view.history": view = .history
         case "view.repos": view = .repos
         case "overlay.help": overlay = overlay == .help ? nil : .help
-        case "overlay.diff": overlay = overlay == .diff ? nil : .diff
+        case "overlay.diff": toggleDiff()
+        case "diff.hunk.next": jumpHunk(by: 1)
+        case "diff.hunk.prev": jumpHunk(by: -1)
+        case "diff.file.next": moveDiffFile(by: 1)
+        case "diff.file.prev": moveDiffFile(by: -1)
+        case "diff.scope.next": cycleDiffScope(by: 1)
+        case "diff.scope.prev": cycleDiffScope(by: -1)
+        case "diff.commit": cycleDiffCommit()
+        case "diff.split": diffSplit.toggle()
+        case "diff.ask": askAboutHunk()
+        case "diff.copy": copyDiffLocation()
+        case "diff.edit": openDiffFile()
         case "overlay.close": closeTopmost()
         case "inspector.toggle": inspectorVisible.toggle()
         case "mode.normal", "mode.insert", "mode.visual", "mode.command", "mode.hint":
@@ -630,6 +652,11 @@ final class AppModel {
     // MARK: Rows
 
     private func moveRow(by delta: Int) {
+        if overlay == .diff {
+            let count = diffRows.count
+            if count > 0 { diffRow = min(max(diffRow + delta, 0), count - 1) }
+            return
+        }
         if feedbackPull != nil, overlay == .pr || reader != nil {
             let count = feedbackItems.count
             if count > 0 { feedbackCursor = min(max(feedbackCursor + delta, 0), count - 1) }
@@ -1162,6 +1189,152 @@ final class AppModel {
             commit([.feedbackChanged(pipeline), .sessionUpserted(session)])
             flash = "sent \(count) item\(count == 1 ? "" : "s") to \(session.title)"
         }
+    }
+
+    // MARK: Diff overlay
+
+    /// One row of the current file: a hunk header or a line.
+    enum DiffRow: Hashable {
+        case header(hunk: Int, text: String)
+        case line(hunk: Int, DiffLine)
+    }
+
+    var currentDiffFile: FileDiff? { diffFiles.indices.contains(diffFileIndex) ? diffFiles[diffFileIndex] : nil }
+
+    var diffRows: [DiffRow] {
+        guard let file = currentDiffFile else { return [] }
+        return file.hunks.enumerated().flatMap { index, hunk in
+            [DiffRow.header(hunk: index, text: hunk.header)] + hunk.lines.map { DiffRow.line(hunk: index, $0) }
+        }
+    }
+
+    private func toggleDiff() {
+        if overlay == .diff {
+            overlay = nil
+            return
+        }
+        guard currentSession != nil else {
+            flash = "no session"
+            return
+        }
+        overlay = .diff
+        loadDiff()
+    }
+
+    /// Diffs every worktree of the current session (cross-repo sessions show each repo's files), off the main actor.
+    private func loadDiff() {
+        guard let session = currentSession else { return }
+        let targets = worktrees.filter { $0.branch == session.branch && session.repos.contains($0.repo) }
+            .map { worktree in (worktree, repos.first { $0.repo == worktree.repo }?.defaultBranch ?? "main") }
+        guard !targets.isEmpty, !isFixture else {
+            diffFiles = isFixture ? Fixtures.diff : []
+            diffCommits = isFixture ? Fixtures.diffCommits : []
+            if !isFixture { flash = "no worktree for \(session.branch) yet" }
+            return
+        }
+        let scope = diffScope
+        diffLoading = true
+        diffTask?.cancel()
+        diffTask = Task {
+            defer { diffLoading = false }
+            var files: [FileDiff] = []
+            for (worktree, base) in targets {
+                if let diff = try? await Git.diff(at: worktree.path, scope: scope, base: base, repo: worktree.repo) {
+                    files += diff
+                }
+            }
+            let commits = await (try? Git.commits(at: targets[0].0.path, base: targets[0].1)) ?? []
+            guard !Task.isCancelled else { return }
+            diffFiles = files
+            diffCommits = commits
+            diffFileIndex = min(diffFileIndex, max(files.count - 1, 0))
+            diffRow = 0
+        }
+    }
+
+    private func jumpHunk(by delta: Int) {
+        let rows = diffRows
+        let headers = rows.indices.filter { if case .header = rows[$0] { true } else { false } }
+        guard !headers.isEmpty else { return }
+        if delta > 0 {
+            if let next = headers.first(where: { $0 > diffRow }) { diffRow = next } else { moveDiffFile(by: 1) }
+        } else if let previous = headers.last(where: { $0 < diffRow }) {
+            diffRow = previous
+        }
+    }
+
+    private func moveDiffFile(by delta: Int) {
+        guard !diffFiles.isEmpty else { return }
+        diffFileIndex = min(max(diffFileIndex + delta, 0), diffFiles.count - 1)
+        diffRow = 0
+    }
+
+    private func cycleDiffScope(by delta: Int) {
+        let cycle = DiffScope.cycle
+        let index = cycle.firstIndex(of: diffScope) ?? 0
+        diffScope = cycle[((index + delta) % cycle.count + cycle.count) % cycle.count]
+        loadDiff()
+    }
+
+    private func cycleDiffCommit() {
+        guard !diffCommits.isEmpty else {
+            flash = "no commits on this branch yet"
+            return
+        }
+        if case let .commit(sha) = diffScope, let index = diffCommits.firstIndex(where: { $0.sha == sha }),
+           index + 1 < diffCommits.count
+        {
+            diffScope = .commit(diffCommits[index + 1].sha)
+        } else if case .commit = diffScope {
+            diffScope = .all
+        } else {
+            diffScope = .commit(diffCommits[0].sha)
+        }
+        loadDiff()
+    }
+
+    /// The file line under the cursor (the new side, else the old side).
+    private var diffLocation: (path: String, line: Int)? {
+        guard let file = currentDiffFile else { return nil }
+        let rows = diffRows
+        guard rows.indices.contains(diffRow) else { return (file.path, 1) }
+        switch rows[diffRow] {
+        case let .line(_, line): return (file.path, line.newNumber ?? line.oldNumber ?? 1)
+        case let .header(hunk, _): return (file.path, file.hunks[hunk].newStart)
+        }
+    }
+
+    private func copyDiffLocation() {
+        guard let location = diffLocation else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString("\(location.path):\(location.line)", forType: .string)
+        flash = "copied \(location.path):\(location.line)"
+    }
+
+    private func worktreePath(for file: FileDiff) -> String? {
+        guard let session = currentSession else { return nil }
+        return worktrees.first { $0.branch == session.branch && $0.repo == (file.repo ?? session.repos.first) }?.path
+    }
+
+    private func openDiffFile() {
+        guard let file = currentDiffFile, let root = worktreePath(for: file) else { return }
+        NSWorkspace.shared.open(URL(fileURLWithPath: root).appendingPathComponent(file.path))
+    }
+
+    /// Types a question about the hunk into the agent's pane, unsent, and switches to INSERT there to finish it.
+    private func askAboutHunk() {
+        guard let location = diffLocation, let session = currentSession, let layout = layouts[session.id],
+              let (tabIndex, paneID) = agentPane(in: layout)
+        else { return }
+        TerminalSurfaces.shared.typeText(
+            "About \(location.path) around line \(location.line) (the hunk in my diff): ",
+            paneID: paneID
+        )
+        overlay = nil
+        updateLayout { $0.activeTab = tabIndex }
+        updateTab { $0.focused = paneID }
+        engine.enter(.insert)
+        terminalFocusRequest += 1
     }
 
     // MARK: Filter

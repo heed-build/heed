@@ -97,6 +97,12 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
         return String(decoding: UnsafeRawBufferPointer(start: pointer, count: Int(text.text_len)), as: UTF8.self)
     }
 
+    /// Types `text` without pressing Return, leaving it for the user to finish.
+    public func typeText(_ text: String) {
+        guard let surface else { return }
+        text.withCString { ghostty_surface_text(surface, $0, UInt(text.utf8.count)) }
+    }
+
     /// Types `text` and presses Return, as if the user did: used to send the continue prompt to a resumed agent.
     public func typeLine(_ text: String) {
         guard let surface else { return }

@@ -59,6 +59,12 @@ public enum DefaultKeys {
             ("o", "open.reader"),
         ],
         "prs": [("r", "github.sync"), ("o", "open.reader")],
+        /// The diff overlay.
+        "diff": [
+            ("n", "diff.hunk.next"), ("N", "diff.hunk.prev"), ("]f", "diff.file.next"), ("[f", "diff.file.prev"),
+            ("<Tab>", "diff.scope.next"), ("<S-Tab>", "diff.scope.prev"), ("c", "diff.commit"), ("t", "diff.split"),
+            ("a", "diff.ask"), ("y", "diff.copy"), ("e", "diff.edit"), ("<Esc>", "overlay.close"),
+        ],
         /// The PR overlay and the reader.
         "pr": [
             ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("m", "feedback.mode"), ("w", "feedback.watch"),

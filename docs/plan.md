@@ -48,7 +48,9 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 7. PR overlay, reader, feedback queue, auto-feed. *(done: `gp` overlay and `o` reader, pipeline New → Queued → Sent →
    Addressed → Resolved, Off/Ask/Auto when idle, delivery only to an idle agent you are not typing to, 3-round stop,
    CI loop reports checks that pass again; editing the prompt before sending is still to do)*
-8. Diff overlay.
+8. Diff overlay. *(done: `gd`, scopes All/Committed/Staged/Unstaged/commit (`⇥`, `c`), files grouped by repo with staged
+   marks, unified/split (`t`), word-level highlights, `n N` `]f [f`, `a` asks the agent, `y`, `e`. Syntax highlighting is
+   a small built-in highlighter; tree-sitter per language is a follow-up)*
 9. Other agents, custom command, first run, empty and offline states, cleanup sweep, config file and Settings.
 
 ## Open questions

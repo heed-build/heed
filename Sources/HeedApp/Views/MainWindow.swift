@@ -36,6 +36,9 @@ struct MainWindow: View {
             if model.overlay == .pr { PullOverlayView().padding(.top, 44).padding(.bottom, 28) }
         }
         .overlay {
+            if model.overlay == .diff { DiffOverlayView().padding(.top, 44).padding(.bottom, 28) }
+        }
+        .overlay {
             if model.reader != nil { ReaderView().padding(.top, 44).padding(.bottom, 28) }
         }
         .overlay {
@@ -211,6 +214,7 @@ struct StatusBar: View {
     private var hints: String {
         switch model.mode {
         case .normal where model.filtering: "type to filter · ↩ keep · ⎋ clear"
+        case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
         case .normal where model.reader != nil || model.overlay == .pr:
             "j k item · space queue · s send · m auto-feed · ]p next PR · gS session · ⎋ back"
         case .normal where model.view == .repos: "v select · n new worktree · R rescan · ⎋ back to sessions"

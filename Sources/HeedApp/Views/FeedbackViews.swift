@@ -1,7 +1,7 @@
 import HeedCore
 import SwiftUI
 
-/// `gp` over a session: its PRs' feedback pipeline (design/screens/PROverlay.png).
+/// `go` over a session: its PRs' feedback pipeline (design/screens/PROverlay.png).
 struct PullOverlayView: View {
     @Environment(AppModel.self) private var model
 
@@ -37,7 +37,7 @@ struct PullOverlayView: View {
             KeyCap(text: "[p")
             Text("PRs of this session").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             Spacer()
-            KeyCap(text: "gp")
+            KeyCap(text: "go")
             Text("or").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             KeyCap(text: "⎋")
             Text("back to session").font(Theme.ui(12)).foregroundStyle(Theme.fg3)

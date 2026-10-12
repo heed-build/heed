@@ -17,8 +17,8 @@ public enum DefaultKeys {
         ("<C-w>q", "pane.close"), ("<C-w>h", "pane.left"), ("<C-w>l", "pane.right"), ("<C-w>j", "pane.down"),
         ("<C-w>k", "pane.up"),
         ("gt", "tab.next"), ("gT", "tab.prev"), ("gn", "tab.new"),
-        ("gs", "view.sessions"), ("gm", "view.inbox"), ("gi", "view.issues"), ("gP", "view.prs"),
-        ("gp", "overlay.pr"), ("]p", "pr.next"), ("[p", "pr.prev"), ("gd", "overlay.diff"), ("gS", "pr.session"),
+        ("gs", "view.sessions"), ("gm", "view.inbox"), ("gi", "view.issues"), ("gp", "view.prs"),
+        ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), ("gd", "overlay.diff"), ("gS", "pr.session"),
         ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gU", "pr.track"), ("gC", "cleanup.sweep"),
         ("gc", "cleanup.rules"), ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("<CR>", "open.reader"),
         ("i", "mode.insert"), ("v", "mode.visual"), ("V", "mode.visual"), (":", "mode.command"),
@@ -65,6 +65,8 @@ public enum DefaultKeys {
             ("<Tab>", "diff.scope.next"), ("<S-Tab>", "diff.scope.prev"), ("c", "diff.commit"), ("t", "diff.split"),
             ("a", "diff.ask"), ("y", "diff.copy"), ("e", "diff.edit"), ("<Esc>", "overlay.close"),
         ],
+        /// The issue reader.
+        "issue": [("s", "items.start"), ("a", "items.add"), ("<Esc>", "overlay.close")],
         /// The PR overlay and the reader.
         "pr": [
             ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("m", "feedback.mode"), ("w", "feedback.watch"),

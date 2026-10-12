@@ -278,3 +278,28 @@ struct StartWorkFormTests {
         #expect(form.name == "my-name")
     }
 }
+
+struct RepoOrderTests {
+    private func record(_ slug: String) -> RepoRecord {
+        let parts = slug.split(separator: "/").map(String.init)
+        return RepoRecord(repo: Repo(org: parts[0], name: parts[1]), path: "/src/\(parts[1])")
+    }
+
+    @Test func mostWorktreesFirstThenByName() {
+        let repos = ["a/zeta", "b/Alpha", "c/beta", "d/gamma"].map(record)
+        let sorted = RepoOrder.sorted(repos, counts: ["d/gamma": 3, "a/zeta": 3, "c/beta": 1])
+        #expect(sorted.map(\.id) == ["d/gamma", "a/zeta", "c/beta", "b/Alpha"])
+    }
+
+    @Test func guessesFavourReposWithMoreWorktrees() {
+        let repos = ["a/one", "a/two", "a/three"].map(record)
+        let guesses = StartWork.guessRepos(
+            for: "tidy something", in: repos, history: [], worktrees: ["a/three": 6, "a/two": 2]
+        )
+        #expect(guesses.map(\.repo.id) == ["a/three", "a/two", "a/one"])
+        #expect(guesses.first?.reason.contains("6 worktrees already") == true)
+        // A repo the prompt names still wins.
+        let named = StartWork.guessRepos(for: "fix one", in: repos, history: [], worktrees: ["a/three": 6])
+        #expect(named.first?.repo.id == "a/one")
+    }
+}

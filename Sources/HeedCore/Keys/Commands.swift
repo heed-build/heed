@@ -60,6 +60,7 @@ public enum Commands {
         .init("view.prs", "pull requests", .views),
         .init("view.repos", "repos & worktrees", .views),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
+        .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
         .init("overlay.help", "keys & states", .views),
         .init("overlay.close", "close overlay", .views),

@@ -27,7 +27,7 @@ struct Inspector: View {
                     HStack {
                         SectionHeader(title: "Pull requests")
                         Spacer()
-                        KeyCap(text: "gp")
+                        KeyCap(text: "go")
                     }
                     if session.trackedPRs.isEmpty {
                         Text("No PR yet. Tracked by branch name, or `heed pr add <url>` from the agent.")

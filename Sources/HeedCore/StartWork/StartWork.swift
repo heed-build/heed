@@ -198,9 +198,12 @@ public enum StartWork {
 
     // MARK: Guessing repos
 
-    /// Repos ranked for a prompt: named in it (strongest), words in common with the repo name, and where recent
-    /// sessions ran. Every guess says why.
-    public static func guessRepos(for prompt: String, in repos: [RepoRecord], history: [Session]) -> [RepoGuess] {
+    /// Repos ranked for a prompt: named in it (strongest), words in common with the repo name, where recent sessions
+    /// ran, and how many worktrees each already has (the repos you work in most). Every guess says why.
+    public static func guessRepos(
+        for prompt: String, in repos: [RepoRecord], history: [Session], worktrees: [String: Int] = [:]
+    ) -> [RepoGuess] {
+        let busiest = worktrees.values.max() ?? 0
         let text = prompt.lowercased()
         let words = Set(text.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
         let recent = history.sorted { $0.lastActivity > $1.lastActivity }.prefix(5)
@@ -224,13 +227,20 @@ public enum StartWork {
                 score += 0.15 * Double(ranHere)
                 reasons.append("\(ranHere) of your last \(recent.count) sessions ran here.")
             }
+            if let count = worktrees[record.id], count > 0, busiest > 0 {
+                score += 0.15 * Double(count) / Double(busiest)
+                reasons.append("\(count) worktree\(count == 1 ? "" : "s") already.")
+            }
             return RepoGuess(
                 repo: record, confidence: Int((min(score, 0.98) * 100).rounded()),
                 reason: reasons.joined(separator: " ")
             )
         }
+        let order = RepoOrder.sorted(repos, counts: worktrees).map(\.id)
+        let rank = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
         return guesses.sorted {
-            $0.confidence != $1.confidence ? $0.confidence > $1.confidence : $0.repo.id < $1.repo.id
+            $0.confidence != $1.confidence ? $0.confidence > $1.confidence
+                : (rank[$0.repo.id] ?? 0) < (rank[$1.repo.id] ?? 0)
         }
     }
 

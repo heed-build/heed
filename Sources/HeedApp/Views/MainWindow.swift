@@ -47,6 +47,9 @@ struct MainWindow: View {
             if model.reader != nil { ReaderView().padding(.top, 44).padding(.bottom, 28) }
         }
         .overlay {
+            if model.issueReader != nil { IssueReaderView().padding(.top, 44).padding(.bottom, 28) }
+        }
+        .overlay {
             if model.startWork != nil { StartWorkView() }
         }
         .overlay {
@@ -287,6 +290,7 @@ struct StatusBar: View {
         switch model.mode {
         case .normal where model.filtering: "words match anywhere · ⌃w word · ⌃u clear · ↩ keep · ⎋ clear"
         case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
+        case .normal where model.issueReader != nil: "s start session · a add to session · gB browser · ⎋ back"
         case .normal where model.reader != nil || model.overlay == .pr:
             "j k item · space queue · s send · m auto-feed · ]p next PR · gS session · ⎋ back"
         case .normal where model.view == .repos: "v select · n new worktree · R rescan · / filter · ⎋ back to sessions"
@@ -294,7 +298,7 @@ struct StatusBar: View {
         case .normal where model.view == .inbox: "space pick · v range · s start session · a add · m read · o open · t unread/all · / filter"
         case .normal where model.view == .issues: "space pick · v range · s start session · a add · o open · / filter"
         case .normal where model.view == .prs: "j k move · o open · gS session · r sync · / filter"
-        case .normal: "i insert · o start work · gp PR overlay · : command · ? keys"
+        case .normal: "i insert · o start work · go PR overlay · : command · ? keys"
         case .insert: "\(KeyCapText.of(DefaultKeys.insertEscape)) normal · ⌘/ keys"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
         case .command: "⇥ complete · ↩ run · ⎋ cancel"

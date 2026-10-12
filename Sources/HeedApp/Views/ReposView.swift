@@ -23,7 +23,7 @@ struct ReposView: View {
             row(name: "All", count: model.worktreeRows.count, repo: nil)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(model.repos) { record in
+                    ForEach(model.sortedRepos) { record in
                         row(
                             name: record.repo.name,
                             count: model.worktreeRows.count { $0.repo == record.repo },

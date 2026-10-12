@@ -411,6 +411,66 @@ private struct PullDetail: View {
     }
 }
 
+/// An issue, read in the app (`go` or ↩ on an issue): what you would start a session from.
+struct IssueReaderView: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if let issue = model.issueReader {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 8) {
+                        RepoChip(repo: issue.repo)
+                        Text(verbatim: "#\(issue.number)").font(Theme.mono(12)).foregroundStyle(Theme.fg2)
+                        ForEach(issue.labels, id: \.self) { label in
+                            Text(label).font(Theme.ui(11)).foregroundStyle(Theme.fg2)
+                                .padding(.horizontal, 7).padding(.vertical, 2)
+                                .background(Capsule().strokeBorder(Theme.line))
+                        }
+                        Spacer()
+                        KeyCap(text: "go")
+                        Text("close").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    }
+                    Text(issue.title).font(Theme.ui(17, weight: .semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let author = issue.author {
+                        Text("opened by \(author)").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    }
+                    Group {
+                        if issue.body.isEmpty {
+                            Text("Not assigned to you, so only its title is synced. gB opens it on GitHub.")
+                                .foregroundStyle(Theme.fg3)
+                        } else {
+                            Text((try? AttributedString(
+                                markdown: issue.body,
+                                options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+                            )) ?? AttributedString(issue.body))
+                        }
+                    }
+                    .font(Theme.ui(13))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
+                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+                    HStack(spacing: 14) {
+                        HStack(spacing: 6) { KeyCap(text: "s"); Text("start a session from it") }
+                        HStack(spacing: 6) { KeyCap(text: "a"); Text("add it to this session") }
+                        HStack(spacing: 6) { KeyCap(text: "gB"); Text("open on GitHub") }
+                    }
+                    .font(Theme.ui(12))
+                    .foregroundStyle(Theme.fg2)
+                }
+                .padding(24)
+                .frame(maxWidth: 860, alignment: .leading)
+                .frame(maxWidth: .infinity)
+            }
+            .background(Theme.bg)
+        }
+    }
+}
+
 // MARK: Shared list pieces
 
 /// What `/` filters this view by. Typing happens in the status bar; the pill only shows the result, lights up while

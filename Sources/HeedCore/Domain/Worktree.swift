@@ -68,3 +68,22 @@ public struct WorktreeStatus: Hashable, Sendable, Codable {
     /// Commits that exist nowhere else: ahead of upstream, or any commits at all without one.
     public var hasUnpushedWork: Bool { ahead > 0 || upstream == nil }
 }
+
+/// The order repos are listed and suggested in: the ones you work in most (most added worktrees) first, then by name.
+public enum RepoOrder {
+    /// Added worktrees (not main checkouts) per repo slug.
+    public static func worktreeCounts(_ worktrees: [Worktree]) -> [String: Int] {
+        worktrees.filter { !$0.isMain }
+            .reduce(into: [:]) { counts, worktree in counts[worktree.repo.slug, default: 0] += 1 }
+    }
+
+    public static func sorted(_ repos: [RepoRecord], counts: [String: Int]) -> [RepoRecord] {
+        repos.sorted { lhs, rhs in
+            let left = counts[lhs.id] ?? 0
+            let right = counts[rhs.id] ?? 0
+            if left != right { return left > right }
+            let order = lhs.repo.name.localizedCaseInsensitiveCompare(rhs.repo.name)
+            return order == .orderedSame ? lhs.id < rhs.id : order == .orderedAscending
+        }
+    }
+}

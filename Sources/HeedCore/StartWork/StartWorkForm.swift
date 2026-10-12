@@ -43,6 +43,8 @@ public struct StartWorkForm: Sendable {
 
     private let repos: [RepoRecord]
     private let history: [Session]
+    /// Added worktrees per repo: repos with more rank higher.
+    private let worktreeCounts: [String: Int]
     private let prefixes: BranchPrefixes
     private let sessionID = UUID().uuidString.lowercased()
     private let integration: IntegrationFiles?
@@ -51,10 +53,11 @@ public struct StartWorkForm: Sendable {
 
     public init(
         repos: [RepoRecord], history: [Session], settings: WorkSettings, prompt: String = "",
-        integration: IntegrationFiles? = nil
+        integration: IntegrationFiles? = nil, worktreeCounts: [String: Int] = [:]
     ) {
         self.repos = repos
         self.history = history
+        self.worktreeCounts = worktreeCounts
         prefixes = settings.prefixes
         self.integration = integration
         agents = settings.agents.map(Optional.some) + [nil]
@@ -233,7 +236,7 @@ public struct StartWorkForm: Sendable {
 
     private mutating func setPrompt(_ text: String) {
         prompt = text
-        guesses = StartWork.guessRepos(for: text, in: repos, history: history)
+        guesses = StartWork.guessRepos(for: text, in: repos, history: history, worktrees: worktreeCounts)
         if !nameEdited {
             name = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : StartWork.branchName(
                 for: text,

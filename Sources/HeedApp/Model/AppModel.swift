@@ -2,7 +2,7 @@ import AppKit
 import HeedCore
 import Observation
 
-/// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gP`, `gr`, `gh`).
+/// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
     case sessions, inbox, issues, prs, repos, history
 
@@ -117,6 +117,8 @@ final class AppModel {
     private(set) var overlay: Overlay? { didSet { updateScope() } }
     /// The PR open in the reader, over whatever view it was opened from.
     private(set) var reader: PullRef? { didSet { updateScope() } }
+    /// The issue being read (`go` or ↩ on an issue).
+    private(set) var issueReader: Issue? { didSet { updateScope() } }
     /// The PR the overlay shows (one of the current session's).
     private(set) var overlayPull: PullRef?
     private(set) var feedbackCursor = 0
@@ -127,7 +129,7 @@ final class AppModel {
 
     /// Scoped key bindings follow what has focus: the diff, the PR overlay or reader, else the view.
     private func updateScope() {
-        engine.scope = overlay == .diff ? "diff"
+        engine.scope = overlay == .diff ? "diff" : issueReader != nil ? "issue"
             : (overlay == .pr || reader != nil) ? "pr" : (view == .sessions ? nil : view.rawValue)
     }
 
@@ -644,17 +646,23 @@ final class AppModel {
     var blockedCount: Int { sessions.count { $0.state.state == .blocked } }
     var askingCount: Int { sessions.count { $0.state.state == .asking } }
 
-    /// Added worktrees (not main checkouts), in table order: by repo, then path; narrowed by the Repos `/` filter.
+    /// Added worktrees (not main checkouts), in table order: grouped by repo in `sortedRepos` order, then by path;
+    /// narrowed by the Repos `/` filter.
     var worktreeRows: [Worktree] {
         let filter = filter(for: .repos)
+        let rank = Dictionary(uniqueKeysWithValues: sortedRepos.enumerated().map { ($1.id, $0) })
         return worktrees.filter { worktree in
             !worktree.isMain && FilterQuery.matches(
                 filter, [worktree.repo.slug, worktree.branch ?? "", worktree.path, session(for: worktree)?.agent ?? ""]
             )
         }.sorted {
-            $0.repo.slug == $1.repo.slug ? $0.path < $1.path : $0.repo.slug < $1.repo.slug
+            $0.repo.slug == $1.repo.slug ? $0.path < $1.path
+                : (rank[$0.repo.slug] ?? .max, $0.repo.slug) < (rank[$1.repo.slug] ?? .max, $1.repo.slug)
         }
     }
+
+    /// Repos as Repos lists them: most worktrees first, then by name.
+    var sortedRepos: [RepoRecord] { RepoOrder.sorted(repos, counts: RepoOrder.worktreeCounts(worktrees)) }
 
     /// Every added worktree, whatever the filter.
     var worktreeCount: Int { worktrees.count { !$0.isMain } }
@@ -862,6 +870,7 @@ final class AppModel {
         case "open.reader": openReader()
         case "open.browser": openInBrowser()
         case "overlay.pr": togglePullOverlay()
+        case "overlay.item": toggleItemOverlay()
         case "pr.next": cyclePull(by: 1)
         case "pr.prev": cyclePull(by: -1)
         case "jump.back": closeReaderOrOverlay()
@@ -887,7 +896,9 @@ final class AppModel {
 
     /// `<Esc>` in NORMAL: the reader, an overlay, then back from a view to Sessions.
     private func closeTopmost() {
-        if reader != nil {
+        if issueReader != nil {
+            issueReader = nil
+        } else if reader != nil {
             reader = nil
         } else if overlay != nil {
             overlay = nil
@@ -1282,6 +1293,7 @@ final class AppModel {
         let prompt = itemsPrompt
         guard !prompt.isEmpty else { return }
         clearPicks()
+        issueReader = nil
         openStartWork(prompt: prompt)
     }
 
@@ -1317,6 +1329,7 @@ final class AppModel {
     }
 
     private var urlUnderCursor: String? {
+        if let issue = issueReader { return issue.url }
         if let ref = feedbackPull { return pullDetails[ref.description].map { _ in ref.url } ?? ref.url }
         let index = cursor(in: view)
         switch view {
@@ -1383,13 +1396,49 @@ final class AppModel {
     }
 
     private func openReader() {
-        guard let ref = pullUnderCursor else {
+        if let ref = pullUnderCursor {
+            reader = ref
+            feedbackCursor = 0
+            fetchDetail(ref)
+        } else if let issue = issueUnderCursor {
+            issueReader = issue
+        } else {
             openInBrowser()
-            return
         }
-        reader = ref
-        feedbackCursor = 0
-        fetchDetail(ref)
+    }
+
+    /// `go`: the PR or issue under the cursor, or in Sessions the session's PR overlay; again closes it.
+    private func toggleItemOverlay() {
+        if issueReader != nil || reader != nil {
+            closeReaderOrOverlay()
+        } else if view == .sessions {
+            togglePullOverlay()
+        } else {
+            openReader()
+        }
+    }
+
+    /// The issue under the cursor: an Issues row, or an issue in the inbox (with what the inbox knows of it when it
+    /// is not one assigned to you).
+    private var issueUnderCursor: Issue? {
+        let index = cursor(in: view)
+        switch view {
+        case .issues:
+            let rows = issueRows
+            return rows.indices.contains(index) ? rows[index] : nil
+        case .inbox:
+            let rows = inboxRows
+            guard rows.indices.contains(index), rows[index].kind == .issue, let number = rows[index].number
+            else { return nil }
+            let item = rows[index]
+            return github.issues.first { $0.repo == item.repo && $0.number == number }
+                ?? Issue(
+                    repo: item.repo, number: number, title: item.title,
+                    url: item.url ?? "https://github.com/\(item.repo.slug)/issues/\(number)", body: "", labels: [],
+                    author: nil, updatedAt: item.updatedAt
+                )
+        default: return nil
+        }
     }
 
     private func togglePullOverlay() {
@@ -1416,7 +1465,8 @@ final class AppModel {
     }
 
     private func closeReaderOrOverlay() {
-        if reader != nil { reader = nil } else if overlay != nil { overlay = nil } else { goBack() }
+        if issueReader != nil { issueReader = nil } else if reader != nil { reader = nil }
+        else if overlay != nil { overlay = nil } else { goBack() }
     }
 
     private func updateFeedback(_ edit: (inout PullFeedback) -> Void) {
@@ -1672,7 +1722,7 @@ final class AppModel {
 
     /// `/` in any list view: typing goes to the status bar until ↩ (keep) or ⎋ (clear).
     private func startFilter() {
-        guard overlay == nil, reader == nil else { return }
+        guard overlay == nil, reader == nil, issueReader == nil else { return }
         filtering = true
     }
 
@@ -1730,7 +1780,8 @@ final class AppModel {
     private func openStartWork(prompt: String) {
         if view == .history { view = .sessions }
         startWork = StartWorkForm(
-            repos: repos, history: sessions, settings: settings, prompt: prompt, integration: integration
+            repos: repos, history: sessions, settings: settings, prompt: prompt, integration: integration,
+            worktreeCounts: RepoOrder.worktreeCounts(worktrees)
         )
     }
 

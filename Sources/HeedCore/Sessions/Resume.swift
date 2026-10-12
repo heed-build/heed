@@ -61,15 +61,20 @@ public enum Resume {
             let extra = integration.map {
                 AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0, resuming: true)
             } ?? []
+            let env = integration.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
             let resumable = session.agentSessionID.flatMap { id -> String? in
-                hasSession(session) == false ? nil : agent.resumeCommand(id: id, extraArguments: extra)
+                hasSession(session) == false ? nil : agent.resumeCommand(
+                    id: id,
+                    extraArguments: extra,
+                    environment: env
+                )
             }
             guard let resume = resumable else {
                 // Fresh start: a new agent session from the original prompt.
                 let fresh = integration.map {
                     AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0)
                 } ?? []
-                let command = agent.launchCommand(prompt: session.prompt, extraArguments: fresh)
+                let command = agent.launchCommand(prompt: session.prompt, extraArguments: fresh, environment: env)
                 let active = [.working, .blocked, .asking, .limited].contains(session.state.state)
                 return ResumeCandidate(
                     session: session, mode: active ? .startFresh : .leftClosed, command: command, paneCount: panes

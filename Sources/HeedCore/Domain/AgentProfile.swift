@@ -26,14 +26,21 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     /// Arguments that resume the agent's session `{id}`, e.g. `--resume {id}`. Nil: the agent cannot resume, so a
     /// restored session starts fresh with its prompt.
     public var resumeArguments: String?
+    /// Flag the prompt follows (`-i` for gemini, `--prompt` for opencode); nil passes it as a bare argument.
+    public var promptFlag: String?
+    /// Flag that assigns the agent's own session id at launch (`--session-id`), so resume works from the start.
+    public var sessionIDFlag: String?
     /// Screen patterns per state name (`blocked = "Allow\\?"`), for agents without hooks; see `ScreenGuess`.
     public var patterns: [String: String] = [:]
 
     public init(
         name: String, command: String, prompt: PromptDelivery = .argument, profiles: [String: String] = [:],
-        planArguments: String? = nil, resumeArguments: String? = nil
+        planArguments: String? = nil, resumeArguments: String? = nil, promptFlag: String? = nil,
+        sessionIDFlag: String? = nil
     ) {
         self.resumeArguments = resumeArguments
+        self.promptFlag = promptFlag
+        self.sessionIDFlag = sessionIDFlag
         self.name = name
         self.command = command
         self.prompt = prompt
@@ -42,35 +49,45 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     }
 
     /// The command line typed into the session's shell to start the agent on `prompt`.
-    public func launchCommand(prompt text: String, planFirst: Bool = false, extraArguments: [String] = []) -> String {
-        var line = ([command] + extraArguments.map(ShellQuote.quote)).joined(separator: " ")
+    public func launchCommand(
+        prompt text: String, planFirst: Bool = false, extraArguments: [String] = [], environment: [String: String] = [:]
+    ) -> String {
+        let env = environment.sorted { $0.key < $1.key }.map { "\($0.key)=\(ShellQuote.quote($0.value)) " }.joined()
+        var line = env + ([command] + extraArguments.map(ShellQuote.quote)).joined(separator: " ")
         if planFirst, let planArguments { line += " " + planArguments }
         guard !text.isEmpty else { return line }
         switch prompt {
-        case .argument: return line + " " + ShellQuote.quote(text)
+        case .argument: return line + " " + (promptFlag.map { "\($0) " } ?? "") + ShellQuote.quote(text)
         case .stdin: return "printf '%s' \(ShellQuote.quote(text)) | " + line
         case .paste, .file: return line
         }
     }
 
     /// The command line that resumes session `id`, or nil when this agent cannot resume.
-    public func resumeCommand(id: String, extraArguments: [String] = []) -> String? {
+    public func resumeCommand(
+        id: String, extraArguments: [String] = [], environment: [String: String] = [:]
+    ) -> String? {
         guard let resumeArguments else { return nil }
         let resume = resumeArguments.replacingOccurrences(of: "{id}", with: ShellQuote.quote(id))
-        return ([command] + extraArguments.map(ShellQuote.quote) + [resume]).joined(separator: " ")
+        let env = environment.sorted { $0.key < $1.key }.map { "\($0.key)=\(ShellQuote.quote($0.value)) " }.joined()
+        return env + ([command] + extraArguments.map(ShellQuote.quote) + [resume]).joined(separator: " ")
     }
 
-    /// Resume flags verified against each CLI's docs on 2026-10-12 (see docs/plan.md); gemini's is not, so it starts
-    /// fresh until it is.
+    /// Flags verified against each CLI's source or docs on 2026-10-12 (see docs/plan.md).
     public static let builtIn: [AgentProfile] = [
         AgentProfile(
-            name: "claude", command: "claude", planArguments: "--permission-mode plan", resumeArguments: "--resume {id}"
+            name: "claude", command: "claude", planArguments: "--permission-mode plan",
+            resumeArguments: "--resume {id}",
+            sessionIDFlag: "--session-id"
         ),
         AgentProfile(name: "codex", command: "codex", resumeArguments: "resume {id}"),
         AgentProfile(name: "cursor", command: "cursor-agent", resumeArguments: "--resume {id}"),
-        AgentProfile(name: "pi", command: "pi", resumeArguments: "--session {id}"),
-        AgentProfile(name: "opencode", command: "opencode", prompt: .paste, resumeArguments: "--session {id}"),
-        AgentProfile(name: "gemini", command: "gemini"),
+        AgentProfile(name: "pi", command: "pi", resumeArguments: "--session {id}", sessionIDFlag: "--session-id"),
+        AgentProfile(name: "opencode", command: "opencode", resumeArguments: "--session {id}", promptFlag: "--prompt"),
+        AgentProfile(
+            name: "gemini", command: "gemini", resumeArguments: "--resume {id}", promptFlag: "-i",
+            sessionIDFlag: "--session-id"
+        ),
     ]
 }
 

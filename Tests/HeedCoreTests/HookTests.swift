@@ -138,3 +138,80 @@ struct ScreenGuessTests {
         #expect(ScreenGuess.guess("esc to interrupt", patterns: patterns) == nil)
     }
 }
+
+struct AgentIntegrationTests {
+    private let files = IntegrationFiles(directory: URL(fileURLWithPath: "/s"), heedBinary: "/app/heed")
+
+    private func plan(_ agent: String, prompt: String = "go") -> String? {
+        StartWorkPlan(
+            prompt: prompt,
+            repos: [],
+            name: "n",
+            agent: AgentProfile.builtIn.first { $0.name == agent },
+            sessionID: "S1",
+            integration: files
+        ).command
+    }
+
+    @Test func eachAgentLaunchesWithItsWiring() throws {
+        #expect(plan("claude") == "claude --settings /s/claude-hooks.json --session-id S1 go")
+        #expect(plan("pi") == "pi -e /s/heed-pi.js --session-id S1 go")
+        #expect(plan("gemini") == "gemini --session-id S1 -i go")
+        #expect(plan("opencode") ==
+            #"OPENCODE_CONFIG_CONTENT='{"plugin":["file:///s/heed-opencode.js"]}' opencode --prompt go"#)
+        #expect(plan("cursor") == "cursor-agent go")
+        let codex = try #require(plan("codex"))
+        #expect(codex.hasPrefix("codex --dangerously-bypass-hook-trust -c "))
+        #expect(codex
+            .contains(
+                #"hooks.PermissionRequest=[{hooks=[{type="command",command="/app/heed hook codex PermissionRequest",timeout=10}]}]"#
+            ))
+        #expect(codex.hasSuffix(" go"))
+    }
+
+    @Test func hookMappingsPerAgent() throws {
+        #expect(try HookCommandLine.parse(["hook", "codex", "PermissionRequest"]) {
+            Data(#"{"tool_name":"Bash","tool_input":{"command":"rm -rf x"}}"#.utf8)
+        } == [.state(.blocked, reason: "Bash(rm -rf x)")])
+        #expect(try HookCommandLine.parse(["hook", "codex", "SessionStart"]) { Data(#"{"session_id":"c1"}"#.utf8) }
+            .first == .agentSession(id: "c1", agent: "codex"))
+        #expect(try HookCommandLine.parse(["hook", "cursor", "stop"]) { Data(#"{"status":"aborted"}"#.utf8) }
+            == [.state(.idle, reason: "aborted")])
+        #expect(try HookCommandLine.parse(["hook", "pi", "start", "p1", "startup"]) {
+            Issue.record("pi must not read stdin")
+            return Data()
+        } == [.agentSession(id: "p1", agent: "pi"), .state(.idle, reason: "startup")])
+        #expect(try HookCommandLine.parse(["hook", "opencode", "session.status", "o1", "retry"]) { Data() }
+            == [.state(.limited, reason: "retrying")])
+        #expect(try HookCommandLine.parse(["hook", "opencode", "permission.asked", "o1", "bash"]) { Data() }
+            == [.state(.blocked, reason: "bash")])
+    }
+
+    @Test func cursorHooksGoIntoTheWorktreeAndStayOutOfGit() async throws {
+        let repo = FileManager.default.temporaryDirectory.appendingPathComponent("heed-cursor-\(UUID().uuidString)")
+            .path
+        let worktree = repo + "-wt"
+        defer {
+            try? FileManager.default.removeItem(atPath: repo)
+            try? FileManager.default.removeItem(atPath: worktree)
+        }
+        try FileManager.default.createDirectory(atPath: repo, withIntermediateDirectories: true)
+        for args in [
+            ["init", "-q", "-b", "main"],
+            ["config", "user.email", "t@t"],
+            ["config", "user.name", "t"],
+            ["commit", "-q", "--allow-empty", "-m", "first"],
+            ["worktree", "add", "-q", "-b", "f", worktree],
+        ] {
+            _ = try await ProcessRunner.output("git", ["-C", repo] + args)
+        }
+        try AgentIntegration.installCursorHooks(worktree: worktree, heed: "/app/heed")
+        try AgentIntegration.installCursorHooks(worktree: worktree, heed: "/app/heed")
+        let hooks = try String(contentsOfFile: worktree + "/.cursor/hooks.json", encoding: .utf8)
+        #expect(hooks.contains("/app/heed hook cursor stop"))
+        let status = try await Git.status(at: worktree)
+        #expect(!status.isDirty)
+        let exclude = try String(contentsOfFile: repo + "/.git/info/exclude", encoding: .utf8)
+        #expect(exclude.components(separatedBy: ".cursor/hooks.json").count == 2)
+    }
+}

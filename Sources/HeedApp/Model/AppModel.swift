@@ -63,7 +63,9 @@ final class AppModel {
     private var store: DomainStore?
     let isFixture: Bool
     private var hookServer: HookServer?
-    let integration = IntegrationFiles.default()
+    let integration = IntegrationFiles.default(
+        heedBinary: Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/heed").path
+    )
     /// The latest hook events per session, newest first: shown in the inspector, not persisted (agents own history).
     private(set) var events: [String: [AgentEvent]] = [:]
 

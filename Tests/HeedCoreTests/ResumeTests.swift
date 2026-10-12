@@ -26,10 +26,11 @@ struct ResumeTests {
         let modes = Dictionary(uniqueKeysWithValues: candidates.map { ($0.id, $0.mode) })
         #expect(modes == [
             "w": .resumeThenContinue, "b": .resumeOnly, "a": .resumeOnly, "d": .leftClosed,
-            "g": .startFresh, "n": .startFresh,
+            "g": .resumeThenContinue, "n": .startFresh,
         ])
         #expect(candidates.first { $0.id == "w" }?.command == "claude --resume aid")
-        #expect(candidates.first { $0.id == "g" }?.command == "gemini 'do g'")
+        #expect(candidates.first { $0.id == "g" }?.command == "gemini --resume aid")
+        #expect(candidates.first { $0.id == "n" }?.command == "claude 'do n'")
     }
 
     @Test func aDroppedSessionStartsFresh() {

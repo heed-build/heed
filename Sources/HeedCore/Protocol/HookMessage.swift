@@ -78,9 +78,20 @@ public enum HookCommandLine {
     ) throws(UsageError) -> [HookMessage.Kind] {
         if arguments.first == "hook" {
             guard arguments.count >= 3 else { throw UsageError(description: "heed hook: expected <agent> <event>") }
+            let event = arguments[2]
+            let session = arguments.count > 3 ? arguments[3] : nil
+            let detail = arguments.count > 4 ? arguments[4] : nil
+            switch arguments[1] {
+            // These pass their payload as arguments; stdin is not read.
+            case "pi": return AgentIntegration.piHook(event: event, sessionID: session, detail: detail)
+            case "opencode": return AgentIntegration.opencodeHook(event: event, sessionID: session, detail: detail)
+            default: break
+            }
             let input = (try? JSONSerialization.jsonObject(with: readInput())) as? [String: Any] ?? [:]
             switch arguments[1] {
-            case "claude": return AgentIntegration.claudeHook(event: arguments[2], input: input)
+            case "claude": return AgentIntegration.claudeHook(event: event, input: input)
+            case "codex": return AgentIntegration.codexHook(event: event, input: input)
+            case "cursor": return AgentIntegration.cursorHook(event: event, input: input)
             default: throw UsageError(description: "heed hook: unknown agent '\(arguments[1])'")
             }
         }

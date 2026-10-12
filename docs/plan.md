@@ -23,10 +23,13 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
   The Settings window edits it (comment-preserving), except key bindings, which are edited in the file only.
   Uniform shape: every binding names a command, every command can be typed after `:`, and `?` is drawn from the
   same table. Every agent is an `[agents.<name>]` with the same fields; the custom command is just another entry.
-- **Agents**: claude, codex, cursor, pi, opencode, gemini, plus custom. Hooks are injected per invocation, never by
-  editing global config: claude `--settings`, codex `-c` + `--dangerously-bypass-hook-trust`, pi `-e`, opencode
-  `OPENCODE_CONFIG_CONTENT`, cursor a `.cursor/hooks.json` in the worktree excluded via `.git/info/exclude`.
-  Gemini: to verify before building its integration. Screen reading only fills states an agent has no hook for.
+- **Agents** (formats verified against source/docs on 2026-10-12): hooks are passed per run, never by editing the
+  user's config. claude `--settings` + `--session-id`; codex `-c hooks.<Event>=[...]` with
+  `--dangerously-bypass-hook-trust` (trusts exactly those hooks for that run); cursor a `.cursor/hooks.json` written
+  into the worktree and excluded via `info/exclude` (its CLI fires only `sessionStart` and `stop` reliably); pi
+  `-e heed-pi.js` + `--session-id`; opencode 1.x a plugin through `OPENCODE_CONFIG_CONTENT`, prompt via `--prompt`;
+  gemini `--session-id`, `-i`, `--resume` and screen reading (per-run hooks unverified). States an agent cannot
+  report are read from its screen (`ScreenGuess`, dotted ring).
 - **Resume**: claude `--resume <id>` (its session file under `~/.claude/projects/<cwd, / and . as ->/` tells whether
   it still exists), codex `resume <id>`, cursor `--resume <id>`, pi and opencode `--session <id>`; gemini starts fresh
   until verified. Resumed agent panes start at launch even off screen.
@@ -52,6 +55,8 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
    marks, unified/split (`t`), word-level highlights, `n N` `]f [f`, `a` asks the agent, `y`, `e`. Syntax highlighting is
    a small built-in highlighter; tree-sitter per language is a follow-up)*
 9. Other agents, custom command, first run, empty and offline states, cleanup sweep, config file and Settings.
+   *(done except the first-run screen: config.toml with live reload and Settings, all agent integrations, custom agents
+   with screen patterns, cleanup sweep)*
 
 ## Open questions
 

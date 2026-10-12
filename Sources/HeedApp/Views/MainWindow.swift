@@ -41,7 +41,8 @@ struct TitleBar: View {
                 }
                 .font(Theme.mono(12))
                 .lineLimit(1)
-                .fixedSize()
+                .truncationMode(.middle)
+                .layoutPriority(-1)
             }
             HStack(spacing: 2) {
                 ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
@@ -59,10 +60,10 @@ struct TitleBar: View {
             .padding(.leading, 12)
             Spacer()
             if model.blockedCount > 0 {
-                Label { Text("\(model.blockedCount) blocked") } icon: { StateGlyph(state: .blocked) }
+                Label { Text("\(model.blockedCount) blocked").fixedSize() } icon: { StateGlyph(state: .blocked) }
             }
             if model.askingCount > 0 {
-                Label { Text("\(model.askingCount) asking") } icon: { StateGlyph(state: .asking) }
+                Label { Text("\(model.askingCount) asking").fixedSize() } icon: { StateGlyph(state: .asking) }
             }
             HStack(spacing: 6) {
                 KeyCap(text: "ga")

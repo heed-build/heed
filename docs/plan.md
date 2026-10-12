@@ -27,7 +27,7 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 
 ## Build order
 
-1. Window shell, tabs, splits, one libghostty pane; focus model; deploy. *(shell done with placeholder panes)*
+1. Window shell, tabs, splits, libghostty panes; focus model; deploy. *(done; INSERT typing needs a hands-on check)*
 2. Mode engine and key routing, `?` overlay, relative numbers, `f` hints. *(done for NORMAL/INSERT/COMMAND/HINT)*
 3. Repos, worktrees, Start work, autostart the agent in a shell.
 4. The `heed` socket, claude hooks, live agent states, `ga`.

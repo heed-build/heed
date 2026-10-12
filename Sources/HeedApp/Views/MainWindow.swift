@@ -61,6 +61,9 @@ struct MainWindow: View {
         .overlay(alignment: .bottom) {
             if model.mode == .command { CommandLineView().padding(.bottom, 28) }
         }
+        .overlay(alignment: .bottom) {
+            LeaderHints().padding(.bottom, 28)
+        }
         .ignoresSafeArea()
         .onAppear {
             let open = openSettings

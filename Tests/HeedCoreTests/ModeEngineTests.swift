@@ -126,6 +126,29 @@ struct ModeEngineTests {
     }
 }
 
+struct ContinuationTests {
+    @Test func pendingPrefixesListWhatCanFollow() throws {
+        var engine = engine()
+        #expect(engine.continuations.isEmpty)
+        _ = press(&engine, "<C-w>")
+        let next = engine.continuations.map { KeyNotation.format($0.rest) }
+        #expect(next.contains("v") && next.contains("s") && next.contains("z"))
+        #expect(engine.continuations.first { KeyNotation.format($0.rest) == "v" }?.command == "pane.split.right")
+        _ = engine.handle(.escape)
+        #expect(engine.continuations.isEmpty)
+    }
+
+    @Test func viewBindingsWinOverTheModesOwn() {
+        var engine = engine()
+        engine.scope = "diff"
+        _ = press(&engine, "]")
+        let rows = Dictionary(uniqueKeysWithValues: engine.continuations
+            .map { (KeyNotation.format($0.rest), $0.command) })
+        #expect(rows["f"] == "diff.file.next")
+        #expect(rows["p"] == "pr.next")
+    }
+}
+
 struct ScopedKeyTests {
     @Test func scopedBindingsApplyOnlyInTheirView() {
         var engine = engine()

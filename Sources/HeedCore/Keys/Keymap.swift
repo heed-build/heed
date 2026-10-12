@@ -78,6 +78,13 @@ public struct Keymap: Sendable {
         return node.children.isEmpty ? .none : .prefix
     }
 
+    /// Every binding that starts with `prefix` and goes further, as (rest of the keys, command): what can follow a
+    /// pending `g` or `<C-w>`.
+    public func continuations(of prefix: [KeyStroke]) -> [(rest: [KeyStroke], command: String)] {
+        bindings.filter { $0.keys.count > prefix.count && $0.keys.starts(with: prefix) }
+            .map { (Array($0.keys.dropFirst(prefix.count)), $0.command) }
+    }
+
     public func keys(for command: String) -> [[KeyStroke]] {
         bindings.filter { $0.command == command }.map(\.keys)
     }

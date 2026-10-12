@@ -42,6 +42,25 @@ public struct ModeEngine: Sendable {
         (count.map(String.init) ?? "") + KeyNotation.format(pending)
     }
 
+    /// What can follow the keys pending now, view bindings first (they win over the mode's own), sorted by key.
+    /// Empty when nothing is pending.
+    public var continuations: [(rest: [KeyStroke], command: String)] {
+        guard !pending.isEmpty, mode == .normal || mode == .visual else { return [] }
+        let scoped = scope.flatMap { scopedKeymaps[$0] }?.continuations(of: pending) ?? []
+        let own = (keymaps[mode] ?? Keymap()).continuations(of: pending)
+        var seen = Set(scoped.map(\.rest))
+        var result = scoped
+        for entry in own where !seen.contains(entry.rest) {
+            seen.insert(entry.rest)
+            result.append(entry)
+        }
+        // Case-insensitive, lowercase before uppercase: b, B, c.
+        return result.sorted {
+            let (lhs, rhs) = (KeyNotation.format($0.rest), KeyNotation.format($1.rest))
+            return lhs.lowercased() != rhs.lowercased() ? lhs.lowercased() < rhs.lowercased() : lhs > rhs
+        }
+    }
+
     public mutating func setKeymaps(_ keymaps: [Mode: Keymap], scoped: [String: Keymap] = [:]) {
         self.keymaps = keymaps
         scopedKeymaps = scoped

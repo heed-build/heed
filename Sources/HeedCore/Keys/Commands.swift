@@ -68,7 +68,8 @@ public enum Commands {
         .init("open.reader", "read inbox item, issue or PR", .views),
         .init("cleanup.sweep", "run cleanup sweep", .views),
         .init("cleanup.rules", "cleanup rules", .views),
-        .init("inspector.toggle", "toggle inspector", .views),
+        .init("inspector.toggle", "collapse / expand the inspector", .views),
+        .init("sidebar.toggle", "collapse / expand the sessions sidebar", .views),
         .init("config.edit", "open config.toml in $EDITOR", .views),
         .init("app.quit", "quit Heed", .views),
         // Modes

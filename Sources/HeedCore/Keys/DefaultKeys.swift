@@ -21,7 +21,7 @@ public enum DefaultKeys {
         ("<D-5>", "view repos"), ("<D-6>", "view history"),
         ("gp", "overlay.pr"), ("]p", "pr.next"), ("[p", "pr.prev"), ("gd", "overlay.diff"), ("gS", "pr.session"),
         ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gP", "pr.track"), ("gs", "cleanup.sweep"),
-        ("gc", "cleanup.rules"), ("gi", "inspector.toggle"), ("<CR>", "open.reader"),
+        ("gc", "cleanup.rules"), ("gi", "inspector.toggle"), ("gb", "sidebar.toggle"), ("<CR>", "open.reader"),
         ("i", "mode.insert"), ("v", "mode.visual"), ("V", "mode.visual"), (":", "mode.command"),
         ("f", "mode.hint"), ("F", "hint.insert"),
         ("?", "overlay.help"), ("<D-/>", "overlay.help"), ("<Esc>", "overlay.close"),

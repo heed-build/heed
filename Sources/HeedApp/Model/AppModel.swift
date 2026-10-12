@@ -114,7 +114,15 @@ final class AppModel {
     private(set) var diffLoading = false
     private var diffTask: Task<Void, Never>?
 
-    private(set) var inspectorVisible = true
+    /// Pane collapse state is a UI preference, not domain: kept in UserDefaults.
+    private(set) var inspectorVisible = UserDefaults.standard.object(forKey: "inspectorVisible") as? Bool ?? true {
+        didSet { if !isFixture { UserDefaults.standard.set(inspectorVisible, forKey: "inspectorVisible") } }
+    }
+
+    private(set) var sidebarCollapsed = UserDefaults.standard.bool(forKey: "sidebarCollapsed") {
+        didSet { if !isFixture { UserDefaults.standard.set(sidebarCollapsed, forKey: "sidebarCollapsed") } }
+    }
+
     private(set) var commandText = ""
     private(set) var flash: String?
     private(set) var hintText = ""
@@ -575,6 +583,7 @@ final class AppModel {
         case "diff.edit": openDiffFile()
         case "overlay.close": closeTopmost()
         case "inspector.toggle": inspectorVisible.toggle()
+        case "sidebar.toggle": sidebarCollapsed.toggle()
         case "mode.normal", "mode.insert", "mode.visual", "mode.command", "mode.hint":
             if command.name == "mode.insert", view != .sessions || currentTab == nil { engine.enter(.normal) }
             hintThenInsert = false
@@ -1484,6 +1493,9 @@ final class AppModel {
     func selectTab(_ index: Int) {
         updateLayout { $0.activeTab = index }
     }
+
+    func toggleSidebar() { sidebarCollapsed.toggle() }
+    func toggleInspector() { inspectorVisible.toggle() }
 
     func focusPane(_ paneID: String) {
         updateTab { $0.focused = paneID }

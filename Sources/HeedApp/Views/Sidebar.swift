@@ -11,6 +11,7 @@ struct Sidebar: View {
             HStack {
                 SectionHeader(title: "Sessions")
                 Spacer()
+                CollapseButton(systemImage: "sidebar.left", key: "gb") { model.toggleSidebar() }
                 if model.filtering || !model.sessionFilter.isEmpty {
                     HStack(spacing: 0) {
                         Text("/").foregroundStyle(Theme.fg3)
@@ -165,5 +166,64 @@ struct HintBadge: View {
             .padding(.vertical, 1)
             .background(RoundedRectangle(cornerRadius: 4).fill(Theme.modeColor(.hint)))
             .shadow(color: .black.opacity(0.4), radius: 3)
+    }
+}
+
+/// The collapsed sidebar: one row per session with its number, state and pin, so moving and jumping still work.
+struct SessionRail: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let list = model.list
+        VStack(spacing: 0) {
+            CollapseButton(systemImage: "sidebar.left", key: "gb") { model.toggleSidebar() }
+                .padding(.vertical, 12)
+            ScrollView {
+                VStack(spacing: 2) {
+                    ForEach(Array(list.ordered.enumerated()), id: \.element.id) { index, session in
+                        let isCursor = index == model.cursor
+                        VStack(spacing: 4) {
+                            Text("\(list.lineNumber(of: index, cursor: model.cursor))")
+                                .font(Theme.mono(10, weight: isCursor ? .bold : .regular))
+                                .foregroundStyle(isCursor ? Theme.fg : Theme.fg3)
+                            StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
+                            if let pin = list.pins.firstIndex(of: session) {
+                                Text("'\(pin + 1)").font(Theme.mono(9)).foregroundStyle(Theme.fg3)
+                            }
+                        }
+                        .frame(width: 44)
+                        .padding(.vertical, 8)
+                        .background(isCursor ? Theme.bg3 : .clear)
+                        .overlay(alignment: .topLeading) {
+                            if let hint = model.hintLabel(for: .session(session.id)) { HintBadge(label: hint) }
+                        }
+                        .help(session.title)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(width: 48)
+        .background(Theme.bg2)
+        .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
+    }
+}
+
+/// A small chevron button that collapses or expands a pane, with its key in the tooltip.
+struct CollapseButton: View {
+    let systemImage: String
+    let key: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.fg3)
+                .frame(width: 22, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("collapse / expand (\(key))")
     }
 }

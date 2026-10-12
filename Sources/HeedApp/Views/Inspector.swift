@@ -9,7 +9,11 @@ struct Inspector: View {
         VStack(alignment: .leading, spacing: 0) {
             if let session = model.currentSession {
                 section {
-                    SectionHeader(title: "Worktree")
+                    HStack {
+                        SectionHeader(title: "Worktree")
+                        Spacer()
+                        CollapseButton(systemImage: "sidebar.right", key: "gi") { model.toggleInspector() }
+                    }
                     ForEach(model.worktrees
                         .filter { $0.branch == session.branch && session.repos.contains($0.repo) })
                     { worktree in

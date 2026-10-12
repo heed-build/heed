@@ -11,7 +11,11 @@ struct MainWindow: View {
                 HStack(spacing: 0) {
                     switch model.view {
                     case .sessions:
-                        Sidebar(width: geometry.size.width < 1000 ? 260 : 330)
+                        if model.sidebarCollapsed {
+                            SessionRail()
+                        } else {
+                            Sidebar(width: geometry.size.width < 1000 ? 260 : 330)
+                        }
                         CenterArea()
                         // The inspector gives way first on narrow windows; `gi` hides it outright.
                         if model.inspectorVisible, geometry.size.width >= 1180 { Inspector() }

@@ -97,7 +97,7 @@ struct ModeEngineTests {
 
     @Test func unboundSequencesClear() throws {
         var engine = engine()
-        #expect(press(&engine, "gq") == [.pending, .unbound(try KeyNotation.parse("gq"))])
+        #expect(try press(&engine, "gq") == [.pending, .unbound(KeyNotation.parse("gq"))])
         #expect(engine.pendingDisplay.isEmpty)
     }
 

@@ -63,7 +63,9 @@ public struct Keymap: Sendable {
         guard bindings.contains(where: { $0.keys == keys }) else { return }
         let remaining = bindings.filter { $0.keys != keys }
         self = Keymap()
-        for binding in remaining { try? bind(binding.keys, to: binding.command) }
+        for binding in remaining {
+            try? bind(binding.keys, to: binding.command)
+        }
     }
 
     public func lookup(_ keys: [KeyStroke]) -> Lookup {

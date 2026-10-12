@@ -70,6 +70,7 @@ public enum Commands {
         .init("cleanup.rules", "cleanup rules", .views),
         .init("inspector.toggle", "toggle inspector", .views),
         .init("config.edit", "open config.toml in $EDITOR", .views),
+        .init("app.quit", "quit Heed", .views),
         // Modes
         .init("mode.normal", "back to NORMAL", .modes),
         .init("mode.insert", "INSERT into the focused pane", .modes),

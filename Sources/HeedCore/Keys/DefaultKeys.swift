@@ -65,7 +65,8 @@ public enum Keymaps {
         public var description: String { "keys.\(mode.rawValue) \"\(keys)\": \(message)" }
     }
 
-    /// Defaults with `overrides` (from config) laid over them. Bad entries are skipped and reported, never fatal: a typo
+    /// Defaults with `overrides` (from config) laid over them. Bad entries are skipped and reported, never fatal: a
+    /// typo
     /// in config must not leave you without keys.
     public static func build(
         overrides: [Mode: [(String, String)]] = [:],

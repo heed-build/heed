@@ -25,6 +25,7 @@ guard let session = environment[HeedEnvironment.sessionID], !session.isEmpty els
     // Run outside a Heed pane (e.g. the agent started from another terminal): nothing to report to.
     exit(0)
 }
+
 let socketPath = environment[HeedEnvironment.socket] ?? HeedEnvironment.defaultSocketPath()
 let message = HookMessage(session: session, pane: environment[HeedEnvironment.pane], kind: kind)
 
@@ -54,4 +55,5 @@ func send(_ data: Data, to path: String) -> Bool {
 if let line = try? message.encodedLine(), !send(line, to: socketPath) {
     FileHandle.standardError.write(Data("heed: app not reachable at \(socketPath), message dropped\n".utf8))
 }
+
 exit(0)

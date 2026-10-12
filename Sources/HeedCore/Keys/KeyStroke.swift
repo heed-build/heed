@@ -26,7 +26,7 @@ public struct KeyStroke: Hashable, Sendable, CustomStringConvertible {
     public var isNamed: Bool { key.count > 1 }
 
     public var description: String {
-        if modifiers.isEmpty && !isNamed {
+        if modifiers.isEmpty, !isNamed {
             return key == "<" ? "<lt>" : key
         }
         var prefix = ""
@@ -84,7 +84,7 @@ public enum KeyNotation {
             let char = notation[index]
             if char == "<", let close = notation[index...].firstIndex(of: ">"), close > notation.index(after: index) {
                 let body = String(notation[notation.index(after: index) ..< close])
-                strokes.append(try parseBracketed(body, in: notation))
+                try strokes.append(parseBracketed(body, in: notation))
                 index = notation.index(after: close)
             } else {
                 strokes.append(KeyStroke(String(char)))

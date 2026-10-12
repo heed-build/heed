@@ -27,6 +27,7 @@ if hasGhostty {
     ]
     appDependencies.append("HeedTerminal")
 }
+
 targets.append(.executableTarget(
     name: "HeedApp",
     dependencies: appDependencies,

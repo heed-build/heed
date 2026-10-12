@@ -41,6 +41,8 @@ run = "swiftformat Sources Tests Package.swift"
 
 [tasks.lint]
 description = "Check formatting and lint"
+# SwiftLint needs a working SourceKit; use the pinned swift.org toolchain's.
+env = { TOOLCHAIN_DIR = "{{env.HOME}}/.local/share/mise/installs/swift/6.3.3" }
 run = ["swiftformat Sources Tests Package.swift --lint", "swiftlint lint --quiet Sources Tests"]
 
 [tasks.bundle]

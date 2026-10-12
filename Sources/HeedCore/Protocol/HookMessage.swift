@@ -81,7 +81,8 @@ public enum HookCommandLine {
             }
             return .state(state, reason: reason)
         case "notify":
-            guard let message = args.popFirst() else { throw UsageError(description: "heed notify: expected a message") }
+            guard let message = args.popFirst()
+            else { throw UsageError(description: "heed notify: expected a message") }
             return .notify(message)
         case "pr":
             guard args.popFirst() == "add", let url = args.popFirst() else {

@@ -40,7 +40,7 @@ public enum StateSource: String, Sendable, Codable {
     case guessed
 }
 
-public struct ObservedState: Equatable, Sendable, Codable {
+public struct ObservedState: Hashable, Sendable, Codable {
     public var state: AgentState
     public var source: StateSource
     public var reason: String?

@@ -1465,8 +1465,15 @@ final class AppModel {
     }
 
     private func closeReaderOrOverlay() {
-        if issueReader != nil { issueReader = nil } else if reader != nil { reader = nil }
-        else if overlay != nil { overlay = nil } else { goBack() }
+        if issueReader != nil {
+            issueReader = nil
+        } else if reader != nil {
+            reader = nil
+        } else if overlay != nil {
+            overlay = nil
+        } else {
+            goBack()
+        }
     }
 
     private func updateFeedback(_ edit: (inout PullFeedback) -> Void) {

@@ -52,6 +52,9 @@ final class AppModel {
     private(set) var configProblems: [ConfigProblem] = []
     let configFile = ConfigLoader.defaultFile()
     private var configWatcher: ConfigWatcher?
+    /// Last commit date per worktree path, gathered with the repo refresh (sweep activity).
+    private(set) var lastCommits: [String: Date] = [:]
+    private var sweepTask: Task<Void, Never>?
     /// Results of pinned tasks by pane: the exit code of the last run.
     private(set) var taskResults: [String: Int] = [:]
     /// Opens the Settings window (set by the view, which has the SwiftUI action).
@@ -170,6 +173,41 @@ final class AppModel {
         await offerResume(domain: cached)
         startGitHubSync()
         await refreshRepos()
+        startSweepSchedule()
+    }
+
+    // MARK: Cleanup
+
+    var sweepPlan: SweepPlan { Sweep.plan(domain: currentDomain, rule: config.cleanup, lastCommit: lastCommits) }
+
+    /// Sweeps hourly unless config asks to be asked first; `gs` always runs one now.
+    private func startSweepSchedule() {
+        sweepTask?.cancel()
+        sweepTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3600))
+                guard let self, !self.config.cleanup.askBeforeSweep else { continue }
+                await refreshRepos()
+                await runSweep(explicit: false)
+            }
+        }
+    }
+
+    func runSweep(explicit: Bool) async {
+        guard !isFixture else {
+            flash = "fixture: no IO"
+            return
+        }
+        let plan = sweepPlan
+        guard !plan.removals.isEmpty else {
+            if explicit { flash = plan.summary }
+            return
+        }
+        let (changes, failures) = await Sweep.execute(plan, domain: currentDomain)
+        commit(changes)
+        flash = failures.isEmpty
+            ? "cleaned up \(plan.removals.count) worktree\(plan.removals.count == 1 ? "" : "s")"
+            : "cleanup: \(failures.count) failed: \(failures[0])"
     }
 
     // MARK: GitHub
@@ -445,6 +483,11 @@ final class AppModel {
                 commit(changes)
             }
         }
+        var commits: [String: Date] = [:]
+        for worktree in worktrees where !worktree.isMain {
+            if let date = await Git.lastCommitDate(at: worktree.path) { commits[worktree.path] = date }
+        }
+        lastCommits = commits
     }
 
     // MARK: Derived
@@ -522,7 +565,14 @@ final class AppModel {
         let outcome = engine.handle(stroke)
         switch outcome {
         case .terminal:
-            if let id = currentSession?.id { lastTyped[id] = Date() }
+            if var session = currentSession {
+                let now = Date()
+                lastTyped[session.id] = now
+                if now.timeIntervalSince(session.lastActivity) > 60 {
+                    session.lastActivity = now
+                    commit(.sessionUpserted(session))
+                }
+            }
             return false
         case let .text(stroke):
             typeText(stroke)
@@ -644,6 +694,8 @@ final class AppModel {
         case "select.open": openSelected()
         case "select.remove": removeSelected()
         case "session.filter": startFilter()
+        case "cleanup.sweep": Task { await runSweep(explicit: true) }
+        case "cleanup.rules": view = .repos
         case "github.sync": Task { await syncGitHub() }
         case "items.start": startFromItems()
         case "items.add": addItemsToSession()
@@ -869,10 +921,44 @@ final class AppModel {
         }
     }
 
+    /// `d` in Repos: removes the selected worktrees now, with the sweep's safety: dirty or unpushed work and pinned
+    /// sessions' worktrees are skipped.
     private func removeSelected() {
-        flash = "removing worktrees comes with the cleanup sweep (step 9)"
+        let rows = actionRows
         engine.enter(.normal)
         modeChanged(from: .visual)
+        guard !isFixture else {
+            flash = "fixture: no IO"
+            return
+        }
+        var skipped: [String] = []
+        var removals: [SweepPlan.Removal] = []
+        for worktree in rows {
+            let users = sessions.filter { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }
+            if users.contains(where: \.pinned) {
+                skipped.append("\(worktree.branch ?? worktree.path): pinned")
+            } else if let reason = Sweep.unsafe(worktree) {
+                skipped.append("\(worktree.branch ?? worktree.path): \(reason)")
+            } else {
+                removals.append(SweepPlan.Removal(
+                    worktree: worktree, idleDays: 0, sessions: users.map(\.id),
+                    deleteBranch: config.cleanup.deleteBranch && worktree.branch != nil
+                ))
+            }
+        }
+        guard !removals.isEmpty else {
+            flash = skipped.isEmpty ? "nothing selected" : "kept: \(skipped.joined(separator: "; "))"
+            return
+        }
+        Task {
+            let (changes, failures) = await Sweep.execute(
+                SweepPlan(removals: removals, skips: [], next: nil), domain: currentDomain
+            )
+            commit(changes)
+            flash = "removed \(removals.count - failures.count)" +
+                (skipped.isEmpty ? "" : " · kept \(skipped.count): \(skipped[0])")
+                + (failures.isEmpty ? "" : " · failed: \(failures[0])")
+        }
     }
 
     private func rescan() {

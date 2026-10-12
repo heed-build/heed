@@ -96,6 +96,7 @@ struct ReposView: View {
                     if rows.indices.contains(model.repoCursor) { proxy.scrollTo(rows[model.repoCursor].id) }
                 }
             }
+            SweepBanner(plan: model.sweepPlan)
             if rows.isEmpty {
                 VStack(spacing: 8) {
                     Text(model.repos.isEmpty ? "No repos found yet." : "No worktrees yet.")
@@ -139,13 +140,18 @@ struct ReposView: View {
                 Spacer()
                 KeyCap(text: "gi")
             }
+            let rule = model.config.cleanup
             ruleRow(
-                "Remove worktrees with no activity",
-                "Nothing for 14d: no agent output, keystrokes, commits or PR events."
+                "Remove worktrees with no activity\(rule.enabled ? "" : " (off)")",
+                "Nothing for \(rule.idleDays)d: no agent output, keystrokes, commits or PR events."
             )
             ruleRow("Never remove dirty or unpushed work", "Always on. Skipped trees show a warning instead.")
-            ruleRow("Delete the local branch too", "Remote branch is left alone.")
-            Text("The sweep itself arrives in step 9; rules come from config.")
+            ruleRow("Delete the local branch too\(rule.deleteBranch ? "" : " (off)")", "Remote branch is left alone.")
+            ruleRow(
+                "Ask before each sweep\(rule.askBeforeSweep ? " (on)" : " (off)")",
+                rule.askBeforeSweep ? "Sweeps run only with gs." : "Sweeps run hourly; gs runs one now."
+            )
+            Text("Edit in Settings (⌘,) or config.toml [cleanup].")
                 .font(Theme.ui(11.5))
                 .foregroundStyle(Theme.fg3)
             HStack(spacing: 8) {
@@ -216,5 +222,37 @@ private struct WorktreeRow: View {
         .frame(height: 42)
         .background(isSelected ? Theme.block.opacity(0.18) : isCursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
+    }
+}
+
+/// What the next sweep would do (design/screens/Repos.png).
+private struct SweepBanner: View {
+    let plan: SweepPlan
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            StateGlyph(state: plan.skips.isEmpty ? .idle : .blocked)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(plan.summary).font(Theme.ui(12.5))
+                ForEach(plan.skips.prefix(3), id: \.worktree.id) { skip in
+                    Text("kept \(skip.worktree.repo.name)/\(skip.worktree.branch ?? ""): \(skip.reason)")
+                        .font(Theme.mono(11.5))
+                        .foregroundStyle(Theme.block)
+                }
+                ForEach(plan.removals.prefix(3), id: \.worktree.id) { removal in
+                    Text(
+                        "would remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "") (idle \(removal.idleDays)d)"
+                    )
+                    .font(Theme.mono(11.5))
+                    .foregroundStyle(Theme.fg2)
+                }
+            }
+            Spacer()
+            KeyCap(text: "gs")
+            Text("run now").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+        .padding(16)
     }
 }

@@ -36,8 +36,8 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     }
 
     /// The command line typed into the session's shell to start the agent on `prompt`.
-    public func launchCommand(prompt text: String, planFirst: Bool = false) -> String {
-        var line = command
+    public func launchCommand(prompt text: String, planFirst: Bool = false, extraArguments: [String] = []) -> String {
+        var line = ([command] + extraArguments.map(ShellQuote.quote)).joined(separator: " ")
         if planFirst, let planArguments { line += " " + planArguments }
         guard !text.isEmpty else { return line }
         switch prompt {

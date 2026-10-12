@@ -70,7 +70,7 @@ public actor DomainStore {
 
 /// The cache file: the domain plus a version, so a format change starts fresh instead of failing to decode.
 struct CachedDomain: Codable {
-    static let currentVersion = 1
+    static let currentVersion = 2
     var version: Int
     var domain: Domain
 }

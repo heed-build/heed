@@ -43,12 +43,18 @@ public struct StartWorkForm: Sendable {
 
     private let repos: [RepoRecord]
     private let history: [Session]
+    private let sessionID = UUID().uuidString
+    private let integration: IntegrationFiles?
     private var nameEdited = false
     private var reposTouched = false
 
-    public init(repos: [RepoRecord], history: [Session], settings: WorkSettings, prompt: String = "") {
+    public init(
+        repos: [RepoRecord], history: [Session], settings: WorkSettings, prompt: String = "",
+        integration: IntegrationFiles? = nil
+    ) {
         self.repos = repos
         self.history = history
+        self.integration = integration
         agents = settings.agents.map(Optional.some) + [nil]
         agentIndex = settings.agents.firstIndex { $0.name == settings.defaultAgent } ?? 0
         setPrompt(prompt)
@@ -63,7 +69,10 @@ public struct StartWorkForm: Sendable {
     }
 
     public var plan: StartWorkPlan {
-        var plan = StartWorkPlan(prompt: prompt, repos: selectedRecords, name: name, agent: agent)
+        var plan = StartWorkPlan(
+            prompt: prompt, repos: selectedRecords, name: name, agent: agent, sessionID: sessionID,
+            integration: integration
+        )
         plan.autostart = autostart && agent != nil
         plan.planFirst = planFirst
         plan.shellSplit = shellSplit

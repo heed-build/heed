@@ -61,6 +61,7 @@ public enum HookCommandLine {
            heed pr add <url>
            heed title "<title>"
            heed agent-session <agent> <id>
+           heed hook <agent> <event>        (reads the agent's hook JSON on stdin)
     Reads \(HeedEnvironment.sessionID) and \(HeedEnvironment.socket) from the environment (set in every Heed pane).
     """
 
@@ -68,7 +69,22 @@ public enum HookCommandLine {
         public let description: String
     }
 
-    public static func parse(_ arguments: [String]) throws(UsageError) -> HookMessage.Kind {
+    /// `readInput` supplies stdin, read only by `hook` (agents pass their hook payload there).
+    public static func parse(
+        _ arguments: [String], readInput: () -> Data = { Data() }
+    ) throws(UsageError) -> [HookMessage.Kind] {
+        if arguments.first == "hook" {
+            guard arguments.count >= 3 else { throw UsageError(description: "heed hook: expected <agent> <event>") }
+            let input = (try? JSONSerialization.jsonObject(with: readInput())) as? [String: Any] ?? [:]
+            switch arguments[1] {
+            case "claude": return AgentIntegration.claudeHook(event: arguments[2], input: input)
+            default: throw UsageError(description: "heed hook: unknown agent '\(arguments[1])'")
+            }
+        }
+        return try [parseVerb(arguments)]
+    }
+
+    private static func parseVerb(_ arguments: [String]) throws(UsageError) -> HookMessage.Kind {
         var args = arguments[...]
         guard let verb = args.popFirst() else { throw UsageError(description: usage) }
         switch verb {

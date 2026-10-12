@@ -13,9 +13,9 @@ if arguments.isEmpty || arguments.first == "--help" || arguments.first == "-h" {
     exit(0)
 }
 
-let kind: HookMessage.Kind
+let kinds: [HookMessage.Kind]
 do {
-    kind = try HookCommandLine.parse(arguments)
+    kinds = try HookCommandLine.parse(arguments) { FileHandle.standardInput.readDataToEndOfFile() }
 } catch {
     FileHandle.standardError.write(Data("\(error)\n".utf8))
     exit(2)
@@ -27,7 +27,8 @@ guard let session = environment[HeedEnvironment.sessionID], !session.isEmpty els
 }
 
 let socketPath = environment[HeedEnvironment.socket] ?? HeedEnvironment.defaultSocketPath()
-let message = HookMessage(session: session, pane: environment[HeedEnvironment.pane], kind: kind)
+let pane = environment[HeedEnvironment.pane]
+let lines = kinds.compactMap { try? HookMessage(session: session, pane: pane, kind: $0).encodedLine() }
 
 func send(_ data: Data, to path: String) -> Bool {
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -52,7 +53,7 @@ func send(_ data: Data, to path: String) -> Bool {
     return data.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) } == data.count
 }
 
-if let line = try? message.encodedLine(), !send(line, to: socketPath) {
+if !lines.isEmpty, !send(lines.reduce(Data(), +), to: socketPath) {
     FileHandle.standardError.write(Data("heed: app not reachable at \(socketPath), message dropped\n".utf8))
 }
 

@@ -35,7 +35,8 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 2. Mode engine and key routing, `?` overlay, relative numbers, `f` hints. *(done for NORMAL/INSERT/COMMAND/HINT)*
 3. Repos, worktrees, Start work, autostart the agent in a shell. *(done: domain store + fixtures, git adapter, Repos view,
    Start work; config file still to come, defaults live in `WorkSettings`)*
-4. The `heed` socket, claude hooks, live agent states, `ga`.
+4. The `heed` socket, claude hooks, live agent states, `ga`. *(done: HookServer, `heed hook claude <event>`,
+   `--settings` + `--session-id` per launch, event log in the inspector; needs a hands-on check)*
 5. Persistence (SQLite), resume on launch, pins, history.
 6. GitHub: inbox, issues, PR watch, org icons and colors.
 7. PR overlay, reader, feedback queue, auto-feed.

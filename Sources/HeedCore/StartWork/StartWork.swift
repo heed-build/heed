@@ -55,8 +55,17 @@ public struct StartWorkPlan: Hashable, Sendable {
     public var autostart = true
     public var planFirst = false
     public var shellSplit = true
+    /// The new session's id, decided up front so hooks and the agent's own session id can use it.
+    public var sessionID: String
+    /// Where the agents' hook files live; nil launches agents without Heed's hooks (tests).
+    public var integration: IntegrationFiles?
 
-    public init(prompt: String, repos: [RepoRecord], name: String, base: String? = nil, agent: AgentProfile?) {
+    public init(
+        prompt: String, repos: [RepoRecord], name: String, base: String? = nil, agent: AgentProfile?,
+        sessionID: String = UUID().uuidString, integration: IntegrationFiles? = nil
+    ) {
+        self.sessionID = sessionID
+        self.integration = integration
         self.prompt = prompt
         self.repos = repos
         self.name = name
@@ -69,7 +78,10 @@ public struct StartWorkPlan: Hashable, Sendable {
     /// The line typed into the agent pane's shell, shown verbatim in the dialog.
     public var command: String? {
         guard autostart, let agent else { return nil }
-        return agent.launchCommand(prompt: prompt, planFirst: planFirst)
+        let extra = integration.map {
+            AgentIntegration.launchArguments(agent: agent, sessionID: sessionID, files: $0)
+        } ?? []
+        return agent.launchCommand(prompt: prompt, planFirst: planFirst, extraArguments: extra)
     }
 
     public var title: String {
@@ -170,8 +182,14 @@ public enum StartWork {
             return result.sorted { $0.0 < $1.0 }.map(\.1)
         }
         let session = Session(
-            title: plan.title, prompt: plan.prompt, repos: plan.repos.map(\.repo), branch: plan.name,
-            agent: plan.agent?.name ?? "shell", state: ObservedState(.idle, source: .guessed),
+            id: plan.sessionID, title: plan.title, prompt: plan.prompt, repos: plan.repos.map(\.repo),
+            branch: plan.name,
+            agent: plan.agent?.name ?? "shell",
+            agentSessionID: plan.agent.flatMap { AgentIntegration.preassignedSessionID(
+                agent: $0,
+                sessionID: plan.sessionID
+            ) },
+            state: ObservedState(.idle, source: .guessed),
             activity: plan.command == nil ? "shell" : "starting", lastActivity: now
         )
         var changes: [DomainChange] = []

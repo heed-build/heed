@@ -30,9 +30,10 @@ struct Inspector: View {
                             .font(Theme.ui(11.5))
                             .foregroundStyle(Theme.fg3)
                     }
-                    ForEach(Array(zip(session.trackedPRs, session.repos + session.repos)), id: \.0) { number, repo in
+                    ForEach(session.trackedPRs, id: \.self) { pull in
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(verbatim: "\(repo.name) #\(number)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+                            Text(verbatim: "\(pull.repo.name) #\(pull.number)").font(Theme.mono(11.5))
+                                .foregroundStyle(Theme.fg2)
                             Text(session.title).font(Theme.ui(13, weight: .medium))
                             HStack(spacing: 4) {
                                 Circle().fill(Theme.busy).frame(width: 6, height: 6)
@@ -48,13 +49,26 @@ struct Inspector: View {
                 }
                 section {
                     SectionHeader(title: "Agent events")
-                    HStack(spacing: 8) {
-                        StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
-                        Text(session.state.state.rawValue).foregroundStyle(Theme.fg)
-                        Text(session.state.reason ?? (session.state.source == .guessed ? "from output" : ""))
-                            .foregroundStyle(Theme.fg3)
+                    let log = model.events[session.id] ?? []
+                    if log.isEmpty {
+                        HStack(spacing: 8) {
+                            StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
+                            Text(session.state.state.rawValue).foregroundStyle(Theme.fg)
+                            Text(session.state.reason ?? (session.state.source == .guessed ? "not reported yet" : ""))
+                                .foregroundStyle(Theme.fg3)
+                                .lineLimit(1)
+                        }
+                        .font(Theme.mono(11))
                     }
-                    .font(Theme.mono(11))
+                    ForEach(Array(log.prefix(8).enumerated()), id: \.offset) { _, event in
+                        HStack(spacing: 8) {
+                            Text(event.at, format: .dateTime.hour().minute().second()).foregroundStyle(Theme.fg3)
+                            StateGlyph(state: event.state)
+                            Text(event.state.rawValue).foregroundStyle(Theme.fg)
+                            Text(event.reason ?? "").foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.tail)
+                        }
+                        .font(Theme.mono(11))
+                    }
                 }
             }
             Spacer()

@@ -207,7 +207,7 @@ private struct WorktreeRow: View {
                 }
             }
             .frame(width: 120, alignment: .leading)
-            Text(session?.trackedPRs.first.map { "#\(String($0))" } ?? "no PR")
+            Text(session?.trackedPRs.first { $0.repo == worktree.repo }.map { "#\(String($0.number))" } ?? "no PR")
                 .font(Theme.mono(12))
                 .foregroundStyle(session?.trackedPRs.isEmpty == false ? Theme.fg : Theme.fg3)
                 .frame(width: 70, alignment: .leading)

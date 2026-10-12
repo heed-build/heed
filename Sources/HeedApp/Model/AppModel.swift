@@ -45,6 +45,10 @@ final class AppModel {
     /// Nil for fixtures: nothing is persisted and no adapter runs.
     private var store: DomainStore?
     let isFixture: Bool
+    private var hookServer: HookServer?
+    let integration = IntegrationFiles.default()
+    /// The latest hook events per session, newest first: shown in the inspector, not persisted (agents own history).
+    private(set) var events: [String: [AgentEvent]] = [:]
 
     // Cursors
     private(set) var cursor = 0
@@ -92,10 +96,58 @@ final class AppModel {
 
     /// Starts from the cache, then refreshes from git. The window is already up showing whatever the cache holds.
     func start(cache file: URL) async {
+        startHooks()
+        let integration = integration
+        Task.detached(priority: .utility) {
+            do { try integration.write() } catch { NSLog("heed: could not write hook files: \(error)") }
+        }
         let cached = await DomainStore.load(from: file)
         replace(with: cached)
         store = DomainStore(domain: cached, file: file)
         await refreshRepos()
+    }
+
+    // MARK: Hooks
+
+    private func startHooks() {
+        let server = HookServer()
+        do {
+            try server.start()
+        } catch {
+            flash = "hooks: \(error)"
+            return
+        }
+        hookServer = server
+        Task {
+            for await message in server.messages {
+                receive(message)
+            }
+        }
+    }
+
+    /// One message from an agent's hook, applied to its session.
+    func receive(_ message: HookMessage) {
+        guard var session = sessions.first(where: { $0.id == message.session }) else { return }
+        switch message.kind {
+        case let .state(state, reason):
+            session.state = session.state.accepting(ObservedState(state, source: .reported, reason: reason))
+            session.activity = reason.map { "\(state.rawValue) · \($0)" } ?? state.rawValue
+            session.lastActivity = message.sentAt
+            var log = events[session.id] ?? []
+            log.insert(AgentEvent(at: message.sentAt, state: state, reason: reason), at: 0)
+            events[session.id] = Array(log.prefix(20))
+        case let .title(title):
+            session.title = title
+        case let .prAdd(url):
+            guard let pull = PullRef(url: url), !session.trackedPRs.contains(pull) else { return }
+            session.trackedPRs.append(pull)
+        case let .agentSession(id, _):
+            session.agentSessionID = id
+        case let .notify(text):
+            flash = "\(session.title): \(text)"
+            return
+        }
+        commit(.sessionUpserted(session))
     }
 
     func flush() async { await store?.flush() }
@@ -495,7 +547,9 @@ final class AppModel {
     // MARK: Start work
 
     private func openStartWork(prompt: String) {
-        startWork = StartWorkForm(repos: repos, history: sessions, settings: settings, prompt: prompt)
+        startWork = StartWorkForm(
+            repos: repos, history: sessions, settings: settings, prompt: prompt, integration: integration
+        )
     }
 
     private func handleStartWork(_ stroke: KeyStroke) {
@@ -603,6 +657,13 @@ final class AppModel {
     func focusPane(_ paneID: String) {
         updateTab { $0.focused = paneID }
     }
+}
+
+/// One hook event, for the inspector's event list.
+struct AgentEvent: Hashable {
+    let at: Date
+    let state: AgentState
+    let reason: String?
 }
 
 enum HintTarget: Hashable {

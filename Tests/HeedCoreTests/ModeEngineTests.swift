@@ -163,10 +163,10 @@ struct KeymapsTests {
 struct HookCommandLineTests {
     @Test func parsesEachVerb() throws {
         #expect(try HookCommandLine.parse(["state", "blocked", "--reason", "Bash(dotnet publish)"])
-            == .state(.blocked, reason: "Bash(dotnet publish)"))
+            == [.state(.blocked, reason: "Bash(dotnet publish)")])
         #expect(try HookCommandLine.parse(["pr", "add", "https://github.com/o/r/pull/1"])
-            == .prAdd(url: "https://github.com/o/r/pull/1"))
-        #expect(try HookCommandLine.parse(["title", "Fix anchors"]) == .title("Fix anchors"))
+            == [.prAdd(url: "https://github.com/o/r/pull/1")])
+        #expect(try HookCommandLine.parse(["title", "Fix anchors"]) == [.title("Fix anchors")])
         #expect(throws: HookCommandLine.UsageError.self) { try HookCommandLine.parse(["state", "sleepy"]) }
     }
 

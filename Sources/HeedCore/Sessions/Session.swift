@@ -13,6 +13,29 @@ public struct Repo: Hashable, Sendable, Codable {
     public var slug: String { "\(org)/\(name)" }
 }
 
+/// A pull request, identified across repos.
+public struct PullRef: Hashable, Sendable, Codable, CustomStringConvertible {
+    public var repo: Repo
+    public var number: Int
+
+    public init(repo: Repo, number: Int) {
+        self.repo = repo
+        self.number = number
+    }
+
+    /// `https://github.com/org/name/pull/123` (with or without a trailing path).
+    public init?(url: String) {
+        let parts = url.split(separator: "/").map(String.init)
+        guard let pull = parts.firstIndex(of: "pull"), pull >= 2, pull + 1 < parts.count,
+              let number = Int(parts[pull + 1].prefix { $0.isNumber })
+        else { return nil }
+        self.init(repo: Repo(org: parts[pull - 2], name: parts[pull - 1]), number: number)
+    }
+
+    public var description: String { "\(repo.slug)#\(number)" }
+    public var url: String { "https://github.com/\(repo.slug)/pull/\(number)" }
+}
+
 /// One task: a prompt, its worktrees (possibly across repos), terminals, the agent's own session id, tracked PRs.
 /// Heed keeps only this record; the agent owns its transcript.
 public struct Session: Identifiable, Hashable, Sendable, Codable {
@@ -27,7 +50,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var state: ObservedState
     /// What the agent is up to, in a few words ("running tests", "wants to run dotnet publish").
     public var activity: String
-    public var trackedPRs: [Int]
+    public var trackedPRs: [PullRef]
     public var pinned: Bool
     public var parked: Bool
     public var lastActivity: Date
@@ -35,7 +58,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public init(
         id: String = UUID().uuidString, title: String, prompt: String = "", repos: [Repo], branch: String,
         agent: String, agentSessionID: String? = nil, state: ObservedState, activity: String = "",
-        trackedPRs: [Int] = [], pinned: Bool = false, parked: Bool = false, lastActivity: Date = Date()
+        trackedPRs: [PullRef] = [], pinned: Bool = false, parked: Bool = false, lastActivity: Date = Date()
     ) {
         self.id = id
         self.title = title

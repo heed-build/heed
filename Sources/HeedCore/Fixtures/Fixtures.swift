@@ -30,13 +30,17 @@ public enum Fixtures {
                 id: "s1", title: "Fix broken anchors in redirects",
                 prompt: "Fix broken anchors in redirects.yml. Every redirect target must resolve to a real heading.",
                 repos: [docsBuilder, docsContent], branch: "fix-anchors-redirects", agent: "claude",
-                state: ObservedState(.working), activity: "running tests · 14m", trackedPRs: [2841, 1920], pinned: true
+                state: ObservedState(.working), activity: "running tests · 14m", trackedPRs: [
+                    PullRef(repo: docsBuilder, number: 2841),
+                    PullRef(repo: docsContent, number: 1920),
+                ], pinned: true
             ),
             Session(
                 id: "s2", title: "Cross-link validator for assemblies", repos: [docsBuilder],
                 branch: "cross-link-validator", agent: "claude",
                 state: ObservedState(.blocked, reason: "Bash(dotnet publish)"),
-                activity: "wants to run dotnet publish", trackedPRs: [2838], pinned: true
+                activity: "wants to run dotnet publish", trackedPRs: [PullRef(repo: docsBuilder, number: 2838)],
+                pinned: true
             ),
             Session(
                 id: "s3", title: "Backpressure in ingest stage", repos: [ingest], branch: "ingest-backpressure",
@@ -48,7 +52,10 @@ public enum Fixtures {
             ),
             Session(
                 id: "s5", title: "Bump spec tests to 0.17", repos: [editorconfig], branch: "bump-spec-tests",
-                agent: "claude", state: ObservedState(.done), activity: "done · PR approved", trackedPRs: [412]
+                agent: "claude", state: ObservedState(.done), activity: "done · PR approved", trackedPRs: [PullRef(
+                    repo: editorconfig,
+                    number: 412
+                )]
             ),
             Session(
                 id: "s6", title: "Docs nav spike", repos: [docsBuilder], branch: "docs-nav-spike", agent: "opencode",

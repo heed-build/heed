@@ -233,3 +233,20 @@ struct FeedbackTests {
         #expect(detail?.closes.first?.number == 2830)
     }
 }
+
+struct AvatarCacheTests {
+    @Test func cachesByLoginAndAgesOut() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("heed-avatars-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = AvatarCache(directory: directory, maxAge: 60)
+        #expect(cache.cached("Elastic") == nil)
+        #expect(cache.isStale("elastic"))
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data([1, 2, 3]).write(to: cache.file(for: "Elastic"))
+        #expect(cache.cached("elastic") == Data([1, 2, 3]))
+        #expect(!cache.isStale("elastic"))
+        #expect(cache.isStale("elastic", now: Date().addingTimeInterval(120)))
+        #expect(AvatarCache.url(for: "elastic")?.absoluteString == "https://github.com/elastic.png?size=64")
+    }
+}

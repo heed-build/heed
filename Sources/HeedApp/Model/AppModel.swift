@@ -173,6 +173,7 @@ final class AppModel {
         }
         let cached = await DomainStore.load(from: file)
         replace(with: cached)
+        loadAvatars()
         store = DomainStore(domain: cached, file: file)
         await offerResume(domain: cached)
         startGitHubSync()
@@ -237,7 +238,11 @@ final class AppModel {
 
     // MARK: Cleanup
 
-    var sweepPlan: SweepPlan { Sweep.plan(domain: currentDomain, rule: config.cleanup, lastCommit: lastCommits) }
+    var sweepPlan: SweepPlan {
+        Sweep.plan(
+            domain: currentDomain, rule: config.cleanup, managedRoot: settings.worktreeRoot, lastCommit: lastCommits
+        )
+    }
 
     /// Sweeps hourly unless config asks to be asked first; `gs` always runs one now.
     private func startSweepSchedule() {
@@ -404,6 +409,15 @@ final class AppModel {
         }
     }
 
+    /// Every org Heed shows: repos, sessions, GitHub items.
+    private func loadAvatars() {
+        guard !isFixture else { return }
+        let orgs = repos.map(\.repo.org) + sessions.flatMap(\.repos).map(\.org) + github.pulls.map(\.ref.repo.org)
+            + github.inbox.map(\.repo.org) + github.issues.map(\.repo.org)
+        // "local" stands for repos without a GitHub remote; github.com/local is someone else.
+        Avatars.shared.load(orgs.filter { $0 != "local" })
+    }
+
     func applyConfig(source: String) {
         let (decoded, problems) = ConfigLoader.decode(source)
         configProblems = problems
@@ -517,6 +531,7 @@ final class AppModel {
         let after = before.applying(changes)
         if after.history != before.history { history = after.history }
         if after.github != before.github { github = after.github }
+        if after.repos != before.repos || after.github.pulls != before.github.pulls { loadAvatars() }
         if after.pullDetails != before.pullDetails { pullDetails = after.pullDetails }
         if after.feedback != before.feedback { feedback = after.feedback }
         if after.sessions != before.sessions { sessions = after.sessions }

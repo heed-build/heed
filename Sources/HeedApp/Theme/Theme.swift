@@ -125,3 +125,38 @@ final class Palette {
             .automatic(for: repo.org.lowercased())
     }
 }
+
+/// Org avatars as images, observed so tiles redraw when one arrives. Disk reads and downloads run off the main
+/// actor (`AvatarCache`); this only holds decoded images.
+@MainActor
+@Observable
+final class Avatars {
+    static let shared = Avatars()
+    private(set) var images: [String: NSImage] = [:]
+    private var requested: Set<String> = []
+    private let cache = AvatarCache.default()
+
+    func image(for org: String) -> NSImage? { images[org.lowercased()] }
+
+    /// Shows cached avatars at once, then refreshes missing or week-old ones in the background.
+    func load(_ orgs: [String]) {
+        let wanted = Set(orgs.map { $0.lowercased() }).subtracting(requested)
+        guard !wanted.isEmpty else { return }
+        requested.formUnion(wanted)
+        let cache = cache
+        Task.detached(priority: .utility) {
+            var stale: [String] = []
+            for org in wanted {
+                if let data = cache.cached(org) { await self.store(org, data) }
+                if cache.isStale(org) { stale.append(org) }
+            }
+            for org in stale {
+                if let data = await cache.refresh(org) { await self.store(org, data) }
+            }
+        }
+    }
+
+    private func store(_ org: String, _ data: Data) {
+        if let image = NSImage(data: data) { images[org] = image }
+    }
+}

@@ -281,8 +281,8 @@ public enum ConfigLoader {
     continue_prompt = "Continue where you left off."
 
     [cleanup]
-    # Remove worktrees with no activity (agent output, keystrokes, commits, PR events) for this many days.
-    # Dirty or unpushed work is never removed, and neither is anything a pinned session uses.
+    # Remove worktrees under [worktrees] root with no activity (agent output, keystrokes, commits, PR events) for this
+    # many days. Worktrees elsewhere are never swept. Dirty or unpushed work is never removed, nor a pinned session's.
     enabled = true
     idle_days = 14
     delete_branch = true               # the local branch; the remote is left alone

@@ -83,11 +83,7 @@ struct RepoChip: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Text(String(repo.org.prefix(1)))
-                .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(Theme.ink)
-                .frame(width: 12, height: 12)
-                .background(RoundedRectangle(cornerRadius: 3).fill(repo.color.foreground))
+            OrgTile(org: repo.org, color: repo.color, size: 12)
             Text(repo.name).font(Theme.mono(10.5)).lineLimit(1).truncationMode(.middle)
         }
         .foregroundStyle(repo.color.foreground)
@@ -107,5 +103,28 @@ struct SectionHeader: View {
             .font(Theme.ui(10.5, weight: .semibold))
             .tracking(0.7)
             .foregroundStyle(tint)
+    }
+}
+
+/// An org's avatar (cached from github.com), or its first letter on its color while there is none.
+struct OrgTile: View {
+    let org: String
+    let color: OrgPalette
+    var size: CGFloat = 12
+
+    var body: some View {
+        if let image = Avatars.shared.image(for: org) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size / 4))
+        } else {
+            Text(String(org.prefix(1)))
+                .font(.system(size: size * 0.66, weight: .bold))
+                .foregroundStyle(Theme.ink)
+                .frame(width: size, height: size)
+                .background(RoundedRectangle(cornerRadius: size / 4).fill(color.foreground))
+        }
     }
 }

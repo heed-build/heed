@@ -49,11 +49,7 @@ struct ReposView: View {
     private func row(name: String, count: Int, repo: Repo?) -> some View {
         HStack(spacing: 8) {
             if let repo {
-                Text(String(repo.org.prefix(1)))
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(Theme.ink)
-                    .frame(width: 16, height: 16)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(repo.color.foreground))
+                OrgTile(org: repo.org, color: repo.color, size: 16)
             }
             Text(name).font(Theme.mono(12.5)).foregroundStyle(repo == nil ? Theme.fg : Theme.fg2)
                 .lineLimit(1).truncationMode(.middle)
@@ -143,7 +139,7 @@ struct ReposView: View {
             let rule = model.config.cleanup
             ruleRow(
                 "Remove worktrees with no activity\(rule.enabled ? "" : " (off)")",
-                "Nothing for \(rule.idleDays)d: no agent output, keystrokes, commits or PR events."
+                "Under \(model.settings.worktreeRoot) only. Nothing for \(rule.idleDays)d: no agent output, keystrokes, commits or PR events."
             )
             ruleRow("Never remove dirty or unpushed work", "Always on. Skipped trees show a warning instead.")
             ruleRow("Delete the local branch too\(rule.deleteBranch ? "" : " (off)")", "Remote branch is left alone.")

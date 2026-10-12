@@ -54,15 +54,20 @@ public struct SweepPlan: Equatable, Sendable {
 }
 
 public enum Sweep {
-    /// Plans a sweep. `lastCommit` gives each worktree's last commit date when known.
+    /// Plans a sweep. Only worktrees under `managedRoot` (Heed's worktree root) are considered: worktrees made
+    /// elsewhere, by hand or by other tools, are never swept (`d` in Repos still removes them on request).
+    /// `lastCommit` gives each worktree's last commit date when known.
     public static func plan(
-        domain: Domain, rule: CleanupRule, lastCommit: [String: Date] = [:], now: Date = Date()
+        domain: Domain, rule: CleanupRule, managedRoot: String, lastCommit: [String: Date] = [:], now: Date = Date()
     ) -> SweepPlan {
         guard rule.enabled else { return SweepPlan(removals: [], skips: [], next: nil) }
+        let root = (Paths.expand(managedRoot) as NSString).standardizingPath + "/"
         var removals: [SweepPlan.Removal] = []
         var skips: [SweepPlan.Skip] = []
         var next: (Worktree, Int)?
-        for worktree in domain.worktrees where !worktree.isMain {
+        for worktree in domain.worktrees
+            where !worktree.isMain && (worktree.path as NSString).standardizingPath.hasPrefix(root)
+        {
             let sessions = domain.sessions.filter { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }
             if sessions.contains(where: \.pinned) { continue }
             let activity = lastActivity(of: worktree, sessions: sessions, domain: domain, lastCommit: lastCommit)

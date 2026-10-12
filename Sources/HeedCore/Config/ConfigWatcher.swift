@@ -16,12 +16,16 @@ public final class ConfigWatcher: @unchecked Sendable {
 
     deinit { source?.cancel() }
 
+    /// True when `start` had to write the default file: Heed is running for the first time.
+    public private(set) var createdFile = false
+
     /// Writes the commented default if the file does not exist yet, then starts watching. Returns the current source.
     public func start() -> String {
         let folder = file.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         if !FileManager.default.fileExists(atPath: file.path) {
             try? ConfigLoader.defaultSource.write(to: file, atomically: true, encoding: .utf8)
+            createdFile = true
         }
         let fd = open(folder.path, O_EVTONLY)
         if fd >= 0 {

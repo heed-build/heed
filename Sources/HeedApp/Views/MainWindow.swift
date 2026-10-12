@@ -53,6 +53,9 @@ struct MainWindow: View {
             if model.resume != nil { ResumeView() }
         }
         .overlay {
+            if model.firstRun != nil { FirstRunView() }
+        }
+        .overlay {
             if model.overlay == .help { HelpOverlay() }
         }
         .overlay(alignment: .bottom) {

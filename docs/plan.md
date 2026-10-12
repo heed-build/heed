@@ -55,8 +55,8 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
    marks, unified/split (`t`), word-level highlights, `n N` `]f [f`, `a` asks the agent, `y`, `e`. Syntax highlighting is
    a small built-in highlighter; tree-sitter per language is a follow-up)*
 9. Other agents, custom command, first run, empty and offline states, cleanup sweep, config file and Settings.
-   *(done except the first-run screen: config.toml with live reload and Settings, all agent integrations, custom agents
-   with screen patterns, cleanup sweep)*
+   *(done: config.toml with live reload and Settings, all agent integrations, custom agents with screen patterns,
+   cleanup sweep, first-run screen)*
 
 ## Open questions
 

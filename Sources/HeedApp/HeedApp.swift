@@ -35,9 +35,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let model: AppModel = {
         let environment = ProcessInfo.processInfo.environment
         let fixture = environment["HEED_FIXTURE"] ?? (environment["HEED_SNAPSHOT"] != nil ? "main" : nil)
-        if let fixture, let domain = Fixtures.named(fixture == "resume" ? "main" : fixture) {
+        if let fixture, let domain = Fixtures.named(["resume", "firstrun"].contains(fixture) ? "main" : fixture) {
             let model = AppModel(domain: domain, isFixture: true)
             if fixture == "resume" { model.showResumeForFixture() }
+            if fixture == "firstrun" {
+                model.showFirstRun(report: FirstRunReport(githubUser: "you", agents: [
+                    .init(name: "claude", path: "/Users/you/.local/bin/claude"), .init(
+                        name: "codex",
+                        path: "/opt/homebrew/bin/codex"
+                    ),
+                    .init(name: "cursor", path: nil), .init(name: "pi", path: nil),
+                    .init(name: "opencode", path: "/opt/homebrew/bin/opencode"), .init(name: "gemini", path: nil),
+                ]))
+            }
             return model
         }
         return AppModel(domain: .empty, isFixture: false)

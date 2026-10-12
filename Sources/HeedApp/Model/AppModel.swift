@@ -57,6 +57,8 @@ final class AppModel {
     private var sweepTask: Task<Void, Never>?
     /// Results of pinned tasks by pane: the exit code of the last run.
     private(set) var taskResults: [String: Int] = [:]
+    /// The first-run screen, while shown.
+    private(set) var firstRun: FirstRunReport?
     /// Opens the Settings window (set by the view, which has the SwiftUI action).
     var openSettings: (() -> Void)?
     /// Nil for fixtures: nothing is persisted and no adapter runs.
@@ -388,6 +390,18 @@ final class AppModel {
         }
         configWatcher = watcher
         applyConfig(source: watcher.start())
+        if watcher.createdFile { showFirstRun() }
+    }
+
+    /// Opens the first-run screen and fills it in as gh and the agent lookups answer.
+    func showFirstRun(report: FirstRunReport? = nil) {
+        firstRun = report ?? FirstRunReport()
+        guard report == nil, !isFixture else { return }
+        let agents = settings.agents
+        Task {
+            let gathered = await FirstRunReport.gather(agents: agents)
+            if firstRun != nil { firstRun = gathered }
+        }
     }
 
     func applyConfig(source: String) {
@@ -606,6 +620,14 @@ final class AppModel {
 
     /// Returns true when the key was used by the app, false when it should go on to the terminal.
     func handle(_ stroke: KeyStroke) -> Bool {
+        if firstRun != nil {
+            if stroke == KeyStroke("CR") || stroke == KeyStroke("CR", .command) || stroke == .escape {
+                firstRun = nil
+            } else if stroke == KeyStroke("e") {
+                NSWorkspace.shared.open(configFile)
+            }
+            return true
+        }
         if resume != nil {
             handleResume(stroke)
             return true

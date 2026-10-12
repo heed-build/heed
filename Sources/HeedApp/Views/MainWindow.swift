@@ -123,7 +123,12 @@ struct TitleBar: View {
                 } else if model.github.status.isOffline {
                     Text("offline").foregroundStyle(Theme.block)
                 } else if let synced = model.github.syncedAt {
-                    Text("synced \(synced.formatted(.relative(presentation: .numeric)))")
+                    if case let .partial(hidden, _) = model.github.status {
+                        Text("synced \(synced.formatted(.relative(presentation: .numeric))) · \(hidden) hidden")
+                            .help("Items in orgs the gh token is not authorized for (SAML).")
+                    } else {
+                        Text("synced \(synced.formatted(.relative(presentation: .numeric)))")
+                    }
                 }
             }
             .foregroundStyle(Theme.fg3)

@@ -92,7 +92,7 @@ struct ReposView: View {
                     if rows.indices.contains(model.repoCursor) { proxy.scrollTo(rows[model.repoCursor].id) }
                 }
             }
-            SweepBanner(plan: model.sweepPlan)
+            if model.config.cleanup.enabled { SweepBanner(plan: model.sweepPlan) }
             if rows.isEmpty {
                 VStack(spacing: 8) {
                     Text(model.repos.isEmpty ? "No repos found yet." : "No worktrees yet.")
@@ -139,7 +139,9 @@ struct ReposView: View {
             let rule = model.config.cleanup
             ruleRow(
                 "Remove worktrees with no activity\(rule.enabled ? "" : " (off)")",
-                "Under \(model.settings.worktreeRoot) only. Nothing for \(rule.idleDays)d: no agent output, keystrokes, commits or PR events."
+                rule.enabled
+                    ? "Nothing for \(rule.idleDays)d: no agent output, keystrokes, commits or PR events."
+                    : "Off. Turn it on in Settings (⌘,) or [cleanup] enabled; d removes worktrees by hand."
             )
             ruleRow("Never remove dirty or unpushed work", "Always on. Skipped trees show a warning instead.")
             ruleRow("Delete the local branch too\(rule.deleteBranch ? "" : " (off)")", "Remote branch is left alone.")

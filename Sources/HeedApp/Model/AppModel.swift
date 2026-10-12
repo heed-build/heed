@@ -239,9 +239,7 @@ final class AppModel {
     // MARK: Cleanup
 
     var sweepPlan: SweepPlan {
-        Sweep.plan(
-            domain: currentDomain, rule: config.cleanup, managedRoot: settings.worktreeRoot, lastCommit: lastCommits
-        )
+        Sweep.plan(domain: currentDomain, rule: config.cleanup, lastCommit: lastCommits)
     }
 
     /// Sweeps hourly unless config asks to be asked first; `gs` always runs one now.
@@ -250,7 +248,7 @@ final class AppModel {
         sweepTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(3600))
-                guard let self, !self.config.cleanup.askBeforeSweep else { continue }
+                guard let self, config.cleanup.enabled, !self.config.cleanup.askBeforeSweep else { continue }
                 await refreshRepos()
                 await runSweep(explicit: false)
             }
@@ -260,6 +258,12 @@ final class AppModel {
     func runSweep(explicit: Bool) async {
         guard !isFixture else {
             flash = "fixture: no IO"
+            return
+        }
+        guard config.cleanup.enabled else {
+            if explicit {
+                flash = "automatic cleanup is off ([cleanup] enabled, or Settings); d removes worktrees by hand"
+            }
             return
         }
         let plan = sweepPlan

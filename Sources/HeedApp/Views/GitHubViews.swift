@@ -13,8 +13,9 @@ struct SyncBanner: View {
                 "Offline: showing what was synced \(syncedAt.map { $0.formatted(.relative(presentation: .named)) } ?? "never"). \(reason)",
                 tint: Theme.block
             )
-        case let .partial(_, note):
-            banner(note, tint: Theme.fg2)
+        case .partial:
+            // Items withheld by orgs the gh token is not authorized for: shown as a count in the title bar, no banner.
+            EmptyView()
         case .never:
             banner("Not synced yet: gh is being asked.", tint: Theme.fg3)
         case .ok:

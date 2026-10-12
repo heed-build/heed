@@ -39,7 +39,7 @@ struct SweepTests {
                 session("fresh", daysAgo: 10),
             ]
         )
-        let plan = Sweep.plan(domain: domain, rule: CleanupRule(), managedRoot: "/wt", now: now)
+        let plan = Sweep.plan(domain: domain, rule: CleanupRule(enabled: true), now: now)
         #expect(plan.removals.map(\.worktree.branch) == ["old"])
         #expect(plan.removals.first?.sessions == ["old"])
         #expect(plan.skips.map(\.reason) == ["uncommitted changes", "never pushed"])
@@ -52,21 +52,19 @@ struct SweepTests {
         let domain = Domain(worktrees: [worktree("old")], sessions: [session("old", daysAgo: 20)])
         let plan = Sweep.plan(
             domain: domain,
-            rule: CleanupRule(),
-            managedRoot: "/wt",
+            rule: CleanupRule(enabled: true),
             lastCommit: ["/wt/old": now.addingTimeInterval(-86400)],
             now: now
         )
         #expect(plan.removals.isEmpty)
-        #expect(Sweep.plan(domain: domain, rule: CleanupRule(enabled: false), managedRoot: "/wt", now: now).removals
+        #expect(Sweep.plan(domain: domain, rule: CleanupRule(enabled: false), now: now).removals
             .isEmpty)
     }
 
-    @Test func worktreesOutsideHeedsRootAreNeverSwept() {
+    @Test func offByDefault() {
         let domain = Domain(worktrees: [worktree("old")], sessions: [session("old", daysAgo: 60)])
-        #expect(Sweep.plan(domain: domain, rule: CleanupRule(), managedRoot: "/elsewhere", now: now).removals.isEmpty)
-        #expect(Sweep.plan(domain: domain, rule: CleanupRule(), managedRoot: "/w", now: now).removals.isEmpty)
-        #expect(Sweep.plan(domain: domain, rule: CleanupRule(), managedRoot: "/wt/", now: now).removals.count == 1)
+        #expect(Sweep.plan(domain: domain, rule: CleanupRule(), now: now).removals.isEmpty)
+        #expect(Sweep.plan(domain: domain, rule: CleanupRule(enabled: true), now: now).removals.count == 1)
     }
 
     @Test func unpushedCommitsAreNeverRemoved() {

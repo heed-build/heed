@@ -53,12 +53,13 @@ public struct HeedConfig: Equatable, Sendable {
 /// The one cleanup rule of version 1: worktrees with no activity for `idleDays` are removed by the sweep. Dirty or
 /// unpushed work is never removed (not configurable), nor anything a pinned session uses.
 public struct CleanupRule: Equatable, Sendable, Codable {
-    public var enabled = true
+    /// Off by default: worktrees are only removed by hand until you turn this on.
+    public var enabled = false
     public var idleDays = 14
     public var deleteBranch = true
     public var askBeforeSweep = false
 
-    public init(enabled: Bool = true, idleDays: Int = 14, deleteBranch: Bool = true, askBeforeSweep: Bool = false) {
+    public init(enabled: Bool = false, idleDays: Int = 14, deleteBranch: Bool = true, askBeforeSweep: Bool = false) {
         self.enabled = enabled
         self.idleDays = idleDays
         self.deleteBranch = deleteBranch
@@ -281,9 +282,10 @@ public enum ConfigLoader {
     continue_prompt = "Continue where you left off."
 
     [cleanup]
-    # Remove worktrees under [worktrees] root with no activity (agent output, keystrokes, commits, PR events) for this
-    # many days. Worktrees elsewhere are never swept. Dirty or unpushed work is never removed, nor a pinned session's.
-    enabled = true
+    # Automatic cleanup, off by default. When on, worktrees with no activity (agent output, keystrokes, commits, PR
+    # events) for idle_days are removed, wherever they live. Dirty or unpushed work is never removed, nor a pinned
+    # session's.
+    enabled = false
     idle_days = 14
     delete_branch = true               # the local branch; the remote is left alone
     ask_before_sweep = false

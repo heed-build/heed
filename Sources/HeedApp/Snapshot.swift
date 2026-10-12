@@ -3,7 +3,8 @@ import HeedCore
 
 /// Headless check: `HEED_SNAPSHOT=out.png Heed.app/Contents/MacOS/Heed` renders the window to a PNG and quits, so a
 /// screen can be compared against design/screens without anyone looking. `HEED_SNAPSHOT_KEYS="?"` types keys first
-/// (vim notation), e.g. to snapshot the help overlay or a split.
+/// (vim notation), e.g. to snapshot the help overlay or a split. Snapshots open on the `main` fixture unless
+/// `HEED_FIXTURE` names another; `HEED_FIXTURE=live` uses the real cache and git.
 enum Snapshot {
     @MainActor
     static func runIfRequested(window: NSWindow, model: AppModel) {
@@ -11,7 +12,9 @@ enum Snapshot {
         guard let path = environment["HEED_SNAPSHOT"] else { return }
         window.setFrame(NSRect(x: 0, y: 0, width: 1440, height: 900), display: true)
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(400))
+            // HEED_SNAPSHOT_DELAY (ms) gives a live run time to load and refresh before the keys and the capture.
+            let delay = Int(environment["HEED_SNAPSHOT_DELAY"] ?? "") ?? 400
+            try? await Task.sleep(for: .milliseconds(delay))
             if let keys = environment["HEED_SNAPSHOT_KEYS"] {
                 for stroke in (try? KeyNotation.parse(keys)) ?? [] {
                     _ = model.handle(stroke)

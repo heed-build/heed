@@ -39,11 +39,21 @@ struct Sidebar: View {
                 }
             }
 
+            if model.sessions.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("No sessions yet.").foregroundStyle(Theme.fg2)
+                    HStack(spacing: 6) {
+                        KeyCap(text: "o")
+                        Text("start work").foregroundStyle(Theme.fg3)
+                    }
+                }
+                .font(Theme.ui(12.5))
+                .padding(16)
+            }
             Spacer(minLength: 0)
             Theme.line.frame(height: 1)
             HStack {
-                let repos = Set(model.sessions.flatMap(\.repos))
-                Text("\(repos.count) repos · \(model.sessions.count) worktrees").foregroundStyle(Theme.fg2)
+                Text("\(model.repos.count) repos · \(model.worktreeRows.count) worktrees").foregroundStyle(Theme.fg2)
                 Spacer()
                 KeyCap(text: "gr")
             }

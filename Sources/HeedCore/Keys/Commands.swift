@@ -26,10 +26,10 @@ public struct CommandSpec: Sendable, Equatable {
 public enum Commands {
     public static let all: [CommandSpec] = [
         // Move & sessions
-        .init("session.next", "next session", .move),
-        .init("session.prev", "previous session", .move),
-        .init("session.first", "first session", .move),
-        .init("session.last", "last session", .move),
+        .init("row.next", "next session / row", .move),
+        .init("row.prev", "previous session / row", .move),
+        .init("row.first", "first session / row", .move),
+        .init("row.last", "last session / row", .move),
         .init("session.filter", "filter by repo, branch, PR, agent", .move),
         .init("session.attention", "next session needing you", .move),
         .init("session.park", "park session", .move),
@@ -82,6 +82,9 @@ public enum Commands {
         .init("command.complete", "complete", .modes),
         // Selection
         .init("select.toggle", "toggle row", .selection),
+        .init("repo.add", "add repo", .selection),
+        .init("repo.scan", "rescan repo roots", .selection),
+        .init("worktree.new", "new worktree", .selection),
         .init("select.remove", "remove selected", .selection),
         .init("select.pin", "pin selected", .selection),
         .init("select.copy", "copy paths", .selection),

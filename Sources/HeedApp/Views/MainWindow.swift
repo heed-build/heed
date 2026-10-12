@@ -8,14 +8,24 @@ struct MainWindow: View {
         VStack(spacing: 0) {
             TitleBar()
             HStack(spacing: 0) {
-                Sidebar()
-                CenterArea()
-                if model.inspectorVisible { Inspector() }
+                switch model.view {
+                case .sessions:
+                    Sidebar()
+                    CenterArea()
+                    if model.inspectorVisible { Inspector() }
+                case .repos:
+                    ReposView()
+                default:
+                    ComingView(view: model.view)
+                }
             }
             StatusBar()
         }
         .background(Theme.bg)
         .foregroundStyle(Theme.fg)
+        .overlay {
+            if model.startWork != nil { StartWorkView() }
+        }
         .overlay {
             if model.overlay == .help { HelpOverlay() }
         }
@@ -33,7 +43,12 @@ struct TitleBar: View {
         HStack(spacing: 16) {
             // Room for the window's own traffic lights.
             Color.clear.frame(width: 60, height: 1)
-            if let session = model.currentSession {
+            if model.view != .sessions {
+                Text(model.view == .repos ? "Repos & worktrees" : model.view.title)
+                    .font(Theme.mono(12))
+                    .foregroundStyle(Theme.fg2)
+                    .lineLimit(1)
+            } else if let session = model.currentSession {
                 HStack(spacing: 4) {
                     Text(session.repos.first?.name ?? "").foregroundStyle(Theme.fg2)
                     Text("/").foregroundStyle(Theme.dim)
@@ -111,7 +126,7 @@ struct StatusBar: View {
             Spacer()
             Text(model.pendingKeys).foregroundStyle(Theme.fg).padding(.horizontal, 12)
             Text(hints).foregroundStyle(Theme.fg3).padding(.horizontal, 12)
-            Text("\(model.cursor + 1)/\(model.list.ordered.count)").foregroundStyle(Theme.fg2).padding(.horizontal, 12)
+            Text(position).foregroundStyle(Theme.fg2).padding(.horizontal, 12)
         }
         .font(Theme.mono(11.5))
         .frame(height: 28)
@@ -119,11 +134,18 @@ struct StatusBar: View {
         .overlay(alignment: .top) { Theme.line.frame(height: 1) }
     }
 
+    private var position: String {
+        model.view == .repos
+            ? "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
+            : "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
+    }
+
     private var hints: String {
         switch model.mode {
+        case .normal where model.view == .repos: "v select · n new worktree · R rescan · ⎋ back to sessions"
         case .normal: "i insert · o start work · gp PR overlay · : command · ? keys"
         case .insert: "\(KeyCapText.of(DefaultKeys.insertEscape)) normal · ⌘/ keys"
-        case .visual: "space select · d remove · p pin · y copy · ⎋ cancel"
+        case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
         case .command: "⇥ complete · ↩ run · ⎋ cancel"
         case .hint: "type a label · ⎋ cancel"
         }
@@ -182,5 +204,24 @@ struct CommandLineView: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
         .shadow(color: .black.opacity(0.5), radius: 20)
+    }
+}
+
+/// Views not built yet say which step brings them.
+struct ComingView: View {
+    let view: AppView
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Text(view.title).font(Theme.ui(15, weight: .medium))
+            Text(view == .history ? "History arrives with persistence (step 5)." : "GitHub arrives in step 6.")
+                .foregroundStyle(Theme.fg3)
+            HStack(spacing: 6) {
+                KeyCap(text: "⎋")
+                Text("back to sessions").foregroundStyle(Theme.fg3)
+            }
+        }
+        .font(Theme.ui(12.5))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

@@ -4,7 +4,7 @@ import Testing
 private func engine() -> ModeEngine {
     let built = Keymaps.build()
     #expect(built.problems.isEmpty)
-    return ModeEngine(keymaps: built.keymaps)
+    return ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
 }
 
 private func press(_ engine: inout ModeEngine, _ notation: String) -> [ModeEngine.Outcome] {
@@ -43,15 +43,15 @@ struct KeyNotationTests {
 struct KeymapTests {
     @Test func prefixesWait() throws {
         var keymap = Keymap()
-        try keymap.bind(KeyNotation.parse("gg"), to: "session.first")
+        try keymap.bind(KeyNotation.parse("gg"), to: "row.first")
         #expect(try keymap.lookup(KeyNotation.parse("g")) == .prefix)
-        #expect(try keymap.lookup(KeyNotation.parse("gg")) == .command("session.first"))
+        #expect(try keymap.lookup(KeyNotation.parse("gg")) == .command("row.first"))
         #expect(try keymap.lookup(KeyNotation.parse("gx")) == .none)
     }
 
     @Test func shadowingIsRejectedBothWays() throws {
         var keymap = Keymap()
-        try keymap.bind(KeyNotation.parse("gg"), to: "session.first")
+        try keymap.bind(KeyNotation.parse("gg"), to: "row.first")
         #expect(throws: Keymap.BindError.self) { try keymap.bind(KeyNotation.parse("g"), to: "x") }
         var other = Keymap()
         try other.bind(KeyNotation.parse("g"), to: "x")
@@ -72,7 +72,7 @@ struct ModeEngineTests {
     @Test func countsApplyToTheNextCommand() {
         var engine = engine()
         let outcomes = press(&engine, "3j")
-        #expect(outcomes == [.pending, .run(CommandInvocation(name: "session.next", count: 3))])
+        #expect(outcomes == [.pending, .run(CommandInvocation(name: "row.next", count: 3))])
         #expect(engine.pendingDisplay.isEmpty)
     }
 
@@ -126,6 +126,16 @@ struct ModeEngineTests {
     }
 }
 
+struct ScopedKeyTests {
+    @Test func scopedBindingsApplyOnlyInTheirView() {
+        var engine = engine()
+        #expect(press(&engine, "a") == [.unbound([KeyStroke("a")])])
+        engine.scope = "repos"
+        #expect(press(&engine, "a") == [.run(CommandInvocation(name: "repo.add"))])
+        #expect(press(&engine, "j") == [.run(CommandInvocation(name: "row.next"))])
+    }
+}
+
 struct KeymapsTests {
     @Test func defaultsHaveNoProblems() {
         #expect(Keymaps.build().problems.isEmpty)
@@ -133,12 +143,12 @@ struct KeymapsTests {
 
     @Test func overridesReplaceUnbindAndReport() throws {
         let built = Keymaps.build(overrides: [
-            .normal: [("gs", ""), ("J", "session.next"), ("g", "session.first"), ("gz", "nope")],
+            .normal: [("gs", ""), ("J", "row.next"), ("g", "row.first"), ("gz", "nope")],
             .insert: [("ab", "mode.normal")],
         ])
         let normal = try #require(built.keymaps[.normal])
         #expect(try normal.lookup(KeyNotation.parse("gs")) == .none)
-        #expect(try normal.lookup(KeyNotation.parse("J")) == .command("session.next"))
+        #expect(try normal.lookup(KeyNotation.parse("J")) == .command("row.next"))
         #expect(built.problems.map(\.keys) == ["g", "gz", "ab"])
     }
 

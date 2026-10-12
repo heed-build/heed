@@ -5,8 +5,8 @@ public enum DefaultKeys {
     public static let insertEscape = "<C-\\>"
 
     public static let normal: [(String, String)] = [
-        ("j", "session.next"), ("k", "session.prev"), ("<Down>", "session.next"), ("<Up>", "session.prev"),
-        ("gg", "session.first"), ("G", "session.last"), ("/", "session.filter"),
+        ("j", "row.next"), ("k", "row.prev"), ("<Down>", "row.next"), ("<Up>", "row.prev"),
+        ("gg", "row.first"), ("G", "row.last"), ("/", "session.filter"),
         ("h", "pane.left"), ("l", "pane.right"),
         ("o", "work.start"), ("O", "work.again"), ("ga", "session.attention"), ("zz", "session.park"),
         ("x", "session.close"), ("p", "session.pin"), ("''", "session.back"),
@@ -28,7 +28,7 @@ public enum DefaultKeys {
     ]
 
     public static let visual: [(String, String)] = [
-        ("j", "session.next"), ("k", "session.prev"), ("gg", "session.first"), ("G", "session.last"),
+        ("j", "row.next"), ("k", "row.prev"), ("gg", "row.first"), ("G", "row.last"),
         ("<Space>", "select.toggle"), ("d", "select.remove"), ("p", "select.pin"), ("y", "select.copy"),
         ("o", "select.open"), ("<Esc>", "mode.normal"), ("?", "overlay.help"), ("<D-/>", "overlay.help"),
     ]
@@ -44,6 +44,11 @@ public enum DefaultKeys {
 
     public static let hint: [(String, String)] = [
         ("<Esc>", "mode.normal"), ("<D-/>", "overlay.help"),
+    ]
+
+    /// Bindings that only apply in one view, keyed by view name.
+    public static let scoped: [String: [(String, String)]] = [
+        "repos": [("a", "repo.add"), ("n", "worktree.new"), ("R", "repo.scan")],
     ]
 
     public static func table(for mode: Mode) -> [(String, String)] {
@@ -71,7 +76,7 @@ public enum Keymaps {
     public static func build(
         overrides: [Mode: [(String, String)]] = [:],
         insertEscape: String = DefaultKeys.insertEscape
-    ) -> (keymaps: [Mode: Keymap], problems: [Problem]) {
+    ) -> (keymaps: [Mode: Keymap], scoped: [String: Keymap], problems: [Problem]) {
         var keymaps: [Mode: Keymap] = [:]
         var problems: [Problem] = []
         for mode in Mode.allCases {
@@ -108,6 +113,14 @@ public enum Keymaps {
             }
             keymaps[mode] = keymap
         }
-        return (keymaps, problems)
+        var scoped: [String: Keymap] = [:]
+        for (scope, table) in DefaultKeys.scoped {
+            var keymap = Keymap()
+            for (notation, command) in table {
+                if let keys = try? KeyNotation.parse(notation) { try? keymap.bind(keys, to: command) }
+            }
+            scoped[scope] = keymap
+        }
+        return (keymaps, scoped, problems)
     }
 }

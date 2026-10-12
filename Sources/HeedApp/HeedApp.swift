@@ -25,18 +25,37 @@ struct HeedApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let model = AppModel()
+    /// `HEED_FIXTURE=<name>` (or a snapshot run) opens on a fixture domain with no IO at all; otherwise the cached
+    /// domain loads in the background and git refreshes it.
+    let model: AppModel = {
+        let environment = ProcessInfo.processInfo.environment
+        let fixture = environment["HEED_FIXTURE"] ?? (environment["HEED_SNAPSHOT"] != nil ? "main" : nil)
+        if let fixture, let domain = Fixtures.named(fixture) { return AppModel(domain: domain, isFixture: true) }
+        return AppModel(domain: .empty, isFixture: false)
+    }()
+
     private lazy var router = KeyRouter(model: model)
 
     func applicationDidFinishLaunching(_: Notification) {
         // No NSApp.activate(): Heed never takes focus, it only asks for attention.
         NSApp.setActivationPolicy(.regular)
         router.start()
+        if !model.isFixture {
+            Task { await model.start(cache: DomainStore.defaultFile()) }
+        }
+    }
+
+    func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
+        guard !model.isFixture else { return .terminateNow }
+        Task {
+            await model.flush()
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     func windowAppeared() {
         guard let window = NSApp.windows.first(where: { $0.isVisible }) else { return }
-        window.identifier = AppModel.mainWindowID
         window.backgroundColor = NSColor(red: 0.067, green: 0.071, blue: 0.078, alpha: 1)
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = false

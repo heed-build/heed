@@ -1,0 +1,138 @@
+import Foundation
+
+/// git, projected into the domain. Every call runs `git` off the main actor and returns domain values; raw output
+/// never leaves this file.
+public enum Git {
+    // MARK: Reading
+
+    /// The repo behind a checkout: `org/name` from the `origin` remote, else `local/<directory>`.
+    public static func repo(at path: String) async -> Repo {
+        let url = try? await ProcessRunner.output(
+            "git",
+            ["-C", path, "remote", "get-url", "origin"],
+            timeout: .seconds(5)
+        )
+        return url.flatMap { parseRemote($0) } ?? Repo(org: "local", name: URL(fileURLWithPath: path).lastPathComponent)
+    }
+
+    /// `main` from `origin/HEAD`, falling back to `main`.
+    public static func defaultBranch(at path: String) async -> String {
+        let ref = try? await ProcessRunner.output(
+            "git", ["-C", path, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], timeout: .seconds(5)
+        )
+        let name = ref?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "main" : String(name.split(separator: "/", maxSplits: 1).last ?? "main")
+    }
+
+    /// A record for the checkout at `path`, or nil when it is not a git repository's main checkout.
+    public static func record(at path: String) async -> RepoRecord? {
+        guard let top = try? await ProcessRunner.output(
+            "git", ["-C", path, "rev-parse", "--show-toplevel"], timeout: .seconds(5)
+        ) else { return nil }
+        let root = top.trimmingCharacters(in: .whitespacesAndNewlines)
+        async let repo = repo(at: root)
+        async let branch = defaultBranch(at: root)
+        return await RepoRecord(repo: repo, path: root, defaultBranch: branch)
+    }
+
+    public static func worktrees(of record: RepoRecord) async throws -> [Worktree] {
+        let output = try await ProcessRunner.output("git", ["-C", record.path, "worktree", "list", "--porcelain"])
+        return parseWorktrees(output, repo: record.repo)
+    }
+
+    public static func status(at path: String) async throws -> WorktreeStatus {
+        let output = try await ProcessRunner.output(
+            "git", ["-C", path, "status", "--porcelain=v2", "--branch"], timeout: .seconds(10)
+        )
+        return parseStatus(output)
+    }
+
+    // MARK: Changing
+
+    /// Adds a worktree on a new branch `branch` from `origin/<base>` (fetched first, best effort, so the branch starts
+    /// from what is on GitHub rather than a stale local ref).
+    public static func addWorktree(
+        _ record: RepoRecord, path: String, branch: String, base: String
+    ) async throws -> Worktree {
+        _ = try? await ProcessRunner.run("git", ["-C", record.path, "fetch", "origin", base], timeout: .seconds(30))
+        let hasRemote = await (try? ProcessRunner.run(
+            "git", ["-C", record.path, "rev-parse", "--verify", "--quiet", "origin/\(base)"], timeout: .seconds(5)
+        ))?.succeeded ?? false
+        try FileManager.default.createDirectory(
+            atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true
+        )
+        _ = try await ProcessRunner.output(
+            "git", ["-C", record.path, "worktree", "add", "-b", branch, path, hasRemote ? "origin/\(base)" : base]
+        )
+        let head = try await ProcessRunner.output("git", ["-C", path, "rev-parse", "--short", "HEAD"])
+        return Worktree(
+            repo: record.repo, path: path, branch: branch, head: head.trimmingCharacters(in: .whitespacesAndNewlines),
+            isMain: false, status: WorktreeStatus()
+        )
+    }
+
+    // MARK: Parsing (pure, tested)
+
+    /// `git@github.com:org/name.git`, `https://github.com/org/name(.git)`, `ssh://git@host/org/name`.
+    public static func parseRemote(_ url: String) -> Repo? {
+        var text = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.hasSuffix(".git") { text.removeLast(4) }
+        if text.hasSuffix("/") { text.removeLast() }
+        let path: Substring
+        if let range = text.range(of: "://") {
+            let afterScheme = text[range.upperBound...]
+            guard let slash = afterScheme.firstIndex(of: "/") else { return nil }
+            path = afterScheme[afterScheme.index(after: slash)...]
+        } else if let colon = text.firstIndex(of: ":") {
+            path = text[text.index(after: colon)...]
+        } else {
+            return nil
+        }
+        let parts = path.split(separator: "/")
+        guard parts.count >= 2 else { return nil }
+        return Repo(org: String(parts[parts.count - 2]), name: String(parts[parts.count - 1]))
+    }
+
+    public static func parseWorktrees(_ porcelain: String, repo: Repo) -> [Worktree] {
+        var result: [Worktree] = []
+        for block in porcelain.components(separatedBy: "\n\n") {
+            var path: String?
+            var head = ""
+            var branch: String?
+            var bare = false
+            for line in block.split(separator: "\n") {
+                if line.hasPrefix("worktree ") {
+                    path = String(line.dropFirst(9))
+                } else if line.hasPrefix("HEAD ") {
+                    head = String(line.dropFirst(5).prefix(7))
+                } else if line.hasPrefix("branch ") {
+                    branch = String(line.dropFirst(7)).replacingOccurrences(of: "refs/heads/", with: "")
+                } else if line == "bare" {
+                    bare = true
+                }
+            }
+            guard let path, !bare else { continue }
+            result.append(Worktree(repo: repo, path: path, branch: branch, head: head, isMain: result.isEmpty))
+        }
+        return result
+    }
+
+    public static func parseStatus(_ porcelain: String) -> WorktreeStatus {
+        var status = WorktreeStatus()
+        for line in porcelain.split(separator: "\n") {
+            if line.hasPrefix("# branch.upstream ") {
+                status.upstream = String(line.dropFirst(18))
+            } else if line.hasPrefix("# branch.ab ") {
+                for part in line.dropFirst(12).split(separator: " ") {
+                    if part.hasPrefix("+") { status.ahead = Int(part.dropFirst()) ?? 0 }
+                    if part.hasPrefix("-") { status.behind = Int(part.dropFirst()) ?? 0 }
+                }
+            } else if line.hasPrefix("1 ") || line.hasPrefix("2 ") || line.hasPrefix("u ") {
+                status.changedFiles += 1
+            } else if line.hasPrefix("? ") {
+                status.untrackedFiles += 1
+            }
+        }
+        return status
+    }
+}

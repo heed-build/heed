@@ -10,9 +10,14 @@ struct Inspector: View {
             if let session = model.currentSession {
                 section {
                     SectionHeader(title: "Worktree")
-                    Text("~/code/wt/\(session.repos.first?.name ?? "")/\(session.branch)")
-                        .font(Theme.mono(12))
-                        .foregroundStyle(Theme.fg)
+                    ForEach(model.worktrees
+                        .filter { $0.branch == session.branch && session.repos.contains($0.repo) })
+                    { worktree in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(Paths.abbreviate(worktree.path)).font(Theme.mono(12)).foregroundStyle(Theme.fg)
+                            if let status = worktree.status { WorktreeStatusLine(status: status) }
+                        }
+                    }
                 }
                 section {
                     HStack {
@@ -65,5 +70,26 @@ struct Inspector: View {
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+}
+
+/// `base main ↑3 ↓0 ~2`: ahead, behind, changed.
+struct WorktreeStatusLine: View {
+    let status: WorktreeStatus
+    var showUpstream = true
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if showUpstream {
+                Text(status.upstream.map { "↥ \($0)" } ?? "no upstream").foregroundStyle(Theme.fg3).lineLimit(1)
+            } else if status.upstream == nil {
+                Text("local").foregroundStyle(Theme.block)
+            }
+            Text("↑\(status.ahead)").foregroundStyle(status.ahead > 0 ? Theme.done : Theme.fg3)
+            Text("↓\(status.behind)").foregroundStyle(status.behind > 0 ? Theme.busy : Theme.fg3)
+            Text("~\(status.changedFiles + status.untrackedFiles)")
+                .foregroundStyle(status.isDirty ? Theme.block : Theme.fg3)
+        }
+        .font(Theme.mono(11.5))
     }
 }

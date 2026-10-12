@@ -27,9 +27,14 @@ public struct ModeEngine: Sendable {
     public private(set) var pending: [KeyStroke] = []
     public private(set) var count: Int?
     public private(set) var keymaps: [Mode: Keymap]
+    /// Per-view bindings (`[keys.repos]`), checked before the mode's own in NORMAL and VISUAL.
+    public private(set) var scopedKeymaps: [String: Keymap]
+    /// The view whose scoped bindings apply, e.g. `repos`.
+    public var scope: String?
 
-    public init(keymaps: [Mode: Keymap]) {
+    public init(keymaps: [Mode: Keymap], scoped: [String: Keymap] = [:]) {
         self.keymaps = keymaps
+        scopedKeymaps = scoped
     }
 
     /// What the status bar shows while keys are pending: `3`, `g`, `2<C-w>`.
@@ -37,8 +42,9 @@ public struct ModeEngine: Sendable {
         (count.map(String.init) ?? "") + KeyNotation.format(pending)
     }
 
-    public mutating func setKeymaps(_ keymaps: [Mode: Keymap]) {
+    public mutating func setKeymaps(_ keymaps: [Mode: Keymap], scoped: [String: Keymap] = [:]) {
         self.keymaps = keymaps
+        scopedKeymaps = scoped
         reset()
     }
 
@@ -72,7 +78,8 @@ public struct ModeEngine: Sendable {
             return .pending
         }
         let keys = pending + [stroke]
-        switch keymap.lookup(keys) {
+        let scoped = scope.flatMap { scopedKeymaps[$0] }?.lookup(keys) ?? .none
+        switch scoped == .none ? keymap.lookup(keys) : scoped {
         case let .command(line):
             let count = count
             reset()

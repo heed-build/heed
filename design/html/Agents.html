@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Agent settings</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.bg{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);width:1440px;height:900px;background:#0b0c0e;position:relative;overflow:hidden;color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif}
+.bg *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.win{position:absolute;left:110px;top:50px;width:1220px;height:800px;background:var(--bg);border:1px solid #30353b;border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden}
+.tb{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}
+.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.nv{padding:7px 16px;font-size:13px;color:var(--fg2)}
+.nv.on{background:var(--bg3);color:var(--fg)}
+.ag{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:5px}
+.ag.on{background:var(--bg3)}
+.bd{font-size:10.5px;border-radius:4px;padding:0 6px}
+.bd.full{color:var(--done);background:color-mix(in oklch,var(--done) 16%,transparent)}
+.bd.part{color:var(--block);background:color-mix(in oklch,var(--block) 16%,transparent)}
+.bd.heur{color:var(--fg2);background:#272b30}
+.ic{flex:none;width:20px;height:20px;border-radius:5px;border:1px dashed #4a5058;display:inline-flex;align-items:center;justify-content:center;font:600 10px/1 -apple-system,sans-serif;color:var(--fg3)}
+.f{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;align-items:start;padding:10px 0}
+.f>label,.f>.l{font-size:12.5px;color:var(--fg2);padding-top:6px}
+.in{background:#0c0d0f;border:1px solid #30353b;border-radius:6px;padding:6px 10px;font-size:12px;color:var(--fg)}
+.seg{display:flex;border:1px solid #30353b;border-radius:6px;overflow:hidden;width:max-content}
+.seg span{padding:5px 12px;font-size:12px;color:var(--fg2);border-right:1px solid #30353b}
+.seg span:last-child{border-right:0}
+.seg span.on{background:#dfe3e8;color:#111214;font-weight:600}
+.map{display:grid;grid-template-columns:1fr 20px 1fr;gap:6px 8px;align-items:center;font-size:11.5px}
+.g{flex:none;display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;font:700 8px/1 sans-serif;color:#101114}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%}
+.g.idle{border:1.5px solid var(--fg3);border-radius:50%}
+.g.block{background:var(--block);transform:rotate(45deg) scale(.78);border-radius:2px}
+.g.ask{background:var(--ask);border-radius:50%}
+.g.done{background:var(--done);border-radius:50%}
+</style>
+
+</head>
+<body>
+
+
+<div class="bg">
+  <div class="win">
+    <div class="tb">
+      <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+      <div style="font-size:12.5px;color:var(--fg2);margin-left:8px">Settings</div>
+    </div>
+    <div style="flex:1;min-height:0;display:flex">
+      <div style="width:190px;flex:none;background:var(--bg2);border-right:1px solid var(--line);padding:12px 0">
+        <div class="nv">General</div>
+        <div class="nv on">Agents</div>
+        <div class="nv">Worktrees</div>
+        <div class="nv">Keys &amp; modes</div>
+        <div class="nv">Terminal</div>
+        <div class="nv">GitHub</div>
+      </div>
+
+      <div style="width:290px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column">
+        <div style="padding:14px 16px 10px;display:flex;justify-content:space-between;align-items:center"><span class="h">Agents</span><span class="kbd mono">+ add</span></div>
+        <div class="ag on">
+          <div style="display:flex;align-items:center;gap:8px"><span class="ic">C</span><b class="mono" style="font-weight:500">claude</b><span class="bd full">full hooks</span><span style="margin-left:auto;font-size:11px;color:var(--fg2)">default</span></div>
+          <div class="mono" style="font-size:11px;color:var(--fg3)">claude</div>
+        </div>
+        <div class="ag">
+          <div style="display:flex;align-items:center;gap:8px"><span class="ic">X</span><b class="mono" style="font-weight:500">codex</b><span class="bd part">partial hooks</span></div>
+          <div class="mono" style="font-size:11px;color:var(--fg3)">codex</div>
+        </div>
+        <div class="ag">
+          <div style="display:flex;align-items:center;gap:8px"><span class="ic">▲</span><b class="mono" style="font-weight:500">cursor</b><span class="bd part">partial hooks</span></div>
+          <div class="mono" style="font-size:11px;color:var(--fg3)">cursor-agent</div>
+        </div>
+        <div class="ag">
+          <div style="display:flex;align-items:center;gap:8px"><span class="ic">π</span><b class="mono" style="font-weight:500">pi</b><span class="bd full">extension</span></div>
+          <div class="mono" style="font-size:11px;color:var(--fg3)">pi</div>
+        </div>
+        <div class="ag">
+          <div style="display:flex;align-items:center;gap:8px"><span class="ic">O</span><b class="mono" style="font-weight:500">opencode</b><span class="bd full">plugin</span></div>
+          <div class="mono" style="font-size:11px;color:var(--fg3)">opencode</div>
+        </div>
+        <div class="ag" style="border-bottom:0;color:var(--fg3)">
+          <div style="display:flex;align-items:center;gap:8px"><span>Custom command…</span></div>
+        </div>
+        <div style="flex:1"></div>
+        <div style="padding:12px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--fg2)">Fallback order when an agent is rate limited:
+          <div class="mono" style="margin-top:6px;font-size:11.5px;color:var(--fg)">claude → codex → gemini</div></div>
+      </div>
+
+      <div style="flex:1;min-width:0;padding:18px 28px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px"><div style="font-size:16px;font-weight:600">claude</div><span class="bd full">full hooks</span></div>
+
+        <div class="f"><label>Command</label><div class="in mono">claude</div></div>
+        <div class="f"><div class="l">Prompt delivery</div>
+          <div><div class="seg"><span class="on">Argument</span><span>Stdin</span><span>Paste into pty</span></div>
+          <div style="font-size:11.5px;color:var(--fg3);margin-top:6px">Start work runs <span class="mono">claude "&lt;prompt&gt;"</span> inside the shell, so the session survives the agent exiting.</div></div></div>
+        <div class="f"><label>Environment</label><div class="in mono" style="color:var(--fg2)">CC_SESSION_ID={session}  CC_SOCKET={socket}</div></div>
+
+        <div class="f"><div class="l">Profiles</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;gap:10px;align-items:center"><span class="in mono" style="width:90px">default</span><span class="in mono" style="flex:1;color:var(--fg2)">claude</span></div>
+            <div style="display:flex;gap:10px;align-items:center"><span class="in mono" style="width:90px">plan</span><span class="in mono" style="flex:1;color:var(--fg2)">claude --permission-mode plan</span></div>
+            <div style="display:flex;gap:10px;align-items:center"><span class="in mono" style="width:90px">fast</span><span class="in mono" style="flex:1;color:var(--fg2)">claude --model haiku</span></div>
+          </div></div>
+
+        <div class="f"><div class="l">Used for</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--fg2)"><span class="in mono" style="width:150px">repo = docs-builder</span>→ claude · default</div>
+            <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--fg2)"><span class="in mono" style="width:150px">repo = atlas</span>→ codex</div>
+            <div style="font-size:11.5px;color:var(--fg3)">Anything unmatched uses whichever agent you last used in that repo.</div>
+          </div></div>
+
+        <div style="border-top:1px solid var(--line);margin-top:8px;padding-top:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <span class="h">Hooks → UI state</span>
+            <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--done)"><span class="g done">✓</span>Installed in ~/.claude/settings.json<span class="kbd mono">test</span></div>
+          </div>
+          <div class="map mono">
+            <span>SessionStart</span><span style="color:var(--fg3)">→</span><span style="display:flex;align-items:center;gap:6px"><span class="g idle"></span>idle</span>
+            <span>UserPromptSubmit, PreToolUse</span><span style="color:var(--fg3)">→</span><span style="display:flex;align-items:center;gap:6px"><span class="g busy"></span>working</span>
+            <span>Notification · permission</span><span style="color:var(--fg3)">→</span><span style="display:flex;align-items:center;gap:6px"><span class="g block"></span>blocked</span>
+            <span>Notification · question</span><span style="color:var(--fg3)">→</span><span style="display:flex;align-items:center;gap:6px"><span class="g ask">?</span>asking</span>
+            <span>Stop</span><span style="color:var(--fg3)">→</span><span style="display:flex;align-items:center;gap:6px"><span class="g done">✓</span>done</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+</body>
+</html>

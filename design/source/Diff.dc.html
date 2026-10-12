@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Diff overlay</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.root{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);position:relative;width:1440px;height:900px;overflow:hidden;background:#0b0c0e;color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif}
+.root *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.ov{position:absolute;right:0;top:0;bottom:0;width:1160px;background:var(--bg);border-left:1px solid #3a3f46;box-shadow:-30px 0 80px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.dim{color:var(--fg3)}
+.seg{display:flex;border:1px solid #30353b;border-radius:6px;overflow:hidden;width:max-content}
+.seg span{padding:4px 12px;font-size:12px;color:var(--fg2);border-right:1px solid #30353b;display:flex;gap:6px}
+.seg span:last-child{border-right:0}
+.seg span.on{background:#dfe3e8;color:#111214;font-weight:600}
+.seg span b{font-weight:400;opacity:.7}
+.rc{display:inline-flex;align-items:center;gap:6px;font-size:11px;border-radius:4px;padding:1px 7px 1px 3px;background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)}
+.rc i{display:flex;width:12px;height:12px;border-radius:3px;font:700 8px/12px sans-serif;font-style:normal;justify-content:center;background:currentColor}
+.rc i b{color:#101114;font-weight:700}
+.cm{display:grid;grid-template-columns:54px minmax(0,1fr);gap:8px;padding:6px 14px;font-size:12px;color:var(--fg2)}
+.cm.on{background:var(--bg3);color:var(--fg)}
+.fi{display:grid;grid-template-columns:14px 12px minmax(0,1fr) 62px;gap:8px;align-items:center;padding:6px 14px;font-size:12px;color:var(--fg2)}
+.fi.on{background:var(--bg3);color:var(--fg)}
+.fi .s{font-weight:700;font-size:11px}
+.s.m{color:var(--block)}.s.a{color:var(--done)}
+.ad{color:var(--done)}.rm{color:var(--err)}
+.df{flex:1;min-height:0;overflow:hidden;font-size:12.5px;line-height:1.75}
+.ln{display:grid;grid-template-columns:48px 48px 20px minmax(0,1fr);white-space:pre}
+.ln>span:nth-child(1),.ln>span:nth-child(2){text-align:right;padding-right:10px;color:#5d646c;font-size:11px}
+.ln>span:nth-child(3){color:var(--fg3);text-align:center}
+.ln.a{background:color-mix(in oklch,var(--done) 13%,transparent)}
+.ln.d{background:color-mix(in oklch,var(--err) 13%,transparent)}
+.ln.hk{background:#181a1d;color:var(--fg3);font-size:11.5px}
+.ln.cur{box-shadow:inset 0 0 0 1px #6b7280}
+.k{color:oklch(0.78 0.11 250)}.t{color:oklch(0.82 0.09 195)}.c{color:#6c747c}.q{color:oklch(0.82 0.1 80)}
+.ww{background:color-mix(in oklch,var(--done) 30%,transparent);border-radius:2px}
+.wd{background:color-mix(in oklch,var(--err) 30%,transparent);border-radius:2px}
+.sb{height:28px;flex:none;display:flex;align-items:stretch;background:var(--bg3);border-top:1px solid var(--line);font-size:11.5px}
+.sb>div{display:flex;align-items:center;padding:0 12px;gap:8px}
+</style>
+</helmet>
+<div class="root">
+  <div style="position:absolute;left:0;top:0;width:1440px;height:900px"><dc-import name="Main" hint-size="1440px,900px"></dc-import></div>
+  <div style="position:absolute;left:0;top:0;width:1440px;height:900px;background:rgba(8,9,10,.5)"></div>
+
+  <div class="ov">
+    <div style="padding:14px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)">
+      <span class="h">Changes</span>
+      <div class="seg"><span class="on">All <b class="mono">5</b></span><span>Committed <b class="mono">3</b></span><span>Staged <b class="mono">1</b></span><span>Unstaged <b class="mono">1</b></span></div>
+      <span class="kbd mono">[</span><span class="kbd mono">]</span><span style="font-size:11.5px;color:var(--fg3)">change scope</span>
+      <div style="flex:1"></div>
+      <div class="seg"><span class="on">Unified</span><span>Split</span></div><span class="kbd mono">t</span>
+      <span class="kbd mono">gd</span><span style="font-size:11.5px;color:var(--fg3)">or</span><span class="kbd mono">⎋</span>
+    </div>
+
+    <div style="flex:1;min-height:0;display:flex">
+      <div style="width:290px;flex:none;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden">
+        <div class="h" style="padding:14px 14px 6px">Commits <span class="kbd mono" style="margin-left:6px">c</span></div>
+        <div class="cm on mono"><span class="dim">all</span><span>3 commits vs main</span></div>
+        <div class="cm mono"><span class="dim">4f2a1c</span><span>Validate anchors against headings</span></div>
+        <div class="cm mono"><span class="dim">a91e3d</span><span>Fix lint in redirects.md</span></div>
+        <div class="cm mono"><span class="dim">0be7d2</span><span>Add moved-page redirect fixtures</span></div>
+
+        <div class="h" style="padding:16px 14px 6px">Files</div>
+        <div style="padding:2px 14px 6px;display:flex"><span class="rc mono"><i><b>e</b></i>docs-builder</span></div>
+        <div class="fi on mono"><span class="s m">M</span><span class="ad">●</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">RedirectFile.cs</span><span><span class="ad">+18</span> <span class="rm">−4</span></span></div>
+        <div class="fi mono"><span class="s a">A</span><span class="ad">●</span><span>AnchorTests.cs</span><span><span class="ad">+64</span></span></div>
+        <div class="fi mono"><span class="s m">M</span><span class="dim">○</span><span>redirects.md</span><span><span class="ad">+2</span> <span class="rm">−1</span></span></div>
+        <div style="padding:10px 14px 6px;display:flex"><span class="rc mono" style="background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22)"><i><b>e</b></i>docs-content</span></div>
+        <div class="fi mono"><span class="s m">M</span><span class="ad">●</span><span>redirects.yml</span><span><span class="ad">+6</span></span></div>
+        <div style="flex:1"></div>
+        <div style="padding:10px 14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--fg3)"><span class="ad">●</span> staged &nbsp; <span>○</span> not staged</div>
+      </div>
+
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div style="padding:10px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px">
+          <span class="mono" style="font-size:12.5px">src/Elastic.Markdown/Redirects/<b style="font-weight:600">RedirectFile.cs</b></span>
+          <span class="mono dim" style="font-size:11.5px">hunk 1 of 2 · <span class="ad">+18</span> <span class="rm">−4</span></span>
+        </div>
+        <div class="df mono">
+          <div class="ln hk"><span></span><span></span><span></span><span>@@ -76,9 +76,16 @@ public sealed class RedirectFile</span></div>
+          <div class="ln"><span>76</span><span>76</span><span></span><span>    public bool TryResolve(string page, string fragment)</span></div>
+          <div class="ln"><span>77</span><span>77</span><span></span><span>    {</span></div>
+          <div class="ln d"><span>78</span><span></span><span class="rm">−</span><span>        var anchors = _anchors.GetValueOrDefault(page);</span></div>
+          <div class="ln a"><span></span><span>78</span><span class="ad">+</span><span>        var anchors = _anchors.GetValueOrDefault(page, EmptyAnchors);</span></div>
+          <div class="ln a"><span></span><span>79</span><span class="ad">+</span><span>        var slug = <span class="ww">Slugify(fragment)</span>;</span></div>
+          <div class="ln"><span>79</span><span>80</span><span></span><span>        <span class="c">// headings are lowercased by the slugifier</span></span></div>
+          <div class="ln d cur"><span>80</span><span></span><span class="rm">−</span><span>        if (!anchors.Contains(<span class="wd">fragment</span>))</span></div>
+          <div class="ln a cur"><span></span><span>81</span><span class="ad">+</span><span>        if (!anchors.Contains(<span class="ww">slug, StringComparer.Ordinal</span>))</span></div>
+          <div class="ln"><span>81</span><span>82</span><span></span><span>            <span class="k">return</span> <span class="k">false</span>;</span></div>
+          <div class="ln"><span>82</span><span>83</span><span></span><span></span></div>
+          <div class="ln a"><span></span><span>84</span><span class="ad">+</span><span>        _resolved[page] = <span class="k">new</span> <span class="t">Resolved</span>(page, slug);</span></div>
+          <div class="ln"><span>83</span><span>85</span><span></span><span>        <span class="k">return</span> <span class="k">true</span>;</span></div>
+          <div class="ln"><span>84</span><span>86</span><span></span><span>    }</span></div>
+          <div class="ln hk"><span></span><span></span><span></span><span>@@ -131,6 +138,14 @@ public sealed class RedirectFile</span></div>
+          <div class="ln"><span>131</span><span>138</span><span></span><span>    <span class="k">private</span> <span class="k">static</span> <span class="t">IReadOnlySet</span>&lt;<span class="k">string</span>&gt; EmptyAnchors { <span class="k">get</span>; }</span></div>
+          <div class="ln a"><span></span><span>139</span><span class="ad">+</span><span>        = <span class="k">new</span> <span class="t">HashSet</span>&lt;<span class="k">string</span>&gt;(<span class="t">StringComparer</span>.Ordinal);</span></div>
+          <div class="ln"><span>132</span><span>140</span><span></span><span>}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--line);padding:9px 20px;display:flex;gap:18px;font-size:12px;color:var(--fg2);align-items:center;background:var(--bg2)">
+      <span><span class="kbd mono">n</span> <span class="kbd mono">N</span> hunk</span>
+      <span><span class="kbd mono">]f</span> <span class="kbd mono">[f</span> file</span>
+      <span><span class="kbd mono">a</span> ask the agent about this hunk</span>
+      <span><span class="kbd mono">y</span> copy path:line</span>
+      <span><span class="kbd mono">e</span> open in editor</span>
+      <span><span class="kbd mono">R</span> full file</span>
+    </div>
+    <div class="sb mono">
+      <div style="background:#dfe3e8;color:#111214;font-weight:700;letter-spacing:.06em">NORMAL</div>
+      <div style="color:var(--fg2)">Diff overlay · fix-anchors-redirects</div>
+      <div style="flex:1"></div>
+      <div style="color:var(--fg3)">j k line · n hunk · [ ] scope · c commit · gd close · ? help</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

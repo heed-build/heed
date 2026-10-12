@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PR reader</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);width:1440px;height:900px;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;overflow:hidden;box-sizing:border-box}
+.app *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.tb{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.vs{display:flex;gap:2px;margin-left:12px}
+.vs span{padding:3px 10px;border-radius:5px;font-size:11.5px;color:var(--fg3);display:flex;gap:6px}
+.vs span.on{background:#2b2f35;color:var(--fg)}
+.vs b{font-weight:500;color:var(--block)}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.dim{color:var(--fg3)}
+.tabs{display:flex;gap:4px;padding:0 24px;border-bottom:1px solid var(--line)}
+.tabs span{padding:10px 14px;font-size:12.5px;color:var(--fg3)}
+.tabs span.on{color:var(--fg);box-shadow:inset 0 -2px 0 #dfe3e8}
+.tm{display:flex;flex-direction:column;gap:14px;padding:20px 24px}
+.it{background:var(--bg2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.it.cur{border-color:#aab0b8}
+.ih{display:flex;align-items:center;gap:10px;padding:9px 14px;font-size:12px;color:var(--fg2);border-bottom:1px solid var(--line);background:#181a1d}
+.ib{padding:12px 14px;font-size:13px;line-height:1.6;color:#d6d9dd}
+.ck{flex:none;width:14px;height:14px;border-radius:3px;border:1.5px solid #4a5058;display:flex;align-items:center;justify-content:center;font:700 9px/1 sans-serif;color:#111214}
+.ck.on{background:var(--block);border-color:var(--block)}
+.df{font-size:11.5px;line-height:1.7;background:#0c0d0f;border-top:1px solid var(--line);padding:8px 0}
+.df div{padding:0 14px;white-space:pre}
+.df .ad{background:color-mix(in oklch,var(--done) 14%,transparent);color:oklch(0.85 0.1 155)}
+.df .rm{background:color-mix(in oklch,var(--err) 14%,transparent);color:oklch(0.85 0.1 25)}
+.tag{font-size:10.5px;border-radius:4px;padding:0 6px;color:var(--done);background:color-mix(in oklch,var(--done) 16%,transparent)}
+.chip{font-size:10.5px;background:#23272c;color:var(--fg2);border-radius:4px;padding:1px 6px}
+.chip.e{background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)}
+.g{flex:none;display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%}
+.rt{width:340px;flex:none;background:var(--bg2);border-left:1px solid var(--line);padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.sb{height:28px;flex:none;display:flex;align-items:stretch;background:var(--bg3);border-top:1px solid var(--line);font-size:11.5px}
+.sb>div{display:flex;align-items:center;padding:0 12px;gap:8px}
+</style>
+
+</head>
+<body>
+
+
+<div class="app">
+  <div class="tb">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="vs mono"><span>1 Sessions</span><span>2 Inbox <b>7</b></span><span>3 Issues</span><span class="on">4 PRs <b>2</b></span><span>5 Repos</span><span>6 History</span></div>
+    <div style="flex:1"></div>
+    <span class="kbd mono">⌃o</span><span style="font-size:11.5px;color:var(--fg3);margin-left:-8px">back</span>
+  </div>
+  <div style="flex:1;min-height:0;display:flex">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="padding:18px 24px 14px;display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px"><span class="chip e mono">docs-builder</span><span class="dim mono">#2841</span><span class="tag">open</span></div>
+        <div style="font-size:18px;font-weight:600">Fix broken anchors in redirects</div>
+        <div class="mono dim" style="font-size:11.5px">fix-anchors-redirects → main · 3 commits · +82 −4</div>
+      </div>
+      <div class="tabs mono"><span class="on">Conversation</span><span>Files <span class="dim">3</span></span><span>Checks <span class="dim">5</span></span></div>
+      <div style="flex:1;min-height:0;overflow:hidden">
+        <div class="tm">
+          <div class="it"><div class="ih"><b style="color:var(--fg);font-weight:500">you</b>opened this 1h ago</div>
+            <div class="ib">Validates redirect targets against real headings, so moved pages no longer lose their anchors.<br>Closes <span class="mono" style="color:var(--busy)">#2830</span>. Companion change in docs-content <span class="mono" style="color:var(--busy)">#1920</span>.</div></div>
+
+          <div class="it cur"><div class="ih"><div class="ck on">✓</div><b style="color:var(--fg);font-weight:500">@reviewer</b>commented on <span class="mono">RedirectFile.cs:88</span><span style="flex:1"></span><span class="dim">queued for session</span></div>
+            <div class="df mono"><div class="dim"> 86   var slug = Slugify(heading);</div><div class="rm">-87   var exists = anchors.Contains(target);</div><div class="ad">+87   var exists = anchors.Contains(target, StringComparer.Ordinal);</div></div>
+            <div class="ib">Anchor lookup is case sensitive. Heading slugs are lowercased, so this misses valid targets.</div></div>
+
+          <div class="it"><div class="ih"><div class="ck on">✓</div><span style="color:var(--err)">lint failed</span><span class="mono dim">docs/redirects.md:41 line too long</span></div></div>
+
+          <div class="it"><div class="ih"><div class="ck"></div><b style="color:var(--fg);font-weight:500">@reviewer</b>commented on <span class="mono">AnchorTests.cs:12</span></div>
+            <div class="ib">Please cover the moved-page case.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="rt">
+      <div class="h">Linked</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">
+        <div style="display:flex;align-items:center;gap:8px"><span class="g busy"></span><span class="mono">fix-anchors-redirects</span></div>
+        <div style="display:flex;align-items:center;gap:8px" class="mono"><span class="chip e">docs-builder</span>closes #2830</div>
+        <div style="display:flex;align-items:center;gap:8px" class="mono"><span class="chip e">docs-content</span>PR #1920</div>
+      </div>
+      <div class="h" style="margin-top:4px">Reviewers</div>
+      <div style="font-size:12.5px;color:var(--fg2)">@reviewer · changes requested</div>
+      <div class="h" style="margin-top:4px">Checks</div>
+      <div style="font-size:12.5px;color:var(--fg2)">3 passed · <span style="color:var(--err)">1 failed</span> · 1 pending</div>
+      <div style="flex:1"></div>
+      <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--fg2)">
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">space</span>queue comment for session</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">s</span>send queued to session</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">S</span>start a new session from this PR</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">]c</span><span class="kbd mono">[c</span>next / previous comment</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">gB</span>open on GitHub</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">gS</span>jump to its session</div>
+      </div>
+    </div>
+  </div>
+  <div class="sb mono">
+    <div style="background:#dfe3e8;color:#111214;font-weight:700;letter-spacing:.06em">NORMAL</div>
+    <div style="color:var(--fg2)">PR #2841</div>
+    <div style="flex:1"></div>
+    <div style="color:var(--fg3)">j k scroll · ]c comment · space queue · s send · ⌃o back · ? help</div>
+    <div style="color:var(--fg2)">2 queued</div>
+  </div>
+</div>
+
+
+</body>
+</html>

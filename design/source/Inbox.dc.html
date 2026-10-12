@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>GitHub inbox</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);width:1440px;height:900px;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;overflow:hidden;box-sizing:border-box}
+.app *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.tb{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.vs{display:flex;gap:2px;margin-left:12px}
+.vs span{padding:3px 10px;border-radius:5px;font-size:11.5px;color:var(--fg3);display:flex;gap:6px}
+.vs span.on{background:#2b2f35;color:var(--fg)}
+.vs b{font-weight:500;color:var(--block)}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.dim{color:var(--fg3)}
+.rc{display:inline-flex;align-items:center;gap:6px;font-size:11px;border-radius:4px;padding:1px 7px 1px 3px;width:max-content;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.rc i{display:flex;width:12px;height:12px;border-radius:3px;font:700 8px/12px sans-serif;font-style:normal;justify-content:center;background:currentColor}
+.rc i b{color:#101114;font-weight:700}
+.av{flex:none;width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;font:700 10px/1 sans-serif;color:#101114}
+.o-e{background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)}
+.o-n{background:color-mix(in oklch,oklch(0.78 0.13 350) 16%,#1b1e22);color:oklch(0.84 0.1 350)}
+.o-p{background:color-mix(in oklch,oklch(0.82 0.13 120) 16%,#1b1e22);color:oklch(0.86 0.11 120)}
+.o-c{background:color-mix(in oklch,oklch(0.8 0.12 50) 16%,#1b1e22);color:oklch(0.85 0.1 50)}
+.fl{display:flex;gap:8px;padding:10px 20px;border-bottom:1px solid var(--line);font-size:12px;color:var(--fg2);align-items:center}
+.fc{border:1px solid #373c43;border-radius:12px;padding:1px 10px}
+.fc.on{background:#dfe3e8;color:#111214;border-color:#dfe3e8;font-weight:600}
+.r{display:grid;grid-template-columns:28px 16px 46px 128px minmax(0,1fr) 150px 44px;gap:10px;align-items:center;height:46px;padding:0 20px;font-size:12.5px}
+.r .n{text-align:right;color:var(--fg3);font-size:11px}
+.r.sel{background:color-mix(in oklch,var(--block) 14%,transparent)}
+.r.cur{background:color-mix(in oklch,var(--block) 24%,transparent)}
+.r.cur .n{color:var(--fg);font-weight:700}
+.r.read{color:var(--fg3)}
+.ck{width:14px;height:14px;border-radius:3px;border:1.5px solid #4a5058;display:flex;align-items:center;justify-content:center;font:700 9px/1 sans-serif;color:#111214}
+.sel .ck{background:var(--block);border-color:var(--block)}
+.ty{font-size:10px;font-weight:700;letter-spacing:.05em;border-radius:3px;padding:1px 0;text-align:center}
+.ty.pr{color:var(--busy);background:color-mix(in oklch,var(--busy) 16%,transparent)}
+.ty.is{color:var(--done);background:color-mix(in oklch,var(--done) 16%,transparent)}
+.ty.ci{color:var(--err);background:color-mix(in oklch,var(--err) 16%,transparent)}
+.why{font-size:11.5px;color:var(--fg2)}
+.lk{font-size:10.5px;color:var(--fg3)}
+.chip{font-size:10.5px;background:#23272c;color:var(--fg2);border-radius:4px;padding:1px 6px}
+.g{flex:none;display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%}
+.pn{background:var(--bg2);border-left:1px solid var(--line);width:470px;flex:none;padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.opt{display:flex;align-items:center;gap:8px;padding:6px 11px;border-radius:7px;border:1px solid #3a3f46;color:var(--fg2);font-size:12.5px}
+.opt.sel{background:#dfe3e8;border-color:#dfe3e8;color:#111214;font-weight:600}
+.sb{height:28px;flex:none;display:flex;align-items:stretch;background:var(--bg3);border-top:1px solid var(--line);font-size:11.5px}
+.sb>div{display:flex;align-items:center;padding:0 12px;gap:8px}
+</style>
+</helmet>
+<div class="app">
+  <div class="tb">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="vs mono"><span>1 Sessions</span><span class="on">2 Inbox <b>7</b></span><span>3 Issues</span><span>4 PRs <b>2</b></span><span>5 Repos</span><span>6 History</span></div>
+    <div style="flex:1"></div>
+    <span style="font-size:11.5px;color:var(--fg3)">synced 20s ago</span><span class="kbd mono">r</span>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div class="fl"><span class="fc on">Unread</span><span class="fc">All</span><span class="fc">Review requested</span><span class="fc">Assigned</span><span class="fc">CI</span><span style="flex:1"></span><span class="kbd mono">/</span><span class="dim">filter</span></div>
+
+      <div class="r"><span class="n mono">4</span><div class="ck"></div><span class="ty pr mono">PR</span><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>Add link validation to assembler <span class="dim mono">#2845</span></span><span class="why">review requested</span><span class="dim mono">4m</span></div>
+      <div class="r"><span class="n mono">3</span><div class="ck"></div><span class="ty ci mono">CI</span><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>lint failed on <span class="dim mono">#2841</span> <span class="lk"><span class="g busy" style="vertical-align:-2px"></span> fix-anchors-redirects</span></span><span class="why">check failed</span><span class="dim mono">9m</span></div>
+      <div class="r"><span class="n mono">2</span><div class="ck"></div><span class="ty pr mono">PR</span><span class="rc o-e"><i><b>e</b></i>docs-content</span><span>2 new review comments <span class="dim mono">#1920</span> <span class="lk"><span class="g busy" style="vertical-align:-2px"></span> fix-anchors-redirects</span></span><span class="why">comments</span><span class="dim mono">12m</span></div>
+      <div class="r sel"><span class="n mono">1</span><div class="ck">✓</div><span class="ty is mono">ISSUE</span><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>Anchors lost when a page is moved <span class="dim mono">#2830</span></span><span class="why">assigned to you</span><span class="dim mono">1h</span></div>
+      <div class="r cur"><span class="n mono">5</span><div class="ck" style="background:var(--block);border-color:var(--block)">✓</div><span class="ty is mono">ISSUE</span><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>Redirect loop on /reference <span class="dim mono">#2833</span></span><span class="why">mentioned</span><span class="dim mono">2h</span></div>
+      <div class="r"><span class="n mono">1</span><div class="ck"></div><span class="ty pr mono">PR</span><span class="rc o-n"><i><b>n</b></i>mermaider</span><span>Arrowhead markers on sequence diagrams <span class="dim mono">#187</span></span><span class="why">review requested</span><span class="dim mono">3h</span></div>
+      <div class="r"><span class="n mono">2</span><div class="ck"></div><span class="ty is mono">ISSUE</span><span class="rc o-p"><i><b>m</b></i>atlas</span><span>Backpressure drops events under burst <span class="dim mono">#94</span></span><span class="why">assigned to you</span><span class="dim mono">5h</span></div>
+      <div class="r read"><span class="n mono">3</span><div class="ck"></div><span class="ty pr mono">PR</span><span class="rc o-c"><i><b>e</b></i>editorconfig</span><span>Bump spec tests <span class="mono">#412</span></span><span class="why">approved</span><span class="mono">3h</span></div>
+    </div>
+
+    <div class="pn">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="h">Start session from 2 items</span><span class="kbd mono">s</span></div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="chip mono" style="padding:5px 8px;font-size:11.5px">docs-builder #2830 · Anchors lost when a page is moved</div>
+        <div class="chip mono" style="padding:5px 8px;font-size:11.5px">docs-builder #2833 · Redirect loop on /reference</div>
+      </div>
+      <div class="mono" style="font-size:11.5px;line-height:1.7;background:#0c0d0f;border:1px solid var(--line);border-radius:9px;padding:12px 14px;color:#cfd3d8">
+        <div class="dim">Prompt, built from the issue text. Editable.</div>
+        <div>Work on these together. They look like one root cause in redirect handling.</div>
+        <div>- docs-builder#2830 Anchors lost when a page is moved</div>
+        <div>- docs-builder#2833 Redirect loop on /reference</div>
+        <div>Open one PR that closes both.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:80px 1fr;gap:10px 12px;align-items:center;font-size:12px;color:var(--fg2)">
+        <span class="h">Repo</span><div class="opt sel mono" style="width:max-content">docs-builder</div>
+        <span class="h">Worktree</span><div class="opt mono" style="color:var(--fg)">anchors-redirect-loop</div>
+        <span class="h">Agent</span><div style="display:flex;gap:8px"><div class="opt sel">claude</div><div class="opt">codex</div><div class="opt">opencode</div></div>
+      </div>
+      <div style="font-size:12px;color:var(--fg2);display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;align-items:center;gap:8px"><span class="ck" style="background:var(--done);border-color:var(--done)">✓</span>Add "Closes #…" lines to the PR</div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="ck"></span>Plan first</div>
+      </div>
+      <div style="flex:1"></div>
+      <div style="border-top:1px solid var(--line);padding-top:12px;font-size:12px;color:var(--fg2);display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px"><span class="kbd mono">⌘↩</span>start session</div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="kbd mono">a</span>add to a running session instead</div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="kbd mono">m</span>mark read, no session</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sb mono">
+    <div style="background:var(--block);color:#111214;font-weight:700;letter-spacing:.06em">VISUAL</div>
+    <div style="color:var(--fg2)">2 selected</div>
+    <div style="flex:1"></div>
+    <div style="color:var(--fg3)">↩ o read · space toggle · v range · s start session · a add to session · m read · ? help</div>
+    <div style="color:var(--fg2)">5/8</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

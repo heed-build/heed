@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PR overlay and feedback queue</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.root{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);position:relative;width:1440px;height:900px;overflow:hidden;background:#0b0c0e;color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif}
+.root *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.ov{position:absolute;right:0;top:0;bottom:0;width:1040px;background:var(--bg);border-left:1px solid #3a3f46;box-shadow:-30px 0 80px rgba(0,0,0,.5);display:flex;flex-direction:column}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.dim{color:var(--fg3)}
+.rc{display:inline-flex;align-items:center;gap:6px;font-size:11px;border-radius:4px;padding:1px 7px 1px 3px;background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)}
+.rc i{display:flex;width:12px;height:12px;border-radius:3px;font:700 8px/12px sans-serif;font-style:normal;justify-content:center;background:currentColor}
+.rc i b{color:#101114;font-weight:700}
+.ptab{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;font-size:12.5px;color:var(--fg3);border:1px solid transparent}
+.ptab.on{background:var(--bg3);color:var(--fg);border-color:#30353b}
+.stg{flex:1;min-width:0;background:var(--bg2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;display:flex;flex-direction:column;gap:3px}
+.stg b{font-size:20px;font-weight:600;font-family:"JetBrains Mono",monospace}
+.stg span{font-size:11.5px;color:var(--fg3)}
+.stg.act{border-color:#aab0b8}
+.it{display:grid;grid-template-columns:20px minmax(0,1fr) 120px;gap:12px;align-items:start;padding:12px 14px;border-top:1px solid var(--line)}
+.it.cur{background:var(--bg3)}
+.ck{width:14px;height:14px;margin-top:2px;border-radius:3px;border:1.5px solid #4a5058;display:flex;align-items:center;justify-content:center;font:700 9px/1 sans-serif;color:#111214}
+.ck.on{background:var(--block);border-color:var(--block)}
+.st{font-size:10.5px;border-radius:4px;padding:1px 8px;font-weight:600;width:max-content;justify-self:end}
+.st.n{color:var(--fg2);background:#272b30}
+.st.q{color:var(--block);background:color-mix(in oklch,var(--block) 16%,transparent)}
+.st.a{color:var(--done);box-shadow:inset 0 0 0 1px var(--done)}
+.st.r{color:#101114;background:var(--done)}
+.cd{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:9px;font-size:12px;color:var(--fg2);line-height:1.5}
+.seg{display:flex;border:1px solid #30353b;border-radius:6px;overflow:hidden;width:max-content}
+.seg span{padding:3px 10px;font-size:11.5px;color:var(--fg2);border-right:1px solid #30353b}
+.seg span:last-child{border-right:0}
+.seg span.on{background:#dfe3e8;color:#111214;font-weight:600}
+.g{flex:none;display:inline-flex;width:12px;height:12px}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%}
+.sb{height:28px;flex:none;display:flex;align-items:stretch;background:var(--bg3);border-top:1px solid var(--line);font-size:11.5px}
+.sb>div{display:flex;align-items:center;padding:0 12px;gap:8px}
+</style>
+</helmet>
+<div class="root">
+  <div style="position:absolute;left:0;top:0;width:1440px;height:900px"><dc-import name="Main" hint-size="1440px,900px"></dc-import></div>
+  <div style="position:absolute;left:0;top:0;width:1440px;height:900px;background:rgba(8,9,10,.5)"></div>
+
+  <div class="ov">
+    <div style="padding:14px 24px 0;display:flex;align-items:center;gap:8px">
+      <div class="ptab on mono"><span class="rc"><i><b>e</b></i>docs-builder</span>#2841<span class="g busy"></span></div>
+      <div class="ptab mono"><span class="rc"><i><b>e</b></i>docs-content</span>#1920</div>
+      <span class="kbd mono">]p</span><span class="kbd mono">[p</span><span style="font-size:11.5px;color:var(--fg3)">PRs of this session</span>
+      <div style="flex:1"></div>
+      <span class="kbd mono">gp</span><span style="font-size:11.5px;color:var(--fg3)">or</span><span class="kbd mono">⎋</span><span style="font-size:11.5px;color:var(--fg3)">back to session</span>
+    </div>
+
+    <div style="margin:14px 24px 0;padding:10px 14px;background:var(--bg2);border:1px solid var(--line);border-radius:9px;display:flex;align-items:center;gap:16px;font-size:12px;color:var(--fg2)">
+      <span style="display:flex;align-items:center;gap:8px;color:var(--busy)" class="mono">◉ watching</span>
+      <span>polled 12s ago</span>
+      <span style="display:flex;align-items:center;gap:8px">Auto-feed<div class="seg"><span>Off</span><span class="on">Ask</span><span>Auto</span></div></span>
+      <span class="mono">round 1 of 3</span>
+      <div style="flex:1"></div>
+      <span class="kbd mono">w</span><span class="dim">pause watching</span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;padding:14px 24px 0">
+      <div class="stg"><b>1</b><span>New</span></div><span class="dim">›</span>
+      <div class="stg act"><b style="color:var(--block)">2</b><span>Queued</span></div><span class="dim">›</span>
+      <div class="stg"><b>0</b><span>Sent</span></div><span class="dim">›</span>
+      <div class="stg"><b>0</b><span>Addressed</span></div><span class="dim">›</span>
+      <div class="stg"><b style="color:var(--done)">2</b><span>Resolved today</span></div>
+    </div>
+
+    <div style="flex:1;min-height:0;display:flex;gap:20px;padding:14px 24px 0">
+      <div style="flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--bg2);align-self:flex-start">
+        <div class="it cur" style="border-top:0"><div class="ck on">✓</div><div><div class="mono dim" style="font-size:11px">@reviewer · RedirectFile.cs:88</div><div style="margin-top:2px">Anchor lookup is case sensitive. Heading slugs are lowercased, so this misses valid targets.</div></div><span class="st q">Queued</span></div>
+        <div class="it"><div class="ck on">✓</div><div><div class="mono" style="font-size:11px;color:var(--err)">CI · lint failed</div><div class="mono" style="margin-top:2px;color:var(--fg2);font-size:12px">docs/redirects.md:41 line too long</div></div><span class="st q">Queued</span></div>
+        <div class="it"><div class="ck"></div><div><div class="mono dim" style="font-size:11px">@reviewer · AnchorTests.cs:12</div><div style="margin-top:2px">Please cover the moved-page case.</div></div><span class="st n">New</span></div>
+        <div class="it" style="background:#131518"><div class="dim" style="font-size:10.5px;padding-top:2px"></div><div class="h" style="padding-top:2px">Earlier today</div><span></span></div>
+        <div class="it"><div class="ck" style="border-color:var(--done);background:var(--done)">✓</div><div><div class="mono dim" style="font-size:11px">@reviewer · RedirectFile.cs:41</div><div style="margin-top:2px" class="dim">Use the shared slug helper.</div><div class="mono" style="font-size:11px;color:var(--done);margin-top:4px">sent 14:52 → pushed a91e3d → thread resolved 15:03</div></div><span class="st r">Resolved</span></div>
+        <div class="it"><div class="ck" style="border-color:var(--done);background:var(--done)">✓</div><div><div class="mono" style="font-size:11px;color:var(--err)">CI · build failed</div><div class="mono dim" style="font-size:12px;margin-top:2px">missing using in AnchorTests.cs</div><div class="mono" style="font-size:11px;color:var(--done);margin-top:4px">sent 14:52 → pushed a91e3d → check passed 14:58</div></div><span class="st r">Resolved</span></div>
+      </div>
+
+      <div style="width:300px;flex:none;display:flex;flex-direction:column;gap:12px">
+        <div class="cd">
+          <div class="h">Delivery</div>
+          <div>2 queued items go to <span class="mono" style="color:var(--fg)">fix-anchors-redirects</span> as one prompt, once it is <span style="color:var(--fg)">idle</span>.</div>
+          <div style="display:flex;align-items:center;gap:8px"><span class="g busy"></span>Now working, 14m. Waiting.</div>
+          <div class="dim" style="font-size:11.5px">Never sent while the agent is blocked or asking. If you type in its pane first, delivery waits again.</div>
+        </div>
+        <div class="cd">
+          <div class="h">CI loop</div>
+          <div>After the agent pushes, the app watches the new run and reports whether the failure is gone. A repeat failure counts as another round.</div>
+        </div>
+        <div class="cd" style="gap:7px">
+          <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">space</span>queue / unqueue</div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">s</span>send queued now</div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">e</span>edit the prompt first</div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">x</span>dismiss item</div>
+          <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">gS</span>full session view</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sb mono">
+      <div style="background:#dfe3e8;color:#111214;font-weight:700;letter-spacing:.06em">NORMAL</div>
+      <div style="color:var(--fg2)">PR overlay · fix-anchors-redirects</div>
+      <div style="flex:1"></div>
+      <div style="color:var(--fg3)">j k item · space queue · s send · ]p next PR · gp close · ? help</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

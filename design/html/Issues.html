@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Issues</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);width:1440px;height:900px;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;overflow:hidden;box-sizing:border-box}
+.app *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.tb{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.vs{display:flex;gap:2px;margin-left:12px}
+.vs span{padding:3px 10px;border-radius:5px;font-size:11.5px;color:var(--fg3);display:flex;gap:6px}
+.vs span.on{background:#2b2f35;color:var(--fg)}
+.vs b{font-weight:500;color:var(--block)}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.dim{color:var(--fg3)}
+.rc{display:inline-flex;align-items:center;gap:6px;font-size:11px;border-radius:4px;padding:1px 7px 1px 3px;width:max-content;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.rc i{display:flex;width:12px;height:12px;border-radius:3px;font:700 8px/12px sans-serif;font-style:normal;justify-content:center;background:currentColor}
+.rc i b{color:#101114;font-weight:700}
+.av{flex:none;width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;font:700 10px/1 sans-serif;color:#101114}
+.o-e{background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)}
+.o-n{background:color-mix(in oklch,oklch(0.78 0.13 350) 16%,#1b1e22);color:oklch(0.84 0.1 350)}
+.o-p{background:color-mix(in oklch,oklch(0.82 0.13 120) 16%,#1b1e22);color:oklch(0.86 0.11 120)}
+.o-c{background:color-mix(in oklch,oklch(0.8 0.12 50) 16%,#1b1e22);color:oklch(0.85 0.1 50)}
+.fl{display:flex;gap:8px;padding:10px 20px;border-bottom:1px solid var(--line);font-size:12px;color:var(--fg2);align-items:center}
+.fc{border:1px solid #373c43;border-radius:12px;padding:1px 10px}
+.fc.on{background:#dfe3e8;color:#111214;border-color:#dfe3e8;font-weight:600}
+.r{display:grid;grid-template-columns:28px 16px 128px minmax(0,1fr) 190px 44px 130px;gap:10px;align-items:center;height:46px;padding:0 20px;font-size:12.5px}
+.r .n{text-align:right;color:var(--fg3);font-size:11px}
+.r.sel{background:color-mix(in oklch,var(--block) 14%,transparent)}
+.r.cur{background:color-mix(in oklch,var(--block) 24%,transparent)}
+.r.cur .n{color:var(--fg);font-weight:700}
+.ck{width:14px;height:14px;border-radius:3px;border:1.5px solid #4a5058;display:flex;align-items:center;justify-content:center;font:700 9px/1 sans-serif;color:#111214}
+.sel .ck{background:var(--block);border-color:var(--block)}
+.lb{font-size:10.5px;background:#23272c;color:var(--fg2);border-radius:4px;padding:1px 6px;margin-right:4px}
+.g{flex:none;display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;font:700 8px/1 sans-serif;color:#101114}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%}
+.g.ask{background:var(--ask);border-radius:50%}
+.lkd{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--fg2)}
+.pn{background:var(--bg2);border-left:1px solid var(--line);width:470px;flex:none;padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.sb{height:28px;flex:none;display:flex;align-items:stretch;background:var(--bg3);border-top:1px solid var(--line);font-size:11.5px}
+.sb>div{display:flex;align-items:center;padding:0 12px;gap:8px}
+</style>
+
+</head>
+<body>
+
+
+<div class="app">
+  <div class="tb">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="vs mono"><span>1 Sessions</span><span>2 Inbox <b>7</b></span><span class="on">3 Issues</span><span>4 PRs <b>2</b></span><span>5 Repos</span><span>6 History</span></div>
+    <div style="flex:1"></div>
+    <span style="font-size:11.5px;color:var(--fg3)">synced 1m ago</span><span class="kbd mono">r</span>
+  </div>
+  <div style="flex:1;min-height:0;display:flex">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div class="fl"><span class="fc on">Assigned to me</span><span class="fc">Mentioned</span><span class="fc">Created</span><span class="fc">All open</span><span style="flex:1"></span><span class="fc mono">repo: all</span><span class="fc mono">label: any</span><span class="kbd mono">/</span></div>
+      <div class="r"><span class="n mono">1</span><div class="ck"></div><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>Anchors lost when a page is moved <span class="dim mono">#2830</span></span><span><span class="lb mono">bug</span><span class="lb mono">redirects</span></span><span class="dim mono">3</span><span class="dim mono">1h</span></div>
+      <div class="r sel cur"><span class="n mono">2</span><div class="ck">✓</div><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>Redirect loop on /reference <span class="dim mono">#2833</span></span><span><span class="lb mono">bug</span><span class="lb mono">redirects</span></span><span class="dim mono">1</span><span class="dim mono">2h</span></div>
+      <div class="r sel"><span class="n mono">1</span><div class="ck">✓</div><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>Support nested includes in snippets <span class="dim mono">#2802</span></span><span><span class="lb mono">enhancement</span></span><span class="dim mono">6</span><span class="dim mono">3d</span></div>
+      <div class="r"><span class="n mono">2</span><div class="ck"></div><span class="rc o-e"><i><b>e</b></i>docs-content</span><span>Broken link in deployment guide <span class="dim mono">#1895</span></span><span><span class="lb mono">docs</span></span><span class="dim mono">0</span><span class="dim mono">4d</span></div>
+      <div class="r"><span class="n mono">3</span><div class="ck"></div><span class="rc o-p"><i><b>m</b></i>atlas</span><span>Backpressure drops events under burst <span class="dim mono">#94</span></span><span><span class="lb mono">bug</span></span><span class="dim mono">4</span><span class="lkd"><span class="g ask">?</span>ingest-backpressure</span></div>
+      <div class="r"><span class="n mono">4</span><div class="ck"></div><span class="rc o-p"><i><b>m</b></i>atlas</span><span>Document the event schema <span class="dim mono">#88</span></span><span><span class="lb mono">docs</span></span><span class="dim mono">2</span><span class="dim mono">6d</span></div>
+      <div class="r"><span class="n mono">5</span><div class="ck"></div><span class="rc o-n"><i><b>n</b></i>mermaider</span><span>Sequence diagram: open arrowheads <span class="dim mono">#181</span></span><span><span class="lb mono">enhancement</span></span><span class="dim mono">2</span><span class="lkd"><span class="g busy"></span>sequence-arrowheads</span></div>
+    </div>
+    <div class="pn">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="h">docs-builder #2833</span><span class="kbd mono">gB</span></div>
+      <div style="font-size:16px;font-weight:600">Redirect loop on /reference</div>
+      <div style="font-size:12px;color:var(--fg3)">Opened 2h ago · 1 comment · no PR · no session</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--fg2)">Visiting /reference redirects to itself in the preview build. Started after <span class="mono" style="font-size:12px">reference/index.md</span> was moved. Expected: resolves to the new location.</div>
+      <div style="flex:1"></div>
+      <div style="background:var(--bg3);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div class="h">2 selected</div>
+        <div class="mono" style="font-size:11.5px;color:var(--fg2);line-height:1.7">docs-builder #2833<br>docs-builder #2802</div>
+        <div style="font-size:12px;color:var(--fg2)">Same repo. One session, one worktree, prompt built from both issues.</div>
+        <div style="display:flex;gap:10px;align-items:center;font-size:12px;color:var(--fg2)"><span class="kbd mono">s</span>start session<span class="kbd mono" style="margin-left:8px">a</span>add to running</div>
+      </div>
+    </div>
+  </div>
+  <div class="sb mono">
+    <div style="background:var(--block);color:#111214;font-weight:700;letter-spacing:.06em">VISUAL</div>
+    <div style="color:var(--fg2)">2 selected</div>
+    <div style="flex:1"></div>
+    <div style="color:var(--fg3)">↩ o read · space toggle · v range · s start · a add to session · gB browser · ? help</div>
+    <div style="color:var(--fg2)">2/7</div>
+  </div>
+</div>
+
+
+</body>
+</html>

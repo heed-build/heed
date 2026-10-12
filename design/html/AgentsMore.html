@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Per-agent settings</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.sheet{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);width:1440px;height:900px;padding:32px 40px;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;overflow:hidden}
+.sheet *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.hd{display:flex;align-items:center;gap:10px}
+.ic{flex:none;width:28px;height:28px;border-radius:7px;border:1px dashed #4a5058;display:flex;align-items:center;justify-content:center;font:600 12px/1 -apple-system,sans-serif;color:var(--fg3)}
+.bd{font-size:10.5px;border-radius:4px;padding:0 6px;margin-left:auto}
+.bd.full{color:var(--done);background:color-mix(in oklch,var(--done) 16%,transparent)}
+.bd.part{color:var(--block);background:color-mix(in oklch,var(--block) 16%,transparent)}
+.bd.heur{color:var(--fg2);background:#272b30}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.f{display:flex;flex-direction:column;gap:5px}
+.f>.l{font-size:12px;color:var(--fg2)}
+.in{background:#0c0d0f;border:1px solid #30353b;border-radius:6px;padding:6px 10px;font-size:12px;color:var(--fg);min-width:0}
+.seg{display:flex;border:1px solid #30353b;border-radius:6px;overflow:hidden;width:max-content;max-width:100%}
+.seg span{padding:5px 11px;font-size:12px;color:var(--fg2);border-right:1px solid #30353b;white-space:nowrap}
+.seg span:last-child{border-right:0}
+.seg span.on{background:#dfe3e8;color:#111214;font-weight:600}
+.nt{font-size:11.5px;color:var(--fg3);line-height:1.5}
+.vr{display:inline-block;font-size:11px;border:1px solid #3a3f46;border-radius:4px;padding:0 6px;margin-right:4px;color:var(--fg2)}
+.pt{display:grid;grid-template-columns:minmax(0,1fr) 16px 78px;gap:6px;align-items:center;font-size:11.5px}
+.dim{color:var(--fg3)}
+</style>
+
+</head>
+<body>
+
+
+<div class="sheet">
+  <div class="card">
+    <div class="hd"><span class="ic">X</span><b style="font-size:15px">codex</b><span class="bd part">notify hook</span></div>
+    <div class="f"><span class="l">Command</span><div class="in mono">codex</div></div>
+    <div class="f"><span class="l">Approval policy</span><div class="seg"><span>untrusted</span><span class="on">on-request</span><span>never</span></div></div>
+    <div class="f"><span class="l">Sandbox</span><div class="seg"><span>read-only</span><span class="on">workspace-write</span><span>full access</span></div></div>
+    <div class="f"><span class="l">Model and reasoning effort</span><div style="display:flex;gap:8px"><div class="in mono" style="flex:1">default</div><div class="seg"><span>low</span><span class="on">medium</span><span>high</span></div></div></div>
+    <div class="f"><span class="l">Prompt delivery</span><div class="seg"><span class="on">Argument</span><span>Stdin</span></div></div>
+    <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div class="h">State detection</div>
+      <div class="nt">Installs a <span class="mono">notify</span> command in <span class="mono">~/.codex/config.toml</span>. It reports turn finished (done). Working and blocked come from watching the pty, so those two are best effort.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hd"><span class="ic">O</span><b style="font-size:15px">opencode</b><span class="bd full">plugin events</span></div>
+    <div class="f"><span class="l">Command</span><div class="in mono">opencode</div></div>
+    <div class="f"><span class="l">Agent</span><div class="seg"><span class="on">build</span><span>plan</span></div></div>
+    <div class="f"><span class="l">Provider / model</span><div class="in mono">anthropic / claude-sonnet</div></div>
+    <div class="f"><span class="l">Run mode</span><div class="seg"><span class="on">TUI in pane</span><span>Attach to server</span></div>
+      <div class="nt">Attach mode runs one <span class="mono">opencode serve</span> and connects each pane to it. Sessions survive pane closes, and session state comes from the server.</div></div>
+    <div class="f"><span class="l">Prompt delivery</span><div class="seg"><span class="on">Argument</span><span>Server API</span><span>Paste</span></div></div>
+    <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div class="h">State detection</div>
+      <div class="nt">Drops a plugin into the project's plugin folder that forwards session events to the app's socket: working, idle, permission asked, error. Full fidelity.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hd"><span class="ic">+</span><b style="font-size:15px">Custom command</b><span class="bd heur">you define it</span></div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:10px">
+      <div class="f"><span class="l">Name</span><div class="in">aider</div></div>
+      <div class="f"><span class="l">Icon</span><div class="in dim" style="display:flex;align-items:center;gap:6px"><span class="ic" style="width:16px;height:16px;font-size:9px">a</span>choose…</div></div>
+    </div>
+    <div class="f"><span class="l">Command and arguments</span><div class="in mono">aider --message <span class="vr">{prompt}</span></div>
+      <div class="nt">Variables: <span class="vr mono">{prompt}</span><span class="vr mono">{worktree}</span><span class="vr mono">{branch}</span><span class="vr mono">{session}</span></div></div>
+    <div class="f"><span class="l">Prompt delivery</span><div class="seg"><span class="on">Argument</span><span>Stdin</span><span>Paste</span><span>File</span></div></div>
+    <div class="f"><span class="l">Detect state with</span><div class="seg"><span>Hooks (cc)</span><span>Process only</span><span class="on">Output patterns</span></div></div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div class="pt mono"><div class="in">\(Y\)es/\(N\)o</div><span class="dim">→</span><span style="color:var(--block)">blocked</span></div>
+      <div class="pt mono"><div class="in">^Tokens:</div><span class="dim">→</span><span style="color:var(--done)">done</span></div>
+      <div class="pt mono"><div class="in">Thinking</div><span class="dim">→</span><span style="color:var(--busy)">working</span></div>
+      <div class="nt">No match for 20s while the process runs counts as idle.</div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div class="h">Test patterns</div>
+      <div class="in mono" style="color:var(--fg2);line-height:1.6">Apply these changes? (Y)es/(N)o<br><span style="color:var(--block)">→ blocked</span></div>
+    </div>
+  </div>
+</div>
+
+
+</body>
+</html>

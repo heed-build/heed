@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pull requests</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);width:1440px;height:900px;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;overflow:hidden;box-sizing:border-box}
+.app *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.tb{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.vs{display:flex;gap:2px;margin-left:12px}
+.vs span{padding:3px 10px;border-radius:5px;font-size:11.5px;color:var(--fg3);display:flex;gap:6px}
+.vs span.on{background:#2b2f35;color:var(--fg)}
+.vs b{font-weight:500;color:var(--block)}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.dim{color:var(--fg3)}
+.rc{display:inline-flex;align-items:center;gap:6px;font-size:11px;border-radius:4px;padding:1px 7px 1px 3px;width:max-content;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.rc i{display:flex;width:12px;height:12px;border-radius:3px;font:700 8px/12px sans-serif;font-style:normal;justify-content:center;background:currentColor}
+.rc i b{color:#101114;font-weight:700}
+.av{flex:none;width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;font:700 10px/1 sans-serif;color:#101114}
+.o-e{background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)}
+.o-n{background:color-mix(in oklch,oklch(0.78 0.13 350) 16%,#1b1e22);color:oklch(0.84 0.1 350)}
+.o-p{background:color-mix(in oklch,oklch(0.82 0.13 120) 16%,#1b1e22);color:oklch(0.86 0.11 120)}
+.o-c{background:color-mix(in oklch,oklch(0.8 0.12 50) 16%,#1b1e22);color:oklch(0.85 0.1 50)}
+.th,.r{display:grid;grid-template-columns:28px 190px minmax(0,1fr) 110px 120px 56px 110px;gap:10px;align-items:center;padding:0 20px}
+.th{height:32px;border-bottom:1px solid var(--line)}
+.r{height:58px;font-size:12.5px}
+.r .n{text-align:right;color:var(--fg3);font-size:11px}
+.r.cur{background:var(--bg3)}
+.r.cur .n{color:var(--fg);font-weight:700}
+.bar{display:flex;gap:2px}
+.bar i{display:block;width:14px;height:4px;border-radius:1px;background:#3a4047}
+.bar i.ok{background:var(--done)}.bar i.run{background:var(--busy)}.bar i.no{background:var(--err)}
+.g{flex:none;display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;font:700 8px/1 sans-serif;color:#101114}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%}
+.g.done{background:var(--done);border-radius:50%}
+.g.idle{border:1.5px solid var(--fg3);border-radius:50%}
+.seg{display:flex;border:1px solid #30353b;border-radius:6px;overflow:hidden;width:max-content}
+.seg span{padding:4px 12px;font-size:12px;color:var(--fg2);border-right:1px solid #30353b}
+.seg span:last-child{border-right:0}
+.seg span.on{background:#dfe3e8;color:#111214;font-weight:600}
+.pn{background:var(--bg2);border-left:1px solid var(--line);width:460px;flex:none;padding:18px 22px;display:flex;flex-direction:column;gap:12px}
+.fb{display:flex;gap:10px;background:var(--bg3);border-radius:9px;padding:10px 12px}
+.ck{flex:none;width:14px;height:14px;margin-top:2px;border-radius:3px;border:1.5px solid #4a5058;display:flex;align-items:center;justify-content:center;font:700 9px/1 sans-serif;color:#111214}
+.ck.on{background:var(--block);border-color:var(--block)}
+.sb{height:28px;flex:none;display:flex;align-items:stretch;background:var(--bg3);border-top:1px solid var(--line);font-size:11.5px}
+.sb>div{display:flex;align-items:center;padding:0 12px;gap:8px}
+</style>
+
+</head>
+<body>
+
+
+<div class="app">
+  <div class="tb">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="vs mono"><span>1 Sessions</span><span>2 Inbox <b>7</b></span><span>3 Issues</span><span class="on">4 PRs <b>2</b></span><span>5 Repos</span><span>6 History</span></div>
+    <div style="flex:1"></div>
+    <span style="font-size:11.5px;color:var(--fg3)">watching 4 PRs · polling every 60s</span>
+  </div>
+  <div style="flex:1;min-height:0;display:flex">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div class="th h"><span></span><span>PR</span><span>Title</span><span>Checks</span><span>Review</span><span>Feedback</span><span>Auto-feed</span></div>
+      <div class="r cur"><span class="n mono">1</span><span style="display:flex;gap:6px;align-items:center"><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span class="mono dim" style="font-size:11px">#2841</span></span><span>Fix broken anchors in redirects<br><span style="font-size:11px;color:var(--fg3)"><span class="g busy" style="vertical-align:-2px"></span> fix-anchors-redirects</span></span><span style="display:flex;flex-direction:column;gap:4px"><span class="bar"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="no"></i><i></i></span><span style="font-size:11px;color:var(--err)">lint failed</span></span><span>changes requested</span><span class="mono" style="color:var(--block)">2 new</span><span style="display:flex;gap:6px;align-items:center;font-size:12px">Ask</span></div>
+      <div class="r"><span class="n mono">1</span><span style="display:flex;gap:6px;align-items:center"><span class="rc o-e"><i><b>e</b></i>docs-content</span><span class="mono dim" style="font-size:11px">#1920</span></span><span>Redirects for moved pages<br><span style="font-size:11px;color:var(--fg3)"><span class="g busy" style="vertical-align:-2px"></span> fix-anchors-redirects</span></span><span style="display:flex;flex-direction:column;gap:4px"><span class="bar"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i></span><span style="font-size:11px;color:var(--fg3)">4/4 passed</span></span><span>1 approved</span><span class="mono dim">0</span><span style="font-size:12px">Ask</span></div>
+      <div class="r"><span class="n mono">2</span><span style="display:flex;gap:6px;align-items:center"><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span class="mono dim" style="font-size:11px">#2838</span></span><span>Cross-link validator for assembler<br><span style="font-size:11px;color:var(--fg3)">cross-link-validator</span></span><span style="display:flex;flex-direction:column;gap:4px"><span class="bar"><i class="ok"></i><i class="ok"></i><i class="run"></i><i></i><i></i></span><span style="font-size:11px;color:var(--fg3)">2/5 running</span></span><span class="dim">no review yet</span><span class="mono dim">0</span><span style="font-size:12px">Auto when idle</span></div>
+      <div class="r"><span class="n mono">3</span><span style="display:flex;gap:6px;align-items:center"><span class="rc o-c"><i><b>e</b></i>editorconfig</span><span class="mono dim" style="font-size:11px">#412</span></span><span>Bump spec tests to 0.17<br><span style="font-size:11px;color:var(--fg3)"><span class="g done" style="vertical-align:-2px">✓</span> bump-spec-tests</span></span><span style="display:flex;flex-direction:column;gap:4px"><span class="bar"><i class="ok"></i><i class="ok"></i><i class="ok"></i></span><span style="font-size:11px;color:var(--fg3)">3/3 passed</span></span><span style="color:var(--done)">approved</span><span class="mono dim">0</span><span style="font-size:12px" class="dim">Off</span></div>
+    </div>
+
+    <div class="pn">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="h">docs-builder #2841 · feedback queue</span><span class="kbd mono">↩</span></div>
+      <div class="fb"><div class="ck on">✓</div><div style="min-width:0"><div class="mono" style="font-size:11px;color:var(--fg3)">@reviewer · RedirectFile.cs:88</div><div style="font-size:12.5px;margin-top:2px">Anchor lookup is case sensitive. Heading slugs are lowercased, so this misses valid targets.</div></div></div>
+      <div class="fb"><div class="ck on">✓</div><div style="min-width:0"><div class="mono" style="font-size:11px;color:var(--fg3)">@reviewer · AnchorTests.cs:12</div><div style="font-size:12.5px;margin-top:2px">Please cover the moved-page case.</div></div></div>
+      <div class="fb"><div class="ck on">✓</div><div style="min-width:0"><div class="mono" style="font-size:11px;color:var(--err)">check · lint failed</div><div class="mono" style="font-size:11.5px;margin-top:2px;color:var(--fg2)">docs/redirects.md:41 line too long</div></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <div class="h">Send to session</div>
+        <div class="seg"><span>Off</span><span class="on">Ask</span><span>Auto when idle</span></div>
+        <div style="font-size:12px;color:var(--fg2);line-height:1.5">Target: <span class="mono" style="color:var(--fg)">fix-anchors-redirects</span> (claude, working). The agent is busy, so this waits and delivers when it goes idle.</div>
+      </div>
+      <div class="mono" style="font-size:11.5px;line-height:1.7;background:#0c0d0f;border:1px solid var(--line);border-radius:9px;padding:12px 14px;color:#cfd3d8">
+        <div class="dim">Prompt that will be sent</div>
+        <div>Review feedback on PR #2841. Address each item, run the tests, push.</div>
+        <div>1. RedirectFile.cs:88 case-sensitive anchor lookup</div>
+        <div>2. AnchorTests.cs:12 add moved-page case</div>
+        <div>3. lint: docs/redirects.md:41 line too long</div>
+      </div>
+      <div style="flex:1"></div>
+      <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;color:var(--fg2);align-items:center">
+        <span><span class="kbd mono">s</span> send checked</span><span><span class="kbd mono">x</span> dismiss</span><span><span class="kbd mono">m</span> mode</span><span class="dim">Stops after 3 rounds with no new approval.</span>
+      </div>
+    </div>
+  </div>
+  <div class="sb mono">
+    <div style="background:#dfe3e8;color:#111214;font-weight:700;letter-spacing:.06em">NORMAL</div>
+    <div style="color:var(--fg2)">PR #2841</div>
+    <div style="flex:1"></div>
+    <div style="color:var(--fg3)">j k move · ↩ o read · s send feedback · m auto-feed · gS session · ? help</div>
+    <div style="color:var(--fg2)">1/4</div>
+  </div>
+</div>
+
+
+</body>
+</html>

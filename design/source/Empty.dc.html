@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Empty states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.sheet{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);width:1440px;height:900px;padding:40px;background:#0b0c0e;color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:20px;overflow:hidden}
+.sheet *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.pn{background:var(--bg);border:1px solid #30353b;border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.pb{height:34px;flex:none;display:flex;align-items:center;gap:6px;padding:0 14px;background:var(--bg2);border-bottom:1px solid var(--line);font-size:11.5px;color:var(--fg3)}
+.vs{display:flex;gap:2px;margin-left:6px}
+.vs span{padding:2px 9px;border-radius:5px;font-size:11px;color:var(--fg3)}
+.vs span.on{background:#2b2f35;color:var(--fg)}
+.ct{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:0 60px}
+.big{font-size:22px;color:var(--fg);font-weight:500}
+.sub{font-size:13px;color:var(--fg2);line-height:1.6;max-width:420px}
+.kbd{font-size:11px;color:var(--fg);border:1px solid #3a3f46;border-radius:4px;padding:1px 7px;background:#1a1d20}
+.ks{display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:var(--fg2);align-items:flex-start}
+.ks div{display:flex;gap:10px;align-items:center}
+.ck{width:34px;height:34px;border-radius:50%;background:var(--done);color:#101114;display:flex;align-items:center;justify-content:center;font:700 16px/1 sans-serif}
+.bn{margin:12px 14px 0;padding:9px 12px;border-radius:8px;background:color-mix(in oklch,var(--block) 14%,transparent);color:var(--block);font-size:12px;display:flex;align-items:center;gap:10px}
+.rw{display:flex;align-items:center;gap:10px;padding:0 20px;height:38px;border-top:1px solid var(--line);font-size:12px;color:#6f767e}
+</style>
+</helmet>
+<div class="sheet">
+  <div class="pn">
+    <div class="pb"><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><div class="vs mono"><span class="on">1 Sessions</span><span>2 Inbox</span><span>3 Issues</span><span>4 PRs</span><span>5 Repos</span></div></div>
+    <div class="ct">
+      <div class="big">No sessions yet</div>
+      <div class="sub">A session is one task: a prompt, a worktree, an agent and its PRs.</div>
+      <div class="ks">
+        <div><span class="kbd mono">o</span>start work from a prompt</div>
+        <div><span class="kbd mono">2</span>or pick from your GitHub inbox</div>
+        <div><span class="kbd mono">?</span>all keys</div>
+      </div>
+    </div>
+    <div class="pb mono" style="border-top:1px solid var(--line);border-bottom:0"><span style="background:#dfe3e8;color:#111214;font-weight:700;padding:1px 8px;margin-left:-14px;height:100%;display:flex;align-items:center;letter-spacing:.06em">NORMAL</span></div>
+  </div>
+
+  <div class="pn">
+    <div class="pb"><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><div class="vs mono"><span>1 Sessions</span><span class="on">2 Inbox</span><span>3 Issues</span><span>4 PRs</span><span>5 Repos</span></div></div>
+    <div class="ct">
+      <div class="ck">✓</div>
+      <div class="big">Inbox zero</div>
+      <div class="sub">Nothing unread. Filters are still set to Unread; press <span class="kbd mono">a</span> to see everything.</div>
+      <div style="font-size:12px;color:var(--fg3)">Synced 20s ago · <span class="kbd mono">r</span> refresh</div>
+    </div>
+  </div>
+
+  <div class="pn">
+    <div class="pb"><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><div class="vs mono"><span>1 Sessions</span><span>2 Inbox</span><span>3 Issues</span><span class="on">4 PRs</span><span>5 Repos</span></div></div>
+    <div class="ct">
+      <div class="big">No PRs to watch</div>
+      <div class="sub">When a session opens a PR, it appears here and its review comments and checks are tracked from then on.</div>
+      <div class="ks">
+        <div><span class="kbd mono">gP</span>track a PR by URL, in any repo</div>
+        <div><span class="kbd mono">:track</span>same, from the command line</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pn">
+    <div class="pb"><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><span style="width:10px;height:10px;border-radius:50%;background:#3a3f46"></span><div class="vs mono"><span>1 Sessions</span><span class="on">2 Inbox</span><span>3 Issues</span><span>4 PRs</span><span>5 Repos</span></div></div>
+    <div class="bn"><span style="width:10px;height:10px;background:var(--block);transform:rotate(45deg);border-radius:2px;flex:none"></span><span style="flex:1">GitHub is unreachable. Showing what was cached 14 minutes ago.</span><span class="kbd mono">r</span> retry</div>
+    <div style="flex:1;margin-top:10px">
+      <div class="rw"><span class="mono">PR</span><span class="mono">docs-builder</span><span>Add link validation to assembler</span></div>
+      <div class="rw"><span class="mono">CI</span><span class="mono">docs-builder</span><span>lint failed on #2841</span></div>
+      <div class="rw"><span class="mono">ISSUE</span><span class="mono">docs-builder</span><span>Anchors lost when a page is moved</span></div>
+      <div class="rw"><span class="mono">PR</span><span class="mono">mermaider</span><span>Arrowhead markers on sequence diagrams</span></div>
+    </div>
+    <div class="sub" style="padding:0 20px 18px;max-width:none;font-size:12px;color:var(--fg3)">Sessions, terminals and worktrees keep working offline. Auto-feed pauses and resumes when GitHub is back.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

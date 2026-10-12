@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>History</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);width:1440px;height:900px;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;overflow:hidden;box-sizing:border-box}
+.app *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.tb{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.vs{display:flex;gap:2px;margin-left:12px}
+.vs span{padding:3px 10px;border-radius:5px;font-size:11.5px;color:var(--fg3);display:flex;gap:6px}
+.vs span.on{background:#2b2f35;color:var(--fg)}
+.vs b{font-weight:500;color:var(--block)}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.dim{color:var(--fg3)}
+.fl{display:flex;gap:8px;padding:10px 20px;border-bottom:1px solid var(--line);font-size:12px;color:var(--fg2);align-items:center}
+.fc{border:1px solid #373c43;border-radius:12px;padding:1px 10px}
+.fc.on{background:#dfe3e8;color:#111214;border-color:#dfe3e8;font-weight:600}
+.dh{padding:10px 20px 4px;background:#131518}
+.r{display:grid;grid-template-columns:28px 18px minmax(0,1fr) 140px 74px 70px 88px;gap:10px;align-items:center;height:46px;padding:0 20px;font-size:12.5px}
+.r .n{text-align:right;color:var(--fg3);font-size:11px}
+.r.cur{background:var(--bg3)}
+.r.cur .n{color:var(--fg);font-weight:700}
+.rc{display:inline-flex;align-items:center;gap:6px;font-size:11px;border-radius:4px;padding:1px 7px 1px 3px;width:max-content}
+.rc i{display:flex;width:12px;height:12px;border-radius:3px;font:700 8px/12px sans-serif;font-style:normal;justify-content:center;background:currentColor}
+.rc i b{color:#101114;font-weight:700}
+.o-e{background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)}
+.o-n{background:color-mix(in oklch,oklch(0.78 0.13 350) 16%,#1b1e22);color:oklch(0.84 0.1 350)}
+.o-p{background:color-mix(in oklch,oklch(0.82 0.13 120) 16%,#1b1e22);color:oklch(0.86 0.11 120)}
+.o-c{background:color-mix(in oklch,oklch(0.8 0.12 50) 16%,#1b1e22);color:oklch(0.85 0.1 50)}
+.g{flex:none;display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;font:700 8px/1 sans-serif;color:#101114}
+.g.mg{background:var(--done);border-radius:50%}
+.g.cl{border:1.5px solid var(--fg3);border-radius:2px}
+.g.ab{border:1.5px solid var(--fg3);border-radius:50%}
+.g.cn{border:1.5px dashed var(--fg3);border-radius:50%}
+.pn{background:var(--bg2);border-left:1px solid var(--line);width:470px;flex:none;padding:18px 22px;display:flex;flex-direction:column;gap:12px}
+.tl{display:flex;flex-direction:column;gap:7px;font-size:12px;color:var(--fg2)}
+.tl div{display:grid;grid-template-columns:70px minmax(0,1fr);gap:10px}
+.cmd{font-size:11.5px;background:#0c0d0f;border:1px solid var(--line);border-radius:6px;padding:5px 9px;color:#cfd3d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb{height:28px;flex:none;display:flex;align-items:stretch;background:var(--bg3);border-top:1px solid var(--line);font-size:11.5px}
+.sb>div{display:flex;align-items:center;padding:0 12px;gap:8px}
+</style>
+</helmet>
+<div class="app">
+  <div class="tb">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="vs mono"><span>1 Sessions</span><span>2 Inbox <b>7</b></span><span>3 Issues</span><span>4 PRs <b>2</b></span><span>5 Repos</span><span class="on">6 History</span></div>
+    <div style="flex:1"></div>
+    <span class="kbd mono">/</span><span style="font-size:11.5px;color:var(--fg3);margin-left:-8px">search prompts and branches</span>
+  </div>
+  <div style="flex:1;min-height:0;display:flex">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div class="fl"><span class="fc on">All</span><span class="fc">Merged</span><span class="fc">Closed</span><span class="fc">Abandoned</span><span class="fc">Cleaned up</span><span style="flex:1"></span><span class="fc mono">org: all</span><span class="fc mono">agent: all</span></div>
+
+      <div class="dh h">Today</div>
+      <div class="r"><span class="n mono">4</span><span class="g mg">✓</span><span>Fix toc ordering <span class="dim mono">#2810</span></span><span class="rc mono o-e"><i><b>e</b></i>docs-builder</span><span class="mono dim">claude</span><span class="mono dim">2h 10m</span><span class="dim mono">merged</span></div>
+      <div class="r"><span class="n mono">3</span><span class="g mg">✓</span><span>Fix redirect typos <span class="dim mono">#1912</span></span><span class="rc mono o-e"><i><b>e</b></i>docs-content</span><span class="mono dim">claude</span><span class="mono dim">41m</span><span class="dim mono">merged</span></div>
+      <div class="dh h">Yesterday</div>
+      <div class="r"><span class="n mono">2</span><span class="g mg">✓</span><span>Bump spec tests to 0.17 <span class="dim mono">#412</span></span><span class="rc mono o-c"><i><b>e</b></i>editorconfig</span><span class="mono dim">claude</span><span class="mono dim">1h 05m</span><span class="dim mono">merged</span></div>
+      <div class="r"><span class="n mono">1</span><span class="g ab"></span><span>Flowchart label wrapping</span><span class="rc mono o-n"><i><b>n</b></i>mermaider</span><span class="mono dim">opencode</span><span class="mono dim">26m</span><span class="dim mono">abandoned</span></div>
+      <div class="r cur"><span class="n mono">5</span><span class="g cl"></span><span>Docs nav spike v1 <span class="dim mono">#2790</span></span><span class="rc mono o-e"><i><b>e</b></i>docs-builder</span><span class="mono dim">opencode</span><span class="mono dim">3h 40m</span><span class="dim mono">closed</span></div>
+      <div class="dh h">Last week</div>
+      <div class="r"><span class="n mono">1</span><span class="g mg">✓</span><span>Snippet include performance <span class="dim mono">#2781</span></span><span class="rc mono o-e"><i><b>e</b></i>docs-builder</span><span class="mono dim">claude</span><span class="mono dim">2h 55m</span><span class="dim mono">merged</span></div>
+      <div class="r"><span class="n mono">2</span><span class="g cn"></span><span>Parser fuzzing harness</span><span class="rc mono o-n"><i><b>n</b></i>mermaider</span><span class="mono dim">claude</span><span class="mono dim">1h 30m</span><span class="dim mono">cleaned</span></div>
+      <div class="r"><span class="n mono">3</span><span class="g ab"></span><span>Event schema draft</span><span class="rc mono o-p"><i><b>m</b></i>atlas</span><span class="mono dim">codex</span><span class="mono dim">48m</span><span class="dim mono">abandoned</span></div>
+    </div>
+
+    <div class="pn">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span class="h">Closed 4 days ago</span><span class="rc mono o-e"><i><b>e</b></i>docs-builder</span></div>
+      <div style="font-size:16px;font-weight:600">Docs nav spike v1</div>
+      <div class="cmd mono" style="color:var(--fg2)">Prototype a flatter docs navigation and compare it with the current tree.</div>
+      <div class="tl mono">
+        <div><span class="dim">Mon 09:40</span><span>started · opencode · 2 panes</span></div>
+        <div><span class="dim">Mon 11:05</span><span>opened PR #2790</span></div>
+        <div><span class="dim">Mon 13:20</span><span>ended after 3h 40m</span></div>
+        <div><span class="dim">Tue 10:12</span><span>PR closed unmerged</span></div>
+        <div><span class="dim">Tue 10:12</span><span>worktree kept: PR rule is off</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--fg2);line-height:1.5">Branch <span class="mono">docs-nav-spike</span> is still on disk. The app keeps only the prompt and session id; the transcript belongs to the agent.</div>
+      <div class="cmd mono">opencode --session b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60</div>
+      <div style="flex:1"></div>
+      <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--fg2)">
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">R</span>reopen: resume the agent; recreates the worktree if cleaned up. If the agent has dropped the session, starts fresh with the same prompt</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">↩</span><span class="kbd mono">o</span>read the agent's transcript, if it still exists</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">O</span>start a new session from this prompt</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">p</span>pin</div>
+      </div>
+    </div>
+  </div>
+  <div class="sb mono">
+    <div style="background:#dfe3e8;color:#111214;font-weight:700;letter-spacing:.06em">NORMAL</div>
+    <div style="color:var(--fg2)">History</div>
+    <div style="flex:1"></div>
+    <div style="color:var(--fg3)">j k move · / search · R reopen · ↩ read · O new from prompt · ? help</div>
+    <div style="color:var(--fg2)">5/9</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

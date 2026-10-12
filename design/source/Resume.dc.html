@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Resume sessions on launch</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.bg{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);width:1440px;height:900px;background:#0b0c0e;position:relative;overflow:hidden;color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif}
+.bg *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.dlg{position:absolute;left:190px;top:70px;width:1060px;background:var(--bg2);border:1px solid #3a3f46;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.55);overflow:hidden}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.r{display:grid;grid-template-columns:20px 20px minmax(0,1.1fr) 150px minmax(0,1.5fr);gap:14px;align-items:start;padding:12px 24px;border-top:1px solid var(--line)}
+.ck{width:14px;height:14px;margin-top:2px;border-radius:3px;border:1.5px solid #4a5058;display:flex;align-items:center;justify-content:center;font:700 9px/1 sans-serif;color:#111214}
+.ck.on{background:#dfe3e8;border-color:#dfe3e8}
+.g{flex:none;display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;margin-top:2px;font:700 8px/1 sans-serif;color:#101114}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%}
+.g.block{background:var(--block);transform:rotate(45deg) scale(.78);border-radius:2px}
+.g.ask{background:var(--ask);border-radius:50%}
+.g.idle{border:1.5px solid var(--fg3);border-radius:50%}
+.cmd{font-size:11.5px;background:#0c0d0f;border:1px solid var(--line);border-radius:6px;padding:4px 8px;color:#cfd3d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nt{font-size:11.5px;color:var(--fg3);line-height:1.5}
+.seg{display:flex;border:1px solid #30353b;border-radius:6px;overflow:hidden;width:max-content}
+.seg span{padding:4px 12px;font-size:12px;color:var(--fg2);border-right:1px solid #30353b}
+.seg span:last-child{border-right:0}
+.seg span.on{background:#dfe3e8;color:#111214;font-weight:600}
+.chip{font-size:10.5px;border-radius:4px;padding:1px 7px;display:inline-block}
+.chip.w{color:var(--busy);background:color-mix(in oklch,var(--busy) 16%,transparent)}
+.chip.o{color:var(--fg2);background:#272b30}
+.btn{font-size:13px;border:1px solid #3a3f46;border-radius:7px;padding:7px 16px;color:var(--fg2)}
+.btn.p{background:#dfe3e8;color:#111214;border-color:#dfe3e8;font-weight:600}
+</style>
+</helmet>
+<div class="bg">
+  <div class="dlg">
+    <div style="padding:20px 24px 14px;display:flex;align-items:center;justify-content:space-between">
+      <div><div style="font-size:17px;font-weight:600">Pick up where you left off</div><div style="font-size:12.5px;color:var(--fg2);margin-top:3px">5 sessions were active when the app quit. Parked and finished ones stay closed.</div></div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--fg2)">Auto-continue<div class="seg"><span class="on">Ask</span><span>Always</span><span>Never</span></div></div>
+    </div>
+
+    <div class="r"><div class="ck on">✓</div><span class="g busy"></span>
+      <div><div style="font-weight:500">Fix broken anchors in redirects</div><div class="nt">claude · 3 panes · was working</div></div>
+      <div><span class="chip w">resume, then continue</span></div>
+      <div class="cmd mono">claude --resume 7f3a9c1e-52b4-4e0d-9a61-0c8d3e1f2b77</div></div>
+    <div class="r"><div class="ck on">✓</div><span class="g block"></span>
+      <div><div style="font-weight:500">Cross-link validator for assembler</div><div class="nt">claude · 2 panes · was blocked on a permission prompt</div></div>
+      <div><span class="chip o">resume only</span></div>
+      <div><div class="cmd mono">claude --resume 2c81d6aa-9e17-4b3f-8d05-6a4e7b9c0d12</div><div class="nt" style="margin-top:4px">The prompt is gone after a restart. The agent will ask again.</div></div></div>
+    <div class="r"><div class="ck on">✓</div><span class="g ask">?</span>
+      <div><div style="font-weight:500">Backpressure in ingest stage</div><div class="nt">codex · 2 panes · was asking 3 questions</div></div>
+      <div><span class="chip o">resume only</span></div>
+      <div class="cmd mono">codex resume 91be40d2-7a35-4c68-b2f9-13e5a8d07c46</div></div>
+    <div class="r"><div class="ck on">✓</div><span class="g busy"></span>
+      <div><div style="font-weight:500">Sequence diagram arrowheads</div><div class="nt">claude · 1 pane · was working</div></div>
+      <div><span class="chip w">resume, then continue</span></div>
+      <div class="cmd mono">claude --resume e0457f3b-18c2-4d9a-a6b1-5f2d9c8e3a04</div></div>
+    <div class="r"><div class="ck"></div><span class="g idle"></span>
+      <div><div style="font-weight:500">Docs nav spike</div><div class="nt">opencode · 1 pane · idle for 2h</div></div>
+      <div><span class="chip o">left closed</span></div>
+      <div class="cmd mono" style="color:var(--fg3)">opencode --session b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60</div></div>
+
+    <div style="border-top:1px solid var(--line);padding:14px 24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="h">After resuming a session that was mid-turn</div>
+        <div class="cmd mono" style="color:var(--fg2)">Continue where you left off.</div>
+        <div class="nt">Sent once the agent is idle and ready. Edit the text, or switch it off in Settings.</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="h">What comes back</div>
+        <div class="nt">Worktrees, tabs and split layout, and every shell in its old directory. Processes inside shells do not survive a restart, so tests and watchers need starting again.<br>Session ids come from each agent's start hook, saved the moment the session begins.</div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid var(--line);background:#101113;padding:14px 24px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:12px;color:var(--fg3);display:flex;align-items:center;gap:8px"><span class="kbd mono">space</span>toggle<span class="kbd mono" style="margin-left:8px">j k</span>move</div>
+      <div style="display:flex;gap:10px;align-items:center"><span class="btn">Start empty</span><span class="btn p">Resume 4 sessions <span class="kbd mono" style="margin-left:6px;color:#111214;border-color:#8a9097;background:transparent">⌘↩</span></span></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

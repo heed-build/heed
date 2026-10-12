@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Modes, keys and agent states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.sheet{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);--hint:oklch(0.82 0.1 195);width:1440px;height:900px;padding:36px 40px;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;display:flex;flex-direction:column;gap:22px;overflow:hidden}
+.sheet *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+.mc{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:9px}
+.mb{align-self:flex-start;font-size:11.5px;font-weight:700;letter-spacing:.06em;color:#111214;padding:2px 10px;border-radius:4px}
+.mc p{margin:0;font-size:12px;color:var(--fg2)}
+.ky{display:flex;gap:8px;align-items:baseline;font-size:12px;color:var(--fg2)}
+.k{font-size:11px;color:var(--fg);border:1px solid #3a3f46;border-radius:4px;padding:0 5px;background:#1a1d20;white-space:nowrap}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.25fr);gap:32px;flex:1;min-height:0}
+.grp{display:flex;flex-direction:column;gap:7px;margin-bottom:18px}
+.grp .ky{display:grid;grid-template-columns:62px minmax(0,1fr);gap:8px}
+.st{display:grid;grid-template-columns:20px 84px minmax(0,1fr);gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:12px;color:var(--fg2)}
+.st b{font-weight:500;color:var(--fg)}
+.g{flex:none;display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;font:700 8px/1 sans-serif;color:#101114}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%}
+.g.idle{border:1.5px solid var(--fg3);border-radius:50%}
+.g.block{background:var(--block);transform:rotate(45deg) scale(.78);border-radius:2px}
+.g.ask{background:var(--ask);border-radius:50%}
+.g.done{background:var(--done);border-radius:50%}
+.g.lim{border:1.5px dashed var(--block);border-radius:50%}
+.g.exit{border:1.5px solid var(--fg3);border-radius:2px}
+.code{background:#0c0d0f;border:1px solid var(--line);border-radius:9px;padding:12px 14px;font-size:11.5px;line-height:1.75;color:#cfd3d8}
+.dim{color:#7b828a}
+</style>
+</helmet>
+<div style="position:relative;width:1440px;height:900px;background:#0b0c0e;overflow:hidden">
+<div style="position:absolute;left:0;top:0;width:1440px;height:900px"><dc-import name="Main" hint-size="1440px,900px"></dc-import></div>
+<div style="position:absolute;left:0;top:0;width:1440px;height:900px;background:rgba(8,9,10,.66);backdrop-filter:blur(3px)"></div>
+<div class="sheet" style="position:absolute;left:60px;top:28px;width:1320px;height:844px;border:1px solid #3a3f46;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.55);padding:22px 32px 0;gap:16px">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:12px"><span style="font-size:15px;font-weight:600">Keys &amp; states</span><span class="mono" style="font-size:11px;color:#111214;background:#dfe3e8;border-radius:4px;padding:1px 8px;font-weight:700;letter-spacing:.06em">you are in NORMAL</span></div>
+    <div style="display:flex;gap:8px;align-items:center;font-size:11.5px;color:var(--fg3)"><span class="k mono">?</span>every mode except INSERT<span class="k mono" style="margin-left:6px">⌘/</span>everywhere<span class="k mono" style="margin-left:6px">⎋</span>close</div>
+  </div>
+  <div class="cards">
+    <div class="mc" style="border-color:#dfe3e8">
+      <div class="mb" style="background:#dfe3e8">NORMAL</div>
+      <p>Default. Keys drive the app, nothing reaches a terminal.</p>
+      <div class="ky"><span class="k mono">⎋</span>from any other mode</div>
+      <div class="ky"><span class="k mono">⌃\</span>out of a terminal</div>
+    </div>
+    <div class="mc">
+      <div class="mb" style="background:var(--done)">INSERT</div>
+      <p>Every key goes to the focused pty. Only the escape chord is caught.</p>
+      <div class="ky"><span class="k mono">i</span>enter on focused pane</div>
+      <div class="ky"><span class="k mono">⌃\</span>leave (configurable)</div>
+    </div>
+    <div class="mc">
+      <div class="mb" style="background:var(--block)">VISUAL</div>
+      <p>Select several sessions, worktrees or panes, then act on all of them.</p>
+      <div class="ky"><span class="k mono">v</span><span class="k mono">V</span>enter</div>
+      <div class="ky"><span class="k mono">d</span><span class="k mono">p</span><span class="k mono">y</span>remove, pin, copy</div>
+    </div>
+    <div class="mc">
+      <div class="mb" style="background:var(--ask)">COMMAND</div>
+      <p>Typed commands with completion.</p>
+      <div class="ky"><span class="k mono">:</span>enter</div>
+      <div class="ky mono" style="font-size:11px;flex-wrap:wrap;gap:4px 10px"><span>:start</span><span>:pr 2841</span><span>:wt sweep</span><span>:agent codex</span></div>
+    </div>
+    <div class="mc">
+      <div class="mb" style="background:var(--hint)">HINT</div>
+      <p>Letter badges over every pane, tab and session. Type one to jump.</p>
+      <div class="ky"><span class="k mono">f</span>jump to anything</div>
+      <div class="ky"><span class="k mono">F</span>jump and enter INSERT</div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <div class="h" style="margin-bottom:12px">Normal · move &amp; sessions</div>
+      <div class="grp">
+        <div class="ky"><span class="k mono">j k</span>next / previous session (<span class="mono">3j</span> jumps 3)</div>
+        <div class="ky"><span class="k mono">h l</span>focus pane left / right</div>
+        <div class="ky"><span class="k mono">gg G</span>first / last session</div>
+        <div class="ky"><span class="k mono">/</span>filter by repo, branch, PR, agent</div>
+      </div>
+      <div class="grp">
+        <div class="ky"><span class="k mono">o</span>start work</div>
+        <div class="ky"><span class="k mono">O</span>start work from this session's prompt</div>
+        <div class="ky"><span class="k mono">ga</span>next session needing you</div>
+        <div class="ky"><span class="k mono">zz</span>park session</div>
+        <div class="ky"><span class="k mono">x</span>close session, keep worktree</div>
+        <div class="ky"><span class="k mono">p</span>pin / unpin session</div>
+        <div class="ky"><span class="k mono">'1</span>jump to pinned 1 to 9</div>
+        <div class="ky"><span class="k mono">''</span>back to previous session</div>
+        <div class="ky"><span class="k mono">gh</span>history</div>
+      </div>
+    </div>
+    <div>
+      <div class="h" style="margin-bottom:12px">Normal · panes &amp; repos</div>
+      <div class="grp">
+        <div class="ky"><span class="k mono">⌃w v</span>split right</div>
+        <div class="ky"><span class="k mono">⌃w s</span>split below</div>
+        <div class="ky"><span class="k mono">⌃w z</span>zoom pane</div>
+        <div class="ky"><span class="k mono">⌃w q</span>close pane</div>
+        <div class="ky"><span class="k mono">gt gT</span>next / previous tab</div>
+        <div class="ky"><span class="k mono">gn</span>new tab with shell</div>
+      </div>
+      <div class="grp">
+        <div class="ky"><span class="k mono">⌘1–6</span>sessions, inbox, issues, PRs, repos, history</div>
+        <div class="ky"><span class="k mono">gs</span>run cleanup sweep</div>
+        <div class="ky"><span class="k mono">gd</span>diff overlay: commits, staged, unstaged</div>
+        <div class="ky"><span class="k mono">gp</span>PR overlay for this session (toggle)</div>
+        <div class="ky"><span class="k mono">gP</span>track a PR by URL</div>
+        <div class="ky"><span class="k mono">↩ o</span>read inbox item, issue or PR</div>
+        <div class="ky"><span class="k mono">gi</span>toggle inspector</div>
+      </div>
+    </div>
+    <div>
+      <div class="h" style="margin-bottom:10px">Agent states · set by hooks</div>
+      <div class="st" style="border-top:0"><span class="g busy"></span><b>working</b><span>Prompt submitted or a tool is running.</span></div>
+      <div class="st"><span class="g idle"></span><b>idle</b><span>Session open, nothing running.</span></div>
+      <div class="st"><span class="g block"></span><b>blocked</b><span>Waiting on a permission prompt.</span></div>
+      <div class="st"><span class="g ask">?</span><b>asking</b><span>Interviewing you: open questions to answer.</span></div>
+      <div class="st"><span class="g done">✓</span><b>done</b><span>Turn finished. Ready for review.</span></div>
+      <div class="st"><span class="g lim"></span><b>limited</b><span>Rate limited. Falls back per Settings.</span></div>
+      <div class="st"><span class="g exit"></span><b>exited</b><span>Agent process ended, shell still alive.</span></div>
+      <div class="h" style="margin:14px 0 8px">Agent → app, over a local socket</div>
+      <div class="code mono">
+        <div><span style="color:var(--done)">$</span> cc state blocked <span class="dim">--reason "Bash(dotnet publish)"</span></div>
+        <div><span style="color:var(--done)">$</span> cc state asking <span class="dim">--reason "3 questions"</span></div>
+        <div><span style="color:var(--done)">$</span> cc pr add <span class="dim">https://github.com/…/pull/1920</span></div>
+        <div><span style="color:var(--done)">$</span> cc title <span class="dim">"Fix broken anchors"</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

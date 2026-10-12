@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repos and worktrees</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);width:1440px;height:900px;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;overflow:hidden;box-sizing:border-box}
+.app *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.g{flex:none;width:12px;height:12px;display:inline-flex;align-items:center;justify-content:center;font:700 8px/1 sans-serif;color:#101114}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%;animation:sp 1s linear infinite}
+.g.idle{border:1.5px solid var(--fg3);border-radius:50%}
+.g.block{background:var(--block);transform:rotate(45deg) scale(.78);border-radius:2px}
+.g.ask{background:var(--ask);border-radius:50%}
+.g.done{background:var(--done);border-radius:50%}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tb{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}
+.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.dim{color:var(--fg3)}
+.rc{display:inline-flex;align-items:center;gap:6px;font-size:11px;border-radius:4px;padding:1px 7px 1px 3px;width:max-content;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+.rc i{display:flex;width:12px;height:12px;border-radius:3px;font:700 8px/12px sans-serif;font-style:normal;justify-content:center;background:currentColor}
+.rc i b{color:#101114;font-weight:700}
+.av{flex:none;width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;font:700 10px/1 sans-serif;color:#101114}
+.o-e{background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)}
+.o-n{background:color-mix(in oklch,oklch(0.78 0.13 350) 16%,#1b1e22);color:oklch(0.84 0.1 350)}
+.o-p{background:color-mix(in oklch,oklch(0.82 0.13 120) 16%,#1b1e22);color:oklch(0.86 0.11 120)}
+.o-c{background:color-mix(in oklch,oklch(0.8 0.12 50) 16%,#1b1e22);color:oklch(0.85 0.1 50)}
+.rp{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:12.5px;color:var(--fg2)}
+.rp.on{background:var(--bg3);color:var(--fg)}
+.rp b{margin-left:auto;font-weight:400;color:var(--fg3);font-size:11.5px}
+.th,.tr{display:grid;grid-template-columns:34px 22px 128px minmax(0,1.5fr) 70px 150px 54px minmax(0,1.3fr);align-items:center;gap:10px;padding:0 20px}
+.th{height:32px;border-bottom:1px solid var(--line)}
+.tr{height:42px;font-size:12px}
+.tr .n{text-align:right;color:var(--fg3);font-size:11px}
+.tr.cur .n{color:var(--fg);font-weight:700}
+.tr.sel{background:color-mix(in oklch,var(--block) 14%,transparent)}
+.tr.cur{background:color-mix(in oklch,var(--block) 24%,transparent)}
+.tr.soon .cl{color:var(--block)}
+.cl{color:var(--fg3)}
+.rule{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--line)}
+.rule .tx{flex:1;min-width:0}
+.rule .d{font-size:11.5px;color:var(--fg3);margin-top:2px}
+.tg{flex:none;margin-top:2px;width:26px;height:15px;border-radius:8px;background:#3a4047;position:relative}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:#e9eaec}
+.tg.on{background:var(--done)}
+.tg.on::after{left:13px;background:#101114}
+.tg.lock{opacity:.55}
+.inp{font-size:11.5px;border:1px solid #373c43;border-radius:5px;padding:0 6px;background:#1a1d20;color:var(--fg);margin:0 3px}
+.sb{height:28px;flex:none;display:flex;align-items:stretch;background:var(--bg3);border-top:1px solid var(--line);font-size:11.5px}
+.sb>div{display:flex;align-items:center;padding:0 12px;gap:8px}
+</style>
+
+</head>
+<body>
+
+
+<div class="app">
+  <div class="tb">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="mono" style="font-size:12px;color:var(--fg2);margin-left:8px">Repos &amp; worktrees</div>
+    <div style="flex:1"></div>
+    <span class="kbd mono">⎋</span><span style="font-size:11.5px;color:var(--fg3);margin-left:-8px">back to sessions</span>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex">
+    <div style="width:240px;flex:none;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column">
+      <div style="padding:14px 16px 8px"><span class="h">Repos</span></div>
+      <div class="rp on mono">All<b>9</b></div>
+      <div class="rp mono"><span class="av" style="background:oklch(0.78 0.12 195)">e</span>docs-builder<b>4</b></div>
+      <div class="rp mono"><span class="av" style="background:oklch(0.78 0.12 195)">e</span>docs-content<b>2</b></div>
+      <div class="rp mono"><span class="av" style="background:oklch(0.78 0.12 120)">m</span>atlas<b>1</b></div>
+      <div class="rp mono"><span class="av" style="background:oklch(0.78 0.12 350)">n</span>mermaider<b>1</b></div>
+      <div class="rp mono"><span class="av" style="background:oklch(0.78 0.12 50)">e</span>editorconfig<b>1</b></div>
+      <div style="flex:1"></div>
+      <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:7px;font-size:12px;color:var(--fg2)">
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">a</span>add repo</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">c</span>clone from URL</div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="kbd mono">n</span>new worktree</div>
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div class="th h"><span></span><span></span><span>Repo</span><span>Branch</span><span>Agent</span><span>PR</span><span>Idle</span><span>Cleanup</span></div>
+
+      <div class="tr mono"><span class="n">4</span><span class="g busy"></span><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>fix-anchors-redirects</span><span>claude</span><span>#2841 <span class="dim">open</span></span><span class="dim">now</span><span class="cl">active</span></div>
+      <div class="tr mono"><span class="n">3</span><span class="g block"></span><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>cross-link-validator</span><span>claude</span><span>#2838 <span class="dim">open</span></span><span class="dim">1h</span><span class="cl">active</span></div>
+      <div class="tr mono"><span class="n">2</span><span class="g idle"></span><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>docs-nav-spike</span><span>opencode</span><span class="dim">no PR</span><span class="dim">2h</span><span class="cl">in 13d 22h</span></div>
+      <div class="tr sel mono"><span class="n">1</span><span class="g done">✓</span><span class="rc o-e"><i><b>e</b></i>docs-builder</span><span>fix-toc-ordering</span><span>claude</span><span>#2810 <span style="color:var(--done)">merged</span></span><span class="dim">1d</span><span class="cl">in 13d</span></div>
+      <div class="tr cur mono"><span class="n">5</span><span class="g done">✓</span><span class="rc o-e"><i><b>e</b></i>docs-content</span><span>fix-redirect-typos</span><span>claude</span><span>#1912 <span style="color:var(--done)">merged</span></span><span class="dim">2d</span><span class="cl">in 12d</span></div>
+      <div class="tr mono"><span class="n">1</span><span class="g busy"></span><span class="rc o-e"><i><b>e</b></i>docs-content</span><span>fix-anchors-redirects</span><span>claude</span><span>#1920 <span class="dim">open</span></span><span class="dim">now</span><span class="cl">active</span></div>
+      <div class="tr mono"><span class="n">2</span><span class="g ask">?</span><span class="rc o-p"><i><b>m</b></i>atlas</span><span>ingest-backpressure</span><span>codex</span><span class="dim">no PR</span><span class="dim">6m</span><span class="cl">active</span></div>
+      <div class="tr mono"><span class="n">3</span><span class="g busy"></span><span class="rc o-n"><i><b>n</b></i>mermaider</span><span>sequence-arrowheads</span><span>claude</span><span class="dim">no PR</span><span class="dim">now</span><span class="cl">active</span></div>
+      <div class="tr mono"><span class="n">4</span><span class="g done">✓</span><span class="rc o-c"><i><b>e</b></i>editorconfig</span><span>bump-spec-tests</span><span>claude</span><span>#412 <span class="dim">approved</span></span><span class="dim">3h</span><span class="cl">active</span></div>
+
+      <div style="margin:18px 20px 0;padding:12px 14px;border-radius:9px;background:var(--bg2);border:1px solid var(--line);display:flex;gap:14px;align-items:center;font-size:12.5px;color:var(--fg2)">
+        <span class="g block" style="flex:none"></span>
+        <div style="flex:1">Next sweep at <b class="mono" style="font-weight:500;color:var(--fg)">16:00</b> finds nothing past 14 days of inactivity. Closest: <span class="mono">docs-content/fix-redirect-typos</span> in 12d.</div>
+        <span class="kbd mono">gs</span><span class="dim" style="font-size:11.5px">run now</span>
+      </div>
+    </div>
+
+    <div style="width:380px;flex:none;background:var(--bg2);border-left:1px solid var(--line);padding:16px 20px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span class="h">Auto cleanup rules</span><span class="kbd mono">gc</span></div>
+      <div class="rule"><div class="tg on"></div><div class="tx"><div>Remove worktrees with no activity</div><div class="d">Nothing for <span class="inp mono">14d</span>: no agent output, keystrokes, commits or PR events.</div></div></div>
+      <div class="rule"><div class="tg on lock"></div><div class="tx"><div>Never remove dirty or unpushed work</div><div class="d">Always on. Skipped trees show a warning instead.</div></div></div>
+      <div class="rule"><div class="tg on"></div><div class="tx"><div>Delete the local branch too</div><div class="d">Remote branch is left alone.</div></div></div>
+      <div class="rule"><div class="tg"></div><div class="tx"><div>Ask before each sweep</div><div class="d">Off: sweeps run silently and log to the status bar.</div></div></div>
+      <div class="rule" style="color:var(--fg3);font-size:12px;line-height:1.5">Rules based on merged or closed PRs come later, once this one has proven itself.</div>
+      <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;gap:8px;align-items:center;font-size:12px;color:var(--fg2)"><span class="kbd mono">p</span>pinned sessions are never cleaned up</div>
+    </div>
+  </div>
+
+  <div class="sb mono">
+    <div style="background:var(--block);color:#111214;font-weight:700;letter-spacing:.06em">VISUAL</div>
+    <div style="color:var(--fg2)">2 selected</div>
+    <div style="flex:1"></div>
+    <div style="color:var(--fg3)">d remove · p pin · y copy path · o open session · ⎋ cancel</div>
+    <div style="color:var(--fg2)">5/9</div>
+  </div>
+</div>
+
+
+</body>
+</html>

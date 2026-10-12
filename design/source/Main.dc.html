@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Main window</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.app{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);--err:oklch(0.72 0.16 25);width:1440px;height:900px;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;overflow:hidden;box-sizing:border-box}
+.app *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.g{flex:none;width:12px;height:12px;display:inline-flex;align-items:center;justify-content:center;font:700 8px/1 sans-serif;color:#101114}
+.g.busy{border:2px solid color-mix(in oklch,var(--busy) 30%,transparent);border-top-color:var(--busy);border-radius:50%;animation:sp 1s linear infinite}
+.g.idle{border:1.5px solid var(--fg3);border-radius:50%}
+.g.block{background:var(--block);transform:rotate(45deg) scale(.78);border-radius:2px}
+.g.ask{background:var(--ask);border-radius:50%}
+.g.done{background:var(--done);border-radius:50%}
+.g.err{background:var(--err);border-radius:3px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tb{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}
+.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.crumb{font-size:12px;color:var(--fg2)}
+.crumb b{color:var(--fg);font-weight:500}
+.vs{display:flex;gap:2px;margin-left:12px}
+.vs span{padding:3px 10px;border-radius:5px;font-size:11.5px;color:var(--fg3);display:flex;gap:6px}
+.vs span.on{background:#2b2f35;color:var(--fg)}
+.vs b{font-weight:500;color:var(--block)}
+.chip{font-size:10.5px;background:#23272c;color:var(--fg2);border-radius:4px;padding:1px 6px}
+.chip .av{display:inline-flex;width:12px;height:12px;border-radius:3px;margin-right:5px;font:700 8px/12px sans-serif;justify-content:center;vertical-align:-2px;background:currentColor}
+.chip .av b{font-weight:700;color:#101114}
+.o-e{background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)}
+.o-n{background:color-mix(in oklch,oklch(0.78 0.13 350) 16%,#1b1e22);color:oklch(0.84 0.1 350)}
+.o-p{background:color-mix(in oklch,oklch(0.82 0.13 120) 16%,#1b1e22);color:oklch(0.86 0.11 120)}
+.o-c{background:color-mix(in oklch,oklch(0.8 0.12 50) 16%,#1b1e22);color:oklch(0.85 0.1 50)}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.side{width:330px;flex:none;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.row{display:flex;align-items:flex-start;gap:8px;padding:9px 12px 9px 6px}
+.row.cur{background:var(--bg3)}
+.rn{width:22px;text-align:right;font-size:11px;color:var(--fg3);padding-top:1px}
+.row.cur .rn{color:var(--fg);font-weight:700}
+.rt{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px}
+.t{font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.s{font-size:11.5px;color:var(--fg3)}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.pane{display:flex;flex-direction:column;min-width:0;min-height:0;background:#0c0d0f}
+.pane.act{box-shadow:inset 0 0 0 1px #aab0b8}
+.ph{height:26px;flex:none;display:flex;align-items:center;gap:8px;padding:0 10px;font-size:11px;color:var(--fg3);background:#121316}
+.pane.act .ph{color:var(--fg)}
+.pn{background:#2b2f35;color:var(--fg);border-radius:3px;padding:0 5px;font-size:10.5px}
+.pane.act .pn{background:#dfe3e8;color:#111214;font-weight:700}
+.term{flex:1;padding:10px 14px;font-size:12px;line-height:1.65;color:#cfd3d8;overflow:hidden}
+.dim{color:#7b828a}.ok{color:var(--done)}.bl{color:var(--busy)}.am{color:var(--block)}.rd{color:var(--err)}
+.tab{display:flex;align-items:center;gap:8px;height:36px;padding:0 14px;font-size:12px;color:var(--fg3)}
+.tab.on{color:var(--fg);background:#0c0d0f;box-shadow:inset 0 -2px 0 #dfe3e8}
+.ins{width:320px;flex:none;background:var(--bg2);border-left:1px solid var(--line);display:flex;flex-direction:column}
+.sec{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.pr{display:flex;flex-direction:column;gap:5px;background:var(--bg3);border-radius:8px;padding:10px 12px}
+.bar{display:flex;gap:2px}
+.bar i{display:block;width:14px;height:4px;border-radius:1px;background:#3a4047}
+.bar i.ok{background:var(--done)}.bar i.run{background:var(--busy)}
+.tag{font-size:10.5px;border-radius:4px;padding:0 6px;color:var(--done);background:color-mix(in oklch,var(--done) 16%,transparent)}
+.ev{display:flex;gap:8px;align-items:center;font-size:11px;color:var(--fg2)}
+.sb{height:28px;flex:none;display:flex;align-items:stretch;background:var(--bg3);border-top:1px solid var(--line);font-size:11.5px}
+.sb>div{display:flex;align-items:center;padding:0 12px;gap:8px}
+.mode{background:#dfe3e8;color:#111214;font-weight:700;letter-spacing:.06em}
+</style>
+</helmet>
+<div class="app">
+  <div class="tb">
+    <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+    <div class="crumb mono" style="margin-left:8px">docs-builder <span class="dim">/</span> <b>fix-anchors-redirects</b></div>
+    <div class="vs mono"><span class="on">1 Sessions</span><span>2 Inbox <b>7</b></span><span>3 Issues</span><span>4 PRs <b>2</b></span><span>5 Repos</span><span>6 History</span></div>
+    <div style="flex:1"></div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg2)"><span class="g block"></span>1 blocked</div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg2)"><span class="g ask">?</span>1 asking</div>
+    <span class="kbd mono">ga</span><span style="font-size:11.5px;color:var(--fg3);margin-left:-8px">next attention</span>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex">
+    <div class="side">
+      <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between">
+        <span class="h">Sessions</span><span class="kbd mono">/ filter</span>
+      </div>
+      <div class="h" style="padding:6px 16px 4px;display:flex;align-items:center;gap:6px"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 1.5l3 3-1.5.8-1.3 1.7.2 1.5-1 .5-1.7-1.7-3 3M3.6 6.4l-.5-1 1.5-.2 1.7-1.3.8-1.5"/></svg> Pinned · 2/9<span style="flex:1"></span><span class="kbd mono">'</span></div>
+      <div class="row cur">
+        <span class="rn mono">1</span><span class="g busy" style="margin-top:2px"></span>
+        <div class="rt"><div class="t">Fix broken anchors in redirects</div>
+          <div class="chips mono"><span class="chip o-e"><span class="av"><b>e</b></span>docs-builder</span><span class="chip o-e"><span class="av"><b>e</b></span>docs-content</span></div>
+          <div class="s">claude · running tests · 14m</div></div>
+        <span class="kbd mono" style="align-self:flex-start">'1</span>        <span class="chip mono">2 PR</span>
+      </div>
+      <div class="row">
+        <span class="rn mono">1</span><span class="g block" style="margin-top:2px"></span>
+        <div class="rt"><div class="t">Cross-link validator for assembler</div>
+          <div class="chips mono"><span class="chip o-e"><span class="av"><b>e</b></span>docs-builder</span></div>
+          <div class="s">claude · wants to run <span class="mono">dotnet publish</span></div></div>
+        <span class="kbd mono" style="align-self:flex-start">'2</span>        <span class="chip mono">1 PR</span>
+      </div>
+<div class="h" style="padding:12px 16px 4px;color:var(--block)">Needs you · 1</div>
+      <div class="row">
+        <span class="rn mono">2</span><span class="g ask" style="margin-top:2px">?</span>
+        <div class="rt"><div class="t">Backpressure in ingest stage</div>
+          <div class="chips mono"><span class="chip o-p"><span class="av"><b>m</b></span>atlas</span></div>
+          <div class="s">codex · 3 questions waiting</div></div>
+      </div>
+<div class="h" style="padding:12px 16px 4px">Working · 1</div>
+      <div class="row">
+        <span class="rn mono">3</span><span class="g busy" style="margin-top:2px"></span>
+        <div class="rt"><div class="t">Sequence diagram arrowheads</div>
+          <div class="chips mono"><span class="chip o-n"><span class="av"><b>n</b></span>mermaider</span></div>
+          <div class="s">claude · editing · 3m</div></div>
+      </div>
+<div class="h" style="padding:12px 16px 4px">Parked · 2</div>
+      <div class="row">
+        <span class="rn mono">4</span><span class="g done" style="margin-top:2px">✓</span>
+        <div class="rt"><div class="t">Bump spec tests to 0.17</div>
+          <div class="chips mono"><span class="chip o-c"><span class="av"><b>e</b></span>editorconfig</span></div>
+          <div class="s">claude · done · PR approved</div></div>
+        <span class="chip mono">1 PR</span>
+      </div>
+      <div class="row">
+        <span class="rn mono">5</span><span class="g idle" style="margin-top:2px"></span>
+        <div class="rt"><div class="t">Docs nav spike</div>
+          <div class="chips mono"><span class="chip o-e"><span class="av"><b>e</b></span>docs-builder</span></div>
+          <div class="s">opencode · idle 2h</div></div>
+      </div>
+      <div style="flex:1"></div>
+      <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--fg2)">
+        <span>5 repos · 9 worktrees</span><span class="kbd mono">gr</span>
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="height:36px;flex:none;display:flex;align-items:center;background:var(--bg2);border-bottom:1px solid var(--line)">
+        <div class="tab on mono"><span class="g busy"></span>agent</div>
+        <div class="tab mono">shell</div>
+        <div class="tab mono"><span class="g done">✓</span>tests</div>
+        <div class="tab mono" style="color:var(--fg3)">+</div>
+        <div style="flex:1"></div>
+        <div style="padding-right:14px;display:flex;gap:6px;align-items:center;font-size:11.5px;color:var(--fg3)"><span class="kbd mono">gt</span><span class="kbd mono">⌃w v</span>split</div>
+      </div>
+      <div style="flex:1;min-height:0;display:flex;gap:1px;background:var(--line)">
+        <div class="pane act" style="flex:1.45">
+          <div class="ph mono"><span class="pn">1</span>claude<span style="flex:1"></span><span class="bl">working</span></div>
+          <div class="term mono">
+            <div class="dim">&gt; Fix broken anchors in redirects.yml. Every redirect target must</div>
+            <div class="dim">  resolve to a real heading. Add a test.</div>
+            <div>&nbsp;</div>
+            <div><span class="bl">●</span> Starting with how redirects are validated today.</div>
+            <div><span class="bl">●</span> Grep(<span class="dim">pattern:</span> "RedirectValidator", <span class="dim">path:</span> "src/")</div>
+            <div class="dim">  ⎿ 4 files</div>
+            <div><span class="bl">●</span> Read(src/Elastic.Markdown/Redirects/RedirectFile.cs)</div>
+            <div class="dim">  ⎿ 212 lines</div>
+            <div><span class="bl">●</span> Update(src/Elastic.Markdown/Redirects/RedirectFile.cs)</div>
+            <div class="dim">  ⎿ <span class="ok">+18</span> <span class="rd">−4</span></div>
+            <div><span class="bl">●</span> Write(tests/Elastic.Markdown.Tests/Redirects/AnchorTests.cs)</div>
+            <div class="dim">  ⎿ <span class="ok">+64</span></div>
+            <div><span class="bl">●</span> Bash(dotnet test --filter Redirect)</div>
+            <div class="dim">  ⎿ running…</div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;background:var(--line)">
+          <div class="pane" style="flex:1">
+            <div class="ph mono"><span class="pn">2</span>zsh<span class="dim">fix-anchors-redirects</span></div>
+            <div class="term mono">
+              <div><span class="ok">$</span> git status -sb</div>
+              <div class="dim">## fix-anchors-redirects...origin/main [ahead 3]</div>
+              <div><span class="am"> M</span> src/Elastic.Markdown/Redirects/RedirectFile.cs</div>
+              <div><span class="ok">??</span> tests/…/Redirects/AnchorTests.cs</div>
+              <div><span class="ok">$</span> <span style="background:#dfe3e8;color:#111">&nbsp;</span></div>
+            </div>
+          </div>
+          <div class="pane" style="flex:1">
+            <div class="ph mono"><span class="pn">3</span>dotnet watch<span class="dim">tests</span><span style="flex:1"></span><span class="ok">passing</span></div>
+            <div class="term mono">
+              <div class="dim">Passed!  - Failed: 0, Passed: 41, Skipped: 0</div>
+              <div class="dim">watching for changes…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ins">
+      <div class="sec">
+        <div class="h">Worktree</div>
+        <div class="mono" style="font-size:11.5px;color:var(--fg2);line-height:1.6">~/code/wt/docs-builder/<br><b style="color:var(--fg);font-weight:500">fix-anchors-redirects</b></div>
+        <div class="mono" style="display:flex;gap:12px;font-size:11.5px;color:var(--fg2)"><span>base main</span><span class="ok">↑3</span><span>↓0</span><span class="am">~2</span></div>
+      </div>
+      <div class="sec">
+        <div style="display:flex;justify-content:space-between;align-items:center"><span class="h">Pull requests</span><span class="kbd mono">gp</span></div>
+        <div class="pr">
+          <div style="display:flex;justify-content:space-between;align-items:center"><span class="mono" style="font-size:11px;color:var(--fg2)">docs-builder #2841</span><span class="tag">open</span></div>
+          <div style="font-weight:500">Fix broken anchors in redirects</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--fg2)"><span class="bar"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="run"></i><i></i></span>3/5 · review pending</div>
+          <div style="font-size:11px;color:var(--fg3)">linked by branch name</div>
+          <div class="mono" style="font-size:10.5px;color:var(--busy)">◉ watching · ask · 2 queued</div>
+        </div>
+        <div class="pr">
+          <div style="display:flex;justify-content:space-between;align-items:center"><span class="mono" style="font-size:11px;color:var(--fg2)">docs-content #1920</span><span class="tag">open</span></div>
+          <div style="font-weight:500">Redirects for moved pages</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--fg2)"><span class="bar"><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i></span>4/4 · 1 approved</div>
+          <div style="font-size:11px;color:var(--fg3)">linked from agent output</div>
+          <div class="mono" style="font-size:10.5px;color:var(--busy)">◉ watching · ask · 0 queued</div>
+        </div>
+      </div>
+      <div class="sec" style="border-bottom:0">
+        <div class="h">Agent events</div>
+        <div class="ev mono"><span class="dim">15:29:41</span><span class="g busy"></span>working<span class="dim">Bash</span></div>
+        <div class="ev mono"><span class="dim">15:29:02</span><span class="g block"></span>blocked<span class="dim">allowed</span></div>
+        <div class="ev mono"><span class="dim">15:28:40</span><span class="g busy"></span>working<span class="dim">prompt</span></div>
+        <div class="ev mono"><span class="dim">15:21:07</span><span class="g done">✓</span>idle<span class="dim">Stop</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sb mono">
+    <div class="mode">NORMAL</div>
+    <div style="color:var(--fg2)">⎇ fix-anchors-redirects</div>
+    <div style="color:var(--fg3)">pane 1 · agent</div>
+    <div style="flex:1"></div>
+    <div style="color:var(--fg2)">2j</div>
+    <div style="color:var(--fg3)">i insert · o start work · gp PR overlay · : command · ? keys</div>
+    <div style="color:var(--fg2)">1/6</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

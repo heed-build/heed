@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>First run</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.bg{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--done:oklch(0.8 0.13 155);width:1440px;height:900px;background:#0b0c0e;position:relative;overflow:hidden;color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif}
+.bg *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.win{position:absolute;left:170px;top:90px;width:1100px;height:720px;background:var(--bg);border:1px solid #30353b;border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.5);display:flex;overflow:hidden}
+.rail{width:260px;flex:none;background:var(--bg2);border-right:1px solid var(--line);padding:28px 24px;display:flex;flex-direction:column;gap:18px}
+.stp{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--fg3)}
+.stp i{flex:none;width:22px;height:22px;border-radius:50%;border:1.5px solid #4a5058;display:flex;align-items:center;justify-content:center;font:600 11px/1 -apple-system,sans-serif;font-style:normal}
+.stp.dn{color:var(--fg2)}.stp.dn i{background:var(--done);border-color:var(--done);color:#101114}
+.stp.on{color:var(--fg);font-weight:600}.stp.on i{background:#dfe3e8;border-color:#dfe3e8;color:#111214}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.ar{display:grid;grid-template-columns:28px 120px minmax(0,1fr) 120px;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line);font-size:12.5px}
+.ic{width:24px;height:24px;border-radius:6px;border:1px dashed #4a5058;display:flex;align-items:center;justify-content:center;font:600 11px/1 -apple-system,sans-serif;color:var(--fg3)}
+.ok{color:var(--done)}.no{color:var(--fg3)}
+.btn{font-size:12px;border:1px solid #3a3f46;border-radius:6px;padding:4px 10px;text-align:center;color:var(--fg2)}
+.btn.p{background:#dfe3e8;color:#111214;border-color:#dfe3e8;font-weight:600;padding:7px 16px;font-size:13px}
+.df{font-size:11.5px;line-height:1.7;background:#0c0d0f;border:1px solid var(--line);border-radius:9px;padding:10px 0}
+.df div{padding:0 14px;white-space:pre}
+.df .ad{background:color-mix(in oklch,var(--done) 14%,transparent);color:oklch(0.85 0.1 155)}
+</style>
+</helmet>
+<div class="bg">
+  <div class="win">
+    <div class="rail">
+      <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+      <div style="height:6px"></div>
+      <div class="stp dn"><i>✓</i>GitHub</div>
+      <div class="stp dn"><i>✓</i>Repos</div>
+      <div class="stp on"><i>3</i>Agents</div>
+      <div class="stp"><i>4</i>Keys</div>
+      <div style="flex:1"></div>
+      <div style="font-size:11.5px;color:var(--fg3);line-height:1.5">Everything here can be changed later in Settings.</div>
+    </div>
+    <div style="flex:1;min-width:0;padding:32px 36px;display:flex;flex-direction:column;gap:14px">
+      <div><div style="font-size:20px;font-weight:600">Agents</div><div style="font-size:13px;color:var(--fg2);margin-top:4px">Found on your PATH. Install hooks so the app can see what each agent is doing.</div></div>
+      <div>
+        <div class="ar" style="border-top:0"><span class="ic">C</span><b class="mono" style="font-weight:500">claude</b><span class="ok">Found · hooks not installed</span><span class="btn">Install hooks</span></div>
+        <div class="ar"><span class="ic">X</span><b class="mono" style="font-weight:500">codex</b><span class="ok">Found · hooks not installed</span><span class="btn">Install hooks</span></div>
+        <div class="ar"><span class="ic">O</span><b class="mono" style="font-weight:500">opencode</b><span class="ok">Found · plugin not installed</span><span class="btn">Install plugin</span></div>
+        <div class="ar"><span class="ic">▲</span><b class="mono" style="font-weight:500">cursor</b><span class="no">Not found</span><span class="btn">Skip</span></div>
+        <div class="ar"><span class="ic">π</span><b class="mono" style="font-weight:500">pi</b><span class="no">Not found</span><span class="btn">Skip</span></div>
+      </div>
+      <div class="h" style="margin-top:6px">What "Install hooks" changes for claude</div>
+      <div class="df mono">
+        <div class="dim" style="color:var(--fg3)">~/.claude/settings.json</div>
+        <div class="ad">+ "hooks": { "UserPromptSubmit": [{ "command": "cc state working" }],</div>
+        <div class="ad">+           "Notification": [{ "command": "cc notify" }],</div>
+        <div class="ad">+           "Stop": [{ "command": "cc state done" }] }</div>
+      </div>
+      <div style="font-size:12px;color:var(--fg3)">Your existing hooks are kept. A backup is saved next to the file.</div>
+      <div style="flex:1"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="btn">Back</span>
+        <div style="display:flex;gap:12px;align-items:center"><span style="font-size:12px;color:var(--fg3)">Skip for now</span><span class="btn p">Install 3 and continue <span class="kbd mono" style="margin-left:6px;color:#111214;border-color:#8a9097;background:transparent">⌘↩</span></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Repo colors settings</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.bg{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--done:oklch(0.8 0.13 155);width:1440px;height:900px;background:#0b0c0e;position:relative;overflow:hidden;color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif}
+.bg *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.win{position:absolute;left:110px;top:50px;width:1220px;height:800px;background:var(--bg);border:1px solid #30353b;border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.5);display:flex;flex-direction:column;overflow:hidden}
+.tb{height:44px;flex:none;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;display:block}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.kbd{font-size:10.5px;color:var(--fg2);border:1px solid #373c43;border-radius:4px;padding:0 5px;background:#1a1d20}
+.nv{padding:7px 16px;font-size:13px;color:var(--fg2)}
+.nv.on{background:var(--bg3);color:var(--fg)}
+.row{display:grid;grid-template-columns:34px minmax(0,1fr) 150px 220px;gap:14px;align-items:center;height:48px;padding:0 20px;border-top:1px solid var(--line);font-size:12.5px}
+.row.sub{height:40px;padding-left:68px;color:var(--fg2)}
+.av{width:26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font:700 12px/1 sans-serif;color:#101114}
+.sw{display:flex;gap:6px;align-items:center}
+.sw i{display:block;width:16px;height:16px;border-radius:50%}
+.sw i.on{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px #dfe3e8}
+.chip{font-size:10.5px;border-radius:4px;padding:1px 6px;display:inline-flex;align-items:center}
+.chip i{display:block;width:12px;height:12px;border-radius:3px;margin-right:5px}
+.seg{display:flex;border:1px solid #30353b;border-radius:6px;overflow:hidden;width:max-content}
+.seg span{padding:5px 12px;font-size:12px;color:var(--fg2);border-right:1px solid #30353b}
+.seg span:last-child{border-right:0}
+.seg span.on{background:#dfe3e8;color:#111214;font-weight:600}
+.tg{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--fg2)}
+.tg i{display:block;width:26px;height:15px;border-radius:8px;background:#3a4047;position:relative}
+.tg i::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:#e9eaec}
+.tg.on i{background:var(--done)}
+.tg.on i::after{left:13px;background:#101114}
+</style>
+
+</head>
+<body>
+
+
+<div class="bg">
+  <div class="win">
+    <div class="tb"><div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div><div style="font-size:12.5px;color:var(--fg2);margin-left:8px">Settings</div></div>
+    <div style="flex:1;min-height:0;display:flex">
+      <div style="width:190px;flex:none;background:var(--bg2);border-right:1px solid var(--line);padding:12px 0">
+        <div class="nv">General</div><div class="nv">Agents</div><div class="nv on">Repos &amp; colors</div><div class="nv">Worktrees</div><div class="nv">Keys &amp; modes</div><div class="nv">GitHub</div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+        <div style="padding:18px 20px 14px;display:flex;align-items:center;justify-content:space-between">
+          <div><div style="font-size:16px;font-weight:600">Repos &amp; colors</div><div style="font-size:12px;color:var(--fg3);margin-top:2px">Each org gets an icon and a color. Repos inherit unless overridden.</div></div>
+          <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--fg2)">Color by<div class="seg"><span class="on">Org</span><span>Repo</span><span>Off</span></div></div>
+        </div>
+        <div class="row h" style="height:30px;border-top:1px solid var(--line)"><span></span><span>Org / repo</span><span>Icon</span><span>Color</span></div>
+
+        <div class="row"><div class="av" style="background:oklch(0.78 0.12 195)">e</div><div><b style="font-weight:600">elastic</b> <span style="color:var(--fg3);font-size:11.5px">org · 2 repos</span></div><span style="color:var(--fg2);font-size:12px">GitHub avatar</span><div class="sw"><i style="background:oklch(0.78 0.12 195)" class="on"></i><i style="background:oklch(0.78 0.13 350)"></i><i style="background:oklch(0.82 0.13 120)"></i><i style="background:oklch(0.8 0.12 50)"></i><i style="background:oklch(0.76 0.12 280)"></i><i style="background:oklch(0.8 0.1 230)"></i></div></div>
+        <div class="row sub mono"><span></span><span>docs-builder</span><span style="color:var(--fg3)">inherits</span><span style="color:var(--fg3)">teal</span></div>
+        <div class="row sub mono"><span></span><span>docs-content</span><span style="color:var(--fg3)">inherits</span><span style="color:var(--fg3)">teal</span></div>
+
+        <div class="row"><div class="av" style="background:oklch(0.78 0.13 350)">n</div><div><b style="font-weight:600">nullean</b> <span style="color:var(--fg3);font-size:11.5px">org · 1 repo</span></div><span style="color:var(--fg2);font-size:12px">GitHub avatar</span><div class="sw"><i style="background:oklch(0.78 0.12 195)"></i><i style="background:oklch(0.78 0.13 350)" class="on"></i><i style="background:oklch(0.82 0.13 120)"></i><i style="background:oklch(0.8 0.12 50)"></i><i style="background:oklch(0.76 0.12 280)"></i><i style="background:oklch(0.8 0.1 230)"></i></div></div>
+        <div class="row sub mono"><span></span><span>mermaider</span><span style="color:var(--fg3)">inherits</span><span style="color:var(--fg3)">pink</span></div>
+
+        <div class="row"><div class="av" style="background:oklch(0.82 0.13 120)">m</div><div><b style="font-weight:600">mpdreamz</b> <span style="color:var(--fg3);font-size:11.5px">personal · 1 repo</span></div><span style="color:var(--fg2);font-size:12px">GitHub avatar</span><div class="sw"><i style="background:oklch(0.78 0.12 195)"></i><i style="background:oklch(0.78 0.13 350)"></i><i style="background:oklch(0.82 0.13 120)" class="on"></i><i style="background:oklch(0.8 0.12 50)"></i><i style="background:oklch(0.76 0.12 280)"></i><i style="background:oklch(0.8 0.1 230)"></i></div></div>
+        <div class="row sub mono"><span></span><span>atlas</span><span style="color:var(--fg3)">inherits</span><span style="color:var(--fg3)">lime</span></div>
+
+        <div class="row"><div class="av" style="background:oklch(0.8 0.12 50)">e</div><div><b style="font-weight:600">editorconfig</b> <span style="color:var(--fg3);font-size:11.5px">org · 1 repo · new</span></div><span style="color:var(--fg2);font-size:12px">GitHub avatar</span><div style="font-size:12px;color:var(--fg2)">auto, from name <span class="kbd mono" style="margin-left:6px">c</span> pick</div></div>
+        <div class="row sub mono"><span></span><span>editorconfig</span><span style="color:var(--fg3)">inherits</span><span style="color:var(--fg3)">orange</span></div>
+        <div style="flex:1"></div>
+      </div>
+
+      <div style="width:360px;flex:none;border-left:1px solid var(--line);background:var(--bg2);padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+        <div class="h">Preview</div>
+        <div style="background:var(--bg3);border-radius:9px;padding:12px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-weight:500">Fix broken anchors in redirects</div>
+          <div style="display:flex;gap:4px"><span class="chip mono" style="background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)"><i style="background:currentColor"></i>docs-builder</span><span class="chip mono" style="background:color-mix(in oklch,oklch(0.78 0.12 195) 16%,#1b1e22);color:oklch(0.84 0.1 195)"><i style="background:currentColor"></i>docs-content</span></div>
+        </div>
+        <div style="background:var(--bg3);border-radius:9px;padding:12px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-weight:500">Sequence diagram arrowheads</div>
+          <div style="display:flex;gap:4px"><span class="chip mono" style="background:color-mix(in oklch,oklch(0.78 0.13 350) 16%,#1b1e22);color:oklch(0.84 0.1 350)"><i style="background:currentColor"></i>mermaider</span></div>
+        </div>
+        <div class="h" style="margin-top:6px">Where color shows</div>
+        <div class="tg on"><i></i>Repo chips and org icon</div>
+        <div class="tg on"><i></i>Worktree rows and PR lists</div>
+        <div class="tg on"><i></i>Window title bar tint</div>
+        <div class="tg"><i></i>Terminal tab accent</div>
+        <div style="font-size:11.5px;color:var(--fg3);line-height:1.5;margin-top:4px">Colors never use the state hues (blue, amber, violet, green, red), so a colored chip is never mistaken for a status.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+</body>
+</html>

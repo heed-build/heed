@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cursor, Pi and hook coverage</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.sheet{--bg:#111214;--bg2:#15171a;--bg3:#1d2024;--line:#272b30;--fg:#e9eaec;--fg2:#a6abb2;--fg3:#848b93;--busy:oklch(0.74 0.13 250);--block:oklch(0.83 0.14 78);--ask:oklch(0.77 0.13 305);--done:oklch(0.8 0.13 155);width:1440px;height:900px;padding:32px 40px;background:var(--bg);color:var(--fg);font:13px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;overflow:hidden}
+.sheet *{box-sizing:border-box}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.hd{display:flex;align-items:center;gap:10px}
+.ic{flex:none;width:28px;height:28px;border-radius:7px;border:1px dashed #4a5058;display:flex;align-items:center;justify-content:center;font:600 12px/1 -apple-system,sans-serif;color:var(--fg3)}
+.bd{font-size:10.5px;border-radius:4px;padding:0 6px;margin-left:auto}
+.bd.full{color:var(--done);background:color-mix(in oklch,var(--done) 16%,transparent)}
+.bd.part{color:var(--block);background:color-mix(in oklch,var(--block) 16%,transparent)}
+.h{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--fg3);font-weight:600}
+.f{display:flex;flex-direction:column;gap:5px}
+.f>.l{font-size:12px;color:var(--fg2)}
+.in{background:#0c0d0f;border:1px solid #30353b;border-radius:6px;padding:6px 10px;font-size:12px;color:var(--fg);min-width:0}
+.seg{display:flex;border:1px solid #30353b;border-radius:6px;overflow:hidden;width:max-content;max-width:100%}
+.seg span{padding:5px 11px;font-size:12px;color:var(--fg2);border-right:1px solid #30353b;white-space:nowrap}
+.seg span:last-child{border-right:0}
+.seg span.on{background:#dfe3e8;color:#111214;font-weight:600}
+.nt{font-size:11.5px;color:var(--fg3);line-height:1.5}
+.tg{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--fg2)}
+.tg i{display:block;width:26px;height:15px;border-radius:8px;background:#3a4047;position:relative;flex:none}
+.tg i::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;background:#e9eaec}
+.tg.on i{background:var(--done)}
+.tg.on i::after{left:13px;background:#101114}
+.mx{display:grid;grid-template-columns:78px repeat(5,minmax(0,1fr));gap:0;font-size:11px;text-align:center}
+.mx>div{padding:8px 2px;border-top:1px solid var(--line)}
+.mx .hh{border-top:0;color:var(--fg3);font-weight:600;font-size:10px;letter-spacing:.04em}
+.mx .rl{text-align:left;color:var(--fg2)}
+.f1{color:var(--done)}.f2{color:var(--block)}.f0{color:var(--fg3)}
+</style>
+</helmet>
+<div class="sheet">
+  <div class="card">
+    <div class="hd"><span class="ic">▲</span><b style="font-size:15px">cursor</b><span class="bd part">hooks + pty</span></div>
+    <div class="f"><span class="l">Command</span><div class="in mono">cursor-agent</div></div>
+    <div class="f"><span class="l">Mode</span><div class="seg"><span class="on">agent</span><span>plan</span><span>ask</span></div></div>
+    <div class="f"><span class="l">Model</span><div class="in mono">auto</div></div>
+    <div class="tg"><i></i>Run without approval prompts</div>
+    <div class="f"><span class="l">Prompt delivery</span><div class="seg"><span class="on">Argument</span><span>Paste</span></div></div>
+    <div class="f"><span class="l">Account</span><div class="in" style="color:var(--done)">Signed in</div></div>
+    <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div class="h">State detection</div>
+      <div class="nt">Writes the project's <span class="mono">.cursor/hooks.json</span> to report shell commands and turn end (working, done). Approval prompts are read from the pty, so blocked is best effort.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hd"><span class="ic">π</span><b style="font-size:15px">pi</b><span class="bd full">extension</span></div>
+    <div class="f"><span class="l">Command</span><div class="in mono">pi</div></div>
+    <div class="f"><span class="l">Provider / model</span><div class="in mono">anthropic / claude-sonnet</div></div>
+    <div class="f"><span class="l">Thinking level</span><div class="seg"><span>off</span><span>low</span><span class="on">medium</span><span>high</span></div></div>
+    <div class="tg on"><i></i>Continue the last session in this worktree</div>
+    <div class="f"><span class="l">Prompt delivery</span><div class="seg"><span class="on">Argument</span><span>Paste</span></div></div>
+    <div style="border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div class="h">State detection</div>
+      <div class="nt">Installs a small extension that reports turn start, tool use and turn end to the socket. Pi does not ask for permission by default, so <b style="font-weight:500;color:var(--fg2)">blocked</b> never fires. The Blocked filter hides itself for this agent.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="h">State coverage per agent</div>
+    <div class="mx mono">
+      <div class="hh"></div><div class="hh">claude</div><div class="hh">codex</div><div class="hh">cursor</div><div class="hh">pi</div><div class="hh">opencode</div>
+      <div class="rl">working</div><div class="f1">hook</div><div class="f2">pty</div><div class="f1">hook</div><div class="f1">ext</div><div class="f1">plugin</div>
+      <div class="rl">idle</div><div class="f1">hook</div><div class="f1">notify</div><div class="f1">hook</div><div class="f1">ext</div><div class="f1">plugin</div>
+      <div class="rl">blocked</div><div class="f1">hook</div><div class="f2">pty</div><div class="f2">pty</div><div class="f0">n/a</div><div class="f1">plugin</div>
+      <div class="rl">asking</div><div class="f1">hook</div><div class="f2">pty</div><div class="f2">pty</div><div class="f0">n/a</div><div class="f1">plugin</div>
+      <div class="rl">done</div><div class="f1">hook</div><div class="f1">notify</div><div class="f1">hook</div><div class="f1">ext</div><div class="f1">plugin</div>
+      <div class="rl">limited</div><div class="f2">pty</div><div class="f2">pty</div><div class="f2">pty</div><div class="f2">pty</div><div class="f1">plugin</div>
+    </div>
+    <div class="nt" style="display:flex;flex-direction:column;gap:4px;margin-top:4px">
+      <div><span class="f1">hook, notify, ext, plugin</span>  the agent reports it.</div>
+      <div><span class="f2">pty</span>  guessed from terminal output, can lag or miss.</div>
+      <div><span class="f0">n/a</span>  the agent never enters this state.</div>
+    </div>
+    <div style="flex:1"></div>
+    <div class="nt">Sessions on a pty-guessed agent show a small dotted ring on the state glyph, so you know to trust it less.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

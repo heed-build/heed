@@ -18,7 +18,7 @@ struct MainWindow: View {
                             Sidebar(width: geometry.size.width < 1000 ? 260 : 330)
                         }
                         CenterArea()
-                        // The inspector gives way first on narrow windows; `gi` hides it outright.
+                        // The inspector gives way first on narrow windows; `zi` hides it outright.
                         if model.inspectorVisible, geometry.size.width >= 1180 { Inspector() }
                     case .repos:
                         ReposView()

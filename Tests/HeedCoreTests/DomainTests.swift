@@ -104,9 +104,9 @@ struct StartWorkTests {
         #expect(ShellQuote.quote("simple-word") == "simple-word")
     }
 
-    @Test func layoutPutsTheAgentFirstAndAShellBeside() {
+    @Test func layoutIsOneAgentPaneUnlessAShellSplitIsAsked() {
         let records = [RepoRecord(repo: repo, path: "/r1"), RepoRecord(repo: Repo(org: "o", name: "two"), path: "/r2")]
-        let plan = StartWorkPlan(prompt: "p", repos: records, name: "n", agent: AgentProfile.builtIn[0])
+        var plan = StartWorkPlan(prompt: "p", repos: records, name: "n", agent: AgentProfile.builtIn[0])
         let session = Session(title: "t", repos: records.map(\.repo), branch: "n", agent: "claude", state: .init(.idle))
         let worktrees = records.map { Worktree(
             repo: $0.repo,
@@ -115,6 +115,9 @@ struct StartWorkTests {
             head: "",
             isMain: false
         ) }
+        #expect(StartWork.layout(for: plan, session: session, worktrees: worktrees).tabs[0].tree.panes.map(\.role)
+            == [.agent])
+        plan.shellSplit = true
         let layout = StartWork.layout(for: plan, session: session, worktrees: worktrees)
         #expect(layout.tabs.count == 2)
         let panes = layout.tabs[0].tree.panes

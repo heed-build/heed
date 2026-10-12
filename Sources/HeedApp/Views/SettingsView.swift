@@ -152,6 +152,13 @@ private struct GeneralSettings: View {
             ) {
                 ConfigTextField(path: ["sessions", "continue_prompt"], value: work.continuePrompt)
             }
+            Field(label: "Shell split", detail: "New sessions open a shell beside the agent; off is one pane.") {
+                Toggle("", isOn: Binding(
+                    get: { work.shellSplit }, set: { model.setConfig(["sessions", "shell_split"], .bool($0)) }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+            }
             Field(label: "GitHub poll", detail: "Seconds between gh syncs.") {
                 Stepper(value: Binding(
                     get: { model.config.githubPollSeconds },

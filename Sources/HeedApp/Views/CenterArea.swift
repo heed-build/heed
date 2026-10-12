@@ -139,7 +139,14 @@ private struct PaneView: View {
             )
         }
         .background(Theme.pane)
-        .overlay { if active { Rectangle().strokeBorder(Theme.paneActive, lineWidth: 1) } }
+        // White only on the pane your keys go to (INSERT); in NORMAL no pane takes input, so the focused one is quiet.
+        .overlay {
+            if active, model.mode == .insert {
+                Rectangle().strokeBorder(Color.white, lineWidth: 1.5)
+            } else if active {
+                Rectangle().strokeBorder(Theme.paneActive.opacity(0.3), lineWidth: 1)
+            }
+        }
         .overlay(alignment: .topLeading) {
             if let hint = model.hintLabel(for: .pane(pane.id)) { HintBadge(label: hint).padding(30) }
         }

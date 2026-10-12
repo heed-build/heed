@@ -48,7 +48,7 @@ public enum AgentIntegration {
     static func codexArguments(heed: String) -> [String] {
         ["--dangerously-bypass-hook-trust"] + codexEvents.flatMap { event in
             let command = TOMLValue.quote("\(ShellQuote.quote(heed)) hook codex \(event)")
-            return ["-c", "hooks.\(event)=[{hooks=[{type=\"command\",command=\(command),timeout=10}]}]"]
+            return ["-c", "hooks.\(event)=[{hooks=[{type=\"command\",command=\(command),timeout=15}]}]"]
         }
     }
 
@@ -85,7 +85,7 @@ public enum AgentIntegration {
         }
         var hooks: [String: Any] = [:]
         for event in ["sessionStart", "beforeShellExecution", "afterFileEdit", "postToolUse", "stop"] {
-            hooks[event] = [["command": "\(ShellQuote.quote(heed)) hook cursor \(event)", "timeout": 10]]
+            hooks[event] = [["command": "\(ShellQuote.quote(heed)) hook cursor \(event)", "timeout": 15]]
         }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let data = try JSONSerialization.data(
@@ -238,7 +238,7 @@ public enum AgentIntegration {
         var hooks: [String: Any] = [:]
         for (event, matcher) in claudeEvents {
             var entry: [String: Any] = [
-                "hooks": [["type": "command", "command": "\"${HEED_BIN:-true}\" hook claude \(event)", "timeout": 5]],
+                "hooks": [["type": "command", "command": "\"${HEED_BIN:-true}\" hook claude \(event)", "timeout": 15]],
             ]
             if let matcher { entry["matcher"] = matcher }
             hooks[event] = [entry]

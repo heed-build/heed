@@ -38,7 +38,7 @@ public struct StartWorkForm: Sendable {
     public private(set) var optionCursor = 0
     public private(set) var autostart = true
     public private(set) var planFirst = false
-    public private(set) var shellSplit = true
+    public private(set) var shellSplit = false
     public private(set) var error: String?
 
     private let repos: [RepoRecord]
@@ -59,6 +59,7 @@ public struct StartWorkForm: Sendable {
         self.history = history
         self.worktreeCounts = worktreeCounts
         prefixes = settings.prefixes
+        shellSplit = settings.shellSplit
         self.integration = integration
         agents = settings.agents.map(Optional.some) + [nil]
         agentIndex = settings.agents.firstIndex { $0.name == settings.defaultAgent } ?? 0

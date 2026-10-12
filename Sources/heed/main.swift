@@ -8,6 +8,12 @@ import HeedCore
 let environment = ProcessInfo.processInfo.environment
 let arguments = Array(CommandLine.arguments.dropFirst())
 
+// A hook must never hold up an agent: whatever happens (a stdin that never closes, a stuck socket), give up quietly.
+if arguments.first != "tools" {
+    signal(SIGALRM) { _ in _exit(0) }
+    alarm(3)
+}
+
 if arguments.isEmpty || arguments.first == "--help" || arguments.first == "-h" {
     print(HookCommandLine.usage)
     exit(0)

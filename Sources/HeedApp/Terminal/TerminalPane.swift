@@ -85,6 +85,12 @@ final class TerminalSurfaces {
         #endif
     }
 
+    func pressEscape(paneID: String) {
+        #if HEED_GHOSTTY
+            (views[paneID] as? GhosttySurfaceView)?.pressEscape()
+        #endif
+    }
+
     func close(paneID: String) {
         views.removeValue(forKey: paneID)?.removeFromSuperview()
     }

@@ -164,7 +164,7 @@ struct AgentIntegrationTests {
         #expect(codex.hasPrefix("codex --dangerously-bypass-hook-trust -c "))
         #expect(codex
             .contains(
-                #"hooks.PermissionRequest=[{hooks=[{type="command",command="/app/heed hook codex PermissionRequest",timeout=10}]}]"#
+                #"hooks.PermissionRequest=[{hooks=[{type="command",command="/app/heed hook codex PermissionRequest",timeout=15}]}]"#
             ))
         #expect(codex.hasSuffix(" go"))
     }

@@ -124,6 +124,19 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
         }
     }
 
+    /// Presses Escape, as if the user did: Escapes held back while counting taps (`escape_taps`) are sent this way.
+    public func pressEscape() {
+        guard let surface else { return }
+        for action in [GHOSTTY_ACTION_PRESS, GHOSTTY_ACTION_RELEASE] {
+            var key = ghostty_input_key_s()
+            key.action = action
+            key.keycode = 53 // Escape
+            key.mods = GHOSTTY_MODS_NONE
+            key.consumed_mods = GHOSTTY_MODS_NONE
+            _ = ghostty_surface_key(surface, key)
+        }
+    }
+
     /// True once the surface's process has exited (the pane shows Ghostty's "process exited" state).
     public var processExited: Bool { surface.map(ghostty_surface_process_exited) ?? true }
 

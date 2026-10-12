@@ -16,6 +16,8 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var resumeOnLaunch: ResumePolicy
     /// Typed into a resumed session that was mid-turn, once the agent is idle again. Empty turns it off.
     public var continuePrompt: String
+    /// New sessions open a shell split beside the agent (`[sessions] shell_split`); off means one pane.
+    public var shellSplit = false
 
     public init(
         worktreeRoot: String = "~/code/wt", repoRoots: [String] = ["~/Projects", "~/code"],
@@ -108,7 +110,7 @@ public struct StartWorkPlan: Hashable, Sendable {
     public var agent: AgentProfile?
     public var autostart = true
     public var planFirst = false
-    public var shellSplit = true
+    public var shellSplit = false
     /// The new session's id, decided up front so hooks and the agent's own session id can use it.
     public var sessionID: String
     /// Where the agents' hook files live; nil launches agents without Heed's hooks (tests).
@@ -297,7 +299,8 @@ public enum StartWork {
         return changes
     }
 
-    /// The new session's tabs: the agent (or a shell) in the first repo's worktree, a shell split beside it, and a
+    /// The new session's tabs: the agent (or a shell) in the first repo's worktree, a shell split beside it when asked,
+    /// and a
     /// shell tab per extra repo of a cross-repo session.
     public static func layout(
         for plan: StartWorkPlan, session: Session, worktrees: [Worktree], tasks: [String: [TaskSpec]] = [:]
@@ -388,8 +391,10 @@ public enum Reopen {
             command: command
         )
         var main = PaneTab(title: command == nil ? "shell" : "agent", tree: .leaf(agentPane))
-        main.split(.horizontal, with: PaneSpec(role: .shell, title: "zsh \(session.branch)", directory: paths[0]))
-        main.focused = agentPane.id
+        if settings.shellSplit {
+            main.split(.horizontal, with: PaneSpec(role: .shell, title: "zsh \(session.branch)", directory: paths[0]))
+            main.focused = agentPane.id
+        }
         changes += [
             .historyRemoved(session.id), .sessionUpserted(session),
             .layoutChanged(session: session.id, SessionLayout(tabs: [main])),

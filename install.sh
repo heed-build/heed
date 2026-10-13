@@ -7,7 +7,7 @@
 # carries no quarantine flag, so it opens without a Gatekeeper prompt.
 set -eu
 
-repo="nullean/heed"
+repo="heed-build/heed"
 asset="Heed-arm64.zip"
 
 fail() {

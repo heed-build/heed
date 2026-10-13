@@ -11,7 +11,7 @@
 # keychain imports, and checked by signing a file with it in a throwaway keychain before anything is uploaded.
 set -euo pipefail
 
-repo="nullean/heed"
+repo="heed-build/heed"
 openssl=/usr/bin/openssl # LibreSSL: reads what `security export` writes without -legacy, writes what `security import` reads
 p8="" key_id="" issuer_id=""
 

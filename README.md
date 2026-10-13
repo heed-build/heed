@@ -78,8 +78,9 @@ release, run the **release** workflow (`gh workflow run release`, optionally `-f
 signs it with the Developer ID (hardened runtime, `scripts/sign.sh`), has Apple notarize it and staples the ticket,
 attaches `Heed-arm64.zip` and its sha256 to the draft, checks both are there, and only then publishes the draft, which
 tags the commit it built. A rejected notarization stops it before anything is attached. `-f dry_run=true` does all
-but the release, from any branch, and keeps the notarized zip on the run. `install.sh` installs from the latest
-release. The signing and notarization secrets come from `scripts/release-secrets.sh`.
+but the release, from any branch, and keeps the notarized zip on the run. It then writes the cask
+(`packaging/homebrew/heed.rb`) to [heed-build/homebrew-tap](https://github.com/heed-build/homebrew-tap) with
+`scripts/bump-tap.sh`; the **tap** workflow redoes that by hand. `install.sh` installs from the latest release. The signing and notarization secrets come from `scripts/release-secrets.sh`.
 
 ## Deploying to the MacBook
 

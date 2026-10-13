@@ -158,6 +158,18 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: gh release edit "${{ steps.draft.outputs.tag }}" --draft=false --latest --target "$GITHUB_SHA"
 
+      # Only notarized releases go to Homebrew: casks are quarantined, and an ad-hoc signed app would not open.
+      - name: Update the Homebrew tap
+        if: ${{ !inputs.dry_run && env.NOTARIZE == 'true' }}
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::warning::No HOMEBREW_TAP_TOKEN: the tap was not updated. Run the tap workflow once it is set."
+            exit 0
+          fi
+          scripts/bump-tap.sh "${{ steps.draft.outputs.version }}"
+
       - name: Remove the signing keychain
         if: always()
         run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true

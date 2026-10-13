@@ -7,12 +7,19 @@ description: Install Heed on macOS with one line, or build it from source.
 Heed is a macOS app for Apple Silicon (macOS 15 or later).
 
 ```sh
+brew install --cask heed-build/tap/heed
+```
+
+or, without Homebrew:
+
+```sh
 curl -fsSL https://heed.build/install.sh | sh
 ```
 
-That downloads the latest release, checks its sha256, and puts `Heed.app` in `/Applications` (or `~/Applications` when
-`/Applications` is not writable). Run it again to update. `HEED_VERSION=0.1.0` installs a given version and
-`HEED_APP_DIR` another folder.
+Homebrew also puts the `heed` command on your `PATH` and updates with `brew upgrade`; `brew uninstall --zap heed`
+removes its settings and caches too. The install script downloads the latest release, checks its sha256, and puts
+`Heed.app` in `/Applications` (or `~/Applications` when `/Applications` is not writable). Run it again to update.
+`HEED_VERSION=0.1.0` installs a given version and `HEED_APP_DIR` another folder.
 
 Releases are signed with a Developer ID and notarized by Apple, so `Heed-arm64.zip` downloaded with a browser from the
 [releases](https://github.com/heed-build/heed/releases) opens normally too: unzip it and move `Heed.app` to

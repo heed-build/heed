@@ -169,7 +169,19 @@ final class AppModel {
     private(set) var hintText = ""
     private var hintThenInsert = false
     /// The Start work dialog, while open.
-    private(set) var startWork: StartWorkForm?
+    private(set) var startWork: StartWorkForm? {
+        didSet {
+            if startWork == nil, startWorkStandalone {
+                startWorkStandalone = false
+                StartWorkPanelController.shared.close()
+            }
+        }
+    }
+
+    /// The Start work dialog is showing in its own panel over other apps (`[keys] global_start_work`).
+    private(set) var startWorkStandalone = false
+    /// Why the last start failed, shown in the dialog (the standalone panel has no status bar).
+    private(set) var startWorkError: String?
     private(set) var startingWork = false
     /// Bumped when the focused terminal should take keyboard focus (entering INSERT, moving panes).
     private(set) var terminalFocusRequest = 0
@@ -484,6 +496,13 @@ final class AppModel {
         updateScope()
         keyProblems = built.problems
         Palette.shared.apply(decoded)
+        if !isFixture {
+            if let problem = GlobalHotKey.register(decoded.globalStartWork, action: { [weak self] in
+                self?.openStandaloneStartWork()
+            }) {
+                configProblems.append(ConfigProblem(path: "", message: problem))
+            }
+        }
         if toolsChanged, !isFixture { Task { await detectTools() } }
         // Repos that now show all issues need fetching; ones that no longer do are hidden by issueRows right away.
         if issuesChanged, !isFixture, github.syncedAt != nil { Task { await syncGitHub() } }
@@ -2190,7 +2209,25 @@ final class AppModel {
 
     // MARK: Start work
 
+    /// The global shortcut: Start work in a panel over whatever app is in front. Pressing it again brings the panel
+    /// back; a dialog already open in the main window moves to the panel.
+    func openStandaloneStartWork() {
+        guard confirmation == nil, importPicker == nil else { return }
+        if startWork == nil {
+            openStartWork(prompt: "")
+        }
+        startWorkStandalone = true
+        StartWorkPanelController.shared.show(model: self)
+    }
+
+    /// Clicking away from the panel cancels it, like Spotlight; a start in progress keeps it open.
+    func standaloneClickedAway() {
+        guard startWorkStandalone, !startingWork else { return }
+        startWork = nil
+    }
+
     private func openStartWork(prompt: String) {
+        startWorkError = nil
         if view == .history { view = .sessions }
         startWork = StartWorkForm(
             repos: repos, history: sessions, settings: settings, prompt: prompt, integration: integration,
@@ -2250,6 +2287,7 @@ final class AppModel {
                 flash = "started \(plan.name)"
             } catch {
                 flash = "start work failed: \(error)"
+                startWorkError = "start failed: \(error)"
             }
         }
     }

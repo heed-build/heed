@@ -35,8 +35,10 @@ final class KeyRouter {
         }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             // Only the main window is Heed's keyboard; Settings and other windows get their keys untouched.
-            guard event.window?.identifier == AppModel.mainWindowID,
-                  let stroke = KeyStroke(event: event)
+            // The main window, and the standalone Start work panel.
+            guard event.window?.identifier == AppModel.mainWindowID
+                || event.window?.identifier == StartWorkPanelController.identifier,
+                let stroke = KeyStroke(event: event)
             else { return event }
             let used = MainActor.assumeIsolated { self?.route(stroke) ?? false }
             return used ? nil : event

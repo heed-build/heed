@@ -50,7 +50,7 @@ struct MainWindow: View {
             if model.issueReader != nil { IssueReaderView().padding(.top, 44).padding(.bottom, 28) }
         }
         .overlay {
-            if model.startWork != nil { StartWorkView() }
+            if model.startWork != nil, !model.startWorkStandalone { StartWorkView() }
         }
         .overlay {
             if model.resume != nil { ResumeView() }

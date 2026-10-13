@@ -6,6 +6,8 @@ import Foundation
 public struct HeedConfig: Equatable, Sendable {
     public var work: WorkSettings
     public var insertEscape: String
+    /// The system-wide shortcut that opens Start work over any app; "" turns it off.
+    public var globalStartWork = "<C-M-Space>"
     /// `[keys.normal]`, `[keys.visual]`, ...: overrides laid over the defaults.
     public var keys: [Mode: [(String, String)]]
     /// `[keys.repos]`, `[keys.inbox]`, ...: per-view overrides.
@@ -43,7 +45,8 @@ public struct HeedConfig: Equatable, Sendable {
         func flat(_ table: [String: [(String, String)]]) -> [String] {
             table.sorted { $0.key < $1.key }.flatMap { scope, pairs in pairs.map { "\(scope):\($0)=\($1)" } }
         }
-        return lhs.work == rhs.work && lhs.insertEscape == rhs.insertEscape && flat(lhs.keys) == flat(rhs.keys)
+        return lhs.work == rhs.work && lhs.insertEscape == rhs.insertEscape && lhs.globalStartWork == rhs
+            .globalStartWork && flat(lhs.keys) == flat(rhs.keys)
             && flat(lhs.scopedKeys) == flat(rhs.scopedKeys) && lhs.orgColors == rhs.orgColors && lhs.repos == rhs.repos
             && lhs.cleanup == rhs.cleanup && lhs.githubPollSeconds == rhs.githubPollSeconds && lhs.tools == rhs
             .tools && lhs.issues == rhs.issues
@@ -75,6 +78,11 @@ public struct CleanupRule: Equatable, Sendable, Codable {
 public struct ConfigProblem: Equatable, Sendable, CustomStringConvertible {
     public let path: String
     public let message: String
+    public init(path: String, message: String) {
+        self.path = path
+        self.message = message
+    }
+
     public var description: String { path.isEmpty ? message : "\(path): \(message)" }
 }
 
@@ -281,9 +289,10 @@ public enum ConfigLoader {
 
         // [keys]
         if let escape = string(["keys", "insert_escape"]) { config.insertEscape = escape }
+        if let shortcut = string(["keys", "global_start_work"]) { config.globalStartWork = shortcut }
 
         if let keys = root.value(at: ["keys"])?.table {
-            for name in keys.keys where name != "insert_escape" {
+            for name in keys.keys where name != "insert_escape" && name != "global_start_work" {
                 let entries = pairs(["keys", name])
                 if let mode = Mode(rawValue: name) {
                     config.keys[mode] = entries
@@ -384,6 +393,9 @@ public enum ConfigLoader {
     [keys]
     # Leaves INSERT. It is also the terminal's quit signal, so pick something else if you need that.
     insert_escape = "<C-\\\\>"
+    # Opens Start work in a floating panel over any app, wherever you are; "" turns it off. The panel's window title is
+    # "Heed Start Work", for window manager rules (yabai: app="^Heed$" title="^Heed Start Work$" manage=off).
+    global_start_work = "<C-M-Space>"
     # Shift+Escape leaves INSERT too; a plain Escape always goes to the terminal. [keys.insert] "<S-Esc>" = "" unbinds.
 
     # Bindings per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.inbox], [keys.history],

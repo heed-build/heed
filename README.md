@@ -18,6 +18,27 @@ Without GhosttyKit the app builds with placeholder panes, so everything but the 
 Headless checks: `HEED_SNAPSHOT=out.png build/Heed.app/Contents/MacOS/Heed` renders the window to a PNG and quits;
 `HEED_SNAPSHOT_KEYS="2j<C-w>s?"` types keys first (vim notation).
 
+## Start work from anywhere
+
+`⌃⌥Space` (`[keys] global_start_work` in config.toml; `""` turns it off) opens Start work in a floating panel over
+whatever app is in front. It takes the keyboard without bringing Heed forward; `⎋ ⎋` or a click elsewhere closes it,
+`⌘↩` starts the session. The panel's window title is always `Heed Start Work` (bundle id `net.nullean.heed`), so a
+tiling window manager can leave it alone:
+
+```toml
+# OmniWM: ~/.config/omniwm/settings.toml (id is any UUID)
+[[appRules]]
+bundleId = "net.nullean.heed"
+id = "75CF2DF1-FF34-4187-9CC9-01DD190EFC51"
+layout = "float"
+titleRegex = "^Heed Start Work$"
+```
+
+```sh
+# yabai
+yabai -m rule --add app="^Heed$" title="^Heed Start Work$" manage=off
+```
+
 ## Layout
 
 | Path | What |

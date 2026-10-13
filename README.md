@@ -75,8 +75,11 @@ macOS, and the docs build. Branch names label pull requests for the release note
 [release-drafter](https://github.com/release-drafter/release-drafter) keeps a draft release up to date as pull requests
 merge, and works out the next version from their labels (`major`, `minor` or `enhancement`, otherwise a patch). To
 release, run the **release** workflow (`gh workflow run release`, optionally `-f version=0.2.0`): it builds `main`,
+signs it with the Developer ID (hardened runtime, `scripts/sign.sh`), has Apple notarize it and staples the ticket,
 attaches `Heed-arm64.zip` and its sha256 to the draft, checks both are there, and only then publishes the draft, which
-tags the commit it built. `install.sh` installs from the latest release.
+tags the commit it built. A rejected notarization stops it before anything is attached. `-f dry_run=true` does all
+but the release, from any branch, and keeps the notarized zip on the run. `install.sh` installs from the latest
+release. The signing and notarization secrets come from `scripts/release-secrets.sh`.
 
 ## Deploying to the MacBook
 

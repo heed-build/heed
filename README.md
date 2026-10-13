@@ -18,6 +18,12 @@ Without GhosttyKit the app builds with placeholder panes, so everything but the 
 Headless checks: `HEED_SNAPSHOT=out.png build/Heed.app/Contents/MacOS/Heed` renders the window to a PNG and quits;
 `HEED_SNAPSHOT_KEYS="2j<C-w>s?"` types keys first (vim notation).
 
+## Documentation
+
+`docs/` is a [docs-builder](https://github.com/elastic/docs-builder) site published to heed.nullean.net by
+`.github/workflows/docs.yml`; `docs/heed-landing.html` is a standalone page copied over the generated home page.
+`mise run docs` builds it the same way and serves it on :4000 (`docs-builder serve` would skip the landing page).
+
 ## Outside the window
 
 - `⌃⌥H` (`[keys] global_activate`) brings Heed to the front from any app, reopening the window if it was closed.
@@ -59,7 +65,7 @@ yabai -m rule --add app="^Heed$" title="^Heed Start Work$" manage=off
 | `Sources/HeedTerminal` | The libghostty wrapper; the only code that touches `ghostty.h` (built when GhosttyKit exists) |
 | `Sources/heed` | The CLI agent hooks call: `heed state blocked --reason "..."` over a unix socket |
 | `design/` | The approved boards (`screens/*.png`) and the original brief (`BRIEF.md`) |
-| `docs/plan.md` | The plan, decisions and build order |
+| `PLAN.md` | The plan, decisions and build order |
 
 ## Deploying to the MacBook
 

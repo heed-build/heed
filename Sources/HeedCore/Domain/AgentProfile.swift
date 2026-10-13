@@ -73,7 +73,7 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
         return env + ([command] + extraArguments.map(ShellQuote.quote) + [resume]).joined(separator: " ")
     }
 
-    /// Flags verified against each CLI's source or docs on 2026-10-12 (see docs/plan.md).
+    /// Flags verified against each CLI's source or docs on 2026-10-12 (see PLAN.md).
     public static let builtIn: [AgentProfile] = [
         AgentProfile(
             name: "claude", command: "claude", planArguments: "--permission-mode plan",

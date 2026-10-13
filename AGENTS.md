@@ -17,7 +17,7 @@
 - **Never steal focus.** Heed never activates itself or raises a window on its own: not on launch from a hook, not on
   a state change, not when a PR event arrives. Attention is asked for (badge, `ga`, a notification), never taken.
 
-- Read `docs/plan.md` first; the brief is `design/BRIEF.md`, the boards `design/screens/*.png`.
+- Read `PLAN.md` first; the brief is `design/BRIEF.md`, the boards `design/screens/*.png`.
 - `mise run test` and `mise run lint` before committing. Core logic goes in `HeedCore` with tests; the app layer
   stays thin.
 - Never block the main actor: no `Process.waitUntilExit`, file or network IO on it.

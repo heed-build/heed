@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Heed — Keep an eye on every agent</title>
+<meta name="description" content="A keyboard-first macOS command center for agentic coding: agents in real terminals, a worktree per task, and the GitHub around it, with a live state for every agent."/>
+<base href="/"/>
+
+<!-- This page is copied verbatim over the generated index.html (scripts/docs.sh, .github/workflows/docs.yml), so it
+     never goes through docs-builder: social tags are by hand, and links resolve against <base href>. -->
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://heed.nullean.net/"/>
+<meta property="og:title" content="Heed — Keep an eye on every agent"/>
+<meta property="og:description" content="A keyboard-first macOS command center for agentic coding."/>
+<meta property="og:image" content="https://heed.nullean.net/images/png/heed-social-1280x640.png"/>
+<meta property="og:image:width" content="1280"/>
+<meta property="og:image:height" content="640"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Heed — Keep an eye on every agent"/>
+<meta name="twitter:description" content="A keyboard-first macOS command center for agentic coding."/>
+<meta name="twitter:image" content="https://heed.nullean.net/images/png/heed-social-1280x640.png"/>
+<link rel="icon" type="image/png" sizes="32x32" href="images/png/heed-32.png"/>
+<link rel="icon" type="image/png" sizes="16x16" href="images/png/heed-16.png"/>
+<link rel="apple-touch-icon" href="images/png/heed-180.png"/>
+
+<style>
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: swap;
+  src: url("fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 700; font-display: swap;
+  src: url("fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2"); }
+
+:root {
+  --ink: #0e0f11; --ink-2: #15171a; --ink-3: #1d2024; --line: #2a2e34;
+  --ivory: #dfe3e8; --fg-2: #a9b0b9; --fg-3: #747c86;
+  --amber: #f0a53a;
+  --working: #67b0f9; --blocked: #f9bb51; --asking: #c79ef7; --done: #72d699;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --ui: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ink); color: var(--ivory); font: 17px/1.6 var(--ui); }
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+
+nav { position: sticky; top: 0; z-index: 10; background: rgba(14, 15, 17, .82); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line); }
+nav .wrap { display: flex; align-items: center; gap: 28px; height: 60px; }
+nav .brand { display: flex; align-items: center; gap: 10px; font: 700 20px var(--mono); text-decoration: none; }
+nav .brand img { width: 30px; height: 30px; }
+nav .links { margin-left: auto; display: flex; gap: 22px; font-size: 15px; }
+nav .links a { text-decoration: none; color: var(--fg-2); }
+nav .links a:hover { color: var(--ivory); }
+
+.hero { padding: 96px 0 40px; text-align: center; }
+.hero img.owl { width: 132px; height: 132px; }
+.hero h1 { font: 700 76px/1 var(--mono); letter-spacing: -2px; margin: 18px 0 14px; }
+.hero .tagline { font: 400 22px var(--mono); color: var(--fg-2); margin: 0 0 22px; }
+.hero p.lede { max-width: 680px; margin: 0 auto 34px; color: var(--fg-2); font-size: 19px; }
+.cta { display: inline-flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+.button { display: inline-block; padding: 12px 22px; border-radius: 10px; text-decoration: none; font-weight: 600;
+  border: 1px solid var(--line); }
+.button.primary { background: var(--ivory); color: var(--ink); border-color: var(--ivory); }
+.button:hover { border-color: var(--fg-3); }
+
+.shot { margin: 56px auto 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--line);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px rgba(255, 255, 255, .02); }
+.shot img { display: block; width: 100%; height: auto; }
+
+section.feature { padding: 110px 0 0; }
+.feature .head { max-width: 760px; }
+.eyebrow { font: 700 13px var(--mono); letter-spacing: 1.4px; text-transform: uppercase; color: var(--amber); }
+.feature h2 { font: 700 40px/1.15 var(--mono); letter-spacing: -1px; margin: 10px 0 16px; }
+.feature p { color: var(--fg-2); margin: 0 0 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 30px; }
+.card { background: var(--ink-2); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+.card h3 { margin: 0 0 6px; font-size: 16px; }
+.card p { margin: 0; font-size: 15px; }
+.states { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 6px; }
+.state { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+  background: var(--ink-2); border: 1px solid var(--line); font: 400 14px var(--mono); }
+.state i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+kbd { font: 700 13px var(--mono); background: var(--ink-3); border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 6px; padding: 1px 7px; color: var(--ivory); }
+.keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px 28px; margin-top: 26px;
+  font-size: 15px; color: var(--fg-2); }
+.keys div { display: flex; gap: 12px; align-items: baseline; }
+.keys kbd { min-width: 44px; text-align: center; }
+
+.closing { text-align: center; padding: 130px 0 110px; }
+.closing h2 { font: 700 44px var(--mono); letter-spacing: -1px; margin: 0 0 14px; }
+.closing p { color: var(--fg-2); margin: 0 0 30px; }
+footer { border-top: 1px solid var(--line); padding: 28px 0; color: var(--fg-3); font-size: 14px; }
+footer .wrap { display: flex; gap: 20px; flex-wrap: wrap; }
+footer a { color: var(--fg-2); }
+
+@media (max-width: 700px) {
+  .hero h1 { font-size: 54px; }
+  .feature h2 { font-size: 30px; }
+  nav .links a.optional { display: none; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="images/heed-mark.svg" alt=""/>heed</a>
+    <div class="links">
+      <a class="optional" href="#sessions">Sessions</a>
+      <a class="optional" href="#keys">Keys</a>
+      <a class="optional" href="#github">PRs &amp; issues</a>
+      <a href="getting-started/">Docs</a>
+      <a href="https://github.com/nullean/heed">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <img class="owl" src="images/heed-owl.svg" alt="The Heed owl"/>
+    <h1>heed</h1>
+    <p class="tagline">Keep an eye on every agent.</p>
+    <p class="lede">A keyboard-first macOS command center for agentic coding. Agents run in real terminals, every task
+      gets its own git worktree, and the GitHub around the work stays in view. Heed tells you which agent needs you,
+      and gets you there in a keystroke.</p>
+    <div class="cta">
+      <a class="button primary" href="getting-started/">Get started</a>
+      <a class="button" href="https://github.com/nullean/heed">View on GitHub</a>
+    </div>
+    <div class="shot"><img src="images/screens/sessions.png" alt="Heed's Sessions view: sessions grouped by what they need, an agent and a shell side by side" width="1800" height="1125"/></div>
+  </div>
+</header>
+
+<section class="feature" id="sessions">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Sessions</div>
+      <h2>Every agent, and what it needs from you.</h2>
+      <p>A session is an agent, its terminals and its worktree. Hooks tell Heed what each agent is doing, so the list
+        sorts itself: the ones waiting on you rise to the top, the Dock and the menu bar show how many, and
+        <kbd>ga</kbd> jumps to the next.</p>
+    </div>
+    <div class="states">
+      <span class="state"><i style="background:var(--working)"></i>working</span>
+      <span class="state"><i style="background:var(--blocked)"></i>blocked: wants permission</span>
+      <span class="state"><i style="background:var(--asking)"></i>asking: has questions</span>
+      <span class="state"><i style="background:var(--done)"></i>done</span>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>Real terminals</h3><p>libghostty panes and tabs: the agent, a shell, your test runner.</p></div>
+      <div class="card"><h3>Any agent</h3><p>claude, codex, cursor, pi, opencode and gemini, or your own command.</p></div>
+      <div class="card"><h3>Resume, always</h3><p>Sessions come back after a restart, the agent picking up where it stopped.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="feature" id="keys">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Keyboard first</div>
+      <h2>Modes, like vim. Every view a key away.</h2>
+      <p>NORMAL drives Heed; INSERT sends your keys to the focused terminal. Hints jump to anything, <kbd>/</kbd>
+        filters any list, and <kbd>:</kbd> runs any command by name. Every binding is yours to change.</p>
+    </div>
+    <div class="keys">
+      <div><kbd>gs</kbd><span>Sessions</span></div>
+      <div><kbd>gm</kbd><span>Inbox</span></div>
+      <div><kbd>gi</kbd><span>Issues</span></div>
+      <div><kbd>gp</kbd><span>Pull requests</span></div>
+      <div><kbd>gr</kbd><span>Repos and worktrees</span></div>
+      <div><kbd>gh</kbd><span>History</span></div>
+      <div><kbd>i</kbd><span>type into the agent; <kbd>⇧⎋</kbd> back</span></div>
+      <div><kbd>f</kbd><span>jump to anything on screen</span></div>
+      <div><kbd>o</kbd><span>start work</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="feature" id="start">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Start work</div>
+      <h2>Describe the task. Heed sets up the rest.</h2>
+      <p>Heed picks the repo, names the branch (<code>fix/</code>, <code>chore/</code> from your first word), makes the
+        worktree and starts the agent on your prompt. <kbd>⌃⌥Space</kbd> opens it over any app.</p>
+    </div>
+    <div class="shot"><img src="images/screens/start-work.png" alt="The Start work dialog: prompt, repo guesses, worktree name, agent" loading="lazy" width="1800" height="1125"/></div>
+  </div>
+</section>
+
+<section class="feature" id="github">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">GitHub, through gh</div>
+      <h2>The work around the work.</h2>
+      <p>Your inbox, issues and pull requests, synced through the GitHub CLI. Start a session from an issue in one key.
+        Review comments and failing checks queue up and go back to the agent when it is idle.</p>
+    </div>
+    <div class="shot"><img src="images/screens/pr-feedback.png" alt="Review feedback queued for the session's agent" loading="lazy" width="1800" height="1125"/></div>
+  </div>
+</section>
+
+<section class="feature" id="tutor">
+  <div class="wrap">
+    <div class="head">
+      <div class="eyebrow">Learn it by doing</div>
+      <h2>A tutor in the app itself.</h2>
+      <p><kbd>:tutor</kbd> turns the window into a sandbox on made-up data, with lessons that tick off as you do them.
+        Your real sessions keep running underneath.</p>
+    </div>
+    <div class="shot"><img src="images/screens/tutor.png" alt="The tutor: a lesson on the views, steps ticked off" loading="lazy" width="1800" height="1125"/></div>
+  </div>
+</section>
+
+<section class="closing">
+  <div class="wrap">
+    <h2>Keep an eye on every agent.</h2>
+    <p>Heed is open source and runs on macOS 15 or later.</p>
+    <div class="cta">
+      <a class="button primary" href="getting-started/">Get started</a>
+      <a class="button" href="https://github.com/nullean/heed">View on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>heed</span>
+    <a href="getting-started/">Documentation</a>
+    <a href="https://github.com/nullean/heed">GitHub</a>
+  </div>
+</footer>
+
+</body>
+</html>

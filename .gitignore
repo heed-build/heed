@@ -8,3 +8,4 @@ Vendor/
 mise.local.toml
 .claude/worktrees/
 dist/
+.artifacts/

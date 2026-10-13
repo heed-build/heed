@@ -1,0 +1,19 @@
+project: 'Heed'
+max_toc_depth: 2
+dev_docs: true
+
+branding:
+  icon: images/heed-mark.svg
+  favicon: images/png/heed-32.png
+  og-image: images/png/heed-social-1280x640.png
+  apple-touch-icon: images/png/heed-180.png
+
+# The skeleton: the feature-by-feature structure is scoped next.
+toc:
+  - file: index.md
+  - folder: getting-started
+    children:
+      - file: index.md
+      - file: installation.md
+      - file: first-run.md
+      - file: tutor.md

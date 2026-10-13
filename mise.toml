@@ -44,6 +44,10 @@ run = ["swiftformat Sources Tests Package.swift --lint", "swiftlint lint --quiet
 description = "Release build, ad-hoc signed build/Heed.app"
 run = ["swift build -c release", "scripts/bundle.sh release"]
 
+[tasks.docs]
+description = "Build the docs as CI does (docs-builder + landing page) and serve them on :4000 (-- --noserve to only build)"
+run = "scripts/docs.sh"
+
 [tasks.deploy]
 description = "Copy build/Heed.app to HEED_DEPLOY_DIR (set it in mise.local.toml)"
 run = "scripts/deploy.sh"

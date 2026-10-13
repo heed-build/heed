@@ -4,10 +4,12 @@ description: How Start work guesses the repo, and how to pick any repo instead.
 
 # Choosing repos
 
-As you type, Heed ranks your repos and selects the best guess. Each guess shows how sure it is, and the line under the
+As you type, Heed ranks your repos and selects the best guess, only that one: each selected repo gets a worktree, so a
+second is always yours to add. Each guess shows how sure it is, and the line under the
 chips says why:
 
-- **The prompt names it**: the strongest signal (`… in docs-builder`).
+- **The prompt names it**: the strongest signal (`… in docs-builder`). Whole names only, and not inside a link or
+  an `org/repo#12` reference: those point at an issue, not at where the work happens.
 - **Words in common** with the repo's name.
 - **Recent sessions** ran there.
 - **Worktrees already**: repos you work in most rank higher.

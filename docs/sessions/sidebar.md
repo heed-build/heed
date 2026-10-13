@@ -15,9 +15,9 @@ The sidebar lists every open session, grouped so that whatever needs you is near
 | **Working** | Agents busy on their task. |
 | **Parked** | Sessions you set aside with `zz`, and finished ones. |
 
-Each row shows the session's state glyph, its title, its repos (one chip per worktree), the agent and what it is doing,
-and how many pull requests it tracks. The numbers on the left are relative to the cursor, as in vim: the number on a
-row is how many `j` or `k` presses away it is.
+Each row shows the session's state glyph, its title, its repos (one chip per worktree, then one per repo it opened a
+PR in), the agent and what it is doing, and how many pull requests it tracks. The numbers on the left are relative to
+the cursor, as in vim: the number on a row is how many `j` or `k` presses away it is.
 
 The footer counts repos and worktrees; `gr` opens [Repos](../worktrees/index.md).
 

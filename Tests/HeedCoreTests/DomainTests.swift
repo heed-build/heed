@@ -37,6 +37,21 @@ struct GitParsingTests {
         #expect(worktrees[1].head == "abcdef1")
     }
 
+    @Test func aBareRepoHasNoMainWorktree() {
+        let porcelain = """
+        worktree /code/mermaid-dotnet/.bare
+        bare
+
+        worktree /code/mermaid-dotnet/feature/erd
+        HEAD abcdef1234567890
+        branch refs/heads/feature/erd
+
+        """
+        let worktrees = Git.parseWorktrees(porcelain, repo: Repo(org: "nullean", name: "mermaider"))
+        #expect(worktrees.map(\.path) == ["/code/mermaid-dotnet/feature/erd"])
+        #expect(worktrees.map(\.isMain) == [false])
+    }
+
     @Test func status() {
         let porcelain = """
         # branch.oid abc
@@ -242,7 +257,8 @@ struct StartWorkFormTests {
         var form = StartWorkForm(repos: records, history: [], settings: .default)
         type("Fix anchors in docs-builder and docs-content", into: &form)
         #expect(form.name == "fix/anchors-docs-builder-docs")
-        #expect(form.selectedRepos == ["elastic/docs-builder", "elastic/docs-content"])
+        // Only the top guess: a second repo (and its worktree) is yours to add.
+        #expect(form.selectedRepos == ["elastic/docs-builder"])
         #expect(form.plan.command == "claude 'Fix anchors in docs-builder and docs-content'")
     }
 
@@ -321,5 +337,18 @@ struct RepoOrderTests {
         // A repo the prompt names still wins.
         let named = StartWork.guessRepos(for: "fix one", in: repos, history: [], worktrees: ["a/three": 6])
         #expect(named.first?.repo.id == "a/one")
+    }
+
+    @Test func onlyWholeRepoNamesOutsideLinksCount() {
+        let repos = ["elastic/docs", "elastic/docs-builder", "elastic/docs-eng-team"].map(record)
+        let guesses = StartWork.guessRepos(
+            for: "Improve the error in docs-builder, see https://github.com/elastic/docs-eng-team/issues/1025",
+            in: repos, history: []
+        )
+        #expect(guesses.first?.repo.id == "elastic/docs-builder")
+        #expect(guesses.first { $0.repo.id == "elastic/docs" }.map { $0.confidence < 80 } == true)
+        #expect(guesses.first { $0.repo.id == "elastic/docs-eng-team" }.map { $0.confidence < 80 } == true)
+        let reference = StartWork.guessRepos(for: "Fixes elastic/docs-eng-team#1025", in: repos, history: [])
+        #expect(reference.allSatisfy { $0.confidence < 80 })
     }
 }

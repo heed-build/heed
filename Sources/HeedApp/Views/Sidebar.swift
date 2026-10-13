@@ -119,7 +119,7 @@ struct SessionRow: View {
                             .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
                     }
                 }
-                FlowChips(repos: session.repos)
+                FlowChips(repos: session.involvedRepos)
                 Text("\(session.agent) · \(session.activity)")
                     .font(Theme.ui(11.5))
                     .foregroundStyle(Theme.fg3)

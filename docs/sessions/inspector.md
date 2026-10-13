@@ -12,6 +12,7 @@ The inspector, on the right of the Sessions view, shows the selected session's s
   changes.
 - **Pull requests**: each tracked PR with its checks bar, its review state, and whether review feedback is being
   watched. `go` opens the [PR overlay](../github/review-feedback.md).
-- **Agent events**: the latest states the agent reported, newest first.
+- **Agent events**: the latest states the agent reported, newest first. A turn's working steps show while it runs and
+  fold away once it ends, leaving how it ended.
 
 `zi` collapses and expands the inspector. It also gives way first when the window is narrow.

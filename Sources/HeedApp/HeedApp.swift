@@ -89,6 +89,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
+        // Heed's palette is dark only. Without this, anything left to the system colours (a Text with no style, native
+        // controls, Settings) follows macOS and turns black on the dark panels in light mode.
+        NSApp.appearance = NSAppearance(named: .darkAqua)
         // HEED_SHOTS: render the docs' screenshots from the fake world, then quit; nothing else starts.
         if ShotRunner.requested {
             NSApp.setActivationPolicy(.accessory)

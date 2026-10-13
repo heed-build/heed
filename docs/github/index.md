@@ -6,7 +6,9 @@ description: Your inbox, issues and pull requests, synced through the GitHub CLI
 # GitHub
 
 Heed talks to GitHub only through the [GitHub CLI](https://cli.github.com): it never asks for a token. Sign in once
-with `gh auth login` and Heed syncs every minute (`poll_seconds` under `[github]`); `r` syncs now.
+with `gh auth login` and Heed keeps it in sync: what the view on screen shows every minute (`poll_seconds` under
+`[github]`), the rest every five, and `r` syncs everything now. A tracked PR's details are fetched when you open it and
+when its checks or review threads change.
 
 | View | Key | Shows |
 |---|---|---|

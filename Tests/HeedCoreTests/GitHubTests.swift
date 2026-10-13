@@ -42,7 +42,9 @@ struct GitHubParsingTests {
         #expect(pull.ref == PullRef(repo: Repo(org: "xoofx", name: "SharpYaml"), number: 170))
         #expect(pull.review == .changesRequested)
         #expect(pull.unresolvedThreads == 1)
-        #expect(pull.checks == CheckSummary(passed: 1, failed: 1, pending: 1, skipped: 1, failedNames: ["build"]))
+        #expect(pull.checks == CheckSummary(
+            passed: 1, failed: 1, pending: 1, skipped: 1, failedNames: ["build"], pendingNames: ["lint"]
+        ))
         #expect(pull.checks.text == "build failed")
     }
 
@@ -134,7 +136,7 @@ struct FeedbackTests {
     private let ref = PullRef(repo: Repo(org: "elastic", name: "docs-builder"), number: 2841)
 
     private func detail(
-        threads: [ReviewThread], failing: [String] = [], sha: String = "a1", approvals: Int = 0, pending: Int = 0
+        threads: [ReviewThread], failing: [String] = [], sha: String = "a1", approvals: Int = 0, pending: [String] = []
     ) -> PullDetail {
         PullDetail(
             ref: ref, title: "t", body: "", author: "you", baseBranch: "main", headBranch: "b", additions: 1,
@@ -143,7 +145,9 @@ struct FeedbackTests {
             reviews: (0 ..< approvals).map { PullDetail.Review(author: "r\($0)", state: "APPROVED") },
             threads: threads,
             failingChecks: failing.map { PullDetail.FailingCheck(name: $0, summary: "\($0) broke", url: nil) },
-            checks: CheckSummary(failed: failing.count, pending: pending, failedNames: failing), closes: [],
+            checks: CheckSummary(
+                failed: failing.count, pending: pending.count, failedNames: failing, pendingNames: pending
+            ), closes: [],
             fetchedAt: Date()
         )
     }
@@ -196,11 +200,34 @@ struct FeedbackTests {
         #expect(feedback.rounds == 0)
     }
 
-    @Test func pendingChecksAreNotResolvedYet() {
+    @Test func aCheckRunningAgainIsNotResolvedYet() {
         var feedback = PullFeedback(ref: ref)
         feedback.merge(detail(threads: [], failing: ["build"]))
-        feedback.merge(detail(threads: [], failing: [], pending: 1))
+        feedback.merge(detail(threads: [], failing: [], pending: ["build"]))
         #expect(feedback.items[0].status == .new)
+    }
+
+    @Test func aCheckThatPassedResolvesWhileOthersStillRun() {
+        var feedback = PullFeedback(ref: ref)
+        feedback.merge(detail(threads: [], failing: ["check-labels", "validate"]))
+        feedback.merge(detail(threads: [], failing: [], pending: ["build (windows-latest)"]))
+        #expect(feedback.items.map(\.status) == [.resolved, .resolved])
+    }
+
+    @Test func onlyTheNewestRunOfACheckCounts() {
+        // check-labels failed, then ran again on the same commit once the label was added.
+        let contexts: [[String: Any]] = [
+            ["__typename": "CheckRun", "name": "check-labels", "status": "COMPLETED", "conclusion": "FAILURE",
+             "startedAt": "2026-10-13T08:20:00Z"],
+            ["__typename": "CheckRun", "name": "check-labels", "status": "COMPLETED", "conclusion": "SUCCESS",
+             "startedAt": "2026-10-13T08:31:00Z"],
+            ["__typename": "CheckRun", "name": "build", "status": "IN_PROGRESS", "startedAt": "2026-10-13T08:20:00Z"],
+            ["__typename": "StatusContext", "context": "ci/legacy", "state": "SUCCESS"],
+        ]
+        let summary = GitHub.checkSummary(GitHub.latest(contexts))
+        #expect(summary.failed == 0)
+        #expect(summary.passed == 2)
+        #expect(summary.pendingNames == ["build"])
     }
 
     @Test func deliveryWaitsForIdleAndForYou() {
@@ -248,5 +275,55 @@ struct AvatarCacheTests {
         #expect(!cache.isStale("elastic"))
         #expect(cache.isStale("elastic", now: Date().addingTimeInterval(120)))
         #expect(AvatarCache.url(for: "elastic")?.absoluteString == "https://github.com/elastic.png?size=64")
+    }
+}
+
+struct SyncScheduleTests {
+    private let now = Date(timeIntervalSince1970: 1_000_000)
+
+    @Test func theViewOnScreenRefreshesEveryMinuteTheRestEveryFive() {
+        var schedule = SyncSchedule()
+        #expect(schedule.due(now: now, front: [.pulls]) == Set(GitHubPart.allCases))
+        schedule.fetched(Set(GitHubPart.allCases), at: now)
+        #expect(schedule.due(now: now.addingTimeInterval(30), front: [.pulls]).isEmpty)
+        #expect(schedule.due(now: now.addingTimeInterval(60), front: [.pulls]) == [.pulls])
+        #expect(schedule.due(now: now.addingTimeInterval(300), front: [.pulls]) == Set(GitHubPart.allCases))
+        #expect(schedule.due(now: now.addingTimeInterval(1), front: [], force: true) == Set(GitHubPart.allCases))
+    }
+
+    @Test func aDetailIsFetchedOnlyWhenItsSummaryMoved() {
+        let ref = PullRef(repo: Repo(org: "elastic", name: "docs-builder"), number: 1)
+        func pull(_ checks: CheckSummary) -> PullRequest {
+            PullRequest(
+                ref: ref, title: "t", url: ref.url, state: .open, isDraft: false, headBranch: "b", review: nil,
+                checks: checks, unresolvedThreads: 0, updatedAt: now
+            )
+        }
+        let running = CheckSummary(passed: 2, pending: 1, pendingNames: ["build"])
+        let detail = PullDetail(
+            ref: ref, title: "t", body: "", author: nil, baseBranch: "main", headBranch: "b", additions: 0,
+            deletions: 0, commitCount: 1, headSHA: "a", reviews: [], threads: [], failingChecks: [], checks: running,
+            closes: [], fetchedAt: now
+        )
+        #expect(SyncSchedule().needsDetail(pull: nil, detail: nil, now: now))
+        #expect(!SyncSchedule().needsDetail(pull: pull(running), detail: detail, now: now.addingTimeInterval(60)))
+        #expect(SyncSchedule().needsDetail(pull: pull(CheckSummary(passed: 3)), detail: detail, now: now))
+        #expect(SyncSchedule().needsDetail(pull: pull(running), detail: detail, now: now.addingTimeInterval(300)))
+    }
+}
+
+struct AgentEventTests {
+    @Test func aFinishedTurnFoldsItsWorkingStepsAway() {
+        let start = Date(timeIntervalSince1970: 0)
+        var log: [AgentEvent] = []
+        for (offset, state) in [AgentState.done, .working, .working, .working].enumerated() {
+            log = AgentEvent.log(log, adding: AgentEvent(at: start + Double(offset), state: state, reason: nil))
+        }
+        #expect(log.map(\.state) == [.working, .working, .working, .done])
+        log = AgentEvent.log(log, adding: AgentEvent(at: start + 9, state: .done, reason: nil))
+        #expect(log.map(\.state) == [.done, .done])
+        log = AgentEvent.log(log, adding: AgentEvent(at: start + 10, state: .working, reason: nil))
+        log = AgentEvent.log(log, adding: AgentEvent(at: start + 11, state: .blocked, reason: "Bash"))
+        #expect(log.map(\.state) == [.blocked, .done, .done])
     }
 }

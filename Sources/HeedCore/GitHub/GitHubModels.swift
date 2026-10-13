@@ -144,13 +144,32 @@ public struct CheckSummary: Hashable, Sendable, Codable {
     public var pending: Int
     public var skipped: Int
     public var failedNames: [String]
+    /// The checks still running, so a failure that has since passed resolves without waiting on unrelated ones.
+    public var pendingNames: [String]
 
-    public init(passed: Int = 0, failed: Int = 0, pending: Int = 0, skipped: Int = 0, failedNames: [String] = []) {
+    public init(
+        passed: Int = 0, failed: Int = 0, pending: Int = 0, skipped: Int = 0, failedNames: [String] = [],
+        pendingNames: [String] = []
+    ) {
         self.passed = passed
         self.failed = failed
         self.pending = pending
         self.skipped = skipped
         self.failedNames = failedNames
+        self.pendingNames = pendingNames
+    }
+
+    // pendingNames came later: caches written before it still decode.
+    private enum CodingKeys: String, CodingKey { case passed, failed, pending, skipped, failedNames, pendingNames }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        passed = try container.decode(Int.self, forKey: .passed)
+        failed = try container.decode(Int.self, forKey: .failed)
+        pending = try container.decode(Int.self, forKey: .pending)
+        skipped = try container.decode(Int.self, forKey: .skipped)
+        failedNames = try container.decode([String].self, forKey: .failedNames)
+        pendingNames = try container.decodeIfPresent([String].self, forKey: .pendingNames) ?? []
     }
 
     public var total: Int { passed + failed + pending }

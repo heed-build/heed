@@ -58,6 +58,15 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     /// What happened, coarsely: started, PRs, resumed, ended. Kept with the session and in history; capped.
     public var timeline: [TimelineEvent]
 
+    /// The repos it works in (its worktrees), then those of PRs it opened elsewhere.
+    public var involvedRepos: [Repo] {
+        var result = repos
+        for ref in trackedPRs where !result.contains(ref.repo) {
+            result.append(ref.repo)
+        }
+        return result
+    }
+
     public init(
         id: String = UUID().uuidString.lowercased(), title: String, prompt: String = "", repos: [Repo], branch: String,
         agent: String, agentSessionID: String? = nil, state: ObservedState, activity: String = "",

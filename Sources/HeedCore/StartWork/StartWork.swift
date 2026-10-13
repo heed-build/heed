@@ -204,18 +204,32 @@ public enum StartWork {
 
     /// Repos ranked for a prompt: named in it (strongest), words in common with the repo name, where recent sessions
     /// ran, and how many worktrees each already has (the repos you work in most). Every guess says why.
+    /// Links and `org/repo#12` references point at an issue or PR, not at where the work happens: they do not count.
+    static func referencesRemoved(_ text: String) -> String {
+        text.replacingOccurrences(of: #"https?://\S+"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"[\w.\-/]*#\d+"#, with: " ", options: .regularExpression)
+    }
+
+    static func isNameCharacter(_ character: Character) -> Bool {
+        character.isLetter || character.isNumber || "-_./".contains(character)
+    }
+
     public static func guessRepos(
         for prompt: String, in repos: [RepoRecord], history: [Session], worktrees: [String: Int] = [:]
     ) -> [RepoGuess] {
         let busiest = worktrees.values.max() ?? 0
-        let text = prompt.lowercased()
+        let text = referencesRemoved(prompt.lowercased())
         let words = Set(text.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
+        // Whole names only: docs must not match inside docs-builder.
+        let names = Set(text.split(whereSeparator: { !isNameCharacter($0) }).flatMap { token in
+            [String(token), String(token.split(separator: "/").last ?? token)]
+        })
         let recent = history.sorted { $0.lastActivity > $1.lastActivity }.prefix(5)
         let guesses = repos.map { record -> RepoGuess in
             let name = record.repo.name.lowercased()
             var score = 0.0
             var reasons: [String] = []
-            if text.contains(name) {
+            if names.contains(name) {
                 score += 0.8
                 reasons.append("Prompt names \(record.repo.name).")
             } else {

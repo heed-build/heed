@@ -138,7 +138,12 @@ final class AppModel {
     var pendingKeys: String { engine.pendingDisplay }
 
     // Chrome
-    private(set) var view: AppView = .sessions { didSet { updateScope() } }
+    private(set) var view: AppView = .sessions {
+        didSet {
+            updateScope()
+            if view != oldValue { viewChangedForSync() }
+        }
+    }
     private(set) var overlay: Overlay? { didSet { updateScope() } }
     /// The PR open in the reader, over whatever view it was opened from.
     private(set) var reader: PullRef? { didSet { updateScope() } }
@@ -335,27 +340,50 @@ final class AppModel {
     private var githubTask: Task<Void, Never>?
     private(set) var syncing = false
 
-    /// Syncs now and then every minute. A failed sync keeps the cached data and marks it offline.
+    private var syncSchedule = SyncSchedule()
+
+    /// Syncs now and then every `poll_seconds`: what the window shows each time, the rest every fifth time. A failed
+    /// sync keeps the cached data and marks it offline.
     private func startGitHubSync() {
         githubTask?.cancel()
         githubTask = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.syncGitHub()
-                try? await Task.sleep(for: .seconds(60))
+                guard let self else { return }
+                await syncGitHub(force: false)
+                try? await Task.sleep(for: .seconds(syncSchedule.front))
             }
         }
     }
 
-    func syncGitHub() async {
+    /// The parts the window is showing now.
+    private var frontParts: Set<GitHubPart> {
+        switch view {
+        case .inbox: [.inbox]
+        case .issues: [.issues]
+        // Sessions show their PRs' state; Repos and History their PR numbers.
+        case .sessions, .prs, .repos, .history: [.pulls]
+        }
+    }
+
+    /// `force` (gr refresh, :github.sync, signing in): every part. Otherwise what is due; `parts` asks for some now.
+    func syncGitHub(force: Bool = true, parts wanted: Set<GitHubPart> = []) async {
         guard !isFixture, !syncing else { return }
+        syncSchedule.front = TimeInterval(config.githubPollSeconds)
+        let parts = wanted.isEmpty ? syncSchedule.due(now: Date(), front: frontParts, force: force) : wanted
+        guard !parts.isEmpty else {
+            await refreshWatchedDetails()
+            return
+        }
         syncing = true
         defer { syncing = false }
         let previous = github
         let tracked = Array(Set(sessions.flatMap(\.trackedPRs)))
         do {
             let state = try await GitHub.sync(
-                tracked: tracked, previous: previous, issueRules: config.issues, localRepos: repos.map(\.repo)
+                parts: parts, tracked: tracked, previous: previous, issueRules: config.issues,
+                localRepos: repos.map(\.repo)
             )
+            syncSchedule.fetched(parts, at: Date())
             commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
             await refreshWatchedDetails()
         } catch {
@@ -363,6 +391,13 @@ final class AppModel {
             offline.status = .offline("\(error)")
             commit(.githubSynced(offline))
         }
+    }
+
+    /// Switching to a view whose data is older than a poll fetches it right away instead of on the next tick.
+    private func viewChangedForSync() {
+        guard !isFixture, github.syncedAt != nil else { return }
+        let due = syncSchedule.due(now: Date(), front: frontParts).intersection(frontParts)
+        if !due.isEmpty { Task { await syncGitHub(parts: due) } }
     }
 
     // MARK: Resume on launch
@@ -522,7 +557,7 @@ final class AppModel {
         updateOutsideWindow()
         if toolsChanged, !isFixture { Task { await detectTools() } }
         // Repos that now show all issues need fetching; ones that no longer do are hidden by issueRows right away.
-        if issuesChanged, !isFixture, github.syncedAt != nil { Task { await syncGitHub() } }
+        if issuesChanged, !isFixture, github.syncedAt != nil { Task { await syncGitHub(parts: [.issues]) } }
     }
 
     /// Finds git and gh (config, login shell PATH, usual places) and hands the search path to new panes.
@@ -571,9 +606,9 @@ final class AppModel {
             session.state = session.state.accepting(ObservedState(state, source: .reported, reason: reason))
             session.activity = reason.map { "\(state.rawValue) · \($0)" } ?? state.rawValue
             session.lastActivity = message.sentAt
-            var log = events[session.id] ?? []
-            log.insert(AgentEvent(at: message.sentAt, state: state, reason: reason), at: 0)
-            events[session.id] = Array(log.prefix(20))
+            events[session.id] = AgentEvent.log(
+                events[session.id] ?? [], adding: AgentEvent(at: message.sentAt, state: state, reason: reason)
+            )
             if state == .idle || state == .done {
                 let waiting = pendingDelivery.filter { session.trackedPRs.contains($0) }
                 Task { @MainActor in
@@ -665,14 +700,25 @@ final class AppModel {
             if let record = await Git.record(at: Paths.expand(path)), !found.contains(record) { found.append(record) }
         }
         commit(found.map { .repoUpserted($0) })
+        // Every clone, not one per repo: two checkouts of the same GitHub repo (in ~/Projects and ~/code, say) share
+        // one record, and each has worktrees of its own. A repo's list is committed once all its clones answered.
+        let clones = Dictionary(grouping: found + repos.filter { !found.map(\.path).contains($0.path) }) { $0.repo }
         await withTaskGroup(of: [DomainChange].self) { group in
-            for record in repos {
+            for (repo, records) in clones {
                 group.addTask {
-                    guard var listed = try? await Git.worktrees(of: record) else { return [] }
+                    var listed: [Worktree] = []
+                    for record in records {
+                        for worktree in await (try? Git.worktrees(of: record)) ?? []
+                            where !listed.contains(where: { $0.path == worktree.path })
+                        {
+                            listed.append(worktree)
+                        }
+                    }
+                    guard !listed.isEmpty else { return [] }
                     for index in listed.indices {
                         listed[index].status = try? await Git.status(at: listed[index].path)
                     }
-                    return [.worktreesListed(repo: record.repo, listed)]
+                    return [.worktreesListed(repo: repo, listed)]
                 }
             }
             for await changes in group {
@@ -2213,10 +2259,18 @@ final class AppModel {
         }
     }
 
-    /// Details for every PR an active session tracks and watches, so auto-feed sees new feedback.
+    /// Details for the PRs active sessions track and watch, so auto-feed sees new feedback: the one on screen every
+    /// time, the others only when the last sync says their checks or threads moved, or every fifth poll.
     private func refreshWatchedDetails() async {
-        let refs = Set(sessions.flatMap(\.trackedPRs)).filter { feedback[$0.description]?.watching ?? true }
-        for ref in refs.prefix(10) {
+        let open = [overlay == .pr ? overlayPull : nil, reader].compactMap(\.self)
+        let now = Date()
+        let refs = Set(sessions.flatMap(\.trackedPRs)).filter { ref in
+            guard feedback[ref.description]?.watching ?? true else { return false }
+            return open.contains(ref) || syncSchedule.needsDetail(
+                pull: github.pull(ref), detail: pullDetails[ref.description], now: now
+            )
+        }
+        for ref in Set(open).union(refs).prefix(10) {
             fetchDetail(ref)
         }
     }
@@ -2750,13 +2804,6 @@ final class AppModel {
         engine.enter(.insert)
         modeChanged(from: before)
     }
-}
-
-/// One hook event, for the inspector's event list.
-struct AgentEvent: Hashable {
-    let at: Date
-    let state: AgentState
-    let reason: String?
 }
 
 /// The Issues chips (`t`).

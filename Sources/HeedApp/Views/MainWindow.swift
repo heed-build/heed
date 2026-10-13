@@ -44,7 +44,6 @@ struct MainWindow: View {
             ) }
         }
         .background(Theme.bg)
-        .foregroundStyle(Theme.fg)
         .overlay {
             if model.overlay == .pr { PullOverlayView().shotRegion(.pipeline).padding(.top, 44).padding(.bottom, 28) }
         }
@@ -84,6 +83,8 @@ struct MainWindow: View {
         .overlay(alignment: .bottom) {
             LeaderHints().padding(.bottom, 28)
         }
+        // After the overlays, so the dialogs inherit it too.
+        .foregroundStyle(Theme.fg)
         .ignoresSafeArea()
         .onAppear {
             let open = openSettings

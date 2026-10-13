@@ -128,7 +128,8 @@ public enum Git {
 
     public static func parseWorktrees(_ porcelain: String, repo: Repo) -> [Worktree] {
         var result: [Worktree] = []
-        for block in porcelain.components(separatedBy: "\n\n") {
+        // git lists the main worktree first; a bare repo has none, and its first linked worktree is not it.
+        for (index, block) in porcelain.components(separatedBy: "\n\n").enumerated() {
             var path: String?
             var head = ""
             var branch: String?
@@ -145,7 +146,7 @@ public enum Git {
                 }
             }
             guard let path, !bare else { continue }
-            result.append(Worktree(repo: repo, path: path, branch: branch, head: head, isMain: result.isEmpty))
+            result.append(Worktree(repo: repo, path: path, branch: branch, head: head, isMain: index == 0))
         }
         return result
     }

@@ -289,11 +289,9 @@ public struct StartWorkForm: Sendable {
             )
         }
         if !reposTouched {
-            // The top guess, plus every repo the prompt names outright.
-            let picked = guesses.enumerated().filter { index, guess in
-                guess.confidence >= 80 || (index == 0 && guess.confidence > 0)
-            }.map(\.element.repo.id)
-            selectedRepos = picked
+            // The top guess only. Each selected repo gets a worktree, so a second one is yours to add (space), never a
+            // guess: a prompt names repos for many reasons (an issue link, a repo it reads from).
+            selectedRepos = guesses.first.flatMap { $0.confidence > 0 ? [$0.repo.id] : nil } ?? []
         }
     }
 

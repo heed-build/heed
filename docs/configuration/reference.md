@@ -54,6 +54,7 @@ delete_branch = true               # the local branch; the remote is left alone
 ask_before_sweep = false
 
 [github]
+# How often the view on screen refreshes from GitHub; the others refresh five times less often.
 poll_seconds = 60
 
 [issues]

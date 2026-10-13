@@ -16,33 +16,47 @@ public enum GitHub {
 
     // MARK: Sync
 
-    /// One full sync: viewer, notifications, your open PRs (plus `tracked` ones), and issues (those involving you,
-    /// plus every open one in repos `rules` shows all of), fetched concurrently. Throws only when gh itself is unusable
-    /// (missing, signed out, offline).
+    /// A sync of `parts` (all of them by default): notifications, your open PRs (plus `tracked` ones), and issues
+    /// (those involving you, plus every open one in repos `rules` shows all of), fetched concurrently. The parts not
+    /// asked for keep their `previous` data; the login is fetched once, and again on a full sync. Throws only when gh
+    /// itself is unusable (missing, signed out, offline).
     public static func sync(
+        parts: Set<GitHubPart> = Set(GitHubPart.allCases),
         tracked: [PullRef],
-        previous _: GitHubState,
+        previous: GitHubState,
         issueRules: IssueRules = IssueRules(),
         localRepos: [Repo] = [],
         now: Date = Date()
     ) async throws -> GitHubState {
-        async let viewer = viewer()
-        async let inbox = notifications()
-        async let pulls = pullRequests(tracked: tracked)
-        async let issues = issues(rules: issueRules, local: localRepos)
-        let login = try await viewer
+        let full = parts == Set(GitHubPart.allCases)
+        async let viewer = fetch(full || previous.viewer == nil) { try await viewer() }
+        async let inbox = fetch(parts.contains(.inbox)) { try await notifications() }
+        async let pulls = fetch(parts.contains(.pulls)) { try await pullRequests(tracked: tracked) }
+        async let issues = fetch(parts.contains(.issues)) { try await self.issues(rules: issueRules, local: localRepos) }
+        let login = try await viewer ?? previous.viewer
         let fetchedInbox = try await inbox
         let fetchedPulls = try await pulls
         let fetchedIssues = try await issues
-        let hidden = fetchedPulls.hidden + fetchedIssues.hidden
-        return GitHubState(
-            viewer: login, inbox: fetchedInbox, issues: fetchedIssues.value, pulls: fetchedPulls.value,
-            syncedAt: now,
-            status: hidden > 0 ? .partial(
+        let hidden = (fetchedPulls?.hidden ?? 0) + (fetchedIssues?.hidden ?? 0)
+        // A partial sync that saw nothing hidden says nothing about the parts it skipped.
+        let status: SyncStatus = if hidden > 0 {
+            .partial(
                 hidden: hidden,
                 note: "\(hidden) item\(hidden == 1 ? "" : "s") hidden by SAML: authorize the GitHub CLI for that org (gh auth refresh, or github.com/settings/applications)"
-            ) : .ok
+            )
+        } else if !full, case .partial = previous.status {
+            previous.status
+        } else {
+            .ok
+        }
+        return GitHubState(
+            viewer: login, inbox: fetchedInbox ?? previous.inbox, issues: fetchedIssues?.value ?? previous.issues,
+            pulls: fetchedPulls?.value ?? previous.pulls, syncedAt: now, status: status
         )
+    }
+
+    private static func fetch<T: Sendable>(_ wanted: Bool, _ body: () async throws -> T) async throws -> T? {
+        wanted ? try await body() : nil
     }
 
     public static func viewer() async throws -> String {
@@ -179,7 +193,7 @@ public enum GitHub {
     query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) {
       number title body author { login } baseRefName headRefName additions deletions
       commits(last: 1) { totalCount nodes { commit { oid statusCheckRollup { contexts(first: 100) { nodes {
-        __typename ... on CheckRun { name status conclusion title summary detailsUrl }
+        __typename ... on CheckRun { name status conclusion startedAt title summary detailsUrl }
         ... on StatusContext { context state description targetUrl }
       } } } } } }
       reviews(last: 30) { nodes { author { login } state } }
@@ -195,7 +209,7 @@ public enum GitHub {
     reviewDecision
     reviewThreads(first: 100) { nodes { isResolved } }
     commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
-      __typename ... on CheckRun { name status conclusion } ... on StatusContext { context state }
+      __typename ... on CheckRun { name status conclusion startedAt } ... on StatusContext { context state }
     } } } } } }
     """
 
@@ -292,8 +306,9 @@ public enum GitHub {
         let threads = ((node["reviewThreads"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
         let commit = (((node["commits"] as? [String: Any])?["nodes"] as? [[String: Any]])?.first?["commit"]
             as? [String: Any])
-        let contexts = (((commit?["statusCheckRollup"] as? [String: Any])?["contexts"] as? [String: Any])?["nodes"]
-            as? [[String: Any]]) ?? []
+        let contexts = latest((((commit?["statusCheckRollup"] as? [String: Any])?["contexts"] as? [String: Any])?[
+            "nodes"
+        ] as? [[String: Any]]) ?? [])
         return PullRequest(
             ref: PullRef(repo: repo, number: number), title: node["title"] as? String ?? "",
             url: node["url"] as? String ?? PullRef(repo: repo, number: number).url,
@@ -305,6 +320,25 @@ public enum GitHub {
         )
     }
 
+    /// One run per check: a re-run, or a check that runs again on the same commit (a label added), leaves the earlier
+    /// run in the rollup, and GitHub itself shows only the newest.
+    static func latest(_ contexts: [[String: Any]]) -> [[String: Any]] {
+        var newest: [String: Int] = [:]
+        for (index, context) in contexts.enumerated() where context["__typename"] as? String == "CheckRun" {
+            let name = context["name"] as? String ?? ""
+            if let seen = newest[name],
+               (contexts[seen]["startedAt"] as? String ?? "") > (context["startedAt"] as? String ?? "")
+            {
+                continue
+            }
+            newest[name] = index
+        }
+        let kept = Set(newest.values)
+        return contexts.enumerated().filter { index, context in
+            context["__typename"] as? String != "CheckRun" || kept.contains(index)
+        }.map(\.element)
+    }
+
     static func checkSummary(_ contexts: [[String: Any]]) -> CheckSummary {
         var summary = CheckSummary()
         for context in contexts {
@@ -314,12 +348,15 @@ public enum GitHub {
                 case "FAILURE", "ERROR":
                     summary.failed += 1
                     summary.failedNames.append(context["context"] as? String ?? "status")
-                default: summary.pending += 1
+                default:
+                    summary.pending += 1
+                    summary.pendingNames.append(context["context"] as? String ?? "status")
                 }
                 continue
             }
             guard context["status"] as? String == "COMPLETED" else {
                 summary.pending += 1
+                summary.pendingNames.append(context["name"] as? String ?? "check")
                 continue
             }
             switch context["conclusion"] as? String {
@@ -341,8 +378,9 @@ public enum GitHub {
         else { return nil }
         let commits = node["commits"] as? [String: Any]
         let commit = ((commits?["nodes"] as? [[String: Any]])?.first?["commit"] as? [String: Any])
-        let contexts = (((commit?["statusCheckRollup"] as? [String: Any])?["contexts"] as? [String: Any])?["nodes"]
-            as? [[String: Any]]) ?? []
+        let contexts = latest((((commit?["statusCheckRollup"] as? [String: Any])?["contexts"] as? [String: Any])?[
+            "nodes"
+        ] as? [[String: Any]]) ?? [])
         let failing = contexts.compactMap { context -> PullDetail.FailingCheck? in
             if context["__typename"] as? String == "StatusContext" {
                 guard ["FAILURE", "ERROR"].contains(context["state"] as? String ?? "") else { return nil }

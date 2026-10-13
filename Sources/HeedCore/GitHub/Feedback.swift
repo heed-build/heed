@@ -188,12 +188,13 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             rounds = 0
         }
         let threads = Dictionary(detail.threads.map { ($0.id, $0) }) { first, _ in first }
+        // Each check on its own: one that passed resolves even while other checks still run.
         let failing = Set(detail.failingChecks.map(\.name))
         for index in items.indices {
             var item = items[index]
             let gone: Bool = switch item.kind {
             case .review: threads[item.id]?.isResolved ?? true
-            case let .check(name): !failing.contains(name) && detail.checks.pending == 0
+            case let .check(name): !failing.contains(name) && !detail.checks.pendingNames.contains(name)
             }
             if gone, item.status != .resolved {
                 item.status = .resolved

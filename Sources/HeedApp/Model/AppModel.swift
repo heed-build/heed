@@ -856,8 +856,15 @@ final class AppModel {
             return true
         }
         let before = engine.mode
+        fallbackTimer?.cancel()
         let outcome = engine.handle(stroke)
+        if engine.fallback != nil { startFallbackTimer() }
         switch outcome {
+        case let .runThenReplay(invocation, next):
+            flash = nil
+            perform(invocation)
+            if engine.mode != before { modeChanged(from: before) }
+            return handle(next)
         case .terminal:
             if var session = currentSession {
                 let now = Date()
@@ -880,6 +887,20 @@ final class AppModel {
         }
         if engine.mode != before { modeChanged(from: before) }
         return true
+    }
+
+    private var fallbackTimer: Task<Void, Never>?
+
+    /// `i` waits for `iw`/`ip` in Sessions; when nothing follows within half a second, it is `i` after all.
+    private func startFallbackTimer() {
+        fallbackTimer = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled, let self else { return }
+            let before = engine.mode
+            guard let outcome = engine.timeout(), case let .run(invocation) = outcome else { return }
+            perform(invocation)
+            if engine.mode != before { modeChanged(from: before) }
+        }
     }
 
     private func modeChanged(from previous: Mode) {

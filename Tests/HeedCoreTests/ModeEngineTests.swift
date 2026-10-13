@@ -233,3 +233,44 @@ struct DeleteKeyTests {
         #expect(built.keymaps[.normal]?.lookup(dd) == Keymap.Lookup.none)
     }
 }
+
+struct SharedPrefixTests {
+    private func engine() -> ModeEngine {
+        let built = Keymaps.build()
+        var engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
+        engine.scope = "sessions"
+        return engine
+    }
+
+    @Test func iwAndIpImportInSessions() {
+        var engine = engine()
+        #expect(engine.handle(KeyStroke("i")) == .pending)
+        #expect(engine.fallback == "mode.insert")
+        #expect(engine.handle(KeyStroke("w")) == .run(CommandInvocation(name: "session.import")))
+        #expect(engine.mode == .normal)
+        _ = engine.handle(KeyStroke("i"))
+        #expect(engine.handle(KeyStroke("p")) == .run(CommandInvocation(name: "session.import.path")))
+    }
+
+    @Test func iAloneStillEntersInsertAfterATimeout() {
+        var engine = engine()
+        _ = engine.handle(KeyStroke("i"))
+        #expect(engine.timeout() == .run(CommandInvocation(name: "mode.insert")))
+        #expect(engine.mode == .insert)
+        #expect(engine.timeout() == nil)
+    }
+
+    @Test func anotherKeyRunsIAndIsReplayed() {
+        var engine = engine()
+        _ = engine.handle(KeyStroke("i"))
+        #expect(engine.handle(KeyStroke("x")) == .runThenReplay(CommandInvocation(name: "mode.insert"), KeyStroke("x")))
+        #expect(engine.mode == .insert)
+        #expect(engine.handle(KeyStroke("x")) == .terminal)
+    }
+
+    @Test func outsideSessionsIIsImmediate() {
+        var engine = engine()
+        engine.scope = "inbox"
+        #expect(engine.handle(KeyStroke("i")) == .run(CommandInvocation(name: "mode.insert")))
+    }
+}

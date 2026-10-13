@@ -48,7 +48,8 @@ public enum DefaultKeys {
 
     /// Bindings that only apply in one view, keyed by view name.
     public static let scoped: [String: [(String, String)]] = [
-        "sessions": [("dd", "session.delete"), ("I", "session.import"), ("P", "session.import.path")],
+        // iw and ip share i's start: i alone still enters INSERT, after a moment or when another key follows.
+        "sessions": [("dd", "session.delete"), ("iw", "session.import"), ("ip", "session.import.path")],
         "repos": [
             ("a", "repo.add"), ("n", "worktree.new"), ("R", "repo.scan"), ("I", "issues.visibility"),
             ("dd", "select.remove"), ("<CR>", "select.open"),

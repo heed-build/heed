@@ -18,6 +18,17 @@ Without GhosttyKit the app builds with placeholder panes, so everything but the 
 Headless checks: `HEED_SNAPSHOT=out.png build/Heed.app/Contents/MacOS/Heed` renders the window to a PNG and quits;
 `HEED_SNAPSHOT_KEYS="2j<C-w>s?"` types keys first (vim notation).
 
+## Outside the window
+
+- `⌃⌥H` (`[keys] global_activate`) brings Heed to the front from any app, reopening the window if it was closed.
+- The menu bar owl (`[ui] menu_bar`, on by default) shows how many sessions need you; its menu lists them (choosing
+  one opens Heed on it), plus Start work, Open Heed, Settings and Quit. With it on, closing the window keeps Heed
+  and its agents running.
+- The Dock icon (`[ui] dock_state`, on by default) gets a badge in the state's colour (blocked, else asking) with the
+  count.
+
+The brand pack (icon, logo, menu bar template, social preview, org avatars) lives in `design/brand/`.
+
 ## Start work from anywhere
 
 `⌃⌥Space` (`[keys] global_start_work` in config.toml; `""` turns it off) opens Start work in a floating panel over

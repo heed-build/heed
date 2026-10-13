@@ -4,6 +4,7 @@ import SwiftUI
 struct MainWindow: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openSettings) private var openSettings
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         VStack(spacing: 0) {
@@ -80,6 +81,8 @@ struct MainWindow: View {
         .onAppear {
             let open = openSettings
             model.openSettings = { open() }
+            let reopen = openWindow
+            model.reopenWindow = { reopen(id: "main") }
         }
     }
 }

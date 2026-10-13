@@ -8,6 +8,11 @@ public struct HeedConfig: Equatable, Sendable {
     public var insertEscape: String
     /// The system-wide shortcut that opens Start work over any app; "" turns it off.
     public var globalStartWork = "<C-M-Space>"
+    /// The system-wide shortcut that brings Heed to the front; "" turns it off.
+    public var globalActivate = "<C-M-h>"
+    /// `[ui]`: Heed outside its window.
+    public var showMenuBarItem = true
+    public var showDockState = true
     /// `[keys.normal]`, `[keys.visual]`, ...: overrides laid over the defaults.
     public var keys: [Mode: [(String, String)]]
     /// `[keys.repos]`, `[keys.inbox]`, ...: per-view overrides.
@@ -45,11 +50,23 @@ public struct HeedConfig: Equatable, Sendable {
         func flat(_ table: [String: [(String, String)]]) -> [String] {
             table.sorted { $0.key < $1.key }.flatMap { scope, pairs in pairs.map { "\(scope):\($0)=\($1)" } }
         }
-        return lhs.work == rhs.work && lhs.insertEscape == rhs.insertEscape && lhs.globalStartWork == rhs
-            .globalStartWork && flat(lhs.keys) == flat(rhs.keys)
-            && flat(lhs.scopedKeys) == flat(rhs.scopedKeys) && lhs.orgColors == rhs.orgColors && lhs.repos == rhs.repos
-            && lhs.cleanup == rhs.cleanup && lhs.githubPollSeconds == rhs.githubPollSeconds && lhs.tools == rhs
-            .tools && lhs.issues == rhs.issues
+        let same = [
+            lhs.work == rhs.work,
+            lhs.insertEscape == rhs.insertEscape,
+            lhs.globalStartWork == rhs.globalStartWork,
+            lhs.globalActivate == rhs.globalActivate,
+            lhs.showMenuBarItem == rhs.showMenuBarItem,
+            lhs.showDockState == rhs.showDockState,
+            flat(lhs.keys) == flat(rhs.keys),
+            flat(lhs.scopedKeys) == flat(rhs.scopedKeys),
+            lhs.orgColors == rhs.orgColors,
+            lhs.repos == rhs.repos,
+            lhs.cleanup == rhs.cleanup,
+            lhs.githubPollSeconds == rhs.githubPollSeconds,
+            lhs.tools == rhs.tools,
+            lhs.issues == rhs.issues,
+        ]
+        return !same.contains(false)
     }
 
     /// The keymaps this config asks for, with problems reported per entry.
@@ -291,9 +308,13 @@ public enum ConfigLoader {
         // [keys]
         if let escape = string(["keys", "insert_escape"]) { config.insertEscape = escape }
         if let shortcut = string(["keys", "global_start_work"]) { config.globalStartWork = shortcut }
+        if let shortcut = string(["keys", "global_activate"]) { config.globalActivate = shortcut }
+        // [ui]
+        if let flag = bool(["ui", "menu_bar"]) { config.showMenuBarItem = flag }
+        if let flag = bool(["ui", "dock_state"]) { config.showDockState = flag }
 
         if let keys = root.value(at: ["keys"])?.table {
-            for name in keys.keys where name != "insert_escape" && name != "global_start_work" {
+            for name in keys.keys where !["insert_escape", "global_start_work", "global_activate"].contains(name) {
                 let entries = pairs(["keys", name])
                 if let mode = Mode(rawValue: name) {
                     config.keys[mode] = entries
@@ -360,6 +381,12 @@ public enum ConfigLoader {
     # the most specific wins. w in Issues (I in Repos) flips the repo under the cursor.
     default = "involved"
 
+    [ui]
+    # A menu bar item: an owl that shows how many sessions need you, with those sessions, Start work and Open Heed.
+    menu_bar = true
+    # The Dock icon shows the same: a badge in the state's colour (blocked, else asking) with the count.
+    dock_state = true
+
     [tools]
     # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
     # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.
@@ -399,6 +426,8 @@ public enum ConfigLoader {
     # Opens Start work in a floating panel over any app, wherever you are; "" turns it off. The panel's window title is
     # "Heed Start Work", for window manager rules (yabai: app="^Heed$" title="^Heed Start Work$" manage=off).
     global_start_work = "<C-M-Space>"
+    # Brings Heed to the front from any app; "" turns it off.
+    global_activate = "<C-M-h>"
     # Shift+Escape leaves INSERT too; a plain Escape always goes to the terminal. [keys.insert] "<S-Esc>" = "" unbinds.
 
     # Bindings per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.inbox], [keys.history],

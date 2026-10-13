@@ -3,6 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key><string>Heed</string>
+  <key>CFBundleIconFile</key><string>heed</string>
   <key>CFBundleDisplayName</key><string>Heed</string>
   <key>CFBundleIdentifier</key><string>net.nullean.heed</string>
   <key>CFBundleExecutable</key><string>Heed</string>

@@ -159,6 +159,26 @@ private struct GeneralSettings: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
             }
+            Field(
+                label: "Menu bar item",
+                detail: "How many sessions need you, those sessions, Start work and Open Heed. With it on, closing the window keeps Heed running."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { model.config.showMenuBarItem }, set: { model.setConfig(["ui", "menu_bar"], .bool($0)) }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+            }
+            Field(
+                label: "Dock state",
+                detail: "A badge on the Dock icon in the state's colour when sessions need you."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { model.config.showDockState }, set: { model.setConfig(["ui", "dock_state"], .bool($0)) }
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+            }
             Field(label: "GitHub poll", detail: "Seconds between gh syncs.") {
                 Stepper(value: Binding(
                     get: { model.config.githubPollSeconds },

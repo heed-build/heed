@@ -2,30 +2,51 @@ import AppKit
 import Carbon.HIToolbox
 import HeedCore
 
-/// A system-wide shortcut, registered with Carbon's hotkey API: it works whichever app is in front and needs no
-/// Accessibility permission. One at a time is all Heed uses (`[keys] global_start_work`).
+/// System-wide shortcuts, registered with Carbon's hotkey API: they work whichever app is in front and need no
+/// Accessibility permission (`[keys] global_start_work`, `[keys] global_activate`).
 @MainActor
 enum GlobalHotKey {
-    private static var reference: EventHotKeyRef?
-    private static var handler: EventHandlerRef?
-    private static var action: (() -> Void)?
-    private static var registered: String?
+    enum Name: UInt32, CaseIterable {
+        case startWork = 1
+        case activate = 2
 
-    /// Registers `notation` (vim notation with at least one of ⌃ ⌥ ⌘, e.g. `<C-M-Space>`); "" unregisters. Returns
-    /// a problem to report, or nil.
+        var setting: String {
+            switch self {
+            case .startWork: "keys.global_start_work"
+            case .activate: "keys.global_activate"
+            }
+        }
+    }
+
+    private struct Registration {
+        var notation: String
+        var reference: EventHotKeyRef?
+        var action: () -> Void
+    }
+
+    private static var registrations: [Name: Registration] = [:]
+    private static var handler: EventHandlerRef?
+
+    /// Registers `notation` (vim notation with at least one of ⌃ ⌥ ⌘, e.g. `<C-M-Space>`) for `name`; "" unregisters
+    /// it. Returns a problem to report, or nil.
     @discardableResult
-    static func register(_ notation: String, action: @escaping () -> Void) -> String? {
-        self.action = action
-        guard notation != registered else { return nil }
-        unregister()
+    static func register(_ name: Name, _ notation: String, action: @escaping () -> Void) -> String? {
+        if let current = registrations[name], current.notation == notation {
+            registrations[name]?.action = action
+            return nil
+        }
+        unregister(name)
         guard !notation.isEmpty else { return nil }
         guard let strokes = try? KeyNotation.parse(notation), strokes.count == 1, let stroke = strokes.first else {
-            return "keys.global_start_work: \(notation) is not one key"
+            return "\(name.setting): \(notation) is not one key"
         }
         guard !stroke.modifiers.isDisjoint(with: [.control, .option, .command]) else {
-            return "keys.global_start_work: \(notation) needs ⌃, ⌥ or ⌘ so it does not swallow typing everywhere"
+            return "\(name.setting): \(notation) needs ⌃, ⌥ or ⌘ so it does not swallow typing everywhere"
         }
-        guard let code = keyCode(stroke.key) else { return "keys.global_start_work: no key code for \(stroke.key)" }
+        if let other = registrations.first(where: { $0.value.notation == notation }) {
+            return "\(name.setting): \(notation) is already \(other.key.setting)"
+        }
+        guard let code = keyCode(stroke.key) else { return "\(name.setting): no key code for \(stroke.key)" }
         installHandler()
         var modifiers: UInt32 = 0
         if stroke.modifiers.contains(.control) { modifiers |= UInt32(controlKey) }
@@ -34,26 +55,33 @@ enum GlobalHotKey {
         if stroke.modifiers.contains(.shift) || (stroke.key.count == 1 && stroke.key != stroke.key.lowercased()) {
             modifiers |= UInt32(shiftKey)
         }
-        let id = EventHotKeyID(signature: OSType(0x4845_4544), id: 1) // "HEED"
+        var reference: EventHotKeyRef?
+        let id = EventHotKeyID(signature: OSType(0x4845_4544), id: name.rawValue) // "HEED"
         let status = RegisterEventHotKey(code, modifiers, id, GetApplicationEventTarget(), 0, &reference)
         guard status == noErr else {
-            return "keys.global_start_work: \(notation) is taken by another app (\(status))"
+            return "\(name.setting): \(notation) is taken by another app (\(status))"
         }
-        registered = notation
+        registrations[name] = Registration(notation: notation, reference: reference, action: action)
         return nil
     }
 
-    static func unregister() {
-        if let reference { UnregisterEventHotKey(reference) }
-        reference = nil
-        registered = nil
+    static func unregister(_ name: Name) {
+        if let reference = registrations[name]?.reference { UnregisterEventHotKey(reference) }
+        registrations[name] = nil
     }
 
     private static func installHandler() {
         guard handler == nil else { return }
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
-            MainActor.assumeIsolated { GlobalHotKey.action?() }
+        InstallEventHandler(GetApplicationEventTarget(), { _, event, _ in
+            var id = EventHotKeyID()
+            GetEventParameter(
+                event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil,
+                MemoryLayout<EventHotKeyID>.size, nil, &id
+            )
+            MainActor.assumeIsolated {
+                if let name = Name(rawValue: id.id) { GlobalHotKey.registrations[name]?.action() }
+            }
             return noErr
         }, 1, &spec, nil, &handler)
     }

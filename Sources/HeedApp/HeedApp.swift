@@ -90,5 +90,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Snapshot.runIfRequested(window: window, model: model)
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool { true }
+    /// With the menu bar item, closing the window leaves Heed (and every agent in it) running; Open Heed or the
+    /// activate shortcut brings it back. Without it, closing the window quits as before.
+    func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
+        model.isFixture || !model.config.showMenuBarItem
+    }
 }

@@ -14,6 +14,8 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
 cp "$products/HeedApp" "$app/Contents/MacOS/Heed"
 cp "$products/heed" "$app/Contents/Helpers/heed"
 sed "s/__VERSION__/$version/g" "$root/Resources/Info.plist" >"$app/Contents/Info.plist"
+# The app icon and the menu bar image (design/brand/ holds the full brand pack they come from).
+cp "$root/Resources/heed.icns" "$root/Resources/menubar.svg" "$app/Contents/Resources/"
 codesign --force --sign - "$app/Contents/Helpers/heed"
 codesign --force --sign - "$app"
 # The helper must be the small CLI, never the app: hooks run it on every agent event.

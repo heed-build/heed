@@ -44,6 +44,7 @@ final class AppModel {
         didSet {
             rebuildList()
             if filters[.repos] != nil { rebuildWorktreeRows() }
+            updateOutsideWindow()
         }
     }
 
@@ -497,12 +498,17 @@ final class AppModel {
         keyProblems = built.problems
         Palette.shared.apply(decoded)
         if !isFixture {
-            if let problem = GlobalHotKey.register(decoded.globalStartWork, action: { [weak self] in
-                self?.openStandaloneStartWork()
-            }) {
-                configProblems.append(ConfigProblem(path: "", message: problem))
+            let shortcuts: [(GlobalHotKey.Name, String, () -> Void)] = [
+                (.startWork, decoded.globalStartWork, { [weak self] in self?.openStandaloneStartWork() }),
+                (.activate, decoded.globalActivate, { [weak self] in self?.activateHeed() }),
+            ]
+            for (name, notation, action) in shortcuts {
+                if let problem = GlobalHotKey.register(name, notation, action: action) {
+                    configProblems.append(ConfigProblem(path: "", message: problem))
+                }
             }
         }
+        updateOutsideWindow()
         if toolsChanged, !isFixture { Task { await detectTools() } }
         // Repos that now show all issues need fetching; ones that no longer do are hidden by issueRows right away.
         if issuesChanged, !isFixture, github.syncedAt != nil { Task { await syncGitHub() } }
@@ -2541,6 +2547,38 @@ final class AppModel {
 
     func focusPane(_ paneID: String) {
         updateTab { $0.focused = paneID }
+    }
+
+    // MARK: Outside the window
+
+    /// Reopens the main window after it was closed (set by the window from SwiftUI's openWindow).
+    var reopenWindow: (() -> Void)?
+
+    /// The Dock badge and the menu bar item, from the sessions that need you.
+    private func updateOutsideWindow() {
+        // Fixtures stay out of the Dock and menu bar, unless HEED_OUTSIDE asks (to check them against fixture states).
+        guard !isFixture || ProcessInfo.processInfo.environment["HEED_OUTSIDE"] != nil else { return }
+        let attention = Attention(blocked: blockedCount, asking: askingCount)
+        DockState.update(attention, enabled: config.showDockState)
+        MenuBarItem.shared.update(model: self, attention: attention, enabled: config.showMenuBarItem)
+    }
+
+    /// `[keys] global_activate` and Open Heed: the main window to the front, reopened if it was closed.
+    func activateHeed() {
+        NSApp.activate()
+        if let window = NSApp.windows.first(where: { $0.identifier == Self.mainWindowID }) {
+            if window.isMiniaturized { window.deminiaturize(nil) }
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            reopenWindow?()
+        }
+    }
+
+    /// A session chosen outside the window (the menu bar): Heed in front, on that session.
+    func show(sessionID: String) {
+        view = .sessions
+        select(sessionID: sessionID)
+        activateHeed()
     }
 
     // MARK: Mouse

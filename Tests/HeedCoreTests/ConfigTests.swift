@@ -144,3 +144,21 @@ struct ConfigTests {
         #expect(problems.first?.message.contains("line 1") == true)
     }
 }
+
+struct OutsideWindowConfigTests {
+    @Test func uiAndActivateShortcutDecode() {
+        #expect(HeedConfig.default.showMenuBarItem && HeedConfig.default.showDockState)
+        #expect(HeedConfig.default.globalActivate == "<C-M-h>")
+        let (config, problems) = ConfigLoader.decode("""
+        [ui]
+        menu_bar = false
+        dock_state = false
+        [keys]
+        global_activate = ""
+        """)
+        #expect(problems.isEmpty)
+        #expect(config?.showMenuBarItem == false)
+        #expect(config?.showDockState == false)
+        #expect(config?.globalActivate == "")
+    }
+}

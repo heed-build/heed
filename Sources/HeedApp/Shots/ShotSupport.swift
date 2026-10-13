@@ -11,7 +11,7 @@ enum ShotMode {
 /// The parts of the UI a shot can crop to or highlight. Views mark them with `.shotRegion(_:)`.
 enum ShotRegion: String, CaseIterable {
     case titleBar, viewTabs, statusBar
-    case sidebar, rail, center, tabStrip, panes, inspector
+    case sidebar, rail, center, tabStrip, panes, inspector, needsYou
     case dialog, confirm, picker, leaderHints, commandLine, filterPill, help
     case tutorBanner, tutorCard
     case repoColumn, worktreeTable, rulesPanel, sweepBanner
@@ -33,6 +33,13 @@ extension View {
     func shotRegion(_ region: ShotRegion) -> some View {
         // transform, not set: a region inside another (panes inside center) must survive the outer one.
         transformAnchorPreference(key: ShotRegionKey.self, value: .bounds) { value, anchor in value[region] = anchor }
+    }
+
+    /// The same, for a view that is a region only sometimes (one sidebar group of several).
+    func shotRegion(_ region: ShotRegion?) -> some View {
+        transformAnchorPreference(key: ShotRegionKey.self, value: .bounds) { value, anchor in
+            if let region { value[region] = anchor }
+        }
     }
 }
 

@@ -8,7 +8,7 @@ public struct TutorState: Equatable, Sendable {
     /// The row the cursor is on in the current view's list.
     public var cursor = 0
     public var rows = 0
-    /// `pr`, `diff`, `reader`, `issue`, or nil.
+    /// `pr`, `diff`, `reader`, `issue`, `help`, or nil.
     public var overlay: String?
     public var filtering = false
     public var filter = ""
@@ -17,227 +17,311 @@ public struct TutorState: Equatable, Sendable {
     public var tab = 0
     public var tabs = 0
     public var startWorkOpen = false
+    /// What Start work's prompt says, and the repo it would start in.
+    public var startWorkPrompt = ""
+    public var startWorkRepo: String?
     public var confirmationOpen = false
     public var importOpen = false
     public var commandLine = false
     public var helpOpen = false
     public var sessions = 0
+    /// The pin number of the session under the cursor (`'1` jumps to 1), if it is pinned.
+    public var pinned: Int?
+    public var pins = 0
+    public var parked = 0
+    /// The session under the cursor sits in the parked group (parked, done, idle or exited).
+    public var onParked = false
+    /// The session under the cursor is blocked or asking.
+    public var needsYou = false
+    /// Items picked (space) in the current view.
+    public var picked = 0
+    public var unread = 0
+    /// The open PR's feedback items by stage, and deliveries waiting for an idle agent.
+    public var queued = 0
+    public var sent = 0
+    public var waiting = 0
+    /// Where the diff overlay is: its file and row.
+    public var diffFile = 0
+    public var diffRow = 0
+    public var historyOutcome = ""
 
     public init() {}
 }
 
-/// One thing to do: what to press, and how to know it was done (given the state when the step began and now).
-public struct TutorStep: Sendable {
-    /// Text with `{command}` placeholders, drawn as that command's key in your keymap (`{view.inbox}` → `gm`).
-    public let instruction: String
-    public let done: @Sendable (_ start: TutorState, _ now: TutorState) -> Bool
+/// The fake worlds lessons run in. Each is fixture data: nothing in it is real, nothing done there is kept.
+public enum TutorWorld: String, CaseIterable, Sendable {
+    case mondayMorning, prStorm, freshRepos
 
-    public init(_ instruction: String, done: @escaping @Sendable (_ start: TutorState, _ now: TutorState) -> Bool) {
-        self.instruction = instruction
+    public var title: String {
+        switch self {
+        case .mondayMorning: "Monday morning"
+        case .prStorm: "PR storm"
+        case .freshRepos: "Fresh repos"
+        }
+    }
+
+    public var summary: String {
+        switch self {
+        case .mondayMorning: "5 agents, 2 PRs, one blocked on a permission"
+        case .prStorm: "review comments and a failing check land while the agent is busy"
+        case .freshRepos: "your repos, no sessions yet"
+        }
+    }
+
+    public var domain: Domain {
+        switch self {
+        case .mondayMorning: Fixtures.main
+        case .prStorm: Fixtures.prStorm
+        case .freshRepos: Fixtures.freshRepos
+        }
+    }
+
+    public var next: TutorWorld {
+        let all = Self.allCases
+        return all[(all.firstIndex(of: self)! + 1) % all.count]
+    }
+}
+
+/// One thing to do. `say` and `keys` take `{command}` placeholders, drawn as that command's key in your keymap
+/// (`{view.inbox}` → `gm`); anything else in `keys` is shown as written.
+public struct TutorStep: Sendable {
+    public let title: String
+    public let say: String
+    public let keys: [String]
+    /// The part of the window the spotlight keeps lit (a screenshot region name: `sidebar`, `panes`…), when on screen.
+    public let target: String?
+    /// What changed, in one line, shown when the step is done.
+    public let doneLine: String
+    /// Whether the step is done: the state when it began, now, and every state seen in between (now included).
+    public let done: @Sendable (_ start: TutorState, _ now: TutorState, _ seen: [TutorState]) -> Bool
+
+    public init(
+        _ title: String, say: String, keys: [String], target: String? = nil, doneLine: String,
+        done: @escaping @Sendable (_ start: TutorState, _ now: TutorState, _ seen: [TutorState]) -> Bool
+    ) {
+        self.title = title
+        self.say = say
+        self.keys = keys
+        self.target = target
+        self.doneLine = doneLine
         self.done = done
     }
 }
 
-public struct TutorLesson: Sendable {
+public struct TutorLesson: Sendable, Identifiable {
+    /// `tour`, or the view it teaches: `sessions`, `start-work`, `inbox`…
+    public let id: String
     public let title: String
-    /// Why this matters, in a sentence or two; same placeholders as steps.
-    public let intro: String
+    public let minutes: Int
+    public let world: TutorWorld
     public let steps: [TutorStep]
+
+    public var isTour: Bool { id == "tour" }
 }
 
-/// Heed's vimtutor: lessons done for real in a sandbox (the app on fixture data), each step ticking off when the
-/// state shows it was done. A value: the app feeds it states, the view draws it.
+/// Heed's vimtutor: the real app on a fake world, one step at a time. A step says one sentence, the spotlight lights
+/// what it is about, you press the real keys, and it ticks off when the state shows it was done. A value: the app feeds
+/// it states, the view draws it.
 public struct Tutor: Sendable {
-    public let lessons: [TutorLesson]
-    public private(set) var lesson = 0
-    public private(set) var step = 0
-    /// The state when the current step began, for steps that compare (moved down, changed view).
-    private var start = TutorState()
-
-    public init(lessons: [TutorLesson] = Tutor.lessons, lesson: Int = 0, state: TutorState = TutorState()) {
-        self.lessons = lessons
-        self.lesson = min(max(lesson, 0), max(lessons.count - 1, 0))
-        start = state
+    public enum Event: Equatable, Sendable {
+        case none
+        /// The step is done; the next began (or the lesson finished).
+        case advanced
+        /// A key that did not do the step: a nudge, never a block.
+        case nudged
     }
 
-    public var current: TutorLesson { lessons[lesson] }
-    /// Every step of the current lesson is done.
-    public var lessonDone: Bool { step >= current.steps.count }
-    public var finished: Bool { lesson == lessons.count - 1 && lessonDone }
+    public let lesson: TutorLesson
+    public private(set) var step = 0
+    /// The line of the step just done, until the next key: the card shows it green.
+    public private(set) var justDone: String?
+    /// A wrong key's nudge, until the next key.
+    public private(set) var nudge: String?
+    public private(set) var hintsUsed = 0
+    public let startedAt: Date
+    /// The state when the current step began, and every state since.
+    private var start: TutorState
+    private var seen: [TutorState] = []
 
-    /// Feeds the state after a key; returns true when that finished a step.
+    public init(lesson: TutorLesson, step: Int = 0, state: TutorState = TutorState(), now: Date = Date()) {
+        self.lesson = lesson
+        self.step = min(max(step, 0), lesson.steps.count)
+        start = state
+        startedAt = now
+    }
+
+    public var current: TutorStep? { lesson.steps.indices.contains(step) ? lesson.steps[step] : nil }
+    public var finished: Bool { step >= lesson.steps.count }
+
+    /// Feeds the state after a key. `key` is what was pressed (`j`), nil when nothing was; `pending` says the key
+    /// began a longer one (`g` of `ga`), which is not a wrong key yet.
     @discardableResult
-    public mutating func observe(_ state: TutorState) -> Bool {
-        guard !lessonDone else { return false }
-        guard current.steps[step].done(start, state) else { return false }
+    public mutating func observe(_ state: TutorState, key: String? = nil, pending: Bool = false) -> Event {
+        guard let current else { return .none }
+        if key != nil {
+            justDone = nil
+            nudge = nil
+        }
+        let previous = seen.last ?? start
+        seen.append(state)
+        if current.done(start, state, seen) {
+            justDone = current.doneLine
+            advance(from: state)
+            return .advanced
+        }
+        // Only a key that changed nothing earns a nudge: wandering (moving around, opening things) is allowed.
+        guard let key, !pending, state == previous else { return .none }
+        nudge = "That was \(key)."
+        return .nudged
+    }
+
+    /// `:skip`: the step counts as done without doing it.
+    public mutating func skip(from state: TutorState) {
+        guard !finished else { return }
+        justDone = nil
+        nudge = nil
+        advance(from: state)
+    }
+
+    /// `:back` on a step already as it began: the step again from `state` (the app puts the world back first).
+    public mutating func restart(at state: TutorState) {
+        justDone = nil
+        nudge = nil
+        start = state
+        seen = []
+    }
+
+    /// The nudge, with what to press instead after it.
+    public func withNudge(_ hint: String?) -> Tutor {
+        var copy = self
+        if let hint, let nudge { copy.nudge = "\(nudge) \(hint)" }
+        return copy
+    }
+
+    /// `:back` on a step not yet touched: the previous step again (the app puts the world back as it was then).
+    public mutating func back(to state: TutorState) {
+        step = max(step - 1, 0)
+        justDone = nil
+        nudge = nil
+        start = state
+        seen = []
+    }
+
+    /// The card showed the keys a while without them being pressed.
+    public mutating func noteHint() { hintsUsed += 1 }
+
+    private mutating func advance(from state: TutorState) {
         step += 1
         start = state
-        return true
+        seen = []
     }
 
-    public mutating func next(from state: TutorState) {
-        guard lesson < lessons.count - 1 else { return }
-        lesson += 1
-        step = 0
-        start = state
+    /// Every key the lesson taught, for the finish card: placeholders still in.
+    public var keysTaught: [String] {
+        var keys: [String] = []
+        for key in lesson.steps.flatMap(\.keys) where !keys.contains(key) {
+            keys.append(key)
+        }
+        return keys
+    }
+}
+
+/// Which lessons are done, and where one was left: kept between launches so quitting mid-lesson resumes on the same
+/// step. Only this is kept; the fake world never is.
+public struct TutorProgress: Codable, Equatable, Sendable {
+    public var done: Set<String> = []
+    public var lastLesson: String?
+    public var lastStep = 0
+
+    public init() {}
+
+    /// The step to resume `lesson` on: where it was left, if it was left unfinished.
+    public func resumeStep(_ lesson: String) -> Int { lesson == lastLesson ? lastStep : 0 }
+}
+
+/// `:tutor`: the lessons to pick from. The first row is always the view you are on, then the tour, every other view,
+/// and the last lesson again.
+public struct TutorPicker: Equatable, Sendable {
+    public enum Row: Equatable, Sendable {
+        case lesson(String)
+        case replay(String)
     }
 
-    public mutating func previous(from state: TutorState) {
-        lesson = max(lesson - 1, 0)
-        step = 0
-        start = state
+    public let rows: [Row]
+    /// The "views" heading goes before this row.
+    public let viewsStart = 2
+    public private(set) var cursor = 0
+    /// A world picked with `w`; nil runs each lesson in its own.
+    public private(set) var world: TutorWorld?
+
+    public enum Outcome: Equatable, Sendable {
+        case handled
+        case cancel
+        case start(lesson: String, world: TutorWorld?)
     }
+
+    public init(view: String, progress: TutorProgress) {
+        let own = Tutor.lessonID(forView: view)
+        var rows: [Row] = [.lesson(own)]
+        if own != Tutor.tour.id { rows.append(.lesson(Tutor.tour.id)) }
+        rows += Tutor.viewLessons.map(\.id).filter { $0 != own }.map { .lesson($0) }
+        if let last = progress.lastLesson { rows.append(.replay(last)) }
+        self.rows = rows
+    }
+
+    /// j k (or ⌃n ⌃p, arrows) move, ↩ starts, w changes the world, ⎋ closes.
+    public mutating func handle(_ stroke: KeyStroke) -> Outcome {
+        switch stroke {
+        case KeyStroke("j"), KeyStroke("n", .control), KeyStroke("Down"):
+            cursor = min(cursor + 1, rows.count - 1)
+        case KeyStroke("k"), KeyStroke("p", .control), KeyStroke("Up"):
+            cursor = max(cursor - 1, 0)
+        case KeyStroke("w"):
+            world = selectedWorld.next
+        case KeyStroke("CR"):
+            switch rows[cursor] {
+            case let .lesson(id), let .replay(id): return .start(lesson: id, world: world)
+            }
+        case .escape, KeyStroke("q"):
+            return .cancel
+        default:
+            break
+        }
+        return .handled
+    }
+
+    public mutating func select(_ index: Int) {
+        cursor = min(max(index, 0), rows.count - 1)
+    }
+
+    public var selectedLesson: TutorLesson? {
+        switch rows[cursor] {
+        case let .lesson(id), let .replay(id): Tutor.lesson(id)
+        }
+    }
+
+    /// The world the selected lesson would run in.
+    public var selectedWorld: TutorWorld { world ?? selectedLesson?.world ?? .mondayMorning }
 }
 
 public extension Tutor {
-    /// The lessons, in order. The first is about getting around: the views and switching between them.
-    static let lessons: [TutorLesson] = [
-        TutorLesson(
-            title: "Views, and getting around",
-            intro: """
-            Heed has six views, named along the top. Each has a key starting with g: press g and wait, and the panel \
-            at the bottom lists every key that can follow. This window is a sandbox on made-up data: nothing you do \
-            here touches your real sessions.
-            """,
-            steps: [
-                TutorStep("Press {view.inbox} to open the Inbox: notifications from GitHub.") { _, now in
-                    now.view == "inbox"
-                },
-                TutorStep("Press {view.issues} for Issues: the ones assigned to you or mentioning you.") { _, now in
-                    now.view == "issues"
-                },
-                TutorStep("Press {view.prs} for your pull requests.") { _, now in now.view == "prs" },
-                TutorStep("Press {view.repos} for Repos: every worktree of every repo Heed knows.") { _, now in
-                    now.view == "repos"
-                },
-                TutorStep("Press {view.history} for History: sessions that ended.") { _, now in
-                    now.view == "history"
-                },
-                TutorStep(
-                    "Press g on its own and look at the panel at the bottom; then press {view.sessions}."
-                ) { _, now in now.view == "sessions" },
-            ]
-        ),
-        TutorLesson(
-            title: "Moving in a list",
-            intro: """
-            Every list moves the same way, vim-style: j and k, gg and G, and a count in front repeats a move. The \
-            numbers beside rows are relative, so the count to reach a row is the number you see.
-            """,
-            steps: [
-                TutorStep("Press {row.next} to move down.") { start, now in now.cursor > start.cursor },
-                TutorStep("Press {row.prev} to move up.") { start, now in now.cursor < start.cursor },
-                TutorStep("Press {row.last} to jump to the last session.") { _, now in
-                    now.rows > 0 && now.cursor == now.rows - 1
-                },
-                TutorStep("Press {row.first} to jump back to the first.") { _, now in now.cursor == 0 },
-                TutorStep("Press 3 then {row.next}: three rows down in one go.") { start, now in
-                    now.cursor - start.cursor >= 3 || (now.rows <= 3 && now.cursor == now.rows - 1)
-                },
-            ]
-        ),
-        TutorLesson(
-            title: "Typing into an agent",
-            intro: """
-            Keys are Heed's until you enter INSERT: then they go to the focused pane, outlined white. Clicking a pane \
-            enters INSERT on it too.
-            """,
-            steps: [
-                TutorStep("Press {mode.insert} to enter INSERT.") { _, now in now.mode == .insert },
-                TutorStep("Press ⇧⎋ to leave it (⌃\\ works too).") { _, now in now.mode == .normal },
-            ]
-        ),
-        TutorLesson(
-            title: "Panes and tabs",
-            intro: "A session's terminals are panes in tabs. ⌃w starts the pane keys, as in vim.",
-            steps: [
-                TutorStep("Press {pane.split.right} to split the pane.") { start, now in now.panes > start.panes },
-                TutorStep("Press {pane.left} and {pane.right} to move between panes.") { start, now in
-                    now.focusedPane != start.focusedPane
-                },
-                TutorStep("Press {tab.next} for the next tab.") { start, now in
-                    now.tab != start.tab || now.tabs <= 1
-                },
-            ]
-        ),
-        TutorLesson(
-            title: "Jumping with hints",
-            intro: "f labels everything you can jump to in the view; type a label to go there. F also opens it.",
-            steps: [
-                TutorStep("Press {mode.hint} and look at the labels.") { _, now in now.mode == .hint },
-                TutorStep("Type one of the labels to jump there.") { _, now in now.mode != .hint },
-            ]
-        ),
-        TutorLesson(
-            title: "Filtering",
-            intro: """
-            / filters the view you are in. You type in the status bar; the view shows the filter as a pill. Every \
-            word must match somewhere.
-            """,
-            steps: [
-                TutorStep("Press {session.filter} and type docs.") { _, now in
-                    now.filtering && now.filter.lowercased().contains("docs")
-                },
-                TutorStep("Press ↩ to keep it.") { _, now in !now.filtering && !now.filter.isEmpty },
-                TutorStep("Press {session.filter} then ⎋ to clear it.") { _, now in
-                    !now.filtering && now.filter.isEmpty
-                },
-            ]
-        ),
-        TutorLesson(
-            title: "Starting work",
-            intro: """
-            {work.start} opens Start work: describe the task, and Heed picks the repo, names the branch and starts \
-            the agent in a new worktree. In the sandbox nothing starts.
-            """,
-            steps: [
-                TutorStep("Press {work.start}.") { _, now in now.startWorkOpen },
-                TutorStep("Type a task, then ⎋ to stop typing and ⎋ again to close it.") { _, now in
-                    !now.startWorkOpen
-                },
-            ]
-        ),
-        TutorLesson(
-            title: "The command line",
-            intro: "Every command has a name; : runs one by name, and ⇥ completes it.",
-            steps: [
-                TutorStep("Press {mode.command}, type view and press ⇥ to see it complete.") { _, now in
-                    now.commandLine
-                },
-                TutorStep("Press ⎋ to close the command line.") { _, now in !now.commandLine },
-            ]
-        ),
-        TutorLesson(
-            title: "Destructive things ask first",
-            intro: "Closing or deleting a session, removing worktrees and quitting with agents running all ask: y goes ahead, n cancels.",
-            steps: [
-                TutorStep("Press {session.close}.") { _, now in now.confirmationOpen },
-                TutorStep("Press n to keep the session.") { _, now in !now.confirmationOpen },
-            ]
-        ),
-        TutorLesson(
-            title: "Bringing work in",
-            intro: "Worktrees made outside Heed become sessions with an import; the agent session kept there resumes.",
-            steps: [
-                TutorStep("Press {session.import} to list worktrees Heed does not manage yet.") { _, now in
-                    now.importOpen
-                },
-                TutorStep("Press ⎋ to close it. {session.import.path} imports any path the same way.") { _, now in
-                    !now.importOpen
-                },
-            ]
-        ),
-        TutorLesson(
-            title: "Outside the window",
-            intro: """
-            Heed works from anywhere: ⌃⌥Space opens Start work over any app, ⌃⌥H brings Heed forward, and the owl in \
-            the menu bar shows what needs you. Those are global, so try them after the tutor.
-            """,
-            steps: [
-                TutorStep("Press {overlay.help} to see every key; ⎋ closes it.") { start, now in
-                    start.helpOpen != now.helpOpen && !now.helpOpen
-                },
-            ]
-        ),
-    ]
+    static func lesson(_ id: String) -> TutorLesson? {
+        id == tour.id ? tour : viewLessons.first { $0.id == id }
+    }
+
+    /// The lesson for a view (`sessions`, `prs`…); the tour for one without its own.
+    static func lessonID(forView view: String) -> String {
+        viewLessons.contains { $0.id == view } ? view : tour.id
+    }
+
+    /// `:tutor <name>`: a lesson id, a view's name, or `tour`.
+    static func lessonID(named name: String) -> String? {
+        let key = name.lowercased()
+        let aliases = [
+            "start": "start-work", "startwork": "start-work", "work": "start-work", "pr": "prs", "pulls": "prs",
+            "worktrees": "repos", "global": "tour",
+        ]
+        let id = aliases[key] ?? key
+        return lesson(id) == nil ? nil : id
+    }
 }

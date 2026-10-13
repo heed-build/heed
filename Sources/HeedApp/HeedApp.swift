@@ -21,7 +21,10 @@ struct HeedApp: App {
         .commands {
             // Keys are the mode engine's; the menu must not claim ⌘/ or other keys before it sees them.
             CommandGroup(replacing: .newItem) {}
-            CommandGroup(replacing: .help) {}
+            // No key equivalent: ⌘⇧T is the mode engine's, so it works from a terminal pane too.
+            CommandGroup(replacing: .help) {
+                Button("Heed Tutor") { delegate.host.current.perform(CommandInvocation(name: "tutor")) }
+            }
         }
 
         Settings {
@@ -59,32 +62,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// What the window shows: the live model, or the tutor's sandbox while it runs.
     lazy var host: ModelHost = {
         let host = ModelHost(live: model)
-        model.onTutorRequest = { [weak self] start in self?.setTutor(start) }
+        model.onTutorRequest = { [weak self] request in self?.setTutor(request) }
         return host
     }()
 
     private lazy var router = KeyRouter(host: host)
 
-    /// The tutor runs on its own model over fixture data in the same window: nothing done there reaches the live
-    /// sessions, which keep running (and updating the Dock and menu bar) underneath.
-    func setTutor(_ start: Bool) {
-        if start {
-            guard let domain = Fixtures.named("main") else { return }
-            let sandbox = AppModel(domain: domain, isFixture: true)
-            sandbox.onTutorRequest = { [weak self] start in self?.setTutor(start) }
+    /// The tutor runs on its own model over a fake world in the same window: nothing done there reaches the live
+    /// sessions, which keep running (and updating the Dock and menu bar) underneath, and come back as they were.
+    func setTutor(_ request: AppModel.TutorRequest) {
+        switch request {
+        case let .start(lesson, world):
+            guard let chosen = world ?? Tutor.lesson(lesson)?.world else { return }
+            let previous = host.current
+            let sandbox = AppModel(domain: chosen.domain, isFixture: true)
+            sandbox.onTutorRequest = { [weak self] request in self?.setTutor(request) }
             sandbox.openSettings = model.openSettings
             sandbox.reopenWindow = model.reopenWindow
-            sandbox.beginTutor()
+            sandbox.beginTutor(lesson: lesson, world: chosen)
             host.current = sandbox
-        } else {
-            // The sandbox's shells go with it.
+            if previous !== model { Self.closePanes(of: previous) }
+        case .exit:
             let sandbox = host.current
             host.current = model
-            if sandbox !== model {
-                for pane in sandbox.layouts.values.flatMap({ $0.tabs.flatMap(\.tree.panes) }) {
-                    TerminalSurfaces.shared.close(paneID: pane.id)
-                }
-            }
+            if sandbox !== model { Self.closePanes(of: sandbox) }
+        }
+    }
+
+    private static func closePanes(of model: AppModel) {
+        for pane in model.layouts.values.flatMap({ $0.tabs.flatMap(\.tree.panes) }) {
+            TerminalSurfaces.shared.close(paneID: pane.id)
         }
     }
 
@@ -93,6 +100,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // controls, Settings) follows macOS and turns black on the dark panels in light mode.
         NSApp.appearance = NSAppearance(named: .darkAqua)
         // HEED_SHOTS: render the docs' screenshots from the fake world, then quit; nothing else starts.
+        if TutorCheck.requested {
+            NSApp.setActivationPolicy(.accessory)
+            Task { exit(await TutorCheck.run()) }
+            return
+        }
         if ShotRunner.requested {
             NSApp.setActivationPolicy(.accessory)
             Task {

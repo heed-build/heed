@@ -132,7 +132,8 @@ private struct PaneView: View {
             .frame(height: 26)
             .background(Theme.paneHeader)
 
-            if ShotMode.active {
+            // The tutor's agents are scripted too: no shell, so nothing typed there reaches a real one.
+            if ShotMode.active || model.tutor != nil {
                 FakeTerminal(pane: pane)
             } else {
                 TerminalPane(

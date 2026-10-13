@@ -25,8 +25,9 @@ Short forms work too:
 | `:wt sweep` | Run the cleanup sweep |
 | `:inbox`, `:prs`, … | Switch view |
 | `:import <path>` | Import the worktree at a path |
-| `:tutor` | Start or leave the tutor |
+| `:tutor [lesson]` | The [tutor](../getting-started/tutor.md)'s picker, or a lesson by name |
+| `:back`, `:skip` | In the tutor: the step again, or skip it |
 | `:help` | Every key |
-| `:q` | Quit |
+| `:q` | Quit (in the tutor: leave the tutor) |
 
 The [key reference](reference.md) lists every command name.

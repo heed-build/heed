@@ -884,11 +884,29 @@ final class AppModel {
     /// Returns true when the key was used by the app, false when it should go on to the terminal.
     func handle(_ stroke: KeyStroke) -> Bool {
         let used = handleKey(stroke)
-        if tutor != nil { observeTutor() }
+        if tutor != nil { observeTutor(stroke) }
         return used
     }
 
     private func handleKey(_ stroke: KeyStroke) -> Bool {
+        if tutorPicker != nil {
+            answerTutorPicker(stroke)
+            return true
+        }
+        if answerFinishedTutor(stroke) { return true }
+        // A step just done shows green; ↩ only dismisses it (it would otherwise open whatever is under the cursor).
+        if tutor?.justDone != nil, stroke == KeyStroke("CR"), startWork == nil, confirmation == nil, overlay == nil,
+           mode == .normal
+        {
+            return true
+        }
+        // `?` then `t`: the lesson for the view you are on.
+        if overlay == .help, stroke == KeyStroke("t") {
+            let lesson = Tutor.lessonID(forView: view.rawValue)
+            overlay = nil
+            onTutorRequest?(.start(lesson: lesson, world: nil))
+            return true
+        }
         if confirmation != nil {
             answerConfirmation(stroke)
             return true
@@ -912,7 +930,7 @@ final class AppModel {
             } else if stroke == KeyStroke("t") {
                 firstRun = nil
                 firstRunTask?.cancel()
-                onTutorRequest?(true)
+                onTutorRequest?(.start(lesson: Tutor.tour.id, world: nil))
             }
             return true
         }
@@ -1048,9 +1066,10 @@ final class AppModel {
         case "view.issues": view = .issues
         case "view.prs": view = .prs
         case "overlay.help": overlay = overlay == .help ? nil : .help
-        case "tutor": onTutorRequest?(tutor == nil)
-        case "tutor.next": moveTutor(by: 1)
-        case "tutor.prev": moveTutor(by: -1)
+        case "tutor": openTutor(command.arguments)
+        case "tutor.back": if tutor == nil { flash = "the tutor is not running (:tutor starts it)" } else { tutorBack() }
+        case "tutor.skip": if tutor == nil { flash = "the tutor is not running (:tutor starts it)" } else { tutorSkip() }
+        case "tutor.exit": if tutor == nil { flash = "the tutor is not running" } else { onTutorRequest?(.exit) }
         case "overlay.diff": toggleDiff()
         case "diff.hunk.next": jumpHunk(by: 1)
         case "diff.hunk.prev": jumpHunk(by: -1)
@@ -1113,7 +1132,8 @@ final class AppModel {
         case "history.reopen": reopenSelected()
         case "history.again": openStartWork(prompt: selectedHistory?.session.prompt ?? "")
         case "history.outcome": cycleOutcome()
-        case "app.quit": NSApp.terminate(nil)
+        // :q in the tutor leaves the tutor, as its banner says; it never quits the app from there.
+        case "app.quit": if tutor != nil { onTutorRequest?(.exit) } else { NSApp.terminate(nil) }
         case "config.edit": NSWorkspace.shared.open(configFile)
         case "tools.detect": Task { await detectTools(force: true) }
         case "settings.open": openSettings?()
@@ -1844,6 +1864,18 @@ final class AppModel {
 
     private func reopenSelected() {
         guard let entry = selectedHistory else { return }
+        if tutor != nil {
+            // The tutor: the session comes back as it would, its agent pane in its worktree, nothing resumed.
+            let path = worktrees.first { $0.branch == entry.session.branch }?.path ?? "/Users/you/code"
+            let pane = PaneSpec(role: .agent, title: entry.session.agent, directory: path, command: nil)
+            commit([
+                .historyRemoved(entry.id), .sessionUpserted(entry.session),
+                .layoutChanged(session: entry.id, SessionLayout(tabs: [PaneTab(title: "agent", tree: .leaf(pane))])),
+            ])
+            view = .sessions
+            select(sessionID: entry.id)
+            return
+        }
         guard !isFixture else {
             flash = "fixture: no IO"
             return
@@ -2299,7 +2331,12 @@ final class AppModel {
             if explicit { flash = "waiting: \(reason); it goes once the agent is idle" }
         case .deliver:
             guard !isFixture else {
-                flash = "fixture: no IO"
+                if tutor != nil {
+                    updateFeedback { $0.markSent(at: pullDetails[ref.description]?.headSHA) }
+                    flash = "sent (tutor: nothing was typed)"
+                } else {
+                    flash = "fixture: no IO"
+                }
                 return
             }
             pendingDelivery.remove(ref)
@@ -2563,6 +2600,10 @@ final class AppModel {
 
     private func begin(_ plan: StartWorkPlan) {
         guard !startingWork else { return }
+        if tutor != nil {
+            simulateStart(plan)
+            return
+        }
         guard !isFixture else {
             flash = "fixture: no IO"
             startWork = nil
@@ -2670,34 +2711,231 @@ final class AppModel {
 
     // MARK: Tutor
 
-    /// Set on the sandbox model while the tutor runs (`:tutor`); nil everywhere else.
-    private(set) var tutor: Tutor?
-    /// Asks the app to start (true) or leave (false) the tutor: it swaps the window to a sandbox model and back.
-    var onTutorRequest: ((Bool) -> Void)?
-
-    /// Makes this (fixture) model the tutor's sandbox, resuming at the lesson last reached.
-    func beginTutor(lesson: Int? = nil) {
-        let saved = lesson ?? UserDefaults.standard.integer(forKey: "tutorLesson")
-        tutor = Tutor(lesson: saved, state: tutorState)
-        view = .sessions
-    }
-
-    private func observeTutor() {
-        guard var current = tutor else { return }
-        if current.observe(tutorState) {
-            flash = current.lessonDone ? "lesson done · ⌘] next lesson" : "✓"
+    /// Start work in the tutor: the session, its worktrees and panes as they would be, with no git and no agent.
+    private func simulateStart(_ plan: StartWorkPlan) {
+        let made = plan.repos.map { record in
+            Worktree(
+                repo: record.repo, path: settings.worktreePath(repo: record.repo, name: plan.name), branch: plan.name,
+                head: "0000000", isMain: false, status: WorktreeStatus(upstream: nil)
+            )
         }
-        tutor = current
+        var session = Session(
+            id: plan.sessionID, title: plan.title, prompt: plan.prompt, repos: plan.repos.map(\.repo),
+            branch: plan.name, agent: plan.agent?.name ?? "shell", state: ObservedState(.working),
+            activity: "starting", lastActivity: Date()
+        )
+        session.record("started · \(plan.agent?.name ?? "shell")")
+        var changes: [DomainChange] = plan.repos.map { record in
+            .worktreesListed(repo: record.repo, worktrees.filter { $0.repo == record.repo } + made.filter {
+                $0.repo == record.repo
+            })
+        }
+        changes += [
+            .sessionUpserted(session),
+            .layoutChanged(session: session.id, StartWork.layout(for: plan, session: session, worktrees: made)),
+        ]
+        commit(changes)
+        startWork = nil
+        view = .sessions
+        select(sessionID: session.id)
+        flash = "started \(plan.name) (tutor: nothing real ran)"
     }
 
-    private func moveTutor(by delta: Int) {
-        guard var current = tutor else {
-            flash = "the tutor is not running (:tutor starts it)"
+    /// What the app is asked to do with the tutor: start a lesson in a sandbox (in a world, or the lesson's own), or
+    /// leave it and put the live sessions back.
+    enum TutorRequest {
+        case start(lesson: String, world: TutorWorld?)
+        case exit
+    }
+
+    /// Set on the sandbox model while the tutor runs; nil everywhere else.
+    private(set) var tutor: Tutor?
+    /// The world the sandbox runs, for the picker's footer.
+    private(set) var tutorWorld: TutorWorld?
+    /// `:tutor` with no lesson: the picker, on either model.
+    private(set) var tutorPicker: TutorPicker?
+    /// When the current step began, for the hint that follows a while without the keys.
+    private(set) var tutorStepStarted = Date()
+    /// The world as each step began, for `:back`.
+    private var tutorSnapshots: [Int: (domain: Domain, view: AppView)] = [:]
+    var onTutorRequest: ((TutorRequest) -> Void)?
+
+    /// Done lessons and where one was left, kept between launches (not in screenshots).
+    var tutorProgress: TutorProgress {
+        get {
+            guard !ShotMode.active, let data = UserDefaults.standard.data(forKey: "tutorProgress"),
+                  let progress = try? JSONDecoder().decode(TutorProgress.self, from: data)
+            else { return TutorProgress() }
+            return progress
+        }
+        set {
+            guard !ShotMode.active, let data = try? JSONEncoder().encode(newValue) else { return }
+            UserDefaults.standard.set(data, forKey: "tutorProgress")
+        }
+    }
+
+    /// Makes this (fixture) model the tutor's sandbox, on `lesson` at the step it was left on.
+    func beginTutor(lesson id: String, world: TutorWorld? = nil, step: Int? = nil, startedAt: Date = Clock.now) {
+        guard let lesson = Tutor.lesson(id) else { return }
+        tutorWorld = world ?? lesson.world
+        // A view's lesson opens in that view.
+        view = AppView(rawValue: id) ?? .sessions
+        let resume = step ?? tutorProgress.resumeStep(id)
+        tutor = Tutor(lesson: lesson, step: resume, state: tutorState, now: startedAt)
+        tutorSnapshots = [resume: (currentDomain, view)]
+        tutorStepStarted = Date()
+        saveTutorProgress()
+    }
+
+    /// The view the tutor's "this view" means: the overlay or dialog on top, else the view.
+    private var tutorViewName: String {
+        if startWork != nil { return "start-work" }
+        if overlay == .diff { return "diff" }
+        return view.rawValue
+    }
+
+    private func openTutor(_ arguments: [String]) {
+        if let name = arguments.first {
+            guard let id = Tutor.lessonID(named: name) else {
+                flash = "no tutor lesson \(name) (tour, \(Tutor.viewLessons.map(\.id).joined(separator: ", ")))"
+                return
+            }
+            onTutorRequest?(.start(lesson: id, world: nil))
             return
         }
-        if delta > 0 { current.next(from: tutorState) } else { current.previous(from: tutorState) }
+        tutorPicker = TutorPicker(view: tutorViewName, progress: tutorProgress)
+    }
+
+    private func answerTutorPicker(_ stroke: KeyStroke) {
+        guard var picker = tutorPicker else { return }
+        switch picker.handle(stroke) {
+        case .handled: tutorPicker = picker
+        case .cancel: tutorPicker = nil
+        case let .start(lesson, world):
+            tutorPicker = nil
+            onTutorRequest?(.start(lesson: lesson, world: world))
+        }
+    }
+
+    func pickTutorRow(_ index: Int) {
+        guard var picker = tutorPicker else { return }
+        picker.select(index)
+        tutorPicker = picker
+        answerTutorPicker(KeyStroke("CR"))
+    }
+
+    func cancelTutorPicker() { tutorPicker = nil }
+
+    /// After every key while the tutor runs: did that do the step? `stroke` is nil for clicks.
+    private func observeTutor(_ stroke: KeyStroke?) {
+        guard var current = tutor else { return }
+        let before = current.step
+        let event = current.observe(
+            tutorState, key: stroke.map { KeyCapText.of([$0]) }, pending: !engine.pendingDisplay.isEmpty
+        )
+        if event == .nudged, let step = current.current {
+            // Name the key the step wants, as you have it bound.
+            let wanted = step.keys.first.map(renderTutorText) ?? ""
+            current = current.withNudge(wanted.isEmpty ? nil : "\(wanted) is the one here.")
+        }
         tutor = current
-        UserDefaults.standard.set(current.lesson, forKey: "tutorLesson")
+        if current.step != before { tutorStepChanged() }
+    }
+
+    private func tutorStepChanged() {
+        guard let current = tutor else { return }
+        tutorStepStarted = Date()
+        if tutorSnapshots[current.step] == nil { tutorSnapshots[current.step] = (currentDomain, view) }
+        saveTutorProgress()
+    }
+
+    private func saveTutorProgress() {
+        guard let current = tutor else { return }
+        var progress = tutorProgress
+        progress.lastLesson = current.lesson.id
+        if current.finished {
+            progress.done.insert(current.lesson.id)
+            progress.lastStep = 0
+        } else {
+            progress.lastStep = current.step
+        }
+        tutorProgress = progress
+    }
+
+    /// `:back`: the world put back as it was when this step began; on a step not yet touched, the previous step.
+    private func tutorBack() {
+        guard var current = tutor else { return }
+        let untouched = tutorSnapshots[current.step].map { $0.domain == currentDomain && $0.view == view } ?? true
+        let target = untouched ? max(current.step - 1, 0) : current.step
+        if let snapshot = tutorSnapshots[target] {
+            closeEverythingForTutor()
+            replace(with: snapshot.domain)
+            view = snapshot.view
+        }
+        if target == current.step { current.restart(at: tutorState) } else { current.back(to: tutorState) }
+        tutor = current
+        tutorStepChanged()
+    }
+
+    private func tutorSkip() {
+        guard var current = tutor else { return }
+        current.skip(from: tutorState)
+        tutor = current
+        tutorStepChanged()
+    }
+
+    /// The card's keys went unpressed a while: counted for the finish card.
+    func noteTutorHint() {
+        guard var current = tutor else { return }
+        current.noteHint()
+        tutor = current
+    }
+
+    private func closeEverythingForTutor() {
+        startWork = nil
+        confirmation = nil
+        importPicker = nil
+        overlay = nil
+        reader = nil
+        issueReader = nil
+        filtering = false
+        if mode != .normal { engine.enter(.normal) }
+    }
+
+    /// The lesson after this one: the next not yet done, in the picker's order.
+    var nextTutorLesson: TutorLesson? {
+        guard let current = tutor else { return nil }
+        let order = [Tutor.tour] + Tutor.viewLessons
+        let done = tutorProgress.done
+        let index = order.firstIndex { $0.id == current.lesson.id } ?? 0
+        return (order[(index + 1)...] + order[..<index]).first { !done.contains($0.id) }
+    }
+
+    /// The finish card's keys: ↩ the next lesson, r the same again. Anything else goes on as usual.
+    private func answerFinishedTutor(_ stroke: KeyStroke) -> Bool {
+        guard let current = tutor, current.finished else { return false }
+        if stroke == KeyStroke("CR"), let next = nextTutorLesson {
+            onTutorRequest?(.start(lesson: next.id, world: nil))
+            return true
+        }
+        if stroke == KeyStroke("r") {
+            onTutorRequest?(.start(lesson: current.lesson.id, world: tutorWorld))
+            return true
+        }
+        return false
+    }
+
+    /// `{command}` placeholders as the keys you have them on.
+    func renderTutorText(_ text: String) -> String {
+        var result = ""
+        var rest = Substring(text)
+        while let open = rest.firstIndex(of: "{"), let close = rest[open...].firstIndex(of: "}") {
+            result += rest[..<open]
+            let command = String(rest[rest.index(after: open) ..< close])
+            result += keyLabel(for: command) ?? ":\(command)"
+            rest = rest[rest.index(after: close)...]
+        }
+        return result + rest
     }
 
     /// What the tutor's steps check.
@@ -2729,10 +2967,30 @@ final class AppModel {
         state.tab = currentTabIndex
         state.tabs = currentTabs.count
         state.startWorkOpen = startWork != nil
+        state.startWorkPrompt = startWork?.prompt ?? ""
+        state.startWorkRepo = startWork?.selectedRepos.first
         state.confirmationOpen = confirmation != nil
         state.importOpen = importPicker != nil || pathImport != nil
         state.commandLine = mode == .command
         state.sessions = sessions.count
+        let pins = list.ordered.filter(\.pinned)
+        state.pins = pins.count
+        if view == .sessions, let session = currentSession {
+            state.pinned = pins.firstIndex { $0.id == session.id }.map { $0 + 1 }
+            state.onParked = SessionGroup.of(session) == .parked
+            state.needsYou = [.blocked, .asking].contains(session.state.state)
+        }
+        state.parked = sessions.count { SessionGroup.of($0) == .parked }
+        state.picked = picked[view]?.count ?? 0
+        state.unread = github.inbox.count(where: \.unread)
+        if let ref = feedbackPull, let pipeline = feedback[ref.description] {
+            state.queued = pipeline.count(.queued)
+            state.sent = pipeline.count(.sent)
+        }
+        state.waiting = pendingDelivery.count
+        state.diffFile = diffFileIndex
+        state.diffRow = diffRow
+        state.historyOutcome = historyOutcome.map(\.rawValue) ?? ""
         return state
     }
 

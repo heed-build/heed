@@ -99,7 +99,7 @@ struct FirstRunView: View {
                 KeyCap(text: "e")
                 Text("open config").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 KeyCap(text: "t")
-                Text("take the tutor").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                Text("show me around").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 HStack(spacing: 6) {
                     Text("Start").fontWeight(.medium)
                     KeyCap(text: "↩")

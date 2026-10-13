@@ -9,7 +9,7 @@ struct MainWindow: View {
     var body: some View {
         VStack(spacing: 0) {
             TitleBar().shotRegion(.titleBar)
-            if let tutor = model.tutor { TutorBanner(tutor: tutor).shotRegion(.tutorBanner) }
+            if model.tutor != nil { TutorBanner().shotRegion(.tutorBanner) }
             GeometryReader { geometry in
                 HStack(spacing: 0) {
                     switch model.view {
@@ -36,12 +36,6 @@ struct MainWindow: View {
                 }
             }
             StatusBar().shotRegion(.statusBar)
-        }
-        .overlay(alignment: .bottomTrailing) {
-            if let tutor = model.tutor { TutorCard(tutor: tutor).shotRegion(.tutorCard).padding(.trailing, 16).padding(
-                .bottom,
-                44
-            ) }
         }
         .background(Theme.bg)
         .overlay {
@@ -82,6 +76,13 @@ struct MainWindow: View {
         }
         .overlay(alignment: .bottom) {
             LeaderHints().padding(.bottom, 28)
+        }
+        // The tutor over everything it can point at (dialogs included), then its picker over that.
+        .overlayPreferenceValue(ShotRegionKey.self) { anchors in
+            if let tutor = model.tutor { TutorLayer(tutor: tutor, anchors: anchors) }
+        }
+        .overlay {
+            if let picker = model.tutorPicker { TutorPickerView(picker: picker) }
         }
         // After the overlays, so the dialogs inherit it too.
         .foregroundStyle(Theme.fg)
@@ -269,6 +270,7 @@ struct StatusBar: View {
                 .padding(.horizontal, 12)
                 .frame(maxHeight: .infinity)
                 .background(Theme.modeColor(model.mode))
+            if let tutor = model.tutor { TutorPill(tutor: tutor) }
             if model.filtering {
                 filterLine
             } else {
@@ -305,6 +307,10 @@ struct StatusBar: View {
             }
             Spacer()
             Text(model.pendingKeys).foregroundStyle(Theme.fg).padding(.horizontal, 12)
+            // A quiet nudge until you have done this view's lesson.
+            if model.tutor == nil, !model.tutorProgress.done.contains(Tutor.lessonID(forView: model.view.rawValue)) {
+                Text("? t tutor").foregroundStyle(Theme.fg3).padding(.leading, 12)
+            }
             Text(hints).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.head).padding(.horizontal, 12)
             Text(position).foregroundStyle(Theme.fg2).padding(.horizontal, 12)
         }

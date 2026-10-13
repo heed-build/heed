@@ -24,7 +24,7 @@ public enum DefaultKeys {
         ("i", "mode.insert"), ("v", "mode.visual"), ("V", "mode.visual"), (":", "mode.command"),
         ("f", "mode.hint"), ("F", "hint.insert"),
         ("?", "overlay.help"), ("<D-/>", "overlay.help"), ("<Esc>", "overlay.close"),
-        ("<D-,>", "settings.open"), ("<D-]>", "tutor.next"), ("<D-[>", "tutor.prev"),
+        ("<D-,>", "settings.open"), ("<D-T>", "tutor"), ("<D-.>", "tutor.exit"),
     ]
 
     public static let visual: [(String, String)] = [
@@ -35,7 +35,7 @@ public enum DefaultKeys {
 
     public static let insert: [(String, String)] = [
         (insertEscape, "mode.normal"), ("<S-Esc>", "mode.normal"), ("<D-/>", "overlay.help"),
-        ("<D-]>", "tutor.next"), ("<D-[>", "tutor.prev"),
+        ("<D-T>", "tutor"), ("<D-.>", "tutor.exit"),
     ]
 
     public static let command: [(String, String)] = [

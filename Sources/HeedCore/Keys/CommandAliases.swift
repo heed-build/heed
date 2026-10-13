@@ -12,6 +12,9 @@ public enum CommandAliases {
         case "import": return CommandInvocation(name: "session.import", arguments: args)
         case "wt" where args.first == "sweep": return CommandInvocation(name: "cleanup.sweep")
         case "help": return CommandInvocation(name: "overlay.help")
+        // The tutor's card offers these as :back and :skip.
+        case "back": return CommandInvocation(name: "tutor.back")
+        case "skip": return CommandInvocation(name: "tutor.skip")
         case "q", "quit": return CommandInvocation(name: "app.quit")
         default:
             if let view = ["sessions", "inbox", "issues", "prs", "repos", "history"]

@@ -82,9 +82,13 @@ public enum Commands {
         .init("inspector.toggle", "collapse / expand the inspector", .views),
         .init("sidebar.toggle", "collapse / expand the sessions sidebar", .views),
         .init("config.edit", "open config.toml in $EDITOR", .views),
-        .init("tutor", "start or leave the tutor: lessons done for real in a sandbox", .views),
-        .init("tutor.next", "the tutor's next lesson", .views),
-        .init("tutor.prev", "the tutor's previous lesson", .views),
+        .init(
+            "tutor", "the tutor: pick a lesson, or start one by name (tour, sessions, prs…)", .views,
+            arguments: "[lesson]"
+        ),
+        .init("tutor.back", "the tutor's previous step, the world as it was then", .views),
+        .init("tutor.skip", "skip the tutor's step", .views),
+        .init("tutor.exit", "leave the tutor; your sessions come back as they were", .views),
         .init("tools.detect", "find git and gh again (login shell PATH, usual places, [tools])", .views),
         .init("app.quit", "quit Heed", .views),
         .init("settings.open", "open Settings", .views),

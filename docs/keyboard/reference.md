@@ -75,9 +75,10 @@ This page is generated from the code (`mise run shots`).
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
 | `config.edit` |  | open config.toml in $EDITOR |
-| `tutor` |  | start or leave the tutor: lessons done for real in a sandbox |
-| `tutor.next` | `<D-]>`, `<D-]>` (INSERT) | the tutor's next lesson |
-| `tutor.prev` | `<D-[>`, `<D-[>` (INSERT) | the tutor's previous lesson |
+| `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |
+| `tutor.back` |  | the tutor's previous step, the world as it was then |
+| `tutor.skip` |  | skip the tutor's step |
+| `tutor.exit` | `<D-.>`, `<D-.>` (INSERT) | leave the tutor; your sessions come back as they were |
 | `tools.detect` |  | find git and gh again (login shell PATH, usual places, [tools]) |
 | `app.quit` |  | quit Heed |
 | `settings.open` | `<D-,>` | open Settings |

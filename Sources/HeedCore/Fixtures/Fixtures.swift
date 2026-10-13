@@ -4,7 +4,7 @@ import Foundation
 /// every adapter switched off.
 public enum Fixtures {
     /// `resume` is `main` opening on the resume dialog (the app handles that name).
-    public static let names = ["main", "empty", "resume"]
+    public static let names = ["main", "empty", "resume", "pr-storm", "fresh-repos"]
 
     /// What the fixtures' config would say about issues: docs-builder and the nullean org show all of them.
     public static let issueRules = IssueRules(orgs: ["nullean": .all], repos: ["elastic/docs-builder": .all])
@@ -13,6 +13,8 @@ public enum Fixtures {
         switch name {
         case "main": main
         case "empty": .empty
+        case "pr-storm": prStorm
+        case "fresh-repos": freshRepos
         default: nil
         }
     }
@@ -113,6 +115,33 @@ public enum Fixtures {
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
             pullDetails: [detail.ref.description: detail], feedback: [detail.ref.description: pipeline]
         )
+    }()
+
+    /// The tutor's PR storm: every review comment and failing check on #2841 is new, and it is the PR updated last,
+    /// while the session that owns it is busy working.
+    public static let prStorm: Domain = {
+        var domain = main
+        for key in domain.feedback.keys {
+            for index in domain.feedback[key]!.items.indices where domain.feedback[key]!.items[index].status != .resolved {
+                domain.feedback[key]!.items[index].status = .new
+            }
+        }
+        if let index = domain.github.pulls.firstIndex(where: { $0.ref == pullDetail.ref }) {
+            var pull = domain.github.pulls.remove(at: index)
+            pull.updatedAt = Clock.now
+            domain.github.pulls.insert(pull, at: 0)
+        }
+        return domain
+    }()
+
+    /// The tutor's fresh repos: every repo and worktree, no sessions or history yet.
+    public static let freshRepos: Domain = {
+        var domain = main
+        domain.sessions = []
+        domain.layouts = [:]
+        domain.history = []
+        domain.feedback = [:]
+        return domain
     }()
 
     /// design/screens/Diff.png.

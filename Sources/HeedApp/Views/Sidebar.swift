@@ -21,18 +21,22 @@ struct Sidebar: View {
                 ListScroll {
                     ListStack(alignment: .leading, spacing: 0) {
                         ForEach(list.sections, id: \.group) { section in
-                            groupHeader(section, pins: list.pins.count)
-                            ForEach(section.sessions) { session in
-                                let index = list.ordered.firstIndex(of: session) ?? 0
-                                SessionRow(
-                                    session: session,
-                                    number: list.lineNumber(of: index, cursor: model.cursor),
-                                    isCursor: index == model.cursor,
-                                    pinNumber: list.pins.firstIndex(of: session).map { $0 + 1 },
-                                    hint: model.hintLabel(for: .session(session.id))
-                                )
-                                .id(session.id)
+                            VStack(alignment: .leading, spacing: 0) {
+                                groupHeader(section, pins: list.pins.count)
+                                ForEach(section.sessions) { session in
+                                    let index = list.ordered.firstIndex(of: session) ?? 0
+                                    SessionRow(
+                                        session: session,
+                                        number: list.lineNumber(of: index, cursor: model.cursor),
+                                        isCursor: index == model.cursor,
+                                        pinNumber: list.pins.firstIndex(of: session).map { $0 + 1 },
+                                        hint: model.hintLabel(for: .session(session.id))
+                                    )
+                                    .id(session.id)
+                                }
                             }
+                            // The tutor lights this group when it is about what needs you.
+                            .shotRegion(section.group == .needsYou ? .needsYou : nil)
                         }
                     }
                 }

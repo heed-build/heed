@@ -22,8 +22,8 @@ struct HelpOverlay: View {
             "Select several sessions, worktrees or panes, then act on all of them.",
             [("v V", "enter"), ("d p y", "remove, pin, copy")]
         ),
-        (.command, "Typed commands with completion. :tutor teaches Heed in a sandbox.", [
-            (":", "enter"), ("⇥", "complete"), (":tutor", "lessons, done for real"),
+        (.command, "Typed commands with completion.", [
+            (":", "enter"), ("⇥", "complete"), (":tutor", "lessons on a pretend world"),
         ]),
         (
             .hint,
@@ -76,6 +76,8 @@ struct HelpOverlay: View {
             Text("everywhere").foregroundStyle(Theme.fg2)
             KeyCap(text: "⎋")
             Text("close").foregroundStyle(Theme.fg2)
+            KeyCap(text: "t")
+            Text("tutor for this view").foregroundStyle(Theme.fg2)
         }
         .font(Theme.ui(12))
     }

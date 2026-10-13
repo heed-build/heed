@@ -53,6 +53,11 @@ description = "Render every docs screenshot from the fake world into docs/images
 depends = ["bundle"]
 run = "HEED_SHOTS=\"$PWD/docs/images/shots\" HEED_DOCS=\"$PWD/docs\" build/Heed.app/Contents/MacOS/Heed"
 
+[tasks.tutor-check]
+description = "Play every tutor lesson with the real keys on its fake world, and report steps that do not tick off"
+depends = ["bundle"]
+run = "HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed"
+
 [tasks.deploy]
 description = "Copy build/Heed.app to HEED_DEPLOY_DIR (set it in mise.local.toml)"
 run = "scripts/deploy.sh"

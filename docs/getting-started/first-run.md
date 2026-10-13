@@ -21,7 +21,7 @@ Nothing in your own agent configuration changes: Heed passes its hooks to each a
 | Key | |
 |---|---|
 | `↩` | Start using Heed |
-| `t` | Take the [tutor](tutor.md) |
+| `t` | Show me around: the [tutor](tutor.md)'s global tour |
 | `r` | Check again now |
 | `e` | Open `config.toml` |
 

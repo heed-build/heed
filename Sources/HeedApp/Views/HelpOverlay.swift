@@ -20,7 +20,7 @@ struct HelpOverlay: View {
         (
             .visual,
             "Select several sessions, worktrees or panes, then act on all of them.",
-            [("v V", "enter"), ("d p y", "remove, pin, copy")]
+            [("v V", "enter"), ("d m y", "remove, pin, copy")]
         ),
         (.command, "Typed commands with completion.", [
             (":", "enter"), ("⇥", "complete"), (":tutor", "lessons on a pretend world"),

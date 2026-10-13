@@ -10,7 +10,7 @@ The sidebar lists every open session, grouped so that whatever needs you is near
 
 | Group | Holds |
 |---|---|
-| **Pinned** | Sessions you pinned with `p`, in the order you pinned them. `'1` to `'9` jump to them. |
+| **Pinned** | Sessions you pinned with `m`, in the order you pinned them. `'1` to `'9` jump to them. |
 | **Needs you** | Blocked or asking: an agent waiting on you. |
 | **Working** | Agents busy on their task. |
 | **Parked** | Sessions you set aside with `zz`, and finished ones. |

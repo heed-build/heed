@@ -159,7 +159,7 @@ struct ReposView: View {
                 .font(Theme.ui(11.5))
                 .foregroundStyle(Theme.fg3)
             HStack(spacing: 8) {
-                KeyCap(text: "p")
+                KeyCap(text: "m")
                 Text("pinned sessions are never cleaned up").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
             }
             Spacer()

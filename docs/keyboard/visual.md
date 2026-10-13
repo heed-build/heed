@@ -14,7 +14,7 @@ on all of them at once.
 | `j` `k` `gg` `G` | Extend the selection |
 | `space` | Add or drop the row under the cursor |
 | `d` | Remove the selected (asks first) |
-| `p` | Pin the selected |
+| `m` | Pin the selected |
 | `y` | Copy their paths |
 | `o` | Open them (in Repos: their sessions, importing those without one) |
 | `⎋` | Back to NORMAL |

@@ -29,8 +29,8 @@ description: Your GitHub notifications in Heed, filtered, read and turned into s
 | `space` | Pick an item; `v` picks a range |
 | `s` | [Start a session](../start-work/from-github.md) from the picked items |
 | `a` | Add them to the current session |
-| `go`, `↩`, `o` | [Read](reading.md) the item in the app |
-| `m` | Mark read |
+| `go`, `↩` | [Read](reading.md) the item in the app |
+| `x` | Mark read: done with it, as `x` is everywhere |
 | `gB` | Open in the browser |
 
 ![Inbox rows: kind, repo, title, why it is in your inbox, and when](../images/shots/github/inbox-rows.png)

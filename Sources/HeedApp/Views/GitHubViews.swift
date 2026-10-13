@@ -495,10 +495,11 @@ private struct PullDetail: View {
                     .foregroundStyle(Theme.fg3)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text("The feedback queue and auto-feed arrive in step 7.").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
             Spacer()
             HStack(spacing: 10) {
-                KeyCap(text: "o")
+                KeyCap(text: "↩")
+                Text("read here").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                KeyCap(text: "gB")
                 Text("open in the browser").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
             }
         }

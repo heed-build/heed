@@ -16,7 +16,7 @@ Each row shows:
 
 | Key | |
 |---|---|
-| `go`, `↩`, `o` | [Read](reading.md) it in the app |
+| `go`, `↩` | [Read](reading.md) it in the app |
 | `gS` | Jump to the session working on it |
 | `gB` | Open in the browser |
 | `r` | Sync now |

@@ -6,7 +6,7 @@ description: Pinning, parking, closing and deleting sessions, and what each keep
 
 | Key | Does | Keeps |
 |---|---|---|
-| `p` | Pin or unpin: pinned sessions stay at the top, and `'1`–`'9` jump to them | Everything |
+| `m` | Pin or unpin (mark, as in vim): pinned sessions stay at the top, and `'1`–`'9` jump to them | Everything |
 | `zz` | Park: move the session out of the way, to **Parked** | Everything; the agent keeps running |
 | `x` | Close: the agent and panes stop, the session goes to History | The worktree and branch |
 | `dd` | Delete: close, and remove its worktrees and their local branches | Worktrees with unsaved work |

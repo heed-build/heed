@@ -1027,6 +1027,10 @@ final class AppModel {
         case "row.prev": moveRow(by: -count)
         case "row.first": setRow(command.count.map { $0 - 1 } ?? 0)
         case "row.last": setRow(command.count.map { $0 - 1 } ?? Int.max)
+        case "row.halfpage.down": moveRow(by: 10 * count)
+        case "row.halfpage.up": moveRow(by: -10 * count)
+        case "group.next": moveGroup(forward: true)
+        case "group.prev": moveGroup(forward: false)
         case "session.attention":
             view = .sessions
             if let next = list.nextNeedingYou(after: cursor) { setCursor(next) } else { flash = "nobody needs you" }
@@ -1045,8 +1049,12 @@ final class AppModel {
         case "pin.jump": jumpToPin(Int(command.arguments.first ?? "") ?? 1)
         case "work.start": openStartWork(prompt: command.arguments.joined(separator: " "))
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "")
-        case "worktree.new": openStartWork(prompt: "")
-        case "repo.scan", "repo.add": rescan()
+        case "worktree.new":
+            openStartWork(prompt: "")
+            if let repo = worktreeRows.indices.contains(repoCursor) ? worktreeRows[repoCursor].repo : nil {
+                startWork?.choose(repo: repo.slug)
+            }
+        case "repo.scan": rescan()
         case "pane.left": updateTab { $0.focus(.left) }
         case "pane.right": updateTab { $0.focus(.right) }
         case "pane.up": updateTab { $0.focus(.up) }
@@ -1099,7 +1107,6 @@ final class AppModel {
         case "select.remove": confirmRemoveSelected()
         case "session.filter": startFilter()
         case "cleanup.sweep": confirmSweep()
-        case "cleanup.rules": view = .repos
         case "github.sync": Task { await syncGitHub() }
         case "items.start": startFromItems()
         case "items.add": addItemsToSession()
@@ -1197,6 +1204,25 @@ final class AppModel {
         case .inbox, .issues, .prs: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
+    }
+
+    /// The current list's group of each row, and the cursor: sidebar groups, repos, days.
+    private var rowGroups: (keys: [String], cursor: Int) {
+        switch view {
+        case .sessions: (list.ordered.map { SessionGroup.of($0).rawValue }, cursor)
+        case .repos: (worktreeRows.map(\.repo.slug), repoCursor)
+        case .inbox: (inboxRows.map(\.repo.slug), cursor(in: .inbox))
+        case .issues: (issueRows.map(\.repo.slug), cursor(in: .issues))
+        case .prs: (pullRows.map(\.ref.repo.slug), cursor(in: .prs))
+        case .history:
+            (historyRows.map { Calendar.current.startOfDay(for: $0.closedAt).description }, historyCursor)
+        }
+    }
+
+    private func moveGroup(forward: Bool) {
+        let (keys, from) = rowGroups
+        let target = forward ? RowGroups.next(keys, from: from) : RowGroups.previous(keys, from: from)
+        if let target { setRow(target) }
     }
 
     private func setRow(_ index: Int) {

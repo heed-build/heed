@@ -7,9 +7,10 @@ public enum DefaultKeys {
     public static let normal: [(String, String)] = [
         ("j", "row.next"), ("k", "row.prev"), ("<Down>", "row.next"), ("<Up>", "row.prev"),
         ("gg", "row.first"), ("G", "row.last"), ("/", "session.filter"),
+        ("<C-d>", "row.halfpage.down"), ("<C-u>", "row.halfpage.up"), ("}", "group.next"), ("{", "group.prev"),
         ("h", "pane.left"), ("l", "pane.right"),
         ("o", "work.start"), ("O", "work.again"), ("ga", "session.attention"), ("zz", "session.park"),
-        ("x", "session.close"), ("p", "session.pin"), ("''", "session.back"),
+        ("x", "session.close"), ("m", "session.pin"), ("''", "session.back"),
         ("'1", "pin.jump 1"), ("'2", "pin.jump 2"), ("'3", "pin.jump 3"), ("'4", "pin.jump 4"), ("'5", "pin.jump 5"),
         ("'6", "pin.jump 6"), ("'7", "pin.jump 7"), ("'8", "pin.jump 8"), ("'9", "pin.jump 9"),
         ("gh", "view.history"), ("gr", "view.repos"),
@@ -20,7 +21,7 @@ public enum DefaultKeys {
         ("gs", "view.sessions"), ("gm", "view.inbox"), ("gi", "view.issues"), ("gp", "view.prs"),
         ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), ("gd", "overlay.diff"), ("gS", "pr.session"),
         ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gU", "pr.track"), ("gC", "cleanup.sweep"),
-        ("gc", "cleanup.rules"), ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("<CR>", "open.reader"),
+        ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("<CR>", "open.reader"),
         ("i", "mode.insert"), ("v", "mode.visual"), ("V", "mode.visual"), (":", "mode.command"),
         ("f", "mode.hint"), ("F", "hint.insert"),
         ("?", "overlay.help"), ("<D-/>", "overlay.help"), ("<Esc>", "overlay.close"),
@@ -29,7 +30,7 @@ public enum DefaultKeys {
 
     public static let visual: [(String, String)] = [
         ("j", "row.next"), ("k", "row.prev"), ("gg", "row.first"), ("G", "row.last"),
-        ("<Space>", "select.toggle"), ("d", "select.remove"), ("p", "select.pin"), ("y", "select.copy"),
+        ("<Space>", "select.toggle"), ("d", "select.remove"), ("m", "select.pin"), ("y", "select.copy"),
         ("o", "select.open"), ("<Esc>", "mode.normal"), ("?", "overlay.help"), ("<D-/>", "overlay.help"),
     ]
 
@@ -51,20 +52,20 @@ public enum DefaultKeys {
     public static let scoped: [String: [(String, String)]] = [
         "sessions": [("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path")],
         "repos": [
-            ("a", "repo.add"), ("n", "worktree.new"), ("R", "repo.scan"), ("I", "issues.visibility"),
-            ("dd", "select.remove"), ("<CR>", "select.open"),
+            ("o", "worktree.new"), ("r", "repo.scan"), ("w", "issues.visibility"), ("dd", "select.remove"),
+            ("<CR>", "select.open"),
         ],
         "history": [("R", "history.reopen"), ("O", "history.again"), ("t", "history.outcome")],
         "inbox": [
-            ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("m", "items.read"),
-            ("t", "items.filter"), ("r", "github.sync"), ("o", "open.reader"),
+            ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "items.read"),
+            ("t", "items.filter"), ("r", "github.sync"),
         ],
         "issues": [
             ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("r", "github.sync"),
-            ("o", "open.reader"), ("t", "items.filter"), ("<Tab>", "issues.repo.next"),
+            ("t", "items.filter"), ("<Tab>", "issues.repo.next"),
             ("<S-Tab>", "issues.repo.prev"), ("w", "issues.visibility"),
         ],
-        "prs": [("r", "github.sync"), ("o", "open.reader")],
+        "prs": [("r", "github.sync")],
         /// The diff overlay.
         "diff": [
             ("n", "diff.hunk.next"), ("N", "diff.hunk.prev"), ("]f", "diff.file.next"), ("[f", "diff.file.prev"),

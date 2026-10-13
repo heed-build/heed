@@ -14,7 +14,7 @@ choose to watch.
 For each repo, the Issues view shows either every open issue or only those involving you. An eye in the repo column
 marks repos showing all of them.
 
-- `w` on an issue flips its repo between the two (`I` does the same in [Repos](../worktrees/index.md)).
+- `w` on an issue flips its repo between the two (`w` does the same in [Repos](../worktrees/index.md)).
 - Set it per org or per repo in `config.toml`; the most specific setting wins:
 
 ```toml

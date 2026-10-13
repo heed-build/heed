@@ -152,10 +152,41 @@ struct ContinuationTests {
 struct ScopedKeyTests {
     @Test func scopedBindingsApplyOnlyInTheirView() {
         var engine = engine()
-        #expect(press(&engine, "a") == [.unbound([KeyStroke("a")])])
+        #expect(press(&engine, "r") == [.unbound([KeyStroke("r")])])
+        #expect(press(&engine, "o") == [.run(CommandInvocation(name: "work.start"))])
         engine.scope = "repos"
-        #expect(press(&engine, "a") == [.run(CommandInvocation(name: "repo.add"))])
+        #expect(press(&engine, "r") == [.run(CommandInvocation(name: "repo.scan"))])
+        // o still starts work, in the repo under the cursor.
+        #expect(press(&engine, "o") == [.run(CommandInvocation(name: "worktree.new"))])
         #expect(press(&engine, "j") == [.run(CommandInvocation(name: "row.next"))])
+    }
+
+    @Test func oneKeyOneMeaning() {
+        // x is "done with it" wherever it is bound, o is always starting work, and the GitHub views read with ↩.
+        #expect(DefaultKeys.normal.contains { $0 == ("x", "session.close") })
+        #expect(DefaultKeys.scoped["inbox"]?.contains { $0 == ("x", "items.read") } == true)
+        #expect(DefaultKeys.scoped["pr"]?.contains { $0 == ("x", "feedback.dismiss") } == true)
+        for (scope, table) in DefaultKeys.scoped {
+            for (keys, command) in table where keys == "o" {
+                #expect(command == "worktree.new", "o in \(scope) is \(command)")
+            }
+        }
+        #expect(DefaultKeys.normal.contains { $0 == ("m", "session.pin") })
+    }
+}
+
+struct RowGroupTests {
+    @Test func bracesMoveByGroupLikeParagraphs() {
+        let keys = ["pinned", "pinned", "needs", "working", "working", "parked"]
+        #expect(RowGroups.next(keys, from: 0) == 2)
+        #expect(RowGroups.next(keys, from: 3) == 5)
+        #expect(RowGroups.next(keys, from: 5) == nil)
+        // { goes to the start of this group first, then to the previous one.
+        #expect(RowGroups.previous(keys, from: 4) == 3)
+        #expect(RowGroups.previous(keys, from: 3) == 2)
+        #expect(RowGroups.previous(keys, from: 2) == 0)
+        #expect(RowGroups.previous(keys, from: 0) == nil)
+        #expect(RowGroups.next([], from: 0) == nil)
     }
 }
 

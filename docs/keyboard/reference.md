@@ -18,6 +18,10 @@ This page is generated from the code (`mise run shots`).
 | `row.prev` | `k`, `<Up>`, `k` (VISUAL) | previous session / row |
 | `row.first` | `gg`, `gg` (VISUAL) | first session / row |
 | `row.last` | `G`, `G` (VISUAL) | last session / row |
+| `row.halfpage.down` | `<C-d>` | half a page down (ten rows) |
+| `row.halfpage.up` | `<C-u>` | half a page up (ten rows) |
+| `group.next` | `}` | first row of the next group (sidebar group, repo) |
+| `group.prev` | `{` | first row of this group, or of the one before |
 | `session.filter` | `/` | filter the current view (typed in the status bar) |
 | `session.attention` | `ga` | next session needing you |
 | `session.park` | `zz` | park session |
@@ -25,7 +29,7 @@ This page is generated from the code (`mise run shots`).
 | `session.delete` | `dd` (sessions) | delete session and its worktrees (asks first) |
 | `session.import` `[path]` | `Iw` (sessions) | import a worktree Heed does not manage yet as a session |
 | `session.import.path` | `Ip` (sessions) | import the worktree at a path (any repo, anywhere) |
-| `session.pin` | `p` | pin / unpin session |
+| `session.pin` | `m` | pin / unpin session |
 | `session.back` | `''` | back to previous session |
 | `pin.jump` `<1-9>` | `'1`, `'2`, `'3`, `'4`, `'5`, `'6`, `'7`, `'8`, `'9` | jump to pinned session |
 | `work.start` | `o` | start work |
@@ -69,9 +73,8 @@ This page is generated from the code (`mise run shots`).
 | `pr.track` `<url>` | `gU` | track a PR by URL |
 | `jump.back` | `<C-o>` | back |
 | `open.browser` | `gB` | open in browser |
-| `open.reader` | `<CR>`, `o` (inbox), `o` (issues), `o` (prs) | read inbox item, issue or PR |
+| `open.reader` | `<CR>` | read inbox item, issue or PR |
 | `cleanup.sweep` | `gC` | run the cleanup sweep now |
-| `cleanup.rules` | `gc` | cleanup rules |
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
 | `config.edit` |  | open config.toml in $EDITOR |
@@ -108,11 +111,11 @@ This page is generated from the code (`mise run shots`).
 | `github.sync` | `r` (inbox), `r` (issues), `r` (pr), `r` (prs) | sync GitHub now |
 | `items.start` | `s` (inbox), `s` (issue), `s` (issues) | start one session from the picked items |
 | `items.add` | `a` (inbox), `a` (issue), `a` (issues) | add the picked items to the current session |
-| `items.read` | `m` (inbox) | mark read |
+| `items.read` | `x` (inbox) | mark read |
 | `items.filter` | `t` (inbox), `t` (issues) | cycle the filter chips |
 | `issues.repo.next` | `<Tab>` (issues) | next repo in the Issues repo column |
 | `issues.repo.prev` | `<S-Tab>` (issues) | previous repo in the Issues repo column |
-| `issues.visibility` | `w` (issues), `I` (repos) | flip the repo under the cursor between all issues and only yours |
+| `issues.visibility` | `w` (issues), `w` (repos) | flip the repo under the cursor between all issues and only yours |
 | `feedback.queue` | `<Space>` (pr) | queue / unqueue the item |
 | `feedback.send` | `s` (pr) | send queued feedback to the session |
 | `feedback.mode` | `m` (pr) | cycle auto-feed: off, ask, auto when idle |
@@ -130,10 +133,9 @@ This page is generated from the code (`mise run shots`).
 | `diff.ask` | `a` (diff) | ask the agent about this hunk |
 | `diff.copy` | `y` (diff) | copy path:line |
 | `diff.edit` | `e` (diff) | open the file in the editor |
-| `repo.add` | `a` (repos) | add repo |
-| `repo.scan` | `R` (repos) | rescan repo roots |
-| `worktree.new` | `n` (repos) | new worktree |
+| `repo.scan` | `r` (repos) | refresh: rescan the repo roots |
+| `worktree.new` | `o` (repos) | start work in the repo under the cursor |
 | `select.remove` | `d` (VISUAL), `dd` (repos) | remove the selected worktrees, or the one under the cursor (asks first) |
-| `select.pin` | `p` (VISUAL) | pin selected |
+| `select.pin` | `m` (VISUAL) | pin selected |
 | `select.copy` | `y` (VISUAL) | copy paths |
 | `select.open` | `o` (VISUAL), `<CR>` (repos) | open the worktree's session, importing it when it has none |

@@ -15,11 +15,12 @@ behind, uncommitted changes) and its pull request.
 | Key | |
 |---|---|
 | `↩` | Open the worktree's session, or [import](importing.md) it when it has none |
-| `n` | New worktree |
+| `o` | Start work in the repo under the cursor |
 | `dd` | [Remove](removing.md) the worktree (asks first) |
 | `v` | Select rows, then `d` remove, `y` copy paths, `o` open or import |
-| `I` | Flip the repo between all issues and only yours ([Issues](../github/issues.md)) |
-| `a` / `R` | Rescan for repos |
+| `w` | Flip the repo between all issues and only yours ([Issues](../github/issues.md)) |
+| `r` | Refresh: rescan for repos |
+| `{` `}` | Previous / next repo |
 | `/` | [Filter](../sessions/filtering.md) by repo, branch or agent |
 
 - [Repos](repos.md): where repos come from, and their order and colours.

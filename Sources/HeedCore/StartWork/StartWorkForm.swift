@@ -83,6 +83,14 @@ public struct StartWorkForm: Sendable {
         setPrompt(prompt)
     }
 
+    /// Start work from a repo (`o` on a Repos row): that repo, chosen, whatever the prompt suggests later.
+    public mutating func choose(repo id: String) {
+        guard repos.contains(where: { $0.id == id }) else { return }
+        reposTouched = true
+        selectedRepos = [id]
+        repoCursor = repoChoices.firstIndex { $0.repo.id == id } ?? repoCursor
+    }
+
     // MARK: Derived
 
     public var agent: AgentProfile? { agents[agentIndex] }

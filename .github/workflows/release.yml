@@ -27,7 +27,8 @@ jobs:
     # Releases come from main; a dry run may try a branch.
     if: github.ref == 'refs/heads/main' || inputs.dry_run
     runs-on: macos-26
-    timeout-minutes: 60
+    # Room for an hour of notarization on top of the build.
+    timeout-minutes: 100
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Signing and notarizing need all six secrets (scripts/release-secrets.sh stores them); without them the release
@@ -112,14 +113,28 @@ jobs:
           printf '%s\n' "$KEY_P8" >"$key"
           auth=(--key "$key" --key-id "$KEY_ID" --issuer "$ISSUER")
           ditto -c -k --keepParent build/Heed.app "$RUNNER_TEMP/notarize.zip"
-          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" "${auth[@]}" --wait --timeout 30m \
-            --output-format json >"$RUNNER_TEMP/notary.json" || true
-          status="$(jq -r '.status // "no answer"' "$RUNNER_TEMP/notary.json")"
-          id="$(jq -r '.id // empty' "$RUNNER_TEMP/notary.json")"
+          # Upload first and keep Apple's submission id, then wait for the verdict apart from that: a timeout then still
+          # says which submission it was. Usually minutes; a team's first submissions can take far longer.
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" "${auth[@]}" --output-format json \
+            >"$RUNNER_TEMP/submit.json" 2>&1 || true
+          id="$(jq -r '.id // empty' "$RUNNER_TEMP/submit.json" 2>/dev/null || true)"
+          if [ -z "$id" ]; then
+            echo "::error::The upload to Apple failed:" && cat "$RUNNER_TEMP/submit.json"
+            rm -f "$key"
+            exit 1
+          fi
+          echo "notarization: submitted $id"
+          xcrun notarytool wait "$id" "${auth[@]}" --timeout 60m >/dev/null 2>&1 || true
+          status="$(xcrun notarytool info "$id" "${auth[@]}" --output-format json | jq -r .status)"
           echo "notarization: $status ($id)"
+          if [ "$status" = "In Progress" ]; then
+            echo "::error::Apple is still processing submission $id after an hour. Nothing was released; run again later."
+            rm -f "$key"
+            exit 1
+          fi
           if [ "$status" != "Accepted" ]; then
             # Apple's reasons, then stop: nothing has been attached to the draft.
-            [ -n "$id" ] && xcrun notarytool log "$id" "${auth[@]}"
+            xcrun notarytool log "$id" "${auth[@]}"
             rm -f "$key"
             exit 1
           fi

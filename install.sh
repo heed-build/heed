@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install or update Heed: curl -fsSL https://heed.nullean.net/install.sh | sh
+# Install or update Heed: curl -fsSL https://heed.build/install.sh | sh
 #
 # Downloads the latest release (or HEED_VERSION=0.1.0), checks its sha256, and puts Heed.app in /Applications, or
 # ~/Applications when /Applications is not writable (HEED_APP_DIR overrides both; HEED_DOWNLOAD_BASE downloads from

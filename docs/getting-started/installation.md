@@ -7,7 +7,7 @@ description: Install Heed on macOS with one line, or build it from source.
 Heed is a macOS app for Apple Silicon (macOS 15 or later).
 
 ```sh
-curl -fsSL https://heed.nullean.net/install.sh | sh
+curl -fsSL https://heed.build/install.sh | sh
 ```
 
 That downloads the latest release, checks its sha256, and puts `Heed.app` in `/Applications` (or `~/Applications` when

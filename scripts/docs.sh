@@ -9,7 +9,7 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
-# The sub-path GitHub Pages serves from; empty at the domain root (heed.nullean.net). The landing page's <base href>
+# The sub-path GitHub Pages serves from; empty at the domain root (heed.build). The landing page's <base href>
 # and the workflow's prefix: input must agree with it, and nothing but this check would notice if they drifted.
 path_prefix=""
 landing="docs/heed-landing.html"

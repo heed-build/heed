@@ -41,4 +41,4 @@ autolabeler:
 template: |
   $CHANGES
 
-  **Install or update:** `curl -fsSL https://heed.nullean.net/install.sh | sh`
+  **Install or update:** `curl -fsSL https://heed.build/install.sh | sh`

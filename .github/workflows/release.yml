@@ -10,6 +10,10 @@ on:
       version:
         description: "Version to release, e.g. 0.1.0 (empty: the draft's)"
         required: false
+      dry_run:
+        description: "Dry run: build, sign and notarize, keep the zip on the run, release nothing"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -20,11 +24,16 @@ concurrency:
 
 jobs:
   release:
-    if: github.ref == 'refs/heads/main'
+    # Releases come from main; a dry run may try a branch.
+    if: github.ref == 'refs/heads/main' || inputs.dry_run
     runs-on: macos-26
-    timeout-minutes: 60
+    # Room for an hour of notarization on top of the build.
+    timeout-minutes: 100
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Signing and notarizing need all six secrets (scripts/release-secrets.sh stores them); without them the release
+      # is ad-hoc signed, which the install script handles but browsers and Homebrew warn about.
+      NOTARIZE: ${{ secrets.DEVELOPER_ID_P12 != '' && secrets.NOTARY_KEY_P8 != '' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -38,7 +47,9 @@ jobs:
           fi
           tag="$(jq -r .tag_name <<<"$draft")"
           wanted="${{ inputs.version }}"
-          if [ -n "$wanted" ] && [ "v$wanted" != "$tag" ]; then
+          if [ -n "$wanted" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            tag="v$wanted"
+          elif [ -n "$wanted" ] && [ "v$wanted" != "$tag" ]; then
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$(jq -r .id <<<"$draft")" \
               -f tag_name="v$wanted" -f name="v$wanted" >/dev/null
             tag="v$wanted"
@@ -63,8 +74,84 @@ jobs:
           shown="$(plutil -extract CFBundleShortVersionString raw build/Heed.app/Contents/Info.plist)"
           [ "$shown" = "$HEED_VERSION" ] || { echo "Info.plist says $shown, not $HEED_VERSION" >&2; exit 1; }
 
+      - name: Sign with the Developer ID
+        if: env.NOTARIZE == 'true'
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          # A keychain of its own, deleted when the job ends (see the last step).
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(openssl rand -hex 24)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          base64 --decode <<<"$P12" >"$RUNNER_TEMP/developer-id.p12"
+          security import "$RUNNER_TEMP/developer-id.p12" -k "$keychain" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/developer-id.p12"
+          # The intermediate certificate, so codesign can build the chain to Apple.
+          curl -fsSL -o "$RUNNER_TEMP/DeveloperIDG2CA.cer" https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          identity="$(security find-identity -v -p codesigning "$keychain" \
+            | grep -o '"Developer ID Application: [^"]*"' | tr -d '"' | head -1)"
+          [ -n "$identity" ] || { echo "No Developer ID Application identity in DEVELOPER_ID_P12" >&2; exit 1; }
+          scripts/sign.sh "$identity" "$keychain"
+
       - name: Tutor check
         run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
+
+      - name: Notarize and staple
+        if: env.NOTARIZE == 'true'
+        env:
+          KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          key="$RUNNER_TEMP/notary.p8"
+          printf '%s\n' "$KEY_P8" >"$key"
+          auth=(--key "$key" --key-id "$KEY_ID" --issuer "$ISSUER")
+          ditto -c -k --keepParent build/Heed.app "$RUNNER_TEMP/notarize.zip"
+          # Upload first and keep Apple's submission id, then wait for the verdict apart from that: a timeout then still
+          # says which submission it was. Usually minutes; a team's first submissions can take far longer.
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" "${auth[@]}" --output-format json \
+            >"$RUNNER_TEMP/submit.json" 2>&1 || true
+          id="$(jq -r '.id // empty' "$RUNNER_TEMP/submit.json" 2>/dev/null || true)"
+          if [ -z "$id" ]; then
+            echo "::error::The upload to Apple failed:" && cat "$RUNNER_TEMP/submit.json"
+            rm -f "$key"
+            exit 1
+          fi
+          echo "notarization: submitted $id"
+          xcrun notarytool wait "$id" "${auth[@]}" --timeout 60m || true
+          # Asked again on failure: a runner's network can drop for a moment, and a release should not hinge on it.
+          status=""
+          for attempt in 1 2 3 4 5; do
+            status="$(xcrun notarytool info "$id" "${auth[@]}" --output-format json 2>/dev/null | jq -r '.status // empty')"
+            [ -n "$status" ] && break
+            echo "notarization: no answer from Apple (attempt $attempt), asking again in 30s"
+            sleep 30
+          done
+          [ -n "$status" ] || { echo "::error::No verdict from Apple for submission $id." >&2; rm -f "$key"; exit 1; }
+          echo "notarization: $status ($id)"
+          if [ "$status" = "In Progress" ]; then
+            echo "::error::Apple is still processing submission $id after an hour. Nothing was released; run again later."
+            rm -f "$key"
+            exit 1
+          fi
+          if [ "$status" != "Accepted" ]; then
+            # Apple's reasons, then stop: nothing has been attached to the draft.
+            for attempt in 1 2 3; do xcrun notarytool log "$id" "${auth[@]}" && break || sleep 30; done
+            rm -f "$key"
+            exit 1
+          fi
+          rm -f "$key"
+          xcrun stapler staple build/Heed.app
+          xcrun stapler validate build/Heed.app
+          # What Gatekeeper will say on someone else's Mac.
+          spctl --assess --type execute -vv build/Heed.app 2>&1 | tee "$RUNNER_TEMP/spctl.txt"
+          grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl.txt"
 
       - name: Package
         run: |
@@ -73,13 +160,39 @@ jobs:
           (cd dist && shasum -a 256 Heed-arm64.zip >Heed-arm64.zip.sha256)
           cat dist/Heed-arm64.zip.sha256
 
+      - name: Keep the zip on the run
+        if: inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: Heed-${{ steps.draft.outputs.version }}-dry-run
+          path: dist/*
+
       - name: Attach to the draft
+        if: ${{ !inputs.dry_run }}
         run: gh release upload "${{ steps.draft.outputs.tag }}" dist/* --clobber
 
       - name: Check the draft has both files
+        if: ${{ !inputs.dry_run }}
         run: |
           names="$(gh release view "${{ steps.draft.outputs.tag }}" --json assets --jq '[.assets[].name] | sort | join(" ")')"
           [ "$names" = "Heed-arm64.zip Heed-arm64.zip.sha256" ] || { echo "draft has: $names" >&2; exit 1; }
 
       - name: Publish
+        if: ${{ !inputs.dry_run }}
         run: gh release edit "${{ steps.draft.outputs.tag }}" --draft=false --latest --target "$GITHUB_SHA"
+
+      # Only notarized releases go to Homebrew: casks are quarantined, and an ad-hoc signed app would not open.
+      - name: Update the Homebrew tap
+        if: ${{ !inputs.dry_run && env.NOTARIZE == 'true' }}
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::warning::No HOMEBREW_TAP_TOKEN: the tap was not updated. Run the tap workflow once it is set."
+            exit 0
+          fi
+          scripts/bump-tap.sh "${{ steps.draft.outputs.version }}"
+
+      - name: Remove the signing keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true

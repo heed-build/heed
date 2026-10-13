@@ -7,16 +7,23 @@ description: Install Heed on macOS with one line, or build it from source.
 Heed is a macOS app for Apple Silicon (macOS 15 or later).
 
 ```sh
+brew install --cask heed-build/tap/heed
+```
+
+or, without Homebrew:
+
+```sh
 curl -fsSL https://heed.build/install.sh | sh
 ```
 
-That downloads the latest release, checks its sha256, and puts `Heed.app` in `/Applications` (or `~/Applications` when
-`/Applications` is not writable). Run it again to update. `HEED_VERSION=0.1.0` installs a given version and
-`HEED_APP_DIR` another folder.
+Homebrew also puts the `heed` command on your `PATH` and updates with `brew upgrade`; `brew uninstall --zap heed`
+removes its settings and caches too. The install script downloads the latest release, checks its sha256, and puts
+`Heed.app` in `/Applications` (or `~/Applications` when `/Applications` is not writable). Run it again to update.
+`HEED_VERSION=0.1.0` installs a given version and `HEED_APP_DIR` another folder.
 
-The app is not notarized yet. Installed this way it opens normally; a `Heed-arm64.zip` downloaded with a browser from
-the [releases](https://github.com/heed-build/heed/releases) is flagged by macOS, and needs
-`xattr -dr com.apple.quarantine /Applications/Heed.app` before it opens.
+Releases are signed with a Developer ID and notarized by Apple, so `Heed-arm64.zip` downloaded with a browser from the
+[releases](https://github.com/heed-build/heed/releases) opens normally too: unzip it and move `Heed.app` to
+`/Applications`.
 
 You also need the [GitHub CLI](https://cli.github.com), signed in (`gh auth login`): Heed talks to GitHub only through
 `gh`.

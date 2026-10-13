@@ -1,6 +1,6 @@
 # Docs outline
 
-The plan for heed.nullean.net: feature-first, one folder per feature area, screenshot-heavy. To be agreed before
+The plan for heed.build: feature-first, one folder per feature area, screenshot-heavy. To be agreed before
 pages are written. Every screenshot listed here is produced by a script from a fake world (see the end).
 
 Legend: **[full]** whole window · **[full+hl a, b]** whole window, regions a and b highlighted, the rest dimmed ·

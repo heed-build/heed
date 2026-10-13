@@ -50,6 +50,7 @@ struct HistoryView: View {
                                         isCursor: index == cursor,
                                         compact: compact
                                     )
+                                    .hint(model.hintLabel(for: .row(.history, index)))
                                     .id(rows[index].id)
                                 }
                             }

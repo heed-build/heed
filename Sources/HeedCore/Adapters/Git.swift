@@ -35,6 +35,26 @@ public enum Git {
         return await RepoRecord(repo: repo, path: root, defaultBranch: branch)
     }
 
+    /// The repo and worktree a path is in, whichever worktree that is (a linked one resolves to its repo's main
+    /// checkout through the shared git dir). Nil when the path is not inside a git worktree.
+    public static func locate(_ path: String) async -> (record: RepoRecord, worktree: Worktree, all: [Worktree])? {
+        guard let top = try? await ProcessRunner.output(
+            "git", ["-C", path, "rev-parse", "--show-toplevel"], timeout: .seconds(5)
+        ), let common = try? await ProcessRunner.output(
+            "git", ["-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"], timeout: .seconds(5)
+        ) else { return nil }
+        let root = URL(fileURLWithPath: top.trimmingCharacters(in: .whitespacesAndNewlines)).standardizedFileURL.path
+        let shared = URL(fileURLWithPath: common.trimmingCharacters(in: .whitespacesAndNewlines)).standardizedFileURL
+        let main = shared.lastPathComponent == ".git" ? shared.deletingLastPathComponent().path : shared.path
+        guard let record = await record(at: main), let all = try? await worktrees(of: record),
+              let worktree = all.first(where: {
+                  URL(fileURLWithPath: $0.path).standardizedFileURL.resolvingSymlinksInPath().path
+                      == URL(fileURLWithPath: root).resolvingSymlinksInPath().path
+              })
+        else { return nil }
+        return (record, worktree, all)
+    }
+
     public static func worktrees(of record: RepoRecord) async throws -> [Worktree] {
         let output = try await ProcessRunner.output("git", ["-C", record.path, "worktree", "list", "--porcelain"])
         return parseWorktrees(output, repo: record.repo)

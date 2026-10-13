@@ -176,6 +176,23 @@ struct GitIntegrationTests {
         return path
     }
 
+    @Test func locatesALinkedWorktreeAndItsMainCheckout() async throws {
+        let path = try await makeRepo()
+        let linked = path + "-linked"
+        defer {
+            try? FileManager.default.removeItem(atPath: path)
+            try? FileManager.default.removeItem(atPath: linked)
+        }
+        _ = try await ProcessRunner.output("git", ["-C", path, "worktree", "add", "-q", "-b", "side", linked])
+        let found = try #require(await Git.locate(linked + "/"))
+        #expect(found.worktree.branch == "side")
+        #expect(!found.worktree.isMain)
+        #expect(URL(fileURLWithPath: found.record.path).resolvingSymlinksInPath().path
+            == URL(fileURLWithPath: path).resolvingSymlinksInPath().path)
+        #expect(found.all.count == 2)
+        #expect(await Git.locate(FileManager.default.temporaryDirectory.path) == nil)
+    }
+
     @Test func addsAndListsWorktrees() async throws {
         let path = try await makeRepo()
         let wtRoot = path + "-wt"

@@ -85,6 +85,7 @@ struct ReposView: View {
                                 isCursor: index == model.repoCursor,
                                 isSelected: selected.contains(worktree.id)
                             )
+                            .hint(model.hintLabel(for: .row(.repos, index)))
                             .id(worktree.id)
                         }
                     }

@@ -643,7 +643,10 @@ final class AppModel {
     /// Scans the repo roots and lists every repo's worktrees with their status, concurrently and off the main actor.
     func refreshRepos() async {
         guard !isFixture else { return }
-        let found = await RepoScanner.scan(roots: settings.repoRoots)
+        var found = await RepoScanner.scan(roots: settings.repoRoots)
+        for path in settings.repoPaths {
+            if let record = await Git.record(at: Paths.expand(path)), !found.contains(record) { found.append(record) }
+        }
         commit(found.map { .repoUpserted($0) })
         await withTaskGroup(of: [DomainChange].self) { group in
             for record in repos {
@@ -795,9 +798,16 @@ final class AppModel {
     }
 
     /// Hint labels for every session row and every pane of the current tab, in that order.
+    /// What `f` labels: in Sessions the sessions and the panes; elsewhere the rows of the view's list.
     var hintTargets: [(label: String, target: HintTarget)] {
-        let targets = list.ordered.map { HintTarget.session($0.id) }
-            + (currentTab?.tree.panes.map { HintTarget.pane($0.id) } ?? [])
+        let targets: [HintTarget] = switch view {
+        case .sessions:
+            list.ordered
+                .map { HintTarget.session($0.id) } + (currentTab?.tree.panes.map { HintTarget.pane($0.id) } ?? [])
+        case .inbox, .issues, .prs: itemIDs(view).indices.map { HintTarget.row(view, $0) }
+        case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
+        case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
+        }
         return zip(HintLabels.generate(count: targets.count), targets).map { ($0, $1) }
     }
 
@@ -926,7 +936,9 @@ final class AppModel {
         case "session.park": updateCurrent { $0.parked.toggle() }
         case "session.close": confirmClose()
         case "session.delete": confirmDelete()
-        case "session.import": openImportPicker()
+        case "session.import":
+            if command.arguments.isEmpty { openImportPicker() }
+            else { importPath(command.arguments.joined(separator: " ")) }
         case "session.back": goBack()
         case "pin.jump": jumpToPin(Int(command.arguments.first ?? "") ?? 1)
         case "work.start": openStartWork(prompt: command.arguments.joined(separator: " "))
@@ -1281,6 +1293,19 @@ final class AppModel {
             updateTab { $0.focused = id }
             engine.enter(thenInsert ? .insert : .normal)
             if thenInsert { terminalFocusRequest += 1 }
+        case let .row(view, index):
+            // f moves the cursor there; F also opens it.
+            engine.enter(.normal)
+            switch view {
+            case .repos:
+                repoCursor = index
+                if thenInsert { openSelected() }
+            case .history:
+                historyCursor = index
+            default:
+                itemCursor[view] = index
+                if thenInsert { openReader() }
+            }
         }
     }
 
@@ -1337,6 +1362,44 @@ final class AppModel {
     /// `I` in Sessions: pick a worktree without a session (main checkouts included) to import.
     private(set) var importPicker: Typeahead<Worktree>?
 
+    static func looksLikePath(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        return trimmed.hasPrefix("/") || trimmed.hasPrefix("~")
+    }
+
+    /// Imports the worktree at `path` (any worktree of any repo): the repo is added if Heed did not know it (and kept
+    /// in `[worktrees] repo_paths` when it lies outside the scanned roots), then the worktree imports like any other.
+    func importPath(_ raw: String) {
+        let path = Paths.expand(raw.trimmingCharacters(in: .whitespaces))
+        guard !isFixture else {
+            flash = "fixture: no IO"
+            return
+        }
+        flash = "looking at \(Paths.abbreviate(path))…"
+        Task {
+            guard let found = await Git.locate(path) else {
+                flash = "not inside a git worktree: \(Paths.abbreviate(path))"
+                return
+            }
+            if !repos.contains(where: { $0.id == found.record.id }) {
+                commit(.repoUpserted(found.record))
+                let roots = settings.repoRoots.map { Paths.expand($0) }
+                if !roots.contains(where: { found.record.path.hasPrefix($0 + "/") }) {
+                    setConfig(
+                        ["worktrees", "repo_paths"],
+                        .array((settings.repoPaths + [Paths.abbreviate(found.record.path)]).map { .string($0) })
+                    )
+                }
+            }
+            var listed = found.all
+            for index in listed.indices {
+                listed[index].status = try? await Git.status(at: listed[index].path)
+            }
+            commit(.worktreesListed(repo: found.record.repo, listed))
+            openOrImport([listed.first { $0.path == found.worktree.path } ?? found.worktree])
+        }
+    }
+
     private func openImportPicker() {
         let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
         let candidates = worktrees.filter { session(for: $0) == nil }.sorted {
@@ -1344,15 +1407,18 @@ final class AppModel {
             return $0.repo.slug == $1.repo.slug ? $0.path < $1.path
                 : (rank[$0.repo.slug] ?? .max, $0.repo.slug) < (rank[$1.repo.slug] ?? .max, $1.repo.slug)
         }
-        guard !candidates.isEmpty else {
-            flash = "every worktree already has a session"
-            return
-        }
+        // Open even when every listed worktree has a session: a typed path imports any other.
         importPicker = Typeahead(items: candidates) { [$0.repo.slug, $0.branch ?? "", $0.path] }
     }
 
     private func answerImportPicker(_ stroke: KeyStroke) {
         guard var picker = importPicker else { return }
+        // A typed path imports whatever worktree is there, known or not.
+        if stroke == KeyStroke("CR"), Self.looksLikePath(picker.query), picker.matches.isEmpty {
+            importPicker = nil
+            importPath(picker.query)
+            return
+        }
         switch picker.handle(stroke) {
         case .handled: importPicker = picker
         case .cancel: importPicker = nil
@@ -2441,4 +2507,6 @@ enum InboxFilter: String, CaseIterable {
 enum HintTarget: Hashable {
     case session(String)
     case pane(String)
+    /// A row in a view's list, by position.
+    case row(AppView, Int)
 }

@@ -141,7 +141,9 @@ struct InboxView: View {
                         count: rows.count,
                         cursor: cursor,
                         ids: rows.map(\.id),
-                        empty: model.filter(for: .inbox).isEmpty ? "Inbox zero." : "Nothing matches /\(model.filter(for: .inbox))."
+                        empty: model.filter(for: .inbox)
+                            .isEmpty ? "Inbox zero." : "Nothing matches /\(model.filter(for: .inbox)).",
+                        hintView: .inbox
                     ) { index in
                         let item = rows[index]
                         HStack(spacing: 10) {
@@ -207,7 +209,8 @@ struct IssuesView: View {
                         count: rows.count,
                         cursor: cursor,
                         ids: rows.map(\.id),
-                        empty: emptyText
+                        empty: emptyText,
+                        hintView: .issues
                     ) { index in
                         let issue = rows[index]
                         HStack(spacing: 10) {
@@ -353,7 +356,9 @@ struct PullRequestsView: View {
                         count: rows.count,
                         cursor: cursor,
                         ids: rows.map(\.id),
-                        empty: model.filter(for: .prs).isEmpty ? "No open PRs of yours." : "Nothing matches /\(model.filter(for: .prs))."
+                        empty: model.filter(for: .prs)
+                            .isEmpty ? "No open PRs of yours." : "Nothing matches /\(model.filter(for: .prs)).",
+                        hintView: .prs
                     ) { index in
                         PullRow(
                             pull: rows[index],
@@ -627,10 +632,13 @@ struct RowNumber: View {
 
 /// A scrolling list that keeps the cursor row in view.
 struct ListBody<Row: View>: View {
+    @Environment(AppModel.self) private var model
     let count: Int
     let cursor: Int
     let ids: [String]
     let empty: String
+    /// The view whose rows get hint labels in HINT mode.
+    var hintView: AppView?
     @ViewBuilder let row: (Int) -> Row
 
     var body: some View {
@@ -641,7 +649,9 @@ struct ListBody<Row: View>: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(0 ..< count, id: \.self) { index in
-                            row(index).id(ids[index])
+                            row(index)
+                                .hint(hintView.flatMap { model.hintLabel(for: .row($0, index)) })
+                                .id(ids[index])
                         }
                     }
                 }
@@ -654,6 +664,13 @@ struct ListBody<Row: View>: View {
 }
 
 extension View {
+    /// A HINT label over the row's leading edge.
+    func hint(_ label: String?) -> some View {
+        overlay(alignment: .leading) {
+            if let label { HintBadge(label: label).padding(.leading, 6) }
+        }
+    }
+
     func rowStyle(isCursor: Bool, isPicked: Bool) -> some View {
         padding(.horizontal, 16)
             .frame(height: 44)

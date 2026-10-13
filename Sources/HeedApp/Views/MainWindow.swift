@@ -476,8 +476,10 @@ struct ImportPickerView: View {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Import a worktree as a session").font(Theme.ui(15, weight: .semibold))
-                    Text("Resumes the agent session kept there when there is one; else starts the agent fresh.")
-                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    Text(
+                        "Resumes the agent session kept there when there is one; else starts the agent fresh. Type a path (/… or ~/…) for a worktree Heed does not list."
+                    )
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
                 .padding(18)
                 HStack(spacing: 6) {
@@ -517,6 +519,15 @@ struct ImportPickerView: View {
                     .onChange(of: picker.cursor) { proxy.scrollTo(picker.cursor) }
                 }
                 .frame(maxHeight: 380)
+                if AppModel.looksLikePath(picker.query), matches.isEmpty {
+                    HStack(spacing: 8) {
+                        KeyCap(text: "↩")
+                        Text("import the worktree at \(picker.query)").font(Theme.mono(12))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                }
                 HStack {
                     Text("⌃n ⌃p move · ↩ import · ⎋ cancel").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                     Spacer()

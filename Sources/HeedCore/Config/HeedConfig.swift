@@ -159,6 +159,7 @@ public enum ConfigLoader {
         // [worktrees]
         if let root = string(["worktrees", "root"]) { config.work.worktreeRoot = root }
         if let roots = strings(["worktrees", "repo_roots"]) { config.work.repoRoots = roots }
+        if let paths = strings(["worktrees", "repo_paths"]) { config.work.repoPaths = paths }
         if let prefix = string(["worktrees", "default_prefix"]) { config.work.prefixes.defaultPrefix = prefix }
         if let table = root.value(at: ["worktrees", "prefixes"])?.table {
             var prefixes: [String: [String]] = [:]
@@ -316,6 +317,8 @@ public enum ConfigLoader {
     root = "~/code/wt"
     # Directories scanned (two levels deep) for repositories.
     repo_roots = ["~/Projects", "~/code"]
+    # Repos outside the roots, added when you import one of their worktrees by path (I in Sessions, :import <path>).
+    repo_paths = []
     # Branches get a prefix picked by the prompt's first word ("Fix broken anchors" → fix/broken-anchors), else this.
     # "" means no prefix. The worktree folder uses - for /.
     default_prefix = "feature"

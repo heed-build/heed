@@ -35,7 +35,10 @@ public enum Commands {
         .init("session.park", "park session", .move),
         .init("session.close", "close session, keep worktree", .move),
         .init("session.delete", "delete session and its worktrees (asks first)", .move),
-        .init("session.import", "import a worktree as a session, resuming its agent session", .move),
+        .init(
+            "session.import", "import a worktree as a session (a path imports any worktree)", .move,
+            arguments: "[path]"
+        ),
         .init("session.pin", "pin / unpin session", .move),
         .init("session.back", "back to previous session", .move),
         .init("pin.jump", "jump to pinned session", .move, arguments: "<1-9>"),

@@ -6,6 +6,8 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var worktreeRoot: String
     /// Directories scanned (two levels deep) for repositories.
     public var repoRoots: [String]
+    /// Repos added by path from outside the roots (importing a worktree from elsewhere), kept across scans.
+    public var repoPaths: [String] = []
     public var agents: [AgentProfile]
     public var defaultAgent: String
     /// Branch prefixes picked from the prompt's first word (`[worktrees.prefixes]`).

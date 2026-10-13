@@ -83,6 +83,14 @@ public struct StartWorkForm: Sendable {
         setPrompt(prompt)
     }
 
+    /// `:agent codex`: that agent, chosen.
+    @discardableResult
+    public mutating func choose(agent name: String) -> Bool {
+        guard let index = agents.firstIndex(where: { $0?.name == name.lowercased() }) else { return false }
+        agentIndex = index
+        return true
+    }
+
     /// Start work from a repo (`o` on a Repos row): that repo, chosen, whatever the prompt suggests later.
     public mutating func choose(repo id: String) {
         guard repos.contains(where: { $0.id == id }) else { return }

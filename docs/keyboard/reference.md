@@ -23,6 +23,7 @@ This page is generated from the code (`mise run shots`).
 | `group.next` | `}` | first row of the next group (sidebar group, repo) |
 | `group.prev` | `{` | first row of this group, or of the one before |
 | `session.filter` | `/` | filter the current view (typed in the status bar) |
+| `filter.clear` |  | clear the current view's filter |
 | `session.attention` | `ga` | next session needing you |
 | `session.park` | `zz` | park session |
 | `session.close` | `x` | close session, keep worktree |
@@ -31,8 +32,11 @@ This page is generated from the code (`mise run shots`).
 | `session.import.path` | `Ip` (sessions) | import the worktree at a path (any repo, anywhere) |
 | `session.pin` | `m` | pin / unpin session |
 | `session.back` | `''` | back to previous session |
+| `session.open` `<words>` |  | go to the session matching these words |
 | `pin.jump` `<1-9>` | `'1`, `'2`, `'3`, `'4`, `'5`, `'6`, `'7`, `'8`, `'9` | jump to pinned session |
 | `work.start` | `o` | start work |
+| `work.start.panel` |  | start work in the floating panel, as the global shortcut does |
+| `resume` |  | pick up where you left off: the sessions to resume, as on launch |
 | `work.again` | `O` | start work from this session's prompt |
 | `view.history` | `gh` | history |
 
@@ -51,6 +55,7 @@ This page is generated from the code (`mise run shots`).
 | `tab.next` | `gt` | next tab |
 | `tab.prev` | `gT` | previous tab |
 | `tab.new` | `gn` | new tab with shell |
+| `tab.go` `<n>` |  | go to tab n |
 
 ## Views & overlays
 
@@ -85,7 +90,8 @@ This page is generated from the code (`mise run shots`).
 | `tutor.exit` | `<D-.>`, `<D-.>` (INSERT) | leave the tutor; your sessions come back as they were |
 | `tools.detect` |  | find git and gh again (login shell PATH, usual places, [tools]) |
 | `app.quit` |  | quit Heed |
-| `settings.open` | `<D-,>` | open Settings |
+| `settings.open` `[section]` | `<D-,>` | open Settings, on a section (general, agents, colors, cleanup, keys) |
+| `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
 
 ## Modes
@@ -116,6 +122,7 @@ This page is generated from the code (`mise run shots`).
 | `items.filter` | `t` (inbox), `t` (issues) | cycle the filter chips |
 | `issues.repo.next` | `<Tab>` (issues) | next repo in the Issues repo column |
 | `issues.repo.prev` | `<S-Tab>` (issues) | previous repo in the Issues repo column |
+| `issues.repo` `[name]` |  | show one repo's issues (no name: every repo) |
 | `issues.visibility` | `w` (issues), `w` (repos) | flip the repo under the cursor between all issues and only yours |
 | `feedback.queue` | `<Space>` (pr) | queue / unqueue the item |
 | `feedback.send` | `s` (pr) | send queued feedback to the session |

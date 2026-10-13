@@ -404,8 +404,16 @@ final class AppModel {
 
     /// Works out what to resume (checking which agent sessions still exist, off the main actor) and asks, resumes or
     /// does nothing, per `resumeOnLaunch`.
-    private func offerResume(domain: Domain) async {
-        guard settings.resumeOnLaunch != .never, !domain.sessions.isEmpty else { return }
+    /// `asked`: `:resume`, which always shows the dialog (never resuming silently) and says when there is nothing.
+    private func offerResume(domain: Domain, asked: Bool = false) async {
+        guard asked || settings.resumeOnLaunch != .never, !domain.sessions.isEmpty else {
+            if asked { flash = "no sessions to resume" }
+            return
+        }
+        guard !isFixture else {
+            if asked { showResumeForFixture() }
+            return
+        }
         let settings = settings
         let integration = integration
         let candidates = await Task.detached(priority: .userInitiated) {
@@ -418,8 +426,11 @@ final class AppModel {
                 )
             }
         }.value
-        guard !candidates.isEmpty else { return }
-        if settings.resumeOnLaunch == .always {
+        guard !candidates.isEmpty else {
+            if asked { flash = "nothing to resume: every session's agent is running or gone" }
+            return
+        }
+        if settings.resumeOnLaunch == .always, !asked {
             resumeSessions(candidates.filter(\.defaultSelected))
         } else {
             resume = ResumeForm(candidates: candidates)
@@ -1047,7 +1058,30 @@ final class AppModel {
             }
         case "session.back": goBack()
         case "pin.jump": jumpToPin(Int(command.arguments.first ?? "") ?? 1)
+        case "work.start" where command.arguments.first == "--agent":
+            // `:agent codex`: Start work with that agent chosen.
+            let name = command.arguments.dropFirst().first ?? ""
+            openStartWork(prompt: "")
+            if startWork?.choose(agent: name) == false {
+                flash = "no agent \(name) (\(settings.agents.map(\.name).joined(separator: ", ")))"
+            }
         case "work.start": openStartWork(prompt: command.arguments.joined(separator: " "))
+        case "work.start.panel": openStandaloneStartWork()
+        case "resume": Task { await offerResume(domain: currentDomain, asked: true) }
+        case "session.open": openSession(matching: command.arguments.joined(separator: " "))
+        case "tab.go":
+            if let n = command.arguments.first.flatMap(Int.init) ?? command.count, currentTabs.indices.contains(n - 1) {
+                selectTab(n - 1)
+            } else {
+                flash = "no tab \(command.arguments.first ?? "") (this session has \(currentTabs.count))"
+            }
+        case "filter.clear":
+            filtering = false
+            clearFilter(view)
+        case "issues.repo": pickIssueRepo(named: command.arguments.first)
+        case "app.activate": activateHeed()
+        case "pr.track": trackPull(command.arguments.first)
+        case "select.pin": pinSelected()
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "")
         case "worktree.new":
             openStartWork(prompt: "")
@@ -1147,7 +1181,15 @@ final class AppModel {
         case "app.quit": if tutor != nil { onTutorRequest?(.exit) } else { NSApp.terminate(nil) }
         case "config.edit": NSWorkspace.shared.open(configFile)
         case "tools.detect": Task { await detectTools(force: true) }
-        case "settings.open": openSettings?()
+        case "settings.open":
+            if let name = command.arguments.first {
+                guard let section = SettingsView.Section.named(name) else {
+                    flash = "no Settings section \(name) (general, agents, colors, cleanup, keys)"
+                    return
+                }
+                settingsSection = section
+            }
+            openSettings?()
         case "welcome": showFirstRun()
         default:
             flash = "\(command.name): not built yet"
@@ -2006,6 +2048,86 @@ final class AppModel {
         itemCursor[.issues] = 0
     }
 
+    /// `:issues.repo docs-builder`: by name or org/name; none shows every repo.
+    private func pickIssueRepo(named name: String?) {
+        view = .issues
+        guard let name else { return pickIssueRepo(nil) }
+        let key = name.lowercased()
+        guard let repo = issueRepoCounts.map(\.repo).first(where: {
+            $0.slug.lowercased() == key || $0.name.lowercased() == key
+        }) else {
+            flash = "no issues from a repo named \(name)"
+            return
+        }
+        pickIssueRepo(repo)
+    }
+
+    /// `:session.open anchors`: the first session matching every word, as the filter matches.
+    private func openSession(matching words: String) {
+        guard !words.isEmpty else {
+            flash = ":session.open <words> goes to the first session matching them"
+            return
+        }
+        guard let session = list.ordered.first(where: { session in
+            FilterQuery.matches(words, [session.title, session.branch, session.agent] + session.repos.map(\.name))
+        }) else {
+            flash = "no session matches \(words)"
+            return
+        }
+        view = .sessions
+        select(sessionID: session.id)
+    }
+
+    /// `gU` (`:track <url>`): the current session tracks that PR; with no URL, the one on the clipboard.
+    private func trackPull(_ argument: String?) {
+        let text = argument ?? NSPasteboard.general.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard let pull = PullRef(url: text) else {
+            flash = argument == nil ? "copy a PR URL first, or :track <url>" : "not a PR URL: \(text)"
+            return
+        }
+        guard currentSession != nil else {
+            flash = "no session to track \(pull.repo.name)#\(pull.number)"
+            return
+        }
+        guard currentSession?.trackedPRs.contains(pull) == false else {
+            flash = "already tracking \(pull.repo.name)#\(pull.number)"
+            return
+        }
+        updateCurrent { session in
+            session.trackedPRs.append(pull)
+            session.record("tracking PR \(pull.repo.name)#\(pull.number)")
+        }
+        flash = "tracking \(pull.repo.name)#\(pull.number)"
+        if !isFixture { Task { await syncGitHub(parts: [.pulls]) } }
+    }
+
+    /// VISUAL `m` in Repos: pins the sessions on the selected worktrees; when all are pinned already, unpins them.
+    private func pinSelected() {
+        let targets = actionRows.compactMap(session(for:))
+        if mode == .visual {
+            engine.enter(.normal)
+            modeChanged(from: .visual)
+        }
+        guard !targets.isEmpty else {
+            flash = "no sessions on the selected worktrees"
+            return
+        }
+        let pin = !targets.allSatisfy(\.pinned)
+        let room = SessionGroup.maxPins - list.pins.count
+        let changing = targets.filter { $0.pinned != pin }
+        guard !pin || changing.count <= room else {
+            flash = "only \(room) pin\(room == 1 ? "" : "s") left of \(SessionGroup.maxPins)"
+            return
+        }
+        commit(changing.map { session in
+            var session = session
+            session.pinned = pin
+            return .sessionUpserted(session)
+        })
+        flash = "\(pin ? "pinned" : "unpinned") \(changing.count) session\(changing.count == 1 ? "" : "s")"
+    }
+
     func pickIssueRepo(_ repo: Repo?) {
         issueRepo = repo
         itemCursor[.issues] = 0
@@ -2803,6 +2925,9 @@ final class AppModel {
         case start(lesson: String, world: TutorWorld?)
         case exit
     }
+
+    /// `:settings.open agents`: the section the Settings window turns to.
+    var settingsSection: SettingsView.Section?
 
     /// Set on the sandbox model while the tutor runs; nil everywhere else.
     private(set) var tutor: Tutor?

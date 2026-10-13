@@ -13,6 +13,16 @@ struct SettingsView: View {
     }
 
     enum Section: String, CaseIterable, Identifiable {
+        /// `:settings.open <name>`: the first word of the section's title, or a short name.
+        static func named(_ name: String) -> Section? {
+            let key = name.lowercased()
+            let short: [String: Section] = [
+                "general": .general, "agents": .agents, "colors": .colors, "repos": .colors, "cleanup": .cleanup,
+                "worktrees": .cleanup, "keys": .keys, "modes": .keys,
+            ]
+            return short[key]
+        }
+
         case general = "General", agents = "Agents", colors = "Repos & colors", cleanup = "Worktrees & cleanup"
         case keys = "Keys & modes"
 
@@ -20,6 +30,17 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        content
+            // `:settings.open agents` turns the window to that section, open or not.
+            .onChange(of: model.settingsSection, initial: true) { _, asked in
+                if let asked {
+                    section = asked
+                    model.settingsSection = nil
+                }
+            }
+    }
+
+    private var content: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(Section.allCases) { item in

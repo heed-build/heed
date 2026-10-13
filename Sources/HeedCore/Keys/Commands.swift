@@ -35,6 +35,7 @@ public enum Commands {
         .init("group.next", "first row of the next group (sidebar group, repo)", .move),
         .init("group.prev", "first row of this group, or of the one before", .move),
         .init("session.filter", "filter the current view (typed in the status bar)", .move),
+        .init("filter.clear", "clear the current view's filter", .move),
         .init("session.attention", "next session needing you", .move),
         .init("session.park", "park session", .move),
         .init("session.close", "close session, keep worktree", .move),
@@ -46,8 +47,11 @@ public enum Commands {
         .init("session.import.path", "import the worktree at a path (any repo, anywhere)", .move),
         .init("session.pin", "pin / unpin session", .move),
         .init("session.back", "back to previous session", .move),
+        .init("session.open", "go to the session matching these words", .move, arguments: "<words>"),
         .init("pin.jump", "jump to pinned session", .move, arguments: "<1-9>"),
         .init("work.start", "start work", .move),
+        .init("work.start.panel", "start work in the floating panel, as the global shortcut does", .move),
+        .init("resume", "pick up where you left off: the sessions to resume, as on launch", .move),
         .init("work.again", "start work from this session's prompt", .move),
         .init("view.history", "history", .move),
         // Panes & tabs
@@ -62,6 +66,7 @@ public enum Commands {
         .init("tab.next", "next tab", .panes),
         .init("tab.prev", "previous tab", .panes),
         .init("tab.new", "new tab with shell", .panes),
+        .init("tab.go", "go to tab n", .panes, arguments: "<n>"),
         // Views & overlays
         .init("view", "switch view", .views, arguments: "<sessions|inbox|issues|prs|repos|history>"),
         .init("view.sessions", "sessions", .views),
@@ -95,7 +100,11 @@ public enum Commands {
         .init("tutor.exit", "leave the tutor; your sessions come back as they were", .views),
         .init("tools.detect", "find git and gh again (login shell PATH, usual places, [tools])", .views),
         .init("app.quit", "quit Heed", .views),
-        .init("settings.open", "open Settings", .views),
+        .init(
+            "settings.open", "open Settings, on a section (general, agents, colors, cleanup, keys)", .views,
+            arguments: "[section]"
+        ),
+        .init("app.activate", "bring Heed's window to the front, as the global shortcut does", .views),
         .init("welcome", "show the getting-started checks again", .views),
         // Modes
         .init("mode.normal", "back to NORMAL", .modes),
@@ -118,6 +127,7 @@ public enum Commands {
         .init("items.filter", "cycle the filter chips", .selection),
         .init("issues.repo.next", "next repo in the Issues repo column", .selection),
         .init("issues.repo.prev", "previous repo in the Issues repo column", .selection),
+        .init("issues.repo", "show one repo's issues (no name: every repo)", .selection, arguments: "[name]"),
         .init("issues.visibility", "flip the repo under the cursor between all issues and only yours", .selection),
         .init("feedback.queue", "queue / unqueue the item", .selection),
         .init("feedback.send", "send queued feedback to the session", .selection),

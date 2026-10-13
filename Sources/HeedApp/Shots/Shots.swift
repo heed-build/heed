@@ -5,7 +5,8 @@ import SwiftUI
 /// docs/images/shots; pages reference them as `../images/shots/<id>.png`.
 @MainActor
 enum Shots {
-    static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + startWork + agents + github + worktrees
+    static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + startWork + agents + github +
+        worktrees
         + diff + history + keyboard + outside + configuration
 
     /// Types a sentence (spaces become <Space>).
@@ -47,7 +48,11 @@ enum Shots {
         Shot(id: "getting-started/first-run", crop: .dialog, prepare: { $0.showFirstRun(report: firstRunReport) }),
         // The tour on its fourth step: the banner, the spotlight on what needs you, the card, the TUTOR pill.
         Shot(id: "getting-started/tutor", prepare: { $0.beginTutor(lesson: "tour", step: 3) }),
-        Shot(id: "getting-started/tutor-picker", crop: .dialog, prepare: { $0.perform(CommandInvocation(name: "tutor")) }),
+        Shot(
+            id: "getting-started/tutor-picker",
+            crop: .dialog,
+            prepare: { $0.perform(CommandInvocation(name: "tutor")) }
+        ),
         Shot(
             id: "getting-started/tutor-nudge", keys: "q", crop: .tutorCard,
             prepare: { $0.beginTutor(lesson: "tour", step: 0) }

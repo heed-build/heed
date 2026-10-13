@@ -54,7 +54,9 @@ enum TutorCheck {
                     break
                 }
                 if !targetSeen {
-                    print("tutor-check \(lesson.id) step \(index + 1) “\(step.title)”: target \(step.target ?? "") never on screen")
+                    print(
+                        "tutor-check \(lesson.id) step \(index + 1) “\(step.title)”: target \(step.target ?? "") never on screen"
+                    )
                     failures += 1
                 }
             }

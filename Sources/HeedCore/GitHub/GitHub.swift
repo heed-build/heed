@@ -32,7 +32,8 @@ public enum GitHub {
         async let viewer = fetch(full || previous.viewer == nil) { try await viewer() }
         async let inbox = fetch(parts.contains(.inbox)) { try await notifications() }
         async let pulls = fetch(parts.contains(.pulls)) { try await pullRequests(tracked: tracked) }
-        async let issues = fetch(parts.contains(.issues)) { try await self.issues(rules: issueRules, local: localRepos) }
+        async let issues = fetch(parts.contains(.issues)) { try await self.issues(rules: issueRules, local: localRepos)
+        }
         let login = try await viewer ?? previous.viewer
         let fetchedInbox = try await inbox
         let fetchedPulls = try await pulls

@@ -144,6 +144,7 @@ final class AppModel {
             if view != oldValue { viewChangedForSync() }
         }
     }
+
     private(set) var overlay: Overlay? { didSet { updateScope() } }
     /// The PR open in the reader, over whatever view it was opened from.
     private(set) var reader: PullRef? { didSet { updateScope() } }
@@ -1113,9 +1114,16 @@ final class AppModel {
         case "view.prs": view = .prs
         case "overlay.help": overlay = overlay == .help ? nil : .help
         case "tutor": openTutor(command.arguments)
-        case "tutor.back": if tutor == nil { flash = "the tutor is not running (:tutor starts it)" } else { tutorBack() }
-        case "tutor.skip": if tutor == nil { flash = "the tutor is not running (:tutor starts it)" } else { tutorSkip() }
-        case "tutor.exit": if tutor == nil { flash = "the tutor is not running" } else { onTutorRequest?(.exit) }
+        case "tutor.back", "tutor.skip", "tutor.exit":
+            guard tutor != nil else {
+                flash = "the tutor is not running (:tutor starts it)"
+                return
+            }
+            switch command.name {
+            case "tutor.back": tutorBack()
+            case "tutor.skip": tutorSkip()
+            default: onTutorRequest?(.exit)
+            }
         case "overlay.diff": toggleDiff()
         case "diff.hunk.next": jumpHunk(by: 1)
         case "diff.hunk.prev": jumpHunk(by: -1)

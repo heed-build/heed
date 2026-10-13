@@ -217,10 +217,20 @@ struct FeedbackTests {
     @Test func onlyTheNewestRunOfACheckCounts() {
         // check-labels failed, then ran again on the same commit once the label was added.
         let contexts: [[String: Any]] = [
-            ["__typename": "CheckRun", "name": "check-labels", "status": "COMPLETED", "conclusion": "FAILURE",
-             "startedAt": "2026-10-13T08:20:00Z"],
-            ["__typename": "CheckRun", "name": "check-labels", "status": "COMPLETED", "conclusion": "SUCCESS",
-             "startedAt": "2026-10-13T08:31:00Z"],
+            [
+                "__typename": "CheckRun",
+                "name": "check-labels",
+                "status": "COMPLETED",
+                "conclusion": "FAILURE",
+                "startedAt": "2026-10-13T08:20:00Z",
+            ],
+            [
+                "__typename": "CheckRun",
+                "name": "check-labels",
+                "status": "COMPLETED",
+                "conclusion": "SUCCESS",
+                "startedAt": "2026-10-13T08:31:00Z",
+            ],
             ["__typename": "CheckRun", "name": "build", "status": "IN_PROGRESS", "startedAt": "2026-10-13T08:20:00Z"],
             ["__typename": "StatusContext", "context": "ci/legacy", "state": "SUCCESS"],
         ]

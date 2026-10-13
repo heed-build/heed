@@ -1,0 +1,85 @@
+name: release
+
+# The release step, run by hand (Actions > release > Run workflow, or `gh workflow run release`): builds main at the
+# version release-drafter worked out (or the one given), attaches the app to the draft, checks it is there, and only
+# then publishes the draft, which creates the tag on the commit that was built. A published release always has its
+# files.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.1.0 (empty: the draft's)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Find the draft
+        id: draft
+        run: |
+          draft="$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq '[.[] | select(.draft)][0] // empty')"
+          if [ -z "$draft" ]; then
+            echo "No draft release: release-drafter makes one when a pull request merges." >&2
+            exit 1
+          fi
+          tag="$(jq -r .tag_name <<<"$draft")"
+          wanted="${{ inputs.version }}"
+          if [ -n "$wanted" ] && [ "v$wanted" != "$tag" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$(jq -r .id <<<"$draft")" \
+              -f tag_name="v$wanted" -f name="v$wanted" >/dev/null
+            tag="v$wanted"
+          fi
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+            echo "$tag is already released." >&2
+            exit 1
+          fi
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >>"$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup
+
+      - name: Test
+        run: mise run test
+
+      - name: Release build
+        env:
+          HEED_VERSION: ${{ steps.draft.outputs.version }}
+        run: |
+          mise run bundle
+          shown="$(plutil -extract CFBundleShortVersionString raw build/Heed.app/Contents/Info.plist)"
+          [ "$shown" = "$HEED_VERSION" ] || { echo "Info.plist says $shown, not $HEED_VERSION" >&2; exit 1; }
+
+      - name: Tutor check
+        run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent build/Heed.app dist/Heed-arm64.zip
+          (cd dist && shasum -a 256 Heed-arm64.zip >Heed-arm64.zip.sha256)
+          cat dist/Heed-arm64.zip.sha256
+
+      - name: Attach to the draft
+        run: gh release upload "${{ steps.draft.outputs.tag }}" dist/* --clobber
+
+      - name: Check the draft has both files
+        run: |
+          names="$(gh release view "${{ steps.draft.outputs.tag }}" --json assets --jq '[.assets[].name] | sort | join(" ")')"
+          [ "$names" = "Heed-arm64.zip Heed-arm64.zip.sha256" ] || { echo "draft has: $names" >&2; exit 1; }
+
+      - name: Publish
+        run: gh release edit "${{ steps.draft.outputs.tag }}" --draft=false --latest --target "$GITHUB_SHA"

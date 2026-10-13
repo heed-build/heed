@@ -125,7 +125,7 @@ struct TutorTests {
         #expect(picker.rows.first == .lesson("sessions"))
         #expect(picker.rows[1] == .lesson("tour"))
         #expect(picker.rows.last == .replay("prs"))
-        #expect(picker.rows.filter { $0 == .lesson("sessions") }.count == 1)
+        #expect(picker.rows.count(where: { $0 == .lesson("sessions") }) == 1)
         #expect(picker.handle(KeyStroke("j")) == .handled)
         #expect(picker.selectedLesson?.id == "tour")
         #expect(picker.handle(KeyStroke("w")) == .handled)
@@ -135,7 +135,7 @@ struct TutorTests {
         // A view without a lesson of its own offers the tour first, once.
         let other = TutorPicker(view: "elsewhere", progress: TutorProgress())
         #expect(other.rows.first == .lesson("tour"))
-        #expect(other.rows.filter { $0 == .lesson("tour") }.count == 1)
+        #expect(other.rows.count(where: { $0 == .lesson("tour") }) == 1)
     }
 
     @Test func lessonsByName() {

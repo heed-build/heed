@@ -102,7 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // HEED_SHOTS: render the docs' screenshots from the fake world, then quit; nothing else starts.
         if TutorCheck.requested {
             NSApp.setActivationPolicy(.accessory)
-            Task { exit(await TutorCheck.run()) }
+            Task { await exit(TutorCheck.run()) }
             return
         }
         if ShotRunner.requested {

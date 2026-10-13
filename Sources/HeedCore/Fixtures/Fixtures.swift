@@ -122,7 +122,9 @@ public enum Fixtures {
     public static let prStorm: Domain = {
         var domain = main
         for key in domain.feedback.keys {
-            for index in domain.feedback[key]!.items.indices where domain.feedback[key]!.items[index].status != .resolved {
+            for index in domain.feedback[key]!.items.indices
+                where domain.feedback[key]!.items[index].status != .resolved
+            {
                 domain.feedback[key]!.items[index].status = .new
             }
         }

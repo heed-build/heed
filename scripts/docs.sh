@@ -54,6 +54,7 @@ fi
 out=".artifacts/docs/html"
 cp "$landing" "$out/index.html"
 cp docs/robots.txt "$out/robots.txt"
+cp install.sh "$out/install.sh"
 # docs-builder copies images, not fonts; the landing page needs its two.
 mkdir -p "$out/fonts" && cp docs/fonts/*.woff2 "$out/fonts/"
 echo "docs: built $out (landing page applied)"

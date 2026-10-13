@@ -80,7 +80,10 @@ attaches `Heed-arm64.zip` and its sha256 to the draft, checks both are there, an
 tags the commit it built. A rejected notarization stops it before anything is attached. `-f dry_run=true` does all
 but the release, from any branch, and keeps the notarized zip on the run. It then writes the cask
 (`packaging/homebrew/heed.rb`) to [heed-build/homebrew-tap](https://github.com/heed-build/homebrew-tap) with
-`scripts/bump-tap.sh`; the **tap** workflow redoes that by hand. `install.sh` installs from the latest release. The signing and notarization secrets come from `scripts/release-secrets.sh`.
+`scripts/bump-tap.sh`; the **tap** workflow redoes that by hand. `install.sh` installs from the latest release. The signing and notarization secrets come from `scripts/release-secrets.sh`. The **notary** workflow asks Apple how
+submissions are doing. Until the first release exists, **notary-watch** checks every two hours and starts the release
+itself once Apple accepts a submission (a new Developer ID's first notarizations can take hours or days), then turns
+itself off.
 
 ## Deploying to the MacBook
 

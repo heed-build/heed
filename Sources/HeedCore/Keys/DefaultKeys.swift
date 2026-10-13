@@ -48,7 +48,7 @@ public enum DefaultKeys {
 
     /// Bindings that only apply in one view, keyed by view name.
     public static let scoped: [String: [(String, String)]] = [
-        "sessions": [("dd", "session.delete"), ("I", "session.import")],
+        "sessions": [("dd", "session.delete"), ("I", "session.import"), ("P", "session.import.path")],
         "repos": [
             ("a", "repo.add"), ("n", "worktree.new"), ("R", "repo.scan"), ("I", "issues.visibility"),
             ("dd", "select.remove"), ("<CR>", "select.open"),

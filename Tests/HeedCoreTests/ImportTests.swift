@@ -118,3 +118,28 @@ struct ImportTests {
         #expect(freshLayout.tabs[0].tree.panes[0].command == "claude")
     }
 }
+
+struct PathCompletionTests {
+    private func tree() throws -> String {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+        for folder in ["code/heed", "code/Heron", "code/atlas", "code/.hidden"] {
+            try FileManager.default.createDirectory(atPath: "\(root)/\(folder)", withIntermediateDirectories: true)
+        }
+        try "x".write(toFile: "\(root)/code/help.txt", atomically: true, encoding: .utf8)
+        return root
+    }
+
+    @Test func completesFoldersByPrefixIgnoringCaseAndFiles() throws {
+        let root = try tree()
+        #expect(PathCompletion.candidates(for: "\(root)/code/he") == ["\(root)/code/heed", "\(root)/code/Heron"])
+        #expect(PathCompletion.candidates(for: "\(root)/code/").count == 3) // hidden ones and files left out
+        #expect(PathCompletion.candidates(for: "\(root)/code/.h") == ["\(root)/code/.hidden"])
+        #expect(PathCompletion.candidates(for: "\(root)/nope/").isEmpty)
+    }
+
+    @Test func dropsTheLastComponent() {
+        #expect(PathCompletion.droppingLastComponent("~/code/heed/") == "~/code/")
+        #expect(PathCompletion.droppingLastComponent("~/code/he") == "~/code/")
+        #expect(PathCompletion.droppingLastComponent("~/") == "")
+    }
+}

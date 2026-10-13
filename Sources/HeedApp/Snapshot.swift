@@ -24,7 +24,8 @@ enum Snapshot {
                 for stroke in (try? KeyNotation.parse(keys)) ?? [] {
                     _ = model.handle(stroke)
                 }
-                try? await Task.sleep(for: .milliseconds(300))
+                // HEED_SNAPSHOT_SETTLE (ms) waits after the keys, for what they start (a git lookup, a fetch).
+                try? await Task.sleep(for: .milliseconds(Int(environment["HEED_SNAPSHOT_SETTLE"] ?? "") ?? 300))
             }
             write(window: window, to: path)
             NSApp.terminate(nil)

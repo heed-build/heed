@@ -828,6 +828,10 @@ final class AppModel {
             answerImportPicker(stroke)
             return true
         }
+        if pathImport != nil {
+            answerPathImport(stroke)
+            return true
+        }
         if firstRun != nil {
             if stroke == KeyStroke("CR") || stroke == KeyStroke("CR", .command) || stroke == .escape {
                 firstRun = nil
@@ -936,6 +940,7 @@ final class AppModel {
         case "session.park": updateCurrent { $0.parked.toggle() }
         case "session.close": confirmClose()
         case "session.delete": confirmDelete()
+        case "session.import.path": openPathImport()
         case "session.import":
             if command.arguments.isEmpty {
                 openImportPicker()
@@ -1364,6 +1369,115 @@ final class AppModel {
 
     /// `I` in Sessions: pick a worktree without a session (main checkouts included) to import.
     private(set) var importPicker: Typeahead<Worktree>?
+
+    // MARK: Import a path
+
+    /// `P` in Sessions: a path typed with directory completion, previewed as it changes, imported with ↩.
+    struct PathImport {
+        var query: String
+        /// Directories completing the query; the cursor picks one for ⇥.
+        var candidates: [String] = []
+        var cursor = 0
+        /// What is at the query: "nullean/curb · fix/x", or why nothing can be imported there.
+        var preview: String?
+        var importable = false
+    }
+
+    private(set) var pathImport: PathImport?
+    private var pathPreviewTask: Task<Void, Never>?
+
+    private func openPathImport() {
+        pathImport = PathImport(query: "~/")
+        refreshPathImport()
+    }
+
+    func cancelPathImport() { pathImport = nil }
+
+    private func answerPathImport(_ stroke: KeyStroke) {
+        guard var state = pathImport else { return }
+        switch stroke {
+        case .escape:
+            pathImport = nil
+            return
+        case KeyStroke("CR"):
+            pathImport = nil
+            importPath(state.query)
+            return
+        case KeyStroke("Tab"):
+            // Complete to the highlighted directory, ready for the next component.
+            // The list may still be on its way after fast typing; one folder listing now is cheap.
+            let candidates = state.candidates.isEmpty ? PathCompletion.candidates(for: state.query) : state.candidates
+            guard candidates.indices.contains(state.cursor) else { return }
+            state.query = Paths.abbreviate(candidates[state.cursor]) + "/"
+        case KeyStroke("n", .control), KeyStroke("j", .control), KeyStroke("Down"):
+            state.cursor = min(state.cursor + 1, max(state.candidates.count - 1, 0))
+            pathImport = state
+            return
+        case KeyStroke("p", .control), KeyStroke("k", .control), KeyStroke("Up"):
+            state.cursor = max(state.cursor - 1, 0)
+            pathImport = state
+            return
+        case KeyStroke("BS"):
+            if !state.query.isEmpty { state.query.removeLast() }
+        case KeyStroke("w", .control), KeyStroke("BS", .option):
+            state.query = PathCompletion.droppingLastComponent(state.query)
+        case KeyStroke("u", .control):
+            state.query = ""
+        case KeyStroke("Space"):
+            state.query += " "
+        default:
+            guard !stroke.isNamed, stroke.modifiers.subtracting(.option).isEmpty else { return }
+            state.query += stroke.key
+        }
+        state.cursor = 0
+        pathImport = state
+        refreshPathImport()
+    }
+
+    /// Completions and the preview, off the main actor; a newer keystroke cancels an older lookup.
+    private func refreshPathImport() {
+        guard let query = pathImport?.query else { return }
+        pathPreviewTask?.cancel()
+        pathPreviewTask = Task { [weak self] in
+            let candidates = await Task.detached { PathCompletion.candidates(for: query) }.value
+            guard !Task.isCancelled else { return }
+            self?.updatePathImport(query) { $0.candidates = candidates }
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            let path = Paths.expand(query)
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue else {
+                self?.updatePathImport(query) {
+                    $0.preview = query.isEmpty ? nil : "no such folder"
+                    $0.importable = false
+                }
+                return
+            }
+            let found = await Git.locate(path)
+            guard !Task.isCancelled else { return }
+            guard let self else { return }
+            guard let found else {
+                updatePathImport(query) {
+                    $0.preview = "not inside a git worktree"
+                    $0.importable = false
+                }
+                return
+            }
+            let name = "\(found.record.repo.slug) · \(found.worktree.branch ?? "detached")"
+                + (found.worktree.isMain ? " (main checkout)" : "")
+            let hasSession = worktrees.first { $0.path == found.worktree.path }.flatMap { session(for: $0) } != nil
+            updatePathImport(query) {
+                $0.preview = hasSession ? "\(name): has a session, ↩ jumps to it" : name
+                $0.importable = true
+            }
+        }
+    }
+
+    private func updatePathImport(_ query: String, _ edit: (inout PathImport) -> Void) {
+        guard var state = pathImport, state.query == query else { return }
+        edit(&state)
+        pathImport = state
+    }
 
     static func looksLikePath(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespaces)

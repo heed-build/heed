@@ -59,6 +59,9 @@ struct MainWindow: View {
             if let picker = model.importPicker { ImportPickerView(picker: picker) }
         }
         .overlay {
+            if let state = model.pathImport { PathImportView(state: state) }
+        }
+        .overlay {
             if let confirmation = model.confirmation { ConfirmationView(confirmation: confirmation) }
         }
         .overlay {
@@ -326,6 +329,7 @@ struct StatusBar: View {
         switch model.mode {
         case .normal where model.confirmation != nil: "y or ↩ confirm · n, ⎋ or q cancel"
         case .normal where model.importPicker != nil: "type to filter · ⌃n ⌃p move · ↩ import · ⎋ cancel"
+        case .normal where model.pathImport != nil: "⇥ complete · ⌃n ⌃p choose · ⌃w up a folder · ↩ import · ⎋ cancel"
         case .normal where model.filtering: "words match anywhere · ⌃w word · ⌃u clear · ↩ keep · ⎋ clear"
         case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
         case .normal where model.issueReader != nil: "s start session · a add to session · gB browser · ⎋ back"
@@ -336,7 +340,7 @@ struct StatusBar: View {
         case .normal where model.view == .inbox: "space pick · v range · s start session · a add · m read · o open · t unread/all · / filter"
         case .normal where model.view == .issues: "space pick · s start session · go read · t filter · ⇥ repo · w all/yours · / filter"
         case .normal where model.view == .prs: "j k move · o open · gS session · r sync · / filter"
-        case .normal: "i insert · o start work · go PR overlay · : command · ? keys"
+        case .normal: "i insert · o start work · I import worktree · P import path · : command · ? keys"
         case .insert: "⇧⎋ or \(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
         case .command: "⇥ complete · ↩ run · ⎋ cancel"
@@ -475,9 +479,9 @@ struct ImportPickerView: View {
             Color.black.opacity(0.5)
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Import a worktree as a session").font(Theme.ui(15, weight: .semibold))
+                    Text("Import a worktree").font(Theme.ui(15, weight: .semibold))
                     Text(
-                        "Resumes the agent session kept there when there is one; else starts the agent fresh. Type a path (/… or ~/…) for a worktree Heed does not list."
+                        "Worktrees of your repos that Heed does not manage yet. Importing resumes the agent session kept there, else starts the agent fresh. Elsewhere on disk? P imports a path."
                     )
                     .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
@@ -529,7 +533,88 @@ struct ImportPickerView: View {
                     .padding(.vertical, 10)
                 }
                 HStack {
-                    Text("⌃n ⌃p move · ↩ import · ⎋ cancel").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                    Text("⌃n ⌃p move · ↩ import · ⎋ cancel · P (in Sessions) imports a path").font(Theme.ui(11.5))
+                        .foregroundStyle(Theme.fg3)
+                    Spacer()
+                }
+                .padding(14)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+            }
+            .frame(width: 640)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.5), radius: 30)
+        }
+    }
+}
+
+/// `P` in Sessions: a path with directory completion and a preview of what is there; ↩ imports that worktree.
+struct PathImportView: View {
+    @Environment(AppModel.self) private var model
+    let state: AppModel.PathImport
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Import a path").font(Theme.ui(15, weight: .semibold))
+                    Text(
+                        "Any worktree of any repo, wherever it is. A repo Heed does not know is added (and kept in [worktrees] repo_paths)."
+                    )
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(18)
+                HStack(spacing: 6) {
+                    Image(systemName: "folder").font(.system(size: 11)).foregroundStyle(Theme.fg3)
+                    Text(state.query + "▌").font(Theme.mono(12.5)).lineLimit(1).truncationMode(.head)
+                    Spacer()
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 9)
+                .background(Theme.pane)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+                .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+                if let preview = state.preview {
+                    HStack(spacing: 8) {
+                        Image(systemName: state.importable ? "checkmark.circle.fill" : "minus.circle")
+                            .foregroundStyle(state.importable ? Theme.done : Theme.fg3)
+                        Text(preview).font(Theme.mono(12)).foregroundStyle(state.importable ? Theme.fg : Theme.fg3)
+                            .lineLimit(1)
+                        Spacer()
+                        if state.importable {
+                            KeyCap(text: "↩")
+                            Text("import").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                        }
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 9)
+                    .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+                }
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(state.candidates.enumerated()), id: \.element) { index, path in
+                        HStack(spacing: 8) {
+                            Image(systemName: "folder").font(.system(size: 10)).foregroundStyle(Theme.fg3)
+                            Text((path as NSString).lastPathComponent + "/").font(Theme.mono(12))
+                            Spacer()
+                            if index == state.cursor { KeyCap(text: "⇥") }
+                        }
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 5)
+                        .background(index == state.cursor ? Theme.bg3 : .clear)
+                    }
+                    if state.candidates.isEmpty {
+                        Text("No folders here to complete.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                            .padding(.horizontal, 18).padding(.vertical, 8)
+                    }
+                }
+                .padding(.vertical, 6)
+                HStack {
+                    Text("⇥ complete · ⌃n ⌃p choose · ⌃w up a folder · ↩ import · ⎋ cancel")
+                        .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                     Spacer()
                 }
                 .padding(14)

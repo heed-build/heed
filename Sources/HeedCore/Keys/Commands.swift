@@ -36,9 +36,10 @@ public enum Commands {
         .init("session.close", "close session, keep worktree", .move),
         .init("session.delete", "delete session and its worktrees (asks first)", .move),
         .init(
-            "session.import", "import a worktree as a session (a path imports any worktree)", .move,
+            "session.import", "import a worktree Heed does not manage yet as a session", .move,
             arguments: "[path]"
         ),
+        .init("session.import.path", "import the worktree at a path (any repo, anywhere)", .move),
         .init("session.pin", "pin / unpin session", .move),
         .init("session.back", "back to previous session", .move),
         .init("pin.jump", "jump to pinned session", .move, arguments: "<1-9>"),

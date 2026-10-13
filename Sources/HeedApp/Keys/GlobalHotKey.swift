@@ -22,7 +22,7 @@ enum GlobalHotKey {
         guard let strokes = try? KeyNotation.parse(notation), strokes.count == 1, let stroke = strokes.first else {
             return "keys.global_start_work: \(notation) is not one key"
         }
-        guard !stroke.modifiers.intersection([.control, .option, .command]).isEmpty else {
+        guard !stroke.modifiers.isDisjoint(with: [.control, .option, .command]) else {
             return "keys.global_start_work: \(notation) needs ⌃, ⌥ or ⌘ so it does not swallow typing everywhere"
         }
         guard let code = keyCode(stroke.key) else { return "keys.global_start_work: no key code for \(stroke.key)" }

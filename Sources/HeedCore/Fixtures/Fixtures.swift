@@ -107,7 +107,7 @@ public enum Fixtures {
             text: "Use the shared slug helper.",
             status: .resolved
         )
-        resolved.resolvedAt = Date()
+        resolved.resolvedAt = Clock.now
         pipeline.items.append(resolved)
         return Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
@@ -190,12 +190,12 @@ public enum Fixtures {
         ],
         failingChecks: [PullDetail.FailingCheck(name: "lint", summary: "docs/redirects.md:41 line too long", url: nil)],
         checks: CheckSummary(passed: 3, failed: 1, pending: 1, failedNames: ["lint"]),
-        closes: [PullRef(repo: docsBuilder, number: 2830)], fetchedAt: Date()
+        closes: [PullRef(repo: docsBuilder, number: 2830)], fetchedAt: Clock.now
     )
 
     /// design/screens/Inbox.png and PRs.png.
     static let github: GitHubState = {
-        let now = Date()
+        let now = Clock.now
         func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
         func pull(
             _ repo: Repo, _ number: Int, _ title: String, _ branch: String, _ checks: CheckSummary,
@@ -368,7 +368,7 @@ public enum Fixtures {
 
     /// design/screens/History.png: closed sessions over the last week.
     static let history: [HistoryEntry] = {
-        let now = Date()
+        let now = Clock.now
         func entry(
             _ title: String, _ repo: Repo, _ agent: String, hoursAgo: Double, minutes: Double, _ outcome: Outcome,
             pr: Int? = nil

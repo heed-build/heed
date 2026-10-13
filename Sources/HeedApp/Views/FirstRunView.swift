@@ -9,7 +9,7 @@ struct FirstRunView: View {
         if let report = model.firstRun {
             ZStack {
                 Color.black.opacity(0.6)
-                ScrollView {
+                ListScroll {
                     dialog(report).frame(width: 760).padding(.vertical, 40)
                 }
                 .scrollIndicators(.never)

@@ -72,7 +72,7 @@ struct FeedbackPanel: View {
                 }
             }
             HStack(alignment: .top, spacing: 16) {
-                ScrollView {
+                ListScroll {
                     VStack(spacing: 0) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                             FeedbackRow(item: item, isCursor: index == model.feedbackCursor)
@@ -102,7 +102,7 @@ struct FeedbackPanel: View {
             }
             .fixedSize()
             if let fetched = model.pullDetails[ref.description]?.fetchedAt {
-                Text("fetched \(fetched.formatted(.relative(presentation: .numeric)))").foregroundStyle(Theme.fg3)
+                Text("fetched \(Clock.relative(fetched))").foregroundStyle(Theme.fg3)
                     .fixedSize()
             }
             Text("Auto-feed").foregroundStyle(Theme.fg2).fixedSize()
@@ -250,7 +250,7 @@ struct ReaderView: View {
             let detail = model.pullDetails[ref.description]
             GeometryReader { geometry in
                 HStack(spacing: 0) {
-                    ScrollView {
+                    ListScroll {
                         VStack(alignment: .leading, spacing: 14) {
                             header(ref, detail)
                             if let detail {

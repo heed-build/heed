@@ -48,6 +48,11 @@ run = ["swift build -c release", "scripts/bundle.sh release"]
 description = "Build the docs as CI does (docs-builder + landing page) and serve them on :4000 (-- --noserve to only build)"
 run = "scripts/docs.sh"
 
+[tasks.shots]
+description = "Render every docs screenshot from the fake world into docs/images/shots (HEED_SHOTS_ONLY=<prefix> for some)"
+depends = ["bundle"]
+run = "HEED_SHOTS=\"$PWD/docs/images/shots\" build/Heed.app/Contents/MacOS/Heed"
+
 [tasks.deploy]
 description = "Copy build/Heed.app to HEED_DEPLOY_DIR (set it in mise.local.toml)"
 run = "scripts/deploy.sh"

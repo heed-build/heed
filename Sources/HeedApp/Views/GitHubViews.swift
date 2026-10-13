@@ -10,7 +10,7 @@ struct SyncBanner: View {
         switch status {
         case let .offline(reason):
             banner(
-                "Offline: showing what was synced \(syncedAt.map { $0.formatted(.relative(presentation: .named)) } ?? "never"). \(reason)",
+                "Offline: showing what was synced \(syncedAt.map { Clock.relative($0, named: true) } ?? "never"). \(reason)",
                 tint: Theme.block
             )
         case .partial:
@@ -41,7 +41,7 @@ struct SyncBanner: View {
 
 /// `4m`, `3h`, `2d`.
 enum Ages {
-    static func short(_ date: Date, now: Date = Date()) -> String {
+    static func short(_ date: Date, now: Date = Clock.now) -> String {
         let seconds = max(now.timeIntervalSince(date), 0)
         if seconds < 3600 { return "\(Int(seconds / 60))m" }
         if seconds < 86400 { return "\(Int(seconds / 3600))h" }
@@ -264,7 +264,7 @@ private struct IssueRepoColumn: View {
         VStack(alignment: .leading, spacing: 0) {
             SectionHeader(title: "Repos").padding(.horizontal, 16).padding(.vertical, 14)
             row(name: "All", count: repos.map(\.count).reduce(0, +), repo: nil)
-            ScrollView {
+            ListScroll {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(repos, id: \.repo) { entry in
                         row(name: entry.repo.name, count: entry.count, repo: entry.repo)
@@ -510,7 +510,7 @@ struct IssueReaderView: View {
 
     var body: some View {
         if let issue = model.issueReader {
-            ScrollView {
+            ListScroll {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack(spacing: 8) {
                         RepoChip(repo: issue.repo)
@@ -646,8 +646,8 @@ struct ListBody<Row: View>: View {
             Text(empty).font(Theme.ui(12.5)).foregroundStyle(Theme.fg3).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 0) {
+                ListScroll {
+                    ListStack(spacing: 0) {
                         ForEach(0 ..< count, id: \.self) { index in
                             row(index)
                                 .hint(hintView.flatMap { model.hintLabel(for: .row($0, index)) })

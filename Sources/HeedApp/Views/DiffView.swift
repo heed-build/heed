@@ -77,7 +77,7 @@ struct DiffOverlayView: View {
                 commitRow(commit.sha, commit.subject, on: model.diffScope == .commit(commit.sha))
             }
             SectionHeader(title: "Files").padding(.horizontal, 14).padding(.top, 18).padding(.bottom, 8)
-            ScrollView {
+            ListScroll {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(model.diffFiles.enumerated()), id: \.element.id) { index, file in
                         if index == 0 || model.diffFiles[index - 1].repo != file.repo, let repo = file.repo {
@@ -167,8 +167,8 @@ struct DiffOverlayView: View {
                     Spacer()
                 } else {
                     ScrollViewReader { proxy in
-                        ScrollView(model.diffSplit ? .vertical : [.vertical, .horizontal]) {
-                            LazyVStack(alignment: .leading, spacing: 0) {
+                        ListScroll(model.diffSplit ? .vertical : [.vertical, .horizontal]) {
+                            ListStack(alignment: .leading, spacing: 0) {
                                 if model.diffSplit {
                                     ForEach(Array(file.hunks.enumerated()), id: \.offset) { _, hunk in
                                         hunkHeader(hunk.header, isCursor: false)

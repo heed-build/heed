@@ -131,12 +131,16 @@ private struct PaneView: View {
             .frame(height: 26)
             .background(Theme.paneHeader)
 
-            TerminalPane(
-                pane: pane,
-                sessionID: model.currentSession?.id ?? "",
-                isFocused: active && model.mode == .insert,
-                focusRequest: model.terminalFocusRequest
-            )
+            if ShotMode.active {
+                FakeTerminal(pane: pane)
+            } else {
+                TerminalPane(
+                    pane: pane,
+                    sessionID: model.currentSession?.id ?? "",
+                    isFocused: active && model.mode == .insert,
+                    focusRequest: model.terminalFocusRequest
+                )
+            }
         }
         .background(Theme.pane)
         // White only on the pane your keys go to (INSERT); in NORMAL no pane takes input, so the focused one is quiet.

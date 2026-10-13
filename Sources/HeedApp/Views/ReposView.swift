@@ -21,7 +21,7 @@ struct ReposView: View {
         VStack(alignment: .leading, spacing: 0) {
             SectionHeader(title: "Repos").padding(.horizontal, 16).padding(.vertical, 14)
             row(name: "All", count: model.worktreeRows.count, repo: nil)
-            ScrollView {
+            ListScroll {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(model.sortedRepos) { record in
                         row(
@@ -75,8 +75,8 @@ struct ReposView: View {
         return VStack(spacing: 0) {
             header
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(spacing: 0) {
+                ListScroll {
+                    ListStack(spacing: 0) {
                         ForEach(Array(rows.enumerated()), id: \.element.id) { index, worktree in
                             WorktreeRow(
                                 worktree: worktree,

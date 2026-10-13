@@ -39,6 +39,17 @@ enum DockState {
         tile.display()
     }
 
+    /// The badged icon as an image (the docs' screenshots draw this).
+    static func image(_ attention: Attention, side: CGFloat) -> NSImage {
+        let view = BadgedIconView(frame: NSRect(x: 0, y: 0, width: side, height: side))
+        view.attention = attention
+        let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+        view.cacheDisplay(in: view.bounds, to: rep)
+        let image = NSImage(size: view.bounds.size)
+        image.addRepresentation(rep)
+        return image
+    }
+
     private final class BadgedIconView: NSView {
         var attention = Attention(blocked: 0, asking: 0)
 
@@ -117,34 +128,65 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         return item
     }
 
+    /// One line of the menu: what the real menu shows and the screenshots draw. Nil is a separator.
+    struct Entry {
+        enum Action { case none, openSession(String), startWork, openHeed, settings, quit }
+        var title: String
+        var action: Action = .none
+        var shortcut = ""
+        var dot: Color?
+    }
+
+    static func entries(for model: AppModel) -> [Entry?] {
+        var entries: [Entry?] = []
+        let waiting = model.sessions.filter { [.blocked, .asking].contains($0.state.state) }
+        if waiting.isEmpty {
+            entries.append(Entry(title: "Nothing needs you"))
+        } else {
+            entries.append(Entry(title: "\(waiting.count) need\(waiting.count == 1 ? "s" : "") you"))
+            for session in waiting {
+                entries.append(Entry(
+                    title: "\(session.title) · \(session.state.state.rawValue)", action: .openSession(session.id),
+                    dot: session.state.state == .blocked ? Theme.block : Theme.ask
+                ))
+            }
+        }
+        let working = model.sessions.count { $0.state.state == .working }
+        if working > 0 { entries.append(Entry(title: "\(working) working")) }
+        entries.append(nil)
+        entries.append(Entry(title: "Start work…", action: .startWork, shortcut: model.config.globalStartWork))
+        entries.append(Entry(title: "Open Heed", action: .openHeed, shortcut: model.config.globalActivate))
+        entries.append(nil)
+        entries.append(Entry(title: "Settings…", action: .settings))
+        entries.append(Entry(title: "Quit Heed", action: .quit))
+        return entries
+    }
+
     /// Built each time it opens, so it is never stale.
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         guard let model else { return }
-        let waiting = model.sessions.filter { [.blocked, .asking].contains($0.state.state) }
-        if waiting.isEmpty {
-            menu.addItem(disabled: "Nothing needs you")
-        } else {
-            menu.addItem(disabled: "\(waiting.count) need\(waiting.count == 1 ? "s" : "") you")
-            for session in waiting {
-                let entry = NSMenuItem(
-                    title: "\(session.title) · \(session.state.state.rawValue)",
-                    action: #selector(openSession(_:)), keyEquivalent: ""
-                )
-                entry.target = self
-                entry.representedObject = session.id
-                entry.image = dot(session.state.state == .blocked ? NSColor(Theme.block) : NSColor(Theme.ask))
-                menu.addItem(entry)
+        for entry in Self.entries(for: model) {
+            guard let entry else {
+                menu.addItem(.separator())
+                continue
             }
+            let selector: Selector? = switch entry.action {
+            case .none: nil
+            case .openSession: #selector(openSession(_:))
+            case .startWork: #selector(startWork)
+            case .openHeed: #selector(openHeed)
+            case .settings: #selector(openSettings)
+            case .quit: #selector(quit)
+            }
+            guard let selector else {
+                menu.addItem(disabled: entry.title)
+                continue
+            }
+            menu.addItem(action: entry.title, selector, shortcut: entry.shortcut, target: self)
+            if case let .openSession(id) = entry.action { menu.items.last?.representedObject = id }
+            if let color = entry.dot { menu.items.last?.image = dot(NSColor(color)) }
         }
-        let working = model.sessions.count { $0.state.state == .working }
-        if working > 0 { menu.addItem(disabled: "\(working) working") }
-        menu.addItem(.separator())
-        menu.addItem(action: "Start work…", #selector(startWork), shortcut: model.config.globalStartWork, target: self)
-        menu.addItem(action: "Open Heed", #selector(openHeed), shortcut: model.config.globalActivate, target: self)
-        menu.addItem(.separator())
-        menu.addItem(action: "Settings…", #selector(openSettings), shortcut: "", target: self)
-        menu.addItem(action: "Quit Heed", #selector(quit), shortcut: "", target: self)
     }
 
     @objc private func openSession(_ sender: NSMenuItem) {

@@ -36,8 +36,8 @@ struct HistoryView: View {
             GeometryReader { geometry in
                 let compact = geometry.size.width < 760
                 ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
+                    ListScroll {
+                        ListStack(alignment: .leading, spacing: 0) {
                             ForEach(groups(rows), id: \.title) { group in
                                 SectionHeader(title: group.title)
                                     .padding(.horizontal, 20)
@@ -89,7 +89,7 @@ struct HistoryView: View {
 
     private func groups(_ rows: [HistoryEntry]) -> [Group] {
         let calendar = Calendar.current
-        let now = Date()
+        let now = Clock.now
         func title(_ date: Date) -> String {
             if calendar.isDateInToday(date) { return "Today" }
             if calendar.isDateInYesterday(date) { return "Yesterday" }
@@ -175,7 +175,7 @@ private struct HistoryDetail: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 SectionHeader(
-                    title: "\(entry.outcome.rawValue) \(entry.closedAt.formatted(.relative(presentation: .named)))"
+                    title: "\(entry.outcome.rawValue) \(Clock.relative(entry.closedAt, named: true))"
                 )
                 Spacer()
                 if let repo = entry.session.repos.first { RepoChip(repo: repo) }

@@ -10,7 +10,7 @@ struct ResumeView: View {
             GeometryReader { geometry in
                 ZStack {
                     Color.black.opacity(0.6)
-                    ScrollView {
+                    ListScroll {
                         dialog(form)
                             .frame(width: min(1060, max(geometry.size.width - 48, 360)))
                             .padding(.vertical, 24)

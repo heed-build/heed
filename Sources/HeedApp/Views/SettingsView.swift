@@ -39,7 +39,7 @@ struct SettingsView: View {
             .frame(width: 190)
             .background(Theme.bg2)
             Theme.line.frame(width: 1)
-            ScrollView {
+            ListScroll {
                 VStack(alignment: .leading, spacing: 18) {
                     if let problem = model.configProblems.first {
                         Text("config.toml: \(problem.description)")

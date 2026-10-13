@@ -8,20 +8,20 @@ struct MainWindow: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TitleBar()
+            TitleBar().shotRegion(.titleBar)
             if let tutor = model.tutor { TutorBanner(tutor: tutor) }
             GeometryReader { geometry in
                 HStack(spacing: 0) {
                     switch model.view {
                     case .sessions:
                         if model.sidebarCollapsed {
-                            SessionRail()
+                            SessionRail().shotRegion(.rail)
                         } else {
-                            Sidebar(width: geometry.size.width < 1000 ? 260 : 330)
+                            Sidebar(width: geometry.size.width < 1000 ? 260 : 330).shotRegion(.sidebar)
                         }
-                        CenterArea()
+                        CenterArea().shotRegion(.center)
                         // The inspector gives way first on narrow windows; `zi` hides it outright.
-                        if model.inspectorVisible, geometry.size.width >= 1180 { Inspector() }
+                        if model.inspectorVisible, geometry.size.width >= 1180 { Inspector().shotRegion(.inspector) }
                     case .repos:
                         ReposView()
                     case .history:
@@ -35,7 +35,7 @@ struct MainWindow: View {
                     }
                 }
             }
-            StatusBar()
+            StatusBar().shotRegion(.statusBar)
         }
         .overlay(alignment: .bottomTrailing) {
             if let tutor = model.tutor { TutorCard(tutor: tutor).padding(.trailing, 16).padding(.bottom, 44) }
@@ -171,10 +171,10 @@ struct TitleBar: View {
                     Text("offline").foregroundStyle(Theme.block)
                 } else if let synced = model.github.syncedAt {
                     if case let .partial(hidden, _) = model.github.status {
-                        Text("synced \(synced.formatted(.relative(presentation: .numeric))) · \(hidden) hidden")
+                        Text("synced \(Clock.relative(synced)) · \(hidden) hidden")
                             .help("Items in orgs the gh token is not authorized for (SAML).")
                     } else {
-                        Text("synced \(synced.formatted(.relative(presentation: .numeric)))")
+                        Text("synced \(Clock.relative(synced))")
                     }
                 }
             }
@@ -504,8 +504,8 @@ struct ImportPickerView: View {
                 .overlay(alignment: .top) { Theme.line.frame(height: 1) }
                 .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
                 ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 0) {
+                    ListScroll {
+                        ListStack(alignment: .leading, spacing: 0) {
                             ForEach(Array(matches.enumerated()), id: \.element.id) { index, worktree in
                                 HStack(spacing: 10) {
                                     RepoChip(repo: worktree.repo).fixedSize()

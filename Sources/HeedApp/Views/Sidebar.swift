@@ -18,8 +18,8 @@ struct Sidebar: View {
             .padding(.vertical, 14)
 
             ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
+                ListScroll {
+                    ListStack(alignment: .leading, spacing: 0) {
                         ForEach(list.sections, id: \.group) { section in
                             groupHeader(section, pins: list.pins.count)
                             ForEach(section.sessions) { session in
@@ -169,7 +169,7 @@ struct SessionRail: View {
         VStack(spacing: 0) {
             CollapseButton(systemImage: "sidebar.left", key: "zs") { model.toggleSidebar() }
                 .padding(.vertical, 12)
-            ScrollView {
+            ListScroll {
                 VStack(spacing: 2) {
                     ForEach(Array(list.ordered.enumerated()), id: \.element.id) { index, session in
                         let isCursor = index == model.cursor

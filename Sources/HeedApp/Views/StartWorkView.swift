@@ -14,6 +14,7 @@ struct StartWorkView: View {
                 let screen = NSScreen.main?.visibleFrame.height ?? 900
                 dialog(form, promptCap: max(96, min(320, screen * 0.3)))
                     .frame(width: 780)
+                    .shotRegion(.dialog)
                     .padding(30) // room for the shadow inside the transparent panel
             }
         } else if let form = model.startWork {
@@ -22,9 +23,10 @@ struct StartWorkView: View {
                     Color.black.opacity(0.55)
                     // Up to the design's 780pt wide, never wider than the window; the prompt grows with what is typed
                     // up to a cap and scrolls past it, and the whole dialog scrolls only if the window is very short.
-                    ScrollView {
+                    ListScroll {
                         dialog(form, promptCap: max(96, min(320, geometry.size.height * 0.35)))
                             .frame(width: min(780, max(geometry.size.width - 48, 360)))
+                            .shotRegion(.dialog)
                             .padding(.vertical, 24)
                             .frame(minHeight: geometry.size.height)
                     }
@@ -65,7 +67,7 @@ struct StartWorkView: View {
     private func promptBox(_ form: StartWorkForm, cap: CGFloat) -> some View {
         let active = form.field == .prompt
         // Grows with the text up to `cap`, then scrolls, kept at the end where the typing happens.
-        return ScrollView {
+        return ListScroll {
             (Text(form.prompt.isEmpty && !active ? "Describe the task…" : form.prompt)
                 .foregroundStyle(form.prompt.isEmpty ? Theme.fg3 : Theme.fg)
                 + Text(active && form.editing ? "▌" : "").foregroundStyle(Theme.done))

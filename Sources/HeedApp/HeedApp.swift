@@ -89,6 +89,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
+        // HEED_SHOTS: render the docs' screenshots from the fake world, then quit; nothing else starts.
+        if ShotRunner.requested {
+            NSApp.setActivationPolicy(.accessory)
+            Task {
+                await ShotRunner.run()
+                exit(0)
+            }
+            return
+        }
         // No NSApp.activate(): Heed never takes focus, it only asks for attention.
         NSApp.setActivationPolicy(.regular)
         router.start()

@@ -1,0 +1,86 @@
+name: notary-watch
+
+# Waits out Apple's first notarizations for a new Developer ID, which can sit In Progress for hours or days. Every two
+# hours it asks Apple about the submissions so far. Once one is Accepted, and nothing has been released yet, it starts
+# the release workflow (which notarizes a fresh build, quick from then on, publishes and bumps the tap). A rejected
+# submission fails the run with Apple's log. Once a release exists it turns itself off: releases are started by hand.
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: notary-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: macos-26
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Anything released yet?
+        id: released
+        run: |
+          latest="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          echo "tag=$latest" >>"$GITHUB_OUTPUT"
+          if [ -n "$latest" ]; then
+            echo "$latest is released; nothing to wait for. Turning this watch off."
+            gh workflow disable notary-watch --repo "$GITHUB_REPOSITORY"
+          fi
+
+      - name: A release already running?
+        id: running
+        if: steps.released.outputs.tag == ''
+        run: |
+          busy="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --json status \
+            --jq '[.[] | select(.status != "completed")] | length')"
+          echo "busy=$busy" >>"$GITHUB_OUTPUT"
+          [ "$busy" = "0" ] || echo "A release run is already going; checking again next time."
+          # Releases this watch started that failed: three means something besides Apple is wrong, so stop retrying.
+          failed="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --user "github-actions[bot]" \
+            --json conclusion --jq '[.[] | select(.conclusion == "failure")] | length')"
+          if [ "$failed" -ge 3 ]; then
+            echo "::error::The last $failed releases this watch started failed; look at the release runs. Turning this watch off."
+            gh workflow disable notary-watch --repo "$GITHUB_REPOSITORY"
+            exit 1
+          fi
+
+      - name: Ask Apple, and release once accepted
+        if: steps.released.outputs.tag == '' && steps.running.outputs.busy == '0'
+        env:
+          KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          key="$RUNNER_TEMP/notary.p8"
+          printf '%s\n' "$KEY_P8" >"$key"
+          trap 'rm -f "$key"' EXIT
+          auth=(--key "$key" --key-id "$KEY_ID" --issuer "$ISSUER")
+          xcrun notarytool history "${auth[@]}" --output-format json >"$RUNNER_TEMP/history.json"
+          jq -r '.history[] | "\(.createdDate)  \(.id)  \(.status)"' "$RUNNER_TEMP/history.json"
+
+          # An acceptance wins over an older rejection: one notarized build proves the setup.
+          accepted="$(jq -r '[.history[] | select(.status == "Accepted")][0].id // empty' "$RUNNER_TEMP/history.json")"
+          if [ -n "$accepted" ]; then
+            # The watch stays on until a release exists (the first step turns it off then), so a release run that
+            # stops on a slow notarization of its own build is simply started again next time.
+            echo "Apple accepted $accepted: starting the release."
+            gh workflow run release --repo "$GITHUB_REPOSITORY" --ref main
+            exit 0
+          fi
+
+          rejected="$(jq -r '[.history[] | select(.status == "Invalid" or .status == "Rejected")][0].id // empty' \
+            "$RUNNER_TEMP/history.json")"
+          if [ -n "$rejected" ]; then
+            echo "::error::Apple rejected submission $rejected; its log follows. Nothing was released."
+            xcrun notarytool log "$rejected" "${auth[@]}" || true
+            exit 1
+          fi
+
+          echo "Still In Progress at Apple; checking again in two hours."

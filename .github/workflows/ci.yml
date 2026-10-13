@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Lint, the tests, a release build, and the tutor played with the real keys: what `mise run lint test bundle
+  # tutor-check` does locally.
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup
+
+      - name: Lint
+        run: mise run lint
+
+      - name: Test
+        run: mise run test
+
+      - name: Release build
+        run: mise run bundle
+
+      - name: Tutor check
+        run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
+
+  # The docs build as docs.yml publishes it, without publishing.
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build documentation
+        uses: elastic/docs-builder@main

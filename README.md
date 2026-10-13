@@ -67,6 +67,17 @@ yabai -m rule --add app="^Heed$" title="^Heed Start Work$" manage=off
 | `design/` | The approved boards (`screens/*.png`) and the original brief (`BRIEF.md`) |
 | `PLAN.md` | The plan, decisions and build order |
 
+## Contributing and releasing
+
+`main` only changes through pull requests, and CI must pass: lint, the tests, a release build and the tutor check on
+macOS, and the docs build. Branch names label pull requests for the release notes: `feature/…`, `fix/…`, `docs/…`.
+
+[release-drafter](https://github.com/release-drafter/release-drafter) keeps a draft release up to date as pull requests
+merge, and works out the next version from their labels (`major`, `minor` or `enhancement`, otherwise a patch). To
+release, run the **release** workflow (`gh workflow run release`, optionally `-f version=0.2.0`): it builds `main`,
+attaches `Heed-arm64.zip` and its sha256 to the draft, checks both are there, and only then publishes the draft, which
+tags the commit it built. `install.sh` installs from the latest release.
+
 ## Deploying to the MacBook
 
 `mise run build` copies `build/Heed.app` to `$HEED_DEPLOY_DIR` (set in `mise.local.toml`, not committed). Skipped,

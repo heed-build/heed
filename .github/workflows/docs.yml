@@ -34,6 +34,7 @@ jobs:
         run: |
           cp docs/heed-landing.html .artifacts/docs/html/index.html
           cp docs/robots.txt .artifacts/docs/html/robots.txt
+          cp install.sh .artifacts/docs/html/install.sh
           mkdir -p .artifacts/docs/html/fonts && cp docs/fonts/*.woff2 .artifacts/docs/html/fonts/
 
       - name: Setup Pages

@@ -9,6 +9,7 @@ struct MainWindow: View {
     var body: some View {
         VStack(spacing: 0) {
             TitleBar()
+            if let tutor = model.tutor { TutorBanner(tutor: tutor) }
             GeometryReader { geometry in
                 HStack(spacing: 0) {
                     switch model.view {
@@ -35,6 +36,9 @@ struct MainWindow: View {
                 }
             }
             StatusBar()
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if let tutor = model.tutor { TutorCard(tutor: tutor).padding(.trailing, 16).padding(.bottom, 44) }
         }
         .background(Theme.bg)
         .foregroundStyle(Theme.fg)

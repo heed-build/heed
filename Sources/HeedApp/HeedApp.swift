@@ -12,8 +12,7 @@ struct HeedApp: App {
 
     var body: some Scene {
         Window("Heed", id: "main") {
-            MainWindow()
-                .environment(delegate.model)
+            HostedMainWindow(host: delegate.host)
                 .frame(minWidth: 760, minHeight: 520)
                 .onAppear { delegate.windowAppeared() }
         }
@@ -57,7 +56,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return AppModel(domain: .empty, isFixture: false)
     }()
 
-    private lazy var router = KeyRouter(model: model)
+    /// What the window shows: the live model, or the tutor's sandbox while it runs.
+    lazy var host: ModelHost = {
+        let host = ModelHost(live: model)
+        model.onTutorRequest = { [weak self] start in self?.setTutor(start) }
+        return host
+    }()
+
+    private lazy var router = KeyRouter(host: host)
+
+    /// The tutor runs on its own model over fixture data in the same window: nothing done there reaches the live
+    /// sessions, which keep running (and updating the Dock and menu bar) underneath.
+    func setTutor(_ start: Bool) {
+        if start {
+            guard let domain = Fixtures.named("main") else { return }
+            let sandbox = AppModel(domain: domain, isFixture: true)
+            sandbox.onTutorRequest = { [weak self] start in self?.setTutor(start) }
+            sandbox.openSettings = model.openSettings
+            sandbox.reopenWindow = model.reopenWindow
+            sandbox.beginTutor()
+            host.current = sandbox
+        } else {
+            // The sandbox's shells go with it.
+            let sandbox = host.current
+            host.current = model
+            if sandbox !== model {
+                for pane in sandbox.layouts.values.flatMap({ $0.tabs.flatMap(\.tree.panes) }) {
+                    TerminalSurfaces.shared.close(paneID: pane.id)
+                }
+            }
+        }
+    }
 
     func applicationDidFinishLaunching(_: Notification) {
         // No NSApp.activate(): Heed never takes focus, it only asks for attention.
@@ -91,12 +120,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.backgroundColor = NSColor(red: 0.067, green: 0.071, blue: 0.078, alpha: 1)
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = false
-        Snapshot.runIfRequested(window: window, model: model)
+        Snapshot.runIfRequested(window: window, host: host)
     }
 
     /// With the menu bar item, closing the window leaves Heed (and every agent in it) running; Open Heed or the
     /// activate shortcut brings it back. Without it, closing the window quits as before.
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         model.isFixture || !model.config.showMenuBarItem
+    }
+}
+
+/// Which model the main window, the keys and pane clicks belong to. Swapped by the tutor.
+@MainActor
+@Observable
+final class ModelHost {
+    let live: AppModel
+    var current: AppModel {
+        didSet { wire() }
+    }
+
+    init(live: AppModel) {
+        self.live = live
+        current = live
+        wire()
+    }
+
+    private func wire() {
+        let model = current
+        TerminalSurfaces.shared.onPaneClick = { [weak model] paneID in model?.clickedPane(paneID) }
+    }
+}
+
+/// The main window for whichever model the host holds.
+struct HostedMainWindow: View {
+    let host: ModelHost
+
+    var body: some View {
+        MainWindow().environment(host.current)
     }
 }

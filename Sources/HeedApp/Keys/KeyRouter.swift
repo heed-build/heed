@@ -13,10 +13,11 @@ import HeedCore
 final class KeyRouter {
     private var monitor: Any?
     private var mouseMonitor: Any?
-    private weak var model: AppModel?
+    private let host: ModelHost
+    private var model: AppModel? { host.current }
 
-    init(model: AppModel) {
-        self.model = model
+    init(host: ModelHost) {
+        self.host = host
     }
 
     func start() {

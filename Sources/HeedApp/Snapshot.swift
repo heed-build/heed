@@ -7,7 +7,7 @@ import HeedCore
 /// `HEED_FIXTURE` names another; `HEED_FIXTURE=live` uses the real cache and git.
 enum Snapshot {
     @MainActor
-    static func runIfRequested(window: NSWindow, model: AppModel) {
+    static func runIfRequested(window: NSWindow, host: ModelHost) {
         let environment = ProcessInfo.processInfo.environment
         guard let path = environment["HEED_SNAPSHOT"] else { return }
         // HEED_SNAPSHOT_SIZE=900x700 checks narrow layouts; the default is the design boards' size.
@@ -22,7 +22,7 @@ enum Snapshot {
             try? await Task.sleep(for: .milliseconds(delay))
             if let keys = environment["HEED_SNAPSHOT_KEYS"] {
                 for stroke in (try? KeyNotation.parse(keys)) ?? [] {
-                    _ = model.handle(stroke)
+                    _ = host.current.handle(stroke)
                 }
                 // HEED_SNAPSHOT_SETTLE (ms) waits after the keys, for what they start (a git lookup, a fetch).
                 try? await Task.sleep(for: .milliseconds(Int(environment["HEED_SNAPSHOT_SETTLE"] ?? "") ?? 300))

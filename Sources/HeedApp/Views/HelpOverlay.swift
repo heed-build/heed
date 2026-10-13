@@ -22,7 +22,9 @@ struct HelpOverlay: View {
             "Select several sessions, worktrees or panes, then act on all of them.",
             [("v V", "enter"), ("d p y", "remove, pin, copy")]
         ),
-        (.command, "Typed commands with completion.", [(":", "enter"), ("⇥", "complete")]),
+        (.command, "Typed commands with completion. :tutor teaches Heed in a sandbox.", [
+            (":", "enter"), ("⇥", "complete"), (":tutor", "lessons, done for real"),
+        ]),
         (
             .hint,
             "Letter badges over every pane, tab and session. Type one to jump.",

@@ -27,6 +27,14 @@ enum Overlay: Equatable {
     case help
     case pr
     case diff
+
+    var name: String {
+        switch self {
+        case .help: "help"
+        case .pr: "pr"
+        case .diff: "diff"
+        }
+    }
 }
 
 /// Everything the window draws, on the main actor.
@@ -197,7 +205,6 @@ final class AppModel {
         keyProblems = built.problems
         if isFixture { config.issues = Fixtures.issueRules }
         replace(with: domain)
-        TerminalSurfaces.shared.onPaneClick = { [weak self] paneID in self?.clickedPane(paneID) }
         updateScope()
     }
 
@@ -826,6 +833,12 @@ final class AppModel {
 
     /// Returns true when the key was used by the app, false when it should go on to the terminal.
     func handle(_ stroke: KeyStroke) -> Bool {
+        let used = handleKey(stroke)
+        if tutor != nil { observeTutor() }
+        return used
+    }
+
+    private func handleKey(_ stroke: KeyStroke) -> Bool {
         if confirmation != nil {
             answerConfirmation(stroke)
             return true
@@ -846,6 +859,10 @@ final class AppModel {
                 Task { await refreshFirstRun() }
             } else if stroke == KeyStroke("e") {
                 NSWorkspace.shared.open(configFile)
+            } else if stroke == KeyStroke("t") {
+                firstRun = nil
+                firstRunTask?.cancel()
+                onTutorRequest?(true)
             }
             return true
         }
@@ -981,6 +998,9 @@ final class AppModel {
         case "view.issues": view = .issues
         case "view.prs": view = .prs
         case "overlay.help": overlay = overlay == .help ? nil : .help
+        case "tutor": onTutorRequest?(tutor == nil)
+        case "tutor.next": moveTutor(by: 1)
+        case "tutor.prev": moveTutor(by: -1)
         case "overlay.diff": toggleDiff()
         case "diff.hunk.next": jumpHunk(by: 1)
         case "diff.hunk.prev": jumpHunk(by: -1)
@@ -2573,6 +2593,83 @@ final class AppModel {
 
     func focusPane(_ paneID: String) {
         updateTab { $0.focused = paneID }
+    }
+
+    // MARK: Tutor
+
+    /// Set on the sandbox model while the tutor runs (`:tutor`); nil everywhere else.
+    private(set) var tutor: Tutor?
+    /// Asks the app to start (true) or leave (false) the tutor: it swaps the window to a sandbox model and back.
+    var onTutorRequest: ((Bool) -> Void)?
+
+    /// Makes this (fixture) model the tutor's sandbox, resuming at the lesson last reached.
+    func beginTutor() {
+        let saved = UserDefaults.standard.integer(forKey: "tutorLesson")
+        tutor = Tutor(lesson: saved, state: tutorState)
+        view = .sessions
+    }
+
+    private func observeTutor() {
+        guard var current = tutor else { return }
+        if current.observe(tutorState) {
+            flash = current.lessonDone ? "lesson done · ⌘] next lesson" : "✓"
+        }
+        tutor = current
+    }
+
+    private func moveTutor(by delta: Int) {
+        guard var current = tutor else {
+            flash = "the tutor is not running (:tutor starts it)"
+            return
+        }
+        if delta > 0 { current.next(from: tutorState) } else { current.previous(from: tutorState) }
+        tutor = current
+        UserDefaults.standard.set(current.lesson, forKey: "tutorLesson")
+    }
+
+    /// What the tutor's steps check.
+    var tutorState: TutorState {
+        var state = TutorState()
+        state.mode = mode
+        state.view = view.rawValue
+        switch view {
+        case .sessions:
+            state.cursor = cursor
+            state.rows = list.ordered.count
+        case .repos:
+            state.cursor = repoCursor
+            state.rows = worktreeRows.count
+        case .history:
+            state.cursor = historyCursor
+            state.rows = historyRows.count
+        case .inbox, .issues, .prs:
+            state.cursor = cursor(in: view)
+            state.rows = itemIDs(view).count
+        }
+        state.overlay = issueReader != nil ? "issue" : reader != nil ? "reader" : overlay.map(\.name)
+        state.helpOpen = overlay == .help
+        state.filtering = filtering
+        state.filter = filter(for: view)
+        let panes = currentTab?.tree.panes ?? []
+        state.panes = panes.count
+        state.focusedPane = panes.firstIndex { $0.id == currentTab?.focused } ?? 0
+        state.tab = currentTabIndex
+        state.tabs = currentTabs.count
+        state.startWorkOpen = startWork != nil
+        state.confirmationOpen = confirmation != nil
+        state.importOpen = importPicker != nil || pathImport != nil
+        state.commandLine = mode == .command
+        state.sessions = sessions.count
+        return state
+    }
+
+    /// The key for a command as you have it bound: NORMAL first, then the view bindings (`Iw` lives in Sessions').
+    func keyLabel(for command: String) -> String? {
+        if let normal = keyCap(for: command) { return normal }
+        for (_, keymap) in engine.scopedKeymaps.sorted(by: { $0.key < $1.key }) {
+            if let keys = keymap.keys(for: command).first { return KeyCapText.of(keys) }
+        }
+        return nil
     }
 
     // MARK: Outside the window

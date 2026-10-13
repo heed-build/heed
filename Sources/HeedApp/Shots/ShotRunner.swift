@@ -15,13 +15,15 @@ struct Shot {
         case menu
         /// The Dock icon with its badge.
         case dock
-        /// The Settings window.
-        case settings
+        /// The Settings window, open on a section.
+        case settings(SettingsView.Section = .general)
     }
 
     /// Output path under docs/images/shots, without extension: `sessions/anatomy`.
     let id: String
     var subject: Subject = .window
+    /// Draw the window's chrome (corners, traffic lights). Off for pages that frame shots themselves.
+    var chrome = true
     var size = CGSize(width: 1440, height: 900)
     /// Keys typed into the fake world first, in vim notation.
     var keys = ""
@@ -94,9 +96,12 @@ enum ShotRunner {
 
         // Settings is all native controls, which ImageRenderer cannot draw: render it through AppKit instead, in a
         // window that is never shown.
-        if case .settings = shot.subject {
+        if case let .settings(section) = shot.subject {
             try write(
-                hostedImage(SettingsView().environment(model).environment(\.colorScheme, .dark), size: shot.size),
+                hostedImage(
+                    SettingsView(section: section).environment(model).environment(\.colorScheme, .dark),
+                    size: shot.size
+                ),
                 shot: shot,
                 into: directory
             )
@@ -156,12 +161,13 @@ enum ShotRunner {
     @ViewBuilder
     private static func subject(_ shot: Shot, model _: AppModel) -> some View {
         switch shot.subject {
-        case .window: WindowChrome { MainWindow() }
+        case .window where shot.chrome: WindowChrome { MainWindow() }
+        case .window: MainWindow()
         case .panel: PanelBackdrop { StartWorkView(standalone: true) }
         case .menuBar: MenuBarMock()
         case .menu: MenuMock()
         case .dock: DockMock()
-        case .settings: SettingsView()
+        case .settings: EmptyView()
         }
     }
 }

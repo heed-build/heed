@@ -5,7 +5,7 @@ import SwiftUI
 /// docs/images/shots; pages reference them as `../images/shots/<id>.png`.
 @MainActor
 enum Shots {
-    static let all: [Shot] = home + gettingStarted + concepts + sessions + startWork + agents + github + worktrees
+    static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + startWork + agents + github + worktrees
         + diff + history + keyboard + outside + configuration
 
     /// Types a sentence (spaces become <Space>).
@@ -74,12 +74,23 @@ enum Shots {
         Shot(id: "concepts/mode-hint", keys: "f", crop: .statusBar, cropPadding: 0),
     ]
 
-    /// The home page and the landing page (docs/heed-landing.html).
+    /// The landing page (docs/heed-landing.html), which draws its own window frames: no chrome here.
+    static let landing: [Shot] = [
+        Shot(id: "landing/main", chrome: false),
+        Shot(id: "landing/states", chrome: false, keys: "2j"),
+        Shot(id: "landing/start-work", chrome: false, keys: "o" + typed("Fix broken anchors in the redirect pages")),
+        Shot(id: "landing/agents", subject: .settings(.agents), size: CGSize(width: 1100, height: 700)),
+        Shot(id: "landing/keys", chrome: false, keys: "?"),
+        Shot(id: "landing/prs", chrome: false, keys: "gp"),
+        Shot(id: "landing/worktrees", chrome: false, keys: "gr4jvj"),
+        Shot(id: "landing/resume", chrome: false, prepare: { $0.showResumeForFixture() }),
+        Shot(id: "landing/diff", chrome: false, keys: "gd"),
+        Shot(id: "landing/inbox", chrome: false, keys: "gm<Space>j<Space>"),
+    ]
+
+    /// The docs' home page.
     static let home: [Shot] = [
         Shot(id: "home/sessions"),
-        Shot(id: "home/start-work", keys: "o" + typed("Fix broken anchors in the redirect pages")),
-        Shot(id: "home/feedback", keys: "go"),
-        Shot(id: "home/tutor", keys: "gmgi", prepare: { $0.beginTutor(lesson: 0) }),
     ]
 
     static let sessions: [Shot] = [
@@ -174,7 +185,7 @@ enum Shots {
         Shot(id: "configuration/problem", keys: "", crop: .statusBar, cropPadding: 0, prepare: { model in
             model.applyConfig(source: "[cleanup]\nidle_days = 0\n")
         }),
-        Shot(id: "configuration/settings", subject: .settings, size: CGSize(width: 900, height: 640)),
+        Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 900, height: 640)),
     ]
 
     static let outside: [Shot] = [

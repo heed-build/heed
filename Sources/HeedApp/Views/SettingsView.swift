@@ -5,7 +5,12 @@ import SwiftUI
 /// bindings are shown but edited only in the file. design/screens/Agents.png, Colors.png.
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
-    @State private var section: Section = .general
+    @State private var section: Section
+
+    /// Opens on `section` (General; screenshots open others).
+    init(section: Section = .general) {
+        _section = State(initialValue: section)
+    }
 
     enum Section: String, CaseIterable, Identifiable {
         case general = "General", agents = "Agents", colors = "Repos & colors", cleanup = "Worktrees & cleanup"

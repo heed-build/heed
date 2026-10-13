@@ -1055,6 +1055,10 @@ final class AppModel {
                 startWork?.choose(repo: repo.slug)
             }
         case "repo.scan": rescan()
+        case "repo.add": addRepo(command.arguments.joined(separator: " "))
+        case "cleanup.rules":
+            view = .repos
+            inspectorVisible = true
         case "pane.left": updateTab { $0.focus(.left) }
         case "pane.right": updateTab { $0.focus(.right) }
         case "pane.up": updateTab { $0.focus(.up) }
@@ -1657,27 +1661,53 @@ final class AppModel {
         }
         flash = "looking at \(Paths.abbreviate(path))…"
         Task {
-            guard let found = await Git.locate(path) else {
-                flash = "not inside a git worktree: \(Paths.abbreviate(path))"
-                return
-            }
-            if !repos.contains(where: { $0.id == found.record.id }) {
-                commit(.repoUpserted(found.record))
-                let roots = settings.repoRoots.map { Paths.expand($0) }
-                if !roots.contains(where: { found.record.path.hasPrefix($0 + "/") }) {
-                    setConfig(
-                        ["worktrees", "repo_paths"],
-                        .array((settings.repoPaths + [Paths.abbreviate(found.record.path)]).map { .string($0) })
-                    )
-                }
-            }
-            var listed = found.all
-            for index in listed.indices {
-                listed[index].status = try? await Git.status(at: listed[index].path)
-            }
-            commit(.worktreesListed(repo: found.record.repo, listed))
-            openOrImport([listed.first { $0.path == found.worktree.path } ?? found.worktree])
+            guard let (worktree, listed) = await adoptRepo(at: path) else { return }
+            openOrImport([listed.first { $0.path == worktree.path } ?? worktree])
         }
+    }
+
+    /// `:repo.add <path>`: the repo at `path` joins Repos with its worktrees, and is kept in `[worktrees] repo_paths`
+    /// when it lies outside the scanned roots.
+    private func addRepo(_ raw: String) {
+        let path = Paths.expand(raw.trimmingCharacters(in: .whitespaces))
+        guard !raw.trimmingCharacters(in: .whitespaces).isEmpty else {
+            flash = ":repo.add <path> adds a repo outside \(settings.repoRoots.joined(separator: ", "))"
+            return
+        }
+        guard !isFixture else {
+            flash = "fixture: no IO"
+            return
+        }
+        flash = "looking at \(Paths.abbreviate(path))…"
+        Task {
+            guard let (worktree, listed) = await adoptRepo(at: path) else { return }
+            view = .repos
+            flash = "added \(worktree.repo.slug): \(listed.count) worktree\(listed.count == 1 ? "" : "s")"
+        }
+    }
+
+    /// The repo and worktrees at `path`, made known: added to the domain (and to repo_paths if outside the roots).
+    private func adoptRepo(at path: String) async -> (worktree: Worktree, listed: [Worktree])? {
+        guard let found = await Git.locate(path) else {
+            flash = "not inside a git worktree: \(Paths.abbreviate(path))"
+            return nil
+        }
+        if !repos.contains(where: { $0.id == found.record.id }) {
+            commit(.repoUpserted(found.record))
+            let roots = settings.repoRoots.map { Paths.expand($0) }
+            if !roots.contains(where: { found.record.path.hasPrefix($0 + "/") }) {
+                setConfig(
+                    ["worktrees", "repo_paths"],
+                    .array((settings.repoPaths + [Paths.abbreviate(found.record.path)]).map { .string($0) })
+                )
+            }
+        }
+        var listed = found.all
+        for index in listed.indices {
+            listed[index].status = try? await Git.status(at: listed[index].path)
+        }
+        commit(.worktreesListed(repo: found.record.repo, listed))
+        return (found.worktree, listed)
     }
 
     private func openImportPicker() {

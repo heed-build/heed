@@ -173,6 +173,13 @@ struct ScopedKeyTests {
         }
         #expect(DefaultKeys.normal.contains { $0 == ("m", "session.pin") })
     }
+
+    @Test func commandsOutliveTheirKeys() {
+        // Unbinding a key keeps its command: : runs it, and config can bind it again.
+        for name in ["repo.add", "cleanup.rules"] {
+            #expect(Commands.spec(name) != nil, "\(name)")
+        }
+    }
 }
 
 struct RowGroupTests {

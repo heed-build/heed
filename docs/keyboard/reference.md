@@ -74,6 +74,7 @@ This page is generated from the code (`mise run shots`).
 | `jump.back` | `<C-o>` | back |
 | `open.browser` | `gB` | open in browser |
 | `open.reader` | `<CR>` | read inbox item, issue or PR |
+| `cleanup.rules` |  | show the cleanup rules (Repos, with its rules panel) |
 | `cleanup.sweep` | `gC` | run the cleanup sweep now |
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
@@ -133,6 +134,7 @@ This page is generated from the code (`mise run shots`).
 | `diff.ask` | `a` (diff) | ask the agent about this hunk |
 | `diff.copy` | `y` (diff) | copy path:line |
 | `diff.edit` | `e` (diff) | open the file in the editor |
+| `repo.add` `<path>` |  | add a repo outside the scanned roots (kept in repo_paths) |
 | `repo.scan` | `r` (repos) | refresh: rescan the repo roots |
 | `worktree.new` | `o` (repos) | start work in the repo under the cursor |
 | `select.remove` | `d` (VISUAL), `dd` (repos) | remove the selected worktrees, or the one under the cursor (asks first) |

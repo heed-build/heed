@@ -20,6 +20,8 @@ behind, uncommitted changes) and its pull request.
 | `v` | Select rows, then `d` remove, `y` copy paths, `o` open or import |
 | `w` | Flip the repo between all issues and only yours ([Issues](../github/issues.md)) |
 | `r` | Refresh: rescan for repos |
+| `:repo.add <path>` | Add a repo outside the scanned folders; it is kept in `repo_paths` |
+| `:cleanup.rules` | Show the cleanup rules panel (it hides on narrow windows and with `zi`) |
 | `{` `}` | Previous / next repo |
 | `/` | [Filter](../sessions/filtering.md) by repo, branch or agent |
 

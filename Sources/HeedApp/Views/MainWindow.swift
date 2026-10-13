@@ -340,7 +340,7 @@ struct StatusBar: View {
         case .normal where model.view == .inbox: "space pick · v range · s start session · a add · m read · o open · t unread/all · / filter"
         case .normal where model.view == .issues: "space pick · s start session · go read · t filter · ⇥ repo · w all/yours · / filter"
         case .normal where model.view == .prs: "j k move · o open · gS session · r sync · / filter"
-        case .normal: "i insert · o start work · iw import worktree · ip import path · : command · ? keys"
+        case .normal: "i insert · o start work · Iw import worktree · Ip import path · : command · ? keys"
         case .insert: "⇧⎋ or \(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
         case .command: "⇥ complete · ↩ run · ⎋ cancel"
@@ -481,7 +481,7 @@ struct ImportPickerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Import a worktree").font(Theme.ui(15, weight: .semibold))
                     Text(
-                        "Worktrees of your repos that Heed does not manage yet. Importing resumes the agent session kept there, else starts the agent fresh. Elsewhere on disk? ip imports a path."
+                        "Worktrees of your repos that Heed does not manage yet. Importing resumes the agent session kept there, else starts the agent fresh. Elsewhere on disk? Ip imports a path."
                     )
                     .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
@@ -533,7 +533,7 @@ struct ImportPickerView: View {
                     .padding(.vertical, 10)
                 }
                 HStack {
-                    Text("⌃n ⌃p move · ↩ import · ⎋ cancel · ip (in Sessions) imports a path").font(Theme.ui(11.5))
+                    Text("⌃n ⌃p move · ↩ import · ⎋ cancel · Ip (in Sessions) imports a path").font(Theme.ui(11.5))
                         .foregroundStyle(Theme.fg3)
                     Spacer()
                 }

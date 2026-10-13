@@ -21,17 +21,11 @@ public struct ModeEngine: Sendable {
         case unbound([KeyStroke])
         /// `<Esc>` with something pending: the count and keys were dropped.
         case cleared
-        /// The keys pending were a command and the start of longer view bindings (`i` and `iw`), and this key
-        /// continued none of them: run the command, then handle the key afresh (after `i`, it goes to the terminal).
-        case runThenReplay(CommandInvocation, KeyStroke)
     }
 
     public private(set) var mode: Mode = .normal
     public private(set) var pending: [KeyStroke] = []
     public private(set) var count: Int?
-    /// While waiting on keys that are themselves a command (`i`, with `iw` bound in the view): that command, run
-    /// when the next key continues nothing or when `timeout()` is called.
-    public private(set) var fallback: String?
     public private(set) var keymaps: [Mode: Keymap]
     /// Per-view bindings (`[keys.repos]`), checked before the mode's own in NORMAL and VISUAL.
     public private(set) var scopedKeymaps: [String: Keymap]
@@ -104,34 +98,18 @@ public struct ModeEngine: Sendable {
         }
         let keys = pending + [stroke]
         let scoped = scope.flatMap { scopedKeymaps[$0] }?.lookup(keys) ?? .none
-        let own = keymap.lookup(keys)
-        switch scoped == .none ? own : scoped {
+        switch scoped == .none ? keymap.lookup(keys) : scoped {
         case let .command(line):
             let count = count
             reset()
             return run(line, count: count)
         case .prefix:
             pending = keys
-            // A view binding starts with keys that are a command of the mode's own: wait, but remember it.
-            if scoped == .prefix, case let .command(line) = own { fallback = line } else { fallback = nil }
             return .pending
         case .none:
-            if let line = fallback {
-                let count = count
-                reset()
-                if case let .run(invocation) = run(line, count: count) { return .runThenReplay(invocation, stroke) }
-            }
             reset()
             return .unbound(keys)
         }
-    }
-
-    /// Nothing followed keys that are a command themselves (`i` with `iw` bound): run that command now.
-    public mutating func timeout() -> Outcome? {
-        guard let line = fallback else { return nil }
-        let count = count
-        reset()
-        return run(line, count: count)
     }
 
     private mutating func run(_ line: String, count: Int?) -> Outcome {
@@ -145,7 +123,6 @@ public struct ModeEngine: Sendable {
     private mutating func reset() {
         pending = []
         count = nil
-        fallback = nil
     }
 }
 

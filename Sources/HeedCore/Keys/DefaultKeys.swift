@@ -48,8 +48,7 @@ public enum DefaultKeys {
 
     /// Bindings that only apply in one view, keyed by view name.
     public static let scoped: [String: [(String, String)]] = [
-        // iw and ip share i's start: i alone still enters INSERT, after a moment or when another key follows.
-        "sessions": [("dd", "session.delete"), ("iw", "session.import"), ("ip", "session.import.path")],
+        "sessions": [("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path")],
         "repos": [
             ("a", "repo.add"), ("n", "worktree.new"), ("R", "repo.scan"), ("I", "issues.visibility"),
             ("dd", "select.remove"), ("<CR>", "select.open"),
@@ -161,6 +160,10 @@ public enum Keymaps {
                         ))
                         continue
                     }
+                    if let clash = clash(keys, with: keymaps[.normal] ?? Keymap()) {
+                        problems.append(Problem(mode: .normal, keys: notation, message: "[keys.\(scope)]: \(clash)"))
+                        continue
+                    }
                     try keymap.bind(keys, to: command)
                 } catch {
                     problems.append(Problem(mode: .normal, keys: notation, message: "[keys.\(scope)]: \(error)"))
@@ -169,5 +172,23 @@ public enum Keymaps {
             scoped[scope] = keymap
         }
         return (keymaps, scoped, problems)
+    }
+
+    /// Why a view binding cannot sit next to NORMAL's: part of it is a NORMAL command (`iw` would make `i` wait), or
+    /// it is the start of a NORMAL binding (a view `g` would swallow `gg`). Replacing a NORMAL key outright in one view
+    /// is fine; that is what view bindings are for.
+    static func clash(_ keys: [KeyStroke], with normal: Keymap) -> String? {
+        for length in 1 ..< max(keys.count, 1) {
+            let start = Array(keys.prefix(length))
+            if case let .command(command) = normal.lookup(start) {
+                return "starts with \(KeyNotation.format(start)), which is \(command); pick keys that do not"
+            }
+        }
+        if case .prefix = normal.lookup(keys),
+           let longer = normal.bindings.first(where: { $0.keys.count > keys.count && $0.keys.starts(with: keys) })
+        {
+            return "would hide \(KeyNotation.format(longer.keys)) (\(longer.command)); pick keys that do not"
+        }
+        return nil
     }
 }

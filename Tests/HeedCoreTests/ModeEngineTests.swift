@@ -234,43 +234,23 @@ struct DeleteKeyTests {
     }
 }
 
-struct SharedPrefixTests {
-    private func engine() -> ModeEngine {
+struct ViewBindingClashTests {
+    @Test func defaultsHaveNoClashes() {
+        #expect(Keymaps.build().problems.isEmpty)
+    }
+
+    @Test func aViewBindingMayNotHideANormalKey() {
+        let built = Keymaps.build(scopedOverrides: ["sessions": [("iw", "session.import"), ("g", "session.import")]])
+        let messages = built.problems.map(\.message)
+        #expect(messages.contains { $0.contains("starts with i, which is mode.insert") })
+        #expect(messages.contains { $0.contains("would hide") })
+        // Neither was bound: i stays immediate, g still leads.
+        #expect(built.scoped["sessions"]?.lookup([KeyStroke("i")]) == Keymap.Lookup.none)
+    }
+
+    @Test func importKeysAreIwAndIp() {
         let built = Keymaps.build()
-        var engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
-        engine.scope = "sessions"
-        return engine
-    }
-
-    @Test func iwAndIpImportInSessions() {
-        var engine = engine()
-        #expect(engine.handle(KeyStroke("i")) == .pending)
-        #expect(engine.fallback == "mode.insert")
-        #expect(engine.handle(KeyStroke("w")) == .run(CommandInvocation(name: "session.import")))
-        #expect(engine.mode == .normal)
-        _ = engine.handle(KeyStroke("i"))
-        #expect(engine.handle(KeyStroke("p")) == .run(CommandInvocation(name: "session.import.path")))
-    }
-
-    @Test func iAloneStillEntersInsertAfterATimeout() {
-        var engine = engine()
-        _ = engine.handle(KeyStroke("i"))
-        #expect(engine.timeout() == .run(CommandInvocation(name: "mode.insert")))
-        #expect(engine.mode == .insert)
-        #expect(engine.timeout() == nil)
-    }
-
-    @Test func anotherKeyRunsIAndIsReplayed() {
-        var engine = engine()
-        _ = engine.handle(KeyStroke("i"))
-        #expect(engine.handle(KeyStroke("x")) == .runThenReplay(CommandInvocation(name: "mode.insert"), KeyStroke("x")))
-        #expect(engine.mode == .insert)
-        #expect(engine.handle(KeyStroke("x")) == .terminal)
-    }
-
-    @Test func outsideSessionsIIsImmediate() {
-        var engine = engine()
-        engine.scope = "inbox"
-        #expect(engine.handle(KeyStroke("i")) == .run(CommandInvocation(name: "mode.insert")))
+        #expect(built.scoped["sessions"]?.lookup([KeyStroke("I"), KeyStroke("w")]) == .command("session.import"))
+        #expect(built.scoped["sessions"]?.lookup([KeyStroke("I"), KeyStroke("p")]) == .command("session.import.path"))
     }
 }

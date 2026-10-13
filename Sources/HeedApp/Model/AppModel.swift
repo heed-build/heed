@@ -882,6 +882,9 @@ final class AppModel {
             flash = nil
             perform(invocation)
         case let .unbound(keys):
+            // A ⌘ shortcut Heed does not bind is the app menu's, as in any Mac app: ⌘W closes the window, ⌘Q quits,
+            // ⌘H hides, ⌘M minimises.
+            if keys.count == 1, keys[0].modifiers.contains(.command) { return false }
             flash = "\(KeyNotation.format(keys)) is not bound"
         }
         if engine.mode != before { modeChanged(from: before) }
@@ -1209,6 +1212,29 @@ final class AppModel {
 
     func acceptConfirmation() { answerConfirmation(KeyStroke("y")) }
     func cancelConfirmation() { answerConfirmation(.escape) }
+
+    /// Set once a quit was confirmed, so the second terminate goes through.
+    private(set) var quitConfirmed = false
+
+    /// ⌘Q or Quit in the menu bar with agents running: Heed comes forward and asks. True when it asked (the quit
+    /// waits for the answer), false when nothing runs and quitting can go ahead.
+    func confirmQuitIfAgentsRun() -> Bool {
+        let running = sessions.filter { [.working, .blocked, .asking].contains($0.state.state) }
+        guard !running.isEmpty, confirmation == nil else { return confirmation != nil }
+        activateHeed()
+        ask(Confirmation(
+            title: "Quit Heed?",
+            lines: ["\(running.count) agent\(running.count == 1 ? " is" : "s are") running and will stop"]
+                + running.prefix(5).map { "\($0.title) · \($0.state.state.rawValue)" }
+                + (running.count > 5 ? ["and \(running.count - 5) more"] : [])
+                + ["Sessions stay and can resume on the next launch"],
+            accept: "Quit"
+        ) { [weak self] in
+            self?.quitConfirmed = true
+            NSApp.terminate(nil)
+        })
+        return true
+    }
 
     private func confirmClose() {
         guard let session = currentSession else { return }

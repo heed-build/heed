@@ -69,7 +69,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
-        guard !model.isFixture else { return .terminateNow }
+        // Fixtures quit at once, unless HEED_OUTSIDE has them behave like the live app outside the window.
+        let outside = ProcessInfo.processInfo.environment["HEED_OUTSIDE"] != nil
+        guard !model.isFixture || outside else { return .terminateNow }
+        // Quitting stops every agent: with any of them running, ask first (the confirm quits again when accepted).
+        guard model.quitConfirmed || !model.confirmQuitIfAgentsRun() else { return .terminateCancel }
         Task {
             await model.flush()
             NSApp.reply(toApplicationShouldTerminate: true)

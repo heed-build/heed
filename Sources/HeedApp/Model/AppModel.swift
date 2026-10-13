@@ -937,8 +937,11 @@ final class AppModel {
         case "session.close": confirmClose()
         case "session.delete": confirmDelete()
         case "session.import":
-            if command.arguments.isEmpty { openImportPicker() }
-            else { importPath(command.arguments.joined(separator: " ")) }
+            if command.arguments.isEmpty {
+                openImportPicker()
+            } else {
+                importPath(command.arguments.joined(separator: " "))
+            }
         case "session.back": goBack()
         case "pin.jump": jumpToPin(Int(command.arguments.first ?? "") ?? 1)
         case "work.start": openStartWork(prompt: command.arguments.joined(separator: " "))

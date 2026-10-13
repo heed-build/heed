@@ -9,7 +9,7 @@ struct MainWindow: View {
     var body: some View {
         VStack(spacing: 0) {
             TitleBar().shotRegion(.titleBar)
-            if let tutor = model.tutor { TutorBanner(tutor: tutor) }
+            if let tutor = model.tutor { TutorBanner(tutor: tutor).shotRegion(.tutorBanner) }
             GeometryReader { geometry in
                 HStack(spacing: 0) {
                     switch model.view {
@@ -38,21 +38,24 @@ struct MainWindow: View {
             StatusBar().shotRegion(.statusBar)
         }
         .overlay(alignment: .bottomTrailing) {
-            if let tutor = model.tutor { TutorCard(tutor: tutor).padding(.trailing, 16).padding(.bottom, 44) }
+            if let tutor = model.tutor { TutorCard(tutor: tutor).shotRegion(.tutorCard).padding(.trailing, 16).padding(
+                .bottom,
+                44
+            ) }
         }
         .background(Theme.bg)
         .foregroundStyle(Theme.fg)
         .overlay {
-            if model.overlay == .pr { PullOverlayView().padding(.top, 44).padding(.bottom, 28) }
+            if model.overlay == .pr { PullOverlayView().shotRegion(.pipeline).padding(.top, 44).padding(.bottom, 28) }
         }
         .overlay {
-            if model.overlay == .diff { DiffOverlayView().padding(.top, 44).padding(.bottom, 28) }
+            if model.overlay == .diff { DiffOverlayView().shotRegion(.diffBody).padding(.top, 44).padding(.bottom, 28) }
         }
         .overlay {
-            if model.reader != nil { ReaderView().padding(.top, 44).padding(.bottom, 28) }
+            if model.reader != nil { ReaderView().shotRegion(.reader).padding(.top, 44).padding(.bottom, 28) }
         }
         .overlay {
-            if model.issueReader != nil { IssueReaderView().padding(.top, 44).padding(.bottom, 28) }
+            if model.issueReader != nil { IssueReaderView().shotRegion(.reader).padding(.top, 44).padding(.bottom, 28) }
         }
         .overlay {
             if model.startWork != nil, !model.startWorkStandalone { StartWorkView() }
@@ -205,6 +208,10 @@ struct TitleBar: View {
 
     /// The views as names with their key (`Inbox 7 gm`); narrow windows drop the keys, never the names.
     private func views(compact: Bool) -> some View {
+        viewTabs(compact: compact).shotRegion(.viewTabs)
+    }
+
+    private func viewTabs(compact: Bool) -> some View {
         HStack(spacing: 4) {
             ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
                 // A hairline between views: separate without boxing them in.
@@ -407,7 +414,7 @@ struct CommandLineView: View {
         .frame(width: 560)
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
-        .shadow(color: .black.opacity(0.5), radius: 20)
+        .shadow(color: .black.opacity(0.5), radius: 20).shotRegion(.commandLine)
     }
 }
 
@@ -470,7 +477,7 @@ struct ConfirmationView: View {
             .frame(width: 480)
             .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
-            .shadow(color: .black.opacity(0.5), radius: 30)
+            .shadow(color: .black.opacity(0.5), radius: 30).shotRegion(.confirm)
         }
     }
 }
@@ -552,7 +559,7 @@ struct ImportPickerView: View {
             .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.5), radius: 30)
+            .shadow(color: .black.opacity(0.5), radius: 30).shotRegion(.picker)
         }
     }
 }
@@ -632,7 +639,7 @@ struct PathImportView: View {
             .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.5), radius: 30)
+            .shadow(color: .black.opacity(0.5), radius: 30).shotRegion(.picker)
         }
     }
 }

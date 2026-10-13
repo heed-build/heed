@@ -10,7 +10,7 @@ struct FirstRunView: View {
             ZStack {
                 Color.black.opacity(0.6)
                 ListScroll {
-                    dialog(report).frame(width: 760).padding(.vertical, 40)
+                    dialog(report).frame(width: 760).shotRegion(.dialog).padding(.vertical, 40)
                 }
                 .scrollIndicators(.never)
             }

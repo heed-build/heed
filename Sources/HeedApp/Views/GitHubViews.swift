@@ -36,6 +36,7 @@ struct SyncBanner: View {
         .padding(.vertical, 8)
         .background(tint.opacity(0.08))
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+        .shotRegion(.syncBanner)
     }
 }
 
@@ -134,7 +135,7 @@ struct InboxView: View {
                         FilterPill(view: .inbox)
                     }
                     .padding(.horizontal, 20)
-                    .frame(height: 44)
+                    .frame(height: 44).shotRegion(.chips)
                     .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
                     SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
                     ListBody(
@@ -167,7 +168,9 @@ struct InboxView: View {
                         .rowStyle(isCursor: index == cursor, isPicked: picked.contains(item.id))
                     }
                 }
-                if geometry.size.width >= 1100 { PickedPanel(count: max(picked.count, rows.isEmpty ? 0 : 1)) }
+                if geometry.size
+                    .width >=
+                    1100 { PickedPanel(count: max(picked.count, rows.isEmpty ? 0 : 1)).shotRegion(.pickedPanel) }
             }
         }
     }
@@ -191,7 +194,7 @@ struct IssuesView: View {
         let cursor = model.cursor(in: .issues)
         GeometryReader { geometry in
             HStack(spacing: 0) {
-                if geometry.size.width >= 900 { IssueRepoColumn() }
+                if geometry.size.width >= 900 { IssueRepoColumn().shotRegion(.issueRepos) }
                 VStack(spacing: 0) {
                     HStack(spacing: 8) {
                         ForEach(IssueFilter.allCases, id: \.self) { filter in
@@ -202,7 +205,7 @@ struct IssuesView: View {
                         FilterPill(view: .issues)
                     }
                     .padding(.horizontal, 20)
-                    .frame(height: 44)
+                    .frame(height: 44).shotRegion(.chips)
                     .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
                     SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
                     ListBody(
@@ -237,7 +240,9 @@ struct IssuesView: View {
                         .rowStyle(isCursor: index == cursor, isPicked: picked.contains(issue.id))
                     }
                 }
-                if geometry.size.width >= 1300 { PickedPanel(count: max(picked.count, rows.isEmpty ? 0 : 1)) }
+                if geometry.size
+                    .width >=
+                    1300 { PickedPanel(count: max(picked.count, rows.isEmpty ? 0 : 1)).shotRegion(.pickedPanel) }
             }
         }
     }
@@ -573,6 +578,10 @@ struct FilterPill: View {
     let view: AppView
 
     var body: some View {
+        pill.shotRegion(.filterPill)
+    }
+
+    @ViewBuilder private var pill: some View {
         let text = model.filter(for: view)
         let typing = model.filtering && model.view == view
         if text.isEmpty, !typing {
@@ -642,6 +651,10 @@ struct ListBody<Row: View>: View {
     @ViewBuilder let row: (Int) -> Row
 
     var body: some View {
+        rows.shotRegion(.list)
+    }
+
+    @ViewBuilder private var rows: some View {
         if count == 0 {
             Text(empty).font(Theme.ui(12.5)).foregroundStyle(Theme.fg3).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {

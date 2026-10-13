@@ -8,7 +8,7 @@ branding:
   og-image: images/png/heed-social-1280x640.png
   apple-touch-icon: images/png/heed-180.png
 
-# The skeleton: the feature-by-feature structure is scoped next.
+# Every image under images/shots is generated: `mise run shots` renders them from the fake world (Shots.swift).
 toc:
   - file: index.md
   - folder: getting-started
@@ -17,3 +17,90 @@ toc:
       - file: installation.md
       - file: first-run.md
       - file: tutor.md
+      - file: first-session.md
+  - folder: concepts
+    children:
+      - file: index.md
+      - file: sessions.md
+      - file: agent-states.md
+      - file: worktrees.md
+      - file: modes.md
+  - folder: sessions
+    children:
+      - file: index.md
+      - file: sidebar.md
+      - file: moving-around.md
+      - file: typing-into-agents.md
+      - file: panes-and-tabs.md
+      - file: inspector.md
+      - file: pin-park-close-delete.md
+      - file: resume.md
+      - file: filtering.md
+  - folder: start-work
+    children:
+      - file: index.md
+      - file: repos.md
+      - file: branch-names.md
+      - file: agent-and-options.md
+      - file: from-anywhere.md
+      - file: from-github.md
+      - file: again.md
+  - folder: agents
+    children:
+      - file: index.md
+      - file: hooks.md
+      - file: screen-reading.md
+      - file: custom-agents.md
+  - folder: github
+    children:
+      - file: index.md
+      - file: inbox.md
+      - file: issues.md
+      - file: pull-requests.md
+      - file: reading.md
+      - file: review-feedback.md
+      - file: tracking-prs.md
+  - folder: worktrees
+    children:
+      - file: index.md
+      - file: repos.md
+      - file: importing.md
+      - file: removing.md
+      - file: cleanup.md
+  - folder: diff
+    children:
+      - file: index.md
+      - file: reviewing.md
+  - folder: history
+    children:
+      - file: index.md
+      - file: reopening.md
+  - folder: keyboard
+    children:
+      - file: index.md
+      - file: views.md
+      - file: hints.md
+      - file: command-line.md
+      - file: visual.md
+      - file: mac-shortcuts.md
+      - file: customizing.md
+      - file: reference.md
+  - folder: outside-the-window
+    children:
+      - file: index.md
+      - file: menu-bar.md
+      - file: dock.md
+      - file: global-shortcuts.md
+  - folder: configuration
+    children:
+      - file: index.md
+      - file: settings.md
+      - file: reference.md
+      - file: tools.md
+  - folder: reference
+    children:
+      - file: index.md
+      - file: cli.md
+      - file: files.md
+      - file: environment.md
+  - file: troubleshooting.md

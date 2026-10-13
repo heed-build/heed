@@ -85,9 +85,13 @@ final class AppModel {
     private var store: DomainStore?
     let isFixture: Bool
     private var hookServer: HookServer?
-    let integration = IntegrationFiles.default(
-        heedBinary: Helper.path ?? "true"
-    )
+    /// Where the per-run hook files live. Screenshots show a made-up home, never the real one.
+    let integration = ShotMode.active
+        ? IntegrationFiles(
+            directory: URL(fileURLWithPath: "/Users/you/Library/Application Support/Heed"),
+            heedBinary: "/Applications/Heed.app/Contents/Helpers/heed"
+        )
+        : IntegrationFiles.default(heedBinary: Helper.path ?? "true")
     /// The latest hook events per session, newest first: shown in the inspector, not persisted (agents own history).
     private(set) var events: [String: [AgentEvent]] = [:]
 
@@ -1305,7 +1309,7 @@ final class AppModel {
         ask(Confirmation(
             title: "Run the cleanup sweep?",
             lines: plan.removals.map {
-                "remove \($0.worktree.repo.name)/\($0.worktree.branch ?? "") (idle \($0.idleDays)d)"
+                "remove \($0.worktree.repo.name)/\($0.worktree.branch ?? "") (\($0.idleText))"
             },
             kept: plan.skips.map { "\($0.worktree.repo.name)/\($0.worktree.branch ?? ""): \($0.reason)" },
             accept: "Sweep"
@@ -1489,6 +1493,21 @@ final class AppModel {
     /// Completions and the preview, off the main actor; a newer keystroke cancels an older lookup.
     private func refreshPathImport() {
         guard let query = pathImport?.query else { return }
+        if ShotMode.active {
+            // Screenshots never read the real disk: a made-up tree under /Users/you.
+            let folders = [
+                "/Users/you/code/wt/docs-builder",
+                "/Users/you/code/wt/mermaider",
+                "/Users/you/Projects/sandbox",
+            ]
+            updatePathImport(query) {
+                let typed = query.replacingOccurrences(of: "~", with: "/Users/you")
+                $0.candidates = folders.filter { $0.hasPrefix(typed) && $0 != typed.trimmingCharacters(in: ["/"]) }
+                $0.preview = query.contains("toc") ? "elastic/docs-builder · toc-ordering" : nil
+                $0.importable = query.contains("toc")
+            }
+            return
+        }
         pathPreviewTask?.cancel()
         pathPreviewTask = Task { [weak self] in
             let candidates = await Task.detached { PathCompletion.candidates(for: query) }.value
@@ -2603,8 +2622,8 @@ final class AppModel {
     var onTutorRequest: ((Bool) -> Void)?
 
     /// Makes this (fixture) model the tutor's sandbox, resuming at the lesson last reached.
-    func beginTutor() {
-        let saved = UserDefaults.standard.integer(forKey: "tutorLesson")
+    func beginTutor(lesson: Int? = nil) {
+        let saved = lesson ?? UserDefaults.standard.integer(forKey: "tutorLesson")
         tutor = Tutor(lesson: saved, state: tutorState)
         view = .sessions
     }

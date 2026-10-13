@@ -6,6 +6,10 @@ struct LeaderHints: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        panel.shotRegion(.leaderHints)
+    }
+
+    @ViewBuilder private var panel: some View {
         let entries = model.engine.continuations
         if !entries.isEmpty {
             VStack(alignment: .leading, spacing: 10) {

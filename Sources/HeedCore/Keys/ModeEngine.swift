@@ -27,7 +27,7 @@ public struct ModeEngine: Sendable {
     public private(set) var pending: [KeyStroke] = []
     public private(set) var count: Int?
     public private(set) var keymaps: [Mode: Keymap]
-    /// Per-view bindings (`[keys.repos]`), checked before the mode's own in NORMAL and VISUAL.
+    /// Per-view bindings (`[keys.repos]`), checked before NORMAL's own; VISUAL keeps to its own keymap.
     public private(set) var scopedKeymaps: [String: Keymap]
     /// The view whose scoped bindings apply, e.g. `repos`.
     public var scope: String?
@@ -46,7 +46,7 @@ public struct ModeEngine: Sendable {
     /// Empty when nothing is pending.
     public var continuations: [(rest: [KeyStroke], command: String)] {
         guard !pending.isEmpty, mode == .normal || mode == .visual else { return [] }
-        let scoped = scope.flatMap { scopedKeymaps[$0] }?.continuations(of: pending) ?? []
+        let scoped = mode == .normal ? scope.flatMap { scopedKeymaps[$0] }?.continuations(of: pending) ?? [] : []
         let own = (keymaps[mode] ?? Keymap()).continuations(of: pending)
         var seen = Set(scoped.map(\.rest))
         var result = scoped
@@ -97,7 +97,8 @@ public struct ModeEngine: Sendable {
             return .pending
         }
         let keys = pending + [stroke]
-        let scoped = scope.flatMap { scopedKeymaps[$0] }?.lookup(keys) ?? .none
+        // View bindings are NORMAL's: VISUAL has its own (Repos' dd must not turn VISUAL's d into a prefix).
+        let scoped = mode == .normal ? scope.flatMap { scopedKeymaps[$0] }?.lookup(keys) ?? .none : .none
         switch scoped == .none ? keymap.lookup(keys) : scoped {
         case let .command(line):
             let count = count

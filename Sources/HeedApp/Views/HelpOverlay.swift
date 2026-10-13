@@ -35,26 +35,30 @@ struct HelpOverlay: View {
     var body: some View {
         ZStack {
             Color.black.opacity(0.55)
-            VStack(alignment: .leading, spacing: 22) {
-                header
-                HStack(alignment: .top, spacing: 14) {
-                    ForEach(Self.modeBlurbs, id: \.0) { mode, blurb, keys in
-                        modeCard(mode, blurb, keys)
-                    }
-                }
-                HStack(alignment: .top, spacing: 40) {
-                    keyColumn(groups: [.move])
-                    keyColumn(groups: [.panes, .views])
-                    states
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(32)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
-            .padding(.top, 28)
-            .padding(.leading, 60)
+            helpCard.shotRegion(.help)
         }
+    }
+
+    private var helpCard: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            header
+            HStack(alignment: .top, spacing: 14) {
+                ForEach(Self.modeBlurbs, id: \.0) { mode, blurb, keys in
+                    modeCard(mode, blurb, keys)
+                }
+            }
+            HStack(alignment: .top, spacing: 40) {
+                keyColumn(groups: [.move])
+                keyColumn(groups: [.panes, .views])
+                states
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(32)
+        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
+        .padding(.top, 28)
+        .padding(.leading, 60)
     }
 
     private var header: some View {

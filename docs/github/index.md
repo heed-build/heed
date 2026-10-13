@@ -1,0 +1,27 @@
+---
+navigation_title: GitHub
+description: Your inbox, issues and pull requests, synced through the GitHub CLI.
+---
+
+# GitHub
+
+Heed talks to GitHub only through the [GitHub CLI](https://cli.github.com): it never asks for a token. Sign in once
+with `gh auth login` and Heed syncs every minute (`poll_seconds` under `[github]`); `r` syncs now.
+
+| View | Key | Shows |
+|---|---|---|
+| [Inbox](inbox.md) | `gm` | Your notifications |
+| [Issues](issues.md) | `gi` | Issues assigned to you or mentioning you, and every issue in repos you watch |
+| [Pull requests](pull-requests.md) | `gp` | Your open pull requests and the ones your sessions track |
+
+From any of them you can [read](reading.md) an item in the app, [start a session](../start-work/from-github.md) from
+it, and feed [review feedback](review-feedback.md) back to the agent working on it.
+
+## When GitHub can't be reached
+
+Heed keeps the last sync and keeps working. A banner says when the data was synced and why it is stale.
+
+![Offline: showing what was synced, and why](../images/shots/github/offline.png)
+
+Items in orgs your `gh` token is not authorized for (SAML single sign-on) are counted in the title bar ("· 49 hidden")
+rather than shown. `gh auth refresh`, or authorizing the GitHub CLI for that org, brings them in.

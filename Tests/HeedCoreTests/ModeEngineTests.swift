@@ -254,3 +254,13 @@ struct ViewBindingClashTests {
         #expect(built.scoped["sessions"]?.lookup([KeyStroke("I"), KeyStroke("p")]) == .command("session.import.path"))
     }
 }
+
+struct VisualKeysTests {
+    @Test func visualDRemovesAtOnceInAViewThatBindsDD() {
+        let built = Keymaps.build()
+        var engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
+        engine.scope = "repos"
+        engine.enter(.visual)
+        #expect(engine.handle(KeyStroke("d")) == .run(CommandInvocation(name: "select.remove")))
+    }
+}

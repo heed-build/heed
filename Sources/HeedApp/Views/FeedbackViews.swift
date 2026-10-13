@@ -164,6 +164,7 @@ struct FeedbackPanel: View {
             }
             .padding(14)
             .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+            .shotRegion(.delivery)
             if let prompt = pipeline.prompt() {
                 VStack(alignment: .leading, spacing: 6) {
                     SectionHeader(title: "Prompt that will be sent")
@@ -171,6 +172,7 @@ struct FeedbackPanel: View {
                 }
                 .padding(14)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Theme.pane))
+                .shotRegion(.promptPreview)
             }
             VStack(alignment: .leading, spacing: 8) {
                 keyRow("space", "queue / unqueue")

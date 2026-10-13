@@ -13,6 +13,7 @@ struct ResumeView: View {
                     ListScroll {
                         dialog(form)
                             .frame(width: min(1060, max(geometry.size.width - 48, 360)))
+                            .shotRegion(.dialog)
                             .padding(.vertical, 24)
                     }
                     .scrollIndicators(.never)

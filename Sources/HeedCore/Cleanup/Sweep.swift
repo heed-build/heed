@@ -9,6 +9,11 @@ public struct SweepPlan: Equatable, Sendable {
         public let sessions: [String]
         public let deleteBranch: Bool
 
+        /// "idle 21d", or "no activity recorded" when nothing dated was ever seen there.
+        public var idleText: String {
+            idleDays > 36500 ? "no activity recorded" : "idle \(idleDays)d"
+        }
+
         public init(worktree: Worktree, idleDays: Int, sessions: [String], deleteBranch: Bool) {
             self.worktree = worktree
             self.idleDays = idleDays

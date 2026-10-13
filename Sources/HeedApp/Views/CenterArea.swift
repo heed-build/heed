@@ -7,7 +7,7 @@ struct CenterArea: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TabStrip()
+            TabStrip().shotRegion(.tabStrip)
             if let tab = model.currentTab {
                 Group {
                     if tab.zoomed, let pane = tab.tree.panes.first(where: { $0.id == tab.focused }) {
@@ -16,6 +16,7 @@ struct CenterArea: View {
                         PaneTreeView(tree: tab.tree, tab: tab)
                     }
                 }
+                .shotRegion(.panes)
                 // A pane's terminal must survive re-layout (splits, zoom); identity is the pane id, not position.
                 .id(tab.id)
             } else {

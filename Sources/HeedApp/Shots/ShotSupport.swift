@@ -15,7 +15,7 @@ enum ShotRegion: String, CaseIterable {
     case dialog, confirm, picker, leaderHints, commandLine, filterPill, help
     case tutorBanner, tutorCard
     case repoColumn, worktreeTable, rulesPanel, sweepBanner
-    case chips, list, pickedPanel, issueRepos
+    case chips, list, pickedPanel, issueRepos, syncBanner
     case pipeline, delivery, promptPreview, reader
     case diffFiles, diffBody
     case historyList, historyDetail
@@ -31,7 +31,8 @@ struct ShotRegionKey: PreferenceKey {
 extension View {
     /// Names this view's frame for screenshots. Free outside shot mode: an anchor nobody reads.
     func shotRegion(_ region: ShotRegion) -> some View {
-        anchorPreference(key: ShotRegionKey.self, value: .bounds) { [region: $0] }
+        // transform, not set: a region inside another (panes inside center) must survive the outer one.
+        transformAnchorPreference(key: ShotRegionKey.self, value: .bounds) { value, anchor in value[region] = anchor }
     }
 }
 

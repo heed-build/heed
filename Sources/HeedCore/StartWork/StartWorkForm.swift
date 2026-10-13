@@ -60,7 +60,10 @@ public struct StartWorkForm: Sendable {
     /// Added worktrees per repo: repos with more rank higher.
     private let worktreeCounts: [String: Int]
     private let prefixes: BranchPrefixes
-    private let sessionID = UUID().uuidString.lowercased()
+    private let sessionID = StartWorkForm.newSessionID()
+
+    /// Makes the new session's id; screenshots pin it so the command preview never changes between runs.
+    public nonisolated(unsafe) static var newSessionID: () -> String = { UUID().uuidString.lowercased() }
     private let integration: IntegrationFiles?
     private var nameEdited = false
     private var reposTouched = false

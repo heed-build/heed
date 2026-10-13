@@ -15,6 +15,8 @@ struct Shot {
         case menu
         /// The Dock icon with its badge.
         case dock
+        /// The Settings window.
+        case settings
     }
 
     /// Output path under docs/images/shots, without extension: `sessions/anatomy`.
@@ -47,6 +49,7 @@ enum ShotRunner {
         let only = environment["HEED_SHOTS_ONLY"] ?? ""
         ShotMode.active = true
         Clock.fixed = instant
+        StartWorkForm.newSessionID = { "6f1c2a90-4b7d-4e3a-9c15-2d8e7f0a3b64" }
         NSTimeZone.default = TimeZone(identifier: "Europe/Amsterdam")!
         var written = 0
         for shot in Shots.all where only.isEmpty || shot.id.hasPrefix(only) {
@@ -59,6 +62,21 @@ enum ShotRunner {
             }
         }
         print("shots: \(written) written to \(directory.path)")
+        // HEED_DOCS: the generated reference pages too.
+        if let docs = environment["HEED_DOCS"] {
+            let root = URL(fileURLWithPath: docs)
+            try? DocsReference.keys().write(
+                to: root.appendingPathComponent("keyboard/reference.md"),
+                atomically: true,
+                encoding: .utf8
+            )
+            try? DocsReference.config().write(
+                to: root.appendingPathComponent("configuration/reference.md"),
+                atomically: true,
+                encoding: .utf8
+            )
+            print("references written to \(root.path)")
+        }
     }
 
     struct Failure: Error, CustomStringConvertible {
@@ -74,6 +92,16 @@ enum ShotRunner {
         // Let whatever the keys started (tasks on the main actor) finish.
         try? await Task.sleep(for: .milliseconds(150))
 
+        // Settings is all native controls, which ImageRenderer cannot draw: render it through AppKit instead, in a
+        // window that is never shown.
+        if case .settings = shot.subject {
+            try write(
+                hostedImage(SettingsView().environment(model).environment(\.colorScheme, .dark), size: shot.size),
+                shot: shot,
+                into: directory
+            )
+            return
+        }
         let frames = ShotFrames()
         let view = ShotFrame(highlight: shot.highlight, frames: frames) {
             subject(shot, model: model)
@@ -99,6 +127,25 @@ enum ShotRunner {
             guard let cropped = image.cropping(to: pixels.integral) else { throw Failure(description: "crop failed") }
             image = cropped
         }
+        try write(image, shot: shot, into: directory)
+    }
+
+    private static func hostedImage(_ view: some View, size: CGSize) throws -> CGImage {
+        let hosting = NSHostingView(rootView: view.frame(width: size.width, height: size.height))
+        hosting.frame = NSRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = hosting
+        hosting.layoutSubtreeIfNeeded()
+        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
+            throw Failure(description: "no bitmap")
+        }
+        hosting.cacheDisplay(in: hosting.bounds, to: rep)
+        guard let image = rep.cgImage else { throw Failure(description: "no image") }
+        return image
+    }
+
+    private static func write(_ image: CGImage, shot: Shot, into directory: URL) throws {
         let url = directory.appendingPathComponent(shot.id + ".png")
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let rep = NSBitmapImageRep(cgImage: image)
@@ -114,6 +161,7 @@ enum ShotRunner {
         case .menuBar: MenuBarMock()
         case .menu: MenuMock()
         case .dock: DockMock()
+        case .settings: SettingsView()
         }
     }
 }

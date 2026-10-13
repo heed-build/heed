@@ -9,10 +9,10 @@ struct ReposView: View {
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
-                repoColumn
-                table
+                repoColumn.shotRegion(.repoColumn)
+                table.shotRegion(.worktreeTable)
                 // The rules panel gives way first when the window is narrow; `zi` hides it outright.
-                if model.inspectorVisible, geometry.size.width >= 1240 { rules }
+                if model.inspectorVisible, geometry.size.width >= 1240 { rules.shotRegion(.rulesPanel) }
             }
         }
     }
@@ -94,7 +94,7 @@ struct ReposView: View {
                     if rows.indices.contains(model.repoCursor) { proxy.scrollTo(rows[model.repoCursor].id) }
                 }
             }
-            if model.config.cleanup.enabled { SweepBanner(plan: model.sweepPlan) }
+            if model.config.cleanup.enabled { SweepBanner(plan: model.sweepPlan).shotRegion(.sweepBanner) }
             if rows.isEmpty {
                 VStack(spacing: 8) {
                     Text(model.repos.isEmpty ? "No repos found yet."
@@ -245,7 +245,7 @@ private struct SweepBanner: View {
                 }
                 ForEach(plan.removals.prefix(3), id: \.worktree.id) { removal in
                     Text(
-                        "would remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "") (idle \(removal.idleDays)d)"
+                        "would remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "") (\(removal.idleText))"
                     )
                     .font(Theme.mono(11.5))
                     .foregroundStyle(Theme.fg2)

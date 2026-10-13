@@ -26,7 +26,8 @@ version-resolver:
     labels: [patch]
   default: patch
 
-# Labels from the branch name (feature/…, fix/…, docs/…) and the paths a pull request touches.
+# One label per pull request, from its branch name: release-drafter lists a pull request under every category it has a
+# label for, so labels from the paths it touches would list most pull requests twice.
 autolabeler:
   - label: enhancement
     branch: ['/^feature\/.+/']
@@ -34,9 +35,8 @@ autolabeler:
     branch: ['/^fix\/.+/']
   - label: documentation
     branch: ['/^docs\/.+/']
-    files: ["docs/**"]
-  - label: ci
-    files: [".github/**"]
+  - label: chore
+    branch: ['/^chore\/.+/', '/^ci\/.+/']
 
 template: |
   $CHANGES

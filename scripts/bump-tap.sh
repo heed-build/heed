@@ -18,7 +18,13 @@ tap="$(mktemp -d)"
 trap 'rm -rf "$tap"' EXIT
 git clone --quiet --depth 1 "https://x-access-token:$token@github.com/heed-build/homebrew-tap.git" "$tap"
 mkdir -p "$tap/Casks"
-sed -e "s/__VERSION__/$version/" -e "s/__SHA256__/$sha/" "$root/packaging/homebrew/heed.rb" >"$tap/Casks/heed.rb"
+# The template's header is about the template; the tap's copy says where it comes from instead.
+{
+  echo "# Written by heed's release workflow from packaging/homebrew/heed.rb in https://github.com/heed-build/heed;"
+  echo "# change it there, not here."
+  sed -e '/^# TEMPLATE:/,/^[^#]/{/^#/d;}' -e "s/__VERSION__/$version/" -e "s/__SHA256__/$sha/" \
+    "$root/packaging/homebrew/heed.rb"
+} >"$tap/Casks/heed.rb"
 rm -f "$tap/Casks/.gitkeep"
 
 cd "$tap"

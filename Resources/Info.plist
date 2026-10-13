@@ -5,7 +5,7 @@
   <key>CFBundleName</key><string>Heed</string>
   <key>CFBundleIconFile</key><string>heed</string>
   <key>CFBundleDisplayName</key><string>Heed</string>
-  <key>CFBundleIdentifier</key><string>net.nullean.heed</string>
+  <key>CFBundleIdentifier</key><string>build.heed.Heed</string>
   <key>CFBundleExecutable</key><string>Heed</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleVersion</key><string>__BUILD__</string>

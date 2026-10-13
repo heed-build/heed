@@ -27,7 +27,10 @@ jobs:
       - name: Anything released yet?
         id: released
         run: |
-          latest="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          # gh api prints GitHub's "Not Found" body to stdout when nothing is released, which read as a tag; the release
+          # list (drafts left out) is simply empty then.
+          latest="$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 1 --json tagName \
+            --jq '.[0].tagName // empty')"
           echo "tag=$latest" >>"$GITHUB_OUTPUT"
           if [ -n "$latest" ]; then
             echo "$latest is released; nothing to wait for. Turning this watch off."

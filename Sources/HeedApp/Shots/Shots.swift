@@ -128,6 +128,7 @@ enum Shots {
         Shot(id: "sessions/insert-after", keys: "i", crop: .panes),
         Shot(id: "sessions/split", keys: "<C-w>v", highlight: [.panes]),
         Shot(id: "sessions/tab-strip", crop: .tabStrip, cropPadding: 6),
+        Shot(id: "sessions/tab-strip-insert", keys: "i", crop: .tabStrip, cropPadding: 6),
         Shot(id: "sessions/zoom", keys: "<C-w>z", highlight: [.panes]),
         Shot(id: "sessions/inspector", crop: .inspector, cropPadding: 0),
         Shot(id: "sessions/close-confirm", keys: "x", crop: .confirm),

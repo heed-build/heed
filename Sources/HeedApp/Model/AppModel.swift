@@ -1414,7 +1414,16 @@ final class AppModel {
         var destructive = true
         var action: @MainActor () -> Void
         /// A third answer, between cancel and accept: its label, its key, and what it does.
-        var alternative: (label: String, key: String, action: @MainActor () -> Void)?
+        /// Other answers besides accept and cancel, each with its own key; `destructive` ones are drawn red.
+        var alternatives: [Alternative] = []
+
+        struct Alternative {
+            var label: String
+            var key: String
+            var destructive = false
+            var action: @MainActor () -> Void
+        }
+
         /// What cancelling does besides closing the dialog.
         var onCancel: (@MainActor () -> Void)?
     }
@@ -1441,7 +1450,7 @@ final class AppModel {
             flash = "cancelled"
             cancel?()
         default:
-            if let alternative = confirmation?.alternative, stroke == KeyStroke(alternative.key) {
+            if let alternative = confirmation?.alternatives.first(where: { stroke == KeyStroke($0.key) }) {
                 confirmation = nil
                 alternative.action()
             }
@@ -1449,8 +1458,7 @@ final class AppModel {
     }
 
     func acceptConfirmation() { answerConfirmation(KeyStroke("y")) }
-    func chooseAlternative() {
-        guard let key = confirmation?.alternative?.key else { return }
+    func chooseAlternative(_ key: String) {
         answerConfirmation(KeyStroke(key))
     }
 
@@ -3716,12 +3724,46 @@ final class AppModel {
     }
 
     /// A pane's terminal ended (its shell exited): the pane closes, as in any terminal.
+    ///
+    /// Only one at a time, though. Exits arrive in a short batch first: when terminals in more than one session end
+    /// together, they were lost (heed quitting or being replaced, the terminal runtime failing), not closed, and no
+    /// session is touched; they come back on the next launch. And none count while heed quits.
     func paneExited(_ paneID: String) {
-        guard let sessionID = layouts
-            .first(where: { $0.value.tabs.contains { $0.tree.panes.contains { $0.id == paneID } } })?.key
-        else { return }
-        removePane(paneID, in: sessionID)
+        guard !terminating else { return }
+        exitedPanes.insert(paneID)
+        guard exitedPanes.count == 1 else { return }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(600))
+            let batch = exitedPanes
+            exitedPanes = []
+            panesEnded(batch)
+        }
     }
+
+    /// A batch of ended terminals: closed when they are all one session's, left alone when they span sessions.
+    func panesEnded(_ batch: Set<String>) {
+        guard !terminating else { return }
+        let owners = batch.compactMap { pane in
+            layouts.first { $0.value.tabs.contains { $0.tree.panes.contains { $0.id == pane } } }
+                .map { (pane: pane, session: $0.key) }
+        }
+        guard Set(owners.map(\.session)).count <= 1 else {
+            NSLog(
+                "heed: \(owners.count) terminals in \(Set(owners.map(\.session)).count) sessions ended at once; sessions left as they were"
+            )
+            flash = "\(owners.count) terminals ended at once; sessions kept, they reopen on the next launch"
+            return
+        }
+        for owner in owners {
+            removePane(owner.pane, in: owner.session)
+        }
+    }
+
+    /// Panes whose terminal ended in the last moment, gathered so a mass exit is seen as one.
+    private var exitedPanes: Set<String> = []
+    /// Set when heed starts quitting: terminals ending then are the quit, not someone typing exit.
+    private(set) var terminating = false
+    func beginTerminating() { terminating = true }
 
     /// `tab.close`, or a tab's ×: every pane in it. A tab with the agent in it asks first.
     func closeTab(_ index: Int? = nil) {
@@ -3753,18 +3795,23 @@ final class AppModel {
         if mode == .insert, currentSession?.id == id { engine.enter(.normal) }
         guard let session = sessions.first(where: { $0.id == id }) else { return }
         let (removals, kept, lines) = deletion(of: session)
+        // ↩ keeps the session: this dialog follows an exit, not a choice, so the safe answer is the default one.
+        // Deleting takes its own key.
         ask(Confirmation(
-            title: "Every terminal in \(session.title) has closed. Delete the session?",
-            lines: lines + ["Delete and Close move the session to History; Keep opens a new shell in it"],
+            title: "Every terminal in \(session.title) has closed.",
+            lines: ["Keep opens a new shell in it; Close and Delete move it to History"]
+                + lines.map { "Delete would \($0.prefix(1).lowercased())\($0.dropFirst())" },
             kept: kept,
-            accept: "Delete",
+            accept: "Keep",
             cancel: "Keep",
-            action: { [weak self] in self?.deleteSession(id, removals: removals, kept: kept) },
-            alternative: (
-                label: "Close, keep the worktree",
-                key: "c",
-                action: { [weak self] in self?.closeSession(id) }
-            ),
+            destructive: false,
+            action: { [weak self] in self?.reopenShell(in: id) },
+            alternatives: [
+                .init(label: "Close, keep the worktree", key: "c") { [weak self] in self?.closeSession(id) },
+                .init(label: "Delete", key: "d", destructive: true) { [weak self] in
+                    self?.deleteSession(id, removals: removals, kept: kept)
+                },
+            ],
             onCancel: { [weak self] in self?.reopenShell(in: id) }
         ))
     }

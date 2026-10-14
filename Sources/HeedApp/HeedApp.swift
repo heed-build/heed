@@ -129,6 +129,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !model.isFixture || outside else { return .terminateNow }
         // Quitting stops every agent: with any of them running, ask first (the confirm quits again when accepted).
         guard model.quitConfirmed || !model.confirmQuitIfAgentsRun() else { return .terminateCancel }
+        // From here terminals ending are the quit, not exits: sessions keep their panes for the next launch.
+        model.beginTerminating()
         Task {
             await model.flush()
             NSApp.reply(toApplicationShouldTerminate: true)

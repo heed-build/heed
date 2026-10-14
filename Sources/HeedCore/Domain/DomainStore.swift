@@ -22,14 +22,52 @@ public actor DomainStore {
             .appendingPathComponent("Heed/domain.json")
     }
 
-    /// Reads the cached domain. A missing or unreadable cache starts empty: it is a cache, never a source of truth
-    /// that can block startup.
+    /// Reads the cached domain. A missing cache starts empty; it never blocks startup. But sessions live only here,
+    /// so nothing is thrown away: a cache that reads keeps a copy as `domain.previous.json` (the last launch's, for
+    /// putting back by hand), and one that does not read is moved aside as `domain.unreadable-<time>.json` with the
+    /// reason logged, instead of being overwritten by the first write.
     public static func load(from file: URL) async -> Domain {
         await Task.detached(priority: .userInitiated) {
             guard let data = try? Data(contentsOf: file) else { return Domain.empty }
-            return (try? JSONDecoder.heed.decode(CachedDomain.self, from: data))
-                .flatMap { $0.version == CachedDomain.currentVersion ? $0.domain : nil } ?? .empty
+            switch decode(data) {
+            case let .success(domain):
+                try? data.write(to: previousFile(of: file), options: .atomic)
+                return domain
+            case let .failure(reason):
+                let aside = file.deletingLastPathComponent()
+                    .appendingPathComponent("domain.unreadable-\(Int(Date().timeIntervalSince1970)).json")
+                try? FileManager.default.moveItem(at: file, to: aside)
+                NSLog("heed: could not read \(file.path) (\(reason)); kept it as \(aside.lastPathComponent)")
+                return Domain.empty
+            }
         }.value
+    }
+
+    /// The cache as it was when the app last started.
+    public static func previousFile(of file: URL) -> URL {
+        file.deletingLastPathComponent().appendingPathComponent("domain.previous.json")
+    }
+
+    enum Unreadable: Error, CustomStringConvertible {
+        case version(Int)
+        case format(String)
+
+        var description: String {
+            switch self {
+            case let .version(found): "format version \(found), this build reads \(CachedDomain.currentVersion)"
+            case let .format(error): error
+            }
+        }
+    }
+
+    static func decode(_ data: Data) -> Result<Domain, Unreadable> {
+        do {
+            let cached = try JSONDecoder.heed.decode(CachedDomain.self, from: data)
+            guard cached.version == CachedDomain.currentVersion else { return .failure(.version(cached.version)) }
+            return .success(cached.domain)
+        } catch {
+            return .failure(.format("\(error)"))
+        }
     }
 
     public func apply(_ changes: [DomainChange]) {

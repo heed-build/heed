@@ -58,6 +58,21 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
    *(done: config.toml with live reload and Settings, all agent integrations, custom agents with screen patterns,
    cleanup sweep, first-run screen)*
 
+## Next
+
+10. **Get it green, get it merged.** Design in `design/green-and-merged.md` (PR #9, open questions at its end): watch
+    as the first level (off by default, auto-watch per org and repo), a precise green verdict, merging via GitHub
+    auto-merge or by heed under rules, a merge session per repo batching its PRs hourly. Phase 1 (seeing it, the
+    settings levels, the inspector's hardcoded "watching") comes first.
+11. **Landing page, now that there is a download** (`docs/heed-landing.html`):
+    - The main button is **Download** (the latest release's `Heed-arm64.zip`), with the Homebrew line under it:
+      `brew install --cask heed-build/tap/heed`.
+    - The second button is **Docs**, the third **GitHub**.
+    - **Get it green** and **get it merged** get sections of their own: they are the big selling points. Only what is
+      built is claimed: the PR watch and feedback queue exist today; merging is described once it ships.
+12. **Key hints from the keymap.** The status bar's per-view hints and the ~60 key caps typed into views follow the
+    default bindings, not a remapped `config.toml`; draw them from `keyLabel(for:)` like the title bar and `?` do.
+
 ## Open questions
 
 - **Leaving INSERT with Esc.** Today only `<C-\>` (configurable) leaves INSERT; Esc belongs to the terminal (claude's

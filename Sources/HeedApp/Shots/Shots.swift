@@ -5,7 +5,8 @@ import SwiftUI
 /// docs/images/shots; pages reference them as `../images/shots/<id>.png`.
 @MainActor
 enum Shots {
-    static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + startWork + agents + github +
+    static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + startWork + agents + pilot +
+        github +
         worktrees
         + diff + history + keyboard + outside + configuration
 
@@ -144,6 +145,16 @@ enum Shots {
 
     static let agents: [Shot] = [
         Shot(id: "agents/guessed", size: short, keys: "2j", crop: .sidebar),
+    ]
+
+    static let pilot: [Shot] = [
+        // The Pilot view: watched PRs by state, the selected PR's items and timeline, the pilot's activity.
+        Shot(id: "pilot/view", keys: "gw"),
+        Shot(id: "pilot/visual", keys: "gwjjvj", crop: .list),
+        Shot(id: "pilot/paused", keys: "gwjjvjz", crop: .list),
+        Shot(id: "pilot/detail", keys: "gw", crop: .pilotDetail),
+        Shot(id: "pilot/inspector", crop: .inspector),
+        Shot(id: "pilot/prs", keys: "gp", crop: .list),
     ]
 
     static let github: [Shot] = [

@@ -59,6 +59,7 @@ toc:
       - file: pull-requests.md
       - file: reading.md
       - file: review-feedback.md
+      - file: pilot.md
       - file: tracking-prs.md
   - folder: worktrees
     children:

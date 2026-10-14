@@ -4,7 +4,7 @@ import Observation
 
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
-    case sessions, inbox, issues, prs, repos, history
+    case sessions, inbox, issues, prs, pilot, repos, history
 
     var id: String { rawValue }
 
@@ -14,6 +14,7 @@ enum AppView: String, CaseIterable, Identifiable {
         case .inbox: "Inbox"
         case .issues: "Issues"
         case .prs: "PRs"
+        case .pilot: "Pilot"
         case .repos: "Repos"
         case .history: "History"
         }
@@ -63,6 +64,8 @@ final class AppModel {
     private(set) var github = GitHubState()
     private(set) var pullDetails: [String: PullDetail] = [:]
     private(set) var feedback: [String: PullFeedback] = [:]
+    /// What the pilot noticed and did, newest first.
+    private(set) var pilotLog: [PilotEvent] = []
     private(set) var list = SessionList([])
     private(set) var settings: WorkSettings
     private(set) var config = HeedConfig.default
@@ -362,7 +365,7 @@ final class AppModel {
         case .inbox: [.inbox]
         case .issues: [.issues]
         // Sessions show their PRs' state; Repos and History their PR numbers.
-        case .sessions, .prs, .repos, .history: [.pulls]
+        case .sessions, .prs, .pilot, .repos, .history: [.pulls]
         }
     }
 
@@ -548,6 +551,7 @@ final class AppModel {
         guard let decoded else { return }
         let toolsChanged = decoded.tools != config.tools
         let issuesChanged = decoded.issues != config.issues
+        let pilotChanged = decoded.pilot != config.pilot
         config = decoded
         settings = decoded.work
         let built = decoded.keymaps()
@@ -570,6 +574,8 @@ final class AppModel {
         if toolsChanged, !isFixture { Task { await detectTools() } }
         // Repos that now show all issues need fetching; ones that no longer do are hidden by issueRows right away.
         if issuesChanged, !isFixture, github.syncedAt != nil { Task { await syncGitHub(parts: [.issues]) } }
+        // PRs nobody set by hand follow the new pilot settings.
+        if pilotChanged { settlePilots() }
     }
 
     /// Finds git and gh (config, login shell PATH, usual places) and hands the search path to new panes.
@@ -675,6 +681,7 @@ final class AppModel {
         github = domain.github
         pullDetails = domain.pullDetails
         feedback = domain.feedback
+        pilotLog = domain.pilotLog
         cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
 
@@ -688,6 +695,7 @@ final class AppModel {
         if after.repos != before.repos || after.github.pulls != before.github.pulls { loadAvatars() }
         if after.pullDetails != before.pullDetails { pullDetails = after.pullDetails }
         if after.feedback != before.feedback { feedback = after.feedback }
+        if after.pilotLog != before.pilotLog { pilotLog = after.pilotLog }
         if after.sessions != before.sessions { sessions = after.sessions }
         if after.layouts != before.layouts { layouts = after.layouts }
         if after.repos != before.repos { repos = after.repos }
@@ -700,7 +708,7 @@ final class AppModel {
     var currentDomain: Domain {
         Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
-            pullDetails: pullDetails, feedback: feedback
+            pullDetails: pullDetails, feedback: feedback, pilotLog: pilotLog
         )
     }
 
@@ -803,6 +811,9 @@ final class AppModel {
         case .prs:
             let rows = pullRows
             return rows.indices.contains(index) ? pullContext(rows[index].ref) : nil
+        case .pilot:
+            let rows = pilotRows
+            return rows.indices.contains(index) ? pullContext(rows[index].ref) : nil
         case .repos:
             guard worktreeRows.indices.contains(repoCursor) else { return nil }
             let worktree = worktreeRows[repoCursor]
@@ -881,7 +892,7 @@ final class AppModel {
         case .sessions:
             list.ordered
                 .map { HintTarget.session($0.id) } + (currentTab?.tree.panes.map { HintTarget.pane($0.id) } ?? [])
-        case .inbox, .issues, .prs: itemIDs(view).indices.map { HintTarget.row(view, $0) }
+        case .inbox, .issues, .prs, .pilot: itemIDs(view).indices.map { HintTarget.row(view, $0) }
         case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
         case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
         }
@@ -1000,7 +1011,7 @@ final class AppModel {
         if mode == .visual {
             visualAnchor = switch view {
             case .repos: repoCursor
-            case .inbox, .issues: itemCursor[view] ?? 0
+            case .inbox, .issues, .prs, .pilot: itemCursor[view] ?? 0
             default: nil
             }
         }
@@ -1109,6 +1120,7 @@ final class AppModel {
         case "tab.new": newTab()
         case "view": if let target = AppView(rawValue: command.arguments.first ?? "") { view = target }
         case "view.history": view = .history
+        case "view.pilot": view = .pilot
         case "view.repos": view = .repos
         case "view.sessions": view = .sessions
         case "view.inbox": view = .inbox
@@ -1179,8 +1191,10 @@ final class AppModel {
         case "jump.back": closeReaderOrOverlay()
         case "feedback.queue": toggleQueued()
         case "feedback.send": if let ref = feedbackPull { deliver(ref, explicit: true) }
-        case "feedback.mode": updateFeedback { $0.autoFeed = $0.autoFeed.next }
-        case "feedback.watch": updateFeedback { $0.watching.toggle() }
+        // feedback.mode and feedback.watch were their names before the pilot settings; both still work.
+        case "pilot.green", "feedback.mode": cyclePilotGreen()
+        case "pilot.watch", "feedback.watch": togglePilotWatch()
+        case "pilot.pause": pausePilot(command.arguments.first)
         case "feedback.dismiss": dismissItem()
         case "feedback.session": startFromPull()
         case "pr.session": jumpToPullSession()
@@ -1194,7 +1208,7 @@ final class AppModel {
         case "settings.open":
             if let name = command.arguments.first {
                 guard let section = SettingsView.Section.named(name) else {
-                    flash = "no Settings section \(name) (general, agents, colors, cleanup, keys)"
+                    flash = "no Settings section \(name) (general, agents, colors, cleanup, pilot, keys)"
                     return
                 }
                 settingsSection = section
@@ -1257,7 +1271,7 @@ final class AppModel {
         switch view {
         case .repos: setRow(repoCursor + delta)
         case .history: setRow(historyCursor + delta)
-        case .inbox, .issues, .prs: setRow((itemCursor[view] ?? 0) + delta)
+        case .inbox, .issues, .prs, .pilot: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
     }
@@ -1270,6 +1284,7 @@ final class AppModel {
         case .inbox: (inboxRows.map(\.repo.slug), cursor(in: .inbox))
         case .issues: (issueRows.map(\.repo.slug), cursor(in: .issues))
         case .prs: (pullRows.map(\.ref.repo.slug), cursor(in: .prs))
+        case .pilot: (pilotRows.map(\.status.group.rawValue), cursor(in: .pilot))
         case .history:
             (historyRows.map { Calendar.current.startOfDay(for: $0.closedAt).description }, historyCursor)
         }
@@ -1282,7 +1297,7 @@ final class AppModel {
     }
 
     private func setRow(_ index: Int) {
-        if [.inbox, .issues, .prs].contains(view) {
+        if [.inbox, .issues, .prs, .pilot].contains(view) {
             let count = itemIDs(view).count
             guard count > 0 else { return }
             itemCursor[view] = min(max(index, 0), count - 1)
@@ -1524,7 +1539,7 @@ final class AppModel {
     // MARK: Repos view
 
     private func toggleRow() {
-        if view == .inbox || view == .issues {
+        if [.inbox, .issues, .prs, .pilot].contains(view) {
             let ids = itemIDs(view)
             let index = itemCursor[view] ?? 0
             guard ids.indices.contains(index) else { return }
@@ -2185,6 +2200,7 @@ final class AppModel {
         case .inbox: inboxRows.map(\.id)
         case .issues: issueRows.map(\.id)
         case .prs: pullRows.map(\.id)
+        case .pilot: pilotRows.map(\.id)
         default: []
         }
     }
@@ -2335,6 +2351,9 @@ final class AppModel {
         let index = cursor(in: view)
         switch view {
         case .prs: return pullRows.indices.contains(index) ? pullRows[index].ref : nil
+        case .pilot:
+            let rows = pilotRows
+            return rows.indices.contains(index) ? rows[index].ref : nil
         case .inbox:
             guard inboxRows.indices.contains(index), inboxRows[index].kind == .pr,
                   let number = inboxRows[index].number else { return nil }
@@ -2474,6 +2493,12 @@ final class AppModel {
         Task {
             guard let detail = try? await GitHub.pullDetail(ref) else { return }
             let before = feedback[ref.description]?.items.filter { $0.status != .resolved }.map(\.id) ?? []
+            // The pipeline carries what the settings say before the fetch merges in, so new items arrive as the
+            // PR's green mode wants (queued when auto).
+            var pipeline = feedback[ref.description] ?? PullFeedback(ref: ref)
+            if pipeline.settle(pilotSettings(for: ref)) || feedback[ref.description] == nil {
+                commit(.feedbackChanged(pipeline))
+            }
             commit(.pullDetailFetched(detail))
             let fixed = feedback[ref.description]?.items
                 .filter { before.contains($0.id) && $0.status == .resolved } ?? []
@@ -2486,10 +2511,12 @@ final class AppModel {
     /// Details for the PRs active sessions track and watch, so auto-feed sees new feedback: the one on screen every
     /// time, the others only when the last sync says their checks or threads moved, or every fifth poll.
     private func refreshWatchedDetails() async {
+        resumeExpiredPauses()
         let open = [overlay == .pr ? overlayPull : nil, reader].compactMap(\.self)
         let now = Date()
         let refs = Set(sessions.flatMap(\.trackedPRs)).filter { ref in
-            guard feedback[ref.description]?.watching ?? true else { return false }
+            // Unwatched PRs keep only their summary from the sync; opening one still fetches it (`open`).
+            guard pilot(for: ref).watching else { return false }
             return open.contains(ref) || syncSchedule.needsDetail(
                 pull: github.pull(ref), detail: pullDetails[ref.description], now: now
             )
@@ -2499,15 +2526,263 @@ final class AppModel {
         }
     }
 
+    // MARK: Pilot
+
+    /// A PR as the Pilot view lists it.
+    struct PilotRow: Identifiable {
+        let ref: PullRef
+        let pull: PullRequest?
+        let status: PilotStatus
+        let effective: PullFeedback.Effective
+        let session: Session?
+        var id: String { ref.description }
+        var title: String { pull?.title ?? session?.title ?? "#\(ref.number)" }
+    }
+
+    func pilotSettings(for ref: PullRef) -> PilotSettings { config.pilot.resolve(ref.repo) }
+
+    /// What applies to a PR now: a choice made on it by hand, else its org or repo settings, else `[pilot]`.
+    func pilot(for ref: PullRef) -> PullFeedback.Effective {
+        PullFeedback.effective(feedback[ref.description], pilotSettings(for: ref))
+    }
+
+    func pilotStatus(for ref: PullRef) -> PilotStatus {
+        PilotStatus.of(
+            pull: github.pull(ref), pipeline: feedback[ref.description], settings: pilotSettings(for: ref),
+            hasSession: sessions.contains { $0.trackedPRs.contains(ref) }, now: Clock.now
+        )
+    }
+
+    /// Every PR a session tracks, most urgent group first, then most recently updated; narrowed by `/`.
+    var pilotRows: [PilotRow] {
+        let order = PilotStatus.Group.allCases
+        let filter = filter(for: .pilot)
+        let refs = Set(sessions.flatMap(\.trackedPRs))
+        return refs.map { ref in
+            PilotRow(
+                ref: ref, pull: github.pull(ref), status: pilotStatus(for: ref), effective: pilot(for: ref),
+                session: sessions.first { $0.trackedPRs.contains(ref) }
+            )
+        }
+        .filter { row in
+            filter.isEmpty || FilterQuery.matches(
+                filter, [row.title, row.ref.repo.slug, "#\(row.ref.number)", row.status.group.rawValue]
+            )
+        }
+        .sorted {
+            let (left, right) = (order.firstIndex(of: $0.status.group)!, order.firstIndex(of: $1.status.group)!)
+            if left != right { return left < right }
+            return ($0.pull?.updatedAt ?? .distantPast) > ($1.pull?.updatedAt ?? .distantPast)
+        }
+    }
+
+    /// The one line that says what the pilot is doing for a PR: the inspector's PR card, the Pilot view's detail.
+    func pilotLine(for ref: PullRef) -> String {
+        let effective = pilot(for: ref)
+        let pipeline = feedback[ref.description]
+        guard effective.watching else { return "not watched · w to watch" }
+        var parts = ["watching", "green \(effective.green.configName)"]
+        if let pipeline {
+            if pipeline.isPaused(Clock.now) {
+                parts
+                    .append(pipeline
+                        .pausedForever ? "paused" :
+                        "paused \(PilotDuration.text((pipeline.pausedUntil ?? Clock.now).timeIntervalSince(Clock.now)))")
+            }
+            let queued = pipeline.count(.queued), new = pipeline.count(.new), sent = pipeline.count(.sent)
+            if new > 0 { parts.append("\(new) new") }
+            if queued > 0 { parts.append("\(queued) queued") }
+            if sent > 0 { parts.append("\(sent) sent") }
+            if pipeline
+                .rounds >
+                0 { parts.append("round \(min(pipeline.rounds, effective.maxRounds)) of \(effective.maxRounds)") }
+        }
+        if case let .stuck(reason) = pilotStatus(for: ref) { parts.append("stuck: \(reason)") }
+        if pendingDelivery.contains(ref),
+           let reason = pilotLog.first(where: { $0.ref == ref && $0.kind == .waiting })?.text
+        {
+            parts.append(reason)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The most urgent pilot state among a session's PRs (the Pilot view's group order), for its sidebar row.
+    func pilotStatus(of session: Session) -> PilotStatus? {
+        let order = PilotStatus.Group.allCases
+        return session.trackedPRs.map(pilotStatus(for:)).min {
+            order.firstIndex(of: $0.group)! < order.firstIndex(of: $1.group)!
+        }
+    }
+
+    /// The pilot's events for one PR, newest first.
+    func pilotTimeline(_ ref: PullRef) -> [PilotEvent] { pilotLog.filter { $0.ref == ref } }
+
+    /// What the pilot commands act on: the PR overlay's or reader's PR; in the Pilot and PRs views the picked rows
+    /// (VISUAL) or the one under the cursor; in Sessions the session's PRs.
+    private var pilotTargets: [PullRef] {
+        if let ref = feedbackPull { return [ref] }
+        switch view {
+        case .pilot:
+            let byID = Dictionary(pilotRows.map { ($0.id, $0.ref) }) { first, _ in first }
+            return actionIDs(.pilot).compactMap { byID[$0] }
+        case .prs:
+            let byID = Dictionary(pullRows.map { ($0.id, $0.ref) }) { first, _ in first }
+            return actionIDs(.prs).compactMap { byID[$0] }
+        case .sessions:
+            return currentSession?.trackedPRs ?? []
+        default:
+            return []
+        }
+    }
+
+    private func editPilot(_ refs: [PullRef], _ edit: (inout PullFeedback) -> Void) {
+        let changes = refs.map { ref -> DomainChange in
+            var pipeline = feedback[ref.description] ?? PullFeedback(ref: ref)
+            pipeline.settle(pilotSettings(for: ref))
+            edit(&pipeline)
+            return .feedbackChanged(pipeline)
+        }
+        // Rows regroup when their state changes; the cursor stays on the PR it was on.
+        let current = view == .pilot ? pilotRows.indices.contains(cursor(in: .pilot))
+            ? pilotRows[cursor(in: .pilot)].ref : nil : nil
+        commit(changes)
+        if mode == .visual {
+            engine.enter(.normal)
+            modeChanged(from: .visual)
+        }
+        clearPicks()
+        if let current, let index = pilotRows.firstIndex(where: { $0.ref == current }) { itemCursor[.pilot] = index }
+    }
+
+    func logPilot(_ ref: PullRef, _ kind: PilotEvent.Kind, _ text: String) {
+        // A held delivery is logged once per reason, not on every sync.
+        if kind == .waiting, let last = pilotLog.first(where: { $0.ref == ref }), last.kind == .waiting,
+           last.text == text
+        {
+            return
+        }
+        commit(.pilotLogged([PilotEvent(at: Clock.now, ref: ref, kind: kind, text: text)]))
+    }
+
+    /// `w`: watch or stop watching (all of them, when some are and some are not: watch).
+    private func togglePilotWatch() {
+        let refs = pilotTargets
+        guard !refs.isEmpty else { return flash = "no PR here" }
+        let watch = !refs.allSatisfy { pilot(for: $0).watching }
+        editPilot(refs) { pipeline in
+            pipeline.watching = watch
+            pipeline.watchSet = true
+        }
+        for ref in refs {
+            logPilot(ref, .watch, watch ? "watching (by you)" : "stopped watching (by you)")
+        }
+        flash = watch ? "watching \(refs.count) PR\(refs.count == 1 ? "" : "s")"
+            : "stopped watching \(refs.count) PR\(refs.count == 1 ? "" : "s")"
+        if watch { refs.forEach(fetchDetail) }
+    }
+
+    /// `m`: the green mode, cycled from the first target's (off → ask → auto).
+    private func cyclePilotGreen() {
+        let refs = pilotTargets
+        guard let first = refs.first else { return flash = "no PR here" }
+        let next = pilot(for: first).green.next
+        editPilot(refs) { pipeline in
+            pipeline.autoFeed = next
+            pipeline.greenSet = true
+            // Green needs watching.
+            if next != .off, !pipeline.watching {
+                pipeline.watching = true
+                pipeline.watchSet = true
+            }
+        }
+        for ref in refs {
+            logPilot(ref, .green, "green: \(next.configName) (by you)")
+            if next == .auto { deliver(ref, explicit: false) }
+        }
+        flash = "green \(next.configName) on \(refs.count) PR\(refs.count == 1 ? "" : "s")"
+    }
+
+    /// `zz` / VISUAL `z` / `:pilot.pause [1h|forever|off]`: silence PRs for a while. Without an argument it toggles:
+    /// resume when every target is paused, else pause for `[pilot] pause`.
+    private func pausePilot(_ argument: String?) {
+        let refs = pilotTargets
+        guard !refs.isEmpty else { return flash = "no PR here" }
+        let now = Clock.now
+        let choice: PilotDuration.Parsed
+        if let argument {
+            guard let parsed = PilotDuration.parse(argument) else {
+                return flash = "pause for how long? 30m, 1h, 4h, 1d, forever or off"
+            }
+            choice = parsed
+        } else if refs.allSatisfy({ feedback[$0.description]?.isPaused(now) == true }) {
+            choice = .off
+        } else {
+            choice = config.pilot.defaults.pause.map(PilotDuration.Parsed.seconds) ?? .forever
+        }
+        editPilot(refs) { pipeline in
+            switch choice {
+            case .off:
+                pipeline.pausedUntil = nil
+                pipeline.pausedForever = false
+            case .forever:
+                pipeline.pausedUntil = nil
+                pipeline.pausedForever = true
+            case let .seconds(seconds):
+                pipeline.pausedUntil = now.addingTimeInterval(seconds)
+                pipeline.pausedForever = false
+            }
+        }
+        let text = switch choice {
+        case .off: "resumed (by you)"
+        case .forever: "paused until resumed (by you)"
+        case let .seconds(seconds): "paused for \(PilotDuration.text(seconds)) (by you)"
+        }
+        for ref in refs {
+            logPilot(ref, .pause, text)
+        }
+        flash = "\(text.replacingOccurrences(of: " (by you)", with: "")): \(refs.count) PR\(refs.count == 1 ? "" : "s")"
+        if case .off = choice {
+            for ref in refs where pilot(for: ref).green == .auto {
+                deliver(ref, explicit: false)
+            }
+        }
+    }
+
+    /// Pauses whose time is up end on the next sync, said in the log.
+    private func resumeExpiredPauses() {
+        let now = Clock.now
+        let expired = feedback.values.filter { !$0.pausedForever && ($0.pausedUntil.map { $0 <= now } ?? false) }
+        guard !expired.isEmpty else { return }
+        commit(expired.map { pipeline in
+            var pipeline = pipeline
+            pipeline.pausedUntil = nil
+            return .feedbackChanged(pipeline)
+        })
+        commit(.pilotLogged(expired.map { PilotEvent(at: now, ref: $0.ref, kind: .pause, text: "pause ended") }))
+    }
+
+    /// After the settings change: PRs nobody set by hand follow them.
+    private func settlePilots() {
+        let changes = feedback.values.compactMap { pipeline -> DomainChange? in
+            var pipeline = pipeline
+            return pipeline.settle(pilotSettings(for: pipeline.ref)) ? .feedbackChanged(pipeline) : nil
+        }
+        commit(changes)
+    }
+
     /// Sends a PR's queued feedback to the session tracking it, as one prompt, when delivery allows.
     func deliver(_ ref: PullRef, explicit: Bool) {
         guard var pipeline = feedback[ref.description], let prompt = pipeline.prompt() else {
             if explicit { flash = "nothing queued (space queues an item)" }
             return
         }
-        guard explicit || (pipeline.autoFeed == .auto && pipeline.watching && !pipeline.roundsExhausted) else {
-            if pipeline.roundsExhausted, pipeline.autoFeed == .auto {
-                flash = "auto-feed stopped on #\(ref.number): \(PullFeedback.maxRounds) rounds without a new approval"
+        let effective = pilot(for: ref)
+        guard explicit || (effective.green == .auto && effective.watching && !pipeline.roundsExhausted
+            && !pipeline.isPaused(Clock.now))
+        else {
+            if pipeline.roundsExhausted, effective.green == .auto {
+                flash = "auto-feed stopped on #\(ref.number): \(pipeline.maxRounds) rounds without a new approval"
+                logPilot(ref, .stuck, "\(pipeline.maxRounds) rounds without a new approval: stopped sending")
             }
             return
         }
@@ -2521,6 +2796,7 @@ final class AppModel {
         case let .wait(reason):
             pendingDelivery.insert(ref)
             if explicit { flash = "waiting: \(reason); it goes once the agent is idle" }
+            logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(reason)")
         case .deliver:
             guard !isFixture else {
                 if tutor != nil {
@@ -2537,6 +2813,11 @@ final class AppModel {
             pipeline.markSent(at: pullDetails[ref.description]?.headSHA)
             session.record("sent \(count) feedback item\(count == 1 ? "" : "s") for #\(ref.number)")
             commit([.feedbackChanged(pipeline), .sessionUpserted(session)])
+            logPilot(
+                ref,
+                .sent,
+                "sent \(count) item\(count == 1 ? "" : "s") to \(session.agent) (round \(pipeline.rounds))"
+            )
             flash = "sent \(count) item\(count == 1 ? "" : "s") to \(session.title)"
         }
     }
@@ -2730,7 +3011,7 @@ final class AppModel {
         case .sessions: cursor = 0
         case .history: historyCursor = 0
         case .repos: repoCursor = 0
-        case .inbox, .issues, .prs: itemCursor[view] = 0
+        case .inbox, .issues, .prs, .pilot: itemCursor[view] = 0
         }
     }
 
@@ -2740,7 +3021,7 @@ final class AppModel {
         case .sessions: list.ordered.count
         case .history: historyRows.count
         case .repos: worktreeRows.count
-        case .inbox, .issues, .prs: itemIDs(view).count
+        case .inbox, .issues, .prs, .pilot: itemIDs(view).count
         }
     }
 
@@ -3148,7 +3429,7 @@ final class AppModel {
         case .history:
             state.cursor = historyCursor
             state.rows = historyRows.count
-        case .inbox, .issues, .prs:
+        case .inbox, .issues, .prs, .pilot:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count
         }

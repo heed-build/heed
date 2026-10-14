@@ -145,6 +145,17 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
 public enum AutoFeed: String, Hashable, Sendable, Codable, CaseIterable {
     case off = "Off", ask = "Ask", auto = "Auto when idle"
 
+    /// The word in config.toml: `off`, `ask`, `auto`.
+    public var configName: String {
+        switch self {
+        case .off: "off"
+        case .ask: "ask"
+        case .auto: "auto"
+        }
+    }
+
+    public static func named(_ name: String) -> AutoFeed? { allCases.first { $0.configName == name.lowercased() } }
+
     public var next: AutoFeed {
         let all = Self.allCases
         return all[(all.firstIndex(of: self)! + 1) % all.count]
@@ -160,8 +171,17 @@ public struct PullFeedback: Hashable, Sendable, Codable {
     /// Prompts sent since the last new approval.
     public var rounds: Int
     public var approvalsSeen: Int
+    /// Set by hand on this PR (`w`, `m`), so they win over the settings; otherwise `watching` and `autoFeed` follow
+    /// the `[pilot]` settings, written back by the app (`PilotSettings`).
+    public var watchSet: Bool
+    public var greenSet: Bool
+    /// Prompts without a new approval before get it green stops (from the settings).
+    public var maxRounds: Int
+    /// Paused (silenced) until then: still watched, nothing sent or merged. `pausedForever` until resumed.
+    public var pausedUntil: Date?
+    public var pausedForever: Bool
 
-    public static let maxRounds = 3
+    public static let defaultMaxRounds = 3
 
     public init(ref: PullRef, items: [FeedbackItem] = [], autoFeed: AutoFeed = .ask, watching: Bool = true) {
         self.ref = ref
@@ -170,6 +190,69 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         self.watching = watching
         rounds = 0
         approvalsSeen = 0
+        watchSet = false
+        greenSet = false
+        maxRounds = Self.defaultMaxRounds
+        pausedUntil = nil
+        pausedForever = false
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case ref, items, autoFeed, watching, rounds, approvalsSeen, watchSet, greenSet, maxRounds, pausedUntil,
+             pausedForever
+    }
+
+    /// Caches written before the pilot settings still load: the newer fields default.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        ref = try container.decode(PullRef.self, forKey: .ref)
+        items = try container.decode([FeedbackItem].self, forKey: .items)
+        autoFeed = try container.decode(AutoFeed.self, forKey: .autoFeed)
+        watching = try container.decode(Bool.self, forKey: .watching)
+        rounds = try container.decode(Int.self, forKey: .rounds)
+        approvalsSeen = try container.decode(Int.self, forKey: .approvalsSeen)
+        watchSet = try container.decodeIfPresent(Bool.self, forKey: .watchSet) ?? false
+        greenSet = try container.decodeIfPresent(Bool.self, forKey: .greenSet) ?? false
+        maxRounds = try container.decodeIfPresent(Int.self, forKey: .maxRounds) ?? Self.defaultMaxRounds
+        pausedUntil = try container.decodeIfPresent(Date.self, forKey: .pausedUntil)
+        pausedForever = try container.decodeIfPresent(Bool.self, forKey: .pausedForever) ?? false
+    }
+
+    /// What applies to this PR: a hand-set choice, else the settings.
+    public struct Effective: Hashable, Sendable {
+        public let watching: Bool
+        public let green: AutoFeed
+        public let maxRounds: Int
+    }
+
+    public func effective(_ settings: PilotSettings) -> Effective {
+        Effective(
+            watching: watchSet ? watching : settings.watch, green: greenSet ? autoFeed : settings.green,
+            maxRounds: settings.maxRounds
+        )
+    }
+
+    /// For a PR heed has no pipeline for yet: the settings alone.
+    public static func effective(_ pipeline: PullFeedback?, _ settings: PilotSettings) -> Effective {
+        pipeline?.effective(settings) ?? Effective(
+            watching: settings.watch, green: settings.green, maxRounds: settings.maxRounds
+        )
+    }
+
+    /// Writes what applies into the stored fields, so code reading `watching` and `autoFeed` sees the settings for a
+    /// PR nobody set by hand. Returns whether anything changed.
+    @discardableResult
+    public mutating func settle(_ settings: PilotSettings) -> Bool {
+        let before = self
+        let effective = effective(settings)
+        watching = effective.watching
+        autoFeed = effective.green
+        maxRounds = effective.maxRounds
+        return self != before
+    }
+
+    public func isPaused(_ now: Date = Date()) -> Bool {
+        pausedForever || (pausedUntil.map { $0 > now } ?? false)
     }
 
     public func count(_ status: FeedbackItem.Status) -> Int { items.count { $0.status == status } }
@@ -177,7 +260,7 @@ public struct PullFeedback: Hashable, Sendable, Codable {
     public var queued: [FeedbackItem] { items.filter { $0.status == .queued } }
 
     /// Stops after `maxRounds` prompts without a new approval, so a loop that is not converging ends.
-    public var roundsExhausted: Bool { rounds >= Self.maxRounds }
+    public var roundsExhausted: Bool { rounds >= maxRounds }
 
     /// Folds a fresh look at the PR into the pipeline: new threads and failing checks arrive as New (queued when
     /// auto-feed is on), resolved threads and passing checks become Resolved, and sent items whose PR got a new head

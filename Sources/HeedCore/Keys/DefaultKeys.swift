@@ -13,7 +13,7 @@ public enum DefaultKeys {
         ("x", "session.close"), ("m", "session.pin"), ("''", "session.back"),
         ("'1", "pin.jump 1"), ("'2", "pin.jump 2"), ("'3", "pin.jump 3"), ("'4", "pin.jump 4"), ("'5", "pin.jump 5"),
         ("'6", "pin.jump 6"), ("'7", "pin.jump 7"), ("'8", "pin.jump 8"), ("'9", "pin.jump 9"),
-        ("gh", "view.history"), ("gr", "view.repos"),
+        ("gh", "view.history"), ("gr", "view.repos"), ("gw", "view.pilot"),
         ("<C-w>v", "pane.split.right"), ("<C-w>s", "pane.split.below"), ("<C-w>z", "pane.zoom"),
         ("<C-w>q", "pane.close"), ("<C-w>h", "pane.left"), ("<C-w>l", "pane.right"), ("<C-w>j", "pane.down"),
         ("<C-w>k", "pane.up"),
@@ -31,7 +31,8 @@ public enum DefaultKeys {
     public static let visual: [(String, String)] = [
         ("j", "row.next"), ("k", "row.prev"), ("gg", "row.first"), ("G", "row.last"),
         ("<Space>", "select.toggle"), ("d", "select.remove"), ("m", "select.pin"), ("y", "select.copy"),
-        ("o", "select.open"), ("<Esc>", "mode.normal"), ("?", "overlay.help"), ("<D-/>", "overlay.help"),
+        ("o", "select.open"), ("z", "pilot.pause"), ("<Esc>", "mode.normal"), ("?", "overlay.help"),
+        ("<D-/>", "overlay.help"),
     ]
 
     public static let insert: [(String, String)] = [
@@ -65,7 +66,14 @@ public enum DefaultKeys {
             ("t", "items.filter"), ("<Tab>", "issues.repo.next"),
             ("<S-Tab>", "issues.repo.prev"), ("w", "issues.visibility"),
         ],
-        "prs": [("r", "github.sync")],
+        "prs": [
+            ("r", "github.sync"), ("<Space>", "select.toggle"), ("w", "pilot.watch"), ("m", "pilot.green"),
+            ("zz", "pilot.pause"),
+        ],
+        "pilot": [
+            ("r", "github.sync"), ("<Space>", "select.toggle"), ("w", "pilot.watch"), ("m", "pilot.green"),
+            ("zz", "pilot.pause"),
+        ],
         /// The diff overlay.
         "diff": [
             ("n", "diff.hunk.next"), ("N", "diff.hunk.prev"), ("]f", "diff.file.next"), ("[f", "diff.file.prev"),
@@ -76,7 +84,8 @@ public enum DefaultKeys {
         "issue": [("s", "items.start"), ("a", "items.add"), ("<Esc>", "overlay.close")],
         /// The PR overlay and the reader.
         "pr": [
-            ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("m", "feedback.mode"), ("w", "feedback.watch"),
+            ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("m", "pilot.green"), ("w", "pilot.watch"),
+            ("zz", "pilot.pause"),
             ("x", "feedback.dismiss"), ("S", "feedback.session"), ("<Esc>", "overlay.close"), ("r", "github.sync"),
         ],
     ]

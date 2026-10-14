@@ -32,6 +32,8 @@ struct MainWindow: View {
                         IssuesView()
                     case .prs:
                         PullRequestsView()
+                    case .pilot:
+                        PilotView()
                     }
                 }
             }
@@ -322,7 +324,7 @@ struct StatusBar: View {
 
     private var position: String {
         switch model.view {
-        case .inbox, .issues, .prs:
+        case .inbox, .issues, .prs, .pilot:
             let count = model.itemIDs(model.view).count
             return "\(count == 0 ? 0 : model.cursor(in: model.view) + 1)/\(count)"
         case .repos: return "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
@@ -360,9 +362,12 @@ struct StatusBar: View {
         case .normal where model.view == .history: "j k move · / filter · R reopen · O new from prompt · t outcome"
         case .normal where model.view == .inbox: "↩ read · space pick · v range · s start session · a add · x mark read · t unread/all · / filter"
         case .normal where model.view == .issues: "↩ read · space pick · s start session · t filter · ⇥ repo · w all/yours · / filter"
-        case .normal where model.view == .prs: "j k move · ↩ open · gS session · r sync · / filter"
+        case .normal where model.view == .prs: "↩ open · w watch · m green · zz pause · v select · gS session · r sync · / filter"
+        case .normal where model.view == .pilot: "↩ open · w watch · m green · zz pause · v select · { } group · r sync · / filter"
         case .normal: "i insert · o start work · m pin · { } group · Iw import · : command · ? keys"
         case .insert: "⇧⎋ or \(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
+        case .visual where model.view == .pilot || model.view == .prs:
+            "\(model.pickedIDs(model.view).count) selected · z pause or resume · space toggle · ⎋ cancel"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
         case .command: "⇥ complete · ↩ run · ⎋ cancel"
         case .hint: "type a label · ⎋ cancel"

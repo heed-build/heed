@@ -30,7 +30,8 @@ struct Sidebar: View {
                                         number: list.lineNumber(of: index, cursor: model.cursor),
                                         isCursor: index == model.cursor,
                                         pinNumber: list.pins.firstIndex(of: session).map { $0 + 1 },
-                                        hint: model.hintLabel(for: .session(session.id))
+                                        hint: model.hintLabel(for: .session(session.id)),
+                                        pilot: model.pilotStatus(of: session)
                                     )
                                     .id(session.id)
                                 }
@@ -97,6 +98,8 @@ struct SessionRow: View {
     let isCursor: Bool
     let pinNumber: Int?
     let hint: String?
+    /// The most urgent pilot state among the session's PRs.
+    var pilot: PilotStatus?
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -115,6 +118,7 @@ struct SessionRow: View {
                         .truncationMode(.tail)
                     Spacer(minLength: 4)
                     if let pinNumber { KeyCap(text: "'\(pinNumber)") }
+                    if let pilot, pilot != .unwatched { PilotMark(status: pilot, compact: true) }
                     if !session.trackedPRs.isEmpty {
                         Text("\(session.trackedPRs.count) PR")
                             .font(Theme.mono(10.5))

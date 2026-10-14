@@ -94,39 +94,46 @@ struct FeedbackPanel: View {
     }
 
     private func watchBar(_ pipeline: PullFeedback) -> some View {
-        FlowLayout(spacing: 12) {
+        // What applies, from a hand-set choice or the settings, and which.
+        let effective = model.pilot(for: ref)
+        let paused = pipeline.isPaused(Clock.now)
+        return FlowLayout(spacing: 12) {
             HStack(spacing: 6) {
-                Circle().fill(pipeline.watching ? Theme.busy : Theme.fg3).frame(width: 7, height: 7)
-                Text(pipeline.watching ? "watching" : "paused")
-                    .foregroundStyle(pipeline.watching ? Theme.busy : Theme.fg3)
+                Circle().fill(effective.watching && !paused ? Theme.busy : Theme.fg3).frame(width: 7, height: 7)
+                Text(!effective.watching ? "not watched" : paused ? "paused" : "watching")
+                    .foregroundStyle(effective.watching && !paused ? Theme.busy : Theme.fg3)
+                Text(pipeline.watchSet ? "set here" : "from \(model.config.pilot.watchSource(ref.repo)) settings")
+                    .foregroundStyle(Theme.fg3)
             }
             .fixedSize()
             if let fetched = model.pullDetails[ref.description]?.fetchedAt {
                 Text("fetched \(Clock.relative(fetched))").foregroundStyle(Theme.fg3)
                     .fixedSize()
             }
-            Text("Auto-feed").foregroundStyle(Theme.fg2).fixedSize()
+            Text("Green").foregroundStyle(Theme.fg2).fixedSize()
             HStack(spacing: 0) {
                 ForEach(AutoFeed.allCases, id: \.self) { mode in
                     Text(mode.rawValue)
-                        .font(Theme.ui(12, weight: mode == pipeline.autoFeed ? .semibold : .regular))
-                        .foregroundStyle(mode == pipeline.autoFeed ? Theme.ink : Theme.fg2)
+                        .font(Theme.ui(12, weight: mode == effective.green ? .semibold : .regular))
+                        .foregroundStyle(mode == effective.green ? Theme.ink : Theme.fg2)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(mode == pipeline.autoFeed ? Theme.inverse : .clear)
+                        .background(mode == effective.green ? Theme.inverse : .clear)
                         .fixedSize()
                 }
             }
             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
             .clipShape(RoundedRectangle(cornerRadius: 5))
-            Text("round \(min(pipeline.rounds + 1, PullFeedback.maxRounds)) of \(PullFeedback.maxRounds)")
-                .foregroundStyle(pipeline.roundsExhausted ? Theme.block : Theme.fg2)
+            Text("round \(min(pipeline.rounds + 1, effective.maxRounds)) of \(effective.maxRounds)")
+                .foregroundStyle(pipeline.rounds >= effective.maxRounds ? Theme.block : Theme.fg2)
                 .fixedSize()
             HStack(spacing: 6) {
                 KeyCap(text: "m")
-                Text("mode").foregroundStyle(Theme.fg3)
+                Text("green").foregroundStyle(Theme.fg3)
                 KeyCap(text: "w")
-                Text(pipeline.watching ? "pause" : "resume").foregroundStyle(Theme.fg3)
+                Text(effective.watching ? "stop watching" : "watch").foregroundStyle(Theme.fg3)
+                KeyCap(text: "zz")
+                Text(paused ? "resume" : "pause").foregroundStyle(Theme.fg3)
             }
             .fixedSize()
         }

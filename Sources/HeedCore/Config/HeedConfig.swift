@@ -23,6 +23,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var githubPollSeconds: Int
     public var tools = ToolSettings()
     public var issues = IssueRules()
+    /// `[pilot]`, with org and repo levels: watching PRs, get it green.
+    public var pilot = PilotRules()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -65,6 +67,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.githubPollSeconds == rhs.githubPollSeconds,
             lhs.tools == rhs.tools,
             lhs.issues == rhs.issues,
+            lhs.pilot == rhs.pilot,
         ]
         return !same.contains(false)
     }
@@ -208,6 +211,36 @@ public enum ConfigLoader {
         if let flag = bool(["cleanup", "ask_before_sweep"]) { config.cleanup.askBeforeSweep = flag }
         // [github]
         if let seconds = integer(["github", "poll_seconds"], range: 15 ... 3600) { config.githubPollSeconds = seconds }
+        // [pilot], and the same keys under [orgs.<name>] and [repos."org/name"] below
+        func green(_ path: [String]) -> AutoFeed? {
+            guard let text = string(path) else { return nil }
+            guard let mode = AutoFeed.named(text) else {
+                problems.append(ConfigProblem(path: path.joined(separator: "."), message: "expected off, ask or auto"))
+                return nil
+            }
+            return mode
+        }
+        func pilotOverrides(_ base: [String]) -> PilotOverrides {
+            PilotOverrides(
+                watch: bool(base + ["watch"]), green: green(base + ["green"]),
+                maxRounds: integer(base + ["max_rounds"], range: 1 ... 20)
+            )
+        }
+        let pilotDefaults = pilotOverrides(["pilot"])
+        if let watch = pilotDefaults.watch { config.pilot.defaults.watch = watch }
+        if let mode = pilotDefaults.green { config.pilot.defaults.green = mode }
+        if let rounds = pilotDefaults.maxRounds { config.pilot.defaults.maxRounds = rounds }
+        if let text = string(["pilot", "pause"]) {
+            switch PilotDuration.parse(text) {
+            case let .seconds(seconds): config.pilot.defaults.pause = seconds
+            case .forever: config.pilot.defaults.pause = nil
+            case .off, nil:
+                problems.append(ConfigProblem(
+                    path: "pilot.pause",
+                    message: "expected a duration like 1h, 30m or forever"
+                ))
+            }
+        }
         // [tools]
         if let git = string(["tools", "git"]) { config.tools.git = git }
         if let gh = string(["tools", "gh"]) { config.tools.gh = gh }
@@ -290,6 +323,8 @@ public enum ConfigLoader {
             for org in orgs.keys {
                 if let color = string(["orgs", org, "color"]) { config.orgColors[org] = color }
                 if let issues = visibility(["orgs", org, "issues"]) { config.issues.orgs[org] = issues }
+                let pilot = pilotOverrides(["orgs", org])
+                if !pilot.isEmpty { config.pilot.orgs[org] = pilot }
             }
         }
         if let repos = root.value(at: ["repos"])?.table {
@@ -300,6 +335,8 @@ public enum ConfigLoader {
                 )
                 config.repos[slug] = repo
                 if let issues = repo.issues { config.issues.repos[slug] = issues }
+                let pilot = pilotOverrides(["repos", slug])
+                if !pilot.isEmpty { config.pilot.repos[slug] = pilot }
                 if !repo.tasks
                     .isEmpty { config.work.tasks[slug] = repo.tasks.map { TaskSpec(name: $0.0, command: $0.1) } }
             }
@@ -375,6 +412,18 @@ public enum ConfigLoader {
     [github]
     # How often the view on screen refreshes from GitHub; the others refresh five times less often.
     poll_seconds = 60
+
+    [pilot]
+    # Follow the PRs your sessions track: their review threads and failing checks, shown in the Pilot view (gw).
+    # Read-only, so on; turn it off for an org or a repo under [orgs.<name>] or [repos."org/name"] (watch = false).
+    watch = true
+    # What happens to what a watched PR collects: off (shown only), ask (you queue it) or auto (sent to the agent
+    # once it is idle). Also per org and per repo.
+    green = "ask"
+    # Prompts sent without a new approval before get it green stops.
+    max_rounds = 3
+    # How long zz pauses a PR: 30m, 1h, 4h, 1d, or forever.
+    pause = "1h"
 
     [issues]
     # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

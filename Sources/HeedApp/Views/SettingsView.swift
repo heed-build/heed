@@ -18,13 +18,13 @@ struct SettingsView: View {
             let key = name.lowercased()
             let short: [String: Section] = [
                 "general": .general, "agents": .agents, "colors": .colors, "repos": .colors, "cleanup": .cleanup,
-                "worktrees": .cleanup, "keys": .keys, "modes": .keys,
+                "worktrees": .cleanup, "keys": .keys, "modes": .keys, "pilot": .pilot,
             ]
             return short[key]
         }
 
         case general = "General", agents = "Agents", colors = "Repos & colors", cleanup = "Worktrees & cleanup"
-        case keys = "Keys & modes"
+        case pilot = "Pilot", keys = "Keys & modes"
 
         var id: String { rawValue }
     }
@@ -79,6 +79,7 @@ struct SettingsView: View {
                     case .agents: AgentSettings()
                     case .colors: ColorSettings()
                     case .cleanup: CleanupSettings()
+                    case .pilot: PilotSettingsView()
                     case .keys: KeySettings()
                     }
                 }
@@ -347,6 +348,79 @@ private struct ColorSettings: View {
                 Text("Repos appear here once the repo scan finds them.").foregroundStyle(Theme.fg3)
             }
         }
+    }
+}
+
+/// `[pilot]`: the defaults every PR starts from. Orgs and repos override them in config.toml; listed here.
+private struct PilotSettingsView: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let pilot = model.config.pilot
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Pilot").font(Theme.ui(17, weight: .semibold))
+            Text("What heed does with the PRs your sessions track. The Pilot view (gw) shows them, and what it did.")
+                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+            Field(
+                label: "Watch PRs",
+                detail: "Follow their review threads and failing checks. Read-only, so on; w turns it off for one PR."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { pilot.defaults.watch }, set: { model.setConfig(["pilot", "watch"], .bool($0)) }
+                )).labelsHidden()
+            }
+            Field(
+                label: "Get it green",
+                detail: "Off shows what a PR collects; Ask waits for you to queue it; Auto sends it once the agent is idle."
+            ) {
+                Picker("", selection: Binding(
+                    get: { pilot.defaults.green },
+                    set: { model.setConfig(["pilot", "green"], .string($0.configName)) }
+                )) {
+                    ForEach(AutoFeed.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
+            Field(label: "Stop after", detail: "Prompts sent without a new approval.") {
+                Stepper(value: Binding(
+                    get: { pilot.defaults.maxRounds },
+                    set: { model.setConfig(["pilot", "max_rounds"], .integer($0)) }
+                ), in: 1 ... 20) {
+                    Text("\(pilot.defaults.maxRounds) rounds").font(Theme.mono(12.5))
+                }
+            }
+            Field(label: "Pause for", detail: "What zz pauses a PR for: 30m, 1h, 4h, 1d or forever.") {
+                ConfigTextField(
+                    path: ["pilot", "pause"],
+                    value: pilot.defaults.pause.map(PilotDuration.text) ?? "forever"
+                )
+            }
+            if !pilot.orgs.isEmpty || !pilot.repos.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Org and repo overrides (config.toml)").font(Theme.ui(12.5, weight: .semibold))
+                    ForEach(overrides(pilot), id: \.0) { name, text in
+                        HStack(spacing: 10) {
+                            Text(name).font(Theme.mono(12)).frame(width: 220, alignment: .leading)
+                            Text(text).font(Theme.mono(12)).foregroundStyle(Theme.fg2)
+                        }
+                    }
+                }
+            }
+            Text("Per org: [orgs.<name>] watch = false. Per repo: [repos.\"org/name\"] green = \"auto\".")
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+        }
+    }
+
+    private func overrides(_ pilot: PilotRules) -> [(String, String)] {
+        func describe(_ value: PilotOverrides) -> String {
+            [
+                value.watch.map { "watch = \($0)" }, value.green.map { "green = \($0.configName)" },
+                value.maxRounds.map { "max_rounds = \($0)" },
+            ].compactMap(\.self).joined(separator: ", ")
+        }
+        return pilot.orgs.sorted { $0.key < $1.key }.map { ("[orgs.\($0.key)]", describe($0.value)) }
+            + pilot.repos.sorted { $0.key < $1.key }.map { ("[repos.\"\($0.key)\"]", describe($0.value)) }
     }
 }
 

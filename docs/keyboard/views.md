@@ -1,10 +1,10 @@
 ---
-description: Switching between Heed's six views.
+description: Switching between Heed's seven views.
 ---
 
 # Views
 
-Heed has six views, named along the top with their keys. Every view key starts with `g`.
+Heed has seven views, named along the top with their keys. Every view key starts with `g`.
 
 ![The title bar: the views with their keys](../images/shots/keyboard/view-tabs.png)
 
@@ -14,6 +14,7 @@ Heed has six views, named along the top with their keys. Every view key starts w
 | `gm` | [Inbox](../github/inbox.md) |
 | `gi` | [Issues](../github/issues.md) |
 | `gp` | [Pull requests](../github/pull-requests.md) |
+| `gw` | [Pilot](../github/pilot.md) |
 | `gr` | [Repos](../worktrees/index.md) |
 | `gh` | [History](../history/index.md) |
 

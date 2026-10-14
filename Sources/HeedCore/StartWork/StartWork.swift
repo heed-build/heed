@@ -236,21 +236,53 @@ public enum StartWork {
             .replacingOccurrences(of: #"[\w.\-/]*#\d+"#, with: " ", options: .regularExpression)
     }
 
+    /// "just now", "2 hours ago": how long before `now` (a date after it counts as now).
+    static func ago(_ date: Date, now: Date) -> String {
+        guard now.timeIntervalSince(date) >= 60 else { return "just now" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: now)
+    }
+
     static func isNameCharacter(_ character: Character) -> Bool {
         character.isLetter || character.isNumber || "-_./".contains(character)
     }
 
+    /// When you last worked in each repo, where it is: the latest activity of its sessions, active or closed, keyed by
+    /// repo record id.
+    public static func lastWorked(sessions: [Session], closed: [HistoryEntry] = []) -> [String: Date] {
+        var result: [String: Date] = [:]
+        func note(_ session: Session, _ date: Date) {
+            for repo in session.repos {
+                let id = StartContext.id(repo, session.location)
+                if date > result[id] ?? .distantPast { result[id] = date }
+            }
+        }
+        for session in sessions {
+            note(session, session.lastActivity)
+        }
+        for entry in closed {
+            note(entry.session, entry.closedAt)
+        }
+        return result
+    }
+
+    /// Ranks every repo for a prompt, strongest first, each with why. The signals, in the order they weigh:
+    /// - the prompt names the repo (or shares words with its name);
+    /// - where Start work was opened: the repos of the session, worktree, PR or issue under the cursor. Strong, but a
+    ///   repo the prompt names still wins;
+    /// - how recently you worked there, halving every two days. It weighs little (most of your repos may have been
+    ///   touched today) and mostly breaks ties.
     public static func guessRepos(
-        for prompt: String, in repos: [RepoRecord], history: [Session], worktrees: [String: Int] = [:]
+        for prompt: String, in repos: [RepoRecord], lastWorked: [String: Date] = [:], context: StartContext? = nil,
+        now: Date = Clock.now
     ) -> [RepoGuess] {
-        let busiest = worktrees.values.max() ?? 0
         let text = referencesRemoved(prompt.lowercased())
         let words = Set(text.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
         // Whole names only: docs must not match inside docs-builder.
         let names = Set(text.split(whereSeparator: { !isNameCharacter($0) }).flatMap { token in
             [String(token), String(token.split(separator: "/").last ?? token)]
         })
-        let recent = history.sorted { $0.lastActivity > $1.lastActivity }.prefix(5)
         let guesses = repos.map { record -> RepoGuess in
             let name = record.repo.name.lowercased()
             var score = 0.0
@@ -266,14 +298,18 @@ public enum StartWork {
                     reasons.append("Prompt mentions \(shared.joined(separator: ", ")).")
                 }
             }
-            let ranHere = recent.count { $0.repos.contains(record.repo) && $0.location == record.location }
-            if ranHere > 0 {
-                score += 0.15 * Double(ranHere)
-                reasons.append("\(ranHere) of your last \(recent.count) sessions ran here.")
+            if let context, let index = context.repos.firstIndex(of: record.id) {
+                // The primary repo of what you were on; the others of a cross-repo session count for less.
+                score += index == 0 ? 0.45 : 0.25
+                reasons.append("Opened from \(context.label).")
             }
-            if let count = worktrees[record.id], count > 0, busiest > 0 {
-                score += 0.15 * Double(count) / Double(busiest)
-                reasons.append("\(count) worktree\(count == 1 ? "" : "s") already.")
+            if let last = lastWorked[record.id] {
+                let days = max(now.timeIntervalSince(last), 0) / 86400
+                let recency = 0.15 * pow(0.5, days / 2)
+                if recency >= 0.01 {
+                    score += recency
+                    reasons.append("You worked here \(ago(last, now: now)).")
+                }
             }
             if let host = record.location.hostName { reasons.append("On @\(host).") }
             return RepoGuess(
@@ -281,7 +317,7 @@ public enum StartWork {
                 reason: reasons.joined(separator: " ")
             )
         }
-        let order = RepoOrder.sorted(repos, counts: worktrees).map(\.id)
+        let order = RepoOrder.recent(repos, lastWorked: lastWorked).map(\.id)
         let rank = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) })
         return guesses.sorted {
             $0.confidence != $1.confidence ? $0.confidence > $1.confidence
@@ -519,5 +555,23 @@ public enum RepoScanner {
             }
             return candidates(in: path, depth: depth - 1)
         }
+    }
+}
+
+/// Where Start work was opened: the repos of what the cursor was on, a hint of where the work goes.
+public struct StartContext: Equatable, Sendable {
+    /// Repo record ids (`org/name`, or `org/name@host`), the primary one first.
+    public var repos: [String]
+    /// What the cursor was on, as the reason names it: a session, a worktree, `docs-builder#12`.
+    public var label: String
+
+    public init(repos: [String], label: String) {
+        self.repos = repos
+        self.label = label
+    }
+
+    /// The record id of `repo` where it is.
+    public static func id(_ repo: Repo, _ location: Location) -> String {
+        location.hostName.map { "\(repo.slug)@\($0)" } ?? repo.slug
     }
 }

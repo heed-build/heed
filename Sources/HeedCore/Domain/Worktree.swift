@@ -108,6 +108,17 @@ public enum RepoOrder {
             .reduce(into: [:]) { counts, worktree in counts[worktree.repo.slug, default: 0] += 1 }
     }
 
+    /// Most recently worked in first (`StartWork.lastWorked`), then by name.
+    public static func recent(_ repos: [RepoRecord], lastWorked: [String: Date]) -> [RepoRecord] {
+        repos.sorted { lhs, rhs in
+            let left = lastWorked[lhs.id] ?? .distantPast
+            let right = lastWorked[rhs.id] ?? .distantPast
+            if left != right { return left > right }
+            let order = lhs.repo.name.localizedCaseInsensitiveCompare(rhs.repo.name)
+            return order == .orderedSame ? lhs.id < rhs.id : order == .orderedAscending
+        }
+    }
+
     public static func sorted(_ repos: [RepoRecord], counts: [String: Int]) -> [RepoRecord] {
         repos.sorted { lhs, rhs in
             let left = counts[lhs.id] ?? 0

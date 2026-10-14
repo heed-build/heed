@@ -95,16 +95,15 @@ struct StartWorkTests {
         let records = ["docs-builder", "docs-content", "mermaider"].map {
             RepoRecord(repo: Repo(org: "elastic", name: $0), path: "/code/\($0)")
         }
-        let history = [Session(
-            title: "x", repos: [records[0].repo], branch: "x", agent: "claude", state: ObservedState(.done)
-        )]
+        let now = Date()
         let guesses = StartWork.guessRepos(
-            for: "Redirects in docs-content need the matching entries", in: records, history: history
+            for: "Redirects in docs-content need the matching entries", in: records,
+            lastWorked: ["elastic/docs-builder": now.addingTimeInterval(-3600)], now: now
         )
         #expect(guesses.first?.repo.repo.name == "docs-content")
         #expect(guesses.first?.reason.contains("Prompt names docs-content") == true)
         #expect(guesses[1].repo.repo.name == "docs-builder")
-        #expect(guesses[1].reason.contains("1 of your last 1 sessions ran here") == true)
+        #expect(guesses[1].reason.contains("You worked here") == true)
         #expect(guesses.last?.confidence == 0)
     }
 
@@ -148,11 +147,13 @@ struct StartWorkTests {
         let remote = RepoRecord(repo: repo, path: "/home/me/code/docs-builder", location: .host("devbox"))
         var ran = Session(title: "x", repos: [repo], branch: "x", agent: "claude", state: ObservedState(.done))
         ran.host = "devbox"
-        let guesses = StartWork.guessRepos(for: "tidy things", in: [local, remote], history: [ran])
+        let lastWorked = StartWork.lastWorked(sessions: [ran])
+        #expect(lastWorked.keys.sorted() == ["elastic/docs-builder@devbox"])
+        let guesses = StartWork.guessRepos(for: "tidy things", in: [local, remote], lastWorked: lastWorked)
         #expect(guesses.first?.repo.id == "elastic/docs-builder@devbox")
-        #expect(guesses.first?.reason.contains("ran here") == true)
+        #expect(guesses.first?.reason.contains("You worked here") == true)
         #expect(guesses.first?.reason.contains("On @devbox.") == true)
-        #expect(guesses.last?.reason.contains("ran here") == false)
+        #expect(guesses.last?.reason.contains("You worked here") == false)
     }
 
     @Test func worktreesOnAHostGoUnderItsWorktreeRoot() {
@@ -306,7 +307,7 @@ struct StartWorkFormTests {
     }
 
     @Test func typingGuessesReposAndNamesTheWorktree() {
-        var form = StartWorkForm(repos: records, history: [], settings: .default)
+        var form = StartWorkForm(repos: records, settings: .default)
         type("Fix anchors in docs-builder and docs-content", into: &form)
         #expect(form.name == "fix/anchors-docs-builder-docs")
         // Only the top guess: a second repo (and its worktree) is yours to add.
@@ -315,7 +316,7 @@ struct StartWorkFormTests {
     }
 
     @Test func navigationTogglesAndStarts() {
-        var form = StartWorkForm(repos: records, history: [], settings: .default)
+        var form = StartWorkForm(repos: records, settings: .default)
         type("mermaider arrows", into: &form)
         #expect(form.handle(.escape) == .handled)
         #expect(!form.editing)
@@ -340,7 +341,7 @@ struct StartWorkFormTests {
     }
 
     @Test func cannotStartWithoutARepo() {
-        var form = StartWorkForm(repos: records, history: [], settings: .default)
+        var form = StartWorkForm(repos: records, settings: .default)
         type("something unrelated", into: &form)
         #expect(form.selectedRepos.isEmpty)
         #expect(form.handle(KeyStroke("CR", .command)) == .handled)
@@ -351,7 +352,7 @@ struct StartWorkFormTests {
     }
 
     @Test func editedNamesStick() {
-        var form = StartWorkForm(repos: records, history: [], settings: .default)
+        var form = StartWorkForm(repos: records, settings: .default)
         type("first words", into: &form)
         _ = form.handle(KeyStroke("Tab"))
         _ = form.handle(KeyStroke("Tab"))
@@ -379,28 +380,66 @@ struct RepoOrderTests {
         #expect(sorted.map(\.id) == ["d/gamma", "a/zeta", "c/beta", "b/Alpha"])
     }
 
-    @Test func guessesFavourReposWithMoreWorktrees() {
+    @Test func mostRecentFirstThenByName() {
+        let now = Date()
+        let repos = ["a/zeta", "b/Alpha", "c/beta", "d/gamma"].map(record)
+        let sorted = RepoOrder.recent(repos, lastWorked: [
+            "a/zeta": now, "d/gamma": now.addingTimeInterval(-60), "c/beta": now.addingTimeInterval(-86400 * 30),
+        ])
+        #expect(sorted.map(\.id) == ["a/zeta", "d/gamma", "c/beta", "b/Alpha"])
+    }
+
+    @Test func guessesFavourReposWorkedInRecently() {
+        let now = Date()
         let repos = ["a/one", "a/two", "a/three"].map(record)
-        let guesses = StartWork.guessRepos(
-            for: "tidy something", in: repos, history: [], worktrees: ["a/three": 6, "a/two": 2]
-        )
+        let lastWorked = ["a/three": now.addingTimeInterval(-3600), "a/two": now.addingTimeInterval(-86400 * 5)]
+        let guesses = StartWork.guessRepos(for: "tidy something", in: repos, lastWorked: lastWorked, now: now)
         #expect(guesses.map(\.repo.id) == ["a/three", "a/two", "a/one"])
-        #expect(guesses.first?.reason.contains("6 worktrees already") == true)
+        #expect(guesses[0].confidence > guesses[1].confidence)
+        #expect(guesses.first?.reason.contains("You worked here 1 hour ago.") == true)
+        #expect(StartWork.ago(now.addingTimeInterval(30), now: now) == "just now")
+        // A month ago no longer counts, but still breaks the tie.
+        let old = StartWork.guessRepos(
+            for: "tidy", in: repos, lastWorked: ["a/two": now.addingTimeInterval(-86400 * 30)], now: now
+        )
+        #expect(old.allSatisfy { $0.confidence == 0 })
+        #expect(old.first?.repo.id == "a/two")
         // A repo the prompt names still wins.
-        let named = StartWork.guessRepos(for: "fix one", in: repos, history: [], worktrees: ["a/three": 6])
+        let named = StartWork.guessRepos(for: "fix one", in: repos, lastWorked: lastWorked, now: now)
         #expect(named.first?.repo.id == "a/one")
+    }
+
+    @Test func whereStartWorkWasOpenedHints() {
+        let now = Date()
+        let repos = ["a/one", "a/two", "a/three"].map(record)
+        let lastWorked = ["a/three": now]
+        let context = StartContext(repos: ["a/two", "a/one"], label: "fix-anchors")
+        let guesses = StartWork.guessRepos(
+            for: "tidy something", in: repos, lastWorked: lastWorked, context: context, now: now
+        )
+        // The session's repos beat the most recent one, its primary first.
+        #expect(guesses.map(\.repo.id) == ["a/two", "a/one", "a/three"])
+        #expect(guesses.first?.reason.contains("Opened from fix-anchors.") == true)
+        // A repo the prompt names still wins over where you were.
+        let named = StartWork.guessRepos(for: "fix three", in: repos, context: context, now: now)
+        #expect(named.first?.repo.id == "a/three")
+        // A session on a host hints its repos there, not here.
+        let remote = RepoRecord(repo: Repo(org: "a", name: "two"), path: "/r", location: .host("devbox"))
+        let onHost = StartContext(repos: [StartContext.id(remote.repo, remote.location)], label: "x")
+        let placed = StartWork.guessRepos(for: "", in: repos + [remote], context: onHost, now: now)
+        #expect(placed.first?.repo.id == "a/two@devbox")
     }
 
     @Test func onlyWholeRepoNamesOutsideLinksCount() {
         let repos = ["elastic/docs", "elastic/docs-builder", "elastic/docs-eng-team"].map(record)
         let guesses = StartWork.guessRepos(
             for: "Improve the error in docs-builder, see https://github.com/elastic/docs-eng-team/issues/1025",
-            in: repos, history: []
+            in: repos
         )
         #expect(guesses.first?.repo.id == "elastic/docs-builder")
         #expect(guesses.first { $0.repo.id == "elastic/docs" }.map { $0.confidence < 80 } == true)
         #expect(guesses.first { $0.repo.id == "elastic/docs-eng-team" }.map { $0.confidence < 80 } == true)
-        let reference = StartWork.guessRepos(for: "Fixes elastic/docs-eng-team#1025", in: repos, history: [])
+        let reference = StartWork.guessRepos(for: "Fixes elastic/docs-eng-team#1025", in: repos)
         #expect(reference.allSatisfy { $0.confidence < 80 })
     }
 }

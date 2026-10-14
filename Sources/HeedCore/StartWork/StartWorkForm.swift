@@ -56,9 +56,10 @@ public struct StartWorkForm: Sendable {
     }
 
     private let repos: [RepoRecord]
-    private let history: [Session]
-    /// Added worktrees per repo: repos with more rank higher.
-    private let worktreeCounts: [String: Int]
+    /// When you last worked in each repo: recent ones rank higher.
+    private let lastWorked: [String: Date]
+    /// What the cursor was on when Start work opened.
+    private let context: StartContext?
     private let prefixes: BranchPrefixes
     private let sessionID = StartWorkForm.newSessionID()
 
@@ -71,14 +72,14 @@ public struct StartWorkForm: Sendable {
     private var reposTouched = false
 
     public init(
-        repos: [RepoRecord], history: [Session], settings: WorkSettings, prompt: String = "",
-        integration: IntegrationFiles? = nil, worktreeCounts: [String: Int] = [:],
+        repos: [RepoRecord], lastWorked: [String: Date] = [:], context: StartContext? = nil,
+        settings: WorkSettings, prompt: String = "", integration: IntegrationFiles? = nil,
         hostIntegrations: [String: IntegrationFiles] = [:]
     ) {
         self.hostIntegrations = hostIntegrations
         self.repos = repos
-        self.history = history
-        self.worktreeCounts = worktreeCounts
+        self.lastWorked = lastWorked
+        self.context = context
         prefixes = settings.prefixes
         shellSplit = settings.shellSplit
         self.integration = integration
@@ -205,7 +206,7 @@ public struct StartWorkForm: Sendable {
     }
 
     private mutating func openSearch() {
-        let ranked = RepoOrder.sorted(repos, counts: worktreeCounts)
+        let ranked = RepoOrder.recent(repos, lastWorked: lastWorked)
         repoSearch = Typeahead(items: ranked) { [$0.repo.slug] }
     }
 
@@ -302,7 +303,7 @@ public struct StartWorkForm: Sendable {
 
     private mutating func setPrompt(_ text: String) {
         prompt = text
-        guesses = StartWork.guessRepos(for: text, in: repos, history: history, worktrees: worktreeCounts)
+        guesses = StartWork.guessRepos(for: text, in: repos, lastWorked: lastWorked, context: context)
         if !nameEdited {
             name = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : StartWork.branchName(
                 for: text,

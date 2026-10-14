@@ -134,7 +134,7 @@ struct StartWorkView: View {
         .font(Theme.ui(12))
     }
 
-    /// Any repo by name: what is typed, then the best matches (most worktrees first), the cursor on one.
+    /// Any repo by name: what is typed, then the best matches (most recently worked in first), the cursor on one.
     private func repoSearch(_ search: Typeahead<RepoRecord>) -> some View {
         let matches = search.matches
         return VStack(alignment: .leading, spacing: 0) {

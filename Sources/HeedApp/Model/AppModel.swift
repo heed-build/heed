@@ -1358,8 +1358,9 @@ final class AppModel {
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "")
         case "worktree.new":
             openStartWork(prompt: "")
-            if let repo = worktreeRows.indices.contains(repoCursor) ? worktreeRows[repoCursor].repo : nil {
-                startWork?.choose(repo: repo.slug)
+            if worktreeRows.indices.contains(repoCursor) {
+                let row = worktreeRows[repoCursor]
+                startWork?.choose(repo: StartContext.id(row.repo, row.location))
             }
         case "repo.scan": rescan()
         case "repo.add": addRepo(command.arguments.joined(separator: " "))
@@ -3873,7 +3874,8 @@ final class AppModel {
     func openStandaloneStartWork() {
         guard confirmation == nil, importPicker == nil else { return }
         if startWork == nil {
-            openStartWork(prompt: "")
+            // Called from another app: what heed's cursor is on says nothing about this work.
+            openStartWork(prompt: "", fromCursor: false)
         }
         startWorkStandalone = true
         StartWorkPanelController.shared.show(model: self)
@@ -3885,13 +3887,66 @@ final class AppModel {
         startWork = nil
     }
 
-    private func openStartWork(prompt: String) {
+    private func openStartWork(prompt: String, fromCursor: Bool = true) {
         startWorkError = nil
+        let context = fromCursor ? startContext : nil
         if view == .history { view = .sessions }
         startWork = StartWorkForm(
-            repos: repos, history: sessions, settings: settings, prompt: prompt, integration: integration,
-            worktreeCounts: RepoOrder.worktreeCounts(worktrees), hostIntegrations: hostIntegrations()
+            repos: repos, lastWorked: StartWork.lastWorked(sessions: sessions, closed: history), context: context,
+            settings: settings, prompt: prompt, integration: integration, hostIntegrations: hostIntegrations()
         )
+    }
+
+    /// What the cursor is on, as a hint for Start work's repo: the session, worktree, history entry, or the items
+    /// `s` would start from (else the one under the cursor).
+    private var startContext: StartContext? {
+        func items(_ found: [(repo: Repo, label: String)]) -> StartContext? {
+            guard let first = found.first else { return nil }
+            var ids: [String] = []
+            for item in found where !ids.contains(item.repo.slug) {
+                ids.append(item.repo.slug)
+            }
+            return StartContext(repos: ids, label: found.count == 1 ? first.label : "\(found.count) items")
+        }
+        switch view {
+        case .sessions:
+            return currentSession.map { session in
+                StartContext(
+                    repos: session.repos.map { StartContext.id($0, session.location) }, label: session.worktreeName
+                )
+            }
+        case .repos:
+            guard worktreeRows.indices.contains(repoCursor) else { return nil }
+            let row = worktreeRows[repoCursor]
+            return StartContext(
+                repos: [StartContext.id(row.repo, row.location)], label: row.branch ?? row.repo.name
+            )
+        case .history:
+            return selectedHistory.map { entry in
+                StartContext(
+                    repos: entry.session.repos.map { StartContext.id($0, entry.session.location) },
+                    label: entry.session.worktreeName
+                )
+            }
+        case .inbox:
+            let ids = Set(actionIDs(.inbox))
+            return items(inboxRows.filter { ids.contains($0.id) }.map { item in
+                (item.repo, item.number.map { "\(item.repo.name)#\($0)" } ?? item.repo.name)
+            })
+        case .issues:
+            let ids = Set(actionIDs(.issues))
+            return items(issueRows.filter { ids.contains($0.id) }.map { ($0.repo, "\($0.repo.name)#\($0.number)") })
+        case .prs:
+            let ids = Set(actionIDs(.prs))
+            return items(pullRows.filter { ids.contains($0.id) }.map {
+                ($0.ref.repo, "\($0.ref.repo.name)#\($0.ref.number)")
+            })
+        case .watch:
+            let ids = Set(actionIDs(.watch))
+            return items(pilotRows.filter { ids.contains($0.id) }.map {
+                ($0.ref.repo, "\($0.ref.repo.name)#\($0.ref.number)")
+            })
+        }
     }
 
     /// Hook file paths on each host that answers, so work started there points its agents at them.

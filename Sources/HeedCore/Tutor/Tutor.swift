@@ -22,6 +22,10 @@ public struct TutorState: Equatable, Sendable {
     public var startWorkRepo: String?
     public var confirmationOpen = false
     public var importOpen = false
+    /// The hosts dialog (`gH`) is open.
+    public var hostsOpen = false
+    /// Sessions that run on a host.
+    public var hostSessions = 0
     public var commandLine = false
     public var helpOpen = false
     public var sessions = 0

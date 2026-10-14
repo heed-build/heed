@@ -108,6 +108,7 @@ enum Shots {
         Shot(id: "landing/merged", chrome: false, keys: "gw/anchors<CR>"),
         Shot(id: "landing/worktrees", chrome: false, keys: "gr4jvj"),
         Shot(id: "landing/resume", chrome: false, prepare: { $0.showResumeForFixture() }),
+        Shot(id: "landing/hosts", chrome: false, keys: "G"),
         Shot(id: "landing/diff", chrome: false, keys: "gd"),
         Shot(id: "landing/inbox", chrome: false, keys: "gm<Space>j<Space>"),
     ]

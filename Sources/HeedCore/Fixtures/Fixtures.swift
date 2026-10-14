@@ -114,10 +114,29 @@ public enum Fixtures {
                 agentSessionID: "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
                 state: ObservedState(.idle), activity: "idle 2h", trackedPRs: [PullRef(repo: docsBuilder, number: 2852)]
             ),
+            // On @devbox: its agent runs there, in zmx, and outlives the link.
+            {
+                var session = Session(
+                    id: "s7", title: "Nightly flake hunt", repos: [docsBuilder], branch: "flake-hunt", agent: "claude",
+                    state: ObservedState(.idle), activity: "idle 20m"
+                )
+                session.host = "devbox"
+                session.worktreePaths = ["/home/you/code/wt/flake-hunt"]
+                return session
+            }(),
         ]
         var worktrees: [Worktree] = []
         var layouts: [String: SessionLayout] = [:]
         for session in sessions {
+            if let host = session.host {
+                // Its worktree is on the host (remoteWorktrees); its pane runs there.
+                let pane = PaneSpec(
+                    id: "\(session.id)-agent", role: .agent, title: session.agent,
+                    directory: session.worktreePaths.first ?? "~", location: .host(host)
+                )
+                layouts[session.id] = SessionLayout(tabs: [PaneTab(title: "agent", tree: .leaf(pane))])
+                continue
+            }
             for repo in session.repos {
                 worktrees.append(Worktree(
                     repo: repo, path: "\(root)/wt/\(repo.name)/\(session.branch)", branch: session.branch,

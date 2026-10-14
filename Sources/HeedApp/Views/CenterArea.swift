@@ -156,6 +156,41 @@ private struct PaneTreeView: View {
     }
 }
 
+/// `@devbox ~/code/wt/flake-hunt · connected · 24 ms`, tinted in the host's colour.
+private struct RemotePaneStrip: View {
+    @Environment(AppModel.self) private var model
+    let host: String
+    let path: String
+
+    var body: some View {
+        let palette = HostPalette.color(for: host, configured: model.config.hosts[host]?.color)
+        let (text, color) = link
+        HStack(spacing: 8) {
+            Text("@\(host)").font(Theme.mono(11, weight: .semibold)).foregroundStyle(palette.foreground)
+            Text(path).font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.middle)
+            Spacer()
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(text).font(Theme.mono(11)).foregroundStyle(color)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 22)
+        .background(palette.swatch.opacity(0.10))
+        .overlay(alignment: .bottom) { palette.swatch.opacity(0.35).frame(height: 1) }
+    }
+
+    private var link: (String, Color) {
+        switch model.hostStatus(host) {
+        case let .connected(info): ("connected · \(info.latencyMilliseconds) ms", Theme.done)
+        case .unknown: ("checking…", Theme.fg3)
+        case .needsAuth: ("ssh needs your key · a", Theme.ask)
+        case .hostKeyChanged: ("host key changed · blocked", Theme.err)
+        case .unknownHostKey: ("host key not known", Theme.block)
+        case let .offline(_, lastSeen):
+            ("offline" + (lastSeen.map { " · last seen \(Clock.relative($0))" } ?? ""), Theme.fg3)
+        }
+    }
+}
+
 private struct PaneView: View {
     @Environment(AppModel.self) private var model
     let pane: PaneSpec
@@ -165,6 +200,8 @@ private struct PaneView: View {
     var body: some View {
         let active = pane.id == tab.focused
         VStack(spacing: 0) {
+            // A pane on a host: a slim tinted strip saying where, how the link is, and how fast. Local panes have none.
+            if let host = pane.location.hostName { RemotePaneStrip(host: host, path: pane.directory) }
             HStack(spacing: 8) {
                 Text("\(number)")
                     .font(Theme.mono(10.5, weight: active ? .bold : .regular))

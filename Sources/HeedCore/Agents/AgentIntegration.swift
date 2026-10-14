@@ -191,7 +191,7 @@ public enum AgentIntegration {
         }
     }
 
-    static let piExtensionSource = #"""
+    public static let piExtensionSource = #"""
     // Heed: reports pi's state to the Heed app. Loaded per run with `pi -e`; does nothing outside a Heed pane.
     export default function (pi) {
       const bin = process.env.HEED_BIN;
@@ -218,7 +218,7 @@ public enum AgentIntegration {
     }
     """#
 
-    static let opencodePluginSource = #"""
+    public static let opencodePluginSource = #"""
     // Heed: reports opencode's state to the Heed app (plugin API of opencode 1.x). Loaded per run through
     // OPENCODE_CONFIG_CONTENT; does nothing outside a Heed pane.
     export const HeedPlugin = async ({ $ }) => {

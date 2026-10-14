@@ -49,6 +49,8 @@ final class TerminalSurfaces {
     var persist: PanePersistence = .none
     /// Panes whose zmx session is alive: they reattach as they are, and nothing is typed into them.
     var livePanes: Set<String> = []
+    /// Where each pane's terminal runs, for ending the right session when it closes.
+    private var paneLocations: [String: Location] = [:]
     /// Where heed keeps its zmx sessions.
     let zmxDirectory = Zmx.socketDirectory()
 
@@ -72,8 +74,17 @@ final class TerminalSurfaces {
         var withPath = environment
         withPath["PATH"] = searchPath
         var attach: String?
+        paneLocations[pane.id] = pane.location
+        if let host = pane.location.hostName {
+            // On a host: ssh there and attach to the pane's zmx session in its worktree (always zmx: a remote agent
+            // must
+            // outlive the link). A live session is reattached as it is, with nothing typed again.
+            attach = RemotePane.command(host: host, pane: pane.id, directory: pane.directory, sessionID: sessionID)
+            if livePanes.contains(pane.id) { launch.command = nil }
+            livePanes.insert(pane.id)
+        }
         // Only a pane in a real worktree: fixture and tutor panes, and ones whose worktree is gone, stay plain shells.
-        if let zmx, FileManager.default.fileExists(atPath: pane.directory) {
+        else if let zmx, FileManager.default.fileExists(atPath: pane.directory) {
             withPath.merge(Zmx.environment(socketDirectory: zmxDirectory)) { _, new in new }
             attach = Zmx.attachCommand(zmx: zmx, pane: pane.id)
             // A live session is reattached as it is: whatever runs in it keeps running, and nothing is typed again.
@@ -154,15 +165,24 @@ final class TerminalSurfaces {
     /// zmx its session too, so nothing is left running.
     func close(paneID: String) {
         views.removeValue(forKey: paneID)?.removeFromSuperview()
+        if let host = paneLocations.removeValue(forKey: paneID)?.hostName {
+            livePanes.remove(paneID)
+            Task.detached { await RemotePane.kill(panes: [paneID], host: host) }
+            return
+        }
         guard let zmx, livePanes.remove(paneID) != nil else { return }
         let directory = zmxDirectory
         Task.detached { await Zmx.kill(panes: [paneID], zmx: zmx, socketDirectory: directory) }
     }
 
-    /// Reads which panes still have a live zmx session (at launch, before any pane is drawn).
-    func refreshLivePanes() async {
-        guard let zmx else { return livePanes = [] }
-        livePanes = await Zmx.livePanes(zmx: zmx, socketDirectory: zmxDirectory)
+    /// Reads which panes still have a live zmx session, here and on `hosts` (at launch, before any pane is drawn).
+    func refreshLivePanes(hosts: [String] = []) async {
+        var live: Set<String> = []
+        if let zmx { live = await Zmx.livePanes(zmx: zmx, socketDirectory: zmxDirectory) }
+        for host in hosts {
+            await live.formUnion(RemotePane.livePanes(host: host))
+        }
+        livePanes = live
     }
 
     /// `agents.stop`: ends every pane's zmx session, and everything running in them.

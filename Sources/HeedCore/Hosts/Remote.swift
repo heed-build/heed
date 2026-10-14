@@ -62,14 +62,18 @@ public enum Remote {
 }
 
 public extension ProcessRunner {
-    /// `run`, on this Mac or on a host over ssh.
+    /// `run`, on this Mac or on a host over ssh. `input` is fed to the command's stdin (an upload).
     static func run(
-        on location: Location, _ executable: String, _ arguments: [String], timeout: Duration = .seconds(30)
+        on location: Location, _ executable: String, _ arguments: [String], timeout: Duration = .seconds(30),
+        input: URL? = nil
     ) async throws -> ProcessResult {
-        guard let host = location.hostName else { return try await run(executable, arguments, timeout: timeout) }
+        guard let host = location.hostName else {
+            return try await run(executable, arguments, timeout: timeout, input: input)
+        }
         try? FileManager.default.createDirectory(atPath: Remote.controlDirectory(), withIntermediateDirectories: true)
         return try await run(
-            "ssh", Remote.sshArguments(host: host, command: [executable] + arguments), timeout: timeout + .seconds(10)
+            "ssh", Remote.sshArguments(host: host, command: [executable] + arguments), timeout: timeout + .seconds(10),
+            input: input
         )
     }
 

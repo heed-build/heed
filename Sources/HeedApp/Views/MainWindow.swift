@@ -278,6 +278,22 @@ struct StatusBar: View {
             if model.filtering {
                 filterLine
             } else {
+                if let host = model.currentSession?.host {
+                    // Where the session runs, and how the link is: after the mode pill, before anything else.
+                    let palette = HostPalette.color(for: host, configured: model.config.hosts[host]?.color)
+                    HStack(spacing: 6) {
+                        Text("@\(host)")
+                        if case let .connected(info) = model.hostStatus(host) {
+                            Text("⇄ \(info.latencyMilliseconds)ms")
+                        } else {
+                            Text("· link down").foregroundStyle(Theme.fg3)
+                        }
+                    }
+                    .foregroundStyle(palette.foreground)
+                    .padding(.horizontal, 12)
+                    .frame(maxHeight: .infinity)
+                    .background(palette.swatch.opacity(0.14))
+                }
                 if let session = model.currentSession {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.triangle.branch").font(.system(size: 10))

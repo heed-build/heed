@@ -106,10 +106,14 @@ public struct HostInfo: Hashable, Sendable {
     public var zmx: String?
     public var agents: [String]
     public var checkedAt: Date
+    /// The login's home on the host: where `~/.heed` is, for paths an agent is given.
+    public var home: String?
 
     public init(
-        latency: Duration, platform: String, git: String?, zmx: String?, agents: [String], checkedAt: Date = Date()
+        latency: Duration, platform: String, git: String?, zmx: String?, agents: [String], checkedAt: Date = Date(),
+        home: String? = nil
     ) {
+        self.home = home
         self.latency = latency
         self.platform = platform
         self.git = git
@@ -130,6 +134,7 @@ public enum HostProbe {
     /// A POSIX sh script that prints `key=value` lines heed reads back.
     public static let script = """
     echo "platform=$(uname -sm)"
+    echo "home=$HOME"
     echo "git=$(git --version 2>/dev/null | awk '{print $3}')"
     z="$HOME/.heed/bin/zmx"; [ -x "$z" ] || z="$(command -v zmx 2>/dev/null)"
     [ -n "$z" ] && echo "zmx=$("$z" version 2>/dev/null | awk '/^zmx/{print $2}')"
@@ -150,7 +155,7 @@ public enum HostProbe {
         func nonEmpty(_ key: String) -> String? { values[key].flatMap { $0.isEmpty ? nil : $0 } }
         return HostInfo(
             latency: latency, platform: platform, git: nonEmpty("git"), zmx: nonEmpty("zmx"), agents: agents,
-            checkedAt: now
+            checkedAt: now, home: nonEmpty("home")
         )
     }
 

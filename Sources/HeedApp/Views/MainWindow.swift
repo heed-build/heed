@@ -158,6 +158,7 @@ struct TitleBar: View {
             KeyCap(text: "ga")
             if !compact { Text("next attention").foregroundStyle(Theme.fg3).fixedSize() }
         }
+        if let reminder = model.tutorReminder { TutorReminderView(reminder: reminder, compact: compact) }
     }
 
     /// Unread inbox items; PRs that need you.
@@ -310,7 +311,7 @@ struct StatusBar: View {
             Spacer()
             Text(model.pendingKeys).foregroundStyle(Theme.fg).padding(.horizontal, 12)
             // A quiet nudge until you have done this view's lesson.
-            if model.tutor == nil, !model.tutorProgress.done.contains(Tutor.lessonID(forView: model.view.rawValue)) {
+            if model.tutor == nil, !model.tutorRecord.done.contains(Tutor.lessonID(forView: model.view.rawValue)) {
                 Text("? t tutor").foregroundStyle(Theme.fg3).padding(.leading, 12)
             }
             Text(hints).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.head).padding(.horizontal, 12)
@@ -662,5 +663,38 @@ struct PathImportView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.5), radius: 30).shotRegion(.picker)
         }
+    }
+}
+
+/// The title bar's gentle nudge towards the tutor: the tour, this view's lesson, or one left halfway. Click to start
+/// it,
+/// × (or `:tutor.hide`) to stop being reminded of it.
+private struct TutorReminderView: View {
+    @Environment(AppModel.self) private var model
+    let reminder: TutorReminder
+    let compact: Bool
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Button { model.startRemindedLesson() } label: {
+                HStack(spacing: 6) {
+                    Text(compact ? "tutor" : reminder.text).fixedSize()
+                    if let key = model.keyLabel(for: "tutor") { KeyCap(text: key) }
+                }
+            }
+            .buttonStyle(.plain)
+            .help("Start the lesson")
+            Button { model.hideTutorReminder() } label: {
+                Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            .help("Stop reminding me (:tutor.hide)")
+        }
+        .foregroundStyle(Theme.block)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(Theme.block.opacity(0.10)))
+        .overlay(Capsule().strokeBorder(Theme.block.opacity(0.35)))
+        .shotRegion(.tutorReminder)
     }
 }

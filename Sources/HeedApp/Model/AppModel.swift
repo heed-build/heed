@@ -24,6 +24,11 @@ enum AppView: String, CaseIterable, Identifiable {
     var command: String { "view.\(rawValue)" }
 }
 
+extension Notification.Name {
+    /// Tutor progress was saved (a lesson finished, a step done, a reminder hidden).
+    static let heedTutorProgress = Notification.Name("heed.tutorProgress")
+}
+
 enum Overlay: Equatable {
     case help
     case pr
@@ -220,6 +225,12 @@ final class AppModel {
         if isFixture { config.issues = Fixtures.issueRules }
         replace(with: domain)
         updateScope()
+        tutorRecord = tutorProgress
+        // The tutor runs in its own window and model; the reminder here follows what it saves.
+        NotificationCenter.default
+            .addObserver(forName: .heedTutorProgress, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.tutorRecord = self?.tutorProgress ?? TutorProgress() }
+            }
     }
 
     // MARK: Domain
@@ -1132,6 +1143,7 @@ final class AppModel {
         case "view.prs": view = .prs
         case "overlay.help": overlay = overlay == .help ? nil : .help
         case "tutor": openTutor(command.arguments)
+        case "tutor.hide": hideTutorReminder(all: command.arguments.first == "all")
         case "tutor.back", "tutor.skip", "tutor.exit":
             guard tutor != nil else {
                 flash = "the tutor is not running (:tutor starts it)"
@@ -3713,7 +3725,37 @@ final class AppModel {
         set {
             guard !ShotMode.active, let data = try? JSONEncoder().encode(newValue) else { return }
             UserDefaults.standard.set(data, forKey: "tutorProgress")
+            NotificationCenter.default.post(name: .heedTutorProgress, object: nil)
         }
+    }
+
+    /// The saved progress, observed, for the title bar's reminder.
+    private(set) var tutorRecord = TutorProgress()
+    /// Screenshots show the reminder only where a shot asks for it.
+    var tutorReminderInShots = false
+
+    /// The title bar's reminder: not while a lesson runs, not in the tutor's own sandbox, not in screenshots unless
+    /// asked.
+    var tutorReminder: TutorReminder? {
+        guard tutor == nil, tutorPicker == nil, !ShotMode.active || tutorReminderInShots else { return nil }
+        return tutorRecord.reminder(view: tutorViewName)
+    }
+
+    /// Clicking the reminder starts its lesson (where it was left, for one left halfway).
+    func startRemindedLesson() {
+        guard let reminder = tutorReminder else { return }
+        onTutorRequest?(.start(lesson: reminder.lesson, world: nil))
+    }
+
+    /// `tutor.hide [all]`, or the reminder's ×.
+    func hideTutorReminder(all: Bool = false) {
+        guard all || tutorReminder != nil else { return flash = "no tutor reminder here" }
+        var progress = tutorProgress
+        progress.hidden.insert(all ? "all" : tutorReminder!.lesson)
+        tutorProgress = progress
+        tutorRecord = progress
+        flash = all ? "tutor reminders hidden; :tutor still opens the tutor"
+            : "reminder hidden; :tutor still has the lesson"
     }
 
     /// Makes this (fixture) model the tutor's sandbox, on `lesson` at the step it was left on.
@@ -3730,7 +3772,7 @@ final class AppModel {
     }
 
     /// The view the tutor's "this view" means: the overlay or dialog on top, else the view.
-    private var tutorViewName: String {
+    var tutorViewName: String {
         if startWork != nil { return "start-work" }
         if overlay == .diff { return "diff" }
         return view.rawValue

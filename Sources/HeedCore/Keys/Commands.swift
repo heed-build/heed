@@ -96,6 +96,10 @@ public enum Commands {
             "tutor", "the tutor: pick a lesson, or start one by name (tour, sessions, prs…)", .views,
             arguments: "[lesson]"
         ),
+        .init(
+            "tutor.hide", "hide the title bar's tutor reminder for this lesson (all: every reminder)", .views,
+            arguments: "[all]"
+        ),
         .init("tutor.back", "the tutor's previous step, the world as it was then", .views),
         .init("tutor.skip", "skip the tutor's step", .views),
         .init("tutor.exit", "leave the tutor; your sessions come back as they were", .views),

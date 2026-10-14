@@ -29,6 +29,13 @@ underneath (the Dock and the menu bar stay live). They come back exactly as they
 
 Until you have done a view's lesson, the status bar shows a quiet `? t tutor` on it.
 
+heed remembers which lessons you finished and where you left one. Until you have, the right end of the title bar
+reminds you, in yellow: first to finish a lesson you left halfway, then to take the tour, then the lesson for the view
+you are on. Click it to start that lesson. The × (or `:tutor.hide`) stops that reminder; `:tutor.hide all` stops them
+all, and `:tutor` still opens the tutor.
+
+![The title bar's tutor reminder, before the tour is done](../images/shots/getting-started/tutor-reminder.png)
+
 ![The picker: this view's lesson first, then the tour and every view, with the world they run in](../images/shots/getting-started/tutor-picker.png)
 
 In the picker, `j` `k` move, `↩` starts, `⎋` closes. Done lessons are ticked, a lesson left halfway shows where you

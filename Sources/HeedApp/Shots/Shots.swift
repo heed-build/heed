@@ -97,6 +97,8 @@ enum Shots {
         Shot(id: "landing/agents", subject: .settings(.agents), size: CGSize(width: 1100, height: 700)),
         Shot(id: "landing/keys", chrome: false, keys: "?"),
         Shot(id: "landing/prs", chrome: false, keys: "gp"),
+        Shot(id: "landing/green", chrome: false, keys: "gw"),
+        Shot(id: "landing/merged", chrome: false, keys: "gw/anchors<CR>"),
         Shot(id: "landing/worktrees", chrome: false, keys: "gr4jvj"),
         Shot(id: "landing/resume", chrome: false, prepare: { $0.showResumeForFixture() }),
         Shot(id: "landing/diff", chrome: false, keys: "gd"),

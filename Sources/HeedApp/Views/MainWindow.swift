@@ -60,6 +60,7 @@ struct MainWindow: View {
         }
         .overlay {
             if let picker = model.importPicker { ImportPickerView(picker: picker) }
+            if let picker = model.hostsPicker { HostsPickerView(picker: picker) }
         }
         .overlay {
             if let state = model.pathImport { PathImportView(state: state) }
@@ -723,5 +724,147 @@ private struct TutorReminderView: View {
         .background(Capsule().fill(Theme.block.opacity(0.10)))
         .overlay(Capsule().strokeBorder(Theme.block.opacity(0.35)))
         .shotRegion(.tutorReminder)
+    }
+}
+
+/// `gH`: the hosts heed drives over ssh and the ones in ~/.ssh/config it could add, with the selected host's checks.
+struct HostsPickerView: View {
+    @Environment(AppModel.self) private var model
+    let picker: Typeahead<AppModel.HostRow>
+
+    var body: some View {
+        let matches = picker.matches
+        let selected = matches.indices.contains(picker.cursor) ? matches[picker.cursor] : nil
+        ZStack {
+            Color.black.opacity(0.5)
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Hosts").font(Theme.ui(15, weight: .semibold))
+                    Text(
+                        "Machines heed drives over ssh, with your own config, keys and agent. ↩ adds one from ~/.ssh/config, or checks one again."
+                    )
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                }
+                .padding(18)
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
+                    Text(picker.query + "▌").font(Theme.mono(12.5))
+                    Spacer()
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+                .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+                HStack(alignment: .top, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        if matches.isEmpty {
+                            Text("No hosts in ~/.ssh/config. Add [hosts.<name>] ssh = \"user@address\" to config.toml.")
+                                .font(Theme.ui(12)).foregroundStyle(Theme.fg3).padding(18)
+                        }
+                        ForEach(Array(matches.enumerated()), id: \.element.id) { index, row in
+                            let palette = HostPalette.color(
+                                for: row.name,
+                                configured: model.config.hosts[row.name]?.color
+                            )
+                            HStack(spacing: 10) {
+                                RoundedRectangle(cornerRadius: 2).fill(palette.swatch).frame(width: 9, height: 9)
+                                Highlighted(text: row.name, query: picker.query).font(Theme.mono(13, weight: .semibold))
+                                Spacer(minLength: 8)
+                                Text(row.configured ? row.summary : "\(row.summary) · add")
+                                    .font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                            }
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 9)
+                            .background(index == picker.cursor ? Theme.bg3 : .clear)
+                            .overlay(alignment: .leading) {
+                                if index == picker.cursor { Theme.block.frame(width: 2) }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { model.pickHost(row) }
+                        }
+                    }
+                    .frame(width: 330, alignment: .leading)
+                    .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
+                    HostChecks(row: selected).frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(minHeight: 220, alignment: .top)
+                HStack(spacing: 14) {
+                    Spacer()
+                    Text("⌃n ⌃p move · ↩ add or check · ⎋ close").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                }
+                .padding(14)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+            }
+            .frame(width: 720)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
+            .shadow(color: .black.opacity(0.5), radius: 30)
+            .shotRegion(.dialog)
+        }
+    }
+}
+
+/// A host's checks: connected and how fast, git, zmx, agents; or what stops heed from reaching it.
+private struct HostChecks: View {
+    @Environment(AppModel.self) private var model
+    let row: AppModel.HostRow?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let row {
+                Text(row.configured ? "CHECKS FOR @\(row.name)" : "@\(row.name) IS NOT ADDED YET")
+                    .font(Theme.ui(10.5, weight: .semibold)).tracking(0.7).foregroundStyle(Theme.fg3)
+                if row.configured {
+                    switch model.hostStatus(row.name) {
+                    case .unknown:
+                        check(nil, "checking…")
+                    case let .connected(info):
+                        check(true, "connected in \(info.latencyMilliseconds) ms through your ssh agent")
+                        check(true, "\(info.platform)")
+                        check(info.git != nil, info.git.map { "git \($0)" } ?? "git not found")
+                        check(
+                            info.zmx != nil,
+                            info.zmx.map { "zmx \($0)" } ?? "zmx not installed (heed copies it over with sessions on hosts)"
+                        )
+                        check(
+                            !info.agents.isEmpty,
+                            info.agents.isEmpty ? "no agents found" : "agents: \(info.agents.joined(separator: ", "))"
+                        )
+                    case let .needsAuth(detail):
+                        check(false, "ssh needs your key: \(detail)", color: Theme.ask)
+                        Text("Unlock or add your key (ssh-add), then ↩ checks again.").font(Theme.ui(12))
+                            .foregroundStyle(Theme.fg3)
+                    case .hostKeyChanged:
+                        check(false, "host key changed: blocked", color: Theme.err)
+                        Text(
+                            "The key does not match known_hosts. Check it with the host's owner before connecting by hand."
+                        )
+                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+                    case .unknownHostKey:
+                        check(false, "host key not known yet", color: Theme.block)
+                        Text("Connect once in a terminal (ssh \(row.summary)) to check and accept its key.")
+                            .font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+                    case let .offline(reason, lastSeen):
+                        check(false, "offline: \(reason)", color: Theme.fg3)
+                        if let lastSeen {
+                            Text("last seen \(Clock.relative(lastSeen))").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                        }
+                    }
+                } else {
+                    Text("↩ adds it to config.toml as [hosts.\(row.name)] and checks it.").font(Theme.ui(12))
+                        .foregroundStyle(Theme.fg3)
+                }
+            }
+        }
+        .padding(18)
+    }
+
+    private func check(_ ok: Bool?, _ text: String, color: Color? = nil) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(ok == nil ? "◌" : ok! ? "✓" : "–").foregroundStyle(color ?? (ok == true ? Theme.done : Theme.fg3))
+                .frame(width: 12)
+            Text(text).font(Theme.ui(12.5)).foregroundStyle(ok == false ? (color ?? Theme.fg2) : Theme.fg)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }

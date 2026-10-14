@@ -25,6 +25,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var issues = IssueRules()
     /// `[pilot]`, with org and repo levels: watching PRs, get it green.
     public var pilot = PilotRules()
+    /// `[hosts.<name>]`: machines heed drives over ssh, by name.
+    public var hosts: [String: HostConfig] = [:]
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -68,6 +70,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.tools == rhs.tools,
             lhs.issues == rhs.issues,
             lhs.pilot == rhs.pilot,
+            lhs.hosts == rhs.hosts,
         ]
         return !same.contains(false)
     }
@@ -390,6 +393,26 @@ public enum ConfigLoader {
                 if let issues = visibility(["orgs", org, "issues"]) { config.issues.orgs[org] = issues }
                 let pilot = pilotOverrides(["orgs", org])
                 if !pilot.isEmpty { config.pilot.orgs[org] = pilot }
+            }
+        }
+        // [hosts.<name>]: ssh, repo_roots, worktree_root, color.
+        if let hosts = root.value(at: ["hosts"])?.table {
+            let colors = ["teal", "periwinkle", "pink", "sky"]
+            for name in hosts.keys.sorted() {
+                var host = HostConfig(name: name, ssh: string(["hosts", name, "ssh"]))
+                if let roots = strings(["hosts", name, "repo_roots"]) { host.repoRoots = roots }
+                if let root = string(["hosts", name, "worktree_root"]) { host.worktreeRoot = root }
+                if let color = string(["hosts", name, "color"]) {
+                    if colors.contains(color) {
+                        host.color = color
+                    } else {
+                        problems.append(ConfigProblem(
+                            path: "hosts.\(name).color",
+                            message: "expected one of \(colors.joined(separator: ", ")) (amber and green mean states)"
+                        ))
+                    }
+                }
+                config.hosts[name] = host
             }
         }
         if let repos = root.value(at: ["repos"])?.table {

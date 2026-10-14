@@ -102,6 +102,8 @@ public enum Commands {
             "tutor.hide", "hide the title bar's tutor reminder for this lesson (all: every reminder)", .views,
             arguments: "[all]"
         ),
+        .init("host.open", "hosts: the ones heed drives over ssh, and ones from ~/.ssh/config to add", .views),
+        .init("host.filter", "narrow the view to one host (@devbox)", .views, arguments: "[host]"),
         .init("agents.stop", "stop every agent and shell in every pane (with [sessions] persist = \"zmx\")", .views),
         .init("tutor.back", "the tutor's previous step, the world as it was then", .views),
         .init("tutor.skip", "skip the tutor's step", .views),

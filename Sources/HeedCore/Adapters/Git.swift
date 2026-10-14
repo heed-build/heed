@@ -6,9 +6,9 @@ public enum Git {
     // MARK: Reading
 
     /// The repo behind a checkout: `org/name` from the `origin` remote, else `local/<directory>`.
-    public static func repo(at path: String) async -> Repo {
+    public static func repo(at path: String, on location: Location = .local) async -> Repo {
         let url = try? await ProcessRunner.output(
-            "git",
+            on: location, "git",
             ["-C", path, "remote", "get-url", "origin"],
             timeout: .seconds(5)
         )
@@ -16,23 +16,24 @@ public enum Git {
     }
 
     /// `main` from `origin/HEAD`, falling back to `main`.
-    public static func defaultBranch(at path: String) async -> String {
+    public static func defaultBranch(at path: String, on location: Location = .local) async -> String {
         let ref = try? await ProcessRunner.output(
-            "git", ["-C", path, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"], timeout: .seconds(5)
+            on: location, "git", ["-C", path, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+            timeout: .seconds(5)
         )
         let name = ref?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return name.isEmpty ? "main" : String(name.split(separator: "/", maxSplits: 1).last ?? "main")
     }
 
     /// A record for the checkout at `path`, or nil when it is not a git repository's main checkout.
-    public static func record(at path: String) async -> RepoRecord? {
+    public static func record(at path: String, on location: Location = .local) async -> RepoRecord? {
         guard let top = try? await ProcessRunner.output(
-            "git", ["-C", path, "rev-parse", "--show-toplevel"], timeout: .seconds(5)
+            on: location, "git", ["-C", path, "rev-parse", "--show-toplevel"], timeout: .seconds(5)
         ) else { return nil }
         let root = top.trimmingCharacters(in: .whitespacesAndNewlines)
-        async let repo = repo(at: root)
-        async let branch = defaultBranch(at: root)
-        return await RepoRecord(repo: repo, path: root, defaultBranch: branch)
+        async let repo = repo(at: root, on: location)
+        async let branch = defaultBranch(at: root, on: location)
+        return await RepoRecord(repo: repo, path: root, defaultBranch: branch, location: location)
     }
 
     /// The repo and worktree a path is in, whichever worktree that is (a linked one resolves to its repo's main
@@ -56,13 +57,19 @@ public enum Git {
     }
 
     public static func worktrees(of record: RepoRecord) async throws -> [Worktree] {
-        let output = try await ProcessRunner.output("git", ["-C", record.path, "worktree", "list", "--porcelain"])
-        return parseWorktrees(output, repo: record.repo)
+        let output = try await ProcessRunner.output(
+            on: record.location, "git", ["-C", record.path, "worktree", "list", "--porcelain"]
+        )
+        return parseWorktrees(output, repo: record.repo).map { worktree in
+            var worktree = worktree
+            worktree.location = record.location
+            return worktree
+        }
     }
 
-    public static func status(at path: String) async throws -> WorktreeStatus {
+    public static func status(at path: String, on location: Location = .local) async throws -> WorktreeStatus {
         let output = try await ProcessRunner.output(
-            "git", ["-C", path, "status", "--porcelain=v2", "--branch"], timeout: .seconds(10)
+            on: location, "git", ["-C", path, "status", "--porcelain=v2", "--branch"], timeout: .seconds(10)
         )
         return parseStatus(output)
     }

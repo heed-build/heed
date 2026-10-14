@@ -9,6 +9,47 @@ public enum Fixtures {
     /// What the fixtures' config would say about issues: docs-builder and the nullean org show all of them.
     public static let issueRules = IssueRules(orgs: ["nullean": .all], repos: ["elastic/docs-builder": .all])
 
+    /// Hosts: @devbox answers, @gpu wants your key, @ci is down.
+    public static let hosts: [String: HostConfig] = [
+        "devbox": HostConfig(name: "devbox", color: "teal"),
+        "gpu": HostConfig(name: "gpu", worktreeRoot: "~/runs", color: "periwinkle"),
+        "ci": HostConfig(name: "ci", ssh: "ci@10.0.4.9", worktreeRoot: "~/builds", color: "pink"),
+    ]
+
+    public static let hostStatuses: [String: HostStatus] = [
+        "devbox": .connected(HostInfo(
+            latency: .milliseconds(24), platform: "Linux x86_64", git: "2.46.0", zmx: "0.8.1",
+            agents: ["claude", "codex"], checkedAt: Clock.now
+        )),
+        "gpu": .needsAuth("martijn@gpu: Permission denied (publickey)."),
+        "ci": .offline(
+            reason: "ssh: connect to host 10.0.4.9 port 22: Operation timed out",
+            lastSeen: Clock.now.addingTimeInterval(-3 * 86400)
+        ),
+    ]
+
+    static let remoteRepos = [
+        RepoRecord(
+            repo: docsBuilder,
+            path: "/home/you/code/docs-builder",
+            defaultBranch: "main",
+            location: .host("devbox")
+        ),
+    ]
+
+    /// On @devbox: one registered worktree, one a scan found.
+    static let remoteWorktrees = [
+        Worktree(
+            repo: docsBuilder, path: "/home/you/code/wt/flake-hunt", branch: "flake-hunt", head: "4e1c2aa",
+            isMain: false, status: WorktreeStatus(ahead: 0, behind: 4, upstream: "origin/flake-hunt"),
+            location: .host("devbox")
+        ),
+        Worktree(
+            repo: docsBuilder, path: "/home/you/code/wt/old-spike", branch: "old-spike", head: "9b0d113",
+            isMain: false, status: WorktreeStatus(changedFiles: 2, upstream: nil), location: .host("devbox")
+        ),
+    ]
+
     public static func named(_ name: String) -> Domain? {
         switch name {
         case "main": main
@@ -133,10 +174,11 @@ public enum Fixtures {
         pipeline.merge = .heed
         pipeline.mergeSet = true
         return Domain(
-            repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
+            repos: repos + remoteRepos, worktrees: worktrees + remoteWorktrees, sessions: sessions, layouts: layouts,
+            history: history, github: github,
             pullDetails: Dictionary(([detail] + otherDetails).map { ($0.ref.description, $0) }) { first, _ in first },
             feedback: pilots.merging([detail.ref.description: pipeline]) { _, main in main }, pilotLog: log,
-            mergeRuns: mergeRuns
+            mergeRuns: mergeRuns, registeredWorktrees: [remoteWorktrees[0].id]
         )
     }()
 

@@ -2,25 +2,39 @@ import Foundation
 
 /// A repository Heed knows about: where its main checkout lives and what it is on GitHub.
 public struct RepoRecord: Identifiable, Hashable, Sendable, Codable {
-    /// `org/name`, the stable identity everywhere (chips, config, PRs).
-    public var id: String { repo.slug }
+    /// `org/name` for a repo on this Mac (the identity in chips, config and PRs); `org/name@host` for one on a host, so
+    /// the same repo on several machines are several records.
+    public var id: String { location.hostName.map { "\(repo.slug)@\($0)" } ?? repo.slug }
     public var repo: Repo
     /// The main checkout, where `git worktree` commands run.
     public var path: String
     /// `main`, `master`, ... from `origin/HEAD`; nil until known.
     public var defaultBranch: String?
+    public var location: Location
 
-    public init(repo: Repo, path: String, defaultBranch: String? = nil) {
+    public init(repo: Repo, path: String, defaultBranch: String? = nil, location: Location = .local) {
         self.repo = repo
         self.path = path
         self.defaultBranch = defaultBranch
+        self.location = location
+    }
+
+    private enum CodingKeys: String, CodingKey { case repo, path, defaultBranch, location }
+
+    /// Records cached before hosts are local ones.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        repo = try container.decode(Repo.self, forKey: .repo)
+        path = try container.decode(String.self, forKey: .path)
+        defaultBranch = try container.decodeIfPresent(String.self, forKey: .defaultBranch)
+        location = try container.decodeIfPresent(Location.self, forKey: .location) ?? .local
     }
 }
 
 /// A git worktree of a known repo, as git reports it plus what Heed tracks about it.
 public struct Worktree: Identifiable, Hashable, Sendable, Codable {
-    /// The worktree's path: unique on disk, so it is the identity.
-    public var id: String { path }
+    /// The worktree's path (with its host for one on a host): unique, so it is the identity.
+    public var id: String { location.hostName.map { "\($0):\(path)" } ?? path }
     public var repo: Repo
     public var path: String
     /// Nil for a detached HEAD.
@@ -29,9 +43,11 @@ public struct Worktree: Identifiable, Hashable, Sendable, Codable {
     /// The repo's main checkout rather than an added worktree.
     public var isMain: Bool
     public var status: WorktreeStatus?
+    public var location: Location
 
     public init(
-        repo: Repo, path: String, branch: String?, head: String, isMain: Bool, status: WorktreeStatus? = nil
+        repo: Repo, path: String, branch: String?, head: String, isMain: Bool, status: WorktreeStatus? = nil,
+        location: Location = .local
     ) {
         self.repo = repo
         self.path = path
@@ -39,6 +55,21 @@ public struct Worktree: Identifiable, Hashable, Sendable, Codable {
         self.head = head
         self.isMain = isMain
         self.status = status
+        self.location = location
+    }
+
+    private enum CodingKeys: String, CodingKey { case repo, path, branch, head, isMain, status, location }
+
+    /// Worktrees cached before hosts are local ones.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        repo = try container.decode(Repo.self, forKey: .repo)
+        path = try container.decode(String.self, forKey: .path)
+        branch = try container.decodeIfPresent(String.self, forKey: .branch)
+        head = try container.decode(String.self, forKey: .head)
+        isMain = try container.decode(Bool.self, forKey: .isMain)
+        status = try container.decodeIfPresent(WorktreeStatus.self, forKey: .status)
+        location = try container.decodeIfPresent(Location.self, forKey: .location) ?? .local
     }
 }
 

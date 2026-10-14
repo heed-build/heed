@@ -6,6 +6,7 @@ import SwiftUI
 @MainActor
 enum Shots {
     static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + startWork + agents + pilot +
+        hosts +
         github +
         worktrees
         + diff + history + keyboard + outside + configuration
@@ -154,6 +155,27 @@ enum Shots {
 
     static let agents: [Shot] = [
         Shot(id: "agents/guessed", size: short, keys: "2j", crop: .sidebar),
+    ]
+
+    static let hosts: [Shot] = [
+        // gH: the hosts, with @devbox's checks; @gpu wants a key, @ci is down.
+        Shot(
+            id: "hosts/picker",
+            keys: "<C-n>",
+            crop: .dialog,
+            prepare: { $0.perform(CommandInvocation(name: "host.open")) }
+        ),
+        Shot(
+            id: "hosts/picker-auth",
+            keys: "<C-n><C-n>",
+            crop: .dialog,
+            prepare: { $0.perform(CommandInvocation(name: "host.open")) }
+        ),
+        Shot(id: "hosts/picker-offline", crop: .dialog, prepare: { $0.perform(CommandInvocation(name: "host.open")) }),
+        // Repos with a host column: a registered and a discovered worktree on @devbox.
+        Shot(id: "hosts/repos", keys: "gr"),
+        // @ narrows a view to one host.
+        Shot(id: "hosts/filter", keys: "gr@dev<CR>", crop: .worktreeTable),
     ]
 
     static let pilot: [Shot] = [

@@ -72,6 +72,7 @@ final class AppModel {
     /// What the pilot noticed and did, newest first.
     private(set) var pilotLog: [PilotEvent] = []
     private(set) var mergeRuns: [String: [MergeRun]] = [:]
+    private(set) var registeredWorktrees: Set<String> = []
     private(set) var list = SessionList([])
     private(set) var settings: WorkSettings
     private(set) var config = HeedConfig.default
@@ -222,7 +223,11 @@ final class AppModel {
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
-        if isFixture { config.issues = Fixtures.issueRules }
+        if isFixture {
+            config.issues = Fixtures.issueRules
+            config.hosts = Fixtures.hosts
+            hostStatuses = Fixtures.hostStatuses
+        }
         replace(with: domain)
         updateScope()
         tutorRecord = tutorProgress
@@ -575,6 +580,7 @@ final class AppModel {
         let pilotChanged = decoded.pilot != config.pilot
         config = decoded
         settings = decoded.work
+        Remote.setTargets(Dictionary(uniqueKeysWithValues: decoded.hosts.map { ($0.key, $0.value.ssh) }))
         if !isFixture { TerminalSurfaces.shared.persist = decoded.work.persist }
         let built = decoded.keymaps()
         engine.setKeymaps(built.keymaps, scoped: built.scoped)
@@ -717,6 +723,7 @@ final class AppModel {
         feedback = domain.feedback
         pilotLog = domain.pilotLog
         mergeRuns = domain.mergeRuns
+        registeredWorktrees = domain.registeredWorktrees
         cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
 
@@ -732,6 +739,10 @@ final class AppModel {
         if after.feedback != before.feedback { feedback = after.feedback }
         if after.pilotLog != before.pilotLog { pilotLog = after.pilotLog }
         if after.mergeRuns != before.mergeRuns { mergeRuns = after.mergeRuns }
+        if after.registeredWorktrees != before.registeredWorktrees {
+            registeredWorktrees = after.registeredWorktrees
+            rebuildWorktreeRows()
+        }
         if after.sessions != before.sessions { sessions = after.sessions }
         if after.layouts != before.layouts { layouts = after.layouts }
         if after.repos != before.repos { repos = after.repos }
@@ -745,7 +756,7 @@ final class AppModel {
         Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
             pullDetails: pullDetails, feedback: feedback, pilotLog: pilotLog,
-            mergeRuns: mergeRuns
+            mergeRuns: mergeRuns, registeredWorktrees: registeredWorktrees
         )
     }
 
@@ -759,7 +770,8 @@ final class AppModel {
         commit(found.map { .repoUpserted($0) })
         // Every clone, not one per repo: two checkouts of the same GitHub repo (in ~/Projects and ~/code, say) share
         // one record, and each has worktrees of its own. A repo's list is committed once all its clones answered.
-        let clones = Dictionary(grouping: found + repos.filter { !found.map(\.path).contains($0.path) }) { $0.repo }
+        let known = repos.filter { $0.location.isLocal && !found.map(\.path).contains($0.path) }
+        let clones = Dictionary(grouping: found + known) { $0.repo }
         await withTaskGroup(of: [DomainChange].self) { group in
             for (repo, records) in clones {
                 group.addTask {
@@ -783,10 +795,122 @@ final class AppModel {
             }
         }
         var commits: [String: Date] = [:]
-        for worktree in worktrees where !worktree.isMain {
+        for worktree in worktrees where !worktree.isMain && worktree.location.isLocal {
             if let date = await Git.lastCommitDate(at: worktree.path) { commits[worktree.path] = date }
         }
         lastCommits = commits
+        await refreshHosts()
+    }
+
+    // MARK: Hosts
+
+    /// How each host's link stands, by name: the checks heed last ran.
+    private(set) var hostStatuses: [String: HostStatus] = [:]
+
+    /// `[hosts.<name>]`, by name.
+    var hostList: [HostConfig] { config.hosts.values.sorted { $0.name < $1.name } }
+
+    func hostStatus(_ name: String) -> HostStatus { hostStatuses[name] ?? .unknown }
+
+    /// Checks every host, and for each that answers: its repos and their worktrees, with status. Hosts that do not
+    /// answer keep what was last seen of them (shown stale).
+    func refreshHosts() async {
+        guard !isFixture else { return }
+        await withTaskGroup(of: (String, HostStatus).self) { group in
+            for host in hostList {
+                let lastSeen: Date? = if case let .connected(info) = hostStatuses[host.name] { info.checkedAt } else {
+                    if case let .offline(_, seen) = hostStatuses[host.name] { seen } else { nil }
+                }
+                group.addTask { await (host.name, HostProbe.check(host.name, lastSeen: lastSeen)) }
+            }
+            for await (name, status) in group {
+                hostStatuses[name] = status
+            }
+        }
+        for host in hostList where hostStatus(host.name).isConnected {
+            let records = await RemoteScan.scan(host)
+            commit(records.map { .repoUpserted($0) })
+            for record in records {
+                guard var listed = try? await Git.worktrees(of: record) else { continue }
+                for index in listed.indices {
+                    listed[index].status = try? await Git.status(at: listed[index].path, on: record.location)
+                }
+                commit(.worktreesListed(repo: record.repo, listed))
+            }
+        }
+    }
+
+    /// Whether heed manages a worktree, and how it stands.
+    func registration(of worktree: Worktree) -> WorktreeRegistration {
+        guard let host = worktree.location.hostName else { return .registered }
+        if !hostStatus(host).isConnected, !isFixture { return .stale }
+        if case .offline = hostStatus(host) { return .stale }
+        return registeredWorktrees.contains(worktree.id) ? .registered : .discovered
+    }
+
+    /// `↩` on a discovered worktree: heed manages it from now on.
+    private func register(_ worktrees: [Worktree]) {
+        let found = worktrees.filter { registration(of: $0) == .discovered }
+        guard !found.isEmpty else { return }
+        commit(found.map { .worktreeRegistered($0.id) })
+        flash = found.count == 1
+            ? "registered \(found[0].repo.name)/\(found[0].branch ?? "worktree") \(found[0].location.label)"
+            : "registered \(found.count) worktrees"
+    }
+
+    // MARK: Hosts picker (gH)
+
+    /// A host in the picker: one heed has, or one from ~/.ssh/config it could add.
+    struct HostRow: Sendable, Identifiable {
+        let name: String
+        let summary: String
+        let configured: Bool
+        var id: String { name }
+    }
+
+    private(set) var hostsPicker: Typeahead<HostRow>?
+
+    private func openHostsPicker() {
+        let configured = hostList.map { HostRow(name: $0.name, summary: $0.ssh, configured: true) }
+        let text = isFixture ? "" : (try? String(contentsOf: SSHConfig.defaultFile(), encoding: .utf8)) ?? ""
+        let available = SSHConfig.entries(text).filter { config.hosts[$0.alias] == nil }
+            .map { HostRow(name: $0.alias, summary: $0.summary, configured: false) }
+        hostsPicker = Typeahead(items: configured + available) { [$0.name, $0.summary] }
+        if !isFixture { Task { await refreshHosts() } }
+    }
+
+    private func answerHostsPicker(_ stroke: KeyStroke) {
+        guard var picker = hostsPicker else { return }
+        switch picker.handle(stroke) {
+        case .handled: hostsPicker = picker
+        case .cancel: hostsPicker = nil
+        case let .picked(row): pickHost(row)
+        }
+    }
+
+    /// ↩ on a host: one from ~/.ssh/config is added (`[hosts.<name>]`) and checked; one heed has is checked again.
+    func pickHost(_ row: HostRow) {
+        if !row.configured {
+            setConfig(["hosts", row.name, "ssh"], .string(row.name))
+            flash = "added @\(row.name); checking it…"
+        } else {
+            flash = "checking @\(row.name)…"
+        }
+        hostsPicker = nil
+        guard !isFixture else { return }
+        Task { await refreshHosts() }
+    }
+
+    func cancelHostsPicker() { hostsPicker = nil }
+
+    /// `@` (or `:host.filter devbox`): narrows the view you are on to one host, through its filter.
+    private func filterByHost(_ name: String?) {
+        if let name {
+            filters[view] = "@\(name)"
+            return
+        }
+        startFilter()
+        filters[view] = "@"
     }
 
     // MARK: Derived
@@ -886,7 +1010,11 @@ final class AppModel {
 
     private func rebuildWorktreeRows() {
         let counts = RepoOrder.worktreeCounts(worktrees)
-        sortedRepos = RepoOrder.sorted(repos, counts: counts)
+        // One row per repo in the repo list, wherever its clones are: the one on this Mac if there is one.
+        var seen: Set<Repo> = []
+        let unique = (repos.filter(\.location.isLocal) + repos.filter { !$0.location.isLocal })
+            .filter { seen.insert($0.repo).inserted }
+        sortedRepos = RepoOrder.sorted(unique, counts: counts)
         worktreeCount = counts.values.reduce(0, +)
         let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
         let filter = filter(for: .repos)
@@ -895,7 +1023,7 @@ final class AppModel {
         let matching = filter.isEmpty ? added : added.filter { worktree in
             FilterQuery.matches(filter, [
                 worktree.repo.slug, worktree.branch ?? "", Paths.split(worktree.path, roots: roots).relative,
-                session(for: worktree)?.agent ?? "",
+                session(for: worktree)?.agent ?? "", worktree.location.label,
             ])
         }
         worktreeRows = matching.sorted {
@@ -906,7 +1034,8 @@ final class AppModel {
     }
 
     func session(for worktree: Worktree) -> Session? {
-        sessions.first { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }
+        guard worktree.location.isLocal else { return nil }
+        return sessions.first { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }
     }
 
     /// Rows selected in VISUAL: the range from the anchor to the cursor, plus rows toggled with space.
@@ -975,6 +1104,10 @@ final class AppModel {
         }
         if importPicker != nil {
             answerImportPicker(stroke)
+            return true
+        }
+        if hostsPicker != nil {
+            answerHostsPicker(stroke)
             return true
         }
         if pathImport != nil {
@@ -1167,6 +1300,8 @@ final class AppModel {
         case "view.prs": view = .prs
         case "overlay.help": overlay = overlay == .help ? nil : .help
         case "tutor": openTutor(command.arguments)
+        case "host.open": openHostsPicker()
+        case "host.filter": filterByHost(command.arguments.first)
         case "agents.stop": confirmStopAgents()
         case "tutor.hide": hideTutorReminder(all: command.arguments.first == "all")
         case "tutor.back", "tutor.skip", "tutor.exit":
@@ -1891,7 +2026,7 @@ final class AppModel {
 
     private func openImportPicker() {
         let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
-        let candidates = worktrees.filter { session(for: $0) == nil }.sorted {
+        let candidates = worktrees.filter { session(for: $0) == nil && $0.location.isLocal }.sorted {
             if $0.isMain != $1.isMain { return !$0.isMain }
             return $0.repo.slug == $1.repo.slug ? $0.path < $1.path
                 : (rank[$0.repo.slug] ?? .max, $0.repo.slug) < (rank[$1.repo.slug] ?? .max, $1.repo.slug)
@@ -1930,6 +2065,12 @@ final class AppModel {
 
     private func openOrImport(_ rows: [Worktree]) {
         guard !rows.isEmpty else { return }
+        // On a host: ↩ registers what a scan found. Sessions there are not supported yet.
+        if rows.contains(where: { !$0.location.isLocal }) {
+            if rows.contains(where: { registration(of: $0) == .discovered }) { return register(rows) }
+            flash = "sessions on hosts are not supported yet"
+            return
+        }
         let missing = rows.filter { session(for: $0) == nil }
         if missing.isEmpty, let session = session(for: rows[0]) {
             view = .sessions

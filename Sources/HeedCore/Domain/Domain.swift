@@ -53,13 +53,17 @@ public struct Domain: Hashable, Sendable, Codable {
     public var pilotLog: [PilotEvent]
     /// Each repo's merge queue runs by `org/name`, newest first, capped (`MergeRun.keep`).
     public var mergeRuns: [String: [MergeRun]]
+    /// Worktrees on hosts that heed manages (made by heed, or registered with ↩), by worktree id. Ones a scan found
+    /// and nobody registered are left alone.
+    public var registeredWorktrees: Set<String>
 
     public init(
         repos: [RepoRecord] = [], worktrees: [Worktree] = [], sessions: [Session] = [],
         layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = [], github: GitHubState = GitHubState(),
         pullDetails: [String: PullDetail] = [:], feedback: [String: PullFeedback] = [:], pilotLog: [PilotEvent] = [],
-        mergeRuns: [String: [MergeRun]] = [:]
+        mergeRuns: [String: [MergeRun]] = [:], registeredWorktrees: Set<String> = []
     ) {
+        self.registeredWorktrees = registeredWorktrees
         self.mergeRuns = mergeRuns
         self.pullDetails = pullDetails
         self.feedback = feedback
@@ -75,7 +79,8 @@ public struct Domain: Hashable, Sendable, Codable {
     public static let empty = Domain()
 
     private enum CodingKeys: String, CodingKey {
-        case repos, worktrees, sessions, layouts, history, github, pullDetails, feedback, pilotLog, mergeRuns
+        case repos, worktrees, sessions, layouts, history, github, pullDetails, feedback, pilotLog, mergeRuns,
+             registeredWorktrees
     }
 
     /// Caches from before the pilot log still load (no version bump, which would drop sessions).
@@ -91,9 +96,18 @@ public struct Domain: Hashable, Sendable, Codable {
         feedback = try container.decode([String: PullFeedback].self, forKey: .feedback)
         pilotLog = try container.decodeIfPresent([PilotEvent].self, forKey: .pilotLog) ?? []
         mergeRuns = try container.decodeIfPresent([String: [MergeRun]].self, forKey: .mergeRuns) ?? [:]
+        registeredWorktrees = try container.decodeIfPresent(Set<String>.self, forKey: .registeredWorktrees) ?? []
     }
 
     public func repo(_ slug: String) -> RepoRecord? { repos.first { $0.id == slug } }
+
+    /// Whether heed manages a worktree, and how it stands (`reachable`: whether its host answers now).
+    public func registration(of worktree: Worktree, reachable: Bool = true) -> WorktreeRegistration {
+        guard !worktree.location.isLocal else { return .registered }
+        guard reachable else { return .stale }
+        return registeredWorktrees.contains(worktree.id) ? .registered : .discovered
+    }
+
     public func worktrees(of repo: Repo) -> [Worktree] { worktrees.filter { $0.repo == repo } }
     public func session(_ id: String) -> Session? { sessions.first { $0.id == id } }
 }
@@ -123,6 +137,8 @@ public enum DomainChange: Hashable, Sendable, Codable {
     case pilotLogged([PilotEvent])
     /// A repo's merge queue ran.
     case mergeRan(MergeRun)
+    /// A worktree on a host is heed's to manage from now on.
+    case worktreeRegistered(String)
 }
 
 public extension Domain {
@@ -148,7 +164,10 @@ public extension Domain {
                 if worktree.status == nil, let status = known[worktree.path] { worktree.status = status }
                 return worktree
             }
-            worktrees.removeAll { $0.repo == repo }
+            // A listing replaces what was known on the machines it covers: listing a repo's worktrees on @devbox leaves
+            // its worktrees on this Mac (and other hosts) alone.
+            let places = Set(merged.map(\.location))
+            worktrees.removeAll { $0.repo == repo && places.contains($0.location) }
             worktrees.append(contentsOf: merged)
             sessions = sessions.map { BranchFollowing.follow($0, worktrees: merged) }
         case let .sessionUpserted(session):
@@ -190,6 +209,8 @@ public extension Domain {
             )
         case let .pilotLogged(events):
             pilotLog = PilotEvent.log(pilotLog, adding: events)
+        case let .worktreeRegistered(id):
+            registeredWorktrees.insert(id)
         case let .mergeRan(run):
             mergeRuns[run.repo] = Array(([run] + (mergeRuns[run.repo] ?? [])).prefix(MergeRun.keep))
         case let .feedbackChanged(pipeline):

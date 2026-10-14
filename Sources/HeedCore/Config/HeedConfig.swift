@@ -223,7 +223,7 @@ public enum ConfigLoader {
         func merge(_ path: [String]) -> MergeMode? {
             guard let text = string(path) else { return nil }
             guard let mode = MergeMode.named(text) else {
-                problems.append(ConfigProblem(path: path.joined(separator: "."), message: "expected off or auto"))
+                problems.append(ConfigProblem(path: path.joined(separator: "."), message: "expected off, auto or heed"))
                 return nil
             }
             return mode
@@ -240,13 +240,20 @@ public enum ConfigLoader {
             return text
         }
         func pilotOverrides(_ base: [String]) -> PilotOverrides {
-            PilotOverrides(
+            var overrides = PilotOverrides(
                 watch: bool(base + ["watch"]), green: green(base + ["green"]),
                 maxRounds: integer(base + ["max_rounds"], range: 1 ... 20), merge: merge(base + ["merge"]),
                 mergeMethod: mergeMethod(base + ["merge_method"]), updateBranches: bool(base + ["update_branches"]),
                 copilotConflicts: bool(base + ["copilot_conflicts"]),
                 copilotComments: bool(base + ["copilot_comments"]), reviewers: strings(base + ["reviewers"])
             )
+            overrides.quietMinutes = integer(base + ["quiet_minutes"], range: 0 ... 1440)
+            overrides.trustedReviewers = strings(base + ["trusted_reviewers"])
+            overrides.gateChecks = strings(base + ["gate_checks"])
+            overrides.holdLabels = strings(base + ["hold_labels"])
+            overrides.selfReview = string(base + ["self_review"]).map { $0.trimmingCharacters(in: .whitespaces) }
+            if base.first == "repos" { overrides.adminMerge = bool(base + ["admin_merge"]) }
+            return overrides
         }
         let pilotDefaults = pilotOverrides(["pilot"])
         if let watch = pilotDefaults.watch { config.pilot.defaults.watch = watch }
@@ -258,6 +265,17 @@ public enum ConfigLoader {
         if let flag = pilotDefaults.copilotConflicts { config.pilot.defaults.copilotConflicts = flag }
         if let flag = pilotDefaults.copilotComments { config.pilot.defaults.copilotComments = flag }
         if let list = pilotDefaults.reviewers { config.pilot.defaults.reviewers = list }
+        if let minutes = pilotDefaults.quietMinutes { config.pilot.defaults.quietMinutes = minutes }
+        if let list = pilotDefaults.trustedReviewers { config.pilot.defaults.trustedReviewers = list }
+        if let list = pilotDefaults.gateChecks { config.pilot.defaults.gateChecks = list }
+        if let list = pilotDefaults.holdLabels { config.pilot.defaults.holdLabels = list }
+        if let command = pilotDefaults.selfReview { config.pilot.defaults.selfReview = command.isEmpty ? nil : command }
+        if bool(["pilot", "admin_merge"]) != nil {
+            problems.append(ConfigProblem(
+                path: "pilot.admin_merge",
+                message: "admin_merge is per repo only: [repos.\"org/name\"] admin_merge = true"
+            ))
+        }
         if let text = string(["pilot", "merge_schedule"]) {
             if text.lowercased() == "manual" {
                 config.pilot.defaults.mergeSchedule = nil
@@ -464,8 +482,9 @@ public enum ConfigLoader {
     max_rounds = 3
     # How long zz pauses a PR: 30m, 1h, 4h, 1d, or forever.
     pause = "1h"
-    # Get it merged: off, or auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
-    # requirements are met). Per org and per repo too, and M flips one PR.
+    # Get it merged: off; auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
+    # requirements are met); or heed (heed merges it itself once the rules below hold). Per org and per repo too, and M
+    # cycles one PR.
     merge = "off"
     # squash, merge or rebase; unset takes the first the repo allows, in that order.
     # merge_method = "squash"
@@ -480,6 +499,18 @@ public enum ConfigLoader {
     copilot_comments = false
     # Who heed asks to review a PR once it is open and not a draft, once per PR: logins, "org/team", or "copilot".
     reviewers = []
+    # merge = "heed" merges a PR when it is green, reviewed after its last push (a human approval, or a trusted AI
+    # reviewer's), quiet for quiet_minutes, its gate_checks passed, without a hold label, and, with self_review set,
+    # approved by that command. Each per org and per repo too.
+    quiet_minutes = 5
+    # AI reviewers whose review counts: an approval, a comment review with none of its threads open, or no review at
+    # all once its review check (named in gate_checks) passed on the head commit.
+    trusted_reviewers = []    # e.g. ["copilot-pull-request-reviewer"]
+    gate_checks = []
+    hold_labels = ["hold", "do-not-merge", "wip"]
+    # A command that reads the prompt and the PR's diff on stdin and answers APPROVE, or REQUEST_CHANGES: <why>.
+    # self_review = "claude -p"
+    # [repos."org/name"] admin_merge = true retries a refused merge with --admin, bypassing branch protection. Repo only.
 
     [issues]
     # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

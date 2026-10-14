@@ -68,8 +68,9 @@ green = "ask"
 max_rounds = 3
 # How long zz pauses a PR: 30m, 1h, 4h, 1d, or forever.
 pause = "1h"
-# Get it merged: off, or auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
-# requirements are met). Per org and per repo too, and M flips one PR.
+# Get it merged: off; auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
+# requirements are met); or heed (heed merges it itself once the rules below hold). Per org and per repo too, and M
+# cycles one PR.
 merge = "off"
 # squash, merge or rebase; unset takes the first the repo allows, in that order.
 # merge_method = "squash"
@@ -84,6 +85,18 @@ copilot_conflicts = false
 copilot_comments = false
 # Who heed asks to review a PR once it is open and not a draft, once per PR: logins, "org/team", or "copilot".
 reviewers = []
+# merge = "heed" merges a PR when it is green, reviewed after its last push (a human approval, or a trusted AI
+# reviewer's), quiet for quiet_minutes, its gate_checks passed, without a hold label, and, with self_review set,
+# approved by that command. Each per org and per repo too.
+quiet_minutes = 5
+# AI reviewers whose review counts: an approval, a comment review with none of its threads open, or no review at
+# all once its review check (named in gate_checks) passed on the head commit.
+trusted_reviewers = []    # e.g. ["copilot-pull-request-reviewer"]
+gate_checks = []
+hold_labels = ["hold", "do-not-merge", "wip"]
+# A command that reads the prompt and the PR's diff on stdin and answers APPROVE, or REQUEST_CHANGES: <why>.
+# self_review = "claude -p"
+# [repos."org/name"] admin_merge = true retries a refused merge with --admin, bypassing branch protection. Repo only.
 
 [issues]
 # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

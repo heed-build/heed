@@ -293,8 +293,8 @@ public extension Tutor {
             ) { _, now, _ in !now.filtering && now.filter.hasPrefix("@") },
             TutorStep(
                 "Pick a host's repo",
-                say: "{work.start}, say what you want done, then ⌃n until the chip says @devbox.",
-                keys: ["{work.start}", "⌃n"], target: "dialog",
+                say: "{work.start} on the @devbox session and say what you want done: its repo there comes first. ⌃n if not.",
+                keys: ["{work.start}"], target: "dialog",
                 doneLine: "The line over the command says where it will run, and whether zmx keeps it alive."
             ) { _, now, _ in now.startWorkOpen && now.startWorkRepo?.hasSuffix("@devbox") == true },
             TutorStep(

@@ -24,8 +24,8 @@ enum TutorCheck {
         "history": ["j", "t", "R"],
         "hosts": [
             "gH<Esc>",
-            "@dev<CR>",
-            "o" + Shots.typed("Fix the flaky link checker in docs-builder") + "<C-n>",
+            "@dev<CR>gg",
+            "o" + Shots.typed("Fix the flaky link checker in docs-builder"),
             "<D-CR>",
         ],
         "agents": ["ga", "i<S-Esc>", "jjzz"],

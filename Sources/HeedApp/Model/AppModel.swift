@@ -711,8 +711,8 @@ final class AppModel {
         list = SessionList(filter.isEmpty ? sessions : sessions.filter { session in
             FilterQuery.matches(
                 filter,
-                [session.title, session.worktreeName, session.branch, session.agent] + session.repos.map(\.name)
-                    + session.trackedPRs.map { "#\($0.number)" }
+                [session.title, session.worktreeName, session.branch, session.agent, session.location.label]
+                    + session.repos.map(\.name) + session.trackedPRs.map { "#\($0.number)" }
             )
         })
         if let selected, let index = list.ordered.firstIndex(where: { $0.id == selected }) {
@@ -2316,8 +2316,10 @@ final class AppModel {
             (historyOutcome == nil || entry.outcome == historyOutcome)
                 && FilterQuery.matches(
                     filter,
-                    [entry.session.title, entry.session.prompt, entry.session.branch, entry.session.agent]
-                        + entry.session.repos.map(\.name)
+                    [
+                        entry.session.title, entry.session.prompt, entry.session.branch, entry.session.agent,
+                        entry.session.location.label,
+                    ] + entry.session.repos.map(\.name)
                 )
         }
     }

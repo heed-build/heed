@@ -357,8 +357,11 @@ struct StatusBar: View {
 
     private var hints: String {
         switch model.mode {
-        case .normal where model.confirmation?.alternative != nil:
-            "y or ↩ confirm · \(model.confirmation?.alternative?.key ?? "") \(model.confirmation?.alternative?.label.lowercased() ?? "") · n, ⎋ or q cancel"
+        case let .normal where model.confirmation.map { !$0.alternatives.isEmpty } == true:
+            "y or ↩ \(model.confirmation?.accept.lowercased() ?? "confirm") · "
+                + (model.confirmation?.alternatives ?? []).map { "\($0.key) \($0.label.lowercased())" }
+                .joined(separator: " · ")
+                + " · ⎋ \(model.confirmation?.cancel.lowercased() ?? "cancel")"
         case .normal where model.confirmation != nil: "y or ↩ confirm · n, ⎋ or q cancel"
         case .normal where model.importPicker != nil: "type to filter · ⌃n ⌃p move · ↩ import · ⎋ cancel"
         case .normal where model.pathImport != nil: "⇥ complete · ⌃n ⌃p choose · ⌃w up a folder · ↩ import · ⎋ cancel"
@@ -471,29 +474,34 @@ struct ConfirmationView: View {
                 }
                 HStack(spacing: 10) {
                     Spacer()
-                    HStack(spacing: 6) {
-                        Text(confirmation.cancel)
-                        KeyCap(text: "n")
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
-                    .contentShape(Rectangle())
-                    .onTapGesture { model.cancelConfirmation() }
-                    if let alternative = confirmation.alternative {
+                    // Cancelling that does what accepting does (Keep) needs no button of its own; ⎋ still works.
+                    if confirmation.cancel != confirmation.accept {
                         HStack(spacing: 6) {
-                            Text(alternative.label)
-                            KeyCap(text: alternative.key)
+                            Text(confirmation.cancel)
+                            KeyCap(text: "n")
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
                         .background(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
                         .contentShape(Rectangle())
-                        .onTapGesture { model.chooseAlternative() }
+                        .onTapGesture { model.cancelConfirmation() }
+                    }
+                    ForEach(confirmation.alternatives, id: \.key) { alternative in
+                        HStack(spacing: 6) {
+                            Text(alternative.label)
+                            KeyCap(text: alternative.key)
+                        }
+                        .foregroundStyle(alternative.destructive ? Theme.err : Theme.fg)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(alternative.destructive ? Theme.err.opacity(0.6) : Theme.line))
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.chooseAlternative(alternative.key) }
                     }
                     HStack(spacing: 6) {
                         Text(confirmation.accept).fontWeight(.semibold)
-                        KeyCap(text: "y")
+                        KeyCap(text: "↩")
                     }
                     .foregroundStyle(Theme.ink)
                     .padding(.horizontal, 12)

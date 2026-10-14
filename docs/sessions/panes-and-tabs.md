@@ -31,12 +31,16 @@ The right of the tab strip shows the keys that matter where you are looking, as 
 A pane closes when its terminal ends: `exit` or `⌃D` in a shell, or a command that finishes. The last pane of a tab
 takes the tab with it.
 
-When a session has no terminal left, whether by `exit`, `×` or `⌃w q`, heed asks what to do with it:
+When a session has no terminal left, whether by `exit`, `×` or `⌃w q`, heed asks what to do with it. The safe
+answer is the default one:
 
-- **Delete** (`y`): the session moves to History and its worktree is removed, with its local branch. A worktree with
-  work not saved anywhere else is kept, and the dialog says so.
+- **Keep** (`↩`, `y` or `⎋`): the session stays, with a new shell in its worktree.
 - **Close, keep the worktree** (`c`): the session moves to History; the worktree stays.
-- **Keep** (`n`): the session stays, with a new shell in its worktree.
+- **Delete** (`d`): the session moves to History and its worktree is removed, with its local branch. A worktree with
+  work not saved anywhere else is kept, and the dialog says so.
+
+Terminals that end together across several sessions were lost, not closed (heed quitting, or being replaced while it
+runs), and no session is touched: they reopen on the next launch. The same goes for every terminal while heed quits.
 
 ![Every terminal of a session closed: delete, close, or keep](../images/shots/sessions/all-closed.png)
 

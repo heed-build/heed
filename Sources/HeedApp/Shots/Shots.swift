@@ -53,9 +53,7 @@ enum Shots {
         Shot(id: "getting-started/tutor-reminder", crop: .titleBar, prepare: { $0.tutorReminderInShots = true }),
         // Every terminal of a session exited: delete it, close it, or keep it.
         Shot(id: "sessions/all-closed", crop: .confirm, prepare: { model in
-            for pane in model.currentTabs.flatMap(\.tree.panes) {
-                model.paneExited(pane.id)
-            }
+            model.panesEnded(Set(model.currentTabs.flatMap(\.tree.panes).map(\.id)))
         }),
         Shot(
             id: "getting-started/tutor-picker",

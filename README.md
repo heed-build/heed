@@ -1,8 +1,81 @@
-# Heed
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="design/brand/logo/owl-full-on-dark.svg">
+    <img src="design/brand/logo/owl-full-on-light.svg" alt="heed" width="120">
+  </picture>
+</p>
 
-A native macOS command center for agentic coding. It hosts coding agents and shells in libghostty terminals,
-manages repos and git worktrees, and tracks the GitHub issues and PRs around each task. Keyboard first, with
-vim-style modes. Heed keeps a record of each session; the agents own their transcripts.
+<h1 align="center">heed</h1>
+
+<p align="center"><strong>Run every agent. Ship every PR.</strong></p>
+
+<p align="center">
+  A native macOS app that feels like a TUI, with vim modes and keys, for running coding agents.<br>
+  heed hosts Claude, Codex, Cursor, pi, opencode and gemini in real terminals, taps you only when one needs you,<br>
+  then gets their pull requests green and merged.
+</p>
+
+<p align="center">
+  <a href="https://github.com/heed-build/heed/releases/latest/download/Heed-arm64.zip"><strong>Download for macOS</strong></a>
+  ·
+  <a href="https://heed.build">heed.build</a>
+  ·
+  <a href="https://heed.build/getting-started/">Docs</a>
+  ·
+  <a href="https://github.com/heed-build/heed/releases">Releases</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/heed-build/heed/actions/workflows/ci.yml"><img src="https://github.com/heed-build/heed/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/heed-build/heed/releases/latest"><img src="https://img.shields.io/github/v/release/heed-build/heed?label=release" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-15%2B-informational" alt="macOS 15+">
+</p>
+
+![heed: sessions on the left, agent terminals in the middle, the PR and agent events on the right](docs/images/shots/landing/main.png)
+
+## Install
+
+```sh
+brew install --cask heed-build/tap/heed
+```
+
+Or [download the latest release](https://github.com/heed-build/heed/releases/latest/download/Heed-arm64.zip)
+(signed and notarized, Apple silicon), or `curl -fsSL https://heed.build/install.sh | sh`. Then press `t` on the
+first screen for the tour, or `:tutor` any time.
+
+## What it does
+
+- **Every agent, one window.** Claude, Codex, Cursor, pi, opencode, gemini or any command, each in a real libghostty
+  terminal with tabs and splits. Agents report their state through hooks (working, idle, blocked, asking, done), so
+  heed knows who needs you, and `ga` jumps there.
+- **Start work in one line.** Press `o`, describe the task: heed picks the repo, makes a worktree named after it and
+  starts the agent with your prompt. Sessions resume where you left them after a restart.
+- **Get it green.** heed watches the PRs your sessions open. Review comments, failing checks (with the failed log) and
+  merge conflicts become items for the agent that wrote the code, sent once it is idle. Or hand conflicts and
+  comments to GitHub's Copilot coding agent and spare your agent's tokens.
+- **Get it merged.** Turn merging on per PR, repo or org. Each repo gets a merge queue: GitHub's auto-merge, or heed
+  merging itself once your rules hold (green, reviewed after the last push, quiet, gate checks, no hold label, an
+  optional self-review).
+- **Keyboard first.** NORMAL, INSERT, VISUAL, COMMAND and HINT modes, counts, relative numbers, `:` commands, and every
+  feature a named command you can rebind. The tutor teaches it by doing, on a pretend world.
+- **Worktrees that tidy up.** Create, list and remove worktrees across repos; cleanup removes only what has been quiet
+  for days, never dirty or unpushed work.
+
+<table>
+  <tr>
+    <td><img src="docs/images/shots/landing/green.png" alt="The Watch view: PRs by what they need, a PR's green checklist, and what heed did"></td>
+    <td><img src="docs/images/shots/landing/merged.png" alt="A PR heed merges: each merge rule and the one holding it back"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Watch (<code>gw</code>): every PR by what it needs</sub></td>
+    <td align="center"><sub>Get it merged: the rules, and the repo's merge queue</sub></td>
+  </tr>
+</table>
+
+heed keeps a record of each session; the agents own their transcripts. It is macOS only and not sandboxed: it has to
+spawn shells, git and agents.
+
+## Development
 
 ```sh
 mise install        # zig (libghostty), swiftformat, swiftlint

@@ -10,10 +10,13 @@ fresh. A confirmation says which before anything starts.
 
 ## A worktree Heed knows
 
-`Iw` in Sessions lists the worktrees of your repos that have no session yet, main checkouts last. Type to filter,
-`⌃n` `⌃p` to move, `↩` to import. In Repos, `↩` on a row does the same (`v` and `o` for several).
+`Iw` in Sessions lists the worktrees of your repos that have no session yet, main checkouts last. Type to filter by
+repo, branch or the path below its root, `⌃n` `⌃p` to move, `↩` to import. In Repos, `↩` on a row does the same (`v`
+and `o` for several).
 
 ![Import a worktree: the worktrees with no session yet](../images/shots/worktrees/import-worktree.png)
+
+![Typing gantt: the one worktree left, the match marked in branch and path](../images/shots/worktrees/import-worktree-filtered.png)
 
 ## Any path
 

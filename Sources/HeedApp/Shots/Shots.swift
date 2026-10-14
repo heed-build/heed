@@ -166,8 +166,11 @@ enum Shots {
 
     static let worktrees: [Shot] = [
         Shot(id: "worktrees/repos", keys: "gr", highlight: [.repoColumn, .worktreeTable, .rulesPanel]),
+        Shot(id: "worktrees/repos-filtered", keys: "gr/fix<CR>", crop: .worktreeTable),
         Shot(id: "worktrees/repo-column", size: short, keys: "gr", crop: .repoColumn),
         Shot(id: "worktrees/import-worktree", keys: "Iw", crop: .picker),
+        // Typing narrows by repo, branch or the path below its root, and marks what matched.
+        Shot(id: "worktrees/import-worktree-filtered", keys: "Iwgantt", crop: .picker),
         Shot(id: "worktrees/import-path", keys: "Ip" + "code/wt/docs-builder/toc", crop: .picker),
         Shot(id: "worktrees/remove", keys: "gr4jvjd", crop: .confirm),
         Shot(id: "worktrees/rules", keys: "gr", crop: .rulesPanel),

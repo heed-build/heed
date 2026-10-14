@@ -9,8 +9,8 @@ description: The Repos view, every worktree of every repo, and how they come and
 
 ![Repos: the repo column, the worktree table, and the cleanup rules](../images/shots/worktrees/repos.png)
 
-The table shows each worktree's repo, branch, the agent of the session working there, its status (upstream, ahead,
-behind, uncommitted changes) and its pull request.
+The table shows each worktree's repo, its branch with its path small below, the agent of the session working there, its
+status (upstream, ahead, behind, uncommitted changes) and its pull request.
 
 | Key | |
 |---|---|
@@ -23,7 +23,13 @@ behind, uncommitted changes) and its pull request.
 | `:repo.add <path>` | Add a repo outside the scanned folders; it is kept in `repo_paths` |
 | `:cleanup.rules` | Show the cleanup rules panel (it hides on narrow windows and with `zi`) |
 | `{` `}` | Previous / next repo |
-| `/` | [Filter](../sessions/filtering.md) by repo, branch or agent |
+| `/` | [Filter](../sessions/filtering.md) by repo, branch, path or agent |
+
+A filter matches the part of a path below its root (the worktree root or a repo root from `[worktrees]`, else your home
+folder), so `code` does not match every worktree under `~/code`. What matched is marked in the repo, the branch and the
+path.
+
+![Repos filtered by fix: the matches marked in branch and path](../images/shots/worktrees/repos-filtered.png)
 
 - [Repos](repos.md): where repos come from, and their order and colours.
 - [Importing](importing.md): worktrees made outside Heed, and any path.

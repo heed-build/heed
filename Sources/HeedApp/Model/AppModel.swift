@@ -843,10 +843,12 @@ final class AppModel {
         let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
         let filter = filter(for: .repos)
         let added = worktrees.filter { !$0.isMain }
+        let roots = settings.pathRoots
         let matching = filter.isEmpty ? added : added.filter { worktree in
-            FilterQuery.matches(
-                filter, [worktree.repo.slug, worktree.branch ?? "", worktree.path, session(for: worktree)?.agent ?? ""]
-            )
+            FilterQuery.matches(filter, [
+                worktree.repo.slug, worktree.branch ?? "", Paths.split(worktree.path, roots: roots).relative,
+                session(for: worktree)?.agent ?? "",
+            ])
         }
         worktreeRows = matching.sorted {
             $0.repo.slug == $1.repo.slug ? $0.path < $1.path
@@ -1768,7 +1770,11 @@ final class AppModel {
                 : (rank[$0.repo.slug] ?? .max, $0.repo.slug) < (rank[$1.repo.slug] ?? .max, $1.repo.slug)
         }
         // Open even when every listed worktree has a session: a typed path imports any other.
-        importPicker = Typeahead(items: candidates) { [$0.repo.slug, $0.branch ?? "", $0.path] }
+        // The path below its root, so a root's own words (code, Projects) do not match every worktree.
+        let roots = settings.pathRoots
+        importPicker = Typeahead(items: candidates) {
+            [$0.repo.slug, $0.branch ?? "", Paths.split($0.path, roots: roots).relative]
+        }
     }
 
     private func answerImportPicker(_ stroke: KeyStroke) {

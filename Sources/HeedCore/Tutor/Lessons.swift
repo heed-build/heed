@@ -43,8 +43,8 @@ public extension Tutor {
         ) { start, now, _ in now.panes > start.panes },
         TutorStep(
             "Views",
-            say: "Each view is g and a letter: {view.inbox} Inbox, {view.issues} Issues, {view.prs} PRs, {view.repos} Repos. Visit two, then {view.sessions} comes home.",
-            keys: ["{view.inbox}", "{view.prs}", "{view.sessions}"], target: "viewTabs",
+            say: "Each view is g and a letter: {view.watch} Watch, {view.inbox} Inbox, {view.prs} PRs, {view.repos} Repos. Visit two, then {view.sessions} comes home.",
+            keys: ["{view.watch}", "{view.prs}", "{view.sessions}"], target: "viewTabs",
             doneLine: "Views stay where you left them: switching back finds the same row."
         ) { _, now, seen in Set(seen.map(\.view)).count >= 3 && now.view == "sessions" },
         TutorStep(
@@ -177,6 +177,46 @@ public extension Tutor {
                 keys: ["⎋"],
                 doneLine: "It stops after three rounds without progress. Nobody gets nagged forever."
             ) { _, now, _ in now.overlay == nil },
+        ]),
+        TutorLesson(id: "watch", title: "Watch", minutes: 3, world: .mondayMorning, steps: [
+            TutorStep(
+                "Every PR, by what it needs",
+                say: "{view.watch} opens Watch: the PRs your sessions track, grouped by what they need, stuck ones first.",
+                keys: ["{view.watch}"], target: "list",
+                doneLine: "On the right, everything heed did lately: what it sent, what it held back, and why."
+            ) { _, now, _ in now.view == "watch" },
+            TutorStep(
+                "Why it is not green",
+                say: "{row.next} moves. The middle lists each green rule for the PR, and which one holds it back.",
+                keys: ["{row.next}"], target: "pilotDetail",
+                doneLine: "Below the rules: its items, and a timeline of everything heed noticed and did for it."
+            ) { start, now, _ in now.view == "watch" && now.cursor != start.cursor },
+            TutorStep(
+                "Pause one",
+                say: "{pilot.pause} pauses the PR for an hour: still watched, but nothing is sent or merged for it.",
+                keys: ["{pilot.pause}"], target: "list",
+                doneLine: "The countdown shows on the row, and the pause ends by itself."
+            ) { start, now, _ in now.paused > start.paused },
+            TutorStep(
+                "Or several",
+                say: "{mode.visual} selects, {row.next} widens it, and z pauses (or resumes) every selected PR.",
+                keys: ["{mode.visual}", "{row.next}", "z"], target: "list",
+                doneLine: "VISUAL works on PRs as it does on worktrees: y copies their links too."
+            ) { start, now, seen in
+                seen.contains { $0.mode == .visual } && now.mode == .normal && now.paused != start.paused
+            },
+            TutorStep(
+                "Get it merged",
+                say: "{pilot.merge} turns merging on for the PR: auto hands it to GitHub's auto-merge, heed merges by its own rules.",
+                keys: ["{pilot.merge}"], target: "pilotDetail",
+                doneLine: "{pilot.merge} again cycles to heed, then off. Repos and orgs can turn it on in config."
+            ) { start, now, _ in now.merging > start.merging },
+            TutorStep(
+                "The merge queue",
+                say: "Each repo's PRs with merging on form a queue that runs every hour. {merge.queue} shows this one's.",
+                keys: ["{merge.queue}"], target: "pilotDetail",
+                doneLine: "Its PRs, what the next run does with each, and every run so far. {merge.run} runs it now."
+            ) { _, now, _ in now.mergeQueue },
         ]),
         TutorLesson(id: "repos", title: "Repos", minutes: 3, world: .mondayMorning, steps: [
             TutorStep(

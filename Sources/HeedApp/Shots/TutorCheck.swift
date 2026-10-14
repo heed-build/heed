@@ -12,13 +12,14 @@ enum TutorCheck {
     static let scripts: [String: [String]] = [
         "tour": [
             "i<S-Esc>", "jk2j", "'2", "ga", "o" + Shots.typed("Fix the anchors in docs") + "<D-CR>", "<C-w>v",
-            "gmgpgs", "/<Esc>:<Esc>", "?",
+            "gwgpgs", "/<Esc>:<Esc>", "?",
         ],
         "sessions": ["}}}", "m'1", "<C-w>v", "/mer<CR>"],
         "start-work": ["o" + Shots.typed("Fix the broken anchors"), "<C-n>", "<D-CR>"],
         "inbox": ["<CR><Esc>", "<Space>j<Space>", "x"],
         "issues": ["/a<CR>", "s", "<Esc><Esc><CR>"],
         "prs": ["<CR>", "<Space>", "s", "<Esc>"],
+        "watch": ["gw", "j", "zz", "vjz", "M", "gM"],
         "repos": ["G", "o<Esc><Esc>", "ddn"],
         "history": ["j", "t", "R"],
         "agents": ["ga", "i<S-Esc>", "jjzz"],

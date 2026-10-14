@@ -44,6 +44,10 @@ public struct TutorState: Equatable, Sendable {
     public var diffFile = 0
     public var diffRow = 0
     public var historyOutcome = ""
+    /// The Watch view: tracked PRs paused, with merging on, and whether a merge queue is in the middle.
+    public var paused = 0
+    public var merging = 0
+    public var mergeQueue = false
 
     public init() {}
 }

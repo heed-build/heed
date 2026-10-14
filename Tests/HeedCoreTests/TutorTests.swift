@@ -33,7 +33,7 @@ struct TutorTests {
         #expect(Tutor.tour.steps.count == 9)
         #expect(Tutor.tour.steps.first?.title == "Two modes")
         #expect(Tutor.viewLessons.map(\.id) == [
-            "sessions", "start-work", "inbox", "issues", "prs", "repos", "history", "agents", "diff",
+            "sessions", "start-work", "inbox", "issues", "prs", "watch", "repos", "history", "agents", "diff",
         ])
         for lesson in Tutor.viewLessons {
             #expect((2 ... 4).contains(lesson.minutes), "\(lesson.id)")
@@ -55,7 +55,7 @@ struct TutorTests {
     @Test func everySpotlightTargetIsARegionName() {
         let regions: Set<String> = [
             "panes", "sidebar", "needsYou", "dialog", "viewTabs", "statusBar", "list", "reader", "pipeline",
-            "worktreeTable", "confirm", "historyList", "diffBody",
+            "worktreeTable", "confirm", "historyList", "diffBody", "pilotDetail",
         ]
         for lesson in [Tutor.tour] + Tutor.viewLessons {
             for step in lesson.steps {

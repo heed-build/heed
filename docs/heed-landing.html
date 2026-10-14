@@ -134,6 +134,12 @@ body{margin:0;background:#0e0f11}
 .shot{padding:24px 0 8px}
 .win{margin:0;border-radius:14px;border:1px solid #30353b;background:#111214;box-shadow:0 40px 90px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.03),0 0 120px rgba(240,165,58,.07);overflow:hidden}
 .win img{display:block;width:100%;height:auto}
+.win img{cursor:zoom-in}
+.win img:focus-visible{outline:2px solid var(--amb2);outline-offset:-2px}
+dialog.lb{padding:0;border:0;background:transparent;max-width:none;max-height:none;overflow:visible}
+dialog.lb::backdrop{background:rgba(8,9,11,.88);backdrop-filter:blur(4px)}
+dialog.lb img{display:block;max-width:min(96vw,2880px);max-height:92vh;width:auto;height:auto;border-radius:12px;border:1px solid #30353b;box-shadow:0 40px 90px rgba(0,0,0,.7);cursor:zoom-out}
+dialog.lb p{margin:10px 0 0;text-align:center;color:#9aa1ab;font:15px "Bricolage Grotesque",-apple-system,sans-serif}
 .wb{display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;background:#1a1c20;border-bottom:1px solid #2a2e33}
 .wb i{width:11px;height:11px;border-radius:50%;display:block}
 .wb span{margin:0 auto;font:600 12px "JetBrains Mono",monospace;color:#8a919a;transform:translateX(-24px)}
@@ -277,5 +283,20 @@ a:focus-visible,summary:focus-visible,.btn:focus-visible{outline:2px solid var(-
  <footer class="foot"><span class="brand" style="font-size:20px"><svg width="26" height="26" aria-hidden="true" style="color:#dfe3e8"><use href="#hm"/></svg>heed</span><span>Made for people who run a lot of agents.</span><span><a href="https://github.com/heed-build/heed">GitHub</a> · <a href="getting-started/">Documentation</a></span></footer>
 </div>
 </div>
+<dialog class="lb" aria-label="Screenshot, full size"><img alt=""><p></p></dialog>
+<script>
+(() => {
+  const box = document.querySelector('dialog.lb'), big = box.querySelector('img'), cap = box.querySelector('p');
+  const open = img => { big.src = img.currentSrc || img.src; big.alt = img.alt; cap.textContent = img.alt; box.showModal(); };
+  document.querySelectorAll('.win img').forEach(img => {
+    img.tabIndex = 0;
+    img.setAttribute('role', 'button');
+    img.title = 'Show full size';
+    img.addEventListener('click', () => open(img));
+    img.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(img); } });
+  });
+  box.addEventListener('click', () => box.close());
+})();
+</script>
 </body>
 </html>

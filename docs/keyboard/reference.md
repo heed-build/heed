@@ -89,6 +89,7 @@ This page is generated from the code (`mise run shots`).
 | `config.edit` |  | open config.toml in $EDITOR |
 | `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |
 | `tutor.hide` `[all]` |  | hide the title bar's tutor reminder for this lesson (all: every reminder) |
+| `agents.stop` |  | stop every agent and shell in every pane (with [sessions] persist = "zmx") |
 | `tutor.back` |  | the tutor's previous step, the world as it was then |
 | `tutor.skip` |  | skip the tutor's step |
 | `tutor.exit` | `<D-.>`, `<D-.>` (INSERT) | leave the tutor; your sessions come back as they were |

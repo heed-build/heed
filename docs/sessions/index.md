@@ -22,4 +22,4 @@ the sessions waiting on you on the right.
 
 - [The sidebar](sidebar.md) · [Moving around](moving-around.md) · [Typing into agents](typing-into-agents.md)
 - [Panes and tabs](panes-and-tabs.md) · [The inspector](inspector.md)
-- [Pin, park, close, delete](pin-park-close-delete.md) · [Resuming sessions](resume.md) · [Filtering](filtering.md)
+- [Pin, park, close, delete](pin-park-close-delete.md) · [Resuming sessions](resume.md) · [Agents that outlive Heed](zmx.md) · [Filtering](filtering.md)

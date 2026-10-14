@@ -45,6 +45,15 @@ final class TerminalSurfaces {
     /// A pane's terminal ended: its shell exited (`exit`, ⌃D) or its command finished.
     var onPaneExited: ((String) -> Void)?
     private var exitsWired = false
+    /// `[sessions] persist`: with zmx, a pane's terminal attaches to its zmx session instead of starting a shell.
+    var persist: PanePersistence = .none
+    /// Panes whose zmx session is alive: they reattach as they are, and nothing is typed into them.
+    var livePanes: Set<String> = []
+    /// Where heed keeps its zmx sessions.
+    let zmxDirectory = Zmx.socketDirectory()
+
+    private var zmx: String? { persist == .zmx ? Helper.zmxPath : nil }
+
     /// PATH for new panes: the detected search path (an app opened from Finder has a minimal one).
     var searchPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
 
@@ -62,7 +71,16 @@ final class TerminalSurfaces {
         if autostartPanes.remove(pane.id) == nil { launch.command = nil }
         var withPath = environment
         withPath["PATH"] = searchPath
-        let view = makeTerminalView(pane: launch, environment: withPath)
+        var attach: String?
+        // Only a pane in a real worktree: fixture and tutor panes, and ones whose worktree is gone, stay plain shells.
+        if let zmx, FileManager.default.fileExists(atPath: pane.directory) {
+            withPath.merge(Zmx.environment(socketDirectory: zmxDirectory)) { _, new in new }
+            attach = Zmx.attachCommand(zmx: zmx, pane: pane.id)
+            // A live session is reattached as it is: whatever runs in it keeps running, and nothing is typed again.
+            if livePanes.contains(pane.id) { launch.command = nil }
+            livePanes.insert(pane.id)
+        }
+        let view = makeTerminalView(pane: launch, environment: withPath, command: attach)
         #if HEED_GHOSTTY
             let paneID = pane.id
             (view as? GhosttySurfaceView)?.onClick = { [weak self] in self?.onPaneClick?(paneID) }
@@ -132,13 +150,33 @@ final class TerminalSurfaces {
         views.values.contains { $0 === view }
     }
 
+    /// A pane closed for good (closed, its session closed or deleted, its worktree swept): its terminal goes, and with
+    /// zmx its session too, so nothing is left running.
     func close(paneID: String) {
         views.removeValue(forKey: paneID)?.removeFromSuperview()
+        guard let zmx, livePanes.remove(paneID) != nil else { return }
+        let directory = zmxDirectory
+        Task.detached { await Zmx.kill(panes: [paneID], zmx: zmx, socketDirectory: directory) }
     }
 
-    private func makeTerminalView(pane: PaneSpec, environment: [String: String]) -> NSView {
+    /// Reads which panes still have a live zmx session (at launch, before any pane is drawn).
+    func refreshLivePanes() async {
+        guard let zmx else { return livePanes = [] }
+        livePanes = await Zmx.livePanes(zmx: zmx, socketDirectory: zmxDirectory)
+    }
+
+    /// `agents.stop`: ends every pane's zmx session, and everything running in them.
+    func stopAll() async -> Int {
+        guard let zmx else { return 0 }
+        let live = await Zmx.livePanes(zmx: zmx, socketDirectory: zmxDirectory)
+        await Zmx.kill(panes: Array(live), zmx: zmx, socketDirectory: zmxDirectory)
+        livePanes.subtract(live)
+        return live.count
+    }
+
+    private func makeTerminalView(pane: PaneSpec, environment: [String: String], command: String?) -> NSView {
         #if HEED_GHOSTTY
-            GhosttyTerminalFactory.makeView(pane: pane, environment: environment)
+            GhosttyTerminalFactory.makeView(pane: pane, environment: environment, command: command)
         #else
             PlaceholderTerminalView(pane: pane)
         #endif

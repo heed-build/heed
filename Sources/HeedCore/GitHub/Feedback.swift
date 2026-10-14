@@ -32,6 +32,13 @@ public struct PullDetail: Hashable, Sendable, Codable {
     public var reviewDecision: String?
     /// The checks branch protection requires on this PR; empty when it requires none.
     public var requiredChecks: [String]?
+    /// GitHub auto-merge is on for this PR, and with which method.
+    public var autoMergeEnabled: Bool?
+    public var autoMergeMethod: String?
+    public var labels: [String]?
+    /// What the repo allows: auto-merge, and the merge methods (`squash`, `merge`, `rebase`).
+    public var repoAllowsAutoMerge: Bool?
+    public var repoMergeMethods: [String]?
 
     public struct Review: Hashable, Sendable, Codable {
         public var author: String
@@ -202,6 +209,9 @@ public struct PullFeedback: Hashable, Sendable, Codable {
     /// Paused (silenced) until then: still watched, nothing sent or merged. `pausedForever` until resumed.
     public var pausedUntil: Date?
     public var pausedForever: Bool
+    /// Get it merged, as set by hand (`M`) when `mergeSet`, else from the settings.
+    public var merge: MergeMode
+    public var mergeSet: Bool
 
     public static let defaultMaxRounds = 3
 
@@ -217,11 +227,13 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         maxRounds = Self.defaultMaxRounds
         pausedUntil = nil
         pausedForever = false
+        merge = .off
+        mergeSet = false
     }
 
     private enum CodingKeys: String, CodingKey {
         case ref, items, autoFeed, watching, rounds, approvalsSeen, watchSet, greenSet, maxRounds, pausedUntil,
-             pausedForever
+             pausedForever, merge, mergeSet
     }
 
     /// Caches written before the pilot settings still load: the newer fields default.
@@ -238,6 +250,8 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         maxRounds = try container.decodeIfPresent(Int.self, forKey: .maxRounds) ?? Self.defaultMaxRounds
         pausedUntil = try container.decodeIfPresent(Date.self, forKey: .pausedUntil)
         pausedForever = try container.decodeIfPresent(Bool.self, forKey: .pausedForever) ?? false
+        merge = try container.decodeIfPresent(MergeMode.self, forKey: .merge) ?? .off
+        mergeSet = try container.decodeIfPresent(Bool.self, forKey: .mergeSet) ?? false
     }
 
     /// What applies to this PR: a hand-set choice, else the settings.
@@ -245,19 +259,27 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         public let watching: Bool
         public let green: AutoFeed
         public let maxRounds: Int
+        public let merge: MergeMode
+
+        public init(watching: Bool, green: AutoFeed, maxRounds: Int, merge: MergeMode = .off) {
+            self.watching = watching
+            self.green = green
+            self.maxRounds = maxRounds
+            self.merge = merge
+        }
     }
 
     public func effective(_ settings: PilotSettings) -> Effective {
         Effective(
             watching: watchSet ? watching : settings.watch, green: greenSet ? autoFeed : settings.green,
-            maxRounds: settings.maxRounds
+            maxRounds: settings.maxRounds, merge: mergeSet ? merge : settings.merge
         )
     }
 
     /// For a PR heed has no pipeline for yet: the settings alone.
     public static func effective(_ pipeline: PullFeedback?, _ settings: PilotSettings) -> Effective {
         pipeline?.effective(settings) ?? Effective(
-            watching: settings.watch, green: settings.green, maxRounds: settings.maxRounds
+            watching: settings.watch, green: settings.green, maxRounds: settings.maxRounds, merge: settings.merge
         )
     }
 
@@ -270,6 +292,7 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         watching = effective.watching
         autoFeed = effective.green
         maxRounds = effective.maxRounds
+        merge = effective.merge
         return self != before
     }
 

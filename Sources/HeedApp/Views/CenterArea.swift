@@ -180,7 +180,10 @@ private struct RemotePaneStrip: View {
 
     private var link: (String, Color) {
         switch model.hostStatus(host) {
-        case let .connected(info): ("connected · \(info.latencyMilliseconds) ms", Theme.done)
+        case let .connected(info):
+            info.zmxPath == nil
+                ? ("connected · \(info.latencyMilliseconds) ms · not persistent", Theme.block)
+                : ("connected · \(info.latencyMilliseconds) ms", Theme.done)
         case .unknown: ("checking…", Theme.fg3)
         case .needsAuth: ("ssh needs your key · a", Theme.ask)
         case .hostKeyChanged: ("host key changed · blocked", Theme.err)

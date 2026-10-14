@@ -108,12 +108,18 @@ public struct HostInfo: Hashable, Sendable {
     public var checkedAt: Date
     /// The login's home on the host: where `~/.heed` is, for paths an agent is given.
     public var home: String?
+    /// Where zmx is on the host (a non-login ssh may not have ~/.local/bin on its PATH, so heed looks there too).
+    public var zmxPath: String?
+    /// `/etc/os-release` ID (`ubuntu`, `alpine`, `nixos`), for install instructions.
+    public var os: String?
 
     public init(
         latency: Duration, platform: String, git: String?, zmx: String?, agents: [String], checkedAt: Date = Date(),
-        home: String? = nil
+        home: String? = nil, zmxPath: String? = nil, os: String? = nil
     ) {
         self.home = home
+        self.zmxPath = zmxPath
+        self.os = os
         self.latency = latency
         self.platform = platform
         self.git = git
@@ -136,8 +142,12 @@ public enum HostProbe {
     echo "platform=$(uname -sm)"
     echo "home=$HOME"
     echo "git=$(git --version 2>/dev/null | awk '{print $3}')"
-    z="$HOME/.heed/bin/zmx"; [ -x "$z" ] || z="$(command -v zmx 2>/dev/null)"
-    [ -n "$z" ] && echo "zmx=$("$z" version 2>/dev/null | awk '/^zmx/{print $2}')"
+    . /etc/os-release 2>/dev/null; echo "os=${ID:-}"
+    z="$(command -v zmx 2>/dev/null)"
+    for c in "$HOME/.local/bin/zmx" "$HOME/bin/zmx" "$HOME/.nix-profile/bin/zmx" /usr/local/bin/zmx /opt/homebrew/bin/zmx; do
+      [ -n "$z" ] || { [ -x "$c" ] && z="$c"; }
+    done
+    [ -n "$z" ] && echo "zmxpath=$z" && echo "zmx=$("$z" version 2>/dev/null | awk '/^zmx/{print $2}')"
     for a in \(agents.joined(separator: " ")); do command -v "$a" >/dev/null 2>&1 && echo "agent=$a"; done
     true
     """
@@ -155,7 +165,7 @@ public enum HostProbe {
         func nonEmpty(_ key: String) -> String? { values[key].flatMap { $0.isEmpty ? nil : $0 } }
         return HostInfo(
             latency: latency, platform: platform, git: nonEmpty("git"), zmx: nonEmpty("zmx"), agents: agents,
-            checkedAt: now, home: nonEmpty("home")
+            checkedAt: now, home: nonEmpty("home"), zmxPath: nonEmpty("zmxpath"), os: nonEmpty("os")
         )
     }
 

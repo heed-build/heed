@@ -60,3 +60,29 @@ public enum Zmx {
         )
     }
 }
+
+/// How to install zmx (https://zmx.sh), told to you rather than done for you: heed ships no copy of it.
+public enum ZmxInstall {
+    /// The release heed is tested with, for the tarball line.
+    public static let testedVersion = "0.8.1"
+    public static let site = "https://zmx.sh"
+
+    /// Lines to run for a machine: `uname -sm` (`Linux x86_64`, `Darwin arm64`) and, on Linux, its os-release ID.
+    public static func commands(platform: String, os: String? = nil) -> [String] {
+        let words = platform.lowercased().split(separator: " ").map(String.init)
+        if words.first == "darwin" { return ["brew install neurosnap/tap/zmx"] }
+        if os == "nixos" { return ["nix profile install nixpkgs#zmx"] }
+        let arch = switch words.last {
+        case "x86_64", "amd64": "x86_64"
+        case "aarch64", "arm64": "aarch64"
+        default: ""
+        }
+        guard words.first == "linux", !arch.isEmpty else { return [] }
+        return [
+            "mkdir -p ~/.local/bin && curl -fsSL \(site)/a/zmx-\(testedVersion)-linux-\(arch).tar.gz | tar -xz -C ~/.local/bin zmx",
+        ]
+    }
+
+    /// For this Mac.
+    public static let mac = commands(platform: "Darwin arm64")
+}

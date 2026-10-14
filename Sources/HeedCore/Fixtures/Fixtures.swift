@@ -14,12 +14,19 @@ public enum Fixtures {
         "devbox": HostConfig(name: "devbox", color: "teal"),
         "gpu": HostConfig(name: "gpu", worktreeRoot: "~/runs", color: "periwinkle"),
         "ci": HostConfig(name: "ci", ssh: "ci@10.0.4.9", worktreeRoot: "~/builds", color: "pink"),
+        "lab": HostConfig(name: "lab", color: "sky"),
     ]
 
     public static let hostStatuses: [String: HostStatus] = [
         "devbox": .connected(HostInfo(
             latency: .milliseconds(24), platform: "Linux x86_64", git: "2.46.0", zmx: "0.8.1",
-            agents: ["claude", "codex"], checkedAt: Clock.now
+            agents: ["claude", "codex"], checkedAt: Clock.now, home: "/home/you",
+            zmxPath: "/home/you/.local/bin/zmx", os: "ubuntu"
+        )),
+        // Answers, but zmx is not installed there yet: heed says how.
+        "lab": .connected(HostInfo(
+            latency: .milliseconds(41), platform: "Linux aarch64", git: "2.43.0", zmx: nil, agents: ["claude"],
+            checkedAt: Clock.now, home: "/home/you", os: "debian"
         )),
         "gpu": .needsAuth("martijn@gpu: Permission denied (publickey)."),
         "ci": .offline(

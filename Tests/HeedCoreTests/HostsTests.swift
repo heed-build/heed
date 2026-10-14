@@ -40,11 +40,14 @@ struct HostsTests {
     }
 
     @Test func theChecksReadBackAndFailuresAreNamed() {
-        let output = "platform=Linux x86_64\ngit=2.46.0\nzmx=0.8.1\nagent=claude\nagent=codex\n"
+        let output = "platform=Linux x86_64\nos=ubuntu\nhome=/home/m\ngit=2.46.0\nzmxpath=/home/m/.local/bin/zmx\nzmx=0.8.1\nagent=claude\nagent=codex\n"
         let info = HostProbe.info(fromOutput: output, latency: .milliseconds(24))
         #expect(info?.platform == "Linux x86_64")
         #expect(info?.git == "2.46.0")
         #expect(info?.zmx == "0.8.1")
+        #expect(info?.zmxPath == "/home/m/.local/bin/zmx")
+        #expect(info?.os == "ubuntu")
+        #expect(info?.home == "/home/m")
         #expect(info?.agents == ["claude", "codex"])
         #expect(info?.latencyMilliseconds == 24)
         #expect(HostProbe.info(fromOutput: "welcome banner", latency: .zero) == nil)

@@ -172,6 +172,11 @@ enum Shots {
             prepare: { $0.perform(CommandInvocation(name: "host.open")) }
         ),
         Shot(id: "hosts/picker-offline", crop: .dialog, prepare: { $0.perform(CommandInvocation(name: "host.open")) }),
+        // A host without zmx: the line that installs it there.
+        Shot(
+            id: "hosts/picker-no-zmx", keys: "<C-n><C-n><C-n>", crop: .dialog,
+            prepare: { $0.perform(CommandInvocation(name: "host.open")) }
+        ),
         // Repos with a host column: a registered and a discovered worktree on @devbox.
         Shot(id: "hosts/repos", keys: "gr"),
         // @ narrows a view to one host.

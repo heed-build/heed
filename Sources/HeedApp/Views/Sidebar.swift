@@ -33,6 +33,11 @@ struct Sidebar: View {
                                         hint: model.hintLabel(for: .session(session.id)),
                                         pilot: model.pilotStatus(of: session)
                                     )
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { model.clickSession(session.id) }
+                                    .simultaneousGesture(TapGesture(count: 2).onEnded {
+                                        model.clickSession(session.id, insert: true)
+                                    })
                                     .id(session.id)
                                 }
                             }
@@ -112,10 +117,11 @@ struct SessionRow: View {
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(session.title)
+                    Text(session.worktreeName)
                         .font(Theme.ui(13, weight: .medium))
                         .lineLimit(1)
-                        .truncationMode(.tail)
+                        .truncationMode(.middle)
+                        .help(session.title)
                     Spacer(minLength: 4)
                     if let pinNumber { KeyCap(text: "'\(pinNumber)") }
                     if let pilot, pilot != .unwatched { PilotMark(status: pilot, compact: true) }
@@ -197,6 +203,11 @@ struct SessionRail: View {
                             if let hint = model.hintLabel(for: .session(session.id)) { HintBadge(label: hint) }
                         }
                         .help(session.title)
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.clickSession(session.id) }
+                        .simultaneousGesture(TapGesture(count: 2).onEnded {
+                            model.clickSession(session.id, insert: true)
+                        })
                     }
                 }
             }

@@ -128,6 +128,12 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         untrackedPRs = try container.decodeIfPresent([PullRef].self, forKey: .untrackedPRs) ?? []
     }
 
+    /// What the sidebar calls the session: its worktree's folder name (Start work names it after the task, the same
+    /// as the branch), else its branch. The prompt-derived `title` stays for the title bar and the inspector.
+    public var worktreeName: String {
+        worktreePaths.first.map { ($0 as NSString).lastPathComponent } ?? branch
+    }
+
     /// Whether a worktree is this session's: one it has by path, or (for sessions that predate paths) one on its
     /// first branch, in one of its repos.
     public func owns(_ worktree: Worktree) -> Bool {

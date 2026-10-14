@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>heed: keep an eye on every agent</title>
-<meta name="description" content="A native macOS app that feels and works like a TUI, with vim-inspired modes and key bindings, for running coding agents: real terminals, a worktree per task, and a tap on the shoulder when one needs you."/>
+<title>heed: run every agent, ship every PR</title>
+<meta name="description" content="A native macOS app that feels like a TUI, with vim modes and keys, for running coding agents: real terminals, a worktree per task, a tap on the shoulder when one needs you, and PRs taken from red to green to merged."/>
 <base href="/"/>
 
 <!-- docs/heed-landing.html: ported from the landing board of the heed brand design (design/landing/Landing.dc.html).
@@ -12,14 +12,14 @@
      hand and links resolve against <base href>. Every screenshot is generated: mise run shots (Shots.landing). -->
 <meta property="og:type" content="website"/>
 <meta property="og:url" content="https://heed.build/"/>
-<meta property="og:title" content="heed: keep an eye on every agent"/>
-<meta property="og:description" content="A native macOS app that feels and works like a TUI, for running coding agents."/>
+<meta property="og:title" content="heed: run every agent, ship every PR"/>
+<meta property="og:description" content="A native macOS app for running coding agents, and getting their PRs green and merged."/>
 <meta property="og:image" content="https://heed.build/images/png/heed-social-1280x640.png"/>
 <meta property="og:image:width" content="1280"/>
 <meta property="og:image:height" content="640"/>
 <meta name="twitter:card" content="summary_large_image"/>
-<meta name="twitter:title" content="heed: keep an eye on every agent"/>
-<meta name="twitter:description" content="A native macOS app that feels and works like a TUI, for running coding agents."/>
+<meta name="twitter:title" content="heed: run every agent, ship every PR"/>
+<meta name="twitter:description" content="A native macOS app for running coding agents, and getting their PRs green and merged."/>
 <meta name="twitter:image" content="https://heed.build/images/png/heed-social-1280x640.png"/>
 <link rel="icon" type="image/png" sizes="32x32" href="images/png/heed-32.png"/>
 <link rel="icon" type="image/png" sizes="16x16" href="images/png/heed-16.png"/>
@@ -241,8 +241,8 @@ a:focus-visible,summary:focus-visible,.btn:focus-visible{outline:2px solid var(-
  <header class="hero" id="top">
   <div>
    <span class="chip mono">native macOS · vim-style · keyboard first</span>
-   <h1>Keep an eye on <em>every</em> agent.</h1>
-   <p class="lead">A native macOS app that feels and works like a TUI, with vim-inspired modes and key bindings. heed runs Claude, Codex, Cursor, pi, opencode and gemini in real terminals, watches what each one is up to, and taps your shoulder only when one needs you.</p>
+   <h1>Run every agent. <em>Ship</em> every PR.</h1>
+   <p class="lead">A native macOS app that feels like a TUI, with vim modes and keys. heed runs Claude, Codex, Cursor, pi, opencode and gemini in real terminals, taps you only when one needs you, then feeds review comments and failing checks back to the agent that wrote the code until the PR is green, and merges it by your rules.</p>
    <div class="cta"><a class="btn p" href="https://github.com/heed-build/heed/releases/latest/download/Heed-arm64.zip"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><path d="M12 3v12M6.5 10L12 15.5 17.5 10M4 20.5h16"/></svg>Download for macOS</a><a class="btn" href="getting-started/"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><path d="M5 3h10l4 4v14H5z"/><path d="M9 11h6M9 15h6"/></svg>Docs</a><a class="btn" href="https://github.com/heed-build/heed"><svg class="bi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true"><rect x="4" y="3" width="5" height="5"/><rect x="4" y="16" width="5" height="5"/><rect x="15" y="5" width="5" height="5"/><path d="M6.5 8v8M17.5 10v1a4 4 0 0 1-4 4H9"/></svg>GitHub</a></div><div class="brew mono"><span>or</span><code>brew install --cask heed-build/tap/heed</code></div>
    <div class="keyrow"><span><kbd>o</kbd> start work</span><span><kbd>ga</kbd> next agent that needs you</span><span><kbd>gw</kbd> watch your PRs</span><span><kbd>?</kbd> every key</span></div>
    <div class="fine">Open source. Agents keep their own transcripts; heed never stores them.</div>

@@ -39,6 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `HEED_FIXTURE=<name>` (or a snapshot run) opens on a fixture domain with no IO at all; otherwise the cached
     /// domain loads in the background and git refreshes it.
     let model: AppModel = {
+        // Before the model reads its preferences.
+        LegacyDefaults.migrate()
         let environment = ProcessInfo.processInfo.environment
         let fixture = environment["HEED_FIXTURE"] ?? (environment["HEED_SNAPSHOT"] != nil ? "main" : nil)
         if let fixture, let domain = Fixtures.named(["resume", "firstrun"].contains(fixture) ? "main" : fixture) {

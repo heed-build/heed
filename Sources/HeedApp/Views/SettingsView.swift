@@ -421,6 +421,31 @@ private struct PilotSettingsView: View {
                     set: { model.setConfig(["pilot", "update_branches"], .bool($0)) }
                 )).labelsHidden()
             }
+            Field(
+                label: "Copilot: conflicts",
+                detail: "Ask GitHub's Copilot coding agent on the PR to resolve merge conflicts, sparing your agent's "
+                    + "tokens. Where Copilot can work in the repo."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { pilot.defaults.copilotConflicts },
+                    set: { model.setConfig(["pilot", "copilot_conflicts"], .bool($0)) }
+                )).labelsHidden()
+            }
+            Field(
+                label: "Copilot: comments",
+                detail: "Ask it to address new review comments too; with both on, one comment asks for both. C asks now."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { pilot.defaults.copilotComments },
+                    set: { model.setConfig(["pilot", "copilot_comments"], .bool($0)) }
+                )).labelsHidden()
+            }
+            Field(
+                label: "Reviewers",
+                detail: "Asked to review each PR once it is open and ready: logins, org/team, or copilot. Comma separated."
+            ) {
+                ListField(path: ["pilot", "reviewers"], values: pilot.defaults.reviewers)
+            }
             if !pilot.orgs.isEmpty || !pilot.repos.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Org and repo overrides (config.toml)").font(Theme.ui(12.5, weight: .semibold))
@@ -444,6 +469,9 @@ private struct PilotSettingsView: View {
                 value.maxRounds.map { "max_rounds = \($0)" }, value.merge.map { "merge = \($0.configName)" },
                 value.mergeMethod.map { "merge_method = \($0)" },
                 value.updateBranches.map { "update_branches = \($0)" },
+                value.copilotConflicts.map { "copilot_conflicts = \($0)" },
+                value.copilotComments.map { "copilot_comments = \($0)" },
+                value.reviewers.map { "reviewers = \($0)" },
             ].compactMap(\.self).joined(separator: ", ")
         }
         return pilot.orgs.sorted { $0.key < $1.key }.map { ("[orgs.\($0.key)]", describe($0.value)) }
@@ -521,6 +549,26 @@ private struct WordsField: View {
                 let list = text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
                     .filter { !$0.isEmpty }
                 guard list != words else { return }
+                model.setConfig(path, .array(list.map { .string($0) }))
+            }
+    }
+}
+
+/// A comma separated list written to config.toml as an array.
+private struct ListField: View {
+    @Environment(AppModel.self) private var model
+    let path: [String]
+    let values: [String]
+    @State private var text = ""
+
+    var body: some View {
+        TextField("", text: $text)
+            .textFieldStyle(.roundedBorder)
+            .font(Theme.mono(12.5))
+            .onAppear { text = values.joined(separator: ", ") }
+            .onSubmit {
+                let list = text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
                 model.setConfig(path, .array(list.map { .string($0) }))
             }
     }

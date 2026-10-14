@@ -200,6 +200,9 @@ private struct PilotDetail: View {
                     keyHint("m", "green")
                     keyHint("M", row.effective.merge == .off ? "merge" : "stop merging")
                     keyHint("zz", pipeline?.isPaused(Clock.now) == true ? "resume" : "pause")
+                    if let pipeline, !CopilotAsk.items(pipeline, settings: PilotSettings(), everything: true).isEmpty {
+                        keyHint("C", "ask Copilot")
+                    }
                 }
                 // The verdict, rule by rule: what holds the PR back from green, or that nothing does.
                 VStack(alignment: .leading, spacing: 6) {
@@ -228,7 +231,9 @@ private struct PilotDetail: View {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text(item.status.rawValue).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
                                     .frame(width: 70, alignment: .leading)
-                                Text(item.promptLine).font(Theme.ui(12.5)).lineLimit(2)
+                                Text(item.copilotAskedAt == nil ? item.promptLine
+                                    : "\(item.text) Copilot was asked \(Clock.relative(item.copilotAskedAt!))")
+                                    .font(Theme.ui(12.5)).lineLimit(2)
                             }
                         }
                         let resolved = pipeline.count(.resolved)
@@ -329,6 +334,7 @@ private struct PilotEventRow: View {
         case .autoMerge, .updated: Theme.busy
         case .merged: Theme.done
         case .held: Theme.block
+        case .copilot, .review: Theme.busy
         }
     }
 }

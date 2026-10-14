@@ -34,12 +34,22 @@ public struct PilotSettings: Hashable, Sendable {
     public var mergeSchedule: TimeInterval?
     /// After a merge, bring the queue's other PRs that fell behind up to date (`gh pr update-branch`).
     public var updateBranches: Bool
+    /// Hand a watched PR's merge conflicts, and separately its review comments, to GitHub's Copilot coding agent (one
+    /// comment on the PR) instead of your session's agent.
+    public var copilotConflicts: Bool
+    public var copilotComments: Bool
+    /// Who heed asks to review a PR once it is open and ready: logins, `org/team`, or `copilot`.
+    public var reviewers: [String]
 
     public init(
         watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600,
         merge: MergeMode = .off, mergeMethod: String? = nil, mergeSchedule: TimeInterval? = 3600,
-        updateBranches: Bool = true
+        updateBranches: Bool = true, copilotConflicts: Bool = false, copilotComments: Bool = false,
+        reviewers: [String] = []
     ) {
+        self.copilotConflicts = copilotConflicts
+        self.copilotComments = copilotComments
+        self.reviewers = reviewers
         self.watch = watch
         self.green = green
         self.maxRounds = maxRounds
@@ -59,11 +69,18 @@ public struct PilotOverrides: Hashable, Sendable {
     public var merge: MergeMode?
     public var mergeMethod: String?
     public var updateBranches: Bool?
+    public var copilotConflicts: Bool?
+    public var copilotComments: Bool?
+    public var reviewers: [String]?
 
     public init(
         watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil, merge: MergeMode? = nil,
-        mergeMethod: String? = nil, updateBranches: Bool? = nil
+        mergeMethod: String? = nil, updateBranches: Bool? = nil, copilotConflicts: Bool? = nil,
+        copilotComments: Bool? = nil, reviewers: [String]? = nil
     ) {
+        self.copilotConflicts = copilotConflicts
+        self.copilotComments = copilotComments
+        self.reviewers = reviewers
         self.watch = watch
         self.green = green
         self.maxRounds = maxRounds
@@ -74,6 +91,7 @@ public struct PilotOverrides: Hashable, Sendable {
 
     public var isEmpty: Bool {
         watch == nil && green == nil && maxRounds == nil && merge == nil && mergeMethod == nil && updateBranches == nil
+            && copilotConflicts == nil && copilotComments == nil && reviewers == nil
     }
 }
 
@@ -102,6 +120,9 @@ public struct PilotRules: Hashable, Sendable {
         settings.merge = repoLevel.merge ?? orgLevel.merge ?? defaults.merge
         settings.mergeMethod = repoLevel.mergeMethod ?? orgLevel.mergeMethod ?? defaults.mergeMethod
         settings.updateBranches = repoLevel.updateBranches ?? orgLevel.updateBranches ?? defaults.updateBranches
+        settings.copilotConflicts = repoLevel.copilotConflicts ?? orgLevel.copilotConflicts ?? defaults.copilotConflicts
+        settings.copilotComments = repoLevel.copilotComments ?? orgLevel.copilotComments ?? defaults.copilotComments
+        settings.reviewers = repoLevel.reviewers ?? orgLevel.reviewers ?? defaults.reviewers
         return settings
     }
 
@@ -167,6 +188,10 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
         case watch, green, pause
         /// Get it merged: auto-merge turned on or off, a merge, a PR held back, a branch brought up to date.
         case merge, autoMerge, merged, held, updated
+        /// GitHub's Copilot coding agent was asked to resolve the PR's conflicts or address its comments.
+        case copilot
+        /// Reviews were requested.
+        case review
     }
 
     public var id: String { "\(at.timeIntervalSince1970)-\(ref)-\(kind.rawValue)" }

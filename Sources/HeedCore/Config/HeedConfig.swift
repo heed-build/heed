@@ -243,7 +243,9 @@ public enum ConfigLoader {
             PilotOverrides(
                 watch: bool(base + ["watch"]), green: green(base + ["green"]),
                 maxRounds: integer(base + ["max_rounds"], range: 1 ... 20), merge: merge(base + ["merge"]),
-                mergeMethod: mergeMethod(base + ["merge_method"]), updateBranches: bool(base + ["update_branches"])
+                mergeMethod: mergeMethod(base + ["merge_method"]), updateBranches: bool(base + ["update_branches"]),
+                copilotConflicts: bool(base + ["copilot_conflicts"]),
+                copilotComments: bool(base + ["copilot_comments"]), reviewers: strings(base + ["reviewers"])
             )
         }
         let pilotDefaults = pilotOverrides(["pilot"])
@@ -253,6 +255,9 @@ public enum ConfigLoader {
         if let mode = pilotDefaults.merge { config.pilot.defaults.merge = mode }
         if let method = pilotDefaults.mergeMethod { config.pilot.defaults.mergeMethod = method }
         if let flag = pilotDefaults.updateBranches { config.pilot.defaults.updateBranches = flag }
+        if let flag = pilotDefaults.copilotConflicts { config.pilot.defaults.copilotConflicts = flag }
+        if let flag = pilotDefaults.copilotComments { config.pilot.defaults.copilotComments = flag }
+        if let list = pilotDefaults.reviewers { config.pilot.defaults.reviewers = list }
         if let text = string(["pilot", "merge_schedule"]) {
             if text.lowercased() == "manual" {
                 config.pilot.defaults.mergeSchedule = nil
@@ -468,6 +473,13 @@ public enum ConfigLoader {
     merge_schedule = "1h"
     # Bring the queue's PRs that fell behind their base up to date on each run.
     update_branches = true
+    # Hand work on a watched PR to GitHub's Copilot coding agent instead of your session's agent, sparing its tokens:
+    # merge conflicts, review comments, or both (one comment on the PR asks for both). Only where Copilot can work in
+    # the repo; elsewhere, and with these off, your agent gets them. Per org and per repo too.
+    copilot_conflicts = false
+    copilot_comments = false
+    # Who heed asks to review a PR once it is open and not a draft, once per PR: logins, "org/team", or "copilot".
+    reviewers = []
 
     [issues]
     # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

@@ -1201,6 +1201,12 @@ final class AppModel {
         case "pilot.pause": pausePilot(command.arguments.first)
         case "pilot.why": showPilotWhy()
         case "pilot.merge": togglePilotMerge()
+        case "pilot.copilot":
+            let refs = pilotTargets
+            if refs.isEmpty { flash = "no PR here" } else { Task { await askCopilot(refs, byHand: true) } }
+        case "pilot.reviewers":
+            let refs = pilotTargets
+            if refs.isEmpty { flash = "no PR here" } else { Task { await requestReviews(refs, byHand: true) } }
         case "merge.run": runMergeCommand(command.arguments.first)
         case "merge.queue": showMergeQueue(command.arguments.first)
         case "feedback.dismiss": dismissItem()
@@ -2520,6 +2526,9 @@ final class AppModel {
             {
                 runMergeQueue(ref.repo.slug, why: "#\(ref.number) merged")
             }
+            // Before delivery, so a conflict Copilot takes does not also go to the agent.
+            await askCopilot([ref], byHand: false)
+            await requestReviews([ref], byHand: false)
             fetchFailedLogs(ref, detail)
             if feedback[ref.description]?.autoFeed == .auto { deliver(ref, explicit: false) }
             mergeIfTurnedGreen(ref, detail)
@@ -2894,6 +2903,119 @@ final class AppModel {
                 "sent \(count) item\(count == 1 ? "" : "s") to \(session.agent) (round \(pipeline.rounds))"
             )
             flash = "sent \(count) item\(count == 1 ? "" : "s") to \(session.title)"
+        }
+    }
+
+    // MARK: Copilot resolves conflicts
+
+    /// Whether GitHub's Copilot coding agent can work in a repo, by slug, as last asked (`suggestedActors`).
+    private(set) var copilotRepos: [String: Bool] = [:]
+    private var copilotAskedRepos: [String: Date] = [:]
+
+    func copilotAvailable(_ repo: Repo) -> Bool? { isFixture ? true : copilotRepos[repo.slug] }
+
+    /// Asks GitHub (at most every six hours per repo) whether Copilot can be assigned there.
+    private func checkCopilot(_ repo: Repo) async -> Bool {
+        if isFixture { return true }
+        if let known = copilotRepos[repo.slug], let at = copilotAskedRepos[repo.slug],
+           Clock.now.timeIntervalSince(at) < 6 * 3600
+        {
+            return known
+        }
+        copilotAskedRepos[repo.slug] = Clock.now
+        let available = await (try? GitHub.copilotAvailable(repo)) ?? false
+        copilotRepos[repo.slug] = available
+        return available
+    }
+
+    /// Asks Copilot, in one comment on the PR, to resolve its merge conflicts and address its review comments. On its
+    /// own (after a fetch) for what `copilot_conflicts` and `copilot_comments` hand it, when the PR is watched, not
+    /// paused and get it green is not off; by hand (`C`) for both, whatever the settings say.
+    private func askCopilot(_ refs: [PullRef], byHand: Bool) async {
+        var asked = 0
+        var problem: String?
+        for ref in refs {
+            guard let pipeline = feedback[ref.description], let detail = pullDetails[ref.description] else { continue }
+            let effective = pilot(for: ref)
+            if !byHand {
+                guard effective.watching, effective.green != .off, !pipeline.isPaused(Clock.now) else { continue }
+            }
+            // Cheap checks first: only something to ask about costs a GitHub call.
+            let settings = pilotSettings(for: ref)
+            guard !CopilotAsk.items(pipeline, settings: settings, everything: byHand).isEmpty else { continue }
+            guard await checkCopilot(ref.repo) else {
+                problem = "Copilot coding agent is not enabled for \(ref.repo.slug)"
+                continue
+            }
+            var current = feedback[ref.description] ?? pipeline
+            let items = CopilotAsk.items(current, settings: settings, everything: byHand)
+            guard !items.isEmpty else { continue }
+            if !isFixture {
+                do {
+                    try await GitHub.comment(ref, body: CopilotAsk.comment(base: detail.baseBranch, items: items))
+                } catch {
+                    problem = "could not ask Copilot on #\(ref.number): \(error)"
+                    continue
+                }
+            }
+            current = feedback[ref.description] ?? current
+            CopilotAsk.asked(&current, items: items.map(\.id), at: Clock.now)
+            commit(.feedbackChanged(current))
+            let conflict = items.contains { if case .conflict = $0.kind { true } else { false } }
+            let comments = items.count - (conflict ? 1 : 0)
+            let what = [
+                conflict ? "merge in \(detail.baseBranch) and resolve the conflicts" : nil,
+                comments > 0 ? "address \(comments) review comment\(comments == 1 ? "" : "s")" : nil,
+            ].compactMap(\.self).joined(separator: " and ")
+            logPilot(ref, .copilot, "asked Copilot to \(what)" + (byHand ? " (by you)" : ""))
+            asked += 1
+        }
+        if asked > 0, byHand {
+            flash = "asked Copilot on \(asked) PR\(asked == 1 ? "" : "s")"
+        } else if let problem, byHand || problem.hasPrefix("could not") {
+            flash = problem
+        } else if byHand {
+            flash = "nothing for Copilot: no merge conflict or new review comment it was not asked about"
+        }
+    }
+
+    /// Asks the configured reviewers (`[pilot] reviewers`) to review a PR, once each, when it is open and ready. By
+    /// hand (`:pilot.reviewers`) whatever watching and pausing say.
+    private func requestReviews(_ refs: [PullRef], byHand: Bool) async {
+        var asked = 0
+        for ref in refs {
+            guard let detail = pullDetails[ref.description] else { continue }
+            let pipeline = feedback[ref.description] ?? PullFeedback(ref: ref)
+            if !byHand {
+                guard pilot(for: ref).watching, !pipeline.isPaused(Clock.now) else { continue }
+            }
+            let wanted = ReviewRequests.wanted(
+                pilotSettings(for: ref), detail: detail, asked: pipeline.reviewersRequested
+            )
+            guard !wanted.isEmpty else { continue }
+            let who = wanted.joined(separator: ", ")
+            var failure: String?
+            if !isFixture {
+                do {
+                    try await GitHub.requestReviews(ref, from: wanted)
+                } catch {
+                    failure = "\(error)"
+                }
+            }
+            // Asked once either way: a reviewer GitHub refuses is not asked again on every fetch.
+            var current = feedback[ref.description] ?? pipeline
+            current.reviewersRequested += wanted
+            commit(.feedbackChanged(current))
+            if let failure {
+                logPilot(ref, .review, "could not ask \(who) to review: \(failure)")
+            } else {
+                logPilot(ref, .review, "asked \(who) to review" + (byHand ? " (by you)" : ""))
+                asked += 1
+            }
+        }
+        if byHand {
+            flash = asked > 0 ? "asked for reviews on \(asked) PR\(asked == 1 ? "" : "s")"
+                : "no one to ask: [pilot] reviewers names who, and each is asked once"
         }
     }
 

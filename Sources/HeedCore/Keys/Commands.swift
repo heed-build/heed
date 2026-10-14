@@ -137,6 +137,11 @@ public enum Commands {
         .init("pilot.why", "what holds the PR back from green, rule by rule (in the Watch view)", .selection),
         .init("pilot.watch", "watch or stop watching the PR (or the picked PRs)", .selection),
         .init("pilot.green", "cycle get it green for the PR: off, ask, auto", .selection),
+        .init(
+            "pilot.copilot", "ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments",
+            .selection
+        ),
+        .init("pilot.reviewers", "ask the PR's configured reviewers ([pilot] reviewers) to review it", .selection),
         .init("pilot.merge", "get it merged for the PR (or the picked PRs): off or auto", .selection),
         .init(
             "merge.run",

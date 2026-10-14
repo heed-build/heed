@@ -80,16 +80,59 @@ struct KeyCap: View {
 /// A repo chip: org avatar tile plus repo name, in the org's color.
 struct RepoChip: View {
     let repo: Repo
+    /// A filter whose matches in the name are highlighted.
+    var highlight = ""
 
     var body: some View {
         HStack(spacing: 5) {
             OrgTile(org: repo.org, color: repo.color, size: 12)
-            Text(repo.name).font(Theme.mono(10.5)).lineLimit(1).truncationMode(.middle)
+            Highlighted(text: repo.name, query: highlight, mark: Theme.fg).font(Theme.mono(10.5)).lineLimit(1)
+                .truncationMode(.middle)
         }
         .foregroundStyle(repo.color.foreground)
         .padding(.horizontal, 6)
         .padding(.vertical, 1)
         .background(RoundedRectangle(cornerRadius: 4).fill(repo.color.background))
+    }
+}
+
+/// Text with a filter's matches marked: bold and in `mark`, so the eye finds why a row is there.
+struct Highlighted: View {
+    let text: String
+    let query: String
+    var mark: Color = Theme.block
+
+    var body: some View { Self.text(text, query: query, mark: mark) }
+
+    /// As `Text`, so it joins other text. `base` colours what did not match; nil leaves it to the surrounding style.
+    static func text(_ text: String, query: String, mark: Color = Theme.block, base: Color? = nil) -> Text {
+        var attributed = AttributedString(text)
+        if let base { attributed.foregroundColor = base }
+        for range in FilterQuery.ranges(query, in: text) {
+            guard let lower = AttributedString.Index(range.lowerBound, within: attributed),
+                  let upper = AttributedString.Index(range.upperBound, within: attributed)
+            else { continue }
+            attributed[lower ..< upper].foregroundColor = mark
+            attributed[lower ..< upper].inlinePresentationIntent = .stronglyEmphasized
+        }
+        return Text(attributed)
+    }
+}
+
+/// A worktree's path, small: its root dimmed, the part below it (what filters match) brighter and highlighted.
+struct WorktreePath: View {
+    let path: String
+    let roots: [String]
+    var query = ""
+
+    var body: some View {
+        let split = Paths.split(path, roots: roots)
+        let root = Text(split.root).foregroundColor(Theme.fg3)
+        let relative = Highlighted.text(split.relative, query: query, base: Theme.fg2)
+        return Text("\(root)\(relative)")
+            .font(Theme.mono(11))
+            .lineLimit(1)
+            .truncationMode(.head)
     }
 }
 

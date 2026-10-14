@@ -521,19 +521,28 @@ struct ImportPickerView: View {
                     ListScroll {
                         ListStack(alignment: .leading, spacing: 0) {
                             ForEach(Array(matches.enumerated()), id: \.element.id) { index, worktree in
-                                HStack(spacing: 10) {
-                                    RepoChip(repo: worktree.repo).fixedSize()
-                                    Text(worktree.branch ?? "detached \(worktree.head)").font(Theme.mono(12.5))
+                                // Repo and branch, the path small below: room to read, and the matches marked.
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 10) {
+                                        RepoChip(repo: worktree.repo, highlight: picker.query).fixedSize()
+                                        Highlighted(
+                                            text: worktree.branch ?? "detached \(worktree.head)", query: picker.query
+                                        )
+                                        .font(Theme.mono(12.5))
                                         .lineLimit(1)
-                                    if worktree
-                                        .isMain { Text("main checkout").font(Theme.ui(11)).foregroundStyle(Theme.fg3) }
-                                    Spacer()
-                                    Text(Paths.abbreviate(worktree.path)).font(Theme.mono(11))
-                                        .foregroundStyle(Theme.fg3)
-                                        .lineLimit(1).truncationMode(.head)
+                                        if worktree.isMain {
+                                            Text("main checkout").font(Theme.ui(11)).foregroundStyle(Theme.fg3)
+                                        }
+                                        Spacer(minLength: 0)
+                                    }
+                                    WorktreePath(
+                                        path: worktree.path,
+                                        roots: model.settings.pathRoots,
+                                        query: picker.query
+                                    )
                                 }
                                 .padding(.horizontal, 18)
-                                .padding(.vertical, 8)
+                                .padding(.vertical, 9)
                                 .background(index == picker.cursor ? Theme.bg3 : .clear)
                                 .contentShape(Rectangle())
                                 .onTapGesture { model.pickImport(worktree) }

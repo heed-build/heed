@@ -83,7 +83,9 @@ struct ReposView: View {
                                 session: model.session(for: worktree),
                                 number: index == model.repoCursor ? index + 1 : abs(index - model.repoCursor),
                                 isCursor: index == model.repoCursor,
-                                isSelected: selected.contains(worktree.id)
+                                isSelected: selected.contains(worktree.id),
+                                roots: model.settings.pathRoots,
+                                query: model.filter(for: .repos)
                             )
                             .hint(model.hintLabel(for: .row(.repos, index)))
                             .id(worktree.id)
@@ -184,6 +186,9 @@ private struct WorktreeRow: View {
     let number: Int
     let isCursor: Bool
     let isSelected: Bool
+    let roots: [String]
+    /// The view's filter, marked where it matches.
+    let query: String
 
     var body: some View {
         HStack(spacing: 0) {
@@ -199,12 +204,16 @@ private struct WorktreeRow: View {
                 }
             }
             .frame(width: 34)
-            RepoChip(repo: worktree.repo).frame(width: 140, alignment: .leading)
-            Text(worktree.branch ?? "detached \(worktree.head)")
-                .font(Theme.mono(12))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
+            RepoChip(repo: worktree.repo, highlight: query).frame(width: 140, alignment: .leading)
+            // The branch, and the worktree's path small below it.
+            VStack(alignment: .leading, spacing: 2) {
+                Highlighted(text: worktree.branch ?? "detached \(worktree.head)", query: query)
+                    .font(Theme.mono(12))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                WorktreePath(path: worktree.path, roots: roots, query: query)
+            }
+            .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
             Text(session?.agent ?? "—").font(Theme.mono(12)).foregroundStyle(Theme.fg2).frame(
                 width: 90,
                 alignment: .leading
@@ -223,7 +232,7 @@ private struct WorktreeRow: View {
                 .frame(width: 70, alignment: .leading)
         }
         .padding(.trailing, 16)
-        .frame(height: 42)
+        .frame(height: 48)
         .background(isSelected ? Theme.block.opacity(0.18) : isCursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
     }

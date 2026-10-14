@@ -38,6 +38,9 @@ public struct WorkSettings: Hashable, Sendable, Codable {
 
     public func agent(_ name: String) -> AgentProfile? { agents.first { $0.name == name } }
 
+    /// Where worktrees and repos live: what `Paths.split` takes off before a filter looks at a path.
+    public var pathRoots: [String] { [worktreeRoot] + repoRoots }
+
     /// `<root>/<repo>/<branch with / as ->`: `fix/broken-anchors` lives in `fix-broken-anchors`.
     public func worktreePath(repo: Repo, name: String) -> String {
         "\(Paths.expand(worktreeRoot))/\(repo.name)/\(name.replacingOccurrences(of: "/", with: "-"))"
@@ -91,6 +94,24 @@ public enum Paths {
 
     /// `/Users/me/code/x` as `~/code/x`, for display.
     public static func abbreviate(_ path: String) -> String { (path as NSString).abbreviatingWithTildeInPath }
+
+    /// A path split at the root it lives under: the longest of `roots` that contains it, else the home folder.
+    /// `~/code/wt/docs-builder/fix-x` under `~/code/wt` is `("~/code/wt/", "docs-builder/fix-x")`. Filters match the
+    /// relative part only, so a root's own words (`code`, `Projects`) do not match every row.
+    /// The home folder `split` measures from: the real one, or the fake world's in screenshots.
+    public nonisolated(unsafe) static var home = NSHomeDirectory()
+
+    public static func split(_ path: String, roots: [String], home: String = Paths.home) -> (
+        root: String, relative: String
+    ) {
+        let tilde = { (text: String) in text.hasPrefix("~") ? home + text.dropFirst() : text }
+        let full = tilde(path)
+        let candidates = (roots.map(tilde) + [home]).map { $0.hasSuffix("/") ? String($0.dropLast()) : $0 }
+        guard let root = candidates.filter({ !$0.isEmpty && full.hasPrefix($0 + "/") }).max(by: { $0.count < $1.count })
+        else { return ("", full.hasPrefix(home + "/") ? "~" + full.dropFirst(home.count) : full) }
+        let shown = root == home ? "~" : root.hasPrefix(home + "/") ? "~" + root.dropFirst(home.count) : root
+        return (shown + "/", String(full.dropFirst(root.count + 1)))
+    }
 }
 
 /// A repo Start work suggests for a prompt, with why.

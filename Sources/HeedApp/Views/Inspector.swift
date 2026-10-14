@@ -54,9 +54,13 @@ struct Inspector: View {
                                 .font(Theme.ui(11.5))
                                 .lineLimit(1)
                             }
-                            HStack(spacing: 4) {
-                                Circle().fill(Theme.busy).frame(width: 6, height: 6)
-                                Text(pull == nil ? "waiting for the next sync" : "watching").foregroundStyle(Theme.busy)
+                            // What the pilot is doing for this PR, from its real state (this said "watching" always).
+                            let watching = model.pilot(for: ref).watching
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                PilotMark(status: model.pilotStatus(for: ref), compact: true)
+                                Text(pull == nil && watching ? "waiting for the next sync" : model.pilotLine(for: ref))
+                                    .foregroundStyle(watching ? Theme.fg2 : Theme.fg3)
+                                    .fixedSize(horizontal: false, vertical: true)
                             }
                             .font(Theme.mono(11))
                         }

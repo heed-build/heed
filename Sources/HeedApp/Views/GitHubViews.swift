@@ -347,6 +347,7 @@ struct PullRequestsView: View {
                             Text("TITLE").frame(maxWidth: .infinity, alignment: .leading)
                             Text("CHECKS").frame(width: 130, alignment: .leading)
                             Text("REVIEW").frame(width: 150, alignment: .leading)
+                            Text("WATCH").frame(width: 130, alignment: .leading)
                         }
                         .font(Theme.ui(10.5, weight: .semibold))
                         .tracking(0.7)
@@ -369,7 +370,10 @@ struct PullRequestsView: View {
                             pull: rows[index],
                             index: index,
                             cursor: cursor,
-                            session: model.sessions.first { $0.trackedPRs.contains(rows[index].ref) }
+                            session: model.sessions.first { $0.trackedPRs.contains(rows[index].ref) },
+                            pilot: model.pilotStatus(for: rows[index].ref),
+                            green: model.pilot(for: rows[index].ref).green,
+                            isPicked: model.pickedIDs(.prs).contains(rows[index].id)
                         )
                     }
                 }
@@ -384,6 +388,9 @@ private struct PullRow: View {
     let index: Int
     let cursor: Int
     let session: Session?
+    let pilot: PilotStatus
+    let green: AutoFeed
+    let isPicked: Bool
 
     var body: some View {
         HStack(spacing: 0) {
@@ -412,10 +419,18 @@ private struct PullRow: View {
             .frame(width: 130, alignment: .leading)
             Text(reviewText).font(Theme.ui(12.5)).foregroundStyle(reviewColor).lineLimit(1)
                 .frame(width: 150, alignment: .leading)
+            // Watched or not, and get it green's mode: `w` `m` `zz` act on the row (or the VISUAL picks).
+            VStack(alignment: .leading, spacing: 3) {
+                PilotMark(status: pilot)
+                if pilot != .unwatched {
+                    Text("green \(green.configName)").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                }
+            }
+            .frame(width: 130, alignment: .leading)
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
-        .background(index == cursor ? Theme.bg3 : .clear)
+        .background(isPicked ? Theme.block.opacity(0.18) : index == cursor ? Theme.bg3 : .clear)
     }
 
     private var reviewText: String {

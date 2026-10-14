@@ -1,0 +1,248 @@
+import Foundation
+
+/// The pilot's settings for a PR: whether heed follows it, what get it green does with what it finds, and how long a
+/// pause lasts by default. From `[pilot]`, then `[orgs.<org>]`, then `[repos."org/name"]`; a hand-set choice on the PR
+/// itself wins over all of them (see `PullFeedback.effective`).
+public struct PilotSettings: Hashable, Sendable {
+    /// Follow the PR: fetch its detail as it moves, collect review threads and failing checks, show its state.
+    /// Read-only, so on by default.
+    public var watch: Bool
+    /// What happens to what is collected: shown only, queued by you, or sent to an idle agent.
+    public var green: AutoFeed
+    /// Prompts sent without a new approval before get it green stops.
+    public var maxRounds: Int
+    /// How long `zz` pauses a PR; nil pauses until resumed.
+    public var pause: TimeInterval?
+
+    public init(watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600) {
+        self.watch = watch
+        self.green = green
+        self.maxRounds = maxRounds
+        self.pause = pause
+    }
+}
+
+/// What an org or a repo changes; nil leaves the level above in charge.
+public struct PilotOverrides: Hashable, Sendable {
+    public var watch: Bool?
+    public var green: AutoFeed?
+    public var maxRounds: Int?
+
+    public init(watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil) {
+        self.watch = watch
+        self.green = green
+        self.maxRounds = maxRounds
+    }
+
+    public var isEmpty: Bool { watch == nil && green == nil && maxRounds == nil }
+}
+
+/// The levels, resolved per repo the way `IssueRules.visibility` is: the repo, then its org, then the defaults.
+public struct PilotRules: Hashable, Sendable {
+    public var defaults: PilotSettings
+    public var orgs: [String: PilotOverrides]
+    public var repos: [String: PilotOverrides]
+
+    public init(
+        defaults: PilotSettings = PilotSettings(), orgs: [String: PilotOverrides] = [:],
+        repos: [String: PilotOverrides] = [:]
+    ) {
+        self.defaults = defaults
+        self.orgs = orgs
+        self.repos = repos
+    }
+
+    public func resolve(_ repo: Repo) -> PilotSettings {
+        let repoLevel = repos[repo.slug] ?? PilotOverrides()
+        let orgLevel = orgs[repo.org] ?? PilotOverrides()
+        var settings = defaults
+        settings.watch = repoLevel.watch ?? orgLevel.watch ?? defaults.watch
+        settings.green = repoLevel.green ?? orgLevel.green ?? defaults.green
+        settings.maxRounds = repoLevel.maxRounds ?? orgLevel.maxRounds ?? defaults.maxRounds
+        return settings
+    }
+
+    /// Which level a repo's `watch` comes from, for the UI's "from repo settings".
+    public func watchSource(_ repo: Repo) -> String {
+        if repos[repo.slug]?.watch != nil { return "repo" }
+        if orgs[repo.org]?.watch != nil { return "org" }
+        return "default"
+    }
+}
+
+/// `1h`, `30m`, `4h`, `1d`, `90s`; `forever` (until resumed) and `off`.
+public enum PilotDuration {
+    public enum Parsed: Equatable, Sendable {
+        case seconds(TimeInterval)
+        case forever
+        case off
+    }
+
+    public static func parse(_ text: String) -> Parsed? {
+        let word = text.trimmingCharacters(in: .whitespaces).lowercased()
+        switch word {
+        case "forever", "until-resumed", "always": return .forever
+        case "off", "resume", "none", "0": return .off
+        default: break
+        }
+        guard let unit = word.last, let amount = Double(word.dropLast()), amount > 0 else { return nil }
+        let scale: Double? = switch unit {
+        case "s": 1
+        case "m": 60
+        case "h": 3600
+        case "d": 86400
+        default: nil
+        }
+        return scale.map { .seconds(amount * $0) }
+    }
+
+    /// `42m`, `3h 5m`, `2d`: what a pause countdown shows.
+    public static func text(_ interval: TimeInterval) -> String {
+        let minutes = max(Int((interval / 60).rounded(.up)), 1)
+        if minutes < 60 { return "\(minutes)m" }
+        let hours = minutes / 60
+        if hours < 24 { return minutes % 60 == 0 ? "\(hours)h" : "\(hours)h \(minutes % 60)m" }
+        return "\(hours / 24)d"
+    }
+}
+
+/// One thing the pilot noticed or did, for the Watch view's timeline and activity. Kept in the domain, newest first.
+public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
+    public enum Kind: String, Hashable, Sendable, Codable {
+        /// New review threads or failing checks arrived.
+        case items
+        case queued
+        /// Sent to the agent.
+        case sent
+        /// Something to send, held back: the reason.
+        case waiting
+        /// The agent pushed after items were sent.
+        case addressed
+        case resolved
+        /// Rounds exhausted without a new approval.
+        case stuck
+        case watch, green, pause
+    }
+
+    public var id: String { "\(at.timeIntervalSince1970)-\(ref)-\(kind.rawValue)" }
+    public let at: Date
+    public let ref: PullRef
+    public let kind: Kind
+    public let text: String
+
+    public init(at: Date, ref: PullRef, kind: Kind, text: String) {
+        self.at = at
+        self.ref = ref
+        self.kind = kind
+        self.text = text
+    }
+
+    public static let logLimit = 500
+
+    /// What a fresh look at a PR changed in its pipeline: items that arrived, were addressed, were resolved.
+    public static func changes(from before: PullFeedback?, to after: PullFeedback, at now: Date) -> [PilotEvent] {
+        let old = Dictionary((before?.items ?? []).map { ($0.id, $0.status) }) { first, _ in first }
+        let arrived = after.items.filter { old[$0.id] == nil || (old[$0.id] == .resolved && $0.status != .resolved) }
+        let addressed = after.items.filter { $0.status == .addressed && old[$0.id] == .sent }
+        let resolved = after.items.filter { $0.status == .resolved && old[$0.id] != nil && old[$0.id] != .resolved }
+        var events: [PilotEvent] = []
+        if !arrived.isEmpty { events.append(PilotEvent(
+            at: now,
+            ref: after.ref,
+            kind: .items,
+            text: describe(arrived, verb: "arrived")
+        )) }
+        if !addressed.isEmpty {
+            events.append(PilotEvent(
+                at: now,
+                ref: after.ref,
+                kind: .addressed,
+                text: "the agent pushed: \(addressed.count) item\(addressed.count == 1 ? "" : "s") addressed"
+            ))
+        }
+        if !resolved.isEmpty { events.append(PilotEvent(
+            at: now,
+            ref: after.ref,
+            kind: .resolved,
+            text: describe(resolved, verb: "resolved")
+        )) }
+        return events
+    }
+
+    /// `2 review threads and lint failed arrived`, `check lint resolved`.
+    static func describe(_ items: [FeedbackItem], verb: String) -> String {
+        let threads = items.count { if case .review = $0.kind { true } else { false } }
+        let checks = items.compactMap { if case let .check(name) = $0.kind { name } else { nil } }
+        var parts: [String] = []
+        if threads > 0 { parts.append("\(threads) review thread\(threads == 1 ? "" : "s")") }
+        if !checks.isEmpty { parts.append("check\(checks.count == 1 ? "" : "s") \(checks.joined(separator: ", "))") }
+        return parts.joined(separator: " and ") + " " + verb
+    }
+
+    /// `log` with `events` added in front, capped.
+    public static func log(_ log: [PilotEvent], adding events: [PilotEvent]) -> [PilotEvent] {
+        Array((events.sorted { $0.at > $1.at } + log).prefix(logLimit))
+    }
+}
+
+/// Where a watched PR stands, as far as phase 1 can tell from the PR summary and its pipeline. The order is the
+/// Watch view's groups, most urgent first. (Phase 2 adds mergeability: `green` and `conflicted`.)
+public enum PilotStatus: Hashable, Sendable {
+    /// Needs you: rounds exhausted, or there is feedback to send and no session to send it to.
+    case stuck(String)
+    /// Items were sent; waiting for the agent's push.
+    case feeding
+    case failing(Int)
+    /// Unresolved review threads, or changes requested.
+    case changes(Int)
+    case pending
+    case passing
+    case paused(until: Date?)
+    case unwatched
+
+    public enum Group: String, CaseIterable, Sendable {
+        case needsYou = "Needs you", failing = "Failing", changes = "Changes", feeding = "Feeding",
+             pending = "Pending", passing = "Passing", paused = "Paused", unwatched = "Not watched"
+    }
+
+    public var group: Group {
+        switch self {
+        case .stuck: .needsYou
+        case .failing: .failing
+        case .changes: .changes
+        case .feeding: .feeding
+        case .pending: .pending
+        case .passing: .passing
+        case .paused: .paused
+        case .unwatched: .unwatched
+        }
+    }
+
+    /// Counts toward what needs you (the title bar, the Dock, the menu bar).
+    public var needsYou: Bool { if case .stuck = self { true } else { false } }
+
+    /// `pull` is the PR's summary from the sync (nil until it arrives); `hasSession` says whether a session can be fed.
+    public static func of(
+        pull: PullRequest?, pipeline: PullFeedback?, settings: PilotSettings, hasSession: Bool, now: Date = Date()
+    ) -> PilotStatus {
+        let effective = PullFeedback.effective(pipeline, settings)
+        guard effective.watching else { return .unwatched }
+        if let pipeline,
+           pipeline.isPaused(now) { return .paused(until: pipeline.pausedForever ? nil : pipeline.pausedUntil) }
+        let open = pipeline?.items.filter { $0.status == .new || $0.status == .queued } ?? []
+        if let pipeline, pipeline.rounds >= effective.maxRounds, !open.isEmpty {
+            return .stuck("\(effective.maxRounds) rounds without a new approval")
+        }
+        if !open.isEmpty, !hasSession, effective.green != .off { return .stuck("no session to send feedback to") }
+        if pipeline?.items.contains(where: { $0.status == .sent }) == true { return .feeding }
+        if let pull {
+            if pull.checks.failed > 0 { return .failing(pull.checks.failed) }
+            let threads = max(pull.unresolvedThreads, open.count { if case .review = $0.kind { true } else { false } })
+            if threads > 0 || pull.review == .changesRequested { return .changes(max(threads, 1)) }
+            if pull.checks.pending > 0 { return .pending }
+        } else if !open.isEmpty {
+            return .changes(open.count)
+        }
+        return pull == nil ? .pending : .passing
+    }
+}

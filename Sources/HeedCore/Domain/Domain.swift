@@ -25,14 +25,17 @@ public struct Domain: Hashable, Sendable, Codable {
     public var pullDetails: [String: PullDetail]
     /// Feedback pipelines by `org/name#n`.
     public var feedback: [String: PullFeedback]
+    /// What the pilot noticed and did, newest first, capped (`PilotEvent.logLimit`).
+    public var pilotLog: [PilotEvent]
 
     public init(
         repos: [RepoRecord] = [], worktrees: [Worktree] = [], sessions: [Session] = [],
         layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = [], github: GitHubState = GitHubState(),
-        pullDetails: [String: PullDetail] = [:], feedback: [String: PullFeedback] = [:]
+        pullDetails: [String: PullDetail] = [:], feedback: [String: PullFeedback] = [:], pilotLog: [PilotEvent] = []
     ) {
         self.pullDetails = pullDetails
         self.feedback = feedback
+        self.pilotLog = pilotLog
         self.history = history
         self.github = github
         self.repos = repos
@@ -42,6 +45,24 @@ public struct Domain: Hashable, Sendable, Codable {
     }
 
     public static let empty = Domain()
+
+    private enum CodingKeys: String, CodingKey {
+        case repos, worktrees, sessions, layouts, history, github, pullDetails, feedback, pilotLog
+    }
+
+    /// Caches from before the pilot log still load (no version bump, which would drop sessions).
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        repos = try container.decode([RepoRecord].self, forKey: .repos)
+        worktrees = try container.decode([Worktree].self, forKey: .worktrees)
+        sessions = try container.decode([Session].self, forKey: .sessions)
+        layouts = try container.decode([String: SessionLayout].self, forKey: .layouts)
+        history = try container.decode([HistoryEntry].self, forKey: .history)
+        github = try container.decode(GitHubState.self, forKey: .github)
+        pullDetails = try container.decode([String: PullDetail].self, forKey: .pullDetails)
+        feedback = try container.decode([String: PullFeedback].self, forKey: .feedback)
+        pilotLog = try container.decodeIfPresent([PilotEvent].self, forKey: .pilotLog) ?? []
+    }
 
     public func repo(_ slug: String) -> RepoRecord? { repos.first { $0.id == slug } }
     public func worktrees(of repo: Repo) -> [Worktree] { worktrees.filter { $0.repo == repo } }
@@ -69,6 +90,8 @@ public enum DomainChange: Hashable, Sendable, Codable {
     /// A PR's detail arrived; it is merged into the PR's feedback pipeline.
     case pullDetailFetched(PullDetail)
     case feedbackChanged(PullFeedback)
+    /// Something the pilot did that the domain cannot see happen (sent, waiting, a mode or pause changed).
+    case pilotLogged([PilotEvent])
 }
 
 public extension Domain {
@@ -118,9 +141,16 @@ public extension Domain {
             github = state
         case let .pullDetailFetched(detail):
             pullDetails[detail.ref.description] = detail
-            var pipeline = feedback[detail.ref.description] ?? PullFeedback(ref: detail.ref)
+            let before = feedback[detail.ref.description]
+            var pipeline = before ?? PullFeedback(ref: detail.ref)
             pipeline.merge(detail)
             feedback[detail.ref.description] = pipeline
+            pilotLog = PilotEvent.log(
+                pilotLog,
+                adding: PilotEvent.changes(from: before, to: pipeline, at: detail.fetchedAt)
+            )
+        case let .pilotLogged(events):
+            pilotLog = PilotEvent.log(pilotLog, adding: events)
         case let .feedbackChanged(pipeline):
             feedback[pipeline.ref.description] = pipeline
         case let .inboxRead(ids):

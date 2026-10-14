@@ -54,12 +54,12 @@ public enum Fixtures {
                 agent: "codex", agentSessionID: "91be40d2-7a35-4c68-b2f9-13e5a8d07c46", state: ObservedState(
                     .asking,
                     source: .guessed
-                ), activity: "3 questions waiting"
+                ), activity: "3 questions waiting", trackedPRs: [PullRef(repo: ingest, number: 31)]
             ),
             Session(
                 id: "s4", title: "Sequence diagram arrowheads", repos: [mermaider], branch: "sequence-arrowheads",
                 agent: "claude", agentSessionID: "e0457f3b-18c2-4d9a-a6b1-5f2d9c8e3a04", state: ObservedState(.working),
-                activity: "editing · 3m"
+                activity: "editing · 3m", trackedPRs: [PullRef(repo: mermaider, number: 418)]
             ),
             Session(
                 id: "s5", title: "Bump spec tests to 0.17", repos: [editorconfig], branch: "bump-spec-tests",
@@ -71,7 +71,7 @@ public enum Fixtures {
             Session(
                 id: "s6", title: "Docs nav spike", repos: [docsBuilder], branch: "docs-nav-spike", agent: "opencode",
                 agentSessionID: "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
-                state: ObservedState(.idle), activity: "idle 2h"
+                state: ObservedState(.idle), activity: "idle 2h", trackedPRs: [PullRef(repo: docsBuilder, number: 2852)]
             ),
         ]
         var worktrees: [Worktree] = []
@@ -111,10 +111,50 @@ public enum Fixtures {
         )
         resolved.resolvedAt = Clock.now
         pipeline.items.append(resolved)
+        let (pilots, log) = pilotStates
         return Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
-            pullDetails: [detail.ref.description: detail], feedback: [detail.ref.description: pipeline]
+            pullDetails: [detail.ref.description: detail],
+            feedback: pilots.merging([detail.ref.description: pipeline]) { _, main in main }, pilotLog: log
         )
+    }()
+
+    /// The pilot's other states: #2852 paused, ingest#31 not watched (set by hand), mermaider#418 stuck after three
+    /// rounds, and a morning of activity.
+    static let pilotStates: ([String: PullFeedback], [PilotEvent]) = {
+        let now = Clock.now
+        func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
+        let nav = PullRef(repo: docsBuilder, number: 2852)
+        let ingestPR = PullRef(repo: ingest, number: 31)
+        let arrows = PullRef(repo: mermaider, number: 418)
+        let anchors = PullRef(repo: docsBuilder, number: 2841)
+        let redirects = PullRef(repo: docsContent, number: 1920)
+        var paused = PullFeedback(ref: nav)
+        paused.pausedUntil = now.addingTimeInterval(42 * 60)
+        var unwatched = PullFeedback(ref: ingestPR, watching: false)
+        unwatched.watchSet = true
+        var stuck = PullFeedback(ref: arrows, items: [FeedbackItem(
+            id: "A1", kind: .review(location: "Arrow.cs:57", author: "reviewer"),
+            text: "Arrowheads still detach below 50% zoom.", status: .new
+        )])
+        stuck.rounds = 3
+        let log = [
+            PilotEvent(at: ago(6), ref: anchors, kind: .waiting, text: "2 queued, held: the agent is working"),
+            PilotEvent(at: ago(9), ref: anchors, kind: .items, text: "2 review threads and check lint arrived"),
+            PilotEvent(at: ago(18), ref: nav, kind: .pause, text: "paused for 1h (by you)"),
+            PilotEvent(
+                at: ago(24),
+                ref: arrows,
+                kind: .stuck,
+                text: "3 rounds without a new approval: stopped sending"
+            ),
+            PilotEvent(at: ago(31), ref: arrows, kind: .sent, text: "sent 1 item to claude (round 3)"),
+            PilotEvent(at: ago(44), ref: redirects, kind: .resolved, text: "check link-check resolved"),
+            PilotEvent(at: ago(52), ref: redirects, kind: .addressed, text: "the agent pushed: 1 item addressed"),
+            PilotEvent(at: ago(70), ref: redirects, kind: .sent, text: "sent 1 item to claude (round 1)"),
+            PilotEvent(at: ago(95), ref: ingestPR, kind: .watch, text: "stopped watching (by you)"),
+        ]
+        return ([nav.description: paused, ingestPR.description: unwatched, arrows.description: stuck], log)
     }()
 
     /// The tutor's PR storm: every review comment and failing check on #2841 is new, and it is the PR updated last,
@@ -393,6 +433,12 @@ public enum Fixtures {
                 nil
             ),
             pull(editorconfig, 412, "Bump spec tests to 0.17", "bump-spec-tests", CheckSummary(passed: 3), .approved),
+            pull(ingest, 31, "Backpressure for the ingest stage", "ingest-backpressure", CheckSummary(passed: 2), nil),
+            pull(
+                mermaider, 418, "Arrowheads at small zoom", "sequence-arrowheads", CheckSummary(passed: 5), nil,
+                threads: 1
+            ),
+            pull(docsBuilder, 2852, "Docs nav spike", "docs-nav-spike", CheckSummary(passed: 1, pending: 2), nil),
         ]
         return GitHubState(viewer: "you", inbox: inbox, issues: issues, pulls: pulls, syncedAt: ago(0.3), status: .ok)
     }()

@@ -73,6 +73,7 @@ public enum Commands {
         .init("view.inbox", "inbox", .views),
         .init("view.issues", "issues", .views),
         .init("view.prs", "pull requests", .views),
+        .init("view.watch", "watch: the PRs your sessions track, what heed does for each and has done", .views),
         .init("view.repos", "repos & worktrees", .views),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
@@ -101,7 +102,7 @@ public enum Commands {
         .init("tools.detect", "find git and gh again (login shell PATH, usual places, [tools])", .views),
         .init("app.quit", "quit Heed", .views),
         .init(
-            "settings.open", "open Settings, on a section (general, agents, colors, cleanup, keys)", .views,
+            "settings.open", "open Settings, on a section (general, agents, colors, cleanup, pilot, keys)", .views,
             arguments: "[section]"
         ),
         .init("app.activate", "bring Heed's window to the front, as the global shortcut does", .views),
@@ -131,8 +132,14 @@ public enum Commands {
         .init("issues.visibility", "flip the repo under the cursor between all issues and only yours", .selection),
         .init("feedback.queue", "queue / unqueue the item", .selection),
         .init("feedback.send", "send queued feedback to the session", .selection),
-        .init("feedback.mode", "cycle auto-feed: off, ask, auto when idle", .selection),
-        .init("feedback.watch", "pause / resume watching", .selection),
+        .init("feedback.mode", "pilot.green, by its former name", .selection),
+        .init("feedback.watch", "pilot.watch, by its former name", .selection),
+        .init("pilot.watch", "watch or stop watching the PR (or the picked PRs)", .selection),
+        .init("pilot.green", "cycle get it green for the PR: off, ask, auto", .selection),
+        .init(
+            "pilot.pause", "pause the PR (or the picked PRs), or resume: 30m, 1h, 4h, 1d, forever, off", .selection,
+            arguments: "[duration]"
+        ),
         .init("feedback.dismiss", "dismiss the item", .selection),
         .init("feedback.session", "start a new session from this PR", .selection),
         .init("diff.hunk.next", "next hunk", .selection),

@@ -169,7 +169,7 @@ public extension Tutor {
                 "Send when idle",
                 say: "{feedback.send} sends what is queued. The agent is busy, so it waits until it is idle.",
                 keys: ["{feedback.send}"], target: "reader",
-                doneLine: "It goes the moment the agent stops. Auto when idle ({feedback.mode}) does this by itself."
+                doneLine: "It goes the moment the agent stops. Auto when idle ({pilot.green}) does this by itself."
             ) { start, now, _ in now.sent > start.sent || now.waiting > start.waiting },
             TutorStep(
                 "Watch CI come back",

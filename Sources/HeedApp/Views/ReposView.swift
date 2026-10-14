@@ -85,7 +85,8 @@ struct ReposView: View {
                                 isCursor: index == model.repoCursor,
                                 isSelected: selected.contains(worktree.id),
                                 roots: model.settings.pathRoots,
-                                query: model.filter(for: .repos)
+                                query: model.filter(for: .repos),
+                                pilot: model.session(for: worktree).flatMap { model.pilotStatus(of: $0) }
                             )
                             .hint(model.hintLabel(for: .row(.repos, index)))
                             .id(worktree.id)
@@ -125,7 +126,7 @@ struct ReposView: View {
                 Text("BRANCH").frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
                 Text("AGENT").frame(width: 90, alignment: .leading)
                 Text("STATUS").frame(width: 120, alignment: .leading)
-                Text("PR").frame(width: 70, alignment: .leading)
+                Text("PR").frame(width: 110, alignment: .leading)
             }
             .font(Theme.ui(10.5, weight: .semibold))
             .tracking(0.7)
@@ -189,6 +190,8 @@ private struct WorktreeRow: View {
     let roots: [String]
     /// The view's filter, marked where it matches.
     let query: String
+    /// The state of the session's PR, by the PR number.
+    let pilot: PilotStatus?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -226,10 +229,13 @@ private struct WorktreeRow: View {
                 }
             }
             .frame(width: 120, alignment: .leading)
-            Text(session?.trackedPRs.first { $0.repo == worktree.repo }.map { "#\(String($0.number))" } ?? "no PR")
-                .font(Theme.mono(12))
-                .foregroundStyle(session?.trackedPRs.isEmpty == false ? Theme.fg : Theme.fg3)
-                .frame(width: 70, alignment: .leading)
+            HStack(spacing: 6) {
+                Text(session?.trackedPRs.first { $0.repo == worktree.repo }.map { "#\(String($0.number))" } ?? "no PR")
+                    .font(Theme.mono(12))
+                    .foregroundStyle(session?.trackedPRs.isEmpty == false ? Theme.fg : Theme.fg3)
+                if let pilot, pilot != .unwatched { PilotMark(status: pilot, compact: true) }
+            }
+            .frame(width: 110, alignment: .leading)
         }
         .padding(.trailing, 16)
         .frame(height: 48)

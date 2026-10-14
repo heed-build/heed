@@ -57,6 +57,18 @@ ask_before_sweep = false
 # How often the view on screen refreshes from GitHub; the others refresh five times less often.
 poll_seconds = 60
 
+[pilot]
+# Follow the PRs your sessions track: their review threads and failing checks, shown in the Watch view (gw).
+# Read-only, so on; turn it off for an org or a repo under [orgs.<name>] or [repos."org/name"] (watch = false).
+watch = true
+# What happens to what a watched PR collects: off (shown only), ask (you queue it) or auto (sent to the agent
+# once it is idle). Also per org and per repo.
+green = "ask"
+# Prompts sent without a new approval before get it green stops.
+max_rounds = 3
+# How long zz pauses a PR: 30m, 1h, 4h, 1d, or forever.
+pause = "1h"
+
 [issues]
 # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open
 # issues. Override per org ([orgs.<org>] issues = "all") or per repo ([repos."org/name"] issues = "involved");

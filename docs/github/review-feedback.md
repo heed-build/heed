@@ -5,7 +5,8 @@ description: Feeding review comments and failing checks back to the agent that o
 # Review feedback
 
 When a session's pull request gets review comments or failing checks, Heed can hand them to the agent. In Sessions,
-`go` opens the PR overlay for the session's pull request.
+`go` opens the PR overlay for the session's pull request. The [Watch view](watch.md) (`gw`) shows every PR this
+happens for, and what heed did.
 
 ![The PR overlay: the pipeline counts, the items, delivery and the prompt that will be sent](../images/shots/github/feedback.png)
 
@@ -20,8 +21,9 @@ Every unresolved review thread and failing check becomes an item, and moves thro
 | `space` | Queue or unqueue the item |
 | `s` | Send the queued items now |
 | `x` | Dismiss the item |
-| `m` | Cycle auto-feed: **Off**, **Ask**, **Auto when idle** |
-| `w` | Pause or resume watching this PR |
+| `m` | Cycle green (auto-feed): **Off**, **Ask**, **Auto when idle** |
+| `w` | Watch or stop watching this PR |
+| `zz` | Pause or resume it (see [Watch](watch.md)) |
 | `S` | Start a new session from this PR |
 | `]p` / `[p` | The session's next / previous PR |
 

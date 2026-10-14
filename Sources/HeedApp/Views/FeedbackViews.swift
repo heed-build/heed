@@ -132,13 +132,13 @@ struct FeedbackPanel: View {
                 .foregroundStyle(effective.merge == .off ? Theme.fg3 : Theme.fg2)
                 .fixedSize()
             HStack(spacing: 6) {
-                KeyCap(text: "m")
+                KeyCap(text: model.keyText(for: "pilot.green"))
                 Text("green").foregroundStyle(Theme.fg3)
-                KeyCap(text: "M")
+                KeyCap(text: model.keyText(for: "pilot.merge"))
                 Text("merge").foregroundStyle(Theme.fg3)
-                KeyCap(text: "w")
+                KeyCap(text: model.keyText(for: "pilot.watch"))
                 Text(effective.watching ? "stop watching" : "watch").foregroundStyle(Theme.fg3)
-                KeyCap(text: "zz")
+                KeyCap(text: model.keyText(for: "pilot.pause"))
                 Text(paused ? "resume" : "pause").foregroundStyle(Theme.fg3)
             }
             .fixedSize()

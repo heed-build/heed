@@ -480,7 +480,7 @@ public enum ConfigLoader {
     green = "ask"
     # Prompts sent without a new approval before get it green stops.
     max_rounds = 3
-    # How long zz pauses a PR: 30m, 1h, 4h, 1d, or forever.
+    # How long zp pauses a PR: 30m, 1h, 4h, 1d, or forever.
     pause = "1h"
     # Get it merged: off; auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
     # requirements are met); or heed (heed merges it itself once the rules below hold). Per org and per repo too, and M

@@ -199,8 +199,8 @@ public extension Tutor {
             ) { start, now, _ in now.paused > start.paused },
             TutorStep(
                 "Or several",
-                say: "{mode.visual} selects, {row.next} widens it, and z pauses (or resumes) every selected PR.",
-                keys: ["{mode.visual}", "{row.next}", "z"], target: "list",
+                say: "{mode.visual} selects, {row.next} widens it, and {pilot.pause} pauses (or resumes) every selected PR.",
+                keys: ["{mode.visual}", "{row.next}", "{pilot.pause}"], target: "list",
                 doneLine: "VISUAL works on PRs as it does on worktrees: y copies their links too."
             ) { start, now, seen in
                 seen.contains { $0.mode == .visual } && now.mode == .normal && now.paused != start.paused

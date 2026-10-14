@@ -390,7 +390,7 @@ private struct PilotSettingsView: View {
                     Text("\(pilot.defaults.maxRounds) rounds").font(Theme.mono(12.5))
                 }
             }
-            Field(label: "Pause for", detail: "What zz pauses a PR for: 30m, 1h, 4h, 1d or forever.") {
+            Field(label: "Pause for", detail: "What zp pauses a PR for: 30m, 1h, 4h, 1d or forever.") {
                 ConfigTextField(
                     path: ["pilot", "pause"],
                     value: pilot.defaults.pause.map(PilotDuration.text) ?? "forever"
@@ -398,7 +398,7 @@ private struct PilotSettingsView: View {
             }
             Field(
                 label: "Get it merged",
-                detail: "Auto turns on GitHub's auto-merge once nothing fails; heed merges itself once its rules hold. M cycles one PR."
+                detail: "Auto turns on GitHub's auto-merge once nothing fails; heed merges itself once its rules hold. zm cycles one PR."
             ) {
                 Picker("", selection: Binding(
                     get: { pilot.defaults.merge },

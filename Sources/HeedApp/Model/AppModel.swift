@@ -4,7 +4,7 @@ import Observation
 
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
-    case sessions, inbox, issues, prs, watch, repos, history
+    case sessions, watch, inbox, issues, prs, repos, history
 
     var id: String { rawValue }
 

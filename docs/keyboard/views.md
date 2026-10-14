@@ -11,10 +11,10 @@ Heed has seven views, named along the top with their keys. Every view key starts
 | Key | View |
 |---|---|
 | `gs` | [Sessions](../sessions/index.md) |
+| `gw` | [Watch](../github/watch.md) |
 | `gm` | [Inbox](../github/inbox.md) |
 | `gi` | [Issues](../github/issues.md) |
 | `gp` | [Pull requests](../github/pull-requests.md) |
-| `gw` | [Watch](../github/watch.md) |
 | `gr` | [Repos](../worktrees/index.md) |
 | `gh` | [History](../history/index.md) |
 

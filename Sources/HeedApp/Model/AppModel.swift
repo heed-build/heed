@@ -3933,6 +3933,10 @@ final class AppModel {
         state.diffFile = diffFileIndex
         state.diffRow = diffRow
         state.historyOutcome = historyOutcome.map(\.rawValue) ?? ""
+        let tracked = Set(sessions.flatMap(\.trackedPRs))
+        state.paused = tracked.count { feedback[$0.description]?.isPaused(Clock.now) == true }
+        state.merging = tracked.count { pilot(for: $0).merge != .off }
+        state.mergeQueue = view == .watch && mergeQueueShown != nil
         return state
     }
 

@@ -14,7 +14,7 @@ underneath (the Dock and the menu bar stay live). They come back exactly as they
 
 - **The global tour**: nine steps, about six minutes. Two modes, moving around, pins, the session that needs you,
   Start work, panes, views, the command line, and the keys sheet. The first-run screen offers it (`t`, show me around).
-- **View lessons**: one per view, two to four minutes each: Sessions, Start work, Inbox, Issues, PRs, Repos, History,
+- **View lessons**: one per view, two to four minutes each: Sessions, Start work, Inbox, Issues, PRs, Watch, Repos, History,
   Agents and Diff. Each opens in its view.
 
 ## Starting it
@@ -22,7 +22,7 @@ underneath (the Dock and the menu bar stay live). They come back exactly as they
 | From | |
 |---|---|
 | `:tutor` | The picker: the lesson for the view you are on first, then the tour and every other lesson |
-| `:tutor prs` | Straight into a lesson: `tour`, `sessions`, `start-work`, `inbox`, `issues`, `prs`, `repos`, `history`, `agents`, `diff` |
+| `:tutor prs` | Straight into a lesson: `tour`, `sessions`, `start-work`, `inbox`, `issues`, `prs`, `watch`, `repos`, `history`, `agents`, `diff` |
 | `?` then `t` | The keys sheet ends with "t tutor for this view" |
 | `⌘⇧T` | The picker, from anywhere in the window, even a terminal pane (never typed into the shell) |
 | Help ▸ Heed Tutor | The picker, for the mouse |

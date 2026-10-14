@@ -85,11 +85,24 @@ final class TerminalSurfaces {
         #endif
     }
 
-    /// Creates a pane's terminal now, before it is on screen, so a resumed agent starts at launch rather than when
-    /// its session is first looked at.
+    /// Starts a pane's command now (a resumed agent), whether or not its terminal exists yet. A new terminal gets it
+    /// as its first input. One that is already open, typically the session on screen at launch (drawn with a plain
+    /// shell before resume decided what to start), gets it typed into that shell. Before this, that pane was left
+    /// alone and its agent never started.
     func prepare(_ pane: PaneSpec, sessionID: String) {
-        guard views[pane.id] == nil else { return }
-        _ = view(for: pane, sessionID: sessionID)
+        guard let existing = views[pane.id] else {
+            _ = view(for: pane, sessionID: sessionID)
+            return
+        }
+        // As for a new terminal: only into the worktree it belongs to, never a shell that fell back to home.
+        guard autostartPanes.remove(pane.id) != nil, let command = pane.command,
+              FileManager.default.fileExists(atPath: pane.directory)
+        else { return }
+        #if HEED_GHOSTTY
+            (existing as? GhosttySurfaceView)?.typeLine(command)
+        #else
+            _ = existing
+        #endif
     }
 
     /// Types a line into a pane's terminal (the continue prompt). No-op for placeholder panes.

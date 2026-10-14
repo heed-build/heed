@@ -8,8 +8,9 @@ A host is a machine Heed reaches over ssh: a devbox, a GPU box, a build runner. 
 `~/.ssh/config`, keys, agent and jump hosts. It never reads a key, and it shares one connection per host, so its
 calls are fast.
 
-Today Heed finds the repos and worktrees on your hosts and shows them next to the ones on this Mac. Sessions on hosts,
-with agents that survive a dropped connection, come next.
+Heed finds the repos and worktrees on your hosts and shows them next to the ones on this Mac, and runs sessions there:
+the agent runs on the host, in a [zmx](../sessions/zmx.md) session, so a dropped connection, a closed lid or a
+restarted Heed never stops it.
 
 ## Adding a host
 
@@ -62,3 +63,31 @@ The cleanup sweep never touches a host's worktrees.
 (`:host.filter devbox` does the same).
 
 ![Repos narrowed to @devbox](../images/shots/hosts/filter.png)
+
+## Sessions on a host
+
+`↩` on a registered worktree on a host makes it a session there. The first time, Heed sets the host up, all inside
+`~/.heed` and without root:
+
+- zmx, copied from Heed (no download on the host);
+- `~/.heed/bin/heed-hook`, a few lines of POSIX sh that agents' hooks call;
+- the hook settings and plugins the agents are started with (the same ones Heed uses on this Mac).
+
+![A session on @devbox: the pane strip, the rail and chip in the sidebar, and the host in the status bar](../images/shots/hosts/session.png)
+
+A remote session shows where it runs without your reading anything: an `@host` chip and a rail in the host's colour
+in the sidebar, a tinted strip over its panes with the link's state and latency, and the host in the title bar and
+status bar. Local sessions stay unmarked.
+
+What runs where:
+
+| | |
+|---|---|
+| The agent, git, its worktree | On the host. Your Mac never clones the repo |
+| The terminal you see | Here: ssh to the host, attached to the pane's zmx session there |
+| Agent state (working, asking, blocked) | The agent's hooks write it to `~/.heed/events.log` on the host; Heed reads that over the shared ssh connection, and catches up on anything it missed while away |
+| PRs | Here, through `gh`, matched by repo and branch as for local sessions |
+
+When the link drops, the pane says so and reconnects every few seconds. zmx kept the session, so the screen and
+scrollback come back as they were. `exit` in the pane, closing it, or closing the session ends the zmx session on the
+host. Cursor's hooks are not set up on hosts yet; its state is read from the screen there.

@@ -16,13 +16,32 @@ public struct PaneSpec: Hashable, Sendable, Codable, Identifiable {
     public var directory: String
     /// Typed into the shell once it starts (the agent command, a task's command). Nil for a plain shell.
     public var command: String?
+    /// Where its terminal runs: this Mac, or a host over ssh (`directory` is then a path there).
+    public var location: Location
 
-    public init(id: String = UUID().uuidString, role: Role, title: String, directory: String, command: String? = nil) {
+    public init(
+        id: String = UUID().uuidString, role: Role, title: String, directory: String, command: String? = nil,
+        location: Location = .local
+    ) {
         self.id = id
         self.role = role
         self.title = title
         self.directory = directory
         self.command = command
+        self.location = location
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, role, title, directory, command, location }
+
+    /// Panes cached before hosts run here.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        role = try container.decode(Role.self, forKey: .role)
+        title = try container.decode(String.self, forKey: .title)
+        directory = try container.decode(String.self, forKey: .directory)
+        command = try container.decodeIfPresent(String.self, forKey: .command)
+        location = try container.decodeIfPresent(Location.self, forKey: .location) ?? .local
     }
 }
 

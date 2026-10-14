@@ -24,7 +24,7 @@ public struct ProcessError: Error, Sendable, CustomStringConvertible {
 public enum ProcessRunner {
     public static func run(
         _ executable: String, _ arguments: [String], in directory: String? = nil,
-        environment: [String: String]? = nil, timeout: Duration = .seconds(30)
+        environment: [String: String]? = nil, timeout: Duration = .seconds(30), input: URL? = nil
     ) async throws -> ProcessResult {
         let command = ([executable] + arguments).joined(separator: " ")
         // A bare name is resolved through tool detection (an app opened from Finder has a minimal PATH) and runs with
@@ -53,7 +53,12 @@ public enum ProcessRunner {
         let stderr = Pipe()
         process.standardOutput = stdout
         process.standardError = stderr
-        process.standardInput = FileHandle.nullDevice
+        // A file to read from (an upload over ssh), else nothing: a command must never wait on input.
+        if let input, let handle = try? FileHandle(forReadingFrom: input) {
+            process.standardInput = handle
+        } else {
+            process.standardInput = FileHandle.nullDevice
+        }
 
         let exited = AsyncStream<Int32> { continuation in
             process.terminationHandler = { finished in

@@ -5,6 +5,18 @@ import Foundation
 /// `Bundle.url(forAuxiliaryExecutable:)`: that searches `Contents/MacOS` first, where on a case-insensitive disk
 /// `heed` is the app itself, so hooks (and anything else running "the helper") would launch another Heed.
 enum Helper {
+    /// The zmx release tarball for a host's platform (`linux-x86_64`, ...), which heed copies there.
+    static func zmxTarball(_ platform: String) -> URL? {
+        let url = Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/zmx/zmx-\(platform).tar.gz")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
+    /// The bundled zmx version, for knowing whether a host has it already.
+    static let zmxVersion: String = {
+        let url = Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/zmx/version")
+        return (try? String(contentsOf: url, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }()
+
     /// The bundled zmx (Contents/Helpers/zmx), which keeps panes alive with `[sessions] persist = "zmx"`.
     static let zmxPath: String? = {
         let url = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/zmx")

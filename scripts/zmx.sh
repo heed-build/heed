@@ -23,7 +23,7 @@ for platform in "${platforms[@]}"; do
   want="$(sed -n "s/^$platform=//p" "$lock")"
   [ -n "$want" ] || { echo "zmx: no sum for $platform in $lock" >&2; exit 1; }
   stamp="$dest/$platform/.sha256"
-  if [ -x "$dest/$platform/zmx" ] && [ "$(cat "$stamp" 2>/dev/null)" = "$want" ]; then
+  if [ -x "$dest/$platform/zmx" ] && [ -f "$dest/$platform/zmx.tar.gz" ] && [ "$(cat "$stamp" 2>/dev/null)" = "$want" ]; then
     continue
   fi
   curl -fsSL -o "$work/$platform.tar.gz" "$url"
@@ -31,6 +31,8 @@ for platform in "${platforms[@]}"; do
   [ "$got" = "$want" ] || { echo "zmx: $platform sum is $got, the lock file says $want" >&2; exit 1; }
   mkdir -p "$dest/$platform"
   tar -xzf "$work/$platform.tar.gz" -C "$dest/$platform" zmx
+  # The tarball too: heed copies it to ssh hosts and unpacks it there.
+  cp "$work/$platform.tar.gz" "$dest/$platform/zmx.tar.gz"
   echo "$want" >"$stamp"
   echo "zmx: $version $platform"
 done

@@ -251,7 +251,9 @@ final class AppModel {
         }
         let cached = await DomainStore.load(from: file)
         // Before any pane is drawn: which panes still have a live zmx session to reattach to.
-        await TerminalSurfaces.shared.refreshLivePanes()
+        // Remote sessions' hosts too: their panes reattach to what still runs there.
+        let remoteHosts = Array(Set(cached.sessions.compactMap(\.host)))
+        await TerminalSurfaces.shared.refreshLivePanes(hosts: remoteHosts)
         replace(with: cached)
         loadAvatars()
         store = DomainStore(domain: cached, file: file)
@@ -827,6 +829,7 @@ final class AppModel {
                 hostStatuses[name] = status
             }
         }
+        startHostEvents()
         for host in hostList where hostStatus(host.name).isConnected {
             let records = await RemoteScan.scan(host)
             commit(records.map { .repoUpserted($0) })
@@ -843,9 +846,83 @@ final class AppModel {
     /// Whether heed manages a worktree, and how it stands.
     func registration(of worktree: Worktree) -> WorktreeRegistration {
         guard let host = worktree.location.hostName else { return .registered }
-        if !hostStatus(host).isConnected, !isFixture { return .stale }
+        if !hostStatus(host).isConnected, !isFixture, hostStatuses[host] != nil { return .stale }
         if case .offline = hostStatus(host) { return .stale }
         return registeredWorktrees.contains(worktree.id) ? .registered : .discovered
+    }
+
+    // MARK: Sessions on hosts
+
+    private var hostEvents: [String: HostEventStream] = [:]
+
+    /// One event stream per host that has sessions and answers: its agents' hooks, back into `receive`.
+    private func startHostEvents() {
+        guard !isFixture else { return }
+        for host in Set(sessions.compactMap(\.host)) where hostStatus(host).isConnected {
+            let stream = hostEvents[host] ??
+                HostEventStream(host: host) { [weak self] message in self?.receive(message) }
+            hostEvents[host] = stream
+            stream.start()
+        }
+    }
+
+    /// What heed puts on a host for its agents' hooks, with the paths they are given there.
+    private func hostIntegration(home: String) -> (files: [String: String], integration: IntegrationFiles) {
+        let integration = IntegrationFiles(
+            directory: URL(fileURLWithPath: home).appendingPathComponent(".heed"),
+            heedBinary: "\(home)/.heed/bin/heed-hook"
+        )
+        let files = [
+            "~/.heed/claude-hooks.json": AgentIntegration.claudeSettingsJSON(),
+            "~/.heed/heed-pi.js": AgentIntegration.piExtensionSource,
+            "~/.heed/heed-opencode.js": AgentIntegration.opencodePluginSource,
+        ]
+        return (files, integration)
+    }
+
+    /// `↩` on a registered worktree on a host: heed's files go on the host if they are not there yet, then the worktree
+    /// becomes a session there, its agent in a zmx session that outlives the link.
+    private func importOnHost(_ rows: [Worktree]) {
+        guard let host = rows.first?.location.hostName, rows.allSatisfy({ $0.location == .host(host) }) else {
+            return flash = "one host at a time"
+        }
+        guard case let .connected(info) = hostStatus(host), let home = info.home else {
+            return flash = "@\(host) does not answer: gH shows why"
+        }
+        let rows = rows.filter { session(for: $0) == nil }
+        guard !rows.isEmpty else { return }
+        guard !isFixture else { return flash = "fixture: no IO" }
+        let (files, integration) = hostIntegration(home: home)
+        let agent = settings.agent(settings.defaultAgent)
+        flash = "setting up @\(host)…"
+        Task {
+            do {
+                try await HostSetup.install(
+                    on: host, zmxVersion: Helper.zmxVersion, zmxTarball: Helper.zmxTarball, files: files
+                )
+            } catch {
+                flash = "could not set up @\(host): \(error)"
+                return
+            }
+            var firstID: String?
+            for worktree in rows {
+                let changes = Import.session(for: worktree, agent: agent, resume: nil, integration: integration)
+                for case let .layoutChanged(_, layout) in changes {
+                    for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
+                        TerminalSurfaces.shared.autostartPanes.insert(pane.id)
+                    }
+                }
+                for case let .sessionUpserted(session) in changes where firstID == nil {
+                    firstID = session.id
+                }
+                commit(changes)
+                commit(.worktreeRegistered(worktree.id))
+            }
+            startHostEvents()
+            view = .sessions
+            if let firstID { select(sessionID: firstID) }
+            flash = "started \(agent?.name ?? "a shell") on @\(host)"
+        }
     }
 
     /// `↩` on a discovered worktree: heed manages it from now on.
@@ -954,7 +1031,8 @@ final class AppModel {
             guard let session = currentSession else { return nil }
             return TitleContext(
                 lead: session.repos.first?.name, main: session.branch,
-                detail: session.trackedPRs.first.map { "#\($0.number)" }
+                detail: [session.trackedPRs.first.map { "#\($0.number)" }, session.host.map { "@\($0)" }]
+                    .compactMap(\.self).joined(separator: " ").nilIfEmpty
             )
         case .inbox:
             let rows = inboxRows
@@ -1034,8 +1112,9 @@ final class AppModel {
     }
 
     func session(for worktree: Worktree) -> Session? {
-        guard worktree.location.isLocal else { return nil }
-        return sessions.first { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }
+        sessions.first {
+            $0.location == worktree.location && $0.branch == worktree.branch && $0.repos.contains(worktree.repo)
+        }
     }
 
     /// Rows selected in VISUAL: the range from the anchor to the cursor, plus rows toggled with space.
@@ -2068,8 +2147,11 @@ final class AppModel {
         // On a host: ↩ registers what a scan found. Sessions there are not supported yet.
         if rows.contains(where: { !$0.location.isLocal }) {
             if rows.contains(where: { registration(of: $0) == .discovered }) { return register(rows) }
-            flash = "sessions on hosts are not supported yet"
-            return
+            if let existing = session(for: rows[0]) {
+                view = .sessions
+                return select(sessionID: existing.id)
+            }
+            return importOnHost(rows)
         }
         let missing = rows.filter { session(for: $0) == nil }
         if missing.isEmpty, let session = session(for: rows[0]) {
@@ -4507,4 +4589,9 @@ enum HintTarget: Hashable {
     case pane(String)
     /// A row in a view's list, by position.
     case row(AppView, Int)
+}
+
+extension String {
+    /// Nil for "", so an optional detail stays out.
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

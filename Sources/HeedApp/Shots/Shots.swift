@@ -176,6 +176,8 @@ enum Shots {
         Shot(id: "hosts/repos", keys: "gr"),
         // @ narrows a view to one host.
         Shot(id: "hosts/filter", keys: "gr@dev<CR>", crop: .worktreeTable),
+        // A session on @devbox: the pane strip, the sidebar rail and chip, the status bar's host segment.
+        Shot(id: "hosts/session", keys: "G"),
     ]
 
     static let pilot: [Shot] = [

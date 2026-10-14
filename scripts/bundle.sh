@@ -16,11 +16,16 @@ build="$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo dev)"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
 cp "$products/HeedApp" "$app/Contents/MacOS/Heed"
 cp "$products/heed" "$app/Contents/Helpers/heed"
-# zmx keeps each pane's terminal alive across quits and relaunches ([sessions] persist): the macOS build next to the
-# heed helper, and its MIT licence. (The Linux builds, for ssh hosts, join when hosts do.)
+# zmx keeps each pane's terminal alive across quits and relaunches ([sessions] persist), here and on ssh hosts: the
+# macOS build next to the heed helper, the release tarballs heed copies to hosts (Resources/zmx), and its MIT licence.
 "$root/scripts/zmx.sh"
 zmx_version="$(sed -n 's/^version=//p' "$root/packaging/zmx/zmx.lock")"
 cp "$root/Vendor/zmx/$zmx_version/macos-aarch64/zmx" "$app/Contents/Helpers/zmx"
+mkdir -p "$app/Contents/Resources/zmx"
+for platform in linux-x86_64 linux-aarch64 macos-aarch64; do
+  cp "$root/Vendor/zmx/$zmx_version/$platform/zmx.tar.gz" "$app/Contents/Resources/zmx/zmx-$platform.tar.gz"
+done
+echo "$zmx_version" >"$app/Contents/Resources/zmx/version"
 mkdir -p "$app/Contents/Resources/ThirdParty"
 cp "$root/packaging/zmx/LICENSE" "$app/Contents/Resources/ThirdParty/zmx-LICENSE"
 sed -e "s/__VERSION__/$version/g" -e "s/__BUILD__/$build/g" "$root/Resources/Info.plist" >"$app/Contents/Info.plist"

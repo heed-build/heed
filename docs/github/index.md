@@ -15,7 +15,7 @@ when its checks or review threads change.
 | [Inbox](inbox.md) | `gm` | Your notifications |
 | [Issues](issues.md) | `gi` | Issues assigned to you or mentioning you, and every issue in repos you watch |
 | [Pull requests](pull-requests.md) | `gp` | Your open pull requests and the ones your sessions track |
-| [Pilot](pilot.md) | `gw` | The PRs your sessions track, what heed is doing for each, and what it has done |
+| [Watch](watch.md) | `gw` | The PRs your sessions track, what heed is doing for each, and what it has done |
 
 From any of them you can [read](reading.md) an item in the app, [start a session](../start-work/from-github.md) from
 it, and feed [review feedback](review-feedback.md) back to the agent working on it.

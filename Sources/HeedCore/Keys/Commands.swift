@@ -73,7 +73,7 @@ public enum Commands {
         .init("view.inbox", "inbox", .views),
         .init("view.issues", "issues", .views),
         .init("view.prs", "pull requests", .views),
-        .init("view.pilot", "pilot: watched PRs, what the pilot is doing and has done", .views),
+        .init("view.watch", "watch: the PRs your sessions track, what heed does for each and has done", .views),
         .init("view.repos", "repos & worktrees", .views),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),

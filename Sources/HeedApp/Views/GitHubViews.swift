@@ -347,7 +347,7 @@ struct PullRequestsView: View {
                             Text("TITLE").frame(maxWidth: .infinity, alignment: .leading)
                             Text("CHECKS").frame(width: 130, alignment: .leading)
                             Text("REVIEW").frame(width: 150, alignment: .leading)
-                            Text("PILOT").frame(width: 130, alignment: .leading)
+                            Text("WATCH").frame(width: 130, alignment: .leading)
                         }
                         .font(Theme.ui(10.5, weight: .semibold))
                         .tracking(0.7)

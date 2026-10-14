@@ -106,7 +106,7 @@ public enum PilotDuration {
     }
 }
 
-/// One thing the pilot noticed or did, for the Pilot view's timeline and activity. Kept in the domain, newest first.
+/// One thing the pilot noticed or did, for the Watch view's timeline and activity. Kept in the domain, newest first.
 public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
     public enum Kind: String, Hashable, Sendable, Codable {
         /// New review threads or failing checks arrived.
@@ -186,7 +186,7 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
 }
 
 /// Where a watched PR stands, as far as phase 1 can tell from the PR summary and its pipeline. The order is the
-/// Pilot view's groups, most urgent first. (Phase 2 adds mergeability: `green` and `conflicted`.)
+/// Watch view's groups, most urgent first. (Phase 2 adds mergeability: `green` and `conflicted`.)
 public enum PilotStatus: Hashable, Sendable {
     /// Needs you: rounds exhausted, or there is feedback to send and no session to send it to.
     case stuck(String)

@@ -4,7 +4,7 @@ import Observation
 
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
-    case sessions, inbox, issues, prs, pilot, repos, history
+    case sessions, inbox, issues, prs, watch, repos, history
 
     var id: String { rawValue }
 
@@ -14,7 +14,7 @@ enum AppView: String, CaseIterable, Identifiable {
         case .inbox: "Inbox"
         case .issues: "Issues"
         case .prs: "PRs"
-        case .pilot: "Pilot"
+        case .watch: "Watch"
         case .repos: "Repos"
         case .history: "History"
         }
@@ -365,7 +365,7 @@ final class AppModel {
         case .inbox: [.inbox]
         case .issues: [.issues]
         // Sessions show their PRs' state; Repos and History their PR numbers.
-        case .sessions, .prs, .pilot, .repos, .history: [.pulls]
+        case .sessions, .prs, .watch, .repos, .history: [.pulls]
         }
     }
 
@@ -811,7 +811,7 @@ final class AppModel {
         case .prs:
             let rows = pullRows
             return rows.indices.contains(index) ? pullContext(rows[index].ref) : nil
-        case .pilot:
+        case .watch:
             let rows = pilotRows
             return rows.indices.contains(index) ? pullContext(rows[index].ref) : nil
         case .repos:
@@ -892,7 +892,7 @@ final class AppModel {
         case .sessions:
             list.ordered
                 .map { HintTarget.session($0.id) } + (currentTab?.tree.panes.map { HintTarget.pane($0.id) } ?? [])
-        case .inbox, .issues, .prs, .pilot: itemIDs(view).indices.map { HintTarget.row(view, $0) }
+        case .inbox, .issues, .prs, .watch: itemIDs(view).indices.map { HintTarget.row(view, $0) }
         case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
         case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
         }
@@ -1011,7 +1011,7 @@ final class AppModel {
         if mode == .visual {
             visualAnchor = switch view {
             case .repos: repoCursor
-            case .inbox, .issues, .prs, .pilot: itemCursor[view] ?? 0
+            case .inbox, .issues, .prs, .watch: itemCursor[view] ?? 0
             default: nil
             }
         }
@@ -1120,7 +1120,7 @@ final class AppModel {
         case "tab.new": newTab()
         case "view": if let target = AppView(rawValue: command.arguments.first ?? "") { view = target }
         case "view.history": view = .history
-        case "view.pilot": view = .pilot
+        case "view.watch": view = .watch
         case "view.repos": view = .repos
         case "view.sessions": view = .sessions
         case "view.inbox": view = .inbox
@@ -1271,7 +1271,7 @@ final class AppModel {
         switch view {
         case .repos: setRow(repoCursor + delta)
         case .history: setRow(historyCursor + delta)
-        case .inbox, .issues, .prs, .pilot: setRow((itemCursor[view] ?? 0) + delta)
+        case .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
     }
@@ -1284,7 +1284,7 @@ final class AppModel {
         case .inbox: (inboxRows.map(\.repo.slug), cursor(in: .inbox))
         case .issues: (issueRows.map(\.repo.slug), cursor(in: .issues))
         case .prs: (pullRows.map(\.ref.repo.slug), cursor(in: .prs))
-        case .pilot: (pilotRows.map(\.status.group.rawValue), cursor(in: .pilot))
+        case .watch: (pilotRows.map(\.status.group.rawValue), cursor(in: .watch))
         case .history:
             (historyRows.map { Calendar.current.startOfDay(for: $0.closedAt).description }, historyCursor)
         }
@@ -1297,7 +1297,7 @@ final class AppModel {
     }
 
     private func setRow(_ index: Int) {
-        if [.inbox, .issues, .prs, .pilot].contains(view) {
+        if [.inbox, .issues, .prs, .watch].contains(view) {
             let count = itemIDs(view).count
             guard count > 0 else { return }
             itemCursor[view] = min(max(index, 0), count - 1)
@@ -1539,7 +1539,7 @@ final class AppModel {
     // MARK: Repos view
 
     private func toggleRow() {
-        if [.inbox, .issues, .prs, .pilot].contains(view) {
+        if [.inbox, .issues, .prs, .watch].contains(view) {
             let ids = itemIDs(view)
             let index = itemCursor[view] ?? 0
             guard ids.indices.contains(index) else { return }
@@ -2200,7 +2200,7 @@ final class AppModel {
         case .inbox: inboxRows.map(\.id)
         case .issues: issueRows.map(\.id)
         case .prs: pullRows.map(\.id)
-        case .pilot: pilotRows.map(\.id)
+        case .watch: pilotRows.map(\.id)
         default: []
         }
     }
@@ -2351,7 +2351,7 @@ final class AppModel {
         let index = cursor(in: view)
         switch view {
         case .prs: return pullRows.indices.contains(index) ? pullRows[index].ref : nil
-        case .pilot:
+        case .watch:
             let rows = pilotRows
             return rows.indices.contains(index) ? rows[index].ref : nil
         case .inbox:
@@ -2528,7 +2528,7 @@ final class AppModel {
 
     // MARK: Pilot
 
-    /// A PR as the Pilot view lists it.
+    /// A PR as the Watch view lists it.
     struct PilotRow: Identifiable {
         let ref: PullRef
         let pull: PullRequest?
@@ -2556,7 +2556,7 @@ final class AppModel {
     /// Every PR a session tracks, most urgent group first, then most recently updated; narrowed by `/`.
     var pilotRows: [PilotRow] {
         let order = PilotStatus.Group.allCases
-        let filter = filter(for: .pilot)
+        let filter = filter(for: .watch)
         let refs = Set(sessions.flatMap(\.trackedPRs))
         return refs.map { ref in
             PilotRow(
@@ -2576,7 +2576,7 @@ final class AppModel {
         }
     }
 
-    /// The one line that says what the pilot is doing for a PR: the inspector's PR card, the Pilot view's detail.
+    /// The one line that says what the pilot is doing for a PR: the inspector's PR card, the Watch view's detail.
     func pilotLine(for ref: PullRef) -> String {
         let effective = pilot(for: ref)
         let pipeline = feedback[ref.description]
@@ -2606,7 +2606,7 @@ final class AppModel {
         return parts.joined(separator: " · ")
     }
 
-    /// The most urgent pilot state among a session's PRs (the Pilot view's group order), for its sidebar row.
+    /// The most urgent pilot state among a session's PRs (the Watch view's group order), for its sidebar row.
     func pilotStatus(of session: Session) -> PilotStatus? {
         let order = PilotStatus.Group.allCases
         return session.trackedPRs.map(pilotStatus(for:)).min {
@@ -2622,9 +2622,9 @@ final class AppModel {
     private var pilotTargets: [PullRef] {
         if let ref = feedbackPull { return [ref] }
         switch view {
-        case .pilot:
+        case .watch:
             let byID = Dictionary(pilotRows.map { ($0.id, $0.ref) }) { first, _ in first }
-            return actionIDs(.pilot).compactMap { byID[$0] }
+            return actionIDs(.watch).compactMap { byID[$0] }
         case .prs:
             let byID = Dictionary(pullRows.map { ($0.id, $0.ref) }) { first, _ in first }
             return actionIDs(.prs).compactMap { byID[$0] }
@@ -2643,15 +2643,15 @@ final class AppModel {
             return .feedbackChanged(pipeline)
         }
         // Rows regroup when their state changes; the cursor stays on the PR it was on.
-        let current = view == .pilot ? pilotRows.indices.contains(cursor(in: .pilot))
-            ? pilotRows[cursor(in: .pilot)].ref : nil : nil
+        let current = view == .watch ? pilotRows.indices.contains(cursor(in: .watch))
+            ? pilotRows[cursor(in: .watch)].ref : nil : nil
         commit(changes)
         if mode == .visual {
             engine.enter(.normal)
             modeChanged(from: .visual)
         }
         clearPicks()
-        if let current, let index = pilotRows.firstIndex(where: { $0.ref == current }) { itemCursor[.pilot] = index }
+        if let current, let index = pilotRows.firstIndex(where: { $0.ref == current }) { itemCursor[.watch] = index }
     }
 
     func logPilot(_ ref: PullRef, _ kind: PilotEvent.Kind, _ text: String) {
@@ -3011,7 +3011,7 @@ final class AppModel {
         case .sessions: cursor = 0
         case .history: historyCursor = 0
         case .repos: repoCursor = 0
-        case .inbox, .issues, .prs, .pilot: itemCursor[view] = 0
+        case .inbox, .issues, .prs, .watch: itemCursor[view] = 0
         }
     }
 
@@ -3021,7 +3021,7 @@ final class AppModel {
         case .sessions: list.ordered.count
         case .history: historyRows.count
         case .repos: worktreeRows.count
-        case .inbox, .issues, .prs, .pilot: itemIDs(view).count
+        case .inbox, .issues, .prs, .watch: itemIDs(view).count
         }
     }
 
@@ -3429,7 +3429,7 @@ final class AppModel {
         case .history:
             state.cursor = historyCursor
             state.rows = historyRows.count
-        case .inbox, .issues, .prs, .pilot:
+        case .inbox, .issues, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count
         }

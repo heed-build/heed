@@ -414,7 +414,7 @@ public enum ConfigLoader {
     poll_seconds = 60
 
     [pilot]
-    # Follow the PRs your sessions track: their review threads and failing checks, shown in the Pilot view (gw).
+    # Follow the PRs your sessions track: their review threads and failing checks, shown in the Watch view (gw).
     # Read-only, so on; turn it off for an org or a repo under [orgs.<name>] or [repos."org/name"] (watch = false).
     watch = true
     # What happens to what a watched PR collects: off (shown only), ask (you queue it) or auto (sent to the agent

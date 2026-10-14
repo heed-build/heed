@@ -1,13 +1,13 @@
 ---
-description: "The Pilot view: every PR your sessions track, what heed is doing for each, and what it has done."
+description: "The Watch view: every PR your sessions track, what heed is doing for each, and what it has done."
 ---
 
-# Pilot
+# Watch
 
-`gw` opens the Pilot view: every pull request your sessions track, grouped by what it needs, with what heed is doing
+`gw` opens the Watch view: every pull request your sessions track, grouped by what it needs, with what heed is doing
 for each and a log of what it has done.
 
-![The Pilot view: PRs by state, the selected PR's items and timeline, and the activity log](../images/shots/pilot/view.png)
+![The Watch view: PRs by state, the selected PR's items and timeline, and the activity log](../images/shots/watch/view.png)
 
 - **Left**, the PRs, most urgent first: *Needs you* (stuck), *Failing*, *Changes*, *Feeding* (sent to the agent,
   waiting for its push), *Pending* (checks running), *Passing*, *Paused* and *Not watched*. `{` `}` jump between
@@ -48,18 +48,19 @@ A paused PR stays watched and keeps its state up to date, but heed sends nothing
 needing you. `zz` pauses for an hour (`[pilot] pause`); `:pilot.pause 4h`, `:pilot.pause forever` and
 `:pilot.pause off` choose. The countdown shows on the row, and the pause ends by itself.
 
-![Two PRs selected with v and paused with z](../images/shots/pilot/paused.png)
+![Two PRs selected with v and paused with z](../images/shots/watch/paused.png)
 
 ## Elsewhere
 
 The same state shows wherever a PR does: next to a session's PR count in the sidebar, on the inspector's PR card, in
-the PRs view's **Pilot** column, and by the PR number in Repos.
+the PRs view's **Watch** column, and by the PR number in Repos.
 
-![The inspector's PR cards, each with what the pilot is doing for it](../images/shots/pilot/inspector.png)
+![The inspector's PR cards, each with what the pilot is doing for it](../images/shots/watch/inspector.png)
 
 ## Settings
 
-`[pilot]` sets the defaults; an org or a repo overrides any of them, and Settings ▸ Pilot edits the defaults.
+The settings live in `[pilot]` (the pilot is what does the watching, and later the merging). `[pilot]` sets the
+defaults; an org or a repo overrides any of them, and Settings ▸ Pilot edits the defaults.
 
 ```toml
 [pilot]

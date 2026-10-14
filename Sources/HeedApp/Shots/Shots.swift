@@ -148,13 +148,13 @@ enum Shots {
     ]
 
     static let pilot: [Shot] = [
-        // The Pilot view: watched PRs by state, the selected PR's items and timeline, the pilot's activity.
-        Shot(id: "pilot/view", keys: "gw"),
-        Shot(id: "pilot/visual", keys: "gwjjvj", crop: .list),
-        Shot(id: "pilot/paused", keys: "gwjjvjz", crop: .list),
-        Shot(id: "pilot/detail", keys: "gw", crop: .pilotDetail),
-        Shot(id: "pilot/inspector", crop: .inspector),
-        Shot(id: "pilot/prs", keys: "gp", crop: .list),
+        // The Watch view: watched PRs by state, the selected PR's items and timeline, the pilot's activity.
+        Shot(id: "watch/view", keys: "gw"),
+        Shot(id: "watch/visual", keys: "gwjjvj", crop: .list),
+        Shot(id: "watch/paused", keys: "gwjjvjz", crop: .list),
+        Shot(id: "watch/detail", keys: "gw", crop: .pilotDetail),
+        Shot(id: "watch/inspector", crop: .inspector),
+        Shot(id: "watch/prs", keys: "gp", crop: .list),
     ]
 
     static let github: [Shot] = [

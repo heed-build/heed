@@ -66,7 +66,7 @@ This page is generated from the code (`mise run shots`).
 | `view.inbox` | `gm` | inbox |
 | `view.issues` | `gi` | issues |
 | `view.prs` | `gp` | pull requests |
-| `view.pilot` | `gw` | pilot: watched PRs, what the pilot is doing and has done |
+| `view.watch` | `gw` | watch: the PRs your sessions track, what heed does for each and has done |
 | `view.repos` | `gr` | repos & worktrees |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
@@ -112,11 +112,11 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `select.toggle` | `<Space>` (VISUAL), `<Space>` (inbox), `<Space>` (issues), `<Space>` (pilot), `<Space>` (prs) | toggle row |
+| `select.toggle` | `<Space>` (VISUAL), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (watch) | toggle row |
 | `history.reopen` | `R` (history) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` | `t` (history) | cycle the outcome filter |
-| `github.sync` | `r` (inbox), `r` (issues), `r` (pilot), `r` (pr), `r` (prs) | sync GitHub now |
+| `github.sync` | `r` (inbox), `r` (issues), `r` (pr), `r` (prs), `r` (watch) | sync GitHub now |
 | `items.start` | `s` (inbox), `s` (issue), `s` (issues) | start one session from the picked items |
 | `items.add` | `a` (inbox), `a` (issue), `a` (issues) | add the picked items to the current session |
 | `items.read` | `x` (inbox) | mark read |
@@ -129,9 +129,9 @@ This page is generated from the code (`mise run shots`).
 | `feedback.send` | `s` (pr) | send queued feedback to the session |
 | `feedback.mode` |  | pilot.green, by its former name |
 | `feedback.watch` |  | pilot.watch, by its former name |
-| `pilot.watch` | `w` (pilot), `w` (pr), `w` (prs) | watch or stop watching the PR (or the picked PRs) |
-| `pilot.green` | `m` (pilot), `m` (pr), `m` (prs) | cycle get it green for the PR: off, ask, auto |
-| `pilot.pause` `[duration]` | `z` (VISUAL), `zz` (pilot), `zz` (pr), `zz` (prs) | pause the PR (or the picked PRs), or resume: 30m, 1h, 4h, 1d, forever, off |
+| `pilot.watch` | `w` (pr), `w` (prs), `w` (watch) | watch or stop watching the PR (or the picked PRs) |
+| `pilot.green` | `m` (pr), `m` (prs), `m` (watch) | cycle get it green for the PR: off, ask, auto |
+| `pilot.pause` `[duration]` | `z` (VISUAL), `zz` (pr), `zz` (prs), `zz` (watch) | pause the PR (or the picked PRs), or resume: 30m, 1h, 4h, 1d, forever, off |
 | `feedback.dismiss` | `x` (pr) | dismiss the item |
 | `feedback.session` | `S` (pr) | start a new session from this PR |
 | `diff.hunk.next` | `n` (diff) | next hunk |

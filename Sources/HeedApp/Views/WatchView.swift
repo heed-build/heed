@@ -1,7 +1,7 @@
 import HeedCore
 import SwiftUI
 
-/// A watched PR's state, small: what the sidebar, the PRs view, Repos and the Pilot view show next to a PR.
+/// A watched PR's state, small: what the sidebar, the PRs view, Repos and the Watch view show next to a PR.
 struct PilotMark: View {
     let status: PilotStatus
     var compact = false
@@ -56,21 +56,21 @@ struct PilotMark: View {
 }
 
 /// `gw`: the watched PRs by state, the selected PR's items and timeline, and what the pilot has been doing.
-struct PilotView: View {
+struct WatchView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         let rows = model.pilotRows
-        let cursor = model.cursor(in: .pilot)
-        let picked = model.pickedIDs(.pilot)
+        let cursor = model.cursor(in: .watch)
+        let picked = model.pickedIDs(.watch)
         GeometryReader { geometry in
             HStack(spacing: 0) {
                 VStack(spacing: 0) {
                     HStack(spacing: 8) {
-                        SectionHeader(title: "Pilot")
+                        SectionHeader(title: "Watch")
                         Text(summary(rows)).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                         Spacer()
-                        FilterPill(view: .pilot)
+                        FilterPill(view: .watch)
                     }
                     .padding(.horizontal, 16)
                     .frame(height: 44)
@@ -80,10 +80,10 @@ struct PilotView: View {
                         count: rows.count,
                         cursor: cursor,
                         ids: rows.map(\.id),
-                        empty: model.filter(for: .pilot).isEmpty
+                        empty: model.filter(for: .watch).isEmpty
                             ? "No PRs yet. Sessions pick PRs up by branch; watching is on unless an org or repo says off."
-                            : "Nothing matches /\(model.filter(for: .pilot)).",
-                        hintView: .pilot
+                            : "Nothing matches /\(model.filter(for: .watch)).",
+                        hintView: .watch
                     ) { index in
                         VStack(alignment: .leading, spacing: 0) {
                             if index == 0 || rows[index - 1].status.group != rows[index].status.group {

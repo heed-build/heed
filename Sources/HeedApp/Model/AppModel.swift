@@ -4189,6 +4189,31 @@ final class AppModel {
         enterInsert()
     }
 
+    /// Whether a click on a list may act: not while a dialog or form has the keyboard.
+    private var clicksReachLists: Bool {
+        startWork == nil && confirmation == nil && resume == nil && firstRun == nil && importPicker == nil
+            && pathImport == nil && tutorPicker == nil
+    }
+
+    /// A click on a session in the sidebar or the rail selects it; a double-click also types into its agent pane.
+    func clickSession(_ id: String, insert: Bool = false) {
+        guard clicksReachLists else { return }
+        clickedOutsideTerminal()
+        select(sessionID: id)
+        guard insert, let layout = layouts[id], let (tabIndex, paneID) = agentPane(in: layout) else { return }
+        selectTab(tabIndex)
+        clickedPane(paneID)
+    }
+
+    /// A click on a list row (Inbox, Issues, PRs, Watch, Repos, History) moves the cursor there; a double-click opens
+    /// it, as ↩ does.
+    func clickRow(_ list: AppView, _ index: Int, open: Bool = false) {
+        guard clicksReachLists, view == list else { return }
+        clickedOutsideTerminal()
+        setRow(index)
+        if open { openSelected() }
+    }
+
     /// A click outside any terminal (a list, the sidebar, the title bar) hands the keyboard back to Heed.
     func clickedOutsideTerminal() {
         guard mode == .insert else { return }

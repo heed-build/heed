@@ -33,6 +33,11 @@ struct Sidebar: View {
                                         hint: model.hintLabel(for: .session(session.id)),
                                         pilot: model.pilotStatus(of: session)
                                     )
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { model.clickSession(session.id) }
+                                    .simultaneousGesture(TapGesture(count: 2).onEnded {
+                                        model.clickSession(session.id, insert: true)
+                                    })
                                     .id(session.id)
                                 }
                             }
@@ -198,6 +203,11 @@ struct SessionRail: View {
                             if let hint = model.hintLabel(for: .session(session.id)) { HintBadge(label: hint) }
                         }
                         .help(session.title)
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.clickSession(session.id) }
+                        .simultaneousGesture(TapGesture(count: 2).onEnded {
+                            model.clickSession(session.id, insert: true)
+                        })
                     }
                 }
             }

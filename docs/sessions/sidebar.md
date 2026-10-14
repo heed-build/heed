@@ -19,6 +19,10 @@ Each row shows the session's state glyph, its worktree's name (hover it for the 
 PR in), the agent and what it is doing, and how many pull requests it tracks. The numbers on the left are relative to
 the cursor, as in vim: the number on a row is how many `j` or `k` presses away it is.
 
+Click a session to select it; double-click it to type into its agent (INSERT). Rows in the other lists (Watch,
+Inbox, Issues, PRs, Repos, History) take clicks the same way: a click moves the cursor there, a double-click opens the
+row as `↩` does.
+
 The cursor stays on its session. When a session changes group (a parked agent starts working, or one starts asking),
 the rows move but the selection does not, so what you are looking at, and typing into, never switches under you.
 

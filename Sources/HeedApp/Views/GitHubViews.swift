@@ -680,6 +680,11 @@ struct ListBody<Row: View>: View {
                         ForEach(0 ..< count, id: \.self) { index in
                             row(index)
                                 .hint(hintView.flatMap { model.hintLabel(for: .row($0, index)) })
+                                .contentShape(Rectangle())
+                                .onTapGesture { if let hintView { model.clickRow(hintView, index) } }
+                                .simultaneousGesture(TapGesture(count: 2).onEnded {
+                                    if let hintView { model.clickRow(hintView, index, open: true) }
+                                })
                                 .id(ids[index])
                         }
                     }

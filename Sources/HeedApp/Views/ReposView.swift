@@ -89,6 +89,11 @@ struct ReposView: View {
                                 pilot: model.session(for: worktree).flatMap { model.pilotStatus(of: $0) }
                             )
                             .hint(model.hintLabel(for: .row(.repos, index)))
+                            .contentShape(Rectangle())
+                            .onTapGesture { model.clickRow(.repos, index) }
+                            .simultaneousGesture(TapGesture(count: 2).onEnded {
+                                model.clickRow(.repos, index, open: true)
+                            })
                             .id(worktree.id)
                         }
                     }

@@ -1,0 +1,23 @@
+<!doctype html>
+<!-- The DMG window's background, 660x400 points. Rendered to background.tiff (1x and 2x) by scripts/dmg-background.sh.
+     Finder draws the icons on top: heed.app centred at (180, 210), the Applications link at (480, 210). -->
+<html><head><style>
+@font-face { font-family: "JetBrains Mono"; src: url("../../design/brand/fonts/jetbrains-mono-latin-700-normal.woff2"); font-weight: 700; }
+@font-face { font-family: "JetBrains Mono"; src: url("../../design/brand/fonts/jetbrains-mono-latin-400-normal.woff2"); font-weight: 400; }
+html, body { margin: 0; width: 660px; height: 400px; overflow: hidden; }
+body { background: radial-gradient(120% 90% at 50% 0%, #fbfbfc 0%, #eceef1 60%, #e3e6ea 100%);
+       font-family: -apple-system, "Helvetica Neue", sans-serif; color: #0e0f11; position: relative; }
+h1 { position: absolute; top: 46px; width: 100%; text-align: center; margin: 0; font-size: 21px; font-weight: 600;
+     letter-spacing: -0.2px; }
+h1 b { font-family: "JetBrains Mono"; font-weight: 700; }
+svg.arrow { position: absolute; left: 262px; top: 186px; }
+p { position: absolute; bottom: 30px; width: 100%; text-align: center; margin: 0; font-family: "JetBrains Mono";
+    font-size: 11px; color: #7a818a; letter-spacing: 0.3px; }
+</style></head><body>
+<h1>Drag <b>heed</b> into Applications</h1>
+<svg class="arrow" width="136" height="48" viewBox="0 0 136 48" aria-hidden="true">
+  <path d="M6 24 H112" stroke="#c97d12" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 13"/>
+  <path d="M106 10 L126 24 L106 38" fill="none" stroke="#c97d12" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+<p>signed &amp; notarized · heed.build</p>
+</body></html>

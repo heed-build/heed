@@ -11,7 +11,7 @@ on:
         description: "Version to release, e.g. 0.1.0 (empty: the draft's)"
         required: false
       dry_run:
-        description: "Dry run: build, sign and notarize, keep the zip on the run, release nothing"
+        description: "Dry run: build, sign and notarize, keep the zip and dmg on the run, release nothing"
         type: boolean
         default: false
 
@@ -102,65 +102,46 @@ jobs:
       - name: Tutor check
         run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
 
-      - name: Notarize and staple
+      - name: Notarize and staple the app
         if: env.NOTARIZE == 'true'
         env:
           KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
           KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
           ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
-        run: |
-          key="$RUNNER_TEMP/notary.p8"
-          printf '%s\n' "$KEY_P8" >"$key"
-          auth=(--key "$key" --key-id "$KEY_ID" --issuer "$ISSUER")
-          ditto -c -k --keepParent build/Heed.app "$RUNNER_TEMP/notarize.zip"
-          # Upload first and keep Apple's submission id, then wait for the verdict apart from that: a timeout then still
-          # says which submission it was. Usually minutes; a team's first submissions can take far longer.
-          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" "${auth[@]}" --output-format json \
-            >"$RUNNER_TEMP/submit.json" 2>&1 || true
-          id="$(jq -r '.id // empty' "$RUNNER_TEMP/submit.json" 2>/dev/null || true)"
-          if [ -z "$id" ]; then
-            echo "::error::The upload to Apple failed:" && cat "$RUNNER_TEMP/submit.json"
-            rm -f "$key"
-            exit 1
-          fi
-          echo "notarization: submitted $id"
-          xcrun notarytool wait "$id" "${auth[@]}" --timeout 60m || true
-          # Asked again on failure: a runner's network can drop for a moment, and a release should not hinge on it.
-          status=""
-          for attempt in 1 2 3 4 5; do
-            status="$(xcrun notarytool info "$id" "${auth[@]}" --output-format json 2>/dev/null | jq -r '.status // empty')"
-            [ -n "$status" ] && break
-            echo "notarization: no answer from Apple (attempt $attempt), asking again in 30s"
-            sleep 30
-          done
-          [ -n "$status" ] || { echo "::error::No verdict from Apple for submission $id." >&2; rm -f "$key"; exit 1; }
-          echo "notarization: $status ($id)"
-          if [ "$status" = "In Progress" ]; then
-            echo "::error::Apple is still processing submission $id after an hour. Nothing was released; run again later."
-            rm -f "$key"
-            exit 1
-          fi
-          if [ "$status" != "Accepted" ]; then
-            # Apple's reasons, then stop: nothing has been attached to the draft.
-            for attempt in 1 2 3; do xcrun notarytool log "$id" "${auth[@]}" && break || sleep 30; done
-            rm -f "$key"
-            exit 1
-          fi
-          rm -f "$key"
-          xcrun stapler staple build/Heed.app
-          xcrun stapler validate build/Heed.app
-          # What Gatekeeper will say on someone else's Mac.
-          spctl --assess --type execute -vv build/Heed.app 2>&1 | tee "$RUNNER_TEMP/spctl.txt"
-          grep -q "source=Notarized Developer ID" "$RUNNER_TEMP/spctl.txt"
+        run: scripts/notarize.sh build/Heed.app
 
-      - name: Package
+      - name: Package the zip
         run: |
           mkdir -p dist
           ditto -c -k --keepParent build/Heed.app dist/Heed-arm64.zip
-          (cd dist && shasum -a 256 Heed-arm64.zip >Heed-arm64.zip.sha256)
-          cat dist/Heed-arm64.zip.sha256
 
-      - name: Keep the zip on the run
+      # The disk image people download from heed.build: the stapled app and a link to /Applications to drag it onto.
+      # Signed, then notarized and stapled itself, so it opens without a warning even offline.
+      - name: Build the disk image
+        run: |
+          identity=""
+          if [ "$NOTARIZE" = "true" ]; then
+            identity="$(security find-identity -v -p codesigning "$RUNNER_TEMP/signing.keychain-db" \
+              | grep -o '"Developer ID Application: [^"]*"' | tr -d '"' | head -1)"
+          fi
+          scripts/dmg.sh build/Heed.app dist/Heed-arm64.dmg "$identity" "${identity:+$RUNNER_TEMP/signing.keychain-db}"
+
+      - name: Notarize and staple the disk image
+        if: env.NOTARIZE == 'true'
+        env:
+          KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: scripts/notarize.sh dist/Heed-arm64.dmg
+
+      - name: Checksums
+        run: |
+          cd dist
+          shasum -a 256 Heed-arm64.zip >Heed-arm64.zip.sha256
+          shasum -a 256 Heed-arm64.dmg >Heed-arm64.dmg.sha256
+          cat ./*.sha256
+
+      - name: Keep the files on the run
         if: inputs.dry_run
         uses: actions/upload-artifact@v4
         with:
@@ -171,11 +152,12 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: gh release upload "${{ steps.draft.outputs.tag }}" dist/* --clobber
 
-      - name: Check the draft has both files
+      - name: Check the draft has every file
         if: ${{ !inputs.dry_run }}
         run: |
           names="$(gh release view "${{ steps.draft.outputs.tag }}" --json assets --jq '[.assets[].name] | sort | join(" ")')"
-          [ "$names" = "Heed-arm64.zip Heed-arm64.zip.sha256" ] || { echo "draft has: $names" >&2; exit 1; }
+          wanted="Heed-arm64.dmg Heed-arm64.dmg.sha256 Heed-arm64.zip Heed-arm64.zip.sha256"
+          [ "$names" = "$wanted" ] || { echo "draft has: $names" >&2; exit 1; }
 
       - name: Publish
         if: ${{ !inputs.dry_run }}

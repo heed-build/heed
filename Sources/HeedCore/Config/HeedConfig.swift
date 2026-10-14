@@ -204,6 +204,13 @@ public enum ConfigLoader {
         }
         if let text = string(["sessions", "continue_prompt"]) { config.work.continuePrompt = text }
         if let flag = bool(["sessions", "shell_split"]) { config.work.shellSplit = flag }
+        if let text = string(["sessions", "persist"]) {
+            if let persist = PanePersistence(rawValue: text.lowercased()) {
+                config.work.persist = persist
+            } else {
+                problems.append(ConfigProblem(path: "sessions.persist", message: "expected none or zmx"))
+            }
+        }
         // [cleanup]
         if let flag = bool(["cleanup", "enabled"]) { config.cleanup.enabled = flag }
         if let days = integer(["cleanup", "idle_days"], range: 1 ... 365) { config.cleanup.idleDays = days }
@@ -457,6 +464,9 @@ public enum ConfigLoader {
     continue_prompt = "Continue where you left off."
     # Open a shell split beside the agent in new sessions (Start work can still toggle it per session).
     shell_split = false
+    # Keep every pane's terminal alive in a zmx session, so agents keep running when heed quits, restarts or updates,
+    # and come back as they were: none (panes end with heed) or zmx.
+    persist = "none"
 
     [cleanup]
     # Automatic cleanup, off by default. When on, worktrees with no activity (agent output, keystrokes, commits, PR

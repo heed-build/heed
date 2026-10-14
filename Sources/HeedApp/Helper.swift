@@ -5,6 +5,12 @@ import Foundation
 /// `Bundle.url(forAuxiliaryExecutable:)`: that searches `Contents/MacOS` first, where on a case-insensitive disk
 /// `heed` is the app itself, so hooks (and anything else running "the helper") would launch another Heed.
 enum Helper {
+    /// The bundled zmx (Contents/Helpers/zmx), which keeps panes alive with `[sessions] persist = "zmx"`.
+    static let zmxPath: String? = {
+        let url = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/zmx")
+        return FileManager.default.isExecutableFile(atPath: url.path) ? url.path : nil
+    }()
+
     /// Nil when the helper is missing or is somehow the app's own executable; panes then get no `HEED_BIN` and hooks
     /// do nothing.
     static let path: String? = {

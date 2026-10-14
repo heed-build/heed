@@ -16,10 +16,18 @@ build="$(git -C "$root" rev-parse --short HEAD 2>/dev/null || echo dev)"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Helpers" "$app/Contents/Resources"
 cp "$products/HeedApp" "$app/Contents/MacOS/Heed"
 cp "$products/heed" "$app/Contents/Helpers/heed"
+# zmx keeps each pane's terminal alive across quits and relaunches ([sessions] persist): the macOS build next to the
+# heed helper, and its MIT licence. (The Linux builds, for ssh hosts, join when hosts do.)
+"$root/scripts/zmx.sh"
+zmx_version="$(sed -n 's/^version=//p' "$root/packaging/zmx/zmx.lock")"
+cp "$root/Vendor/zmx/$zmx_version/macos-aarch64/zmx" "$app/Contents/Helpers/zmx"
+mkdir -p "$app/Contents/Resources/ThirdParty"
+cp "$root/packaging/zmx/LICENSE" "$app/Contents/Resources/ThirdParty/zmx-LICENSE"
 sed -e "s/__VERSION__/$version/g" -e "s/__BUILD__/$build/g" "$root/Resources/Info.plist" >"$app/Contents/Info.plist"
 # The app icon and the menu bar image (design/brand/ holds the full brand pack they come from).
 cp "$root/Resources/heed.icns" "$root/Resources/menubar.svg" "$app/Contents/Resources/"
 codesign --force --sign - "$app/Contents/Helpers/heed"
+codesign --force --sign - "$app/Contents/Helpers/zmx"
 codesign --force --sign - "$app"
 # The helper must be the small CLI, never the app: hooks run it on every agent event.
 if ! "$app/Contents/Helpers/heed" --help 2>/dev/null | grep -q '^usage: heed'; then

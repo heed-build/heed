@@ -4,7 +4,8 @@ description: Resuming sessions when Heed starts, and the continue prompt.
 
 # Resuming sessions
 
-When Heed starts, the sessions that were open come back. Whether their agents resume is up to `resume_on_launch`
+When Heed starts, the sessions that were open come back. (With `persist = "zmx"` their agents never stopped, and
+their panes reattach instead: see [Agents that outlive Heed](zmx.md).) Whether their agents resume is up to `resume_on_launch`
 under `[sessions]`:
 
 | Value | On launch |

@@ -245,6 +245,8 @@ final class AppModel {
             do { try integration.write() } catch { NSLog("heed: could not write hook files: \(error)") }
         }
         let cached = await DomainStore.load(from: file)
+        // Before any pane is drawn: which panes still have a live zmx session to reattach to.
+        await TerminalSurfaces.shared.refreshLivePanes()
         replace(with: cached)
         loadAvatars()
         store = DomainStore(domain: cached, file: file)
@@ -432,7 +434,7 @@ final class AppModel {
         }
         let settings = settings
         let integration = integration
-        let candidates = await Task.detached(priority: .userInitiated) {
+        let found = await Task.detached(priority: .userInitiated) {
             Resume.candidates(domain: domain, settings: settings, integration: integration) { session in
                 let directory = domain.layouts[session.id]?.tabs.first?.tree.panes.first?.directory ?? ""
                 return AgentIntegration.hasSession(
@@ -442,6 +444,13 @@ final class AppModel {
                 )
             }
         }.value
+        // An agent whose pane's zmx session is alive never stopped: its pane reattaches, there is nothing to resume.
+        let live = TerminalSurfaces.shared.livePanes
+        let candidates = found.filter { candidate in
+            guard let layout = domain.layouts[candidate.id],
+                  let (_, paneID) = agentPane(in: layout) else { return true }
+            return !live.contains(paneID)
+        }
         guard !candidates.isEmpty else {
             if asked { flash = "nothing to resume: every session's agent is running or gone" }
             return
@@ -566,6 +575,7 @@ final class AppModel {
         let pilotChanged = decoded.pilot != config.pilot
         config = decoded
         settings = decoded.work
+        if !isFixture { TerminalSurfaces.shared.persist = decoded.work.persist }
         let built = decoded.keymaps()
         engine.setKeymaps(built.keymaps, scoped: built.scoped)
         updateScope()
@@ -1157,6 +1167,7 @@ final class AppModel {
         case "view.prs": view = .prs
         case "overlay.help": overlay = overlay == .help ? nil : .help
         case "tutor": openTutor(command.arguments)
+        case "agents.stop": confirmStopAgents()
         case "tutor.hide": hideTutorReminder(all: command.arguments.first == "all")
         case "tutor.back", "tutor.skip", "tutor.exit":
             guard tutor != nil else {
@@ -1464,12 +1475,36 @@ final class AppModel {
 
     func cancelConfirmation() { answerConfirmation(.escape) }
 
+    /// `agents.stop`: with zmx, agents outlive heed; this ends every one of them (and every shell in a pane).
+    private func confirmStopAgents() {
+        guard TerminalSurfaces.shared.persist == .zmx else {
+            return flash = "agents stop when heed quits ([sessions] persist = \"none\")"
+        }
+        let running = sessions.count { [.working, .blocked, .asking].contains($0.state.state) }
+        ask(Confirmation(
+            title: "Stop every agent?",
+            lines: [
+                running > 0 ? "\(running) agent\(running == 1 ? " is" : "s are") working and will stop" :
+                    "Agents and shells in every pane stop",
+                "Sessions stay; their panes reopen as shells, and resume works as after a restart",
+            ],
+            accept: "Stop all"
+        ) { [weak self] in
+            Task { @MainActor in
+                let count = await TerminalSurfaces.shared.stopAll()
+                self?.flash = "stopped \(count) terminal\(count == 1 ? "" : "s")"
+            }
+        })
+    }
+
     /// Set once a quit was confirmed, so the second terminate goes through.
     private(set) var quitConfirmed = false
 
     /// ⌘Q or Quit in the menu bar with agents running: Heed comes forward and asks. True when it asked (the quit
     /// waits for the answer), false when nothing runs and quitting can go ahead.
     func confirmQuitIfAgentsRun() -> Bool {
+        // With zmx, quitting leaves the agents running: heed reattaches to them on its next launch.
+        if TerminalSurfaces.shared.persist == .zmx { return false }
         let running = sessions.filter { [.working, .blocked, .asking].contains($0.state.state) }
         guard !running.isEmpty, confirmation == nil else { return confirmation != nil }
         activateHeed()

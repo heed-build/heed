@@ -6,7 +6,8 @@
     /// Makes libghostty panes. Every pane gets the session's hook environment and the bundled `heed` on its PATH.
     @MainActor
     enum GhosttyTerminalFactory {
-        static func makeView(pane: PaneSpec, environment: [String: String]) -> NSView {
+        /// `command` replaces the login shell (zmx attaching to the pane's session); nil runs your shell as usual.
+        static func makeView(pane: PaneSpec, environment: [String: String], command: String? = nil) -> NSView {
             let fileManager = FileManager.default
             var isDirectory: ObjCBool = false
             let exists = fileManager.fileExists(atPath: pane.directory, isDirectory: &isDirectory) && isDirectory
@@ -21,6 +22,7 @@
             // worktree opens a plain shell instead of starting an agent somewhere unexpected.
             let launch = TerminalLaunch(
                 directory: exists ? pane.directory : NSHomeDirectory(),
+                command: command,
                 initialInput: exists ? pane.command.map { "\($0)\n" } : nil,
                 environment: env
             )

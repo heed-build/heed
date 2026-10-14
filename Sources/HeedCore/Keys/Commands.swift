@@ -102,6 +102,7 @@ public enum Commands {
             "tutor.hide", "hide the title bar's tutor reminder for this lesson (all: every reminder)", .views,
             arguments: "[all]"
         ),
+        .init("agents.stop", "stop every agent and shell in every pane (with [sessions] persist = \"zmx\")", .views),
         .init("tutor.back", "the tutor's previous step, the world as it was then", .views),
         .init("tutor.skip", "skip the tutor's step", .views),
         .init("tutor.exit", "leave the tutor; your sessions come back as they were", .views),

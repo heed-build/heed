@@ -86,4 +86,41 @@ struct SessionListTests {
         #expect(CommandAliases.resolve("inbox") == CommandInvocation(name: "view", arguments: ["inbox"]))
         #expect(CommandAliases.resolve("pane.zoom") == CommandInvocation(name: "pane.zoom"))
     }
+
+    @Test func removingAPaneFromAnyTab() {
+        let agent = PaneSpec(role: .agent, title: "claude", directory: "/w")
+        let shell = PaneSpec(role: .shell, title: "zsh", directory: "/w")
+        let tests = PaneSpec(role: .shell, title: "tests", directory: "/w")
+        var first = PaneTab(title: "agent", tree: .leaf(agent))
+        first.split(.horizontal, with: shell)
+        var layout = SessionLayout(tabs: [first, PaneTab(title: "tests", tree: .leaf(tests))], activeTab: 1)
+        // A pane in a tab that is not active, and not focused there: the focus stays where it was.
+        let focused = layout.tabs[0].focused
+        let other = layout.removePane(focused == shell.id ? agent.id : shell.id)
+        #expect(other)
+        #expect(layout.tabs[0].tree.panes.count == 1)
+        #expect(layout.activeTab == 1)
+        // The last pane of a tab takes the tab with it; the active tab stays the one you were on.
+        let last = layout.removePane(layout.tabs[0].tree.panes[0].id)
+        #expect(last)
+        #expect(layout.tabs.map(\.title) == ["tests"])
+        #expect(layout.activeTab == 0)
+        let missing = layout.removePane("nope")
+        #expect(!missing)
+        let final = layout.removePane(tests.id)
+        #expect(final)
+        #expect(layout.tabs.isEmpty)
+    }
+
+    @Test func removingATabKeepsTheActiveOne() {
+        let tabs = ["a", "b", "c"].map { PaneTab(
+            title: $0,
+            tree: .leaf(PaneSpec(role: .shell, title: $0, directory: "/"))
+        ) }
+        var layout = SessionLayout(tabs: tabs, activeTab: 2)
+        layout.removeTab(at: 0)
+        #expect(layout.tabs[layout.activeTab].title == "c")
+        layout.removeTab(at: layout.activeTab)
+        #expect(layout.tabs[layout.activeTab].title == "b")
+    }
 }

@@ -63,6 +63,7 @@ public enum Commands {
         .init("pane.split.below", "split below", .panes),
         .init("pane.zoom", "zoom pane", .panes),
         .init("pane.close", "close pane", .panes),
+        .init("tab.close", "close the tab, every pane in it", .panes),
         .init("tab.next", "next tab", .panes),
         .init("tab.prev", "previous tab", .panes),
         .init("tab.new", "new tab with shell", .panes),

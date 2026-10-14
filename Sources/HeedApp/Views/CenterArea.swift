@@ -49,6 +49,7 @@ private struct TabStrip: View {
                         }
                     }
                     Text(tab.title)
+                    TabCloseButton { model.closeTab(index) }
                 }
                 .font(Theme.mono(12))
                 .foregroundStyle(on ? Theme.fg : Theme.fg3)
@@ -60,6 +61,10 @@ private struct TabStrip: View {
                 .onTapGesture { model.selectTab(index) }
             }
             Text("+").font(Theme.mono(13)).foregroundStyle(Theme.fg3).padding(.horizontal, 14)
+                .frame(height: 36)
+                .contentShape(Rectangle())
+                .onTapGesture { model.perform(CommandInvocation(name: "tab.new")) }
+                .help("New tab (:tab.new)")
             Spacer()
             HStack(spacing: 6) {
                 KeyCap(text: "gt")
@@ -75,6 +80,24 @@ private struct TabStrip: View {
         .frame(height: 36)
         .background(Theme.bg2)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+}
+
+/// A tab's ×: closes the tab (asking first when the agent is in it).
+private struct TabCloseButton: View {
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Image(systemName: "xmark")
+            .font(.system(size: 8.5, weight: .semibold))
+            .foregroundStyle(hovering ? Theme.fg : Theme.fg3)
+            .frame(width: 16, height: 16)
+            .background(RoundedRectangle(cornerRadius: 4).fill(hovering ? Theme.bg3 : .clear))
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+            .onTapGesture(perform: action)
+            .help("Close tab (:tab.close)")
     }
 }
 

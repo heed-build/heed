@@ -1130,6 +1130,7 @@ final class AppModel {
         case "pane.split.below": split(.vertical)
         case "pane.zoom": updateTab { $0.zoomed.toggle() }
         case "pane.close": confirmClosePane()
+        case "tab.close": closeTab()
         case "tab.next": cycleTab(by: count)
         case "tab.prev": cycleTab(by: -count)
         case "tab.new": newTab()
@@ -1395,9 +1396,14 @@ final class AppModel {
         /// What will be left alone, and why.
         var kept: [String] = []
         var accept: String
+        var cancel = "Cancel"
         /// Red accept button for removals; neutral for the rest.
         var destructive = true
         var action: @MainActor () -> Void
+        /// A third answer, between cancel and accept: its label, its key, and what it does.
+        var alternative: (label: String, key: String, action: @MainActor () -> Void)?
+        /// What cancelling does besides closing the dialog.
+        var onCancel: (@MainActor () -> Void)?
     }
 
     private(set) var confirmation: Confirmation?
@@ -1417,14 +1423,24 @@ final class AppModel {
             confirmation = nil
             action?()
         case KeyStroke("n"), KeyStroke("q"), .escape:
+            let cancel = confirmation?.onCancel
             confirmation = nil
             flash = "cancelled"
+            cancel?()
         default:
-            break
+            if let alternative = confirmation?.alternative, stroke == KeyStroke(alternative.key) {
+                confirmation = nil
+                alternative.action()
+            }
         }
     }
 
     func acceptConfirmation() { answerConfirmation(KeyStroke("y")) }
+    func chooseAlternative() {
+        guard let key = confirmation?.alternative?.key else { return }
+        answerConfirmation(KeyStroke(key))
+    }
+
     func cancelConfirmation() { answerConfirmation(.escape) }
 
     /// Set once a quit was confirmed, so the second terminate goes through.
@@ -1467,23 +1483,29 @@ final class AppModel {
     /// `dd` in Sessions: the session and its worktrees. Worktrees with unsaved work are kept (and said so).
     private func confirmDelete() {
         guard let session = currentSession else { return }
-        let mine = worktrees.filter { !$0.isMain && $0.branch == session.branch && session.repos.contains($0.repo) }
-        let (removals, kept) = planRemoval(mine, sessionsFollow: false)
+        let (removals, kept, lines) = deletion(of: session)
         ask(Confirmation(
             title: "Delete \(session.title)?",
-            lines: ["The agent and its panes stop; the session moves to History"]
-                + removals.map { removal in
-                    "remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "")"
-                        + (removal.deleteBranch ? " and its local branch" : "")
-                }
-                + (mine.isEmpty ? ["No worktree to remove"] : []),
+            lines: ["The agent and its panes stop; the session moves to History"] + lines,
             kept: kept,
             accept: "Delete"
-        ) { [weak self] in
-            guard let self else { return }
-            closeCurrent()
-            if !removals.isEmpty { removeWorktrees(removals, kept: kept) }
-        })
+        ) { [weak self] in self?.deleteSession(session.id, removals: removals, kept: kept) })
+    }
+
+    /// What deleting a session removes: its worktrees, minus those with work not saved anywhere else.
+    private func deletion(of session: Session) -> ([SweepPlan.Removal], [String], [String]) {
+        let mine = worktrees.filter { !$0.isMain && $0.branch == session.branch && session.repos.contains($0.repo) }
+        let (removals, kept) = planRemoval(mine, sessionsFollow: false)
+        let lines = removals.map { removal in
+            "remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "")"
+                + (removal.deleteBranch ? " and its local branch" : "")
+        } + (mine.isEmpty ? ["No worktree to remove"] : [])
+        return (removals, kept, lines)
+    }
+
+    private func deleteSession(_ id: String, removals: [SweepPlan.Removal], kept: [String]) {
+        closeSession(id)
+        if !removals.isEmpty { removeWorktrees(removals, kept: kept) }
     }
 
     private func confirmSweep() {
@@ -1521,14 +1543,21 @@ final class AppModel {
     }
 
     private func closeCurrent() {
-        guard var session = currentSession else { return }
-        let id = session.id
+        guard let session = currentSession else { return }
+        closeSession(session.id)
+    }
+
+    /// A session to History, its panes closed; its worktree stays.
+    private func closeSession(_ id: String) {
+        guard var session = sessions.first(where: { $0.id == id }) else { return }
         let minutes = Int(Date().timeIntervalSince(session.createdAt) / 60)
         session.record("ended after \(minutes / 60)h \(minutes % 60)m")
+        // The panes are read before the close drops the layout.
+        let panes = layouts[id]?.tabs.flatMap(\.tree.panes) ?? []
         commit(.sessionClosed(HistoryEntry(
             session: session, closedAt: Date(), outcome: HistoryEntry.outcome(closing: session)
         )))
-        for pane in layouts[id]?.tabs.flatMap(\.tree.panes) ?? [] {
+        for pane in panes {
             TerminalSurfaces.shared.close(paneID: pane.id)
         }
         cursor = min(cursor, max(list.ordered.count - 1, 0))
@@ -3614,16 +3643,85 @@ final class AppModel {
     }
 
     private func closePane() {
-        let closing = currentTab?.focused
-        updateLayout { layout in
-            guard layout.tabs.indices.contains(layout.activeTab) else { return }
-            if !layout.tabs[layout.activeTab].closeFocused() {
-                layout.tabs.remove(at: layout.activeTab)
-                layout.activeTab = max(0, min(layout.activeTab, layout.tabs.count - 1))
+        guard let session = currentSession, let closing = currentTab?.focused else { return }
+        removePane(closing, in: session.id)
+    }
+
+    /// Takes a pane out of a session's layout (and its tab, when it was the tab's last). A session left with no
+    /// terminal at all asks what to do with it.
+    private func removePane(_ paneID: String, in sessionID: String) {
+        guard var layout = layouts[sessionID], layout.removePane(paneID) else { return }
+        commit(.layoutChanged(session: sessionID, layout))
+        TerminalSurfaces.shared.close(paneID: paneID)
+        if layout.tabs.isEmpty { sessionEmptied(sessionID) }
+    }
+
+    /// A pane's terminal ended (its shell exited): the pane closes, as in any terminal.
+    func paneExited(_ paneID: String) {
+        guard let sessionID = layouts
+            .first(where: { $0.value.tabs.contains { $0.tree.panes.contains { $0.id == paneID } } })?.key
+        else { return }
+        removePane(paneID, in: sessionID)
+    }
+
+    /// `tab.close`, or a tab's ×: every pane in it. A tab with the agent in it asks first.
+    func closeTab(_ index: Int? = nil) {
+        guard let session = currentSession, var layout = layouts[session.id] else { return }
+        let index = index ?? layout.activeTab
+        guard layout.tabs.indices.contains(index) else { return }
+        let panes = layout.tabs[index].tree.panes
+        let close: @MainActor () -> Void = { [weak self] in
+            guard let self, var layout = layouts[session.id], layout.tabs.indices.contains(index) else { return }
+            layout.removeTab(at: index)
+            commit(.layoutChanged(session: session.id, layout))
+            for pane in panes {
+                TerminalSurfaces.shared.close(paneID: pane.id)
             }
+            if layout.tabs.isEmpty { sessionEmptied(session.id) }
         }
-        if let closing { TerminalSurfaces.shared.close(paneID: closing) }
-        if currentTabs.isEmpty, mode == .insert { engine.enter(.normal) }
+        guard panes.contains(where: { $0.role == .agent }) else { return close() }
+        layout.activeTab = index
+        ask(Confirmation(
+            title: "Close the \(layout.tabs[index].title) tab?",
+            lines: ["The agent in it stops; the session and its worktree stay"],
+            accept: "Close"
+        ) { close() })
+    }
+
+    /// Every terminal of a session has gone. Delete it and its worktree, close it (worktree kept), or keep it with a
+    /// fresh shell.
+    private func sessionEmptied(_ id: String) {
+        if mode == .insert, currentSession?.id == id { engine.enter(.normal) }
+        guard let session = sessions.first(where: { $0.id == id }) else { return }
+        let (removals, kept, lines) = deletion(of: session)
+        ask(Confirmation(
+            title: "Every terminal in \(session.title) has closed. Delete the session?",
+            lines: lines + ["Delete and Close move the session to History; Keep opens a new shell in it"],
+            kept: kept,
+            accept: "Delete",
+            cancel: "Keep",
+            action: { [weak self] in self?.deleteSession(id, removals: removals, kept: kept) },
+            alternative: (
+                label: "Close, keep the worktree",
+                key: "c",
+                action: { [weak self] in self?.closeSession(id) }
+            ),
+            onCancel: { [weak self] in self?.reopenShell(in: id) }
+        ))
+    }
+
+    /// Keep: the session gets a shell tab again, in its worktree.
+    private func reopenShell(in id: String) {
+        guard let session = sessions.first(where: { $0.id == id }) else { return }
+        let directory = worktrees.first { $0.branch == session.branch && session.repos.contains($0.repo) }?.path
+            ?? NSHomeDirectory()
+        var layout = layouts[id] ?? SessionLayout(tabs: [])
+        layout.tabs.append(PaneTab(title: "shell", tree: .leaf(PaneSpec(
+            role: .shell, title: "zsh \(session.branch)", directory: directory
+        ))))
+        layout.activeTab = layout.tabs.count - 1
+        commit(.layoutChanged(session: id, layout))
+        flash = "kept \(session.title), with a new shell"
     }
 
     private func cycleTab(by delta: Int) {

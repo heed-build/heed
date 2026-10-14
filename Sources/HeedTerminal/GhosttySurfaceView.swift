@@ -241,7 +241,12 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
         {
             key.unshifted_codepoint = scalar.value
         }
-        guard let text, !text.isEmpty else { return ghostty_surface_key(surface, key) }
+        // Control characters (Return, Tab, ⌃ chords) go without text: given "\r", Ghostty sends it as typed, and the
+        // modifiers are lost, so ⇧↩ would be ↩. Without text it encodes the key and its modifiers itself, as the
+        // program asked (the Kitty keyboard protocol's CSI 13;2u for ⇧↩).
+        guard let text, let first = text.unicodeScalars.first, first.value >= 0x20 else {
+            return ghostty_surface_key(surface, key)
+        }
         return text.withCString { pointer in
             key.text = pointer
             return ghostty_surface_key(surface, key)

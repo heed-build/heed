@@ -23,7 +23,8 @@ Most of get it green exists, as the PR "feedback pipeline" (`Sources/HeedCore/Gi
 What is missing:
 
 0. **Everything is watched, silently.** A new pipeline starts with watching on (`PullFeedback(watching: true)`), and a
-   PR without one counts as watched. Every PR a session tracks is followed, whether you meant it or not.
+   PR without one counts as watched. That default is right (watching only reads and shows; it never sends or changes
+   anything), but nothing says so, and nothing lets an org or repo turn it off.
 1. **You cannot see it.** The inspector's PR card always says "watching" (the word is hardcoded, whatever the state).
    Nothing in the sidebar, the PRs view or Repos shows which PRs are watched, in what mode, or what is happening.
 2. **No green verdict.** Nothing says "this PR is done: checks pass, threads resolved, mergeable".
@@ -40,8 +41,10 @@ Each needs the one before it:
 | **green** | items are collected and shown, nothing is sent | `ask`: you queue items to send; `auto`: they go to the agent when it is idle |
 | **merge** | a green PR shows "ready to merge" | `auto` or `heed`, below |
 
-**Auto-watch.** Whether a PR is watched when a session starts tracking it comes from the settings: off by default,
-on per org or per repo (your main working repos), and toggled per PR at any time (`w` in the PR overlay, as today).
+**Auto-watch.** Whether a PR is watched when a session starts tracking it comes from the settings: **on by default**,
+because watching only reads from GitHub and shows what it finds; it never sends anything to an agent or touches the
+PR. An org or a repo can turn it off (a huge repo you only track now and then), and it toggles per PR at any time (`w`
+in the PR overlay, as today).
 Turning green or merge on for a PR turns watching on with it; turning watching off pauses green and merge for that PR
 without forgetting their modes.
 
@@ -155,11 +158,11 @@ set in the PR overlay. The most specific wins, for every key (`watch`, `green`, 
 
 A per-PR choice sticks: changing a repo's settings later does not undo a PR you turned on or off by hand. PRs you never
 touched follow the settings as they change. (Today's pipelines have no such mark; on upgrade they are treated as
-untouched, so the new `watch = false` default turns them off unless their org or repo says on.)
+untouched. With `watch = true` the default, nothing changes for them unless an org or repo turns watching off.)
 
 ```toml
 [pilot]
-watch = false                 # follow newly tracked PRs: off unless an org or repo turns it on
+watch = true                  # follow newly tracked PRs; read-only, so on unless an org or repo turns it off
 green = "ask"                 # off | ask | auto (only for watched PRs)
 max_rounds = 3
 merge = "off"                 # off | auto | heed
@@ -173,18 +176,19 @@ self_review = "off"           # off | claude | codex | …
 update_branches = true
 
 [orgs.elastic]
-watch = true                  # every repo of this org: follow tracked PRs
 green = "auto"
 merge = "auto"                # GitHub auto-merge, GitHub decides
 
-[orgs.nullean]
-watch = false                 # an org default can also say off
+[orgs.employer]
+watch = false                 # an org that should not be followed by default
 
 [repos."elastic/kibana"]
 watch = false                 # a repo overrides its org: too big to follow every PR
 
-[repos."nullean/heed"]
+[repos."employer/main-service"]
 watch = true                  # a main working repo, though its org says off
+
+[repos."nullean/heed"]
 merge = "heed"
 trusted_reviewers = ["copilot-pull-request-reviewer[bot]"]
 self_review = "claude"
@@ -235,7 +239,7 @@ All are named commands (`:` reaches them, config can bind them):
 ## Phases
 
 1. **Seeing it** and the settings hierarchy: the real inspector line, sidebar and PRs view marks, `[pilot]` with org
-   and repo levels, `watch` off by default with auto-watch per org and repo, green modes replacing auto-feed (same
+   and repo levels, `watch` on by default and switchable per org and repo, green modes replacing auto-feed (same
    behaviour). Small; fixes today's complaint.
 2. **Green verdict**: mergeability, required checks and conflicts in the detail query; failing check logs; the
    conflicts item; `pilot.why`.

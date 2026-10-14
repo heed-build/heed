@@ -114,7 +114,7 @@ public enum Fixtures {
         let (pilots, log) = pilotStates
         return Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
-            pullDetails: [detail.ref.description: detail],
+            pullDetails: Dictionary(([detail] + otherDetails).map { ($0.ref.description, $0) }) { first, _ in first },
             feedback: pilots.merging([detail.ref.description: pipeline]) { _, main in main }, pilotLog: log
         )
     }()
@@ -237,32 +237,89 @@ public enum Fixtures {
     }()
 
     /// design/screens/Reader.png.
-    static let pullDetail = PullDetail(
-        ref: PullRef(repo: docsBuilder, number: 2841), title: "Fix broken anchors in redirects",
-        body: "Validates redirect targets against real headings, so moved pages no longer lose their anchors.\nCloses #2830. Companion change in docs-content #1920.",
-        author: "you", baseBranch: "main", headBranch: "fix-anchors-redirects", additions: 82, deletions: 4,
-        commitCount: 3, headSHA: "a91e3d0",
-        reviews: [PullDetail.Review(author: "reviewer", state: "CHANGES_REQUESTED")],
-        threads: [
-            ReviewThread(
-                id: "T1", isResolved: false, path: "src/Redirects/RedirectFile.cs", line: 88, author: "reviewer",
-                body: "Anchor lookup is case sensitive. Heading slugs are lowercased, so this misses valid targets.",
-                diff: [
-                    "     var slug = Slugify(heading);",
-                    "-    var exists = anchors.Contains(target);",
-                    "+    var exists = anchors.Contains(target, StringComparer.Ordinal);",
-                ],
-                replies: 0, url: nil
+    static let pullDetail: PullDetail = {
+        var detail = PullDetail(
+            ref: PullRef(repo: docsBuilder, number: 2841), title: "Fix broken anchors in redirects",
+            body: "Validates redirect targets against real headings, so moved pages no longer lose their anchors.\nCloses #2830. Companion change in docs-content #1920.",
+            author: "you", baseBranch: "main", headBranch: "fix-anchors-redirects", additions: 82, deletions: 4,
+            commitCount: 3, headSHA: "a91e3d0",
+            reviews: [PullDetail.Review(author: "reviewer", state: "CHANGES_REQUESTED")],
+            threads: [
+                ReviewThread(
+                    id: "T1", isResolved: false, path: "src/Redirects/RedirectFile.cs", line: 88, author: "reviewer",
+                    body: "Anchor lookup is case sensitive. Heading slugs are lowercased, so this misses valid targets.",
+                    diff: [
+                        "     var slug = Slugify(heading);",
+                        "-    var exists = anchors.Contains(target);",
+                        "+    var exists = anchors.Contains(target, StringComparer.Ordinal);",
+                    ],
+                    replies: 0, url: nil
+                ),
+                ReviewThread(
+                    id: "T2", isResolved: false, path: "tests/Redirects/AnchorTests.cs", line: 12, author: "reviewer",
+                    body: "Please cover the moved-page case.", diff: [], replies: 0, url: nil
+                ),
+            ],
+            failingChecks: [PullDetail.FailingCheck(
+                name: "lint",
+                summary: "docs/redirects.md:41 line too long",
+                url: nil
+            )],
+            checks: CheckSummary(passed: 3, failed: 1, pending: 1, failedNames: ["lint"]),
+            closes: [PullRef(repo: docsBuilder, number: 2830)], fetchedAt: Clock.now
+        )
+        detail.state = "OPEN"
+        detail.isDraft = false
+        detail.mergeable = "MERGEABLE"
+        detail.mergeState = "BLOCKED"
+        detail.reviewDecision = "CHANGES_REQUESTED"
+        detail.requiredChecks = ["build", "lint"]
+        return detail
+    }()
+
+    /// The other PRs' details, one per green verdict: docs-content#1920 green, editorconfig#412 conflicting.
+    static let otherDetails: [PullDetail] = {
+        func detail(
+            _ repo: Repo, _ number: Int, _ title: String, _ branch: String, mergeable: String, state: String,
+            checks: CheckSummary, review: String?
+        ) -> PullDetail {
+            var detail = PullDetail(
+                ref: PullRef(repo: repo, number: number), title: title, body: "", author: "you", baseBranch: "main",
+                headBranch: branch, additions: 20, deletions: 3, commitCount: 1, headSHA: "b\(number)",
+                reviews: review.map { [PullDetail.Review(author: "reviewer", state: $0)] } ?? [], threads: [],
+                failingChecks: [], checks: checks, closes: [], fetchedAt: Clock.now
+            )
+            detail.state = "OPEN"
+            detail.isDraft = false
+            detail.mergeable = mergeable
+            detail.mergeState = state
+            detail.reviewDecision = review
+            detail.requiredChecks = ["build"]
+            return detail
+        }
+        return [
+            detail(
+                docsContent,
+                1920,
+                "Redirects for moved pages",
+                "fix-anchors-redirects",
+                mergeable: "MERGEABLE",
+                state: "CLEAN",
+                checks: CheckSummary(passed: 4),
+                review: nil
             ),
-            ReviewThread(
-                id: "T2", isResolved: false, path: "tests/Redirects/AnchorTests.cs", line: 12, author: "reviewer",
-                body: "Please cover the moved-page case.", diff: [], replies: 0, url: nil
+            detail(
+                editorconfig,
+                412,
+                "Bump spec tests to 0.17",
+                "bump-spec-tests",
+                mergeable: "CONFLICTING",
+                state: "DIRTY",
+                checks: CheckSummary(passed: 3),
+                review: "APPROVED"
             ),
-        ],
-        failingChecks: [PullDetail.FailingCheck(name: "lint", summary: "docs/redirects.md:41 line too long", url: nil)],
-        checks: CheckSummary(passed: 3, failed: 1, pending: 1, failedNames: ["lint"]),
-        closes: [PullRef(repo: docsBuilder, number: 2830)], fetchedAt: Clock.now
-    )
+        ]
+    }()
 
     /// design/screens/Inbox.png and PRs.png.
     static let github: GitHubState = {

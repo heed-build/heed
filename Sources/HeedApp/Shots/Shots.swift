@@ -153,6 +153,9 @@ enum Shots {
         Shot(id: "watch/visual", keys: "gwjjvj", crop: .list),
         Shot(id: "watch/paused", keys: "gwjjvjz", crop: .list),
         Shot(id: "watch/detail", keys: "gw", crop: .pilotDetail),
+        // The green PR's checklist, and the conflicting one's.
+        Shot(id: "watch/green", keys: "gw/moved<CR>", crop: .pilotDetail),
+        Shot(id: "watch/conflict", keys: "gw/spec<CR>", crop: .pilotDetail),
         Shot(id: "watch/inspector", crop: .inspector),
         Shot(id: "watch/prs", keys: "gp", crop: .list),
     ]

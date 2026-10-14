@@ -19,6 +19,19 @@ public struct PullDetail: Hashable, Sendable, Codable {
     public var checks: CheckSummary
     public var closes: [PullRef]
     public var fetchedAt: Date
+    /// What the green verdict reads. Optional: details cached before them decode without them, and count as unknown.
+    /// `OPEN`, `MERGED`, `CLOSED`.
+    public var state: String?
+    public var isDraft: Bool?
+    /// `MERGEABLE`, `CONFLICTING`, or `UNKNOWN` while GitHub works it out.
+    public var mergeable: String?
+    /// GitHub's `mergeStateStatus`: `CLEAN`, `BEHIND` (out of date, and the repo requires up to date), `DIRTY`
+    /// (conflicts), `BLOCKED`, `UNSTABLE`, `HAS_HOOKS`, `DRAFT`, `UNKNOWN`.
+    public var mergeState: String?
+    /// `APPROVED`, `CHANGES_REQUESTED`, `REVIEW_REQUIRED`, or nil.
+    public var reviewDecision: String?
+    /// The checks branch protection requires on this PR; empty when it requires none.
+    public var requiredChecks: [String]?
 
     public struct Review: Hashable, Sendable, Codable {
         public var author: String
@@ -106,6 +119,8 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     public enum Kind: Hashable, Sendable, Codable {
         case review(location: String, author: String)
         case check(name: String)
+        /// The PR conflicts with its base (or is behind it, when the repo requires up to date).
+        case conflict(base: String, behind: Bool)
     }
 
     /// The pipeline: New → Queued → Sent → Addressed (the agent pushed) → Resolved (thread resolved, check passing).
@@ -122,6 +137,8 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     public var resolvedAt: Date?
     /// The head commit when it was sent, so a later push marks it addressed.
     public var sentAtSHA: String?
+    /// For a failed check: the failed step's log, saved where the agent can read it.
+    public var logPath: String?
 
     public init(id: String, kind: Kind, text: String, status: Status = .new) {
         self.id = id
@@ -137,7 +154,12 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
         let short = first.count > 160 ? String(first.prefix(159)) + "…" : first
         switch kind {
         case let .review(location, author): return "\(location) (@\(author)): \(short)"
-        case let .check(name): return "check \(name) failed: \(short)"
+        case let .check(name):
+            return "check \(name) failed: \(short)" + (logPath.map { " (the failed log is in \($0))" } ?? "")
+        case let .conflict(base, behind):
+            return behind
+                ? "the branch is behind \(base), which the repo requires to be current: rebase on \(base) and push"
+                : "the branch conflicts with \(base): rebase on \(base), resolve the conflicts, run the tests and push"
         }
     }
 }
@@ -278,6 +300,9 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             let gone: Bool = switch item.kind {
             case .review: threads[item.id]?.isResolved ?? true
             case let .check(name): !failing.contains(name) && !detail.checks.pendingNames.contains(name)
+            // Gone once GitHub says it merges cleanly and is current; unknown keeps it.
+            case .conflict: detail.mergeable == "MERGEABLE" && detail.mergeState != "BEHIND"
+                && detail.mergeState != "DIRTY"
             }
             if gone, item.status != .resolved {
                 item.status = .resolved
@@ -292,6 +317,16 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             items.append(FeedbackItem(
                 id: thread.id, kind: .review(location: thread.location, author: thread.author), text: thread.body,
                 status: initial
+            ))
+        }
+        let base = detail.baseBranch.isEmpty ? "the base branch" : detail.baseBranch
+        let conflicted = detail.mergeable == "CONFLICTING" || detail.mergeState == "DIRTY"
+        let behind = !conflicted && detail.mergeState == "BEHIND"
+        if conflicted || behind, !items.contains(where: { $0.id == "conflict" && $0.status != .resolved }) {
+            items.removeAll { $0.id == "conflict" }
+            items.append(FeedbackItem(
+                id: "conflict", kind: .conflict(base: base, behind: behind),
+                text: conflicted ? "Merge conflict with \(base)." : "Behind \(base).", status: initial
             ))
         }
         for check in detail.failingChecks

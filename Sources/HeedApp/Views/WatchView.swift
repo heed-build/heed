@@ -21,11 +21,13 @@ struct PilotMark: View {
         switch status {
         case .stuck: "⚠"
         case .failing: "✕"
+        case .conflicted: "⇄"
         case .changes: "●"
         case .feeding: "⟳"
-        case .pending: "◌"
-        case .passing: "✓"
+        case .pending, .draft: "◌"
+        case .green, .passing: "✓"
         case .paused: "⏸"
+        case let .closed(merged): merged ? "✓" : "✕"
         case .unwatched: "○"
         }
     }
@@ -36,8 +38,12 @@ struct PilotMark: View {
         case let .failing(count): "\(count) failing"
         case let .changes(count): "\(count) thread\(count == 1 ? "" : "s")"
         case .feeding: "feeding"
+        case let .conflicted(what): what.hasPrefix("behind") ? "behind" : "conflict"
         case .pending: "running"
+        case .draft: "draft"
+        case .green: "green"
         case .passing: "passing"
+        case let .closed(merged): merged ? "merged" : "closed"
         case let .paused(until): until.map { PilotDuration.text($0.timeIntervalSince(Clock.now)) } ?? "paused"
         case .unwatched: "not watched"
         }
@@ -46,11 +52,12 @@ struct PilotMark: View {
     private var color: Color {
         switch status {
         case .stuck: Theme.block
-        case .failing: Theme.err
+        case .failing, .conflicted: Theme.err
         case .changes: Theme.block
         case .feeding, .pending: Theme.busy
-        case .passing: Theme.done
-        case .paused, .unwatched: Theme.fg3
+        case .green: Theme.done
+        case .passing: Theme.fg2
+        case .draft, .paused, .closed, .unwatched: Theme.fg3
         }
     }
 }
@@ -187,6 +194,25 @@ private struct PilotDetail: View {
                     keyHint("w", row.effective.watching ? "stop watching" : "watch")
                     keyHint("m", "green")
                     keyHint("zz", pipeline?.isPaused(Clock.now) == true ? "resume" : "pause")
+                }
+                // The verdict, rule by rule: what holds the PR back from green, or that nothing does.
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionHeader(title: "Green")
+                    if let detail = model.pullDetails[row.ref.description] {
+                        ForEach(GreenVerdict.of(detail).rules) { rule in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(rule.state == .pass ? "✓" : rule.state == .fail ? "✕" : "◌")
+                                    .foregroundStyle(rule.state == .pass ? Theme.done
+                                        : rule.state == .fail ? Theme.err : Theme.busy)
+                                    .frame(width: 14)
+                                Text(rule.name).font(Theme.ui(12.5)).frame(width: 150, alignment: .leading)
+                                Text(rule.detail).font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                            }
+                        }
+                    } else {
+                        Text("Not fetched yet: heed fetches a watched PR's detail when it moves.")
+                            .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    }
                 }
                 if let pipeline, !pipeline.items.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {

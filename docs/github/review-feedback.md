@@ -12,9 +12,13 @@ happens for, and what heed did.
 
 ## The pipeline
 
-Every unresolved review thread and failing check becomes an item, and moves through:
+Every unresolved review thread, failing check and merge conflict becomes an item, and moves through:
 
 **New** → **Queued** → **Sent** → **Addressed** → **Resolved**
+
+A failed GitHub Actions check comes with the last lines of its failed step, saved to a file the prompt points the
+agent at. A conflict with the base (or being behind it, when the repo requires current branches) asks the agent to
+rebase and push; it resolves once GitHub says the PR merges cleanly.
 
 | Key | |
 |---|---|

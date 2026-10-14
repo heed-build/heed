@@ -1195,6 +1195,7 @@ final class AppModel {
         case "pilot.green", "feedback.mode": cyclePilotGreen()
         case "pilot.watch", "feedback.watch": togglePilotWatch()
         case "pilot.pause": pausePilot(command.arguments.first)
+        case "pilot.why": showPilotWhy()
         case "feedback.dismiss": dismissItem()
         case "feedback.session": startFromPull()
         case "pr.session": jumpToPullSession()
@@ -2504,7 +2505,46 @@ final class AppModel {
                 .filter { before.contains($0.id) && $0.status == .resolved } ?? []
             let checks = fixed.compactMap { if case let .check(name) = $0.kind { name } else { nil } }
             if !checks.isEmpty { flash = "\(checks.joined(separator: ", ")) passing now on #\(ref.number)" }
+            fetchFailedLogs(ref, detail)
             if feedback[ref.description]?.autoFeed == .auto { deliver(ref, explicit: false) }
+        }
+    }
+
+    /// Jobs whose failed log was asked for already, so a log that cannot be had is not asked for on every fetch.
+    private var askedLogs: Set<String> = []
+
+    /// For each open failed-check item without a log: the job's failed steps, saved under the caches folder, so the
+    /// prompt can point the agent at the actual error instead of "build failed".
+    private func fetchFailedLogs(_ ref: PullRef, _ detail: PullDetail) {
+        guard !isFixture, let pipeline = feedback[ref.description] else { return }
+        let wanted = pipeline.items.compactMap { item -> (id: String, check: String, job: String)? in
+            guard case let .check(name) = item.kind, item.status != .resolved, item.logPath == nil,
+                  let job = GitHub.jobID(fromDetailsURL: detail.failingChecks.first { $0.name == name }?.url),
+                  !askedLogs.contains(job)
+            else { return nil }
+            return (item.id, name, job)
+        }
+        guard !wanted.isEmpty else { return }
+        askedLogs.formUnion(wanted.map(\.job))
+        let folder = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Heed/logs")
+        Task {
+            var saved: [String: String] = [:]
+            for item in wanted {
+                guard let log = try? await GitHub.failedLog(repo: ref.repo, job: item.job),
+                      !log.isEmpty else { continue }
+                let name = "\(ref.repo.org)-\(ref.repo.name)-\(ref.number)-\(item.check)"
+                    .replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: " ", with: "-")
+                let file = folder.appendingPathComponent("\(name).log")
+                try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                guard (try? log.write(to: file, atomically: true, encoding: .utf8)) != nil else { continue }
+                saved[item.id] = file.path
+            }
+            guard !saved.isEmpty, var pipeline = feedback[ref.description] else { return }
+            for index in pipeline.items.indices {
+                if let path = saved[pipeline.items[index].id] { pipeline.items[index].logPath = path }
+            }
+            commit(.feedbackChanged(pipeline))
         }
     }
 
@@ -2549,7 +2589,8 @@ final class AppModel {
     func pilotStatus(for ref: PullRef) -> PilotStatus {
         PilotStatus.of(
             pull: github.pull(ref), pipeline: feedback[ref.description], settings: pilotSettings(for: ref),
-            hasSession: sessions.contains { $0.trackedPRs.contains(ref) }, now: Clock.now
+            hasSession: sessions.contains { $0.trackedPRs.contains(ref) }, detail: pullDetails[ref.description],
+            now: Clock.now
         )
     }
 
@@ -2745,6 +2786,23 @@ final class AppModel {
             for ref in refs where pilot(for: ref).green == .auto {
                 deliver(ref, explicit: false)
             }
+        }
+    }
+
+    /// `pilot.why`: the PR in the Watch view, where its verdict is listed rule by rule.
+    private func showPilotWhy() {
+        guard let ref = pilotTargets.first else { return flash = "no PR here" }
+        reader = nil
+        overlay = nil
+        view = .watch
+        filters[.watch] = nil
+        if let index = pilotRows.firstIndex(where: { $0.ref == ref }) { itemCursor[.watch] = index }
+        if let blocker = pullDetails[ref.description].flatMap({ GreenVerdict.of($0).blocker }) {
+            flash = "#\(ref.number): \(blocker.name.lowercased()): \(blocker.detail)"
+        } else if pullDetails[ref.description] != nil {
+            flash = "#\(ref.number) is green"
+        } else {
+            flash = "#\(ref.number): not fetched yet"
         }
     }
 

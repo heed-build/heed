@@ -216,9 +216,16 @@ private struct FeedbackRow: View {
                     Text("@\(author) · \(location)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
                 case let .check(name):
                     Text("check · \(name) failed").font(Theme.mono(11.5)).foregroundStyle(Theme.err)
+                case let .conflict(base, behind):
+                    Text(behind ? "behind · \(base)" : "conflict · \(base)").font(Theme.mono(11.5))
+                        .foregroundStyle(Theme.err)
                 }
                 Text(item.text).font(Theme.ui(13)).foregroundStyle(item.status == .resolved ? Theme.fg3 : Theme.fg)
                     .lineLimit(3)
+                if let log = item.logPath {
+                    Text("failed log: \(Paths.abbreviate(log))").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                        .lineLimit(1).truncationMode(.head)
+                }
                 if let sent = item.sentAt {
                     Text(
                         "sent \(sent.formatted(date: .omitted, time: .shortened))\(item.resolvedAt.map { " → resolved \($0.formatted(date: .omitted, time: .shortened))" } ?? "")"

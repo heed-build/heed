@@ -9,12 +9,33 @@ for each and a log of what it has done.
 
 ![The Watch view: PRs by state, the selected PR's items and timeline, and the activity log](../images/shots/watch/view.png)
 
-- **Left**, the PRs, most urgent first: *Needs you* (stuck), *Failing*, *Changes*, *Feeding* (sent to the agent,
-  waiting for its push), *Pending* (checks running), *Passing*, *Paused* and *Not watched*. `{` `}` jump between
-  groups.
-- **Middle**, the PR under the cursor: one line on where it stands, its open items, and its **timeline**: everything
-  heed noticed and did for it.
+- **Left**, the PRs, most urgent first: *Needs you* (stuck), *Failing* (a check failed, or a conflict), *Changes*,
+  *Feeding* (sent to the agent, waiting for its push), *Pending* (checks running, or a draft), *Green*, *Passing* (not
+  fetched in detail yet), *Paused*, *Done* (merged or closed) and *Not watched*. `{` `}` jump between groups.
+- **Middle**, the PR under the cursor: one line on where it stands, its **green** checklist, its open items, and its
+  **timeline**: everything heed noticed and did for it.
 - **Right**, the **activity** across all PRs, newest first (`zi` hides it).
+
+## Green
+
+A PR is **green** when GitHub has nothing left to object to in the code. The middle pane lists each rule with what it
+found, and `:pilot.why` jumps here for the PR you are on:
+
+| Rule | Holds when |
+|---|---|
+| Open | not merged or closed |
+| Ready for review | not a draft |
+| No conflicts | it merges cleanly into its base |
+| Up to date | not behind the base, when the repo requires branches to be current |
+| Checks pass | every required check passed (every check, when the repo requires none) |
+| Threads resolved | no review thread is open |
+| No changes requested | no reviewer is waiting on changes |
+
+![The green checklist for a PR: which rules hold, and which one holds it back](../images/shots/watch/green.png)
+
+What holds a PR back goes to its agent as an item, the same way review comments do: a failing check, and a conflict
+("rebase on main, resolve the conflicts, run the tests and push"). For a failed GitHub Actions check heed saves the
+failed step's log and the prompt points the agent at the file, so it reads the error rather than just "lint failed".
 
 ## Three levels
 

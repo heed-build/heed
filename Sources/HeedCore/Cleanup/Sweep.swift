@@ -69,7 +69,8 @@ public enum Sweep {
         var removals: [SweepPlan.Removal] = []
         var skips: [SweepPlan.Skip] = []
         var next: (Worktree, Int)?
-        for worktree in domain.worktrees where !worktree.isMain {
+        // Worktrees on hosts are not the sweep's: it runs git here, and heed does not clean hosts up (yet).
+        for worktree in domain.worktrees where !worktree.isMain && worktree.location.isLocal {
             let sessions = domain.sessions.filter { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }
             if sessions.contains(where: \.pinned) { continue }
             let activity = lastActivity(of: worktree, sessions: sessions, domain: domain, lastCommit: lastCommit)
@@ -159,9 +160,9 @@ public enum Sweep {
 
 public extension Git {
     /// The date of the last commit in a worktree.
-    static func lastCommitDate(at path: String) async -> Date? {
+    static func lastCommitDate(at path: String, on location: Location = .local) async -> Date? {
         guard let text = try? await ProcessRunner.output(
-            "git",
+            on: location, "git",
             ["-C", path, "log", "-1", "--format=%ct"],
             timeout: .seconds(5)
         ),

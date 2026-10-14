@@ -89,6 +89,8 @@ This page is generated from the code (`mise run shots`).
 | `config.edit` |  | open config.toml in $EDITOR |
 | `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |
 | `tutor.hide` `[all]` |  | hide the title bar's tutor reminder for this lesson (all: every reminder) |
+| `host.open` | `gH` | hosts: the ones heed drives over ssh, and ones from ~/.ssh/config to add |
+| `host.filter` `[host]` | `@` | narrow the view to one host (@devbox) |
 | `agents.stop` |  | stop every agent and shell in every pane (with [sessions] persist = "zmx") |
 | `tutor.back` |  | the tutor's previous step, the world as it was then |
 | `tutor.skip` |  | skip the tutor's step |

@@ -89,6 +89,18 @@ enum OrgPalette: String, CaseIterable, Sendable {
     }
 }
 
+/// Host colours: the palette minus lime and orange, which read as green and amber (done and needs-you).
+enum HostPalette {
+    static let colors: [OrgPalette] = [.teal, .periwinkle, .pink, .sky]
+
+    /// `[hosts.x] color`, else one picked from the name.
+    static func color(for host: String, configured: String?) -> OrgPalette {
+        if let configured, let color = OrgPalette(rawValue: configured), colors.contains(color) { return color }
+        let sum = host.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
+        return colors[sum % colors.count]
+    }
+}
+
 extension Color {
     init(hex: UInt32, opacity: Double = 1) {
         self.init(

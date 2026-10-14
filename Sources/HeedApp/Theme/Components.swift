@@ -96,6 +96,51 @@ struct RepoChip: View {
     }
 }
 
+/// Where something runs: `@devbox` in the host's colour, or a quiet "local" (local is the unmarked default).
+struct HostChip: View {
+    let location: Location
+    /// `[hosts.x] color`.
+    var color: String?
+
+    var body: some View {
+        if let host = location.hostName {
+            let palette = HostPalette.color(for: host, configured: color)
+            Text("@\(host)").font(Theme.mono(10.5)).lineLimit(1)
+                .foregroundStyle(palette.foreground)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .background(RoundedRectangle(cornerRadius: 4).fill(palette.background))
+                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(palette.swatch.opacity(0.45)))
+        } else {
+            Text("local").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+        }
+    }
+}
+
+/// Whether heed manages a worktree on a host: registered, discovered (found, never touched), stale, missing.
+struct RegistrationChip: View {
+    let registration: WorktreeRegistration
+
+    var body: some View {
+        Text(registration.rawValue).font(Theme.mono(10.5))
+            .foregroundStyle(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(color.opacity(0.5)))
+    }
+
+    private var color: Color {
+        switch registration {
+        case .registered: Theme.done
+        case .discovered: Theme.busy
+        case .stale, .missing: Theme.fg3
+        }
+    }
+}
+
 /// Text with a filter's matches marked: bold and in `mark`, so the eye finds why a row is there.
 struct Highlighted: View {
     let text: String

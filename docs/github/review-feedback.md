@@ -25,9 +25,10 @@ rebase and push; it resolves once GitHub says the PR merges cleanly.
 | `space` | Queue or unqueue the item |
 | `s` | Send the queued items now |
 | `x` | Dismiss the item |
-| `m` | Cycle green (auto-feed): **Off**, **Ask**, **Auto when idle** |
-| `w` | Watch or stop watching this PR |
-| `zz` | Pause or resume it (see [Watch](watch.md)) |
+| `zg` | Cycle green (auto-feed): **Off**, **Ask**, **Auto when idle** |
+| `zw` | Watch or stop watching this PR |
+| `zm` | Cycle merging: off, auto, heed |
+| `zp` | Pause or resume it (see [Watch](watch.md)) |
 | `S` | Start a new session from this PR |
 | `]p` / `[p` | The session's next / previous PR |
 

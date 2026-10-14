@@ -83,7 +83,7 @@ Watching only reads from GitHub, so it is on by default.
 
 ## Get it merged
 
-`M` cycles merging for a PR: off, `auto`, `heed` (and turns watching on with it). Each repo with such PRs has a **merge queue**, and a run of the
+`zm` cycles merging for a PR: off, `auto`, `heed` (and turns watching on with it). Each repo with such PRs has a **merge queue**, and a run of the
 queue goes through its PRs, oldest first:
 
 | The PR | A run |
@@ -139,23 +139,24 @@ with `--admin`.
 | Key | |
 |---|---|
 | `↩` | Open the [PR overlay](review-feedback.md) |
-| `w` | Watch or stop watching |
-| `m` | Cycle green: off, ask, auto |
-| `M` | Cycle merging: off, auto, heed |
+| `zw` | Watch or stop watching |
+| `zg` | Cycle green: off, ask, auto |
+| `zm` | Cycle merging: off, auto, heed |
 | `C` | Ask Copilot to resolve the PR's merge conflicts and address its review comments |
-| `zz` | Pause or resume |
-| `v` | Select several, then `z` pauses or resumes them all |
+| `zp` | Pause or resume |
+| `v` | Select several, then `zp` pauses or resumes them all |
 | `r` | Sync now |
 | `R` | Run the PR's merge queue now |
 | `gM` | Show the PR's merge queue |
 
-`w`, `m`, `M` and `zz` work the same in the PRs view and the PR overlay. A choice made with them sticks to that PR; PRs you
+The pilot keys are the same everywhere: in Watch, the PRs view and the PR overlay they act on that PR, and in
+Sessions on every PR the session tracks. A choice made with them sticks to that PR; PRs you
 never set follow the settings.
 
 ## Pausing
 
 A paused PR stays watched and keeps its state up to date, but heed sends nothing for it and it does not count as
-needing you, and its merge queue leaves it alone. `zz` pauses for an hour (`[pilot] pause`); `:pilot.pause 4h`, `:pilot.pause forever` and
+needing you, and its merge queue leaves it alone. `zp` pauses for an hour (`[pilot] pause`); `:pilot.pause 4h`, `:pilot.pause forever` and
 `:pilot.pause off` choose. The countdown shows on the row, and the pause ends by itself.
 
 ![Two PRs selected with v and paused with z](../images/shots/watch/paused.png)
@@ -177,7 +178,7 @@ defaults; an org or a repo overrides any of them, and Settings ▸ Pilot edits t
 watch = true         # read-only, so on
 green = "ask"        # off, ask or auto
 max_rounds = 3       # prompts without a new approval before it stops
-pause = "1h"         # what zz pauses for
+pause = "1h"         # what zp pauses for
 merge = "off"        # off, auto or heed
 merge_schedule = "1h" # how often a repo's queue runs, or manual
 update_branches = true

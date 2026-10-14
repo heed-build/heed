@@ -19,7 +19,7 @@ enum TutorCheck {
         "inbox": ["<CR><Esc>", "<Space>j<Space>", "x"],
         "issues": ["/a<CR>", "s", "<Esc><Esc><CR>"],
         "prs": ["<CR>", "<Space>", "s", "<Esc>"],
-        "watch": ["gw", "j", "zz", "vjz", "M", "gM"],
+        "watch": ["gw", "j", "zp", "vjzp", "zm", "gM"],
         "repos": ["G", "o<Esc><Esc>", "ddn"],
         "history": ["j", "t", "R"],
         "agents": ["ga", "i<S-Esc>", "jjzz"],

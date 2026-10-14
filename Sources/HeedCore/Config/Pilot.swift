@@ -25,7 +25,7 @@ public struct PilotSettings: Hashable, Sendable {
     public var green: AutoFeed
     /// Prompts sent without a new approval before get it green stops.
     public var maxRounds: Int
-    /// How long `zz` pauses a PR; nil pauses until resumed.
+    /// How long `zp` pauses a PR; nil pauses until resumed.
     public var pause: TimeInterval?
     public var merge: MergeMode
     /// `squash`, `merge` or `rebase`; nil takes the first the repo allows, in that order.

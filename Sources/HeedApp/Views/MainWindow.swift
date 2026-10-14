@@ -349,6 +349,12 @@ struct StatusBar: View {
         .padding(.horizontal, 12)
     }
 
+    /// The pilot's keys as bound: `zw watch · zg green · zm merge · zp pause` by default.
+    private var pilotHints: String {
+        [("pilot.watch", "watch"), ("pilot.green", "green"), ("pilot.merge", "merge"), ("pilot.pause", "pause")]
+            .map { "\(model.keyText(for: $0.0)) \($0.1)" }.joined(separator: " · ")
+    }
+
     private var hints: String {
         switch model.mode {
         case .normal where model.confirmation?.alternative != nil:
@@ -360,17 +366,17 @@ struct StatusBar: View {
         case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
         case .normal where model.issueReader != nil: "s start session · a add to session · gB browser · ⎋ back"
         case .normal where model.reader != nil || model.overlay == .pr:
-            "j k item · space queue · s send · m auto-feed · ]p next PR · gS session · ⎋ back"
+            "j k item · space queue · s send · \(model.keyText(for: "pilot.green")) green · ]p next PR · gS session · ⎋ back"
         case .normal where model.view == .repos: "o start work here · v select · dd remove · r rescan · w issues · { } repo · / filter"
         case .normal where model.view == .history: "j k move · / filter · R reopen · O new from prompt · t outcome"
         case .normal where model.view == .inbox: "↩ read · space pick · v range · s start session · a add · x mark read · t unread/all · / filter"
         case .normal where model.view == .issues: "↩ read · space pick · s start session · t filter · ⇥ repo · w all/yours · / filter"
-        case .normal where model.view == .prs: "↩ open · w watch · m green · M merge · zz pause · v select · gS session · r sync"
-        case .normal where model.view == .watch: "↩ open · w watch · m green · M merge · zz pause · v select · R merge now · gM queue"
+        case .normal where model.view == .prs: "↩ open · \(pilotHints) · v select · gS session · r sync"
+        case .normal where model.view == .watch: "↩ open · \(pilotHints) · v select · R merge now · gM queue"
         case .normal: "i insert · o start work · m pin · { } group · Iw import · : command · ? keys"
         case .insert: "⇧⎋ or \(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
         case .visual where model.view == .watch || model.view == .prs:
-            "\(model.pickedIDs(model.view).count) selected · z pause or resume · space toggle · ⎋ cancel"
+            "\(model.pickedIDs(model.view).count) selected · \(model.keyText(for: "pilot.pause")) pause or resume · space toggle · ⎋ cancel"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
         case .command: "⇥ complete · ↩ run · ⎋ cancel"
         case .hint: "type a label · ⎋ cancel"

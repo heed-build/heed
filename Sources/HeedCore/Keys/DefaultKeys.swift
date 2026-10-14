@@ -21,7 +21,12 @@ public enum DefaultKeys {
         ("gs", "view.sessions"), ("gm", "view.inbox"), ("gi", "view.issues"), ("gp", "view.prs"),
         ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), ("gd", "overlay.diff"), ("gS", "pr.session"),
         ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gU", "pr.track"), ("gC", "cleanup.sweep"),
-        ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("<CR>", "open.reader"),
+        ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"),
+        // The pilot, the same keys everywhere: the PR under the cursor, the open PR, or the session's PRs.
+        ("zw", "pilot.watch"), ("zg", "pilot.green"), ("zm", "pilot.merge"), ("zp", "pilot.pause"), (
+            "<CR>",
+            "open.reader"
+        ),
         ("i", "mode.insert"), ("v", "mode.visual"), ("V", "mode.visual"), (":", "mode.command"),
         ("f", "mode.hint"), ("F", "hint.insert"),
         ("?", "overlay.help"), ("<D-/>", "overlay.help"), ("<Esc>", "overlay.close"),
@@ -31,7 +36,7 @@ public enum DefaultKeys {
     public static let visual: [(String, String)] = [
         ("j", "row.next"), ("k", "row.prev"), ("gg", "row.first"), ("G", "row.last"),
         ("<Space>", "select.toggle"), ("d", "select.remove"), ("m", "select.pin"), ("y", "select.copy"),
-        ("o", "select.open"), ("z", "pilot.pause"), ("<Esc>", "mode.normal"), ("?", "overlay.help"),
+        ("o", "select.open"), ("zp", "pilot.pause"), ("<Esc>", "mode.normal"), ("?", "overlay.help"),
         ("<D-/>", "overlay.help"),
     ]
 
@@ -67,12 +72,10 @@ public enum DefaultKeys {
             ("<S-Tab>", "issues.repo.prev"), ("w", "issues.visibility"),
         ],
         "prs": [
-            ("r", "github.sync"), ("<Space>", "select.toggle"), ("w", "pilot.watch"), ("m", "pilot.green"),
-            ("M", "pilot.merge"), ("zz", "pilot.pause"),
+            ("r", "github.sync"), ("<Space>", "select.toggle"),
         ],
         "watch": [
-            ("r", "github.sync"), ("<Space>", "select.toggle"), ("w", "pilot.watch"), ("m", "pilot.green"),
-            ("M", "pilot.merge"), ("zz", "pilot.pause"), ("R", "merge.run"), ("C", "pilot.copilot"),
+            ("r", "github.sync"), ("<Space>", "select.toggle"), ("R", "merge.run"), ("C", "pilot.copilot"),
         ],
         /// The diff overlay.
         "diff": [
@@ -84,8 +87,7 @@ public enum DefaultKeys {
         "issue": [("s", "items.start"), ("a", "items.add"), ("<Esc>", "overlay.close")],
         /// The PR overlay and the reader.
         "pr": [
-            ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("m", "pilot.green"), ("w", "pilot.watch"),
-            ("M", "pilot.merge"), ("zz", "pilot.pause"), ("C", "pilot.copilot"),
+            ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("C", "pilot.copilot"),
             ("x", "feedback.dismiss"), ("S", "feedback.session"), ("<Esc>", "overlay.close"), ("r", "github.sync"),
         ],
     ]

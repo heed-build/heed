@@ -162,7 +162,7 @@ enum Shots {
         // The Watch view: watched PRs by state, the selected PR's items and timeline, the pilot's activity.
         Shot(id: "watch/view", keys: "gw"),
         Shot(id: "watch/visual", keys: "gwjjvj", crop: .list),
-        Shot(id: "watch/paused", keys: "gwjjvjz", crop: .list),
+        Shot(id: "watch/paused", keys: "gwjjvjzp", crop: .list),
         Shot(id: "watch/detail", keys: "gw", crop: .pilotDetail),
         // The green PR's checklist, and the conflicting one's.
         Shot(id: "watch/green", keys: "gw/moved<CR>", crop: .pilotDetail),

@@ -28,7 +28,7 @@ Single keys are kept for what you do many times an hour; anything rarer is two k
 | `↩` `o` `i` `v` `x` `m` | Open, start work, type into the agent, select, done with it, pin |
 | `r` | Refresh the view you are in |
 | `g…` | Go somewhere: views (`gm` Inbox), overlays (`go`, `gd`), tabs (`gt`), the browser (`gB`) |
-| `z…` | The view's layout: `zz` park, `zi` inspector, `zs` sidebar |
+| `z…` | Toggles: `zz` park, `zi` inspector, `zs` sidebar; the pilot's `zw` watch, `zg` green, `zm` merge, `zp` pause |
 | `'…` | Jump to a pin (`'1`–`'9`), or back (`''`) |
 | `]…` `[…` | Next or previous of a kind: `]p` PR, `]f` file |
 | `⌃w…` | Panes |

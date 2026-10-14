@@ -2746,7 +2746,7 @@ final class AppModel {
     func pilotLine(for ref: PullRef) -> String {
         let effective = pilot(for: ref)
         let pipeline = feedback[ref.description]
-        guard effective.watching else { return "not watched · w to watch" }
+        guard effective.watching else { return "not watched · \(keyText(for: "pilot.watch")) to watch" }
         var parts = ["watching", "green \(effective.green.configName)"]
         if let pipeline {
             if pipeline.isPaused(Clock.now) {
@@ -3200,7 +3200,7 @@ final class AppModel {
             (mergeQueueShown ?? pilotTargets.first?.repo.slug).map { [$0] } ?? []
         }
         guard !repos.isEmpty else {
-            return flash = queues.isEmpty ? "no merge queues: M turns get it merged on for a PR"
+            return flash = queues.isEmpty ? "no merge queues: \(keyText(for: "pilot.merge")) turns get it merged on for a PR"
                 : "no merge queue for \(argument ?? "this PR's repo")"
         }
         for repo in repos {
@@ -3221,7 +3221,8 @@ final class AppModel {
             return
         }
         view = .watch
-        guard let repo else { return flash = "no merge queues: M turns get it merged on for a PR" }
+        guard let repo
+        else { return flash = "no merge queues: \(keyText(for: "pilot.merge")) turns get it merged on for a PR" }
         mergeQueueShown = repo
         if queues[repo] == nil { flash = "\(repo) has no PRs with merge on" }
     }
@@ -4137,6 +4138,9 @@ final class AppModel {
         state.mergeQueue = view == .watch && mergeQueueShown != nil
         return state
     }
+
+    /// A command's key as text for hints: as bound, else `:command` (what still runs it).
+    func keyText(for command: String) -> String { keyLabel(for: command) ?? ":\(command)" }
 
     /// The key for a command as you have it bound: NORMAL first, then the view bindings (`Iw` lives in Sessions').
     func keyLabel(for command: String) -> String? {

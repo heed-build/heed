@@ -196,13 +196,15 @@ private struct PilotDetail: View {
                 }
                 HStack(spacing: 14) {
                     keyHint("↩", "open")
-                    keyHint("w", row.effective.watching ? "stop watching" : "watch")
-                    keyHint("m", "green")
+                    keyHint(model.keyText(for: "pilot.watch"), row.effective.watching ? "stop watching" : "watch")
+                    keyHint(model.keyText(for: "pilot.green"), "green")
                     keyHint(
-                        "M",
+                        model.keyText(for: "pilot.merge"),
                         row.effective.merge.next == .off ? "stop merging" : "merge \(row.effective.merge.next.configName)"
                     )
-                    keyHint("zz", pipeline?.isPaused(Clock.now) == true ? "resume" : "pause")
+                    keyHint(
+                        model.keyText(for: "pilot.pause"), pipeline?.isPaused(Clock.now) == true ? "resume" : "pause"
+                    )
                     if let pipeline, !CopilotAsk.items(pipeline, settings: PilotSettings(), everything: true).isEmpty {
                         keyHint("C", "ask Copilot")
                     }
@@ -352,8 +354,10 @@ private struct MergeSection: View {
         VStack(alignment: .leading, spacing: 6) {
             SectionHeader(title: "Merge")
             if mode == .off {
-                Text("Off: M turns get it merged on: auto (GitHub's auto-merge), then heed (heed merges by its rules).")
-                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                Text(
+                    "Off: \(model.keyText(for: "pilot.merge")) turns get it merged on: auto (GitHub's auto-merge), then heed (heed merges by its rules)."
+                )
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             } else {
                 let detail = model.pullDetails[ref.description]
                 line(

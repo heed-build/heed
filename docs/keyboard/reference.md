@@ -78,6 +78,7 @@ This page is generated from the code (`mise run shots`).
 | `pr.prev` | `[p` | previous PR of this session |
 | `pr.session` | `gS` | jump from a PR to its session |
 | `pr.track` `<url>` | `gU` | track a PR by URL |
+| `pr.untrack` `[url]` |  | stop tracking a PR in this session (no rule adds it back) |
 | `jump.back` | `<C-o>` | back |
 | `open.browser` | `gB` | open in browser |
 | `open.reader` | `<CR>` | read inbox item, issue or PR |

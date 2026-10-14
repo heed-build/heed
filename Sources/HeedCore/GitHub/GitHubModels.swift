@@ -244,22 +244,49 @@ public enum WorkPrompt {
     }
 }
 
-/// Links PRs to sessions: a PR whose head branch is a session's branch, in one of its repos, is tracked by it.
+/// Links PRs to sessions: a PR whose head branch is one of a session's branches, in one of its repos, is tracked by
+/// it.
 public enum PullTracking {
     public static func changes(sessions: [Session], pulls: [PullRequest], now: Date = Date()) -> [DomainChange] {
         sessions.compactMap { session -> DomainChange? in
-            let matches = pulls.filter { pull in
-                pull.headBranch == session.branch && session.repos.contains(pull.ref.repo)
-                    && !session.trackedPRs.contains(pull.ref)
-            }
-            guard !matches.isEmpty else { return nil }
             var updated = session
-            for pull in matches {
-                updated.trackedPRs.append(pull.ref)
-                updated.record("tracking PR \(pull.ref.repo.name)#\(pull.ref.number) (branch match)", at: now)
+            let added = pulls.filter { pull in
+                session.branches.contains(pull.headBranch) && session.repos.contains(pull.ref.repo)
+                    && updated.track(pull.ref, because: "branch \(pull.headBranch)", at: now)
             }
-            return .sessionUpserted(updated)
+            return added.isEmpty ? nil : .sessionUpserted(updated)
         }
+    }
+
+    /// PRs that mention one of a session's PRs: yours, open, and opened after the session started are its own
+    /// (follow-ups, companion changes); anyone else's are only suggested.
+    public static func linked(
+        _ references: [PullDetail.Reference], session: Session, viewer: String?
+    ) -> (track: [PullDetail.Reference], suggest: [PullDetail.Reference]) {
+        let fresh = references.filter { reference in
+            !session.trackedPRs.contains(reference.ref) && !session.untrackedPRs.contains(reference.ref)
+                && reference.state == "OPEN"
+        }
+        let mine = fresh.filter { reference in
+            viewer.map { reference.author?.lowercased() == $0.lowercased() } == true
+                && (reference.createdAt.map { $0 >= session.createdAt } ?? false)
+        }
+        return (mine, fresh.filter { !mine.contains($0) })
+    }
+}
+
+/// A session follows its worktrees from branch to branch: merge, then `git switch -c next`, and the session is on
+/// `next` too.
+public enum BranchFollowing {
+    public static func follow(_ session: Session, worktrees: [Worktree], now: Date = Date()) -> Session {
+        var session = session
+        for worktree in worktrees where session.owns(worktree) {
+            if !session.worktreePaths.contains(worktree.path) { session.worktreePaths.append(worktree.path) }
+            guard let branch = worktree.branch, !session.branches.contains(branch) else { continue }
+            session.branches.append(branch)
+            session.record("now on \(branch) in \(worktree.repo.name)", at: now)
+        }
+        return session
     }
 }
 

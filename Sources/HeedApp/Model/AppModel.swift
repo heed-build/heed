@@ -656,9 +656,12 @@ final class AppModel {
         case let .title(title):
             session.title = title
         case let .prAdd(url):
-            guard let pull = PullRef(url: url), !session.trackedPRs.contains(pull) else { return }
-            session.trackedPRs.append(pull)
-            session.record("tracking PR \(pull.repo.name)#\(pull.number)")
+            // Sent by the agent's hooks when it opened a PR (or by `heed pr add`).
+            guard let pull = PullRef(url: url), session.track(pull, because: "opened by \(session.agent)") else {
+                return
+            }
+            logPilot(pull, .watch, "opened by \(session.agent) in \(session.title)")
+            fetchDetail(pull)
         case let .agentSession(id, _):
             session.agentSessionID = id
         case let .notify(text):
@@ -1110,6 +1113,7 @@ final class AppModel {
         case "issues.repo": pickIssueRepo(named: command.arguments.first)
         case "app.activate": activateHeed()
         case "pr.track": trackPull(command.arguments.first)
+        case "pr.untrack": untrackPull(command.arguments.first)
         case "select.pin": pinSelected()
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "")
         case "worktree.new":
@@ -1494,7 +1498,7 @@ final class AppModel {
 
     /// What deleting a session removes: its worktrees, minus those with work not saved anywhere else.
     private func deletion(of session: Session) -> ([SweepPlan.Removal], [String], [String]) {
-        let mine = worktrees.filter { !$0.isMain && $0.branch == session.branch && session.repos.contains($0.repo) }
+        let mine = worktrees.filter { !$0.isMain && session.owns($0) }
         let (removals, kept) = planRemoval(mine, sessionsFollow: false)
         let lines = removals.map { removal in
             "remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "")"
@@ -2164,6 +2168,50 @@ final class AppModel {
     }
 
     /// `gU` (`:track <url>`): the current session tracks that PR; with no URL, the one on the clipboard.
+    /// `:pr.untrack [url]`: the session stops following a PR (the one in the overlay, or the session's only one), and
+    /// no rule adds it back.
+    private func untrackPull(_ argument: String?) {
+        guard let session = currentSession else { return flash = "no session here" }
+        let pull = argument.flatMap(PullRef.init(url:)) ?? feedbackPull
+            ?? (session.trackedPRs.count == 1 ? session.trackedPRs.first : nil)
+        guard let pull, session.trackedPRs.contains(pull) else {
+            return flash = session.trackedPRs.isEmpty ? "this session tracks no PR"
+                : "which PR? :pr.untrack <url>, or open it (go) first"
+        }
+        updateCurrent { session in
+            session.trackedPRs.removeAll { $0 == pull }
+            session.untrackedPRs.append(pull)
+            session.record("stopped tracking PR \(pull.repo.name)#\(pull.number) (by you)")
+        }
+        flash = "stopped tracking \(pull.repo.name)#\(pull.number); :pr.track adds it back"
+    }
+
+    /// After a PR's detail arrives: the sessions tracking it also take the PRs that link to it and are yours, opened
+    /// since the session started (a follow-up, a companion change in another repo).
+    private func trackLinked(_ detail: PullDetail) {
+        guard let references = detail.references, !references.isEmpty else { return }
+        let changes = sessions.filter { $0.trackedPRs.contains(detail.ref) }.compactMap { session -> DomainChange? in
+            var updated = session
+            let added = PullTracking.linked(references, session: session, viewer: github.viewer).track
+                .filter { updated.track($0.ref, because: "links to \(detail.ref.repo.name)#\(detail.ref.number)") }
+            return added.isEmpty ? nil : .sessionUpserted(updated)
+        }
+        commit(changes)
+        for case let .sessionUpserted(session) in changes {
+            for ref in session.trackedPRs where pullDetails[ref.description] == nil {
+                fetchDetail(ref)
+            }
+        }
+    }
+
+    /// PRs that mention this one but are someone else's (or older than the session): shown, not tracked.
+    func suggestedLinks(for ref: PullRef) -> [PullDetail.Reference] {
+        guard let references = pullDetails[ref.description]?.references,
+              let session = sessions.first(where: { $0.trackedPRs.contains(ref) })
+        else { return [] }
+        return PullTracking.linked(references, session: session, viewer: github.viewer).suggest
+    }
+
     private func trackPull(_ argument: String?) {
         let text = argument ?? NSPasteboard.general.string(forType: .string)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -2180,8 +2228,8 @@ final class AppModel {
             return
         }
         updateCurrent { session in
-            session.trackedPRs.append(pull)
-            session.record("tracking PR \(pull.repo.name)#\(pull.number)")
+            session.untrackedPRs.removeAll { $0 == pull }
+            session.track(pull, because: "by you")
         }
         flash = "tracking \(pull.repo.name)#\(pull.number)"
         if !isFixture { Task { await syncGitHub(parts: [.pulls]) } }
@@ -2557,6 +2605,7 @@ final class AppModel {
                 commit(.feedbackChanged(pipeline))
             }
             commit(.pullDetailFetched(detail))
+            trackLinked(detail)
             let fixed = feedback[ref.description]?.items
                 .filter { before.contains($0.id) && $0.status == .resolved } ?? []
             let checks = fixed.compactMap { if case let .check(name) = $0.kind { name } else { nil } }
@@ -3362,7 +3411,7 @@ final class AppModel {
     /// Diffs every worktree of the current session (cross-repo sessions show each repo's files), off the main actor.
     private func loadDiff() {
         guard let session = currentSession else { return }
-        let targets = worktrees.filter { $0.branch == session.branch && session.repos.contains($0.repo) }
+        let targets = worktrees.filter { session.owns($0) }
             .map { worktree in (worktree, repos.first { $0.repo == worktree.repo }?.defaultBranch ?? "main") }
         guard !targets.isEmpty, !isFixture else {
             diffFiles = isFixture ? Fixtures.diff : []
@@ -3451,7 +3500,7 @@ final class AppModel {
 
     private func worktreePath(for file: FileDiff) -> String? {
         guard let session = currentSession else { return nil }
-        return worktrees.first { $0.branch == session.branch && $0.repo == (file.repo ?? session.repos.first) }?.path
+        return worktrees.first { session.owns($0) && $0.repo == (file.repo ?? session.repos.first) }?.path
     }
 
     private func openDiffFile() {
@@ -3713,7 +3762,7 @@ final class AppModel {
     /// Keep: the session gets a shell tab again, in its worktree.
     private func reopenShell(in id: String) {
         guard let session = sessions.first(where: { $0.id == id }) else { return }
-        let directory = worktrees.first { $0.branch == session.branch && session.repos.contains($0.repo) }?.path
+        let directory = worktrees.first { session.owns($0) }?.path
             ?? NSHomeDirectory()
         var layout = layouts[id] ?? SessionLayout(tabs: [])
         layout.tabs.append(PaneTab(title: "shell", tree: .leaf(PaneSpec(

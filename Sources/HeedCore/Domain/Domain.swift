@@ -150,6 +150,7 @@ public extension Domain {
             }
             worktrees.removeAll { $0.repo == repo }
             worktrees.append(contentsOf: merged)
+            sessions = sessions.map { BranchFollowing.follow($0, worktrees: merged) }
         case let .sessionUpserted(session):
             if let index = sessions.firstIndex(where: { $0.id == session.id }) {
                 sessions[index] = session

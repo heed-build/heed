@@ -112,10 +112,11 @@ struct SessionRow: View {
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(session.title)
+                    Text(session.worktreeName)
                         .font(Theme.ui(13, weight: .medium))
                         .lineLimit(1)
-                        .truncationMode(.tail)
+                        .truncationMode(.middle)
+                        .help(session.title)
                     Spacer(minLength: 4)
                     if let pinNumber { KeyCap(text: "'\(pinNumber)") }
                     if let pilot, pilot != .unwatched { PilotMark(status: pilot, compact: true) }

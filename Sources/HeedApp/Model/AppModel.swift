@@ -677,14 +677,23 @@ final class AppModel {
     func flush() async { await store?.flush() }
 
     private func rebuildList() {
+        // The selection is a session, not a row. A session moving between groups (parked to working, say) reorders
+        // the list; the cursor follows the session it was on, so what you look at and type into never changes under
+        // you. Read before the rebuild: `currentSession` still indexes the old list here.
+        let selected = currentSession?.id
         let filter = sessionFilter
         list = SessionList(filter.isEmpty ? sessions : sessions.filter { session in
             FilterQuery.matches(
                 filter,
-                [session.title, session.branch, session.agent] + session.repos.map(\.name)
+                [session.title, session.worktreeName, session.branch, session.agent] + session.repos.map(\.name)
                     + session.trackedPRs.map { "#\($0.number)" }
             )
         })
+        if let selected, let index = list.ordered.firstIndex(where: { $0.id == selected }) {
+            cursor = index
+        } else {
+            cursor = min(cursor, max(list.ordered.count - 1, 0))
+        }
     }
 
     private func replace(with domain: Domain) {

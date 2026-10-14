@@ -100,3 +100,22 @@ What runs where:
 When the link drops, the pane says so and reconnects every few seconds. zmx kept the session, so the screen and
 scrollback come back as they were. (Without zmx the pane says the session ended with the link, and closes.) `exit` in the pane, closing it, or closing the session ends the zmx session on the
 host. Cursor's hooks are not set up on hosts yet; its state is read from the screen there.
+
+## Starting work on a host
+
+[Start work](../start-work/index.md) offers a host's repos next to the ones on this Mac, each chip naming its host.
+A repo on two machines appears once for each, and recent sessions count only where they ran, so if you
+usually work in `docs-builder` on `@devbox`, that chip comes first.
+
+![Start work with docs-builder @devbox picked: the agent will run there in zmx](../images/shots/start-work/on-a-host.png)
+
+With a host's repo picked:
+
+- the worktree goes under that host's `worktree_root` (`~/code/wt` unless you set it), as
+  `<worktree_root>/<repo>/<name>`;
+- Heed puts its hook files on the host if they are not there yet, as `↩` does;
+- the agent starts there with the host's hook paths, and the line over the command says **will run on @host in zmx**,
+  or **not persistent** when the host has no zmx.
+
+A session runs in one place: a cross-repo session takes repos all on this Mac or all on one host. The host has to
+answer when you start; if it does not, `gH` shows why.

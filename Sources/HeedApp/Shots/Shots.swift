@@ -149,6 +149,10 @@ enum Shots {
         Shot(id: "start-work/from-github-picked", keys: "gi<Space>j<Space>", highlight: [.list, .pickedPanel]),
         Shot(id: "start-work/from-github-dialog", keys: "gi<Space>j<Space>s", crop: .dialog),
         Shot(id: "start-work/again", keys: "ghO", crop: .dialog),
+        Shot(
+            id: "start-work/on-a-host", keys: "o" + typed("Fix the flaky link checker in docs-builder") + "<C-n>",
+            crop: .dialog
+        ),
     ]
 
     static let short = CGSize(width: 1440, height: 640)

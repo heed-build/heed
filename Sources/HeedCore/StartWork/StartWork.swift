@@ -156,6 +156,9 @@ public struct StartWorkPlan: Hashable, Sendable {
 
     public func base(for record: RepoRecord) -> String { base ?? record.defaultBranch ?? "main" }
 
+    /// Where the work runs: this Mac, or the host its repos are on (a session's repos are all in one place).
+    public var location: Location { repos.first?.location ?? .local }
+
     /// The line typed into the agent pane's shell, shown verbatim in the dialog.
     public var command: String? {
         guard autostart, let agent else { return nil }
@@ -263,7 +266,7 @@ public enum StartWork {
                     reasons.append("Prompt mentions \(shared.joined(separator: ", ")).")
                 }
             }
-            let ranHere = recent.count { $0.repos.contains(record.repo) }
+            let ranHere = recent.count { $0.repos.contains(record.repo) && $0.location == record.location }
             if ranHere > 0 {
                 score += 0.15 * Double(ranHere)
                 reasons.append("\(ranHere) of your last \(recent.count) sessions ran here.")
@@ -272,6 +275,7 @@ public enum StartWork {
                 score += 0.15 * Double(count) / Double(busiest)
                 reasons.append("\(count) worktree\(count == 1 ? "" : "s") already.")
             }
+            if let host = record.location.hostName { reasons.append("On @\(host).") }
             return RepoGuess(
                 repo: record, confidence: Int((min(score, 0.98) * 100).rounded()),
                 reason: reasons.joined(separator: " ")
@@ -290,13 +294,14 @@ public enum StartWork {
     /// Creates the plan's worktrees (concurrently, off the main actor) and returns the domain changes for the new
     /// session: the worktrees, the session, and its layout with the agent pane typing `plan.command`.
     public static func execute(
-        _ plan: StartWorkPlan, settings: WorkSettings, now: Date = Date()
+        _ plan: StartWorkPlan, settings: WorkSettings, hosts: [String: HostConfig] = [:], now: Date = Date()
     ) async throws -> [DomainChange] {
         guard !plan.repos.isEmpty else { throw StartWorkError.noRepo }
+        guard Set(plan.repos.map(\.location)).count == 1 else { throw StartWorkError.mixedHosts }
         let created = try await withThrowingTaskGroup(of: (Int, Worktree).self) { group in
             for (index, record) in plan.repos.enumerated() {
                 group.addTask {
-                    let path = settings.worktreePath(repo: record.repo, name: plan.name)
+                    let path = worktreePath(for: record, name: plan.name, settings: settings, hosts: hosts)
                     let worktree = try await Git.addWorktree(
                         record, path: path, branch: plan.name, base: plan.base(for: record)
                     )
@@ -309,7 +314,7 @@ public enum StartWork {
             }
             return result.sorted { $0.0 < $1.0 }.map(\.1)
         }
-        if plan.agent?.name == "cursor", let heed = plan.integration?.heedBinary {
+        if plan.agent?.name == "cursor", plan.location.isLocal, let heed = plan.integration?.heedBinary {
             for worktree in created {
                 try? AgentIntegration.installCursorHooks(worktree: worktree.path, heed: heed)
             }
@@ -325,6 +330,8 @@ public enum StartWork {
             state: ObservedState(.idle, source: .guessed),
             activity: plan.command == nil ? "shell" : "starting", lastActivity: now
         )
+        session.host = plan.location.hostName
+        session.worktreePaths = created.map(\.path)
         let built = layout(for: plan, session: session, worktrees: created, tasks: settings.tasks)
         let panes = built.tabs.flatMap(\.tree.panes).count
         session.record("started · \(plan.agent?.name ?? "shell") · \(panes) pane\(panes == 1 ? "" : "s")", at: now)
@@ -338,6 +345,16 @@ public enum StartWork {
         return changes
     }
 
+    /// Where a new worktree goes: under `[worktrees] root` here, under the host's `worktree_root` there (`~` is the
+    /// host's home).
+    public static func worktreePath(
+        for record: RepoRecord, name: String, settings: WorkSettings, hosts: [String: HostConfig]
+    ) -> String {
+        guard let host = record.location.hostName else { return settings.worktreePath(repo: record.repo, name: name) }
+        let root = hosts[host]?.worktreeRoot ?? "~/code/wt"
+        return "\(root)/\(record.repo.name)/\(name.replacingOccurrences(of: "/", with: "-"))"
+    }
+
     /// The new session's tabs: the agent (or a shell) in the first repo's worktree, a shell split beside it when asked,
     /// and a
     /// shell tab per extra repo of a cross-repo session.
@@ -345,25 +362,29 @@ public enum StartWork {
         for plan: StartWorkPlan, session: Session, worktrees: [Worktree], tasks: [String: [TaskSpec]] = [:]
     ) -> SessionLayout {
         let primary = worktrees.first?.path ?? NSHomeDirectory()
+        // Every pane runs where its worktree is.
+        let location = worktrees.first?.location ?? .local
         let agentPane = PaneSpec(
             role: plan.command == nil ? .shell : .agent, title: plan.agent?.name ?? "zsh",
-            directory: primary, command: plan.command
+            directory: primary, command: plan.command, location: location
         )
         var main = PaneTab(title: plan.command == nil ? "shell" : "agent", tree: .leaf(agentPane))
         if plan.shellSplit {
-            main.split(.horizontal, with: PaneSpec(role: .shell, title: "zsh \(session.branch)", directory: primary))
+            main.split(.horizontal, with: PaneSpec(
+                role: .shell, title: "zsh \(session.branch)", directory: primary, location: location
+            ))
             main.focused = agentPane.id
         }
         let primaryRepo = worktrees.first?.repo
         let taskTabs = (primaryRepo.flatMap { tasks[$0.slug] } ?? []).map { task in
             PaneTab(title: task.name, tree: .leaf(PaneSpec(
                 role: .task, title: task.name, directory: primary,
-                command: "\(task.command); \"${HEED_BIN:-true}\" task-exit $?"
+                command: "\(task.command); \"${HEED_BIN:-true}\" task-exit $?", location: location
             )))
         }
         let extra = worktrees.dropFirst().map { worktree in
             PaneTab(title: worktree.repo.name, tree: .leaf(PaneSpec(
-                role: .shell, title: "zsh \(worktree.repo.name)", directory: worktree.path
+                role: .shell, title: "zsh \(worktree.repo.name)", directory: worktree.path, location: worktree.location
             )))
         }
         return SessionLayout(tabs: [main] + taskTabs + extra)
@@ -454,10 +475,13 @@ public enum ReopenError: Error, CustomStringConvertible {
 
 public enum StartWorkError: Error, CustomStringConvertible {
     case noRepo
+    /// A session's repos are all in one place: here, or on one host.
+    case mixedHosts
 
     public var description: String {
         switch self {
         case .noRepo: "pick at least one repo"
+        case .mixedHosts: "a session's repos must all be on this Mac or all on the same host"
         }
     }
 }

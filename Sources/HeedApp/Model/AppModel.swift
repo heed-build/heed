@@ -3890,8 +3890,19 @@ final class AppModel {
         if view == .history { view = .sessions }
         startWork = StartWorkForm(
             repos: repos, history: sessions, settings: settings, prompt: prompt, integration: integration,
-            worktreeCounts: RepoOrder.worktreeCounts(worktrees)
+            worktreeCounts: RepoOrder.worktreeCounts(worktrees), hostIntegrations: hostIntegrations()
         )
+    }
+
+    /// Hook file paths on each host that answers, so work started there points its agents at them.
+    private func hostIntegrations() -> [String: IntegrationFiles] {
+        var result: [String: IntegrationFiles] = [:]
+        for host in config.hosts.keys {
+            if case let .connected(info) = hostStatus(host), let home = info.home {
+                result[host] = hostIntegration(home: home).integration
+            }
+        }
+        return result
     }
 
     private func handleStartWork(_ stroke: KeyStroke) {
@@ -3923,18 +3934,33 @@ final class AppModel {
             startWork = nil
             return
         }
+        let host = plan.location.hostName
+        var hostFiles: [String: String] = [:]
+        if let host {
+            guard case let .connected(info) = hostStatus(host), let home = info.home else {
+                startWorkError = "@\(host) does not answer: gH shows why"
+                return
+            }
+            hostFiles = hostIntegration(home: home).files
+        }
         startingWork = true
         let settings = settings
+        let hosts = config.hosts
         Task {
             defer { startingWork = false }
             do {
-                let changes = try await StartWork.execute(plan, settings: settings)
+                if let host {
+                    flash = "setting up @\(host)…"
+                    try await HostSetup.install(on: host, files: hostFiles)
+                }
+                let changes = try await StartWork.execute(plan, settings: settings, hosts: hosts)
                 for case let .layoutChanged(_, layout) in changes {
                     for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
                         TerminalSurfaces.shared.autostartPanes.insert(pane.id)
                     }
                 }
                 commit(changes)
+                if host != nil { startHostEvents() }
                 startWork = nil
                 view = .sessions
                 if case let .sessionUpserted(session)? = changes.first(where: {

@@ -34,6 +34,20 @@ The command preview at the bottom of [Start work](../start-work/agent-and-option
 
 Anything left blank is [read from the screen](screen-reading.md).
 
+## Pull requests the agent opens
+
+The same hooks tell Heed when the agent opens a pull request, so its session tracks it at once, in whatever repo it is
+(see [Tracking PRs](../github/tracking-prs.md)). Heed reads the output of the tool call that ran `gh pr create` (or
+`hub pull-request`, or `gh api …/pulls` as a POST), or of a GitHub MCP `create_pull_request`, and takes the PR link
+from it. A PR the agent only reads or links to is not taken.
+
+| Agent | Where it comes from |
+|---|---|
+| claude, codex | `PostToolUse`: the tool's input and response |
+| cursor | `afterShellExecution` (command and output), `afterMCPExecution`, `postToolUse` |
+| pi | the extension's `tool_result` handler |
+| opencode | the plugin's `tool.execute.before` / `tool.execute.after` hooks |
+
 ## Inside a pane
 
 Every pane gets the session's id, the socket's path and its own pane id in its environment (`HEED_SESSION_ID`,

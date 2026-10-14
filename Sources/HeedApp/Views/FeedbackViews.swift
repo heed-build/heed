@@ -187,6 +187,23 @@ struct FeedbackPanel: View {
                 .background(RoundedRectangle(cornerRadius: 8).fill(Theme.pane))
                 .shotRegion(.promptPreview)
             }
+            let mentions = model.suggestedLinks(for: ref)
+            if !mentions.isEmpty {
+                // PRs that link here but are not this session's own: someone else's, or older than the session.
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionHeader(title: "Also mentions it")
+                    ForEach(mentions, id: \.ref) { mention in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(verbatim: "\(mention.ref.repo.name)#\(mention.ref.number) \(mention.title)")
+                                .font(Theme.ui(12)).lineLimit(1)
+                            Text(verbatim: "@\(mention.author ?? "ghost") · :pr.track \(mention.ref.url)")
+                                .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3).lineLimit(1).textSelection(.enabled)
+                        }
+                    }
+                }
+                .padding(14)
+                .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+            }
             VStack(alignment: .leading, spacing: 8) {
                 keyRow("space", "queue / unqueue")
                 keyRow("s", "send queued now")

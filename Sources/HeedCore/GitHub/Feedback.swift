@@ -44,6 +44,25 @@ public struct PullDetail: Hashable, Sendable, Codable {
     /// The checks that passed on the head commit, by name.
     public var passedChecks: [String]?
 
+    /// PRs that mention this one (GitHub's cross-references), for follow-ups and companion changes.
+    public var references: [Reference]?
+
+    public struct Reference: Hashable, Sendable, Codable {
+        public var ref: PullRef
+        public var title: String
+        public var author: String?
+        public var state: String
+        public var createdAt: Date?
+
+        public init(ref: PullRef, title: String, author: String?, state: String, createdAt: Date?) {
+            self.ref = ref
+            self.title = title
+            self.author = author
+            self.state = state
+            self.createdAt = createdAt
+        }
+    }
+
     public struct Review: Hashable, Sendable, Codable {
         public var author: String
         public var state: String

@@ -57,6 +57,13 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var createdAt: Date
     /// What happened, coarsely: started, PRs, resumed, ended. Kept with the session and in history; capped.
     public var timeline: [TimelineEvent]
+    /// Every branch its worktrees have been on, `branch` first: work that goes on after a merge, on a new branch in
+    /// the same worktree, still belongs to the session (its PRs are matched against all of them).
+    public var branches: [String]
+    /// Its worktrees, by path, so they stay its own when their branch changes.
+    public var worktreePaths: [String]
+    /// PRs taken off it by hand (`pr.untrack`), so no rule adds them back.
+    public var untrackedPRs: [PullRef]
 
     /// The repos it works in (its worktrees), then those of PRs it opened elsewhere.
     public var involvedRepos: [Repo] {
@@ -88,6 +95,52 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         self.lastActivity = lastActivity
         self.createdAt = createdAt ?? lastActivity
         self.timeline = timeline
+        branches = [branch]
+        worktreePaths = []
+        untrackedPRs = []
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, prompt, repos, branch, agent, agentSessionID, state, activity, trackedPRs, pinned, parked,
+             lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs
+    }
+
+    /// Sessions cached before branches were followed still load.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        prompt = try container.decode(String.self, forKey: .prompt)
+        repos = try container.decode([Repo].self, forKey: .repos)
+        branch = try container.decode(String.self, forKey: .branch)
+        agent = try container.decode(String.self, forKey: .agent)
+        agentSessionID = try container.decodeIfPresent(String.self, forKey: .agentSessionID)
+        state = try container.decode(ObservedState.self, forKey: .state)
+        activity = try container.decode(String.self, forKey: .activity)
+        trackedPRs = try container.decode([PullRef].self, forKey: .trackedPRs)
+        pinned = try container.decode(Bool.self, forKey: .pinned)
+        parked = try container.decode(Bool.self, forKey: .parked)
+        lastActivity = try container.decode(Date.self, forKey: .lastActivity)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        timeline = try container.decode([TimelineEvent].self, forKey: .timeline)
+        branches = try container.decodeIfPresent([String].self, forKey: .branches) ?? [branch]
+        worktreePaths = try container.decodeIfPresent([String].self, forKey: .worktreePaths) ?? []
+        untrackedPRs = try container.decodeIfPresent([PullRef].self, forKey: .untrackedPRs) ?? []
+    }
+
+    /// Whether a worktree is this session's: one it has by path, or (for sessions that predate paths) one on its
+    /// first branch, in one of its repos.
+    public func owns(_ worktree: Worktree) -> Bool {
+        repos.contains(worktree.repo) && (worktreePaths.contains(worktree.path) || worktree.branch == branch)
+    }
+
+    /// Tracks a PR unless it is already tracked or was untracked by hand; says why on the timeline. True when added.
+    @discardableResult
+    public mutating func track(_ pull: PullRef, because reason: String, at date: Date = Date()) -> Bool {
+        guard !trackedPRs.contains(pull), !untrackedPRs.contains(pull) else { return false }
+        trackedPRs.append(pull)
+        record("tracking PR \(pull.repo.name)#\(pull.number) (\(reason))", at: date)
+        return true
     }
 
     public static let timelineLimit = 50

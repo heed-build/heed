@@ -60,10 +60,9 @@ public enum AgentIntegration {
             if let id = input["session_id"] as? String { kinds.insert(.agentSession(id: id, agent: "codex"), at: 0) }
             return kinds
         case "UserPromptSubmit": return [.state(.working, reason: "prompt")]
-        case "PreToolUse", "PostToolUse": return [.state(
-                .working,
-                reason: tool.map { describe(tool: $0, input: input) }
-            )]
+        case "PreToolUse": return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })]
+        case "PostToolUse":
+            return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })] + created(input)
         case "PermissionRequest": return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
         case "Stop": return [.state(.done, reason: nil)]
         case "SessionEnd": return [.state(.exited, reason: input["reason"] as? String)]
@@ -84,7 +83,10 @@ public enum AgentIntegration {
             return
         }
         var hooks: [String: Any] = [:]
-        for event in ["sessionStart", "beforeShellExecution", "afterFileEdit", "postToolUse", "stop"] {
+        for event in [
+            "sessionStart", "beforeShellExecution", "afterShellExecution", "afterMCPExecution", "afterFileEdit",
+            "postToolUse", "stop",
+        ] {
             hooks[event] = [["command": "\(ShellQuote.quote(heed)) hook cursor \(event)", "timeout": 15]]
         }
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -124,8 +126,22 @@ public enum AgentIntegration {
         case "sessionStart":
             let id = (input["session_id"] as? String) ?? (input["conversation_id"] as? String)
             return (id.map { [.agentSession(id: $0, agent: "cursor")] } ?? []) + [.state(.idle, reason: nil)]
-        case "beforeShellExecution", "afterFileEdit", "postToolUse":
+        case "beforeShellExecution", "afterFileEdit":
             return [.state(.working, reason: (input["command"] as? String) ?? (input["file_path"] as? String))]
+        case "afterShellExecution":
+            return PullCreation.urls(
+                tool: "shell", command: input["command"] as? String, output: PullCreation.text(input["output"])
+            ).map { .prAdd(url: $0) }
+        case "afterMCPExecution":
+            return PullCreation.urls(
+                tool: input["tool_name"] as? String, command: nil, output: PullCreation.text(input["result_json"])
+            ).map { .prAdd(url: $0) }
+        case "postToolUse":
+            let tool = input["tool_name"] as? String
+            return [.state(.working, reason: tool)] + PullCreation.urls(
+                tool: tool, command: PullCreation.command(input["tool_input"]),
+                output: PullCreation.text(input["tool_output"])
+            ).map { .prAdd(url: $0) }
         case "stop":
             switch input["status"] as? String {
             case "aborted": return [.state(.idle, reason: "aborted")]
@@ -145,6 +161,8 @@ public enum AgentIntegration {
                 + [.state(.idle, reason: detail)]
         case "busy": [.state(.working, reason: "prompt")]
         case "tool": [.state(.working, reason: detail)]
+        // The extension sends a PR it saw the agent create; the URL is checked here.
+        case "pr": PullRef(url: detail ?? "") == nil ? [] : [.prAdd(url: detail!)]
         case "waiting": [.state(.asking, reason: detail)]
         case "idle": [.state(.done, reason: nil)]
         case "aborted": [.state(.idle, reason: "aborted")]
@@ -166,13 +184,14 @@ public enum AgentIntegration {
             default: []
             }
         case "permission.asked": [.state(.blocked, reason: detail)]
+        case "pr": PullRef(url: detail ?? "") == nil ? [] : [.prAdd(url: detail!)]
         case "question.asked": [.state(.asking, reason: nil)]
         case "session.error": [.state(.done, reason: "error")]
         default: []
         }
     }
 
-    static let piExtensionSource = """
+    static let piExtensionSource = #"""
     // Heed: reports pi's state to the Heed app. Loaded per run with `pi -e`; does nothing outside a Heed pane.
     export default function (pi) {
       const bin = process.env.HEED_BIN;
@@ -185,17 +204,40 @@ public enum AgentIntegration {
       pi.on("session_start", (e, ctx) => send("start", ctx, e?.reason));
       pi.on("agent_start", (_e, ctx) => send("busy", ctx));
       pi.on("tool_execution_start", (e, ctx) => send("tool", ctx, e?.toolName));
+      // A PR the agent opened (gh pr create, a create_pull_request tool) belongs to this session.
+      pi.on("tool_result", (e, ctx) => {
+        let text = "";
+        try { text = JSON.stringify(e ?? {}); } catch { return; }
+        if (!/gh\s+pr\s+create|create_pull_request|hub\s+pull-request/.test(text)) return;
+        for (const url of new Set(text.match(/https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+/g) ?? [])) send("pr", ctx, url);
+      });
       pi.on("ui_prompt_start", (e, ctx) => send("waiting", ctx, e?.kind));
       pi.on("agent_before_settle", (e, ctx) => { if (e?.outcome === "error") send("error", ctx); });
       pi.on("agent_settled", (e, ctx) => send(e?.aborted ? "aborted" : "idle", ctx));
       pi.on("session_shutdown", (_e, ctx) => send("exit", ctx));
     }
-    """
+    """#
 
-    static let opencodePluginSource = """
+    static let opencodePluginSource = #"""
     // Heed: reports opencode's state to the Heed app (plugin API of opencode 1.x). Loaded per run through
     // OPENCODE_CONFIG_CONTENT; does nothing outside a Heed pane.
-    export const HeedPlugin = async ({ $ }) => ({
+    export const HeedPlugin = async ({ $ }) => {
+      const args = new Map();
+      return {
+      // A PR the agent opened (gh pr create, a create_pull_request tool) belongs to this session.
+      "tool.execute.before": async (input, output) => { args.set(input.callID, output?.args); },
+      "tool.execute.after": async (input, output) => {
+        const bin = process.env.HEED_BIN;
+        const ran = args.get(input.callID);
+        args.delete(input.callID);
+        if (!bin) return;
+        let text = "";
+        try { text = JSON.stringify({ tool: input.tool, args: ran, output: output?.output }); } catch { return; }
+        if (!/gh\s+pr\s+create|create_pull_request|hub\s+pull-request/.test(text)) return;
+        for (const url of new Set(text.match(/https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+/g) ?? [])) {
+          await $`${bin} hook opencode pr ${input.sessionID ?? ""} ${url}`.quiet().nothrow();
+        }
+      },
       event: async ({ event }) => {
         const bin = process.env.HEED_BIN;
         if (!bin) return;
@@ -204,8 +246,9 @@ public enum AgentIntegration {
         const sid = p.sessionID ?? p.info?.id ?? "";
         await $`${bin} hook opencode ${event.type} ${sid} ${detail}`.quiet().nothrow();
       },
-    });
-    """
+      };
+    };
+    """#
 
     /// Whether the agent still has session `id` for `directory`: true or false when Heed can tell (claude keeps
     /// `~/.claude/projects/<cwd with / and . as ->/<id>.jsonl`), nil when it cannot (assume it does).
@@ -271,7 +314,7 @@ public enum AgentIntegration {
             }
             return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })]
         case "PostToolUse":
-            return [.state(.working, reason: tool)]
+            return [.state(.working, reason: tool)] + created(input)
         case "PermissionRequest":
             return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
         case "Notification":
@@ -291,6 +334,14 @@ public enum AgentIntegration {
         default:
             return []
         }
+    }
+
+    /// The PRs a Claude Code or Codex tool call created (`PostToolUse`: `tool_input`, `tool_response`).
+    static func created(_ input: [String: Any]) -> [HookMessage.Kind] {
+        PullCreation.urls(
+            tool: input["tool_name"] as? String, command: PullCreation.command(input["tool_input"]),
+            output: PullCreation.text(input["tool_response"])
+        ).map { .prAdd(url: $0) }
     }
 
     /// `Bash(dotnet publish)`, `Edit(src/a.cs)`: the tool with its most telling argument.

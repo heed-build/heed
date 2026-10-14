@@ -15,7 +15,7 @@ struct Inspector: View {
                         CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
                     }
                     ForEach(model.worktrees
-                        .filter { $0.branch == session.branch && session.repos.contains($0.repo) })
+                        .filter { session.owns($0) })
                     { worktree in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(Paths.abbreviate(worktree.path)).font(Theme.mono(12)).foregroundStyle(Theme.fg)

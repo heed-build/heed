@@ -85,6 +85,7 @@ public enum Commands {
         .init("pr.prev", "previous PR of this session", .views),
         .init("pr.session", "jump from a PR to its session", .views),
         .init("pr.track", "track a PR by URL", .views, arguments: "<url>"),
+        .init("pr.untrack", "stop tracking a PR in this session (no rule adds it back)", .views, arguments: "[url]"),
         .init("jump.back", "back", .views),
         .init("open.browser", "open in browser", .views),
         .init("open.reader", "read inbox item, issue or PR", .views),

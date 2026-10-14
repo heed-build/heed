@@ -293,6 +293,9 @@ public enum GitHub {
         ... on StatusContext { context state description targetUrl isRequired(pullRequestNumber: $number) }
       } } } } } }
       reviews(last: 30) { nodes { author { login } state submittedAt commit { oid } } }
+      timelineItems(itemTypes: [CROSS_REFERENCED_EVENT], last: 20) { nodes { ... on CrossReferencedEvent {
+        source { ... on PullRequest { number title state createdAt author { login } repository { nameWithOwner } } }
+      } } }
       closingIssuesReferences(first: 10) { nodes { number repository { nameWithOwner } } }
       reviewThreads(first: 100) { nodes { id isResolved path line
         comments(first: 30) { totalCount nodes { author { login } body diffHunk url } } } }
@@ -554,6 +557,20 @@ public enum GitHub {
         ]
         detail.repoMergeMethods = methods.filter { repository[$0.1] as? Bool == true }.map(\.0)
         detail.headCommittedAt = date(commit?["committedDate"] as? String)
+        let crossReferences = ((node["timelineItems"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
+        detail.references = crossReferences.compactMap { event -> PullDetail.Reference? in
+            guard let source = event["source"] as? [String: Any], let number = source["number"] as? Int,
+                  let repo = repo((source["repository"] as? [String: Any])?["nameWithOwner"] as? String)
+            else { return nil }
+            let ref = PullRef(repo: repo, number: number)
+            guard ref != detail.ref else { return nil }
+            return PullDetail.Reference(
+                ref: ref, title: source["title"] as? String ?? "",
+                author: (source["author"] as? [String: Any])?["login"] as? String,
+                state: source["state"] as? String ?? "OPEN",
+                createdAt: (source["createdAt"] as? String).map { date($0) }
+            )
+        }
         detail.passedChecks = contexts.filter { context in
             context["__typename"] as? String == "StatusContext" ? context["state"] as? String == "SUCCESS"
                 : context["status"] as? String == "COMPLETED"

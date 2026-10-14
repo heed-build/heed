@@ -340,6 +340,17 @@ public enum Fixtures {
         detail.requiredChecks = ["build", "lint"]
         detail.repoAllowsAutoMerge = true
         detail.repoMergeMethods = ["squash"]
+        // The companion change links here (yours, tracked); someone's docs PR mentions it (suggested, not tracked).
+        detail.references = [
+            PullDetail.Reference(
+                ref: PullRef(repo: docsContent, number: 1920), title: "Redirects for moved pages", author: "you",
+                state: "OPEN", createdAt: Clock.now.addingTimeInterval(-3 * 3600)
+            ),
+            PullDetail.Reference(
+                ref: PullRef(repo: docsContent, number: 1934), title: "Document anchor redirects",
+                author: "docs-writer", state: "OPEN", createdAt: Clock.now.addingTimeInterval(-50 * 60)
+            ),
+        ]
         detail.autoMergeEnabled = false
         return detail
     }()

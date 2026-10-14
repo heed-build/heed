@@ -8,12 +8,22 @@ public enum MergeQueue {
         public let detail: PullDetail
         public let settings: PilotSettings
         public let paused: Bool
+        /// `merge = "heed"`, else auto.
+        public let mode: MergeMode
+        public let selfReview: SelfReview?
+        public let now: Date
 
-        public init(ref: PullRef, detail: PullDetail, settings: PilotSettings, paused: Bool) {
+        public init(
+            ref: PullRef, detail: PullDetail, settings: PilotSettings, paused: Bool, mode: MergeMode = .auto,
+            selfReview: SelfReview? = nil, now: Date = Date()
+        ) {
             self.ref = ref
             self.detail = detail
             self.settings = settings
             self.paused = paused
+            self.mode = mode
+            self.selfReview = selfReview
+            self.now = now
         }
     }
 
@@ -27,6 +37,10 @@ public enum MergeQueue {
         /// Auto-merge is on and nothing is wrong: GitHub is waiting on its own requirements.
         case waiting(String)
         case hold(String)
+        /// `merge = "heed"`: every merge rule holds, so heed merges (`--admin` on a refusal when `admin`).
+        case merge(method: String, admin: Bool)
+        /// Every merge rule but the self-review holds: run it.
+        case selfReview
     }
 
     public struct Step: Hashable, Sendable {
@@ -57,8 +71,10 @@ public enum MergeQueue {
         let detail = entry.detail
         let enabled = detail.autoMergeEnabled == true
         if entry.paused { return .hold("paused") }
-        if detail.state == "MERGED" || detail
-            .state == "CLOSED" { return .hold(detail.state == "MERGED" ? "merged" : "closed") }
+        if detail.state == "MERGED" || detail.state == "CLOSED" {
+            return .hold(detail.state == "MERGED" ? "merged" : "closed")
+        }
+        if entry.mode == .heed { return heedAction(entry) }
         if detail.repoAllowsAutoMerge == false {
             return .hold("the repo does not allow auto-merge (Settings → General → Allow auto-merge)")
         }
@@ -80,6 +96,23 @@ public enum MergeQueue {
         // auto-merge waits for the requirements. Anywhere else `--auto` merges at once, with checks still running.
         if detail.mergeState == "BLOCKED" { return .enableAutoMerge(method: method) }
         return .hold(verdict.blocker.map { "\($0.name): \($0.detail)" } ?? "not green yet")
+    }
+}
+
+extension MergeQueue {
+    static func heedAction(_ entry: Entry) -> Action {
+        let detail = entry.detail
+        guard let method = method(entry.settings, allowed: detail.repoMergeMethods) else {
+            return .hold("the repo does not allow \(entry.settings.mergeMethod ?? "any") merges")
+        }
+        if detail.mergeState == "BEHIND", entry.settings.updateBranches { return .updateBranch }
+        // heed decides when; GitHub's auto-merge would decide for it.
+        if detail.autoMergeEnabled == true { return .disableAutoMerge(reason: "heed merges this PR itself") }
+        let verdict = HeedMerge.verdict(detail, settings: entry.settings, selfReview: entry.selfReview, now: entry.now)
+        if verdict.isGreen { return .merge(method: method, admin: entry.settings.adminMerge) }
+        let others = verdict.rules.filter { $0.name != "Self-review" }
+        if others.allSatisfy({ $0.state == .pass }), verdict.blocker?.state == .wait { return .selfReview }
+        return .hold(verdict.blocker.map { "\($0.name): \($0.detail)" } ?? "not ready")
     }
 }
 

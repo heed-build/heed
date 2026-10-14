@@ -241,6 +241,25 @@ public enum GitHub {
         try await pr(["edit", "\(ref.number)", "--add-reviewer", reviewers.joined(separator: ","), "-R", ref.repo.slug])
     }
 
+    /// `gh pr merge --<method> --match-head-commit <sha>`: merges only the commit the rules were checked on.
+    public static func merge(_ ref: PullRef, method: String, head: String, admin: Bool = false) async throws {
+        try await pr(
+            ["merge", "\(ref.number)", "--\(method)", "--match-head-commit", head, "-R", ref.repo.slug]
+                + (admin ? ["--admin"] : [])
+        )
+    }
+
+    /// `gh pr diff`.
+    public static func diff(_ ref: PullRef) async throws -> String {
+        let result = try await ProcessRunner.run(
+            "gh",
+            ["pr", "diff", "\(ref.number)", "-R", ref.repo.slug],
+            timeout: .seconds(60)
+        )
+        guard result.succeeded else { throw Failure(description: Self.explain(result)) }
+        return result.stdout
+    }
+
     /// `gh pr comment`.
     public static func comment(_ ref: PullRef, body: String) async throws {
         try await pr(["comment", "\(ref.number)", "--body", body, "-R", ref.repo.slug])
@@ -268,12 +287,12 @@ public enum GitHub {
       number title body author { login } baseRefName headRefName additions deletions
       state isDraft mergeable mergeStateStatus reviewDecision
       autoMergeRequest { enabledAt mergeMethod } labels(first: 20) { nodes { name } }
-      commits(last: 1) { totalCount nodes { commit { oid statusCheckRollup { contexts(first: 100) { nodes {
+      commits(last: 1) { totalCount nodes { commit { oid committedDate statusCheckRollup { contexts(first: 100) { nodes {
         __typename ... on CheckRun { name status conclusion startedAt title summary detailsUrl
           isRequired(pullRequestNumber: $number) }
         ... on StatusContext { context state description targetUrl isRequired(pullRequestNumber: $number) }
       } } } } } }
-      reviews(last: 30) { nodes { author { login } state } }
+      reviews(last: 30) { nodes { author { login } state submittedAt commit { oid } } }
       closingIssuesReferences(first: 10) { nodes { number repository { nameWithOwner } } }
       reviewThreads(first: 100) { nodes { id isResolved path line
         comments(first: 30) { totalCount nodes { author { login } body diffHunk url } } } }
@@ -496,7 +515,10 @@ public enum GitHub {
             guard let author = (review["author"] as? [String: Any])?["login"] as? String,
                   let state = review["state"] as? String
             else { return nil }
-            return PullDetail.Review(author: author, state: state)
+            return PullDetail.Review(
+                author: author, state: state, submittedAt: date(review["submittedAt"] as? String),
+                commit: (review["commit"] as? [String: Any])?["oid"] as? String
+            )
         }
         let closes = (((node["closingIssuesReferences"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
             .compactMap { issue -> PullRef? in
@@ -531,6 +553,12 @@ public enum GitHub {
             ("squash", "squashMergeAllowed"), ("merge", "mergeCommitAllowed"), ("rebase", "rebaseMergeAllowed"),
         ]
         detail.repoMergeMethods = methods.filter { repository[$0.1] as? Bool == true }.map(\.0)
+        detail.headCommittedAt = date(commit?["committedDate"] as? String)
+        detail.passedChecks = contexts.filter { context in
+            context["__typename"] as? String == "StatusContext" ? context["state"] as? String == "SUCCESS"
+                : context["status"] as? String == "COMPLETED"
+                && ["SUCCESS", "NEUTRAL", "SKIPPED"].contains(context["conclusion"] as? String ?? "")
+        }.compactMap { ($0["name"] ?? $0["context"]) as? String }
         return detail
     }
 

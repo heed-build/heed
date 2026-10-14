@@ -198,7 +198,10 @@ private struct PilotDetail: View {
                     keyHint("↩", "open")
                     keyHint("w", row.effective.watching ? "stop watching" : "watch")
                     keyHint("m", "green")
-                    keyHint("M", row.effective.merge == .off ? "merge" : "stop merging")
+                    keyHint(
+                        "M",
+                        row.effective.merge.next == .off ? "stop merging" : "merge \(row.effective.merge.next.configName)"
+                    )
                     keyHint("zz", pipeline?.isPaused(Clock.now) == true ? "resume" : "pause")
                     if let pipeline, !CopilotAsk.items(pipeline, settings: PilotSettings(), everything: true).isEmpty {
                         keyHint("C", "ask Copilot")
@@ -349,12 +352,32 @@ private struct MergeSection: View {
         VStack(alignment: .leading, spacing: 6) {
             SectionHeader(title: "Merge")
             if mode == .off {
-                Text("Off: M turns get it merged on (GitHub's auto-merge, run by the repo's merge queue).")
+                Text("Off: M turns get it merged on: auto (GitHub's auto-merge), then heed (heed merges by its rules).")
                     .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             } else {
                 let detail = model.pullDetails[ref.description]
-                line("Mode", "auto: GitHub merges once its requirements are met")
-                if let detail {
+                line(
+                    "Mode",
+                    mode == .heed ? "heed: heed merges once every rule below holds"
+                        : "auto: GitHub merges once its requirements are met"
+                )
+                if mode == .heed, let detail {
+                    let verdict = HeedMerge.verdict(
+                        detail, settings: model.pilotSettings(for: ref),
+                        selfReview: model.feedback[ref.description]?.selfReview, now: Clock.now
+                    )
+                    ForEach(verdict.rules) { rule in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(rule.state == .pass ? "✓" : rule.state == .fail ? "✕" : "◌")
+                                .foregroundStyle(rule.state == .pass ? Theme.done
+                                    : rule.state == .fail ? Theme.err : Theme.busy)
+                                .frame(width: 14)
+                            Text(rule.name).font(Theme.ui(12.5)).frame(width: 150, alignment: .leading)
+                            Text(rule.detail).font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                } else if let detail {
                     line(
                         "Auto-merge",
                         detail.autoMergeEnabled == true
@@ -507,6 +530,8 @@ struct MergeQueueView: View {
     static func describe(_ action: MergeQueue.Action) -> String {
         switch action {
         case let .enableAutoMerge(method): "turn auto-merge on (\(method))"
+        case let .merge(method, admin): "merge (\(method)\(admin ? ", --admin if refused" : ""))"
+        case .selfReview: "run the self-review, then merge if it approves"
         case let .disableAutoMerge(reason): "turn auto-merge off: \(reason)"
         case .updateBranch: "bring the branch up to date"
         case let .waiting(text): text

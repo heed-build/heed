@@ -398,7 +398,7 @@ private struct PilotSettingsView: View {
             }
             Field(
                 label: "Get it merged",
-                detail: "Auto turns on GitHub's auto-merge for a PR once nothing fails; GitHub merges it. M flips one PR."
+                detail: "Auto turns on GitHub's auto-merge once nothing fails; heed merges itself once its rules hold. M cycles one PR."
             ) {
                 Picker("", selection: Binding(
                     get: { pilot.defaults.merge },
@@ -408,6 +408,35 @@ private struct PilotSettingsView: View {
                 }
                 .labelsHidden()
                 .frame(width: 200)
+            }
+            Field(label: "Quiet for", detail: "heed merges: no new commit or review for this many minutes first.") {
+                Stepper(value: Binding(
+                    get: { pilot.defaults.quietMinutes },
+                    set: { model.setConfig(["pilot", "quiet_minutes"], .integer($0)) }
+                ), in: 0 ... 1440) {
+                    Text("\(pilot.defaults.quietMinutes) minutes").font(Theme.mono(12.5))
+                }
+            }
+            Field(
+                label: "Trusted AI reviewers",
+                detail: "heed merges: their review on the last push counts, as an approval does. Comma separated logins."
+            ) {
+                ListField(path: ["pilot", "trusted_reviewers"], values: pilot.defaults.trustedReviewers)
+            }
+            Field(
+                label: "Gate checks",
+                detail: "heed merges: checks that must have passed, required by GitHub or not."
+            ) {
+                ListField(path: ["pilot", "gate_checks"], values: pilot.defaults.gateChecks)
+            }
+            Field(label: "Hold labels", detail: "heed merges: a PR with one of these labels waits.") {
+                ListField(path: ["pilot", "hold_labels"], values: pilot.defaults.holdLabels)
+            }
+            Field(
+                label: "Self-review",
+                detail: "heed merges: a command that reads the diff on stdin and answers APPROVE (e.g. claude -p). Empty: none."
+            ) {
+                ConfigTextField(path: ["pilot", "self_review"], value: pilot.defaults.selfReview ?? "")
             }
             Field(label: "Merge queue runs", detail: "How often each repo's queue runs: 15m, 1h, ... or manual.") {
                 ConfigTextField(
@@ -472,6 +501,10 @@ private struct PilotSettingsView: View {
                 value.copilotConflicts.map { "copilot_conflicts = \($0)" },
                 value.copilotComments.map { "copilot_comments = \($0)" },
                 value.reviewers.map { "reviewers = \($0)" },
+                value.quietMinutes.map { "quiet_minutes = \($0)" },
+                value.trustedReviewers.map { "trusted_reviewers = \($0)" },
+                value.gateChecks.map { "gate_checks = \($0)" }, value.holdLabels.map { "hold_labels = \($0)" },
+                value.selfReview.map { "self_review = \($0)" }, value.adminMerge.map { "admin_merge = \($0)" },
             ].compactMap(\.self).joined(separator: ", ")
         }
         return pilot.orgs.sorted { $0.key < $1.key }.map { ("[orgs.\($0.key)]", describe($0.value)) }

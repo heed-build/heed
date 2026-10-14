@@ -3049,16 +3049,17 @@ final class AppModel {
     private func mergeEntry(_ ref: PullRef, _ detail: PullDetail) -> MergeQueue.Entry {
         MergeQueue.Entry(
             ref: ref, detail: detail, settings: pilotSettings(for: ref),
-            paused: feedback[ref.description]?.isPaused(Clock.now) == true
+            paused: feedback[ref.description]?.isPaused(Clock.now) == true, mode: pilot(for: ref).merge,
+            selfReview: feedback[ref.description]?.selfReview, now: Clock.now
         )
     }
 
-    /// `M`: get it merged on or off (on for all, when some have it and some do not). On also turns watching on, and
-    /// runs the repo's queue; off turns GitHub's auto-merge off again where it is on.
+    /// `M`: get it merged, cycled from the first target's (off → auto → heed). On also turns watching on, and runs
+    /// the repo's queue; off turns GitHub's auto-merge off again where it is on.
     private func togglePilotMerge() {
         let refs = pilotTargets
-        guard !refs.isEmpty else { return flash = "no PR here" }
-        let mode: MergeMode = refs.allSatisfy { pilot(for: $0).merge != .off } ? .off : .auto
+        guard let first = refs.first else { return flash = "no PR here" }
+        let mode = pilot(for: first).merge.next
         editPilot(refs) { pipeline in
             pipeline.merge = mode
             pipeline.mergeSet = true
@@ -3204,6 +3205,20 @@ final class AppModel {
                     } catch {
                         record(ref, .held, "could not update the branch", "\(error)", ok: false)
                     }
+                case let .merge(method, admin):
+                    await heedMerge(ref, method: method, admin: admin, details: details, record: record)
+                case .selfReview:
+                    guard let detail = details[ref] else { break }
+                    let review = await runSelfReview(ref, detail)
+                    guard review.approved else {
+                        record(ref, .held, "self-review asked for changes", review.summary)
+                        break
+                    }
+                    record(ref, nil, "self-review approved", String(detail.headSHA.prefix(7)))
+                    // Approved: the rules hold now, unless something else moved meanwhile.
+                    if case let .merge(method, admin) = MergeQueue.action(for: mergeEntry(ref, detail)) {
+                        await heedMerge(ref, method: method, admin: admin, details: details, record: record)
+                    }
                 case let .waiting(text):
                     record(ref, nil, "waiting", text)
                 case let .hold(reason):
@@ -3219,6 +3234,58 @@ final class AppModel {
                 fetchDetail(ref)
             }
         }
+    }
+
+    /// Merges a PR the heed rules hold for, on the head commit they were checked on, and says why on the PR.
+    private func heedMerge(
+        _ ref: PullRef, method: String, admin: Bool, details: [PullRef: PullDetail],
+        record: (PullRef, PilotEvent.Kind?, String, String, Bool) -> Void
+    ) async {
+        guard let detail = details[ref] else { return }
+        let verdict = HeedMerge.verdict(
+            detail, settings: pilotSettings(for: ref), selfReview: feedback[ref.description]?.selfReview, now: Clock.now
+        )
+        if isFixture { return record(ref, .merged, "merged", "\(method) (fixture: nothing merged)", true) }
+        var used = method
+        do {
+            try await GitHub.merge(ref, method: method, head: detail.headSHA)
+        } catch {
+            guard admin else { return record(ref, .held, "merge refused", "\(error)", false) }
+            do {
+                try await GitHub.merge(ref, method: method, head: detail.headSHA, admin: true)
+                used = "\(method), --admin"
+            } catch {
+                return record(ref, .held, "merge refused, even with --admin", "\(error)", false)
+            }
+        }
+        record(ref, .merged, "merged", "\(used): every merge rule held", true)
+        try? await GitHub.comment(ref, body: HeedMerge.comment(verdict, method: used))
+    }
+
+    /// The `self_review` command's verdict on the PR's diff at its head commit, kept on the pipeline.
+    private func runSelfReview(_ ref: PullRef, _ detail: PullDetail) async -> SelfReview {
+        guard let command = pilotSettings(for: ref).selfReview else {
+            return SelfReview(sha: detail.headSHA, approved: false, summary: "no self_review command", at: Clock.now)
+        }
+        let review: SelfReview
+        if isFixture {
+            review = SelfReview(sha: detail.headSHA, approved: true, summary: "approved", at: Clock.now)
+        } else {
+            do {
+                let diff = try await GitHub.diff(ref)
+                let output = try await SelfReview.run(command, prompt: SelfReview.prompt(detail, diff: diff))
+                review = SelfReview.parse(output, sha: detail.headSHA, at: Clock.now)
+            } catch {
+                review = SelfReview(
+                    sha: detail.headSHA, approved: false, summary: "the self-review failed: \(error)", at: Clock.now
+                )
+            }
+        }
+        if var pipeline = feedback[ref.description] {
+            pipeline.selfReview = review
+            commit(.feedbackChanged(pipeline))
+        }
+        return review
     }
 
     // MARK: Diff overlay

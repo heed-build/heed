@@ -129,8 +129,8 @@ public enum Fixtures {
             ))
             log.sort { $0.at > $1.at }
         }
-        // Get it merged on for #2841 (held: lint failed) and docs-content#1920 (auto-merge on).
-        pipeline.merge = .auto
+        // heed merges #2841 (held: lint failed), docs-content#1920 has auto-merge on.
+        pipeline.merge = .heed
         pipeline.mergeSet = true
         return Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
@@ -201,7 +201,7 @@ public enum Fixtures {
         return [
             docsBuilder.slug: [
                 MergeRun(repo: docsBuilder.slug, at: ago(20), why: "schedule", lines: [
-                    .init(ref: anchors, action: "held", detail: "Checks pass: lint failed"),
+                    .init(ref: anchors, action: "held", detail: "Green: checks pass: lint failed"),
                 ]),
                 MergeRun(repo: docsBuilder.slug, at: ago(80), why: "merge turned on", lines: [
                     .init(ref: anchors, action: "brought up to date", detail: "merged main in"),

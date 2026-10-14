@@ -39,10 +39,24 @@ public struct PullDetail: Hashable, Sendable, Codable {
     /// What the repo allows: auto-merge, and the merge methods (`squash`, `merge`, `rebase`).
     public var repoAllowsAutoMerge: Bool?
     public var repoMergeMethods: [String]?
+    /// When the head commit was made, for the merge rules' quiet window.
+    public var headCommittedAt: Date?
+    /// The checks that passed on the head commit, by name.
+    public var passedChecks: [String]?
 
     public struct Review: Hashable, Sendable, Codable {
         public var author: String
         public var state: String
+        public var submittedAt: Date?
+        /// The commit it reviewed, so a review from before the last push does not count.
+        public var commit: String?
+
+        public init(author: String, state: String, submittedAt: Date? = nil, commit: String? = nil) {
+            self.author = author
+            self.state = state
+            self.submittedAt = submittedAt
+            self.commit = commit
+        }
     }
 
     public struct FailingCheck: Hashable, Sendable, Codable {
@@ -216,6 +230,8 @@ public struct PullFeedback: Hashable, Sendable, Codable {
     public var mergeSet: Bool
     /// The reviewers heed asked for (as gh spells them), so each is asked once.
     public var reviewersRequested: [String]
+    /// The last self-review, for the head commit it read (`merge = "heed"` with `self_review`).
+    public var selfReview: SelfReview?
 
     public static let defaultMaxRounds = 3
 
@@ -238,7 +254,7 @@ public struct PullFeedback: Hashable, Sendable, Codable {
 
     private enum CodingKeys: String, CodingKey {
         case ref, items, autoFeed, watching, rounds, approvalsSeen, watchSet, greenSet, maxRounds, pausedUntil,
-             pausedForever, merge, mergeSet, reviewersRequested
+             pausedForever, merge, mergeSet, reviewersRequested, selfReview
     }
 
     /// Caches written before the pilot settings still load: the newer fields default.
@@ -258,6 +274,7 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         merge = try container.decodeIfPresent(MergeMode.self, forKey: .merge) ?? .off
         mergeSet = try container.decodeIfPresent(Bool.self, forKey: .mergeSet) ?? false
         reviewersRequested = try container.decodeIfPresent([String].self, forKey: .reviewersRequested) ?? []
+        selfReview = try container.decodeIfPresent(SelfReview.self, forKey: .selfReview)
     }
 
     /// What applies to this PR: a hand-set choice, else the settings.

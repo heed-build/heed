@@ -159,6 +159,7 @@ enum Shots {
         // Get it merged: a repo's merge queue with its runs, and the queues above the activity.
         Shot(id: "watch/merge-queue", keys: "gw/moved<CR>gM", crop: .pilotDetail),
         Shot(id: "watch/queues", keys: "gw", crop: .pilotActivity),
+        Shot(id: "watch/heed", keys: "gw/anchors<CR>", crop: .pilotDetail),
         Shot(id: "watch/inspector", crop: .inspector),
         Shot(id: "watch/prs", keys: "gp", crop: .list),
     ]

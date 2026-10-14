@@ -77,13 +77,13 @@ Each PR has three levels, each needing the one before:
 |---|---|---|
 | **Watch** | only the PR's summary from the regular sync | heed follows it: fetches its review threads and checks as they change, and shows its state everywhere |
 | **Green** | items are shown, nothing is sent | `ask`: you queue items to send; `auto`: they go to the agent once it is idle (see [review feedback](review-feedback.md)) |
-| **Merge** | nothing is merged | `auto`: heed turns on GitHub's auto-merge, and GitHub merges once its requirements are met (see [below](#get-it-merged)) |
+| **Merge** | nothing is merged | `auto`: heed turns on GitHub's auto-merge, and GitHub merges once its requirements are met; `heed`: heed merges once [its rules](#heed-merges) hold (see [below](#get-it-merged)) |
 
 Watching only reads from GitHub, so it is on by default.
 
 ## Get it merged
 
-`M` turns merging on for a PR (and watching with it). Each repo with such PRs has a **merge queue**, and a run of the
+`M` cycles merging for a PR: off, `auto`, `heed` (and turns watching on with it). Each repo with such PRs has a **merge queue**, and a run of the
 queue goes through its PRs, oldest first:
 
 | The PR | A run |
@@ -105,6 +105,35 @@ what it did. `gM` again, or moving the cursor, goes back to the PR.
 
 ![A repo's merge queue: its PR, the next run, and the runs so far](../images/shots/watch/merge-queue.png)
 
+### heed merges
+
+With `merge = "heed"` heed does not hand the PR to GitHub's auto-merge (it turns it off if it is on) and merges itself,
+once every rule holds. A run checks them again on the PR as it is then, and merges only that head commit
+(`--match-head-commit`), so a push in between holds it for the next run.
+
+| Rule | Holds when |
+|---|---|
+| Green | every [green rule](#green) holds |
+| Reviewed after push | a human approved the head commit, or a trusted AI reviewer reviewed it (below) |
+| Quiet | no new commit or review for `quiet_minutes` (5) |
+| Gate checks | every check named in `gate_checks` passed on the head commit, required by GitHub or not |
+| No hold label | none of `hold_labels` (`hold`, `do-not-merge`, `wip`) is on the PR |
+| Self-review | with `self_review` set: the command approved the diff of the head commit |
+
+A **trusted AI reviewer** (`trusted_reviewers`, e.g. `copilot-pull-request-reviewer`) counts as a review of the head
+commit when it approved it, when it left a comment review none of whose threads is still open, or when it left no review
+at all but its review check, named in `gate_checks`, passed on that commit.
+
+The **self-review** is a command you choose, such as `claude -p`. heed passes it a prompt with the PR's description and
+diff (`gh pr diff`, nothing is checked out) on stdin, and merges when its first line is `APPROVE`; `REQUEST_CHANGES:
+<why>` holds the PR with that reason. It runs last, once every other rule holds, and once per head commit.
+
+After merging, heed comments on the PR with each rule and what it found. When GitHub refuses the merge (branch
+protection), the PR is held with GitHub's reason; `admin_merge = true` under `[repos."org/name"]`, and only there, retries
+with `--admin`.
+
+![A PR heed merges: the rules, and the one holding it](../images/shots/watch/heed.png)
+
 ## Keys
 
 | Key | |
@@ -112,7 +141,7 @@ what it did. `gM` again, or moving the cursor, goes back to the PR.
 | `↩` | Open the [PR overlay](review-feedback.md) |
 | `w` | Watch or stop watching |
 | `m` | Cycle green: off, ask, auto |
-| `M` | Merge on or off |
+| `M` | Cycle merging: off, auto, heed |
 | `C` | Ask Copilot to resolve the PR's merge conflicts and address its review comments |
 | `zz` | Pause or resume |
 | `v` | Select several, then `z` pauses or resumes them all |
@@ -149,18 +178,24 @@ watch = true         # read-only, so on
 green = "ask"        # off, ask or auto
 max_rounds = 3       # prompts without a new approval before it stops
 pause = "1h"         # what zz pauses for
-merge = "off"        # off or auto
+merge = "off"        # off, auto or heed
 merge_schedule = "1h" # how often a repo's queue runs, or manual
 update_branches = true
 copilot_conflicts = false  # Copilot resolves merge conflicts
 copilot_comments = false   # Copilot addresses review comments
 reviewers = []             # e.g. ["copilot", "alice", "elastic/docs-team"]
+quiet_minutes = 5          # merge = "heed": the rules
+trusted_reviewers = []     # e.g. ["copilot-pull-request-reviewer"]
+gate_checks = []
+hold_labels = ["hold", "do-not-merge", "wip"]
+# self_review = "claude -p"
 # merge_method = "squash"  # unset: the first of squash, merge, rebase the repo allows
 
 [orgs.employer]
 watch = false        # not this org's PRs, by default
 
 [repos."employer/main-service"]
+admin_merge = true   # per repo only: retry a refused heed merge with --admin
 watch = true         # but this repo's, yes
 green = "auto"
 merge = "auto"

@@ -1,9 +1,9 @@
 import Foundation
 
 /// What get it merged does once a PR is green enough. `auto` makes sure GitHub's auto-merge is on (GitHub merges once
-/// its own requirements are met).
+/// its own requirements are met); `heed` merges it itself, once heed's merge rules hold (`HeedMerge`).
 public enum MergeMode: String, CaseIterable, Hashable, Sendable, Codable {
-    case off, auto
+    case off, auto, heed
 
     public var configName: String { rawValue }
     public static func named(_ name: String) -> MergeMode? { MergeMode(rawValue: name.lowercased()) }
@@ -40,6 +40,19 @@ public struct PilotSettings: Hashable, Sendable {
     public var copilotComments: Bool
     /// Who heed asks to review a PR once it is open and ready: logins, `org/team`, or `copilot`.
     public var reviewers: [String]
+    // The merge rules for `merge = "heed"`.
+    /// No new commit or review for this long before heed merges.
+    public var quietMinutes = 5
+    /// AI reviewers (logins) whose review counts as one after the last push (see `HeedMerge`).
+    public var trustedReviewers: [String] = []
+    /// Checks that must have passed on the head commit, required by GitHub or not (an AI review's check, say).
+    public var gateChecks: [String] = []
+    /// Labels that hold a PR back.
+    public var holdLabels = ["hold", "do-not-merge", "wip"]
+    /// A command that reviews the PR's diff (on stdin) and answers APPROVE or REQUEST_CHANGES; nil skips it.
+    public var selfReview: String?
+    /// Retry a refused merge with `--admin` (bypassing branch protection). Per repo only.
+    public var adminMerge = false
 
     public init(
         watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600,
@@ -72,6 +85,13 @@ public struct PilotOverrides: Hashable, Sendable {
     public var copilotConflicts: Bool?
     public var copilotComments: Bool?
     public var reviewers: [String]?
+    public var quietMinutes: Int?
+    public var trustedReviewers: [String]?
+    public var gateChecks: [String]?
+    public var holdLabels: [String]?
+    public var selfReview: String?
+    /// Read only under `[repos."org/name"]`.
+    public var adminMerge: Bool?
 
     public init(
         watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil, merge: MergeMode? = nil,
@@ -91,7 +111,9 @@ public struct PilotOverrides: Hashable, Sendable {
 
     public var isEmpty: Bool {
         watch == nil && green == nil && maxRounds == nil && merge == nil && mergeMethod == nil && updateBranches == nil
-            && copilotConflicts == nil && copilotComments == nil && reviewers == nil
+            && copilotConflicts == nil && copilotComments == nil && reviewers == nil && quietMinutes == nil
+            && trustedReviewers == nil && gateChecks == nil && holdLabels == nil && selfReview == nil && adminMerge ==
+            nil
     }
 }
 
@@ -123,6 +145,12 @@ public struct PilotRules: Hashable, Sendable {
         settings.copilotConflicts = repoLevel.copilotConflicts ?? orgLevel.copilotConflicts ?? defaults.copilotConflicts
         settings.copilotComments = repoLevel.copilotComments ?? orgLevel.copilotComments ?? defaults.copilotComments
         settings.reviewers = repoLevel.reviewers ?? orgLevel.reviewers ?? defaults.reviewers
+        settings.quietMinutes = repoLevel.quietMinutes ?? orgLevel.quietMinutes ?? defaults.quietMinutes
+        settings.trustedReviewers = repoLevel.trustedReviewers ?? orgLevel.trustedReviewers ?? defaults.trustedReviewers
+        settings.gateChecks = repoLevel.gateChecks ?? orgLevel.gateChecks ?? defaults.gateChecks
+        settings.holdLabels = repoLevel.holdLabels ?? orgLevel.holdLabels ?? defaults.holdLabels
+        settings.selfReview = repoLevel.selfReview ?? orgLevel.selfReview ?? defaults.selfReview
+        settings.adminMerge = repoLevel.adminMerge ?? false
         return settings
     }
 

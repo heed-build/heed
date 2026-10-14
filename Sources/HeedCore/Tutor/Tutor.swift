@@ -236,11 +236,51 @@ public struct TutorProgress: Codable, Equatable, Sendable {
     public var done: Set<String> = []
     public var lastLesson: String?
     public var lastStep = 0
+    /// Lessons whose title bar reminder was hidden (`tutor.hide`); `all` hides every one.
+    public var hidden: Set<String> = []
 
     public init() {}
 
+    private enum CodingKeys: String, CodingKey { case done, lastLesson, lastStep, hidden }
+
+    /// Progress saved before reminders still loads.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        done = try container.decodeIfPresent(Set<String>.self, forKey: .done) ?? []
+        lastLesson = try container.decodeIfPresent(String.self, forKey: .lastLesson)
+        lastStep = try container.decodeIfPresent(Int.self, forKey: .lastStep) ?? 0
+        hidden = try container.decodeIfPresent(Set<String>.self, forKey: .hidden) ?? []
+    }
+
+    /// The title bar's gentle reminder, for the view you are on: finish a lesson left halfway, else take the tour,
+    /// else this view's lesson. Nil once they are done or hidden.
+    public func reminder(view: String) -> TutorReminder? {
+        guard !hidden.contains("all") else { return nil }
+        func open(_ id: String) -> Bool { !done.contains(id) && !hidden.contains(id) }
+        if let last = lastLesson, lastStep > 0, open(last), let lesson = Tutor.lesson(last) {
+            return TutorReminder(
+                lesson: last,
+                text: "Resume the \(lesson.isTour ? "tour" : lesson.title) · \(lastStep + 1)/\(lesson.steps.count)"
+            )
+        }
+        if open(Tutor.tour.id) {
+            return TutorReminder(lesson: Tutor.tour.id, text: "Take the tour")
+        }
+        let own = Tutor.lessonID(forView: view)
+        if own != Tutor.tour.id, open(own), let lesson = Tutor.lesson(own) {
+            return TutorReminder(lesson: own, text: "\(lesson.title) lesson")
+        }
+        return nil
+    }
+
     /// The step to resume `lesson` on: where it was left, if it was left unfinished.
     public func resumeStep(_ lesson: String) -> Int { lesson == lastLesson ? lastStep : 0 }
+}
+
+/// What the title bar suggests: a lesson, and a few words.
+public struct TutorReminder: Equatable, Sendable {
+    public let lesson: String
+    public let text: String
 }
 
 /// `:tutor`: the lessons to pick from. The first row is always the view you are on, then the tour, every other view,

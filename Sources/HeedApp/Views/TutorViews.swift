@@ -298,8 +298,8 @@ struct TutorPickerView: View {
     let picker: TutorPicker
 
     var body: some View {
-        let done = model.tutorProgress.done
-        let progress = model.tutorProgress
+        let done = model.tutorRecord.done
+        let progress = model.tutorRecord
         ZStack {
             Color.black.opacity(0.5)
             VStack(alignment: .leading, spacing: 0) {

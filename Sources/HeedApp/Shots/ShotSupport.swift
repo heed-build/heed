@@ -13,7 +13,7 @@ enum ShotRegion: String, CaseIterable {
     case titleBar, viewTabs, statusBar
     case sidebar, rail, center, tabStrip, panes, inspector, needsYou
     case dialog, confirm, picker, leaderHints, commandLine, filterPill, help
-    case tutorBanner, tutorCard
+    case tutorBanner, tutorCard, tutorReminder
     case repoColumn, worktreeTable, rulesPanel, sweepBanner
     case chips, list, pickedPanel, issueRepos, syncBanner
     case pipeline, delivery, promptPreview, reader

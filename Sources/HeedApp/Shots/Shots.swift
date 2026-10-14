@@ -49,6 +49,8 @@ enum Shots {
         Shot(id: "getting-started/first-run", crop: .dialog, prepare: { $0.showFirstRun(report: firstRunReport) }),
         // The tour on its fourth step: the banner, the spotlight on what needs you, the card, the TUTOR pill.
         Shot(id: "getting-started/tutor", prepare: { $0.beginTutor(lesson: "tour", step: 3) }),
+        // The title bar's reminder, until the tour is done.
+        Shot(id: "getting-started/tutor-reminder", crop: .titleBar, prepare: { $0.tutorReminderInShots = true }),
         Shot(
             id: "getting-started/tutor-picker",
             crop: .dialog,

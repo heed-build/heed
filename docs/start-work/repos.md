@@ -19,6 +19,9 @@ chips says why:
 Move to the repo field (`⎋` then `j`) and use `h` `l` to move between chips and `space` to add or remove one. More than
 one repo makes a cross-repo session: a worktree in each, on the same branch. `⌃n` `⌃p` cycle which one is primary.
 
+Repos on your [hosts](../hosts/index.md) are guessed the same way and their chips say `@host`: picking one starts
+the work there.
+
 ## Any other repo
 
 When none of the guesses is right, the last chip, **other repo…**, opens a search over every repo (or press `/` on the

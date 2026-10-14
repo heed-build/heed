@@ -107,7 +107,8 @@ struct StartWorkView: View {
                     let selected = form.selectedRepos.contains(guess.repo.id)
                     let primary = form.selectedRepos.first == guess.repo.id
                     choice(
-                        (selected && !primary ? "+ " : "") + guess.repo.repo.name,
+                        (selected && !primary ? "+ " : "") + guess.repo.repo.name
+                            + (guess.repo.location.hostName.map { " @\($0)" } ?? ""),
                         detail: guess.confidence > 0 ? "\(guess.confidence)%" : nil,
                         selected: primary, secondary: selected && !primary,
                         focused: form.field == .repo && form.repoCursor == index
@@ -190,11 +191,13 @@ struct StartWorkView: View {
                 }
             }
             ForEach(form.selectedRecords) { record in
-                Text(Paths.abbreviate(model.settings.worktreePath(repo: record.repo, name: form.name)))
-                    .font(Theme.mono(11))
-                    .foregroundStyle(Theme.fg3)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                Text(Paths.abbreviate(StartWork.worktreePath(
+                    for: record, name: form.name, settings: model.settings, hosts: model.config.hosts
+                )))
+                .font(Theme.mono(11))
+                .foregroundStyle(Theme.fg3)
+                .lineLimit(1)
+                .truncationMode(.middle)
             }
         }
     }
@@ -224,7 +227,7 @@ struct StartWorkView: View {
 
     private func commandPreview(_ form: StartWorkForm) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionHeader(title: "Will run in pane 1")
+            SectionHeader(title: runsWhere(form))
             HStack(spacing: 6) {
                 Text("$").foregroundStyle(Theme.done)
                 Text(form.plan.command ?? "(shell only)").lineLimit(4).truncationMode(.middle)
@@ -239,6 +242,15 @@ struct StartWorkView: View {
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+    }
+
+    /// Where the first pane runs: here, or on a host in zmx (or plain ssh, which a dropped link ends).
+    private func runsWhere(_ form: StartWorkForm) -> String {
+        guard let host = form.plan.location.hostName else { return "Will run in pane 1" }
+        if case let .connected(info) = model.hostStatus(host), info.zmxPath != nil {
+            return "Will run on @\(host) in zmx"
+        }
+        return "Will run on @\(host) · not persistent"
     }
 
     private func footer(_ form: StartWorkForm) -> some View {

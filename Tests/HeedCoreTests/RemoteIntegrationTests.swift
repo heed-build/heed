@@ -46,6 +46,31 @@ struct RemoteIntegrationTests {
         #expect(status.upstream == nil)
     }
 
+    @Test func startsWorkOnAHost() async throws {
+        guard let setup else { return }
+        configure(setup)
+        defer { Remote.setExtraOptions([]); Remote.setTargets([:]) }
+        let records = await RemoteScan.scan(HostConfig(name: "box"))
+        let repo = try #require(records.first { $0.repo.slug == "elastic/docs-builder" })
+        let name = "start-\(Int(Date().timeIntervalSince1970))"
+        let plan = StartWorkPlan(prompt: "p", repos: [repo], name: name, agent: nil)
+        let changes = try await StartWork.execute(
+            plan, settings: WorkSettings(worktreeRoot: "/nowhere"), hosts: ["box": HostConfig(name: "box")]
+        )
+        let session = try #require(changes.compactMap {
+            if case let .sessionUpserted(session) = $0 { session } else { nil }
+        }.first)
+        let path = try #require(session.worktreePaths.first)
+        #expect(session.host == "box")
+        #expect(path.hasPrefix("/") && path.hasSuffix("/code/wt/docs-builder/\(name)"))
+        let listed = try await Git.worktrees(of: repo)
+        #expect(listed.contains { $0.path == path && $0.branch == session.branch && $0.location == .host("box") })
+        _ = try? await ProcessRunner.run(
+            on: .host("box"), "git", ["-C", repo.path, "worktree", "remove", "--force", path]
+        )
+        _ = try? await ProcessRunner.run(on: .host("box"), "git", ["-C", repo.path, "branch", "-D", session.branch])
+    }
+
     @Test func failuresAreNamed() async {
         guard let setup else { return }
         let empty = setup.dir + "/empty_known_hosts"

@@ -81,20 +81,34 @@ public enum Git {
     public static func addWorktree(
         _ record: RepoRecord, path: String, branch: String, base: String
     ) async throws -> Worktree {
-        _ = try? await ProcessRunner.run("git", ["-C", record.path, "fetch", "origin", base], timeout: .seconds(30))
+        let location = record.location
+        _ = try? await ProcessRunner.run(
+            on: location,
+            "git",
+            ["-C", record.path, "fetch", "origin", base],
+            timeout: .seconds(30)
+        )
         let hasRemote = await (try? ProcessRunner.run(
-            "git", ["-C", record.path, "rev-parse", "--verify", "--quiet", "origin/\(base)"], timeout: .seconds(5)
+            on: location, "git", ["-C", record.path, "rev-parse", "--verify", "--quiet", "origin/\(base)"],
+            timeout: .seconds(5)
         ))?.succeeded ?? false
-        try FileManager.default.createDirectory(
-            atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true
-        )
+        let parent = (path as NSString).deletingLastPathComponent
+        if location.isLocal {
+            try FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
+        } else {
+            _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", parent])
+        }
         _ = try await ProcessRunner.output(
-            "git", ["-C", record.path, "worktree", "add", "-b", branch, path, hasRemote ? "origin/\(base)" : base]
+            on: location, "git",
+            ["-C", record.path, "worktree", "add", "-b", branch, path, hasRemote ? "origin/\(base)" : base]
         )
-        let head = try await ProcessRunner.output("git", ["-C", path, "rev-parse", "--short", "HEAD"])
+        // On a host `path` may start with ~: keep the worktree's real path.
+        let top = try await ProcessRunner.output(on: location, "git", ["-C", path, "rev-parse", "--show-toplevel"])
+        let head = try await ProcessRunner.output(on: location, "git", ["-C", path, "rev-parse", "--short", "HEAD"])
         return Worktree(
-            repo: record.repo, path: path, branch: branch, head: head.trimmingCharacters(in: .whitespacesAndNewlines),
-            isMain: false, status: WorktreeStatus()
+            repo: record.repo, path: top.trimmingCharacters(in: .whitespacesAndNewlines), branch: branch,
+            head: head.trimmingCharacters(in: .whitespacesAndNewlines), isMain: false, status: WorktreeStatus(),
+            location: location
         )
     }
 

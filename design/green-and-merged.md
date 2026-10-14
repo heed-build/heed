@@ -22,11 +22,28 @@ Most of get it green exists, as the PR "feedback pipeline" (`Sources/HeedCore/Gi
 
 What is missing:
 
+0. **Everything is watched, silently.** A new pipeline starts with watching on (`PullFeedback(watching: true)`), and a
+   PR without one counts as watched. Every PR a session tracks is followed, whether you meant it or not.
 1. **You cannot see it.** The inspector's PR card always says "watching" (the word is hardcoded, whatever the state).
    Nothing in the sidebar, the PRs view or Repos shows which PRs are watched, in what mode, or what is happening.
 2. **No green verdict.** Nothing says "this PR is done: checks pass, threads resolved, mergeable".
 3. **Settings exist only per PR.** There is no default, and no org or repo level.
 4. **No merging at all.**
+
+## Three levels: watch, green, merge
+
+Each needs the one before it:
+
+| Level | Off | On |
+|---|---|---|
+| **watch** | heed shows the PR's summary (state, checks, review) from the regular sync, nothing more | heed follows it: fetches its detail when it moves, collects review threads and failing checks as items, computes the green verdict, shows its state everywhere |
+| **green** | items are collected and shown, nothing is sent | `ask`: you queue items to send; `auto`: they go to the agent when it is idle |
+| **merge** | a green PR shows "ready to merge" | `auto` or `heed`, below |
+
+**Auto-watch.** Whether a PR is watched when a session starts tracking it comes from the settings: off by default,
+on per org or per repo (your main working repos), and toggled per PR at any time (`w` in the PR overlay, as today).
+Turning green or merge on for a PR turns watching on with it; turning watching off pauses green and merge for that PR
+without forgetting their modes.
 
 ## Green, precisely
 
@@ -134,11 +151,16 @@ Get it merged runs as **one session per repo**, created when a repo first has a 
 ## Settings
 
 The same shape as `issues` today: a default, then `[orgs.<org>]`, then `[repos."org/name"]`, then a per-PR override
-set in the PR overlay. The most specific wins.
+set in the PR overlay. The most specific wins, for every key (`watch`, `green`, `merge` and the merge rules).
+
+A per-PR choice sticks: changing a repo's settings later does not undo a PR you turned on or off by hand. PRs you never
+touched follow the settings as they change. (Today's pipelines have no such mark; on upgrade they are treated as
+untouched, so the new `watch = false` default turns them off unless their org or repo says on.)
 
 ```toml
 [pilot]
-green = "ask"                 # off | ask | auto
+watch = false                 # follow newly tracked PRs: off unless an org or repo turns it on
+green = "ask"                 # off | ask | auto (only for watched PRs)
 max_rounds = 3
 merge = "off"                 # off | auto | heed
 merge_method = "squash"       # squash | merge | rebase (falls back to what the repo allows)
@@ -151,10 +173,18 @@ self_review = "off"           # off | claude | codex | …
 update_branches = true
 
 [orgs.elastic]
+watch = true                  # every repo of this org: follow tracked PRs
 green = "auto"
 merge = "auto"                # GitHub auto-merge, GitHub decides
 
+[orgs.nullean]
+watch = false                 # an org default can also say off
+
+[repos."elastic/kibana"]
+watch = false                 # a repo overrides its org: too big to follow every PR
+
 [repos."nullean/heed"]
+watch = true                  # a main working repo, though its org says off
 merge = "heed"
 trusted_reviewers = ["copilot-pull-request-reviewer[bot]"]
 self_review = "claude"
@@ -168,12 +198,14 @@ when the cursor is on it.
 
 The part missing today, in every place a PR shows:
 
+- **Not watched** is visible too: an unwatched PR shows its summary dimmed with "not watched · w to watch", so it is
+  never unclear whether heed is following it.
 - **Sidebar:** a session row with a watched PR gets a small state mark after the PR count: `● green`, `⟳ feeding`,
   `✕ failing`, `⚠ stuck`, `⇢ merging`. Stuck counts as needing you.
 - **Inspector:** the PR card's hardcoded "watching" becomes the real line: the green mode and state, what is queued or
   sent, the round ("round 1 of 3"), and the merge mode and next run ("merge: heed · next run 14:00").
-- **PRs view:** two columns, **Green** and **Merge**, with mode and state; a `watched` chip filters to PRs with either
-  on.
+- **PRs view:** three columns, **Watch**, **Green** and **Merge**, with mode and state; a `watched` chip filters to
+  watched PRs.
 - **Repos:** a worktree row shows its PR's state mark.
 - **Title bar:** next to "1 blocked · 1 asking": "2 green · 1 stuck" when any are watched.
 - **Menu bar and Dock:** "merged nullean/heed#12" as a notification line; stuck PRs count with what needs you.
@@ -184,6 +216,7 @@ All are named commands (`:` reaches them, config can bind them):
 
 | Command | Key | |
 |---|---|---|
+| `pilot.watch` | `w` in the PR overlay (today's key), and in the PRs view | watch or stop watching the PR |
 | `pilot.green` | `m` in the PR overlay and PRs view (today's auto-feed key) | cycle the PR's green mode |
 | `pilot.merge` | `M` in the PR overlay and PRs view | cycle the PR's merge mode |
 | `pilot.why` | `?` on a PR row, or `:pilot.why` | what holds the PR back, rule by rule |
@@ -202,7 +235,8 @@ All are named commands (`:` reaches them, config can bind them):
 ## Phases
 
 1. **Seeing it** and the settings hierarchy: the real inspector line, sidebar and PRs view marks, `[pilot]` with org
-   and repo levels, green modes replacing auto-feed (same behaviour). Small; fixes today's complaint.
+   and repo levels, `watch` off by default with auto-watch per org and repo, green modes replacing auto-feed (same
+   behaviour). Small; fixes today's complaint.
 2. **Green verdict**: mergeability, required checks and conflicts in the detail query; failing check logs; the
    conflicts item; `pilot.why`.
 3. **Merge: `auto`** with merge sessions, the scheduler, `merge.run`, the run log.

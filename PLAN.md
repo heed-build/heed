@@ -61,9 +61,9 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 ## Next
 
 10. **Get it green, get it merged.** Design in `design/green-and-merged.md` (PR #9, open questions at its end): watch
-    as the first level (on by default since it only reads, switchable per org and repo), a precise green verdict, merging via GitHub
-    auto-merge or by heed under rules, a merge session per repo batching its PRs hourly. Phase 1 (seeing it, the
-    settings levels, the inspector's hardcoded "watching") comes first.
+    as the first level (on by default since it only reads, switchable per org and repo), a precise green verdict,
+    merging via GitHub auto-merge or by heed under rules, a merge session per repo batching its PRs hourly. Phase 1
+    (seeing it, the settings levels, the inspector's hardcoded "watching") comes first.
 11. **Landing page, now that there is a download** (`docs/heed-landing.html`):
     - The main button is **Download** (the latest release's `Heed-arm64.zip`), with the Homebrew line under it:
       `brew install --cask heed-build/tap/heed`.

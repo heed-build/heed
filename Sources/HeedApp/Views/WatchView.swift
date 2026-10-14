@@ -200,10 +200,8 @@ private struct PilotDetail: View {
                     keyHint("m", "green")
                     keyHint("M", row.effective.merge == .off ? "merge" : "stop merging")
                     keyHint("zz", pipeline?.isPaused(Clock.now) == true ? "resume" : "pause")
-                    if let conflict = pipeline?.items.first(where: {
-                        if case .conflict(_, false) = $0.kind { $0.status != .resolved } else { false }
-                    }) {
-                        keyHint("C", conflict.copilotAskedAt == nil ? "ask Copilot" : "Copilot asked")
+                    if let pipeline, !CopilotAsk.items(pipeline, settings: PilotSettings(), everything: true).isEmpty {
+                        keyHint("C", "ask Copilot")
                     }
                 }
                 // The verdict, rule by rule: what holds the PR back from green, or that nothing does.
@@ -336,7 +334,7 @@ private struct PilotEventRow: View {
         case .autoMerge, .updated: Theme.busy
         case .merged: Theme.done
         case .held: Theme.block
-        case .copilot: Theme.busy
+        case .copilot, .review: Theme.busy
         }
     }
 }

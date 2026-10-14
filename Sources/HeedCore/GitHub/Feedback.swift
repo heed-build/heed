@@ -214,6 +214,8 @@ public struct PullFeedback: Hashable, Sendable, Codable {
     /// Get it merged, as set by hand (`M`) when `mergeSet`, else from the settings.
     public var merge: MergeMode
     public var mergeSet: Bool
+    /// The reviewers heed asked for (as gh spells them), so each is asked once.
+    public var reviewersRequested: [String]
 
     public static let defaultMaxRounds = 3
 
@@ -231,11 +233,12 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         pausedForever = false
         merge = .off
         mergeSet = false
+        reviewersRequested = []
     }
 
     private enum CodingKeys: String, CodingKey {
         case ref, items, autoFeed, watching, rounds, approvalsSeen, watchSet, greenSet, maxRounds, pausedUntil,
-             pausedForever, merge, mergeSet
+             pausedForever, merge, mergeSet, reviewersRequested
     }
 
     /// Caches written before the pilot settings still load: the newer fields default.
@@ -254,6 +257,7 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         pausedForever = try container.decodeIfPresent(Bool.self, forKey: .pausedForever) ?? false
         merge = try container.decodeIfPresent(MergeMode.self, forKey: .merge) ?? .off
         mergeSet = try container.decodeIfPresent(Bool.self, forKey: .mergeSet) ?? false
+        reviewersRequested = try container.decodeIfPresent([String].self, forKey: .reviewersRequested) ?? []
     }
 
     /// What applies to this PR: a hand-set choice, else the settings.

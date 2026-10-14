@@ -116,12 +116,17 @@ public enum Fixtures {
         if let conflicting = otherDetails.first(where: { $0.mergeable == "CONFLICTING" }) {
             var copilot = PullFeedback(ref: conflicting.ref)
             copilot.merge(conflicting)
-            CopilotConflicts.asked(&copilot, item: "conflict", at: Clock.now.addingTimeInterval(-12 * 60))
+            CopilotAsk.asked(&copilot, items: ["conflict"], at: Clock.now.addingTimeInterval(-12 * 60))
+            copilot.reviewersRequested = ["@copilot"]
             pilots[conflicting.ref.description] = copilot
             log.insert(PilotEvent(
                 at: Clock.now.addingTimeInterval(-12 * 60), ref: conflicting.ref, kind: .copilot,
-                text: "asked Copilot to resolve the conflicts with main"
+                text: "asked Copilot to merge in main and resolve the conflicts"
             ), at: 0)
+            log.append(PilotEvent(
+                at: Clock.now.addingTimeInterval(-3 * 3600), ref: conflicting.ref, kind: .review,
+                text: "asked @copilot to review"
+            ))
             log.sort { $0.at > $1.at }
         }
         // Get it merged on for #2841 (held: lint failed) and docs-content#1920 (auto-merge on).

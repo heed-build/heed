@@ -77,10 +77,13 @@ merge = "off"
 merge_schedule = "1h"
 # Bring the queue's PRs that fell behind their base up to date on each run.
 update_branches = true
-# Who resolves a watched PR's merge conflicts: agent (your session's agent, as get it green sends) or copilot (heed
-# asks GitHub's Copilot coding agent on the PR, sparing your agent's tokens; only where Copilot can be assigned,
-# else your agent). Per org and per repo too.
-conflicts = "agent"
+# Hand work on a watched PR to GitHub's Copilot coding agent instead of your session's agent, sparing its tokens:
+# merge conflicts, review comments, or both (one comment on the PR asks for both). Only where Copilot can work in
+# the repo; elsewhere, and with these off, your agent gets them. Per org and per repo too.
+copilot_conflicts = false
+copilot_comments = false
+# Who heed asks to review a PR once it is open and not a draft, once per PR: logins, "org/team", or "copilot".
+reviewers = []
 
 [issues]
 # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

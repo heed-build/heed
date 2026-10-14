@@ -233,7 +233,12 @@ public enum GitHub {
         let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         let actors = (((json?["data"] as? [String: Any])?["repository"] as? [String: Any])?["suggestedActors"]
             as? [String: Any])?["nodes"] as? [[String: Any]] ?? []
-        return actors.contains { $0["login"] as? String == CopilotConflicts.login }
+        return actors.contains { $0["login"] as? String == CopilotAsk.login }
+    }
+
+    /// `gh pr edit --add-reviewer`: logins, `org/team`, or `@copilot`.
+    public static func requestReviews(_ ref: PullRef, from reviewers: [String]) async throws {
+        try await pr(["edit", "\(ref.number)", "--add-reviewer", reviewers.joined(separator: ","), "-R", ref.repo.slug])
     }
 
     /// `gh pr comment`.

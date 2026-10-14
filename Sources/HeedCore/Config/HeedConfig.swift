@@ -239,20 +239,13 @@ public enum ConfigLoader {
             }
             return text
         }
-        func conflicts(_ path: [String]) -> ConflictFixer? {
-            guard let text = string(path) else { return nil }
-            guard let fixer = ConflictFixer.named(text) else {
-                problems.append(ConfigProblem(path: path.joined(separator: "."), message: "expected agent or copilot"))
-                return nil
-            }
-            return fixer
-        }
         func pilotOverrides(_ base: [String]) -> PilotOverrides {
             PilotOverrides(
                 watch: bool(base + ["watch"]), green: green(base + ["green"]),
                 maxRounds: integer(base + ["max_rounds"], range: 1 ... 20), merge: merge(base + ["merge"]),
                 mergeMethod: mergeMethod(base + ["merge_method"]), updateBranches: bool(base + ["update_branches"]),
-                conflicts: conflicts(base + ["conflicts"])
+                copilotConflicts: bool(base + ["copilot_conflicts"]),
+                copilotComments: bool(base + ["copilot_comments"]), reviewers: strings(base + ["reviewers"])
             )
         }
         let pilotDefaults = pilotOverrides(["pilot"])
@@ -262,7 +255,9 @@ public enum ConfigLoader {
         if let mode = pilotDefaults.merge { config.pilot.defaults.merge = mode }
         if let method = pilotDefaults.mergeMethod { config.pilot.defaults.mergeMethod = method }
         if let flag = pilotDefaults.updateBranches { config.pilot.defaults.updateBranches = flag }
-        if let fixer = pilotDefaults.conflicts { config.pilot.defaults.conflicts = fixer }
+        if let flag = pilotDefaults.copilotConflicts { config.pilot.defaults.copilotConflicts = flag }
+        if let flag = pilotDefaults.copilotComments { config.pilot.defaults.copilotComments = flag }
+        if let list = pilotDefaults.reviewers { config.pilot.defaults.reviewers = list }
         if let text = string(["pilot", "merge_schedule"]) {
             if text.lowercased() == "manual" {
                 config.pilot.defaults.mergeSchedule = nil
@@ -478,10 +473,13 @@ public enum ConfigLoader {
     merge_schedule = "1h"
     # Bring the queue's PRs that fell behind their base up to date on each run.
     update_branches = true
-    # Who resolves a watched PR's merge conflicts: agent (your session's agent, as get it green sends) or copilot (heed
-    # asks GitHub's Copilot coding agent on the PR, sparing your agent's tokens; only where Copilot can be assigned,
-    # else your agent). Per org and per repo too.
-    conflicts = "agent"
+    # Hand work on a watched PR to GitHub's Copilot coding agent instead of your session's agent, sparing its tokens:
+    # merge conflicts, review comments, or both (one comment on the PR asks for both). Only where Copilot can work in
+    # the repo; elsewhere, and with these off, your agent gets them. Per org and per repo too.
+    copilot_conflicts = false
+    copilot_comments = false
+    # Who heed asks to review a PR once it is open and not a draft, once per PR: logins, "org/team", or "copilot".
+    reviewers = []
 
     [issues]
     # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

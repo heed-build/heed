@@ -38,22 +38,36 @@ What holds a PR back goes to its agent as an item, the same way review comments 
 ("rebase on main, resolve the conflicts, run the tests and push"). For a failed GitHub Actions check heed saves the
 failed step's log and the prompt points the agent at the file, so it reads the error rather than just "lint failed".
 
-### Copilot resolves conflicts
+### Copilot does the work
 
-A merge conflict can go to GitHub's Copilot coding agent instead of your session's agent, so resolving it spends
-Copilot's budget rather than your agent's tokens. With `conflicts = "copilot"` (off by default; per org and per repo
-too), heed comments on a PR that conflicts, once per conflict:
+Merge conflicts and review comments can go to GitHub's Copilot coding agent instead of your session's agent, so the
+work spends Copilot's budget rather than your agent's tokens. Two options, off by default, per org and per repo too:
 
-> @copilot Merge in main and resolve the conflicts, then make sure the build and tests still pass.
+- `copilot_conflicts`: a PR that conflicts with its base.
+- `copilot_comments`: new review comments.
 
-Copilot works in its own environment and pushes to the PR's branch; the conflict item shows as sent, so your agent does
+With get it green on (`ask` or `auto`), heed asks on the PR, once per conflict and per comment. When both have
+something, one comment asks for both:
+
+> @copilot Please merge in main and resolve the conflicts, then address these review comments:
+>
+> 1. `RedirectFile.cs:88` (@reviewer): Anchor lookup is case sensitive.
+>
+> Make sure the build and tests still pass.
+
+Copilot works in its own environment and pushes to the PR's branch. What it was asked shows as sent, so your agent does
 not get it as well. Pull in your session's worktree before its agent pushes again. `C` asks Copilot for the PR you are
-on, whatever the setting.
+on, both kinds, whatever the options say.
 
 heed asks only where Copilot can work: it checks that the repo lists Copilot among those an issue can be assigned to,
 which is the case when the Copilot coding agent is on for the repo (any paid Copilot plan; on Business and Enterprise an
-admin enables it). Elsewhere the conflict goes to your agent as before. A branch that is merely behind is not
-Copilot's: the [merge queue](#get-it-merged) brings it up to date.
+admin enables it). Elsewhere the work goes to your agent as before. Failing checks stay with your agent, and a branch
+that is merely behind is the [merge queue](#get-it-merged)'s.
+
+### Reviewers
+
+`reviewers` names who heed asks to review a PR once it is open and not a draft: logins, teams (`org/team`), and
+`copilot` for Copilot code review. Each is asked once per PR, never the PR's author. `:pilot.reviewers` asks now.
 
 ## Three levels
 
@@ -99,7 +113,7 @@ what it did. `gM` again, or moving the cursor, goes back to the PR.
 | `w` | Watch or stop watching |
 | `m` | Cycle green: off, ask, auto |
 | `M` | Merge on or off |
-| `C` | Ask Copilot to resolve the PR's merge conflicts |
+| `C` | Ask Copilot to resolve the PR's merge conflicts and address its review comments |
 | `zz` | Pause or resume |
 | `v` | Select several, then `z` pauses or resumes them all |
 | `r` | Sync now |
@@ -138,7 +152,9 @@ pause = "1h"         # what zz pauses for
 merge = "off"        # off or auto
 merge_schedule = "1h" # how often a repo's queue runs, or manual
 update_branches = true
-conflicts = "agent"  # or copilot: GitHub's Copilot coding agent resolves merge conflicts
+copilot_conflicts = false  # Copilot resolves merge conflicts
+copilot_comments = false   # Copilot addresses review comments
+reviewers = []             # e.g. ["copilot", "alice", "elastic/docs-team"]
 # merge_method = "squash"  # unset: the first of squash, merge, rebase the repo allows
 
 [orgs.employer]

@@ -1,5 +1,19 @@
 import Foundation
 
+/// What get it merged does once a PR is green enough. `auto` makes sure GitHub's auto-merge is on (GitHub merges once
+/// its own requirements are met).
+public enum MergeMode: String, CaseIterable, Hashable, Sendable, Codable {
+    case off, auto
+
+    public var configName: String { rawValue }
+    public static func named(_ name: String) -> MergeMode? { MergeMode(rawValue: name.lowercased()) }
+
+    public var next: MergeMode {
+        let all = Self.allCases
+        return all[(all.firstIndex(of: self)! + 1) % all.count]
+    }
+}
+
 /// The pilot's settings for a PR: whether heed follows it, what get it green does with what it finds, and how long a
 /// pause lasts by default. From `[pilot]`, then `[orgs.<org>]`, then `[repos."org/name"]`; a hand-set choice on the PR
 /// itself wins over all of them (see `PullFeedback.effective`).
@@ -13,12 +27,27 @@ public struct PilotSettings: Hashable, Sendable {
     public var maxRounds: Int
     /// How long `zz` pauses a PR; nil pauses until resumed.
     public var pause: TimeInterval?
+    public var merge: MergeMode
+    /// `squash`, `merge` or `rebase`; nil takes the first the repo allows, in that order.
+    public var mergeMethod: String?
+    /// How often a repo's merge queue runs; nil only when asked (`:merge.run`).
+    public var mergeSchedule: TimeInterval?
+    /// After a merge, bring the queue's other PRs that fell behind up to date (`gh pr update-branch`).
+    public var updateBranches: Bool
 
-    public init(watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600) {
+    public init(
+        watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600,
+        merge: MergeMode = .off, mergeMethod: String? = nil, mergeSchedule: TimeInterval? = 3600,
+        updateBranches: Bool = true
+    ) {
         self.watch = watch
         self.green = green
         self.maxRounds = maxRounds
         self.pause = pause
+        self.merge = merge
+        self.mergeMethod = mergeMethod
+        self.mergeSchedule = mergeSchedule
+        self.updateBranches = updateBranches
     }
 }
 
@@ -27,14 +56,25 @@ public struct PilotOverrides: Hashable, Sendable {
     public var watch: Bool?
     public var green: AutoFeed?
     public var maxRounds: Int?
+    public var merge: MergeMode?
+    public var mergeMethod: String?
+    public var updateBranches: Bool?
 
-    public init(watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil) {
+    public init(
+        watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil, merge: MergeMode? = nil,
+        mergeMethod: String? = nil, updateBranches: Bool? = nil
+    ) {
         self.watch = watch
         self.green = green
         self.maxRounds = maxRounds
+        self.merge = merge
+        self.mergeMethod = mergeMethod
+        self.updateBranches = updateBranches
     }
 
-    public var isEmpty: Bool { watch == nil && green == nil && maxRounds == nil }
+    public var isEmpty: Bool {
+        watch == nil && green == nil && maxRounds == nil && merge == nil && mergeMethod == nil && updateBranches == nil
+    }
 }
 
 /// The levels, resolved per repo the way `IssueRules.visibility` is: the repo, then its org, then the defaults.
@@ -59,6 +99,9 @@ public struct PilotRules: Hashable, Sendable {
         settings.watch = repoLevel.watch ?? orgLevel.watch ?? defaults.watch
         settings.green = repoLevel.green ?? orgLevel.green ?? defaults.green
         settings.maxRounds = repoLevel.maxRounds ?? orgLevel.maxRounds ?? defaults.maxRounds
+        settings.merge = repoLevel.merge ?? orgLevel.merge ?? defaults.merge
+        settings.mergeMethod = repoLevel.mergeMethod ?? orgLevel.mergeMethod ?? defaults.mergeMethod
+        settings.updateBranches = repoLevel.updateBranches ?? orgLevel.updateBranches ?? defaults.updateBranches
         return settings
     }
 
@@ -122,6 +165,8 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
         /// Rounds exhausted without a new approval.
         case stuck
         case watch, green, pause
+        /// Get it merged: auto-merge turned on or off, a merge, a PR held back, a branch brought up to date.
+        case merge, autoMerge, merged, held, updated
     }
 
     public var id: String { "\(at.timeIntervalSince1970)-\(ref)-\(kind.rawValue)" }
@@ -185,35 +230,45 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
     }
 }
 
-/// Where a watched PR stands, as far as phase 1 can tell from the PR summary and its pipeline. The order is the
-/// Watch view's groups, most urgent first. (Phase 2 adds mergeability: `green` and `conflicted`.)
+/// Where a watched PR stands: from its detail and the green verdict when heed has fetched it, else from the sync's
+/// summary. The order is the Watch view's groups, most urgent first.
 public enum PilotStatus: Hashable, Sendable {
     /// Needs you: rounds exhausted, or there is feedback to send and no session to send it to.
     case stuck(String)
     /// Items were sent; waiting for the agent's push.
     case feeding
+    /// Conflicts with the base, or behind it when the repo requires up to date: what.
+    case conflicted(String)
     case failing(Int)
     /// Unresolved review threads, or changes requested.
     case changes(Int)
     case pending
+    case draft
+    /// Every rule of the green verdict holds.
+    case green
+    /// Checks pass by the sync's summary; not yet confirmed by the detail.
     case passing
     case paused(until: Date?)
+    case closed(merged: Bool)
     case unwatched
 
     public enum Group: String, CaseIterable, Sendable {
         case needsYou = "Needs you", failing = "Failing", changes = "Changes", feeding = "Feeding",
-             pending = "Pending", passing = "Passing", paused = "Paused", unwatched = "Not watched"
+             pending = "Pending", green = "Green", passing = "Passing", paused = "Paused", done = "Done",
+             unwatched = "Not watched"
     }
 
     public var group: Group {
         switch self {
         case .stuck: .needsYou
-        case .failing: .failing
+        case .failing, .conflicted: .failing
         case .changes: .changes
         case .feeding: .feeding
-        case .pending: .pending
+        case .pending, .draft: .pending
+        case .green: .green
         case .passing: .passing
         case .paused: .paused
+        case .closed: .done
         case .unwatched: .unwatched
         }
     }
@@ -223,10 +278,13 @@ public enum PilotStatus: Hashable, Sendable {
 
     /// `pull` is the PR's summary from the sync (nil until it arrives); `hasSession` says whether a session can be fed.
     public static func of(
-        pull: PullRequest?, pipeline: PullFeedback?, settings: PilotSettings, hasSession: Bool, now: Date = Date()
+        pull: PullRequest?, pipeline: PullFeedback?, settings: PilotSettings, hasSession: Bool,
+        detail: PullDetail? = nil, now: Date = Date()
     ) -> PilotStatus {
         let effective = PullFeedback.effective(pipeline, settings)
         guard effective.watching else { return .unwatched }
+        if pull?.state == .merged || detail?.state == "MERGED" { return .closed(merged: true) }
+        if pull?.state == .closed || detail?.state == "CLOSED" { return .closed(merged: false) }
         if let pipeline,
            pipeline.isPaused(now) { return .paused(until: pipeline.pausedForever ? nil : pipeline.pausedUntil) }
         let open = pipeline?.items.filter { $0.status == .new || $0.status == .queued } ?? []
@@ -235,6 +293,19 @@ public enum PilotStatus: Hashable, Sendable {
         }
         if !open.isEmpty, !hasSession, effective.green != .off { return .stuck("no session to send feedback to") }
         if pipeline?.items.contains(where: { $0.status == .sent }) == true { return .feeding }
+        if let detail {
+            guard let blocker = GreenVerdict.of(detail).blocker else { return .green }
+            switch (blocker.name, blocker.state) {
+            case ("Ready for review", _): return .draft
+            case ("No conflicts", .fail), ("Up to date", .fail): return .conflicted(blocker.detail)
+            case ("Checks pass", .fail):
+                let required = detail.requiredChecks ?? []
+                return .failing(max(detail.failingChecks.count { required.isEmpty || required.contains($0.name) }, 1))
+            case ("Threads resolved", _), ("No changes requested", _):
+                return .changes(max(detail.threads.count { !$0.isResolved }, 1))
+            default: return .pending
+            }
+        }
         if let pull {
             if pull.checks.failed > 0 { return .failing(pull.checks.failed) }
             let threads = max(pull.unresolvedThreads, open.count { if case .review = $0.kind { true } else { false } })
@@ -244,5 +315,82 @@ public enum PilotStatus: Hashable, Sendable {
             return .changes(open.count)
         }
         return pull == nil ? .pending : .passing
+    }
+}
+
+/// Whether a PR is green, rule by rule: what `pilot.why` lists and what decides the Green group. Green means GitHub
+/// has nothing left to object to on the code: no conflicts, up to date when required, the required checks (every
+/// check when none are required) passed, no unresolved threads, no changes requested.
+public struct GreenVerdict: Hashable, Sendable {
+    public struct Rule: Hashable, Sendable, Identifiable {
+        public enum State: Hashable, Sendable {
+            case pass, fail, wait
+        }
+
+        public var id: String { name }
+        public let name: String
+        public let state: State
+        /// What it found: `lint failed`, `behind main`, `2 threads open`.
+        public let detail: String
+    }
+
+    public let rules: [Rule]
+
+    public var isGreen: Bool { rules.allSatisfy { $0.state == .pass } }
+
+    /// The first rule holding the PR back, failures before waits.
+    public var blocker: Rule? { rules.first { $0.state == .fail } ?? rules.first { $0.state == .wait } }
+
+    public static func of(_ detail: PullDetail) -> GreenVerdict {
+        var rules: [Rule] = []
+        func rule(_ name: String, _ state: Rule.State, _ detail: String) {
+            rules.append(Rule(name: name, state: state, detail: detail))
+        }
+        let base = detail.baseBranch.isEmpty ? "the base branch" : detail.baseBranch
+        switch detail.state {
+        case "MERGED": rule("Open", .fail, "merged")
+        case "CLOSED": rule("Open", .fail, "closed without merging")
+        default: rule("Open", .pass, "open")
+        }
+        if detail.isDraft == true {
+            rule("Ready for review", .fail, "draft")
+        } else {
+            rule("Ready for review", .pass, "not a draft")
+        }
+        if detail.mergeable == "CONFLICTING" || detail.mergeState == "DIRTY" {
+            rule("No conflicts", .fail, "conflicts with \(base)")
+        } else if detail.mergeable == "MERGEABLE" {
+            rule("No conflicts", .pass, "merges cleanly")
+        } else {
+            rule("No conflicts", .wait, "GitHub is still working it out")
+        }
+        if detail.mergeState == "BEHIND" {
+            rule("Up to date", .fail, "behind \(base), which this repo requires to be current")
+        } else {
+            rule("Up to date", .pass, "current enough")
+        }
+        let required = detail.requiredChecks ?? []
+        let failing = detail.failingChecks.map(\.name).filter { required.isEmpty || required.contains($0) }
+        let pending = detail.checks.pendingNames.filter { required.isEmpty || required.contains($0) }
+        let which = required.isEmpty ? "checks" : "required checks"
+        if !failing.isEmpty {
+            rule("Checks pass", .fail, "\(failing.joined(separator: ", ")) failed")
+        } else if !pending.isEmpty {
+            rule("Checks pass", .wait, "\(pending.joined(separator: ", ")) still running")
+        } else {
+            rule("Checks pass", .pass, detail.checks.total == 0 ? "no checks" : "all \(which) passed")
+        }
+        let open = detail.threads.count { !$0.isResolved }
+        if open > 0 {
+            rule("Threads resolved", .fail, "\(open) thread\(open == 1 ? "" : "s") open")
+        } else {
+            rule("Threads resolved", .pass, "none open")
+        }
+        if detail.reviewDecision == "CHANGES_REQUESTED" {
+            rule("No changes requested", .fail, "a reviewer requested changes")
+        } else {
+            rule("No changes requested", .pass, "none outstanding")
+        }
+        return GreenVerdict(rules: rules)
     }
 }

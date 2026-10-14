@@ -362,8 +362,8 @@ struct StatusBar: View {
         case .normal where model.view == .history: "j k move · / filter · R reopen · O new from prompt · t outcome"
         case .normal where model.view == .inbox: "↩ read · space pick · v range · s start session · a add · x mark read · t unread/all · / filter"
         case .normal where model.view == .issues: "↩ read · space pick · s start session · t filter · ⇥ repo · w all/yours · / filter"
-        case .normal where model.view == .prs: "↩ open · w watch · m green · zz pause · v select · gS session · r sync · / filter"
-        case .normal where model.view == .watch: "↩ open · w watch · m green · zz pause · v select · { } group · r sync · / filter"
+        case .normal where model.view == .prs: "↩ open · w watch · m green · M merge · zz pause · v select · gS session · r sync"
+        case .normal where model.view == .watch: "↩ open · w watch · m green · M merge · zz pause · v select · R merge now · gM queue"
         case .normal: "i insert · o start work · m pin · { } group · Iw import · : command · ? keys"
         case .insert: "⇧⎋ or \(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
         case .visual where model.view == .watch || model.view == .prs:

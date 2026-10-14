@@ -68,6 +68,15 @@ green = "ask"
 max_rounds = 3
 # How long zz pauses a PR: 30m, 1h, 4h, 1d, or forever.
 pause = "1h"
+# Get it merged: off, or auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
+# requirements are met). Per org and per repo too, and M flips one PR.
+merge = "off"
+# squash, merge or rebase; unset takes the first the repo allows, in that order.
+# merge_method = "squash"
+# How often a repo's merge queue runs (15m, 1h, ...), or manual (only :merge.run).
+merge_schedule = "1h"
+# Bring the queue's PRs that fell behind their base up to date on each run.
+update_branches = true
 
 [issues]
 # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

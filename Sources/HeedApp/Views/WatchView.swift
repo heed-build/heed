@@ -21,11 +21,13 @@ struct PilotMark: View {
         switch status {
         case .stuck: "⚠"
         case .failing: "✕"
+        case .conflicted: "⇄"
         case .changes: "●"
         case .feeding: "⟳"
-        case .pending: "◌"
-        case .passing: "✓"
+        case .pending, .draft: "◌"
+        case .green, .passing: "✓"
         case .paused: "⏸"
+        case let .closed(merged): merged ? "✓" : "✕"
         case .unwatched: "○"
         }
     }
@@ -36,8 +38,12 @@ struct PilotMark: View {
         case let .failing(count): "\(count) failing"
         case let .changes(count): "\(count) thread\(count == 1 ? "" : "s")"
         case .feeding: "feeding"
+        case let .conflicted(what): what.hasPrefix("behind") ? "behind" : "conflict"
         case .pending: "running"
+        case .draft: "draft"
+        case .green: "green"
         case .passing: "passing"
+        case let .closed(merged): merged ? "merged" : "closed"
         case let .paused(until): until.map { PilotDuration.text($0.timeIntervalSince(Clock.now)) } ?? "paused"
         case .unwatched: "not watched"
         }
@@ -46,11 +52,12 @@ struct PilotMark: View {
     private var color: Color {
         switch status {
         case .stuck: Theme.block
-        case .failing: Theme.err
+        case .failing, .conflicted: Theme.err
         case .changes: Theme.block
         case .feeding, .pending: Theme.busy
-        case .passing: Theme.done
-        case .paused, .unwatched: Theme.fg3
+        case .green: Theme.done
+        case .passing: Theme.fg2
+        case .draft, .paused, .closed, .unwatched: Theme.fg3
         }
     }
 }
@@ -105,7 +112,9 @@ struct WatchView: View {
                 }
                 .frame(width: geometry.size.width >= 1100 ? 440 : geometry.size.width * 0.45)
                 .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
-                if rows.indices.contains(cursor) {
+                if let repo = model.mergeQueueShown {
+                    MergeQueueView(repo: repo).shotRegion(.pilotDetail)
+                } else if rows.indices.contains(cursor) {
                     PilotDetail(row: rows[cursor]).shotRegion(.pilotDetail)
                 } else {
                     Spacer()
@@ -151,6 +160,9 @@ private struct PilotRowView: View {
                     if row.effective.watching {
                         Text("· green \(row.effective.green.configName)").foregroundStyle(Theme.fg3)
                     }
+                    if row.effective.merge != .off {
+                        Text("· merge \(row.effective.merge.configName)").foregroundStyle(Theme.fg3)
+                    }
                 }
                 .font(Theme.mono(11))
             }
@@ -186,8 +198,29 @@ private struct PilotDetail: View {
                     keyHint("↩", "open")
                     keyHint("w", row.effective.watching ? "stop watching" : "watch")
                     keyHint("m", "green")
+                    keyHint("M", row.effective.merge == .off ? "merge" : "stop merging")
                     keyHint("zz", pipeline?.isPaused(Clock.now) == true ? "resume" : "pause")
                 }
+                // The verdict, rule by rule: what holds the PR back from green, or that nothing does.
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionHeader(title: "Green")
+                    if let detail = model.pullDetails[row.ref.description] {
+                        ForEach(GreenVerdict.of(detail).rules) { rule in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(rule.state == .pass ? "✓" : rule.state == .fail ? "✕" : "◌")
+                                    .foregroundStyle(rule.state == .pass ? Theme.done
+                                        : rule.state == .fail ? Theme.err : Theme.busy)
+                                    .frame(width: 14)
+                                Text(rule.name).font(Theme.ui(12.5)).frame(width: 150, alignment: .leading)
+                                Text(rule.detail).font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                            }
+                        }
+                    } else {
+                        Text("Not fetched yet: heed fetches a watched PR's detail when it moves.")
+                            .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    }
+                }
+                MergeSection(ref: row.ref, mode: row.effective.merge)
                 if let pipeline, !pipeline.items.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
                         SectionHeader(title: "Items")
@@ -244,6 +277,14 @@ private struct PilotActivity: View {
             .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
             ListScroll {
                 VStack(alignment: .leading, spacing: 8) {
+                    let queues = model.mergeQueues
+                    if !queues.isEmpty {
+                        SectionHeader(title: "Merge queues")
+                        ForEach(queues.keys.sorted(), id: \.self) { repo in
+                            MergeQueueLine(repo: repo, count: queues[repo]?.count ?? 0)
+                        }
+                        Theme.line.frame(height: 1).padding(.vertical, 6)
+                    }
                     if model.pilotLog.isEmpty {
                         Text("The pilot has not done anything yet.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
@@ -284,7 +325,193 @@ private struct PilotEventRow: View {
         case .sent, .queued: Theme.busy
         case .addressed, .resolved: Theme.done
         case .stuck: Theme.err
-        case .watch, .green, .pause: Theme.fg3
+        case .watch, .green, .pause, .merge: Theme.fg3
+        case .autoMerge, .updated: Theme.busy
+        case .merged: Theme.done
+        case .held: Theme.block
         }
+    }
+}
+
+/// A PR's get it merged: its mode, GitHub's auto-merge, what the next run would do, and what the last one did.
+private struct MergeSection: View {
+    @Environment(AppModel.self) private var model
+    let ref: PullRef
+    let mode: MergeMode
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SectionHeader(title: "Merge")
+            if mode == .off {
+                Text("Off: M turns get it merged on (GitHub's auto-merge, run by the repo's merge queue).")
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            } else {
+                let detail = model.pullDetails[ref.description]
+                line("Mode", "auto: GitHub merges once its requirements are met")
+                if let detail {
+                    line(
+                        "Auto-merge",
+                        detail.autoMergeEnabled == true
+                            ? "on" + (detail.autoMergeMethod.map { " (\($0))" } ?? "") : "off"
+                    )
+                }
+                if let action = model.mergePlan(ref) { line("Next run", MergeQueueView.describe(action)) }
+                if let next = model.nextMergeRun(ref.repo.slug) {
+                    line("Queue", "\(ref.repo.slug) runs " + MergeQueueView.when(next) + " · gM shows it")
+                } else {
+                    line("Queue", "\(ref.repo.slug) runs only when asked (R, :merge.run)")
+                }
+                if let last = model.mergeRuns[ref.repo.slug]?.first,
+                   let entry = last.lines.first(where: { $0.ref == ref })
+                {
+                    line("Last run", "\(entry.action): \(entry.detail)")
+                }
+            }
+        }
+    }
+
+    private func line(_ name: String, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(name).font(Theme.ui(12.5)).frame(width: 172, alignment: .leading)
+            Text(text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// One repo's queue in the activity column: its PRs and when it runs.
+private struct MergeQueueLine: View {
+    @Environment(AppModel.self) private var model
+    let repo: String
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(repo).font(Theme.mono(11.5)).lineLimit(1)
+            Spacer(minLength: 4)
+            Text(summary).font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+        }
+    }
+
+    private var summary: String {
+        let prs = "\(count) PR\(count == 1 ? "" : "s")"
+        if model.mergeRunning.contains(repo) { return "\(prs) · running" }
+        return prs + " · " + (model.nextMergeRun(repo).map(MergeQueueView.when) ?? "manual")
+    }
+}
+
+/// `gM`: a repo's merge queue: its PRs with what the next run does to each, and the runs so far.
+struct MergeQueueView: View {
+    @Environment(AppModel.self) private var model
+    let repo: String
+
+    var body: some View {
+        let refs = (model.mergeQueues[repo] ?? []).sorted { $0.number < $1.number }
+        let runs = model.mergeRuns[repo] ?? []
+        ListScroll {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Merge queue").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    Text(repo).font(Theme.ui(16, weight: .semibold))
+                    Text(header).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                }
+                HStack(spacing: 14) {
+                    hint("R", "run now")
+                    hint("gM", "back to the PR")
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    SectionHeader(title: "PRs · \(refs.count)")
+                    if refs.isEmpty {
+                        Text("No PRs here with merge on: M on a PR adds it.").font(Theme.ui(12))
+                            .foregroundStyle(Theme.fg3)
+                    }
+                    ForEach(refs, id: \.self) { ref in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(verbatim: "#\(ref.number)").font(Theme.mono(12)).foregroundStyle(Theme.fg2)
+                                .frame(width: 56, alignment: .leading)
+                            PilotMark(status: model.pilotStatus(for: ref)).frame(width: 110, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(model.github.pull(ref)?.title ?? "#\(ref.number)").font(Theme.ui(12.5))
+                                    .lineLimit(1)
+                                Text(model.mergePlan(ref).map(Self.describe) ?? "not fetched yet")
+                                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(2)
+                            }
+                        }
+                    }
+                }
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionHeader(title: "Runs")
+                    if runs.isEmpty {
+                        Text("Not run yet.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    }
+                    ForEach(runs.prefix(20)) { run in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 8) {
+                                Text(run.at, format: .dateTime.month().day().hour().minute())
+                                    .font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                                Text(run.why).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                            }
+                            if run.lines.isEmpty {
+                                Text("nothing to do").font(Theme.ui(12)).foregroundStyle(Theme.fg3).padding(
+                                    .leading,
+                                    14
+                                )
+                            }
+                            ForEach(Array(run.lines.enumerated()), id: \.offset) { _, line in
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Circle().fill(color(line)).frame(width: 6, height: 6)
+                                    Text(verbatim: "#\(line.ref.number)").font(Theme.mono(11.5))
+                                        .foregroundStyle(Theme.fg2)
+                                    Text("\(line.action): \(line.detail)").font(Theme.ui(12.5))
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .padding(.leading, 14)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var header: String {
+        if model.mergeRunning.contains(repo) { return "running now" }
+        let next = model.nextMergeRun(repo).map { "next run " + Self.when($0) } ?? "runs only when asked"
+        let last = model.mergeRuns[repo]?.first.map { " · last run \(Self.when($0.at))" } ?? ""
+        return next + last
+    }
+
+    private func color(_ line: MergeRun.Line) -> Color {
+        if !line.ok { return Theme.err }
+        return switch line.action {
+        case "held": Theme.block
+        case "waiting": Theme.fg3
+        default: Theme.busy
+        }
+    }
+
+    private func hint(_ key: String, _ label: String) -> some View {
+        HStack(spacing: 5) {
+            KeyCap(text: key)
+            Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+        }
+    }
+
+    static func describe(_ action: MergeQueue.Action) -> String {
+        switch action {
+        case let .enableAutoMerge(method): "turn auto-merge on (\(method))"
+        case let .disableAutoMerge(reason): "turn auto-merge off: \(reason)"
+        case .updateBranch: "bring the branch up to date"
+        case let .waiting(text): text
+        case let .hold(reason): "hold: \(reason)"
+        }
+    }
+
+    /// `in 42m`, `3m ago`, `now`.
+    static func when(_ date: Date) -> String {
+        let seconds = date.timeIntervalSince(Clock.now)
+        if abs(seconds) < 60 { return "now" }
+        return seconds > 0 ? "in \(PilotDuration.text(seconds))" : "\(PilotDuration.text(-seconds)) ago"
     }
 }

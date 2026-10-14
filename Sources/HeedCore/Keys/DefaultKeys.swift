@@ -13,7 +13,7 @@ public enum DefaultKeys {
         ("x", "session.close"), ("m", "session.pin"), ("''", "session.back"),
         ("'1", "pin.jump 1"), ("'2", "pin.jump 2"), ("'3", "pin.jump 3"), ("'4", "pin.jump 4"), ("'5", "pin.jump 5"),
         ("'6", "pin.jump 6"), ("'7", "pin.jump 7"), ("'8", "pin.jump 8"), ("'9", "pin.jump 9"),
-        ("gh", "view.history"), ("gr", "view.repos"), ("gw", "view.watch"),
+        ("gh", "view.history"), ("gr", "view.repos"), ("gw", "view.watch"), ("gM", "merge.queue"),
         ("<C-w>v", "pane.split.right"), ("<C-w>s", "pane.split.below"), ("<C-w>z", "pane.zoom"),
         ("<C-w>q", "pane.close"), ("<C-w>h", "pane.left"), ("<C-w>l", "pane.right"), ("<C-w>j", "pane.down"),
         ("<C-w>k", "pane.up"),
@@ -68,11 +68,11 @@ public enum DefaultKeys {
         ],
         "prs": [
             ("r", "github.sync"), ("<Space>", "select.toggle"), ("w", "pilot.watch"), ("m", "pilot.green"),
-            ("zz", "pilot.pause"),
+            ("M", "pilot.merge"), ("zz", "pilot.pause"),
         ],
         "watch": [
             ("r", "github.sync"), ("<Space>", "select.toggle"), ("w", "pilot.watch"), ("m", "pilot.green"),
-            ("zz", "pilot.pause"),
+            ("M", "pilot.merge"), ("zz", "pilot.pause"), ("R", "merge.run"),
         ],
         /// The diff overlay.
         "diff": [
@@ -85,7 +85,7 @@ public enum DefaultKeys {
         /// The PR overlay and the reader.
         "pr": [
             ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("m", "pilot.green"), ("w", "pilot.watch"),
-            ("zz", "pilot.pause"),
+            ("M", "pilot.merge"), ("zz", "pilot.pause"),
             ("x", "feedback.dismiss"), ("S", "feedback.session"), ("<Esc>", "overlay.close"), ("r", "github.sync"),
         ],
     ]

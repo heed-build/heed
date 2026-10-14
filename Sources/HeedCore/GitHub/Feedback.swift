@@ -19,6 +19,26 @@ public struct PullDetail: Hashable, Sendable, Codable {
     public var checks: CheckSummary
     public var closes: [PullRef]
     public var fetchedAt: Date
+    /// What the green verdict reads. Optional: details cached before them decode without them, and count as unknown.
+    /// `OPEN`, `MERGED`, `CLOSED`.
+    public var state: String?
+    public var isDraft: Bool?
+    /// `MERGEABLE`, `CONFLICTING`, or `UNKNOWN` while GitHub works it out.
+    public var mergeable: String?
+    /// GitHub's `mergeStateStatus`: `CLEAN`, `BEHIND` (out of date, and the repo requires up to date), `DIRTY`
+    /// (conflicts), `BLOCKED`, `UNSTABLE`, `HAS_HOOKS`, `DRAFT`, `UNKNOWN`.
+    public var mergeState: String?
+    /// `APPROVED`, `CHANGES_REQUESTED`, `REVIEW_REQUIRED`, or nil.
+    public var reviewDecision: String?
+    /// The checks branch protection requires on this PR; empty when it requires none.
+    public var requiredChecks: [String]?
+    /// GitHub auto-merge is on for this PR, and with which method.
+    public var autoMergeEnabled: Bool?
+    public var autoMergeMethod: String?
+    public var labels: [String]?
+    /// What the repo allows: auto-merge, and the merge methods (`squash`, `merge`, `rebase`).
+    public var repoAllowsAutoMerge: Bool?
+    public var repoMergeMethods: [String]?
 
     public struct Review: Hashable, Sendable, Codable {
         public var author: String
@@ -106,6 +126,8 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     public enum Kind: Hashable, Sendable, Codable {
         case review(location: String, author: String)
         case check(name: String)
+        /// The PR conflicts with its base (or is behind it, when the repo requires up to date).
+        case conflict(base: String, behind: Bool)
     }
 
     /// The pipeline: New → Queued → Sent → Addressed (the agent pushed) → Resolved (thread resolved, check passing).
@@ -122,6 +144,8 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     public var resolvedAt: Date?
     /// The head commit when it was sent, so a later push marks it addressed.
     public var sentAtSHA: String?
+    /// For a failed check: the failed step's log, saved where the agent can read it.
+    public var logPath: String?
 
     public init(id: String, kind: Kind, text: String, status: Status = .new) {
         self.id = id
@@ -137,7 +161,12 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
         let short = first.count > 160 ? String(first.prefix(159)) + "…" : first
         switch kind {
         case let .review(location, author): return "\(location) (@\(author)): \(short)"
-        case let .check(name): return "check \(name) failed: \(short)"
+        case let .check(name):
+            return "check \(name) failed: \(short)" + (logPath.map { " (the failed log is in \($0))" } ?? "")
+        case let .conflict(base, behind):
+            return behind
+                ? "the branch is behind \(base), which the repo requires to be current: rebase on \(base) and push"
+                : "the branch conflicts with \(base): rebase on \(base), resolve the conflicts, run the tests and push"
         }
     }
 }
@@ -180,6 +209,9 @@ public struct PullFeedback: Hashable, Sendable, Codable {
     /// Paused (silenced) until then: still watched, nothing sent or merged. `pausedForever` until resumed.
     public var pausedUntil: Date?
     public var pausedForever: Bool
+    /// Get it merged, as set by hand (`M`) when `mergeSet`, else from the settings.
+    public var merge: MergeMode
+    public var mergeSet: Bool
 
     public static let defaultMaxRounds = 3
 
@@ -195,11 +227,13 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         maxRounds = Self.defaultMaxRounds
         pausedUntil = nil
         pausedForever = false
+        merge = .off
+        mergeSet = false
     }
 
     private enum CodingKeys: String, CodingKey {
         case ref, items, autoFeed, watching, rounds, approvalsSeen, watchSet, greenSet, maxRounds, pausedUntil,
-             pausedForever
+             pausedForever, merge, mergeSet
     }
 
     /// Caches written before the pilot settings still load: the newer fields default.
@@ -216,6 +250,8 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         maxRounds = try container.decodeIfPresent(Int.self, forKey: .maxRounds) ?? Self.defaultMaxRounds
         pausedUntil = try container.decodeIfPresent(Date.self, forKey: .pausedUntil)
         pausedForever = try container.decodeIfPresent(Bool.self, forKey: .pausedForever) ?? false
+        merge = try container.decodeIfPresent(MergeMode.self, forKey: .merge) ?? .off
+        mergeSet = try container.decodeIfPresent(Bool.self, forKey: .mergeSet) ?? false
     }
 
     /// What applies to this PR: a hand-set choice, else the settings.
@@ -223,19 +259,27 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         public let watching: Bool
         public let green: AutoFeed
         public let maxRounds: Int
+        public let merge: MergeMode
+
+        public init(watching: Bool, green: AutoFeed, maxRounds: Int, merge: MergeMode = .off) {
+            self.watching = watching
+            self.green = green
+            self.maxRounds = maxRounds
+            self.merge = merge
+        }
     }
 
     public func effective(_ settings: PilotSettings) -> Effective {
         Effective(
             watching: watchSet ? watching : settings.watch, green: greenSet ? autoFeed : settings.green,
-            maxRounds: settings.maxRounds
+            maxRounds: settings.maxRounds, merge: mergeSet ? merge : settings.merge
         )
     }
 
     /// For a PR heed has no pipeline for yet: the settings alone.
     public static func effective(_ pipeline: PullFeedback?, _ settings: PilotSettings) -> Effective {
         pipeline?.effective(settings) ?? Effective(
-            watching: settings.watch, green: settings.green, maxRounds: settings.maxRounds
+            watching: settings.watch, green: settings.green, maxRounds: settings.maxRounds, merge: settings.merge
         )
     }
 
@@ -248,6 +292,7 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         watching = effective.watching
         autoFeed = effective.green
         maxRounds = effective.maxRounds
+        merge = effective.merge
         return self != before
     }
 
@@ -278,6 +323,9 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             let gone: Bool = switch item.kind {
             case .review: threads[item.id]?.isResolved ?? true
             case let .check(name): !failing.contains(name) && !detail.checks.pendingNames.contains(name)
+            // Gone once GitHub says it merges cleanly and is current; unknown keeps it.
+            case .conflict: detail.mergeable == "MERGEABLE" && detail.mergeState != "BEHIND"
+                && detail.mergeState != "DIRTY"
             }
             if gone, item.status != .resolved {
                 item.status = .resolved
@@ -292,6 +340,16 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             items.append(FeedbackItem(
                 id: thread.id, kind: .review(location: thread.location, author: thread.author), text: thread.body,
                 status: initial
+            ))
+        }
+        let base = detail.baseBranch.isEmpty ? "the base branch" : detail.baseBranch
+        let conflicted = detail.mergeable == "CONFLICTING" || detail.mergeState == "DIRTY"
+        let behind = !conflicted && detail.mergeState == "BEHIND"
+        if conflicted || behind, !items.contains(where: { $0.id == "conflict" && $0.status != .resolved }) {
+            items.removeAll { $0.id == "conflict" }
+            items.append(FeedbackItem(
+                id: "conflict", kind: .conflict(base: base, behind: behind),
+                text: conflicted ? "Merge conflict with \(base)." : "Behind \(base).", status: initial
             ))
         }
         for check in detail.failingChecks

@@ -129,8 +129,12 @@ This page is generated from the code (`mise run shots`).
 | `feedback.send` | `s` (pr) | send queued feedback to the session |
 | `feedback.mode` |  | pilot.green, by its former name |
 | `feedback.watch` |  | pilot.watch, by its former name |
+| `pilot.why` |  | what holds the PR back from green, rule by rule (in the Watch view) |
 | `pilot.watch` | `w` (pr), `w` (prs), `w` (watch) | watch or stop watching the PR (or the picked PRs) |
 | `pilot.green` | `m` (pr), `m` (prs), `m` (watch) | cycle get it green for the PR: off, ask, auto |
+| `pilot.merge` | `M` (pr), `M` (prs), `M` (watch) | get it merged for the PR (or the picked PRs): off or auto |
+| `merge.run` `[repo|all]` | `R` (watch) | run a repo's merge queue now (no name: the PR's repo; all: every queue) |
+| `merge.queue` `[repo]` | `gM` | show a repo's merge queue and its runs (no name: the PR's repo) |
 | `pilot.pause` `[duration]` | `z` (VISUAL), `zz` (pr), `zz` (prs), `zz` (watch) | pause the PR (or the picked PRs), or resume: 30m, 1h, 4h, 1d, forever, off |
 | `feedback.dismiss` | `x` (pr) | dismiss the item |
 | `feedback.session` | `S` (pr) | start a new session from this PR |

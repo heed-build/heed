@@ -188,14 +188,63 @@ public enum GitHub {
         return detail
     }
 
+    /// The Actions job behind a check's details URL (`…/actions/runs/123/job/456` → `456`); nil for other checks.
+    public static func jobID(fromDetailsURL url: String?) -> String? {
+        guard let url, let range = url.range(of: #"/actions/runs/\d+/job/(\d+)"#, options: .regularExpression)
+        else { return nil }
+        return url[range].split(separator: "/").last.map(String.init)
+    }
+
+    /// The last `lines` of an Actions job's failed steps (`gh run view --job <id> --log-failed`).
+    public static func failedLog(repo: Repo, job: String, lines: Int = 80) async throws -> String {
+        let result = try await ProcessRunner.run(
+            "gh", ["run", "view", "--job", job, "--log-failed", "-R", repo.slug], timeout: .seconds(60)
+        )
+        guard result.succeeded else { throw Failure(description: Self.explain(result)) }
+        return result.stdout.split(separator: "\n", omittingEmptySubsequences: false).suffix(lines)
+            .map { cleanLogLine(String($0)) }.joined(separator: "\n")
+    }
+
+    /// `gh pr merge --auto --<method>`: auto-merge on, or a merge right away when GitHub has nothing left to wait for.
+    public static func enableAutoMerge(_ ref: PullRef, method: String) async throws {
+        try await pr(["merge", "\(ref.number)", "--auto", "--\(method)", "-R", ref.repo.slug])
+    }
+
+    public static func disableAutoMerge(_ ref: PullRef) async throws {
+        try await pr(["merge", "\(ref.number)", "--disable-auto", "-R", ref.repo.slug])
+    }
+
+    /// `gh pr update-branch`: merges the base into a PR that fell behind.
+    public static func updateBranch(_ ref: PullRef) async throws {
+        try await pr(["update-branch", "\(ref.number)", "-R", ref.repo.slug])
+    }
+
+    private static func pr(_ arguments: [String]) async throws {
+        let result = try await ProcessRunner.run("gh", ["pr"] + arguments, timeout: .seconds(60))
+        guard result.succeeded else { throw Failure(description: Self.explain(result)) }
+    }
+
+    /// `build<TAB>Run tests<TAB>2026-10-13T18:44:48.5Z text` → `Run tests: text`.
+    static func cleanLogLine(_ line: String) -> String {
+        let fields = line.split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
+        guard fields.count == 3 else { return line }
+        let text = fields[2].split(separator: " ", maxSplits: 1).last.map(String.init) ?? ""
+        return "\(fields[1]): \(text)"
+    }
+
     // MARK: Queries
 
     static let pullDetailQuery = """
-    query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) {
+    query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) {
+      autoMergeAllowed squashMergeAllowed mergeCommitAllowed rebaseMergeAllowed
+      pullRequest(number: $number) {
       number title body author { login } baseRefName headRefName additions deletions
+      state isDraft mergeable mergeStateStatus reviewDecision
+      autoMergeRequest { enabledAt mergeMethod } labels(first: 20) { nodes { name } }
       commits(last: 1) { totalCount nodes { commit { oid statusCheckRollup { contexts(first: 100) { nodes {
-        __typename ... on CheckRun { name status conclusion startedAt title summary detailsUrl }
-        ... on StatusContext { context state description targetUrl }
+        __typename ... on CheckRun { name status conclusion startedAt title summary detailsUrl
+          isRequired(pullRequestNumber: $number) }
+        ... on StatusContext { context state description targetUrl isRequired(pullRequestNumber: $number) }
       } } } } } }
       reviews(last: 30) { nodes { author { login } state } }
       closingIssuesReferences(first: 10) { nodes { number repository { nameWithOwner } } }
@@ -374,8 +423,8 @@ public enum GitHub {
 
     static func parsePullDetail(_ data: Data, ref: PullRef, now: Date) -> PullDetail? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let node = ((json["data"] as? [String: Any])?["repository"] as? [String: Any])?["pullRequest"]
-              as? [String: Any]
+              let repository = (json["data"] as? [String: Any])?["repository"] as? [String: Any],
+              let node = repository["pullRequest"] as? [String: Any]
         else { return nil }
         let commits = node["commits"] as? [String: Any]
         let commit = ((commits?["nodes"] as? [[String: Any]])?.first?["commit"] as? [String: Any])
@@ -429,7 +478,7 @@ public enum GitHub {
                 else { return nil }
                 return PullRef(repo: repo, number: number)
             }
-        return PullDetail(
+        var detail = PullDetail(
             ref: ref, title: node["title"] as? String ?? "", body: node["body"] as? String ?? "",
             author: (node["author"] as? [String: Any])?["login"] as? String,
             baseBranch: node["baseRefName"] as? String ?? "", headBranch: node["headRefName"] as? String ?? "",
@@ -438,6 +487,24 @@ public enum GitHub {
             reviews: reviews, threads: threads, failingChecks: failing, checks: checkSummary(contexts), closes: closes,
             fetchedAt: now
         )
+        detail.state = node["state"] as? String
+        detail.isDraft = node["isDraft"] as? Bool
+        detail.mergeable = node["mergeable"] as? String
+        detail.mergeState = node["mergeStateStatus"] as? String
+        detail.reviewDecision = node["reviewDecision"] as? String
+        detail.requiredChecks = contexts.filter { $0["isRequired"] as? Bool == true }
+            .compactMap { ($0["name"] ?? $0["context"]) as? String }
+        let autoMerge = node["autoMergeRequest"] as? [String: Any]
+        detail.autoMergeEnabled = autoMerge != nil
+        detail.autoMergeMethod = (autoMerge?["mergeMethod"] as? String)?.lowercased()
+        detail.labels = ((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]])?
+            .compactMap { $0["name"] as? String }
+        detail.repoAllowsAutoMerge = repository["autoMergeAllowed"] as? Bool
+        let methods: [(String, String)] = [
+            ("squash", "squashMergeAllowed"), ("merge", "mergeCommitAllowed"), ("rebase", "rebaseMergeAllowed"),
+        ]
+        detail.repoMergeMethods = methods.filter { repository[$0.1] as? Bool == true }.map(\.0)
+        return detail
     }
 
     static func parseIssueSearch(_ data: Data) -> ([Issue], Int) {

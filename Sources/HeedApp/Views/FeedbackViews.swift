@@ -127,9 +127,15 @@ struct FeedbackPanel: View {
             Text("round \(min(pipeline.rounds + 1, effective.maxRounds)) of \(effective.maxRounds)")
                 .foregroundStyle(pipeline.rounds >= effective.maxRounds ? Theme.block : Theme.fg2)
                 .fixedSize()
+            Text(effective.merge == .off ? "merge off" : "merge \(effective.merge.configName)"
+                + (model.pullDetails[ref.description]?.autoMergeEnabled == true ? " · auto-merge on" : ""))
+                .foregroundStyle(effective.merge == .off ? Theme.fg3 : Theme.fg2)
+                .fixedSize()
             HStack(spacing: 6) {
                 KeyCap(text: "m")
                 Text("green").foregroundStyle(Theme.fg3)
+                KeyCap(text: "M")
+                Text("merge").foregroundStyle(Theme.fg3)
                 KeyCap(text: "w")
                 Text(effective.watching ? "stop watching" : "watch").foregroundStyle(Theme.fg3)
                 KeyCap(text: "zz")
@@ -216,9 +222,16 @@ private struct FeedbackRow: View {
                     Text("@\(author) · \(location)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
                 case let .check(name):
                     Text("check · \(name) failed").font(Theme.mono(11.5)).foregroundStyle(Theme.err)
+                case let .conflict(base, behind):
+                    Text(behind ? "behind · \(base)" : "conflict · \(base)").font(Theme.mono(11.5))
+                        .foregroundStyle(Theme.err)
                 }
                 Text(item.text).font(Theme.ui(13)).foregroundStyle(item.status == .resolved ? Theme.fg3 : Theme.fg)
                     .lineLimit(3)
+                if let log = item.logPath {
+                    Text("failed log: \(Paths.abbreviate(log))").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                        .lineLimit(1).truncationMode(.head)
+                }
                 if let sent = item.sentAt {
                     Text(
                         "sent \(sent.formatted(date: .omitted, time: .shortened))\(item.resolvedAt.map { " → resolved \($0.formatted(date: .omitted, time: .shortened))" } ?? "")"

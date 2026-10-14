@@ -66,6 +66,7 @@ final class AppModel {
     private(set) var feedback: [String: PullFeedback] = [:]
     /// What the pilot noticed and did, newest first.
     private(set) var pilotLog: [PilotEvent] = []
+    private(set) var mergeRuns: [String: [MergeRun]] = [:]
     private(set) var list = SessionList([])
     private(set) var settings: WorkSettings
     private(set) var config = HeedConfig.default
@@ -682,6 +683,7 @@ final class AppModel {
         pullDetails = domain.pullDetails
         feedback = domain.feedback
         pilotLog = domain.pilotLog
+        mergeRuns = domain.mergeRuns
         cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
 
@@ -696,6 +698,7 @@ final class AppModel {
         if after.pullDetails != before.pullDetails { pullDetails = after.pullDetails }
         if after.feedback != before.feedback { feedback = after.feedback }
         if after.pilotLog != before.pilotLog { pilotLog = after.pilotLog }
+        if after.mergeRuns != before.mergeRuns { mergeRuns = after.mergeRuns }
         if after.sessions != before.sessions { sessions = after.sessions }
         if after.layouts != before.layouts { layouts = after.layouts }
         if after.repos != before.repos { repos = after.repos }
@@ -708,7 +711,8 @@ final class AppModel {
     var currentDomain: Domain {
         Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
-            pullDetails: pullDetails, feedback: feedback, pilotLog: pilotLog
+            pullDetails: pullDetails, feedback: feedback, pilotLog: pilotLog,
+            mergeRuns: mergeRuns
         )
     }
 
@@ -1196,6 +1200,9 @@ final class AppModel {
         case "pilot.watch", "feedback.watch": togglePilotWatch()
         case "pilot.pause": pausePilot(command.arguments.first)
         case "pilot.why": showPilotWhy()
+        case "pilot.merge": togglePilotMerge()
+        case "merge.run": runMergeCommand(command.arguments.first)
+        case "merge.queue": showMergeQueue(command.arguments.first)
         case "feedback.dismiss": dismissItem()
         case "feedback.session": startFromPull()
         case "pr.session": jumpToPullSession()
@@ -1298,6 +1305,7 @@ final class AppModel {
     }
 
     private func setRow(_ index: Int) {
+        if view == .watch { mergeQueueShown = nil }
         if [.inbox, .issues, .prs, .watch].contains(view) {
             let count = itemIDs(view).count
             guard count > 0 else { return }
@@ -2493,6 +2501,7 @@ final class AppModel {
         guard !isFixture else { return }
         Task {
             guard let detail = try? await GitHub.pullDetail(ref) else { return }
+            let wasOpen = pullDetails[ref.description].map { $0.state != "MERGED" } ?? false
             let before = feedback[ref.description]?.items.filter { $0.status != .resolved }.map(\.id) ?? []
             // The pipeline carries what the settings say before the fetch merges in, so new items arrive as the
             // PR's green mode wants (queued when auto).
@@ -2505,8 +2514,15 @@ final class AppModel {
                 .filter { before.contains($0.id) && $0.status == .resolved } ?? []
             let checks = fixed.compactMap { if case let .check(name) = $0.kind { name } else { nil } }
             if !checks.isEmpty { flash = "\(checks.joined(separator: ", ")) passing now on #\(ref.number)" }
+            // A merge is what leaves the queue's other PRs behind.
+            if wasOpen, detail.state == "MERGED", pilot(for: ref).merge != .off,
+               pilotSettings(for: ref).updateBranches
+            {
+                runMergeQueue(ref.repo.slug, why: "#\(ref.number) merged")
+            }
             fetchFailedLogs(ref, detail)
             if feedback[ref.description]?.autoFeed == .auto { deliver(ref, explicit: false) }
+            mergeIfTurnedGreen(ref, detail)
         }
     }
 
@@ -2552,6 +2568,7 @@ final class AppModel {
     /// time, the others only when the last sync says their checks or threads moved, or every fifth poll.
     private func refreshWatchedDetails() async {
         resumeExpiredPauses()
+        runDueMergeQueues()
         let open = [overlay == .pr ? overlayPull : nil, reader].compactMap(\.self)
         let now = Date()
         let refs = Set(sessions.flatMap(\.trackedPRs)).filter { ref in
@@ -2877,6 +2894,208 @@ final class AppModel {
                 "sent \(count) item\(count == 1 ? "" : "s") to \(session.agent) (round \(pipeline.rounds))"
             )
             flash = "sent \(count) item\(count == 1 ? "" : "s") to \(session.title)"
+        }
+    }
+
+    // MARK: Get it merged
+
+    /// The repo whose merge queue the Watch view shows in its center (`gM`); nil shows the PR under the cursor.
+    var mergeQueueShown: String?
+    /// Queues running now, so a schedule tick or a second `:merge.run` does not start another.
+    private(set) var mergeRunning: Set<String> = []
+
+    /// The tracked PRs with get it merged on, by repo slug: the merge queues.
+    var mergeQueues: [String: [PullRef]] {
+        Dictionary(grouping: Set(sessions.flatMap(\.trackedPRs)).filter { pilot(for: $0).merge != .off }) {
+            $0.repo.slug
+        }
+    }
+
+    func nextMergeRun(_ repo: String) -> Date? {
+        guard let first = mergeQueues[repo]?.first else { return nil }
+        return MergeRun.nextRun(
+            last: mergeRuns[repo]?.first?.at, every: pilotSettings(for: first).mergeSchedule, now: Clock.now
+        )
+    }
+
+    /// What the next run would do with a PR, from what heed knows now.
+    func mergePlan(_ ref: PullRef) -> MergeQueue.Action? {
+        guard pilot(for: ref).merge != .off, let detail = pullDetails[ref.description] else { return nil }
+        return MergeQueue.action(for: mergeEntry(ref, detail))
+    }
+
+    private func mergeEntry(_ ref: PullRef, _ detail: PullDetail) -> MergeQueue.Entry {
+        MergeQueue.Entry(
+            ref: ref, detail: detail, settings: pilotSettings(for: ref),
+            paused: feedback[ref.description]?.isPaused(Clock.now) == true
+        )
+    }
+
+    /// `M`: get it merged on or off (on for all, when some have it and some do not). On also turns watching on, and
+    /// runs the repo's queue; off turns GitHub's auto-merge off again where it is on.
+    private func togglePilotMerge() {
+        let refs = pilotTargets
+        guard !refs.isEmpty else { return flash = "no PR here" }
+        let mode: MergeMode = refs.allSatisfy { pilot(for: $0).merge != .off } ? .off : .auto
+        editPilot(refs) { pipeline in
+            pipeline.merge = mode
+            pipeline.mergeSet = true
+            if mode != .off, !pipeline.watching {
+                pipeline.watching = true
+                pipeline.watchSet = true
+            }
+        }
+        for ref in refs {
+            logPilot(ref, .merge, "merge: \(mode.configName) (by you)")
+        }
+        flash = "merge \(mode.configName) on \(refs.count) PR\(refs.count == 1 ? "" : "s")"
+        if mode == .off {
+            let enabled = refs.filter { pullDetails[$0.description]?.autoMergeEnabled == true }
+            guard !enabled.isEmpty, !isFixture else { return }
+            Task {
+                for ref in enabled {
+                    if await (try? GitHub.disableAutoMerge(ref)) != nil {
+                        logPilot(ref, .autoMerge, "auto-merge off (merge turned off)")
+                    }
+                    fetchDetail(ref)
+                }
+            }
+        } else {
+            for repo in Set(refs.map(\.repo.slug)) {
+                runMergeQueue(repo, why: "merge turned on")
+            }
+        }
+    }
+
+    /// `:merge.run [repo|all]`, `R` in the Watch view.
+    private func runMergeCommand(_ argument: String?) {
+        let queues = mergeQueues
+        let repos: [String] = switch argument {
+        case "all": queues.keys.sorted()
+        case let name?:
+            queues.keys.filter { $0 == name || $0.hasSuffix("/\(name)") }
+        case nil:
+            (mergeQueueShown ?? pilotTargets.first?.repo.slug).map { [$0] } ?? []
+        }
+        guard !repos.isEmpty else {
+            return flash = queues.isEmpty ? "no merge queues: M turns get it merged on for a PR"
+                : "no merge queue for \(argument ?? "this PR's repo")"
+        }
+        for repo in repos {
+            runMergeQueue(repo, why: "asked")
+        }
+        flash = "running \(repos.count == 1 ? repos[0] : "\(repos.count) merge queues")"
+    }
+
+    /// `gM` / `:merge.queue [repo]`: the Watch view with a repo's queue in the center; again to go back to the PR.
+    private func showMergeQueue(_ argument: String?) {
+        let queues = mergeQueues
+        let repo = argument.flatMap { name in queues.keys.first { $0 == name || $0.hasSuffix("/\(name)") } }
+            ?? pilotTargets.first?.repo.slug ?? queues.keys.sorted().first
+        reader = nil
+        overlay = nil
+        if view == .watch, argument == nil, mergeQueueShown != nil {
+            mergeQueueShown = nil
+            return
+        }
+        view = .watch
+        guard let repo else { return flash = "no merge queues: M turns get it merged on for a PR" }
+        mergeQueueShown = repo
+        if queues[repo] == nil { flash = "\(repo) has no PRs with merge on" }
+    }
+
+    /// Queues whose time has come, on the sync tick.
+    private func runDueMergeQueues() {
+        let now = Clock.now
+        for repo in mergeQueues.keys where (nextMergeRun(repo).map { $0 <= now } ?? false) {
+            runMergeQueue(repo, why: "schedule")
+        }
+    }
+
+    /// A PR that just turned green runs its queue, unless the queue ran in the last few minutes.
+    private func mergeIfTurnedGreen(_ ref: PullRef, _ detail: PullDetail) {
+        guard pilot(for: ref).merge != .off, detail.autoMergeEnabled != true, GreenVerdict.of(detail).isGreen,
+              mergeRuns[ref.repo.slug]?.first.map({ Clock.now.timeIntervalSince($0.at) > 300 }) ?? true
+        else { return }
+        runMergeQueue(ref.repo.slug, why: "#\(ref.number) turned green")
+    }
+
+    /// One run of a repo's queue: fresh details for its PRs, the plan, the `gh` calls, a run log entry, and the
+    /// pilot's log for each PR something happened to.
+    func runMergeQueue(_ repo: String, why: String) {
+        guard let refs = mergeQueues[repo], !mergeRunning.contains(repo) else { return }
+        mergeRunning.insert(repo)
+        Task {
+            defer { mergeRunning.remove(repo) }
+            var details: [PullRef: PullDetail] = [:]
+            for ref in refs {
+                if !isFixture, let detail = try? await GitHub.pullDetail(ref) {
+                    commit(.pullDetailFetched(detail))
+                    details[ref] = detail
+                } else if let detail = pullDetails[ref.description] {
+                    details[ref] = detail
+                }
+            }
+            let steps = MergeQueue.plan(details.map { mergeEntry($0.key, $0.value) })
+            var lines: [MergeRun.Line] = []
+            var events: [PilotEvent] = []
+            func record(_ ref: PullRef, _ kind: PilotEvent.Kind?, _ action: String, _ detail: String, ok: Bool = true) {
+                lines.append(MergeRun.Line(ref: ref, action: action, detail: detail, ok: ok))
+                if let kind { events.append(PilotEvent(
+                    at: Clock.now,
+                    ref: ref,
+                    kind: kind,
+                    text: "\(action): \(detail)"
+                )) }
+            }
+            for step in steps {
+                let ref = step.ref
+                switch step.action {
+                case let .enableAutoMerge(method):
+                    do {
+                        if !isFixture { try await GitHub.enableAutoMerge(ref, method: method) }
+                        record(
+                            ref,
+                            .autoMerge,
+                            "auto-merge on",
+                            "\(method); GitHub merges once its requirements are met"
+                        )
+                    } catch {
+                        record(ref, .held, "could not turn auto-merge on", "\(error)", ok: false)
+                    }
+                case let .disableAutoMerge(reason):
+                    do {
+                        if !isFixture { try await GitHub.disableAutoMerge(ref) }
+                        record(ref, .autoMerge, "auto-merge off", reason)
+                    } catch {
+                        record(ref, .held, "could not turn auto-merge off", "\(error)", ok: false)
+                    }
+                case .updateBranch:
+                    do {
+                        if !isFixture { try await GitHub.updateBranch(ref) }
+                        record(
+                            ref,
+                            .updated,
+                            "brought up to date",
+                            "merged \(details[ref]?.baseBranch ?? "the base") in"
+                        )
+                    } catch {
+                        record(ref, .held, "could not update the branch", "\(error)", ok: false)
+                    }
+                case let .waiting(text):
+                    record(ref, nil, "waiting", text)
+                case let .hold(reason):
+                    // Held for the same reason as last run: in the run log, not again in the activity.
+                    let last = pilotLog.first { $0.ref == ref && $0.kind == .held }
+                    record(ref, last?.text == "held: \(reason)" ? nil : .held, "held", reason)
+                }
+            }
+            commit(.mergeRan(MergeRun(repo: repo, at: Clock.now, why: why, lines: lines)))
+            if !events.isEmpty { commit(.pilotLogged(events)) }
+            // What GitHub did with it shows on the next look.
+            for ref in steps.map(\.ref) where !isFixture {
+                fetchDetail(ref)
+            }
         }
     }
 

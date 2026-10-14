@@ -156,6 +156,9 @@ enum Shots {
         // The green PR's checklist, and the conflicting one's.
         Shot(id: "watch/green", keys: "gw/moved<CR>", crop: .pilotDetail),
         Shot(id: "watch/conflict", keys: "gw/spec<CR>", crop: .pilotDetail),
+        // Get it merged: a repo's merge queue with its runs, and the queues above the activity.
+        Shot(id: "watch/merge-queue", keys: "gw/moved<CR>gM", crop: .pilotDetail),
+        Shot(id: "watch/queues", keys: "gw", crop: .pilotActivity),
         Shot(id: "watch/inspector", crop: .inspector),
         Shot(id: "watch/prs", keys: "gp", crop: .list),
     ]

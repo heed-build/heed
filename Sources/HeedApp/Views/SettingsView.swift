@@ -396,6 +396,31 @@ private struct PilotSettingsView: View {
                     value: pilot.defaults.pause.map(PilotDuration.text) ?? "forever"
                 )
             }
+            Field(
+                label: "Get it merged",
+                detail: "Auto turns on GitHub's auto-merge for a PR once nothing fails; GitHub merges it. M flips one PR."
+            ) {
+                Picker("", selection: Binding(
+                    get: { pilot.defaults.merge },
+                    set: { model.setConfig(["pilot", "merge"], .string($0.configName)) }
+                )) {
+                    ForEach(MergeMode.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
+            Field(label: "Merge queue runs", detail: "How often each repo's queue runs: 15m, 1h, ... or manual.") {
+                ConfigTextField(
+                    path: ["pilot", "merge_schedule"],
+                    value: pilot.defaults.mergeSchedule.map(PilotDuration.text) ?? "manual"
+                )
+            }
+            Field(label: "Update branches", detail: "Bring queued PRs that fell behind their base up to date.") {
+                Toggle("", isOn: Binding(
+                    get: { pilot.defaults.updateBranches },
+                    set: { model.setConfig(["pilot", "update_branches"], .bool($0)) }
+                )).labelsHidden()
+            }
             if !pilot.orgs.isEmpty || !pilot.repos.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Org and repo overrides (config.toml)").font(Theme.ui(12.5, weight: .semibold))
@@ -416,7 +441,9 @@ private struct PilotSettingsView: View {
         func describe(_ value: PilotOverrides) -> String {
             [
                 value.watch.map { "watch = \($0)" }, value.green.map { "green = \($0.configName)" },
-                value.maxRounds.map { "max_rounds = \($0)" },
+                value.maxRounds.map { "max_rounds = \($0)" }, value.merge.map { "merge = \($0.configName)" },
+                value.mergeMethod.map { "merge_method = \($0)" },
+                value.updateBranches.map { "update_branches = \($0)" },
             ].compactMap(\.self).joined(separator: ", ")
         }
         return pilot.orgs.sorted { $0.key < $1.key }.map { ("[orgs.\($0.key)]", describe($0.value)) }

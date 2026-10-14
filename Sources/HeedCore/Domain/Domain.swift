@@ -27,12 +27,16 @@ public struct Domain: Hashable, Sendable, Codable {
     public var feedback: [String: PullFeedback]
     /// What the pilot noticed and did, newest first, capped (`PilotEvent.logLimit`).
     public var pilotLog: [PilotEvent]
+    /// Each repo's merge queue runs by `org/name`, newest first, capped (`MergeRun.keep`).
+    public var mergeRuns: [String: [MergeRun]]
 
     public init(
         repos: [RepoRecord] = [], worktrees: [Worktree] = [], sessions: [Session] = [],
         layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = [], github: GitHubState = GitHubState(),
-        pullDetails: [String: PullDetail] = [:], feedback: [String: PullFeedback] = [:], pilotLog: [PilotEvent] = []
+        pullDetails: [String: PullDetail] = [:], feedback: [String: PullFeedback] = [:], pilotLog: [PilotEvent] = [],
+        mergeRuns: [String: [MergeRun]] = [:]
     ) {
+        self.mergeRuns = mergeRuns
         self.pullDetails = pullDetails
         self.feedback = feedback
         self.pilotLog = pilotLog
@@ -47,7 +51,7 @@ public struct Domain: Hashable, Sendable, Codable {
     public static let empty = Domain()
 
     private enum CodingKeys: String, CodingKey {
-        case repos, worktrees, sessions, layouts, history, github, pullDetails, feedback, pilotLog
+        case repos, worktrees, sessions, layouts, history, github, pullDetails, feedback, pilotLog, mergeRuns
     }
 
     /// Caches from before the pilot log still load (no version bump, which would drop sessions).
@@ -62,6 +66,7 @@ public struct Domain: Hashable, Sendable, Codable {
         pullDetails = try container.decode([String: PullDetail].self, forKey: .pullDetails)
         feedback = try container.decode([String: PullFeedback].self, forKey: .feedback)
         pilotLog = try container.decodeIfPresent([PilotEvent].self, forKey: .pilotLog) ?? []
+        mergeRuns = try container.decodeIfPresent([String: [MergeRun]].self, forKey: .mergeRuns) ?? [:]
     }
 
     public func repo(_ slug: String) -> RepoRecord? { repos.first { $0.id == slug } }
@@ -92,6 +97,8 @@ public enum DomainChange: Hashable, Sendable, Codable {
     case feedbackChanged(PullFeedback)
     /// Something the pilot did that the domain cannot see happen (sent, waiting, a mode or pause changed).
     case pilotLogged([PilotEvent])
+    /// A repo's merge queue ran.
+    case mergeRan(MergeRun)
 }
 
 public extension Domain {
@@ -140,7 +147,14 @@ public extension Domain {
         case let .githubSynced(state):
             github = state
         case let .pullDetailFetched(detail):
+            let merged = detail.state == "MERGED" && pullDetails[detail.ref.description]
+                .map { $0.state != "MERGED" } == true
             pullDetails[detail.ref.description] = detail
+            if merged {
+                pilotLog = PilotEvent.log(pilotLog, adding: [PilotEvent(
+                    at: detail.fetchedAt, ref: detail.ref, kind: .merged, text: "merged into \(detail.baseBranch)"
+                )])
+            }
             let before = feedback[detail.ref.description]
             var pipeline = before ?? PullFeedback(ref: detail.ref)
             pipeline.merge(detail)
@@ -151,6 +165,8 @@ public extension Domain {
             )
         case let .pilotLogged(events):
             pilotLog = PilotEvent.log(pilotLog, adding: events)
+        case let .mergeRan(run):
+            mergeRuns[run.repo] = Array(([run] + (mergeRuns[run.repo] ?? [])).prefix(MergeRun.keep))
         case let .feedbackChanged(pipeline):
             feedback[pipeline.ref.description] = pipeline
         case let .inboxRead(ids):

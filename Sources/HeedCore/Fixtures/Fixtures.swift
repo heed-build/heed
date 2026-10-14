@@ -112,10 +112,14 @@ public enum Fixtures {
         resolved.resolvedAt = Clock.now
         pipeline.items.append(resolved)
         let (pilots, log) = pilotStates
+        // Get it merged on for #2841 (held: lint failed) and docs-content#1920 (auto-merge on).
+        pipeline.merge = .auto
+        pipeline.mergeSet = true
         return Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
             pullDetails: Dictionary(([detail] + otherDetails).map { ($0.ref.description, $0) }) { first, _ in first },
-            feedback: pilots.merging([detail.ref.description: pipeline]) { _, main in main }, pilotLog: log
+            feedback: pilots.merging([detail.ref.description: pipeline]) { _, main in main }, pilotLog: log,
+            mergeRuns: mergeRuns
         )
     }()
 
@@ -133,6 +137,9 @@ public enum Fixtures {
         paused.pausedUntil = now.addingTimeInterval(42 * 60)
         var unwatched = PullFeedback(ref: ingestPR, watching: false)
         unwatched.watchSet = true
+        var merging = PullFeedback(ref: redirects)
+        merging.merge = .auto
+        merging.mergeSet = true
         var stuck = PullFeedback(ref: arrows, items: [FeedbackItem(
             id: "A1", kind: .review(location: "Arrow.cs:57", author: "reviewer"),
             text: "Arrowheads still detach below 50% zoom.", status: .new
@@ -149,12 +156,52 @@ public enum Fixtures {
                 text: "3 rounds without a new approval: stopped sending"
             ),
             PilotEvent(at: ago(31), ref: arrows, kind: .sent, text: "sent 1 item to claude (round 3)"),
+            PilotEvent(
+                at: ago(40), ref: redirects, kind: .autoMerge,
+                text: "auto-merge on: squash; GitHub merges once its requirements are met"
+            ),
             PilotEvent(at: ago(44), ref: redirects, kind: .resolved, text: "check link-check resolved"),
             PilotEvent(at: ago(52), ref: redirects, kind: .addressed, text: "the agent pushed: 1 item addressed"),
             PilotEvent(at: ago(70), ref: redirects, kind: .sent, text: "sent 1 item to claude (round 1)"),
             PilotEvent(at: ago(95), ref: ingestPR, kind: .watch, text: "stopped watching (by you)"),
+            PilotEvent(at: ago(100), ref: redirects, kind: .merge, text: "merge: auto (by you)"),
         ]
-        return ([nav.description: paused, ingestPR.description: unwatched, arrows.description: stuck], log)
+        return (
+            [
+                nav.description: paused, ingestPR.description: unwatched, arrows.description: stuck,
+                redirects.description: merging,
+            ],
+            log
+        )
+    }()
+
+    /// The merge queues' runs: docs-content turned green and got auto-merge, docs-builder holds #2841 on lint.
+    static let mergeRuns: [String: [MergeRun]] = {
+        let now = Clock.now
+        func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
+        let anchors = PullRef(repo: docsBuilder, number: 2841)
+        let redirects = PullRef(repo: docsContent, number: 1920)
+        return [
+            docsBuilder.slug: [
+                MergeRun(repo: docsBuilder.slug, at: ago(20), why: "schedule", lines: [
+                    .init(ref: anchors, action: "held", detail: "Checks pass: lint failed"),
+                ]),
+                MergeRun(repo: docsBuilder.slug, at: ago(80), why: "merge turned on", lines: [
+                    .init(ref: anchors, action: "brought up to date", detail: "merged main in"),
+                ]),
+            ],
+            docsContent.slug: [
+                MergeRun(repo: docsContent.slug, at: ago(40), why: "#1920 turned green", lines: [
+                    .init(
+                        ref: redirects, action: "auto-merge on",
+                        detail: "squash; GitHub merges once its requirements are met"
+                    ),
+                ]),
+                MergeRun(repo: docsContent.slug, at: ago(100), why: "merge turned on", lines: [
+                    .init(ref: redirects, action: "held", detail: "Checks pass: link-check failed"),
+                ]),
+            ],
+        ]
     }()
 
     /// The tutor's PR storm: every review comment and failing check on #2841 is new, and it is the PR updated last,
@@ -274,6 +321,9 @@ public enum Fixtures {
         detail.mergeState = "BLOCKED"
         detail.reviewDecision = "CHANGES_REQUESTED"
         detail.requiredChecks = ["build", "lint"]
+        detail.repoAllowsAutoMerge = true
+        detail.repoMergeMethods = ["squash"]
+        detail.autoMergeEnabled = false
         return detail
     }()
 
@@ -295,6 +345,11 @@ public enum Fixtures {
             detail.mergeState = state
             detail.reviewDecision = review
             detail.requiredChecks = ["build"]
+            detail.repoAllowsAutoMerge = true
+            detail.repoMergeMethods = ["squash", "merge"]
+            // The green one is waiting on GitHub's auto-merge (the fixture never merges).
+            detail.autoMergeEnabled = state == "CLEAN"
+            detail.autoMergeMethod = state == "CLEAN" ? "squash" : nil
             return detail
         }
         return [

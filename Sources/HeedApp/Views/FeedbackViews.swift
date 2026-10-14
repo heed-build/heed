@@ -127,9 +127,15 @@ struct FeedbackPanel: View {
             Text("round \(min(pipeline.rounds + 1, effective.maxRounds)) of \(effective.maxRounds)")
                 .foregroundStyle(pipeline.rounds >= effective.maxRounds ? Theme.block : Theme.fg2)
                 .fixedSize()
+            Text(effective.merge == .off ? "merge off" : "merge \(effective.merge.configName)"
+                + (model.pullDetails[ref.description]?.autoMergeEnabled == true ? " · auto-merge on" : ""))
+                .foregroundStyle(effective.merge == .off ? Theme.fg3 : Theme.fg2)
+                .fixedSize()
             HStack(spacing: 6) {
                 KeyCap(text: "m")
                 Text("green").foregroundStyle(Theme.fg3)
+                KeyCap(text: "M")
+                Text("merge").foregroundStyle(Theme.fg3)
                 KeyCap(text: "w")
                 Text(effective.watching ? "stop watching" : "watch").foregroundStyle(Theme.fg3)
                 KeyCap(text: "zz")

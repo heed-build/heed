@@ -1,5 +1,19 @@
 import Foundation
 
+/// What get it merged does once a PR is green enough. `auto` makes sure GitHub's auto-merge is on (GitHub merges once
+/// its own requirements are met).
+public enum MergeMode: String, CaseIterable, Hashable, Sendable, Codable {
+    case off, auto
+
+    public var configName: String { rawValue }
+    public static func named(_ name: String) -> MergeMode? { MergeMode(rawValue: name.lowercased()) }
+
+    public var next: MergeMode {
+        let all = Self.allCases
+        return all[(all.firstIndex(of: self)! + 1) % all.count]
+    }
+}
+
 /// The pilot's settings for a PR: whether heed follows it, what get it green does with what it finds, and how long a
 /// pause lasts by default. From `[pilot]`, then `[orgs.<org>]`, then `[repos."org/name"]`; a hand-set choice on the PR
 /// itself wins over all of them (see `PullFeedback.effective`).
@@ -13,12 +27,27 @@ public struct PilotSettings: Hashable, Sendable {
     public var maxRounds: Int
     /// How long `zz` pauses a PR; nil pauses until resumed.
     public var pause: TimeInterval?
+    public var merge: MergeMode
+    /// `squash`, `merge` or `rebase`; nil takes the first the repo allows, in that order.
+    public var mergeMethod: String?
+    /// How often a repo's merge queue runs; nil only when asked (`:merge.run`).
+    public var mergeSchedule: TimeInterval?
+    /// After a merge, bring the queue's other PRs that fell behind up to date (`gh pr update-branch`).
+    public var updateBranches: Bool
 
-    public init(watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600) {
+    public init(
+        watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600,
+        merge: MergeMode = .off, mergeMethod: String? = nil, mergeSchedule: TimeInterval? = 3600,
+        updateBranches: Bool = true
+    ) {
         self.watch = watch
         self.green = green
         self.maxRounds = maxRounds
         self.pause = pause
+        self.merge = merge
+        self.mergeMethod = mergeMethod
+        self.mergeSchedule = mergeSchedule
+        self.updateBranches = updateBranches
     }
 }
 
@@ -27,14 +56,25 @@ public struct PilotOverrides: Hashable, Sendable {
     public var watch: Bool?
     public var green: AutoFeed?
     public var maxRounds: Int?
+    public var merge: MergeMode?
+    public var mergeMethod: String?
+    public var updateBranches: Bool?
 
-    public init(watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil) {
+    public init(
+        watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil, merge: MergeMode? = nil,
+        mergeMethod: String? = nil, updateBranches: Bool? = nil
+    ) {
         self.watch = watch
         self.green = green
         self.maxRounds = maxRounds
+        self.merge = merge
+        self.mergeMethod = mergeMethod
+        self.updateBranches = updateBranches
     }
 
-    public var isEmpty: Bool { watch == nil && green == nil && maxRounds == nil }
+    public var isEmpty: Bool {
+        watch == nil && green == nil && maxRounds == nil && merge == nil && mergeMethod == nil && updateBranches == nil
+    }
 }
 
 /// The levels, resolved per repo the way `IssueRules.visibility` is: the repo, then its org, then the defaults.
@@ -59,6 +99,9 @@ public struct PilotRules: Hashable, Sendable {
         settings.watch = repoLevel.watch ?? orgLevel.watch ?? defaults.watch
         settings.green = repoLevel.green ?? orgLevel.green ?? defaults.green
         settings.maxRounds = repoLevel.maxRounds ?? orgLevel.maxRounds ?? defaults.maxRounds
+        settings.merge = repoLevel.merge ?? orgLevel.merge ?? defaults.merge
+        settings.mergeMethod = repoLevel.mergeMethod ?? orgLevel.mergeMethod ?? defaults.mergeMethod
+        settings.updateBranches = repoLevel.updateBranches ?? orgLevel.updateBranches ?? defaults.updateBranches
         return settings
     }
 
@@ -122,6 +165,8 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
         /// Rounds exhausted without a new approval.
         case stuck
         case watch, green, pause
+        /// Get it merged: auto-merge turned on or off, a merge, a PR held back, a branch brought up to date.
+        case merge, autoMerge, merged, held, updated
     }
 
     public var id: String { "\(at.timeIntervalSince1970)-\(ref)-\(kind.rawValue)" }

@@ -220,16 +220,51 @@ public enum ConfigLoader {
             }
             return mode
         }
+        func merge(_ path: [String]) -> MergeMode? {
+            guard let text = string(path) else { return nil }
+            guard let mode = MergeMode.named(text) else {
+                problems.append(ConfigProblem(path: path.joined(separator: "."), message: "expected off or auto"))
+                return nil
+            }
+            return mode
+        }
+        func mergeMethod(_ path: [String]) -> String? {
+            guard let text = string(path)?.lowercased() else { return nil }
+            guard ["squash", "merge", "rebase"].contains(text) else {
+                problems.append(ConfigProblem(
+                    path: path.joined(separator: "."),
+                    message: "expected squash, merge or rebase"
+                ))
+                return nil
+            }
+            return text
+        }
         func pilotOverrides(_ base: [String]) -> PilotOverrides {
             PilotOverrides(
                 watch: bool(base + ["watch"]), green: green(base + ["green"]),
-                maxRounds: integer(base + ["max_rounds"], range: 1 ... 20)
+                maxRounds: integer(base + ["max_rounds"], range: 1 ... 20), merge: merge(base + ["merge"]),
+                mergeMethod: mergeMethod(base + ["merge_method"]), updateBranches: bool(base + ["update_branches"])
             )
         }
         let pilotDefaults = pilotOverrides(["pilot"])
         if let watch = pilotDefaults.watch { config.pilot.defaults.watch = watch }
         if let mode = pilotDefaults.green { config.pilot.defaults.green = mode }
         if let rounds = pilotDefaults.maxRounds { config.pilot.defaults.maxRounds = rounds }
+        if let mode = pilotDefaults.merge { config.pilot.defaults.merge = mode }
+        if let method = pilotDefaults.mergeMethod { config.pilot.defaults.mergeMethod = method }
+        if let flag = pilotDefaults.updateBranches { config.pilot.defaults.updateBranches = flag }
+        if let text = string(["pilot", "merge_schedule"]) {
+            if text.lowercased() == "manual" {
+                config.pilot.defaults.mergeSchedule = nil
+            } else if case let .seconds(seconds) = PilotDuration.parse(text), seconds >= 300 {
+                config.pilot.defaults.mergeSchedule = seconds
+            } else {
+                problems.append(ConfigProblem(
+                    path: "pilot.merge_schedule",
+                    message: "expected a duration of at least 5m, like 15m or 1h, or manual"
+                ))
+            }
+        }
         if let text = string(["pilot", "pause"]) {
             switch PilotDuration.parse(text) {
             case let .seconds(seconds): config.pilot.defaults.pause = seconds
@@ -424,6 +459,15 @@ public enum ConfigLoader {
     max_rounds = 3
     # How long zz pauses a PR: 30m, 1h, 4h, 1d, or forever.
     pause = "1h"
+    # Get it merged: off, or auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
+    # requirements are met). Per org and per repo too, and M flips one PR.
+    merge = "off"
+    # squash, merge or rebase; unset takes the first the repo allows, in that order.
+    # merge_method = "squash"
+    # How often a repo's merge queue runs (15m, 1h, ...), or manual (only :merge.run).
+    merge_schedule = "1h"
+    # Bring the queue's PRs that fell behind their base up to date on each run.
+    update_branches = true
 
     [issues]
     # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

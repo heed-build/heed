@@ -17,14 +17,14 @@ struct LegacyDefaultsTests {
         )
         defaults.set("new", forKey: "kept")
 
-        LegacyDefaults.migrate(into: defaults, from: old, running: "build.heed.Heed")
+        LegacyDefaults.migrate(into: defaults, from: old, running: "build.heed.app")
         #expect(defaults.object(forKey: "inspectorVisible") as? Bool == false)
         #expect(defaults.data(forKey: "tutorProgress") == Data([1, 2]))
         #expect(defaults.string(forKey: "kept") == "new") // already set under the new id: left alone
 
         // Once only: later changes to the old domain do not come across again.
         defaults.setPersistentDomain(["late": true], forName: old)
-        LegacyDefaults.migrate(into: defaults, from: old, running: "build.heed.Heed")
+        LegacyDefaults.migrate(into: defaults, from: old, running: "build.heed.app")
         #expect(defaults.object(forKey: "late") == nil)
     }
 

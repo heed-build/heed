@@ -39,13 +39,13 @@ The brand pack (icon, logo, menu bar template, social preview, org avatars) live
 
 `⌃⌥Space` (`[keys] global_start_work` in config.toml; `""` turns it off) opens Start work in a floating panel over
 whatever app is in front. It takes the keyboard without bringing Heed forward; `⎋ ⎋` or a click elsewhere closes it,
-`⌘↩` starts the session. The panel's window title is always `Heed Start Work` (bundle id `build.heed.Heed`), so a
+`⌘↩` starts the session. The panel's window title is always `Heed Start Work` (bundle id `build.heed.app`), so a
 tiling window manager can leave it alone:
 
 ```toml
 # OmniWM: ~/.config/omniwm/settings.toml (id is any UUID)
 [[appRules]]
-bundleId = "build.heed.Heed"
+bundleId = "build.heed.app"
 id = "75CF2DF1-FF34-4187-9CC9-01DD190EFC51"
 layout = "float"
 titleRegex = "^Heed Start Work$"

@@ -24,9 +24,9 @@ cask "heed" do
     "~/.config/heed",
     "~/Library/Application Support/Heed",
     "~/Library/Caches/Heed",
-    "~/Library/Preferences/build.heed.Heed.plist",
+    "~/Library/Preferences/build.heed.app.plist",
     "~/Library/Preferences/net.nullean.heed.plist",
-    "~/Library/Saved Application State/build.heed.Heed.savedState",
+    "~/Library/Saved Application State/build.heed.app.savedState",
     "~/Library/Saved Application State/net.nullean.heed.savedState",
   ]
 end

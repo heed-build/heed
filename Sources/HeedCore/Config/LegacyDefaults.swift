@@ -1,7 +1,7 @@
 import Foundation
 
 /// Heed's bundle id was `net.nullean.heed` until 0.1.0. macOS keeps preferences per bundle id, so on the first launch
-/// under `build.heed.Heed` the old ones (panel state, tutor progress, window frames) are copied over, once, without
+/// under `build.heed.app` the old ones (panel state, tutor progress, window frames) are copied over, once, without
 /// overwriting anything already set.
 public enum LegacyDefaults {
     public static let oldDomain = "net.nullean.heed"

@@ -54,7 +54,16 @@ final class TerminalSurfaces {
     /// Where heed keeps its zmx sessions.
     let zmxDirectory = Zmx.socketDirectory()
 
-    private var zmx: String? { persist == .zmx ? Helper.zmxPath : nil }
+    /// zmx on this Mac, as tool detection found it on your PATH (heed ships no copy); nil when not installed.
+    var zmxPath: String?
+    private var zmx: String? { persist == .zmx ? zmxPath : nil }
+
+    /// zmx on each host, as the host checks last found it (remembered, so panes reattach before the next check).
+    var hostZmx: [String: String] = UserDefaults.standard
+        .dictionary(forKey: "heed.hostZmx") as? [String: String] ?? [:]
+    {
+        didSet { UserDefaults.standard.set(hostZmx, forKey: "heed.hostZmx") }
+    }
 
     /// PATH for new panes: the detected search path (an app opened from Finder has a minimal one).
     var searchPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
@@ -79,9 +88,9 @@ final class TerminalSurfaces {
             // On a host: ssh there and attach to the pane's zmx session in its worktree (always zmx: a remote agent
             // must
             // outlive the link). A live session is reattached as it is, with nothing typed again.
-            attach = RemotePane.command(host: host, pane: pane.id, directory: pane.directory, sessionID: sessionID)
-            if livePanes.contains(pane.id) { launch.command = nil }
-            livePanes.insert(pane.id)
+            attach = RemotePane.command(
+                host: host, pane: pane.id, directory: pane.directory, sessionID: sessionID, zmx: hostZmx[host]
+            )
         }
         // Only a pane in a real worktree: fixture and tutor panes, and ones whose worktree is gone, stay plain shells.
         else if let zmx, FileManager.default.fileExists(atPath: pane.directory) {
@@ -166,8 +175,8 @@ final class TerminalSurfaces {
     func close(paneID: String) {
         views.removeValue(forKey: paneID)?.removeFromSuperview()
         if let host = paneLocations.removeValue(forKey: paneID)?.hostName {
-            livePanes.remove(paneID)
-            Task.detached { await RemotePane.kill(panes: [paneID], host: host) }
+            if let zmx = hostZmx[host] { Task.detached { await RemotePane.kill(panes: [paneID], host: host, zmx: zmx) }
+            }
             return
         }
         guard let zmx, livePanes.remove(paneID) != nil else { return }
@@ -175,14 +184,10 @@ final class TerminalSurfaces {
         Task.detached { await Zmx.kill(panes: [paneID], zmx: zmx, socketDirectory: directory) }
     }
 
-    /// Reads which panes still have a live zmx session, here and on `hosts` (at launch, before any pane is drawn).
-    func refreshLivePanes(hosts: [String] = []) async {
-        var live: Set<String> = []
-        if let zmx { live = await Zmx.livePanes(zmx: zmx, socketDirectory: zmxDirectory) }
-        for host in hosts {
-            await live.formUnion(RemotePane.livePanes(host: host))
-        }
-        livePanes = live
+    /// Reads which panes still have a live zmx session here (at launch, before any pane is drawn).
+    func refreshLivePanes() async {
+        guard let zmx else { return livePanes = [] }
+        livePanes = await Zmx.livePanes(zmx: zmx, socketDirectory: zmxDirectory)
     }
 
     /// `agents.stop`: ends every pane's zmx session, and everything running in them.

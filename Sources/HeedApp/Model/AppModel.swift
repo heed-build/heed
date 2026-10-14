@@ -251,9 +251,7 @@ final class AppModel {
         }
         let cached = await DomainStore.load(from: file)
         // Before any pane is drawn: which panes still have a live zmx session to reattach to.
-        // Remote sessions' hosts too: their panes reattach to what still runs there.
-        let remoteHosts = Array(Set(cached.sessions.compactMap(\.host)))
-        await TerminalSurfaces.shared.refreshLivePanes(hosts: remoteHosts)
+        await TerminalSurfaces.shared.refreshLivePanes()
         replace(with: cached)
         loadAvatars()
         store = DomainStore(domain: cached, file: file)
@@ -453,7 +451,11 @@ final class AppModel {
         }.value
         // An agent whose pane's zmx session is alive never stopped: its pane reattaches, there is nothing to resume.
         let live = TerminalSurfaces.shared.livePanes
+        // Sessions on hosts are never resumed: with zmx there their agents never stopped, and without it there is
+        // nothing to resume into.
+        let remote = Set(domain.sessions.filter { $0.host != nil }.map(\.id))
         let candidates = found.filter { candidate in
+            guard !remote.contains(candidate.id) else { return false }
             guard let layout = domain.layouts[candidate.id],
                   let (_, paneID) = agentPane(in: layout) else { return true }
             return !live.contains(paneID)
@@ -613,6 +615,12 @@ final class AppModel {
         let report = await ToolLocator.shared.configure(config.tools, force: force)
         tools = report
         TerminalSurfaces.shared.searchPath = report.pathVariable
+        // zmx is yours to install: found on the search path like any tool, never shipped with heed.
+        TerminalSurfaces.shared.zmxPath = report.searchPath.lazy.map { "\($0)/zmx" }
+            .first { FileManager.default.isExecutableFile(atPath: $0) }
+        if settings.persist == .zmx, TerminalSurfaces.shared.zmxPath == nil {
+            flash = "persist = \"zmx\" but zmx is not installed: \(ZmxInstall.mac.joined(separator: "; ")) (panes stay plain shells until then)"
+        }
         if force {
             flash = report.problems.first
                 ?? report.tools.map { "\($0.name): \(Paths.abbreviate($0.path ?? "?"))" }.joined(separator: "  ")
@@ -827,6 +835,7 @@ final class AppModel {
             }
             for await (name, status) in group {
                 hostStatuses[name] = status
+                if case let .connected(info) = status { TerminalSurfaces.shared.hostZmx[name] = info.zmxPath }
             }
         }
         startHostEvents()
@@ -897,9 +906,7 @@ final class AppModel {
         flash = "setting up @\(host)…"
         Task {
             do {
-                try await HostSetup.install(
-                    on: host, zmxVersion: Helper.zmxVersion, zmxTarball: Helper.zmxTarball, files: files
-                )
+                try await HostSetup.install(on: host, files: files)
             } catch {
                 flash = "could not set up @\(host): \(error)"
                 return
@@ -921,7 +928,9 @@ final class AppModel {
             startHostEvents()
             view = .sessions
             if let firstID { select(sessionID: firstID) }
-            flash = "started \(agent?.name ?? "a shell") on @\(host)"
+            flash = info.zmxPath == nil
+                ? "started \(agent?.name ?? "a shell") on @\(host), not persistent: install zmx there (gH says how)"
+                : "started \(agent?.name ?? "a shell") on @\(host)"
         }
     }
 

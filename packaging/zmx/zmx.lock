@@ -1,7 +1,0 @@
-# zmx (https://zmx.sh, MIT, Copyright (c) 2025 Eric Bower): session persistence for heed's panes, here and on ssh
-# hosts. scripts/zmx.sh fetches these release builds into Vendor/zmx and checks them against these sha256 sums.
-# To update: change the version, run `scripts/zmx.sh --print-sums`, paste the sums, and check docs/sessions/zmx.md.
-version=0.8.1
-macos-aarch64=1d86b1c9fba47fa707a6f0e976b20510b07c1c26d0ed010b9414b2a2c5e6beef
-linux-x86_64=dfd75720b942466f28870731cc86dbc07afa72fb8f3bd5eeb4ff707e4eecebe8
-linux-aarch64=943eb44c812333fd450da12097521afd3339436e86f8c2ac618b905c4c9ece68

@@ -840,8 +840,13 @@ private struct HostChecks: View {
                         check(info.git != nil, info.git.map { "git \($0)" } ?? "git not found")
                         check(
                             info.zmx != nil,
-                            info.zmx.map { "zmx \($0)" } ?? "zmx not installed (heed copies it over with sessions on hosts)"
+                            info.zmx.map { "zmx \($0): sessions here outlive the link" }
+                                ?? "zmx not installed: sessions here end when the link drops"
                         )
+                        if info.zmx == nil { ZmxInstallHint(commands: ZmxInstall.commands(
+                            platform: info.platform,
+                            os: info.os
+                        )) }
                         check(
                             !info.agents.isEmpty,
                             info.agents.isEmpty ? "no agents found" : "agents: \(info.agents.joined(separator: ", "))"
@@ -882,5 +887,29 @@ private struct HostChecks: View {
             Text(text).font(Theme.ui(12.5)).foregroundStyle(ok == false ? (color ?? Theme.fg2) : Theme.fg)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+}
+
+/// How to install zmx (heed ships none): the lines for this machine, selectable, and where to read more.
+struct ZmxInstallHint: View {
+    let commands: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(commands
+                .isEmpty ? "Install zmx there, then ↩ checks again:" : "To install it there, then ↩ checks again:")
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            ForEach(commands, id: \.self) { line in
+                Text(line).font(Theme.mono(11.5)).foregroundStyle(Theme.fg)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 5).fill(Theme.pane))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("or see \(ZmxInstall.site)").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+        }
+        .padding(.leading, 20)
     }
 }

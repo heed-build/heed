@@ -9,8 +9,8 @@ A host is a machine Heed reaches over ssh: a devbox, a GPU box, a build runner. 
 calls are fast.
 
 Heed finds the repos and worktrees on your hosts and shows them next to the ones on this Mac, and runs sessions there:
-the agent runs on the host, in a [zmx](../sessions/zmx.md) session, so a dropped connection, a closed lid or a
-restarted Heed never stops it.
+the agent runs on the host, in a [zmx](../sessions/zmx.md) session when the host has zmx, so a dropped connection, a
+closed lid or a restarted Heed never stops it.
 
 ## Adding a host
 
@@ -66,12 +66,21 @@ The cleanup sweep never touches a host's worktrees.
 
 ## Sessions on a host
 
-`↩` on a registered worktree on a host makes it a session there. The first time, Heed sets the host up, all inside
-`~/.heed` and without root:
+`↩` on a registered worktree on a host makes it a session there. The first time, Heed puts what its hooks need on the
+host, all inside `~/.heed` and without root:
 
-- zmx, copied from Heed (no download on the host);
 - `~/.heed/bin/heed-hook`, a few lines of POSIX sh that agents' hooks call;
 - the hook settings and plugins the agents are started with (the same ones Heed uses on this Mac).
+
+For the agent to outlive the link, the host needs [zmx](https://zmx.sh), which you install there yourself. Heed copies
+no programs to your hosts. The host's checks (`gH`) say whether it has zmx, and if not, the line that installs it for
+that host's system and architecture:
+
+![A host without zmx: the line that installs it there](../images/shots/hosts/picker-no-zmx.png)
+
+Heed looks for zmx on the host's PATH and in `~/.local/bin`, `~/bin`, `~/.nix-profile/bin`, `/usr/local/bin` and
+`/opt/homebrew/bin` (a non-interactive ssh often has no `~/.local/bin` on its PATH). Without zmx, a session there is a
+plain login shell over ssh, marked **not persistent**: it ends when the link drops.
 
 ![A session on @devbox: the pane strip, the rail and chip in the sidebar, and the host in the status bar](../images/shots/hosts/session.png)
 
@@ -89,5 +98,5 @@ What runs where:
 | PRs | Here, through `gh`, matched by repo and branch as for local sessions |
 
 When the link drops, the pane says so and reconnects every few seconds. zmx kept the session, so the screen and
-scrollback come back as they were. `exit` in the pane, closing it, or closing the session ends the zmx session on the
+scrollback come back as they were. (Without zmx the pane says the session ended with the link, and closes.) `exit` in the pane, closing it, or closing the session ends the zmx session on the
 host. Cursor's hooks are not set up on hosts yet; its state is read from the screen there.

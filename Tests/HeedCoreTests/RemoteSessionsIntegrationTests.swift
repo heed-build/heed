@@ -2,7 +2,8 @@ import Foundation
 @testable import HeedCore
 import Testing
 
-/// Against a real host (see RemoteIntegrationTests), plus HEED_ZMX_TARBALLS: a folder with zmx-<platform>.tar.gz.
+/// Against a real host (see RemoteIntegrationTests). HEED_ZMX_TARBALLS (a folder with zmx-<platform>.tar.gz) stands
+/// in for you installing zmx on the host, into ~/.local/bin as heed's instructions say.
 @Suite(.serialized)
 struct RemoteSessionsIntegrationTests {
     private var setup: (dir: String, target: String, tarballs: String)? {
@@ -20,12 +21,36 @@ struct RemoteSessionsIntegrationTests {
             "-o", "IdentitiesOnly=yes",
         ])
         defer { Remote.setExtraOptions([]); Remote.setTargets([:]) }
+        // As you would: zmx gone, then installed by hand into ~/.local/bin, which a non-login ssh has no PATH for.
+        _ = try await ProcessRunner.run(
+            on: .host("box"),
+            "sh",
+            ["-c", "rm -rf \"$HOME/.heed/bin/zmx\" \"$HOME/.local/bin/zmx\""]
+        )
+        guard case let .connected(before) = await HostProbe.check("box") else {
+            Testing.Issue.record("offline")
+            return
+        }
+        #expect(before.zmxPath == nil)
+        #expect(before.os == "alpine")
+        #expect(ZmxInstall.commands(platform: before.platform, os: before.os).first?.contains("~/.local/bin") == true)
+        _ = try await ProcessRunner.run(
+            on: .host("box"), "sh", ["-c", "mkdir -p \"$HOME/.local/bin\" && tar -xzf - -C \"$HOME/.local/bin\" zmx"],
+            input: URL(
+                fileURLWithPath: "\(setup.tarballs)/zmx-linux-\(before.platform.hasSuffix("aarch64") ? "aarch64" : "x86_64").tar.gz"
+            )
+        )
+        guard case let .connected(info) = await HostProbe.check("box") else {
+            Testing.Issue.record("offline")
+            return
+        }
+        let zmx = try #require(info.zmxPath)
+        #expect(zmx.hasSuffix("/.local/bin/zmx"))
+        #expect(info.zmx == "0.8.1")
         try await HostSetup.install(
-            on: "box", zmxVersion: "0.8.1",
-            zmxTarball: { URL(fileURLWithPath: "\(setup.tarballs)/zmx-\($0).tar.gz") },
+            on: "box",
             files: ["~/.heed/claude-hooks.json": AgentIntegration.claudeSettingsJSON()]
         )
-        #expect(await HostSetup.installedZmx(on: "box") == "0.8.1")
 
         // Calls as agents make them, from a pane's environment.
         let calls = """
@@ -47,7 +72,17 @@ struct RemoteSessionsIntegrationTests {
         #expect(kinds.contains(.state(.done, reason: nil)))
 
         // The pane command, for the pseudo-terminal check.
-        let command = RemotePane.command(host: "box", pane: "rp1", directory: "~/code/docs-builder", sessionID: "s-42")
+        let command = RemotePane.command(
+            host: "box", pane: "rp1", directory: "~/code/docs-builder", sessionID: "s-42", zmx: zmx
+        )
         try command.write(toFile: "\(setup.dir)/pane-command.sh", atomically: true, encoding: .utf8)
+        let plain = RemotePane.command(
+            host: "box",
+            pane: "rp2",
+            directory: "~/code/docs-builder",
+            sessionID: "s-42",
+            zmx: nil
+        )
+        try plain.write(toFile: "\(setup.dir)/pane-command-plain.sh", atomically: true, encoding: .utf8)
     }
 }

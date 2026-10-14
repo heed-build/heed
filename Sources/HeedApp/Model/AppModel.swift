@@ -4163,8 +4163,10 @@ final class AppModel {
     private func simulateStart(_ plan: StartWorkPlan) {
         let made = plan.repos.map { record in
             Worktree(
-                repo: record.repo, path: settings.worktreePath(repo: record.repo, name: plan.name), branch: plan.name,
-                head: "0000000", isMain: false, status: WorktreeStatus(upstream: nil)
+                repo: record.repo,
+                path: StartWork.worktreePath(for: record, name: plan.name, settings: settings, hosts: config.hosts),
+                branch: plan.name, head: "0000000", isMain: false, status: WorktreeStatus(upstream: nil),
+                location: record.location
             )
         }
         var session = Session(
@@ -4172,6 +4174,7 @@ final class AppModel {
             branch: plan.name, agent: plan.agent?.name ?? "shell", state: ObservedState(.working),
             activity: "starting", lastActivity: Date()
         )
+        session.host = plan.location.hostName
         session.record("started · \(plan.agent?.name ?? "shell")")
         var changes: [DomainChange] = plan.repos.map { record in
             .worktreesListed(repo: record.repo, worktrees.filter { $0.repo == record.repo } + made.filter {
@@ -4452,6 +4455,8 @@ final class AppModel {
         state.startWorkRepo = startWork?.selectedRepos.first
         state.confirmationOpen = confirmation != nil
         state.importOpen = importPicker != nil || pathImport != nil
+        state.hostsOpen = hostsPicker != nil
+        state.hostSessions = sessions.count { $0.host != nil }
         state.commandLine = mode == .command
         state.sessions = sessions.count
         let pins = list.ordered.filter(\.pinned)

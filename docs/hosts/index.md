@@ -119,3 +119,6 @@ With a host's repo picked:
 
 A session runs in one place: a cross-repo session takes repos all on this Mac or all on one host. The host has to
 answer when you start; if it does not, `gH` shows why.
+
+The [tutor](../getting-started/tutor.md)'s Hosts lesson (`:tutor hosts`) walks through the hosts dialog, the `@`
+filter and starting work on a pretend `@devbox`.

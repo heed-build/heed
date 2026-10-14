@@ -278,6 +278,32 @@ public extension Tutor {
                 doneLine: "{session.park} again brings it back. A session that needs you stays in sight even parked."
             ) { start, now, _ in now.parked > start.parked },
         ]),
+        TutorLesson(id: "hosts", title: "Hosts", minutes: 3, world: .mondayMorning, steps: [
+            TutorStep(
+                "Your hosts",
+                say: "{host.open} lists the machines heed drives over ssh, and what each has: git, zmx, agents. ⎋ closes it.",
+                keys: ["{host.open}", "⎋"], target: "dialog",
+                doneLine: "Hosts in your ~/.ssh/config are there to add. One without zmx shows the line that installs it."
+            ) { _, now, seen in seen.contains(where: \.hostsOpen) && !now.hostsOpen },
+            TutorStep(
+                "One host at a time",
+                say: "{host.filter} narrows the view to one host: type dev, and ↩ keeps the filter.",
+                keys: ["{host.filter}", "↩"], target: "statusBar",
+                doneLine: "Only what runs on @devbox. A remote session carries a rail and chip in its host's colour."
+            ) { _, now, _ in !now.filtering && now.filter.hasPrefix("@") },
+            TutorStep(
+                "Pick a host's repo",
+                say: "{work.start}, say what you want done, then ⌃n until the chip says @devbox.",
+                keys: ["{work.start}", "⌃n"], target: "dialog",
+                doneLine: "The line over the command says where it will run, and whether zmx keeps it alive."
+            ) { _, now, _ in now.startWorkOpen && now.startWorkRepo?.hasSuffix("@devbox") == true },
+            TutorStep(
+                "Start it there",
+                say: "⌘↩: the worktree and the agent are made on @devbox, not on this Mac.",
+                keys: ["⌘↩"], target: "dialog",
+                doneLine: "Its pane is ssh into a zmx session on the host: drop the link and the agent keeps going."
+            ) { start, now, _ in now.hostSessions > start.hostSessions },
+        ]),
         TutorLesson(id: "diff", title: "Diff", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(
                 "Open the overlay",

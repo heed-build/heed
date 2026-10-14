@@ -33,7 +33,7 @@ struct TutorTests {
         #expect(Tutor.tour.steps.count == 9)
         #expect(Tutor.tour.steps.first?.title == "Two modes")
         #expect(Tutor.viewLessons.map(\.id) == [
-            "sessions", "start-work", "inbox", "issues", "prs", "watch", "repos", "history", "agents", "diff",
+            "sessions", "start-work", "inbox", "issues", "prs", "watch", "repos", "history", "agents", "hosts", "diff",
         ])
         for lesson in Tutor.viewLessons {
             #expect((2 ... 4).contains(lesson.minutes), "\(lesson.id)")

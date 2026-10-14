@@ -1201,6 +1201,9 @@ final class AppModel {
         case "pilot.pause": pausePilot(command.arguments.first)
         case "pilot.why": showPilotWhy()
         case "pilot.merge": togglePilotMerge()
+        case "pilot.copilot":
+            let refs = pilotTargets
+            if refs.isEmpty { flash = "no PR here" } else { Task { await askCopilot(refs, byHand: true) } }
         case "merge.run": runMergeCommand(command.arguments.first)
         case "merge.queue": showMergeQueue(command.arguments.first)
         case "feedback.dismiss": dismissItem()
@@ -2520,6 +2523,8 @@ final class AppModel {
             {
                 runMergeQueue(ref.repo.slug, why: "#\(ref.number) merged")
             }
+            // Before delivery, so a conflict Copilot takes does not also go to the agent.
+            await askCopilot([ref], byHand: false)
             fetchFailedLogs(ref, detail)
             if feedback[ref.description]?.autoFeed == .auto { deliver(ref, explicit: false) }
             mergeIfTurnedGreen(ref, detail)
@@ -2894,6 +2899,83 @@ final class AppModel {
                 "sent \(count) item\(count == 1 ? "" : "s") to \(session.agent) (round \(pipeline.rounds))"
             )
             flash = "sent \(count) item\(count == 1 ? "" : "s") to \(session.title)"
+        }
+    }
+
+    // MARK: Copilot resolves conflicts
+
+    /// Whether GitHub's Copilot coding agent can work in a repo, by slug, as last asked (`suggestedActors`).
+    private(set) var copilotRepos: [String: Bool] = [:]
+    private var copilotAskedRepos: [String: Date] = [:]
+
+    func copilotAvailable(_ repo: Repo) -> Bool? { isFixture ? true : copilotRepos[repo.slug] }
+
+    /// Asks GitHub (at most every six hours per repo) whether Copilot can be assigned there.
+    private func checkCopilot(_ repo: Repo) async -> Bool {
+        if isFixture { return true }
+        if let known = copilotRepos[repo.slug], let at = copilotAskedRepos[repo.slug],
+           Clock.now.timeIntervalSince(at) < 6 * 3600
+        {
+            return known
+        }
+        copilotAskedRepos[repo.slug] = Clock.now
+        let available = await (try? GitHub.copilotAvailable(repo)) ?? false
+        copilotRepos[repo.slug] = available
+        return available
+    }
+
+    /// Asks Copilot, on the PR, to resolve its merge conflicts. On its own (after a fetch) only when the PR's
+    /// settings say `conflicts = "copilot"`; by hand (`C`) whenever the PR conflicts and Copilot can work there.
+    private func askCopilot(_ refs: [PullRef], byHand: Bool) async {
+        var asked = 0
+        var problem: String?
+        for ref in refs {
+            guard var pipeline = feedback[ref.description], let detail = pullDetails[ref.description] else {
+                continue
+            }
+            var settings = pilotSettings(for: ref)
+            let effective = pilot(for: ref)
+            if byHand { settings.conflicts = .copilot }
+            let paused = !byHand && pipeline.isPaused(Clock.now)
+            // Cheap checks first: only a conflict that has not been asked about costs a GitHub call.
+            guard CopilotConflicts.itemToAsk(
+                pipeline, settings: settings, watching: effective.watching || byHand, paused: paused,
+                copilotAvailable: true
+            ) != nil else { continue }
+            guard await checkCopilot(ref.repo) else {
+                problem = "Copilot coding agent is not enabled for \(ref.repo.slug)"
+                continue
+            }
+            pipeline = feedback[ref.description] ?? pipeline
+            guard let item = CopilotConflicts.itemToAsk(
+                pipeline, settings: settings, watching: effective.watching || byHand, paused: paused,
+                copilotAvailable: true
+            ) else { continue }
+            if !isFixture {
+                do {
+                    try await GitHub.comment(ref, body: CopilotConflicts.comment(base: detail.baseBranch))
+                } catch {
+                    problem = "could not ask Copilot on #\(ref.number): \(error)"
+                    continue
+                }
+            }
+            pipeline = feedback[ref.description] ?? pipeline
+            CopilotConflicts.asked(&pipeline, item: item.id, at: Clock.now)
+            commit(.feedbackChanged(pipeline))
+            logPilot(
+                ref,
+                .copilot,
+                "asked Copilot to resolve the conflicts with \(detail.baseBranch)"
+                    + (byHand ? " (by you)" : "")
+            )
+            asked += 1
+        }
+        if asked > 0, byHand {
+            flash = "asked Copilot on \(asked) PR\(asked == 1 ? "" : "s")"
+        } else if let problem, byHand || asked == 0 && problem.hasPrefix("could not") {
+            flash = problem
+        } else if byHand {
+            flash = "no merge conflict to ask about (or Copilot was asked already)"
         }
     }
 

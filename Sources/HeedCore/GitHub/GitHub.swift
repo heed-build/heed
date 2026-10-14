@@ -219,6 +219,28 @@ public enum GitHub {
         try await pr(["update-branch", "\(ref.number)", "-R", ref.repo.slug])
     }
 
+    /// Whether GitHub's Copilot coding agent can be assigned in a repo: it is among the repo's suggested actors.
+    public static func copilotAvailable(_ repo: Repo) async throws -> Bool {
+        let query = """
+        query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) {
+          suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) { nodes { login } } } }
+        """
+        let data = try await graphql(query, variables: ["owner": repo.org, "name": repo.name])
+        return parseCopilotAvailable(data)
+    }
+
+    static func parseCopilotAvailable(_ data: Data) -> Bool {
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let actors = (((json?["data"] as? [String: Any])?["repository"] as? [String: Any])?["suggestedActors"]
+            as? [String: Any])?["nodes"] as? [[String: Any]] ?? []
+        return actors.contains { $0["login"] as? String == CopilotConflicts.login }
+    }
+
+    /// `gh pr comment`.
+    public static func comment(_ ref: PullRef, body: String) async throws {
+        try await pr(["comment", "\(ref.number)", "--body", body, "-R", ref.repo.slug])
+    }
+
     private static func pr(_ arguments: [String]) async throws {
         let result = try await ProcessRunner.run("gh", ["pr"] + arguments, timeout: .seconds(60))
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }

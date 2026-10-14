@@ -72,7 +72,7 @@ public enum DefaultKeys {
         ],
         "watch": [
             ("r", "github.sync"), ("<Space>", "select.toggle"), ("w", "pilot.watch"), ("m", "pilot.green"),
-            ("M", "pilot.merge"), ("zz", "pilot.pause"), ("R", "merge.run"),
+            ("M", "pilot.merge"), ("zz", "pilot.pause"), ("R", "merge.run"), ("C", "pilot.copilot"),
         ],
         /// The diff overlay.
         "diff": [
@@ -85,7 +85,7 @@ public enum DefaultKeys {
         /// The PR overlay and the reader.
         "pr": [
             ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("m", "pilot.green"), ("w", "pilot.watch"),
-            ("M", "pilot.merge"), ("zz", "pilot.pause"),
+            ("M", "pilot.merge"), ("zz", "pilot.pause"), ("C", "pilot.copilot"),
             ("x", "feedback.dismiss"), ("S", "feedback.session"), ("<Esc>", "overlay.close"), ("r", "github.sync"),
         ],
     ]

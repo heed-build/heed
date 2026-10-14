@@ -421,6 +421,20 @@ private struct PilotSettingsView: View {
                     set: { model.setConfig(["pilot", "update_branches"], .bool($0)) }
                 )).labelsHidden()
             }
+            Field(
+                label: "Merge conflicts",
+                detail: "Agent sends them to your session's agent; Copilot asks GitHub's Copilot coding agent on the PR, "
+                    + "where it is enabled, sparing your agent's tokens. C asks it for one PR."
+            ) {
+                Picker("", selection: Binding(
+                    get: { pilot.defaults.conflicts },
+                    set: { model.setConfig(["pilot", "conflicts"], .string($0.rawValue)) }
+                )) {
+                    ForEach(ConflictFixer.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
             if !pilot.orgs.isEmpty || !pilot.repos.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Org and repo overrides (config.toml)").font(Theme.ui(12.5, weight: .semibold))
@@ -444,6 +458,7 @@ private struct PilotSettingsView: View {
                 value.maxRounds.map { "max_rounds = \($0)" }, value.merge.map { "merge = \($0.configName)" },
                 value.mergeMethod.map { "merge_method = \($0)" },
                 value.updateBranches.map { "update_branches = \($0)" },
+                value.conflicts.map { "conflicts = \($0.rawValue)" },
             ].compactMap(\.self).joined(separator: ", ")
         }
         return pilot.orgs.sorted { $0.key < $1.key }.map { ("[orgs.\($0.key)]", describe($0.value)) }

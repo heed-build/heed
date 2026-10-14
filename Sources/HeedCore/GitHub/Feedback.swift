@@ -146,6 +146,8 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     public var sentAtSHA: String?
     /// For a failed check: the failed step's log, saved where the agent can read it.
     public var logPath: String?
+    /// For a conflict: when Copilot was asked to resolve it (so it is asked once, and not sent to the agent too).
+    public var copilotAskedAt: Date?
 
     public init(id: String, kind: Kind, text: String, status: Status = .new) {
         self.id = id

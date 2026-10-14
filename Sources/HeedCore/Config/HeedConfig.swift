@@ -239,11 +239,20 @@ public enum ConfigLoader {
             }
             return text
         }
+        func conflicts(_ path: [String]) -> ConflictFixer? {
+            guard let text = string(path) else { return nil }
+            guard let fixer = ConflictFixer.named(text) else {
+                problems.append(ConfigProblem(path: path.joined(separator: "."), message: "expected agent or copilot"))
+                return nil
+            }
+            return fixer
+        }
         func pilotOverrides(_ base: [String]) -> PilotOverrides {
             PilotOverrides(
                 watch: bool(base + ["watch"]), green: green(base + ["green"]),
                 maxRounds: integer(base + ["max_rounds"], range: 1 ... 20), merge: merge(base + ["merge"]),
-                mergeMethod: mergeMethod(base + ["merge_method"]), updateBranches: bool(base + ["update_branches"])
+                mergeMethod: mergeMethod(base + ["merge_method"]), updateBranches: bool(base + ["update_branches"]),
+                conflicts: conflicts(base + ["conflicts"])
             )
         }
         let pilotDefaults = pilotOverrides(["pilot"])
@@ -253,6 +262,7 @@ public enum ConfigLoader {
         if let mode = pilotDefaults.merge { config.pilot.defaults.merge = mode }
         if let method = pilotDefaults.mergeMethod { config.pilot.defaults.mergeMethod = method }
         if let flag = pilotDefaults.updateBranches { config.pilot.defaults.updateBranches = flag }
+        if let fixer = pilotDefaults.conflicts { config.pilot.defaults.conflicts = fixer }
         if let text = string(["pilot", "merge_schedule"]) {
             if text.lowercased() == "manual" {
                 config.pilot.defaults.mergeSchedule = nil
@@ -468,6 +478,10 @@ public enum ConfigLoader {
     merge_schedule = "1h"
     # Bring the queue's PRs that fell behind their base up to date on each run.
     update_branches = true
+    # Who resolves a watched PR's merge conflicts: agent (your session's agent, as get it green sends) or copilot (heed
+    # asks GitHub's Copilot coding agent on the PR, sparing your agent's tokens; only where Copilot can be assigned,
+    # else your agent). Per org and per repo too.
+    conflicts = "agent"
 
     [issues]
     # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

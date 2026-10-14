@@ -21,6 +21,11 @@ A session's terminals are panes, arranged in tabs. Pane keys start with `⌃w`, 
 
 ![The tab strip: agent, shell and a tests task](../images/shots/sessions/tab-strip.png)
 
+The right of the tab strip shows the keys that matter where you are looking, as you have them bound: in NORMAL,
+`i` to type into the pane, the splits and the next tab; in INSERT, how to get back out.
+
+![The tab strip in INSERT: ⇧esc (or your escape chord) goes back to NORMAL](../images/shots/sessions/tab-strip-insert.png)
+
 ## When terminals end
 
 A pane closes when its terminal ends: `exit` or `⌃D` in a shell, or a command that finishes. The last pane of a tab

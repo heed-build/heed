@@ -66,10 +66,25 @@ private struct TabStrip: View {
                 .onTapGesture { model.perform(CommandInvocation(name: "tab.new")) }
                 .help("New tab (:tab.new)")
             Spacer()
-            HStack(spacing: 6) {
-                KeyCap(text: "gt")
-                KeyCap(text: "⌃w v")
-                Text("split").foregroundStyle(Theme.fg3)
+            HStack(spacing: 10) {
+                // What the keys do here, as you have them bound: into the terminal in NORMAL, back out in INSERT.
+                if model.mode == .insert {
+                    HStack(spacing: 5) {
+                        KeyCap(text: "⇧ esc")
+                        let chord = KeyCapText.of(model.config.insertEscape)
+                        if chord != "⇧⎋" {
+                            Text("or").foregroundStyle(Theme.fg3)
+                            KeyCap(text: chord)
+                        }
+                        Text("normal").foregroundStyle(Theme.fg3)
+                    }
+                    .fixedSize()
+                } else {
+                    hint(model.keyLabel(for: "mode.insert"), "insert")
+                    hint(model.keyLabel(for: "pane.split.right"), "split right")
+                    hint(model.keyLabel(for: "pane.split.below"), "below")
+                    hint(model.keyLabel(for: "tab.next"), "tab")
+                }
                 if !model.inspectorVisible {
                     CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
                 }
@@ -80,6 +95,19 @@ private struct TabStrip: View {
         .frame(height: 36)
         .background(Theme.bg2)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+}
+
+extension TabStrip {
+    /// A key and what it does; nothing when the command has no key.
+    @ViewBuilder func hint(_ key: String?, _ label: String) -> some View {
+        if let key {
+            HStack(spacing: 5) {
+                KeyCap(text: key)
+                Text(label).foregroundStyle(Theme.fg3)
+            }
+            .fixedSize()
+        }
     }
 }
 

@@ -174,6 +174,7 @@ final class ModelHost {
     private func wire() {
         let model = current
         TerminalSurfaces.shared.onPaneClick = { [weak model] paneID in model?.clickedPane(paneID) }
+        TerminalSurfaces.shared.onPaneExited = { [weak model] paneID in model?.paneExited(paneID) }
     }
 }
 

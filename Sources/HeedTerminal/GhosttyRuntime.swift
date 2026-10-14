@@ -44,6 +44,7 @@ public final class GhosttyRuntime {
     window-padding-balance = false
     cursor-style = block
     confirm-close-surface = false
+    wait-after-command = false
     """
 
     private static func writeOverrides() -> String? {

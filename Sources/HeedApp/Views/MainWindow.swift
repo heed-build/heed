@@ -351,6 +351,8 @@ struct StatusBar: View {
 
     private var hints: String {
         switch model.mode {
+        case .normal where model.confirmation?.alternative != nil:
+            "y or ↩ confirm · \(model.confirmation?.alternative?.key ?? "") \(model.confirmation?.alternative?.label.lowercased() ?? "") · n, ⎋ or q cancel"
         case .normal where model.confirmation != nil: "y or ↩ confirm · n, ⎋ or q cancel"
         case .normal where model.importPicker != nil: "type to filter · ⌃n ⌃p move · ↩ import · ⎋ cancel"
         case .normal where model.pathImport != nil: "⇥ complete · ⌃n ⌃p choose · ⌃w up a folder · ↩ import · ⎋ cancel"
@@ -464,7 +466,7 @@ struct ConfirmationView: View {
                 HStack(spacing: 10) {
                     Spacer()
                     HStack(spacing: 6) {
-                        Text("Cancel")
+                        Text(confirmation.cancel)
                         KeyCap(text: "n")
                     }
                     .padding(.horizontal, 12)
@@ -472,6 +474,17 @@ struct ConfirmationView: View {
                     .background(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
                     .contentShape(Rectangle())
                     .onTapGesture { model.cancelConfirmation() }
+                    if let alternative = confirmation.alternative {
+                        HStack(spacing: 6) {
+                            Text(alternative.label)
+                            KeyCap(text: alternative.key)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.chooseAlternative() }
+                    }
                     HStack(spacing: 6) {
                         Text(confirmation.accept).fontWeight(.semibold)
                         KeyCap(text: "y")

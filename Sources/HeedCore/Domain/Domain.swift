@@ -9,6 +9,30 @@ public struct SessionLayout: Hashable, Sendable, Codable {
         self.tabs = tabs
         self.activeTab = activeTab
     }
+
+    /// Removes a pane from whichever tab has it; a tab left without panes goes too. False when no tab has it.
+    @discardableResult
+    public mutating func removePane(_ id: String) -> Bool {
+        guard let index = tabs.firstIndex(where: { $0.tree.panes.contains { $0.id == id } }) else { return false }
+        var tab = tabs[index]
+        let focused = tab.focused
+        tab.focused = id
+        if tab.closeFocused() {
+            if focused != id, tab.tree.panes.contains(where: { $0.id == focused }) { tab.focused = focused }
+            tabs[index] = tab
+        } else {
+            removeTab(at: index)
+        }
+        return true
+    }
+
+    /// Removes a tab, keeping the active one active (or its neighbour, when it was the one removed).
+    public mutating func removeTab(at index: Int) {
+        guard tabs.indices.contains(index) else { return }
+        tabs.remove(at: index)
+        if index < activeTab { activeTab -= 1 }
+        activeTab = max(0, min(activeTab, tabs.count - 1))
+    }
 }
 
 /// Everything Heed knows, as one value. The window is drawn from this (plus input state), it is what the cache

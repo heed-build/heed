@@ -42,6 +42,9 @@ final class TerminalSurfaces {
     var autostartPanes: Set<String> = []
     /// A left click in a pane's terminal (the model focuses it and enters INSERT).
     var onPaneClick: ((String) -> Void)?
+    /// A pane's terminal ended: its shell exited (`exit`, ⌃D) or its command finished.
+    var onPaneExited: ((String) -> Void)?
+    private var exitsWired = false
     /// PATH for new panes: the detected search path (an app opened from Finder has a minimal one).
     var searchPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
 
@@ -65,7 +68,21 @@ final class TerminalSurfaces {
             (view as? GhosttySurfaceView)?.onClick = { [weak self] in self?.onPaneClick?(paneID) }
         #endif
         views[pane.id] = view
+        wireExits()
         return view
+    }
+
+    /// libghostty asks to close a surface when its process ends; that is the pane's terminal ending.
+    private func wireExits() {
+        guard !exitsWired else { return }
+        exitsWired = true
+        #if HEED_GHOSTTY
+            GhosttyRuntime.shared.onSurfaceClosed = { [weak self] view, _ in
+                guard let self, let id = views.first(where: { $0.value === view })?.key else { return }
+                views.removeValue(forKey: id)?.removeFromSuperview()
+                onPaneExited?(id)
+            }
+        #endif
     }
 
     /// Creates a pane's terminal now, before it is on screen, so a resumed agent starts at launch rather than when

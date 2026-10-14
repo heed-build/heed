@@ -52,6 +52,7 @@ This page is generated from the code (`mise run shots`).
 | `pane.split.below` | `<C-w>s` | split below |
 | `pane.zoom` | `<C-w>z` | zoom pane |
 | `pane.close` | `<C-w>q` | close pane |
+| `tab.close` |  | close the tab, every pane in it |
 | `tab.next` | `gt` | next tab |
 | `tab.prev` | `gT` | previous tab |
 | `tab.new` | `gn` | new tab with shell |

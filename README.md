@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/heed-build/heed/releases/latest/download/Heed-arm64.zip"><strong>Download for macOS</strong></a>
+  <a href="https://github.com/heed-build/heed/releases/latest/download/Heed-arm64.dmg"><strong>Download for macOS</strong></a>
   ·
   <a href="https://heed.build">heed.build</a>
   ·
@@ -39,7 +39,7 @@
 brew install --cask heed-build/tap/heed
 ```
 
-Or [download the latest release](https://github.com/heed-build/heed/releases/latest/download/Heed-arm64.zip)
+Or [download the latest release](https://github.com/heed-build/heed/releases/latest/download/Heed-arm64.dmg)
 (signed and notarized, Apple silicon), or `curl -fsSL https://heed.build/install.sh | sh`. Then press `t` on the
 first screen for the tour, or `:tutor` any time.
 

@@ -21,9 +21,10 @@ removes its settings and caches too. The install script downloads the latest rel
 `Heed.app` in `/Applications` (or `~/Applications` when `/Applications` is not writable). Run it again to update.
 `HEED_VERSION=0.1.0` installs a given version and `HEED_APP_DIR` another folder.
 
-Releases are signed with a Developer ID and notarized by Apple, so `Heed-arm64.zip` downloaded with a browser from the
-[releases](https://github.com/heed-build/heed/releases) opens normally too: unzip it and move `Heed.app` to
-`/Applications`.
+Or download [`Heed-arm64.dmg`](https://github.com/heed-build/heed/releases/latest/download/Heed-arm64.dmg), open
+it, and drag Heed onto Applications. Releases are signed with a Developer ID and notarized by Apple, the disk image
+too, so it opens without a warning. `Heed-arm64.zip` on the [releases](https://github.com/heed-build/heed/releases)
+is the same app, for scripts and Homebrew.
 
 You also need the [GitHub CLI](https://cli.github.com), signed in (`gh auth login`): Heed talks to GitHub only through
 `gh`.

@@ -14,6 +14,15 @@ public enum MergeMode: String, CaseIterable, Hashable, Sendable, Codable {
     }
 }
 
+/// Where get it green sends a PR's feedback: a background run (an agent in its own tab, worktree and branch), or the
+/// session's own agent, typed in once it is idle and you have left it alone for a while.
+public enum RunIn: String, CaseIterable, Hashable, Sendable {
+    case background, session
+
+    public var configName: String { rawValue }
+    public static func named(_ name: String) -> RunIn? { RunIn(rawValue: name.lowercased()) }
+}
+
 /// The pilot's settings for a PR: whether heed follows it, what get it green does with what it finds, and how long a
 /// pause lasts by default. From `[pilot]`, then `[orgs.<org>]`, then `[repos."org/name"]`; a hand-set choice on the PR
 /// itself wins over all of them (see `PullFeedback.effective`).
@@ -59,6 +68,8 @@ public struct PilotSettings: Hashable, Sendable {
     public var model: String?
     /// A run still working after this long is stopped.
     public var runTimeout: TimeInterval = 1800
+    /// Background runs, or the session's agent.
+    public var runIn: RunIn = .background
     /// Extra instructions heed adds to its prompts: after get it green's feedback items, to heed merge's self-review
     /// criteria, and after Start work's issue text. Additions only: what heed needs from a prompt stays as it is.
     public var greenInstructions = ""
@@ -105,6 +116,7 @@ public struct PilotOverrides: Hashable, Sendable {
     public var adminMerge: Bool?
     public var agent: String?
     public var model: String?
+    public var runIn: RunIn?
     /// Empty is a value too: a repo can clear what its org adds.
     public var greenInstructions: String?
     public var reviewInstructions: String?
@@ -131,7 +143,7 @@ public struct PilotOverrides: Hashable, Sendable {
             && copilotConflicts == nil && copilotComments == nil && reviewers == nil && quietMinutes == nil
             && trustedReviewers == nil && gateChecks == nil && holdLabels == nil && selfReview == nil && adminMerge ==
             nil && agent == nil && model == nil
-            && greenInstructions == nil && reviewInstructions == nil && startInstructions == nil
+            && greenInstructions == nil && reviewInstructions == nil && startInstructions == nil && runIn == nil
     }
 }
 
@@ -171,6 +183,7 @@ public struct PilotRules: Hashable, Sendable {
         settings.adminMerge = repoLevel.adminMerge ?? false
         settings.agent = repoLevel.agent ?? orgLevel.agent ?? defaults.agent
         settings.model = repoLevel.model ?? orgLevel.model ?? defaults.model
+        settings.runIn = repoLevel.runIn ?? orgLevel.runIn ?? defaults.runIn
         settings.greenInstructions = repoLevel.greenInstructions ?? orgLevel.greenInstructions
             ?? defaults.greenInstructions
         settings.reviewInstructions = repoLevel.reviewInstructions ?? orgLevel.reviewInstructions

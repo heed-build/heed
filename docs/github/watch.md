@@ -157,8 +157,8 @@ never set follow the settings.
 
 ## Runs
 
-Get it green never types into your session's agent. Each round (heed sending on its own with `green = "auto"`, or
-`zg` with items queued) is a **run** in the background:
+By default get it green never types into your session's agent. Each round (heed sending on its own with
+`green = "auto"`, or `zg` with items queued) is a **run** in the background:
 
 - **Where:** a worktree of its own (`<worktree_root>/heed/<repo>/get-it-green-<branch>`) on a branch of its own,
   `heed/get-it-green/<branch>`, tracking the pull request's. Conflicts with the base get `heed/get-it-merged/…`.
@@ -185,6 +185,15 @@ one takes you to its tab.
 ![A run working in the background beside the session's agent](../images/shots/sessions/run-tab.png)
 
 ![A run, read: its agent and model, what it pushed, and its last screen](../images/shots/sessions/run-reader.png)
+
+### In the session instead
+
+`run_in = "session"` (per org and repo too, or **Runs in** on the Pilot page) sends each round to the session's own
+agent instead, as one prompt typed into its pane. It waits until that agent is idle or done, never while it works,
+is blocked or asks, and until you have not typed in it for five minutes (20 seconds after `zg`). No worktree, branch or
+tab is made. Use it where a fresh worktree gets in the way, such as an agent that asks to trust every new folder.
+
+Nothing is sent for a PR once it is merged or closed, in either mode.
 
 ### Leftovers
 
@@ -237,6 +246,7 @@ green = "ask"        # off, ask or auto
 max_rounds = 3       # prompts without a new approval before it stops
 agent = ""           # runs' agent (codex, claude, ...); empty: the session's
 model = ""           # their model (haiku, gpt-5-codex, ...); empty: the agent's default
+run_in = "background" # background (a run of its own) or session (the session's agent, once idle)
 run_timeout = "30m"  # a run still working after this long is stopped
 pause = "1h"         # what zp pauses for
 merge = "off"        # off, auto or heed

@@ -79,6 +79,23 @@ struct RunsTests {
         #expect(HeedConfig.default.pilot.defaults.agent == nil && HeedConfig.default.pilot.defaults.runTimeout == 1800)
     }
 
+    @Test func runInDefaultsToBackgroundAndIsOverridable() {
+        let (config, problems) = ConfigLoader.decode("""
+        [orgs.o]
+        run_in = "Session"
+        [repos."o/r"]
+        run_in = "background"
+        [repos."o/x"]
+        run_in = "tab"
+        """)
+        #expect(problems.map(\.path) == ["repos.o/x.run_in"])
+        let pilot = config?.pilot ?? PilotRules()
+        #expect(pilot.defaults.runIn == .background)
+        #expect(pilot.resolve(Repo(org: "o", name: "other")).runIn == .session)
+        #expect(pilot.resolve(Repo(org: "o", name: "r")).runIn == .background)
+        #expect(pilot.resolve(Repo(org: "o", name: "x")).runIn == .session)
+    }
+
     @Test func instructionsInheritAndARepoCanClearThem() {
         let (config, problems) = ConfigLoader.decode("""
         [pilot]

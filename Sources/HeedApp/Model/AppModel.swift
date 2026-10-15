@@ -3841,6 +3841,12 @@ final class AppModel {
             if explicit { flash = "nothing queued (space queues an item)" }
             return
         }
+        // A merged or closed PR has nothing left to fix.
+        if let state = pullState(ref), state != .open {
+            pendingDelivery.remove(ref)
+            if explicit { flash = "#\(ref.number) is \(state == .merged ? "merged" : "closed"): nothing to send" }
+            return
+        }
         let effective = pilot(for: ref)
         guard explicit || (effective.green == .auto && effective.watching && !pipeline.roundsExhausted
             && !pipeline.isPaused(Clock.now))
@@ -3864,6 +3870,10 @@ final class AppModel {
             }
             return
         }
+        if pilotSettings(for: ref).runIn == .session {
+            deliverInSession(ref, prompt: prompt, explicit: explicit, session: session)
+            return
+        }
         // One run per PR at a time: the next round waits for it to end.
         if liveRun(for: ref) != nil || startingRuns.contains(ref.description) {
             pendingDelivery.insert(ref)
@@ -3882,6 +3892,35 @@ final class AppModel {
             else { return }
             markSent(ref, pipeline: &pipeline, session: &session, to: target)
         }
+    }
+
+    /// `run_in = "session"`: typed into the session's own agent, once it is idle and you have left it alone (five
+    /// minutes after your last keystroke; when you asked, 20 seconds).
+    private func deliverInSession(_ ref: PullRef, prompt: String, explicit: Bool, session: Session) {
+        guard var pipeline = feedback[ref.description], let layout = layouts[session.id],
+              let (_, paneID) = agentPane(in: layout)
+        else {
+            if explicit { flash = "\(session.title) has no agent pane to send to" }
+            return
+        }
+        switch Delivery.verdict(
+            state: session.state.state, lastTyped: lastTyped[session.id], typingGrace: explicit ? 20 : 300
+        ) {
+        case let .wait(reason):
+            pendingDelivery.insert(ref)
+            if explicit { flash = "waiting: \(reason); it goes once the agent is idle" }
+            logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(reason)")
+        case .deliver:
+            var session = session
+            TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
+            markSent(ref, pipeline: &pipeline, session: &session, to: session.agent)
+        }
+    }
+
+    /// Whether a PR is open, merged or closed, as last seen; nil before heed has seen it.
+    private func pullState(_ ref: PullRef) -> PullRequest.State? {
+        if let state = github.pull(ref)?.state { return state }
+        return pullDetails[ref.description]?.state.flatMap(PullRequest.State.init(rawValue:))
     }
 
     /// The queued items went out: the pipeline counts a round, the session and the pilot log say where to.

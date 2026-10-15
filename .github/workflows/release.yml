@@ -157,8 +157,9 @@ jobs:
           shasum -a 256 Heed-arm64.dmg >Heed-arm64.dmg.sha256
           cat ./*.sha256
 
-      # The appcast installed copies read (scripts/appcast.sh): the zip's EdDSA signature and length, the release notes,
-      # and a signature over the feed itself. The key goes to sign_update on stdin, never on a command line or disk.
+      # The appcast installed copies read (scripts/appcast.sh): the zip's EdDSA signature and length, the release notes
+      # since the installed version (scripts/release-notes.sh), and a signature over the feed itself. The key goes to
+      # sign_update on stdin, never on a command line or disk.
       - name: Sign the update and write the appcast
         if: env.SPARKLE == 'true' && env.NOTARIZE == 'true'
         env:
@@ -192,11 +193,9 @@ jobs:
           signature="$("$tools/bin/sign_update" --ed-key-file - -p dist/Heed-arm64.zip <<<"$SPARKLE_PRIVATE_KEY")"
           length="$(stat -f %z dist/Heed-arm64.zip)"
           build="$(plutil -extract CFBundleVersion raw build/Heed.app/Contents/Info.plist)"
-          # A dry run with a version of its own has no draft to read notes from.
-          gh release view "$TAG" --json body -q .body >"$RUNNER_TEMP/notes.md" 2>/dev/null \
-            || echo "Dry run of $VERSION." >"$RUNNER_TEMP/notes.md"
-          gh api markdown -f text="$(cat "$RUNNER_TEMP/notes.md")" -f mode=gfm -f context="$GITHUB_REPOSITORY" \
-            >"$RUNNER_TEMP/notes.html"
+          # This release's notes and those of the releases before it, which Sparkle cuts off at the installed version
+          # (a dry run with a version of its own has no draft, and says so).
+          scripts/release-notes.sh "$TAG" "$build" >"$RUNNER_TEMP/notes.html"
           scripts/appcast.sh "$VERSION" "$build" "$signature" "$length" "$RUNNER_TEMP/notes.html" >dist/appcast.xml
           "$tools/bin/sign_update" --ed-key-file - dist/appcast.xml <<<"$SPARKLE_PRIVATE_KEY"
           "$tools/bin/sign_update" --ed-key-file - --verify dist/appcast.xml <<<"$SPARKLE_PRIVATE_KEY"

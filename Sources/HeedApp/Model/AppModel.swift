@@ -585,7 +585,10 @@ final class AppModel {
         config = decoded
         settings = decoded.work
         Remote.setTargets(Dictionary(uniqueKeysWithValues: decoded.hosts.map { ($0.key, $0.value.ssh) }))
-        if !isFixture { TerminalSurfaces.shared.persist = decoded.work.persist }
+        if !isFixture {
+            TerminalSurfaces.shared.persist = decoded.work.persist
+            Updater.shared.apply(decoded.updates)
+        }
         let built = decoded.keymaps()
         engine.setKeymaps(built.keymaps, scoped: built.scoped)
         updateScope()
@@ -1392,6 +1395,10 @@ final class AppModel {
         case "host.open": openHostsPicker()
         case "host.filter": filterByHost(command.arguments.first)
         case "agents.stop": confirmStopAgents()
+        case "update.check":
+            if Updater.shared.isRunning { Updater.shared.checkForUpdates() } else {
+                flash = "updates are off in this build: release builds check GitHub once a day"
+            }
         case "tutor.hide": hideTutorReminder(all: command.arguments.first == "all")
         case "tutor.back", "tutor.skip", "tutor.exit":
             guard tutor != nil else {

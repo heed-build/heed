@@ -108,6 +108,7 @@ public enum Commands {
         .init("tutor.back", "the tutor's previous step, the world as it was then", .views),
         .init("tutor.skip", "skip the tutor's step", .views),
         .init("tutor.exit", "leave the tutor; your sessions come back as they were", .views),
+        .init("update.check", "look for a new version of heed now (also :update)", .views),
         .init("tools.detect", "find git and gh again (login shell PATH, usual places, [tools])", .views),
         .init("app.quit", "quit Heed", .views),
         .init(

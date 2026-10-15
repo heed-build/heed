@@ -39,3 +39,12 @@ reason is in the status bar), and `?` for what every key does now.
 
 With the menu bar item off, closing the window quits Heed. Turn it on (`[ui] menu_bar = true`) and closing the window
 keeps Heed and its agents running.
+
+## Heed never offers an update
+
+- A build from source never checks; only release builds do (`:update` says which you have).
+- `[updates] check = false` stops the daily check; `:update` still looks.
+- Releases before 0.6.0 cannot update themselves: install 0.6.0 once (the disk image, `brew upgrade heed` or the
+  install script), and it updates itself from then on.
+
+See [Updates](configuration/updates.md).

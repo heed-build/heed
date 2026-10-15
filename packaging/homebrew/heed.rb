@@ -14,6 +14,9 @@ cask "heed" do
     strategy :github_latest
   end
 
+  # Heed updates itself (Sparkle); brew upgrade leaves it to that (brew upgrade --greedy still upgrades it).
+  auto_updates true
+
   depends_on arch: :arm64
   depends_on macos: :sequoia
 

@@ -5,6 +5,8 @@
 #   scripts/release-secrets.sh                     the Developer ID certificate (and its password)
 #   scripts/release-secrets.sh --p8 ~/Downloads/AuthKey_ABC123.p8 --key-id ABC123 --issuer-id <uuid>
 #                                                  the notarization API key too
+#   scripts/release-secrets.sh --sparkle           only the key that signs updates (Sparkle's, kept in your login
+#                                                  keychain); writes its public half into Resources/Info.plist
 #
 # The certificate: macOS asks to allow exporting your keychain's signing identities. Only the "Developer ID
 # Application" certificate and its private key are kept, repackaged with a random password in the format a CI
@@ -13,14 +15,16 @@ set -euo pipefail
 
 repo="heed-build/heed"
 openssl=/usr/bin/openssl # LibreSSL: reads what `security export` writes without -legacy, writes what `security import` reads
-p8="" key_id="" issuer_id=""
+p8="" key_id="" issuer_id="" sparkle=false
+root="$(cd "$(dirname "$0")/.." && pwd)"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --p8) p8="$2"; shift 2 ;;
     --key-id) key_id="$2"; shift 2 ;;
     --issuer-id) issuer_id="$2"; shift 2 ;;
-    -h | --help) sed -n '2,11p' "$0"; exit 0 ;;
+    --sparkle) sparkle=true; shift ;;
+    -h | --help) sed -n '2,13p' "$0"; exit 0 ;;
     *) echo "release-secrets: unknown argument $1 (see --help)" >&2; exit 1 ;;
   esac
 done
@@ -30,6 +34,32 @@ if [ -n "$p8$key_id$issuer_id" ] && { [ -z "$p8" ] || [ -z "$key_id" ] || [ -z "
 fi
 [ -z "$p8" ] || [ -f "$p8" ] || { echo "release-secrets: no file $p8" >&2; exit 1; }
 gh auth status >/dev/null 2>&1 || { echo "release-secrets: sign in to gh first (gh auth login)" >&2; exit 1; }
+
+# The update key: Sparkle's generate_keys makes it once (or finds it) in the login keychain under the account "heed";
+# its private half goes to the SPARKLE_PRIVATE_KEY secret through a file that is deleted on exit, its public half into
+# Info.plist. Nothing secret is printed.
+if $sparkle; then
+  umask 077
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  # shellcheck source=/dev/null
+  source "$root/packaging/sparkle/sparkle.lock"
+  curl -fsSL -o "$work/sparkle.tar.xz" \
+    "https://github.com/sparkle-project/Sparkle/releases/download/$version/Sparkle-$version.tar.xz"
+  echo "$sha256  $work/sparkle.tar.xz" | shasum -a 256 -c - >/dev/null
+  tar -xf "$work/sparkle.tar.xz" -C "$work" ./bin/generate_keys
+  echo "release-secrets: the update key, in your login keychain (allow access in the dialog)…"
+  "$work/bin/generate_keys" --account heed >/dev/null
+  public="$("$work/bin/generate_keys" --account heed -p)"
+  "$work/bin/generate_keys" --account heed -x "$work/sparkle-key" >/dev/null
+  gh secret set SPARKLE_PRIVATE_KEY --repo "$repo" <"$work/sparkle-key"
+  plist="$root/Resources/Info.plist"
+  sed -i '' "s|<key>SUPublicEDKey</key><string>[^<]*</string>|<key>SUPublicEDKey</key><string>$public</string>|" "$plist"
+  grep -q "<string>$public</string>" "$plist" || { echo "release-secrets: could not write $plist" >&2; exit 1; }
+  echo "release-secrets: SPARKLE_PRIVATE_KEY stored on $repo; the public key ($public) is in Resources/Info.plist"
+  echo "release-secrets: commit Info.plist; releases from then on can update themselves"
+  exit 0
+fi
 
 umask 077
 work="$(mktemp -d)"

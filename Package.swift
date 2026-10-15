@@ -12,7 +12,7 @@ var targets: [Target] = [
     .executableTarget(name: "heed", dependencies: ["HeedCore"]),
     .testTarget(name: "HeedCoreTests", dependencies: ["HeedCore"]),
 ]
-var appDependencies: [Target.Dependency] = ["HeedCore"]
+var appDependencies: [Target.Dependency] = ["HeedCore", .product(name: "Sparkle", package: "Sparkle")]
 if hasGhostty {
     targets += [
         .binaryTarget(name: "GhosttyKit", path: "Vendor/GhosttyKit.xcframework"),
@@ -41,5 +41,7 @@ let package = Package(
         .executable(name: "HeedApp", targets: ["HeedApp"]),
         .executable(name: "heed", targets: ["heed"]),
     ],
+    // The updater (MIT): checks heed's appcast, verifies each download's EdDSA signature, installs and relaunches.
+    dependencies: [.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")],
     targets: targets
 )

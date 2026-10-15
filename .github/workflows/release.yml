@@ -34,13 +34,25 @@ jobs:
       # Signing and notarizing need all six secrets (scripts/release-secrets.sh stores them); without them the release
       # is ad-hoc signed, which the install script handles but browsers and Homebrew warn about.
       NOTARIZE: ${{ secrets.DEVELOPER_ID_P12 != '' && secrets.NOTARY_KEY_P8 != '' }}
+      # Signing updates needs the Sparkle key (scripts/release-secrets.sh --sparkle stores it); without it the release
+      # has no appcast, and installed copies are not offered it.
+      SPARKLE: ${{ secrets.SPARKLE_PRIVATE_KEY != '' }}
     steps:
+      # All of main's history: the build number is its commit count (scripts/bundle.sh), which the updater compares.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Find the draft
         id: draft
         run: |
           draft="$(gh api "repos/$GITHUB_REPOSITORY/releases" --jq '[.[] | select(.draft)][0] // empty')"
+          # A dry run that names its version needs no draft (there is none between a release and the next merge).
+          if [ -z "$draft" ] && [ "${{ inputs.dry_run }}" = "true" ] && [ -n "${{ inputs.version }}" ]; then
+            echo "tag=v${{ inputs.version }}" >>"$GITHUB_OUTPUT"
+            echo "version=${{ inputs.version }}" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [ -z "$draft" ]; then
             echo "No draft release: release-drafter makes one when a pull request merges." >&2
             exit 1
@@ -73,6 +85,10 @@ jobs:
           mise run bundle
           shown="$(plutil -extract CFBundleShortVersionString raw build/Heed.app/Contents/Info.plist)"
           [ "$shown" = "$HEED_VERSION" ] || { echo "Info.plist says $shown, not $HEED_VERSION" >&2; exit 1; }
+          # The updater compares build numbers: main's commit count, never a shallow clone's 1.
+          build="$(plutil -extract CFBundleVersion raw build/Heed.app/Contents/Info.plist)"
+          [ "$build" = "$(git rev-list --count HEAD)" ] && [ "$build" -gt 1 ] \
+            || { echo "CFBundleVersion is $build, not main's commit count" >&2; exit 1; }
 
       - name: Sign with the Developer ID
         if: env.NOTARIZE == 'true'
@@ -141,6 +157,40 @@ jobs:
           shasum -a 256 Heed-arm64.dmg >Heed-arm64.dmg.sha256
           cat ./*.sha256
 
+      # The appcast installed copies read (scripts/appcast.sh): the zip's EdDSA signature and length, the release notes,
+      # and a signature over the feed itself. The key goes to sign_update on stdin, never on a command line or disk.
+      - name: Sign the update and write the appcast
+        if: env.SPARKLE == 'true' && env.NOTARIZE == 'true'
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          VERSION: ${{ steps.draft.outputs.version }}
+          TAG: ${{ steps.draft.outputs.tag }}
+        run: |
+          source packaging/sparkle/sparkle.lock
+          tools="$RUNNER_TEMP/sparkle"
+          mkdir -p "$tools"
+          curl -fsSL -o "$tools/sparkle.tar.xz" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/$version/Sparkle-$version.tar.xz"
+          echo "$sha256  $tools/sparkle.tar.xz" | shasum -a 256 -c -
+          tar -xf "$tools/sparkle.tar.xz" -C "$tools" ./bin/sign_update
+          signature="$("$tools/bin/sign_update" --ed-key-file - -p dist/Heed-arm64.zip <<<"$SPARKLE_PRIVATE_KEY")"
+          length="$(stat -f %z dist/Heed-arm64.zip)"
+          build="$(plutil -extract CFBundleVersion raw build/Heed.app/Contents/Info.plist)"
+          # A dry run with a version of its own has no draft to read notes from.
+          gh release view "$TAG" --json body -q .body >"$RUNNER_TEMP/notes.md" 2>/dev/null \
+            || echo "Dry run of $VERSION." >"$RUNNER_TEMP/notes.md"
+          gh api markdown -f text="$(cat "$RUNNER_TEMP/notes.md")" -f mode=gfm -f context="$GITHUB_REPOSITORY" \
+            >"$RUNNER_TEMP/notes.html"
+          scripts/appcast.sh "$VERSION" "$build" "$signature" "$length" "$RUNNER_TEMP/notes.html" >dist/appcast.xml
+          "$tools/bin/sign_update" --ed-key-file - dist/appcast.xml <<<"$SPARKLE_PRIVATE_KEY"
+          "$tools/bin/sign_update" --ed-key-file - --verify dist/appcast.xml <<<"$SPARKLE_PRIVATE_KEY"
+          xmllint --noout dist/appcast.xml
+
+      - name: No appcast without the Sparkle key
+        if: env.SPARKLE != 'true'
+        run: |
+          echo "::warning::No SPARKLE_PRIVATE_KEY: this release has no appcast, so installed copies are not offered it."
+
       - name: Keep the files on the run
         if: inputs.dry_run
         uses: actions/upload-artifact@v4
@@ -157,6 +207,8 @@ jobs:
         run: |
           names="$(gh release view "${{ steps.draft.outputs.tag }}" --json assets --jq '[.assets[].name] | sort | join(" ")')"
           wanted="Heed-arm64.dmg Heed-arm64.dmg.sha256 Heed-arm64.zip Heed-arm64.zip.sha256"
+          if [ "$SPARKLE" = "true" ] && [ "$NOTARIZE" = "true" ]; then wanted="$wanted appcast.xml"; fi
+          wanted="$(tr ' ' '\n' <<<"$wanted" | LC_ALL=C sort | tr '\n' ' ' | sed 's/ $//')"
           [ "$names" = "$wanted" ] || { echo "draft has: $names" >&2; exit 1; }
 
       - name: Publish

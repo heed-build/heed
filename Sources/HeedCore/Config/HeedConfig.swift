@@ -27,6 +27,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var pilot = PilotRules()
     /// `[hosts.<name>]`: machines heed drives over ssh, by name.
     public var hosts: [String: HostConfig] = [:]
+    /// `[updates]`: whether heed looks for a new version, and whether it asks before installing one.
+    public var updates = UpdateSettings()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -437,6 +439,15 @@ public enum ConfigLoader {
         // [ui]
         if let flag = bool(["ui", "menu_bar"]) { config.showMenuBarItem = flag }
         if let flag = bool(["ui", "dock_state"]) { config.showDockState = flag }
+        // [updates]
+        if let flag = bool(["updates", "check"]) { config.updates.check = flag }
+        if let text = string(["updates", "install"]) {
+            if let install = UpdateSettings.Install(rawValue: text.lowercased()) {
+                config.updates.install = install
+            } else {
+                problems.append(ConfigProblem(path: "updates.install", message: "expected ask or auto"))
+            }
+        }
 
         if let keys = root.value(at: ["keys"])?.table {
             for name in keys.keys where !["insert_escape", "global_start_work", "global_activate"].contains(name) {
@@ -557,6 +568,13 @@ public enum ConfigLoader {
     # The Dock icon shows the same: a badge in the state's colour (blocked, else asking) with the count.
     dock_state = true
 
+    [updates]
+    # Look for a new version of heed once a day (on GitHub, heed's releases). Each update is signed; heed installs
+    # only what its key signed, and Apple has notarized.
+    check = true
+    # ask: show what is new and install when you say so. auto: download in the background and install on quit.
+    install = "ask"                    # ask | auto
+
     [tools]
     # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
     # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.
@@ -606,4 +624,19 @@ public enum ConfigLoader {
     # "gC" = ""
     # "<C-j>" = "row.next"
     """
+}
+
+/// `[updates]`.
+public struct UpdateSettings: Equatable, Sendable {
+    public enum Install: String, Sendable {
+        case ask, auto
+    }
+
+    public var check = true
+    public var install = Install.ask
+
+    public init(check: Bool = true, install: Install = .ask) {
+        self.check = check
+        self.install = install
+    }
 }

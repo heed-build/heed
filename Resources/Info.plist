@@ -10,6 +10,15 @@
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleVersion</key><string>__BUILD__</string>
   <key>CFBundleShortVersionString</key><string>__VERSION__</string>
+  <key>HeedCommit</key><string>__COMMIT__</string>
+  <!-- Sparkle: the appcast the release workflow attaches to every release, and the public half of the key that signs
+       each update (printed by the sparkle option of scripts/release-secrets.sh). Empty: the updater stays off. -->
+  <key>SUFeedURL</key><string>https://github.com/heed-build/heed/releases/latest/download/appcast.xml</string>
+  <key>SUPublicEDKey</key><string></string>
+  <key>SUEnableInstallerLauncherService</key><false/>
+  <!-- The appcast itself must carry the same key's signature, and an update is checked before it is unpacked. -->
+  <key>SURequireSignedFeed</key><true/>
+  <key>SUVerifyUpdateBeforeExtraction</key><true/>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>

@@ -32,6 +32,18 @@ jobs:
       - name: Release build
         run: mise run bundle
 
+      # What the release workflow attaches for the updater: well-formed, and carrying what Sparkle reads.
+      - name: Appcast
+        run: |
+          printf '<h2>Fixes</h2><p>a ]]> b</p>\n' >"$RUNNER_TEMP/notes.html"
+          scripts/appcast.sh 1.2.3 42 c2lnbmF0dXJl 1234 "$RUNNER_TEMP/notes.html" >"$RUNNER_TEMP/appcast.xml"
+          xmllint --noout "$RUNNER_TEMP/appcast.xml"
+          for wanted in '<sparkle:version>42</sparkle:version>' '<sparkle:shortVersionString>1.2.3' \
+            'length="1234"' 'sparkle:edSignature="c2lnbmF0dXJl"' 'download/v1.2.3/Heed-arm64.zip'; do
+            grep -qF "$wanted" "$RUNNER_TEMP/appcast.xml" || { echo "appcast lacks $wanted" >&2; exit 1; }
+          done
+          ls build/Heed.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate >/dev/null
+
       - name: Tutor check
         run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
 

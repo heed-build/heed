@@ -180,7 +180,8 @@ resume = "--resume {id}"
 # [repos."elastic/docs-builder"]
 # setup = ["pnpm install"]
 
-# Pinned tasks per repo, each run in its own pane; the exit code sets the tab's glyph.
+# Pinned tasks per repo, each run in its own pane; the exit code sets the tab's glyph. New sessions open them as
+# tabs; ! picks one to run, from these and what the worktree offers (mise tasks, make targets, package.json scripts).
 # [repos."elastic/docs-builder".tasks]
 # test = "dotnet test"
 

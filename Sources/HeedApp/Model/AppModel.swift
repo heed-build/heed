@@ -5159,7 +5159,11 @@ final class AppModel {
 
     /// The worktree a session's tasks run in, and where: its first repo's.
     private func taskWorktree(of session: Session) -> (path: String, location: Location, pinned: [TaskSpec])? {
-        guard let path = session.worktreePaths.first else { return nil }
+        // Sessions from before heed kept their paths: the worktree they own, else where their first pane runs.
+        guard let path = session.worktreePaths.first
+            ?? worktrees.first(where: { session.owns($0) && $0.repo == session.repos.first })?.path
+            ?? layouts[session.id]?.tabs.first?.tree.panes.first?.directory
+        else { return nil }
         return (path, session.location, session.repos.first.flatMap { settings.tasks[$0.slug] } ?? [])
     }
 
@@ -5216,7 +5220,7 @@ final class AppModel {
         let result = await TaskDiscovery.discover(at: path, on: location, pinned: pinned)
         taskCache[path] = result
         if let state = taskPicker, let session = sessions.first(where: { $0.id == state.sessionID }),
-           session.worktreePaths.first == path
+           taskWorktree(of: session)?.path == path
         {
             taskPicker = TaskPickerState(
                 picker: Self.taskPicker(result), notes: result.notes, loading: false, sessionID: state.sessionID
@@ -5243,7 +5247,7 @@ final class AppModel {
 
     /// Tasks set from outside discovery for the session under the cursor: the fake world's, for screenshots.
     func showTasks(_ tasks: [TaskSpec]) {
-        guard let path = currentSession?.worktreePaths.first else { return }
+        guard let session = currentSession, let path = taskWorktree(of: session)?.path else { return }
         taskCache[path] = TaskDiscovery.Result(tasks: tasks)
     }
 

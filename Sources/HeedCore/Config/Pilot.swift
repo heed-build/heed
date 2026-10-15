@@ -2,14 +2,6 @@ import Foundation
 
 /// What get it merged does once a PR is green enough. `auto` makes sure GitHub's auto-merge is on (GitHub merges once
 /// its own requirements are met); `heed` merges it itself, once heed's merge rules hold (`HeedMerge`).
-/// `[pilot] send_to`: where get it green sends what a PR collects.
-public enum SendTo: String, CaseIterable, Hashable, Sendable, Codable {
-    /// Typed into the session's agent.
-    case session
-    /// A dedicated agent in its own tab ("get it green", "get it merged"), closed when done.
-    case tab
-}
-
 public enum MergeMode: String, CaseIterable, Hashable, Sendable, Codable {
     case off, auto, heed
 
@@ -61,11 +53,12 @@ public struct PilotSettings: Hashable, Sendable {
     public var selfReview: String?
     /// Retry a refused merge with `--admin` (bypassing branch protection). Per repo only.
     public var adminMerge = false
-    /// How long after your last keystroke in a session before heed sends it anything (or starts a helper tab in it):
-    /// so get it green does not take your agent while you work with it. Never less than 20 seconds.
-    public var sendAfterIdle: TimeInterval = 300
-    /// Where get it green sends: the session's agent, or a dedicated agent in its own tab.
-    public var sendTo: SendTo = .session
+    /// The agent get it green and get it merged runs use; nil: the session's.
+    public var agent: String?
+    /// Its model (`--model`); nil: the agent's own default.
+    public var model: String?
+    /// A run still working after this long is stopped.
+    public var runTimeout: TimeInterval = 1800
 
     public init(
         watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600,
@@ -105,8 +98,8 @@ public struct PilotOverrides: Hashable, Sendable {
     public var selfReview: String?
     /// Read only under `[repos."org/name"]`.
     public var adminMerge: Bool?
-    public var sendAfterIdle: TimeInterval?
-    public var sendTo: SendTo?
+    public var agent: String?
+    public var model: String?
 
     public init(
         watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil, merge: MergeMode? = nil,
@@ -128,7 +121,7 @@ public struct PilotOverrides: Hashable, Sendable {
         watch == nil && green == nil && maxRounds == nil && merge == nil && mergeMethod == nil && updateBranches == nil
             && copilotConflicts == nil && copilotComments == nil && reviewers == nil && quietMinutes == nil
             && trustedReviewers == nil && gateChecks == nil && holdLabels == nil && selfReview == nil && adminMerge ==
-            nil && sendAfterIdle == nil && sendTo == nil
+            nil && agent == nil && model == nil
     }
 }
 
@@ -166,8 +159,8 @@ public struct PilotRules: Hashable, Sendable {
         settings.holdLabels = repoLevel.holdLabels ?? orgLevel.holdLabels ?? defaults.holdLabels
         settings.selfReview = repoLevel.selfReview ?? orgLevel.selfReview ?? defaults.selfReview
         settings.adminMerge = repoLevel.adminMerge ?? false
-        settings.sendAfterIdle = repoLevel.sendAfterIdle ?? orgLevel.sendAfterIdle ?? defaults.sendAfterIdle
-        settings.sendTo = repoLevel.sendTo ?? orgLevel.sendTo ?? defaults.sendTo
+        settings.agent = repoLevel.agent ?? orgLevel.agent ?? defaults.agent
+        settings.model = repoLevel.model ?? orgLevel.model ?? defaults.model
         return settings
     }
 
@@ -234,7 +227,7 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
         case stuck
         /// `zr`: another round for a stalled PR.
         case retry
-        /// A helper tab (`send_to = "tab"`) finished: its PR is green or merged, and its tab closed.
+        /// A get it green / get it merged run ended: how, and its tab, worktree and branch gone.
         case helperDone
         case watch, green, pause
         /// Get it merged: auto-merge turned on or off, a merge, a PR held back, a branch brought up to date.

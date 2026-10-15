@@ -30,6 +30,8 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     public var promptFlag: String?
     /// Flag that assigns the agent's own session id at launch (`--session-id`), so resume works from the start.
     public var sessionIDFlag: String?
+    /// Flag that picks the model (`--model`), for get it green runs that choose one; nil: the agent cannot.
+    public var modelFlag: String?
     /// Screen patterns per state name (`blocked = "Allow\\?"`), for agents without hooks; see `ScreenGuess`.
     public var patterns: [String: String] = [:]
 
@@ -50,10 +52,13 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
 
     /// The command line typed into the session's shell to start the agent on `prompt`.
     public func launchCommand(
-        prompt text: String, planFirst: Bool = false, extraArguments: [String] = [], environment: [String: String] = [:]
+        prompt text: String, planFirst: Bool = false, extraArguments: [String] = [],
+        environment: [String: String] = [:],
+        model: String? = nil
     ) -> String {
         let env = environment.sorted { $0.key < $1.key }.map { "\($0.key)=\(ShellQuote.quote($0.value)) " }.joined()
         var line = env + ([command] + extraArguments.map(ShellQuote.quote)).joined(separator: " ")
+        if let model, !model.isEmpty, let modelFlag { line += " \(modelFlag) \(ShellQuote.quote(model))" }
         if planFirst, let planArguments { line += " " + planArguments }
         guard !text.isEmpty else { return line }
         switch prompt {
@@ -88,7 +93,12 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
             name: "gemini", command: "gemini", resumeArguments: "--resume {id}", promptFlag: "-i",
             sessionIDFlag: "--session-id"
         ),
-    ]
+    ].map { agent in
+        // Every built-in takes --model.
+        var agent = agent
+        agent.modelFlag = "--model"
+        return agent
+    }
 }
 
 /// POSIX shell quoting for command lines Heed types into a shell.

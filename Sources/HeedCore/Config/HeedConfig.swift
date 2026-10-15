@@ -265,26 +265,14 @@ public enum ConfigLoader {
             overrides.holdLabels = strings(base + ["hold_labels"])
             overrides.selfReview = string(base + ["self_review"]).map { $0.trimmingCharacters(in: .whitespaces) }
             if base.first == "repos" { overrides.adminMerge = bool(base + ["admin_merge"]) }
-            if let text = string(base + ["send_after_idle"]) {
-                switch PilotDuration.parse(text) {
-                case let .seconds(seconds): overrides.sendAfterIdle = seconds
-                case .off: overrides.sendAfterIdle = 0
-                case .forever, nil:
-                    problems.append(ConfigProblem(
-                        path: (base + ["send_after_idle"]).joined(separator: "."),
-                        message: "expected a duration like 30s, 5m or 15m, or 0"
-                    ))
-                }
+            for removed in ["send_after_idle", "send_to"] where root.value(at: base + [removed]) != nil {
+                problems.append(ConfigProblem(
+                    path: (base + [removed]).joined(separator: "."),
+                    message: "no longer used: get it green always runs in the background now"
+                ))
             }
-            if let text = string(base + ["send_to"]) {
-                if let where_ = SendTo(rawValue: text.lowercased()) {
-                    overrides.sendTo = where_
-                } else {
-                    problems.append(ConfigProblem(
-                        path: (base + ["send_to"]).joined(separator: "."), message: "expected session or tab"
-                    ))
-                }
-            }
+            overrides.agent = string(base + ["agent"]).flatMap { $0.isEmpty ? nil : $0.lowercased() }
+            overrides.model = string(base + ["model"]).flatMap { $0.isEmpty ? nil : $0 }
             return overrides
         }
         let pilotDefaults = pilotOverrides(["pilot"])
@@ -302,8 +290,15 @@ public enum ConfigLoader {
         if let list = pilotDefaults.gateChecks { config.pilot.defaults.gateChecks = list }
         if let list = pilotDefaults.holdLabels { config.pilot.defaults.holdLabels = list }
         if let command = pilotDefaults.selfReview { config.pilot.defaults.selfReview = command.isEmpty ? nil : command }
-        if let seconds = pilotDefaults.sendAfterIdle { config.pilot.defaults.sendAfterIdle = seconds }
-        if let where_ = pilotDefaults.sendTo { config.pilot.defaults.sendTo = where_ }
+        config.pilot.defaults.agent = pilotDefaults.agent
+        config.pilot.defaults.model = pilotDefaults.model
+        if let text = string(["pilot", "run_timeout"]) {
+            if case let .seconds(seconds) = PilotDuration.parse(text), seconds >= 60 {
+                config.pilot.defaults.runTimeout = seconds
+            } else {
+                problems.append(ConfigProblem(path: "pilot.run_timeout", message: "expected a duration like 30m or 1h"))
+            }
+        }
         if bool(["pilot", "admin_merge"]) != nil {
             problems.append(ConfigProblem(
                 path: "pilot.admin_merge",
@@ -375,6 +370,7 @@ public enum ConfigLoader {
                     }
                 }
                 if let plan = string(["agents", name, "plan"]) { agent.planArguments = plan.isEmpty ? nil : plan }
+                if let flag = string(["agents", name, "model_flag"]) { agent.modelFlag = flag.isEmpty ? nil : flag }
                 if let resume = string(["agents", name, "resume"]) {
                     agent.resumeArguments = resume.isEmpty ? nil : resume
                 }
@@ -546,12 +542,13 @@ public enum ConfigLoader {
     green = "ask"
     # Prompts sent without a new approval before get it green stops.
     max_rounds = 3
-    # How long after your last keystroke in a session before heed sends it anything, so it does not take your agent
-    # while you work with it: 30s, 5m, 15m, or 0 (20 seconds).
-    send_after_idle = "5m"
-    # Where get it green sends: session (the session's agent) or tab (a dedicated agent in its own tab, "get it
-    # green" or "get it merged", in the session's worktree; it closes once the PR is green or merged).
-    send_to = "session"
+    # Each round of get it green (or get it merged) runs in the background: an agent in its own tab, worktree and
+    # branch (heed/get-it-green/<branch>), all removed when it is done. Which agent and model those runs use; empty:
+    # the session's agent and that agent's default model. Also per org and per repo.
+    agent = ""
+    model = ""
+    # A run still working after this long is stopped.
+    run_timeout = "30m"
     # How long zp pauses a PR: 30m, 1h, 4h, 1d, or forever.
     pause = "1h"
     # Get it merged: off; auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own

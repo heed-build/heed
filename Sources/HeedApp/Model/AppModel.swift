@@ -239,7 +239,7 @@ final class AppModel {
             issueInfo = Fixtures.issueInfo
         }
         replace(with: domain)
-        if isFixture { adoptFixtureHelpers() }
+        if isFixture { adoptFixtureRuns() } else { interruptRuns() }
         updateScope()
         tutorRecord = tutorProgress
         // The tutor runs in its own window and model; the reminder here follows what it saves.
@@ -270,6 +270,7 @@ final class AppModel {
         startGitHubSync()
         startScreenReading()
         await refreshRepos()
+        if !isFixture { _ = await cleanUpRunLeftovers() }
         startSweepSchedule()
     }
 
@@ -350,6 +351,11 @@ final class AppModel {
         guard !isFixture else {
             flash = "fixture: no IO"
             return
+        }
+        // What get it green runs left behind is heed's own: removed when safe, whatever the cleanup rule says.
+        let leftovers = await cleanUpRunLeftovers().filter(\.removed)
+        if explicit, !leftovers.isEmpty {
+            flash = "removed \(leftovers.count) worktree\(leftovers.count == 1 ? "" : "s") left by runs"
         }
         guard config.cleanup.enabled else {
             if explicit {
@@ -681,19 +687,15 @@ final class AppModel {
     /// One message from an agent's hook, applied to its session.
     func receive(_ message: HookMessage) {
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
-        // A helper's hooks: its own state, not the session's. Idle may mean its PR is done; asking or blocked shows the
-        // session in Needs you (through `sessionPilot`).
-        if let pane = message.pane, helpers.values.contains(where: { $0.paneID == pane }) {
+        // A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it;
+        // asking
+        // or blocked shows the session in Needs you (through `sessionPilot`).
+        if let pane = message.pane, let id = liveRuns.first(where: { $0.value.paneID == pane })?.key {
             if case let .state(state, _) = message.kind {
-                helperStates[pane] = state
+                runStates[pane] = state
+                if state == .working { liveRuns[id]?.worked = true }
                 rebuildList()
-                if state == .idle || state == .done {
-                    closeFinishedHelpers()
-                    let waiting = pendingDelivery.filter { session.trackedPRs.contains($0) }
-                    for ref in waiting {
-                        deliver(ref, explicit: false)
-                    }
-                }
+                if let live = liveRuns[id], Runs.ended(state, worked: live.worked) { endRun(id) }
             }
             return
         }
@@ -796,6 +798,7 @@ final class AppModel {
         feedback = domain.feedback
         pilotLog = domain.pilotLog
         mergeRuns = domain.mergeRuns
+        runs = domain.runs
         registeredWorktrees = domain.registeredWorktrees
         cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
@@ -812,6 +815,7 @@ final class AppModel {
         if after.feedback != before.feedback { feedback = after.feedback }
         if after.pilotLog != before.pilotLog { pilotLog = after.pilotLog }
         if after.mergeRuns != before.mergeRuns { mergeRuns = after.mergeRuns }
+        if after.runs != before.runs { runs = after.runs }
         if after.registeredWorktrees != before.registeredWorktrees {
             registeredWorktrees = after.registeredWorktrees
             rebuildWorktreeRows()
@@ -829,7 +833,7 @@ final class AppModel {
         Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
             pullDetails: pullDetails, feedback: feedback, pilotLog: pilotLog,
-            mergeRuns: mergeRuns, registeredWorktrees: registeredWorktrees
+            mergeRuns: mergeRuns, registeredWorktrees: registeredWorktrees, runs: runs
         )
     }
 
@@ -1020,26 +1024,31 @@ final class AppModel {
     private(set) var hostsPicker: Typeahead<HostRow>?
     /// `gB` / `gR` with more than one place to go.
     private(set) var linkPicker: LinkPicker?
-    /// get it green / get it merged tabs (`[pilot] send_to = "tab"`), by PR. In memory only: they are dropped at
-    /// launch.
-    struct HelperTab: Equatable {
+    /// The get it green / get it merged runs running now, by run id: their tab, pane and worktree. In memory only.
+    struct LiveRun: Equatable {
+        let runID: String
+        let ref: PullRef
         let sessionID: String
         let tabID: String
         let paneID: String
-        let goal: HelperGoal
-        /// Its companion checkout, removed when the tab closes; and the session's worktree it sits beside.
-        var companion: String?
-        var companionBranch: String?
-        var record: RepoRecord?
-        var mainPath: String?
+        let record: RepoRecord
+        let worktree: String
+        let branch: String
+        let prBranch: String
+        let mainPath: String
+        /// Its agent has worked: idle after this means its turn is over.
+        var worked = false
     }
 
-    /// PRs whose helper's companion is being made (async), so one is not made twice.
-    private var spawningHelpers: Set<String> = []
-
-    private(set) var helpers: [String: HelperTab] = [:]
-    /// Each helper pane's own state, from its hooks; never the session's.
-    private(set) var helperStates: [String: AgentState] = [:]
+    private(set) var liveRuns: [String: LiveRun] = [:]
+    /// Each run pane's own state, from its hooks; never the session's.
+    private(set) var runStates: [String: AgentState] = [:]
+    /// PRs whose run is being started (async), so one is not started twice.
+    private var startingRuns: Set<String> = []
+    /// Every run, newest first (the domain's).
+    private(set) var runs: [PilotRun] = []
+    /// The run the reader shows (`↩` on a Runs row).
+    var runReader: PilotRun?
     /// Titles and states of the issues sessions link to (fetched, not cached on disk).
     private(set) var issueInfo: [IssueRef: IssueInfo] = [:]
     private var issueInfoFetchedAt: [IssueRef: Date] = [:]
@@ -1193,9 +1202,8 @@ final class AppModel {
         worktreeCount = counts.values.reduce(0, +)
         let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
         let filter = filter(for: .repos)
-        // A helper's companion checkout is heed's own, not yours to import or clean up.
-        let companions = Set(helpers.values.compactMap(\.companion))
-        let added = worktrees.filter { !$0.isMain && !companions.contains($0.path) }
+        // A run's worktree is heed's own, not yours to import or clean up.
+        let added = worktrees.filter { !$0.isMain && !($0.branch.map(Runs.isRunBranch) ?? false) }
         let roots = settings.pathRoots
         let matching = filter.isEmpty ? added : added.filter { worktree in
             FilterQuery.matches(filter, [
@@ -1290,6 +1298,10 @@ final class AppModel {
         }
         if linkPicker != nil {
             answerLinkPicker(stroke)
+            return true
+        }
+        if runReader != nil {
+            if stroke == .escape || stroke == KeyStroke("q") || stroke == KeyStroke("CR") { runReader = nil }
             return true
         }
         if pathImport != nil {
@@ -1563,7 +1575,7 @@ final class AppModel {
         case "pilot.watch", "feedback.watch": togglePilotWatch()
         case "pilot.pause": pausePilot(command.arguments.first)
         case "pilot.retry": retryPilot()
-        case "pilot.helper": showHelper()
+        case "pilot.run": showRun()
         case "pilot.why": showPilotWhy()
         case "pilot.merge": togglePilotMerge()
         case "pilot.copilot":
@@ -2219,9 +2231,8 @@ final class AppModel {
 
     private func openImportPicker() {
         let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
-        let companions = Set(helpers.values.compactMap(\.companion))
         let candidates = worktrees.filter {
-            session(for: $0) == nil && $0.location.isLocal && !companions.contains($0.path)
+            session(for: $0) == nil && $0.location.isLocal && !($0.branch.map(Runs.isRunBranch) ?? false)
         }.sorted {
             if $0.isMain != $1.isMain { return !$0.isMain }
             return $0.repo.slug == $1.repo.slug ? $0.path < $1.path
@@ -3228,7 +3239,7 @@ final class AppModel {
     /// time, the others only when the last sync says their checks or threads moved, or every fifth poll.
     private func refreshWatchedDetails() async {
         resumeExpiredPauses()
-        closeFinishedHelpers()
+        endTimedOutRuns()
         // Held because you were working in the session: try again, now that time has passed.
         for ref in pendingDelivery {
             deliver(ref, explicit: false)
@@ -3343,8 +3354,8 @@ final class AppModel {
         let acting = refs.contains { pilotStatus(for: $0).heedActing(pilot(for: $0)) }
         // The log is newest first.
         let lastAction = pilotLog.first { refs.contains($0.ref) && PilotEvent.actions.contains($0.kind) }?.at
-        let helperNeedsYou = refs.compactMap { helpers[$0.description] }.contains { helper in
-            helperStates[helper.paneID].map { $0 == .asking || $0 == .blocked } ?? false
+        let helperNeedsYou = liveRuns.values.filter { refs.contains($0.ref) }.contains { live in
+            runStates[live.paneID].map { $0 == .asking || $0 == .blocked } ?? false
         }
         return SessionPilot(
             status: pilotStatus(of: session), acting: acting,
@@ -3364,13 +3375,10 @@ final class AppModel {
         guard let pick = candidates.min(by: {
             order.firstIndex(of: $0.status.group)! < order.firstIndex(of: $1.status.group)!
         }) else { return nil }
-        if let helper = helpers[pick.ref.description] {
-            return "\(helper.goal == .green ? "getting it green" : "getting it merged") · in its own tab"
-        }
-        if pendingDelivery.contains(pick.ref), let typed = lastTyped[session.id],
-           Date().timeIntervalSince(typed) < pilotSettings(for: pick.ref).sendAfterIdle
+        if let live = liveRuns.values.first(where: { $0.ref == pick.ref }),
+           let run = runs.first(where: { $0.id == live.runID })
         {
-            return "getting it green · waiting for you to step away"
+            return "\(run.goal == .green ? "getting it green" : "getting it merged") · a \(run.agent) run is on it"
         }
         return WatchLabel.text(
             status: pick.status, effective: pilot(for: pick.ref), agent: session.agent, agentState: session.state.state
@@ -3577,49 +3585,49 @@ final class AppModel {
         commit(changes)
     }
 
-    // MARK: Helper tabs
+    // MARK: Runs
 
-    /// A PR's helper, while its tab is still there.
-    private func liveHelper(_ ref: PullRef) -> HelperTab? {
-        guard let helper = helpers[ref.description],
-              layouts[helper.sessionID]?.tabs.contains(where: { $0.id == helper.tabID }) == true
-        else { return nil }
-        return helper
-    }
+    /// The run working on a PR now, if any.
+    private func liveRun(for ref: PullRef) -> LiveRun? { liveRuns.values.first { $0.ref == ref } }
 
-    /// The next round, typed into the PR's helper once it is idle. False while it works.
-    private func typeIntoHelper(_ ref: PullRef, prompt: String) -> Bool {
-        guard let helper = liveHelper(ref), HelperTabs.canClose(helperStates[helper.paneID]) else { return false }
-        TerminalSurfaces.shared.typeLine(prompt, paneID: helper.paneID)
-        helperStates[helper.paneID] = .working
-        return true
-    }
-
-    /// A helper for a PR while you work in its session: a companion checkout of its branch beside the session's
-    /// worktree, and a tab ("get it green", "get it merged") running the session's agent there on the prompt. The tab
-    /// is appended without being selected: nothing takes your focus. False when the companion could not be made.
-    private func spawnCompanionHelper(_ ref: PullRef, prompt: String, sessionID: String) async -> Bool {
-        guard let session = sessions.first(where: { $0.id == sessionID }),
-              let agent = settings.agent(session.agent),
-              let main = worktrees.first(where: { session.owns($0) && $0.repo == ref.repo }),
-              let record = repos.first(where: { $0.repo == ref.repo && $0.location == main.location }),
-              let branch = github.pull(ref)?.headBranch ?? main.branch
-        else {
-            logPilot(ref, .waiting, "no worktree of \(ref.repo.name) to put a helper beside")
-            return false
+    /// Starts a get it green / get it merged run: a worktree of its own on `heed/<goal>/<branch>` beside the others,
+    /// and a tab running the configured agent (and model) there on the feedback. The tab is appended without being
+    /// selected: nothing takes your focus. Returns what it was sent to, or nil when it could not start (recorded as a
+    /// failed run).
+    private func startRun(_ ref: PullRef, prompt: String, items: Int, sessionID: String) async -> String? {
+        guard let session = sessions.first(where: { $0.id == sessionID }) else { return nil }
+        let settings = pilotSettings(for: ref)
+        let agentName = settings.agent ?? session.agent
+        let goal = Runs.goal(for: pilotStatus(for: ref)) ?? .green
+        func fail(_ reason: String) -> String? {
+            var run = PilotRun(
+                ref: ref, sessionID: sessionID, goal: goal, agent: agentName, model: settings.model,
+                startedAt: Date(), items: items, prBranch: "", branch: "", worktree: "", startSHA: nil
+            )
+            run.endedAt = Date()
+            run.outcome = .failed(reason)
+            commit(.runUpdated(run))
+            logPilot(ref, .helperDone, "\(goal.rawValue) run could not start: \(reason)")
+            return nil
         }
-        let goal = HelperTabs.goal(for: pilotStatus(for: ref)) ?? .green
-        let companion: String
+        guard let agent = self.settings.agent(agentName) else { return fail("no agent \(agentName)") }
+        guard let main = worktrees.first(where: { session.owns($0) && $0.repo == ref.repo }),
+              let record = repos.first(where: { $0.repo == ref.repo && $0.location == main.location })
+        else { return fail("no worktree of \(ref.repo.name)") }
+        guard let prBranch = github.pull(ref)?.headBranch ?? main.branch else { return fail("no branch") }
+        let root = session.host.flatMap { config.hosts[$0]?.worktreeRoot } ?? self.settings.worktreeRoot
+        let branch = Runs.branch(goal, prBranch: prBranch)
+        let startSHA = await Git.remoteSHA(record, branch: prBranch)
+        let worktree: String
         do {
-            companion = try await Git.addCompanion(
-                record, path: HelperTabs.companionPath(worktree: main.path, goal: goal), branch: branch,
-                companionBranch: HelperTabs.companionBranch(branch, goal: goal)
+            worktree = try await Git.addRunWorktree(
+                record, path: Runs.worktreePath(root: root, repo: ref.repo, goal: goal, prBranch: prBranch),
+                branch: prBranch, runBranch: branch
             )
         } catch {
-            logPilot(ref, .waiting, "could not make a companion worktree: \(error)")
-            return false
+            return fail("could not make its worktree: \(error)")
         }
-        guard var layout = layouts[session.id] else { return false }
+        guard var layout = layouts[session.id] else { return fail("the session is gone") }
         let files: IntegrationFiles? = if let host = session.host {
             if case let .connected(info) = hostStatus(host), let home = info.home {
                 hostIntegration(home: home).integration
@@ -3631,100 +3639,149 @@ final class AppModel {
         }
         let agentSession = UUID().uuidString.lowercased()
         let command = agent.launchCommand(
-            prompt: HelperTabs.companionPrompt(prompt, branch: branch, goal: goal),
+            prompt: Runs.prompt(prompt, prBranch: prBranch, branch: branch),
             extraArguments: files.map { AgentIntegration.launchArguments(
                 agent: agent,
                 sessionID: agentSession,
                 files: $0
             ) }
                 ?? [],
-            environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
+            environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:],
+            model: settings.model
         )
         let pane = PaneSpec(
-            role: .helper, title: goal.rawValue, directory: companion, command: command, location: session.location
+            role: .helper, title: goal.rawValue, directory: worktree, command: command, location: session.location
         )
-        let tab = PaneTab(
-            title: HelperTabs.title(goal, ref: ref, pullCount: session.trackedPRs.count),
-            tree: .leaf(pane)
-        )
+        let tab = PaneTab(title: Runs.title(goal, ref: ref, pullCount: session.trackedPRs.count), tree: .leaf(pane))
         layout.tabs.append(tab)
         commit(.layoutChanged(session: session.id, layout))
-        helpers[ref.description] = HelperTab(
-            sessionID: session.id, tabID: tab.id, paneID: pane.id, goal: goal, companion: companion,
-            companionBranch: HelperTabs.companionBranch(branch, goal: goal), record: record, mainPath: main.path
+        let run = PilotRun(
+            ref: ref, sessionID: session.id, goal: goal, agent: agentName, model: settings.model, startedAt: Date(),
+            items: items, prBranch: prBranch, branch: branch, worktree: worktree, startSHA: startSHA
         )
-        helperStates[pane.id] = .working
+        commit(.runUpdated(run))
+        liveRuns[run.id] = LiveRun(
+            runID: run.id, ref: ref, sessionID: session.id, tabID: tab.id, paneID: pane.id, record: record,
+            worktree: worktree, branch: branch, prBranch: prBranch, mainPath: main.path
+        )
+        runStates[pane.id] = .working
         TerminalSurfaces.shared.autostartPanes.insert(pane.id)
         TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
-        logPilot(ref, .watch, "\(goal.rawValue): a tab with \(session.agent) in its own worktree")
-        return true
+        let who = settings.model.map { "\(agentName) \($0)" } ?? agentName
+        logPilot(ref, .watch, "\(goal.rawValue): a \(who) run in \(branch)")
+        return "a \(who) run"
     }
 
-    /// Closes helper tabs whose PR is done (green, or merged), once their agent is not mid-turn; forgets ones you
-    /// closed yourself.
-    func closeFinishedHelpers() {
-        for (key, helper) in helpers {
-            guard var layout = layouts[helper.sessionID],
-                  let index = layout.tabs.firstIndex(where: { $0.id == helper.tabID }),
-                  let ref = sessions.first(where: { $0.id == helper.sessionID })?.trackedPRs
-                  .first(where: { $0.description == key })
-            else {
-                helpers[key] = nil
-                continue
-            }
-            guard HelperTabs.done(helper.goal, status: pilotStatus(for: ref)),
-                  HelperTabs.canClose(helperStates[helper.paneID])
-            else { continue }
-            TerminalSurfaces.shared.close(paneID: helper.paneID)
-            if let companion = helper.companion, let record = helper.record {
-                // The companion goes; the session's worktree catches up with what the helper pushed, when it can.
-                Task {
-                    await Git.removeWorktree(record, path: companion, branch: helper.companionBranch)
-                    if let main = helper.mainPath, await Git.fastForwardIfClean(at: main, on: record.location) {
-                        logPilot(
-                            ref,
-                            .updated,
-                            "\(main.split(separator: "/").last ?? ""): brought up to date with the helper's push"
-                        )
-                    }
-                }
-            }
+    /// Ends a run: its last screen kept, its tab closed, its worktree and branch removed, the session's worktree
+    /// brought up to what it pushed (when it has no changes of its own), and how it went recorded. `outcome` forces
+    /// one (timed out, stopped); otherwise it is what the remote branch shows.
+    private func endRun(_ id: String, outcome forced: PilotRun.Outcome? = nil) {
+        guard let live = liveRuns.removeValue(forKey: id) else { return }
+        let screen = TerminalSurfaces.shared.visibleText(paneID: live.paneID).map { text in
+            text.split(separator: "\n", omittingEmptySubsequences: false).suffix(40).joined(separator: "\n")
+        }
+        TerminalSurfaces.shared.close(paneID: live.paneID)
+        runStates[live.paneID] = nil
+        if var layout = layouts[live.sessionID], let index = layout.tabs.firstIndex(where: { $0.id == live.tabID }) {
             layout.removeTab(at: index)
-            commit(.layoutChanged(session: helper.sessionID, layout))
-            helpers[key] = nil
-            helperStates[helper.paneID] = nil
-            logPilot(ref, .helperDone, "\(helper.goal.rawValue) done: closed its tab")
+            commit(.layoutChanged(session: live.sessionID, layout))
+        }
+        Task {
+            let after = await Git.remoteSHA(live.record, branch: live.prBranch)
+            let before = runs.first { $0.id == id }?.startSHA
+            let count = if let before, let after, before != after {
+                await Git.commitCount(live.record, from: before, to: after)
+            } else {
+                0
+            }
+            await Git.removeWorktree(live.record, path: live.worktree, branch: live.branch)
+            await Git.fastForwardIfClean(at: live.mainPath, on: live.record.location)
+            guard var run = runs.first(where: { $0.id == id }) else { return }
+            run.endedAt = Date()
+            run.outcome = forced ?? Runs.outcome(before: before, after: after, commits: count)
+            run.screen = screen
+            commit(.runUpdated(run))
+            logPilot(live.ref, .helperDone, "\(run.goal.rawValue) run: \(run.outcome?.text ?? "ended")")
+            // The next round, if one waited for this run.
+            if pendingDelivery.contains(live.ref) { deliver(live.ref, explicit: false) }
         }
     }
 
-    /// A fixture's helper tabs, as if heed had opened them: working on their session's first PR.
-    private func adoptFixtureHelpers() {
+    /// Runs still working after `run_timeout` are stopped.
+    private func endTimedOutRuns() {
+        let now = Date()
+        for (id, live) in liveRuns {
+            guard let run = runs.first(where: { $0.id == id }),
+                  Runs.timedOut(run, timeout: pilotSettings(for: live.ref).runTimeout, now: now)
+            else { continue }
+            endRun(id, outcome: .timedOut)
+        }
+    }
+
+    /// At launch: runs that were still going when heed quit are recorded as interrupted (their tabs are dropped with
+    /// the layouts); what they left is removed by the sweep, safely.
+    private func interruptRuns() {
+        let open = runs.filter(\.isRunning)
+        for var run in open {
+            run.endedAt = Date()
+            run.outcome = .interrupted
+            commit(.runUpdated(run))
+        }
+    }
+
+    /// Removes what runs left behind (`heed/…` branches and their worktrees) that is safe to remove, in every repo
+    /// on this Mac. Part of the cleanup sweep, and once at launch.
+    func cleanUpRunLeftovers() async -> [RunCleanup.Leftover] {
+        let live = Set(liveRuns.values.map(\.branch))
+        var result: [RunCleanup.Leftover] = []
+        for record in repos where record.location.isLocal {
+            result += await RunCleanup.clean(record, live: live)
+        }
+        return result
+    }
+
+    /// A fixture's run tabs, as if heed had started them: working on their session's first PR.
+    private func adoptFixtureRuns() {
         for (sessionID, layout) in layouts {
             guard let ref = sessions.first(where: { $0.id == sessionID })?.trackedPRs.first else { continue }
             for tab in layout.tabs {
-                guard let pane = tab.tree.panes.first(where: { $0.role == .helper }) else { continue }
-                helpers[ref.description] = HelperTab(
-                    sessionID: sessionID, tabID: tab.id, paneID: pane.id,
-                    goal: tab.title.hasPrefix(HelperGoal.merged.rawValue) ? .merged : .green
+                guard let pane = tab.tree.panes.first(where: { $0.role == .helper }),
+                      let run = runs.first(where: { $0.ref == ref && $0.isRunning })
+                else { continue }
+                liveRuns[run.id] = LiveRun(
+                    runID: run.id, ref: ref, sessionID: sessionID, tabID: tab.id, paneID: pane.id,
+                    record: RepoRecord(repo: ref.repo, path: ""), worktree: run.worktree, branch: run.branch,
+                    prBranch: run.prBranch, mainPath: ""
                 )
-                helperStates[pane.id] = .working
+                runStates[pane.id] = .working
             }
         }
     }
 
-    /// `:pilot.helper`: the PR's helper tab, if it has one.
-    private func showHelper() {
+    /// `:pilot.run`: the session's running run's tab.
+    private func showRun() {
         guard let session = currentSession,
-              let helper = session.trackedPRs.compactMap({ helpers[$0.description] }).first,
-              let index = layouts[session.id]?.tabs.firstIndex(where: { $0.id == helper.tabID })
-        else { return flash = "no helper tab here" }
+              let live = liveRuns.values.first(where: { $0.sessionID == session.id }),
+              let index = layouts[session.id]?.tabs.firstIndex(where: { $0.id == live.tabID })
+        else { return flash = "no run working in this session" }
         selectTab(index)
     }
 
-    /// Sends a PR's queued feedback to the session tracking it (or its helper tab), as one prompt, when delivery
-    /// allows.
+    /// A Runs row: a running one jumps to its tab, an ended one opens in the reader.
+    func open(run: PilotRun) {
+        if run.isRunning, let live = liveRuns[run.id],
+           let index = layouts[live.sessionID]?.tabs.firstIndex(where: { $0.id == live.tabID })
+        {
+            select(sessionID: live.sessionID)
+            selectTab(index)
+        } else {
+            runReader = run
+        }
+    }
+
+    /// Sends a PR's queued feedback to a run of its own (one per PR at a time), when delivery allows.
     func deliver(_ ref: PullRef, explicit: Bool) {
-        guard var pipeline = feedback[ref.description], let prompt = pipeline.prompt() else {
+        guard let pipeline = feedback[ref.description], let prompt = pipeline.prompt() else {
             if explicit { flash = "nothing queued (space queues an item)" }
             return
         }
@@ -3738,65 +3795,36 @@ final class AppModel {
             }
             return
         }
-        guard var session = sessions.first(where: { $0.trackedPRs.contains(ref) }), let layout = layouts[session.id],
-              let (_, paneID) = agentPane(in: layout)
-        else {
+        guard let session = sessions.first(where: { $0.trackedPRs.contains(ref) }) else {
             if explicit { flash = "no session tracks #\(ref.number)" }
             return
         }
-        // Asked for (zg): the short grace. On its own: not until you have left the session for `send_after_idle`.
-        let grace = explicit ? 20 : effective.watching ? pilotSettings(for: ref).sendAfterIdle : 20
-        // `send_to = "tab"`: its helper keeps it; while you work in the session, a helper in a companion worktree, at
-        // once (it touches nothing of yours); once you have stepped away, the session's own agent, as below.
-        if pilotSettings(for: ref).sendTo == .tab {
-            let youAreThere = lastTyped[session.id].map { Date().timeIntervalSince($0) < max(grace, 20) } ?? false
-            switch HelperTabs.route(hasHelper: liveHelper(ref) != nil, youAreThere: youAreThere) {
-            case .existingHelper:
-                guard !isFixture else { return flash = "fixture: no IO" }
-                guard typeIntoHelper(ref, prompt: prompt) else {
-                    pendingDelivery.insert(ref)
-                    logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: its helper tab is working")
-                    return
-                }
-                markSent(ref, pipeline: &pipeline, session: &session, to: "its helper tab")
-                return
-            case .companionHelper:
-                guard !isFixture else { return flash = "fixture: no IO" }
-                guard !spawningHelpers.contains(ref.description) else { return }
-                spawningHelpers.insert(ref.description)
-                Task {
-                    defer { spawningHelpers.remove(ref.description) }
-                    guard await spawnCompanionHelper(ref, prompt: prompt, sessionID: session.id),
-                          var pipeline = feedback[ref.description],
-                          var session = sessions.first(where: { $0.id == session.id })
-                    else {
-                        pendingDelivery.insert(ref)
-                        return
-                    }
-                    markSent(ref, pipeline: &pipeline, session: &session, to: "a helper in its own worktree")
-                }
-                return
-            case .sessionAgent:
-                break
+        guard !isFixture else {
+            if tutor != nil {
+                updateFeedback { $0.markSent(at: pullDetails[ref.description]?.headSHA) }
+                flash = "sent (tutor: nothing was typed)"
+            } else {
+                flash = "fixture: no IO"
             }
+            return
         }
-        switch Delivery.verdict(state: session.state.state, lastTyped: lastTyped[session.id], typingGrace: grace) {
-        case let .wait(reason):
+        // One run per PR at a time: the next round waits for it to end.
+        if liveRun(for: ref) != nil || startingRuns.contains(ref.description) {
             pendingDelivery.insert(ref)
-            if explicit { flash = "waiting: \(reason); it goes once the agent is idle" }
-            logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(reason)")
-        case .deliver:
-            guard !isFixture else {
-                if tutor != nil {
-                    updateFeedback { $0.markSent(at: pullDetails[ref.description]?.headSHA) }
-                    flash = "sent (tutor: nothing was typed)"
-                } else {
-                    flash = "fixture: no IO"
-                }
-                return
-            }
-            TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
-            markSent(ref, pipeline: &pipeline, session: &session, to: session.agent)
+            if explicit { flash = "a run is working on #\(ref.number); this goes once it ends" }
+            logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: a run is working on it")
+            return
+        }
+        startingRuns.insert(ref.description)
+        let items = pipeline.queued.count
+        let sessionID = session.id
+        Task {
+            defer { startingRuns.remove(ref.description) }
+            guard let target = await startRun(ref, prompt: prompt, items: items, sessionID: sessionID),
+                  var pipeline = feedback[ref.description],
+                  var session = sessions.first(where: { $0.id == sessionID })
+            else { return }
+            markSent(ref, pipeline: &pipeline, session: &session, to: target)
         }
     }
 
@@ -4608,6 +4636,8 @@ final class AppModel {
     /// session is touched; they come back on the next launch. And none count while heed quits.
     func paneExited(_ paneID: String) {
         guard !terminating else { return }
+        // A run's agent exited: the run is over.
+        if let id = liveRuns.first(where: { $0.value.paneID == paneID })?.key { return endRun(id) }
         exitedPanes.insert(paneID)
         guard exitedPanes.count == 1 else { return }
         Task { @MainActor in
@@ -4653,6 +4683,10 @@ final class AppModel {
             guard let self, var layout = layouts[session.id], layout.tabs.indices.contains(index) else { return }
             layout.removeTab(at: index)
             commit(.layoutChanged(session: session.id, layout))
+            // A run's tab closed by you: the run is stopped, and cleaned up like any other.
+            for pane in panes {
+                if let id = liveRuns.first(where: { $0.value.paneID == pane.id })?.key { endRun(id, outcome: .stopped) }
+            }
             for pane in panes {
                 TerminalSurfaces.shared.close(paneID: pane.id)
             }

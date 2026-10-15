@@ -69,6 +69,7 @@ public enum HookCommandLine {
            heed task-exit <code>
            heed hook <agent> <event>        (reads the agent's hook JSON on stdin)
            heed tools                       (where git and gh are found, as the app finds them)
+           heed cleanup runs [path]         (remove what get it green runs left behind, when safe)
     Reads \(HeedEnvironment.sessionID) and \(HeedEnvironment.socket) from the environment (set in every Heed pane).
     """
 

@@ -112,11 +112,11 @@ public enum Git {
         )
     }
 
-    /// A companion worktree for a helper tab, on its own branch `companionBranch` (git checks a branch out once, and
-    /// the PR's is in the session's worktree), started at the remote's tip of `branch` and tracking it. The helper
+    /// A run's worktree, on its own branch `runBranch` (`heed/get-it-green/<branch>`: git checks a branch out once,
+    /// and the PR's is in the session's worktree), started at the remote's tip of `branch` and tracking it. The run
     /// pushes to the PR's branch with `git push origin HEAD:<branch>`. Returns its real path.
-    public static func addCompanion(
-        _ record: RepoRecord, path: String, branch: String, companionBranch: String
+    public static func addRunWorktree(
+        _ record: RepoRecord, path: String, branch: String, runBranch: String
     ) async throws -> String {
         let location = record.location
         _ = try? await ProcessRunner.run(
@@ -135,7 +135,7 @@ public enum Git {
         _ = try await ProcessRunner.output(
             on: location, "git",
             // -B: a branch left behind by an earlier helper starts over.
-            ["-C", record.path, "worktree", "add", "-B", companionBranch, path, hasRemote ? "origin/\(branch)" : branch]
+            ["-C", record.path, "worktree", "add", "-B", runBranch, path, hasRemote ? "origin/\(branch)" : branch]
         )
         if hasRemote {
             _ = try? await ProcessRunner.run(
@@ -147,7 +147,7 @@ public enum Git {
         return top.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Removes a worktree heed made for itself (a helper's companion), changes and all, and its branch.
+    /// Removes a worktree heed made for itself (a run's), changes and all, and its branch.
     public static func removeWorktree(_ record: RepoRecord, path: String, branch: String? = nil) async {
         _ = try? await ProcessRunner.run(
             on: record.location, "git", ["-C", record.path, "worktree", "remove", "--force", path],
@@ -158,6 +158,44 @@ public enum Git {
                 on: record.location, "git", ["-C", record.path, "branch", "-D", branch], timeout: .seconds(10)
             )
         }
+    }
+
+    /// The remote's commit for `branch`, fetched fresh; nil when it has none.
+    public static func remoteSHA(_ record: RepoRecord, branch: String) async -> String? {
+        _ = try? await ProcessRunner.run(
+            on: record.location, "git", ["-C", record.path, "fetch", "origin", branch], timeout: .seconds(30)
+        )
+        let sha = try? await ProcessRunner.output(
+            on: record.location, "git", ["-C", record.path, "rev-parse", "--verify", "--quiet", "origin/\(branch)"]
+        )
+        return sha?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+
+    /// Commits in `to` that are not in `from`.
+    public static func commitCount(_ record: RepoRecord, from: String, to: String) async -> Int {
+        let text = try? await ProcessRunner.output(
+            on: record.location, "git", ["-C", record.path, "rev-list", "--count", "\(from)..\(to)"]
+        )
+        return Int(text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? 0
+    }
+
+    /// Branches a run made (`heed/get-it-green/*`, `heed/get-it-merged/*`), with the worktree each is checked out in.
+    public static func runBranches(_ record: RepoRecord) async -> [(branch: String, worktree: String?)] {
+        let refs = await (try? ProcessRunner.output(
+            on: record.location, "git",
+            ["-C", record.path, "for-each-ref", "--format=%(refname:short)", "refs/heads/heed/"]
+        )) ?? ""
+        let porcelain = await (try? ProcessRunner.output(
+            on: record.location, "git", ["-C", record.path, "worktree", "list", "--porcelain"]
+        )) ?? ""
+        var checkedOut: [String: String] = [:]
+        var path: String?
+        for line in porcelain.split(separator: "\n").map(String.init) {
+            if line.hasPrefix("worktree ") { path = String(line.dropFirst("worktree ".count)) }
+            if line.hasPrefix("branch refs/heads/"),
+               let path { checkedOut[String(line.dropFirst("branch refs/heads/".count))] = path }
+        }
+        return refs.split(separator: "\n").map(String.init).filter(Runs.isRunBranch).map { ($0, checkedOut[$0]) }
     }
 
     /// Brings a worktree up to its upstream when it has no changes of its own and can fast-forward (after a helper
@@ -252,4 +290,8 @@ public enum Git {
         }
         return status
     }
+}
+
+extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

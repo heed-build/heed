@@ -52,8 +52,8 @@ struct PullOverlayView: View {
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .clipped()
             HStack(spacing: 10) {
-                KeyCap(text: "]p")
-                KeyCap(text: "[p")
+                KeyCap(text: "h")
+                KeyCap(text: "l")
                 if wide { Text("PRs of this session").font(Theme.ui(12)).foregroundStyle(Theme.fg3) }
                 Theme.line.frame(width: 1, height: 16).padding(.horizontal, 4)
                 KeyCap(text: "go")

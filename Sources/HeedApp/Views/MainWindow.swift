@@ -388,7 +388,7 @@ struct StatusBar: View {
         case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
         case .normal where model.issueReader != nil: "s start session · a add to session · gB browser · ⎋ back"
         case .normal where model.reader != nil || model.overlay == .pr:
-            "j k item · space queue · s send · \(model.keyText(for: "pilot.green")) green · ]p next PR · gS session · ⎋ back"
+            "j k item · space queue · s send · \(model.keyText(for: "pilot.green")) green · h l PRs · gS session · ⎋ back"
         case .normal where model.view == .repos: "o start work here · v select · dd remove · r rescan · w issues · { } repo · / filter"
         case .normal where model.view == .history: "j k move · / filter · R reopen · O new from prompt · t outcome"
         case .normal where model.view == .inbox: "↩ read · space pick · v range · s start session · a add · x mark read · t unread/all · / filter"

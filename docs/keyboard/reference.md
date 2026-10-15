@@ -74,8 +74,8 @@ This page is generated from the code (`mise run shots`).
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
 | `overlay.help` | `?`, `<D-/>`, `?` (VISUAL), `<D-/>` (VISUAL), `<D-/>` (INSERT), `<D-/>` (COMMAND) | keys & states |
 | `overlay.close` | `<Esc>`, `<Esc>` (diff), `<Esc>` (issue), `<Esc>` (pr) | close overlay |
-| `pr.next` | `]p` | next PR of this session |
-| `pr.prev` | `[p` | previous PR of this session |
+| `pr.next` | `]p`, `l` (pr), `<Right>` (pr) | next PR of this session |
+| `pr.prev` | `[p`, `h` (pr), `<Left>` (pr) | previous PR of this session |
 | `pr.session` | `gS` | jump from a PR to its session |
 | `pr.track` `<url>` | `gU` | track a PR by URL |
 | `pr.untrack` `[url]` |  | stop tracking a PR in this session (no rule adds it back) |

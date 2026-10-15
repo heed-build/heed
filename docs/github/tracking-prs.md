@@ -25,5 +25,5 @@ A session tracks the pull requests that are part of its work. A tracked PR shows
 |---|---|
 | `gU` | Track a pull request by URL (or `:pr.track <url>`) |
 | `:pr.untrack [url]` | Stop tracking one (the overlay's PR, or the session's only one); no rule adds it back |
-| `]p` / `[p` | In the PR overlay, the session's next / previous PR |
+| `h` / `l` (or `←` / `→`, `[p` / `]p`) | In the PR overlay, the session's previous / next PR |
 | `gS` | From a pull request, jump to its session |

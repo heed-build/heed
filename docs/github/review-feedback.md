@@ -30,7 +30,7 @@ rebase and push; it resolves once GitHub says the PR merges cleanly.
 | `zm` | Cycle merging: off, auto, heed |
 | `zp` | Pause or resume it (see [Watch](watch.md)) |
 | `S` | Start a new session from this PR |
-| `]p` / `[p` | The session's next / previous PR |
+| `h` / `l` (or `←` / `→`, `[p` / `]p`) | The session's previous / next PR |
 
 ## Delivery
 

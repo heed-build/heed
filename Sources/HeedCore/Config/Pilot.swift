@@ -213,6 +213,8 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
         case resolved
         /// Rounds exhausted without a new approval.
         case stuck
+        /// `zr`: another round for a stalled PR.
+        case retry
         case watch, green, pause
         /// Get it merged: auto-merge turned on or off, a merge, a PR held back, a branch brought up to date.
         case merge, autoMerge, merged, held, updated
@@ -236,6 +238,10 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
     }
 
     public static let logLimit = 500
+
+    /// What heed did, as opposed to what it noticed: a session you typed in stays yours until one of these happens on
+    /// one of its PRs.
+    public static let actions: Set<Kind> = [.sent, .merge, .autoMerge, .merged, .updated, .copilot, .review, .retry]
 
     /// What a fresh look at a PR changed in its pipeline: items that arrived, were addressed, were resolved.
     public static func changes(from before: PullFeedback?, to after: PullFeedback, at now: Date) -> [PilotEvent] {
@@ -286,8 +292,10 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
 /// Where a watched PR stands: from its detail and the green verdict when heed has fetched it, else from the sync's
 /// summary. The order is the Watch view's groups, most urgent first.
 public enum PilotStatus: Hashable, Sendable {
-    /// Needs you: rounds exhausted, or there is feedback to send and no session to send it to.
+    /// Needs you: there is feedback to send and no session to send it to.
     case stuck(String)
+    /// Get it green used its rounds without a new approval: heed stopped sending (`zr` gives it another round).
+    case stalled(rounds: Int)
     /// Items were sent; waiting for the agent's push.
     case feeding
     /// Conflicts with the base, or behind it when the repo requires up to date: what.
@@ -306,7 +314,7 @@ public enum PilotStatus: Hashable, Sendable {
     case unwatched
 
     public enum Group: String, CaseIterable, Sendable {
-        case needsYou = "Needs you", failing = "Failing", changes = "Changes", feeding = "Feeding",
+        case needsYou = "Needs you", stalled = "Stalled", failing = "Failing", changes = "Changes", feeding = "Feeding",
              pending = "Pending", green = "Green", passing = "Passing", paused = "Paused", done = "Done",
              unwatched = "Not watched"
     }
@@ -314,6 +322,7 @@ public enum PilotStatus: Hashable, Sendable {
     public var group: Group {
         switch self {
         case .stuck: .needsYou
+        case .stalled: .stalled
         case .failing, .conflicted: .failing
         case .changes: .changes
         case .feeding: .feeding
@@ -329,6 +338,17 @@ public enum PilotStatus: Hashable, Sendable {
     /// Counts toward what needs you (the title bar, the Dock, the menu bar).
     public var needsYou: Bool { if case .stuck = self { true } else { false } }
 
+    /// Heed is doing something about the PR, so its session can be left be: feedback sent and not yet addressed, get
+    /// it green on auto with something to fix, or merging on and the PR on its way.
+    public func heedActing(_ effective: PullFeedback.Effective) -> Bool {
+        switch self {
+        case .feeding: true
+        case .failing, .changes, .conflicted: effective.green == .auto
+        case .pending, .passing, .green: effective.merge != .off
+        case .stuck, .stalled, .draft, .paused, .closed, .unwatched: false
+        }
+    }
+
     /// `pull` is the PR's summary from the sync (nil until it arrives); `hasSession` says whether a session can be fed.
     public static func of(
         pull: PullRequest?, pipeline: PullFeedback?, settings: PilotSettings, hasSession: Bool,
@@ -342,7 +362,7 @@ public enum PilotStatus: Hashable, Sendable {
            pipeline.isPaused(now) { return .paused(until: pipeline.pausedForever ? nil : pipeline.pausedUntil) }
         let open = pipeline?.items.filter { $0.status == .new || $0.status == .queued } ?? []
         if let pipeline, pipeline.rounds >= effective.maxRounds, !open.isEmpty {
-            return .stuck("\(effective.maxRounds) rounds without a new approval")
+            return .stalled(rounds: effective.maxRounds)
         }
         if !open.isEmpty, !hasSession, effective.green != .off { return .stuck("no session to send feedback to") }
         if pipeline?.items.contains(where: { $0.status == .sent }) == true { return .feeding }

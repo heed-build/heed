@@ -121,6 +121,7 @@ enum Shots {
     static let sessions: [Shot] = [
         Shot(id: "sessions/anatomy", highlight: [.sidebar, .center, .inspector]),
         Shot(id: "sessions/sidebar", size: CGSize(width: 1440, height: 640), crop: .sidebar),
+        Shot(id: "sessions/watching", size: CGSize(width: 1440, height: 1000), keys: "jjj", crop: .sidebar),
         Shot(id: "sessions/rail", size: CGSize(width: 1440, height: 640), keys: "zs", crop: .rail),
         Shot(id: "sessions/moving", size: CGSize(width: 1440, height: 640), keys: "2j", crop: .sidebar),
         Shot(id: "sessions/attention", size: CGSize(width: 1440, height: 640), keys: "ga", crop: .sidebar),
@@ -193,6 +194,7 @@ enum Shots {
     static let pilot: [Shot] = [
         // The Watch view: watched PRs by state, the selected PR's items and timeline, the pilot's activity.
         Shot(id: "watch/view", keys: "gw"),
+        Shot(id: "watch/stalled", keys: "gw", crop: .list),
         Shot(id: "watch/visual", keys: "gwjjvj", crop: .list),
         Shot(id: "watch/paused", keys: "gwjjvjzp", crop: .list),
         Shot(id: "watch/detail", keys: "gw", crop: .pilotDetail),

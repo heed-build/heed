@@ -98,8 +98,11 @@ struct PilotTests {
         )])
         #expect(status(pull(heed, threads: 1), waiting, session: false) == .stuck("no session to send feedback to"))
         waiting.rounds = 3
-        #expect(status(pull(heed, threads: 1), waiting) == .stuck("3 rounds without a new approval"))
-        #expect(PilotStatus.stuck("x").needsYou && !PilotStatus.passing.needsYou)
+        #expect(status(pull(heed, threads: 1), waiting) == .stalled(rounds: 3))
+        #expect(PilotStatus.stalled(rounds: 3).group == .stalled)
+        // Stalled waits on a reviewer, not on you: it does not count toward what needs you.
+        #expect(PilotStatus.stuck("x").needsYou && !PilotStatus.passing.needsYou && !PilotStatus.stalled(rounds: 3)
+            .needsYou)
 
         var sent = PullFeedback(ref: ref, items: [FeedbackItem(
             id: "t",

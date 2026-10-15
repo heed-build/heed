@@ -175,6 +175,14 @@ public enum Fixtures {
             }
             layouts[session.id] = SessionLayout(tabs: tabs(for: session, root: root))
         }
+        // s5's PR is fed to a dedicated agent in its own tab (`send_to = "tab"`), next to its agent tab.
+        if var layout = layouts["s5"] {
+            layout.tabs.append(PaneTab(id: "s5-helper-tab", title: "get it green", tree: .leaf(PaneSpec(
+                id: "s5-helper", role: .helper, title: "get it green",
+                directory: "\(root)/wt/editorconfig/bump-spec-tests"
+            ))))
+            layouts["s5"] = layout
+        }
         // Worktrees made outside Heed, with no session yet: what `I` in Sessions imports.
         worktrees += [
             Worktree(

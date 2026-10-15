@@ -129,6 +129,22 @@ public enum Overrides {
             { .integer($0.maxRounds) }
         ),
         pilot(
+            "send_after_idle",
+            "Send after idle",
+            "How long after your last keystroke before heed sends anything: 30s, 5m, 15m or 0.",
+            .text,
+            { $0.sendAfterIdle.map { .text(PilotDuration.text($0)) } },
+            { .text(PilotDuration.text($0.sendAfterIdle)) }
+        ),
+        pilot(
+            "send_to",
+            "Send to",
+            "session: the session's agent; tab: a dedicated agent in its own tab.",
+            .choice(SendTo.allCases.map(\.rawValue)),
+            { $0.sendTo.map { .text($0.rawValue) } },
+            { .text($0.sendTo.rawValue) }
+        ),
+        pilot(
             "merge",
             "Get it merged",
             "off, auto (GitHub's auto-merge) or heed (heed merges).",

@@ -344,6 +344,32 @@ private struct PilotSettingsView: View {
                     Text("\(pilot.defaults.maxRounds) rounds").font(Theme.mono(12.5))
                 }
             }
+            Field(
+                label: "Send after idle",
+                detail: "heed sends nothing to a session until you have not typed in it for this long, so it does not "
+                    + "take your agent while you work with it: 30s, 5m, 15m, or 0 for 20 seconds. zg sends at once."
+            ) {
+                ConfigTextField(
+                    path: ["pilot", "send_after_idle"],
+                    value: PilotDuration.text(pilot.defaults.sendAfterIdle)
+                )
+            }
+            Field(
+                label: "Send to",
+                detail: "Session: typed into the session's agent. Tab: a dedicated agent in its own tab (\"get it green\", "
+                    + "\"get it merged\") in the session's worktree, closed once the PR is green or merged; it never takes "
+                    + "your focus."
+            ) {
+                Picker("", selection: Binding(
+                    get: { pilot.defaults.sendTo },
+                    set: { model.setConfig(["pilot", "send_to"], .string($0.rawValue)) }
+                )) {
+                    Text("Session's agent").tag(SendTo.session)
+                    Text("Its own tab").tag(SendTo.tab)
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
             Field(label: "Pause for", detail: "What zp pauses a PR for: 30m, 1h, 4h, 1d or forever.") {
                 ConfigTextField(
                     path: ["pilot", "pause"],

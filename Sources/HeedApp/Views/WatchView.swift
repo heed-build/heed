@@ -347,6 +347,7 @@ private struct PilotEventRow: View {
         case .addressed, .resolved: Theme.done
         case .stuck: Theme.err
         case .retry: Theme.busy
+        case .helperDone: Theme.done
         case .watch, .green, .pause, .merge: Theme.fg3
         case .autoMerge, .updated: Theme.busy
         case .merged: Theme.done

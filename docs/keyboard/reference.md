@@ -143,6 +143,7 @@ This page is generated from the code (`mise run shots`).
 | `pilot.why` |  | what holds the PR back from green, rule by rule (in the Watch view) |
 | `pilot.watch` | `zw` | watch or stop watching the PR (or the picked PRs) |
 | `pilot.green` | `zg` | cycle get it green for the PR: off, ask, auto |
+| `pilot.helper` |  | show the PR's get it green / get it merged tab |
 | `pilot.retry` | `zr` | one more round of get it green for a stalled PR (or the picked PRs) |
 | `pilot.copilot` | `C` (pr), `C` (watch) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |
 | `pilot.reviewers` |  | ask the PR's configured reviewers ([pilot] reviewers) to review it |

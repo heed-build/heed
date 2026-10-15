@@ -27,11 +27,11 @@ Single keys are kept for what you do many times an hour; anything rarer is two k
 | `⌃d` `⌃u`, `{` `}` | Half a page; the previous or next group (a sidebar group, a repo, a day) |
 | `↩` `o` `i` `v` `x` `m` | Open, start work, type into the agent, select, done with it, pin |
 | `r` | Refresh the view you are in |
-| `g…` | Go somewhere: views (`gm` Inbox), overlays (`go`, `gd`), tabs (`gt`), the browser (`gB`), the repo on GitHub (`gR`) |
-| `z…` | Toggles: `zz` park, `zi` inspector, `zs` sidebar; the pilot's `zw` watch, `zg` green, `zm` merge, `zp` pause |
+| `g…` | Go somewhere: views (`gm` Inbox), overlays (`go`, `gd`), tabs (`gt`), the browser (`gB`, `gl`), the repo on GitHub (`gR`), the running run (`gb`) |
+| `z…` | Toggles: `zz` park, `zi` inspector, `zs` sidebar; the pilot's `zw` watch, `zg` green, `zm` merge, `zp` pause, `z?` why, `zx` stop the run |
 | `'…` | Jump to a pin (`'1`–`'9`), or back (`''`) |
 | `]…` `[…` | Next or previous of a kind: `]p` PR, `]f` file |
-| `⌃w…` | Panes |
+| `⌃w…` | Panes and tabs (`⌃w c` closes the tab) |
 | `dd` | Remove (it asks first) |
 
 A key means the same thing in every view where it means anything: `x` closes a session, marks an Inbox item read and
@@ -41,7 +41,7 @@ dismisses a feedback item; `o` always starts work, picking the repo under the cu
 
 Some keys only mean something in one view: `s` starts a session in the Inbox, `dd` removes a worktree in Repos. Those
 come first there; elsewhere the same key is free or means something else. The status bar always lists the keys that
-matter in the view you are in, and `?` shows every key.
+matter in the view you are in, and `?` shows every command: its key where you are, or its `:name` when it has none.
 
 ## In this section
 

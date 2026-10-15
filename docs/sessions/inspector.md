@@ -26,8 +26,8 @@ A session's issues come from three places:
 - its prompt's closing words: `Fixes #12`, `Closes org/repo#3`, `Resolves <issue URL>`. Start work from
   [Issues](../github/issues.md) writes these for you;
 - the issues its PRs close, as GitHub reports them;
-- `heed issue add <url>` from the agent, or `:issue.add <url>` (the copied URL when you give none). `:issue.remove`
-  takes one off.
+- `heed issue add <url>` from the agent, or `gI` (`:issue.add <url>`; the copied URL when you give none).
+  `:issue.remove` takes one off.
 
 With no PR and no issue yet, the inspector says what comes next. A pushed branch offers **Open a PR on GitHub**, the
 compare page for the branch.
@@ -37,6 +37,7 @@ compare page for the branch.
 | Key | |
 |---|---|
 | `gB` | One link opens it. Several open a picker: `1`–`9` opens one, `j` `k` `↩` too, `a` opens all, `⎋` closes. None opens the repo. |
+| `gl` | The same picker, even with one link |
 | `gR` | The repo on GitHub (a session in several repos asks which) |
 
 ![gB on a session with three PRs and two issues](../images/shots/sessions/links-picker.png)

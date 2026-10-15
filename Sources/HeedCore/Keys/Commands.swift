@@ -52,6 +52,10 @@ public enum Commands {
         .init("work.start", "start work", .move),
         .init("work.start.panel", "start work in the floating panel, as the global shortcut does", .move),
         .init("resume", "pick up where you left off: the sessions to resume, as on launch", .move),
+        .init(
+            "summary", "while you were away: what still waits on you, and what merged, ran, finished and closed",
+            .move
+        ),
         .init("work.again", "start work from this session's prompt", .move),
         .init("view.history", "history", .move),
         // Panes & tabs

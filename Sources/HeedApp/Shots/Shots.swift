@@ -139,6 +139,7 @@ enum Shots {
         Shot(id: "sessions/close-confirm", keys: "x", crop: .confirm),
         Shot(id: "sessions/delete-confirm", keys: "dd", crop: .confirm),
         Shot(id: "sessions/resume", crop: .dialog, prepare: { $0.showResumeForFixture() }),
+        Shot(id: "sessions/away", keys: "gZ", crop: .dialog),
         Shot(id: "sessions/filter-typing", keys: "/docs", crop: .statusBar, cropPadding: 0),
         Shot(id: "sessions/filter-kept", size: CGSize(width: 1440, height: 640), keys: "/docs<CR>", crop: .sidebar),
     ]

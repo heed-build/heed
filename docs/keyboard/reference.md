@@ -37,6 +37,7 @@ This page is generated from the code (`mise run shots`).
 | `work.start` | `o` | start work |
 | `work.start.panel` |  | start work in the floating panel, as the global shortcut does |
 | `resume` |  | pick up where you left off: the sessions to resume, as on launch |
+| `summary` | `gZ` | while you were away: what still waits on you, and what merged, ran, finished and closed |
 | `work.again` | `O` | start work from this session's prompt |
 | `view.history` | `gh` | history |
 

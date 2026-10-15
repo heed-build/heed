@@ -9,7 +9,10 @@ public enum DefaultKeys {
         ("gg", "row.first"), ("G", "row.last"), ("/", "session.filter"),
         ("<C-d>", "row.halfpage.down"), ("<C-u>", "row.halfpage.up"), ("}", "group.next"), ("{", "group.prev"),
         ("h", "pane.left"), ("l", "pane.right"),
-        ("o", "work.start"), ("O", "work.again"), ("ga", "session.attention"), ("zz", "session.park"),
+        ("o", "work.start"), ("O", "work.again"), ("ga", "session.attention"), ("gZ", "summary"), (
+            "zz",
+            "session.park"
+        ),
         ("x", "session.close"), ("m", "session.pin"), ("''", "session.back"),
         ("'1", "pin.jump 1"), ("'2", "pin.jump 2"), ("'3", "pin.jump 3"), ("'4", "pin.jump 4"), ("'5", "pin.jump 5"),
         ("'6", "pin.jump 6"), ("'7", "pin.jump 7"), ("'8", "pin.jump 8"), ("'9", "pin.jump 9"),

@@ -299,7 +299,11 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
         self.text = text
     }
 
+    /// The log keeps at least this many events, and beyond them everything from the last `logDays` days (for the
+    /// summary of while you were away), up to `logCeiling`.
     public static let logLimit = 500
+    public static let logDays: TimeInterval = 14 * 86400
+    public static let logCeiling = 2000
 
     /// What heed did, as opposed to what it noticed: a session you typed in stays yours until one of these happens on
     /// one of its PRs.
@@ -345,9 +349,14 @@ public struct PilotEvent: Hashable, Sendable, Codable, Identifiable {
         return parts.joined(separator: " and ") + " " + verb
     }
 
-    /// `log` with `events` added in front, capped.
+    /// `log` with `events` added in front, capped: the newest `logLimit`, then whatever else is from the last `logDays`
+    /// (counted from the newest event), never more than `logCeiling`.
     public static func log(_ log: [PilotEvent], adding events: [PilotEvent]) -> [PilotEvent] {
-        Array((events.sorted { $0.at > $1.at } + log).prefix(logLimit))
+        let all = events.sorted { $0.at > $1.at } + log
+        guard all.count > logLimit, let newest = all.first?.at else { return all }
+        let horizon = newest.addingTimeInterval(-logDays)
+        let recent = all.dropFirst(logLimit).prefix { $0.at >= horizon }
+        return Array((all.prefix(logLimit) + recent).prefix(logCeiling))
     }
 }
 

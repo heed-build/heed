@@ -64,6 +64,7 @@ struct MainWindow: View {
             if let picker = model.hostsPicker { HostsPickerView(picker: picker) }
             if let picker = model.linkPicker { LinkPickerView(picker: picker) }
             if let run = model.runReader { RunReaderView(run: run) }
+            if let summary = model.awaySummary { AwaySummaryView(summary: summary) }
         }
         .overlay {
             if let state = model.pathImport { PathImportView(state: state) }

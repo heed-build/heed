@@ -129,7 +129,8 @@ struct PilotTests {
         #expect(events.map(\.kind) == [.items, .addressed, .resolved])
         #expect(events[0].text == "1 review thread arrived")
         #expect(events[2].text == "check lint resolved")
-        let capped = PilotEvent.log(Array(repeating: events[0], count: PilotEvent.logLimit), adding: [events[1]])
+        let old = PilotEvent(at: now.addingTimeInterval(-15 * 86400), ref: events[0].ref, kind: .items, text: "old")
+        let capped = PilotEvent.log(Array(repeating: old, count: PilotEvent.logLimit), adding: [events[1]])
         #expect(capped.count == PilotEvent.logLimit && capped.first == events[1])
     }
 

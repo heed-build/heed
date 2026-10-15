@@ -86,6 +86,28 @@ struct Inspector: View {
                         }
                     }
                 }
+                if !session.notes.isEmpty {
+                    // Notes on its diff before it has a PR: the PR overlay's last tab sends them.
+                    section {
+                        HStack {
+                            SectionHeader(title: "Your notes")
+                            Spacer()
+                            let queued = session.notes.count { $0.status == .queued }
+                            if queued > 0 {
+                                Text("\(queued) queued").font(Theme.mono(11)).foregroundStyle(Theme.block)
+                            }
+                            KeyCap(text: model.keyText(for: "overlay.item"))
+                        }
+                        ForEach(session.notes.suffix(4)) { note in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(note.noteLocation ?? "").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                                    .lineLimit(1).truncationMode(.head)
+                                Text(note.text).font(Theme.ui(12))
+                                    .foregroundStyle(note.status == .queued ? Theme.fg : Theme.fg3).lineLimit(2)
+                            }
+                        }
+                    }
+                }
                 section {
                     SectionHeader(title: "Agent events")
                     let log = model.events[session.id] ?? []

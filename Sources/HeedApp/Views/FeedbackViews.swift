@@ -6,13 +6,17 @@ struct PullOverlayView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        if let ref = model.feedbackPull {
+        if model.feedbackPull != nil || model.notesSession != nil {
             GeometryReader { geometry in
                 HStack(spacing: 0) {
                     Color.black.opacity(0.45).frame(width: min(330, geometry.size.width * 0.25))
                     VStack(spacing: 0) {
-                        tabs(current: ref, wide: geometry.size.width > 1100)
-                        FeedbackPanel(ref: ref, wide: geometry.size.width > 1100)
+                        tabs(current: model.feedbackPull, wide: geometry.size.width > 1100)
+                        if let ref = model.feedbackPull {
+                            FeedbackPanel(ref: ref, wide: geometry.size.width > 1100)
+                        } else if let session = model.notesSession {
+                            NotesPanel(session: session, wide: geometry.size.width > 1100)
+                        }
                     }
                     // Never wider than what is left of the window, however many PRs the tabs hold.
                     .frame(minWidth: 0, maxWidth: .infinity)
@@ -24,16 +28,24 @@ struct PullOverlayView: View {
     }
 
     /// The session's PRs scroll sideways when there are more than fit; the hints shorten on a narrow window.
-    private func tabs(current: PullRef, wide: Bool) -> some View {
+    private func tabs(current: PullRef?, wide: Bool) -> some View {
         HStack(spacing: 10) {
             ScrollViewReader { proxy in
                 ListScroll(.horizontal) {
                     HStack(spacing: 10) {
-                        ForEach(model.currentSession?.trackedPRs ?? [], id: \.self) { ref in
+                        ForEach(model.pullOverlayTabs, id: \.self) { ref in
                             HStack(spacing: 6) {
-                                RepoChip(repo: ref.repo).fixedSize()
-                                Text(verbatim: "#\(ref.number)").font(Theme.mono(12))
-                                    .foregroundStyle(ref == current ? Theme.fg : Theme.fg3)
+                                if let ref {
+                                    RepoChip(repo: ref.repo).fixedSize()
+                                    Text(verbatim: "#\(ref.number)").font(Theme.mono(12))
+                                        .foregroundStyle(ref == current ? Theme.fg : Theme.fg3)
+                                } else {
+                                    // The session's own notes, before it has a PR to put them on.
+                                    Image(systemName: "text.bubble").font(.system(size: 11))
+                                        .foregroundStyle(current == nil ? Theme.fg : Theme.fg3)
+                                    Text("your notes").font(Theme.ui(12))
+                                        .foregroundStyle(current == nil ? Theme.fg : Theme.fg3)
+                                }
                             }
                             .fixedSize()
                             .padding(.horizontal, 10)
@@ -54,7 +66,10 @@ struct PullOverlayView: View {
             HStack(spacing: 10) {
                 KeyCap(text: "h")
                 KeyCap(text: "l")
-                if wide { Text("PRs of this session").font(Theme.ui(12)).foregroundStyle(Theme.fg3) }
+                if wide {
+                    Text(model.currentSession?.trackedPRs.isEmpty == false ? "PRs of this session" : "tabs")
+                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                }
                 Theme.line.frame(width: 1, height: 16).padding(.horizontal, 4)
                 KeyCap(text: "go")
                 Text("or").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
@@ -245,6 +260,85 @@ struct FeedbackPanel: View {
     }
 }
 
+/// The PR overlay's tab for a session's own notes: queued on its diff before it had a PR, sent to its agent with `s`.
+struct NotesPanel: View {
+    @Environment(AppModel.self) private var model
+    let session: Session
+    var wide = true
+
+    var body: some View {
+        let items = model.feedbackItems
+        let queued = session.notes.filter { $0.status == .queued }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                SectionHeader(title: "Your notes")
+                Text("\(queued.count) queued · \(session.notes.count { $0.status == .sent }) sent")
+                    .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                Spacer()
+            }
+            HStack(alignment: .top, spacing: 16) {
+                ListScroll {
+                    VStack(spacing: 0) {
+                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                            FeedbackRow(item: item, isCursor: index == model.feedbackCursor)
+                        }
+                        if items.isEmpty {
+                            Text("No notes. a on a hunk in the diff (gd) queues one.")
+                                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3).padding(20)
+                        }
+                    }
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
+                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+                }
+                if wide {
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            SectionHeader(title: "Delivery")
+                            Text(
+                                "No PR yet, so \(queued.count) queued go to \(session.agent) in \(session.worktreeName) as one prompt, once it is idle. A PR it opens takes them over."
+                            )
+                            .font(Theme.ui(12.5))
+                            .fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: 6) {
+                                StateGlyph(state: session.state.state)
+                                Text(session.state.state == .idle || session.state.state == .done
+                                    ? "Idle: ready to send." : "Now \(session.state.state.rawValue). Waiting.")
+                            }
+                            .font(Theme.ui(12.5))
+                        }
+                        .padding(14)
+                        .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+                        if let prompt = SessionNotes.prompt(session.notes) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                SectionHeader(title: "Prompt that will be sent")
+                                Text(prompt).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).lineLimit(10)
+                            }
+                            .padding(14)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.pane))
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            keyRow(model.keyText(for: "feedback.queue"), "queue / unqueue")
+                            keyRow(model.keyText(for: "feedback.send"), "send queued now")
+                            keyRow(model.keyText(for: "feedback.dismiss"), "dismiss note")
+                        }
+                        .padding(14)
+                        .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+                    }
+                    .frame(width: 300)
+                }
+            }
+        }
+        .padding(20)
+    }
+
+    private func keyRow(_ key: String, _ text: String) -> some View {
+        HStack(spacing: 10) {
+            KeyCap(text: key)
+            Text(text).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+        }
+    }
+}
+
 private struct FeedbackRow: View {
     let item: FeedbackItem
     let isCursor: Bool
@@ -263,6 +357,9 @@ private struct FeedbackRow: View {
                 case let .conflict(base, behind):
                     Text(behind ? "behind · \(base)" : "conflict · \(base)").font(Theme.mono(11.5))
                         .foregroundStyle(Theme.err)
+                case let .note(path, line, _):
+                    Text("you · \(path):\(line)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
+                        .lineLimit(1).truncationMode(.head)
                 }
                 Text(item.text).font(Theme.ui(13)).foregroundStyle(item.status == .resolved ? Theme.fg3 : Theme.fg)
                     .lineLimit(3)

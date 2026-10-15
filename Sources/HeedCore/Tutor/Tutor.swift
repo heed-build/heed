@@ -47,6 +47,8 @@ public struct TutorState: Equatable, Sendable {
     /// Where the diff overlay is: its file and row.
     public var diffFile = 0
     public var diffRow = 0
+    /// The diff overlay's comment box is open (`diff.ask`).
+    public var diffNoteOpen = false
     public var historyOutcome = ""
     /// The Watch view: tracked PRs paused, with merging on, and whether a merge queue is in the middle.
     public var paused = 0

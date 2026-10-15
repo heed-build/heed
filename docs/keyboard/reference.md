@@ -163,7 +163,8 @@ This page is generated from the code (`mise run shots`).
 | `diff.scope.prev` | `<S-Tab>` (diff) | previous scope |
 | `diff.commit` | `c` (diff) | show one commit (cycles) |
 | `diff.split` | `t` (diff) | unified / split |
-| `diff.ask` | `a` (diff) | ask the agent about this hunk |
+| `diff.ask` | `a` (diff) | queue feedback on this hunk |
+| `diff.ask.now` | `A` (diff) | ask the agent about this hunk now |
 | `diff.copy` | `y` (diff) | copy path:line |
 | `diff.edit` | `e` (diff) | open the file in the editor |
 | `repo.add` `<path>` |  | add a repo outside the scanned roots (kept in repo_paths) |

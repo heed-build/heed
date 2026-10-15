@@ -96,7 +96,8 @@ public enum DefaultKeys {
         "diff": [
             ("n", "diff.hunk.next"), ("N", "diff.hunk.prev"), ("]f", "diff.file.next"), ("[f", "diff.file.prev"),
             ("<Tab>", "diff.scope.next"), ("<S-Tab>", "diff.scope.prev"), ("c", "diff.commit"), ("t", "diff.split"),
-            ("a", "diff.ask"), ("y", "diff.copy"), ("e", "diff.edit"), ("<Esc>", "overlay.close"),
+            ("a", "diff.ask"), ("A", "diff.ask.now"), ("y", "diff.copy"), ("e", "diff.edit"),
+            ("<Esc>", "overlay.close"),
         ],
         /// The issue reader.
         "issue": [("s", "items.start"), ("a", "items.add"), ("<Esc>", "overlay.close")],

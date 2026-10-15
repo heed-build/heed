@@ -262,7 +262,14 @@ enum Shots {
     static let diff: [Shot] = [
         Shot(id: "diff/overlay", keys: "gd"),
         Shot(id: "diff/split", keys: "gdt"),
+        // `a` on a line: the comment box under it, a note being typed.
+        Shot(id: "diff/note", keys: "gdjja" + typed(noteText)),
+        // Queued: the hunk's header counts it, and it joins the PR's feedback.
+        Shot(id: "diff/note-queued", keys: "gdjja" + typed(noteText) + "<CR>"),
+        Shot(id: "github/feedback-note", keys: "gdjja" + typed(noteText) + "<CR><Esc>go"),
     ]
+
+    static let noteText = "Lowercase the slug once in the helper instead of at each call site."
 
     static let history: [Shot] = [
         Shot(id: "history/history", keys: "gh"),

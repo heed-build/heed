@@ -120,15 +120,16 @@ public struct SelfReview: Hashable, Sendable, Codable {
         self.at = at
     }
 
-    /// The prompt, then the diff, on the command's stdin.
-    public static func prompt(_ detail: PullDetail, diff: String) -> String {
+    /// The prompt, then the diff, on the command's stdin. `instructions` (the repo's `review_instructions`) add to
+    /// what to look for; the answer's first line stays APPROVE or REQUEST_CHANGES, which heed reads.
+    public static func prompt(_ detail: PullDetail, diff: String, instructions: String = "") -> String {
         let limit = 200_000
         let cut = diff.count > limit ? String(diff.prefix(limit)) + "\n[diff cut at \(limit) characters]" : diff
         return """
         You are reviewing a pull request just before it is merged. Read its description and diff. Answer with APPROVE \
         on the first line when it is safe to merge, or REQUEST_CHANGES: <the reason, in one line> when it is not. \
         Look for bugs, missing tests, leftover debugging and anything the description promises that the diff does \
-        not do.
+        not do.\(instructions.isEmpty ? "" : "\n\n" + instructions)
 
         PR #\(detail.ref.number): \(detail.title)
 

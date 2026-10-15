@@ -407,13 +407,14 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         }
     }
 
-    /// The one prompt the queued items become.
-    public func prompt() -> String? {
+    /// The one prompt the queued items become, then `instructions` (the repo's `green_instructions`).
+    public func prompt(instructions: String = "") -> String? {
         let queued = queued
         guard !queued.isEmpty else { return nil }
         let lines = queued.enumerated().map { "\($0.offset + 1)) \($0.element.promptLine)" }
-        return "Review feedback on PR #\(ref.number): address each item, run the tests, then push. "
+        let prompt = "Review feedback on PR #\(ref.number): address each item, run the tests, then push. "
             + lines.joined(separator: " ")
+        return instructions.isEmpty ? prompt : prompt + "\n\n" + instructions
     }
 
     /// Marks the queued items sent at `sha`, counting a round.

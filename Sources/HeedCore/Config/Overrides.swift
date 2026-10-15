@@ -66,6 +66,8 @@ public struct OverrideKey: Identifiable, Sendable {
         case color
         /// One of the configured agents (the app lists them); empty: the session's.
         case agent
+        /// Free text over several lines: instructions added to a prompt.
+        case instructions
     }
 
     /// The key in config.toml.
@@ -241,6 +243,30 @@ public enum Overrides {
             { .text($0.selfReview ?? "") }
         ),
         pilot(
+            "green_instructions",
+            "Get it green",
+            "Added after the feedback items each run gets.",
+            .instructions,
+            { $0.greenInstructions.map(OverrideValue.text) },
+            { .text($0.greenInstructions) }
+        ),
+        pilot(
+            "review_instructions",
+            "Self-review",
+            "Added to what heed merge's self-review looks for.",
+            .instructions,
+            { $0.reviewInstructions.map(OverrideValue.text) },
+            { .text($0.reviewInstructions) }
+        ),
+        pilot(
+            "start_instructions",
+            "Start work",
+            "Added after the issue text Start work begins from.",
+            .instructions,
+            { $0.startInstructions.map(OverrideValue.text) },
+            { .text($0.startInstructions) }
+        ),
+        pilot(
             "admin_merge",
             "Admin merge",
             "heed merges past branch protection you are allowed to bypass.",
@@ -278,6 +304,7 @@ public enum Overrides {
             "hold_labels", "self_review", "admin_merge",
         ]),
         ("Copilot and reviewers", ["copilot_conflicts", "copilot_comments", "reviewers"]),
+        ("Extra instructions", ["green_instructions", "review_instructions", "start_instructions"]),
     ]
 
     /// The keys that apply at a scope (an org has no `admin_merge`), in group order.

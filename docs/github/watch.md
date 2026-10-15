@@ -251,6 +251,10 @@ gate_checks = []
 hold_labels = ["hold", "do-not-merge", "wip"]
 # self_review = "claude -p"
 # merge_method = "squash"  # unset: the first of squash, merge, rebase the repo allows
+# Extra instructions, added to what heed sends (see below)
+# green_instructions = "Resolve the review threads your changes addressed, and any that no longer apply."
+# review_instructions = ""
+# start_instructions = ""
 
 [orgs.employer]
 watch = false        # not this org's PRs, by default
@@ -261,3 +265,19 @@ watch = true         # but this repo's, yes
 green = "auto"
 merge = "auto"
 ```
+
+### Extra instructions
+
+heed's prompts can carry instructions of your own, set in `[pilot]` and per org or repo like any other setting
+(Settings ▸ Pilot ▸ Extra instructions):
+
+| Key | Added |
+|---|---|
+| `green_instructions` | after the feedback items each get it green run gets |
+| `review_instructions` | to what the self-review looks for, before the PR's description and diff |
+| `start_instructions` | after the issue text Start work begins from, before the `Closes` lines |
+
+They add to a prompt and never replace it: what heed relies on stays as it is, such as the push command a run is
+given and the `APPROVE` line it reads from the self-review. They are not a stand-in for the repo's own `AGENTS.md` or
+`CLAUDE.md` either, which the agent still reads; use them for what you want from heed's prompts in particular, such as
+"resolve the threads that no longer apply". A repo's `""` clears what its org adds.

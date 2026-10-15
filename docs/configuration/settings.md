@@ -15,7 +15,7 @@ here, and the other way round. Key bindings live only in the file.
 | **Agents** | Each agent's command, prompt delivery, plan and resume arguments |
 | **Orgs & repos** | Per org and per repo: colour, issues, and every Pilot setting, with which ones override the defaults (see below) |
 | **Worktrees & cleanup** | Where worktrees go, the repo roots, and the cleanup rules |
-| **Pilot** | The defaults every PR starts from: watching, get it green, get it merged and their rules |
+| **Pilot** | The defaults every PR starts from: watching, get it green, get it merged and their rules, and extra instructions for heed's prompts |
 | **Keys & modes** | The INSERT escape chord and every binding as it stands, read-only: bindings are edited in `config.toml` |
 
 ## Orgs & repos

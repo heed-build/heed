@@ -44,3 +44,6 @@ Queued items go to the agent as one prompt, and only when it is ready for it:
   leaves the rest to you.
 
 ![The prompt that will be sent](../images/shots/github/prompt.png)
+
+Instructions of your own can follow the items: `green_instructions`, per org or repo too (see
+[Extra instructions](watch.md#extra-instructions)).

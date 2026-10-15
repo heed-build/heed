@@ -165,6 +165,35 @@ private struct ConfigTextField: View {
     }
 }
 
+/// Instructions added to a prompt: several lines, written when you leave the field (⌘↩ too).
+struct InstructionsField: View {
+    @Environment(AppModel.self) private var model
+    let path: [String]
+    let value: String
+    /// nil: as wide as the row allows.
+    var width: CGFloat?
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField("none", text: $text, axis: .vertical)
+            .lineLimit(2 ... 6)
+            .textFieldStyle(.roundedBorder)
+            .font(Theme.ui(12.5))
+            .frame(maxWidth: width ?? .infinity)
+            .focused($focused)
+            .onAppear { text = value }
+            .onChange(of: value) { if !focused { text = value } }
+            .onSubmit(save)
+            .onChange(of: focused) { if !focused { save() } }
+    }
+
+    private func save() {
+        guard text != value else { return }
+        model.setConfig(path, .string(text.trimmingCharacters(in: .whitespacesAndNewlines)))
+    }
+}
+
 private struct GeneralSettings: View {
     @Environment(AppModel.self) private var model
 
@@ -530,6 +559,22 @@ private struct PilotSettingsView: View {
                 detail: "Asked to review each PR once it is open and ready: logins, org/team, or copilot. Comma separated."
             ) {
                 ListField(path: ["pilot", "reviewers"], values: pilot.defaults.reviewers)
+            }
+            GroupLabel(title: "Extra instructions")
+            Text(
+                "Added to what heed sends, never replacing it. Per org and per repo too, under Orgs & repos. The agent "
+                    + "still reads the repo's own AGENTS.md or CLAUDE.md."
+            )
+            .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+            .fixedSize(horizontal: false, vertical: true)
+            Field(label: "Get it green", detail: "After the feedback items each run gets.") {
+                InstructionsField(path: ["pilot", "green_instructions"], value: pilot.defaults.greenInstructions)
+            }
+            Field(label: "Self-review", detail: "Added to what heed merge's self-review looks for.") {
+                InstructionsField(path: ["pilot", "review_instructions"], value: pilot.defaults.reviewInstructions)
+            }
+            Field(label: "Start work", detail: "After the issue text Start work begins from.") {
+                InstructionsField(path: ["pilot", "start_instructions"], value: pilot.defaults.startInstructions)
             }
             let orgs = pilot.orgs.count, repos = pilot.repos.count
             HStack(spacing: 6) {

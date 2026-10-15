@@ -79,6 +79,28 @@ struct RunsTests {
         #expect(HeedConfig.default.pilot.defaults.agent == nil && HeedConfig.default.pilot.defaults.runTimeout == 1800)
     }
 
+    @Test func instructionsInheritAndARepoCanClearThem() {
+        let (config, problems) = ConfigLoader.decode("""
+        [pilot]
+        green_instructions = "  Resolve threads that no longer apply.\\n"
+        [orgs.o]
+        start_instructions = "Write a failing test first."
+        review_instructions = "Check the changelog."
+        [repos."o/r"]
+        review_instructions = ""
+        """)
+        #expect(problems.isEmpty)
+        let pilot = config?.pilot ?? PilotRules()
+        #expect(pilot.defaults.greenInstructions == "Resolve threads that no longer apply.")
+        let repo = pilot.resolve(Repo(org: "o", name: "r"))
+        #expect(repo.greenInstructions == "Resolve threads that no longer apply.")
+        #expect(repo.startInstructions == "Write a failing test first.")
+        #expect(repo.reviewInstructions == "")
+        #expect(pilot.resolve(Repo(org: "o", name: "other")).reviewInstructions == "Check the changelog.")
+        #expect(pilot.repos["o/r"]?.isEmpty == false)
+        #expect(HeedConfig.default.pilot.defaults.greenInstructions == "")
+    }
+
     @Test func everyBuiltInAgentTakesAModel() throws {
         for agent in AgentProfile.builtIn {
             let line = agent.launchCommand(prompt: "fix", model: "fast-one")

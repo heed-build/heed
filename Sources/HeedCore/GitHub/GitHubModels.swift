@@ -240,17 +240,21 @@ public struct PullRequest: Identifiable, Hashable, Sendable, Codable {
     }
 }
 
-/// Builds the one prompt Start work gets when it starts from several inbox items or issues.
+/// Builds the one prompt Start work gets when it starts from several inbox items or issues. `instructions` (the
+/// repo's `start_instructions`) go after the issue text, before the `Closes` lines.
 public enum WorkPrompt {
-    public static func from(issues: [Issue], closesLines: Bool = true) -> String {
+    public static func from(issues: [Issue], closesLines: Bool = true, instructions: String = "") -> String {
         guard !issues.isEmpty else { return "" }
+        let extra = instructions.isEmpty ? [] : ["", instructions]
         if issues.count == 1, let issue = issues.first {
-            var text = "\(issue.title) (\(issue.repo.name)#\(issue.number))\n\n\(issue.body.prefix(1500))"
-            if closesLines { text += "\n\nCloses \(issue.repo.slug)#\(issue.number)" }
-            return text
+            var lines = ["\(issue.title) (\(issue.repo.name)#\(issue.number))", "", String(issue.body.prefix(1500))]
+            lines += extra
+            if closesLines { lines += ["", "Closes \(issue.repo.slug)#\(issue.number)"] }
+            return lines.joined(separator: "\n")
         }
         var lines = ["Work on these together. They look related; open one PR that addresses all of them."]
         lines += issues.map { "- \($0.repo.name)#\($0.number) \($0.title)" }
+        lines += extra
         if closesLines {
             lines.append("")
             lines += issues.map { "Closes \($0.repo.slug)#\($0.number)" }
@@ -258,12 +262,12 @@ public enum WorkPrompt {
         return lines.joined(separator: "\n")
     }
 
-    public static func from(inbox items: [InboxItem]) -> String {
+    public static func from(inbox items: [InboxItem], instructions: String = "") -> String {
         guard !items.isEmpty else { return "" }
         let refs = items.map { item in
             "- \(item.repo.name)\(item.number.map { "#\($0)" } ?? "") \(item.title) (\(item.reasonText))"
         }
-        return (["Look into these:"] + refs).joined(separator: "\n")
+        return (["Look into these:"] + refs + (instructions.isEmpty ? [] : ["", instructions])).joined(separator: "\n")
     }
 }
 

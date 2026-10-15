@@ -122,6 +122,8 @@ struct HeedMergeTests {
         #expect(refused.summary == "the migration has no rollback")
         #expect(!SelfReview.parse("", sha: head, at: now).approved)
         #expect(SelfReview.prompt(detail(), diff: "+x").contains("APPROVE"))
+        let extra = SelfReview.prompt(detail(), diff: "+x", instructions: "Flag API changes without a changelog entry.")
+        #expect(extra.contains("not do.\n\nFlag API changes without a changelog entry.\n\nPR #"))
     }
 
     @Test func theCommentSaysWhy() {

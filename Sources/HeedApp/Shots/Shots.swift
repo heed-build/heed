@@ -225,10 +225,15 @@ enum Shots {
         Shot(id: "github/prs", keys: "gp"),
         Shot(id: "github/reader-pr", keys: "gpgo"),
         Shot(id: "github/reader-issue", size: CGSize(width: 1200, height: 420), keys: "gigo", crop: .reader),
-        Shot(id: "github/feedback", keys: "go"),
+        Shot(id: "github/feedback", keys: "go", prepare: withGreenInstructions),
         Shot(id: "github/delivery", keys: "go", crop: .delivery),
-        Shot(id: "github/prompt", keys: "go", crop: .promptPreview),
+        Shot(id: "github/prompt", keys: "go", crop: .promptPreview, prepare: withGreenInstructions),
     ]
+
+    /// A `green_instructions`, so the prompt preview shows where they go.
+    private static let withGreenInstructions: @MainActor (AppModel) -> Void = { model in
+        model.applyConfig(source: "[pilot]\ngreen_instructions = \"Resolve the threads you addressed.\"\n")
+    }
 
     static let worktrees: [Shot] = [
         Shot(id: "worktrees/repos", keys: "gr", highlight: [.repoColumn, .worktreeTable, .rulesPanel]),

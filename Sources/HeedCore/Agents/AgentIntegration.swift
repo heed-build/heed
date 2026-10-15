@@ -64,7 +64,7 @@ public enum AgentIntegration {
         case "PostToolUse":
             return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })] + created(input)
         case "PermissionRequest": return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
-        case "Stop": return [.state(.done, reason: nil)]
+        case "Stop": return [TurnEnd.kind(lastWords: input["last_assistant_message"] as? String)]
         case "SessionEnd": return [.state(.exited, reason: input["reason"] as? String)]
         default: return []
         }
@@ -85,7 +85,7 @@ public enum AgentIntegration {
         var hooks: [String: Any] = [:]
         for event in [
             "sessionStart", "beforeShellExecution", "afterShellExecution", "afterMCPExecution", "afterFileEdit",
-            "postToolUse", "stop",
+            "postToolUse", "afterAgentResponse", "stop",
         ] {
             hooks[event] = [["command": "\(ShellQuote.quote(heed)) hook cursor \(event)", "timeout": 15]]
         }
@@ -142,6 +142,10 @@ public enum AgentIntegration {
                 tool: tool, command: PullCreation.command(input["tool_input"]),
                 output: PullCreation.text(input["tool_output"])
             ).map { .prAdd(url: $0) }
+        // The agent's reply, before `stop`: a reply that asks you leaves the session asking (`stop` keeps it).
+        case "afterAgentResponse":
+            guard let text = input["text"] as? String, TurnEnd.asksYou(text) else { return [] }
+            return [.guess(.asking, reason: TurnEnd.question)]
         case "stop":
             switch input["status"] as? String {
             case "aborted": return [.state(.idle, reason: "aborted")]
@@ -152,9 +156,10 @@ public enum AgentIntegration {
         }
     }
 
-    // MARK: pi and opencode (their extension and plugin call `heed hook <agent> <event> <session id> [detail]`)
+    // MARK: pi and opencode (they call `heed hook <agent> <event> <session id> [detail] [last text]`)
 
-    static func piHook(event: String, sessionID: String?, detail: String?) -> [HookMessage.Kind] {
+    /// `text` is the turn's last assistant text, sent with the turn's end.
+    static func piHook(event: String, sessionID: String?, detail: String?, text: String? = nil) -> [HookMessage.Kind] {
         switch event {
         case "start":
             (sessionID.flatMap { $0.isEmpty ? nil : [.agentSession(id: $0, agent: "pi")] } ?? [])
@@ -164,7 +169,7 @@ public enum AgentIntegration {
         // The extension sends a PR it saw the agent create; the URL is checked here.
         case "pr": PullRef(url: detail ?? "") == nil ? [] : [.prAdd(url: detail!)]
         case "waiting": [.state(.asking, reason: detail)]
-        case "idle": [.state(.done, reason: nil)]
+        case "idle": [TurnEnd.kind(lastWords: text)]
         case "aborted": [.state(.idle, reason: "aborted")]
         case "error": [.state(.done, reason: "error")]
         case "exit": [.state(.exited, reason: nil)]
@@ -172,14 +177,16 @@ public enum AgentIntegration {
         }
     }
 
-    static func opencodeHook(event: String, sessionID: String?, detail: String?) -> [HookMessage.Kind] {
+    static func opencodeHook(
+        event: String, sessionID: String?, detail: String?, text: String? = nil
+    ) -> [HookMessage.Kind] {
         switch event {
         case "session.created":
             sessionID.flatMap { $0.isEmpty ? nil : [.agentSession(id: $0, agent: "opencode")] } ?? []
         case "session.status":
             switch detail {
             case "busy": [.state(.working, reason: nil)]
-            case "idle": [.state(.done, reason: nil)]
+            case "idle": [TurnEnd.kind(lastWords: text)]
             case "retry": [.state(.limited, reason: "retrying")]
             default: []
             }
@@ -195,14 +202,24 @@ public enum AgentIntegration {
     // Heed: reports pi's state to the Heed app. Loaded per run with `pi -e`; does nothing outside a Heed pane.
     export default function (pi) {
       const bin = process.env.HEED_BIN;
-      const send = (state, ctx, detail) => {
+      const send = (state, ctx, detail, text) => {
         if (!bin) return;
         let sid = "";
         try { sid = ctx.sessionManager.getSessionId() ?? ""; } catch {}
-        Promise.resolve(pi.exec(bin, ["hook", "pi", state, sid, String(detail ?? "")])).catch(() => {});
+        const args = ["hook", "pi", state, sid, String(detail ?? "")];
+        if (text) args.push(text);
+        Promise.resolve(pi.exec(bin, args)).catch(() => {});
       };
+      // The turn's last assistant text goes with its end, so Heed can tell a question to you from a finished turn.
+      let last = "";
       pi.on("session_start", (e, ctx) => send("start", ctx, e?.reason));
-      pi.on("agent_start", (_e, ctx) => send("busy", ctx));
+      pi.on("agent_start", (_e, ctx) => { last = ""; send("busy", ctx); });
+      pi.on("message_end", (e) => {
+        const m = e?.message;
+        if (m?.role !== "assistant" || !Array.isArray(m.content)) return;
+        const text = m.content.filter((c) => c?.type === "text").map((c) => c.text ?? "").join("\n").trim();
+        if (text) last = text.slice(-600);
+      });
       pi.on("tool_execution_start", (e, ctx) => send("tool", ctx, e?.toolName));
       // A PR the agent opened (gh pr create, a create_pull_request tool) belongs to this session.
       pi.on("tool_result", (e, ctx) => {
@@ -213,7 +230,7 @@ public enum AgentIntegration {
       });
       pi.on("ui_prompt_start", (e, ctx) => send("waiting", ctx, e?.kind));
       pi.on("agent_before_settle", (e, ctx) => { if (e?.outcome === "error") send("error", ctx); });
-      pi.on("agent_settled", (e, ctx) => send(e?.aborted ? "aborted" : "idle", ctx));
+      pi.on("agent_settled", (e, ctx) => send(e?.aborted ? "aborted" : "idle", ctx, "", e?.aborted ? "" : last));
       pi.on("session_shutdown", (_e, ctx) => send("exit", ctx));
     }
     """#
@@ -223,6 +240,9 @@ public enum AgentIntegration {
     // OPENCODE_CONFIG_CONTENT; does nothing outside a Heed pane.
     export const HeedPlugin = async ({ $ }) => {
       const args = new Map();
+      const roles = new Map();
+      const last = new Map();
+      const reported = new Set(["session.created", "session.status", "permission.asked", "question.asked", "session.error"]);
       return {
       // A PR the agent opened (gh pr create, a create_pull_request tool) belongs to this session.
       "tool.execute.before": async (input, output) => { args.set(input.callID, output?.args); },
@@ -242,8 +262,25 @@ public enum AgentIntegration {
         const bin = process.env.HEED_BIN;
         if (!bin) return;
         const p = event.properties ?? {};
+        // The last assistant text per session goes with its idle, so Heed can tell a question to you from a finished
+        // turn. Parts of user messages are skipped by their message's role.
+        if (event.type === "message.updated" && p.info?.id) { roles.set(p.info.id, p.info.role); return; }
+        if (event.type === "message.part.updated") {
+          const part = p.part ?? {};
+          if (part.type === "text" && !part.synthetic && roles.get(part.messageID) === "assistant" && part.text) {
+            last.set(part.sessionID, part.text.trim().slice(-600));
+          }
+          return;
+        }
+        if (!reported.has(event.type)) return;
         const detail = event.type === "session.status" ? (p.status?.type ?? "") : (p.permission ?? "");
         const sid = p.sessionID ?? p.info?.id ?? "";
+        if (event.type === "session.status" && detail === "idle") {
+          const text = last.get(sid) ?? "";
+          last.delete(sid);
+          await $`${bin} hook opencode ${event.type} ${sid} ${detail} ${text}`.quiet().nothrow();
+          return;
+        }
         await $`${bin} hook opencode ${event.type} ${sid} ${detail}`.quiet().nothrow();
       },
       };
@@ -312,6 +349,8 @@ public enum AgentIntegration {
                 let count = ((input["tool_input"] as? [String: Any])?["questions"] as? [Any])?.count
                 return [.state(.asking, reason: count.map { "\($0) question\($0 == 1 ? "" : "s")" })]
             }
+            // Plan mode's plan, waiting for you to approve it (or not); the next prompt or tool call moves on.
+            if tool == "ExitPlanMode" { return [.state(.asking, reason: "plan to approve")] }
             return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })]
         case "PostToolUse":
             return [.state(.working, reason: tool)] + created(input)
@@ -320,11 +359,22 @@ public enum AgentIntegration {
         case "Notification":
             switch input["notification_type"] as? String {
             case "permission_prompt": return [.state(.blocked, reason: input["message"] as? String)]
-            case "idle_prompt": return [.state(.idle, reason: nil)]
+            case "idle_prompt": return [.atPrompt]
             case "elicitation_dialog": return [.state(.asking, reason: input["message"] as? String)]
             default: return [.notify(input["message"] as? String ?? "")]
             }
         case "Stop":
+            // A turn that left background work running, or a scheduled prompt, is not finished with: background tasks
+            // keep it working (their results start the next turn), a schedule leaves it idle until it fires. A
+            // question in the turn's last words outranks both.
+            let lastWords = input["last_assistant_message"] as? String
+            if let lastWords, TurnEnd.asksYou(lastWords) { return [TurnEnd.kind(lastWords: lastWords)] }
+            if let tasks = input["background_tasks"] as? [Any], !tasks.isEmpty {
+                return [.state(.working, reason: "\(tasks.count) background task\(tasks.count == 1 ? "" : "s")")]
+            }
+            if let crons = input["session_crons"] as? [Any], !crons.isEmpty {
+                return [.state(.idle, reason: "\(crons.count) scheduled")]
+            }
             return [.state(.done, reason: nil)]
         case "StopFailure":
             let error = input["error"] as? String

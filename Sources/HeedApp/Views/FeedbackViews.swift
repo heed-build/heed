@@ -226,11 +226,11 @@ struct FeedbackPanel: View {
                 .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
             }
             VStack(alignment: .leading, spacing: 8) {
-                keyRow("space", "queue / unqueue")
-                keyRow("s", "send queued now")
-                keyRow("x", "dismiss item")
-                keyRow("S", "new session from this PR")
-                keyRow("gS", "full session view")
+                keyRow(model.keyText(for: "feedback.queue", in: "pr"), "queue / unqueue")
+                keyRow(model.keyText(for: "feedback.send", in: "pr"), "send queued now")
+                keyRow(model.keyText(for: "feedback.dismiss", in: "pr"), "dismiss item")
+                keyRow(model.keyText(for: "feedback.session", in: "pr"), "new session from this PR")
+                keyRow(model.keyText(for: "pr.session", in: "pr"), "full session view")
             }
             .padding(14)
             .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
@@ -448,11 +448,11 @@ struct ReaderView: View {
             }
             Spacer()
             VStack(alignment: .leading, spacing: 8) {
-                keyRow("space", "queue comment for session")
-                keyRow("s", "send queued to session")
-                keyRow("S", "start a new session from this PR")
-                keyRow("gB", "open on GitHub")
-                keyRow("gS", "jump to its session")
+                keyRow(model.keyText(for: "feedback.queue", in: "pr"), "queue comment for session")
+                keyRow(model.keyText(for: "feedback.send", in: "pr"), "send queued to session")
+                keyRow(model.keyText(for: "feedback.session", in: "pr"), "start a new session from this PR")
+                keyRow(model.keyText(for: "open.browser", in: "pr"), "open on GitHub")
+                keyRow(model.keyText(for: "pr.session", in: "pr"), "jump to its session")
             }
         }
         .padding(20)

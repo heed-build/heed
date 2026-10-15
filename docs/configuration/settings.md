@@ -11,7 +11,7 @@ here, and the other way round. Key bindings live only in the file.
 
 | Section | Holds |
 |---|---|
-| **General** | Default agent, resume on launch, the continue prompt, shell split, menu bar item, Dock state, GitHub poll interval, issues default, and where `git` and `gh` are |
+| **General** | Default agent, resume on launch, the continue prompt, shell split, menu bar item, Dock state, notifications, GitHub poll interval, issues default, and where `git` and `gh` are |
 | **Agents** | Each agent's command, prompt delivery, plan and resume arguments |
 | **Orgs & repos** | Per org and per repo: colour, issues, and every Pilot setting, with which ones override the defaults (see below) |
 | **Worktrees & cleanup** | Where worktrees go, the repo roots, and the cleanup rules |

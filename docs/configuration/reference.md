@@ -137,6 +137,14 @@ menu_bar = true
 # The Dock icon shows the same: a badge in the state's colour (blocked, else asking) with the count.
 dock_state = true
 
+[notifications]
+# A macOS notification when a session starts needing you, unless Heed is in front showing that session. Several
+# within a few seconds come as one. Open brings Heed forward on the session; a Claude permission prompt also gets
+# Allow. Per state: asking (questions, a plan to approve) and blocked (a permission prompt).
+enabled = true
+asking = true
+blocked = true
+
 [updates]
 # Look for a new version of heed once a day (on GitHub, heed's releases). Each update is signed; heed installs
 # only what its key signed, and Apple has notarized.

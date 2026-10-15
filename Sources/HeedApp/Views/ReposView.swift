@@ -35,10 +35,9 @@ struct ReposView: View {
             Spacer(minLength: 0)
             Theme.line.frame(height: 1)
             VStack(alignment: .leading, spacing: 8) {
-                keyRow("a", "add repo (rescan roots)")
-                keyRow("R", "rescan")
-                keyRow("n", "new worktree")
-                keyRow("dd", "remove worktree (asks)")
+                keyRow(model.keyText(for: "repo.scan", in: "repos"), "rescan roots for repos")
+                keyRow(model.keyText(for: "worktree.new", in: "repos"), "new worktree")
+                keyRow(model.keyText(for: "select.remove", in: "repos"), "remove worktree (asks)")
             }
             .padding(16)
         }

@@ -105,6 +105,9 @@ Headless checks: `HEED_SNAPSHOT=out.png build/Heed.app/Contents/MacOS/Heed` rend
   and its agents running.
 - The Dock icon (`[ui] dock_state`, on by default) gets a badge in the state's colour (blocked, else asking) with the
   count.
+- A notification (`[notifications]`, on by default) when a session starts asking or gets blocked, unless Heed is in
+  front on it; a burst comes as one. Open brings Heed forward on the session; a Claude permission prompt also gets
+  Allow.
 
 The brand pack (icon, logo, menu bar template, social preview, org avatars) lives in `design/brand/`.
 

@@ -276,6 +276,30 @@ private struct GeneralSettings: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
             }
+            Field(
+                label: "Notifications",
+                detail: "A notification when a session starts needing you, unless Heed is in front on it. macOS asks "
+                    + "the first time."
+            ) {
+                HStack(spacing: 14) {
+                    Toggle("", isOn: Binding(
+                        get: { model.config.notifications.enabled },
+                        set: { model.setConfig(["notifications", "enabled"], .bool($0)) }
+                    ))
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    Toggle("Asking", isOn: Binding(
+                        get: { model.config.notifications.asking },
+                        set: { model.setConfig(["notifications", "asking"], .bool($0)) }
+                    ))
+                    .disabled(!model.config.notifications.enabled)
+                    Toggle("Blocked", isOn: Binding(
+                        get: { model.config.notifications.blocked },
+                        set: { model.setConfig(["notifications", "blocked"], .bool($0)) }
+                    ))
+                    .disabled(!model.config.notifications.enabled)
+                }
+            }
             GroupLabel(title: "GitHub")
             Field(label: "GitHub poll", detail: "Seconds between gh syncs.") {
                 Stepper(value: Binding(

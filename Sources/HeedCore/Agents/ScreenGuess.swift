@@ -42,6 +42,21 @@ public enum ScreenGuess {
         return nil
     }
 
+    /// Whether answering yes to the agent's permission prompt is one Return, and the screen shows exactly that prompt:
+    /// a notification's Allow presses it only then. Claude's prompt asks "Do you want to …?" over a list whose cursor
+    /// starts on `1. Yes`; anything else (another agent, the cursor moved, the prompt gone) is left to you.
+    public static func allowsWithReturn(agent: String, screen: String) -> Bool {
+        guard agent == "claude" else { return false }
+        // Rows below the prompt are blank on a screen that is not full yet.
+        let lines = screen.split(separator: "\n", omittingEmptySubsequences: false)
+        let tail = lines.reversed().drop { $0.allSatisfy(\.isWhitespace) }.prefix(16).reversed().joined(separator: "\n")
+        return tail.range(
+            of: #"(?i)do you want to (proceed|make this edit|create|run|allow)"#,
+            options: .regularExpression
+        )
+            != nil && tail.range(of: #"(?m)^[\s│|]*❯\s*1\.\s*Yes\b"#, options: .regularExpression) != nil
+    }
+
     /// Which states an agent's integration reports itself; the rest are worth guessing from the screen.
     public static func reported(by agent: String) -> Set<AgentState> {
         switch agent {

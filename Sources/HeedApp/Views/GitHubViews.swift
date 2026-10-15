@@ -96,11 +96,15 @@ private struct PickedPanel: View {
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()
             Theme.line.frame(height: 1)
-            keyRow("s", "start one session")
-            keyRow("a", "add to the current session instead")
-            if model.view == .inbox { keyRow("m", "mark read, no session") }
-            keyRow("space v", "pick · pick a range")
-            keyRow("o", "open in the browser")
+            let scope = model.view.rawValue
+            keyRow(model.keyText(for: "items.start", in: scope), "start one session")
+            keyRow(model.keyText(for: "items.add", in: scope), "add to the current session instead")
+            if model.view == .inbox { keyRow(model.keyText(for: "items.read", in: scope), "mark read, no session") }
+            keyRow(
+                "\(model.keyText(for: "select.toggle", in: scope)) \(model.keyText(for: "mode.visual"))",
+                "pick · pick a range"
+            )
+            keyRow(model.keyText(for: "open.browser", in: scope), "open in the browser")
         }
         .padding(20)
         .frame(width: 380)
@@ -279,8 +283,8 @@ private struct IssueRepoColumn: View {
             Spacer(minLength: 0)
             Theme.line.frame(height: 1)
             VStack(alignment: .leading, spacing: 8) {
-                keyRow("⇥", "next repo")
-                keyRow("w", "all issues / only yours")
+                keyRow(model.keyText(for: "issues.repo.next", in: "issues"), "next repo")
+                keyRow(model.keyText(for: "issues.visibility", in: "issues"), "all issues / only yours")
                 HStack(spacing: 8) {
                     Image(systemName: "eye").font(.system(size: 11)).foregroundStyle(Theme.fg2).frame(width: 18)
                     Text("shows all open issues").font(Theme.ui(12)).foregroundStyle(Theme.fg2)

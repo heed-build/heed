@@ -59,6 +59,7 @@ final class AppModel {
             rebuildList()
             if filters[.repos] != nil { rebuildWorktreeRows() }
             updateOutsideWindow()
+            noteStateChanges(from: oldValue)
         }
     }
 
@@ -260,6 +261,7 @@ final class AppModel {
     /// Starts from the cache, then refreshes from git. The window is already up showing whatever the cache holds.
     func start(cache file: URL) async {
         startConfig()
+        Notifier.shared.attach(self)
         if !isFixture { await detectTools() }
         startHooks()
         let integration = integration
@@ -296,6 +298,10 @@ final class AppModel {
         }
     }
 
+    /// The reason on screen guesses. Only these leave when the screen no longer shows them: a question the turn's last
+    /// words asked stays until the agent moves on.
+    private static let fromScreen = "from the screen"
+
     private func readScreens() async {
         var work: [(String, String, ScreenGuess.Patterns, Set<AgentState>)] = []
         for session in sessions {
@@ -319,10 +325,12 @@ final class AppModel {
             guard var session = sessions.first(where: { $0.id == id }) else { continue }
             let next: ObservedState
             if let guess {
-                next = ObservedState(guess, source: .guessed, reason: "from the screen")
-            } else if session.state.source == .guessed, [.blocked, .asking, .limited].contains(session.state.state) {
+                next = ObservedState(guess, source: .guessed, reason: Self.fromScreen)
+            } else if session.state.source == .guessed, session.state.reason == Self.fromScreen,
+                      [.blocked, .asking, .limited].contains(session.state.state)
+            {
                 // The prompt left the screen: the agent is past it.
-                next = ObservedState(.working, source: .guessed, reason: "from the screen")
+                next = ObservedState(.working, source: .guessed, reason: Self.fromScreen)
             } else {
                 continue
             }
@@ -706,8 +714,7 @@ final class AppModel {
     func receive(_ message: HookMessage) {
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
         // A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it;
-        // asking
-        // or blocked shows the session in Needs you (through `sessionPilot`).
+        // asking or blocked shows the session in Needs you (through `sessionPilot`).
         if let pane = message.pane, runPanes.contains(pane) {
             // Its agent's last words (the exit as its tab closes) come after the run ended: nobody's news.
             guard let id = liveRuns.first(where: { $0.value.paneID == pane })?.key else { return }
@@ -716,7 +723,14 @@ final class AppModel {
                 let setup = settings.setup.commands(for: live.ref.repo) ?? []
                 return endRun(id, outcome: .failed(WorktreeSetup.failureReason(setup)))
             }
-            if case let .state(state, _) = message.kind {
+            // A run's turn is over when it ends, question or not: nobody is there to answer it.
+            let reported: AgentState? = switch message.kind {
+            case let .state(state, _): state
+            case .guess: .done
+            case .atPrompt: .idle
+            default: nil
+            }
+            if let state = reported {
                 runStates[pane] = state
                 if state == .working { liveRuns[id]?.worked = true }
                 rebuildList()
@@ -725,8 +739,21 @@ final class AppModel {
             return
         }
         switch message.kind {
-        case let .state(state, reason):
-            session.state = session.state.accepting(ObservedState(state, source: .reported, reason: reason))
+        case .state, .guess, .atPrompt:
+            let next: ObservedState = switch message.kind {
+            case let .state(state, reason): session.state.accepting(ObservedState(state, reason: reason))
+            case let .guess(state, reason): session.state.guessing(state, reason: reason)
+            default: session.state.atPrompt()
+            }
+            // What the session kept is not news: an idle prompt over a finished turn, cursor's done after the reply
+            // that asked you. A report that changes nothing (the next tool of a working turn) still is.
+            switch message.kind {
+            case let .state(state, _) where state != next.state: return
+            case .guess where next == session.state, .atPrompt where next == session.state: return
+            default: break
+            }
+            let state = next.state, reason = next.reason
+            session.state = next
             session.activity = reason.map { "\(state.rawValue) · \($0)" } ?? state.rawValue
             session.lastActivity = message.sentAt
             events[session.id] = AgentEvent.log(
@@ -5491,6 +5518,11 @@ final class AppModel {
     /// A command's key as text for hints: as bound, else `:command` (what still runs it).
     func keyText(for command: String) -> String { keyLabel(for: command) ?? ":\(command)" }
 
+    /// The same, for a view's own panel: that view's bindings (`[keys.inbox]`) first, as they shadow NORMAL's there.
+    func keyText(for command: String, in scope: String) -> String {
+        engine.scopedKeymaps[scope]?.keys(for: command).first.map(KeyCapText.of) ?? keyText(for: command)
+    }
+
     /// The key for a command as you have it bound, the one that works here first (see `KeyLabels`): `Iw` lives in
     /// Sessions', `m` pins the selection in VISUAL, `pin.jump` reads `'1…'9`.
     func keyLabel(for command: String) -> String? { keyBinding(for: command)?.text }
@@ -5514,6 +5546,39 @@ final class AppModel {
         let attention = Attention(blocked: blockedCount, asking: askingCount)
         DockState.update(attention, enabled: config.showDockState)
         MenuBarItem.shared.update(model: self, attention: attention, enabled: config.showMenuBarItem)
+    }
+
+    /// Each session whose state changed, to the notifier (which keeps those that started needing you). Sessions that
+    /// were not there before (the cache loading, a new session) are not changes.
+    private func noteStateChanges(from old: [Session]) {
+        guard !isFixture else { return }
+        let before = Dictionary(old.map { ($0.id, $0.state.state) }, uniquingKeysWith: { first, _ in first })
+        for session in sessions {
+            guard let previous = before[session.id], previous != session.state.state else { continue }
+            Notifier.shared.note(session, from: previous, settings: config.notifications)
+        }
+    }
+
+    /// Whether you are looking at this session: Heed in front, its window up, on Sessions with this one selected.
+    func isOnScreen(sessionID: String) -> Bool {
+        guard NSApp.isActive, NSApp.windows.contains(where: { $0.identifier == Self.mainWindowID && $0.isVisible })
+        else { return false }
+        return view == .sessions && currentSession?.id == sessionID
+    }
+
+    /// A notification's Allow: presses Return on the agent's permission prompt, only while the session is still
+    /// blocked and its screen shows a prompt where that means yes (`ScreenGuess.allowsWithReturn`). Otherwise Heed
+    /// comes forward on the session, so you answer it yourself.
+    func allowPermission(sessionID: String) {
+        guard let session = sessions.first(where: { $0.id == sessionID }), session.state.state == .blocked,
+              let layout = layouts[sessionID], let (_, paneID) = agentPane(in: layout),
+              let screen = TerminalSurfaces.shared.visibleText(paneID: paneID),
+              ScreenGuess.allowsWithReturn(agent: session.agent, screen: screen)
+        else { return show(sessionID: sessionID) }
+        TerminalSurfaces.shared.typeLine("", paneID: paneID)
+        var allowed = session
+        allowed.record("allowed from a notification")
+        commit(.sessionUpserted(allowed))
     }
 
     /// `[keys] global_activate` and Open Heed: the main window to the front, reopened if it was closed.
@@ -5561,12 +5626,13 @@ final class AppModel {
     }
 
     /// A click on a list row (Inbox, Issues, PRs, Watch, Repos, History) moves the cursor there; a double-click opens
-    /// it, as ↩ does.
+    /// it, as ↩ does: the worktree's session in Repos, the reader for an inbox item, issue or PR.
     func clickRow(_ list: AppView, _ index: Int, open: Bool = false) {
         guard clicksReachLists, view == list else { return }
         clickedOutsideTerminal()
         setRow(index)
-        if open { openSelected() }
+        guard open else { return }
+        if list == .repos { openSelected() } else { openReader() }
     }
 
     /// A click outside any terminal (a list, the sidebar, the title bar) hands the keyboard back to Heed.

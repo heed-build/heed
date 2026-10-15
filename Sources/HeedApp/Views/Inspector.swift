@@ -240,14 +240,12 @@ private struct LinkCard: View {
         Text(pull?.title ?? session.title).font(Theme.ui(13, weight: .medium)).lineLimit(finished ? 1 : 2)
             .foregroundStyle(finished ? Theme.fg2 : Theme.fg)
         if finished { EmptyView() } else if let pull {
-            HStack(spacing: 8) {
-                CheckBar(checks: pull.checks)
-                Text(pull.checks.text)
-                    .foregroundStyle(pull.checks.failed > 0 ? Theme.err : Theme.fg2)
-                Text("· \(pull.review?.text ?? "no review")").foregroundStyle(Theme.fg3)
-            }
-            .font(Theme.ui(11.5))
-            .lineLimit(1)
+            // The bar takes the card's width; the summary and the review read underneath it.
+            CheckBar(checks: pull.checks).padding(.top, 2)
+            (CheckText.text(pull.checks)
+                + Text(verbatim: " · \(pull.review?.text ?? "no review")").foregroundStyle(Theme.fg3))
+                .font(Theme.ui(11.5))
+                .lineLimit(1)
         }
         // What the pilot is doing for this PR (nothing to say once it is merged or closed).
         if !finished {

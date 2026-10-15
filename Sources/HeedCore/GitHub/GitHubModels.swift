@@ -174,13 +174,36 @@ public struct CheckSummary: Hashable, Sendable, Codable {
 
     public var total: Int { passed + failed + pending }
 
-    /// `lint failed`, `2/5 running`, `4/4 passed`, `no checks`.
-    public var text: String {
-        if total == 0 { return "no checks" }
-        if failed > 0 { return failedNames.count == 1 ? "\(failedNames[0]) failed" : "\(failed) failed" }
-        if pending > 0 { return "\(passed)/\(total) running" }
-        return "\(passed)/\(total) passed"
+    /// What a check summary says, part by part, so each can take its state's colour.
+    public enum Part: Hashable, Sendable {
+        case passed(String), failed(String), running(String), skipped(String), none(String)
+
+        public var text: String {
+            switch self {
+            case let .passed(text), let .failed(text), let .running(text), let .skipped(text), let .none(text): text
+            }
+        }
     }
+
+    /// `10/12 passed`, then `lint failed` (or `2 failed`), `1 running` and `3 skipped` when there are any.
+    /// Skipped checks are not counted in the total.
+    public var parts: [Part] {
+        if total == 0 { return [.none(skipped > 0 ? "\(skipped) skipped" : "no checks")] }
+        var parts: [Part] = [.passed("\(passed)/\(total) passed")]
+        if failed >
+            0
+        {
+            parts
+                .append(.failed(failedNames
+                        .count == 1 && failed == 1 ? "\(failedNames[0]) failed" : "\(failed) failed"))
+        }
+        if pending > 0 { parts.append(.running("\(pending) running")) }
+        if skipped > 0 { parts.append(.skipped("\(skipped) skipped")) }
+        return parts
+    }
+
+    /// `10/12 passed · lint failed · 1 running`, `4/4 passed`, `no checks`.
+    public var text: String { parts.map(\.text).joined(separator: " · ") }
 }
 
 public struct PullRequest: Identifiable, Hashable, Sendable, Codable {

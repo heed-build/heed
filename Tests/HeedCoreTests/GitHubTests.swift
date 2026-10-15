@@ -45,14 +45,18 @@ struct GitHubParsingTests {
         #expect(pull.checks == CheckSummary(
             passed: 1, failed: 1, pending: 1, skipped: 1, failedNames: ["build"], pendingNames: ["lint"]
         ))
-        #expect(pull.checks.text == "build failed")
+        #expect(pull.checks.text == "1/3 passed · build failed · 1 running · 1 skipped")
     }
 
     @Test func checkTexts() {
         #expect(CheckSummary().text == "no checks")
-        #expect(CheckSummary(passed: 2, pending: 3).text == "2/5 running")
+        #expect(CheckSummary(skipped: 2).text == "2 skipped")
+        #expect(CheckSummary(passed: 2, pending: 3).text == "2/5 passed · 3 running")
         #expect(CheckSummary(passed: 4).text == "4/4 passed")
-        #expect(CheckSummary(failed: 2, failedNames: ["a", "b"]).text == "2 failed")
+        #expect(CheckSummary(failed: 2, failedNames: ["a", "b"]).text == "0/2 passed · 2 failed")
+        #expect(CheckSummary(passed: 52, failed: 2, pending: 3, skipped: 3, failedNames: ["lint", "e2e"]).parts == [
+            .passed("52/57 passed"), .failed("2 failed"), .running("3 running"), .skipped("3 skipped"),
+        ])
     }
 
     @Test func trackedPullsByAlias() {

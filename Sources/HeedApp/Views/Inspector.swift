@@ -43,14 +43,24 @@ struct Inspector: View {
                     let links = model.links(of: session)
                     if links.isEmpty { emptyLinks(session) }
                     CappedScroll(cap: height * 0.45) {
-                        ForEach(links, id: \.self) { link in
-                            LinkCard(session: session, link: link)
-                                .contentShape(Rectangle())
-                                // A click opens it here (the PR overlay, the issue reader); ⌘-click on GitHub.
-                                .onTapGesture {
-                                    model.open(link, browser: NSEvent.modifierFlags.contains(.command))
+                        // PRs and issues apart: each under its own heading, PRs as cards, issues as rows.
+                        let pulls = links.filter { if case .pull = $0 { true } else { false } }
+                        let issues = links.filter { if case .issue = $0 { true } else { false } }
+                        ForEach([("Pull requests", pulls), ("Issues", issues)], id: \.0) { group in
+                            if !group.1.isEmpty {
+                                Text("\(group.0) · \(group.1.count)").font(Theme.ui(11, weight: .semibold))
+                                    .foregroundStyle(Theme.fg3)
+                                    .padding(.top, group.0 == "Issues" && !pulls.isEmpty ? 6 : 0)
+                                ForEach(group.1, id: \.self) { link in
+                                    LinkCard(session: session, link: link)
+                                        .contentShape(Rectangle())
+                                        // A click opens it here (the PR overlay, the issue reader); ⌘-click on GitHub.
+                                        .onTapGesture {
+                                            model.open(link, browser: NSEvent.modifierFlags.contains(.command))
+                                        }
+                                        .help("\(link.url)\n⌘-click opens it on GitHub")
                                 }
-                                .help("\(link.url)\n⌘-click opens it on GitHub")
+                            }
                         }
                     }
                 }
@@ -178,23 +188,35 @@ private struct LinkCard: View {
     let link: SessionLink
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            switch link {
-            case let .pull(ref): pull(ref)
-            case let .issue(ref): issue(ref)
-            case let .repo(repo): Text(repo.slug).font(Theme.mono(11.5))
-            }
+        switch link {
+        case let .pull(ref):
+            VStack(alignment: .leading, spacing: 5) { pull(ref) }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg3))
+        case let .issue(ref):
+            issue(ref).frame(maxWidth: .infinity, alignment: .leading)
+        case let .repo(repo):
+            Text(repo.slug).font(Theme.mono(11.5))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg3))
+    }
+
+    /// GitHub's colours: open green, merged purple, closed red.
+    static func pullTint(_ pull: PullRequest?) -> Color {
+        switch pull?.state {
+        case .open: pull?.isDraft == true ? Theme.fg3 : Theme.done
+        case .merged: Theme.ask
+        case .closed: Theme.err
+        case nil: Theme.fg3
+        }
     }
 
     @ViewBuilder private func pull(_ ref: PullRef) -> some View {
         let pull = model.github.pull(ref)
         HStack {
-            Image(systemName: "arrow.triangle.pull").font(.system(size: 10)).foregroundStyle(Theme.fg3)
+            Image(systemName: "arrow.triangle.pull").font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Self.pullTint(pull))
             Text(verbatim: "\(ref.repo.name) #\(ref.number)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
             Spacer()
             if let pull { StateTag(state: pull.state, draft: pull.isDraft) }
@@ -226,26 +248,27 @@ private struct LinkCard: View {
         }
     }
 
+    /// An issue: one light row (no card), so it never reads as a PR. Its icon is green while open, purple once closed.
     @ViewBuilder private func issue(_ ref: IssueRef) -> some View {
         let info = model.issueInfo[ref]
         let known = model.issue(for: ref)
-        HStack {
-            Image(systemName: "smallcircle.filled.circle").font(.system(size: 10)).foregroundStyle(Theme.fg3)
-            Text(verbatim: "\(ref.repo.name) #\(ref.number)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
-            Spacer()
-            if let info {
-                let (text, tint) = info.closed ? ("closed", Theme.ask) : ("open", Theme.done)
-                Text(text)
-                    .font(Theme.mono(10.5))
-                    .foregroundStyle(tint)
-                    .padding(.horizontal, 6)
-                    .background(RoundedRectangle(cornerRadius: 4).fill(tint.opacity(0.16)))
-            }
+        HStack(alignment: .firstTextBaseline, spacing: 7) {
+            Image(systemName: info?.closed == true ? "checkmark.circle" : "smallcircle.filled.circle")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(info == nil ? Theme.fg3 : info!.closed ? Theme.ask : Theme.done)
+            // The repo only when it is not the session's own.
+            Text(verbatim: ref.repo == session.repos.first ? "#\(ref.number)" : "\(ref.repo.name)#\(ref.number)")
+                .font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).fixedSize()
+            Text(known?.title ?? ref.repo.slug)
+                .font(Theme.ui(12.5))
+                .foregroundStyle(known == nil ? Theme.fg3 : info?.closed == true ? Theme.fg2 : Theme.fg)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 0)
         }
-        Text(known?.title ?? "issue \(ref.repo.slug)#\(ref.number)")
-            .font(Theme.ui(13, weight: .medium))
-            .foregroundStyle(known == nil ? Theme.fg3 : Theme.fg)
-            .lineLimit(2)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .help("\(ref.repo.slug)#\(ref.number)")
     }
 }
 

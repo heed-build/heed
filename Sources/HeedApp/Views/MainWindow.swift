@@ -928,10 +928,16 @@ struct LinkPickerView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text(picker.title).font(Theme.ui(15, weight: .semibold)).padding(18)
                 ForEach(Array(picker.links.enumerated()), id: \.element) { index, link in
+                    // A heading where the kind changes: pull requests, then issues.
+                    if index == 0 || kind(picker.links[index - 1]) != kind(link), let heading = kind(link) {
+                        Text(heading).font(Theme.ui(11, weight: .semibold)).foregroundStyle(Theme.fg3)
+                            .padding(.horizontal, 18).padding(.top, index == 0 ? 0 : 8).padding(.bottom, 2)
+                    }
                     HStack(spacing: 10) {
                         Text(index < 9 ? "\(index + 1)" : " ").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                             .frame(width: 12)
-                        Image(systemName: icon(link)).font(.system(size: 10)).foregroundStyle(Theme.fg3)
+                        Image(systemName: icon(link)).font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(tint(link))
                         Text(link.label).font(Theme.mono(12.5, weight: .semibold))
                         Text(title(link)).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).lineLimit(1)
                         Spacer(minLength: 8)
@@ -959,6 +965,28 @@ struct LinkPickerView: View {
             .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.line))
             .shadow(color: .black.opacity(0.5), radius: 30)
             .shotRegion(.picker)
+        }
+    }
+
+    private func kind(_ link: SessionLink) -> String? {
+        switch link {
+        case .pull: "Pull requests"
+        case .issue: "Issues"
+        case .repo: nil
+        }
+    }
+
+    private func tint(_ link: SessionLink) -> Color {
+        switch link {
+        case let .pull(ref):
+            switch model.github.pull(ref)?.state {
+            case .open: Theme.done
+            case .merged: Theme.ask
+            case .closed: Theme.err
+            case nil: Theme.fg3
+            }
+        case let .issue(ref): model.issueInfo[ref].map { $0.closed ? Theme.ask : Theme.done } ?? Theme.fg3
+        case .repo: Theme.fg3
         }
     }
 

@@ -1133,6 +1133,10 @@ final class AppModel {
     var awaySummary: AwaySummary?
     /// Since when the summary that opened on its own goes back, while it waits for the resume dialog to close.
     var pendingAwaySince: Date?
+    /// The PR `pilot.why` explains: what heed will do for it and what holds it back.
+    var pilotExplain: PullRef?
+    /// The explainer's row at its top (`j` `k`).
+    private(set) var explainRow = 0
     /// Titles and states of the issues sessions link to (fetched, not cached on disk).
     private(set) var issueInfo: [IssueRef: IssueInfo] = [:]
     private var issueInfoFetchedAt: [IssueRef: Date] = [:]
@@ -1394,6 +1398,10 @@ final class AppModel {
         }
         if awaySummary != nil {
             answerAwaySummary(stroke)
+            return true
+        }
+        if pilotExplain != nil {
+            answerPilotExplain(stroke)
             return true
         }
         if pathImport != nil {
@@ -4030,21 +4038,65 @@ final class AppModel {
         }
     }
 
-    /// `pilot.why`: the PR in the Watch view, where its verdict is listed rule by rule.
+    /// `pilot.why`: the explainer over whatever is open, for the PR the pilot commands act on.
     private func showPilotWhy() {
         guard let ref = pilotTargets.first else { return flash = "no PR here" }
-        reader = nil
-        overlay = nil
-        view = .watch
-        filters[.watch] = nil
-        if let index = pilotRows.firstIndex(where: { $0.ref == ref }) { itemCursor[.watch] = index }
-        if let blocker = pullDetails[ref.description].flatMap({ GreenVerdict.of($0).blocker }) {
-            flash = "#\(ref.number): \(blocker.name.lowercased()): \(blocker.detail)"
-        } else if pullDetails[ref.description] != nil {
-            flash = "#\(ref.number) is green"
-        } else {
-            flash = "#\(ref.number): not fetched yet"
+        pilotExplain = ref
+        explainRow = 0
+        if pullDetails[ref.description] == nil { fetchDetail(ref) }
+    }
+
+    /// The explainer is a dialog: `j` `k` scroll it, ⎋, `q` and ↩ close it, nothing reaches what is under it.
+    private func answerPilotExplain(_ stroke: KeyStroke) {
+        switch stroke {
+        case .escape, KeyStroke("q"), KeyStroke("CR"): pilotExplain = nil
+        case KeyStroke("j"), KeyStroke("Down"): explainRow = min(explainRow + 1, max(explainRows - 1, 0))
+        case KeyStroke("k"), KeyStroke("Up"): explainRow = max(explainRow - 1, 0)
+        case KeyStroke("g"): explainRow = 0
+        case KeyStroke("G"): explainRow = max(explainRows - 1, 0)
+        default: break
         }
+    }
+
+    /// Rows the explainer scrolls over: its parts, then what holds the PR back.
+    private var explainRows: Int {
+        guard let ref = pilotExplain else { return 0 }
+        return pilotPlanRows(for: ref).count + pilotHolds(for: ref).count
+    }
+
+    /// The agent of the session that tracks a PR: what a round borrows when no agent is configured.
+    private func sessionAgent(for ref: PullRef) -> String? {
+        sessions.first { $0.trackedPRs.contains(ref) }?.agent
+    }
+
+    /// What heed would do next for a PR (`PilotPlan`): the PR card's `next` line.
+    func pilotPlan(for ref: PullRef) -> PilotPlan.Step {
+        PilotPlan.next(
+            settings: pilotSettings(for: ref), pipeline: feedback[ref.description], status: pilotStatus(for: ref),
+            sessionAgent: sessionAgent(for: ref), now: Clock.now
+        )
+    }
+
+    func pilotPlanSources(for ref: PullRef) -> [String: PilotPlan.Source] {
+        PilotPlan.sources(for: ref.repo, pipeline: feedback[ref.description], in: config)
+    }
+
+    /// The explainer's parts: Watching, Get it green, A round, Conflicts, Get it merged.
+    func pilotPlanRows(for ref: PullRef) -> [PilotPlan.Row] {
+        PilotPlan.rows(
+            settings: pilotSettings(for: ref), pipeline: feedback[ref.description], status: pilotStatus(for: ref),
+            sessionAgent: sessionAgent(for: ref), sources: pilotPlanSources(for: ref), now: Clock.now
+        )
+    }
+
+    /// What holds a PR back, rule by rule: the green verdict, and heed's merge rules when heed merges it.
+    func pilotHolds(for ref: PullRef) -> [GreenVerdict.Rule] {
+        guard let detail = pullDetails[ref.description] else { return [] }
+        let merge = pilot(for: ref).merge == .heed ? HeedMerge.verdict(
+            detail, settings: pilotSettings(for: ref), selfReview: feedback[ref.description]?.selfReview,
+            now: Clock.now
+        ) : nil
+        return PilotPlan.holds(GreenVerdict.of(detail), merge: merge)
     }
 
     /// Pauses whose time is up end on the next sync, said in the log.

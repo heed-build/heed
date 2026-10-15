@@ -204,6 +204,7 @@ private struct PilotDetail: View {
                     Text(row.title).font(Theme.ui(16, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
                     Text(model.pilotLine(for: row.ref)).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
                         .fixedSize(horizontal: false, vertical: true)
+                    if row.status.group != .done { PilotPlanLine(ref: row.ref) }
                 }
                 HStack(spacing: 14) {
                     keyHint("↩", "open")

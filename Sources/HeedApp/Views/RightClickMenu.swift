@@ -68,7 +68,7 @@ enum RightClickMenu {
         menu.autoenablesItems = false
         let font = NSFont.menuFont(ofSize: 0)
         let items = entries.compactMap { if case let .item(item) = $0 { item } else { nil } }
-        let keys = Dictionary(items.map { ($0.keyCommand, model.keyText(for: $0.keyCommand)) }) { first, _ in first }
+        let keys = Dictionary(items.map { ($0.keyCommand, key(for: $0.keyCommand, model)) }) { first, _ in first }
         // One tab stop for the whole menu, past its widest title, so the keys line up as shortcuts do.
         let widest = items.map { width($0.title, font) }.max() ?? 0
         let widestKey = keys.values.map { width($0, font) }.max() ?? 0
@@ -96,6 +96,13 @@ enum RightClickMenu {
             }
         }
         return menu
+    }
+
+    /// The key that runs the command where the menu opened. One that only works elsewhere (VISUAL's `y`, the PR
+    /// overlay's `C`) would mislead here, so the menu shows the `:name` that does work, as it does for an unbound one.
+    private static func key(for command: String, _ model: AppModel) -> String {
+        guard let label = model.keyBinding(for: command), label.context == nil else { return ":\(command)" }
+        return label.text
     }
 
     /// `Diff⇥gd`: the title as AppKit draws it (an attributed title is not greyed when disabled, so that is done

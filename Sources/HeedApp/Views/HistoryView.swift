@@ -55,6 +55,9 @@ struct HistoryView: View {
                                     .hint(model.hintLabel(for: .row(.history, index)))
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.clickRow(.history, index) }
+                                    .rightClickMenu { model.rightClickRow(.history, index) } _: {
+                                        model.rowMenu(.history, index)
+                                    }
                                     .id(rows[index].id)
                                 }
                             }

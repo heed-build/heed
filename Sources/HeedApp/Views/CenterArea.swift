@@ -62,6 +62,7 @@ private struct TabStrip: View {
                 .overlay(alignment: .bottom) { if on { Theme.inverse.frame(height: 2) } }
                 .contentShape(Rectangle())
                 .onTapGesture { model.selectTab(index) }
+                .rightClickMenu { model.rightClickTab(index) } _: { model.tabMenu(tab.id) }
             }
             Text("+").font(Theme.mono(13)).foregroundStyle(Theme.fg3).padding(.horizontal, 14)
                 .frame(height: 36)

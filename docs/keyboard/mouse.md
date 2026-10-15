@@ -11,7 +11,8 @@ with the thing under the mouse.
 Every item in a right-click menu runs a command, the same one its key runs, and shows that key on the right: the menu
 teaches the keys as you use it. A command with no key shows its `:name` instead (`:pr.untrack`), which is what still
 runs it from the [command line](command-line.md). The key shown is the one that works where you are, so a key you
-rebound in [config](customizing.md) shows as you have it.
+rebound in [config](customizing.md) shows as you have it; a command whose key only works somewhere else (in VISUAL, or
+in the PR overlay) shows its `:name` too.
 
 A right-click first selects what you clicked, as a click would (without typing into it), then the menu acts on it.
 Items that cannot apply are left out (no *Stop run* without a run); items that apply but cannot run now are greyed (the
@@ -37,7 +38,7 @@ The pilot's items act on all the session's PRs, as their keys do in the sidebar.
 
 A right-click on a **PR card** acts on that PR alone, not on every PR of the session: open it here (the PR overlay) or
 in the browser, go to its session, watch it, get it green, get it merged, pause it, give it one more round, ask Copilot
-(`C`) or its [reviewers](../github/watch.md) (`zv`), see what heed will do, or stop tracking it (`:pr.untrack`).
+or its [reviewers](../github/watch.md) (`zv`), see what heed will do, or stop tracking it (`:pr.untrack`).
 
 An **issue** opens in the [reader](../github/reading.md) or the browser, or comes off the session (`:issue.remove`). A
 **run** goes to its tab or stops while it works, and opens in the reader once it ended.
@@ -47,3 +48,26 @@ An **issue** opens in the [reader](../github/reading.md) or the browser, or come
 A right-click on a row in [PRs](../github/pull-requests.md) or [Watch](../github/watch.md) offers that PR: open it,
 open it in the browser or its repo on GitHub, go to its session, and the pilot's items for it alone. In Watch it also
 runs or shows the PR's [merge queue](../github/watch.md) (`R`, `gM`).
+
+## Inbox and Issues
+
+A right-click on a row offers to open it (`↩`), open it in the browser or its repo on GitHub, start a session from it
+(`s`) or add it to the selected session (`a`); in the Inbox, mark it read (`x`); in Issues, show all of its repo's
+issues or only yours (`w`). With rows picked (`␣`), a right-click on one of them acts on all the picked rows, and the
+items say how many; a right-click on a row that is not picked acts on that row alone.
+
+A repo in the Issues repo column shows its issues, flips between all issues and only yours, or opens on GitHub.
+
+## Repos and History
+
+A worktree in Repos goes to its session or imports it (`↩`), starts work in its repo (`o`), copies its path, pins its
+session, opens its repo on GitHub, flips its repo's issues (`w`), runs the cleanup sweep (`gC`), reviews the repo's
+setup (`S`), or removes it (`dd`, which asks first; never offered for the repo's own checkout). Selected worktrees
+(VISUAL) work as picked rows do above.
+
+A session in History reopens (`R`), starts again from its prompt (`O`), or opens its repo on GitHub.
+
+## Tabs
+
+A right-click on a tab selects it and offers a new tab (`gn`), splitting (`⌃w v`, `⌃w s`), zooming the pane (`⌃w z`)
+and closing the tab (`⌃w c`); a run's tab can also stop its run (`zx`).

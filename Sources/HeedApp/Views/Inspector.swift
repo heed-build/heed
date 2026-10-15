@@ -67,7 +67,7 @@ struct Inspector: View {
                                             model.open(link, browser: NSEvent.modifierFlags.contains(.command))
                                         }
                                         .help("\(link.url)\n⌘-click opens it on GitHub")
-                                        .rightClickMenu { model.rightClickInspector() } _: { menu(for: link) }
+                                        .rightClickMenu { model.rightClickNamed() } _: { menu(for: link) }
                                 }
                             }
                         }
@@ -83,7 +83,7 @@ struct Inspector: View {
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.open(run: run) }
                                     .help(run.isRunning ? "Go to its tab" : "Open: what it did, and its last screen")
-                                    .rightClickMenu { model.rightClickInspector() } _: { model.runMenu(run) }
+                                    .rightClickMenu { model.rightClickNamed() } _: { model.runMenu(run) }
                             }
                         }
                     }

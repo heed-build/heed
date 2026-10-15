@@ -36,6 +36,14 @@ public struct HookMessage: Codable, Equatable, Sendable {
         case taskExit(code: Int)
         /// The agent's model and what it used, as far as its hooks (and the transcript they point at) tell.
         case usage(UsageReport)
+        /// A subagent started or finished (Claude's and Codex's `SubagentStart` and `SubagentStop`). Never changes the
+        /// session's state: a subagent's last words are for its parent.
+        case subagent(id: String, type: String?, started: Bool)
+        /// A state reported from inside a subagent (a hook carrying its `agent_id`): it is alive, and the session's
+        /// state changes only as `Subagents.fromSubagent` allows.
+        case subagentState(AgentState, reason: String?, id: String, type: String?)
+        /// The main thread's turn ended with nothing left in the background: no subagent can still be running.
+        case subagentsEnded
     }
 
     public var session: String

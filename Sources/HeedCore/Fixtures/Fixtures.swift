@@ -420,6 +420,15 @@ public enum Fixtures {
 
     /// The tutor's PR storm: every review comment and failing check on #2841 is new, and it is the PR updated last,
     /// while the session that owns it is busy working.
+    /// Subagents running in `main`'s sessions, by session id: the anchors session has two out exploring.
+    public static var subagents: [String: [LiveSubagent]] {
+        let now = Clock.now
+        return ["s1": [
+            LiveSubagent(id: "agent-a1", type: "Explore", startedAt: now.addingTimeInterval(-6 * 60)),
+            LiveSubagent(id: "agent-b2", type: "general-purpose", startedAt: now.addingTimeInterval(-2 * 60)),
+        ]]
+    }
+
     public static let prStorm: Domain = {
         var domain = main
         for key in domain.feedback.keys {

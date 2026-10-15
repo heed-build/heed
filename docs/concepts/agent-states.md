@@ -29,6 +29,13 @@ One guess comes from the hooks themselves: when a turn ends on a question to you
 is **asking** with the reason "asked a question", drawn dotted because it is read from what the agent wrote
 ([Questions at the end of a turn](../agents/hooks.md#questions-at-the-end-of-a-turn)).
 
+## Subagents
+
+A session's state is its main thread's. Subagents (claude, codex) only add to it: a permission prompt inside one blocks
+the session, and while any still run after the main thread's turn ended the session stays **working** ("2 subagents
+running"). A subagent finishing never marks the session done or asking. See
+[Subagents](../agents/hooks.md#subagents).
+
 ## Where states show
 
 - The sidebar's groups and glyphs, and the inspector's event list.

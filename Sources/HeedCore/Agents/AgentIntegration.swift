@@ -41,6 +41,8 @@ public enum AgentIntegration {
         "PostToolUse",
         "Stop",
         "SessionEnd",
+        "SubagentStart",
+        "SubagentStop",
     ]
 
     /// Hooks for one run, as `-c` config layers (the user's own hooks still run alongside). Non-managed hooks need
@@ -53,6 +55,11 @@ public enum AgentIntegration {
     }
 
     static func codexHook(event: String, input: [String: Any]) -> [HookMessage.Kind] {
+        if let subagent = subagentHook(event: event, input: input) { return subagent }
+        return inSubagent(codexTurnHook(event: event, input: input), input: input)
+    }
+
+    private static func codexTurnHook(event: String, input: [String: Any]) -> [HookMessage.Kind] {
         let tool = input["tool_name"] as? String
         switch event {
         case "SessionStart":
@@ -363,6 +370,7 @@ public enum AgentIntegration {
     static let claudeEvents: [(event: String, matcher: String?)] = [
         ("SessionStart", nil), ("UserPromptSubmit", nil), ("PreToolUse", "*"), ("PostToolUse", "*"),
         ("PermissionRequest", "*"), ("Notification", nil), ("Stop", nil), ("StopFailure", nil), ("SessionEnd", nil),
+        ("SubagentStart", nil), ("SubagentStop", nil),
     ]
 
     /// The `--settings` JSON: every event runs `heed hook claude <event>`, which reads the hook's JSON on stdin.
@@ -382,6 +390,11 @@ public enum AgentIntegration {
 
     /// Maps one Claude Code hook call to what Heed should record. `input` is the hook's stdin JSON.
     public static func claudeHook(event: String, input: [String: Any]) -> [HookMessage.Kind] {
+        if let subagent = subagentHook(event: event, input: input) { return subagent }
+        return inSubagent(claudeTurnHook(event: event, input: input), input: input)
+    }
+
+    private static func claudeTurnHook(event: String, input: [String: Any]) -> [HookMessage.Kind] {
         let tool = input["tool_name"] as? String
         switch event {
         case "SessionStart":
@@ -422,10 +435,13 @@ public enum AgentIntegration {
                     reason: "\(tasks.count) background task\(tasks.count == 1 ? "" : "s")"
                 )]
             }
+            // Nothing in the background (when Claude says so): no subagent the session lost track of still runs.
+            let ended: [HookMessage.Kind] = (input["background_tasks"] as? [Any])?.isEmpty == true
+                ? [.subagentsEnded] : []
             if let crons = input["session_crons"] as? [Any], !crons.isEmpty {
-                return usage + [.state(.idle, reason: "\(crons.count) scheduled")]
+                return usage + ended + [.state(.idle, reason: "\(crons.count) scheduled")]
             }
-            return usage + [.state(.done, reason: nil)]
+            return usage + ended + [.state(.done, reason: nil)]
         case "StopFailure":
             // Usage first: a rate limit's reset time is known by the time the limited state arrives.
             let error = input["error"] as? String
@@ -445,6 +461,31 @@ public enum AgentIntegration {
               let report = UsageTranscripts.claude(data)
         else { return [] }
         return [.usage(report)]
+    }
+
+    // MARK: Subagents (Claude Code and Codex)
+
+    /// `SubagentStart` and `SubagentStop`, the same for both agents; nil for any other event. A subagent's last
+    /// message (`last_assistant_message` on its stop) is its answer to its parent, so it is never read as the turn's.
+    static func subagentHook(event: String, input: [String: Any]) -> [HookMessage.Kind]? {
+        guard event == "SubagentStart" || event == "SubagentStop" else { return nil }
+        guard let id = input["agent_id"] as? String, !id.isEmpty else { return [] }
+        return [.subagent(id: id, type: input["agent_type"] as? String, started: event == "SubagentStart")]
+    }
+
+    /// What a hook that fired inside a subagent (its input carries `agent_id`) reports: its states as the subagent's,
+    /// not the session's; a guess about its turn's end, or its prompt, is nobody's news. A main-thread hook (no
+    /// `agent_id`; `agent_type` alone is the session's `--agent`) is left as it is.
+    static func inSubagent(_ kinds: [HookMessage.Kind], input: [String: Any]) -> [HookMessage.Kind] {
+        guard let id = input["agent_id"] as? String, !id.isEmpty else { return kinds }
+        let type = input["agent_type"] as? String
+        return kinds.compactMap { kind in
+            switch kind {
+            case let .state(state, reason): .subagentState(state, reason: reason, id: id, type: type)
+            case .guess, .atPrompt, .subagentsEnded, .agentSession: nil
+            default: kind
+            }
+        }
     }
 
     /// The PRs a Claude Code or Codex tool call created (`PostToolUse`: `tool_input`, `tool_response`).

@@ -108,6 +108,25 @@ final class AppModel {
         : IntegrationFiles.default(heedBinary: Helper.path ?? "true")
     /// The latest hook events per session, newest first: shown in the inspector, not persisted (agents own history).
     private(set) var events: [String: [AgentEvent]] = [:]
+    /// The subagents running in each session, by session id: in memory only, gone with the agent process. Every
+    /// subagent tool event moves a tracker's `lastSeen`; what is drawn (`subagents`) changes only when one starts or
+    /// stops, so a busy subagent does not redraw the list.
+    @ObservationIgnored private var subagentTrackers: [String: Subagents] = [:]
+    private(set) var subagents: [String: [LiveSubagent]] = [:]
+
+    /// A session's running subagents; none once its agent exited.
+    func liveSubagents(of session: Session) -> [LiveSubagent] {
+        session.state.state == .exited ? [] : subagents[session.id] ?? []
+    }
+
+    private func setSubagents(_ tracker: Subagents?, of id: String) {
+        subagentTrackers[id] = tracker?.isEmpty == false ? tracker : nil
+        let live = tracker?.live ?? []
+        let shown = subagents[id] ?? []
+        if live.map(\.id) != shown.map(\.id) || live.map(\.type) != shown.map(\.type) {
+            subagents[id] = live.isEmpty ? nil : live
+        }
+    }
 
     // Filtering (`/`): typed in the status bar while `filtering`, one filter per view; each view shows its own as a
     // pill.
@@ -251,6 +270,9 @@ final class AppModel {
             zmxHealth = ZmxHealth(path: "/opt/homebrew/bin/zmx", version: "0.8.1")
             hostStatuses = Fixtures.hostStatuses
             issueInfo = Fixtures.issueInfo
+            for (id, live) in Fixtures.subagents {
+                setSubagents(Subagents(live), of: id)
+            }
         }
         replace(with: domain)
         if isFixture { adoptFixtureRuns() } else { interruptRuns() }
@@ -344,6 +366,7 @@ final class AppModel {
             }
             guard next.state != session.state.state || next.source != session.state.source else { continue }
             session.state = next
+            if next.state == .exited { setSubagents(nil, of: id) }
             session.activity = "\(next.state.rawValue) · guessed"
             changes.append(.sessionUpserted(session))
         }
@@ -754,22 +777,23 @@ final class AppModel {
             }
             return
         }
-        switch message.kind {
+        guard let kind = throughSubagents(message, session: session) else { return }
+        switch kind {
         case .state, .guess, .atPrompt:
-            var next: ObservedState = switch message.kind {
+            var next: ObservedState = switch kind {
             case let .state(state, reason): session.state.accepting(ObservedState(state, reason: reason))
             case let .guess(state, reason): session.state.guessing(state, reason: reason)
             default: session.state.atPrompt()
             }
             // What the session kept is not news: an idle prompt over a finished turn, cursor's done after the reply
             // that asked you. A report that changes nothing (the next tool of a working turn) still is.
-            switch message.kind {
+            switch kind {
             case let .state(state, _) where state != next.state: return
             case .guess where next == session.state, .atPrompt where next == session.state: return
             default: break
             }
             // Rate limited, with its reset known (the hook sends usage first): say when it lifts.
-            if case .state(.limited, _) = message.kind, let resets = session.usage?.resetText(now: message.sentAt) {
+            if case .state(.limited, _) = kind, let resets = session.usage?.resetText(now: message.sentAt) {
                 next.reason = "\(next.reason ?? "rate limited") · \(resets)"
             }
             let state = next.state, reason = next.reason
@@ -823,8 +847,42 @@ final class AppModel {
             let usage = (session.usage ?? AgentUsage()).applying(report)
             guard usage != session.usage else { return }
             session.usage = usage
+        case .subagent, .subagentState, .subagentsEnded:
+            return
         }
         commit(.sessionUpserted(session))
+    }
+
+    /// Keeps the session's subagents up to date from one message, and says what is left of it for the session's own
+    /// state: a subagent's start or stop leaves nothing (nil), its states only what `Subagents` allows, and the main
+    /// thread's turn ending while subagents still run keeps the session working.
+    private func throughSubagents(_ message: HookMessage, session: Session) -> HookMessage.Kind? {
+        var tracker = subagentTrackers[session.id] ?? Subagents()
+        tracker.dropStale(now: message.sentAt)
+        defer { setSubagents(tracker, of: session.id) }
+        switch message.kind {
+        case let .subagent(id, type, started):
+            if started { tracker.start(id: id, type: type, at: message.sentAt) } else { tracker.stop(id: id) }
+            return nil
+        case .subagentsEnded:
+            tracker.clear()
+            return nil
+        case let .subagentState(state, reason, id, type):
+            tracker.seen(id: id, type: type, at: message.sentAt)
+            return tracker.fromSubagent(state, reason: reason, id: id, current: session.state)
+                .map { .state($0.state, reason: $0.reason) }
+        case let .state(state, reason):
+            let next = tracker.main(state, reason: reason)
+            return .state(next.state, reason: next.reason)
+        case .guess:
+            _ = tracker.main(.asking, reason: nil)
+            return message.kind
+        case .atPrompt:
+            // Sitting at its prompt with subagents in the background is still working.
+            return tracker.isEmpty ? message.kind : nil
+        default:
+            return message.kind
+        }
     }
 
     func flush() async { await store?.flush() }
@@ -2350,6 +2408,7 @@ final class AppModel {
         session.record("ended after \(minutes / 60)h \(minutes % 60)m")
         // The panes are read before the close drops the layout.
         let panes = layouts[id]?.tabs.flatMap(\.tree.panes) ?? []
+        setSubagents(nil, of: id)
         commit(.sessionClosed(HistoryEntry(
             session: session, closedAt: Date(), outcome: HistoryEntry.outcome(closing: session)
         )))

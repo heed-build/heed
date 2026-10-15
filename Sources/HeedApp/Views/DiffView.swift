@@ -4,6 +4,8 @@ import SwiftUI
 /// `gd` over a session: commits, files grouped by repo, and the diff (design/screens/Diff.png).
 struct DiffOverlayView: View {
     @Environment(AppModel.self) private var model
+    /// The diff body's visible width: the comment box spans it, not the longest line.
+    @State private var bodyWidth: CGFloat = 800
 
     var body: some View {
         GeometryReader { geometry in
@@ -147,6 +149,8 @@ struct DiffOverlayView: View {
     @ViewBuilder private var content: some View {
         if let file = model.currentDiffFile {
             let rows = model.diffRows
+            let notes = file.noteCounts(model.sessionNotes)
+            let draft = model.diffNote.flatMap { $0.fileID == file.id ? $0 : nil }
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 10) {
                     Text(file.path).font(Theme.mono(12.5, weight: .medium)).lineLimit(1).truncationMode(.head)
@@ -170,8 +174,8 @@ struct DiffOverlayView: View {
                         ListScroll(model.diffSplit ? .vertical : [.vertical, .horizontal]) {
                             ListStack(alignment: .leading, spacing: 0) {
                                 if model.diffSplit {
-                                    ForEach(Array(file.hunks.enumerated()), id: \.offset) { _, hunk in
-                                        hunkHeader(hunk.header, isCursor: false)
+                                    ForEach(Array(file.hunks.enumerated()), id: \.offset) { index, hunk in
+                                        hunkHeader(hunk.header, isCursor: false, notes: notes[index] ?? 0)
                                         ForEach(
                                             Array(DiffParser.splitRows(hunk).enumerated()),
                                             id: \.offset
@@ -188,14 +192,16 @@ struct DiffOverlayView: View {
                                                 )
                                             }
                                         }
+                                        if let draft, draft.hunk == index { NoteBox(draft: draft) }
                                     }
                                 } else {
                                     ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                                         Group {
                                             switch row {
-                                            case let .header(_, text): hunkHeader(
+                                            case let .header(hunk, text): hunkHeader(
                                                     text,
-                                                    isCursor: index == model.diffRow
+                                                    isCursor: index == model.diffRow,
+                                                    notes: notes[hunk] ?? 0
                                                 )
                                             case let .line(_, line): UnifiedLine(
                                                     line: line,
@@ -204,12 +210,16 @@ struct DiffOverlayView: View {
                                             }
                                         }
                                         .id(index)
+                                        if let draft, draft.row == index {
+                                            NoteBox(draft: draft).frame(width: bodyWidth)
+                                        }
                                     }
                                 }
                             }
                             .padding(.bottom, 20)
                         }
                         .defaultScrollAnchor(.topLeading)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { bodyWidth = $0 }
                         .onChange(of: model.diffRow) { proxy.scrollTo(model.diffRow, anchor: .center) }
                     }
                 }
@@ -222,20 +232,35 @@ struct DiffOverlayView: View {
         }
     }
 
-    private func hunkHeader(_ text: String, isCursor: Bool) -> some View {
-        Text(text)
-            .font(Theme.mono(11.5))
-            .foregroundStyle(Theme.fg3)
-            .padding(.leading, 116)
-            .frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
-            .background(isCursor ? Theme.bg3 : Theme.bg2)
+    private func hunkHeader(_ text: String, isCursor: Bool, notes: Int) -> some View {
+        HStack(spacing: 10) {
+            Text(text)
+                .font(Theme.mono(11.5))
+                .foregroundStyle(Theme.fg3)
+            if notes > 0 {
+                // Notes queued on this hunk, not sent yet.
+                HStack(spacing: 4) {
+                    Image(systemName: "text.bubble").font(.system(size: 10))
+                    Text("\(notes) note\(notes == 1 ? "" : "s")").font(Theme.ui(11, weight: .medium))
+                }
+                .foregroundStyle(Theme.block)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 1)
+                .background(RoundedRectangle(cornerRadius: 4).fill(Theme.block.opacity(0.16)))
+                .fixedSize()
+            }
+        }
+        .padding(.leading, 116)
+        .frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+        .background(isCursor ? Theme.bg3 : Theme.bg2)
     }
 
     private var footer: some View {
         HStack(spacing: 14) {
             hint("n N", "hunk")
             hint("]f [f", "file")
-            hint("a", "ask the agent about this hunk")
+            hint(model.keyText(for: "diff.ask"), "note on this hunk")
+            hint(model.keyText(for: "diff.ask.now"), "ask the agent now")
             hint("y", "copy path:line")
             hint("e", "open in editor")
             Spacer()
@@ -250,6 +275,60 @@ struct DiffOverlayView: View {
         HStack(spacing: 6) {
             KeyCap(text: key)
             Text(label).foregroundStyle(Theme.fg2).fixedSize()
+        }
+    }
+}
+
+/// The comment box `a` opens under a hunk: a note for the agent, queued with the PR's feedback (or the session's own
+/// queue before it has a PR).
+private struct NoteBox: View {
+    @Environment(AppModel.self) private var model
+    let draft: HunkNoteDraft
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "text.bubble").font(.system(size: 11))
+                Text("Feedback on this hunk").font(Theme.ui(12, weight: .medium))
+                Text(verbatim: "\(draft.path):\(draft.line)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                    .lineLimit(1).truncationMode(.head)
+                Spacer()
+                let queued = model.queuedNotes(repo: draft.repo)
+                if queued > 0 { Text("\(queued) queued").font(Theme.mono(11)).foregroundStyle(Theme.block) }
+            }
+            .foregroundStyle(Theme.fg2)
+            HStack(alignment: .bottom, spacing: 0) {
+                Text(draft.text.isEmpty ? " " : draft.text)
+                    .font(Theme.ui(13)).foregroundStyle(Theme.fg)
+                    .fixedSize(horizontal: false, vertical: true)
+                // The caret, as in the filter and Start work's prompt.
+                Rectangle().fill(Theme.busy).frame(width: 1.5, height: 15).padding(.bottom, 1)
+                Spacer(minLength: 0)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, minHeight: 38, alignment: .topLeading)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.busy.opacity(0.6)))
+            HStack(spacing: 12) {
+                hint("↩", "queue")
+                hint("⌘↩", "queue and send")
+                hint("⇧↩", "new line")
+                hint("⎋", "cancel")
+                Spacer()
+                Text(model.noteDestination(repo: draft.repo)).foregroundStyle(Theme.fg3).lineLimit(1)
+            }
+            .font(Theme.ui(11.5))
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg3))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+    }
+
+    private func hint(_ key: String, _ label: String) -> some View {
+        HStack(spacing: 6) {
+            KeyCap(text: key)
+            Text(label).foregroundStyle(Theme.fg3).fixedSize()
         }
     }
 }

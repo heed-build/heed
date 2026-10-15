@@ -176,7 +176,14 @@ public extension Domain {
             worktrees.removeAll { $0.repo == repo && places.contains($0.location) }
             worktrees.append(contentsOf: merged)
             sessions = sessions.map { BranchFollowing.follow($0, worktrees: merged) }
-        case let .sessionUpserted(session):
+        case var .sessionUpserted(session):
+            // Notes queued before the session had a PR join that PR's feedback once it tracks one.
+            let pulls = github
+            for pipeline in SessionNotes.adopt(&session, into: feedback, isOpen: {
+                (pulls.pull($0)?.state ?? .open) == .open
+            }) {
+                feedback[pipeline.ref.description] = pipeline
+            }
             if let index = sessions.firstIndex(where: { $0.id == session.id }) {
                 sessions[index] = session
             } else {

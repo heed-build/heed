@@ -12,13 +12,17 @@ happens for, and what heed did.
 
 ## The pipeline
 
-Every unresolved review thread, failing check and merge conflict becomes an item, and moves through:
+Every unresolved review thread, failing check and merge conflict becomes an item, and so does every note you write
+on a hunk in the [diff overlay](../diff/reviewing.md#notes-on-a-hunk) (`a`). Items move through:
 
 **New** → **Queued** → **Sent** → **Addressed** → **Resolved**
 
 A failed GitHub Actions check comes with the last lines of its failed step, saved to a file the prompt points the
 agent at. A conflict with the base (or being behind it, when the repo requires current branches) asks the agent to
-rebase and push; it resolves once GitHub says the PR merges cleanly.
+rebase and push; it resolves once GitHub says the PR merges cleanly. Your notes arrive queued and are marked
+**you**; GitHub never resolves them, so `x` dismisses one once it is dealt with.
+
+![A note of yours queued with the review threads and checks](../images/shots/github/feedback-note.png)
 
 | Key | |
 |---|---|

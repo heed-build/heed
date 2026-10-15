@@ -319,10 +319,10 @@ public extension Tutor {
             ) { start, now, _ in now.diffRow != start.diffRow || now.diffFile != start.diffFile },
             TutorStep(
                 "Send a note back",
-                say: "{diff.ask} starts a message to the agent about the hunk under the cursor.",
-                keys: ["{diff.ask}"],
-                doneLine: "You are typing to the agent, the file and line already said. ⇧⎋ comes back."
-            ) { _, now, seen in seen.contains { $0.mode == .insert } || now.mode == .insert },
+                say: "{diff.ask} opens a comment box under the hunk: what you type there is a note for the agent.",
+                keys: ["{diff.ask}"], target: "diffBody",
+                doneLine: "↩ queues it with the PR's feedback, ⌘↩ sends it now, ⎋ cancels. {diff.ask.now} asks right away."
+            ) { _, now, _ in now.diffNoteOpen },
         ]),
     ]
 }

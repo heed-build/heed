@@ -71,6 +71,8 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var issues: [IssueRef]
     /// Issues taken off by hand (`:issue.remove`), so no reference shows them again.
     public var hiddenIssues: [IssueRef]
+    /// Your notes on its diff while it has no PR to put them on (`SessionNotes`).
+    public var notes: [FeedbackItem]
 
     /// The repos it works in (its worktrees), then those of PRs it opened elsewhere.
     public var involvedRepos: [Repo] {
@@ -107,11 +109,13 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         untrackedPRs = []
         issues = []
         hiddenIssues = []
+        notes = []
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, title, prompt, repos, branch, agent, agentSessionID, state, activity, trackedPRs, pinned, parked,
-             lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs, host, issues, hiddenIssues
+             lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs, host, issues, hiddenIssues,
+             notes
     }
 
     /// Sessions cached before branches were followed still load.
@@ -138,6 +142,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         host = try container.decodeIfPresent(String.self, forKey: .host)
         issues = try container.decodeIfPresent([IssueRef].self, forKey: .issues) ?? []
         hiddenIssues = try container.decodeIfPresent([IssueRef].self, forKey: .hiddenIssues) ?? []
+        notes = try container.decodeIfPresent([FeedbackItem].self, forKey: .notes) ?? []
     }
 
     /// What the sidebar calls the session: its worktree's folder name (Start work names it after the task, the same

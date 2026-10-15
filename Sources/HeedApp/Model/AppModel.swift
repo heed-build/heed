@@ -191,6 +191,10 @@ final class AppModel {
     private(set) var diffFileIndex = 0
     private(set) var diffRow = 0
     private(set) var diffSplit = false
+    /// The comment box under a hunk (`a`): while it is open, keys type into it.
+    private(set) var diffNote: HunkNoteDraft?
+    /// Sessions whose queued notes you asked to send while their agent was busy: they go once it is idle.
+    private var pendingNotes: Set<String> = []
     private(set) var diffLoading = false
     private var diffTask: Task<Void, Never>?
 
@@ -726,10 +730,13 @@ final class AppModel {
             )
             if state == .idle || state == .done {
                 let waiting = pendingDelivery.filter { session.trackedPRs.contains($0) }
+                let notes = pendingNotes.contains(session.id)
+                let id = session.id
                 Task { @MainActor in
                     for ref in waiting {
                         self.deliver(ref, explicit: false)
                     }
+                    if notes { self.deliverNotes(id, explicit: false) }
                 }
             }
             if state == .idle, pendingContinue.remove(session.id) != nil,
@@ -1352,6 +1359,10 @@ final class AppModel {
             handleStartWork(stroke)
             return true
         }
+        if diffNote != nil, overlay == .diff {
+            typeDiffNote(stroke)
+            return true
+        }
         let before = engine.mode
         let outcome = engine.handle(stroke)
         switch outcome {
@@ -1539,7 +1550,8 @@ final class AppModel {
         case "diff.scope.prev": cycleDiffScope(by: -1)
         case "diff.commit": cycleDiffCommit()
         case "diff.split": diffSplit.toggle()
-        case "diff.ask": askAboutHunk()
+        case "diff.ask": openDiffNote()
+        case "diff.ask.now": askAboutHunk()
         case "diff.copy": copyDiffLocation()
         case "diff.edit": openDiffFile()
         case "overlay.close": closeTopmost()
@@ -1586,7 +1598,12 @@ final class AppModel {
         case "pr.prev": cyclePull(by: -1)
         case "jump.back": closeReaderOrOverlay()
         case "feedback.queue": toggleQueued()
-        case "feedback.send": if let ref = feedbackPull { deliver(ref, explicit: true) }
+        case "feedback.send":
+            if let ref = feedbackPull {
+                deliver(ref, explicit: true)
+            } else if let session = notesSession {
+                deliverNotes(session.id, explicit: true)
+            }
         // feedback.mode and feedback.watch were their names before the pilot settings; both still work.
         case "pilot.green", "feedback.mode": cyclePilotGreen()
         case "pilot.watch", "feedback.watch": togglePilotWatch()
@@ -1671,7 +1688,7 @@ final class AppModel {
             if count > 0 { diffRow = min(max(diffRow + delta, 0), count - 1) }
             return
         }
-        if feedbackPull != nil, overlay == .pr || reader != nil {
+        if feedbackPull != nil || notesSession != nil, overlay == .pr || reader != nil {
             let count = feedbackItems.count
             if count > 0 { feedbackCursor = min(max(feedbackCursor + delta, 0), count - 1) }
             return
@@ -3058,11 +3075,29 @@ final class AppModel {
     /// The PR the overlay or reader is about.
     var feedbackPull: PullRef? { reader ?? (overlay == .pr ? overlayPull : nil) }
 
+    /// The session whose own notes the PR overlay shows: its tab for notes queued before there was a PR to put
+    /// them on (`SessionNotes`).
+    var notesSession: Session? {
+        guard overlay == .pr, overlayPull == nil, reader == nil else { return nil }
+        return currentSession
+    }
+
     /// Items in display order: open ones first (queued, new, sent, addressed), then resolved.
     var feedbackItems: [FeedbackItem] {
-        guard let ref = feedbackPull, let pipeline = feedback[ref.description] else { return [] }
+        let items: [FeedbackItem] = if let ref = feedbackPull {
+            feedback[ref.description]?.items ?? []
+        } else {
+            notesSession?.notes ?? []
+        }
         let order: [FeedbackItem.Status] = [.queued, .new, .sent, .addressed, .resolved]
-        return pipeline.items.sorted { order.firstIndex(of: $0.status)! < order.firstIndex(of: $1.status)! }
+        return items.sorted { order.firstIndex(of: $0.status)! < order.firstIndex(of: $1.status)! }
+    }
+
+    /// The overlay's tabs: the session's PRs, then (nil) its own notes when it has some, or when it has no PR.
+    var pullOverlayTabs: [PullRef?] {
+        guard let session = currentSession else { return [] }
+        let prs: [PullRef?] = session.trackedPRs
+        return session.notes.isEmpty ? prs : prs + [nil]
     }
 
     /// The PR under the cursor where `o` was pressed: a PRs row, a PR in the inbox, or the session's first PR.
@@ -3133,20 +3168,23 @@ final class AppModel {
             overlay = nil
             return
         }
-        guard let first = currentSession?.trackedPRs.first else {
+        guard let session = currentSession, !session.trackedPRs.isEmpty || !session.notes.isEmpty else {
             flash = "this session tracks no PR yet"
             return
         }
-        overlayPull = overlayPull.flatMap { currentSession?.trackedPRs.contains($0) == true ? $0 : nil } ?? first
+        // No PR yet: the overlay holds the notes you queued on its diff.
+        overlayPull = session.trackedPRs.isEmpty ? nil
+            : overlayPull.flatMap { session.trackedPRs.contains($0) ? $0 : nil } ?? session.trackedPRs.first
         overlay = .pr
         feedbackCursor = 0
         if let ref = overlayPull { fetchDetail(ref) }
     }
 
     private func cyclePull(by delta: Int) {
-        guard overlay == .pr, let prs = currentSession?.trackedPRs, !prs.isEmpty else { return }
-        let index = overlayPull.flatMap { prs.firstIndex(of: $0) } ?? 0
-        overlayPull = prs[((index + delta) % prs.count + prs.count) % prs.count]
+        let tabs = pullOverlayTabs
+        guard overlay == .pr, !tabs.isEmpty else { return }
+        let index = tabs.firstIndex(of: overlayPull) ?? 0
+        overlayPull = tabs[((index + delta) % tabs.count + tabs.count) % tabs.count]
         feedbackCursor = 0
         if let ref = overlayPull { fetchDetail(ref) }
     }
@@ -3171,15 +3209,25 @@ final class AppModel {
         if pipeline.autoFeed == .auto { deliver(ref, explicit: false) }
     }
 
+    /// Edits the items the overlay shows: the PR's pipeline, or the session's own notes.
+    private func updateItems(_ edit: (inout [FeedbackItem]) -> Void) {
+        if feedbackPull != nil {
+            updateFeedback { edit(&$0.items) }
+        } else if var session = notesSession {
+            edit(&session.notes)
+            commit(.sessionUpserted(session))
+        }
+    }
+
     private func toggleQueued() {
         let items = feedbackItems
         guard items.indices.contains(feedbackCursor) else { return }
         let id = items[feedbackCursor].id
-        updateFeedback { pipeline in
-            guard let index = pipeline.items.firstIndex(where: { $0.id == id }) else { return }
-            switch pipeline.items[index].status {
-            case .new: pipeline.items[index].status = .queued
-            case .queued: pipeline.items[index].status = .new
+        updateItems { items in
+            guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+            switch items[index].status {
+            case .new: items[index].status = .queued
+            case .queued: items[index].status = .new
             default: break
             }
         }
@@ -3189,7 +3237,8 @@ final class AppModel {
         let items = feedbackItems
         guard items.indices.contains(feedbackCursor) else { return }
         let id = items[feedbackCursor].id
-        updateFeedback { pipeline in pipeline.items.removeAll { $0.id == id } }
+        updateItems { items in items.removeAll { $0.id == id } }
+        feedbackCursor = min(feedbackCursor, max(feedbackItems.count - 1, 0))
     }
 
     private func startFromPull() {
@@ -3286,6 +3335,9 @@ final class AppModel {
         // Held because you were working in the session: try again, now that time has passed.
         for ref in pendingDelivery {
             deliver(ref, explicit: false)
+        }
+        for id in pendingNotes {
+            deliverNotes(id, explicit: false)
         }
         runDueMergeQueues()
         let open = [overlay == .pr ? overlayPull : nil, reader].compactMap(\.self)
@@ -4347,6 +4399,7 @@ final class AppModel {
     }
 
     private func toggleDiff() {
+        diffNote = nil
         if overlay == .diff {
             overlay = nil
             return
@@ -4457,6 +4510,131 @@ final class AppModel {
     private func openDiffFile() {
         guard let file = currentDiffFile, let root = worktreePath(for: file) else { return }
         NSWorkspace.shared.open(URL(fileURLWithPath: root).appendingPathComponent(file.path))
+    }
+
+    /// `a`: the comment box under the hunk under the cursor (unified view: under the cursor's row).
+    private func openDiffNote() {
+        guard let file = currentDiffFile, let location = diffLocation, currentSession != nil else { return }
+        let rows = diffRows
+        let hunk: Int = switch rows.indices.contains(diffRow) ? rows[diffRow] : nil {
+        case let .header(index, _)?, let .line(index, _)?: index
+        case nil: 0
+        }
+        guard file.hunks.indices.contains(hunk) else { return }
+        diffNote = HunkNoteDraft(
+            fileID: file.id, hunk: hunk, row: diffRow, path: location.path, line: location.line, repo: file.repo
+        )
+    }
+
+    private func typeDiffNote(_ stroke: KeyStroke) {
+        guard var draft = diffNote else { return }
+        if stroke == KeyStroke("v", .command), let text = NSPasteboard.general.string(forType: .string) {
+            draft.paste(text)
+            diffNote = draft
+            return
+        }
+        switch draft.handle(stroke) {
+        case .handled: diffNote = draft
+        case .cancel: diffNote = nil
+        case let .queue(send):
+            diffNote = nil
+            queueNote(draft, send: send)
+        }
+    }
+
+    /// Where a note on `repo` goes: the open PR the session tracks there, else the session's own queue.
+    func noteTarget(repo: Repo?) -> PullRef? {
+        guard let session = currentSession else { return nil }
+        return SessionNotes.pull(for: repo ?? session.repos.first, in: session) { (pullState($0) ?? .open) == .open }
+    }
+
+    /// The queued notes and feedback the comment box counts: of the PR it joins, or the session's own.
+    func queuedNotes(repo: Repo?) -> Int {
+        if let ref = noteTarget(repo: repo) { return feedback[ref.description]?.count(.queued) ?? 0 }
+        return currentSession?.notes.count { $0.status == .queued } ?? 0
+    }
+
+    /// Where a queued note will be sent, as the comment box says it.
+    func noteDestination(repo: Repo?) -> String {
+        guard let session = currentSession else { return "" }
+        let name = session.worktreeName
+        let owner = name.hasSuffix("s") ? "\(name)'" : "\(name)'s"
+        if let ref = noteTarget(repo: repo), pilotSettings(for: ref).runIn != .session {
+            return "joins #\(ref.number)'s feedback, sent to a run of its own"
+        }
+        return "goes to \(owner) \(session.agent)"
+    }
+
+    /// Every note on the current session not yet sent: its own and those in its PRs' pipelines.
+    var sessionNotes: [FeedbackItem] {
+        guard let session = currentSession else { return [] }
+        let pipelines = session.trackedPRs.flatMap { feedback[$0.description]?.items ?? [] }
+        return (session.notes + pipelines).filter { $0.noteLocation != nil }
+    }
+
+    private func queueNote(_ draft: HunkNoteDraft, send: Bool) {
+        guard var session = currentSession, let file = diffFiles.first(where: { $0.id == draft.fileID }),
+              file.hunks.indices.contains(draft.hunk)
+        else { return }
+        let lines = file.hunks[draft.hunk].lines
+        let focus = lines.firstIndex { $0.newNumber == draft.line }
+        let item = FeedbackItem.note(
+            draft.text, path: draft.path, line: draft.line, repo: draft.repo, lines: lines, focus: focus
+        )
+        if let ref = noteTarget(repo: draft.repo) {
+            var pipeline = feedback[ref.description] ?? PullFeedback(ref: ref)
+            pipeline.items.append(item)
+            commit(.feedbackChanged(pipeline))
+            flash = "queued with #\(ref.number)'s feedback (\(pipeline.count(.queued)) queued)"
+            // Get it green on Auto sends it like any other queued item; ⌘↩ sends it now either way.
+            if send || pipeline.autoFeed == .auto { deliver(ref, explicit: send) }
+        } else {
+            session.notes.append(item)
+            commit(.sessionUpserted(session))
+            let queued = session.notes.count { $0.status == .queued }
+            flash = "queued for \(session.agent) (\(queued) queued; \(keyText(for: "overlay.item")) then s sends)"
+            if send { deliverNotes(session.id, explicit: true) }
+        }
+    }
+
+    /// The session's own queued notes, typed into its agent once it is idle and you have left it alone (as
+    /// `run_in = "session"` does for a PR's feedback).
+    private func deliverNotes(_ id: String, explicit: Bool) {
+        guard var session = sessions.first(where: { $0.id == id }), let prompt = SessionNotes.prompt(session.notes)
+        else {
+            pendingNotes.remove(id)
+            if explicit { flash = "nothing queued (space queues a note)" }
+            return
+        }
+        guard !isFixture else {
+            if tutor != nil {
+                SessionNotes.markSent(&session.notes)
+                commit(.sessionUpserted(session))
+                flash = "sent (tutor: nothing was typed)"
+            } else {
+                flash = "fixture: no IO"
+            }
+            return
+        }
+        guard let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout) else {
+            pendingNotes.remove(id)
+            if explicit { flash = "\(session.title) has no agent pane to send to" }
+            return
+        }
+        // You asked for these: they wait out a short typing grace, not the five minutes auto-feed does.
+        switch Delivery.verdict(state: session.state.state, lastTyped: lastTyped[session.id], typingGrace: 20) {
+        case let .wait(reason):
+            pendingNotes.insert(id)
+            if explicit { flash = "waiting: \(reason); it goes once the agent is idle" }
+        case .deliver:
+            pendingNotes.remove(id)
+            let count = session.notes.count { $0.status == .queued }
+            TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
+            SessionNotes.markSent(&session.notes)
+            session.record("sent \(count) note\(count == 1 ? "" : "s") to \(session.agent)")
+            commit(.sessionUpserted(session))
+            flash = "sent \(count) note\(count == 1 ? "" : "s") to \(session.agent)"
+        }
     }
 
     /// Types a question about the hunk into the agent's pane, unsent, and switches to INSERT there to finish it.
@@ -5202,6 +5380,7 @@ final class AppModel {
         state.waiting = pendingDelivery.count
         state.diffFile = diffFileIndex
         state.diffRow = diffRow
+        state.diffNoteOpen = diffNote != nil
         state.historyOutcome = historyOutcome.map(\.rawValue) ?? ""
         let tracked = Set(sessions.flatMap(\.trackedPRs))
         state.paused = tracked.count { feedback[$0.description]?.isPaused(Clock.now) == true }

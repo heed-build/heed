@@ -154,13 +154,15 @@ public struct ReviewThread: Identifiable, Hashable, Sendable, Codable {
     }
 }
 
-/// One thing to feed back to the agent: a review thread or a failing check.
+/// One thing to feed back to the agent: a review thread, a failing check, or a note of your own on a hunk.
 public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     public enum Kind: Hashable, Sendable, Codable {
         case review(location: String, author: String)
         case check(name: String)
         /// The PR conflicts with its base (or is behind it, when the repo requires up to date).
         case conflict(base: String, behind: Bool)
+        /// Your note on a hunk in the diff overlay (`a`), at a line of the new side.
+        case note(path: String, line: Int, repo: Repo?)
     }
 
     /// The pipeline: New → Queued → Sent → Addressed (the agent pushed) → Resolved (thread resolved, check passing).
@@ -181,12 +183,48 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     public var logPath: String?
     /// For a conflict: when Copilot was asked to resolve it (so it is asked once, and not sent to the agent too).
     public var copilotAskedAt: Date?
+    /// For a note: the hunk it is on, as diff lines (`+`, `-`, or a space first), at most `noteHunkLimit` of them.
+    public var hunk: [String]?
 
     public init(id: String, kind: Kind, text: String, status: Status = .new) {
         self.id = id
         self.kind = kind
         self.text = text
         self.status = status
+    }
+
+    /// The most hunk lines a note keeps (and its prompt quotes): the ones around the line it is on.
+    public static let noteHunkLimit = 20
+
+    /// A note on a hunk, queued: the comment, where it is, and the hunk's lines around `focus` (an index into
+    /// `lines`; nil is the hunk's start).
+    public static func note(
+        _ comment: String, path: String, line: Int, repo: Repo?, lines: [DiffLine], focus: Int? = nil,
+        id: String = "note:" + UUID().uuidString.lowercased()
+    ) -> FeedbackItem {
+        var item = FeedbackItem(
+            id: id, kind: .note(path: path, line: line, repo: repo),
+            text: comment.trimmingCharacters(in: .whitespacesAndNewlines), status: .queued
+        )
+        let limit = noteHunkLimit
+        var start = 0
+        if lines.count > limit, let focus {
+            start = min(max(focus - limit / 2, 0), lines.count - limit)
+        }
+        item.hunk = lines[start ..< min(start + limit, lines.count)].map { line in
+            switch line.kind {
+            case .added: "+" + line.text
+            case .deleted: "-" + line.text
+            case .context: " " + line.text
+            }
+        }
+        return item
+    }
+
+    /// Where a note is: `src/RedirectFile.cs:88`.
+    public var noteLocation: String? {
+        guard case let .note(path, line, _) = kind else { return nil }
+        return "\(path):\(line)"
     }
 
     /// One line of the prompt: `RedirectFile.cs:88 Anchor lookup is case sensitive…` or `lint: docs/redirects.md:41
@@ -196,6 +234,10 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
         let short = first.count > 160 ? String(first.prefix(159)) + "…" : first
         switch kind {
         case let .review(location, author): return "\(location) (@\(author)): \(short)"
+        case let .note(path, line, _):
+            // Your words in full, then the hunk they are about.
+            let quoted = (hunk ?? []).isEmpty ? "" : "\n```diff\n" + (hunk ?? []).joined(separator: "\n") + "\n```"
+            return "\(path):\(line) (you): \(text)" + quoted
         case let .check(name):
             return "check \(name) failed: \(short)" + (logPath.map { " (the failed log is in \($0))" } ?? "")
         case let .conflict(base, behind):
@@ -365,6 +407,8 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             let gone: Bool = switch item.kind {
             case .review: threads[item.id]?.isResolved ?? true
             case let .check(name): !failing.contains(name) && !detail.checks.pendingNames.contains(name)
+            // Yours: GitHub knows nothing of it, so only you dismiss it.
+            case .note: false
             // Gone once GitHub says it merges cleanly and is current; unknown keeps it.
             case .conflict: detail.mergeable == "MERGEABLE" && detail.mergeState != "BEHIND"
                 && detail.mergeState != "DIRTY"
@@ -411,9 +455,8 @@ public struct PullFeedback: Hashable, Sendable, Codable {
     public func prompt(instructions: String = "") -> String? {
         let queued = queued
         guard !queued.isEmpty else { return nil }
-        let lines = queued.enumerated().map { "\($0.offset + 1)) \($0.element.promptLine)" }
         let prompt = "Review feedback on PR #\(ref.number): address each item, run the tests, then push. "
-            + lines.joined(separator: " ")
+            + FeedbackItem.numbered(queued)
         return instructions.isEmpty ? prompt : prompt + "\n\n" + instructions
     }
 
@@ -425,6 +468,59 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             items[index].sentAtSHA = sha
         }
         rounds += 1
+    }
+}
+
+extension FeedbackItem {
+    /// `1) … 2) …`: on one line, or a line each when one of them quotes a hunk.
+    static func numbered(_ items: [FeedbackItem]) -> String {
+        let lines = items.enumerated().map { "\($0.offset + 1)) \($0.element.promptLine)" }
+        return lines.joined(separator: lines.contains { $0.contains("\n") } ? "\n" : " ")
+    }
+}
+
+/// Notes on a session's diff before it has a PR to put them on: queued on the session, sent to its own agent (`s` in
+/// the overlay, or `⌘↩` as you queue one), and moved into the PR's pipeline once the session tracks one.
+public enum SessionNotes {
+    /// The one prompt the queued notes become.
+    public static func prompt(_ notes: [FeedbackItem]) -> String? {
+        let queued = notes.filter { $0.status == .queued }
+        guard !queued.isEmpty else { return nil }
+        return "Feedback on your changes: address each item, then run the tests. " + FeedbackItem.numbered(queued)
+    }
+
+    /// Marks the queued notes sent.
+    public static func markSent(_ notes: inout [FeedbackItem], now: Date = Date()) {
+        for index in notes.indices where notes[index].status == .queued {
+            notes[index].status = .sent
+            notes[index].sentAt = now
+        }
+    }
+
+    /// The tracked PR a note on `repo` belongs to: the newest open one in that repo (a note without a repo, in any).
+    public static func pull(
+        for repo: Repo?, in session: Session, isOpen: (PullRef) -> Bool = { _ in true }
+    ) -> PullRef? {
+        session.trackedPRs.last { (repo == nil || $0.repo == repo) && isOpen($0) }
+    }
+
+    /// Moves the session's notes into the pipelines of the PRs it now tracks, keeping their status. Notes in a repo
+    /// without a PR stay. Returns the pipelines that changed.
+    public static func adopt(
+        _ session: inout Session, into feedback: [String: PullFeedback], isOpen: (PullRef) -> Bool = { _ in true }
+    ) -> [PullFeedback] {
+        guard !session.notes.isEmpty, !session.trackedPRs.isEmpty else { return [] }
+        var changed: [String: PullFeedback] = [:]
+        let tracking = session
+        session.notes.removeAll { note in
+            guard case let .note(_, _, repo) = note.kind, let ref = pull(for: repo, in: tracking, isOpen: isOpen)
+            else { return false }
+            var pipeline = changed[ref.description] ?? feedback[ref.description] ?? PullFeedback(ref: ref)
+            if !pipeline.items.contains(where: { $0.id == note.id }) { pipeline.items.append(note) }
+            changed[ref.description] = pipeline
+            return true
+        }
+        return changed.values.sorted { $0.ref.description < $1.ref.description }
     }
 }
 

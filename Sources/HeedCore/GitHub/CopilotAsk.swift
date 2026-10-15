@@ -21,7 +21,7 @@ public enum CopilotAsk {
                 return (everything || settings.copilotConflicts) && !behind && item.status != .resolved
             case .review:
                 return (everything || settings.copilotComments) && (item.status == .new || item.status == .queued)
-            case .check:
+            case .check, .note:
                 return false
             }
         }

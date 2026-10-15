@@ -38,6 +38,9 @@ run`); the cursor row shows everything. The agent's spinner still shows while it
 stays there until heed next does something on one of its PRs (sends feedback, updates the branch, merges). So a session
 you keep working in, that has PRs in flight, stays where you work. Its PRs still show their state on the row.
 
+**Pinned sessions stay pinned.** Heed's line shows under the agent's whenever heed is getting one of its PRs green
+or merged, or one is stalled, typed in or not.
+
 **Needs you comes first.** An agent that asks or is blocked is in Needs you, whatever heed is doing. And a session you park (`zz`) stays in Parked while heed works on its PRs.
 
 The cursor stays on its session. When a session changes group (a parked agent starts working, or one starts asking),

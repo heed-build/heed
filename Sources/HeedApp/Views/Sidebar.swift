@@ -83,13 +83,14 @@ struct Sidebar: View {
         .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
     }
 
-    /// Heed's label replaces the agent's line in Watching and Stalled, and on a pinned session that would be there;
-    /// in a session that is yours the agent's line stays.
+    /// Heed's label: in Watching and Stalled instead of the agent's line; on a pinned session whenever heed acts on
+    /// its PRs or one is stalled, under the agent's line (a pinned session never moves, so yours or not does not
+    /// matter there).
     static func showsLabel(_ group: SessionGroup, _ pilot: SessionPilot) -> Bool {
         switch group {
         case .watching, .stalled: true
         case .pinned:
-            if case .stalled = pilot.status { true } else { pilot.acting && !pilot.yours }
+            if case .stalled = pilot.status { true } else { pilot.acting }
         case .needsYou, .working, .parked: false
         }
     }
@@ -168,23 +169,25 @@ struct SessionRow: View {
                     }
                 }
                 if !compact { FlowChips(repos: session.involvedRepos) }
+                // A pinned session keeps its agent's line, with heed's under it.
+                if label == nil || group == .pinned {
+                    Text("\(session.agent) · \(session.activity)")
+                        .font(Theme.ui(11.5))
+                        .foregroundStyle(Theme.fg3)
+                }
                 if let label {
                     Text(label)
                         .font(Theme.ui(11.5))
-                        .foregroundStyle(group == .stalled ? Theme.err : Theme.busy)
+                        .foregroundStyle(isStalled ? Theme.err : Theme.busy)
                         .lineLimit(1)
                         .truncationMode(.tail)
-                    if group == .stalled, !compact {
+                    if isStalled, !compact {
                         HStack(spacing: 6) {
                             KeyCap(text: "zr")
                             Text("another round").foregroundStyle(Theme.fg3)
                         }
                         .font(Theme.ui(11.5))
                     }
-                } else {
-                    Text("\(session.agent) · \(session.activity)")
-                        .font(Theme.ui(11.5))
-                        .foregroundStyle(Theme.fg3)
                 }
             }
         }
@@ -213,6 +216,7 @@ struct SessionRow: View {
     }
 
     private var isOffline: Bool { if case .offline = hostLink { true } else { false } }
+    private var isStalled: Bool { if case .stalled = pilot { true } else { false } }
     /// One line plus heed's label: Watching, unless the cursor is on it.
     private var compact: Bool { group == .watching && !isCursor }
 }

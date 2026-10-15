@@ -405,7 +405,9 @@ private struct PilotSettingsView: View {
             ) {
                 Picker("", selection: Binding(
                     get: { pilot.defaults.agent ?? "" },
-                    set: { model.setConfig(["pilot", "agent"], .string($0)) }
+                    set: { $0.isEmpty ? model.unsetConfig(["pilot", "agent"])
+                        : model.setConfig(["pilot", "agent"], .string($0))
+                    }
                 )) {
                     Text("The session's agent").tag("")
                     ForEach(model.settings.agents.map(\.name), id: \.self) { Text($0).tag($0) }
@@ -420,12 +422,15 @@ private struct PilotSettingsView: View {
                 ConfigTextField(path: ["pilot", "model"], value: pilot.defaults.model ?? "")
             }
             Field(label: "Run timeout", detail: "A run still working after this long is stopped.") {
-                ConfigTextField(path: ["pilot", "run_timeout"], value: PilotDuration.text(pilot.defaults.runTimeout))
+                DurationPicker(
+                    path: ["pilot", "run_timeout"], options: ["15m", "30m", "1h", "2h"],
+                    current: PilotDuration.text(pilot.defaults.runTimeout)
+                )
             }
-            Field(label: "Pause for", detail: "What zp pauses a PR for: 30m, 1h, 4h, 1d or forever.") {
-                ConfigTextField(
-                    path: ["pilot", "pause"],
-                    value: pilot.defaults.pause.map(PilotDuration.text) ?? "forever"
+            Field(label: "Pause for", detail: "What zp pauses a PR for.") {
+                DurationPicker(
+                    path: ["pilot", "pause"], options: ["30m", "1h", "4h", "1d", "forever"],
+                    current: pilot.defaults.pause.map(PilotDuration.text) ?? "forever"
                 )
             }
             GroupLabel(title: "Get it merged")
@@ -471,11 +476,28 @@ private struct PilotSettingsView: View {
             ) {
                 ConfigTextField(path: ["pilot", "self_review"], value: pilot.defaults.selfReview ?? "")
             }
-            Field(label: "Merge queue runs", detail: "How often each repo's queue runs: 15m, 1h, ... or manual.") {
-                ConfigTextField(
-                    path: ["pilot", "merge_schedule"],
-                    value: pilot.defaults.mergeSchedule.map(PilotDuration.text) ?? "manual"
+            Field(
+                label: "Merge queue runs",
+                detail: "How often each repo's queue runs; manual: only when you run it."
+            ) {
+                DurationPicker(
+                    path: ["pilot", "merge_schedule"], options: ["15m", "30m", "1h", "4h", "manual"],
+                    current: pilot.defaults.mergeSchedule.map(PilotDuration.text) ?? "manual"
                 )
+            }
+            Field(label: "Merge method", detail: "How PRs are merged; default: the first the repo allows.") {
+                Picker("", selection: Binding(
+                    get: { pilot.defaults.mergeMethod ?? "" },
+                    // Default is the key unset.
+                    set: { $0.isEmpty ? model.unsetConfig(["pilot", "merge_method"])
+                        : model.setConfig(["pilot", "merge_method"], .string($0))
+                    }
+                )) {
+                    Text("default").tag("")
+                    ForEach(["squash", "merge", "rebase"], id: \.self) { Text($0).tag($0) }
+                }
+                .labelsHidden()
+                .frame(width: 200)
             }
             Field(label: "Update branches", detail: "Bring queued PRs that fell behind their base up to date.") {
                 Toggle("", isOn: Binding(
@@ -700,5 +722,21 @@ private struct ZmxStatus: View {
             }
         }
         .font(Theme.ui(12))
+    }
+}
+
+/// A duration from a short list, written as text (`"1h"`): a value set in config.toml outside the list shows too.
+private struct DurationPicker: View {
+    @Environment(AppModel.self) private var model
+    let path: [String]
+    let options: [String]
+    let current: String
+
+    var body: some View {
+        Picker("", selection: Binding(get: { current }, set: { model.setConfig(path, .string($0)) })) {
+            ForEach(options.contains(current) ? options : options + [current], id: \.self) { Text($0).tag($0) }
+        }
+        .labelsHidden()
+        .frame(width: 200)
     }
 }

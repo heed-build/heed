@@ -58,6 +58,13 @@ struct LinksTests {
         #expect(picker.handle(KeyStroke("CR")) == .open([links[1]]))
         #expect(picker.handle(KeyStroke("a")) == .open(links))
         #expect(picker.handle(.escape) == .cancel)
+        // o: the open ones; p: the open pull requests.
+        let merged = SessionLink.pull(PullRef(repo: repo, number: 3))
+        var withOpen = LinkPicker(title: "t", links: links + [merged], open: [links[0], links[1]])
+        #expect(withOpen.handle(KeyStroke("o")) == .open([links[0], links[1]]))
+        #expect(withOpen.handle(KeyStroke("p")) == .open([links[0]]))
+        var noneOpen = LinkPicker(title: "t", links: [merged])
+        #expect(noneOpen.handle(KeyStroke("p")) == .handled)
     }
 
     @Test func heedIssueAddAndOldSessionsStillLoad() throws {

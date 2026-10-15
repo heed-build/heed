@@ -953,7 +953,9 @@ struct LinkPickerView: View {
                 HStack(spacing: 14) {
                     hint("1–9", "open")
                     hint("j k ↩", "move, open")
-                    hint("a", "open all")
+                    hint("o", "open ones")
+                    hint("p", "open PRs")
+                    hint("a", "all")
                     hint("⎋", "close")
                 }
                 .padding(18)

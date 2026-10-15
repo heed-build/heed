@@ -171,9 +171,13 @@ struct SessionRow: View {
                 if !compact { FlowChips(repos: session.involvedRepos) }
                 // A pinned session keeps its agent's line, with heed's under it.
                 if label == nil || group == .pinned {
-                    Text("\(session.agent) · \(session.activity)")
+                    // Working: the spinner says it, so just the agent; the command it runs changes with every
+                    // hook and would make the list jump. Always one line, whatever the state says.
+                    Text(session.state.state == .working ? session.agent : "\(session.agent) · \(session.activity)")
                         .font(Theme.ui(11.5))
                         .foregroundStyle(Theme.fg3)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
                 if let label {
                     Text(label)

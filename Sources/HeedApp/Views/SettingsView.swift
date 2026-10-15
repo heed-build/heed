@@ -88,7 +88,15 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .frame(minWidth: 780, minHeight: 520)
+        // Sized by the window, not by the page: the page scrolls inside it.
+        .frame(
+            minWidth: 780,
+            idealWidth: 1000,
+            maxWidth: .infinity,
+            minHeight: 520,
+            idealHeight: 720,
+            maxHeight: .infinity
+        )
         .background(Theme.bg)
         .foregroundStyle(Theme.fg)
     }

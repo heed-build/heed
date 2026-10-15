@@ -36,6 +36,9 @@ struct HeedApp: App {
             SettingsView()
                 .environment(delegate.model)
         }
+        // Resizable, from the content's minimum up: a long page (Orgs & repos) scrolls instead of growing the window
+        // past the screen.
+        .windowResizability(.contentMinSize)
     }
 }
 

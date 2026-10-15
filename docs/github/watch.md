@@ -21,7 +21,7 @@ for each and a log of what it has done.
 ## Green
 
 A PR is **green** when GitHub has nothing left to object to in the code. The middle pane lists each rule with what it
-found, and `z?` (`:pilot.why`) jumps here for the PR you are on:
+found, and `z?` (`:pilot.why`) lists them for the PR you are on (see [What heed will do](#what-heed-will-do)):
 
 | Rule | Holds when |
 |---|---|
@@ -135,6 +135,30 @@ with `--admin`.
 
 ![A PR heed merges: the rules, and the one holding it](../images/shots/watch/heed.png)
 
+## What heed will do
+
+Settings come from three levels and a choice made on the PR, so it is not always plain what the next round will be.
+Every PR card, in the inspector and in Watch's middle pane, says it in one line under the pilot's:
+
+- `next  background run · codex · 30m · 1 instruction`: a [run](#runs) of its own, with the agent and model it
+  starts, how long it may work, and how many lines of `green_instructions` it gets.
+- `next  conflict run · …`: the PR conflicts with its base, so the round takes `merge_agent` and `merge_model`.
+- `next  typed into the session's claude`: `run_in = "session"`.
+- `next  Copilot is asked to resolve the conflicts`: `copilot_conflicts`.
+- `next  nothing: get it green is off`, `paused until 14:00`, `stopped after 3 rounds`: why no round goes.
+
+Hover the line for each setting behind it and where its value comes from: `default`, `org <name>`, `repo`, or
+`this PR` for a choice made with `zw`, `zg` or `zm`.
+
+`z?` (`:pilot.why`) opens the whole picture for the PR you are on: in Watch and the PRs view the PR under the cursor,
+in the PR overlay its PR, in Sessions the session's first PR. One row each for **Watching**, **Get it green**, **A
+round**, **Conflicts** and **Get it merged**: the value, what it means for this PR now, and on the right where it comes
+from, amber when it is not the default. Below them, **what holds it back**: the green rules and, with
+`merge = "heed"`, heed's merge rules, failures first (✕), then what is still pending (·), then what passes (✓).
+`j` `k` scroll it, ⎋ closes it.
+
+![What heed will do for a PR: each part with its source, and what holds it back](../images/shots/watch/explain.png)
+
 ## Keys
 
 | Key | |
@@ -146,7 +170,7 @@ with `--admin`.
 | `C` | Ask Copilot to resolve the PR's merge conflicts and address its review comments |
 | `zr` | Another round for a stalled PR |
 | `zp` | Pause or resume |
-| `z?` | Why the PR is not green, rule by rule |
+| `z?` | What heed will do for the PR, and what holds it back |
 | `zv` | Ask the PR's reviewers now |
 | `gb` | Go to the session's running run |
 | `zx` | Stop the session's running run |

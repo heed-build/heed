@@ -162,7 +162,7 @@ public enum Commands {
         .init("feedback.send", "send queued feedback to the session", .selection),
         .init("feedback.mode", "pilot.green, by its former name", .selection),
         .init("feedback.watch", "pilot.watch, by its former name", .selection),
-        .init("pilot.why", "what holds the PR back from green, rule by rule (in the Watch view)", .selection),
+        .init("pilot.why", "what heed will do for the PR, and what holds it back", .selection),
         .init("pilot.watch", "watch or stop watching the PR (or the picked PRs)", .selection),
         .init("pilot.green", "cycle get it green for the PR: off, ask, auto", .selection),
         .init("pilot.run", "show the session's running get it green / get it merged run", .selection),

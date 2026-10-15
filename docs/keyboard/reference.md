@@ -144,7 +144,7 @@ This page is generated from the code (`mise run shots`).
 | `feedback.send` | `s` (pr) | send queued feedback to the session |
 | `feedback.mode` |  | pilot.green, by its former name |
 | `feedback.watch` |  | pilot.watch, by its former name |
-| `pilot.why` | `z?` | what holds the PR back from green, rule by rule (in the Watch view) |
+| `pilot.why` | `z?` | what heed will do for the PR, and what holds it back |
 | `pilot.watch` | `zw` | watch or stop watching the PR (or the picked PRs) |
 | `pilot.green` | `zg` | cycle get it green for the PR: off, ask, auto |
 | `pilot.run` | `gb` | show the session's running get it green / get it merged run |

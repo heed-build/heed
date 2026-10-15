@@ -211,6 +211,8 @@ enum Shots {
         Shot(id: "watch/queues", keys: "gw", crop: .pilotActivity),
         Shot(id: "watch/heed", keys: "gw/anchors<CR>", crop: .pilotDetail),
         Shot(id: "watch/inspector", crop: .inspector),
+        // `z?`: what heed will do for the PR, and what holds it back.
+        Shot(id: "watch/explain", keys: "gw/anchors<CR>z?", crop: .dialog),
         Shot(id: "watch/prs", keys: "gp", crop: .list),
     ]
 

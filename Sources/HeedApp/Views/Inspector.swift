@@ -291,6 +291,7 @@ private struct LinkCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(Theme.mono(11))
+            PilotPlanLine(ref: ref)
         }
     }
 

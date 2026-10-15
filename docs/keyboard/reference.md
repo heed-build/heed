@@ -57,6 +57,8 @@ This page is generated from the code (`mise run shots`).
 | `tab.prev` | `gT` | previous tab |
 | `tab.new` | `gn` | new tab with shell |
 | `tab.go` `<n>` |  | go to tab n |
+| `task.run` `[name]` | `!` | run a task in a tab of its own: pinned, mise, make, package.json (no name: pick one) |
+| `task.refresh` |  | read the session's tasks again (mise, make, package.json) |
 
 ## Views & overlays
 

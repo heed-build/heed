@@ -1325,6 +1325,10 @@ final class AppModel {
             answerImportPicker(stroke)
             return true
         }
+        if taskPicker != nil {
+            answerTaskPicker(stroke)
+            return true
+        }
         if hostsPicker != nil {
             answerHostsPicker(stroke)
             return true
@@ -1528,6 +1532,8 @@ final class AppModel {
         case "tab.next": cycleTab(by: count)
         case "tab.prev": cycleTab(by: -count)
         case "tab.new": newTab()
+        case "task.run": runTask(named: command.arguments.joined(separator: " ").nilIfEmpty)
+        case "task.refresh": refreshTasks()
         case "view": if let target = AppView(rawValue: command.arguments.first ?? "") { view = target }
         case "view.history": view = .history
         case "view.watch": view = .watch
@@ -5311,6 +5317,136 @@ final class AppModel {
             guard count > 0 else { return }
             layout.activeTab = ((layout.activeTab + delta) % count + count) % count
         }
+    }
+
+    // MARK: Tasks
+
+    /// What each worktree offers to run, by path: its pinned tasks and those discovered there. Read the first time the
+    /// picker opens on it, again on `task.refresh` (⌃r in the picker).
+    private(set) var taskCache: [String: TaskDiscovery.Result] = [:]
+
+    /// `task.run` with no name: the picker over the session's tasks, narrowed by typing.
+    struct TaskPickerState {
+        var picker: Typeahead<TaskSpec>
+        var notes: [String]
+        var loading: Bool
+        var sessionID: String
+    }
+
+    private(set) var taskPicker: TaskPickerState?
+
+    /// The worktree a session's tasks run in, and where: its first repo's.
+    private func taskWorktree(of session: Session) -> (path: String, location: Location, pinned: [TaskSpec])? {
+        // Sessions from before heed kept their paths: the worktree they own, else where their first pane runs.
+        guard let path = session.worktreePaths.first
+            ?? worktrees.first(where: { session.owns($0) && $0.repo == session.repos.first })?.path
+            ?? layouts[session.id]?.tabs.first?.tree.panes.first?.directory
+        else { return nil }
+        return (path, session.location, session.repos.first.flatMap { settings.tasks[$0.slug] } ?? [])
+    }
+
+    private static func taskPicker(_ result: TaskDiscovery.Result) -> Typeahead<TaskSpec> {
+        Typeahead(items: result.tasks) { [$0.name, $0.source.rawValue, $0.detail ?? ""] }
+    }
+
+    /// `task.run [name]` (`!`): runs the named task in a tab of its own, or opens the picker over the session's tasks.
+    private func runTask(named name: String?) {
+        guard let session = currentSession, let (path, location, pinned) = taskWorktree(of: session) else {
+            return flash = "no session here"
+        }
+        if let name {
+            guard let task = (taskCache[path]?.tasks ?? pinned).first(where: { $0.name == name }) else {
+                // Not read yet: read, then run it.
+                Task {
+                    await loadTasks(path: path, location: location, pinned: pinned)
+                    guard let task = taskCache[path]?.tasks.first(where: { $0.name == name }) else {
+                        return flash = "no task \(name) here (! lists them)"
+                    }
+                    start(task, in: session.id, directory: path, location: location)
+                }
+                return
+            }
+            return start(task, in: session.id, directory: path, location: location)
+        }
+        let cached = taskCache[path]
+        taskPicker = TaskPickerState(
+            picker: Self.taskPicker(cached ?? TaskDiscovery.Result(tasks: pinned)), notes: cached?.notes ?? [],
+            loading: cached == nil, sessionID: session.id
+        )
+        if cached == nil { Task { await loadTasks(path: path, location: location, pinned: pinned) } }
+    }
+
+    /// `task.refresh`: reads the session's tasks again (a branch that added a target, a trusted mise config).
+    private func refreshTasks() {
+        guard let session = currentSession, let (path, location, pinned) = taskWorktree(of: session) else {
+            return flash = "no session here"
+        }
+        taskPicker?.loading = true
+        Task {
+            await loadTasks(path: path, location: location, pinned: pinned)
+            flash = "\(taskCache[path]?.tasks.count ?? 0) tasks in \(session.worktreeName)"
+        }
+    }
+
+    /// Discovers a worktree's tasks off the main actor, and updates the picker when it shows that session.
+    private func loadTasks(path: String, location: Location, pinned: [TaskSpec]) async {
+        guard !isFixture else {
+            taskCache[path] = TaskDiscovery.Result(tasks: pinned)
+            taskPicker?.loading = false
+            return
+        }
+        let result = await TaskDiscovery.discover(at: path, on: location, pinned: pinned)
+        taskCache[path] = result
+        if let state = taskPicker, let session = sessions.first(where: { $0.id == state.sessionID }),
+           taskWorktree(of: session)?.path == path
+        {
+            taskPicker = TaskPickerState(
+                picker: Self.taskPicker(result), notes: result.notes, loading: false, sessionID: state.sessionID
+            )
+        }
+    }
+
+    private func answerTaskPicker(_ stroke: KeyStroke) {
+        guard var state = taskPicker else { return }
+        if stroke == KeyStroke("r", .control) { return refreshTasks() }
+        switch state.picker.handle(stroke) {
+        case .handled: taskPicker = state
+        case .cancel: taskPicker = nil
+        case let .picked(task):
+            taskPicker = nil
+            guard let session = sessions.first(where: { $0.id == state.sessionID }),
+                  let (path, location, _) = taskWorktree(of: session)
+            else { return }
+            start(task, in: session.id, directory: path, location: location)
+        }
+    }
+
+    func cancelTaskPicker() { taskPicker = nil }
+
+    /// Tasks set from outside discovery for the session under the cursor: the fake world's, for screenshots.
+    func showTasks(_ tasks: [TaskSpec]) {
+        guard let session = currentSession, let path = taskWorktree(of: session)?.path else { return }
+        taskCache[path] = TaskDiscovery.Result(tasks: tasks)
+    }
+
+    /// Picks a task by click.
+    func pickTask(_ task: TaskSpec) {
+        guard let state = taskPicker, let session = sessions.first(where: { $0.id == state.sessionID }),
+              let (path, location, _) = taskWorktree(of: session)
+        else { return }
+        taskPicker = nil
+        start(task, in: session.id, directory: path, location: location)
+    }
+
+    /// A task in a tab of its own, as pinned tasks open: its command running, its exit code setting the tab's glyph.
+    private func start(_ task: TaskSpec, in sessionID: String, directory: String, location: Location) {
+        guard var layout = layouts[sessionID] else { return }
+        let pane = task.pane(directory: directory, location: location)
+        layout.tabs.append(PaneTab(title: task.name, tree: .leaf(pane)))
+        layout.activeTab = layout.tabs.count - 1
+        TerminalSurfaces.shared.autostartPanes.insert(pane.id)
+        commit(.layoutChanged(session: sessionID, layout))
+        flash = "running \(task.name) (\(task.source.rawValue))"
     }
 
     private func newTab() {

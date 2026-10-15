@@ -129,6 +129,7 @@ enum Shots {
         Shot(id: "sessions/insert-after", keys: "i", crop: .panes),
         Shot(id: "sessions/split", keys: "<C-w>v", highlight: [.panes]),
         Shot(id: "sessions/tab-strip", crop: .tabStrip, cropPadding: 6),
+        Shot(id: "sessions/task-picker", keys: "!", crop: .picker, prepare: withDiscoveredTasks),
         Shot(id: "sessions/run-tab", keys: "4j", crop: .center),
         Shot(id: "sessions/run-reader", crop: .dialog, prepare: { $0.runReader = $0.runs.first { !$0.isRunning } }),
         Shot(id: "sessions/tab-strip-insert", keys: "i", crop: .tabStrip, cropPadding: 6),
@@ -251,6 +252,20 @@ enum Shots {
         Shot(id: "worktrees/setup", keys: "gr", crop: .setupBanner, prepare: withSetupProposals),
         Shot(id: "worktrees/setup-review", keys: "grS", crop: .confirm, prepare: withSetupProposals),
     ]
+
+    /// The session under the cursor with tasks of every source, as a worktree with a mise config, a Makefile and a
+    /// package.json offers them.
+    private static let withDiscoveredTasks: @MainActor (AppModel) -> Void = { model in
+        model.showTasks([
+            TaskSpec(name: "tests", command: "dotnet test"),
+            TaskSpec(name: "build", command: "mise run build", source: .mise, detail: "Build the docs-builder binary"),
+            TaskSpec(name: "lint", command: "mise run lint", source: .mise, detail: "dotnet format, verify only"),
+            TaskSpec(name: "clean", command: "make clean", source: .make, detail: "Remove build output"),
+            TaskSpec(name: "release", command: "make release", source: .make, detail: "Publish a release build"),
+            TaskSpec(name: "dev", command: "pnpm run dev", source: .packageJSON, detail: "vite --port 3000"),
+            TaskSpec(name: "storybook", command: "pnpm run storybook", source: .packageJSON, detail: "storybook dev"),
+        ])
+    }
 
     /// Every repo of the fake world with a pnpm lockfile, so Repos proposes its setup.
     private static let withSetupProposals: @MainActor (AppModel) -> Void = { model in

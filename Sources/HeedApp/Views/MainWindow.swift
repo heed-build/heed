@@ -60,6 +60,7 @@ struct MainWindow: View {
         }
         .overlay {
             if let picker = model.importPicker { ImportPickerView(picker: picker) }
+            if let state = model.taskPicker { TaskPickerView(state: state) }
             if let picker = model.hostsPicker { HostsPickerView(picker: picker) }
             if let picker = model.linkPicker { LinkPickerView(picker: picker) }
             if let run = model.runReader { RunReaderView(run: run) }
@@ -631,6 +632,91 @@ struct ImportPickerView: View {
                 }
                 HStack {
                     Text("⌃n ⌃p move · ↩ import · ⎋ cancel · Ip (in Sessions) imports a path").font(Theme.ui(11.5))
+                        .foregroundStyle(Theme.fg3)
+                    Spacer()
+                }
+                .padding(14)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+            }
+            .frame(width: 640)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.5), radius: 30).shotRegion(.picker)
+        }
+    }
+}
+
+/// `!`: the session's tasks, pinned and discovered (mise, make, package.json), narrowed by typing; ↩ runs one in a tab.
+struct TaskPickerView: View {
+    @Environment(AppModel.self) private var model
+    let state: AppModel.TaskPickerState
+
+    var body: some View {
+        let picker = state.picker
+        let matches = picker.matches
+        ZStack {
+            Color.black.opacity(0.5).onTapGesture { model.cancelTaskPicker() }
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Run a task").font(Theme.ui(15, weight: .semibold))
+                    Text("Pinned in config, and found in the worktree: mise tasks, make targets, package.json scripts. "
+                        + "Each runs in a tab of its own.")
+                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                }
+                .padding(18)
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
+                    Text(picker.query + "▌").font(Theme.mono(12.5))
+                    Spacer()
+                    Text(state.loading ? "reading…" : "\(matches.count) of \(picker.items.count)")
+                        .font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+                .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+                ScrollViewReader { proxy in
+                    ListScroll {
+                        ListStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(matches.enumerated()), id: \.offset) { index, task in
+                                HStack(spacing: 10) {
+                                    Highlighted(text: task.name, query: picker.query)
+                                        .font(Theme.mono(12.5, weight: .semibold)).lineLimit(1).fixedSize()
+                                    Text(task.detail ?? task.command).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                                        .lineLimit(1).truncationMode(.tail)
+                                    Spacer(minLength: 8)
+                                    Text(task.source.rawValue).font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                                        .padding(.horizontal, 5)
+                                        .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+                                }
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 8)
+                                .background(index == picker.cursor ? Theme.bg3 : .clear)
+                                .overlay(alignment: .leading) {
+                                    if index == picker.cursor { Theme.block.frame(width: 2) }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture { model.pickTask(task) }
+                                .id(index)
+                            }
+                        }
+                    }
+                    .onChange(of: picker.cursor) { proxy.scrollTo(picker.cursor) }
+                }
+                .frame(maxHeight: 380)
+                if matches.isEmpty, !state.loading {
+                    Text(picker.items.isEmpty ? "No tasks here." : "No task matches.")
+                        .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                        .padding(.horizontal, 18).padding(.vertical, 10)
+                }
+                ForEach(state.notes, id: \.self) { note in
+                    Text(note).font(Theme.ui(12)).foregroundStyle(Theme.block)
+                        .padding(.horizontal, 18).padding(.vertical, 6)
+                }
+                HStack {
+                    Text("⌃n ⌃p move · ↩ run · ⌃r read again · ⎋ cancel").font(Theme.ui(11.5))
                         .foregroundStyle(Theme.fg3)
                     Spacer()
                 }

@@ -68,6 +68,11 @@ public enum Commands {
         .init("tab.prev", "previous tab", .panes),
         .init("tab.new", "new tab with shell", .panes),
         .init("tab.go", "go to tab n", .panes, arguments: "<n>"),
+        .init(
+            "task.run", "run a task in a tab of its own: pinned, mise, make, package.json (no name: pick one)", .panes,
+            arguments: "[name]"
+        ),
+        .init("task.refresh", "read the session's tasks again (mise, make, package.json)", .panes),
         // Views & overlays
         .init("view", "switch view", .views, arguments: "<sessions|inbox|issues|prs|watch|repos|history>"),
         .init("view.sessions", "sessions", .views),

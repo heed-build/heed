@@ -273,6 +273,8 @@ public enum ConfigLoader {
             }
             overrides.agent = string(base + ["agent"]).flatMap { $0.isEmpty ? nil : $0.lowercased() }
             overrides.model = string(base + ["model"]).flatMap { $0.isEmpty ? nil : $0 }
+            overrides.mergeAgent = string(base + ["merge_agent"]).flatMap { $0.isEmpty ? nil : $0.lowercased() }
+            overrides.mergeModel = string(base + ["merge_model"]).flatMap { $0.isEmpty ? nil : $0 }
             if let text = string(base + ["run_in"]) {
                 if let runIn = RunIn.named(text) {
                     overrides.runIn = runIn
@@ -308,6 +310,8 @@ public enum ConfigLoader {
         config.pilot.defaults.agent = pilotDefaults.agent
         config.pilot.defaults.model = pilotDefaults.model
         if let runIn = pilotDefaults.runIn { config.pilot.defaults.runIn = runIn }
+        config.pilot.defaults.mergeAgent = pilotDefaults.mergeAgent
+        config.pilot.defaults.mergeModel = pilotDefaults.mergeModel
         config.pilot.defaults.greenInstructions = pilotDefaults.greenInstructions ?? ""
         config.pilot.defaults.reviewInstructions = pilotDefaults.reviewInstructions ?? ""
         config.pilot.defaults.startInstructions = pilotDefaults.startInstructions ?? ""
@@ -571,6 +575,10 @@ public enum ConfigLoader {
     # org and per repo.
     agent = ""
     model = ""
+    # Merge conflicts with the base are usually simple: background runs for them can use a cheaper agent and model.
+    # Empty: agent and model above. Also per org and per repo.
+    merge_agent = ""
+    merge_model = ""
     # A run still working after this long is stopped.
     run_timeout = "30m"
     # How long zp pauses a PR: 30m, 1h, 4h, 1d, or forever.

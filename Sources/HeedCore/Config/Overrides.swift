@@ -161,6 +161,22 @@ public enum Overrides {
             { .text($0.model ?? "") }
         ),
         pilot(
+            "merge_agent",
+            "Conflict agent",
+            "Background runs for merge conflicts; unset: the run agent.",
+            .agent,
+            { $0.mergeAgent.map(OverrideValue.text) },
+            { .text($0.mergeAgent ?? "") }
+        ),
+        pilot(
+            "merge_model",
+            "Conflict model",
+            "Its model; empty: the run model (with a conflict agent, its default).",
+            .text,
+            { $0.mergeModel.map(OverrideValue.text) },
+            { .text($0.mergeModel ?? "") }
+        ),
+        pilot(
             "merge",
             "Get it merged",
             "off, auto (GitHub's auto-merge) or heed (heed merges).",
@@ -306,7 +322,7 @@ public enum Overrides {
     public static let groups: [(title: String, keys: [String])] = [
         ("General", ["color", "issues"]),
         ("Watching", ["watch"]),
-        ("Get it green", ["green", "max_rounds", "run_in", "agent", "model"]),
+        ("Get it green", ["green", "max_rounds", "run_in", "agent", "model", "merge_agent", "merge_model"]),
         ("Get it merged", [
             "merge", "merge_method", "update_branches", "quiet_minutes", "trusted_reviewers", "gate_checks",
             "hold_labels", "self_review", "admin_merge",

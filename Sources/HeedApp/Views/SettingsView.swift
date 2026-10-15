@@ -464,6 +464,29 @@ private struct PilotSettingsView: View {
             ) {
                 ConfigTextField(path: ["pilot", "model"], value: pilot.defaults.model ?? "")
             }
+            Field(
+                label: "Conflict agent",
+                detail: "Merge conflicts with the base are usually simple: background runs for them can use a cheaper "
+                    + "agent. The run agent when unset."
+            ) {
+                Picker("", selection: Binding(
+                    get: { pilot.defaults.mergeAgent ?? "" },
+                    set: { $0.isEmpty ? model.unsetConfig(["pilot", "merge_agent"])
+                        : model.setConfig(["pilot", "merge_agent"], .string($0))
+                    }
+                )) {
+                    Text("The run agent").tag("")
+                    ForEach(model.settings.agents.map(\.name), id: \.self) { Text($0).tag($0) }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
+            Field(
+                label: "Conflict model",
+                detail: "Its model; the run model when empty (with a conflict agent of its own, that agent's default)."
+            ) {
+                ConfigTextField(path: ["pilot", "merge_model"], value: pilot.defaults.mergeModel ?? "")
+            }
             Field(label: "Run timeout", detail: "A run still working after this long is stopped.") {
                 DurationPicker(
                     path: ["pilot", "run_timeout"], options: ["15m", "30m", "1h", "2h"],

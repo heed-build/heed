@@ -204,6 +204,9 @@ final class AppModel {
     }
 
     private(set) var commandText = ""
+    /// While ⇥ / ↓ cycle the command line's matches: the line they were matched against, and the one taken.
+    private var completionAnchor: String?
+    private(set) var completionIndex: Int?
     private(set) var flash: String?
     private(set) var hintText = ""
     private var hintThenInsert = false
@@ -1383,7 +1386,11 @@ final class AppModel {
     }
 
     private func modeChanged(from previous: Mode) {
-        if previous == .command { commandText = "" }
+        if previous == .command {
+            commandText = ""
+            completionAnchor = nil
+            completionIndex = nil
+        }
         if previous == .hint { hintText = "" }
         if previous == .visual {
             toggledRows = []
@@ -1402,6 +1409,8 @@ final class AppModel {
     private func typeText(_ stroke: KeyStroke) {
         switch mode {
         case .command:
+            completionAnchor = nil
+            completionIndex = nil
             if stroke.key == "BS" {
                 if commandText.isEmpty { engine.enter(.normal) } else { commandText.removeLast() }
             } else if stroke.key == "Space" {
@@ -1546,13 +1555,18 @@ final class AppModel {
         case "inspector.toggle": inspectorVisible.toggle()
         case "sidebar.toggle": sidebarCollapsed.toggle()
         case "mode.normal", "mode.insert", "mode.visual", "mode.command", "mode.hint":
+            // A key has switched already (ModeEngine does); from `:` the switch happens here.
+            if let target = Mode(rawValue: String(command.name.dropFirst(5))), engine.mode != target {
+                engine.enter(target)
+            }
             if command.name == "mode.insert", view != .sessions || currentTab == nil { engine.enter(.normal) }
             hintThenInsert = false
         case "hint.insert":
             engine.enter(.hint)
             hintThenInsert = true
         case "command.submit": submitCommandLine()
-        case "command.complete": completeCommandLine()
+        case "command.complete": completeCommandLine(by: 1)
+        case "command.complete.prev": completeCommandLine(by: -1)
         case "select.toggle": toggleRow()
         case "select.copy": copySelectedPaths()
         case "select.open": openSelected()
@@ -1593,6 +1607,7 @@ final class AppModel {
         case "pilot.pause": pausePilot(command.arguments.first)
         case "pilot.retry": retryPilot()
         case "pilot.run": showRun()
+        case "pilot.run.stop": stopRun()
         case "pilot.why": showPilotWhy()
         case "pilot.merge": togglePilotMerge()
         case "pilot.copilot":
@@ -1616,7 +1631,8 @@ final class AppModel {
         case "settings.open":
             if let name = command.arguments.first {
                 guard let section = SettingsView.Section.named(name) else {
-                    flash = "no Settings section \(name) (general, agents, colors, cleanup, pilot, keys)"
+                    flash =
+                        "no Settings section \(name) (\(CommandCompletions.settingsSections.joined(separator: ", ")))"
                     return
                 }
                 settingsSection = section
@@ -1653,14 +1669,53 @@ final class AppModel {
         perform(invocation)
     }
 
-    private func completeCommandLine() {
-        let matches = Commands.complete(commandText)
-        if matches.count == 1 { commandText = matches[0].name + (matches[0].arguments == nil ? "" : " ") }
+    /// ⇥ and ↓ (`by: 1`), ⇧⇥ and ↑ (`by: -1`): one match is taken; several are first narrowed to what they share,
+    /// then taken in turn, the list staying as it was for the line you typed.
+    private func completeCommandLine(by step: Int) {
+        let anchor = completionAnchor ?? commandText
+        let matches = CommandCompletions.candidates(anchor, completionContext)
+        guard !matches.isEmpty else { return }
+        if matches.count == 1 {
+            commandText = matches[0].line
+            completionAnchor = nil
+            completionIndex = nil
+            return
+        }
+        if completionAnchor == nil {
+            let shared = matches.map(\.line).reduce(matches[0].line) { String($0.commonPrefix(with: $1)) }
+            if shared.count > commandText.count {
+                commandText = shared
+                return
+            }
+        }
+        completionAnchor = anchor
+        let next = completionIndex.map { $0 + step } ?? (step > 0 ? 0 : matches.count - 1)
+        completionIndex = (next % matches.count + matches.count) % matches.count
+        commandText = matches[completionIndex ?? 0].line
     }
 
-    var commandCompletions: [CommandSpec] {
-        guard mode == .command, !commandText.contains(" ") else { return [] }
-        return Array(Commands.complete(commandText).prefix(8))
+    /// Every match for the command line, while it is open: for the line typed, not the one cycled to.
+    var commandCompletions: [CommandCompletion] {
+        guard mode == .command else { return [] }
+        return CommandCompletions.candidates(completionAnchor ?? commandText, completionContext)
+    }
+
+    /// What `:` completes arguments over: this session's tabs, PRs and issues, every session, pin, host and agent.
+    private var completionContext: CompletionContext {
+        var context = CompletionContext()
+        let ordered = list.ordered
+        context.sessions = ordered.map(\.title)
+        context.pins = list.pins.map(\.title)
+        context.tabs = currentTabs.map(\.title)
+        context.hosts = Array(Set(config.hosts.keys).union(sessions.compactMap(\.host))).sorted()
+        context.agents = settings.agents.map(\.name)
+        context.mergeRepos = mergeQueues.keys.sorted()
+        context.issueRepos = issueRepoCounts.map(\.repo.name)
+        if let session = currentSession {
+            context.pulls = session.trackedPRs.map(\.url)
+            context.issues = issues(of: session).map(\.url)
+        }
+        return context
     }
 
     // MARK: Rows
@@ -3831,6 +3886,20 @@ final class AppModel {
         selectTab(index)
     }
 
+    /// `:pilot.run.stop`: a running run ends as stopped, as closing its tab does: the one whose tab is showing, else
+    /// the run of the PR here (the open PR, the Watch row, the session's PRs), else the session's.
+    private func stopRun() {
+        let session = currentSession
+        let activeTab = currentTab?.id
+        let mine = liveRuns.filter { $0.value.sessionID == session?.id }
+        let pick = mine.first { $0.value.tabID == activeTab }
+            ?? pilotTargets.lazy.compactMap { ref in self.liveRuns.first { $0.value.ref == ref } }.first
+            ?? mine.min { $0.key < $1.key }
+        guard let (id, live) = pick else { return flash = "no run working here" }
+        endRun(id, outcome: .stopped)
+        flash = "stopped the run on \(live.ref.repo.name)#\(live.ref.number)"
+    }
+
     /// A Runs row: a running one jumps to its tab, an ended one opens in the reader.
     func open(run: PilotRun) {
         if run.isRunning, let live = liveRuns[run.id],
@@ -5213,13 +5282,15 @@ final class AppModel {
     /// A command's key as text for hints: as bound, else `:command` (what still runs it).
     func keyText(for command: String) -> String { keyLabel(for: command) ?? ":\(command)" }
 
-    /// The key for a command as you have it bound: NORMAL first, then the view bindings (`Iw` lives in Sessions').
-    func keyLabel(for command: String) -> String? {
-        if let normal = keyCap(for: command) { return normal }
-        for (_, keymap) in engine.scopedKeymaps.sorted(by: { $0.key < $1.key }) {
-            if let keys = keymap.keys(for: command).first { return KeyCapText.of(keys) }
-        }
-        return nil
+    /// The key for a command as you have it bound, the one that works here first (see `KeyLabels`): `Iw` lives in
+    /// Sessions', `m` pins the selection in VISUAL, `pin.jump` reads `'1…'9`.
+    func keyLabel(for command: String) -> String? { keyBinding(for: command)?.text }
+
+    /// `keyLabel`, with where the key works when that is not here (a view, VISUAL).
+    func keyBinding(for command: String) -> KeyLabels.Label? {
+        KeyLabels.label(
+            for: command, keymaps: engine.keymaps, scoped: engine.scopedKeymaps, scope: engine.scope, mode: mode
+        )
     }
 
     // MARK: Outside the window

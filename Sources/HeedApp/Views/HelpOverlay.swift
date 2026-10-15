@@ -1,8 +1,8 @@
 import HeedCore
 import SwiftUI
 
-/// `?` / `⌘/`: modes, every bound key and the agent states. Drawn from the live keymaps, so it always shows what the
-/// keys do now, config included.
+/// `?` / `⌘/`: modes, every command with the key that runs it here (or its `:name` when it has none) and the agent
+/// states. Drawn from the live keymaps, so it always shows what the keys do now, config included.
 struct HelpOverlay: View {
     @Environment(AppModel.self) private var model
 
@@ -23,7 +23,7 @@ struct HelpOverlay: View {
             [("v V", "enter"), ("d m y", "remove, pin, copy")]
         ),
         (.command, "Typed commands with completion.", [
-            (":", "enter"), ("⇥", "complete"), (":tutor", "lessons on a pretend world"),
+            (":", "enter"), ("⇥", "complete"), ("↑↓", "choose"), (":tutor", "lessons on a pretend world"),
         ]),
         (
             .hint,
@@ -47,12 +47,21 @@ struct HelpOverlay: View {
                     modeCard(mode, blurb, keys)
                 }
             }
-            HStack(alignment: .top, spacing: 40) {
-                keyColumn(groups: [.move])
-                keyColumn(groups: [.panes, .views])
-                states
+            HStack(alignment: .top, spacing: 32) {
+                ListScroll {
+                    HStack(alignment: .top, spacing: 32) {
+                        keyColumn(groups: [.move, .panes])
+                        keyColumn(groups: [.views, .modes])
+                        keyColumn(groups: [.selection])
+                    }
+                }
+                .scrollIndicators(.never)
+                .frame(maxWidth: .infinity)
+                states.frame(width: 330)
             }
-            Spacer(minLength: 0)
+            // As tall as the card leaves, not as tall as every command: the columns scroll.
+            .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+            .clipped()
         }
         .padding(32)
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
@@ -110,20 +119,29 @@ struct HelpOverlay: View {
     }
 
     private func keyColumn(groups: [CommandSpec.Group]) -> some View {
-        let keymap = model.engine.keymaps[.normal] ?? Keymap()
-        return VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             ForEach(groups, id: \.self) { group in
-                SectionHeader(title: "Normal · \(group.rawValue)").padding(.bottom, 4)
-                ForEach(rows(group, keymap), id: \.1) { keys, summary in
+                SectionHeader(title: group.rawValue).padding(.bottom, 4)
+                ForEach(rows(group), id: \.name) { row in
                     HStack(spacing: 10) {
-                        Text(keys)
-                            .font(Theme.mono(11.5))
-                            .padding(.horizontal, 6)
-                            .frame(width: 70, height: 20, alignment: .leading)
-                            .background(RoundedRectangle(cornerRadius: 3).fill(Theme.bg))
-                            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.line))
-                        Text(summary).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                        if let key = row.key {
+                            Text(key)
+                                .font(Theme.mono(11.5))
+                                .lineLimit(1)
+                                .padding(.horizontal, 6)
+                                .frame(minWidth: 64, minHeight: 20, alignment: .leading)
+                                .background(RoundedRectangle(cornerRadius: 3).fill(Theme.bg))
+                                .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.line))
+                                .fixedSize()
+                        } else {
+                            Text(":\(row.name)").font(Theme.mono(11.5)).foregroundStyle(Theme.ask).fixedSize()
+                        }
+                        Text(row.summary).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                        if let context = row.context {
+                            Text(context).font(Theme.ui(10.5)).foregroundStyle(Theme.fg3).fixedSize()
+                        }
                     }
+                    .frame(height: 20)
                 }
                 Spacer().frame(height: 10)
             }
@@ -131,14 +149,12 @@ struct HelpOverlay: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// One row per command, its keys joined; `pin.jump 1..9` folds into one row.
-    private func rows(_ group: CommandSpec.Group, _ keymap: Keymap) -> [(String, String)] {
-        Commands.all.filter { $0.group == group }.compactMap { spec in
-            let keys = keymap.bindings.filter { CommandInvocation(parsing: $0.command).name == spec.name }.map(\.keys)
-            guard !keys.isEmpty else { return nil }
-            if spec.name == "pin.jump" { return ("'1-'9", "jump to pinned 1 to 9") }
-            if spec.name == "view" { return nil }
-            return (keys.prefix(2).map(KeyCapText.of).joined(separator: " "), spec.summary)
+    /// One row per command: the key that runs it here (`pin.jump`'s nine fold into `'1…'9`), where that key works when
+    /// it is not here, or, with no key, its `:name`. COMMAND's own keys (⇥, ↩) are in its card instead.
+    private func rows(_ group: CommandSpec.Group) -> [(name: String, key: String?, context: String?, summary: String)] {
+        Commands.all.filter { $0.group == group && !Commands.keyOnly.contains($0.name) }.map { spec in
+            let label = model.keyBinding(for: spec.name)
+            return (spec.name, label?.text, label?.context, spec.summary)
         }
     }
 

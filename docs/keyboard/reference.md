@@ -52,7 +52,7 @@ This page is generated from the code (`mise run shots`).
 | `pane.split.below` | `<C-w>s` | split below |
 | `pane.zoom` | `<C-w>z` | zoom pane |
 | `pane.close` | `<C-w>q` | close pane |
-| `tab.close` |  | close the tab, every pane in it |
+| `tab.close` | `<C-w>c` | close the tab, every pane in it |
 | `tab.next` | `gt` | next tab |
 | `tab.prev` | `gT` | previous tab |
 | `tab.new` | `gn` | new tab with shell |
@@ -62,7 +62,7 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|inbox|issues|prs|repos|history>` |  | switch view |
+| `view` `<sessions|inbox|issues|prs|watch|repos|history>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.inbox` | `gm` | inbox |
 | `view.issues` | `gi` | issues |
@@ -82,8 +82,8 @@ This page is generated from the code (`mise run shots`).
 | `jump.back` | `<C-o>` | back |
 | `open.browser` | `gB` | open in the browser: the item under the cursor; in Sessions its PR or issue (a picker when there are several, its repo when there are none) |
 | `open.repo` | `gR` | open the repo under the cursor on GitHub |
-| `links.pick` |  | pick one of the session's PRs and issues to open in the browser |
-| `issue.add` `[url]` |  | link an issue to the session (its URL, or the copied one) |
+| `links.pick` | `gl` | pick one of the session's PRs and issues to open in the browser |
+| `issue.add` `[url]` | `gI` | link an issue to the session (its URL, or the copied one) |
 | `issue.remove` `[url]` |  | take an issue off the session |
 | `open.reader` | `<CR>` | read inbox item, issue or PR |
 | `cleanup.rules` |  | show the cleanup rules (Repos, with its rules panel) |
@@ -117,7 +117,8 @@ This page is generated from the code (`mise run shots`).
 | `mode.hint` | `f` | HINT: jump to anything |
 | `hint.insert` | `F` | jump and enter INSERT |
 | `command.submit` | `<CR>` (COMMAND) | run the command line |
-| `command.complete` | `<Tab>` (COMMAND) | complete |
+| `command.complete` | `<Tab>` (COMMAND), `<Down>` (COMMAND) | complete, or the next match |
+| `command.complete.prev` | `<S-Tab>` (COMMAND), `<Up>` (COMMAND) | the previous match |
 
 ## Selection
 
@@ -140,13 +141,14 @@ This page is generated from the code (`mise run shots`).
 | `feedback.send` | `s` (pr) | send queued feedback to the session |
 | `feedback.mode` |  | pilot.green, by its former name |
 | `feedback.watch` |  | pilot.watch, by its former name |
-| `pilot.why` |  | what holds the PR back from green, rule by rule (in the Watch view) |
+| `pilot.why` | `z?` | what holds the PR back from green, rule by rule (in the Watch view) |
 | `pilot.watch` | `zw` | watch or stop watching the PR (or the picked PRs) |
 | `pilot.green` | `zg` | cycle get it green for the PR: off, ask, auto |
-| `pilot.run` |  | show the session's running get it green / get it merged run |
+| `pilot.run` | `gb` | show the session's running get it green / get it merged run |
+| `pilot.run.stop` | `zx` | stop the session's running get it green / get it merged run |
 | `pilot.retry` | `zr` | one more round of get it green for a stalled PR (or the picked PRs) |
 | `pilot.copilot` | `C` (pr), `C` (watch) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |
-| `pilot.reviewers` |  | ask the PR's configured reviewers ([pilot] reviewers) to review it |
+| `pilot.reviewers` | `zv` | ask the PR's configured reviewers ([pilot] reviewers) to review it |
 | `pilot.merge` | `zm` | get it merged for the PR (or the picked PRs): off or auto |
 | `merge.run` `[repo|all]` | `R` (watch) | run a repo's merge queue now (no name: the PR's repo; all: every queue) |
 | `merge.queue` `[repo]` | `gM` | show a repo's merge queue and its runs (no name: the PR's repo) |

@@ -20,16 +20,20 @@ public enum DefaultKeys {
         ),
         ("<C-w>v", "pane.split.right"), ("<C-w>s", "pane.split.below"), ("<C-w>z", "pane.zoom"),
         ("<C-w>q", "pane.close"), ("<C-w>h", "pane.left"), ("<C-w>l", "pane.right"), ("<C-w>j", "pane.down"),
-        ("<C-w>k", "pane.up"),
+        ("<C-w>k", "pane.up"), ("<C-w>c", "tab.close"),
         ("gt", "tab.next"), ("gT", "tab.prev"), ("gn", "tab.new"),
         ("gs", "view.sessions"), ("gm", "view.inbox"), ("gi", "view.issues"), ("gp", "view.prs"),
-        ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), ("gd", "overlay.diff"), ("gS", "pr.session"),
+        ("gl", "links.pick"), ("gI", "issue.add"), ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), (
+            "gd",
+            "overlay.diff"
+        ), ("gS", "pr.session"),
         ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gR", "open.repo"), ("gU", "pr.track"), (
             "gC",
             "cleanup.sweep"
         ),
         ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"),
         // The pilot, the same keys everywhere: the PR under the cursor, the open PR, or the session's PRs.
+        ("z?", "pilot.why"), ("zv", "pilot.reviewers"), ("gb", "pilot.run"), ("zx", "pilot.run.stop"),
         ("zw", "pilot.watch"), ("zg", "pilot.green"), ("zm", "pilot.merge"), ("zp", "pilot.pause"), (
             "zr",
             "pilot.retry"
@@ -57,6 +61,7 @@ public enum DefaultKeys {
 
     public static let command: [(String, String)] = [
         ("<Esc>", "mode.normal"), ("<CR>", "command.submit"), ("<Tab>", "command.complete"),
+        ("<S-Tab>", "command.complete.prev"), ("<Down>", "command.complete"), ("<Up>", "command.complete.prev"),
         ("<D-/>", "overlay.help"),
     ]
 

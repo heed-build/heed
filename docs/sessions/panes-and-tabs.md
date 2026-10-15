@@ -15,7 +15,7 @@ A session's terminals are panes, arranged in tabs. Pane keys start with `⌃w`, 
 | `⌃w q` | Close the focused pane; the agent's pane asks first |
 | `gt` / `gT` | Next / previous tab |
 | `gn` | New tab with a shell (or click `+`) |
-| `:tab.close` | Close the tab and every pane in it (or click its `×`); a tab with the agent asks first |
+| `⌃w c` | Close the tab and every pane in it (or click its `×`); a tab with the agent asks first |
 
 ![After ⌃w v: the agent pane split, a new shell on the right](../images/shots/sessions/split.png)
 

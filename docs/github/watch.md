@@ -21,7 +21,7 @@ for each and a log of what it has done.
 ## Green
 
 A PR is **green** when GitHub has nothing left to object to in the code. The middle pane lists each rule with what it
-found, and `:pilot.why` jumps here for the PR you are on:
+found, and `z?` (`:pilot.why`) jumps here for the PR you are on:
 
 | Rule | Holds when |
 |---|---|
@@ -68,7 +68,7 @@ that is merely behind is the [merge queue](#get-it-merged)'s.
 ### Reviewers
 
 `reviewers` names who heed asks to review a PR once it is open and not a draft: logins, teams (`org/team`), and
-`copilot` for Copilot code review. Each is asked once per PR, never the PR's author. `:pilot.reviewers` asks now.
+`copilot` for Copilot code review. Each is asked once per PR, never the PR's author. `zv` (`:pilot.reviewers`) asks now.
 
 ## Three levels
 
@@ -146,6 +146,10 @@ with `--admin`.
 | `C` | Ask Copilot to resolve the PR's merge conflicts and address its review comments |
 | `zr` | Another round for a stalled PR |
 | `zp` | Pause or resume |
+| `z?` | Why the PR is not green, rule by rule |
+| `zv` | Ask the PR's reviewers now |
+| `gb` | Go to the session's running run |
+| `zx` | Stop the session's running run |
 | `v` | Select several, then `zp` pauses or resumes them all |
 | `r` | Sync now |
 | `R` | Run the PR's merge queue now |
@@ -169,12 +173,13 @@ By default get it green never types into your session's agent. Each round (heed 
 - **What it's told:** to fix what is listed, commit, and push to the pull request with `git push origin
   HEAD:<branch>`.
 - **The tab:** appended next to the session's own, named **get it green** (or **get it merged**). It never takes your
-  focus; its glyph in the tab strip is the run's state, and `:pilot.run` goes to it.
+  focus; its glyph in the tab strip is the run's state, and `gb` (`:pilot.run`) goes to it. `zx` (`:pilot.run.stop`)
+  stops it, as closing its tab does.
 
 When its agent finishes its turn (or exits, or runs past `run_timeout`), the run ends at once:
 
 1. its last screen is kept;
-2. what it did is recorded: pushed N commits, no changes, timed out, or stopped (you closed its tab);
+2. what it did is recorded: pushed N commits, no changes, timed out, or stopped (you closed its tab, or `zx`);
 3. its tab, worktree and `heed/…` branch are removed;
 4. your session's worktree is brought up to what it pushed, when it has no changes of its own.
 

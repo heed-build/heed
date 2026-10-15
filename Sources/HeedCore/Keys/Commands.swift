@@ -69,7 +69,7 @@ public enum Commands {
         .init("tab.new", "new tab with shell", .panes),
         .init("tab.go", "go to tab n", .panes, arguments: "<n>"),
         // Views & overlays
-        .init("view", "switch view", .views, arguments: "<sessions|inbox|issues|prs|repos|history>"),
+        .init("view", "switch view", .views, arguments: "<sessions|inbox|issues|prs|watch|repos|history>"),
         .init("view.sessions", "sessions", .views),
         .init("view.inbox", "inbox", .views),
         .init("view.issues", "issues", .views),
@@ -133,7 +133,8 @@ public enum Commands {
         .init("mode.hint", "HINT: jump to anything", .modes),
         .init("hint.insert", "jump and enter INSERT", .modes),
         .init("command.submit", "run the command line", .modes),
-        .init("command.complete", "complete", .modes),
+        .init("command.complete", "complete, or the next match", .modes),
+        .init("command.complete.prev", "the previous match", .modes),
         // Selection
         .init("select.toggle", "toggle row", .selection),
         .init("history.reopen", "reopen: resume, recreating the worktree if needed", .selection),
@@ -156,6 +157,7 @@ public enum Commands {
         .init("pilot.watch", "watch or stop watching the PR (or the picked PRs)", .selection),
         .init("pilot.green", "cycle get it green for the PR: off, ask, auto", .selection),
         .init("pilot.run", "show the session's running get it green / get it merged run", .selection),
+        .init("pilot.run.stop", "stop the session's running get it green / get it merged run", .selection),
         .init("pilot.retry", "one more round of get it green for a stalled PR (or the picked PRs)", .selection),
         .init(
             "pilot.copilot", "ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments",
@@ -205,8 +207,11 @@ public enum Commands {
 
     public static func spec(_ name: String) -> CommandSpec? { byName[name] }
 
+    /// Commands that only make sense as keys on the command line itself: `:` runs them but does not offer them.
+    public static let keyOnly: Set<String> = ["command.submit", "command.complete", "command.complete.prev"]
+
     /// Names that start with `prefix`, for `:` completion.
     public static func complete(_ prefix: String) -> [CommandSpec] {
-        all.filter { $0.name.hasPrefix(prefix) }
+        all.filter { $0.name.hasPrefix(prefix) && !keyOnly.contains($0.name) }
     }
 }

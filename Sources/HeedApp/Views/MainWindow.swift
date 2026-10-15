@@ -400,33 +400,9 @@ struct StatusBar: View {
         case .visual where model.view == .watch || model.view == .prs:
             "\(model.pickedIDs(model.view).count) selected · \(model.keyText(for: "pilot.pause")) pause or resume · space toggle · ⎋ cancel"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
-        case .command: "⇥ complete · ↩ run · ⎋ cancel"
+        case .command: "⇥ complete · ↑↓ choose · ↩ run · ⎋ cancel"
         case .hint: "type a label · ⎋ cancel"
         }
-    }
-}
-
-/// Key notation as key-cap text: `<C-w>v` reads `⌃w v`.
-enum KeyCapText {
-    static func of(_ notation: String) -> String {
-        guard let strokes = try? KeyNotation.parse(notation) else { return notation }
-        return of(strokes)
-    }
-
-    /// Runs of plain characters share a cap (`gg`, `'1`); a modified or named key stands alone (`⌃w v`).
-    static func of(_ strokes: [KeyStroke]) -> String {
-        var parts: [String] = []
-        var previousPlain = false
-        for stroke in strokes {
-            let plain = stroke.modifiers.isEmpty && !stroke.isNamed
-            if plain, previousPlain {
-                parts[parts.count - 1] += stroke.glyph
-            } else {
-                parts.append(stroke.glyph)
-            }
-            previousPlain = plain
-        }
-        return parts.joined(separator: " ")
     }
 }
 
@@ -435,16 +411,7 @@ struct CommandLineView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(model.commandCompletions, id: \.name) { spec in
-                HStack {
-                    Text(spec.name).font(Theme.mono(12))
-                    if let args = spec.arguments { Text(args).font(Theme.mono(12)).foregroundStyle(Theme.fg3) }
-                    Spacer()
-                    Text(spec.summary).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-            }
+            completions
             HStack(spacing: 0) {
                 Text(":").foregroundStyle(Theme.ask)
                 Text(model.commandText)
@@ -458,6 +425,54 @@ struct CommandLineView: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
         .shadow(color: .black.opacity(0.5), radius: 20).shotRegion(.commandLine)
+    }
+}
+
+extension CommandLineView {
+    private static let rowHeight: CGFloat = 22
+    private static let visibleRows = 10
+
+    /// Every match, ten rows tall at most and scrolled to the one ⇥ / ↓ took.
+    @ViewBuilder private var completions: some View {
+        let matches = model.commandCompletions
+        if !matches.isEmpty {
+            ScrollViewReader { proxy in
+                ListScroll {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // A shot draws what the window would show: the first ten (it cannot clip a list).
+                        let shown = ShotMode.active ? Array(matches.prefix(Self.visibleRows)) : matches
+                        ForEach(Array(shown.enumerated()), id: \.offset) { index, match in
+                            row(match, selected: index == model.completionIndex).id(index)
+                        }
+                    }
+                }
+                .frame(height: Self.rowHeight * CGFloat(min(matches.count, Self.visibleRows)))
+                .onChange(of: model.completionIndex) { _, index in
+                    if let index { proxy.scrollTo(index) }
+                }
+            }
+            Theme.line.frame(height: 1)
+        }
+    }
+
+    private func row(_ match: CommandCompletion, selected: Bool) -> some View {
+        HStack(spacing: 8) {
+            Text(match.label).font(Theme.mono(12)).lineLimit(1)
+            if let args = match.arguments { Text(args).font(Theme.mono(12)).foregroundStyle(Theme.fg3) }
+            if match.kind == .alias {
+                Text("alias").font(Theme.ui(10.5)).foregroundStyle(Theme.fg3)
+                    .padding(.horizontal, 4)
+                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.line))
+            }
+            Spacer(minLength: 12)
+            Text(match.summary).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.tail)
+            if match.kind == .command, let key = model.keyLabel(for: match.label) {
+                Text(key).font(Theme.mono(11)).foregroundStyle(Theme.fg2)
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: Self.rowHeight)
+        .background(selected ? Theme.selected : .clear)
     }
 }
 

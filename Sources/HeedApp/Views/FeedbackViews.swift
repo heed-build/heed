@@ -11,36 +11,57 @@ struct PullOverlayView: View {
                 HStack(spacing: 0) {
                     Color.black.opacity(0.45).frame(width: min(330, geometry.size.width * 0.25))
                     VStack(spacing: 0) {
-                        tabs(current: ref)
+                        tabs(current: ref, wide: geometry.size.width > 1100)
                         FeedbackPanel(ref: ref, wide: geometry.size.width > 1100)
                     }
+                    // Never wider than what is left of the window, however many PRs the tabs hold.
+                    .frame(minWidth: 0, maxWidth: .infinity)
+                    .clipped()
                     .background(Theme.bg)
                 }
             }
         }
     }
 
-    private func tabs(current: PullRef) -> some View {
+    /// The session's PRs scroll sideways when there are more than fit; the hints shorten on a narrow window.
+    private func tabs(current: PullRef, wide: Bool) -> some View {
         HStack(spacing: 10) {
-            ForEach(model.currentSession?.trackedPRs ?? [], id: \.self) { ref in
-                HStack(spacing: 6) {
-                    RepoChip(repo: ref.repo).fixedSize()
-                    Text(verbatim: "#\(ref.number)").font(Theme.mono(12))
-                        .foregroundStyle(ref == current ? Theme.fg : Theme.fg3)
+            ScrollViewReader { proxy in
+                ListScroll(.horizontal) {
+                    HStack(spacing: 10) {
+                        ForEach(model.currentSession?.trackedPRs ?? [], id: \.self) { ref in
+                            HStack(spacing: 6) {
+                                RepoChip(repo: ref.repo).fixedSize()
+                                Text(verbatim: "#\(ref.number)").font(Theme.mono(12))
+                                    .foregroundStyle(ref == current ? Theme.fg : Theme.fg3)
+                            }
+                            .fixedSize()
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8).strokeBorder(ref == current ? Theme.fg3 : .clear)
+                            )
+                            .id(ref)
+                        }
+                    }
+                    .frame(height: 51)
                 }
-                .fixedSize()
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 8).strokeBorder(ref == current ? Theme.fg3 : .clear))
+                .onAppear { proxy.scrollTo(current) }
+                .onChange(of: current) { proxy.scrollTo(current) }
             }
-            KeyCap(text: "]p")
-            KeyCap(text: "[p")
-            Text("PRs of this session").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-            Spacer()
-            KeyCap(text: "go")
-            Text("or").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-            KeyCap(text: "⎋")
-            Text("back to session").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            .clipped()
+            HStack(spacing: 10) {
+                KeyCap(text: "]p")
+                KeyCap(text: "[p")
+                if wide { Text("PRs of this session").font(Theme.ui(12)).foregroundStyle(Theme.fg3) }
+                Theme.line.frame(width: 1, height: 16).padding(.horizontal, 4)
+                KeyCap(text: "go")
+                Text("or").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                KeyCap(text: "⎋")
+                Text(wide ? "back to session" : "back").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            }
+            .fixedSize()
         }
         .padding(.horizontal, 20)
         .frame(height: 52)

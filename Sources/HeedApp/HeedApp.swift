@@ -21,6 +21,11 @@ struct HeedApp: App {
         .commands {
             // Keys are the mode engine's; the menu must not claim ⌘/ or other keys before it sees them.
             CommandGroup(replacing: .newItem) {}
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    delegate.host.current.perform(CommandInvocation(name: "update.check"))
+                }
+            }
             // No key equivalent: ⌘⇧T is the mode engine's, so it works from a terminal pane too.
             CommandGroup(replacing: .help) {
                 Button("Heed Tutor") { delegate.host.current.perform(CommandInvocation(name: "tutor")) }

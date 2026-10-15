@@ -16,6 +16,7 @@ public enum CommandAliases {
         case "back": return CommandInvocation(name: "tutor.back")
         case "skip": return CommandInvocation(name: "tutor.skip")
         case "q", "quit": return CommandInvocation(name: "app.quit")
+        case "update": return CommandInvocation(name: "update.check")
         default:
             if let view = ["sessions", "inbox", "issues", "prs", "watch", "repos", "history"]
                 .first(where: { $0 == typed.name })

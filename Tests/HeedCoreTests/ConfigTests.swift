@@ -161,4 +161,20 @@ struct OutsideWindowConfigTests {
         #expect(config?.showDockState == false)
         #expect(config?.globalActivate == "")
     }
+
+    @Test func updatesAreCheckedAndAskedAboutByDefault() {
+        #expect(HeedConfig.default.updates == UpdateSettings(check: true, install: .ask))
+        let (config, problems) = ConfigLoader.decode("""
+        [updates]
+        check = false
+        install = "auto"
+        """)
+        #expect(problems.isEmpty)
+        #expect(config?.updates == UpdateSettings(check: false, install: .auto))
+        let (_, bad) = ConfigLoader.decode("""
+        [updates]
+        install = "silently"
+        """)
+        #expect(bad.map(\.path) == ["updates.install"])
+    }
 }

@@ -18,3 +18,4 @@ Heed writes it with comments the first time it opens, showing every key with its
 - [Settings](settings.md): the Settings window, section by section.
 - [config.toml reference](reference.md): every key and its default.
 - [Finding git and gh](tools.md): how Heed finds the tools it runs.
+- [Updates](updates.md): how Heed updates itself, and how to turn it off.

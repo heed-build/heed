@@ -102,6 +102,7 @@ toc:
       - file: settings.md
       - file: reference.md
       - file: tools.md
+      - file: updates.md
   - folder: reference
     children:
       - file: index.md

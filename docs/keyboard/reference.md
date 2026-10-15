@@ -95,6 +95,7 @@ This page is generated from the code (`mise run shots`).
 | `tutor.back` |  | the tutor's previous step, the world as it was then |
 | `tutor.skip` |  | skip the tutor's step |
 | `tutor.exit` | `<D-.>`, `<D-.>` (INSERT) | leave the tutor; your sessions come back as they were |
+| `update.check` |  | look for a new version of heed now (also :update) |
 | `tools.detect` |  | find git and gh again (login shell PATH, usual places, [tools]) |
 | `app.quit` |  | quit Heed |
 | `settings.open` `[section]` | `<D-,>` | open Settings, on a section (general, agents, colors, cleanup, pilot, keys) |

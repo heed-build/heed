@@ -113,6 +113,13 @@ menu_bar = true
 # The Dock icon shows the same: a badge in the state's colour (blocked, else asking) with the count.
 dock_state = true
 
+[updates]
+# Look for a new version of heed once a day (on GitHub, heed's releases). Each update is signed; heed installs
+# only what its key signed, and Apple has notarized.
+check = true
+# ask: show what is new and install when you say so. auto: download in the background and install on quit.
+install = "ask"                    # ask | auto
+
 [tools]
 # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
 # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.

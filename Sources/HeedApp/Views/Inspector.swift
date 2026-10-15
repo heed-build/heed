@@ -110,6 +110,23 @@ struct Inspector: View {
                         }
                     }
                 }
+                let subagents = model.liveSubagents(of: session)
+                if !subagents.isEmpty {
+                    // What the agent has running on its behalf, oldest first; gone as each one stops.
+                    section {
+                        SectionHeader(title: "Subagents · \(subagents.count)")
+                        ForEach(subagents) { subagent in
+                            HStack(spacing: 8) {
+                                StateGlyph(state: .working)
+                                Text(subagent.type ?? "subagent").foregroundStyle(Theme.fg).lineLimit(1)
+                                Spacer(minLength: 4)
+                                Text(Ages.short(subagent.startedAt)).foregroundStyle(Theme.fg3)
+                            }
+                            .font(Theme.mono(11))
+                            .help(subagent.id)
+                        }
+                    }
+                }
                 section {
                     SectionHeader(title: "Agent events")
                     UsageLine(session: session)

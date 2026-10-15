@@ -6,13 +6,15 @@ description: "The inspector: the selected session's worktrees, its links (pull r
 
 The inspector, on the right of the Sessions view, shows the selected session's surroundings.
 
-![The inspector: worktrees with their upstream and status, links to pull requests and issues, agent events](../images/shots/sessions/inspector.png)
+![The inspector: worktrees with their upstream and status, links to pull requests and issues, runs, subagents, agent events](../images/shots/sessions/inspector.png)
 
 - **Worktrees**: each worktree's path, its upstream, how far ahead and behind it is, and whether it has uncommitted
   changes.
 - **Links**: the session's pull requests, then its issues. Open PRs come first, then merged, then closed; each shows
   its checks bar, its review state, and what heed is doing about it. A merged or closed PR shrinks to its name and
   title: there is nothing left to watch. Issues show their title and whether they are open.
+- **Subagents**: while the agent has subagents running (claude and codex), each one's type and how long it has run.
+  Each leaves the list as it stops. See [Subagents](../agents/hooks.md#subagents).
 - **Agent events**: first a line with the agent's model and what it used, as far as its
   [hooks](../agents/hooks.md#model-and-usage) tell: `claude · model-a · 12.3k in / 4.1k out · ≈$0.42 · ctx 38%`. Only
   the parts known show: input counts every token sent, cached or not; the cost is marked `≈` because it is an estimate;

@@ -89,8 +89,9 @@ struct TurnEndHookTests {
             == [.state(.working, reason: "2 background tasks")])
         #expect(AgentIntegration.claudeHook(event: "Stop", input: ["session_crons": [["id": "c"]]])
             == [.state(.idle, reason: "1 scheduled")])
+        // Nothing in the background: no subagent can still be running either.
         #expect(AgentIntegration.claudeHook(event: "Stop", input: ["background_tasks": [], "session_crons": []])
-            == [.state(.done, reason: nil)])
+            == [.subagentsEnded, .state(.done, reason: nil)])
         // A question still asks, background work or not.
         let asking: [String: Any] = ["last_assistant_message": "Should I wait?", "background_tasks": [1]]
         #expect(AgentIntegration.claudeHook(event: "Stop", input: asking) == [.guess(

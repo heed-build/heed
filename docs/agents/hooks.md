@@ -62,6 +62,33 @@ for your approval ("plan to approve"). A Claude turn that ends with background t
 notification, about a minute after a turn, only turns a working session idle: a done, asking or blocked session keeps
 what it said.
 
+## Subagents
+
+claude and codex spawn subagents (claude's `Explore`, `Plan`, `general-purpose` and your own agents; codex's
+multi-agent workers) and report when each starts and stops (`SubagentStart`, `SubagentStop`). Heed keeps the ones
+running per session, in memory only: the sidebar's agent line adds "· 2 subagents" and the
+[inspector](../sessions/inspector.md) lists them with their type and age.
+
+A subagent never decides the session's state on its own:
+
+- Its stop changes nothing. Its last words are its answer to the agent that spawned it, so a question there is not one
+  to you, and the session's turn is not over.
+- A permission prompt inside a subagent blocks the session, as any prompt does. Only that subagent's next step clears
+  it; another subagent's tool calls do not, and none clear a prompt or question of the main thread.
+- When the main thread ends its turn while subagents still run (in the background), the session stays **working**,
+  with the reason "2 subagents running".
+
+A subagent's tool calls carry its id (claude's `agent_id`), which marks it running even when its start was missed. The
+list empties when the agent exits, when a Claude turn ends with nothing left in the background, and for any subagent
+not heard from in two hours. opencode runs subagents as child sessions, pi and cursor have none: Heed does not track
+them for those agents.
+
+| Agent | Subagents |
+|---|---|
+| claude | `SubagentStart`, `SubagentStop`, and `agent_id` on hooks inside one |
+| codex | `SubagentStart`, `SubagentStop` |
+| opencode, pi, cursor | not tracked |
+
 ## Pull requests the agent opens
 
 The same hooks tell Heed when the agent opens a pull request, so its session tracks it at once, in whatever repo it is

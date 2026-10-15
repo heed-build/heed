@@ -36,7 +36,8 @@ struct Sidebar: View {
                                         label: Self.showsLabel(section.group, model.sessionPilot(session))
                                             ? model.watchLabel(of: session) : nil,
                                         hostColor: session.host.flatMap { model.config.hosts[$0]?.color },
-                                        hostLink: session.host.map { model.hostStatus($0) }
+                                        hostLink: session.host.map { model.hostStatus($0) },
+                                        subagents: model.liveSubagents(of: session).count
                                     )
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.clickSession(session.id) }
@@ -142,6 +143,8 @@ struct SessionRow: View {
     /// For a session on a host: its colour (`[hosts.x] color`) and how the link stands.
     var hostColor: String?
     var hostLink: HostStatus?
+    /// Subagents its agent has running, appended to the agent's line.
+    var subagents = 0
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -176,7 +179,8 @@ struct SessionRow: View {
                 if label == nil || group == .pinned {
                     // Working: the spinner says it, so just the agent; the command it runs changes with every
                     // hook and would make the list jump. Always one line, whatever the state says.
-                    Text(session.state.state == .working ? session.agent : "\(session.agent) · \(session.activity)")
+                    Text((session.state.state == .working ? session.agent : "\(session.agent) · \(session.activity)")
+                        + (subagents > 0 ? " · \(subagents) subagent\(subagents == 1 ? "" : "s")" : ""))
                         .font(Theme.ui(11.5))
                         .foregroundStyle(Theme.fg3)
                         .lineLimit(1)

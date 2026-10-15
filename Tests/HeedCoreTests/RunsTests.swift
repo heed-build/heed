@@ -20,6 +20,15 @@ struct RunsTests {
         #expect(prompt.contains("git push origin HEAD:fix-a") && prompt.hasSuffix("Fix lint"))
     }
 
+    @Test func aRunsRootIsExpandedHereAndLeftForTheHost() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        #expect(Runs.worktreeRoot(local: "~/code/wt", host: nil, hosts: [:]) == home + "/code/wt")
+        #expect(Runs.worktreeRoot(local: "/wt", host: nil, hosts: [:]) == "/wt")
+        let hosts = ["devbox": HostConfig(name: "devbox", worktreeRoot: "~/src/wt")]
+        #expect(Runs.worktreeRoot(local: "~/code/wt", host: "devbox", hosts: hosts) == "~/src/wt")
+        #expect(Runs.worktreeRoot(local: "~/code/wt", host: "gpu", hosts: hosts) == "~/code/wt")
+    }
+
     @Test func goalsEndingsAndOutcomes() {
         #expect(Runs.goal(for: .failing(1)) == .green && Runs.goal(for: .conflicted("x")) == .merged)
         #expect(Runs.goal(for: .green) == nil)

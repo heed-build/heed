@@ -88,6 +88,14 @@ public enum Runs {
 
     public static func branch(_ goal: RunGoal, prBranch: String) -> String { "\(prefix)\(goal.slug)/\(prBranch)" }
 
+    /// The root run worktrees go under: the host's `worktree_root` as written (its `~` is the host's home, expanded
+    /// there), else this Mac's, expanded (a raw `~/code/wt` is a folder named `~` under `/`, the read-only system
+    /// volume).
+    public static func worktreeRoot(local: String, host: String?, hosts: [String: HostConfig]) -> String {
+        if let host { return hosts[host]?.worktreeRoot ?? "~/code/wt" }
+        return Paths.expand(local)
+    }
+
     /// `<root>/heed/<repo>/get-it-green-fix-a`.
     public static func worktreePath(root: String, repo: Repo, goal: RunGoal, prBranch: String) -> String {
         "\(root)/heed/\(repo.name)/\(goal.slug)-\(prBranch.replacingOccurrences(of: "/", with: "-"))"

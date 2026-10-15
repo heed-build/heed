@@ -199,3 +199,17 @@ struct RunBaseWorktreeTests {
         #expect(Runs.baseWorktree(for: ref, headBranch: "fix-a", owned: [], all: [loose]) == nil)
     }
 }
+
+struct RunCloneTests {
+    @Test func aPROpenedElsewhereStillFindsTheRepo() {
+        let upstream = Repo(org: "elastic", name: "docs-builder")
+        let ref = PullRef(repo: upstream, number: 1)
+        let local = RepoRecord(repo: upstream, path: "/code/docs-builder")
+        let onHost = RepoRecord(repo: upstream, path: "/home/me/docs-builder", location: .host("devbox"))
+        let fork = RepoRecord(repo: Repo(org: "me", name: "docs-builder"), path: "/code/fork")
+        #expect(Runs.clone(for: ref, in: [onHost, local], at: .local) == local)
+        #expect(Runs.clone(for: ref, in: [local, onHost], at: .host("devbox")) == onHost)
+        #expect(Runs.clone(for: ref, in: [fork], at: .local) == fork)
+        #expect(Runs.clone(for: ref, in: [RepoRecord(repo: Repo(org: "o", name: "x"), path: "/x")], at: .local) == nil)
+    }
+}

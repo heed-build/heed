@@ -128,6 +128,14 @@ public enum Runs {
             ?? owned.first
     }
 
+    /// The clone a run runs git from when no worktree is a good base (the PR was opened from elsewhere): the repo's
+    /// own, else one with its name (a fork's), on the session's machine first.
+    public static func clone(for ref: PullRef, in repos: [RepoRecord], at location: Location) -> RepoRecord? {
+        let here = repos.filter { $0.location == location }
+        return here.first { $0.repo == ref.repo } ?? here.first { $0.repo.name == ref.repo.name }
+            ?? repos.first { $0.repo == ref.repo } ?? repos.first { $0.repo.name == ref.repo.name }
+    }
+
     /// What a PR needs a run for: its checks and reviews, or its conflicts with the base.
     public static func goal(for status: PilotStatus) -> RunGoal? {
         switch status {

@@ -1048,7 +1048,7 @@ final class AppModel {
         let worktree: String
         let branch: String
         let prBranch: String
-        let mainPath: String
+        let mainPath: String?
         /// Its agent has worked: idle after this means its turn is over.
         var worked = false
     }
@@ -3637,15 +3637,22 @@ final class AppModel {
         }
         guard let agent = self.settings.agent(agentName) else { return fail("no agent \(agentName)") }
         let headBranch = github.pull(ref)?.headBranch
-        guard let main = Runs.baseWorktree(
+        // A run makes its own worktree from the remote branch: it needs a clone to run git from, not a worktree on the
+        // PR's branch (a PR is often opened from another worktree). The base worktree when there is one, else the
+        // repo's clone.
+        let main = Runs.baseWorktree(
             for: ref, headBranch: headBranch, owned: worktrees.filter { session.owns($0) }, all: worktrees
-        ) else {
-            return fail("the session has no worktree, and none is on \(headBranch ?? "the PR's branch")")
+        )
+        let record: RepoRecord
+        if let main {
+            record = repos.first { $0.repo == main.repo && $0.location == main.location }
+                ?? RepoRecord(repo: main.repo, path: main.path, location: main.location)
+        } else if let clone = Runs.clone(for: ref, in: repos, at: session.location) {
+            record = clone
+        } else {
+            return fail("\(ref.repo.name) is not cloned on this Mac")
         }
-        // git runs from the repo's checkout when heed lists it, else from the worktree itself (any worktree will do).
-        let record = repos.first { $0.repo == main.repo && $0.location == main.location }
-            ?? RepoRecord(repo: main.repo, path: main.path, location: main.location)
-        guard let prBranch = github.pull(ref)?.headBranch ?? main.branch else { return fail("no branch") }
+        guard let prBranch = headBranch ?? main?.branch else { return fail("no branch for #\(ref.number)") }
         let root = Runs.worktreeRoot(local: self.settings.worktreeRoot, host: session.host, hosts: config.hosts)
         let branch = Runs.branch(goal, prBranch: prBranch)
         let startSHA = await Git.remoteSHA(record, branch: prBranch)
@@ -3693,7 +3700,9 @@ final class AppModel {
         commit(.runUpdated(run))
         liveRuns[run.id] = LiveRun(
             runID: run.id, ref: ref, sessionID: session.id, tabID: tab.id, paneID: pane.id, record: record,
-            worktree: worktree, branch: branch, prBranch: prBranch, mainPath: main.path
+            worktree: worktree, branch: branch, prBranch: prBranch,
+            // Caught up afterwards only when it is on the PR's branch: otherwise nothing of yours has what it pushed.
+            mainPath: main?.branch == prBranch ? main?.path : nil
         )
         runStates[pane.id] = .working
         TerminalSurfaces.shared.autostartPanes.insert(pane.id)
@@ -3726,7 +3735,7 @@ final class AppModel {
                 0
             }
             await Git.removeWorktree(live.record, path: live.worktree, branch: live.branch)
-            await Git.fastForwardIfClean(at: live.mainPath, on: live.record.location)
+            if let main = live.mainPath { await Git.fastForwardIfClean(at: main, on: live.record.location) }
             guard var run = runs.first(where: { $0.id == id }) else { return }
             run.endedAt = Date()
             run.outcome = forced ?? Runs.outcome(before: before, after: after, commits: count)
@@ -3782,7 +3791,7 @@ final class AppModel {
                 liveRuns[run.id] = LiveRun(
                     runID: run.id, ref: ref, sessionID: sessionID, tabID: tab.id, paneID: pane.id,
                     record: RepoRecord(repo: ref.repo, path: ""), worktree: run.worktree, branch: run.branch,
-                    prBranch: run.prBranch, mainPath: ""
+                    prBranch: run.prBranch, mainPath: nil
                 )
                 runStates[pane.id] = .working
             }

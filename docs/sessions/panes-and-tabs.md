@@ -56,6 +56,21 @@ when it passed, a red square when it failed.
 test = "dotnet test"
 ```
 
+`!` (`:task.run`) runs any task of the session's worktree in a new tab of the same kind. The picker lists the pinned
+tasks, then what heed finds in the worktree, each marked with where it comes from:
+
+- **mise**: the repo's own tasks from `mise tasks ls`, not global or hidden ones, run with `mise run`. A mise config
+  that is not trusted yet offers none, and the picker says so.
+- **make**: the Makefile's targets, with the description from a `target: ## Description` comment, run with `make`.
+- **package.json**: its scripts, without install and publish hooks or a script's `pre` and `post` hooks, run with the
+  repo's package manager: `pnpm run`, `bun run` or `yarn` by its lockfile, else `npm run`.
+
+![!: the session's tasks, pinned and found in its worktree](../images/shots/sessions/task-picker.png)
+
+Type to narrow the list, `↩` runs the task under the cursor. What a worktree offers is read the first time the picker
+opens on it; `⌃r` in the picker (`:task.refresh`) reads it again, after a branch added a target or you trusted a mise
+config. `:task.run <name>` runs one by name without the picker.
+
 ## Zoom
 
 ![⌃w z: the agent pane filling the center](../images/shots/sessions/zoom.png)

@@ -85,15 +85,49 @@ public struct BranchPrefixes: Hashable, Sendable, Codable {
     }
 }
 
-/// A repo's pinned task: test, build, docs preview.
+/// A task a worktree can run in a tab of its own: test, build, docs preview. Pinned ones come from config; the others
+/// are discovered in the worktree (mise tasks, make targets, package.json scripts).
 public struct TaskSpec: Hashable, Sendable, Codable {
     public var name: String
     public var command: String
+    /// Where it comes from, shown beside it in the picker.
+    public var source: TaskSource
+    /// What it does, when its source says (a mise description, a make target's `## comment`).
+    public var detail: String?
 
-    public init(name: String, command: String) {
+    public init(name: String, command: String, source: TaskSource = .config, detail: String? = nil) {
         self.name = name
         self.command = command
+        self.source = source
+        self.detail = detail
     }
+
+    private enum CodingKeys: String, CodingKey { case name, command, source, detail }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        command = try container.decode(String.self, forKey: .command)
+        source = try container.decodeIfPresent(TaskSource.self, forKey: .source) ?? .config
+        detail = try container.decodeIfPresent(String.self, forKey: .detail)
+    }
+
+    /// The pane that runs it: its exit code reported to heed, which sets the tab's glyph.
+    public func pane(directory: String, location: Location = .local) -> PaneSpec {
+        PaneSpec(
+            role: .task, title: name, directory: directory,
+            command: "\(command); \"${HEED_BIN:-true}\" task-exit $?", location: location
+        )
+    }
+}
+
+/// Where a task comes from.
+public enum TaskSource: String, Sendable, Codable, CaseIterable {
+    /// `[repos."org/name".tasks]`.
+    case config
+    case mise
+    case make
+    case packageJSON = "package.json"
 }
 
 public enum Paths {
@@ -431,10 +465,7 @@ public enum StartWork {
         }
         let primaryRepo = worktrees.first?.repo
         let taskTabs = (primaryRepo.flatMap { tasks[$0.slug] } ?? []).map { task in
-            PaneTab(title: task.name, tree: .leaf(PaneSpec(
-                role: .task, title: task.name, directory: primary,
-                command: "\(task.command); \"${HEED_BIN:-true}\" task-exit $?", location: location
-            )))
+            PaneTab(title: task.name, tree: .leaf(task.pane(directory: primary, location: location)))
         }
         let extra = worktrees.dropFirst().map { worktree in
             PaneTab(title: worktree.repo.name, tree: .leaf(PaneSpec(

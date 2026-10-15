@@ -79,6 +79,34 @@ struct RunsTests {
         #expect(HeedConfig.default.pilot.defaults.agent == nil && HeedConfig.default.pilot.defaults.runTimeout == 1800)
     }
 
+    @Test func conflictRunsTakeTheirOwnAgentAndModel() {
+        let (config, problems) = ConfigLoader.decode("""
+        [pilot]
+        agent = "codex"
+        model = "gpt-5-codex"
+        merge_model = "gpt-5-mini"
+        [repos."o/r"]
+        merge_agent = "Claude"
+        merge_model = "haiku"
+        [repos."o/s"]
+        merge_agent = "claude"
+        merge_model = ""
+        """)
+        #expect(problems.isEmpty)
+        let pilot = config?.pilot ?? PilotRules()
+        let defaults = pilot.resolve(Repo(org: "o", name: "other"))
+        #expect(defaults.runAgent(for: .green) == ("codex", "gpt-5-codex"))
+        #expect(defaults.runAgent(for: .merged) == ("codex", "gpt-5-mini"))
+        #expect(pilot.resolve(Repo(org: "o", name: "r")).runAgent(for: .merged) == ("claude", "haiku"))
+        // A conflict agent of its own does not take the default model, which belongs to another agent.
+        let own = PilotSettings()
+        var withAgent = own
+        withAgent.model = "gpt-5-codex"
+        withAgent.mergeAgent = "claude"
+        #expect(withAgent.runAgent(for: .merged) == ("claude", nil))
+        #expect(own.runAgent(for: .merged) == (nil, nil))
+    }
+
     @Test func runInDefaultsToBackgroundAndIsOverridable() {
         let (config, problems) = ConfigLoader.decode("""
         [orgs.o]

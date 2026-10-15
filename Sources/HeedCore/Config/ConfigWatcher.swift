@@ -53,6 +53,13 @@ public final class ConfigWatcher: @unchecked Sendable {
     }
 
     /// Changes one value in place (comments and layout kept) and writes the file; the watcher then reloads it.
+    /// Removes the key at `path` (an override going back to what it inherits), keeping the rest of the file.
+    public static func remove(_ path: [String], in file: URL) throws {
+        guard let text = try? String(contentsOf: file, encoding: .utf8) else { return }
+        let document = try TOMLDocument(text)
+        try document.removing(path).write(to: file, atomically: true, encoding: .utf8)
+    }
+
     public static func set(_ path: [String], to value: TOMLValue, in file: URL) throws {
         let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ConfigLoader.defaultSource
         let document = try TOMLDocument(text)

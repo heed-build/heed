@@ -112,6 +112,68 @@ public enum Git {
         )
     }
 
+    /// A companion worktree for a helper tab, on its own branch `companionBranch` (git checks a branch out once, and
+    /// the PR's is in the session's worktree), started at the remote's tip of `branch` and tracking it. The helper
+    /// pushes to the PR's branch with `git push origin HEAD:<branch>`. Returns its real path.
+    public static func addCompanion(
+        _ record: RepoRecord, path: String, branch: String, companionBranch: String
+    ) async throws -> String {
+        let location = record.location
+        _ = try? await ProcessRunner.run(
+            on: location, "git", ["-C", record.path, "fetch", "origin", branch], timeout: .seconds(30)
+        )
+        let hasRemote = await (try? ProcessRunner.run(
+            on: location, "git", ["-C", record.path, "rev-parse", "--verify", "--quiet", "origin/\(branch)"],
+            timeout: .seconds(5)
+        ))?.succeeded ?? false
+        let parent = (path as NSString).deletingLastPathComponent
+        if location.isLocal {
+            try FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
+        } else {
+            _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", parent])
+        }
+        _ = try await ProcessRunner.output(
+            on: location, "git",
+            // -B: a branch left behind by an earlier helper starts over.
+            ["-C", record.path, "worktree", "add", "-B", companionBranch, path, hasRemote ? "origin/\(branch)" : branch]
+        )
+        if hasRemote {
+            _ = try? await ProcessRunner.run(
+                on: location, "git", ["-C", path, "branch", "--set-upstream-to", "origin/\(branch)"],
+                timeout: .seconds(5)
+            )
+        }
+        let top = try await ProcessRunner.output(on: location, "git", ["-C", path, "rev-parse", "--show-toplevel"])
+        return top.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Removes a worktree heed made for itself (a helper's companion), changes and all, and its branch.
+    public static func removeWorktree(_ record: RepoRecord, path: String, branch: String? = nil) async {
+        _ = try? await ProcessRunner.run(
+            on: record.location, "git", ["-C", record.path, "worktree", "remove", "--force", path],
+            timeout: .seconds(30)
+        )
+        if let branch {
+            _ = try? await ProcessRunner.run(
+                on: record.location, "git", ["-C", record.path, "branch", "-D", branch], timeout: .seconds(10)
+            )
+        }
+    }
+
+    /// Brings a worktree up to its upstream when it has no changes of its own and can fast-forward (after a helper
+    /// pushed to its branch). True when it moved.
+    @discardableResult
+    public static func fastForwardIfClean(at path: String, on location: Location = .local) async -> Bool {
+        guard let status = try? await self.status(at: path, on: location),
+              status.changedFiles == 0, status.untrackedFiles == 0, status.ahead == 0
+        else { return false }
+        _ = try? await ProcessRunner.run(on: location, "git", ["-C", path, "fetch"], timeout: .seconds(30))
+        let result = try? await ProcessRunner.run(
+            on: location, "git", ["-C", path, "merge", "--ff-only", "@{u}"], timeout: .seconds(30)
+        )
+        return result?.succeeded ?? false
+    }
+
     /// Re-adds a worktree for an existing local `branch` (a reopened session whose worktree was cleaned up).
     public static func restoreWorktree(_ record: RepoRecord, path: String, branch: String) async throws -> Worktree {
         try FileManager.default.createDirectory(

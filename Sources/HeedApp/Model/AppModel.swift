@@ -1027,7 +1027,15 @@ final class AppModel {
         let tabID: String
         let paneID: String
         let goal: HelperGoal
+        /// Its companion checkout, removed when the tab closes; and the session's worktree it sits beside.
+        var companion: String?
+        var companionBranch: String?
+        var record: RepoRecord?
+        var mainPath: String?
     }
+
+    /// PRs whose helper's companion is being made (async), so one is not made twice.
+    private var spawningHelpers: Set<String> = []
 
     private(set) var helpers: [String: HelperTab] = [:]
     /// Each helper pane's own state, from its hooks; never the session's.
@@ -1185,7 +1193,9 @@ final class AppModel {
         worktreeCount = counts.values.reduce(0, +)
         let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
         let filter = filter(for: .repos)
-        let added = worktrees.filter { !$0.isMain }
+        // A helper's companion checkout is heed's own, not yours to import or clean up.
+        let companions = Set(helpers.values.compactMap(\.companion))
+        let added = worktrees.filter { !$0.isMain && !companions.contains($0.path) }
         let roots = settings.pathRoots
         let matching = filter.isEmpty ? added : added.filter { worktree in
             FilterQuery.matches(filter, [
@@ -2209,7 +2219,10 @@ final class AppModel {
 
     private func openImportPicker() {
         let rank = Dictionary(sortedRepos.enumerated().map { ($1.id, $0) }) { first, _ in first }
-        let candidates = worktrees.filter { session(for: $0) == nil && $0.location.isLocal }.sorted {
+        let companions = Set(helpers.values.compactMap(\.companion))
+        let candidates = worktrees.filter {
+            session(for: $0) == nil && $0.location.isLocal && !companions.contains($0.path)
+        }.sorted {
             if $0.isMain != $1.isMain { return !$0.isMain }
             return $0.repo.slug == $1.repo.slug ? $0.path < $1.path
                 : (rank[$0.repo.slug] ?? .max, $0.repo.slug) < (rank[$1.repo.slug] ?? .max, $1.repo.slug)
@@ -3566,23 +3579,47 @@ final class AppModel {
 
     // MARK: Helper tabs
 
-    /// Sends a PR's feedback to its helper tab: typed into the one it has once that is idle, else a new tab ("get it
-    /// green", "get it merged") with the session's agent started on the prompt, in the PR's worktree. The tab is
-    /// appended without being selected: nothing takes your focus. Returns the goal, or nil when its helper is busy.
-    private func sendToHelper(_ ref: PullRef, prompt: String, session: Session) -> HelperGoal? {
-        if let helper = helpers[ref.description],
-           layouts[helper.sessionID]?.tabs.contains(where: { $0.id == helper.tabID }) == true
-        {
-            guard HelperTabs.canClose(helperStates[helper.paneID]) else { return nil }
-            TerminalSurfaces.shared.typeLine(prompt, paneID: helper.paneID)
-            helperStates[helper.paneID] = .working
-            return helper.goal
+    /// A PR's helper, while its tab is still there.
+    private func liveHelper(_ ref: PullRef) -> HelperTab? {
+        guard let helper = helpers[ref.description],
+              layouts[helper.sessionID]?.tabs.contains(where: { $0.id == helper.tabID }) == true
+        else { return nil }
+        return helper
+    }
+
+    /// The next round, typed into the PR's helper once it is idle. False while it works.
+    private func typeIntoHelper(_ ref: PullRef, prompt: String) -> Bool {
+        guard let helper = liveHelper(ref), HelperTabs.canClose(helperStates[helper.paneID]) else { return false }
+        TerminalSurfaces.shared.typeLine(prompt, paneID: helper.paneID)
+        helperStates[helper.paneID] = .working
+        return true
+    }
+
+    /// A helper for a PR while you work in its session: a companion checkout of its branch beside the session's
+    /// worktree, and a tab ("get it green", "get it merged") running the session's agent there on the prompt. The tab
+    /// is appended without being selected: nothing takes your focus. False when the companion could not be made.
+    private func spawnCompanionHelper(_ ref: PullRef, prompt: String, sessionID: String) async -> Bool {
+        guard let session = sessions.first(where: { $0.id == sessionID }),
+              let agent = settings.agent(session.agent),
+              let main = worktrees.first(where: { session.owns($0) && $0.repo == ref.repo }),
+              let record = repos.first(where: { $0.repo == ref.repo && $0.location == main.location }),
+              let branch = github.pull(ref)?.headBranch ?? main.branch
+        else {
+            logPilot(ref, .waiting, "no worktree of \(ref.repo.name) to put a helper beside")
+            return false
         }
-        helpers[ref.description] = nil
         let goal = HelperTabs.goal(for: pilotStatus(for: ref)) ?? .green
-        guard let agent = settings.agent(session.agent), var layout = layouts[session.id] else { return nil }
-        let directory = worktrees.first { session.owns($0) && $0.repo == ref.repo }?.path
-            ?? worktrees.first { session.owns($0) }?.path ?? NSHomeDirectory()
+        let companion: String
+        do {
+            companion = try await Git.addCompanion(
+                record, path: HelperTabs.companionPath(worktree: main.path, goal: goal), branch: branch,
+                companionBranch: HelperTabs.companionBranch(branch, goal: goal)
+            )
+        } catch {
+            logPilot(ref, .waiting, "could not make a companion worktree: \(error)")
+            return false
+        }
+        guard var layout = layouts[session.id] else { return false }
         let files: IntegrationFiles? = if let host = session.host {
             if case let .connected(info) = hostStatus(host), let home = info.home {
                 hostIntegration(home: home).integration
@@ -3594,7 +3631,7 @@ final class AppModel {
         }
         let agentSession = UUID().uuidString.lowercased()
         let command = agent.launchCommand(
-            prompt: prompt,
+            prompt: HelperTabs.companionPrompt(prompt, branch: branch, goal: goal),
             extraArguments: files.map { AgentIntegration.launchArguments(
                 agent: agent,
                 sessionID: agentSession,
@@ -3604,7 +3641,7 @@ final class AppModel {
             environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
         )
         let pane = PaneSpec(
-            role: .helper, title: goal.rawValue, directory: directory, command: command, location: session.location
+            role: .helper, title: goal.rawValue, directory: companion, command: command, location: session.location
         )
         let tab = PaneTab(
             title: HelperTabs.title(goal, ref: ref, pullCount: session.trackedPRs.count),
@@ -3612,12 +3649,15 @@ final class AppModel {
         )
         layout.tabs.append(tab)
         commit(.layoutChanged(session: session.id, layout))
-        helpers[ref.description] = HelperTab(sessionID: session.id, tabID: tab.id, paneID: pane.id, goal: goal)
+        helpers[ref.description] = HelperTab(
+            sessionID: session.id, tabID: tab.id, paneID: pane.id, goal: goal, companion: companion,
+            companionBranch: HelperTabs.companionBranch(branch, goal: goal), record: record, mainPath: main.path
+        )
         helperStates[pane.id] = .working
         TerminalSurfaces.shared.autostartPanes.insert(pane.id)
         TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
-        logPilot(ref, .watch, "\(goal.rawValue): opened a tab with \(session.agent)")
-        return goal
+        logPilot(ref, .watch, "\(goal.rawValue): a tab with \(session.agent) in its own worktree")
+        return true
     }
 
     /// Closes helper tabs whose PR is done (green, or merged), once their agent is not mid-turn; forgets ones you
@@ -3636,6 +3676,19 @@ final class AppModel {
                   HelperTabs.canClose(helperStates[helper.paneID])
             else { continue }
             TerminalSurfaces.shared.close(paneID: helper.paneID)
+            if let companion = helper.companion, let record = helper.record {
+                // The companion goes; the session's worktree catches up with what the helper pushed, when it can.
+                Task {
+                    await Git.removeWorktree(record, path: companion, branch: helper.companionBranch)
+                    if let main = helper.mainPath, await Git.fastForwardIfClean(at: main, on: record.location) {
+                        logPilot(
+                            ref,
+                            .updated,
+                            "\(main.split(separator: "/").last ?? ""): brought up to date with the helper's push"
+                        )
+                    }
+                }
+            }
             layout.removeTab(at: index)
             commit(.layoutChanged(session: helper.sessionID, layout))
             helpers[key] = nil
@@ -3693,6 +3746,40 @@ final class AppModel {
         }
         // Asked for (zg): the short grace. On its own: not until you have left the session for `send_after_idle`.
         let grace = explicit ? 20 : effective.watching ? pilotSettings(for: ref).sendAfterIdle : 20
+        // `send_to = "tab"`: its helper keeps it; while you work in the session, a helper in a companion worktree, at
+        // once (it touches nothing of yours); once you have stepped away, the session's own agent, as below.
+        if pilotSettings(for: ref).sendTo == .tab {
+            let youAreThere = lastTyped[session.id].map { Date().timeIntervalSince($0) < max(grace, 20) } ?? false
+            switch HelperTabs.route(hasHelper: liveHelper(ref) != nil, youAreThere: youAreThere) {
+            case .existingHelper:
+                guard !isFixture else { return flash = "fixture: no IO" }
+                guard typeIntoHelper(ref, prompt: prompt) else {
+                    pendingDelivery.insert(ref)
+                    logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: its helper tab is working")
+                    return
+                }
+                markSent(ref, pipeline: &pipeline, session: &session, to: "its helper tab")
+                return
+            case .companionHelper:
+                guard !isFixture else { return flash = "fixture: no IO" }
+                guard !spawningHelpers.contains(ref.description) else { return }
+                spawningHelpers.insert(ref.description)
+                Task {
+                    defer { spawningHelpers.remove(ref.description) }
+                    guard await spawnCompanionHelper(ref, prompt: prompt, sessionID: session.id),
+                          var pipeline = feedback[ref.description],
+                          var session = sessions.first(where: { $0.id == session.id })
+                    else {
+                        pendingDelivery.insert(ref)
+                        return
+                    }
+                    markSent(ref, pipeline: &pipeline, session: &session, to: "a helper in its own worktree")
+                }
+                return
+            case .sessionAgent:
+                break
+            }
+        }
         switch Delivery.verdict(state: session.state.state, lastTyped: lastTyped[session.id], typingGrace: grace) {
         case let .wait(reason):
             pendingDelivery.insert(ref)
@@ -3708,30 +3795,20 @@ final class AppModel {
                 }
                 return
             }
-            let toTab = pilotSettings(for: ref).sendTo == .tab
-            if toTab {
-                guard let goal = sendToHelper(ref, prompt: prompt, session: session) else {
-                    pendingDelivery.insert(ref)
-                    logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: its helper tab is working")
-                    return
-                }
-                session.record("\(goal.rawValue): a tab of its own")
-            } else {
-                TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
-            }
-            pendingDelivery.remove(ref)
-            let count = pipeline.queued.count
-            pipeline.markSent(at: pullDetails[ref.description]?.headSHA)
-            session.record("sent \(count) feedback item\(count == 1 ? "" : "s") for #\(ref.number)")
-            commit([.feedbackChanged(pipeline), .sessionUpserted(session)])
-            logPilot(
-                ref,
-                .sent,
-                "sent \(count) item\(count == 1 ? "" : "s") to \(toTab ? "its helper tab" : session.agent) "
-                    + "(round \(pipeline.rounds))"
-            )
-            flash = "sent \(count) item\(count == 1 ? "" : "s") to \(session.title)"
+            TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
+            markSent(ref, pipeline: &pipeline, session: &session, to: session.agent)
         }
+    }
+
+    /// The queued items went out: the pipeline counts a round, the session and the pilot log say where to.
+    private func markSent(_ ref: PullRef, pipeline: inout PullFeedback, session: inout Session, to target: String) {
+        pendingDelivery.remove(ref)
+        let count = pipeline.queued.count
+        pipeline.markSent(at: pullDetails[ref.description]?.headSHA)
+        session.record("sent \(count) feedback item\(count == 1 ? "" : "s") for #\(ref.number) to \(target)")
+        commit([.feedbackChanged(pipeline), .sessionUpserted(session)])
+        logPilot(ref, .sent, "sent \(count) item\(count == 1 ? "" : "s") to \(target) (round \(pipeline.rounds))")
+        flash = "sent \(count) item\(count == 1 ? "" : "s") to \(target)"
     }
 
     // MARK: Copilot resolves conflicts

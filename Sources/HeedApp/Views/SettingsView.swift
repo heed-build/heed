@@ -94,6 +94,19 @@ struct SettingsView: View {
     }
 }
 
+/// A group of settings on a page: its name over a rule.
+private struct GroupLabel: View {
+    let title: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SectionHeader(title: title)
+            Theme.line.frame(height: 1)
+        }
+        .padding(.top, 10)
+    }
+}
+
 /// A labelled row.
 private struct Field<Content: View>: View {
     let label: String
@@ -151,6 +164,7 @@ private struct GeneralSettings: View {
         let work = model.config.work
         VStack(alignment: .leading, spacing: 16) {
             Text("General").font(Theme.ui(17, weight: .semibold))
+            GroupLabel(title: "Sessions")
             Field(label: "Default agent") {
                 Picker("", selection: Binding(
                     get: { work.defaultAgent }, set: { model.setConfig(["sessions", "default_agent"], .string($0)) }
@@ -187,6 +201,7 @@ private struct GeneralSettings: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
             }
+            GroupLabel(title: "Outside the window")
             Field(
                 label: "Menu bar item",
                 detail: "How many sessions need you, those sessions, Start work and Open Heed. With it on, closing the window keeps Heed running."
@@ -207,6 +222,7 @@ private struct GeneralSettings: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
             }
+            GroupLabel(title: "GitHub")
             Field(label: "GitHub poll", detail: "Seconds between gh syncs.") {
                 Stepper(value: Binding(
                     get: { model.config.githubPollSeconds },
@@ -231,6 +247,7 @@ private struct GeneralSettings: View {
                 .labelsHidden()
                 .frame(width: 220)
             }
+            GroupLabel(title: "Tools")
             Field(label: "git", detail: "Empty detects it. A path, or a name looked up on the search path.") {
                 ConfigTextField(path: ["tools", "git"], value: model.config.tools.git)
             }
@@ -315,6 +332,7 @@ private struct PilotSettingsView: View {
             Text("Pilot").font(Theme.ui(17, weight: .semibold))
             Text("What heed does with the PRs your sessions track. The Watch view (gw) shows them, and what it did.")
                 .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+            GroupLabel(title: "Watching")
             Field(
                 label: "Watch PRs",
                 detail: "Follow their review threads and failing checks. Read-only, so on; w turns it off for one PR."
@@ -323,6 +341,7 @@ private struct PilotSettingsView: View {
                     get: { pilot.defaults.watch }, set: { model.setConfig(["pilot", "watch"], .bool($0)) }
                 )).labelsHidden()
             }
+            GroupLabel(title: "Get it green")
             Field(
                 label: "Get it green",
                 detail: "Off shows what a PR collects; Ask waits for you to queue it; Auto sends it once the agent is idle."
@@ -376,6 +395,7 @@ private struct PilotSettingsView: View {
                     value: pilot.defaults.pause.map(PilotDuration.text) ?? "forever"
                 )
             }
+            GroupLabel(title: "Get it merged")
             Field(
                 label: "Get it merged",
                 detail: "Auto turns on GitHub's auto-merge once nothing fails; heed merges itself once its rules hold. zm cycles one PR."
@@ -430,6 +450,7 @@ private struct PilotSettingsView: View {
                     set: { model.setConfig(["pilot", "update_branches"], .bool($0)) }
                 )).labelsHidden()
             }
+            GroupLabel(title: "Copilot and reviewers")
             Field(
                 label: "Copilot: conflicts",
                 detail: "Ask GitHub's Copilot coding agent on the PR to resolve merge conflicts, sparing your agent's "
@@ -474,12 +495,14 @@ private struct CleanupSettings: View {
         let rule = model.config.cleanup
         VStack(alignment: .leading, spacing: 16) {
             Text("Worktrees & cleanup").font(Theme.ui(17, weight: .semibold))
+            GroupLabel(title: "Worktrees")
             Field(label: "Worktree root", detail: "New worktrees go to <root>/<repo>/<name>.") {
                 ConfigTextField(path: ["worktrees", "root"], value: model.config.work.worktreeRoot)
             }
             Field(label: "Repo roots", detail: "Comma separated; scanned two levels deep.") {
                 RootsField(roots: model.config.work.repoRoots)
             }
+            GroupLabel(title: "Cleanup")
             Field(
                 label: "Remove idle worktrees",
                 detail: "No agent output, keystrokes, commits or PR events for this long."

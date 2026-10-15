@@ -19,7 +19,8 @@ The sidebar lists every open session, grouped so that whatever needs you is near
 
 Each row shows the session's state glyph, its worktree's name (hover it for the title from the prompt), its repos (one chip per worktree, then one per repo it opened a
 PR in), the agent (and, when it is not working, what it waits on: the spinner says it is working), and how many pull
-requests it tracks. The numbers on the left are relative to
+requests it tracks. Once its agent has reported usage, the agent's line also names the model it runs (shortened:
+`claude · model-a · ctx 38%`) and, while it works, how full its context is, in amber from 80%. The numbers on the left are relative to
 the cursor, as in vim: the number on a row is how many `j` or `k` presses away it is.
 
 Click a session to select it; double-click it to type into its agent (INSERT). Rows in the other lists (Watch,

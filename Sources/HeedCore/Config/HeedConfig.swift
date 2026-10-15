@@ -34,6 +34,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var hosts: [String: HostConfig] = [:]
     /// `[updates]`: whether heed looks for a new version, and whether it asks before installing one.
     public var updates = UpdateSettings()
+    /// `[usage]`: whether the inspector shows a cost, and the prices it estimates one from.
+    public var usage = UsageSettings()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -80,6 +82,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.issues == rhs.issues,
             lhs.pilot == rhs.pilot,
             lhs.hosts == rhs.hosts,
+            lhs.usage == rhs.usage,
         ]
         return !same.contains(false)
     }
@@ -506,6 +509,18 @@ public enum ConfigLoader {
                 problems.append(ConfigProblem(path: "updates.install", message: "expected ask or auto"))
             }
         }
+        // [usage]
+        if let flag = bool(["usage", "show_cost"]) { config.usage.showCost = flag }
+        for (prefix, text) in pairs(["usage", "prices"]) {
+            if let price = UsagePrices.Price(parsing: text) {
+                config.usage.prices.byPrefix[prefix] = price
+            } else {
+                problems.append(ConfigProblem(
+                    path: "usage.prices.\(prefix)",
+                    message: "expected \"input / output\" or \"input / output / cache read / cache write\", USD per million tokens"
+                ))
+            }
+        }
 
         if let keys = root.value(at: ["keys"])?.table {
             for name in keys.keys where !["insert_escape", "global_start_work", "global_activate"].contains(name) {
@@ -670,6 +685,16 @@ public enum ConfigLoader {
     check = true
     # ask: show what is new and install when you say so. auto: download in the background and install on quit.
     install = "ask"                    # ask | auto
+
+    [usage]
+    # The inspector shows each session's model and tokens, as its agent's hooks report them, and a cost marked ≈: what
+    # the agent reported (opencode), else an estimate from the prices below. false leaves the cost out.
+    show_cost = true
+    # USD per million tokens, by model name prefix (the longest match wins): "input / output", or
+    # "input / output / cache read / cache write" (cache defaults: a tenth of input to read, 1.25× to write). None are
+    # built in, so with none set only reported costs show.
+    [usage.prices]
+    # "model-a" = "3 / 15"
 
     [tools]
     # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places

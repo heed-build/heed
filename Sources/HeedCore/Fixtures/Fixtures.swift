@@ -100,7 +100,7 @@ public enum Fixtures {
         let repos = [docsBuilder, docsContent, mermaider, editorconfig, ingest].map {
             RepoRecord(repo: $0, path: "\(root)/\($0.name)", defaultBranch: "main")
         }
-        let sessions = [
+        var sessions = [
             Session(
                 id: "s1", title: "Fix broken anchors in redirects",
                 prompt: "Fix broken anchors in redirects.yml. Every redirect target must resolve to a real heading."
@@ -155,6 +155,11 @@ public enum Fixtures {
                 return session
             }(),
         ]
+        // What the first session's agent used, as its hooks reported it (the inspector's agent line).
+        sessions[0].usage = AgentUsage(
+            model: "model-a", tokens: TokenCounts(input: 1840, output: 4120, cacheRead: 9870, cacheWrite: 610),
+            costUSD: 0.42, contextTokens: 76000, contextWindow: 200_000
+        )
         var worktrees: [Worktree] = []
         var layouts: [String: SessionLayout] = [:]
         for session in sessions {
@@ -310,7 +315,7 @@ public enum Fixtures {
         func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
         func run(
             _ id: String, _ ref: PullRef, _ session: String, agent: String, model: String?, started: Double,
-            minutes: Double?, items: Int, outcome: PilotRun.Outcome?, screen: String? = nil
+            minutes: Double?, items: Int, outcome: PilotRun.Outcome?, usage: AgentUsage? = nil, screen: String? = nil
         ) -> PilotRun {
             let branch = ref.number == 412 ? "bump-spec-tests" : "fix-anchors-redirects"
             var run = PilotRun(
@@ -323,6 +328,7 @@ public enum Fixtures {
                 run.outcome = outcome
                 run.screen = screen
             }
+            run.usage = usage
             return run
         }
         let anchors = PullRef(repo: docsBuilder, number: 2841)
@@ -348,6 +354,7 @@ public enum Fixtures {
                 minutes: 6,
                 items: 3,
                 outcome: .pushed(2),
+                usage: AgentUsage(tokens: TokenCounts(input: 21400, output: 3800, cacheRead: 64000), costUSD: 0.18),
                 screen: """
                 ✓ Fixed the anchor slugs in redirects.yml (2 files)
                 ✓ lint passes locally

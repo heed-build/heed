@@ -731,6 +731,14 @@ final class AppModel {
                 let setup = settings.setup.commands(for: live.ref.repo) ?? []
                 return endRun(id, outcome: .failed(WorktreeSetup.failureReason(setup)))
             }
+            // What its agent used goes on the run's record, not the session's.
+            if case let .usage(report) = message.kind, var run = runs.first(where: { $0.id == id }) {
+                let usage = (run.usage ?? AgentUsage()).applying(report)
+                guard usage != run.usage else { return }
+                run.usage = usage
+                commit(.runUpdated(run))
+                return
+            }
             // A run's turn is over when it ends, question or not: nobody is there to answer it.
             let reported: AgentState? = switch message.kind {
             case let .state(state, _): state
@@ -748,7 +756,7 @@ final class AppModel {
         }
         switch message.kind {
         case .state, .guess, .atPrompt:
-            let next: ObservedState = switch message.kind {
+            var next: ObservedState = switch message.kind {
             case let .state(state, reason): session.state.accepting(ObservedState(state, reason: reason))
             case let .guess(state, reason): session.state.guessing(state, reason: reason)
             default: session.state.atPrompt()
@@ -759,6 +767,10 @@ final class AppModel {
             case let .state(state, _) where state != next.state: return
             case .guess where next == session.state, .atPrompt where next == session.state: return
             default: break
+            }
+            // Rate limited, with its reset known (the hook sends usage first): say when it lifts.
+            if case .state(.limited, _) = message.kind, let resets = session.usage?.resetText(now: message.sentAt) {
+                next.reason = "\(next.reason ?? "rate limited") · \(resets)"
             }
             let state = next.state, reason = next.reason
             session.state = next
@@ -807,6 +819,10 @@ final class AppModel {
         case let .taskExit(code):
             if let pane = message.pane { taskResults[pane] = code }
             return
+        case let .usage(report):
+            let usage = (session.usage ?? AgentUsage()).applying(report)
+            guard usage != session.usage else { return }
+            session.usage = usage
         }
         commit(.sessionUpserted(session))
     }

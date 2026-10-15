@@ -158,6 +158,16 @@ check = true
 # ask: show what is new and install when you say so. auto: download in the background and install on quit.
 install = "ask"                    # ask | auto
 
+[usage]
+# The inspector shows each session's model and tokens, as its agent's hooks report them, and a cost marked ≈: what
+# the agent reported (opencode), else an estimate from the prices below. false leaves the cost out.
+show_cost = true
+# USD per million tokens, by model name prefix (the longest match wins): "input / output", or
+# "input / output / cache read / cache write" (cache defaults: a tenth of input to read, 1.25× to write). None are
+# built in, so with none set only reported costs show.
+[usage.prices]
+# "model-a" = "3 / 15"
+
 [tools]
 # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
 # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.

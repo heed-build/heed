@@ -56,6 +56,8 @@ public struct PilotRun: Identifiable, Hashable, Sendable, Codable {
     public let startSHA: String?
     /// The last lines of its screen when it ended.
     public var screen: String?
+    /// The model its agent actually ran and what it used, as its hooks report (`model` is the one it was asked for).
+    public var usage: AgentUsage?
 
     public init(
         id: String = UUID().uuidString.lowercased(), ref: PullRef, sessionID: String, goal: RunGoal, agent: String,

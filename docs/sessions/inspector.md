@@ -9,7 +9,8 @@ The inspector, on the right of the Sessions view, shows the selected session's s
 ![The inspector: worktrees with their upstream and status, links to pull requests and issues, runs, subagents, agent events](../images/shots/sessions/inspector.png)
 
 - **Worktrees**: each worktree's path, its upstream, how far ahead and behind it is, and whether it has uncommitted
-  changes.
+  changes. Commits not pushed (`↑`) show in amber and uncommitted files (`~`) brighter, when there are any, as on the
+  sidebar's chips.
 - **Links**: the session's pull requests, then its issues. Open PRs come first, then merged, then closed; each shows
   its checks bar, its review state, and what heed is doing about it. A merged or closed PR shrinks to its name and
   title: there is nothing left to watch. Issues show their title and whether they are open.
@@ -36,6 +37,11 @@ A session's issues come from three places:
 - the issues its PRs close, as GitHub reports them;
 - `heed issue add <url>` from the agent, or `gI` (`:issue.add <url>`; the copied URL when you give none).
   `:issue.remove` takes one off.
+
+A PR with a [run](../github/watch.md#runs) working on it says so on its card: the agent and model, the round, how long,
+and the key to its tab (`gb`), with the last line of the run's screen under it. Click the box to go to the tab.
+
+![A PR card with a get it green run working on it](../images/shots/sessions/run-card.png)
 
 With no PR and no issue yet, the inspector says what comes next. A pushed branch offers **Open a PR on GitHub**, the
 compare page for the branch.

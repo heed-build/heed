@@ -217,10 +217,11 @@ struct WorktreeStatusLine: View {
             } else if status.upstream == nil {
                 Text("local").foregroundStyle(Theme.block)
             }
-            Text("↑\(status.ahead)").foregroundStyle(status.ahead > 0 ? Theme.done : Theme.fg3)
+            // Coloured like the session row's pending chips: unpushed commits amber, uncommitted files bright.
+            Text("↑\(status.ahead)").foregroundStyle(status.ahead > 0 ? Theme.block : Theme.fg3)
             Text("↓\(status.behind)").foregroundStyle(status.behind > 0 ? Theme.busy : Theme.fg3)
             Text("~\(status.changedFiles + status.untrackedFiles)")
-                .foregroundStyle(status.isDirty ? Theme.block : Theme.fg3)
+                .foregroundStyle(status.isDirty ? Theme.fg : Theme.fg3)
         }
         .font(Theme.mono(11.5))
     }
@@ -303,12 +304,27 @@ private struct LinkCard: View {
             let watching = model.pilot(for: ref).watching
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 PilotMark(status: model.pilotStatus(for: ref), compact: true)
-                Text(pull == nil && watching ? "waiting for the next sync" : model.pilotLine(for: ref))
-                    .foregroundStyle(watching ? Theme.fg2 : Theme.fg3)
-                    .fixedSize(horizontal: false, vertical: true)
+                Text(pull == nil && watching ? "waiting for the next sync" : model.pilotLine(
+                    for: ref,
+                    mentionsRun: false
+                ))
+                .foregroundStyle(watching ? Theme.fg2 : Theme.fg3)
+                .fixedSize(horizontal: false, vertical: true)
             }
             .font(Theme.mono(11))
             PilotPlanLine(ref: ref)
+        }
+        if let run = model.workingRun(for: ref) {
+            RunCardBox(
+                run: run,
+                round: model.round(of: run),
+                lastLine: model.lastLine(of: run),
+                key: model.keyText(for: "pilot.run")
+            )
+            .contentShape(Rectangle())
+            // Its tab, not the PR overlay the rest of the card opens.
+            .onTapGesture { model.open(run: run) }
+            .help("Go to the run's tab")
         }
     }
 
@@ -369,6 +385,44 @@ private struct UsageLine: View {
             "Output \(AgentUsage.count(tokens.output))",
             reported ? "≈ cost as the agent reported it" : "≈ cost estimated from [usage.prices]",
         ].joined(separator: "\n")
+    }
+}
+
+/// A run working on a PR, on its card: who, which round, how long and the key to its tab, then the last line of its
+/// screen.
+struct RunCardBox: View {
+    let run: PilotRun
+    let round: Int?
+    let lastLine: String?
+    let key: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                StateGlyph(state: .working, size: 10)
+                // A long model name gives way first: the round and how long always show.
+                Text(verbatim: "run · \(run.model.map { "\(run.agent) \($0)" } ?? run.agent)")
+                    .foregroundStyle(Theme.busy)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                TimelineView(.periodic(from: run.startedAt, by: 30)) { _ in
+                    Text(verbatim: ([round.map { "round \($0)" }, RunRow.duration(run)].compactMap(\.self))
+                        .map { "· \($0)" }.joined(separator: " "))
+                        .foregroundStyle(Theme.busy)
+                        .fixedSize()
+                }
+                Spacer(minLength: 0)
+                KeyCap(text: key)
+            }
+            if let lastLine {
+                Text(verbatim: "› \(lastLine)").foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.tail)
+                    .padding(.leading, 16)
+            }
+        }
+        .font(Theme.mono(11))
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.busy.opacity(0.08)))
     }
 }
 

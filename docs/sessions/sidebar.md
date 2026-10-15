@@ -20,8 +20,15 @@ The sidebar lists every open session, grouped so that whatever needs you is near
 Each row shows the session's state glyph, its worktree's name (hover it for the title from the prompt), its repos (one chip per worktree, then one per repo it opened a
 PR in), the agent (and, when it is not working, what it waits on: the spinner says it is working), and how many pull
 requests it tracks. Once its agent has reported usage, the agent's line also names the model it runs (shortened:
-`claude · model-a · ctx 38%`) and, while it works, how full its context is, in amber from 80%. The numbers on the left are relative to
+`claude · model-a · ctx 38%`) and, while it works, how full its context is, in amber from 80%. Work not shared yet
+shows as chips on the first line: `↑2` in amber for commits not pushed, `~3` for files not committed, summed over the
+session's worktrees and only when there are any (hovering `↑` says when no PR carries those commits yet). The numbers
+on the left are relative to
 the cursor, as in vim: the number on a row is how many `j` or `k` presses away it is.
+
+A session with a get it green or get it merged [run](../github/watch.md#runs) working gets a second row under it, in
+any group: `↳`, the goal and PR (`get it green #412`), how long it has run, then its agent and model and the last line
+of its screen. Click it to go to the run's tab. The rail leaves it out.
 
 Click a session to select it; double-click it to type into its agent (INSERT). Rows in the other lists (Watch,
 Inbox, Issues, PRs, Repos, History) take clicks the same way: a click moves the cursor there, a double-click opens the

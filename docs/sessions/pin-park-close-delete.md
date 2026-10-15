@@ -19,7 +19,7 @@ Both ask before doing anything, and say exactly what will happen. `y` or `↩` g
 
 ![Closing a working session: its agent will stop, the worktree stays](../images/shots/sessions/close-confirm.png)
 
-![Deleting a session: its two worktrees and their local branches will be removed](../images/shots/sessions/delete-confirm.png)
+![Deleting a session: one worktree and its local branch will be removed, the one with uncommitted changes is kept](../images/shots/sessions/delete-confirm.png)
 
 Deleting never removes a worktree with uncommitted changes or unpushed commits: the dialog lists those under **Kept**,
 with the reason.

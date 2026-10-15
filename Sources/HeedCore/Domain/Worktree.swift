@@ -129,3 +129,26 @@ public enum RepoOrder {
         }
     }
 }
+
+/// What a session has not shared yet, summed over its worktrees: commits ahead of their upstream and files changed
+/// or untracked. A worktree listed twice (under two repos, e.g. a fork's clone) counts once.
+public struct PendingChanges: Hashable, Sendable {
+    public var ahead = 0
+    public var dirty = 0
+
+    public init(ahead: Int = 0, dirty: Int = 0) {
+        self.ahead = ahead
+        self.dirty = dirty
+    }
+
+    public init(_ worktrees: [Worktree]) {
+        var seen: Set<String> = []
+        for worktree in worktrees where seen.insert("\(worktree.location.label)\u{0}\(worktree.path)").inserted {
+            guard let status = worktree.status else { continue }
+            ahead += status.ahead
+            dirty += status.changedFiles + status.untrackedFiles
+        }
+    }
+
+    public var isEmpty: Bool { ahead == 0 && dirty == 0 }
+}

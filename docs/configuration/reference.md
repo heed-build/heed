@@ -44,8 +44,9 @@ continue_prompt = "Continue where you left off."
 # Open a shell split beside the agent in new sessions (Start work can still toggle it per session).
 shell_split = false
 # Keep every pane's terminal alive in a zmx session, so agents keep running when heed quits, restarts or updates,
-# and come back as they were: none (panes end with heed) or zmx.
-persist = "none"
+# and come back as they were: auto (zmx when it is installed and works; Settings > General shows its check),
+# zmx, or none (panes end with heed).
+persist = "auto"
 
 [cleanup]
 # Automatic cleanup, off by default. When on, worktrees with no activity (agent output, keystrokes, commits, PR

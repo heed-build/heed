@@ -26,8 +26,9 @@ struct ZmxTests {
     @Test func persistIsReadFromSessions() throws {
         let (on, _) = ConfigLoader.decode("[sessions]\npersist = \"zmx\"")
         #expect(try #require(on).work.persist == .zmx)
-        let (off, _) = ConfigLoader.decode("")
-        #expect(try #require(off).work.persist == PanePersistence.none)
+        // Unset: auto (zmx when it works).
+        let (unset, _) = ConfigLoader.decode("")
+        #expect(try #require(unset).work.persist == .auto)
         let (_, problems) = ConfigLoader.decode("[sessions]\npersist = \"tmux\"")
         #expect(problems.map(\.path) == ["sessions.persist"])
     }

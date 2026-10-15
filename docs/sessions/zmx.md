@@ -4,11 +4,10 @@ description: Keep agents running when Heed quits, restarts or updates, with zmx.
 
 # Agents that outlive Heed
 
-By default a pane's terminal belongs to Heed: quitting Heed stops the agents in it, and the next launch
-[resumes](resume.md) them from their own history. With `persist = "zmx"`, every pane runs in a
-[zmx](https://zmx.sh) session instead, and Heed attaches to it. Quitting, restarting or updating Heed leaves the
-agents running, mid-turn if they were, and the next launch reattaches: same screen, same scrollback, nothing typed
-again.
+Install [zmx](https://zmx.sh) and every pane runs in a zmx session that Heed attaches to. Quitting, restarting or
+updating Heed leaves the agents running, mid-turn if they were, and the next launch reattaches: same screen, same
+scrollback, nothing typed again. Without zmx, a pane's terminal belongs to Heed: quitting stops its agent, and the
+next launch [resumes](resume.md) it from its own history.
 
 zmx is yours to install; Heed does not ship it. On this Mac:
 
@@ -16,21 +15,26 @@ zmx is yours to install; Heed does not ship it. On this Mac:
 brew install neurosnap/tap/zmx
 ```
 
-(or any way [zmx.sh](https://zmx.sh) describes). Then:
+(or any way [zmx.sh](https://zmx.sh) describes). Heed picks it up on its own:
 
 ```toml
 [sessions]
-persist = "zmx"    # none (the default) or zmx
+persist = "auto"   # the default: zmx when it is installed and works; zmx to insist, none to turn it off
+
+[tools]
+zmx = ""           # empty: found like git and gh (Homebrew, ~/.local/bin, your PATH); or a path
 ```
 
-Heed finds zmx on your PATH like `git` and `gh` (`heed tools` shows where). With `persist = "zmx"` and no zmx installed,
-panes stay plain shells and Heed says how to install it.
+**Settings › General › Tools** shows zmx's check, next to git and gh: where it found zmx, its version, and whether it
+works the way Heed uses it (`zmx version`, then listing Heed's own sessions). It also says whether panes run in zmx
+because of it. With `auto`, a zmx that is missing or fails its check leaves panes as plain shells. With `zmx`, Heed
+uses it whenever it is there, and says how to install it when it is not.
 
 The setting applies to panes opened from then on; panes already open keep going as they are until they close.
 
 ## What changes
 
-| | `none` | `zmx` |
+| | without zmx (`none`) | with zmx |
 |---|---|---|
 | Quit Heed with agents working | Asks first; the agents stop | Quits; the agents keep going |
 | Next launch | Resume dialog: each agent restarts from its history | Panes reattach to the running agents; only ones that are gone (after a reboot) resume |

@@ -37,7 +37,8 @@ struct Sidebar: View {
                                             ? model.watchLabel(of: session) : nil,
                                         hostColor: session.host.flatMap { model.config.hosts[$0]?.color },
                                         hostLink: session.host.map { model.hostStatus($0) },
-                                        subagents: model.liveSubagents(of: session).count
+                                        subagents: model.liveSubagents(of: session).count,
+                                        pending: model.pendingChanges(of: session)
                                     )
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.clickSession(session.id) }
@@ -48,6 +49,13 @@ struct Sidebar: View {
                                         model.sessionMenu(session.id)
                                     }
                                     .id(session.id)
+                                    // A get it green / get it merged run working for it, under it in any group.
+                                    if let run = model.workingRun(for: session) {
+                                        RunChildRow(run: run, lastLine: model.lastLine(of: run))
+                                            .contentShape(Rectangle())
+                                            .onTapGesture { model.open(run: run) }
+                                            .help("Go to the run's tab")
+                                    }
                                 }
                             }
                             // The tutor lights this group when it is about what needs you.
@@ -145,6 +153,8 @@ struct SessionRow: View {
     var hostLink: HostStatus?
     /// Subagents its agent has running, appended to the agent's line.
     var subagents = 0
+    /// Commits ahead and files changed over its worktrees: the `↑N` and `~N` chips.
+    var pending = PendingChanges()
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -163,6 +173,7 @@ struct SessionRow: View {
                         .truncationMode(.middle)
                         .help(session.title)
                     Spacer(minLength: 4)
+                    PendingChips(pending: pending, hasPR: !session.trackedPRs.isEmpty)
                     if let pinNumber { KeyCap(text: "'\(pinNumber)") }
                     if let pilot, pilot != .unwatched { PilotMark(status: pilot, compact: true) }
                     if let host = session.host { HostChip(location: .host(host), color: hostColor) }
@@ -246,6 +257,73 @@ struct SessionRow: View {
     private var isStalled: Bool { if case .stalled = pilot { true } else { false } }
     /// One line plus heed's label: Watching, unless the cursor is on it.
     private var compact: Bool { group == .watching && !isCursor }
+}
+
+/// `↑3 ~2` on a session's row: commits not pushed (amber) and files not committed, each only when there are any.
+/// Commits with no PR to carry them say so on hover.
+struct PendingChips: View {
+    let pending: PendingChanges
+    let hasPR: Bool
+
+    var body: some View {
+        if pending.ahead > 0 {
+            chip("↑\(pending.ahead)", Theme.block)
+                .help(hasPR
+                    ? "\(pending.ahead) commit\(pending.ahead == 1 ? "" : "s") not pushed"
+                    : "\(pending.ahead) commit\(pending.ahead == 1 ? "" : "s"), no PR yet")
+        }
+        if pending.dirty > 0 {
+            chip("~\(pending.dirty)", Theme.fg2)
+                .help("\(pending.dirty) file\(pending.dirty == 1 ? "" : "s") not committed")
+        }
+    }
+
+    private func chip(_ text: String, _ tint: Color) -> some View {
+        Text(text)
+            .font(Theme.mono(10.5))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 5)
+            .background(RoundedRectangle(cornerRadius: 4).fill(tint.opacity(0.14)))
+            .fixedSize()
+    }
+}
+
+/// A run working for a session, under its row: `↳`, the goal and PR in heed's blue, how long, then who runs it and
+/// the last line of its screen.
+struct RunChildRow: View {
+    let run: PilotRun
+    let lastLine: String?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text("↳").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+            StateGlyph(state: .working, size: 10).padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(verbatim: "\(run.goal.rawValue) #\(run.ref.number)")
+                        .font(Theme.ui(12, weight: .medium))
+                        .foregroundStyle(Theme.busy)
+                    Spacer(minLength: 4)
+                    TimelineView(.periodic(from: run.startedAt, by: 30)) { _ in
+                        Text(RunRow.duration(run)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                    }
+                }
+                Text(verbatim: ([run.model.map { "\(run.agent) \($0)" } ?? run.agent] + [lastLine].compactMap(\.self))
+                    .joined(separator: " · "))
+                    .font(Theme.ui(11))
+                    .foregroundStyle(Theme.fg3)
+                    .truncationMode(.tail)
+            }
+        }
+        .lineLimit(1)
+        .padding(.leading, 40)
+        .padding(.trailing, 12)
+        .padding(.vertical, 6)
+        .background(Theme.busy.opacity(0.05))
+        .overlay(alignment: .leading) {
+            Theme.busy.opacity(0.5).frame(width: 2).padding(.vertical, 2).padding(.leading, 32)
+        }
+    }
 }
 
 private struct FlowChips: View {

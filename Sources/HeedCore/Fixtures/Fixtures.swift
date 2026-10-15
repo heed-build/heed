@@ -173,9 +173,16 @@ public enum Fixtures {
                 continue
             }
             for repo in session.repos {
+                var status = WorktreeStatus(upstream: "origin/\(session.branch)")
+                // Work not shared yet, for the rows' pending chips: s1 has files to commit, s6 a commit and files.
+                switch (session.id, repo) {
+                case ("s1", docsBuilder): status.changedFiles = 2
+                case ("s6", _): (status.ahead, status.changedFiles, status.untrackedFiles) = (1, 3, 1)
+                default: break
+                }
                 worktrees.append(Worktree(
                     repo: repo, path: "\(root)/wt/\(repo.name)/\(session.branch)", branch: session.branch,
-                    head: "0000000", isMain: false, status: WorktreeStatus(upstream: "origin/\(session.branch)")
+                    head: "0000000", isMain: false, status: status
                 ))
             }
             layouts[session.id] = SessionLayout(tabs: tabs(for: session, root: root))

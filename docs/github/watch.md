@@ -200,6 +200,10 @@ By default get it green never types into your session's agent. Each round (heed 
   focus; its glyph in the tab strip is the run's state, and `gb` (`:pilot.run`) goes to it. `zx` (`:pilot.run.stop`)
   stops it, as closing its tab does.
 
+While it works, it shows in three places: a row under its session in the sidebar (the goal and PR, how long, its agent
+and the last line of its screen), a box on the PR's card in the inspector (also with the round and the key to its tab),
+and the PR's line in Watch (`a codex run is on it (4m)`). Clicking the row or the box goes to its tab.
+
 When its agent finishes its turn (or exits, or runs past `run_timeout`), the run ends at once:
 
 1. its last screen is kept;

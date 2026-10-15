@@ -333,6 +333,11 @@ final class AppModel {
     private static let fromScreen = "from the screen"
 
     private func readScreens() async {
+        // Each live run's last line, for the sidebar and the PR card; set only when it changed.
+        for (id, live) in liveRuns {
+            let line = TerminalSurfaces.shared.visibleText(paneID: live.paneID).flatMap(Runs.lastLine)
+            if runLastLines[id] != line { runLastLines[id] = line }
+        }
         var work: [(String, String, ScreenGuess.Patterns, Set<AgentState>)] = []
         for session in sessions {
             guard let agent = settings.agent(session.agent) else { continue }
@@ -1179,6 +1184,8 @@ final class AppModel {
     }
 
     private(set) var liveRuns: [String: LiveRun] = [:]
+    /// Each live run's last screen line (`Runs.lastLine`), read with the agents' screens.
+    private(set) var runLastLines: [String: String] = [:]
     /// Each run pane's own state, from its hooks; never the session's.
     private(set) var runStates: [String: AgentState] = [:]
     /// PRs whose run is being started (async), so one is not started twice.
@@ -3861,7 +3868,8 @@ final class AppModel {
     }
 
     /// The one line that says what the pilot is doing for a PR: the inspector's PR card, the Watch view's detail.
-    func pilotLine(for ref: PullRef) -> String {
+    /// `mentionsRun` adds a live run ("a codex run is on it (4m)"); the PR card shows the run in a box of its own.
+    func pilotLine(for ref: PullRef, mentionsRun: Bool = true) -> String {
         let effective = pilot(for: ref)
         let pipeline = feedback[ref.description]
         // Merged or closed, nothing is left to watch: saying "watching" made it look still running.
@@ -3886,6 +3894,9 @@ final class AppModel {
             if pipeline
                 .rounds >
                 0 { parts.append("round \(min(pipeline.rounds, effective.maxRounds)) of \(effective.maxRounds)") }
+        }
+        if mentionsRun, let run = workingRun(for: ref) {
+            parts.append("a \(run.agent) run is on it (\(RunRow.duration(run)))")
         }
         if case let .stuck(reason) = pilotStatus(for: ref) { parts.append("stuck: \(reason)") }
         if pendingDelivery.contains(ref),
@@ -4298,6 +4309,7 @@ final class AppModel {
     /// one (timed out, stopped); otherwise it is what the remote branch shows.
     private func endRun(_ id: String, outcome forced: PilotRun.Outcome? = nil) {
         guard let live = liveRuns.removeValue(forKey: id) else { return }
+        runLastLines[id] = nil
         let screen = TerminalSurfaces.shared.visibleText(paneID: live.paneID).map { text in
             text.split(separator: "\n", omittingEmptySubsequences: false).suffix(40).joined(separator: "\n")
         }
@@ -4416,6 +4428,32 @@ final class AppModel {
         guard let (id, live) = pick else { return flash = "no run working here" }
         endRun(id, outcome: .stopped)
         flash = "stopped the run on \(live.ref.repo.name)#\(live.ref.number)"
+    }
+
+    /// A session's run working now (its tab open): the child row under it in the sidebar.
+    func workingRun(for session: Session) -> PilotRun? {
+        runs.first { $0.sessionID == session.id && $0.isRunning && liveRuns[$0.id] != nil }
+    }
+
+    /// A PR's run working now: the box on its card in the inspector.
+    func workingRun(for ref: PullRef) -> PilotRun? {
+        runs.first { $0.ref == ref && $0.isRunning && liveRuns[$0.id] != nil }
+    }
+
+    /// The last line of a live run's screen. A fixture has no terminal, so a stand-in that never changes.
+    func lastLine(of run: PilotRun) -> String? {
+        isFixture ? "running tests…" : runLastLines[run.id]
+    }
+
+    /// Which round a get it green run is: rounds count when feedback is sent, so a working one is at least the first.
+    /// A get it merged run has none.
+    func round(of run: PilotRun) -> Int? {
+        run.goal == .green ? max(1, feedback[run.ref.description]?.rounds ?? 0) : nil
+    }
+
+    /// The pending chips on a session's row: commits ahead and files changed, over its worktrees.
+    func pendingChanges(of session: Session) -> PendingChanges {
+        PendingChanges(worktrees.filter { session.owns($0) })
     }
 
     /// A Runs row: a running one jumps to its tab, an ended one opens in the reader.

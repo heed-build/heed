@@ -147,6 +147,14 @@ public enum Runs {
         }
     }
 
+    /// The last line of a run's screen with a letter or digit on it, trimmed: what the sidebar and the PR card show
+    /// of it. Lines of only box drawing or punctuation (an agent's input frame) are skipped.
+    public static func lastLine(of screen: String) -> String? {
+        screen.split(whereSeparator: \.isNewline).reversed().lazy
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .first { $0.unicodeScalars.contains(where: CharacterSet.alphanumerics.contains) }
+    }
+
     /// The tab's title: the goal, and the PR when the session has several.
     public static func title(_ goal: RunGoal, ref: PullRef, pullCount: Int) -> String {
         pullCount > 1 ? "\(goal.rawValue) #\(ref.number)" : goal.rawValue

@@ -280,3 +280,29 @@ struct RunCloneTests {
         #expect(Runs.clone(for: ref, in: [RepoRecord(repo: Repo(org: "o", name: "x"), path: "/x")], at: .local) == nil)
     }
 }
+
+/// What the sidebar and the PR card show of a live run and of a session's unshared work.
+struct RunGlimpseTests {
+    @Test func theLastLineSkipsBlankOnesAndFramesAndTrims() {
+        #expect(Runs.lastLine(of: "building\n  running tests (214 of 380)  \n\n   \n") == "running tests (214 of 380)")
+        #expect(Runs.lastLine(of: "• editing Arrow.cs\n╭────╮\n│ >  │\n╰────╯") == "• editing Arrow.cs")
+        #expect(Runs.lastLine(of: "\n \n") == nil)
+        #expect(Runs.lastLine(of: "") == nil)
+    }
+
+    @Test func pendingChangesSumWorktreesOncePerPlace() {
+        let repo = Repo(org: "o", name: "r"), fork = Repo(org: "me", name: "r")
+        func worktree(_ repo: Repo, _ path: String, _ status: WorktreeStatus?) -> Worktree {
+            Worktree(repo: repo, path: path, branch: "b", head: "0", isMain: false, status: status)
+        }
+        let pending = PendingChanges([
+            worktree(repo, "/wt/a", WorktreeStatus(changedFiles: 2, untrackedFiles: 1, ahead: 3)),
+            // The same place under the fork: not counted again.
+            worktree(fork, "/wt/a", WorktreeStatus(changedFiles: 2, untrackedFiles: 1, ahead: 3)),
+            worktree(repo, "/wt/b", WorktreeStatus(ahead: 1)),
+            worktree(repo, "/wt/c", nil),
+        ])
+        #expect(pending == PendingChanges(ahead: 4, dirty: 3))
+        #expect(PendingChanges([]).isEmpty)
+    }
+}

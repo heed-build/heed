@@ -136,6 +136,8 @@ enum Shots {
         Shot(id: "sessions/zoom", keys: "<C-w>z", highlight: [.panes]),
         // Tall enough for the anchors session's subagents, and its usage line and agent events under them.
         Shot(id: "sessions/inspector", size: CGSize(width: 1440, height: 1140), crop: .inspector, cropPadding: 0),
+        // bump-spec-tests: its PR's card with the get it green run working on it.
+        Shot(id: "sessions/run-card", keys: "4j", crop: .inspector, cropPadding: 0),
         Shot(id: "sessions/links-picker", keys: "gB", crop: .picker),
         Shot(id: "sessions/close-confirm", keys: "x", crop: .confirm),
         Shot(id: "sessions/delete-confirm", keys: "dd", crop: .confirm),

@@ -17,13 +17,14 @@ struct SettingsView: View {
         static func named(_ name: String) -> Section? {
             let key = name.lowercased()
             let short: [String: Section] = [
-                "general": .general, "agents": .agents, "colors": .colors, "repos": .colors, "cleanup": .cleanup,
+                "general": .general, "agents": .agents, "colors": .colors, "repos": .colors, "orgs": .colors,
+                "cleanup": .cleanup,
                 "worktrees": .cleanup, "keys": .keys, "modes": .keys, "pilot": .pilot,
             ]
             return short[key]
         }
 
-        case general = "General", agents = "Agents", colors = "Repos & colors", cleanup = "Worktrees & cleanup"
+        case general = "General", agents = "Agents", colors = "Orgs & repos", cleanup = "Worktrees & cleanup"
         case pilot = "Pilot", keys = "Keys & modes"
 
         var id: String { rawValue }
@@ -77,7 +78,7 @@ struct SettingsView: View {
                     switch section {
                     case .general: GeneralSettings()
                     case .agents: AgentSettings()
-                    case .colors: ColorSettings()
+                    case .colors: OrgRepoSettings()
                     case .cleanup: CleanupSettings()
                     case .pilot: PilotSettingsView()
                     case .keys: KeySettings()
@@ -304,53 +305,6 @@ private struct AgentSettings: View {
     }
 }
 
-private struct ColorSettings: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        let orgs = Array(Set(model.repos.map(\.repo.org))).sorted { $0.lowercased() < $1.lowercased() }
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Repos & colors").font(Theme.ui(17, weight: .semibold))
-            Text(
-                "Each org has a color; repos inherit it. Colors never use the state hues, so a chip is never mistaken for a status. Issues: all open issues of the org's repos, or only those assigned to you or mentioning you; a repo can differ (w in Issues, I in Repos)."
-            )
-            .font(Theme.ui(12))
-            .foregroundStyle(Theme.fg3)
-            .fixedSize(horizontal: false, vertical: true)
-            ForEach(orgs, id: \.self) { org in
-                HStack(spacing: 12) {
-                    RepoChip(repo: Repo(org: org, name: org)).frame(width: 200, alignment: .leading)
-                    ForEach(OrgPalette.allCases, id: \.self) { palette in
-                        let current = Palette.shared.color(for: Repo(org: org, name: ""))
-                        Circle()
-                            .fill(palette.swatch)
-                            .frame(width: 16, height: 16)
-                            .overlay(Circle().strokeBorder(Theme.fg, lineWidth: current == palette ? 2 : 0).padding(-3))
-                            .onTapGesture { model.setConfig(["orgs", org, "color"], .string(palette.rawValue)) }
-                    }
-                    Spacer()
-                    Picker("", selection: Binding(
-                        get: { model.config.issues.orgs[org] ?? model.config.issues.fallback },
-                        set: { model.setConfig(["orgs", org, "issues"], .string($0.rawValue)) }
-                    )) {
-                        Text("All issues").tag(IssueVisibility.all)
-                        Text("Only yours").tag(IssueVisibility.involved)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(width: 190)
-                    Text("\(model.repos.count { $0.repo.org == org }) repos").font(Theme.ui(11.5))
-                        .foregroundStyle(Theme.fg3)
-                        .frame(width: 64, alignment: .trailing)
-                }
-            }
-            if orgs.isEmpty {
-                Text("Repos appear here once the repo scan finds them.").foregroundStyle(Theme.fg3)
-            }
-        }
-    }
-}
-
 /// `[pilot]`: the defaults every PR starts from. Orgs and repos override them in config.toml; listed here.
 private struct PilotSettingsView: View {
     @Environment(AppModel.self) private var model
@@ -475,40 +429,15 @@ private struct PilotSettingsView: View {
             ) {
                 ListField(path: ["pilot", "reviewers"], values: pilot.defaults.reviewers)
             }
-            if !pilot.orgs.isEmpty || !pilot.repos.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Org and repo overrides (config.toml)").font(Theme.ui(12.5, weight: .semibold))
-                    ForEach(overrides(pilot), id: \.0) { name, text in
-                        HStack(spacing: 10) {
-                            Text(name).font(Theme.mono(12)).frame(width: 220, alignment: .leading)
-                            Text(text).font(Theme.mono(12)).foregroundStyle(Theme.fg2)
-                        }
-                    }
-                }
+            let orgs = pilot.orgs.count, repos = pilot.repos.count
+            HStack(spacing: 6) {
+                Text(orgs + repos == 0
+                    ? "No org or repo overrides these."
+                    : "\(orgs) org\(orgs == 1 ? "" : "s") and \(repos) repo\(repos == 1 ? "" : "s") override these.")
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                Button("Orgs & repos") { model.settingsSection = .colors }.buttonStyle(.link).font(Theme.ui(12))
             }
-            Text("Per org: [orgs.<name>] watch = false. Per repo: [repos.\"org/name\"] green = \"auto\".")
-                .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
-    }
-
-    private func overrides(_ pilot: PilotRules) -> [(String, String)] {
-        func describe(_ value: PilotOverrides) -> String {
-            [
-                value.watch.map { "watch = \($0)" }, value.green.map { "green = \($0.configName)" },
-                value.maxRounds.map { "max_rounds = \($0)" }, value.merge.map { "merge = \($0.configName)" },
-                value.mergeMethod.map { "merge_method = \($0)" },
-                value.updateBranches.map { "update_branches = \($0)" },
-                value.copilotConflicts.map { "copilot_conflicts = \($0)" },
-                value.copilotComments.map { "copilot_comments = \($0)" },
-                value.reviewers.map { "reviewers = \($0)" },
-                value.quietMinutes.map { "quiet_minutes = \($0)" },
-                value.trustedReviewers.map { "trusted_reviewers = \($0)" },
-                value.gateChecks.map { "gate_checks = \($0)" }, value.holdLabels.map { "hold_labels = \($0)" },
-                value.selfReview.map { "self_review = \($0)" }, value.adminMerge.map { "admin_merge = \($0)" },
-            ].compactMap(\.self).joined(separator: ", ")
-        }
-        return pilot.orgs.sorted { $0.key < $1.key }.map { ("[orgs.\($0.key)]", describe($0.value)) }
-            + pilot.repos.sorted { $0.key < $1.key }.map { ("[repos.\"\($0.key)\"]", describe($0.value)) }
     }
 }
 

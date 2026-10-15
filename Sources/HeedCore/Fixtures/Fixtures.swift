@@ -9,6 +9,17 @@ public enum Fixtures {
     /// What the fixtures' config would say about issues: docs-builder and the nullean org show all of them.
     public static let issueRules = IssueRules(orgs: ["nullean": .all], repos: ["elastic/docs-builder": .all])
 
+    /// Org and repo overrides for Settings › Orgs & repos: none changes what the other screens show.
+    public static let pilotRules: PilotRules = {
+        var org = PilotOverrides(reviewers: ["copilot"])
+        org.quietMinutes = 10
+        var repo = PilotOverrides()
+        repo.quietMinutes = 15
+        repo.gateChecks = ["build", "integration"]
+        repo.holdLabels = ["do-not-merge"]
+        return PilotRules(orgs: ["elastic": org], repos: ["elastic/docs-builder": repo])
+    }()
+
     /// What the issue links of the fake world fetched: their titles and states.
     public static let issueInfo: [IssueRef: IssueInfo] = [
         IssueRef(repo: docsContent, number: 88): IssueInfo(

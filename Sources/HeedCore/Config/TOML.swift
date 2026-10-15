@@ -89,6 +89,8 @@ public struct TOMLDocument: Sendable {
     let valueRanges: [[String]: Range<String.Index>]
     /// End of each table's last line (where a new key goes), by table path. `[]` is the top level.
     let tableEnds: [[String]: String.Index]
+    /// Each `[table]` header line, by table path.
+    let headerRanges: [[String]: Range<String.Index>]
 
     public init(_ source: String) throws(TOMLError) {
         var parser = TOMLParser(source)
@@ -97,6 +99,7 @@ public struct TOMLDocument: Sendable {
         root = parser.root
         valueRanges = parser.valueRanges
         tableEnds = parser.tableEnds
+        headerRanges = parser.headerRanges
     }
 
     /// The source with the value at `path` replaced (or added to its table, creating the table if needed). Comments,
@@ -121,6 +124,28 @@ public struct TOMLDocument: Sendable {
         if !table.isEmpty { text += "\n[" + table.map(TOMLValue.key).joined(separator: ".") + "]\n" }
         return text + line + "\n"
     }
+
+    /// The source without the key at `path` (its whole line, comments on it included); a table left empty loses its
+    /// header too. Everything else is untouched. A key that is not there leaves the source as it is.
+    public func removing(_ path: [String]) -> String {
+        guard let range = valueRanges[path] else { return source }
+        var text = source
+        let lineStart = text[..<range.lowerBound].lastIndex(of: "\n").map { text.index(after: $0) } ?? text.startIndex
+        let lineEnd = text[range.upperBound...].firstIndex(of: "\n").map { text.index(after: $0) } ?? text.endIndex
+        text.removeSubrange(lineStart ..< lineEnd)
+        let table = Array(path.dropLast())
+        guard !table.isEmpty, let document = try? TOMLDocument(text),
+              document.root.value(at: table)?.table?.keys.isEmpty == true, let header = document.headerRanges[table]
+        else { return text }
+        // The header, and the blank line before it.
+        var start = header.lowerBound
+        if start > text.startIndex, text[text.index(before: start)] == "\n" {
+            let before = text.index(before: start)
+            if before > text.startIndex, text[text.index(before: before)] == "\n" { start = before }
+        }
+        text.removeSubrange(start ..< header.upperBound)
+        return text
+    }
 }
 
 struct TOMLParser {
@@ -132,6 +157,7 @@ struct TOMLParser {
     var definedTables: Set<[String]> = []
     var valueRanges: [[String]: Range<String.Index>] = [:]
     var tableEnds: [[String]: String.Index] = [:]
+    var headerRanges: [[String]: Range<String.Index>] = [:]
 
     init(_ text: String) {
         self.text = text
@@ -196,6 +222,7 @@ struct TOMLParser {
     }
 
     mutating func parseHeader() throws(TOMLError) {
+        let headerStart = index
         advance()
         if peek == "[" { throw error("arrays of tables ([[...]]) are not supported in Heed's config") }
         skipSpaces()
@@ -209,6 +236,7 @@ struct TOMLParser {
         currentTable = path
         try endOfLine()
         tableEnds[path] = index
+        headerRanges[path] = headerStart ..< index
     }
 
     mutating func parseKeyValue(into table: [String]) throws(TOMLError) {

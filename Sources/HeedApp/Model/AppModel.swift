@@ -234,6 +234,7 @@ final class AppModel {
         if isFixture {
             config.issues = Fixtures.issueRules
             config.hosts = Fixtures.hosts
+            config.pilot = Fixtures.pilotRules
             hostStatuses = Fixtures.hostStatuses
             issueInfo = Fixtures.issueInfo
         }
@@ -641,6 +642,15 @@ final class AppModel {
     }
 
     /// Settings writes one value into config.toml; the watcher picks the change up like any other edit.
+    /// Removes a key from config.toml: an org or repo override going back to what it inherits.
+    func unsetConfig(_ path: [String]) {
+        do {
+            try ConfigWatcher.remove(path, in: configFile)
+        } catch {
+            flash = "could not write config.toml: \(error)"
+        }
+    }
+
     func setConfig(_ path: [String], _ value: TOMLValue) {
         do {
             try ConfigWatcher.set(path, to: value, in: configFile)

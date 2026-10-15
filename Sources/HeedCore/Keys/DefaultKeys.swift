@@ -97,6 +97,8 @@ public enum DefaultKeys {
         "issue": [("s", "items.start"), ("a", "items.add"), ("<Esc>", "overlay.close")],
         /// The PR overlay and the reader.
         "pr": [
+            // Sideways through the session's PRs, as ]p and [p.
+            ("h", "pr.prev"), ("l", "pr.next"), ("<Left>", "pr.prev"), ("<Right>", "pr.next"),
             ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("C", "pilot.copilot"),
             ("x", "feedback.dismiss"), ("S", "feedback.session"), ("<Esc>", "overlay.close"), ("r", "github.sync"),
         ],

@@ -163,6 +163,55 @@ public struct AgentUsage: Codable, Hashable, Sendable {
         return parts.joined(separator: " · ")
     }
 
+    /// `model-a`, from `provider/model-a-20250101`: a model id short enough for a sidebar row. The vendor prefix and a
+    /// trailing date go, and what is still longer than `maxLength` loses its middle, so both ends stay recognisable.
+    public static func shortModel(_ id: String, maxLength: Int = 18) -> String {
+        var name = id.split(separator: "/").last.map(String.init) ?? id
+        for pattern in [#"[-@]\d{8}$"#, #"[-@]\d{4}-\d{2}-\d{2}$"#] {
+            if let range = name.range(of: pattern, options: .regularExpression), range.lowerBound > name.startIndex {
+                name.removeSubrange(range)
+            }
+        }
+        guard name.count > maxLength, maxLength > 2 else { return name }
+        let head = maxLength / 2
+        return String(name.prefix(head)) + "…" + String(name.suffix(maxLength - 1 - head))
+    }
+
+    /// The sidebar's agent line: `claude · model-a · ctx 38%` while working (the spinner says the rest), `claude ·
+    /// model-a · idle 4m` otherwise, with `· 2 subagents` before the activity while it has any. Only the parts known;
+    /// without usage it is the agent (and activity) alone.
+    public struct Line: Equatable, Sendable {
+        /// `claude · model-a`.
+        public var lead: String
+        /// `ctx 38%`, while working and both the context and the window are known.
+        public var context: String?
+        /// The context is 80% full or more: worth a colour.
+        public var contextIsHigh = false
+        /// `2 subagents`, while it has any running.
+        public var subagents: String?
+        /// What it is doing or waits on, when it is not working.
+        public var activity: String?
+
+        public var text: String { [lead, context, subagents, activity].compactMap(\.self).joined(separator: " · ") }
+    }
+
+    public static func line(
+        agent: String, working: Bool, activity: String, usage: AgentUsage?, subagents: Int = 0
+    ) -> Line {
+        let model = usage?.model.flatMap { $0.isEmpty ? nil : shortModel($0) }
+        var line = Line(lead: [agent, model].compactMap(\.self).joined(separator: " · "))
+        if working {
+            if let percent = usage?.contextPercent {
+                line.context = "ctx \(Int(percent.rounded()))%"
+                line.contextIsHigh = percent >= 80
+            }
+        } else {
+            line.activity = activity
+        }
+        if subagents > 0 { line.subagents = "\(subagents) subagent\(subagents == 1 ? "" : "s")" }
+        return line
+    }
+
     /// `resets at 18:20`, when the reset is still ahead.
     public func resetText(now: Date = Date(), timeZone: TimeZone = .current) -> String? {
         guard let resets = rateLimitResetsAt, resets > now else { return nil }

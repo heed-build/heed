@@ -177,10 +177,10 @@ struct SessionRow: View {
                 if !compact { FlowChips(repos: session.involvedRepos) }
                 // A pinned session keeps its agent's line, with heed's under it.
                 if label == nil || group == .pinned {
-                    // Working: the spinner says it, so just the agent; the command it runs changes with every
-                    // hook and would make the list jump. Always one line, whatever the state says.
-                    Text((session.state.state == .working ? session.agent : "\(session.agent) · \(session.activity)")
-                        + (subagents > 0 ? " · \(subagents) subagent\(subagents == 1 ? "" : "s")" : ""))
+                    // Working: the spinner says it, so just the agent, its model and how full its context is; the
+                    // command it runs changes with every hook and would make the list jump. Always one line,
+                    // whatever the state says.
+                    agentLine
                         .font(Theme.ui(11.5))
                         .foregroundStyle(Theme.fg3)
                         .lineLimit(1)
@@ -224,6 +224,22 @@ struct SessionRow: View {
         .overlay(alignment: .topLeading) {
             if let hint { HintBadge(label: hint).padding(.leading, 8).padding(.top, 8) }
         }
+    }
+
+    /// `claude · model-a · ctx 38% · 2 subagents`, the percentage amber once the context is 80% full.
+    private var agentLine: Text {
+        let line = AgentUsage.line(
+            agent: session.agent, working: session.state.state == .working, activity: session.activity,
+            usage: session.usage, subagents: subagents
+        )
+        var text = Text(line.lead)
+        if let context = line.context {
+            let part = Text(context).foregroundStyle(line.contextIsHigh ? Theme.block : Theme.fg3)
+            text = Text("\(text) · \(part)")
+        }
+        if let count = line.subagents { text = Text("\(text) · \(count)") }
+        if let activity = line.activity { text = Text("\(text) · \(activity)") }
+        return text
     }
 
     private var isOffline: Bool { if case .offline = hostLink { true } else { false } }

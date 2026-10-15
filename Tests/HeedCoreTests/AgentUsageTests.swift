@@ -259,4 +259,40 @@ struct UsageHookTests {
         #expect(problems.map(\.path) == ["usage.prices.model-b"])
         #expect(HeedConfig.default.usage == UsageSettings())
     }
+
+    @Test func aModelIdIsShortenedForTheSidebar() {
+        #expect(AgentUsage.shortModel("model-a") == "model-a")
+        #expect(AgentUsage.shortModel("provider/model-a") == "model-a")
+        #expect(AgentUsage.shortModel("model-a-20250101") == "model-a")
+        #expect(AgentUsage.shortModel("vendor/model-b-mini-2025-01-01") == "model-b-mini")
+        #expect(AgentUsage.shortModel("model-c@20250101") == "model-c")
+        // A date alone is all there is: it stays.
+        #expect(AgentUsage.shortModel("20250101") == "20250101")
+        let long = AgentUsage.shortModel("model-very-long-name-preview-x")
+        #expect(long == "model-ver…review-x")
+        #expect(long.count == 18)
+    }
+
+    @Test func theSidebarLineShowsTheModelAndContextOnlyWhenKnown() {
+        let usage = AgentUsage(model: "provider/model-a-20250101", contextTokens: 76000, contextWindow: 200_000)
+        let working = AgentUsage.line(agent: "agent-a", working: true, activity: "running tests", usage: usage)
+        #expect(working.text == "agent-a · model-a · ctx 38%")
+        #expect(!working.contextIsHigh)
+        let idle = AgentUsage.line(agent: "agent-a", working: false, activity: "idle 4m", usage: usage)
+        #expect(idle.text == "agent-a · model-a · idle 4m")
+        #expect(idle.context == nil)
+        let full = AgentUsage(model: "model-a", contextTokens: 160_000, contextWindow: 200_000)
+        #expect(AgentUsage.line(agent: "agent-a", working: true, activity: "", usage: full).contextIsHigh)
+        // No window: no percentage.
+        let noWindow = AgentUsage(model: "model-a", contextTokens: 76000)
+        #expect(AgentUsage.line(agent: "agent-a", working: true, activity: "", usage: noWindow).text
+            == "agent-a · model-a")
+        #expect(AgentUsage.line(agent: "agent-a", working: true, activity: "x", usage: nil).text == "agent-a")
+        #expect(AgentUsage.line(agent: "agent-a", working: true, activity: "", usage: usage, subagents: 2).text
+            == "agent-a · model-a · ctx 38% · 2 subagents")
+        #expect(AgentUsage.line(agent: "agent-a", working: false, activity: "idle", usage: nil, subagents: 1).text
+            == "agent-a · 1 subagent · idle")
+        #expect(AgentUsage.line(agent: "agent-a", working: false, activity: "idle", usage: nil).text
+            == "agent-a · idle")
+    }
 }

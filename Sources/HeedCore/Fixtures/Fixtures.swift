@@ -9,6 +9,16 @@ public enum Fixtures {
     /// What the fixtures' config would say about issues: docs-builder and the nullean org show all of them.
     public static let issueRules = IssueRules(orgs: ["nullean": .all], repos: ["elastic/docs-builder": .all])
 
+    /// What the issue links of the fake world fetched: their titles and states.
+    public static let issueInfo: [IssueRef: IssueInfo] = [
+        IssueRef(repo: docsContent, number: 88): IssueInfo(
+            title: "Old links to moved pages 404", closed: false,
+            body: "Pages moved in the reorg are linked from outside; their old URLs now 404.", labels: ["bug"],
+            author: "reader", updatedAt: Clock.now.addingTimeInterval(-86400)
+        ),
+        IssueRef(repo: docsBuilder, number: 2830): IssueInfo(title: "Anchors lost when a page is moved", closed: false),
+    ]
+
     /// Hosts: @devbox answers, @gpu wants your key, @ci is down.
     public static let hosts: [String: HostConfig] = [
         "devbox": HostConfig(name: "devbox", color: "teal"),
@@ -82,12 +92,14 @@ public enum Fixtures {
         let sessions = [
             Session(
                 id: "s1", title: "Fix broken anchors in redirects",
-                prompt: "Fix broken anchors in redirects.yml. Every redirect target must resolve to a real heading.",
+                prompt: "Fix broken anchors in redirects.yml. Every redirect target must resolve to a real heading."
+                    + "\n\nFixes elastic/docs-content#88",
                 repos: [docsBuilder, docsContent], branch: "fix-anchors-redirects", agent: "claude",
                 agentSessionID: "7f3a9c1e-52b4-4e0d-9a61-0c8d3e1f2b77",
                 state: ObservedState(.working), activity: "running tests · 14m", trackedPRs: [
                     PullRef(repo: docsBuilder, number: 2841),
                     PullRef(repo: docsContent, number: 1920),
+                    PullRef(repo: docsBuilder, number: 2836),
                 ], pinned: true
             ),
             Session(
@@ -632,6 +644,15 @@ public enum Fixtures {
                 threads: 2
             ),
             pull(docsContent, 1920, "Redirects for moved pages", "fix-anchors-redirects", CheckSummary(passed: 4), nil),
+            // Merged earlier on the same branch: done, its checks as they finished.
+            {
+                var merged = pull(
+                    docsBuilder, 2836, "Redirect checker: first pass", "fix-anchors-redirects",
+                    CheckSummary(passed: 4), .approved
+                )
+                merged.state = .merged
+                return merged
+            }(),
             pull(
                 docsBuilder,
                 2838,

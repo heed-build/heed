@@ -80,7 +80,11 @@ This page is generated from the code (`mise run shots`).
 | `pr.track` `<url>` | `gU` | track a PR by URL |
 | `pr.untrack` `[url]` |  | stop tracking a PR in this session (no rule adds it back) |
 | `jump.back` | `<C-o>` | back |
-| `open.browser` | `gB` | open in browser |
+| `open.browser` | `gB` | open in the browser: the item under the cursor; in Sessions its PR or issue (a picker when there are several, its repo when there are none) |
+| `open.repo` | `gR` | open the repo under the cursor on GitHub |
+| `links.pick` |  | pick one of the session's PRs and issues to open in the browser |
+| `issue.add` `[url]` |  | link an issue to the session (its URL, or the copied one) |
+| `issue.remove` `[url]` |  | take an issue off the session |
 | `open.reader` | `<CR>` | read inbox item, issue or PR |
 | `cleanup.rules` |  | show the cleanup rules (Repos, with its rules panel) |
 | `cleanup.sweep` | `gC` | run the cleanup sweep now |

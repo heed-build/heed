@@ -87,7 +87,15 @@ public enum Commands {
         .init("pr.track", "track a PR by URL", .views, arguments: "<url>"),
         .init("pr.untrack", "stop tracking a PR in this session (no rule adds it back)", .views, arguments: "[url]"),
         .init("jump.back", "back", .views),
-        .init("open.browser", "open in browser", .views),
+        .init(
+            "open.browser",
+            "open in the browser: the item under the cursor; in Sessions its PR or issue (a picker when there are several, its repo when there are none)",
+            .views
+        ),
+        .init("open.repo", "open the repo under the cursor on GitHub", .views),
+        .init("links.pick", "pick one of the session's PRs and issues to open in the browser", .views),
+        .init("issue.add", "link an issue to the session (its URL, or the copied one)", .views, arguments: "[url]"),
+        .init("issue.remove", "take an issue off the session", .views, arguments: "[url]"),
         .init("open.reader", "read inbox item, issue or PR", .views),
         .init("cleanup.rules", "show the cleanup rules (Repos, with its rules panel)", .views),
         .init("cleanup.sweep", "run the cleanup sweep now", .views),

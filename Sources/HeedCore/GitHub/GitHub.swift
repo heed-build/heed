@@ -316,6 +316,43 @@ public enum GitHub {
     query($q: String!) { search(query: $q, type: ISSUE, first: 50) { nodes { ... on PullRequest { \(pullFields) } } } }
     """
 
+    /// Titles and states of the issues sessions link to, at most 50 a call. A number that turns out to be a PR is left
+    /// out.
+    public static func issueInfo(_ refs: [IssueRef]) async throws -> [IssueRef: IssueInfo] {
+        guard !refs.isEmpty else { return [:] }
+        let batch = Array(refs.prefix(50))
+        let data = try await graphql(linkedIssuesQuery(batch), variables: [:])
+        return parseLinkedIssues(data, refs: batch)
+    }
+
+    static func linkedIssuesQuery(_ refs: [IssueRef]) -> String {
+        let parts = refs.enumerated().map { index, ref in
+            "i\(index): repository(owner: \"\(ref.repo.org)\", name: \"\(ref.repo.name)\") { issueOrPullRequest(number: \(ref.number)) { __typename ... on Issue { title state bodyText updatedAt author { login } labels(first: 10) { nodes { name } } } } }"
+        }
+        return "query { \(parts.joined(separator: "\n")) }"
+    }
+
+    static func parseLinkedIssues(_ data: Data, refs: [IssueRef]) -> [IssueRef: IssueInfo] {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let root = json["data"] as? [String: Any]
+        else { return [:] }
+        var result: [IssueRef: IssueInfo] = [:]
+        for (index, ref) in refs.enumerated() {
+            guard let node = (root["i\(index)"] as? [String: Any])?["issueOrPullRequest"] as? [String: Any],
+                  node["__typename"] as? String == "Issue"
+            else { continue }
+            let labels = ((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]])?
+                .compactMap { $0["name"] as? String } ?? []
+            result[ref] = IssueInfo(
+                title: node["title"] as? String ?? "", closed: node["state"] as? String == "CLOSED",
+                body: node["bodyText"] as? String ?? "", labels: labels,
+                author: (node["author"] as? [String: Any])?["login"] as? String,
+                updatedAt: date(node["updatedAt"] as? String)
+            )
+        }
+        return result
+    }
+
     static func trackedPullsQuery(_ refs: [PullRef]) -> String {
         let parts = refs.enumerated().map { index, ref in
             "p\(index): repository(owner: \"\(ref.repo.org)\", name: \"\(ref.repo.name)\") { pullRequest(number: \(ref.number)) { \(pullFields) } }"

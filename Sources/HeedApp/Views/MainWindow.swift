@@ -61,6 +61,7 @@ struct MainWindow: View {
         .overlay {
             if let picker = model.importPicker { ImportPickerView(picker: picker) }
             if let picker = model.hostsPicker { HostsPickerView(picker: picker) }
+            if let picker = model.linkPicker { LinkPickerView(picker: picker) }
         }
         .overlay {
             if let state = model.pathImport { PathImportView(state: state) }
@@ -911,5 +912,83 @@ struct ZmxInstallHint: View {
             Text("or see \(ZmxInstall.site)").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
         }
         .padding(.leading, 20)
+    }
+}
+
+/// `gB` / `gR` with several places to go: the session's PRs and issues (or repos), numbered.
+struct LinkPickerView: View {
+    @Environment(AppModel.self) private var model
+    let picker: LinkPicker
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .onTapGesture { model.cancelLinkPicker() }
+            VStack(alignment: .leading, spacing: 0) {
+                Text(picker.title).font(Theme.ui(15, weight: .semibold)).padding(18)
+                ForEach(Array(picker.links.enumerated()), id: \.element) { index, link in
+                    HStack(spacing: 10) {
+                        Text(index < 9 ? "\(index + 1)" : " ").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                            .frame(width: 12)
+                        Image(systemName: icon(link)).font(.system(size: 10)).foregroundStyle(Theme.fg3)
+                        Text(link.label).font(Theme.mono(12.5, weight: .semibold))
+                        Text(title(link)).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).lineLimit(1)
+                        Spacer(minLength: 8)
+                        Text(state(link)).font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 8)
+                    .background(index == picker.cursor ? Theme.bg3 : .clear)
+                    .overlay(alignment: .leading) { if index == picker.cursor { Theme.block.frame(width: 2) } }
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.open(link, browser: true) }
+                }
+                HStack(spacing: 14) {
+                    hint("1–9", "open")
+                    hint("j k ↩", "move, open")
+                    hint("a", "open all")
+                    hint("⎋", "close")
+                }
+                .padding(18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+            }
+            .frame(width: 560, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.line))
+            .shadow(color: .black.opacity(0.5), radius: 30)
+            .shotRegion(.picker)
+        }
+    }
+
+    private func icon(_ link: SessionLink) -> String {
+        switch link {
+        case .pull: "arrow.triangle.pull"
+        case .issue: "smallcircle.filled.circle"
+        case .repo: "folder"
+        }
+    }
+
+    private func title(_ link: SessionLink) -> String {
+        switch link {
+        case let .pull(ref): model.github.pull(ref)?.title ?? ""
+        case let .issue(ref): model.issue(for: ref)?.title ?? ""
+        case .repo: ""
+        }
+    }
+
+    private func state(_ link: SessionLink) -> String {
+        switch link {
+        case let .pull(ref): model.github.pull(ref).map { $0.state.rawValue.lowercased() } ?? ""
+        case let .issue(ref): model.issueInfo[ref].map { $0.closed ? "closed" : "open" } ?? ""
+        case .repo: ""
+        }
+    }
+
+    private func hint(_ keys: String, _ text: String) -> some View {
+        HStack(spacing: 5) {
+            KeyCap(text: keys)
+            Text(text).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+        }
     }
 }

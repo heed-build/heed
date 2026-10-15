@@ -248,7 +248,16 @@ enum Shots {
         Shot(id: "worktrees/sweep", keys: "gr", crop: .sweepBanner, prepare: { model in
             model.applyConfig(source: "[cleanup]\nenabled = true\nidle_days = 3\n")
         }),
+        Shot(id: "worktrees/setup", keys: "gr", crop: .setupBanner, prepare: withSetupProposals),
+        Shot(id: "worktrees/setup-review", keys: "grS", crop: .confirm, prepare: withSetupProposals),
     ]
+
+    /// Every repo of the fake world with a pnpm lockfile, so Repos proposes its setup.
+    private static let withSetupProposals: @MainActor (AppModel) -> Void = { model in
+        for record in model.repos {
+            model.propose(SetupProposal(commands: ["pnpm install"], reasons: ["pnpm-lock.yaml"]), for: record)
+        }
+    }
 
     static let diff: [Shot] = [
         Shot(id: "diff/overlay", keys: "gd"),

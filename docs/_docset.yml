@@ -66,6 +66,7 @@ toc:
     children:
       - file: index.md
       - file: repos.md
+      - file: setup.md
       - file: importing.md
       - file: removing.md
       - file: cleanup.md

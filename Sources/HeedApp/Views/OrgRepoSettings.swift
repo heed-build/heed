@@ -29,6 +29,15 @@ struct OrgRepoSettings: View {
                 }
             }
         }
+        // `:setup.edit` opens the page on a repo.
+        .onAppear(perform: takeRequestedScope)
+        .onChange(of: model.settingsScope) { takeRequestedScope() }
+    }
+
+    private func takeRequestedScope() {
+        guard let scope = model.settingsScope else { return }
+        selected = scope
+        model.settingsScope = nil
     }
 
     private struct Group {
@@ -142,6 +151,9 @@ private struct ScopeDetail: View {
                     .padding(.top, index == 0 ? 0 : 10)
                 }
                 OverrideRow(scope: scope, key: key)
+                if key.id == "setup", case let .repo(repo) = scope, let proposal = model.setupProposal(for: repo) {
+                    SetupProposalLine(repo: repo, proposal: proposal)
+                }
             }
             if case let .repo(repo) = scope, let tasks = config.repos[repo.slug]?.tasks, !tasks.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
@@ -259,6 +271,28 @@ private struct OverrideRow: View {
                 }
             }
         }
+    }
+}
+
+/// A repo whose setup is unset, and what heed detected for it: approve it, or never run any.
+private struct SetupProposalLine: View {
+    @Environment(AppModel.self) private var model
+    let repo: Repo
+    let proposal: SetupProposal
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text("detected: \(proposal.commands.joined(separator: " && "))")
+                .font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+                .help(proposal.lines.joined(separator: "\n"))
+            Button("Approve") { model.setConfig(
+                ["repos", repo.slug, "setup"],
+                .array(proposal.commands.map { .string($0) })
+            ) }
+            Button("Never") { model.setConfig(["repos", repo.slug, "setup"], .array([])) }
+        }
+        .font(Theme.ui(12))
+        .padding(.leading, 252)
     }
 }
 

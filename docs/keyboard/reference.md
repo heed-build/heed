@@ -167,6 +167,10 @@ This page is generated from the code (`mise run shots`).
 | `repo.add` `<path>` |  | add a repo outside the scanned roots (kept in repo_paths) |
 | `repo.scan` | `r` (repos) | refresh: rescan the repo roots |
 | `worktree.new` | `o` (repos) | start work in the repo under the cursor |
+| `setup.review` | `S` (repos) | the setup heed detected for the repo's new worktrees: approve, edit or never |
+| `setup.approve` |  | approve the detected setup for the repo's new worktrees |
+| `setup.never` |  | no setup for the repo's new worktrees, and no more proposals |
+| `setup.edit` |  | edit the repo's setup commands (Settings, Orgs & repos) |
 | `select.remove` | `d` (VISUAL), `dd` (repos) | remove the selected worktrees, or the one under the cursor (asks first) |
 | `select.pin` | `m` (VISUAL) | pin selected |
 | `select.copy` | `y` (VISUAL) | copy paths |

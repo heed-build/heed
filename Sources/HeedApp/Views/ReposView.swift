@@ -104,6 +104,9 @@ struct ReposView: View {
                     if rows.indices.contains(model.repoCursor) { proxy.scrollTo(rows[model.repoCursor].id) }
                 }
             }
+            if let (record, proposal) = setupUnderCursor {
+                SetupBanner(record: record, proposal: proposal).shotRegion(.setupBanner)
+            }
             if model.config.cleanup.enabled { SweepBanner(plan: model.sweepPlan).shotRegion(.sweepBanner) }
             if rows.isEmpty {
                 VStack(spacing: 8) {
@@ -123,6 +126,17 @@ struct ReposView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.bg)
+    }
+
+    /// The repo under the cursor, when heed has a setup to propose for it.
+    private var setupUnderCursor: (RepoRecord, SetupProposal)? {
+        let rows = model.worktreeRows
+        guard rows.indices.contains(model.repoCursor) else { return nil }
+        let worktree = rows[model.repoCursor]
+        guard let record = model.repos.first(where: { $0.repo == worktree.repo && $0.location == worktree.location }),
+              let proposal = model.setupProposal(for: record)
+        else { return nil }
+        return (record, proposal)
     }
 
     private var header: some View {
@@ -255,6 +269,30 @@ private struct WorktreeRow: View {
         .frame(height: 48)
         .background(isSelected ? Theme.block.opacity(0.18) : isCursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
+    }
+}
+
+/// A repo's detected setup, waiting for approval: what it would run in each new worktree, and the keys.
+private struct SetupBanner: View {
+    let record: RepoRecord
+    let proposal: SetupProposal
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            StateGlyph(state: .asking)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Set up new \(record.repo.name) worktrees?").font(Theme.ui(12.5))
+                Text("detected: " + proposal.lines.joined(separator: " · "))
+                    .font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+            }
+            Spacer()
+            KeyCap(text: "S")
+            Text("approve, edit or never").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
     }
 }
 

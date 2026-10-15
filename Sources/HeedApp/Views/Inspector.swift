@@ -26,9 +26,17 @@ struct Inspector: View {
                         CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
                     }
                     CappedScroll(cap: height * 0.18) {
-                        ForEach(model.worktrees.filter { session.owns($0) }) { worktree in
+                        // Once per path (the same worktree can be listed under two repos, e.g. a fork's clone), each
+                        // led by its repo: a cross-repo session's worktrees often share their folder name.
+                        ForEach(Self.unique(model.worktrees.filter { session.owns($0) })) { worktree in
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(Paths.abbreviate(worktree.path)).font(Theme.mono(12)).foregroundStyle(Theme.fg)
+                                HStack(spacing: 6) {
+                                    RepoChip(repo: worktree.repo)
+                                    if let host = worktree.location.hostName { HostChip(location: .host(host)) }
+                                }
+                                Text(Paths.abbreviate(worktree.path)).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+                                    .lineLimit(1).truncationMode(.middle)
+                                    .help(worktree.path)
                                 if let status = worktree.status { WorktreeStatusLine(status: status) }
                             }
                         }
@@ -104,6 +112,12 @@ struct Inspector: View {
             }
             Spacer(minLength: 0)
         }
+    }
+
+    /// Worktrees once per place (path and host), the first listed kept.
+    static func unique(_ worktrees: [Worktree]) -> [Worktree] {
+        var seen: Set<String> = []
+        return worktrees.filter { seen.insert("\($0.location.label)\u{0}\($0.path)").inserted }
     }
 
     /// No PR and no issue yet: what comes next. A pushed branch offers the compare page that opens a PR.

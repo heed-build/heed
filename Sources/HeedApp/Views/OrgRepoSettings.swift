@@ -219,9 +219,21 @@ private struct OverrideRow: View {
         case let .choice(options):
             Picker("", selection: Binding(
                 get: { if case let .text(text) = value { text } else { "" } },
-                set: { model.setConfig(path, .string($0)) }
+                // Empty (default, the session's) is the override removed: the value inherits.
+                set: { $0.isEmpty ? model.unsetConfig(path) : model.setConfig(path, .string($0)) }
             )) {
-                ForEach(options, id: \.self) { Text($0).tag($0) }
+                ForEach(options, id: \.self) { Text($0.isEmpty ? "default" : $0).tag($0) }
+            }
+            .labelsHidden()
+            .frame(width: 160)
+        case .agent:
+            Picker("", selection: Binding(
+                get: { if case let .text(text) = value { text } else { "" } },
+                // Empty (default, the session's) is the override removed: the value inherits.
+                set: { $0.isEmpty ? model.unsetConfig(path) : model.setConfig(path, .string($0)) }
+            )) {
+                Text("the session's").tag("")
+                ForEach(model.settings.agents.map(\.name), id: \.self) { Text($0).tag($0) }
             }
             .labelsHidden()
             .frame(width: 160)

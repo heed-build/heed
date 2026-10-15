@@ -64,6 +64,8 @@ public struct OverrideKey: Identifiable, Sendable {
         case text
         /// One of the org palette's names (the app draws the swatches).
         case color
+        /// One of the configured agents (the app lists them); empty: the session's.
+        case agent
     }
 
     /// The key in config.toml.
@@ -135,8 +137,8 @@ public enum Overrides {
         pilot(
             "agent",
             "Run agent",
-            "The agent get it green runs use (codex, claude…); empty: the session's.",
-            .text,
+            "The agent get it green runs use; unset: the session's.",
+            .agent,
             { $0.agent.map(OverrideValue.text) },
             { .text($0.agent ?? "") }
         ),
@@ -161,8 +163,8 @@ public enum Overrides {
         pilot(
             "merge_method",
             "Merge method",
-            "squash, merge or rebase; empty: the repo's default.",
-            .text,
+            "How heed merges; unset: the first the repo allows.",
+            .choice(["", "squash", "merge", "rebase"]),
             { $0.mergeMethod.map(OverrideValue.text) },
             { .text($0.mergeMethod ?? "") }
         ),

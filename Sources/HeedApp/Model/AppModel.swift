@@ -2836,7 +2836,7 @@ final class AppModel {
             switch links.count {
             case 0: return openRepo()
             case 1: return open(links[0], browser: true)
-            default: linkPicker = LinkPicker(title: "Open in the browser", links: links)
+            default: linkPicker = LinkPicker(title: "Open in the browser", links: links, open: openLinks(links))
             }
             return
         }
@@ -2910,6 +2910,17 @@ final class AppModel {
         }
     }
 
+    /// Which links are still open: PRs neither merged nor closed, issues not closed (unknown counts as open).
+    private func openLinks(_ links: [SessionLink]) -> Set<SessionLink> {
+        Set(links.filter { link in
+            switch link {
+            case let .pull(ref): github.pull(ref).map { $0.state == .open } ?? true
+            case let .issue(ref): !(issueInfo[ref]?.closed ?? false)
+            case .repo: false
+            }
+        })
+    }
+
     /// The repos under the cursor, for `gR`: a session's (all of them), a Repos row's, an item's.
     private var reposUnderCursor: [Repo] {
         if let issue = issueReader { return [issue.repo] }
@@ -2941,7 +2952,8 @@ final class AppModel {
         guard let session = currentSession else { return flash = "no session here" }
         let links = links(of: session)
         linkPicker = LinkPicker(
-            title: "Open in the browser", links: links.isEmpty ? session.involvedRepos.map(SessionLink.repo) : links
+            title: "Open in the browser", links: links.isEmpty ? session.involvedRepos.map(SessionLink.repo) : links,
+            open: openLinks(links)
         )
     }
 

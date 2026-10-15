@@ -145,15 +145,18 @@ public struct LinkPicker: Equatable, Sendable {
 
     public let title: String
     public let links: [SessionLink]
+    /// The links still open (PRs not merged or closed, issues not closed), for `o` and `p`.
+    public let open: Set<SessionLink>
     public private(set) var cursor = 0
 
-    public init(title: String, links: [SessionLink]) {
+    public init(title: String, links: [SessionLink], open: Set<SessionLink> = []) {
         self.title = title
         self.links = links
+        self.open = open
     }
 
-    /// `j` `k` (`⌃n` `⌃p`, arrows) move, `↩` opens the one under the cursor, `1`–`9` open that one, `a` opens all,
-    /// `⎋` (or `q`) closes.
+    /// `j` `k` (`⌃n` `⌃p`, arrows) move, `↩` opens the one under the cursor, `1`–`9` open that one, `a` opens all, `o`
+    /// all the open ones, `p` the open pull requests, `⎋` (or `q`) closes.
     public mutating func handle(_ stroke: KeyStroke) -> Outcome {
         switch stroke {
         case KeyStroke("j"), KeyStroke("n", .control), KeyStroke("Down"):
@@ -164,6 +167,14 @@ public struct LinkPicker: Equatable, Sendable {
             return links.indices.contains(cursor) ? .open([links[cursor]]) : .cancel
         case KeyStroke("a"):
             return .open(links)
+        case KeyStroke("o"):
+            let picked = links.filter(open.contains)
+            return picked.isEmpty ? .handled : .open(picked)
+        case KeyStroke("p"):
+            let picked = links.filter { link in
+                if case .pull = link { open.contains(link) } else { false }
+            }
+            return picked.isEmpty ? .handled : .open(picked)
         case .escape, KeyStroke("q"):
             return .cancel
         default:

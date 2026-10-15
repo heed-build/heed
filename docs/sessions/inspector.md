@@ -19,7 +19,8 @@ The inspector, on the right of the Sessions view, shows the selected session's s
 ## Links
 
 **Click a link** to open it here: a PR in the [PR overlay](../github/review-feedback.md), an issue in the
-[reader](../github/reading.md). **⌘-click** opens it on GitHub. `go` opens the PR overlay from the keyboard.
+[reader](../github/reading.md). **⌘-click** opens it on GitHub. `go` opens the PR overlay from the keyboard. A
+**right-click** on a PR card offers the pilot's commands for that PR alone ([right-click](../keyboard/mouse.md)).
 
 A session's issues come from three places:
 

@@ -89,6 +89,7 @@ toc:
       - file: command-line.md
       - file: visual.md
       - file: mac-shortcuts.md
+      - file: mouse.md
       - file: customizing.md
       - file: reference.md
   - folder: outside-the-window

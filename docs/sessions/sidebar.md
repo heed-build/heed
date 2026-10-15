@@ -24,7 +24,8 @@ the cursor, as in vim: the number on a row is how many `j` or `k` presses away i
 
 Click a session to select it; double-click it to type into its agent (INSERT). Rows in the other lists (Watch,
 Inbox, Issues, PRs, Repos, History) take clicks the same way: a click moves the cursor there, a double-click opens the
-row as `↩` does.
+row as `↩` does. A right-click opens a menu of what you can do with it, each item with its key
+([right-click](../keyboard/mouse.md)).
 
 ## Watching
 

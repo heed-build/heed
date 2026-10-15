@@ -733,6 +733,9 @@ struct ListBody<Row: View>: View {
                                 .simultaneousGesture(TapGesture(count: 2).onEnded {
                                     if let hintView { model.clickRow(hintView, index, open: true) }
                                 })
+                                .rightClickMenu { hintView.map { model.rightClickRow($0, index) } ?? false } _: {
+                                    hintView.map { model.rowMenu($0, index) } ?? []
+                                }
                                 .id(ids[index])
                         }
                     }

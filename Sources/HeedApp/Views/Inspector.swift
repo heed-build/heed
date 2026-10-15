@@ -67,6 +67,7 @@ struct Inspector: View {
                                             model.open(link, browser: NSEvent.modifierFlags.contains(.command))
                                         }
                                         .help("\(link.url)\n⌘-click opens it on GitHub")
+                                        .rightClickMenu { model.rightClickInspector() } _: { menu(for: link) }
                                 }
                             }
                         }
@@ -82,6 +83,7 @@ struct Inspector: View {
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.open(run: run) }
                                     .help(run.isRunning ? "Go to its tab" : "Open: what it did, and its last screen")
+                                    .rightClickMenu { model.rightClickInspector() } _: { model.runMenu(run) }
                             }
                         }
                     }
@@ -133,6 +135,15 @@ struct Inspector: View {
                 }
             }
             Spacer(minLength: 0)
+        }
+    }
+
+    /// A PR card's menu acts on that PR alone; an issue's on that issue.
+    private func menu(for link: SessionLink) -> [MenuEntry] {
+        switch link {
+        case let .pull(ref): model.pullMenu(ref, place: .inspector)
+        case let .issue(ref): ContextMenus.issue(ref)
+        case .repo: []
         }
     }
 

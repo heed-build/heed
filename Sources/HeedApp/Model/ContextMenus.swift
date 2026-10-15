@@ -1,0 +1,86 @@
+import HeedCore
+
+/// Right-click menus: the facts about what was clicked, read from the model, for `ContextMenus` to build from. Each
+/// item runs a command through `perform`, so a menu never does anything a key does not.
+extension AppModel {
+    /// A session in the sidebar or the rail.
+    func sessionMenu(_ id: String) -> [MenuEntry] {
+        guard let session = sessions.first(where: { $0.id == id }) else { return [] }
+        var facts = ContextMenus.SessionFacts(id: id, title: session.title)
+        facts.pulls = session.trackedPRs.count
+        facts.openPulls = session.trackedPRs.count { github.pull($0).map { $0.state == .open } ?? true }
+        facts.links = links(of: session).count
+        facts.hasGitHubRepo = session.involvedRepos.contains { $0.org != "local" }
+        facts.pilot = pilotFacts(session.trackedPRs, runLive: liveRuns.values.contains { $0.sessionID == id })
+        facts.pinned = session.pinned
+        facts.parked = session.parked
+        facts.hasPrompt = !session.prompt.isEmpty
+        return ContextMenus.session(facts)
+    }
+
+    /// A PR: a session's card in the inspector, or a PRs or Watch row.
+    func pullMenu(_ ref: PullRef, place: ContextMenus.Place) -> [MenuEntry] {
+        var facts = ContextMenus.PullFacts(ref: ref, place: place)
+        facts.open = github.pull(ref).map { $0.state == .open } ?? true
+        facts.pilot = pilotFacts([ref], runLive: liveRuns.values.contains { $0.ref == ref })
+        facts.hasSession = sessions.contains { $0.trackedPRs.contains(ref) }
+        return ContextMenus.pull(facts)
+    }
+
+    /// A run in the inspector.
+    func runMenu(_ run: PilotRun) -> [MenuEntry] {
+        ContextMenus.run(
+            id: run.id, title: "\(run.goal.rawValue) #\(run.ref.number)", running: liveRuns[run.id] != nil
+        )
+    }
+
+    /// A row of a list view, by position; nil where the view has no menu.
+    func rowMenu(_ list: AppView, _ index: Int) -> [MenuEntry] {
+        switch list {
+        case .prs:
+            let rows = pullRows
+            return rows.indices.contains(index) ? pullMenu(rows[index].ref, place: .prs) : []
+        case .watch:
+            let rows = pilotRows
+            return rows.indices.contains(index) ? pullMenu(rows[index].ref, place: .watch) : []
+        default:
+            return []
+        }
+    }
+
+    /// The pilot as the commands see it for these PRs: watch and pause toggle on all of them, green and merge cycle
+    /// from the first (see `togglePilotWatch`, `pausePilot`, `cyclePilotGreen`, `togglePilotMerge`).
+    private func pilotFacts(_ refs: [PullRef], runLive: Bool) -> ContextMenus.PilotFacts {
+        var facts = ContextMenus.PilotFacts()
+        guard let first = refs.first else { return facts }
+        facts.watching = refs.allSatisfy { pilot(for: $0).watching }
+        facts.green = pilot(for: first).green != .off
+        facts.merging = pilot(for: first).merge != .off
+        facts.paused = refs.allSatisfy { feedback[$0.description]?.isPaused(Clock.now) == true }
+        facts.stalled = refs.contains { if case .stalled = pilotStatus(for: $0) { true } else { false } }
+        facts.runLive = runLive
+        facts.reviewers = refs.contains { !pilotSettings(for: $0).reviewers.isEmpty }
+        return facts
+    }
+
+    /// A right-click on a session selects it, as a click does, without typing into it.
+    func rightClickSession(_ id: String) -> Bool {
+        guard clicksReachLists else { return false }
+        clickSession(id)
+        return true
+    }
+
+    /// A right-click on a list row moves the cursor there, as a click does.
+    func rightClickRow(_ list: AppView, _ index: Int) -> Bool {
+        guard clicksReachLists, view == list, !rowMenu(list, index).isEmpty else { return false }
+        clickRow(list, index)
+        return true
+    }
+
+    /// A right-click in the inspector acts on what it names; it only hands the keyboard back to heed.
+    func rightClickInspector() -> Bool {
+        guard clicksReachLists else { return false }
+        clickedOutsideTerminal()
+        return true
+    }
+}

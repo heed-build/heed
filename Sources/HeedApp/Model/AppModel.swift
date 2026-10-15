@@ -1485,6 +1485,12 @@ final class AppModel {
 
     func perform(_ command: CommandInvocation) {
         let count = command.count ?? 1
+        // A right-click names what it acts on; keys leave it to the cursor. A session is selected first, so a list
+        // that regrouped while the menu was open still acts on the session clicked.
+        let outerTarget = commandTarget
+        commandTarget = command.target
+        defer { commandTarget = outerTarget }
+        if case let .session(id) = command.target { select(sessionID: id) }
         switch command.name {
         case "row.next": moveRow(by: count)
         case "row.prev": moveRow(by: -count)
@@ -1703,6 +1709,9 @@ final class AppModel {
             flash = "\(command.name): not built yet"
         }
     }
+
+    /// What the command being performed acts on, when a right-click menu named it (see `CommandTarget`).
+    private var commandTarget: CommandTarget?
 
     /// `<Esc>` in NORMAL: the reader, an overlay, then back from a view to Sessions.
     private func closeTopmost() {
@@ -3129,6 +3138,7 @@ final class AppModel {
     }
 
     private var urlUnderCursor: String? {
+        if let url = commandTarget?.url { return url }
         if let issue = issueReader { return issue.url }
         if let ref = feedbackPull { return pullDetails[ref.description].map { _ in ref.url } ?? ref.url }
         let index = cursor(in: view)
@@ -3136,6 +3146,7 @@ final class AppModel {
         case .inbox: return inboxRows.indices.contains(index) ? inboxRows[index].url : nil
         case .issues: return issueRows.indices.contains(index) ? issueRows[index].url : nil
         case .prs: return pullRows.indices.contains(index) ? pullRows[index].url : nil
+        case .watch: return pilotRows.indices.contains(index) ? pilotRows[index].ref.url : nil
         case .sessions: return currentSession?.trackedPRs.first?.url
         default: return nil
         }
@@ -3144,7 +3155,9 @@ final class AppModel {
     /// `gB`: what is under the cursor. In Sessions (outside the overlay and reader) the session's links: one opens,
     /// several offer the picker, none opens its repo.
     private func openInBrowser() {
-        if view == .sessions, issueReader == nil, feedbackPull == nil, let session = currentSession {
+        if view == .sessions, issueReader == nil, feedbackPull == nil, commandTarget?.url == nil,
+           let session = currentSession
+        {
             let links = links(of: session)
             switch links.count {
             case 0: return openRepo()
@@ -3236,6 +3249,7 @@ final class AppModel {
 
     /// The repos under the cursor, for `gR`: a session's (all of them), a Repos row's, an item's.
     private var reposUnderCursor: [Repo] {
+        if let repos = commandTarget?.repos { return repos }
         if let issue = issueReader { return [issue.repo] }
         if let ref = feedbackPull, overlay == .pr || reader != nil { return [ref.repo] }
         let index = cursor(in: view)
@@ -3330,7 +3344,9 @@ final class AppModel {
 
     private func jumpToPullSession() {
         let ref: PullRef
-        if let open = feedbackPull, overlay == .pr || reader != nil {
+        if case let .pull(target) = commandTarget {
+            ref = target
+        } else if let open = feedbackPull, overlay == .pr || reader != nil {
             ref = open
         } else {
             let index = cursor(in: .prs)
@@ -3396,7 +3412,9 @@ final class AppModel {
     }
 
     private func openReader() {
-        if let ref = pullUnderCursor {
+        if let id = commandTarget?.runID, let run = runs.first(where: { $0.id == id }) {
+            open(run: run)
+        } else if let ref = pullUnderCursor {
             reader = ref
             feedbackCursor = 0
             fetchDetail(ref)
@@ -3409,6 +3427,16 @@ final class AppModel {
 
     /// `go`: the PR or issue under the cursor, or in Sessions the session's PR overlay; again closes it.
     private func toggleItemOverlay() {
+        switch commandTarget {
+        // A PR or issue named by a right-click opens, whatever is open: in Sessions the overlay, elsewhere the reader.
+        case let .pull(ref) where view == .sessions: return open(.pull(ref))
+        case let .pull(ref):
+            reader = ref
+            feedbackCursor = 0
+            return fetchDetail(ref)
+        case let .issue(ref): return open(.issue(ref))
+        default: break
+        }
         if issueReader != nil || reader != nil {
             closeReaderOrOverlay()
         } else if view == .sessions {
@@ -3777,6 +3805,7 @@ final class AppModel {
     /// What the pilot commands act on: the PR overlay's or reader's PR; in the Pilot and PRs views the picked rows
     /// (VISUAL) or the one under the cursor; in Sessions the session's PRs.
     private var pilotTargets: [PullRef] {
+        if let refs = commandTarget?.pulls { return refs }
         if let ref = feedbackPull { return [ref] }
         switch view {
         case .watch:
@@ -4160,6 +4189,12 @@ final class AppModel {
 
     /// `:pilot.run`: the session's running run's tab.
     private func showRun() {
+        if let id = commandTarget?.runID, let run = runs.first(where: { $0.id == id }) { return open(run: run) }
+        if case let .pull(ref) = commandTarget, let id = liveRuns.first(where: { $0.value.ref == ref })?.key,
+           let run = runs.first(where: { $0.id == id })
+        {
+            return open(run: run)
+        }
         guard let session = currentSession,
               let live = liveRuns.values.first(where: { $0.sessionID == session.id }),
               let index = layouts[session.id]?.tabs.firstIndex(where: { $0.id == live.tabID })
@@ -4173,7 +4208,16 @@ final class AppModel {
         let session = currentSession
         let activeTab = currentTab?.id
         let mine = liveRuns.filter { $0.value.sessionID == session?.id }
-        let pick = mine.first { $0.value.tabID == activeTab }
+        // A run or PR named by a right-click stops its own run or none, never another one.
+        let named: (key: String, value: LiveRun)? = switch commandTarget {
+        case let .run(id): liveRuns[id].map { (key: id, value: $0) }
+        case let .pull(ref): liveRuns.first { $0.value.ref == ref }
+        default: nil
+        }
+        if named == nil, commandTarget?.pulls != nil || commandTarget?.runID != nil {
+            return flash = "that run has ended"
+        }
+        let pick = named ?? mine.first { $0.value.tabID == activeTab }
             ?? pilotTargets.lazy.compactMap { ref in self.liveRuns.first { $0.value.ref == ref } }.first
             ?? mine.min { $0.key < $1.key }
         guard let (id, live) = pick else { return flash = "no run working here" }
@@ -5925,7 +5969,7 @@ final class AppModel {
     }
 
     /// Whether a click on a list may act: not while a dialog or form has the keyboard.
-    private var clicksReachLists: Bool {
+    var clicksReachLists: Bool {
         startWork == nil && confirmation == nil && resume == nil && firstRun == nil && importPicker == nil
             && pathImport == nil && tutorPicker == nil
     }

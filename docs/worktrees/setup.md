@@ -62,7 +62,7 @@ setup = []          # no setup, and no proposals, for the org's repos that do no
 A `.worktreeinclude` file at the root of the main checkout names files to copy into each new worktree, in `.gitignore`
 syntax. Only files that git ignores are copied, never tracked ones, and a file the worktree already has is left alone:
 
-```gitignore
+```text
 .env
 .env.local
 config/*.secret.json

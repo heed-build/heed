@@ -13,6 +13,8 @@ public struct HeedConfig: Equatable, Sendable {
     /// `[ui]`: Heed outside its window.
     public var showMenuBarItem = true
     public var showDockState = true
+    /// `[notifications]`: a macOS notification when a session starts needing you.
+    public var notifications = NotificationSettings()
     /// `[keys.normal]`, `[keys.visual]`, ...: overrides laid over the defaults.
     public var keys: [Mode: [(String, String)]]
     /// `[keys.repos]`, `[keys.inbox]`, ...: per-view overrides.
@@ -63,6 +65,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.globalActivate == rhs.globalActivate,
             lhs.showMenuBarItem == rhs.showMenuBarItem,
             lhs.showDockState == rhs.showDockState,
+            lhs.notifications == rhs.notifications,
             flat(lhs.keys) == flat(rhs.keys),
             flat(lhs.scopedKeys) == flat(rhs.scopedKeys),
             lhs.orgColors == rhs.orgColors,
@@ -484,6 +487,10 @@ public enum ConfigLoader {
         // [ui]
         if let flag = bool(["ui", "menu_bar"]) { config.showMenuBarItem = flag }
         if let flag = bool(["ui", "dock_state"]) { config.showDockState = flag }
+        // [notifications]
+        if let flag = bool(["notifications", "enabled"]) { config.notifications.enabled = flag }
+        if let flag = bool(["notifications", "asking"]) { config.notifications.asking = flag }
+        if let flag = bool(["notifications", "blocked"]) { config.notifications.blocked = flag }
         // [updates]
         if let flag = bool(["updates", "check"]) { config.updates.check = flag }
         if let text = string(["updates", "install"]) {
@@ -637,6 +644,14 @@ public enum ConfigLoader {
     # The Dock icon shows the same: a badge in the state's colour (blocked, else asking) with the count.
     dock_state = true
 
+    [notifications]
+    # A macOS notification when a session starts needing you, unless Heed is in front showing that session. Several
+    # within a few seconds come as one. Open brings Heed forward on the session; a Claude permission prompt also gets
+    # Allow. Per state: asking (questions, a plan to approve) and blocked (a permission prompt).
+    enabled = true
+    asking = true
+    blocked = true
+
     [updates]
     # Look for a new version of heed once a day (on GitHub, heed's releases). Each update is signed; heed installs
     # only what its key signed, and Apple has notarized.
@@ -715,5 +730,28 @@ public struct UpdateSettings: Equatable, Sendable {
     public init(check: Bool = true, install: Install = .ask) {
         self.check = check
         self.install = install
+    }
+}
+
+/// `[notifications]`.
+public struct NotificationSettings: Equatable, Sendable {
+    public var enabled = true
+    public var asking = true
+    public var blocked = true
+
+    public init(enabled: Bool = true, asking: Bool = true, blocked: Bool = true) {
+        self.enabled = enabled
+        self.asking = asking
+        self.blocked = blocked
+    }
+
+    /// Whether a session entering `state` is worth a notification: the Needs you states, each when turned on.
+    public func wants(_ state: AgentState) -> Bool {
+        guard enabled else { return false }
+        return switch state {
+        case .asking: asking
+        case .blocked: blocked
+        default: false
+        }
     }
 }

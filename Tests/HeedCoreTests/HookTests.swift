@@ -29,11 +29,8 @@ struct ClaudeHookTests {
     }
 
     @Test func notificationsStopsAndLimits() {
-        #expect(AgentIntegration
-            .claudeHook(event: "Notification", input: ["notification_type": "idle_prompt"]) == [.state(
-                .idle,
-                reason: nil
-            )])
+        #expect(AgentIntegration.claudeHook(event: "Notification", input: ["notification_type": "idle_prompt"])
+            == [.atPrompt])
         #expect(AgentIntegration.claudeHook(event: "Stop", input: [:]) == [.state(.done, reason: nil)])
         #expect(AgentIntegration.claudeHook(event: "StopFailure", input: ["error": "rate_limit"]) == [.state(
             .limited,

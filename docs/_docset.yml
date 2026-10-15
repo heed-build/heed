@@ -96,6 +96,7 @@ toc:
       - file: index.md
       - file: menu-bar.md
       - file: dock.md
+      - file: notifications.md
       - file: global-shortcuts.md
   - folder: configuration
     children:

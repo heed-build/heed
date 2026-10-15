@@ -19,6 +19,12 @@ public enum HeedEnvironment {
 public struct HookMessage: Codable, Equatable, Sendable {
     public enum Kind: Codable, Equatable, Sendable {
         case state(AgentState, reason: String?)
+        /// A state the hook read from what the agent wrote rather than was told (a question in the turn's last
+        /// words): drawn as guessed, but the latest word on the turn, so it replaces what was reported.
+        case guess(AgentState, reason: String?)
+        /// The agent has sat at its prompt for a while (Claude's `idle_prompt`). Says idle only when nothing more
+        /// telling is known: a done, asking or blocked session stays as it is.
+        case atPrompt
         case notify(String)
         case prAdd(url: String)
         /// `heed issue add <url>`: an issue the session works on.
@@ -86,10 +92,12 @@ public enum HookCommandLine {
             let event = arguments[2]
             let session = arguments.count > 3 ? arguments[3] : nil
             let detail = arguments.count > 4 ? arguments[4] : nil
+            let text = arguments.count > 5 ? arguments[5] : nil
             switch arguments[1] {
-            // These pass their payload as arguments; stdin is not read.
-            case "pi": return AgentIntegration.piHook(event: event, sessionID: session, detail: detail)
-            case "opencode": return AgentIntegration.opencodeHook(event: event, sessionID: session, detail: detail)
+            // These pass their payload as arguments (the turn's last text with its end); stdin is not read.
+            case "pi": return AgentIntegration.piHook(event: event, sessionID: session, detail: detail, text: text)
+            case "opencode":
+                return AgentIntegration.opencodeHook(event: event, sessionID: session, detail: detail, text: text)
             default: break
             }
             let input = (try? JSONSerialization.jsonObject(with: readInput())) as? [String: Any] ?? [:]

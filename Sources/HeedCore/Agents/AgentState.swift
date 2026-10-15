@@ -54,6 +54,22 @@ public struct ObservedState: Hashable, Sendable, Codable {
     /// A guess never overrides what a hook reported for the same turn, except to say the process is gone.
     public func accepting(_ next: ObservedState) -> ObservedState {
         if next.source == .guessed, source == .reported, next.state != .exited, state != .exited { return self }
+        // Cursor reports the turn's last words (which may ask you) before it reports the turn over: the question
+        // stands.
+        if next == ObservedState(.done), state == .asking, source == .guessed, reason == TurnEnd.question {
+            return self
+        }
         return next
+    }
+
+    /// What a hook's guess about the turn makes of this state: it replaces anything but an exited agent.
+    public func guessing(_ state: AgentState, reason: String?) -> ObservedState {
+        self.state == .exited ? self : ObservedState(state, source: .guessed, reason: reason)
+    }
+
+    /// The agent sat at its prompt (Claude's `idle_prompt`, about a minute after a turn): idle only when it was
+    /// working. Any other state (done, asking, blocked, limited, idle already) keeps what it said last.
+    public func atPrompt() -> ObservedState {
+        state == .working ? ObservedState(.idle) : self
     }
 }

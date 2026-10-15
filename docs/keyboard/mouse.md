@@ -71,3 +71,18 @@ A session in History reopens (`R`), starts again from its prompt (`O`), or opens
 
 A right-click on a tab selects it and offers a new tab (`gn`), splitting (`⌃w v`, `⌃w s`), zooming the pane (`⌃w z`)
 and closing the tab (`⌃w c`); a run's tab can also stop its run (`zx`).
+
+## The diff and the PR overlay
+
+In the [diff overlay](../diff/index.md), a right-click on a file in the list, or on a line of the diff, copies its
+`path:line` (`y`), opens the file in your editor (`e`), puts a note on the hunk (`a`) or asks the agent about it now
+(`A`), shows one commit at a time (`c`), or switches to the split view (`t`).
+
+A feedback item in the [PR overlay](../github/review-feedback.md) can be queued or unqueued (`␣`), sent with the rest
+of the queue (`s`) or dismissed (`x`); for a PR, you can also start a session from it (`S`) or open it in the browser
+(`gB`).
+
+## Not in terminals
+
+A right-click in a terminal pane goes to the program running there, as in any terminal: tmux, vim and others use it.
+Heed adds no menu of its own there; right-click the session in the sidebar or its tab instead.

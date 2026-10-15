@@ -1506,6 +1506,8 @@ final class AppModel {
         case let .session(id): select(sessionID: id)
         case let .row(name, id): if let list = AppView(rawValue: name) { moveCursor(list, to: id) }
         case let .tab(id): if let index = currentTabs.firstIndex(where: { $0.id == id }) { selectTab(index) }
+        case let .diffLine(file, row): pointDiff(file: file, row: row)
+        case let .feedback(id): pointFeedback(id)
         default: break
         }
         switch command.name {
@@ -6056,6 +6058,18 @@ final class AppModel {
         setRow(index)
         guard open else { return }
         if list == .repos { openSelected() } else { openReader() }
+    }
+
+    /// A right-click in the diff overlay: its cursor onto that file and line.
+    func pointDiff(file: Int, row: Int) {
+        guard diffFiles.indices.contains(file) else { return }
+        if file != diffFileIndex { diffFileIndex = file }
+        diffRow = max(0, min(row, diffRows.count - 1))
+    }
+
+    /// A right-click on a feedback item: the overlay's cursor onto it.
+    func pointFeedback(_ id: String) {
+        if let index = feedbackItems.firstIndex(where: { $0.id == id }) { feedbackCursor = index }
     }
 
     /// A click outside any terminal (a list, the sidebar, the title bar) hands the keyboard back to Heed.

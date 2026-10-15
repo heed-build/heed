@@ -20,6 +20,9 @@ Its menu lists the sessions waiting on you (choosing one opens Heed on it), how 
 | Settings… | Settings |
 | Quit Heed | Quit; with agents running, Heed asks first |
 
+Each item shows its key on the right: the [global shortcut](global-shortcuts.md) for Start work and Open Heed, and the
+key that does the same in Heed's window for the others (`gZ`, `⌘,`, `⌘Q`).
+
 With the menu bar item on, **closing the window keeps Heed running**, and every agent with it. Without it, closing the
 window quits.
 

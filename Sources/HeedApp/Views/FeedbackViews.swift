@@ -112,6 +112,7 @@ struct FeedbackPanel: View {
                     VStack(spacing: 0) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                             FeedbackRow(item: item, isCursor: index == model.feedbackCursor)
+                                .rightClickMenu { model.rightClickFeedback(item.id) } _: { model.feedbackMenu(item) }
                         }
                         if items.isEmpty {
                             Text(model.pullDetails[ref.description] == nil ? "Fetching the PR…" : "No feedback yet.")
@@ -281,6 +282,7 @@ struct NotesPanel: View {
                     VStack(spacing: 0) {
                         ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                             FeedbackRow(item: item, isCursor: index == model.feedbackCursor)
+                                .rightClickMenu { model.rightClickFeedback(item.id) } _: { model.feedbackMenu(item) }
                         }
                         if items.isEmpty {
                             Text("No notes. a on a hunk in the diff (gd) queues one.")

@@ -246,4 +246,40 @@ struct ContextMenuTests {
             #expect(Commands.spec(name) != nil, "\(name) is not a command")
         }
     }
+
+    @Test func theDiffOverlayActsOnTheLineClicked() {
+        let menu = ContextMenus.diff(file: 2, row: 7, path: "src/a/b.swift", line: true, split: true, hasCommits: false)
+        #expect(menu.first == .header("b.swift"))
+        #expect(commands(menu) == ["diff.copy", "diff.edit", "diff.ask", "diff.ask.now", "diff.commit", "diff.split"])
+        #expect(items(menu).allSatisfy { $0.command.target == .diffLine(file: 2, row: 7) })
+        #expect(item("diff.commit", in: menu)?.enabled == false)
+        #expect(item("diff.split", in: menu)?.checked == true)
+    }
+
+    @Test func feedbackItems() {
+        var facts = ContextMenus.FeedbackFacts(id: "t1", title: "a.swift:3 typo")
+        facts.queueable = true
+        facts.queued = true
+        facts.anyQueued = true
+        var menu = ContextMenus.feedback(facts)
+        #expect(commands(menu) == [
+            "feedback.queue", "feedback.send", "feedback.dismiss", "feedback.session", "open.browser",
+        ])
+        #expect(item("feedback.queue", in: menu)?.checked == true)
+        #expect(items(menu).allSatisfy { $0.command.target == .feedback("t1") })
+        // Sent already, nothing queued, a session's own note: no PR to start from or open.
+        facts.queueable = false
+        facts.queued = false
+        facts.anyQueued = false
+        facts.onPull = false
+        menu = ContextMenus.feedback(facts)
+        #expect(item("feedback.queue", in: menu)?.enabled == false)
+        #expect(item("feedback.send", in: menu)?.enabled == false)
+        #expect(item("feedback.session", in: menu) == nil)
+        for name in commands(menu) + commands(ContextMenus.diff(
+            file: 0, row: 0, path: "a", line: false, split: false, hasCommits: true
+        )) {
+            #expect(Commands.spec(name) != nil, "\(name) is not a command")
+        }
+    }
 }

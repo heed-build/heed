@@ -3646,7 +3646,7 @@ final class AppModel {
         let record = repos.first { $0.repo == main.repo && $0.location == main.location }
             ?? RepoRecord(repo: main.repo, path: main.path, location: main.location)
         guard let prBranch = github.pull(ref)?.headBranch ?? main.branch else { return fail("no branch") }
-        let root = session.host.flatMap { config.hosts[$0]?.worktreeRoot } ?? self.settings.worktreeRoot
+        let root = Runs.worktreeRoot(local: self.settings.worktreeRoot, host: session.host, hosts: config.hosts)
         let branch = Runs.branch(goal, prBranch: prBranch)
         let startSHA = await Git.remoteSHA(record, branch: prBranch)
         let worktree: String

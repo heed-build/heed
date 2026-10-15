@@ -2,6 +2,8 @@ import Foundation
 
 /// Whether a pane's terminal outlives heed.
 public enum PanePersistence: String, CaseIterable, Sendable, Codable {
+    /// zmx when it is installed and passes its check (`ZmxCheck`), else none: the default.
+    case auto
     /// The terminal is heed's: it ends when heed quits, and a relaunch resumes the agent from its own history.
     case none
     /// The terminal runs in a zmx session (https://zmx.sh) that heed attaches to: quitting, restarting or updating heed
@@ -11,6 +13,68 @@ public enum PanePersistence: String, CaseIterable, Sendable, Codable {
 
 /// heed's use of zmx: one zmx session per pane, named after it, in a socket directory of heed's own so they stay
 /// apart from sessions you run yourself.
+/// Whether zmx on this Mac works for heed: found, answers `zmx version`, and lists sessions in heed's socket
+/// directory. Settings shows it next to git and gh; `persist = "auto"` uses zmx only when it passed.
+public struct ZmxHealth: Equatable, Sendable {
+    public var path: String?
+    public var version: String?
+    /// Why it cannot be used; nil when it can.
+    public var problem: String?
+
+    public init(path: String?, version: String? = nil, problem: String? = nil) {
+        self.path = path
+        self.version = version
+        self.problem = problem
+    }
+
+    public var works: Bool { path != nil && problem == nil }
+
+    /// What panes do with this, for `persist`: `.zmx` or `.none`.
+    public static func decide(_ setting: PanePersistence, health: ZmxHealth?) -> PanePersistence {
+        switch setting {
+        case .none: .none
+        case .zmx: health?.path != nil ? .zmx : .none
+        case .auto: health?.works == true ? .zmx : .none
+        }
+    }
+}
+
+public enum ZmxCheck {
+    /// Runs zmx the way heed will: its version, then listing heed's own sessions.
+    public static func run(zmx: String?, socketDirectory: String = Zmx.socketDirectory()) async -> ZmxHealth {
+        guard let zmx else { return ZmxHealth(path: nil, problem: "not installed") }
+        let version = try? await ProcessRunner.run(zmx, ["version"], timeout: .seconds(5))
+        guard let version, version.succeeded else {
+            return ZmxHealth(path: zmx, problem: "zmx version failed: \(firstLine(version))")
+        }
+        try? FileManager.default.createDirectory(atPath: socketDirectory, withIntermediateDirectories: true)
+        let list = try? await ProcessRunner.run(
+            zmx, ["list", "--short"], environment: Zmx.environment(socketDirectory: socketDirectory),
+            timeout: .seconds(5)
+        )
+        let number = parseVersion(version.stdout)
+        guard let list, list.succeeded else {
+            return ZmxHealth(path: zmx, version: number, problem: "zmx list failed: \(firstLine(list))")
+        }
+        return ZmxHealth(path: zmx, version: number)
+    }
+
+    /// `zmx 0.8.1 ...` → `0.8.1`.
+    public static func parseVersion(_ output: String) -> String? {
+        output.split(whereSeparator: \.isNewline).lazy.compactMap { line -> String? in
+            let words = line.split(separator: " ")
+            return words.first == "zmx" && words.count > 1 ? String(words[1]) : nil
+        }.first
+    }
+
+    private static func firstLine(_ result: ProcessResult?) -> String {
+        guard let result else { return "did not start" }
+        let text = (result.stderr.isEmpty ? result.stdout : result.stderr)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.split(whereSeparator: \.isNewline).first.map(String.init) ?? "exit \(result.status)"
+    }
+}
+
 public enum Zmx {
     public static let prefix = "heed-"
 

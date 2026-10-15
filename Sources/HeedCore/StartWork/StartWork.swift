@@ -21,7 +21,7 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     /// New sessions open a shell split beside the agent (`[sessions] shell_split`); off means one pane.
     public var shellSplit = false
     /// Whether panes outlive heed: `zmx` keeps each pane's terminal in a zmx session that heed reattaches to.
-    public var persist: PanePersistence = .none
+    public var persist: PanePersistence = .auto
 
     public init(
         worktreeRoot: String = "~/code/wt", repoRoots: [String] = ["~/Projects", "~/code"],

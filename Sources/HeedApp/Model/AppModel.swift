@@ -90,6 +90,8 @@ final class AppModel {
     private(set) var firstRun: FirstRunReport?
     /// Where git and gh were found, and the search path every command and pane runs with.
     private(set) var tools: ToolReport?
+    /// zmx on this Mac, as last checked (Settings › General shows it); nil until tools are detected.
+    private(set) var zmxHealth: ZmxHealth?
     /// Opens the Settings window (set by the view, which has the SwiftUI action).
     var openSettings: (() -> Void)?
     /// Nil for fixtures: nothing is persisted and no adapter runs.
@@ -235,6 +237,7 @@ final class AppModel {
             config.issues = Fixtures.issueRules
             config.hosts = Fixtures.hosts
             config.pilot = Fixtures.pilotRules
+            zmxHealth = ZmxHealth(path: "/opt/homebrew/bin/zmx", version: "0.8.1")
             hostStatuses = Fixtures.hostStatuses
             issueInfo = Fixtures.issueInfo
         }
@@ -604,7 +607,7 @@ final class AppModel {
         settings = decoded.work
         Remote.setTargets(Dictionary(uniqueKeysWithValues: decoded.hosts.map { ($0.key, $0.value.ssh) }))
         if !isFixture {
-            TerminalSurfaces.shared.persist = decoded.work.persist
+            TerminalSurfaces.shared.persist = ZmxHealth.decide(decoded.work.persist, health: zmxHealth)
             Updater.shared.apply(decoded.updates)
         }
         let built = decoded.keymaps()
@@ -631,14 +634,24 @@ final class AppModel {
         if pilotChanged { settlePilots() }
     }
 
+    /// `[tools] zmx` (a path, or a name on the search path), else zmx on the search path.
+    static func locateZmx(_ configured: String, searchPath: [String]) -> String? {
+        let name = configured.isEmpty ? "zmx" : (configured as NSString).expandingTildeInPath
+        if name.contains("/") { return FileManager.default.isExecutableFile(atPath: name) ? name : nil }
+        return searchPath.lazy.map { "\($0)/\(name)" }.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
     /// Finds git and gh (config, login shell PATH, usual places) and hands the search path to new panes.
     func detectTools(force: Bool = false) async {
         let report = await ToolLocator.shared.configure(config.tools, force: force)
         tools = report
         TerminalSurfaces.shared.searchPath = report.pathVariable
-        // zmx is yours to install: found on the search path like any tool, never shipped with heed.
-        TerminalSurfaces.shared.zmxPath = report.searchPath.lazy.map { "\($0)/zmx" }
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
+        // zmx is yours to install: `[tools] zmx`, or found on the search path like any tool, never shipped with heed.
+        TerminalSurfaces.shared.zmxPath = Self.locateZmx(config.tools.zmx, searchPath: report.searchPath)
+        // Checked the way panes use it; `persist = "auto"` uses it only when it works.
+        let health = await ZmxCheck.run(zmx: TerminalSurfaces.shared.zmxPath)
+        zmxHealth = health
+        TerminalSurfaces.shared.persist = ZmxHealth.decide(settings.persist, health: health)
         if settings.persist == .zmx, TerminalSurfaces.shared.zmxPath == nil {
             flash = "persist = \"zmx\" but zmx is not installed: \(ZmxInstall.mac.joined(separator: "; ")) (panes stay plain shells until then)"
         }

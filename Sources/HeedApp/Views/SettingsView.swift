@@ -201,6 +201,23 @@ private struct GeneralSettings: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
             }
+            Field(
+                label: "Persistent panes",
+                detail: "Panes run in zmx, so agents keep running when heed quits, restarts or updates, and come back as "
+                    + "they were. Auto uses zmx when it is installed and passes its check (Tools, below)."
+            ) {
+                Picker("", selection: Binding(
+                    get: { model.settings.persist },
+                    set: { model.setConfig(["sessions", "persist"], .string($0.rawValue)) }
+                )) {
+                    Text("Auto").tag(PanePersistence.auto)
+                    Text("zmx").tag(PanePersistence.zmx)
+                    Text("Off").tag(PanePersistence.none)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 220)
+            }
             GroupLabel(title: "Outside the window")
             Field(
                 label: "Menu bar item",
@@ -253,6 +270,15 @@ private struct GeneralSettings: View {
             }
             Field(label: "gh", detail: "Empty detects it.") {
                 ConfigTextField(path: ["tools", "gh"], value: model.config.tools.gh)
+            }
+            Field(
+                label: "zmx",
+                detail: "For persistent panes. Empty detects it (Homebrew, ~/.local/bin, the search path)."
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ConfigTextField(path: ["tools", "zmx"], value: model.config.tools.zmx)
+                    ZmxStatus(health: model.zmxHealth, setting: model.settings.persist)
+                }
             }
             ToolsList(report: model.tools)
         }
@@ -630,5 +656,41 @@ private struct KeySettings: View {
                 }
             }
         }
+    }
+}
+
+/// zmx's check, under its field: where it is, its version, whether it works, and what panes do because of it.
+private struct ZmxStatus: View {
+    let health: ZmxHealth?
+    let setting: PanePersistence
+
+    var body: some View {
+        let effective = ZmxHealth.decide(setting, health: health)
+        VStack(alignment: .leading, spacing: 4) {
+            if let health {
+                HStack(spacing: 6) {
+                    Image(systemName: health.works ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(health.works ? Theme.done : Theme.block)
+                    if let path = health.path {
+                        Text(Paths.abbreviate(path)).font(Theme.mono(11.5))
+                        if let version = health.version { Text(version).foregroundStyle(Theme.fg3) }
+                    }
+                    Text(health.works ? "works" : health.problem ?? "")
+                        .foregroundStyle(health.works ? Theme.done : Theme.block)
+                }
+                Text(effective == .zmx
+                    ? "Panes run in zmx: agents outlive heed."
+                    : setting == .none ? "Off: panes end when heed quits." : "Panes are plain shells until zmx works.")
+                    .foregroundStyle(Theme.fg3)
+                if health.path == nil {
+                    Text("Install: " + ZmxInstall.mac.joined(separator: "; ")).font(Theme.mono(11))
+                        .foregroundStyle(Theme.fg2)
+                        .textSelection(.enabled)
+                }
+            } else {
+                Text("Not checked yet.").foregroundStyle(Theme.fg3)
+            }
+        }
+        .font(Theme.ui(12))
     }
 }

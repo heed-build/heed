@@ -5,6 +5,8 @@ public struct ToolSettings: Equatable, Sendable {
     /// A path (`/opt/homebrew/bin/git`, `~/bin/git`) or a name looked up on the search path.
     public var git = ""
     public var gh = ""
+    /// zmx, for persistent panes; empty: found on the search path.
+    public var zmx = ""
     /// Directories searched before anything detected, for git, gh and agent commands alike.
     public var path: [String] = []
 

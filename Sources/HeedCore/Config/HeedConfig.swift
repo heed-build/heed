@@ -213,7 +213,7 @@ public enum ConfigLoader {
             if let persist = PanePersistence(rawValue: text.lowercased()) {
                 config.work.persist = persist
             } else {
-                problems.append(ConfigProblem(path: "sessions.persist", message: "expected none or zmx"))
+                problems.append(ConfigProblem(path: "sessions.persist", message: "expected auto, zmx or none"))
             }
         }
         // [cleanup]
@@ -331,6 +331,7 @@ public enum ConfigLoader {
         // [tools]
         if let git = string(["tools", "git"]) { config.tools.git = git }
         if let gh = string(["tools", "gh"]) { config.tools.gh = gh }
+        if let zmx = string(["tools", "zmx"]) { config.tools.zmx = zmx }
         if let path = strings(["tools", "path"]) { config.tools.path = path }
         func visibility(_ path: [String]) -> IssueVisibility? {
             guard let text = string(path) else { return nil }
@@ -517,8 +518,9 @@ public enum ConfigLoader {
     # Open a shell split beside the agent in new sessions (Start work can still toggle it per session).
     shell_split = false
     # Keep every pane's terminal alive in a zmx session, so agents keep running when heed quits, restarts or updates,
-    # and come back as they were: none (panes end with heed) or zmx.
-    persist = "none"
+    # and come back as they were: auto (zmx when it is installed and works; Settings > General shows its check),
+    # zmx, or none (panes end with heed).
+    persist = "auto"
 
     [cleanup]
     # Automatic cleanup, off by default. When on, worktrees with no activity (agent output, keystrokes, commits, PR

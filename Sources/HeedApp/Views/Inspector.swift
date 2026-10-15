@@ -46,8 +46,7 @@ struct Inspector: View {
                         // PRs and issues apart: each under its own heading, PRs as cards, issues as rows.
                         let pulls = links.filter { if case .pull = $0 { true } else { false } }
                         let issues = links.filter { if case .issue = $0 { true } else { false } }
-                        ForEach(Array([("Pull requests", pulls), ("Issues", issues)].enumerated()), id: \.offset) {
-                            _, group in
+                        ForEach([("Pull requests", pulls), ("Issues", issues)], id: \.0) { group in
                             if !group.1.isEmpty {
                                 Text("\(group.0) · \(group.1.count)").font(Theme.ui(11, weight: .semibold))
                                     .foregroundStyle(Theme.fg3)

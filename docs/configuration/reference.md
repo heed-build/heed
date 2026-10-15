@@ -145,6 +145,12 @@ enabled = true
 asking = true
 blocked = true
 
+[summary]
+# While you were away: what still waits on you, then what merged, how background runs ended, which agents
+# finished, the reviews that arrived and the sessions that closed, by day. It opens on its own when you come back
+# after this many hours away from the Mac or with heed quit (0: never on its own); gZ opens it any time.
+away_hours = 8
+
 [updates]
 # Look for a new version of heed once a day (on GitHub, heed's releases). Each update is signed; heed installs
 # only what its key signed, and Apple has notarized.

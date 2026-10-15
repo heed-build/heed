@@ -162,6 +162,16 @@ struct OutsideWindowConfigTests {
         #expect(config?.globalActivate == "")
     }
 
+    @Test func theSummaryOpensAfterEightHoursAwayByDefault() {
+        #expect(HeedConfig.default.summaryAwayHours == 8)
+        let (config, problems) = ConfigLoader.decode("""
+        [summary]
+        away_hours = 0
+        """)
+        #expect(problems.isEmpty)
+        #expect(config?.summaryAwayHours == 0)
+    }
+
     @Test func updatesAreCheckedAndAskedAboutByDefault() {
         #expect(HeedConfig.default.updates == UpdateSettings(check: true, install: .ask))
         let (config, problems) = ConfigLoader.decode("""

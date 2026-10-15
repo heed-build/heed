@@ -26,6 +26,11 @@ struct HeedApp: App {
                     delegate.host.current.perform(CommandInvocation(name: "update.check"))
                 }
             }
+            // No key equivalent either: gZ is the mode engine's.
+            CommandGroup(before: .windowList) {
+                Button("While you were away…") { delegate.host.current.perform(CommandInvocation(name: "summary")) }
+                Divider()
+            }
             // No key equivalent: ⌘⇧T is the mode engine's, so it works from a terminal pane too.
             CommandGroup(replacing: .help) {
                 Button("Heed Tutor") { delegate.host.current.perform(CommandInvocation(name: "tutor")) }

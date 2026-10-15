@@ -15,6 +15,9 @@ public struct HeedConfig: Equatable, Sendable {
     public var showDockState = true
     /// `[notifications]`: a macOS notification when a session starts needing you.
     public var notifications = NotificationSettings()
+    /// `[summary] away_hours`: how long away (from the Mac, or with heed quit) before the summary of what happened
+    /// opens on its own; 0 never opens it.
+    public var summaryAwayHours = 8
     /// `[keys.normal]`, `[keys.visual]`, ...: overrides laid over the defaults.
     public var keys: [Mode: [(String, String)]]
     /// `[keys.repos]`, `[keys.inbox]`, ...: per-view overrides.
@@ -66,6 +69,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.showMenuBarItem == rhs.showMenuBarItem,
             lhs.showDockState == rhs.showDockState,
             lhs.notifications == rhs.notifications,
+            lhs.summaryAwayHours == rhs.summaryAwayHours,
             flat(lhs.keys) == flat(rhs.keys),
             flat(lhs.scopedKeys) == flat(rhs.scopedKeys),
             lhs.orgColors == rhs.orgColors,
@@ -491,6 +495,8 @@ public enum ConfigLoader {
         if let flag = bool(["notifications", "enabled"]) { config.notifications.enabled = flag }
         if let flag = bool(["notifications", "asking"]) { config.notifications.asking = flag }
         if let flag = bool(["notifications", "blocked"]) { config.notifications.blocked = flag }
+        // [summary]
+        if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         // [updates]
         if let flag = bool(["updates", "check"]) { config.updates.check = flag }
         if let text = string(["updates", "install"]) {
@@ -651,6 +657,12 @@ public enum ConfigLoader {
     enabled = true
     asking = true
     blocked = true
+
+    [summary]
+    # While you were away: what still waits on you, then what merged, how background runs ended, which agents
+    # finished, the reviews that arrived and the sessions that closed, by day. It opens on its own when you come back
+    # after this many hours away from the Mac or with heed quit (0: never on its own); gZ opens it any time.
+    away_hours = 8
 
     [updates]
     # Look for a new version of heed once a day (on GitHub, heed's releases). Each update is signed; heed installs

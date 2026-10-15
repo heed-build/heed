@@ -133,7 +133,10 @@ final class AppModel {
     private(set) var issueRepo: Repo?
 
     // Resume on launch
-    private(set) var resume: ResumeForm?
+    private(set) var resume: ResumeForm? {
+        didSet { if resume == nil, oldValue != nil { showPendingAwaySummary() } }
+    }
+
     /// Resumed sessions that were mid-turn: they get the continue prompt once their agent reports idle.
     private var pendingContinue: Set<String> = []
 
@@ -279,6 +282,7 @@ final class AppModel {
         loadAvatars()
         store = DomainStore(domain: cached, file: file)
         await offerResume(domain: cached)
+        startAwayTracking()
         startGitHubSync()
         startScreenReading()
         await refreshRepos()
@@ -1109,6 +1113,10 @@ final class AppModel {
     private(set) var runs: [PilotRun] = []
     /// The run the reader shows (`↩` on a Runs row).
     var runReader: PilotRun?
+    /// While you were away (`summary`), while it shows.
+    var awaySummary: AwaySummary?
+    /// Since when the summary that opened on its own goes back, while it waits for the resume dialog to close.
+    var pendingAwaySince: Date?
     /// Titles and states of the issues sessions link to (fetched, not cached on disk).
     private(set) var issueInfo: [IssueRef: IssueInfo] = [:]
     private var issueInfoFetchedAt: [IssueRef: Date] = [:]
@@ -1368,6 +1376,10 @@ final class AppModel {
             if stroke == .escape || stroke == KeyStroke("q") || stroke == KeyStroke("CR") { runReader = nil }
             return true
         }
+        if awaySummary != nil {
+            answerAwaySummary(stroke)
+            return true
+        }
         if pathImport != nil {
             answerPathImport(stroke)
             return true
@@ -1526,6 +1538,7 @@ final class AppModel {
         case "work.start": openStartWork(prompt: command.arguments.joined(separator: " "))
         case "work.start.panel": openStandaloneStartWork()
         case "resume": Task { await offerResume(domain: currentDomain, asked: true) }
+        case "summary": showAwaySummary()
         case "session.open": openSession(matching: command.arguments.joined(separator: " "))
         case "tab.go":
             if let n = command.arguments.first.flatMap(Int.init) ?? command.count, currentTabs.indices.contains(n - 1) {
@@ -1857,6 +1870,25 @@ final class AppModel {
 
     private func select(sessionID: String) {
         if let index = list.ordered.firstIndex(where: { $0.id == sessionID }) { setCursor(index) }
+    }
+
+    /// The summary's keys: j/k over what waits on you, ↩ goes to that session, ⎋ closes.
+    private func answerAwaySummary(_ stroke: KeyStroke) {
+        switch stroke {
+        case KeyStroke("j"), KeyStroke("Down"): awaySummary?.move(by: 1)
+        case KeyStroke("k"), KeyStroke("Up"): awaySummary?.move(by: -1)
+        case KeyStroke("CR"):
+            if let id = awaySummary?.selected?.id { openAwaySession(id) } else { awaySummary = nil }
+        case .escape, KeyStroke("q"): awaySummary = nil
+        default: break
+        }
+    }
+
+    /// Closes the summary on a session that waits on you.
+    func openAwaySession(_ id: String) {
+        awaySummary = nil
+        view = .sessions
+        select(sessionID: id)
     }
 
     private func goBack() {
@@ -5971,7 +6003,7 @@ final class AppModel {
     /// Whether a click on a list may act: not while a dialog or form has the keyboard.
     var clicksReachLists: Bool {
         startWork == nil && confirmation == nil && resume == nil && firstRun == nil && importPicker == nil
-            && pathImport == nil && tutorPicker == nil
+            && pathImport == nil && tutorPicker == nil && awaySummary == nil
     }
 
     /// A click on a session in the sidebar or the rail selects it; a double-click also types into its agent pane.

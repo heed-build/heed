@@ -137,7 +137,7 @@ public enum Fixtures {
                 agent: "claude", state: ObservedState(.done), activity: "done · PR approved", trackedPRs: [PullRef(
                     repo: editorconfig,
                     number: 412
-                )]
+                )], lastActivity: Clock.now.addingTimeInterval(-50 * 60)
             ),
             Session(
                 id: "s6", title: "Docs nav spike", repos: [docsBuilder], branch: "docs-nav-spike", agent: "opencode",
@@ -227,6 +227,18 @@ public enum Fixtures {
             ))
             log.sort { $0.at > $1.at }
         }
+        // While you were away: #2836 merged this morning, mermaider#415 last night.
+        log += [
+            PilotEvent(
+                at: Clock.now.addingTimeInterval(-109 * 60), ref: PullRef(repo: docsBuilder, number: 2836),
+                kind: .merged, text: "merged into main"
+            ),
+            PilotEvent(
+                at: Clock.now.addingTimeInterval(-879 * 60), ref: PullRef(repo: mermaider, number: 415),
+                kind: .merged, text: "Fix label clipping"
+            ),
+        ]
+        log.sort { $0.at > $1.at }
         // heed merges #2841 (held: lint failed), docs-content#1920 has auto-merge on.
         pipeline.merge = .heed
         pipeline.mergeSet = true
@@ -485,7 +497,9 @@ public enum Fixtures {
             body: "Validates redirect targets against real headings, so moved pages no longer lose their anchors.\nCloses #2830. Companion change in docs-content #1920.",
             author: "you", baseBranch: "main", headBranch: "fix-anchors-redirects", additions: 82, deletions: 4,
             commitCount: 3, headSHA: "a91e3d0",
-            reviews: [PullDetail.Review(author: "reviewer", state: "CHANGES_REQUESTED")],
+            reviews: [PullDetail.Review(
+                author: "reviewer", state: "CHANGES_REQUESTED", submittedAt: Clock.now.addingTimeInterval(-686 * 60)
+            )],
             threads: [
                 ReviewThread(
                     id: "T1", isResolved: false, path: "src/Redirects/RedirectFile.cs", line: 88, author: "reviewer",

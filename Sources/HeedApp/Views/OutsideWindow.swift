@@ -130,7 +130,7 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
 
     /// One line of the menu: what the real menu shows and the screenshots draw. Nil is a separator.
     struct Entry {
-        enum Action { case none, openSession(String), startWork, openHeed, settings, quit }
+        enum Action { case none, openSession(String), startWork, openHeed, summary, settings, quit }
         var title: String
         var action: Action = .none
         var shortcut = ""
@@ -156,6 +156,7 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         entries.append(nil)
         entries.append(Entry(title: "Start work…", action: .startWork, shortcut: model.config.globalStartWork))
         entries.append(Entry(title: "Open Heed", action: .openHeed, shortcut: model.config.globalActivate))
+        entries.append(Entry(title: "While you were away…", action: .summary))
         entries.append(nil)
         entries.append(Entry(title: "Settings…", action: .settings))
         entries.append(Entry(title: "Quit Heed", action: .quit))
@@ -176,6 +177,7 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
             case .openSession: #selector(openSession(_:))
             case .startWork: #selector(startWork)
             case .openHeed: #selector(openHeed)
+            case .summary: #selector(openSummary)
             case .settings: #selector(openSettings)
             case .quit: #selector(quit)
             }
@@ -196,6 +198,11 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
 
     @objc private func startWork() { model?.openStandaloneStartWork() }
     @objc private func openHeed() { model?.activateHeed() }
+    @objc private func openSummary() {
+        model?.activateHeed()
+        model?.perform(CommandInvocation(name: "summary"))
+    }
+
     @objc private func openSettings() {
         model?.activateHeed()
         model?.openSettings?()

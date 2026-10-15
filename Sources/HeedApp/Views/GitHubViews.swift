@@ -345,7 +345,7 @@ struct PullRequestsView: View {
                         Group {
                             Text("PR").frame(width: 210, alignment: .leading)
                             Text("TITLE").frame(maxWidth: .infinity, alignment: .leading)
-                            Text("CHECKS").frame(width: 130, alignment: .leading)
+                            Text("CHECKS").frame(width: 200, alignment: .leading).padding(.trailing, 12)
                             Text("REVIEW").frame(width: 150, alignment: .leading)
                             Text("WATCH").frame(width: 130, alignment: .leading)
                         }
@@ -412,11 +412,10 @@ private struct PullRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .leading, spacing: 4) {
                 CheckBar(checks: pull.checks)
-                Text(pull.checks.text).font(Theme.mono(11))
-                    .foregroundStyle(pull.checks.failed > 0 ? Theme.err : Theme.fg3)
-                    .lineLimit(1)
+                CheckText(checks: pull.checks).font(Theme.ui(11.5)).lineLimit(1)
             }
-            .frame(width: 130, alignment: .leading)
+            .frame(width: 200, alignment: .leading)
+            .padding(.trailing, 12)
             Text(reviewText).font(Theme.ui(12.5)).foregroundStyle(reviewColor).lineLimit(1)
                 .frame(width: 150, alignment: .leading)
             // Watched or not, and get it green's mode: `w` `m` `zz` act on the row (or the VISUAL picks).
@@ -448,24 +447,70 @@ private struct PullRow: View {
     }
 }
 
-/// Segmented bar: green passed, red failed, blue running, grey skipped.
+/// Green passed, red failed, blue running, grey skipped, across the width it is given. Up to 12 checks it draws
+/// one segment per check; past that one segment per state, as wide as its share and never too thin to see.
 struct CheckBar: View {
     let checks: CheckSummary
 
+    private static let skippedColor = Color(hex: 0x3A4047)
+    private static let gap: CGFloat = 2
+    private static let thinnest: CGFloat = 3
+
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(0 ..< min(segments.count, 12), id: \.self) { index in
-                RoundedRectangle(cornerRadius: 1).fill(segments[index]).frame(width: 12, height: 4)
+        GeometryReader { geometry in
+            HStack(spacing: Self.gap) {
+                ForEach(Array(segments(width: geometry.size.width).enumerated()), id: \.offset) { _, segment in
+                    RoundedRectangle(cornerRadius: 1).fill(segment.color).frame(width: segment.width, height: 4)
+                }
             }
+        }
+        .frame(height: 4)
+    }
+
+    private var counts: [(count: Int, color: Color)] {
+        [
+            (checks.passed, Theme.done), (checks.failed, Theme.err), (checks.pending, Theme.busy),
+            (checks.skipped, Self.skippedColor),
+        ].filter { $0.count > 0 }
+    }
+
+    private func segments(width: CGFloat) -> [(color: Color, width: CGFloat)] {
+        let all = counts.reduce(0) { $0 + $1.count }
+        guard all > 0 else { return [] }
+        if all <= 12 {
+            let each = max(1, (width - Self.gap * CGFloat(all - 1)) / CGFloat(all))
+            return counts.flatMap { Array(repeating: ($0.color, each), count: $0.count) }
+        }
+        let room = width - Self.gap * CGFloat(counts.count - 1)
+        var widths = counts.map { max(Self.thinnest, room * CGFloat($0.count) / CGFloat(all)) }
+        // What the thin ones were rounded up by comes off the widest.
+        if let widest = widths.indices.max(by: { widths[$0] < widths[$1] }) {
+            widths[widest] -= widths.reduce(0, +) - room
+        }
+        return zip(counts, widths).map { ($0.color, max(1, $1)) }
+    }
+}
+
+/// A check summary with each part in its state's colour: `10/12 passed · lint failed · 1 running`.
+struct CheckText: View {
+    let checks: CheckSummary
+
+    var body: some View { Self.text(checks) }
+
+    static func text(_ checks: CheckSummary) -> Text {
+        checks.parts.enumerated().reduce(Text(verbatim: "")) { text, item in
+            let part = Text(verbatim: item.element.text).foregroundStyle(color(item.element))
+            return item.offset == 0 ? part : text + Text(verbatim: " · ").foregroundStyle(Theme.fg3) + part
         }
     }
 
-    private var segments: [Color] {
-        Array(repeating: Theme.done, count: checks.passed) + Array(repeating: Theme.err, count: checks.failed)
-            + Array(repeating: Theme.busy, count: checks.pending) + Array(
-                repeating: Color(hex: 0x3A4047),
-                count: checks.skipped
-            )
+    private static func color(_ part: CheckSummary.Part) -> Color {
+        switch part {
+        case .passed: Theme.fg2
+        case .failed: Theme.err
+        case .running: Theme.busy
+        case .skipped, .none: Theme.fg3
+        }
     }
 }
 
@@ -477,10 +522,9 @@ private struct PullDetail: View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(title: "\(pull.ref.repo.name) #\(pull.ref.number)")
             Text(pull.title).font(Theme.ui(15, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 8) {
-                CheckBar(checks: pull.checks)
-                Text(pull.checks.text).font(Theme.mono(11.5))
-                    .foregroundStyle(pull.checks.failed > 0 ? Theme.err : Theme.fg2)
+            VStack(alignment: .leading, spacing: 6) {
+                CheckBar(checks: pull.checks).frame(width: 280)
+                CheckText(checks: pull.checks).font(Theme.mono(11.5))
             }
             if !pull.checks.failedNames.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {

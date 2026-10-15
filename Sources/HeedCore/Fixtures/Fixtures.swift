@@ -756,7 +756,8 @@ public enum Fixtures {
                 2838,
                 "Cross-link validator for assembler",
                 "cross-link-validator",
-                CheckSummary(passed: 2, pending: 3),
+                // A big matrix, so the check bar shows what it does past 12 checks.
+                CheckSummary(passed: 38, pending: 4, skipped: 3),
                 nil
             ),
             pull(editorconfig, 412, "Bump spec tests to 0.17", "bump-spec-tests", CheckSummary(passed: 3), .approved),

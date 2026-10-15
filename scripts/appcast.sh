@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Write the appcast Sparkle reads to update Heed: one item, the release being made, with the zip's EdDSA signature
-# and length (from Sparkle's sign_update) and the release notes as HTML. The release workflow attaches it to the
-# release, so https://github.com/heed-build/heed/releases/latest/download/appcast.xml always names the latest one.
+# and length (from Sparkle's sign_update) and the release notes as HTML (scripts/release-notes.sh: every release
+# since the installed one). The release workflow attaches it to the release, so
+# https://github.com/heed-build/heed/releases/latest/download/appcast.xml always names the latest one.
 #
 #   scripts/appcast.sh <version> <build> <signature> <length> <notes.html> >appcast.xml
 #

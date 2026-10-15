@@ -6,7 +6,8 @@ description: How Heed updates itself, what it checks and when, and how to turn i
 # Updates
 
 Heed updates itself. Once a day it reads the list of releases on GitHub (an appcast attached to the latest
-release), and when there is a newer version it shows what changed and offers to install it. Installing replaces the
+release), and when there is a newer version it shows what changed since the version you have, release by release,
+and offers to install it. Installing replaces the
 app and opens it again. `:update`, or **Heed › Check for Updates…**, looks right away.
 
 Panes keep running through an update only with [persistent panes](../sessions/zmx.md); without them, updating is

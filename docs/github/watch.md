@@ -164,21 +164,27 @@ items queued sends at once: asking for it yourself does not wait.
 
 ## A tab of its own
 
-With `send_to = "tab"`, a PR's feedback goes to a dedicated agent instead of the session's: heed opens a tab next to
-the session's own, named **get it green** (failing checks, review threads) or **get it merged** (conflicts with the
-base), and starts the session's agent there with the feedback as its prompt.
+With `send_to = "tab"`, where a PR's feedback goes depends on whether you are working in its session:
+
+- **You are working in it** (you typed in it within `send_after_idle`): heed opens a tab next to the session's own,
+  named **get it green** (failing checks, review threads) or **get it merged** (conflicts with the base), and starts
+  the session's agent there on the feedback, right away. It works in a **companion worktree** beside the session's
+  (`…/fix-anchors-green`), on its own branch `<branch>-green` (or `-merged`) that tracks the PR's, so it never touches
+  your files. It commits there and pushes to the PR's branch with `git push origin HEAD:<branch>`.
+- **You have stepped away**: the session's own agent gets it, as with `send_to = "session"`.
+- A PR that has a helper keeps it for later rounds, typed into it once it is idle.
 
 ![A get it green tab working beside the session's agent](../images/shots/sessions/helper-tab.png)
 
 - It never takes your focus: the tab appears, the one you are on stays selected, and INSERT stays where it was. Its
   glyph in the tab strip is the helper's own state. `:pilot.helper` goes to it.
-- It works in the session's worktree, so it takes turns with the session's agent: it starts once that agent is idle
-  and you have stepped away (as above), and later rounds are typed into it once it is idle.
 - Its state is its own. The session stays where it was in the sidebar, except that a helper asking you something, or
   blocked on a permission, puts the session in Needs you.
-- When its PR is green (get it green) or merged (get it merged), and the helper is not mid-turn, heed closes the tab
-  and logs it. A PR that turns green but then conflicts gets a get it merged tab next.
-- Helper tabs do not come back after a relaunch; a PR that still needs work gets a fresh one on its next round.
+- When its PR is green (get it green) or merged (get it merged), and the helper is not mid-turn, heed closes the tab,
+  removes the companion worktree and its branch, and brings the session's worktree up to date with what the helper pushed (when it
+  has no changes of its own; otherwise it shows as behind). A PR that turns green but then conflicts gets a get it
+  merged tab next.
+- Companion worktrees are heed's: Repos and `I` do not offer them. Helper tabs do not come back after a relaunch.
 
 ## Stalled
 

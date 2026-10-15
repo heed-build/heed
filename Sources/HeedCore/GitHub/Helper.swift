@@ -32,6 +32,34 @@ public enum HelperTabs {
         pullCount > 1 ? "\(goal.rawValue) #\(ref.number)" : goal.rawValue
     }
 
+    /// Where a helper's companion checkout goes: beside the session's worktree, named after it and the goal.
+    public static func companionPath(worktree: String, goal: HelperGoal) -> String {
+        "\(worktree)-\(goal == .green ? "green" : "merged")"
+    }
+
+    /// The companion's own branch: the PR's, with the goal as a suffix.
+    public static func companionBranch(_ branch: String, goal: HelperGoal) -> String {
+        "\(branch)-\(goal == .green ? "green" : "merged")"
+    }
+
+    /// The helper's prompt in its companion: where it is and how to push, then what to fix.
+    public static func companionPrompt(_ feedback: String, branch: String, goal: HelperGoal) -> String {
+        "You are in a separate worktree on the branch \(companionBranch(branch, goal: goal)), which tracks \(branch) "
+            + "and leaves the main worktree alone. Commit here and push to the PR's branch with: "
+            + "git push origin HEAD:\(branch)\n\n" + feedback
+    }
+
+    /// `send_to = "tab"`: a PR that already has a helper keeps it; otherwise one in a companion while you work in the
+    /// session, and the session's own agent once you have stepped away.
+    public enum Route: Equatable, Sendable {
+        case existingHelper, companionHelper, sessionAgent
+    }
+
+    public static func route(hasHelper: Bool, youAreThere: Bool) -> Route {
+        if hasHelper { return .existingHelper }
+        return youAreThere ? .companionHelper : .sessionAgent
+    }
+
     /// Whether the helper may be closed: never mid-turn.
     public static func canClose(_ state: AgentState?) -> Bool {
         switch state {

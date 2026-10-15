@@ -19,6 +19,8 @@ public enum OverrideScope: Hashable, Sendable {
         case let .repo(repo): repo.slug
         }
     }
+
+    public var isOrg: Bool { if case .org = self { true } else { false } }
 }
 
 /// Where a value comes from: heed's default (or `[pilot]`), the org, the repo.
@@ -71,6 +73,8 @@ public struct OverrideKey: Identifiable, Sendable {
     public let kind: Kind
     /// Repo only (`admin_merge`).
     public let repoOnly: Bool
+    /// The group the page lists it under.
+    public var group: String { Overrides.groups.first { $0.keys.contains(id) }?.title ?? "Other" }
     let read: @Sendable (HeedConfig, OverrideScope) -> OverrideValue?
     let fallback: @Sendable (HeedConfig) -> OverrideValue
 }
@@ -262,10 +266,23 @@ public enum Overrides {
         )
     }
 
-    /// The keys that apply at a scope (an org has no `admin_merge`).
+    /// The groups the page lists keys under, in order.
+    public static let groups: [(title: String, keys: [String])] = [
+        ("General", ["color", "issues"]),
+        ("Watching", ["watch"]),
+        ("Get it green", ["green", "max_rounds", "send_after_idle", "send_to"]),
+        ("Get it merged", [
+            "merge", "merge_method", "update_branches", "quiet_minutes", "trusted_reviewers", "gate_checks",
+            "hold_labels", "self_review", "admin_merge",
+        ]),
+        ("Copilot and reviewers", ["copilot_conflicts", "copilot_comments", "reviewers"]),
+    ]
+
+    /// The keys that apply at a scope (an org has no `admin_merge`), in group order.
     public static func keys(for scope: OverrideScope) -> [OverrideKey] {
-        if case .org = scope { return keys.filter { !$0.repoOnly } }
-        return keys
+        let order = groups.flatMap(\.keys)
+        let applicable = scope.isOrg ? keys.filter { !$0.repoOnly } : keys
+        return applicable.sorted { (order.firstIndex(of: $0.id) ?? .max) < (order.firstIndex(of: $1.id) ?? .max) }
     }
 
     /// The value set at exactly this scope, if any.

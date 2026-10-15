@@ -132,7 +132,15 @@ private struct ScopeDetail: View {
                 Text(scope.title).font(Theme.mono(15, weight: .semibold))
                 Text(summary(set: set)).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             }
-            ForEach(Overrides.keys(for: scope)) { key in
+            let keys = Overrides.keys(for: scope)
+            ForEach(Array(keys.enumerated()), id: \.element.id) { index, key in
+                if index == 0 || keys[index - 1].group != key.group {
+                    VStack(alignment: .leading, spacing: 6) {
+                        SectionHeader(title: key.group)
+                        Theme.line.frame(height: 1)
+                    }
+                    .padding(.top, index == 0 ? 0 : 10)
+                }
                 OverrideRow(scope: scope, key: key)
             }
             if case let .repo(repo) = scope, let tasks = config.repos[repo.slug]?.tasks, !tasks.isEmpty {

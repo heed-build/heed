@@ -59,6 +59,11 @@ public struct PilotSettings: Hashable, Sendable {
     public var model: String?
     /// A run still working after this long is stopped.
     public var runTimeout: TimeInterval = 1800
+    /// Extra instructions heed adds to its prompts: after get it green's feedback items, to heed merge's self-review
+    /// criteria, and after Start work's issue text. Additions only: what heed needs from a prompt stays as it is.
+    public var greenInstructions = ""
+    public var reviewInstructions = ""
+    public var startInstructions = ""
 
     public init(
         watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600,
@@ -100,6 +105,10 @@ public struct PilotOverrides: Hashable, Sendable {
     public var adminMerge: Bool?
     public var agent: String?
     public var model: String?
+    /// Empty is a value too: a repo can clear what its org adds.
+    public var greenInstructions: String?
+    public var reviewInstructions: String?
+    public var startInstructions: String?
 
     public init(
         watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil, merge: MergeMode? = nil,
@@ -122,6 +131,7 @@ public struct PilotOverrides: Hashable, Sendable {
             && copilotConflicts == nil && copilotComments == nil && reviewers == nil && quietMinutes == nil
             && trustedReviewers == nil && gateChecks == nil && holdLabels == nil && selfReview == nil && adminMerge ==
             nil && agent == nil && model == nil
+            && greenInstructions == nil && reviewInstructions == nil && startInstructions == nil
     }
 }
 
@@ -161,6 +171,12 @@ public struct PilotRules: Hashable, Sendable {
         settings.adminMerge = repoLevel.adminMerge ?? false
         settings.agent = repoLevel.agent ?? orgLevel.agent ?? defaults.agent
         settings.model = repoLevel.model ?? orgLevel.model ?? defaults.model
+        settings.greenInstructions = repoLevel.greenInstructions ?? orgLevel.greenInstructions
+            ?? defaults.greenInstructions
+        settings.reviewInstructions = repoLevel.reviewInstructions ?? orgLevel.reviewInstructions
+            ?? defaults.reviewInstructions
+        settings.startInstructions = repoLevel.startInstructions ?? orgLevel.startInstructions
+            ?? defaults.startInstructions
         return settings
     }
 

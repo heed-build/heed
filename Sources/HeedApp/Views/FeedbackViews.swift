@@ -199,7 +199,7 @@ struct FeedbackPanel: View {
             .padding(14)
             .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
             .shotRegion(.delivery)
-            if let prompt = pipeline.prompt() {
+            if let prompt = pipeline.prompt(instructions: model.pilotSettings(for: ref).greenInstructions) {
                 VStack(alignment: .leading, spacing: 6) {
                     SectionHeader(title: "Prompt that will be sent")
                     Text(prompt).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).lineLimit(10)

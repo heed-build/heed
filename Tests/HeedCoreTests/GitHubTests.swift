@@ -111,6 +111,14 @@ struct WorkPromptTests {
         #expect(!WorkPrompt.from(issues: [issue(1, "x")], closesLines: false).contains("Closes"))
     }
 
+    @Test func startInstructionsGoBeforeTheClosesLines() {
+        let one = WorkPrompt.from(issues: [issue(1, "x")], instructions: "Write a failing test first.")
+        #expect(one.hasSuffix("Body 1\n\nWrite a failing test first.\n\nCloses elastic/docs-builder#1"))
+        let two = WorkPrompt.from(issues: [issue(1, "x"), issue(2, "y")], instructions: "Keep it small.")
+        #expect(two.contains("- docs-builder#2 y\n\nKeep it small.\n\nCloses"))
+        #expect(!WorkPrompt.from(issues: [issue(1, "x")]).contains("\n\n\n"))
+    }
+
     @Test func pullsAreTrackedByBranch() {
         let repo = Repo(org: "o", name: "r")
         let session = Session(
@@ -188,6 +196,14 @@ struct FeedbackTests {
         #expect(prompt.hasPrefix("Review feedback on PR #2841"))
         #expect(prompt.contains("1) RedirectFile.cs:88 (@reviewer): Anchor lookup is case sensitive."))
         #expect(prompt.contains("2) check lint failed: lint broke"))
+    }
+
+    @Test func greenInstructionsFollowTheItems() {
+        var feedback = PullFeedback(ref: ref, autoFeed: .auto)
+        feedback.merge(detail(threads: [thread("t1")]))
+        let prompt = feedback.prompt(instructions: "Resolve the threads you addressed.") ?? ""
+        #expect(prompt.hasSuffix("case sensitive.\n\nResolve the threads you addressed."))
+        #expect(feedback.prompt() == feedback.prompt(instructions: ""))
     }
 
     @Test func sentItemsBecomeAddressedOnANewPushAndRoundsReset() {

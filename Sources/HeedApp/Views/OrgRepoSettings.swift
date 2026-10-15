@@ -244,6 +244,8 @@ private struct OverrideRow: View {
             }
         case .list, .text:
             OverrideTextField(path: path, value: value, list: key.kind == .list)
+        case .instructions:
+            InstructionsField(path: path, value: { if case let .text(text) = value { text } else { "" } }(), width: 300)
         case .color:
             let current = if case let .text(text) = value { text } else { "" }
             HStack(spacing: 8) {

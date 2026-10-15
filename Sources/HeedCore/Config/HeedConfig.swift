@@ -273,6 +273,12 @@ public enum ConfigLoader {
             }
             overrides.agent = string(base + ["agent"]).flatMap { $0.isEmpty ? nil : $0.lowercased() }
             overrides.model = string(base + ["model"]).flatMap { $0.isEmpty ? nil : $0 }
+            let trimmed = { (key: String) in
+                string(base + [key]).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            }
+            overrides.greenInstructions = trimmed("green_instructions")
+            overrides.reviewInstructions = trimmed("review_instructions")
+            overrides.startInstructions = trimmed("start_instructions")
             return overrides
         }
         let pilotDefaults = pilotOverrides(["pilot"])
@@ -292,6 +298,9 @@ public enum ConfigLoader {
         if let command = pilotDefaults.selfReview { config.pilot.defaults.selfReview = command.isEmpty ? nil : command }
         config.pilot.defaults.agent = pilotDefaults.agent
         config.pilot.defaults.model = pilotDefaults.model
+        config.pilot.defaults.greenInstructions = pilotDefaults.greenInstructions ?? ""
+        config.pilot.defaults.reviewInstructions = pilotDefaults.reviewInstructions ?? ""
+        config.pilot.defaults.startInstructions = pilotDefaults.startInstructions ?? ""
         if let text = string(["pilot", "run_timeout"]) {
             if case let .seconds(seconds) = PilotDuration.parse(text), seconds >= 60 {
                 config.pilot.defaults.runTimeout = seconds
@@ -582,6 +591,12 @@ public enum ConfigLoader {
     # A command that reads the prompt and the PR's diff on stdin and answers APPROVE, or REQUEST_CHANGES: <why>.
     # self_review = "claude -p"
     # [repos."org/name"] admin_merge = true retries a refused merge with --admin, bypassing branch protection. Repo only.
+    # Extra instructions heed adds to its prompts, per org and per repo too (a repo's "" clears its org's): after get it
+    # green's feedback items, to the self-review's criteria, and after the issue text Start work begins from. They add to
+    # what heed sends, and the agent still reads the repo's own AGENTS.md or CLAUDE.md.
+    # green_instructions = "Resolve the review threads your changes addressed, and any that no longer apply."
+    # review_instructions = ""
+    # start_instructions = ""
 
     [issues]
     # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

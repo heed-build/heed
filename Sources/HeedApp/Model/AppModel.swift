@@ -2762,19 +2762,33 @@ final class AppModel {
     private var itemsPrompt: String {
         let ids = actionIDs(view)
         switch view {
-        case .issues: return WorkPrompt.from(issues: github.issues.filter { ids.contains($0.id) })
+        case .issues:
+            let issues = github.issues.filter { ids.contains($0.id) }
+            return WorkPrompt.from(issues: issues, instructions: startInstructions(issues.map(\.repo)))
         case .inbox:
             let items = inboxRows.filter { ids.contains($0.id) }
             // Issues in the inbox get their full text when Issues has it.
             let issues = items.compactMap { item in
                 github.issues.first { $0.repo == item.repo && $0.number == item.number }
             }
-            return issues.count == items.count ? WorkPrompt.from(issues: issues) : WorkPrompt.from(inbox: items)
+            let instructions = startInstructions(items.map(\.repo))
+            return issues.count == items.count ? WorkPrompt.from(issues: issues, instructions: instructions)
+                : WorkPrompt.from(inbox: items, instructions: instructions)
         default: return ""
         }
     }
 
     var itemsPromptPreview: String { itemsPrompt }
+
+    /// The `start_instructions` of the repos work starts from, each once.
+    private func startInstructions(_ repos: [Repo]) -> String {
+        var seen: [String] = []
+        for repo in repos {
+            let text = config.pilot.resolve(repo).startInstructions
+            if !text.isEmpty, !seen.contains(text) { seen.append(text) }
+        }
+        return seen.joined(separator: "\n")
+    }
 
     private func startFromItems() {
         let prompt = itemsPrompt
@@ -3821,7 +3835,9 @@ final class AppModel {
 
     /// Sends a PR's queued feedback to a run of its own (one per PR at a time), when delivery allows.
     func deliver(_ ref: PullRef, explicit: Bool) {
-        guard let pipeline = feedback[ref.description], let prompt = pipeline.prompt() else {
+        guard let pipeline = feedback[ref.description],
+              let prompt = pipeline.prompt(instructions: pilotSettings(for: ref).greenInstructions)
+        else {
             if explicit { flash = "nothing queued (space queues an item)" }
             return
         }
@@ -4247,7 +4263,9 @@ final class AppModel {
         } else {
             do {
                 let diff = try await GitHub.diff(ref)
-                let output = try await SelfReview.run(command, prompt: SelfReview.prompt(detail, diff: diff))
+                let output = try await SelfReview.run(command, prompt: SelfReview.prompt(
+                    detail, diff: diff, instructions: pilotSettings(for: ref).reviewInstructions
+                ))
                 review = SelfReview.parse(output, sha: detail.headSHA, at: Clock.now)
             } catch {
                 review = SelfReview(

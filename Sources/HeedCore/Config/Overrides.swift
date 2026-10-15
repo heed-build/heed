@@ -137,6 +137,14 @@ public enum Overrides {
             { .integer($0.maxRounds) }
         ),
         pilot(
+            "run_in",
+            "Runs in",
+            "background (a run of its own) or session (the session's agent, once idle).",
+            .choice(RunIn.allCases.map(\.configName)),
+            { $0.runIn.map { .text($0.configName) } },
+            { .text($0.runIn.configName) }
+        ),
+        pilot(
             "agent",
             "Run agent",
             "The agent get it green runs use; unset: the session's.",
@@ -298,7 +306,7 @@ public enum Overrides {
     public static let groups: [(title: String, keys: [String])] = [
         ("General", ["color", "issues"]),
         ("Watching", ["watch"]),
-        ("Get it green", ["green", "max_rounds", "agent", "model"]),
+        ("Get it green", ["green", "max_rounds", "run_in", "agent", "model"]),
         ("Get it merged", [
             "merge", "merge_method", "update_branches", "quiet_minutes", "trusted_reviewers", "gate_checks",
             "hold_labels", "self_review", "admin_merge",

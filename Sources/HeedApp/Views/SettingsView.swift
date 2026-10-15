@@ -427,10 +427,24 @@ private struct PilotSettingsView: View {
                 }
             }
             Field(
+                label: "Runs in",
+                detail: "Background: each round is an agent in its own tab, worktree and branch (heed/get-it-green/…), "
+                    + "all removed when it is done. Session: the session's own agent, once it is idle and you have not "
+                    + "typed in it for five minutes."
+            ) {
+                Picker("", selection: Binding(
+                    get: { pilot.defaults.runIn },
+                    set: { model.setConfig(["pilot", "run_in"], .string($0.configName)) }
+                )) {
+                    ForEach(RunIn.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
+            Field(
                 label: "Run agent",
-                detail: "Each round runs in the background: an agent in its own tab, worktree and branch "
-                    + "(heed/get-it-green/…), all removed when it is done. Which agent; the session's when unset. "
-                    + "Spend tokens of an agent you do not use for real work."
+                detail: "Which agent background runs use; the session's when unset. Spend tokens of an agent you do "
+                    + "not use for real work."
             ) {
                 Picker("", selection: Binding(
                     get: { pilot.defaults.agent ?? "" },

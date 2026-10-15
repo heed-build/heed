@@ -273,6 +273,15 @@ public enum ConfigLoader {
             }
             overrides.agent = string(base + ["agent"]).flatMap { $0.isEmpty ? nil : $0.lowercased() }
             overrides.model = string(base + ["model"]).flatMap { $0.isEmpty ? nil : $0 }
+            if let text = string(base + ["run_in"]) {
+                if let runIn = RunIn.named(text) {
+                    overrides.runIn = runIn
+                } else {
+                    problems.append(ConfigProblem(
+                        path: (base + ["run_in"]).joined(separator: "."), message: "expected background or session"
+                    ))
+                }
+            }
             let trimmed = { (key: String) in
                 string(base + [key]).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             }
@@ -298,6 +307,7 @@ public enum ConfigLoader {
         if let command = pilotDefaults.selfReview { config.pilot.defaults.selfReview = command.isEmpty ? nil : command }
         config.pilot.defaults.agent = pilotDefaults.agent
         config.pilot.defaults.model = pilotDefaults.model
+        if let runIn = pilotDefaults.runIn { config.pilot.defaults.runIn = runIn }
         config.pilot.defaults.greenInstructions = pilotDefaults.greenInstructions ?? ""
         config.pilot.defaults.reviewInstructions = pilotDefaults.reviewInstructions ?? ""
         config.pilot.defaults.startInstructions = pilotDefaults.startInstructions ?? ""
@@ -553,9 +563,12 @@ public enum ConfigLoader {
     green = "ask"
     # Prompts sent without a new approval before get it green stops.
     max_rounds = 3
-    # Each round of get it green (or get it merged) runs in the background: an agent in its own tab, worktree and
-    # branch (heed/get-it-green/<branch>), all removed when it is done. Which agent and model those runs use; empty:
-    # the session's agent and that agent's default model. Also per org and per repo.
+    # Where each round of get it green (or get it merged) goes: background (an agent in its own tab, worktree and branch,
+    # heed/get-it-green/<branch>, all removed when it is done) or session (the session's own agent, once it is idle and
+    # you have not typed in it for five minutes). Also per org and per repo.
+    run_in = "background"
+    # Which agent and model background runs use; empty: the session's agent and that agent's default model. Also per
+    # org and per repo.
     agent = ""
     model = ""
     # A run still working after this long is stopped.

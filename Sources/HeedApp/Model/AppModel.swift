@@ -3642,12 +3642,13 @@ final class AppModel {
     /// failed run).
     private func startRun(_ ref: PullRef, prompt: String, items: Int, sessionID: String) async -> String? {
         guard let session = sessions.first(where: { $0.id == sessionID }) else { return nil }
-        let settings = pilotSettings(for: ref)
-        let agentName = settings.agent ?? session.agent
         let goal = Runs.goal(for: pilotStatus(for: ref)) ?? .green
+        let chosen = pilotSettings(for: ref).runAgent(for: goal)
+        let agentName = chosen.agent ?? session.agent
+        let model = chosen.model
         func fail(_ reason: String) -> String? {
             var run = PilotRun(
-                ref: ref, sessionID: sessionID, goal: goal, agent: agentName, model: settings.model,
+                ref: ref, sessionID: sessionID, goal: goal, agent: agentName, model: model,
                 startedAt: Date(), items: items, prBranch: "", branch: "", worktree: "", startSHA: nil
             )
             run.endedAt = Date()
@@ -3656,7 +3657,7 @@ final class AppModel {
             logPilot(ref, .helperDone, "\(goal.rawValue) run could not start: \(reason)")
             return nil
         }
-        guard let agent = self.settings.agent(agentName) else { return fail("no agent \(agentName)") }
+        guard let agent = settings.agent(agentName) else { return fail("no agent \(agentName)") }
         let headBranch = github.pull(ref)?.headBranch
         // A run makes its own worktree from the remote branch: it needs a clone to run git from, not a worktree on the
         // PR's branch (a PR is often opened from another worktree). The base worktree when there is one, else the
@@ -3674,7 +3675,7 @@ final class AppModel {
             return fail("\(ref.repo.name) is not cloned on this Mac")
         }
         guard let prBranch = headBranch ?? main?.branch else { return fail("no branch for #\(ref.number)") }
-        let root = Runs.worktreeRoot(local: self.settings.worktreeRoot, host: session.host, hosts: config.hosts)
+        let root = Runs.worktreeRoot(local: settings.worktreeRoot, host: session.host, hosts: config.hosts)
         let branch = Runs.branch(goal, prBranch: prBranch)
         let startSHA = await Git.remoteSHA(record, branch: prBranch)
         let worktree: String
@@ -3706,7 +3707,7 @@ final class AppModel {
             ) }
                 ?? [],
             environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:],
-            model: settings.model
+            model: model
         )
         let pane = PaneSpec(
             role: .helper, title: goal.rawValue, directory: worktree, command: command, location: session.location
@@ -3715,7 +3716,7 @@ final class AppModel {
         layout.tabs.append(tab)
         commit(.layoutChanged(session: session.id, layout))
         let run = PilotRun(
-            ref: ref, sessionID: session.id, goal: goal, agent: agentName, model: settings.model, startedAt: Date(),
+            ref: ref, sessionID: session.id, goal: goal, agent: agentName, model: model, startedAt: Date(),
             items: items, prBranch: prBranch, branch: branch, worktree: worktree, startSHA: startSHA
         )
         commit(.runUpdated(run))
@@ -3729,7 +3730,7 @@ final class AppModel {
         runPanes.insert(pane.id)
         TerminalSurfaces.shared.autostartPanes.insert(pane.id)
         TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
-        let who = settings.model.map { "\(agentName) \($0)" } ?? agentName
+        let who = model.map { "\(agentName) \($0)" } ?? agentName
         logPilot(ref, .watch, "\(goal.rawValue): a \(who) run in \(branch)")
         return "a \(who) run"
     }

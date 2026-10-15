@@ -78,6 +78,10 @@ run_in = "background"
 # org and per repo.
 agent = ""
 model = ""
+# Merge conflicts with the base are usually simple: background runs for them can use a cheaper agent and model.
+# Empty: agent and model above. Also per org and per repo.
+merge_agent = ""
+merge_model = ""
 # A run still working after this long is stopped.
 run_timeout = "30m"
 # How long zp pauses a PR: 30m, 1h, 4h, 1d, or forever.

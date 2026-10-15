@@ -20,6 +20,7 @@ struct PilotMark: View {
     private var glyph: String {
         switch status {
         case .stuck: "⚠"
+        case .stalled: "⏹"
         case .failing: "✕"
         case .conflicted: "⇄"
         case .changes: "●"
@@ -35,6 +36,7 @@ struct PilotMark: View {
     var text: String {
         switch status {
         case .stuck: "stuck"
+        case .stalled: "stalled"
         case let .failing(count): "\(count) failing"
         case let .changes(count): "\(count) thread\(count == 1 ? "" : "s")"
         case .feeding: "feeding"
@@ -52,7 +54,7 @@ struct PilotMark: View {
     private var color: Color {
         switch status {
         case .stuck: Theme.block
-        case .failing, .conflicted: Theme.err
+        case .stalled, .failing, .conflicted: Theme.err
         case .changes: Theme.block
         case .feeding, .pending: Theme.busy
         case .green: Theme.done
@@ -97,7 +99,7 @@ struct WatchView: View {
                                 let group = rows[index].status.group
                                 SectionHeader(
                                     title: "\(group.rawValue) · \(rows.count { $0.status.group == group })",
-                                    tint: group == .needsYou ? Theme.block : Theme.fg3
+                                    tint: group == .needsYou ? Theme.block : group == .stalled ? Theme.err : Theme.fg3
                                 )
                                 .padding(.horizontal, 16)
                                 .padding(.top, 14)
@@ -165,6 +167,15 @@ private struct PilotRowView: View {
                     }
                 }
                 .font(Theme.mono(11))
+                // Stalled says why, and the way out.
+                if case let .stalled(rounds) = row.status {
+                    HStack(spacing: 6) {
+                        Text("\(rounds) rounds without a new approval").foregroundStyle(Theme.err)
+                        KeyCap(text: "zr")
+                        Text("another round").foregroundStyle(Theme.fg3)
+                    }
+                    .font(Theme.ui(11.5))
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -335,6 +346,7 @@ private struct PilotEventRow: View {
         case .sent, .queued: Theme.busy
         case .addressed, .resolved: Theme.done
         case .stuck: Theme.err
+        case .retry: Theme.busy
         case .watch, .green, .pause, .merge: Theme.fg3
         case .autoMerge, .updated: Theme.busy
         case .merged: Theme.done

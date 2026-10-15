@@ -69,7 +69,7 @@ public extension Tutor {
         TutorLesson(id: "sessions", title: "Sessions", minutes: 3, world: .mondayMorning, steps: [
             TutorStep(
                 "Read the sidebar groups",
-                say: "Sessions group by what they need: pinned, needs you, working, parked. {group.next} jumps a group at a time; get to a parked one.",
+                say: "Sessions group by what they need: pinned, needs you, stalled, working, watching, parked. {group.next} jumps a group at a time; get to a parked one.",
                 keys: ["{group.next}", "{row.next}"], target: "sidebar",
                 doneLine: "Parked sessions wait at the bottom and never ask for attention."
             ) { _, now, _ in now.onParked },

@@ -66,11 +66,12 @@ final class AppModel {
     private(set) var repos: [RepoRecord] = [] { didSet { if repos != oldValue { rebuildWorktreeRows() } } }
     private(set) var worktrees: [Worktree] = [] { didSet { if worktrees != oldValue { rebuildWorktreeRows() } } }
     private(set) var history: [HistoryEntry] = []
-    private(set) var github = GitHubState()
-    private(set) var pullDetails: [String: PullDetail] = [:]
-    private(set) var feedback: [String: PullFeedback] = [:]
+    // What the pilot knows decides Watching and Stalled in the sidebar, so each change rebuilds the list.
+    private(set) var github = GitHubState() { didSet { rebuildList() } }
+    private(set) var pullDetails: [String: PullDetail] = [:] { didSet { rebuildList() } }
+    private(set) var feedback: [String: PullFeedback] = [:] { didSet { rebuildList() } }
     /// What the pilot noticed and did, newest first.
-    private(set) var pilotLog: [PilotEvent] = []
+    private(set) var pilotLog: [PilotEvent] = [] { didSet { rebuildList() } }
     private(set) var mergeRuns: [String: [MergeRun]] = [:]
     private(set) var registeredWorktrees: Set<String> = []
     private(set) var list = SessionList([])
@@ -134,7 +135,14 @@ final class AppModel {
     private var pendingContinue: Set<String> = []
 
     // Cursors
-    private(set) var cursor = 0
+    private(set) var cursor = 0 {
+        // Leaving the session the list held in place lets it settle into its group.
+        didSet { if !rebuildingList, let held = heldSession, currentSession?.id != held { rebuildList() } }
+    }
+
+    private var rebuildingList = false
+    /// The session under the cursor when the list was built; the pilot does not move it until the cursor leaves it.
+    private var heldSession: String?
     private var previousSessionID: String?
     private(set) var repoCursor = 0
     /// VISUAL selection in the Repos table: worktree ids toggled with space, plus the range from the anchor.
@@ -709,7 +717,14 @@ final class AppModel {
         // The selection is a session, not a row. A session moving between groups (parked to working, say) reorders
         // the list; the cursor follows the session it was on, so what you look at and type into never changes under
         // you. Read before the rebuild: `currentSession` still indexes the old list here.
+        rebuildingList = true
+        defer { rebuildingList = false }
         let selected = currentSession?.id
+        let hold = currentSession.flatMap { session in
+            list.group(of: session.id).map {
+                SessionHold(id: session.id, group: $0, pinned: session.pinned, parked: session.parked)
+            }
+        }
         let filter = sessionFilter
         list = SessionList(filter.isEmpty ? sessions : sessions.filter { session in
             FilterQuery.matches(
@@ -717,12 +732,13 @@ final class AppModel {
                 [session.title, session.worktreeName, session.branch, session.agent, session.location.label]
                     + session.repos.map(\.name) + session.trackedPRs.map { "#\($0.number)" }
             )
-        })
+        }, pilot: sessionPilot, hold: hold)
         if let selected, let index = list.ordered.firstIndex(where: { $0.id == selected }) {
             cursor = index
         } else {
             cursor = min(cursor, max(list.ordered.count - 1, 0))
         }
+        heldSession = currentSession?.id
     }
 
     private func replace(with domain: Domain) {
@@ -1467,6 +1483,7 @@ final class AppModel {
         case "pilot.green", "feedback.mode": cyclePilotGreen()
         case "pilot.watch", "feedback.watch": togglePilotWatch()
         case "pilot.pause": pausePilot(command.arguments.first)
+        case "pilot.retry": retryPilot()
         case "pilot.why": showPilotWhy()
         case "pilot.merge": togglePilotMerge()
         case "pilot.copilot":
@@ -1561,7 +1578,7 @@ final class AppModel {
     /// The current list's group of each row, and the cursor: sidebar groups, repos, days.
     private var rowGroups: (keys: [String], cursor: Int) {
         switch view {
-        case .sessions: (list.ordered.map { SessionGroup.of($0).rawValue }, cursor)
+        case .sessions: (list.ordered.map { sessionGroup($0).rawValue }, cursor)
         case .repos: (worktreeRows.map(\.repo.slug), repoCursor)
         case .inbox: (inboxRows.map(\.repo.slug), cursor(in: .inbox))
         case .issues: (issueRows.map(\.repo.slug), cursor(in: .issues))
@@ -3057,6 +3074,41 @@ final class AppModel {
         return parts.joined(separator: " · ")
     }
 
+    /// What decides a session's Watching or Stalled: its most urgent PR state, whether heed acts on any of its PRs, and
+    /// whether you typed in it since heed last did something there.
+    func sessionPilot(_ session: Session) -> SessionPilot {
+        let refs = session.trackedPRs
+        guard !refs.isEmpty else { return SessionPilot() }
+        let acting = refs.contains { pilotStatus(for: $0).heedActing(pilot(for: $0)) }
+        // The log is newest first.
+        let lastAction = pilotLog.first { refs.contains($0.ref) && PilotEvent.actions.contains($0.kind) }?.at
+        return SessionPilot(
+            status: pilotStatus(of: session), acting: acting,
+            yours: SessionPilot.yours(lastTyped: lastTyped[session.id], lastAction: lastAction)
+        )
+    }
+
+    /// What a session row in Watching or Stalled says instead of the agent's line, from its most urgent acting PR.
+    func watchLabel(of session: Session) -> String? {
+        let refs = session.trackedPRs
+        let order = PilotStatus.Group.allCases
+        let candidates = refs.map { (ref: $0, status: pilotStatus(for: $0)) }.filter {
+            if case .stalled = $0.status { return true }
+            return $0.status.heedActing(pilot(for: $0.ref))
+        }
+        guard let pick = candidates.min(by: {
+            order.firstIndex(of: $0.status.group)! < order.firstIndex(of: $1.status.group)!
+        }) else { return nil }
+        return WatchLabel.text(
+            status: pick.status, effective: pilot(for: pick.ref), agent: session.agent, agentState: session.state.state
+        )
+    }
+
+    /// The group a session is shown in (the sidebar's, so Watching and Stalled count).
+    func sessionGroup(_ session: Session) -> SessionGroup {
+        list.group(of: session.id) ?? SessionGroup.of(session, pilot: sessionPilot(session))
+    }
+
     /// The most urgent pilot state among a session's PRs (the Watch view's group order), for its sidebar row.
     func pilotStatus(of session: Session) -> PilotStatus? {
         let order = PilotStatus.Group.allCases
@@ -3155,6 +3207,20 @@ final class AppModel {
 
     /// `zz` / VISUAL `z` / `:pilot.pause [1h|forever|off]`: silence PRs for a while. Without an argument it toggles:
     /// resume when every target is paused, else pause for `[pilot] pause`.
+    /// `zr`: one more round of get it green for a stalled PR (or the picked PRs, or the session's), sent at once when
+    /// it is on auto.
+    private func retryPilot() {
+        let refs = pilotTargets.filter { if case .stalled = pilotStatus(for: $0) { true } else { false } }
+        guard !refs.isEmpty else { return flash = "nothing stalled here" }
+        for ref in refs {
+            let rounds = pilot(for: ref).maxRounds
+            editPilot([ref]) { pipeline in pipeline.rounds = max(0, rounds - 1) }
+            logPilot(ref, .retry, "another round (by you)")
+            if pilot(for: ref).green == .auto { deliver(ref, explicit: false) }
+        }
+        flash = "another round: \(refs.count) PR\(refs.count == 1 ? "" : "s")"
+    }
+
     private func pausePilot(_ argument: String?) {
         let refs = pilotTargets
         guard !refs.isEmpty else { return flash = "no PR here" }
@@ -4527,10 +4593,10 @@ final class AppModel {
         state.pins = pins.count
         if view == .sessions, let session = currentSession {
             state.pinned = pins.firstIndex { $0.id == session.id }.map { $0 + 1 }
-            state.onParked = SessionGroup.of(session) == .parked
+            state.onParked = sessionGroup(session) == .parked
             state.needsYou = [.blocked, .asking].contains(session.state.state)
         }
-        state.parked = sessions.count { SessionGroup.of($0) == .parked }
+        state.parked = sessions.count { sessionGroup($0) == .parked }
         state.picked = picked[view]?.count ?? 0
         state.unread = github.inbox.count(where: \.unread)
         if let ref = feedbackPull, let pipeline = feedback[ref.description] {

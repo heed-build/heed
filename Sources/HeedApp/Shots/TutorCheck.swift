@@ -14,7 +14,7 @@ enum TutorCheck {
             "i<S-Esc>", "jk2j", "'2", "ga", "o" + Shots.typed("Fix the anchors in docs") + "<D-CR>", "<C-w>v",
             "gwgpgs", "/<Esc>:<Esc>", "?",
         ],
-        "sessions": ["}}}", "m'1", "<C-w>v", "/mer<CR>"],
+        "sessions": ["}}}}", "m'1", "<C-w>v", "/mer<CR>"],
         "start-work": ["o" + Shots.typed("Fix the broken anchors"), "<C-n>", "<D-CR>"],
         "inbox": ["<CR><Esc>", "<Space>j<Space>", "x"],
         "issues": ["/a<CR>", "s", "<Esc><Esc><CR>"],

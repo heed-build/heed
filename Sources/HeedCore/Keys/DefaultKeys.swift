@@ -28,6 +28,9 @@ public enum DefaultKeys {
         ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"),
         // The pilot, the same keys everywhere: the PR under the cursor, the open PR, or the session's PRs.
         ("zw", "pilot.watch"), ("zg", "pilot.green"), ("zm", "pilot.merge"), ("zp", "pilot.pause"), (
+            "zr",
+            "pilot.retry"
+        ), (
             "<CR>",
             "open.reader"
         ),

@@ -9,7 +9,8 @@ for each and a log of what it has done.
 
 ![The Watch view: PRs by state, the selected PR's items and timeline, and the activity log](../images/shots/watch/view.png)
 
-- **Left**, the PRs, most urgent first: *Needs you* (stuck), *Failing* (a check failed, or a conflict), *Changes*,
+- **Left**, the PRs, most urgent first: *Needs you* (feedback and no session to send it to), *Stalled* (out of
+  rounds: see below), *Failing* (a check failed, or a conflict), *Changes*,
   *Feeding* (sent to the agent, waiting for its push), *Pending* (checks running, or a draft), *Green*, *Passing* (not
   fetched in detail yet), *Paused*, *Done* (merged or closed) and *Not watched*. `{` `}` jump between groups.
 - **Middle**, the PR under the cursor: one line on where it stands, its **green** checklist, its open items, and its
@@ -143,6 +144,7 @@ with `--admin`.
 | `zg` | Cycle green: off, ask, auto |
 | `zm` | Cycle merging: off, auto, heed |
 | `C` | Ask Copilot to resolve the PR's merge conflicts and address its review comments |
+| `zr` | Another round for a stalled PR |
 | `zp` | Pause or resume |
 | `v` | Select several, then `zp` pauses or resumes them all |
 | `r` | Sync now |
@@ -152,6 +154,17 @@ with `--admin`.
 The pilot keys are the same everywhere: in Watch, the PRs view and the PR overlay they act on that PR, and in
 Sessions on every PR the session tracks. A choice made with them sticks to that PR; PRs you
 never set follow the settings.
+
+## Stalled
+
+Get it green sends up to `max_rounds` prompts (3) without a new approval; then it stops, and the PR is **stalled**.
+It shows in its own group in Watch and in the sidebar, in red, with how many rounds it used.
+
+![A stalled PR in the Watch view](../images/shots/watch/stalled.png)
+
+A new approval starts the count again. `zr` gives the PR one more round now: heed sends what is open (on `auto`), and
+stops again if that round brings no approval either. Stalled does not count toward what needs you in the Dock and the
+menu bar: it waits on a reviewer.
 
 ## Pausing
 

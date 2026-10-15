@@ -32,6 +32,9 @@ struct Sidebar: View {
                                         pinNumber: list.pins.firstIndex(of: session).map { $0 + 1 },
                                         hint: model.hintLabel(for: .session(session.id)),
                                         pilot: model.pilotStatus(of: session),
+                                        group: section.group,
+                                        label: Self.showsLabel(section.group, model.sessionPilot(session))
+                                            ? model.watchLabel(of: session) : nil,
                                         hostColor: session.host.flatMap { model.config.hosts[$0]?.color },
                                         hostLink: session.host.map { model.hostStatus($0) }
                                     )
@@ -80,6 +83,27 @@ struct Sidebar: View {
         .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
     }
 
+    /// Heed's label replaces the agent's line in Watching and Stalled, and on a pinned session that would be there;
+    /// in a session that is yours the agent's line stays.
+    static func showsLabel(_ group: SessionGroup, _ pilot: SessionPilot) -> Bool {
+        switch group {
+        case .watching, .stalled: true
+        case .pinned:
+            if case .stalled = pilot.status { true } else { pilot.acting && !pilot.yours }
+        case .needsYou, .working, .parked: false
+        }
+    }
+
+    /// Needs you in amber, Stalled in red, Watching in heed's working blue; the rest quiet.
+    static func tint(_ group: SessionGroup) -> Color {
+        switch group {
+        case .needsYou: Theme.block
+        case .stalled: Theme.err
+        case .watching: Theme.busy
+        case .pinned, .working, .parked: Theme.fg3
+        }
+    }
+
     private func groupHeader(_ section: SessionList.Section, pins: Int) -> some View {
         HStack(spacing: 6) {
             if section.group == .pinned {
@@ -88,7 +112,7 @@ struct Sidebar: View {
             let count = section.group == .pinned ? "\(pins)/\(SessionGroup.maxPins)" : "\(section.sessions.count)"
             SectionHeader(
                 title: "\(section.group.rawValue) · \(count)",
-                tint: section.group == .needsYou ? Theme.block : Theme.fg3
+                tint: Self.tint(section.group)
             )
             Spacer()
             if section.group == .pinned { KeyCap(text: "'") }
@@ -107,6 +131,10 @@ struct SessionRow: View {
     let hint: String?
     /// The most urgent pilot state among the session's PRs.
     var pilot: PilotStatus?
+    /// The group it is shown in: in Watching the row is one line plus heed's label, unless the cursor is on it.
+    var group: SessionGroup = .working
+    /// What heed is doing about its PRs ("getting it merged · waiting for checks"), shown instead of the agent's line.
+    var label: String?
     /// For a session on a host: its colour (`[hosts.x] color`) and how the link stands.
     var hostColor: String?
     var hostLink: HostStatus?
@@ -139,15 +167,32 @@ struct SessionRow: View {
                             .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
                     }
                 }
-                FlowChips(repos: session.involvedRepos)
-                Text("\(session.agent) · \(session.activity)")
-                    .font(Theme.ui(11.5))
-                    .foregroundStyle(Theme.fg3)
+                if !compact { FlowChips(repos: session.involvedRepos) }
+                if let label {
+                    Text(label)
+                        .font(Theme.ui(11.5))
+                        .foregroundStyle(group == .stalled ? Theme.err : Theme.busy)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if group == .stalled, !compact {
+                        HStack(spacing: 6) {
+                            KeyCap(text: "zr")
+                            Text("another round").foregroundStyle(Theme.fg3)
+                        }
+                        .font(Theme.ui(11.5))
+                    }
+                } else {
+                    Text("\(session.agent) · \(session.activity)")
+                        .font(Theme.ui(11.5))
+                        .foregroundStyle(Theme.fg3)
+                }
             }
         }
         .padding(.leading, 6)
         .padding(.trailing, 12)
-        .padding(.vertical, 9)
+        .padding(.vertical, compact ? 6 : 9)
+        // Watching asks to be left be: a little quieter than what is yours.
+        .opacity(compact ? 0.8 : 1)
         .background(isCursor ? Theme.bg3 : .clear)
         // A session on a host gets a rail in the host's colour: dashed while the link is down, dimmed when offline.
         .overlay(alignment: .leading) {
@@ -168,6 +213,8 @@ struct SessionRow: View {
     }
 
     private var isOffline: Bool { if case .offline = hostLink { true } else { false } }
+    /// One line plus heed's label: Watching, unless the cursor is on it.
+    private var compact: Bool { group == .watching && !isCursor }
 }
 
 private struct FlowChips: View {

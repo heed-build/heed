@@ -53,6 +53,8 @@ public struct Domain: Hashable, Sendable, Codable {
     public var pilotLog: [PilotEvent]
     /// Each repo's merge queue runs by `org/name`, newest first, capped (`MergeRun.keep`).
     public var mergeRuns: [String: [MergeRun]]
+    /// Get it green / get it merged runs, newest first, capped (`PilotRun.keep`).
+    public var runs: [PilotRun]
     /// Worktrees on hosts that heed manages (made by heed, or registered with ↩), by worktree id. Ones a scan found
     /// and nobody registered are left alone.
     public var registeredWorktrees: Set<String>
@@ -61,8 +63,9 @@ public struct Domain: Hashable, Sendable, Codable {
         repos: [RepoRecord] = [], worktrees: [Worktree] = [], sessions: [Session] = [],
         layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = [], github: GitHubState = GitHubState(),
         pullDetails: [String: PullDetail] = [:], feedback: [String: PullFeedback] = [:], pilotLog: [PilotEvent] = [],
-        mergeRuns: [String: [MergeRun]] = [:], registeredWorktrees: Set<String> = []
+        mergeRuns: [String: [MergeRun]] = [:], registeredWorktrees: Set<String> = [], runs: [PilotRun] = []
     ) {
+        self.runs = runs
         self.registeredWorktrees = registeredWorktrees
         self.mergeRuns = mergeRuns
         self.pullDetails = pullDetails
@@ -80,7 +83,7 @@ public struct Domain: Hashable, Sendable, Codable {
 
     private enum CodingKeys: String, CodingKey {
         case repos, worktrees, sessions, layouts, history, github, pullDetails, feedback, pilotLog, mergeRuns,
-             registeredWorktrees
+             registeredWorktrees, runs
     }
 
     /// Caches from before the pilot log still load (no version bump, which would drop sessions).
@@ -97,6 +100,7 @@ public struct Domain: Hashable, Sendable, Codable {
         pilotLog = try container.decodeIfPresent([PilotEvent].self, forKey: .pilotLog) ?? []
         mergeRuns = try container.decodeIfPresent([String: [MergeRun]].self, forKey: .mergeRuns) ?? [:]
         registeredWorktrees = try container.decodeIfPresent(Set<String>.self, forKey: .registeredWorktrees) ?? []
+        runs = try container.decodeIfPresent([PilotRun].self, forKey: .runs) ?? []
     }
 
     public func repo(_ slug: String) -> RepoRecord? { repos.first { $0.id == slug } }
@@ -139,6 +143,8 @@ public enum DomainChange: Hashable, Sendable, Codable {
     case mergeRan(MergeRun)
     /// A worktree on a host is heed's to manage from now on.
     case worktreeRegistered(String)
+    /// A get it green / get it merged run started or ended (by id: a later one replaces it).
+    case runUpdated(PilotRun)
 }
 
 public extension Domain {
@@ -211,6 +217,9 @@ public extension Domain {
             pilotLog = PilotEvent.log(pilotLog, adding: events)
         case let .worktreeRegistered(id):
             registeredWorktrees.insert(id)
+        case let .runUpdated(run):
+            runs.removeAll { $0.id == run.id }
+            runs = Array(([run] + runs).sorted { $0.startedAt > $1.startedAt }.prefix(PilotRun.keep))
         case let .mergeRan(run):
             mergeRuns[run.repo] = Array(([run] + (mergeRuns[run.repo] ?? [])).prefix(MergeRun.keep))
         case let .feedbackChanged(pipeline):

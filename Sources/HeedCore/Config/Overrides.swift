@@ -133,20 +133,20 @@ public enum Overrides {
             { .integer($0.maxRounds) }
         ),
         pilot(
-            "send_after_idle",
-            "Send after idle",
-            "How long after your last keystroke before heed sends anything: 30s, 5m, 15m or 0.",
+            "agent",
+            "Run agent",
+            "The agent get it green runs use (codex, claude…); empty: the session's.",
             .text,
-            { $0.sendAfterIdle.map { .text(PilotDuration.text($0)) } },
-            { .text(PilotDuration.text($0.sendAfterIdle)) }
+            { $0.agent.map(OverrideValue.text) },
+            { .text($0.agent ?? "") }
         ),
         pilot(
-            "send_to",
-            "Send to",
-            "session: the session's agent; tab: a dedicated agent in its own tab.",
-            .choice(SendTo.allCases.map(\.rawValue)),
-            { $0.sendTo.map { .text($0.rawValue) } },
-            { .text($0.sendTo.rawValue) }
+            "model",
+            "Run model",
+            "Its model (haiku, gpt-5-codex…); empty: the agent's default.",
+            .text,
+            { $0.model.map(OverrideValue.text) },
+            { .text($0.model ?? "") }
         ),
         pilot(
             "merge",
@@ -270,7 +270,7 @@ public enum Overrides {
     public static let groups: [(title: String, keys: [String])] = [
         ("General", ["color", "issues"]),
         ("Watching", ["watch"]),
-        ("Get it green", ["green", "max_rounds", "send_after_idle", "send_to"]),
+        ("Get it green", ["green", "max_rounds", "agent", "model"]),
         ("Get it merged", [
             "merge", "merge_method", "update_branches", "quiet_minutes", "trusted_reviewers", "gate_checks",
             "hold_labels", "self_review", "admin_merge",

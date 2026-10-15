@@ -9,7 +9,7 @@ let environment = ProcessInfo.processInfo.environment
 let arguments = Array(CommandLine.arguments.dropFirst())
 
 // A hook must never hold up an agent: whatever happens (a stdin that never closes, a stuck socket), give up quietly.
-if arguments.first != "tools" {
+if arguments.first != "tools", arguments.first != "cleanup" {
     signal(SIGALRM) { _ in _exit(0) }
     alarm(3)
 }
@@ -32,6 +32,27 @@ if arguments.first == "tools" {
     }
     print("PATH    \(report.pathVariable)")
     exit(report.tools.allSatisfy { $0.path != nil } ? 0 : 1)
+}
+
+// `heed cleanup runs [path]`: removes what get it green runs left behind (heed/get-it-green/*, heed/get-it-merged/*
+// branches and their worktrees) in the repo at path (or here), when safe: no uncommitted changes, nothing that is not
+// on the pull request's branch, and not touched in the last hour (a run may still be working).
+if arguments.first == "cleanup" {
+    guard arguments.dropFirst().first == "runs" else {
+        print("usage: heed cleanup runs [path]")
+        exit(2)
+    }
+    let path = arguments.dropFirst(2).first ?? FileManager.default.currentDirectoryPath
+    guard let record = await Git.record(at: path) else {
+        FileHandle.standardError.write(Data("heed cleanup runs: no git repo at \(path)\n".utf8))
+        exit(2)
+    }
+    let leftovers = await RunCleanup.clean(record, live: [], untouchedFor: 3600)
+    if leftovers.isEmpty { print("nothing left by runs in \(record.repo.slug)") }
+    for leftover in leftovers {
+        print("\(leftover.removed ? "removed" : "kept   ") \(leftover.branch)  (\(leftover.reason))")
+    }
+    exit(0)
 }
 
 let kinds: [HookMessage.Kind]

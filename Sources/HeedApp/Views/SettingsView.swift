@@ -364,30 +364,29 @@ private struct PilotSettingsView: View {
                 }
             }
             Field(
-                label: "Send after idle",
-                detail: "heed sends nothing to a session until you have not typed in it for this long, so it does not "
-                    + "take your agent while you work with it: 30s, 5m, 15m, or 0 for 20 seconds. zg sends at once."
-            ) {
-                ConfigTextField(
-                    path: ["pilot", "send_after_idle"],
-                    value: PilotDuration.text(pilot.defaults.sendAfterIdle)
-                )
-            }
-            Field(
-                label: "Send to",
-                detail: "Session: typed into the session's agent. Tab: a dedicated agent in its own tab (\"get it green\", "
-                    + "\"get it merged\") in the session's worktree, closed once the PR is green or merged; it never takes "
-                    + "your focus."
+                label: "Run agent",
+                detail: "Each round runs in the background: an agent in its own tab, worktree and branch "
+                    + "(heed/get-it-green/…), all removed when it is done. Which agent; the session's when unset. "
+                    + "Spend tokens of an agent you do not use for real work."
             ) {
                 Picker("", selection: Binding(
-                    get: { pilot.defaults.sendTo },
-                    set: { model.setConfig(["pilot", "send_to"], .string($0.rawValue)) }
+                    get: { pilot.defaults.agent ?? "" },
+                    set: { model.setConfig(["pilot", "agent"], .string($0)) }
                 )) {
-                    Text("Session's agent").tag(SendTo.session)
-                    Text("Its own tab").tag(SendTo.tab)
+                    Text("The session's agent").tag("")
+                    ForEach(model.settings.agents.map(\.name), id: \.self) { Text($0).tag($0) }
                 }
                 .labelsHidden()
                 .frame(width: 200)
+            }
+            Field(
+                label: "Run model",
+                detail: "Its model (haiku, gpt-5-codex, openai/gpt-5…); the agent's default when empty."
+            ) {
+                ConfigTextField(path: ["pilot", "model"], value: pilot.defaults.model ?? "")
+            }
+            Field(label: "Run timeout", detail: "A run still working after this long is stopped.") {
+                ConfigTextField(path: ["pilot", "run_timeout"], value: PilotDuration.text(pilot.defaults.runTimeout))
             }
             Field(label: "Pause for", detail: "What zp pauses a PR for: 30m, 1h, 4h, 1d or forever.") {
                 ConfigTextField(

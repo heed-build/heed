@@ -155,36 +155,48 @@ The pilot keys are the same everywhere: in Watch, the PRs view and the PR overla
 Sessions on every PR the session tracks. A choice made with them sticks to that PR; PRs you
 never set follow the settings.
 
-## While you work in a session
+## Runs
 
-Heed sends nothing to a session you are working in. On its own it waits until you have not typed in the session for
-`send_after_idle` (5 minutes; `0` for 20 seconds) and its agent is idle, so it never takes your agent between your own
-prompts. While it holds back, the row says *waiting for you to step away*, and it sends once you have. `zg` with
-items queued sends at once: asking for it yourself does not wait.
+Get it green never types into your session's agent. Each round (heed sending on its own with `green = "auto"`, or
+`zg` with items queued) is a **run** in the background:
 
-## A tab of its own
+- **Where:** a worktree of its own (`<worktree_root>/heed/<repo>/get-it-green-<branch>`) on a branch of its own,
+  `heed/get-it-green/<branch>`, tracking the pull request's. Conflicts with the base get `heed/get-it-merged/…`.
+- **Which agent:** the one `[pilot] agent` names, on `[pilot] model` (both per org and repo too), or the session's
+  agent when unset. You can spend the tokens of an agent you don't use for real work.
+- **What it's told:** to fix what is listed, commit, and push to the pull request with `git push origin
+  HEAD:<branch>`.
+- **The tab:** appended next to the session's own, named **get it green** (or **get it merged**). It never takes your
+  focus; its glyph in the tab strip is the run's state, and `:pilot.run` goes to it.
 
-With `send_to = "tab"`, where a PR's feedback goes depends on whether you are working in its session:
+When its agent finishes its turn (or exits, or runs past `run_timeout`), the run ends at once:
 
-- **You are working in it** (you typed in it within `send_after_idle`): heed opens a tab next to the session's own,
-  named **get it green** (failing checks, review threads) or **get it merged** (conflicts with the base), and starts
-  the session's agent there on the feedback, right away. It works in a **companion worktree** beside the session's
-  (`…/fix-anchors-green`), on its own branch `<branch>-green` (or `-merged`) that tracks the PR's, so it never touches
-  your files. It commits there and pushes to the PR's branch with `git push origin HEAD:<branch>`.
-- **You have stepped away**: the session's own agent gets it, as with `send_to = "session"`.
-- A PR that has a helper keeps it for later rounds, typed into it once it is idle.
+1. its last screen is kept;
+2. what it did is recorded: pushed N commits, no changes, timed out, or stopped (you closed its tab);
+3. its tab, worktree and `heed/…` branch are removed;
+4. your session's worktree is brought up to what it pushed, when it has no changes of its own.
 
-![A get it green tab working beside the session's agent](../images/shots/sessions/helper-tab.png)
+The next failing check or review starts a fresh run. There is one run per PR at a time, and rounds still count
+toward `max_rounds`. A run asking something, or blocked on a permission, puts its session in Needs you.
 
-- It never takes your focus: the tab appears, the one you are on stays selected, and INSERT stays where it was. Its
-  glyph in the tab strip is the helper's own state. `:pilot.helper` goes to it.
-- Its state is its own. The session stays where it was in the sidebar, except that a helper asking you something, or
-  blocked on a permission, puts the session in Needs you.
-- When its PR is green (get it green) or merged (get it merged), and the helper is not mid-turn, heed closes the tab,
-  removes the companion worktree and its branch, and brings the session's worktree up to date with what the helper pushed (when it
-  has no changes of its own; otherwise it shows as behind). A PR that turns green but then conflicts gets a get it
-  merged tab next.
-- Companion worktrees are heed's: Repos and `I` do not offer them. Helper tabs do not come back after a relaunch.
+The inspector lists the session's runs, newest first. Click one to read what it did and its last screen; a running
+one takes you to its tab.
+
+![A run working in the background beside the session's agent](../images/shots/sessions/run-tab.png)
+
+![A run, read: its agent and model, what it pushed, and its last screen](../images/shots/sessions/run-reader.png)
+
+### Leftovers
+
+If heed quits mid-run, or a removal fails, a `heed/…` branch and its worktree can be left behind. Every cleanup sweep
+(and launch) removes them when it's safe: no uncommitted changes, and nothing that isn't on the pull request's
+branch. Otherwise it keeps them and says why. From a terminal, `heed cleanup runs` does the same in the repo you are
+in, and also skips anything git touched in the last hour. Since every run branch starts with `heed/`, a script can
+find them too:
+
+```sh
+git for-each-ref --format='%(refname:short)' 'refs/heads/heed/'
+```
 
 ## Stalled
 
@@ -223,8 +235,9 @@ the overrides.
 watch = true         # read-only, so on
 green = "ask"        # off, ask or auto
 max_rounds = 3       # prompts without a new approval before it stops
-send_after_idle = "5m" # nothing is sent while you work in the session: this long after your last keystroke
-send_to = "session"  # session (its agent) or tab (a dedicated agent in its own tab)
+agent = ""           # runs' agent (codex, claude, ...); empty: the session's
+model = ""           # their model (haiku, gpt-5-codex, ...); empty: the agent's default
+run_timeout = "30m"  # a run still working after this long is stopped
 pause = "1h"         # what zp pauses for
 merge = "off"        # off, auto or heed
 merge_schedule = "1h" # how often a repo's queue runs, or manual

@@ -175,7 +175,7 @@ public enum Fixtures {
             }
             layouts[session.id] = SessionLayout(tabs: tabs(for: session, root: root))
         }
-        // s5's PR is fed to a dedicated agent in its own tab (`send_to = "tab"`), next to its agent tab.
+        // s5's PR has a get it green run working in the background, in a tab next to its agent tab.
         if var layout = layouts["s5"] {
             layout.tabs.append(PaneTab(id: "s5-helper-tab", title: "get it green", tree: .leaf(PaneSpec(
                 id: "s5-helper", role: .helper, title: "get it green",
@@ -235,7 +235,7 @@ public enum Fixtures {
             history: history, github: github,
             pullDetails: Dictionary(([detail] + otherDetails).map { ($0.ref.description, $0) }) { first, _ in first },
             feedback: pilots.merging([detail.ref.description: pipeline]) { _, main in main }, pilotLog: log,
-            mergeRuns: mergeRuns, registeredWorktrees: [remoteWorktrees[0].id]
+            mergeRuns: mergeRuns, registeredWorktrees: [remoteWorktrees[0].id], runs: runs
         )
     }()
 
@@ -292,6 +292,85 @@ public enum Fixtures {
     }()
 
     /// The merge queues' runs: docs-content turned green and got auto-merge, docs-builder holds #2841 on lint.
+    /// Get it green runs: one working on s5's PR, and s1's history (pushed, nothing to change, timed out).
+    static let runs: [PilotRun] = {
+        let now = Clock.now
+        func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
+        func run(
+            _ id: String, _ ref: PullRef, _ session: String, agent: String, model: String?, started: Double,
+            minutes: Double?, items: Int, outcome: PilotRun.Outcome?, screen: String? = nil
+        ) -> PilotRun {
+            let branch = ref.number == 412 ? "bump-spec-tests" : "fix-anchors-redirects"
+            var run = PilotRun(
+                id: id, ref: ref, sessionID: session, goal: .green, agent: agent, model: model, startedAt: ago(started),
+                items: items, prBranch: branch, branch: Runs.branch(.green, prBranch: branch),
+                worktree: "~/code/wt/heed/\(ref.repo.name)/get-it-green-\(branch)", startSHA: nil
+            )
+            if let minutes {
+                run.endedAt = ago(started - minutes)
+                run.outcome = outcome
+                run.screen = screen
+            }
+            return run
+        }
+        let anchors = PullRef(repo: docsBuilder, number: 2841)
+        return [
+            run(
+                "r4",
+                PullRef(repo: editorconfig, number: 412),
+                "s5",
+                agent: "codex",
+                model: "gpt-5-codex",
+                started: 3,
+                minutes: nil,
+                items: 2,
+                outcome: nil
+            ),
+            run(
+                "r3",
+                anchors,
+                "s1",
+                agent: "codex",
+                model: "gpt-5-codex",
+                started: 40,
+                minutes: 6,
+                items: 3,
+                outcome: .pushed(2),
+                screen: """
+                ✓ Fixed the anchor slugs in redirects.yml (2 files)
+                ✓ lint passes locally
+                $ git push origin HEAD:fix-anchors-redirects
+                To github.com:elastic/docs-builder.git
+                   4f2a1c9..b81e0d3  HEAD -> fix-anchors-redirects
+                Done: pushed 2 commits.
+                """
+            ),
+            run(
+                "r2",
+                anchors,
+                "s1",
+                agent: "claude",
+                model: "haiku",
+                started: 95,
+                minutes: 3,
+                items: 1,
+                outcome: .noChanges,
+                screen: "The review thread asks a question; nothing to change in the code."
+            ),
+            run(
+                "r1",
+                anchors,
+                "s1",
+                agent: "codex",
+                model: nil,
+                started: 180,
+                minutes: 30,
+                items: 4,
+                outcome: .timedOut
+            ),
+        ]
+    }()
+
     static let mergeRuns: [String: [MergeRun]] = {
         let now = Clock.now
         func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }

@@ -1490,7 +1490,12 @@ final class AppModel {
         let outerTarget = commandTarget
         commandTarget = command.target
         defer { commandTarget = outerTarget }
-        if case let .session(id) = command.target { select(sessionID: id) }
+        switch command.target {
+        case let .session(id): select(sessionID: id)
+        case let .row(name, id): if let list = AppView(rawValue: name) { moveCursor(list, to: id) }
+        case let .tab(id): if let index = currentTabs.firstIndex(where: { $0.id == id }) { selectTab(index) }
+        default: break
+        }
         switch command.name {
         case "row.next": moveRow(by: count)
         case "row.prev": moveRow(by: -count)
@@ -1536,7 +1541,10 @@ final class AppModel {
         case "filter.clear":
             filtering = false
             clearFilter(view)
-        case "issues.repo": pickIssueRepo(named: command.arguments.first)
+        case "issues.repo":
+            if case let .repo(repo) = command.target { pickIssueRepo(repo) } else {
+                pickIssueRepo(named: command.arguments.first)
+            }
         case "app.activate": activateHeed()
         case "pr.track": trackPull(command.arguments.first)
         case "pr.untrack": untrackPull(command.arguments.first)
@@ -1712,6 +1720,19 @@ final class AppModel {
 
     /// What the command being performed acts on, when a right-click menu named it (see `CommandTarget`).
     private var commandTarget: CommandTarget?
+
+    /// The cursor onto a row named by id, in the view you are in: a list that changed while a menu was open still
+    /// acts on the row clicked.
+    private func moveCursor(_ list: AppView, to id: String) {
+        guard list == view else { return }
+        let ids: [String] = switch list {
+        case .repos: worktreeRows.map(\.id)
+        case .history: historyRows.map(\.id)
+        case .sessions: []
+        default: itemIDs(list)
+        }
+        if let index = ids.firstIndex(of: id) { setRow(index) }
+    }
 
     /// `<Esc>` in NORMAL: the reader, an overlay, then back from a view to Sessions.
     private func closeTopmost() {
@@ -2332,6 +2353,9 @@ final class AppModel {
     private var actionRows: [Worktree] {
         let rows = worktreeRows
         let selected = selectedRows
+        if let clicked = commandTarget?.row(in: AppView.repos.rawValue), !selected.contains(clicked) {
+            return rows.filter { $0.id == clicked }
+        }
         if !selected.isEmpty { return rows.filter { selected.contains($0.id) } }
         return rows.indices.contains(repoCursor) ? [rows[repoCursor]] : []
     }
@@ -2994,18 +3018,8 @@ final class AppModel {
 
     /// `w` in Issues, `I` in Repos: the repo under the cursor flips between all issues and only yours.
     private func toggleIssueVisibility() {
-        let repo: Repo?
-        switch view {
-        case .issues:
-            let rows = issueRows
-            let index = cursor(in: .issues)
-            repo = rows.indices.contains(index) ? rows[index].repo : issueRepo
-        case .repos:
-            let rows = worktreeRows
-            repo = rows.indices.contains(repoCursor) ? rows[repoCursor].repo : nil
-        default: repo = nil
-        }
-        guard let repo else {
+        let named: Repo? = if case let .repo(repo) = commandTarget { repo } else { nil }
+        guard let repo = named ?? repoUnderCursorForIssues else {
             flash = "no repo under the cursor"
             return
         }
@@ -3016,6 +3030,20 @@ final class AppModel {
             setConfig(["repos", repo.slug, "issues"], .string(next.rawValue))
         }
         flash = next == .all ? "\(repo.name): all open issues" : "\(repo.name): only issues involving you"
+    }
+
+    /// The repo `w` flips: the Issues row's (or the column's), the Repos row's.
+    private var repoUnderCursorForIssues: Repo? {
+        switch view {
+        case .issues:
+            let rows = issueRows
+            let index = cursor(in: .issues)
+            return rows.indices.contains(index) ? rows[index].repo : issueRepo
+        case .repos:
+            let rows = worktreeRows
+            return rows.indices.contains(repoCursor) ? rows[repoCursor].repo : nil
+        default: return nil
+        }
     }
 
     var pullRows: [PullRequest] {
@@ -3054,6 +3082,10 @@ final class AppModel {
     private func actionIDs(_ view: AppView) -> [String] {
         let ids = itemIDs(view)
         let chosen = pickedIDs(view)
+        // A right-click on a row that is not picked acts on that row alone, as Finder does.
+        if let clicked = commandTarget?.row(in: view.rawValue), !chosen.contains(clicked) {
+            return ids.contains(clicked) ? [clicked] : []
+        }
         if !chosen.isEmpty { return ids.filter(chosen.contains) }
         let index = cursor(in: view)
         return ids.indices.contains(index) ? [ids[index]] : []

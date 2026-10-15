@@ -43,9 +43,68 @@ extension AppModel {
         case .watch:
             let rows = pilotRows
             return rows.indices.contains(index) ? pullMenu(rows[index].ref, place: .watch) : []
-        default:
+        case .inbox:
+            let rows = inboxRows
+            guard rows.indices.contains(index) else { return [] }
+            let row = rows[index]
+            var facts = itemFacts(.inbox, id: row.id, title: row.number.map { "\(row.repo.name) #\($0)" } ?? row.title)
+            facts.unread = row.unread
+            facts.hasURL = row.url != nil
+            return ContextMenus.item(facts)
+        case .issues:
+            let rows = issueRows
+            guard rows.indices.contains(index) else { return [] }
+            let row = rows[index]
+            var facts = itemFacts(.issue, id: row.id, title: "\(row.repo.name) #\(row.number)")
+            facts.allIssues = config.issues.visibility(row.repo) == .all
+            return ContextMenus.item(facts)
+        case .repos:
+            let rows = worktreeRows
+            guard rows.indices.contains(index) else { return [] }
+            let row = rows[index]
+            let session = session(for: row)
+            var facts = ContextMenus.WorktreeFacts(id: row.id, title: "\(row.repo.name) · \(row.branch ?? "detached")")
+            let selected = selectedRows
+            facts.count = selected.contains(row.id) ? selected.count : 1
+            facts.hasSession = session != nil
+            facts.pinned = session?.pinned ?? false
+            facts.isMain = row.isMain
+            facts.onGitHub = row.repo.org != "local"
+            facts.allIssues = config.issues.visibility(row.repo) == .all
+            return ContextMenus.worktree(facts)
+        case .history:
+            let rows = historyRows
+            guard rows.indices.contains(index) else { return [] }
+            let session = rows[index].session
+            return ContextMenus.history(
+                id: session.id, title: session.title, hasPrompt: !session.prompt.isEmpty,
+                onGitHub: session.repos.contains { $0.org != "local" }
+            )
+        case .sessions:
             return []
         }
+    }
+
+    /// An Inbox or Issues row: the picked rows when it is one of them, else it alone (see `actionIDs`).
+    private func itemFacts(_ kind: ContextMenus.ItemFacts.Kind, id: String, title: String) -> ContextMenus.ItemFacts {
+        var facts = ContextMenus.ItemFacts(kind: kind, id: id, title: title)
+        let picked = pickedIDs(kind == .inbox ? .inbox : .issues)
+        facts.count = picked.contains(id) ? picked.count : 1
+        facts.hasSession = currentSession != nil
+        return facts
+    }
+
+    /// A repo in the Issues repo column (nil: its All row).
+    func issueRepoMenu(_ repo: Repo?) -> [MenuEntry] {
+        ContextMenus.issueRepo(repo, allIssues: repo.map { config.issues.visibility($0) == .all } ?? false)
+    }
+
+    /// A tab of the current session.
+    func tabMenu(_ id: String) -> [MenuEntry] {
+        guard let tab = currentTabs.first(where: { $0.id == id }) else { return [] }
+        return ContextMenus.tab(
+            id: id, title: tab.title, zoomed: tab.zoomed, runLive: liveRuns.values.contains { $0.tabID == id }
+        )
     }
 
     /// The pilot as the commands see it for these PRs: watch and pause toggle on all of them, green and merge cycle
@@ -77,8 +136,17 @@ extension AppModel {
         return true
     }
 
-    /// A right-click in the inspector acts on what it names; it only hands the keyboard back to heed.
-    func rightClickInspector() -> Bool {
+    /// A right-click on a tab selects it, as a click does.
+    func rightClickTab(_ index: Int) -> Bool {
+        guard clicksReachLists else { return false }
+        clickedOutsideTerminal()
+        selectTab(index)
+        return true
+    }
+
+    /// A right-click in the inspector or the Issues repo column acts on what it names; it only hands the keyboard
+    /// back to heed.
+    func rightClickNamed() -> Bool {
         guard clicksReachLists else { return false }
         clickedOutsideTerminal()
         return true

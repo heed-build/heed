@@ -148,4 +148,102 @@ struct ContextMenuTests {
             #expect(Commands.spec(name) != nil, "\(name) is not a command")
         }
     }
+
+    @Test func aRowTargetNamesItsViewAndARepoTargetItsRepo() {
+        let repo = Repo(org: "o", name: "r")
+        #expect(CommandTarget.row(view: "inbox", id: "n1").row(in: "inbox") == "n1")
+        #expect(CommandTarget.row(view: "inbox", id: "n1").row(in: "issues") == nil)
+        #expect(CommandTarget.row(view: "repos", id: "/p").repos == nil)
+        #expect(CommandTarget.repo(repo).repos == [repo])
+        #expect(CommandTarget.tab("t").url == nil)
+    }
+
+    @Test func inboxAndIssueRowsCountWhatTheyActOn() {
+        var facts = ContextMenus.ItemFacts(kind: .inbox, id: "n1", title: "r #4")
+        facts.unread = true
+        var menu = ContextMenus.item(facts)
+        #expect(commands(menu) == [
+            "open.reader", "open.browser", "open.repo", "items.start", "items.add", "items.read",
+        ])
+        #expect(items(menu).allSatisfy { $0.command.target == .row(view: "inbox", id: "n1") })
+        // No session selected to add to; already read.
+        #expect(item("items.add", in: menu)?.enabled == false)
+        #expect(item("items.start", in: menu)?.title == "Start a session from it")
+
+        facts.count = 3
+        facts.unread = false
+        facts.hasURL = false
+        facts.hasSession = true
+        menu = ContextMenus.item(facts)
+        #expect(item("items.start", in: menu)?.title == "Start a session from the 3 picked")
+        #expect(item("items.add", in: menu)?.enabled == true)
+        #expect(item("items.read", in: menu)?.enabled == false)
+        #expect(item("open.browser", in: menu) == nil)
+
+        var issue = ContextMenus.ItemFacts(kind: .issue, id: "i1", title: "r #5")
+        issue.allIssues = true
+        menu = ContextMenus.item(issue)
+        #expect(item("items.read", in: menu) == nil)
+        #expect(item("issues.visibility", in: menu)?.checked == true)
+        #expect(items(menu).allSatisfy { $0.command.target == .row(view: "issues", id: "i1") })
+    }
+
+    @Test func theIssuesRepoColumn() {
+        let repo = Repo(org: "o", name: "r")
+        let menu = ContextMenus.issueRepo(repo, allIssues: false)
+        #expect(commands(menu) == ["issues.repo", "issues.visibility", "open.repo"])
+        #expect(items(menu).allSatisfy { $0.command.target == .repo(repo) })
+        #expect(commands(ContextMenus.issueRepo(Repo(org: "local", name: "x"), allIssues: false))
+            == ["issues.repo", "issues.visibility"])
+        // The All row has no repo: it shows every repo's issues.
+        let all = ContextMenus.issueRepo(nil, allIssues: false)
+        #expect(commands(all) == ["issues.repo"])
+        #expect(item("issues.repo", in: all)?.command.target == nil)
+    }
+
+    @Test func aWorktreeMenuNeverRemovesTheMainCheckout() {
+        var facts = ContextMenus.WorktreeFacts(id: "/w", title: "r · fix")
+        var menu = ContextMenus.worktree(facts)
+        #expect(item("select.open", in: menu)?.title == "Import as a session")
+        #expect(item("select.pin", in: menu) == nil)
+        #expect(item("select.remove", in: menu) != nil)
+        facts.hasSession = true
+        facts.pinned = true
+        facts.isMain = true
+        menu = ContextMenus.worktree(facts)
+        #expect(item("select.open", in: menu)?.title == "Go to its session")
+        #expect(item("select.pin", in: menu)?.checked == true)
+        #expect(item("select.remove", in: menu) == nil)
+        facts.count = 2
+        menu = ContextMenus.worktree(facts)
+        #expect(item("select.remove", in: menu)?.title == "Remove 2 worktrees…")
+        #expect(item("select.copy", in: menu)?.title == "Copy 2 paths")
+    }
+
+    @Test func historyAndTabs() {
+        #expect(commands(ContextMenus.history(id: "h", title: "t", hasPrompt: true, onGitHub: true))
+            == ["history.reopen", "history.again", "open.repo"])
+        #expect(commands(ContextMenus.history(id: "h", title: "t", hasPrompt: false, onGitHub: false))
+            == ["history.reopen"])
+        let tab = ContextMenus.tab(id: "t1", title: "agent", zoomed: true, runLive: false)
+        #expect(commands(tab) == ["tab.new", "pane.split.right", "pane.split.below", "pane.zoom", "tab.close"])
+        #expect(item("pane.zoom", in: tab)?.checked == true)
+        #expect(items(tab).allSatisfy { $0.command.target == .tab("t1") })
+        #expect(item("pilot.run.stop", in: ContextMenus.tab(id: "t1", title: "x", zoomed: false, runLive: true)) != nil)
+    }
+
+    @Test func everyPhaseTwoItemRunsARealCommand() {
+        var worktree = ContextMenus.WorktreeFacts(id: "/w", title: "w")
+        worktree.hasSession = true
+        let menus = [
+            ContextMenus.item(.init(kind: .inbox, id: "a", title: "a")),
+            ContextMenus.item(.init(kind: .issue, id: "a", title: "a")),
+            ContextMenus.issueRepo(Repo(org: "o", name: "r"), allIssues: true), ContextMenus.worktree(worktree),
+            ContextMenus.history(id: "h", title: "h", hasPrompt: true, onGitHub: true),
+            ContextMenus.tab(id: "t", title: "t", zoomed: false, runLive: true),
+        ]
+        for name in menus.flatMap(commands) {
+            #expect(Commands.spec(name) != nil, "\(name) is not a command")
+        }
+    }
 }

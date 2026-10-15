@@ -6,10 +6,22 @@ public enum CommandTarget: Hashable, Sendable {
     case issue(IssueRef)
     /// A get it green / get it merged run, by id.
     case run(String)
+    /// A row of a list view (`inbox`, `issues`, `repos`, `history`…), by its id: the cursor moves there first, and the
+    /// commands that act on the picked rows act on it alone unless it is one of them.
+    case row(view: String, id: String)
+    /// A repo, as the Issues repo column lists them.
+    case repo(Repo)
+    /// One of the session's tabs, by id: it is selected first.
+    case tab(String)
 
     /// The PRs the pilot commands act on; nil when the target names no PR (the cursor decides).
     public var pulls: [PullRef]? {
         if case let .pull(ref) = self { [ref] } else { nil }
+    }
+
+    /// The row named in `view`, if this is one.
+    public func row(in view: String) -> String? {
+        if case let .row(named, id) = self, named == view { id } else { nil }
     }
 
     public var runID: String? {
@@ -21,7 +33,7 @@ public enum CommandTarget: Hashable, Sendable {
         switch self {
         case let .pull(ref): ref.url
         case let .issue(ref): ref.url
-        case .session, .run: nil
+        case .session, .run, .row, .repo, .tab: nil
         }
     }
 
@@ -30,7 +42,8 @@ public enum CommandTarget: Hashable, Sendable {
         switch self {
         case let .pull(ref): [ref.repo]
         case let .issue(ref): [ref.repo]
-        case .session, .run: nil
+        case let .repo(repo): [repo]
+        case .session, .run, .row, .tab: nil
         }
     }
 }
@@ -202,6 +215,168 @@ public enum ContextMenus {
         } else {
             menu.section([MenuItem("Read what it did", CommandInvocation(name: "open.reader", target: target))])
         }
+        return menu.entries
+    }
+
+    /// An Inbox or Issues row. `count` is how many rows the item commands act on: the picked ones when the row clicked
+    /// is among them, else that row alone.
+    public struct ItemFacts: Sendable {
+        public enum Kind: Sendable { case inbox, issue }
+        public var kind: Kind
+        public var id: String
+        public var title: String
+        public var count = 1
+        /// A session is selected that `a` can add to.
+        public var hasSession = false
+        public var unread = false
+        /// Inbox items with a page on GitHub; CI notices have none of their own.
+        public var hasURL = true
+        /// The repo shows every open issue, not only yours (Issues).
+        public var allIssues = false
+
+        public init(kind: Kind, id: String, title: String) {
+            self.kind = kind
+            self.id = id
+            self.title = title
+        }
+    }
+
+    public static func item(_ facts: ItemFacts) -> [MenuEntry] {
+        let view = facts.kind == .inbox ? "inbox" : "issues"
+        let target = CommandTarget.row(view: view, id: facts.id)
+        func item(_ title: String, _ name: String, enabled: Bool = true, checked: Bool = false) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target), enabled: enabled, checked: checked)
+        }
+        let them = facts.count > 1 ? "the \(facts.count) picked" : "it"
+        var menu = Menu(header: facts.title)
+        menu.section([
+            item("Open", "open.reader"),
+            facts.hasURL ? item("Open in browser", "open.browser") : nil,
+            item("Open repo on GitHub", "open.repo"),
+        ])
+        menu.section([
+            item("Start a session from \(them)", "items.start"),
+            item("Add \(them) to this session", "items.add", enabled: facts.hasSession),
+        ])
+        switch facts.kind {
+        case .inbox:
+            menu.section([item(
+                facts.count > 1 ? "Mark \(them) read" : "Mark read",
+                "items.read",
+                enabled: facts.unread
+            )])
+        case .issue:
+            menu.section([item("All issues from its repo", "issues.visibility", checked: facts.allIssues)])
+        }
+        return menu.entries
+    }
+
+    /// A repo in the Issues repo column; nil is its All row.
+    public static func issueRepo(_ repo: Repo?, allIssues: Bool) -> [MenuEntry] {
+        guard let repo else {
+            var menu = Menu(header: "Every repo")
+            menu.section([MenuItem("Show every repo's issues", CommandInvocation(name: "issues.repo"))])
+            return menu.entries
+        }
+        let target = CommandTarget.repo(repo)
+        var menu = Menu(header: repo.slug)
+        menu.section([
+            MenuItem("Show its issues", CommandInvocation(name: "issues.repo", target: target)),
+            MenuItem(
+                "All issues, not only yours", CommandInvocation(name: "issues.visibility", target: target),
+                checked: allIssues
+            ),
+        ])
+        if repo.org != "local" {
+            menu.section([MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target))])
+        }
+        return menu.entries
+    }
+
+    /// A worktree in Repos. `count` is how many rows the selection commands act on.
+    public struct WorktreeFacts: Sendable {
+        public var id: String
+        public var title: String
+        public var count = 1
+        public var hasSession = false
+        public var pinned = false
+        public var isMain = false
+        public var onGitHub = true
+        public var allIssues = false
+
+        public init(id: String, title: String) {
+            self.id = id
+            self.title = title
+        }
+    }
+
+    public static func worktree(_ facts: WorktreeFacts) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "repos", id: facts.id)
+        func item(_ title: String, _ name: String, checked: Bool = false) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target), checked: checked)
+        }
+        let several = facts.count > 1
+        var menu = Menu(header: facts.title)
+        menu.section([
+            item(
+                several ? "Open or import the \(facts.count) selected" : facts.hasSession ? "Go to its session"
+                    : "Import as a session",
+                "select.open"
+            ),
+            item("Start work in this repo", "worktree.new"),
+        ])
+        menu.section([
+            item(several ? "Copy \(facts.count) paths" : "Copy path", "select.copy"),
+            facts.hasSession || several ? item(
+                several ? "Pin their sessions" : "Pin its session",
+                "select.pin",
+                checked: facts.pinned
+            ) : nil,
+            facts.onGitHub ? item("Open repo on GitHub", "open.repo") : nil,
+            item("All issues from this repo", "issues.visibility", checked: facts.allIssues),
+        ])
+        menu.section([
+            item("Run the cleanup sweep…", "cleanup.sweep"),
+            item("Setup for new worktrees…", "setup.review"),
+        ])
+        // The repo's own checkout is never removed.
+        if !facts.isMain || several {
+            menu.section([item(several ? "Remove \(facts.count) worktrees…" : "Remove worktree…", "select.remove")])
+        }
+        return menu.entries
+    }
+
+    /// A session in History.
+    public static func history(id: String, title: String, hasPrompt: Bool, onGitHub: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "history", id: id)
+        var menu = Menu(header: title)
+        menu.section([
+            MenuItem("Reopen", CommandInvocation(name: "history.reopen", target: target)),
+            hasPrompt ? MenuItem(
+                "Start again from its prompt",
+                CommandInvocation(name: "history.again", target: target)
+            )
+                : nil,
+            onGitHub ? MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target)) : nil,
+        ])
+        return menu.entries
+    }
+
+    /// A tab of the session. A run's tab can stop its run.
+    public static func tab(id: String, title: String, zoomed: Bool, runLive: Bool) -> [MenuEntry] {
+        let target = CommandTarget.tab(id)
+        func item(_ title: String, _ name: String, checked: Bool = false) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target), checked: checked)
+        }
+        var menu = Menu(header: title)
+        menu.section([
+            item("New tab", "tab.new"),
+            item("Split right", "pane.split.right"),
+            item("Split below", "pane.split.below"),
+            item("Zoom pane", "pane.zoom", checked: zoomed),
+        ])
+        if runLive { menu.section([item("Stop run", "pilot.run.stop")]) }
+        menu.section([item("Close tab", "tab.close")])
         return menu.entries
     }
 

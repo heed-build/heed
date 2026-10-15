@@ -314,6 +314,7 @@ private struct IssueRepoColumn: View {
         .background(selected ? Theme.bg3 : .clear)
         .contentShape(Rectangle())
         .onTapGesture { model.pickIssueRepo(repo) }
+        .rightClickMenu { model.rightClickNamed() } _: { model.issueRepoMenu(repo) }
     }
 
     private func keyRow(_ key: String, _ label: String) -> some View {

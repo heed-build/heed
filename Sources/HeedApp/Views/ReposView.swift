@@ -95,6 +95,7 @@ struct ReposView: View {
                             .simultaneousGesture(TapGesture(count: 2).onEnded {
                                 model.clickRow(.repos, index, open: true)
                             })
+                            .rightClickMenu { model.rightClickRow(.repos, index) } _: { model.rowMenu(.repos, index) }
                             .id(worktree.id)
                         }
                     }

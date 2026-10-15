@@ -107,6 +107,19 @@ public enum Runs {
         return nil
     }
 
+    /// The worktree a run starts beside, and runs git from: the session's in the PR's repo, else the one on the PR's
+    /// branch, else one with the repo's name (a fork's clone: its origin is the fork, the PR is upstream), else any
+    /// worktree on the PR's branch, else any of the session's.
+    public static func baseWorktree(
+        for ref: PullRef, headBranch: String?, owned: [Worktree], all: [Worktree]
+    ) -> Worktree? {
+        owned.first { $0.repo == ref.repo }
+            ?? owned.first { headBranch != nil && $0.branch == headBranch }
+            ?? owned.first { $0.repo.name == ref.repo.name }
+            ?? all.first { headBranch != nil && $0.branch == headBranch && !$0.isMain }
+            ?? owned.first
+    }
+
     /// What a PR needs a run for: its checks and reviews, or its conflicts with the base.
     public static func goal(for status: PilotStatus) -> RunGoal? {
         switch status {

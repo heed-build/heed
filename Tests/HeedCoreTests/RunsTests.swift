@@ -165,3 +165,28 @@ struct RunGitTests {
         #expect(kept.map(\.removed) == [false] && kept.first?.reason == "it has uncommitted changes")
     }
 }
+
+struct RunBaseWorktreeTests {
+    private let upstream = Repo(org: "elastic", name: "docs-builder")
+    private let fork = Repo(org: "me", name: "docs-builder")
+
+    private func worktree(_ repo: Repo, _ path: String, branch: String?, main: Bool = false) -> Worktree {
+        Worktree(repo: repo, path: path, branch: branch, head: "", isMain: main)
+    }
+
+    @Test func aForkStillFindsItsWorktree() {
+        let ref = PullRef(repo: upstream, number: 1)
+        let mine = worktree(fork, "/wt/docs-builder/fix-a", branch: "fix-a")
+        let other = worktree(Repo(org: "o", name: "other"), "/wt/other/fix-a", branch: "x")
+        // The PR is upstream, the clone's origin is the fork: same repo name, or the PR's branch.
+        #expect(Runs.baseWorktree(for: ref, headBranch: "fix-a", owned: [other, mine], all: [other, mine]) == mine)
+        #expect(Runs.baseWorktree(for: ref, headBranch: nil, owned: [other, mine], all: []) == mine)
+        // The exact repo wins when there is one.
+        let exact = worktree(upstream, "/wt/docs-builder/fix-a-up", branch: "fix-a")
+        #expect(Runs.baseWorktree(for: ref, headBranch: "fix-a", owned: [mine, exact], all: []) == exact)
+        // Nothing owned: any worktree on the PR's branch, never a main checkout.
+        let loose = worktree(fork, "/code/docs-builder", branch: "fix-a", main: true)
+        #expect(Runs.baseWorktree(for: ref, headBranch: "fix-a", owned: [], all: [loose, mine]) == mine)
+        #expect(Runs.baseWorktree(for: ref, headBranch: "fix-a", owned: [], all: [loose]) == nil)
+    }
+}

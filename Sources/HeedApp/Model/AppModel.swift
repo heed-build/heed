@@ -3624,9 +3624,15 @@ final class AppModel {
             return nil
         }
         guard let agent = self.settings.agent(agentName) else { return fail("no agent \(agentName)") }
-        guard let main = worktrees.first(where: { session.owns($0) && $0.repo == ref.repo }),
-              let record = repos.first(where: { $0.repo == ref.repo && $0.location == main.location })
-        else { return fail("no worktree of \(ref.repo.name)") }
+        let headBranch = github.pull(ref)?.headBranch
+        guard let main = Runs.baseWorktree(
+            for: ref, headBranch: headBranch, owned: worktrees.filter { session.owns($0) }, all: worktrees
+        ) else {
+            return fail("the session has no worktree, and none is on \(headBranch ?? "the PR's branch")")
+        }
+        // git runs from the repo's checkout when heed lists it, else from the worktree itself (any worktree will do).
+        let record = repos.first { $0.repo == main.repo && $0.location == main.location }
+            ?? RepoRecord(repo: main.repo, path: main.path, location: main.location)
         guard let prBranch = github.pull(ref)?.headBranch ?? main.branch else { return fail("no branch") }
         let root = session.host.flatMap { config.hosts[$0]?.worktreeRoot } ?? self.settings.worktreeRoot
         let branch = Runs.branch(goal, prBranch: prBranch)

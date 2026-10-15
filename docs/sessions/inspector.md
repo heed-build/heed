@@ -11,8 +11,8 @@ The inspector, on the right of the Sessions view, shows the selected session's s
 - **Worktrees**: each worktree's path, its upstream, how far ahead and behind it is, and whether it has uncommitted
   changes.
 - **Links**: the session's pull requests, then its issues. Open PRs come first, then merged, then closed; each shows
-  its checks bar, its review state, and what heed is doing about it. A merged or closed PR keeps its checks as they
-  finished and says it is done. Issues show their title and whether they are open.
+  its checks bar, its review state, and what heed is doing about it. A merged or closed PR shrinks to its name and
+  title: there is nothing left to watch. Issues show their title and whether they are open.
 - **Agent events**: the latest states the agent reported, newest first. A turn's working steps show while it runs and
   fold away once it ends, leaving how it ended.
 
@@ -42,5 +42,8 @@ compare page for the branch.
 ![gB on a session with three PRs and two issues](../images/shots/sessions/links-picker.png)
 
 In the other views `gB` opens the item under the cursor and `gR` its repo.
+
+Worktrees, links and runs each scroll on their own once they outgrow their share of the column, so a session with many
+PRs never pushes its runs or agent events out of sight.
 
 `zi` collapses and expands the inspector. It also gives way first when the window is narrow.

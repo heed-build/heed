@@ -6,6 +6,17 @@ struct Inspector: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        GeometryReader { proxy in
+            content(height: proxy.size.height)
+        }
+        .frame(width: 320)
+        .background(Theme.bg2)
+        .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
+    }
+
+    /// Worktrees, links and runs each scroll on their own, up to a share of the column, so a long list in one never
+    /// pushes the others out of sight.
+    private func content(height: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             if let session = model.currentSession {
                 section {
@@ -14,12 +25,12 @@ struct Inspector: View {
                         Spacer()
                         CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
                     }
-                    ForEach(model.worktrees
-                        .filter { session.owns($0) })
-                    { worktree in
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(Paths.abbreviate(worktree.path)).font(Theme.mono(12)).foregroundStyle(Theme.fg)
-                            if let status = worktree.status { WorktreeStatusLine(status: status) }
+                    CappedScroll(cap: height * 0.18) {
+                        ForEach(model.worktrees.filter { session.owns($0) }) { worktree in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(Paths.abbreviate(worktree.path)).font(Theme.mono(12)).foregroundStyle(Theme.fg)
+                                if let status = worktree.status { WorktreeStatusLine(status: status) }
+                            }
                         }
                     }
                 }
@@ -31,25 +42,29 @@ struct Inspector: View {
                     }
                     let links = model.links(of: session)
                     if links.isEmpty { emptyLinks(session) }
-                    ForEach(links, id: \.self) { link in
-                        LinkCard(session: session, link: link)
-                            .contentShape(Rectangle())
-                            // A click opens it here (the PR overlay, the issue reader); ⌘-click on GitHub.
-                            .onTapGesture {
-                                model.open(link, browser: NSEvent.modifierFlags.contains(.command))
-                            }
-                            .help("\(link.url)\n⌘-click opens it on GitHub")
+                    CappedScroll(cap: height * 0.45) {
+                        ForEach(links, id: \.self) { link in
+                            LinkCard(session: session, link: link)
+                                .contentShape(Rectangle())
+                                // A click opens it here (the PR overlay, the issue reader); ⌘-click on GitHub.
+                                .onTapGesture {
+                                    model.open(link, browser: NSEvent.modifierFlags.contains(.command))
+                                }
+                                .help("\(link.url)\n⌘-click opens it on GitHub")
+                        }
                     }
                 }
                 let runs = Array(model.runs.filter { $0.sessionID == session.id }.prefix(10))
                 if !runs.isEmpty {
                     section {
                         SectionHeader(title: "Runs")
-                        ForEach(runs) { run in
-                            RunRow(run: run)
-                                .contentShape(Rectangle())
-                                .onTapGesture { model.open(run: run) }
-                                .help(run.isRunning ? "Go to its tab" : "Open: what it did, and its last screen")
+                        CappedScroll(cap: height * 0.22) {
+                            ForEach(runs) { run in
+                                RunRow(run: run)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { model.open(run: run) }
+                                    .help(run.isRunning ? "Go to its tab" : "Open: what it did, and its last screen")
+                            }
                         }
                     }
                 }
@@ -77,11 +92,8 @@ struct Inspector: View {
                     }
                 }
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
-        .frame(width: 320)
-        .background(Theme.bg2)
-        .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
     }
 
     /// No PR and no issue yet: what comes next. A pushed branch offers the compare page that opens a PR.
@@ -187,8 +199,11 @@ private struct LinkCard: View {
             Spacer()
             if let pull { StateTag(state: pull.state, draft: pull.isDraft) }
         }
-        Text(pull?.title ?? session.title).font(Theme.ui(13, weight: .medium)).lineLimit(2)
-        if let pull {
+        // Merged or closed: done, so just what it was.
+        let finished = pull.map { $0.state != .open } ?? false
+        Text(pull?.title ?? session.title).font(Theme.ui(13, weight: .medium)).lineLimit(finished ? 1 : 2)
+            .foregroundStyle(finished ? Theme.fg2 : Theme.fg)
+        if finished { EmptyView() } else if let pull {
             HStack(spacing: 8) {
                 CheckBar(checks: pull.checks)
                 Text(pull.checks.text)
@@ -198,15 +213,17 @@ private struct LinkCard: View {
             .font(Theme.ui(11.5))
             .lineLimit(1)
         }
-        // What the pilot is doing for this PR; a merged or closed one is done.
-        let watching = model.pilot(for: ref).watching
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            PilotMark(status: model.pilotStatus(for: ref), compact: true)
-            Text(pull == nil && watching ? "waiting for the next sync" : model.pilotLine(for: ref))
-                .foregroundStyle(watching && pull?.state == .open ? Theme.fg2 : Theme.fg3)
-                .fixedSize(horizontal: false, vertical: true)
+        // What the pilot is doing for this PR (nothing to say once it is merged or closed).
+        if !finished {
+            let watching = model.pilot(for: ref).watching
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                PilotMark(status: model.pilotStatus(for: ref), compact: true)
+                Text(pull == nil && watching ? "waiting for the next sync" : model.pilotLine(for: ref))
+                    .foregroundStyle(watching ? Theme.fg2 : Theme.fg3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(Theme.mono(11))
         }
-        .font(Theme.mono(11))
     }
 
     @ViewBuilder private func issue(_ ref: IssueRef) -> some View {
@@ -332,4 +349,29 @@ struct RunReaderView: View {
             Text(value).font(Theme.mono(12))
         }
     }
+}
+
+/// A list that takes the height of its content, up to `cap`, and scrolls beyond it.
+struct CappedScroll<Content: View>: View {
+    let cap: CGFloat
+    @ViewBuilder let content: Content
+    @State private var height: CGFloat = 0
+
+    var body: some View {
+        ListScroll {
+            VStack(alignment: .leading, spacing: 10) { content }
+                .fixedSize(horizontal: false, vertical: true)
+                .background(GeometryReader { proxy in
+                    Color.clear.preference(key: ContentHeight.self, value: proxy.size.height)
+                })
+        }
+        .frame(height: min(max(height, 1), max(cap, 60)), alignment: .top)
+        .clipped()
+        .onPreferenceChange(ContentHeight.self) { height = $0 }
+    }
+}
+
+private struct ContentHeight: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }

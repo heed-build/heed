@@ -27,7 +27,7 @@ Single keys are kept for what you do many times an hour; anything rarer is two k
 | `⌃d` `⌃u`, `{` `}` | Half a page; the previous or next group (a sidebar group, a repo, a day) |
 | `↩` `o` `i` `v` `x` `m` | Open, start work, type into the agent, select, done with it, pin |
 | `r` | Refresh the view you are in |
-| `g…` | Go somewhere: views (`gm` Inbox), overlays (`go`, `gd`), tabs (`gt`), the browser (`gB`) |
+| `g…` | Go somewhere: views (`gm` Inbox), overlays (`go`, `gd`), tabs (`gt`), the browser (`gB`), the repo on GitHub (`gR`) |
 | `z…` | Toggles: `zz` park, `zi` inspector, `zs` sidebar; the pilot's `zw` watch, `zg` green, `zm` merge, `zp` pause |
 | `'…` | Jump to a pin (`'1`–`'9`), or back (`''`) |
 | `]…` `[…` | Next or previous of a kind: `]p` PR, `]f` file |

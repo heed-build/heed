@@ -24,7 +24,10 @@ public enum DefaultKeys {
         ("gt", "tab.next"), ("gT", "tab.prev"), ("gn", "tab.new"),
         ("gs", "view.sessions"), ("gm", "view.inbox"), ("gi", "view.issues"), ("gp", "view.prs"),
         ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), ("gd", "overlay.diff"), ("gS", "pr.session"),
-        ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gU", "pr.track"), ("gC", "cleanup.sweep"),
+        ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gR", "open.repo"), ("gU", "pr.track"), (
+            "gC",
+            "cleanup.sweep"
+        ),
         ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"),
         // The pilot, the same keys everywhere: the PR under the cursor, the open PR, or the session's PRs.
         ("zw", "pilot.watch"), ("zg", "pilot.green"), ("zm", "pilot.merge"), ("zp", "pilot.pause"), (

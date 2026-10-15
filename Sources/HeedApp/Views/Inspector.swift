@@ -25,49 +25,20 @@ struct Inspector: View {
                 }
                 section {
                     HStack {
-                        SectionHeader(title: "Pull requests")
+                        SectionHeader(title: "Links")
                         Spacer()
-                        KeyCap(text: "go")
+                        KeyCap(text: "gB")
                     }
-                    if session.trackedPRs.isEmpty {
-                        Text("No PR yet. Tracked by branch name, or `heed pr add <url>` from the agent.")
-                            .font(Theme.ui(11.5))
-                            .foregroundStyle(Theme.fg3)
-                    }
-                    ForEach(session.trackedPRs, id: \.self) { ref in
-                        let pull = model.github.pull(ref)
-                        VStack(alignment: .leading, spacing: 5) {
-                            HStack {
-                                Text(verbatim: "\(ref.repo.name) #\(ref.number)").font(Theme.mono(11.5))
-                                    .foregroundStyle(Theme.fg2)
-                                Spacer()
-                                if let pull { StateTag(state: pull.state, draft: pull.isDraft) }
+                    let links = model.links(of: session)
+                    if links.isEmpty { emptyLinks(session) }
+                    ForEach(links, id: \.self) { link in
+                        LinkCard(session: session, link: link)
+                            .contentShape(Rectangle())
+                            // A click opens it here (the PR overlay, the issue reader); ⌘-click on GitHub.
+                            .onTapGesture {
+                                model.open(link, browser: NSEvent.modifierFlags.contains(.command))
                             }
-                            Text(pull?.title ?? session.title).font(Theme.ui(13, weight: .medium)).lineLimit(2)
-                            if let pull {
-                                HStack(spacing: 8) {
-                                    CheckBar(checks: pull.checks)
-                                    Text(pull.checks.text)
-                                        .foregroundStyle(pull.checks.failed > 0 ? Theme.err : Theme.fg2)
-                                    Text("· \(pull.review?.text ?? "no review")").foregroundStyle(Theme.fg3)
-                                }
-                                .font(Theme.ui(11.5))
-                                .lineLimit(1)
-                            }
-                            // What the pilot is doing for this PR, from its real state (this said "watching" always).
-                            let watching = model.pilot(for: ref).watching
-                            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                                PilotMark(status: model.pilotStatus(for: ref), compact: true)
-                                Text(pull == nil && watching ? "waiting for the next sync" : model.pilotLine(for: ref))
-                                    .foregroundStyle(watching ? Theme.fg2 : Theme.fg3)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            .font(Theme.mono(11))
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg3))
+                            .help("\(link.url)\n⌘-click opens it on GitHub")
                     }
                 }
                 section {
@@ -99,6 +70,31 @@ struct Inspector: View {
         .frame(width: 320)
         .background(Theme.bg2)
         .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
+    }
+
+    /// No PR and no issue yet: what comes next. A pushed branch offers the compare page that opens a PR.
+    @ViewBuilder private func emptyLinks(_ session: Session) -> some View {
+        let pushed = model.worktrees.contains { session.owns($0) && $0.status?.upstream != nil }
+        if pushed, let repo = session.repos.first {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Branch pushed, no PR yet.").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                Text("Open a PR on GitHub ↗")
+                    .font(Theme.ui(11.5, weight: .medium))
+                    .foregroundStyle(Theme.busy)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if let url = URL(string: IssueLinks.compareURL(repo: repo, branch: session.branch)) {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+            }
+        } else {
+            Text("No PR or issue yet. PRs are found by branch name, or `heed pr add <url>` from the agent; issues by "
+                + "the prompt's \"Closes #12\", or `heed issue add <url>`.")
+                .font(Theme.ui(11.5))
+                .foregroundStyle(Theme.fg3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func section(@ViewBuilder _ content: () -> some View) -> some View {
@@ -147,5 +143,79 @@ struct StateTag: View {
             .foregroundStyle(tint)
             .padding(.horizontal, 6)
             .background(RoundedRectangle(cornerRadius: 4).fill(tint.opacity(0.16)))
+    }
+}
+
+/// One of a session's links in the inspector: a PR (its state, checks, review and what heed is doing about it) or an
+/// issue (its title and state).
+private struct LinkCard: View {
+    @Environment(AppModel.self) private var model
+    let session: Session
+    let link: SessionLink
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            switch link {
+            case let .pull(ref): pull(ref)
+            case let .issue(ref): issue(ref)
+            case let .repo(repo): Text(repo.slug).font(Theme.mono(11.5))
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg3))
+    }
+
+    @ViewBuilder private func pull(_ ref: PullRef) -> some View {
+        let pull = model.github.pull(ref)
+        HStack {
+            Image(systemName: "arrow.triangle.pull").font(.system(size: 10)).foregroundStyle(Theme.fg3)
+            Text(verbatim: "\(ref.repo.name) #\(ref.number)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+            Spacer()
+            if let pull { StateTag(state: pull.state, draft: pull.isDraft) }
+        }
+        Text(pull?.title ?? session.title).font(Theme.ui(13, weight: .medium)).lineLimit(2)
+        if let pull {
+            HStack(spacing: 8) {
+                CheckBar(checks: pull.checks)
+                Text(pull.checks.text)
+                    .foregroundStyle(pull.checks.failed > 0 ? Theme.err : Theme.fg2)
+                Text("· \(pull.review?.text ?? "no review")").foregroundStyle(Theme.fg3)
+            }
+            .font(Theme.ui(11.5))
+            .lineLimit(1)
+        }
+        // What the pilot is doing for this PR; a merged or closed one is done.
+        let watching = model.pilot(for: ref).watching
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            PilotMark(status: model.pilotStatus(for: ref), compact: true)
+            Text(pull == nil && watching ? "waiting for the next sync" : model.pilotLine(for: ref))
+                .foregroundStyle(watching && pull?.state == .open ? Theme.fg2 : Theme.fg3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(Theme.mono(11))
+    }
+
+    @ViewBuilder private func issue(_ ref: IssueRef) -> some View {
+        let info = model.issueInfo[ref]
+        let known = model.issue(for: ref)
+        HStack {
+            Image(systemName: "smallcircle.filled.circle").font(.system(size: 10)).foregroundStyle(Theme.fg3)
+            Text(verbatim: "\(ref.repo.name) #\(ref.number)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+            Spacer()
+            if let info {
+                let (text, tint) = info.closed ? ("closed", Theme.ask) : ("open", Theme.done)
+                Text(text)
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(tint)
+                    .padding(.horizontal, 6)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(tint.opacity(0.16)))
+            }
+        }
+        Text(known?.title ?? "issue \(ref.repo.slug)#\(ref.number)")
+            .font(Theme.ui(13, weight: .medium))
+            .foregroundStyle(known == nil ? Theme.fg3 : Theme.fg)
+            .lineLimit(2)
     }
 }

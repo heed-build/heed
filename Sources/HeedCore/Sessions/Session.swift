@@ -66,6 +66,11 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var untrackedPRs: [PullRef]
     /// The host it runs on (`[hosts.<name>]`); nil for this Mac.
     public var host: String?
+    /// Issues linked by hand (`heed issue add`, `:issue.add`); its prompt's and its PRs' closing references are added
+    /// when shown (`IssueLinks.issues`).
+    public var issues: [IssueRef]
+    /// Issues taken off by hand (`:issue.remove`), so no reference shows them again.
+    public var hiddenIssues: [IssueRef]
 
     /// The repos it works in (its worktrees), then those of PRs it opened elsewhere.
     public var involvedRepos: [Repo] {
@@ -100,11 +105,13 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         branches = [branch]
         worktreePaths = []
         untrackedPRs = []
+        issues = []
+        hiddenIssues = []
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, title, prompt, repos, branch, agent, agentSessionID, state, activity, trackedPRs, pinned, parked,
-             lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs, host
+             lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs, host, issues, hiddenIssues
     }
 
     /// Sessions cached before branches were followed still load.
@@ -129,6 +136,8 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         worktreePaths = try container.decodeIfPresent([String].self, forKey: .worktreePaths) ?? []
         untrackedPRs = try container.decodeIfPresent([PullRef].self, forKey: .untrackedPRs) ?? []
         host = try container.decodeIfPresent(String.self, forKey: .host)
+        issues = try container.decodeIfPresent([IssueRef].self, forKey: .issues) ?? []
+        hiddenIssues = try container.decodeIfPresent([IssueRef].self, forKey: .hiddenIssues) ?? []
     }
 
     /// What the sidebar calls the session: its worktree's folder name (Start work names it after the task, the same

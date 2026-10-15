@@ -14,6 +14,7 @@ after three seconds.
 | `heed state <state> [--reason "…"]` | Report a state: working, idle, blocked, asking, done, limited, exited |
 | `heed notify "<message>"` | Show a message in the status bar, prefixed with the session |
 | `heed pr add <url>` | Track a pull request in this session |
+| `heed issue add <url>` | Link an issue to this session |
 | `heed title "<title>"` | Rename the session |
 | `heed agent-session <agent> <id>` | Record the agent's own session id, for resuming |
 | `heed task-exit <code>` | Report a task tab's exit code |

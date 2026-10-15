@@ -21,6 +21,8 @@ public struct HookMessage: Codable, Equatable, Sendable {
         case state(AgentState, reason: String?)
         case notify(String)
         case prAdd(url: String)
+        /// `heed issue add <url>`: an issue the session works on.
+        case issueAdd(url: String)
         case title(String)
         /// The agent's own session id, captured from its start hook, so the session can be resumed later.
         case agentSession(id: String, agent: String)
@@ -61,6 +63,7 @@ public enum HookCommandLine {
     usage: heed state <working|idle|blocked|asking|done|limited|exited> [--reason "..."]
            heed notify "<message>"
            heed pr add <url>
+           heed issue add <url>
            heed title "<title>"
            heed agent-session <agent> <id>
            heed task-exit <code>
@@ -122,6 +125,11 @@ public enum HookCommandLine {
                 throw UsageError(description: "heed pr add: expected a PR url")
             }
             return .prAdd(url: url)
+        case "issue":
+            guard args.popFirst() == "add", let url = args.popFirst(), IssueRef(url: url) != nil else {
+                throw UsageError(description: "heed issue add: expected an issue url")
+            }
+            return .issueAdd(url: url)
         case "title":
             guard let title = args.popFirst() else { throw UsageError(description: "heed title: expected a title") }
             return .title(title)

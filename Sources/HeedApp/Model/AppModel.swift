@@ -235,6 +235,7 @@ final class AppModel {
             config.issues = Fixtures.issueRules
             config.hosts = Fixtures.hosts
             hostStatuses = Fixtures.hostStatuses
+            issueInfo = Fixtures.issueInfo
         }
         replace(with: domain)
         updateScope()
@@ -417,6 +418,7 @@ final class AppModel {
             syncSchedule.fetched(parts, at: Date())
             commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
             await refreshWatchedDetails()
+            await refreshIssueInfo()
         } catch {
             var offline = previous
             offline.status = .offline("\(error)")
@@ -699,6 +701,12 @@ final class AppModel {
             }
             logPilot(pull, .watch, "opened by \(session.agent) in \(session.title)")
             fetchDetail(pull)
+        case let .issueAdd(url):
+            guard let issue = IssueRef(url: url), !session.issues.contains(issue) else { return }
+            session.issues.append(issue)
+            session.hiddenIssues.removeAll { $0 == issue }
+            session.record("linked \(issue.repo.name)#\(issue.number)")
+            Task { await refreshIssueInfo(force: [issue]) }
         case let .agentSession(id, _):
             session.agentSessionID = id
         case let .notify(text):
@@ -974,6 +982,11 @@ final class AppModel {
     }
 
     private(set) var hostsPicker: Typeahead<HostRow>?
+    /// `gB` / `gR` with more than one place to go.
+    private(set) var linkPicker: LinkPicker?
+    /// Titles and states of the issues sessions link to (fetched, not cached on disk).
+    private(set) var issueInfo: [IssueRef: IssueInfo] = [:]
+    private var issueInfoFetchedAt: [IssueRef: Date] = [:]
 
     private func openHostsPicker() {
         let configured = hostList.map { HostRow(name: $0.name, summary: $0.ssh, configured: true) }
@@ -1215,6 +1228,10 @@ final class AppModel {
         }
         if hostsPicker != nil {
             answerHostsPicker(stroke)
+            return true
+        }
+        if linkPicker != nil {
+            answerLinkPicker(stroke)
             return true
         }
         if pathImport != nil {
@@ -1472,6 +1489,10 @@ final class AppModel {
         case "issues.visibility": toggleIssueVisibility()
         case "open.reader": openReader()
         case "open.browser": openInBrowser()
+        case "open.repo": openRepo()
+        case "links.pick": pickLinks()
+        case "issue.add": addIssue(command.arguments.first)
+        case "issue.remove": removeIssue(command.arguments.first)
         case "overlay.pr": togglePullOverlay()
         case "overlay.item": toggleItemOverlay()
         case "pr.next": cyclePull(by: 1)
@@ -2721,12 +2742,179 @@ final class AppModel {
         }
     }
 
+    /// `gB`: what is under the cursor. In Sessions (outside the overlay and reader) the session's links: one opens,
+    /// several offer the picker, none opens its repo.
     private func openInBrowser() {
+        if view == .sessions, issueReader == nil, feedbackPull == nil, let session = currentSession {
+            let links = links(of: session)
+            switch links.count {
+            case 0: return openRepo()
+            case 1: return open(links[0], browser: true)
+            default: linkPicker = LinkPicker(title: "Open in the browser", links: links)
+            }
+            return
+        }
         guard let text = urlUnderCursor, let url = URL(string: text) else {
             flash = "nothing to open"
             return
         }
         NSWorkspace.shared.open(url)
+    }
+
+    // MARK: Links
+
+    /// A session's issues: added by hand, closed by its prompt, closed by its PRs.
+    func issues(of session: Session) -> [IssueRef] {
+        let closedByPulls = session.trackedPRs.flatMap { ref in
+            (pullDetails[ref.description]?.closes ?? []).map { IssueRef(repo: $0.repo, number: $0.number) }
+        }
+        return IssueLinks.issues(
+            added: session.issues, prompt: session.prompt, defaultRepo: session.repos.first,
+            closedByPulls: closedByPulls, hidden: session.hiddenIssues
+        )
+    }
+
+    /// Everything a session links to on GitHub, in the inspector's order: open PRs, merged, closed, then issues.
+    func links(of session: Session) -> [SessionLink] {
+        IssueLinks.ordered(
+            pulls: session.trackedPRs, state: { self.github.pull($0)?.state }, issues: issues(of: session),
+            closed: { self.issueInfo[$0]?.closed ?? false }
+        )
+    }
+
+    /// An issue as the reader shows it: from the issue sync when it has it, else from what was fetched for the link.
+    func issue(for ref: IssueRef) -> Issue? {
+        if let known = github.issues.first(where: { $0.repo == ref.repo && $0.number == ref.number }) { return known }
+        guard let info = issueInfo[ref] else { return nil }
+        return Issue(
+            repo: ref.repo, number: ref.number, title: info.title, url: ref.url, body: info.body, labels: info.labels,
+            author: info.author, updatedAt: info.updatedAt
+        )
+    }
+
+    /// A link clicked or picked: a PR opens the overlay on it, an issue the reader; `browser` (⌘-click, `gB`) opens it
+    /// on GitHub instead.
+    func open(_ link: SessionLink, browser: Bool = false) {
+        linkPicker = nil
+        if browser {
+            if let url = URL(string: link.url) { NSWorkspace.shared.open(url) }
+            return
+        }
+        switch link {
+        case let .pull(ref):
+            if let index = list.ordered.firstIndex(where: { $0.trackedPRs.contains(ref) }), view == .sessions {
+                setCursor(index)
+            }
+            overlayPull = ref
+            overlay = .pr
+            feedbackCursor = 0
+            fetchDetail(ref)
+        case let .issue(ref):
+            if let issue = issue(for: ref) {
+                issueReader = issue
+            } else {
+                flash = "fetching \(ref.repo.name)#\(ref.number)…"
+                Task {
+                    await refreshIssueInfo(force: [ref])
+                    if let issue = issue(for: ref) { issueReader = issue } else { open(link, browser: true) }
+                }
+            }
+        case .repo:
+            open(link, browser: true)
+        }
+    }
+
+    /// The repos under the cursor, for `gR`: a session's (all of them), a Repos row's, an item's.
+    private var reposUnderCursor: [Repo] {
+        if let issue = issueReader { return [issue.repo] }
+        if let ref = feedbackPull, overlay == .pr || reader != nil { return [ref.repo] }
+        let index = cursor(in: view)
+        switch view {
+        case .sessions: return currentSession?.involvedRepos ?? []
+        case .repos: return worktreeRows.indices.contains(repoCursor) ? [worktreeRows[repoCursor].repo] : []
+        case .inbox: return inboxRows.indices.contains(index) ? [inboxRows[index].repo] : []
+        case .issues: return issueRows.indices.contains(index) ? [issueRows[index].repo] : []
+        case .prs: return pullRows.indices.contains(index) ? [pullRows[index].ref.repo] : []
+        case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
+        case .history: return selectedHistory?.session.repos ?? []
+        }
+    }
+
+    /// `gR`: the repo under the cursor on GitHub; a session in several repos offers the picker.
+    private func openRepo() {
+        let repos = reposUnderCursor.filter { $0.org != "local" }
+        switch repos.count {
+        case 0: flash = "no repo here"
+        case 1: open(.repo(repos[0]), browser: true)
+        default: linkPicker = LinkPicker(title: "Open a repo", links: repos.map(SessionLink.repo))
+        }
+    }
+
+    /// `:links.pick`: the picker over the session's links (and its repos when it has none).
+    private func pickLinks() {
+        guard let session = currentSession else { return flash = "no session here" }
+        let links = links(of: session)
+        linkPicker = LinkPicker(
+            title: "Open in the browser", links: links.isEmpty ? session.involvedRepos.map(SessionLink.repo) : links
+        )
+    }
+
+    private func answerLinkPicker(_ stroke: KeyStroke) {
+        guard var picker = linkPicker else { return }
+        switch picker.handle(stroke) {
+        case .handled: linkPicker = picker
+        case .cancel: linkPicker = nil
+        case let .open(links):
+            linkPicker = nil
+            for link in links {
+                open(link, browser: true)
+            }
+        }
+    }
+
+    func cancelLinkPicker() { linkPicker = nil }
+
+    /// `:issue.add <url>` (or the copied URL): links an issue to the session.
+    private func addIssue(_ argument: String?) {
+        let text = argument ?? NSPasteboard.general.string(forType: .string)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard let ref = IssueRef(url: text) else {
+            return flash = argument == nil ? "copy an issue URL first, or :issue.add <url>" : "not an issue URL: \(text)"
+        }
+        guard currentSession != nil else { return flash = "no session to link \(ref.repo.name)#\(ref.number) to" }
+        updateCurrent { session in
+            session.hiddenIssues.removeAll { $0 == ref }
+            if !session.issues.contains(ref) { session.issues.append(ref) }
+        }
+        flash = "linked \(ref.repo.name)#\(ref.number)"
+        Task { await refreshIssueInfo(force: [ref]) }
+    }
+
+    /// `:issue.remove [url]`: takes an issue off the session (the given one, else its first).
+    private func removeIssue(_ argument: String?) {
+        guard let session = currentSession else { return }
+        guard let ref = argument.flatMap(IssueRef.init(url:)) ?? issues(of: session).first else {
+            return flash = "no issue on this session"
+        }
+        updateCurrent { session in
+            session.issues.removeAll { $0 == ref }
+            if !session.hiddenIssues.contains(ref) { session.hiddenIssues.append(ref) }
+        }
+        flash = "unlinked \(ref.repo.name)#\(ref.number)"
+    }
+
+    /// Fetches titles and states for the issues sessions link to: those not seen in ten minutes, and `force`.
+    func refreshIssueInfo(force: [IssueRef] = []) async {
+        guard !isFixture else { return }
+        let now = Date()
+        let wanted = Set(sessions.flatMap(issues(of:))).filter { ref in
+            now.timeIntervalSince(issueInfoFetchedAt[ref] ?? .distantPast) > 600
+        }.union(force)
+        guard !wanted.isEmpty, let fetched = try? await GitHub.issueInfo(Array(wanted)) else { return }
+        for ref in wanted {
+            issueInfoFetchedAt[ref] = now
+        }
+        issueInfo.merge(fetched) { _, new in new }
     }
 
     private func jumpToPullSession() {
@@ -3048,6 +3236,12 @@ final class AppModel {
     func pilotLine(for ref: PullRef) -> String {
         let effective = pilot(for: ref)
         let pipeline = feedback[ref.description]
+        // Merged or closed, nothing is left to watch: saying "watching" made it look still running.
+        switch github.pull(ref)?.state {
+        case .merged: return "merged · done"
+        case .closed: return "closed · done"
+        case .open, nil: break
+        }
         guard effective.watching else { return "not watched · \(keyText(for: "pilot.watch")) to watch" }
         var parts = ["watching", "green \(effective.green.configName)"]
         if let pipeline {

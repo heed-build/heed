@@ -74,7 +74,7 @@ public enum DefaultKeys {
         "sessions": [("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path")],
         "repos": [
             ("o", "worktree.new"), ("r", "repo.scan"), ("w", "issues.visibility"), ("dd", "select.remove"),
-            ("<CR>", "select.open"),
+            ("<CR>", "select.open"), ("S", "setup.review"),
         ],
         "history": [("R", "history.reopen"), ("O", "history.again"), ("t", "history.outcome")],
         "inbox": [

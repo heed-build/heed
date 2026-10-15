@@ -108,6 +108,18 @@ public enum Overrides {
             },
             fallback: { .text($0.issues.fallback.rawValue) }
         ),
+        OverrideKey(
+            id: "setup", label: "Setup",
+            detail: "Run in each new worktree before the agent. Unset: heed proposes what it detects; empty: nothing.",
+            kind: .list, repoOnly: false,
+            read: { config, scope in
+                switch scope {
+                case let .org(name): config.work.setup.orgs[name].map(OverrideValue.list)
+                case let .repo(repo): config.work.setup.repos[repo.slug].map(OverrideValue.list)
+                }
+            },
+            fallback: { _ in .list([]) }
+        ),
         pilot(
             "watch",
             "Watch PRs",
@@ -321,6 +333,7 @@ public enum Overrides {
     /// The groups the page lists keys under, in order.
     public static let groups: [(title: String, keys: [String])] = [
         ("General", ["color", "issues"]),
+        ("New worktrees", ["setup"]),
         ("Watching", ["watch"]),
         ("Get it green", ["green", "max_rounds", "run_in", "agent", "model", "merge_agent", "merge_model"]),
         ("Get it merged", [
@@ -365,7 +378,9 @@ public enum Overrides {
     /// Orgs and repos named in config.toml, whether or not they are cloned here.
     public static func configuredScopes(in config: HeedConfig) -> [OverrideScope] {
         let orgs = Set(config.orgColors.keys).union(config.issues.orgs.keys).union(config.pilot.orgs.keys)
+            .union(config.work.setup.orgs.keys)
         let repos = Set(config.repos.keys).union(config.issues.repos.keys).union(config.pilot.repos.keys)
+            .union(config.work.setup.repos.keys)
         return orgs.sorted().map(OverrideScope.org) + repos.sorted().compactMap { slug in
             let parts = slug.split(separator: "/")
             return parts.count == 2 ? .repo(Repo(org: String(parts[0]), name: String(parts[1]))) : nil

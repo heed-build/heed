@@ -24,6 +24,9 @@ repo_paths = []
 # Branches get a prefix picked by the prompt's first word ("Fix broken anchors" → fix/broken-anchors), else this.
 # "" means no prefix. The worktree folder uses - for /.
 default_prefix = "feature"
+# When heed first starts an agent in a repo, offer (once per repo) to trust it ahead of time: for Claude Code, so it
+# does not ask in every new worktree, and for mise when the repo's config sets [env]. Local repos only.
+offer_trust = true
 
 [worktrees.prefixes]
 fix = ["fix", "bug", "broken", "crash", "repair", "resolve"]
@@ -169,6 +172,13 @@ resume = "--resume {id}"
 # [orgs.elastic]
 # color = "teal"
 # issues = "all"
+
+# Setup per repo (or per org): commands each new worktree runs before its agent starts, joined with &&. Unset, heed
+# proposes what it detects (mise install when the repo uses mise, else its lockfiles' installs) and runs nothing
+# until you approve it in Repos (S); [] runs nothing and stops the proposal. Files .worktreeinclude names (gitignored
+# ones only) are copied from the main checkout into each new worktree either way.
+# [repos."elastic/docs-builder"]
+# setup = ["pnpm install"]
 
 # Pinned tasks per repo, each run in its own pane; the exit code sets the tab's glyph.
 # [repos."elastic/docs-builder".tasks]

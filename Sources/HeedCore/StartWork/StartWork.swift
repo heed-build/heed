@@ -14,6 +14,11 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var prefixes: BranchPrefixes = .default
     /// Pinned tasks per repo slug (`[repos."org/name".tasks]`), opened as tabs in new sessions.
     public var tasks: [String: [TaskSpec]] = [:]
+    /// Setup commands per repo and org (`setup = [...]`), run in each new worktree before its agent.
+    public var setup = SetupRules()
+    /// Offer to trust a repo for agents (Claude Code, mise) the first time one starts there (`[worktrees]
+    /// offer_trust`).
+    public var offerTrust = true
     /// On launch: ask which sessions to resume, resume them all, or none.
     public var resumeOnLaunch: ResumePolicy
     /// Typed into a resumed session that was mid-turn, once the agent is idle again. Empty turns it off.
@@ -350,6 +355,12 @@ public enum StartWork {
             }
             return result.sorted { $0.0 < $1.0 }.map(\.1)
         }
+        // Files `.worktreeinclude` names come along from each main checkout before anything runs there.
+        await withTaskGroup(of: Void.self) { group in
+            for (record, worktree) in zip(plan.repos, created) {
+                group.addTask { await WorktreeInclude.copy(from: record.path, to: worktree.path, on: record.location) }
+            }
+        }
         if plan.agent?.name == "cursor", plan.location.isLocal, let heed = plan.integration?.heedBinary {
             for worktree in created {
                 try? AgentIntegration.installCursorHooks(worktree: worktree.path, heed: heed)
@@ -368,7 +379,9 @@ public enum StartWork {
         )
         session.host = plan.location.hostName
         session.worktreePaths = created.map(\.path)
-        let built = layout(for: plan, session: session, worktrees: created, tasks: settings.tasks)
+        let built = layout(
+            for: plan, session: session, worktrees: created, tasks: settings.tasks, setup: settings.setup
+        )
         let panes = built.tabs.flatMap(\.tree.panes).count
         session.record("started · \(plan.agent?.name ?? "shell") · \(panes) pane\(panes == 1 ? "" : "s")", at: now)
         var changes: [DomainChange] = []
@@ -392,17 +405,22 @@ public enum StartWork {
     }
 
     /// The new session's tabs: the agent (or a shell) in the first repo's worktree, a shell split beside it when asked,
-    /// and a
-    /// shell tab per extra repo of a cross-repo session.
+    /// and a shell tab per extra repo of a cross-repo session. Each worktree's approved setup runs first in its pane:
+    /// before the agent in the first, on its own in the others.
     public static func layout(
-        for plan: StartWorkPlan, session: Session, worktrees: [Worktree], tasks: [String: [TaskSpec]] = [:]
+        for plan: StartWorkPlan, session: Session, worktrees: [Worktree], tasks: [String: [TaskSpec]] = [:],
+        setup: SetupRules = SetupRules()
     ) -> SessionLayout {
         let primary = worktrees.first?.path ?? NSHomeDirectory()
         // Every pane runs where its worktree is.
         let location = worktrees.first?.location ?? .local
         let agentPane = PaneSpec(
             role: plan.command == nil ? .shell : .agent, title: plan.agent?.name ?? "zsh",
-            directory: primary, command: plan.command, location: location
+            directory: primary,
+            command: WorktreeSetup.paneCommand(
+                setup: worktrees.first.flatMap { setup.commands(for: $0.repo) } ?? [], then: plan.command
+            ),
+            location: location
         )
         var main = PaneTab(title: plan.command == nil ? "shell" : "agent", tree: .leaf(agentPane))
         if plan.shellSplit {
@@ -420,7 +438,9 @@ public enum StartWork {
         }
         let extra = worktrees.dropFirst().map { worktree in
             PaneTab(title: worktree.repo.name, tree: .leaf(PaneSpec(
-                role: .shell, title: "zsh \(worktree.repo.name)", directory: worktree.path, location: worktree.location
+                role: .shell, title: "zsh \(worktree.repo.name)", directory: worktree.path,
+                command: WorktreeSetup.paneCommand(setup: setup.commands(for: worktree.repo) ?? [], then: nil),
+                location: worktree.location
             )))
         }
         return SessionLayout(tabs: [main] + taskTabs + extra)

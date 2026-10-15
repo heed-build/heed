@@ -197,6 +197,14 @@ public enum Commands {
         .init("repo.add", "add a repo outside the scanned roots (kept in repo_paths)", .selection, arguments: "<path>"),
         .init("repo.scan", "refresh: rescan the repo roots", .selection),
         .init("worktree.new", "start work in the repo under the cursor", .selection),
+        .init(
+            "setup.review",
+            "the setup heed detected for the repo's new worktrees: approve, edit or never",
+            .selection
+        ),
+        .init("setup.approve", "approve the detected setup for the repo's new worktrees", .selection),
+        .init("setup.never", "no setup for the repo's new worktrees, and no more proposals", .selection),
+        .init("setup.edit", "edit the repo's setup commands (Settings, Orgs & repos)", .selection),
         .init("select.remove", "remove the selected worktrees, or the one under the cursor (asks first)", .selection),
         .init("select.pin", "pin selected", .selection),
         .init("select.copy", "copy paths", .selection),

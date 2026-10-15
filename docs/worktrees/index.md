@@ -18,6 +18,7 @@ status (upstream, ahead, behind, uncommitted changes) and its pull request.
 | `o` | Start work in the repo under the cursor |
 | `dd` | [Remove](removing.md) the worktree (asks first) |
 | `v` | Select rows, then `d` remove, `y` copy paths, `o` open or import |
+| `S` | The repo's detected [setup](setup.md): approve, edit or never |
 | `w` | Flip the repo between all issues and only yours ([Issues](../github/issues.md)) |
 | `r` | Refresh: rescan for repos |
 | `:repo.add <path>` | Add a repo outside the scanned folders; it is kept in `repo_paths` |
@@ -32,6 +33,7 @@ path.
 ![Repos filtered by fix: the matches marked in branch and path](../images/shots/worktrees/repos-filtered.png)
 
 - [Repos](repos.md): where repos come from, and their order and colours.
+- [Setting up](setup.md): setup commands, `.worktreeinclude`, and trusting a repo for agents.
 - [Importing](importing.md): worktrees made outside Heed, and any path.
 - [Removing](removing.md): what is removed, and what never is.
 - [Cleanup](cleanup.md): removing idle worktrees automatically.

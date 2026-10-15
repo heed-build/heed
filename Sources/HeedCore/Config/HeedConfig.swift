@@ -186,6 +186,7 @@ public enum ConfigLoader {
         if let roots = strings(["worktrees", "repo_roots"]) { config.work.repoRoots = roots }
         if let paths = strings(["worktrees", "repo_paths"]) { config.work.repoPaths = paths }
         if let prefix = string(["worktrees", "default_prefix"]) { config.work.prefixes.defaultPrefix = prefix }
+        if let flag = bool(["worktrees", "offer_trust"]) { config.work.offerTrust = flag }
         if let table = root.value(at: ["worktrees", "prefixes"])?.table {
             var prefixes: [String: [String]] = [:]
             for prefix in table.keys {
@@ -435,6 +436,7 @@ public enum ConfigLoader {
             for org in orgs.keys {
                 if let color = string(["orgs", org, "color"]) { config.orgColors[org] = color }
                 if let issues = visibility(["orgs", org, "issues"]) { config.issues.orgs[org] = issues }
+                if let setup = strings(["orgs", org, "setup"]) { config.work.setup.orgs[org] = setup }
                 let pilot = pilotOverrides(["orgs", org])
                 if !pilot.isEmpty { config.pilot.orgs[org] = pilot }
             }
@@ -466,6 +468,7 @@ public enum ConfigLoader {
                     tasks: pairs(["repos", slug, "tasks"])
                 )
                 config.repos[slug] = repo
+                if let setup = strings(["repos", slug, "setup"]) { config.work.setup.repos[slug] = setup }
                 if let issues = repo.issues { config.issues.repos[slug] = issues }
                 let pilot = pilotOverrides(["repos", slug])
                 if !pilot.isEmpty { config.pilot.repos[slug] = pilot }
@@ -521,6 +524,9 @@ public enum ConfigLoader {
     # Branches get a prefix picked by the prompt's first word ("Fix broken anchors" → fix/broken-anchors), else this.
     # "" means no prefix. The worktree folder uses - for /.
     default_prefix = "feature"
+    # When heed first starts an agent in a repo, offer (once per repo) to trust it ahead of time: for Claude Code, so it
+    # does not ask in every new worktree, and for mise when the repo's config sets [env]. Local repos only.
+    offer_trust = true
 
     [worktrees.prefixes]
     fix = ["fix", "bug", "broken", "crash", "repair", "resolve"]
@@ -666,6 +672,13 @@ public enum ConfigLoader {
     # [orgs.elastic]
     # color = "teal"
     # issues = "all"
+
+    # Setup per repo (or per org): commands each new worktree runs before its agent starts, joined with &&. Unset, heed
+    # proposes what it detects (mise install when the repo uses mise, else its lockfiles' installs) and runs nothing
+    # until you approve it in Repos (S); [] runs nothing and stops the proposal. Files .worktreeinclude names (gitignored
+    # ones only) are copied from the main checkout into each new worktree either way.
+    # [repos."elastic/docs-builder"]
+    # setup = ["pnpm install"]
 
     # Pinned tasks per repo, each run in its own pane; the exit code sets the tab's glyph.
     # [repos."elastic/docs-builder".tasks]

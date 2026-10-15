@@ -639,6 +639,15 @@ private struct CleanupSettings: View {
             Field(label: "Repo roots", detail: "Comma separated; scanned two levels deep.") {
                 RootsField(roots: model.config.work.repoRoots)
             }
+            Field(
+                label: "Offer to trust repos for agents",
+                detail: "Once per repo, before its first agent: Claude Code's folder trust, and mise's for [env]."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { model.config.work.offerTrust },
+                    set: { model.setConfig(["worktrees", "offer_trust"], .bool($0)) }
+                )).labelsHidden()
+            }
             GroupLabel(title: "Cleanup")
             Field(
                 label: "Remove idle worktrees",

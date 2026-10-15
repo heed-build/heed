@@ -711,6 +711,11 @@ final class AppModel {
         if let pane = message.pane, runPanes.contains(pane) {
             // Its agent's last words (the exit as its tab closes) come after the run ended: nobody's news.
             guard let id = liveRuns.first(where: { $0.value.paneID == pane })?.key else { return }
+            // A run's pane reports an exit code only when its setup failed: the agent never started.
+            if case let .taskExit(code) = message.kind, code != 0, let live = liveRuns[id] {
+                let setup = settings.setup.commands(for: live.ref.repo) ?? []
+                return endRun(id, outcome: .failed(WorktreeSetup.failureReason(setup)))
+            }
             if case let .state(state, _) = message.kind {
                 runStates[pane] = state
                 if state == .working { liveRuns[id]?.worked = true }
@@ -865,6 +870,7 @@ final class AppModel {
             if let record = await Git.record(at: Paths.expand(path)), !found.contains(record) { found.append(record) }
         }
         commit(found.map { .repoUpserted($0) })
+        Task { await detectSetup(found) }
         // Every clone, not one per repo: two checkouts of the same GitHub repo (in ~/Projects and ~/code, say) share
         // one record, and each has worktrees of its own. A repo's list is committed once all its clones answered.
         let known = repos.filter { $0.location.isLocal && !found.map(\.path).contains($0.path) }
@@ -1639,6 +1645,10 @@ final class AppModel {
             }
             openSettings?()
         case "welcome": showFirstRun()
+        case "setup.review": reviewSetup()
+        case "setup.approve": approveSetup()
+        case "setup.never": neverSetup()
+        case "setup.edit": editSetup()
         default:
             flash = "\(command.name): not built yet"
         }
@@ -1820,6 +1830,186 @@ final class AppModel {
         edit(&session)
         commit(.sessionUpserted(session))
         select(sessionID: session.id)
+    }
+
+    // MARK: Setup and trust
+
+    /// What heed would set each repo's new worktrees up with, by record id: repos without `setup` in config, where it
+    /// found something. Detected after each repo scan (local repos) and when work starts.
+    private(set) var setupProposals: [String: SetupProposal] = [:]
+
+    /// Looks at each repo's main checkout for what to propose, for repos whose setup is not configured.
+    private func detectSetup(_ records: [RepoRecord]) async {
+        let unset = records.filter { settings.setup.commands(for: $0.repo) == nil }
+        let found = await withTaskGroup(of: (String, SetupProposal).self) { group in
+            for record in unset {
+                group.addTask { await (record.id, SetupDetection.detect(at: record.path, on: record.location)) }
+            }
+            var result: [String: SetupProposal] = [:]
+            for await (id, proposal) in group where !proposal.isEmpty {
+                result[id] = proposal
+            }
+            return result
+        }
+        for record in unset {
+            setupProposals[record.id] = found[record.id]
+        }
+    }
+
+    /// The proposal waiting for a repo: detected, and its setup still unset in config.
+    func setupProposal(for record: RepoRecord) -> SetupProposal? {
+        guard settings.setup.commands(for: record.repo) == nil else { return nil }
+        return setupProposals[record.id]
+    }
+
+    /// A proposal set from outside the detection: the fake world's, for screenshots.
+    func propose(_ proposal: SetupProposal, for record: RepoRecord) { setupProposals[record.id] = proposal }
+
+    /// The proposal for a repo wherever it is cloned (Settings speaks of repos, not clones).
+    func setupProposal(for repo: Repo) -> SetupProposal? {
+        repos.filter { $0.repo == repo }.lazy.compactMap { self.setupProposal(for: $0) }.first
+    }
+
+    /// After a start: a repo whose setup heed could propose says so, once per launch.
+    private func proposeSetup(for records: [RepoRecord]) {
+        Task {
+            await detectSetup(records)
+            guard let record = records.first(where: { setupProposal(for: $0) != nil && !setupHinted.contains($0.id) }),
+                  let proposal = setupProposal(for: record)
+            else { return }
+            setupHinted.insert(record.id)
+            flash = "\(record.repo.name) could set up new worktrees with \(proposal.commands.joined(separator: " && ")): "
+                + ":setup.review to approve"
+        }
+    }
+
+    private var setupHinted: Set<String> = []
+
+    /// The repo a setup command acts on: the Repos row's, else the current session's first.
+    private var setupTarget: RepoRecord? {
+        if view == .repos, worktreeRows.indices.contains(repoCursor) {
+            let worktree = worktreeRows[repoCursor]
+            return repos.first { $0.repo == worktree.repo && $0.location == worktree.location }
+        }
+        guard let session = currentSession, let repo = session.repos.first else { return nil }
+        return repos.first { $0.repo == repo && $0.location == session.location }
+    }
+
+    /// `setup.review` (`S` in Repos): what heed would run in the repo's new worktrees, to approve, edit, or never run.
+    private func reviewSetup() {
+        guard let record = setupTarget else { return flash = "no repo here" }
+        if let commands = settings.setup.commands(for: record.repo) {
+            return flash = commands.isEmpty
+                ? "\(record.repo.name): no setup (Settings › Orgs & repos, or :setup.edit, to change)"
+                : "\(record.repo.name) sets up with \(commands.joined(separator: " && ")) (:setup.edit to change)"
+        }
+        Task {
+            if setupProposals[record.id] == nil { await detectSetup([record]) }
+            guard let proposal = setupProposal(for: record) else {
+                return flash = "nothing to propose for \(record.repo.name): :setup.edit sets commands by hand"
+            }
+            ask(Confirmation(
+                title: "Set up new worktrees of \(record.repo.slug)?",
+                lines: proposal.lines + [
+                    "Runs in each new worktree's pane before the agent starts; a failure stops there",
+                    "Saved as setup in config.toml ([repos.\"\(record.repo.slug)\"])",
+                ],
+                accept: "Approve", cancel: "Not now", destructive: false,
+                action: { [weak self] in self?.approveSetup(record) },
+                alternatives: [
+                    .init(label: "Edit", key: "e") { [weak self] in self?.editSetup(record) },
+                    .init(label: "Never", key: "x") { [weak self] in self?.neverSetup(record) },
+                ]
+            ))
+        }
+    }
+
+    /// `setup.approve`: the detected commands become the repo's `setup`.
+    private func approveSetup(_ record: RepoRecord? = nil) {
+        guard let record = record ?? setupTarget else { return flash = "no repo here" }
+        guard let proposal = setupProposals[record.id] else {
+            return flash = "nothing detected for \(record.repo.name) (:setup.review looks again)"
+        }
+        setConfig(["repos", record.repo.slug, "setup"], .array(proposal.commands.map { .string($0) }))
+        flash = "\(record.repo.name): new worktrees run \(proposal.commands.joined(separator: " && "))"
+    }
+
+    /// `setup.never`: `setup = []`, so heed stops proposing.
+    private func neverSetup(_ record: RepoRecord? = nil) {
+        guard let record = record ?? setupTarget else { return flash = "no repo here" }
+        setConfig(["repos", record.repo.slug, "setup"], .array([]))
+        flash = "\(record.repo.name): no setup, and no more proposals"
+    }
+
+    /// `setup.edit`: Settings › Orgs & repos on the repo, where its setup list is.
+    private func editSetup(_ record: RepoRecord? = nil) {
+        guard let record = record ?? setupTarget else { return flash = "no repo here" }
+        settingsScope = .repo(record.repo)
+        settingsSection = .colors
+        openSettings?()
+    }
+
+    /// The org or repo Settings › Orgs & repos shows next.
+    var settingsScope: OverrideScope?
+
+    /// What to trust before the first agent starts in a repo: Claude Code's folder trust for its main checkout, and
+    /// mise's for a config that sets `[env]`. Asked once per repo, local repos only.
+    struct TrustOffer {
+        var record: RepoRecord
+        var claude: Bool
+        var mise: Bool
+    }
+
+    /// Repos whose trust was offered already, by main checkout path.
+    private var trustOffered: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: "trustOffered") ?? []) }
+        set { if !isFixture { UserDefaults.standard.set(newValue.sorted(), forKey: "trustOffered") } }
+    }
+
+    private func trustOffer(for plan: StartWorkPlan) async -> TrustOffer? {
+        guard settings.offerTrust, plan.agent != nil, let record = plan.repos.first, record.location.isLocal,
+              !trustOffered.contains(record.path), record.path != NSHomeDirectory()
+        else { return nil }
+        let path = record.path
+        let claude = plan.agent?.name == "claude"
+            ? await Task.detached { !ClaudeTrust.isTrusted(path) }.value : false
+        let mise = await MiseTrust.needsTrust(path)
+        return claude || mise ? TrustOffer(record: record, claude: claude, mise: mise) : nil
+    }
+
+    /// Asks once; `then` runs whatever the answer.
+    private func offerTrust(_ offer: TrustOffer, then next: @escaping @MainActor () -> Void) {
+        let name = offer.record.repo.slug
+        var lines: [String] = []
+        if offer.claude {
+            lines.append("Claude Code will otherwise ask in every new worktree")
+            lines.append("Sets hasTrustDialogAccepted for \(Paths.abbreviate(offer.record.path)) in ~/.claude.json")
+        }
+        if offer.mise { lines.append("mise trust for its config, which sets [env]") }
+        lines.append("Asked once per repo; [worktrees] offer_trust = false stops asking")
+        let path = offer.record.path
+        trustOffered.insert(path)
+        ask(Confirmation(
+            title: "Trust \(name) for agents?", lines: lines, accept: "Trust", cancel: "Not now", destructive: false,
+            action: { [weak self] in
+                Task { @MainActor in
+                    var problems: [String] = []
+                    if offer.claude {
+                        do {
+                            try await Task.detached { try ClaudeTrust.trust(path) }.value
+                        } catch {
+                            problems.append("\(error)")
+                        }
+                    }
+                    if offer.mise {
+                        do { try await MiseTrust.trust(path) } catch { problems.append("mise trust: \(error)") }
+                    }
+                    self?.flash = problems.first ?? "trusted \(name)"
+                    next()
+                }
+            },
+            onCancel: { next() }
+        ))
     }
 
     // MARK: Confirmation
@@ -3742,6 +3932,11 @@ final class AppModel {
         } catch {
             return fail("could not make its worktree: \(error)")
         }
+        // Set up like any new worktree: `.worktreeinclude` files from the main checkout, the approved setup in its
+        // pane.
+        let checkout = repos.first { $0.repo == ref.repo && $0.location == record.location }?.path ?? record.path
+        await WorktreeInclude.copy(from: checkout, to: worktree, on: record.location)
+        let setup = settings.setup.commands(for: ref.repo) ?? []
         guard var layout = layouts[session.id] else { return fail("the session is gone") }
         let files: IntegrationFiles? = if let host = session.host {
             if case let .connected(info) = hostStatus(host), let home = info.home {
@@ -3765,7 +3960,8 @@ final class AppModel {
             model: model
         )
         let pane = PaneSpec(
-            role: .helper, title: goal.rawValue, directory: worktree, command: command, location: session.location
+            role: .helper, title: goal.rawValue, directory: worktree,
+            command: WorktreeSetup.paneCommand(setup: setup, then: command, report: true), location: session.location
         )
         let tab = PaneTab(title: Runs.title(goal, ref: ref, pullCount: session.trackedPRs.count), tree: .leaf(pane))
         layout.tabs.append(tab)
@@ -4733,8 +4929,20 @@ final class AppModel {
             hostFiles = hostIntegration(home: home).files
         }
         startingWork = true
+        // The standalone panel cannot show the offer: it waits for a start from the window.
+        guard !startWorkStandalone else { return launch(plan, hostFiles: hostFiles) }
+        Task {
+            guard let offer = await trustOffer(for: plan) else { return launch(plan, hostFiles: hostFiles) }
+            offerTrust(offer) { [weak self] in self?.launch(plan, hostFiles: hostFiles) }
+        }
+    }
+
+    /// Makes the plan's worktrees and session, set up and with their panes started.
+    private func launch(_ plan: StartWorkPlan, hostFiles: [String: String]) {
+        let host = plan.location.hostName
         let settings = settings
         let hosts = config.hosts
+        startingWork = true
         Task {
             defer { startingWork = false }
             do {
@@ -4763,6 +4971,7 @@ final class AppModel {
                 }
                 enterInsert()
                 flash = "started \(plan.name)"
+                proposeSetup(for: plan.repos)
             } catch {
                 flash = "start work failed: \(error)"
                 startWorkError = "start failed: \(error)"

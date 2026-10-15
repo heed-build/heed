@@ -537,10 +537,12 @@ final class AppModel {
         if !chosen.isEmpty { flash = "resumed \(chosen.count) session\(chosen.count == 1 ? "" : "s")" }
     }
 
-    /// The pane the agent runs in: the first `.agent` pane, else the first pane.
+    /// The pane the agent runs in: the first `.agent` pane, else the first pane. A run's tab is never it.
     private func agentPane(in layout: SessionLayout) -> (Int, String)? {
         for (index, tab) in layout.tabs.enumerated() {
-            if let pane = tab.tree.panes.first(where: { $0.role == .agent }) { return (index, pane.id) }
+            if let pane = tab.tree.panes.first(where: { $0.role == .agent && !runPanes.contains($0.id) }) {
+                return (index, pane.id)
+            }
         }
         return layout.tabs.first?.tree.panes.first.map { (0, $0.id) }
     }
@@ -703,7 +705,9 @@ final class AppModel {
         // A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it;
         // asking
         // or blocked shows the session in Needs you (through `sessionPilot`).
-        if let pane = message.pane, let id = liveRuns.first(where: { $0.value.paneID == pane })?.key {
+        if let pane = message.pane, runPanes.contains(pane) {
+            // Its agent's last words (the exit as its tab closes) come after the run ended: nobody's news.
+            guard let id = liveRuns.first(where: { $0.value.paneID == pane })?.key else { return }
             if case let .state(state, _) = message.kind {
                 runStates[pane] = state
                 if state == .working { liveRuns[id]?.worked = true }
@@ -3629,6 +3633,9 @@ final class AppModel {
     /// The run working on a PR now, if any.
     private func liveRun(for ref: PullRef) -> LiveRun? { liveRuns.values.first { $0.ref == ref } }
 
+    /// Every pane a run used since launch, so its hooks never count as the session's, even after the run ended.
+    private var runPanes: Set<String> = []
+
     /// Starts a get it green / get it merged run: a worktree of its own on `heed/<goal>/<branch>` beside the others,
     /// and a tab running the configured agent (and model) there on the feedback. The tab is appended without being
     /// selected: nothing takes your focus. Returns what it was sent to, or nil when it could not start (recorded as a
@@ -3719,6 +3726,7 @@ final class AppModel {
             mainPath: main?.branch == prBranch ? main?.path : nil
         )
         runStates[pane.id] = .working
+        runPanes.insert(pane.id)
         TerminalSurfaces.shared.autostartPanes.insert(pane.id)
         TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
         let who = settings.model.map { "\(agentName) \($0)" } ?? agentName
@@ -3808,6 +3816,7 @@ final class AppModel {
                     prBranch: run.prBranch, mainPath: nil
                 )
                 runStates[pane.id] = .working
+                runPanes.insert(pane.id)
             }
         }
     }

@@ -265,6 +265,26 @@ public enum ConfigLoader {
             overrides.holdLabels = strings(base + ["hold_labels"])
             overrides.selfReview = string(base + ["self_review"]).map { $0.trimmingCharacters(in: .whitespaces) }
             if base.first == "repos" { overrides.adminMerge = bool(base + ["admin_merge"]) }
+            if let text = string(base + ["send_after_idle"]) {
+                switch PilotDuration.parse(text) {
+                case let .seconds(seconds): overrides.sendAfterIdle = seconds
+                case .off: overrides.sendAfterIdle = 0
+                case .forever, nil:
+                    problems.append(ConfigProblem(
+                        path: (base + ["send_after_idle"]).joined(separator: "."),
+                        message: "expected a duration like 30s, 5m or 15m, or 0"
+                    ))
+                }
+            }
+            if let text = string(base + ["send_to"]) {
+                if let where_ = SendTo(rawValue: text.lowercased()) {
+                    overrides.sendTo = where_
+                } else {
+                    problems.append(ConfigProblem(
+                        path: (base + ["send_to"]).joined(separator: "."), message: "expected session or tab"
+                    ))
+                }
+            }
             return overrides
         }
         let pilotDefaults = pilotOverrides(["pilot"])
@@ -282,6 +302,8 @@ public enum ConfigLoader {
         if let list = pilotDefaults.gateChecks { config.pilot.defaults.gateChecks = list }
         if let list = pilotDefaults.holdLabels { config.pilot.defaults.holdLabels = list }
         if let command = pilotDefaults.selfReview { config.pilot.defaults.selfReview = command.isEmpty ? nil : command }
+        if let seconds = pilotDefaults.sendAfterIdle { config.pilot.defaults.sendAfterIdle = seconds }
+        if let where_ = pilotDefaults.sendTo { config.pilot.defaults.sendTo = where_ }
         if bool(["pilot", "admin_merge"]) != nil {
             problems.append(ConfigProblem(
                 path: "pilot.admin_merge",
@@ -524,6 +546,12 @@ public enum ConfigLoader {
     green = "ask"
     # Prompts sent without a new approval before get it green stops.
     max_rounds = 3
+    # How long after your last keystroke in a session before heed sends it anything, so it does not take your agent
+    # while you work with it: 30s, 5m, 15m, or 0 (20 seconds).
+    send_after_idle = "5m"
+    # Where get it green sends: session (the session's agent) or tab (a dedicated agent in its own tab, "get it
+    # green" or "get it merged", in the session's worktree; it closes once the PR is green or merged).
+    send_to = "session"
     # How long zp pauses a PR: 30m, 1h, 4h, 1d, or forever.
     pause = "1h"
     # Get it merged: off; auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own

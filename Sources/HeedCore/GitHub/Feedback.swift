@@ -447,8 +447,11 @@ public enum Delivery {
         case .exited: return .wait("the agent has exited")
         case .idle, .done: break
         }
-        if let lastTyped, now.timeIntervalSince(lastTyped) < typingGrace {
-            return .wait("you typed in its pane just now")
+        let grace = max(typingGrace, 20)
+        if let lastTyped, now.timeIntervalSince(lastTyped) < grace {
+            return .wait(grace <= 20
+                ? "you typed in its pane just now"
+                : "you're working in it (sends \(PilotDuration.text(grace)) after your last keystroke)")
         }
         return .deliver
     }

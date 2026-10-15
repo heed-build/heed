@@ -38,6 +38,9 @@ private struct TabStrip: View {
                 HStack(spacing: 8) {
                     if index == 0, let session = model.currentSession {
                         StateGlyph(state: session.state.state, guessed: session.state.source == .guessed, size: 11)
+                    } else if let helper = tab.tree.panes.first(where: { $0.role == .helper }) {
+                        // A get it green / get it merged tab: its own agent's state.
+                        StateGlyph(state: model.helperStates[helper.id] ?? .idle, size: 11)
                     } else if let task = tab.tree.panes.first(where: { $0.role == .task }),
                               let code = model.taskResults[task.id]
                     {
@@ -48,7 +51,7 @@ private struct TabStrip: View {
                             RoundedRectangle(cornerRadius: 2).fill(Theme.err).frame(width: 9, height: 9)
                         }
                     }
-                    Text(tab.title)
+                    Text(tab.title).lineLimit(1).fixedSize()
                     TabCloseButton { model.closeTab(index) }
                 }
                 .font(Theme.mono(12))

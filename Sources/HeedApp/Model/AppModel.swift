@@ -239,6 +239,7 @@ final class AppModel {
             issueInfo = Fixtures.issueInfo
         }
         replace(with: domain)
+        if isFixture { adoptFixtureHelpers() }
         updateScope()
         tutorRecord = tutorProgress
         // The tutor runs in its own window and model; the reminder here follows what it saves.
@@ -680,6 +681,22 @@ final class AppModel {
     /// One message from an agent's hook, applied to its session.
     func receive(_ message: HookMessage) {
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
+        // A helper's hooks: its own state, not the session's. Idle may mean its PR is done; asking or blocked shows the
+        // session in Needs you (through `sessionPilot`).
+        if let pane = message.pane, helpers.values.contains(where: { $0.paneID == pane }) {
+            if case let .state(state, _) = message.kind {
+                helperStates[pane] = state
+                rebuildList()
+                if state == .idle || state == .done {
+                    closeFinishedHelpers()
+                    let waiting = pendingDelivery.filter { session.trackedPRs.contains($0) }
+                    for ref in waiting {
+                        deliver(ref, explicit: false)
+                    }
+                }
+            }
+            return
+        }
         switch message.kind {
         case let .state(state, reason):
             session.state = session.state.accepting(ObservedState(state, source: .reported, reason: reason))
@@ -761,7 +778,16 @@ final class AppModel {
 
     private func replace(with domain: Domain) {
         sessions = domain.sessions
-        layouts = domain.layouts
+        // Helper tabs do not come back: a PR that still needs work gets a fresh one on its next round.
+        layouts = isFixture ? domain.layouts : domain.layouts.mapValues { layout in
+            var layout = layout
+            let keep = layout.tabs.filter { !$0.tree.panes.allSatisfy { $0.role == .helper } }
+            if keep.count != layout.tabs.count, !keep.isEmpty {
+                layout.tabs = keep
+                layout.activeTab = min(layout.activeTab, keep.count - 1)
+            }
+            return layout
+        }
         repos = domain.repos
         worktrees = domain.worktrees
         history = domain.history
@@ -994,6 +1020,18 @@ final class AppModel {
     private(set) var hostsPicker: Typeahead<HostRow>?
     /// `gB` / `gR` with more than one place to go.
     private(set) var linkPicker: LinkPicker?
+    /// get it green / get it merged tabs (`[pilot] send_to = "tab"`), by PR. In memory only: they are dropped at
+    /// launch.
+    struct HelperTab: Equatable {
+        let sessionID: String
+        let tabID: String
+        let paneID: String
+        let goal: HelperGoal
+    }
+
+    private(set) var helpers: [String: HelperTab] = [:]
+    /// Each helper pane's own state, from its hooks; never the session's.
+    private(set) var helperStates: [String: AgentState] = [:]
     /// Titles and states of the issues sessions link to (fetched, not cached on disk).
     private(set) var issueInfo: [IssueRef: IssueInfo] = [:]
     private var issueInfoFetchedAt: [IssueRef: Date] = [:]
@@ -1515,6 +1553,7 @@ final class AppModel {
         case "pilot.watch", "feedback.watch": togglePilotWatch()
         case "pilot.pause": pausePilot(command.arguments.first)
         case "pilot.retry": retryPilot()
+        case "pilot.helper": showHelper()
         case "pilot.why": showPilotWhy()
         case "pilot.merge": togglePilotMerge()
         case "pilot.copilot":
@@ -3176,6 +3215,11 @@ final class AppModel {
     /// time, the others only when the last sync says their checks or threads moved, or every fifth poll.
     private func refreshWatchedDetails() async {
         resumeExpiredPauses()
+        closeFinishedHelpers()
+        // Held because you were working in the session: try again, now that time has passed.
+        for ref in pendingDelivery {
+            deliver(ref, explicit: false)
+        }
         runDueMergeQueues()
         let open = [overlay == .pr ? overlayPull : nil, reader].compactMap(\.self)
         let now = Date()
@@ -3286,9 +3330,13 @@ final class AppModel {
         let acting = refs.contains { pilotStatus(for: $0).heedActing(pilot(for: $0)) }
         // The log is newest first.
         let lastAction = pilotLog.first { refs.contains($0.ref) && PilotEvent.actions.contains($0.kind) }?.at
+        let helperNeedsYou = refs.compactMap { helpers[$0.description] }.contains { helper in
+            helperStates[helper.paneID].map { $0 == .asking || $0 == .blocked } ?? false
+        }
         return SessionPilot(
             status: pilotStatus(of: session), acting: acting,
-            yours: SessionPilot.yours(lastTyped: lastTyped[session.id], lastAction: lastAction)
+            yours: SessionPilot.yours(lastTyped: lastTyped[session.id], lastAction: lastAction),
+            helperNeedsYou: helperNeedsYou
         )
     }
 
@@ -3303,6 +3351,14 @@ final class AppModel {
         guard let pick = candidates.min(by: {
             order.firstIndex(of: $0.status.group)! < order.firstIndex(of: $1.status.group)!
         }) else { return nil }
+        if let helper = helpers[pick.ref.description] {
+            return "\(helper.goal == .green ? "getting it green" : "getting it merged") · in its own tab"
+        }
+        if pendingDelivery.contains(pick.ref), let typed = lastTyped[session.id],
+           Date().timeIntervalSince(typed) < pilotSettings(for: pick.ref).sendAfterIdle
+        {
+            return "getting it green · waiting for you to step away"
+        }
         return WatchLabel.text(
             status: pick.status, effective: pilot(for: pick.ref), agent: session.agent, agentState: session.state.state
         )
@@ -3508,7 +3564,112 @@ final class AppModel {
         commit(changes)
     }
 
-    /// Sends a PR's queued feedback to the session tracking it, as one prompt, when delivery allows.
+    // MARK: Helper tabs
+
+    /// Sends a PR's feedback to its helper tab: typed into the one it has once that is idle, else a new tab ("get it
+    /// green", "get it merged") with the session's agent started on the prompt, in the PR's worktree. The tab is
+    /// appended without being selected: nothing takes your focus. Returns the goal, or nil when its helper is busy.
+    private func sendToHelper(_ ref: PullRef, prompt: String, session: Session) -> HelperGoal? {
+        if let helper = helpers[ref.description],
+           layouts[helper.sessionID]?.tabs.contains(where: { $0.id == helper.tabID }) == true
+        {
+            guard HelperTabs.canClose(helperStates[helper.paneID]) else { return nil }
+            TerminalSurfaces.shared.typeLine(prompt, paneID: helper.paneID)
+            helperStates[helper.paneID] = .working
+            return helper.goal
+        }
+        helpers[ref.description] = nil
+        let goal = HelperTabs.goal(for: pilotStatus(for: ref)) ?? .green
+        guard let agent = settings.agent(session.agent), var layout = layouts[session.id] else { return nil }
+        let directory = worktrees.first { session.owns($0) && $0.repo == ref.repo }?.path
+            ?? worktrees.first { session.owns($0) }?.path ?? NSHomeDirectory()
+        let files: IntegrationFiles? = if let host = session.host {
+            if case let .connected(info) = hostStatus(host), let home = info.home {
+                hostIntegration(home: home).integration
+            } else {
+                nil
+            }
+        } else {
+            integration
+        }
+        let agentSession = UUID().uuidString.lowercased()
+        let command = agent.launchCommand(
+            prompt: prompt,
+            extraArguments: files.map { AgentIntegration.launchArguments(
+                agent: agent,
+                sessionID: agentSession,
+                files: $0
+            ) }
+                ?? [],
+            environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
+        )
+        let pane = PaneSpec(
+            role: .helper, title: goal.rawValue, directory: directory, command: command, location: session.location
+        )
+        let tab = PaneTab(
+            title: HelperTabs.title(goal, ref: ref, pullCount: session.trackedPRs.count),
+            tree: .leaf(pane)
+        )
+        layout.tabs.append(tab)
+        commit(.layoutChanged(session: session.id, layout))
+        helpers[ref.description] = HelperTab(sessionID: session.id, tabID: tab.id, paneID: pane.id, goal: goal)
+        helperStates[pane.id] = .working
+        TerminalSurfaces.shared.autostartPanes.insert(pane.id)
+        TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
+        logPilot(ref, .watch, "\(goal.rawValue): opened a tab with \(session.agent)")
+        return goal
+    }
+
+    /// Closes helper tabs whose PR is done (green, or merged), once their agent is not mid-turn; forgets ones you
+    /// closed yourself.
+    func closeFinishedHelpers() {
+        for (key, helper) in helpers {
+            guard var layout = layouts[helper.sessionID],
+                  let index = layout.tabs.firstIndex(where: { $0.id == helper.tabID }),
+                  let ref = sessions.first(where: { $0.id == helper.sessionID })?.trackedPRs
+                  .first(where: { $0.description == key })
+            else {
+                helpers[key] = nil
+                continue
+            }
+            guard HelperTabs.done(helper.goal, status: pilotStatus(for: ref)),
+                  HelperTabs.canClose(helperStates[helper.paneID])
+            else { continue }
+            TerminalSurfaces.shared.close(paneID: helper.paneID)
+            layout.removeTab(at: index)
+            commit(.layoutChanged(session: helper.sessionID, layout))
+            helpers[key] = nil
+            helperStates[helper.paneID] = nil
+            logPilot(ref, .helperDone, "\(helper.goal.rawValue) done: closed its tab")
+        }
+    }
+
+    /// A fixture's helper tabs, as if heed had opened them: working on their session's first PR.
+    private func adoptFixtureHelpers() {
+        for (sessionID, layout) in layouts {
+            guard let ref = sessions.first(where: { $0.id == sessionID })?.trackedPRs.first else { continue }
+            for tab in layout.tabs {
+                guard let pane = tab.tree.panes.first(where: { $0.role == .helper }) else { continue }
+                helpers[ref.description] = HelperTab(
+                    sessionID: sessionID, tabID: tab.id, paneID: pane.id,
+                    goal: tab.title.hasPrefix(HelperGoal.merged.rawValue) ? .merged : .green
+                )
+                helperStates[pane.id] = .working
+            }
+        }
+    }
+
+    /// `:pilot.helper`: the PR's helper tab, if it has one.
+    private func showHelper() {
+        guard let session = currentSession,
+              let helper = session.trackedPRs.compactMap({ helpers[$0.description] }).first,
+              let index = layouts[session.id]?.tabs.firstIndex(where: { $0.id == helper.tabID })
+        else { return flash = "no helper tab here" }
+        selectTab(index)
+    }
+
+    /// Sends a PR's queued feedback to the session tracking it (or its helper tab), as one prompt, when delivery
+    /// allows.
     func deliver(_ ref: PullRef, explicit: Bool) {
         guard var pipeline = feedback[ref.description], let prompt = pipeline.prompt() else {
             if explicit { flash = "nothing queued (space queues an item)" }
@@ -3530,7 +3691,9 @@ final class AppModel {
             if explicit { flash = "no session tracks #\(ref.number)" }
             return
         }
-        switch Delivery.verdict(state: session.state.state, lastTyped: lastTyped[session.id]) {
+        // Asked for (zg): the short grace. On its own: not until you have left the session for `send_after_idle`.
+        let grace = explicit ? 20 : effective.watching ? pilotSettings(for: ref).sendAfterIdle : 20
+        switch Delivery.verdict(state: session.state.state, lastTyped: lastTyped[session.id], typingGrace: grace) {
         case let .wait(reason):
             pendingDelivery.insert(ref)
             if explicit { flash = "waiting: \(reason); it goes once the agent is idle" }
@@ -3545,8 +3708,18 @@ final class AppModel {
                 }
                 return
             }
+            let toTab = pilotSettings(for: ref).sendTo == .tab
+            if toTab {
+                guard let goal = sendToHelper(ref, prompt: prompt, session: session) else {
+                    pendingDelivery.insert(ref)
+                    logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: its helper tab is working")
+                    return
+                }
+                session.record("\(goal.rawValue): a tab of its own")
+            } else {
+                TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
+            }
             pendingDelivery.remove(ref)
-            TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
             let count = pipeline.queued.count
             pipeline.markSent(at: pullDetails[ref.description]?.headSHA)
             session.record("sent \(count) feedback item\(count == 1 ? "" : "s") for #\(ref.number)")
@@ -3554,7 +3727,8 @@ final class AppModel {
             logPilot(
                 ref,
                 .sent,
-                "sent \(count) item\(count == 1 ? "" : "s") to \(session.agent) (round \(pipeline.rounds))"
+                "sent \(count) item\(count == 1 ? "" : "s") to \(toTab ? "its helper tab" : session.agent) "
+                    + "(round \(pipeline.rounds))"
             )
             flash = "sent \(count) item\(count == 1 ? "" : "s") to \(session.title)"
         }

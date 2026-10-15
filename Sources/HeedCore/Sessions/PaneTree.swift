@@ -8,6 +8,9 @@ public struct PaneSpec: Hashable, Sendable, Codable, Identifiable {
         case shell
         /// A repo's pinned task (test, build, docs preview); its exit code sets the tab's glyph.
         case task
+        /// A dedicated agent for get it green or get it merged (`[pilot] send_to = "tab"`): its own state, closed when
+        /// its PR is done, dropped at launch.
+        case helper
     }
 
     public var id: String

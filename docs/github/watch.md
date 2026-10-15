@@ -155,6 +155,31 @@ The pilot keys are the same everywhere: in Watch, the PRs view and the PR overla
 Sessions on every PR the session tracks. A choice made with them sticks to that PR; PRs you
 never set follow the settings.
 
+## While you work in a session
+
+Heed sends nothing to a session you are working in. On its own it waits until you have not typed in the session for
+`send_after_idle` (5 minutes; `0` for 20 seconds) and its agent is idle, so it never takes your agent between your own
+prompts. While it holds back, the row says *waiting for you to step away*, and it sends once you have. `zg` with
+items queued sends at once: asking for it yourself does not wait.
+
+## A tab of its own
+
+With `send_to = "tab"`, a PR's feedback goes to a dedicated agent instead of the session's: heed opens a tab next to
+the session's own, named **get it green** (failing checks, review threads) or **get it merged** (conflicts with the
+base), and starts the session's agent there with the feedback as its prompt.
+
+![A get it green tab working beside the session's agent](../images/shots/sessions/helper-tab.png)
+
+- It never takes your focus: the tab appears, the one you are on stays selected, and INSERT stays where it was. Its
+  glyph in the tab strip is the helper's own state. `:pilot.helper` goes to it.
+- It works in the session's worktree, so it takes turns with the session's agent: it starts once that agent is idle
+  and you have stepped away (as above), and later rounds are typed into it once it is idle.
+- Its state is its own. The session stays where it was in the sidebar, except that a helper asking you something, or
+  blocked on a permission, puts the session in Needs you.
+- When its PR is green (get it green) or merged (get it merged), and the helper is not mid-turn, heed closes the tab
+  and logs it. A PR that turns green but then conflicts gets a get it merged tab next.
+- Helper tabs do not come back after a relaunch; a PR that still needs work gets a fresh one on its next round.
+
 ## Stalled
 
 Get it green sends up to `max_rounds` prompts (3) without a new approval; then it stops, and the PR is **stalled**.
@@ -184,13 +209,16 @@ the PRs view's **Watch** column, and by the PR number in Repos.
 ## Settings
 
 The settings live in `[pilot]` (the pilot is what does the watching and the merging). `[pilot]` sets the
-defaults; an org or a repo overrides any of them, and Settings ▸ Pilot edits the defaults.
+defaults; an org or a repo overrides any of them. Settings ▸ Pilot edits the defaults, and Settings ▸ Orgs & repos
+the overrides.
 
 ```toml
 [pilot]
 watch = true         # read-only, so on
 green = "ask"        # off, ask or auto
 max_rounds = 3       # prompts without a new approval before it stops
+send_after_idle = "5m" # nothing is sent while you work in the session: this long after your last keystroke
+send_to = "session"  # session (its agent) or tab (a dedicated agent in its own tab)
 pause = "1h"         # what zp pauses for
 merge = "off"        # off, auto or heed
 merge_schedule = "1h" # how often a repo's queue runs, or manual

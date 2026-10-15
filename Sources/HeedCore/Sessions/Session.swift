@@ -190,7 +190,7 @@ public enum SessionGroup: String, CaseIterable, Sendable {
     /// not yours); then the agent's state decides, working or parked.
     public static func of(_ session: Session, pilot: SessionPilot = SessionPilot()) -> SessionGroup {
         if session.pinned { return .pinned }
-        if session.state.state.needsYou || pilot.status?.needsYou == true { return .needsYou }
+        if session.state.state.needsYou || pilot.status?.needsYou == true || pilot.helperNeedsYou { return .needsYou }
         if session.parked { return .parked }
         if case .stalled = pilot.status { return .stalled }
         if pilot.acting, !pilot.yours { return .watching }
@@ -233,11 +233,14 @@ public struct SessionPilot: Equatable, Sendable {
     public var status: PilotStatus?
     public var acting: Bool
     public var yours: Bool
+    /// A helper tab of the session (`send_to = "tab"`) is asking or blocked: waiting on you.
+    public var helperNeedsYou: Bool
 
-    public init(status: PilotStatus? = nil, acting: Bool = false, yours: Bool = false) {
+    public init(status: PilotStatus? = nil, acting: Bool = false, yours: Bool = false, helperNeedsYou: Bool = false) {
         self.status = status
         self.acting = acting
         self.yours = yours
+        self.helperNeedsYou = helperNeedsYou
     }
 
     /// Yours: you typed in the session after heed's last action on any of its PRs.

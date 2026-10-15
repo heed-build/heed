@@ -43,6 +43,9 @@ struct Sidebar: View {
                                     .simultaneousGesture(TapGesture(count: 2).onEnded {
                                         model.clickSession(session.id, insert: true)
                                     })
+                                    .rightClickMenu { model.rightClickSession(session.id) } _: {
+                                        model.sessionMenu(session.id)
+                                    }
                                     .id(session.id)
                                 }
                             }
@@ -284,6 +287,7 @@ struct SessionRail: View {
                         .simultaneousGesture(TapGesture(count: 2).onEnded {
                             model.clickSession(session.id, insert: true)
                         })
+                        .rightClickMenu { model.rightClickSession(session.id) } _: { model.sessionMenu(session.id) }
                     }
                 }
             }

@@ -133,11 +133,15 @@ public struct CommandInvocation: Equatable, Sendable {
     public let arguments: [String]
     /// The count typed before the keys (`3j`), if any.
     public let count: Int?
+    /// What it acts on instead of what the cursor is on: a right-click menu names the thing clicked. Keys and `:`
+    /// never set it.
+    public let target: CommandTarget?
 
-    public init(name: String, arguments: [String] = [], count: Int? = nil) {
+    public init(name: String, arguments: [String] = [], count: Int? = nil, target: CommandTarget? = nil) {
         self.name = name
         self.arguments = arguments
         self.count = count
+        self.target = target
     }
 
     public init(parsing line: String, count: Int? = nil) {

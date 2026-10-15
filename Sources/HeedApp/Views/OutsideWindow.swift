@@ -133,8 +133,14 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         enum Action { case none, openSession(String), startWork, openHeed, summary, settings, quit }
         var title: String
         var action: Action = .none
+        /// A global shortcut, in key notation.
         var shortcut = ""
+        /// Or the key that runs the same command in Heed's window, as key caps.
+        var key = ""
         var dot: Color?
+
+        /// What the menu shows on the right.
+        var keyText: String { shortcut.isEmpty ? key : KeyCapText.of(shortcut) }
     }
 
     static func entries(for model: AppModel) -> [Entry?] {
@@ -156,10 +162,12 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
         entries.append(nil)
         entries.append(Entry(title: "Start work…", action: .startWork, shortcut: model.config.globalStartWork))
         entries.append(Entry(title: "Open Heed", action: .openHeed, shortcut: model.config.globalActivate))
-        entries.append(Entry(title: "While you were away…", action: .summary))
+        entries.append(Entry(
+            title: "While you were away…", action: .summary, key: model.keyLabel(for: "summary") ?? ""
+        ))
         entries.append(nil)
-        entries.append(Entry(title: "Settings…", action: .settings))
-        entries.append(Entry(title: "Quit Heed", action: .quit))
+        entries.append(Entry(title: "Settings…", action: .settings, key: model.keyLabel(for: "settings.open") ?? ""))
+        entries.append(Entry(title: "Quit Heed", action: .quit, key: "⌘Q"))
         return entries
     }
 
@@ -185,7 +193,7 @@ final class MenuBarItem: NSObject, NSMenuDelegate {
                 menu.addItem(disabled: entry.title)
                 continue
             }
-            menu.addItem(action: entry.title, selector, shortcut: entry.shortcut, target: self)
+            menu.addItem(action: entry.title, selector, key: entry.keyText, target: self)
             if case let .openSession(id) = entry.action { menu.items.last?.representedObject = id }
             if let color = entry.dot { menu.items.last?.image = dot(NSColor(color)) }
         }
@@ -226,14 +234,15 @@ private extension NSMenu {
         addItem(item)
     }
 
-    /// An item showing its global shortcut on the right, as text: these are system-wide keys, not menu equivalents.
-    func addItem(action title: String, _ selector: Selector, shortcut: String, target: AnyObject) {
+    /// An item showing its key on the right, as text: system-wide shortcuts and Heed's own keys, not menu
+    /// equivalents.
+    func addItem(action title: String, _ selector: Selector, key: String, target: AnyObject) {
         let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
         item.target = target
-        if !shortcut.isEmpty {
+        if !key.isEmpty {
             let label = NSMutableAttributedString(string: title)
             label.append(NSAttributedString(
-                string: "    \(KeyCapText.of(shortcut))",
+                string: "    \(key)",
                 attributes: [.foregroundColor: NSColor.secondaryLabelColor]
             ))
             item.attributedTitle = label

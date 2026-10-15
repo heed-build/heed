@@ -53,8 +53,8 @@ struct MenuMock: View {
                             Text(entry.title).lineLimit(1)
                                 .foregroundStyle(isAction(entry) ? Color.white : Color.white.opacity(0.45))
                             Spacer(minLength: 24)
-                            if !entry.shortcut.isEmpty {
-                                Text(KeyCapText.of(entry.shortcut)).foregroundStyle(Color.white.opacity(0.45))
+                            if !entry.keyText.isEmpty {
+                                Text(entry.keyText).foregroundStyle(Color.white.opacity(0.45))
                             }
                         }
                         .font(.system(size: 13))

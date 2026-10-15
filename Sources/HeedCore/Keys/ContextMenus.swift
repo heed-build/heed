@@ -13,6 +13,10 @@ public enum CommandTarget: Hashable, Sendable {
     case repo(Repo)
     /// One of the session's tabs, by id: it is selected first.
     case tab(String)
+    /// A line of the diff overlay (row 0 is the file's top): the overlay's cursor moves there first.
+    case diffLine(file: Int, row: Int)
+    /// A feedback item in the PR overlay or reader, by id: the cursor moves onto it first.
+    case feedback(String)
 
     /// The PRs the pilot commands act on; nil when the target names no PR (the cursor decides).
     public var pulls: [PullRef]? {
@@ -33,7 +37,7 @@ public enum CommandTarget: Hashable, Sendable {
         switch self {
         case let .pull(ref): ref.url
         case let .issue(ref): ref.url
-        case .session, .run, .row, .repo, .tab: nil
+        case .session, .run, .row, .repo, .tab, .diffLine, .feedback: nil
         }
     }
 
@@ -43,7 +47,7 @@ public enum CommandTarget: Hashable, Sendable {
         case let .pull(ref): [ref.repo]
         case let .issue(ref): [ref.repo]
         case let .repo(repo): [repo]
-        case .session, .run, .row, .tab: nil
+        case .session, .run, .row, .tab, .diffLine, .feedback: nil
         }
     }
 }
@@ -377,6 +381,66 @@ public enum ContextMenus {
         ])
         if runLive { menu.section([item("Stop run", "pilot.run.stop")]) }
         menu.section([item("Close tab", "tab.close")])
+        return menu.entries
+    }
+
+    /// A file in the diff overlay's list, or a line of its diff (`line` false: the file, at its top).
+    public static func diff(
+        file: Int, row: Int, path: String, line _: Bool, split: Bool, hasCommits: Bool
+    ) -> [MenuEntry] {
+        let target = CommandTarget.diffLine(file: file, row: row)
+        func item(_ title: String, _ name: String, checked: Bool = false, enabled: Bool = true) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target), enabled: enabled, checked: checked)
+        }
+        var menu = Menu(header: path.split(separator: "/").last.map(String.init) ?? path)
+        menu.section([
+            item("Copy path:line", "diff.copy"),
+            item("Open in editor", "diff.edit"),
+            item("Note on this hunk", "diff.ask"),
+            item("Ask the agent now", "diff.ask.now"),
+        ])
+        menu.section([
+            item("Show one commit", "diff.commit", enabled: hasCommits),
+            item("Split view", "diff.split", checked: split),
+        ])
+        return menu.entries
+    }
+
+    /// A feedback item in the PR overlay or reader.
+    public struct FeedbackFacts: Sendable {
+        public var id: String
+        public var title: String
+        /// New or queued: what `␣` flips between.
+        public var queueable = false
+        public var queued = false
+        /// Anything queued to send, this one or others.
+        public var anyQueued = false
+        /// About a PR; false for the session's own notes.
+        public var onPull = true
+
+        public init(id: String, title: String) {
+            self.id = id
+            self.title = title
+        }
+    }
+
+    public static func feedback(_ facts: FeedbackFacts) -> [MenuEntry] {
+        let target = CommandTarget.feedback(facts.id)
+        func item(_ title: String, _ name: String, enabled: Bool = true, checked: Bool = false) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target), enabled: enabled, checked: checked)
+        }
+        var menu = Menu(header: facts.title)
+        menu.section([
+            item("Queued", "feedback.queue", enabled: facts.queueable, checked: facts.queued),
+            item("Send queued feedback", "feedback.send", enabled: facts.anyQueued),
+            item("Dismiss", "feedback.dismiss"),
+        ])
+        if facts.onPull {
+            menu.section([
+                item("Start a session from this PR", "feedback.session"),
+                item("Open the PR in browser", "open.browser"),
+            ])
+        }
         return menu.entries
     }
 

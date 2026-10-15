@@ -100,6 +100,10 @@ struct DiffOverlayView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
                         .background(index == model.diffFileIndex ? Theme.bg3 : .clear)
+                        .contentShape(Rectangle())
+                        .rightClickMenu { model.rightClickDiff(file: index, row: nil) } _: {
+                            model.diffMenu(file: index, row: nil)
+                        }
                     }
                 }
             }
@@ -208,6 +212,11 @@ struct DiffOverlayView: View {
                                                     isCursor: index == model.diffRow
                                                 )
                                             }
+                                        }
+                                        .rightClickMenu {
+                                            model.rightClickDiff(file: model.diffFileIndex, row: index)
+                                        } _: {
+                                            model.diffMenu(file: model.diffFileIndex, row: index)
                                         }
                                         .id(index)
                                         if let draft, draft.row == index {

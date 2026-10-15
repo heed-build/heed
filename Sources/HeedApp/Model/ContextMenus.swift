@@ -122,6 +122,39 @@ extension AppModel {
         return facts
     }
 
+    /// A file in the diff overlay's list (`row` nil), or a line of its unified diff.
+    func diffMenu(file: Int, row: Int?) -> [MenuEntry] {
+        guard diffFiles.indices.contains(file) else { return [] }
+        return ContextMenus.diff(
+            file: file, row: row ?? 0, path: diffFiles[file].path, line: row != nil, split: diffSplit,
+            hasCommits: !diffCommits.isEmpty
+        )
+    }
+
+    /// A feedback item in the PR overlay or reader, or one of the session's own notes.
+    func feedbackMenu(_ item: FeedbackItem) -> [MenuEntry] {
+        let line = item.promptLine
+        var facts = ContextMenus.FeedbackFacts(id: item.id, title: line.count > 60 ? line.prefix(59) + "…" : line)
+        facts.queueable = item.status == .new || item.status == .queued
+        facts.queued = item.status == .queued
+        facts.anyQueued = feedbackItems.contains { $0.status == .queued }
+        facts.onPull = feedbackPull != nil
+        return ContextMenus.feedback(facts)
+    }
+
+    /// A right-click in the diff overlay or the PR overlay points its cursor at what was clicked.
+    func rightClickDiff(file: Int, row: Int?) -> Bool {
+        guard clicksReachLists else { return false }
+        pointDiff(file: file, row: row ?? 0)
+        return true
+    }
+
+    func rightClickFeedback(_ id: String) -> Bool {
+        guard clicksReachLists else { return false }
+        pointFeedback(id)
+        return true
+    }
+
     /// A right-click on a session selects it, as a click does, without typing into it.
     func rightClickSession(_ id: String) -> Bool {
         guard clicksReachLists else { return false }

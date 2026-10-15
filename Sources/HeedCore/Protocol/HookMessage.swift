@@ -34,6 +34,8 @@ public struct HookMessage: Codable, Equatable, Sendable {
         case agentSession(id: String, agent: String)
         /// A pinned task finished in its pane with this exit code.
         case taskExit(code: Int)
+        /// The agent's model and what it used, as far as its hooks (and the transcript they point at) tell.
+        case usage(UsageReport)
     }
 
     public var session: String

@@ -112,6 +112,7 @@ struct Inspector: View {
                 }
                 section {
                     SectionHeader(title: "Agent events")
+                    UsageLine(session: session)
                     let log = model.events[session.id] ?? []
                     if log.isEmpty {
                         HStack(spacing: 8) {
@@ -317,8 +318,45 @@ private struct LinkCard: View {
     }
 }
 
+/// `claude · model-a · 12.3k in / 4.1k out · ≈$0.42 · ctx 38%`: the agent's model and what it used, as far as its
+/// hooks told; while rate limited, when the limit lifts.
+private struct UsageLine: View {
+    @Environment(AppModel.self) private var model
+    let session: Session
+
+    var body: some View {
+        let usage = session.usage ?? AgentUsage()
+        let resets = session.state.state == .limited ? usage.resetText(now: Clock.now) : nil
+        if session.usage != nil || resets != nil {
+            let summary = usage.summary(cost: model.config.usage.cost(of: usage))
+            HStack(spacing: 0) {
+                Text(([session.agent] + (summary.isEmpty ? [] : [summary])).joined(separator: " · "))
+                    .foregroundStyle(Theme.fg2)
+                if let resets { Text(" · \(resets)").foregroundStyle(Theme.block) }
+            }
+            .font(Theme.mono(11))
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .help(Self.detail(usage, reported: usage.costUSD != nil))
+        }
+    }
+
+    /// The tooltip: where the numbers come from.
+    static func detail(_ usage: AgentUsage, reported: Bool) -> String {
+        let tokens = usage.tokens
+        return [
+            "Input \(AgentUsage.count(tokens.allInput)): \(AgentUsage.count(tokens.input)) new, "
+                +
+                "\(AgentUsage.count(tokens.cacheRead)) cache read, \(AgentUsage.count(tokens.cacheWrite)) cache write",
+            "Output \(AgentUsage.count(tokens.output))",
+            reported ? "≈ cost as the agent reported it" : "≈ cost estimated from [usage.prices]",
+        ].joined(separator: "\n")
+    }
+}
+
 /// One get it green / get it merged run in the inspector: what, with which agent, how long, how it went.
 struct RunRow: View {
+    @Environment(AppModel.self) private var model
     let run: PilotRun
 
     var body: some View {
@@ -334,6 +372,7 @@ struct RunRow: View {
                     .foregroundStyle(Theme.fg)
                 Text(detail).font(Theme.ui(11.5)).foregroundStyle(run.isRunning ? Theme.busy : tint).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                if !used.isEmpty { Text(used).font(Theme.ui(11)).foregroundStyle(Theme.fg3).lineLimit(1) }
             }
             Spacer(minLength: 0)
             Text(Clock.relative(run.startedAt)).font(Theme.ui(10.5)).foregroundStyle(Theme.fg3)
@@ -345,9 +384,24 @@ struct RunRow: View {
     }
 
     private var detail: String {
-        let who = run.model.map { "\(run.agent) \($0)" } ?? run.agent
         let how = run.isRunning ? "working" : run.outcome?.text ?? "ended"
-        return "\(who) · \(Self.duration(run)) · \(how)"
+        return "\(Self.who(run)) · \(Self.duration(run)) · \(how)"
+    }
+
+    /// Its tokens and cost, as its agent's hooks reported them.
+    private var used: String {
+        run.usage.map { $0.summary(cost: model.config.usage.cost(of: $0), includeModel: false) } ?? ""
+    }
+
+    /// `codex model-a`, and the model it actually ran when that is another (or the only one known).
+    static func who(_ run: PilotRun) -> String {
+        let ran = run.usage?.model
+        switch (run.model, ran) {
+        case let (asked?, ran?) where ran != asked && !ran.hasPrefix(asked): return "\(run.agent) \(asked) (ran \(ran))"
+        case let (asked?, _): return "\(run.agent) \(asked)"
+        case let (nil, ran?): return "\(run.agent) \(ran)"
+        case (nil, nil): return run.agent
+        }
     }
 
     private var tint: Color {

@@ -76,6 +76,35 @@ from it. A PR the agent only reads or links to is not taken.
 | pi | the extension's `tool_result` handler |
 | opencode | the plugin's `tool.execute.before` / `tool.execute.after` hooks |
 
+## Model and usage
+
+The hooks also tell Heed which model the agent runs and what it has used, for the [inspector](../sessions/inspector.md)
+and a background run's record. No hook carries all of it, so the helper reads what each agent writes down, and only
+the last 256 KB of it, at the end of a turn:
+
+| Agent | Model | Tokens | Cost | Context | Rate limit reset |
+|---|---|---|---|---|---|
+| claude | `SessionStart`, then the transcript | the transcript's replies (`message.usage`), each request once | estimated from `[usage.prices]` | the last request's input | the limit message in the transcript |
+| codex | every hook's `model` | the rollout's latest `token_count` (`total_token_usage`) | estimated from `[usage.prices]` | `last_token_usage` of `model_context_window` | the rate limit window closest to its limit |
+| opencode | each finished reply (`message.updated`) | the same replies' tokens | as opencode reports it | | |
+| cursor | every hook's `model` | | | | |
+
+Claude Code writes a reply as several transcript lines that share a request id: each request counts once, and one read
+again at the next turn is not counted twice. A turn's last lines may still be on their way when it ends; they count at
+the next one. pi and gemini report no usage.
+
+A cost is always an estimate, shown with `≈`: what opencode reports, else the session's tokens at its latest model's
+price from `[usage.prices]` in [config.toml](../configuration/reference.md). Heed has no prices built in (they change
+more often than Heed does), so with none set only opencode shows a cost. `show_cost = false` leaves it out.
+
+```toml
+[usage]
+show_cost = true
+[usage.prices]
+# USD per million tokens, by model name prefix: "input / output", or "input / output / cache read / cache write"
+"model-a" = "3 / 15"
+```
+
 ## Inside a pane
 
 Every pane gets the session's id, the socket's path and its own pane id in its environment (`HEED_SESSION_ID`,

@@ -134,7 +134,7 @@ enum Shots {
         Shot(id: "sessions/run-reader", crop: .dialog, prepare: { $0.runReader = $0.runs.first { !$0.isRunning } }),
         Shot(id: "sessions/tab-strip-insert", keys: "i", crop: .tabStrip, cropPadding: 6),
         Shot(id: "sessions/zoom", keys: "<C-w>z", highlight: [.panes]),
-        Shot(id: "sessions/inspector", crop: .inspector, cropPadding: 0),
+        Shot(id: "sessions/inspector", size: CGSize(width: 1440, height: 1040), crop: .inspector, cropPadding: 0),
         Shot(id: "sessions/links-picker", keys: "gB", crop: .picker),
         Shot(id: "sessions/close-confirm", keys: "x", crop: .confirm),
         Shot(id: "sessions/delete-confirm", keys: "dd", crop: .confirm),

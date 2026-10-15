@@ -13,7 +13,12 @@ The inspector, on the right of the Sessions view, shows the selected session's s
 - **Links**: the session's pull requests, then its issues. Open PRs come first, then merged, then closed; each shows
   its checks bar, its review state, and what heed is doing about it. A merged or closed PR shrinks to its name and
   title: there is nothing left to watch. Issues show their title and whether they are open.
-- **Agent events**: the latest states the agent reported, newest first. A turn's working steps show while it runs and
+- **Agent events**: first a line with the agent's model and what it used, as far as its
+  [hooks](../agents/hooks.md#model-and-usage) tell: `claude · model-a · 12.3k in / 4.1k out · ≈$0.42 · ctx 38%`. Only
+  the parts known show: input counts every token sent, cached or not; the cost is marked `≈` because it is an estimate;
+  `ctx` is how full the context was at the last request (its size, when the window is not known). While the agent is
+  rate limited and the reset is known, the line ends with when it lifts: `resets at 18:20`. Hover it for the cache
+  split. Then the latest states the agent reported, newest first. A turn's working steps show while it runs and
   fold away once it ends, leaving how it ended.
 
 ## Links
@@ -44,6 +49,12 @@ compare page for the branch.
 ![gB on a session with three PRs and two issues](../images/shots/sessions/links-picker.png)
 
 In the other views `gB` opens the item under the cursor and `gR` its repo.
+
+## Runs
+
+A session's get it green and get it merged runs list under **Runs**: the agent and the model it was asked to use (and
+the one it actually ran, when its hooks report another), how long it took, how it went, and its tokens and `≈` cost.
+Click one to read it: the same, its branches and its last screen.
 
 Worktrees, links and runs each scroll on their own once they outgrow their share of the column, so a session with many
 PRs never pushes its runs or agent events out of sight.

@@ -56,18 +56,32 @@ public enum AgentIntegration {
         let tool = input["tool_name"] as? String
         switch event {
         case "SessionStart":
-            var kinds: [HookMessage.Kind] = [.state(.idle, reason: input["source"] as? String)]
+            var kinds: [HookMessage.Kind] = modelOnly(input) + [.state(.idle, reason: input["source"] as? String)]
             if let id = input["session_id"] as? String { kinds.insert(.agentSession(id: id, agent: "codex"), at: 0) }
             return kinds
-        case "UserPromptSubmit": return [.state(.working, reason: "prompt")]
+        case "UserPromptSubmit": return modelOnly(input) + [.state(.working, reason: "prompt")]
         case "PreToolUse": return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })]
         case "PostToolUse":
             return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })] + created(input)
         case "PermissionRequest": return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
-        case "Stop": return [TurnEnd.kind(lastWords: input["last_assistant_message"] as? String)]
-        case "SessionEnd": return [.state(.exited, reason: input["reason"] as? String)]
+        case "Stop": return codexUsage(input) + [TurnEnd.kind(lastWords: input["last_assistant_message"] as? String)]
+        case "SessionEnd": return codexUsage(input) + [.state(.exited, reason: input["reason"] as? String)]
         default: return []
         }
+    }
+
+    /// The model every Codex hook carries, with the totals, context and rate limits of its rollout's tail.
+    static func codexUsage(_ input: [String: Any]) -> [HookMessage.Kind] {
+        var report = (input["transcript_path"] as? String).flatMap { UsageTranscripts.tail(path: $0) }
+            .flatMap { UsageTranscripts.codex($0) } ?? UsageReport()
+        if let model = input["model"] as? String, !model.isEmpty { report.model = model }
+        return report.isEmpty ? [] : [.usage(report)]
+    }
+
+    /// The hook's `model` (codex, cursor), when it has one.
+    static func modelOnly(_ input: [String: Any]) -> [HookMessage.Kind] {
+        guard let model = input["model"] as? String, !model.isEmpty else { return [] }
+        return [.usage(UsageReport(model: model))]
     }
 
     // MARK: Cursor
@@ -125,7 +139,8 @@ public enum AgentIntegration {
         switch event {
         case "sessionStart":
             let id = (input["session_id"] as? String) ?? (input["conversation_id"] as? String)
-            return (id.map { [.agentSession(id: $0, agent: "cursor")] } ?? []) + [.state(.idle, reason: nil)]
+            return (id.map { [.agentSession(id: $0, agent: "cursor")] } ?? []) + modelOnly(input)
+                + [.state(.idle, reason: nil)]
         case "beforeShellExecution", "afterFileEdit":
             return [.state(.working, reason: (input["command"] as? String) ?? (input["file_path"] as? String))]
         case "afterShellExecution":
@@ -148,9 +163,9 @@ public enum AgentIntegration {
             return [.guess(.asking, reason: TurnEnd.question)]
         case "stop":
             switch input["status"] as? String {
-            case "aborted": return [.state(.idle, reason: "aborted")]
-            case "error": return [.state(.done, reason: "error")]
-            default: return [.state(.done, reason: nil)]
+            case "aborted": return modelOnly(input) + [.state(.idle, reason: "aborted")]
+            case "error": return modelOnly(input) + [.state(.done, reason: "error")]
+            default: return modelOnly(input) + [.state(.done, reason: nil)]
             }
         default: return []
         }
@@ -194,8 +209,26 @@ public enum AgentIntegration {
         case "pr": PullRef(url: detail ?? "") == nil ? [] : [.prAdd(url: detail!)]
         case "question.asked": [.state(.asking, reason: nil)]
         case "session.error": [.state(.done, reason: "error")]
+        case "usage": opencodeUsage(detail)
         default: []
         }
+    }
+
+    /// One finished assistant message, as the plugin sends it: `{"id", "model", "cost", "input", "output",
+    /// "reasoning", "cacheRead", "cacheWrite"}`.
+    static func opencodeUsage(_ detail: String?) -> [HookMessage.Kind] {
+        guard let data = detail?.data(using: .utf8),
+              let message = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let id = message["id"] as? String
+        else { return [] }
+        let int = UsageTranscripts.int
+        let tokens = TokenCounts(
+            input: int(message["input"]), output: int(message["output"]) + int(message["reasoning"]),
+            cacheRead: int(message["cacheRead"]), cacheWrite: int(message["cacheWrite"])
+        )
+        let model = (message["model"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let cost = (message["cost"] as? NSNumber)?.doubleValue
+        return [.usage(UsageReport(model: model, requests: [RequestUsage(id: id, tokens: tokens, costUSD: cost)]))]
     }
 
     public static let piExtensionSource = #"""
@@ -243,6 +276,7 @@ public enum AgentIntegration {
       const roles = new Map();
       const last = new Map();
       const reported = new Set(["session.created", "session.status", "permission.asked", "question.asked", "session.error"]);
+      const sent = new Set();
       return {
       // A PR the agent opened (gh pr create, a create_pull_request tool) belongs to this session.
       "tool.execute.before": async (input, output) => { args.set(input.callID, output?.args); },
@@ -264,7 +298,19 @@ public enum AgentIntegration {
         const p = event.properties ?? {};
         // The last assistant text per session goes with its idle, so Heed can tell a question to you from a finished
         // turn. Parts of user messages are skipped by their message's role.
-        if (event.type === "message.updated" && p.info?.id) { roles.set(p.info.id, p.info.role); return; }
+        if (event.type === "message.updated" && p.info?.id) {
+          const m = p.info;
+          roles.set(m.id, m.role);
+          // A finished assistant message: its model, tokens and cost, once.
+          if (m.role === "assistant" && m.time?.completed && !sent.has(m.id)) {
+            sent.add(m.id);
+            const t = m.tokens ?? {};
+            const usage = JSON.stringify({ id: m.id, model: m.modelID ?? "", cost: m.cost ?? 0, input: t.input ?? 0,
+              output: t.output ?? 0, reasoning: t.reasoning ?? 0, cacheRead: t.cache?.read ?? 0, cacheWrite: t.cache?.write ?? 0 });
+            await $`${bin} hook opencode usage ${m.sessionID ?? ""} ${usage}`.quiet().nothrow();
+          }
+          return;
+        }
         if (event.type === "message.part.updated") {
           const part = p.part ?? {};
           if (part.type === "text" && !part.synthetic && roles.get(part.messageID) === "assistant" && part.text) {
@@ -339,7 +385,7 @@ public enum AgentIntegration {
         let tool = input["tool_name"] as? String
         switch event {
         case "SessionStart":
-            var kinds: [HookMessage.Kind] = [.state(.idle, reason: input["source"] as? String)]
+            var kinds: [HookMessage.Kind] = modelOnly(input) + [.state(.idle, reason: input["source"] as? String)]
             if let id = input["session_id"] as? String { kinds.insert(.agentSession(id: id, agent: "claude"), at: 0) }
             return kinds
         case "UserPromptSubmit":
@@ -367,23 +413,38 @@ public enum AgentIntegration {
             // A turn that left background work running, or a scheduled prompt, is not finished with: background tasks
             // keep it working (their results start the next turn), a schedule leaves it idle until it fires. A
             // question in the turn's last words outranks both.
+            let usage = claudeUsage(input)
             let lastWords = input["last_assistant_message"] as? String
-            if let lastWords, TurnEnd.asksYou(lastWords) { return [TurnEnd.kind(lastWords: lastWords)] }
+            if let lastWords, TurnEnd.asksYou(lastWords) { return usage + [TurnEnd.kind(lastWords: lastWords)] }
             if let tasks = input["background_tasks"] as? [Any], !tasks.isEmpty {
-                return [.state(.working, reason: "\(tasks.count) background task\(tasks.count == 1 ? "" : "s")")]
+                return usage + [.state(
+                    .working,
+                    reason: "\(tasks.count) background task\(tasks.count == 1 ? "" : "s")"
+                )]
             }
             if let crons = input["session_crons"] as? [Any], !crons.isEmpty {
-                return [.state(.idle, reason: "\(crons.count) scheduled")]
+                return usage + [.state(.idle, reason: "\(crons.count) scheduled")]
             }
-            return [.state(.done, reason: nil)]
+            return usage + [.state(.done, reason: nil)]
         case "StopFailure":
+            // Usage first: a rate limit's reset time is known by the time the limited state arrives.
             let error = input["error"] as? String
-            return [error == "rate_limit" ? .state(.limited, reason: "rate limited") : .state(.done, reason: error)]
+            return claudeUsage(input)
+                + [error == "rate_limit" ? .state(.limited, reason: "rate limited") : .state(.done, reason: error)]
         case "SessionEnd":
-            return [.state(.exited, reason: input["reason"] as? String)]
+            return claudeUsage(input) + [.state(.exited, reason: input["reason"] as? String)]
         default:
             return []
         }
+    }
+
+    /// What the tail of the session's transcript says about its requests and model. Read at the end of a turn; the
+    /// turn's last lines may still be on their way, and are counted at the next one.
+    static func claudeUsage(_ input: [String: Any]) -> [HookMessage.Kind] {
+        guard let path = input["transcript_path"] as? String, let data = UsageTranscripts.tail(path: path),
+              let report = UsageTranscripts.claude(data)
+        else { return [] }
+        return [.usage(report)]
     }
 
     /// The PRs a Claude Code or Codex tool call created (`PostToolUse`: `tool_input`, `tool_response`).

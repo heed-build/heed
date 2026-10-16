@@ -36,8 +36,10 @@ The command preview at the bottom of [Start work](../start-work/agent-and-option
 
 Anything left blank is [read from the screen](screen-reading.md).
 
-cursor's `stop` does not always arrive. When a cursor session has been working, its screen has not changed and no hook
-has come for 20 seconds, Heed takes the turn as over and shows it done (guessed); the agent's next hook puts it right.
+A turn can end without its end hook: cursor's `stop` does not always arrive, and codex runs `Interrupt` (not `Stop`)
+when you stop a turn, which Heed shows as idle. As a safety net for both, when a cursor or codex session has been
+working, its screen has not changed and no hook has come for 20 seconds, Heed takes the turn as over and shows it done
+(guessed); the agent's next hook puts it right.
 A background run waits 60 seconds before it ends that way, so a long silent build is not cut short.
 
 ## Questions at the end of a turn

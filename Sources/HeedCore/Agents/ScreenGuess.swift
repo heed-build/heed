@@ -70,7 +70,8 @@ public enum ScreenGuess {
     }
 }
 
-/// For agents whose turn-end hook does not always arrive (cursor): a turn that went quiet, with no hook and a screen
+/// For agents whose turn-end hook does not always arrive (cursor, and codex when a turn ends without `Stop` or
+/// `Interrupt`): a turn that went quiet, with no hook and a screen
 /// that has not changed for `after`, is taken as over. A working agent's screen moves (its spinner, its output).
 public struct QuietTurn: Sendable {
     /// A session's turn: a wrong guess is put right by the agent's next hook.
@@ -79,7 +80,7 @@ public struct QuietTurn: Sendable {
     public static let runAfter: TimeInterval = 60
 
     /// The agents this applies to.
-    public static func applies(to agent: String) -> Bool { agent == "cursor" }
+    public static func applies(to agent: String) -> Bool { agent == "cursor" || agent == "codex" }
 
     private var lastText: [String: String] = [:]
     private var changedAt: [String: Date] = [:]

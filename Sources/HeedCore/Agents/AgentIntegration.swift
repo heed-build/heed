@@ -43,6 +43,8 @@ public enum AgentIntegration {
         "SessionEnd",
         "SubagentStart",
         "SubagentStop",
+        // You stopped the turn: `Stop` does not run then. Older Codex versions ignore the key.
+        "Interrupt",
     ]
 
     /// Hooks for one run, as `-c` config layers (the user's own hooks still run alongside). Non-managed hooks need
@@ -73,6 +75,7 @@ public enum AgentIntegration {
         case "PermissionRequest": return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
         case "Stop": return codexUsage(input) + [TurnEnd.kind(lastWords: input["last_assistant_message"] as? String)]
         case "SessionEnd": return codexUsage(input) + [.state(.exited, reason: input["reason"] as? String)]
+        case "Interrupt": return [.state(.idle, reason: "interrupted")]
         default: return []
         }
     }

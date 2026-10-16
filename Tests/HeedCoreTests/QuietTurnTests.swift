@@ -32,6 +32,13 @@ struct QuietTurnTests {
         #expect(results == [false, false, true, false, false, false, true])
     }
 
+    @Test func codexInterruptLeavesTheSessionIdle() {
+        #expect(AgentIntegration.codexHook(event: "Interrupt", input: ["turn_id": "t1"]) == [
+            .state(.idle, reason: "interrupted"),
+        ])
+        #expect(AgentIntegration.codexEvents.contains("Interrupt"))
+    }
+
     @Test func runsWaitLongerAndForgettingStartsOver() {
         var quiet = QuietTurn()
         let first = observe(&quiet, "x", at: 0, after: QuietTurn.runAfter)
@@ -41,6 +48,7 @@ struct QuietTurnTests {
         let afterForget = observe(&quiet, "x", at: 62)
         #expect([first, early, late, afterForget] == [false, false, true, false])
         #expect(QuietTurn.applies(to: "cursor"))
+        #expect(QuietTurn.applies(to: "codex"))
         #expect(!QuietTurn.applies(to: "claude"))
     }
 }

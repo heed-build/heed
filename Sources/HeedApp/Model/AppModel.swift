@@ -342,7 +342,7 @@ final class AppModel {
             let text = TerminalSurfaces.shared.visibleText(paneID: live.paneID)
             let line = text.flatMap(Runs.lastLine)
             if runLastLines[id] != line { runLastLines[id] = line }
-            // A cursor run whose stop hook never came: done once it has worked and gone quiet.
+            // A run whose end hook never came (cursor, codex): done once it has worked and gone quiet.
             if let text, live.worked, runStates[live.paneID] == .working,
                let agent = runs.first(where: { $0.id == id })?.agent, QuietTurn.applies(to: agent),
                quietTurns.isQuiet(
@@ -353,7 +353,7 @@ final class AppModel {
                 endRun(id)
             }
         }
-        // A cursor session left working without its stop hook: done (guessed) once quiet.
+        // A session left working without its end hook (cursor, codex): done (guessed) once quiet.
         var quiet: [DomainChange] = []
         for session in sessions where QuietTurn.applies(to: session.agent) && session.state.state == .working {
             guard let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout),

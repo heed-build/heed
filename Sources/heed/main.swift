@@ -70,7 +70,8 @@ guard let session = environment[HeedEnvironment.sessionID], !session.isEmpty els
 
 let socketPath = environment[HeedEnvironment.socket] ?? HeedEnvironment.defaultSocketPath()
 let pane = environment[HeedEnvironment.pane]
-let lines = kinds.compactMap { try? HookMessage(session: session, pane: pane, kind: $0).encodedLine() }
+let agent = HookCommandLine.agent(arguments)
+let lines = kinds.compactMap { try? HookMessage(session: session, pane: pane, kind: $0, agent: agent).encodedLine() }
 
 func send(_ data: Data, to path: String) -> Bool {
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)

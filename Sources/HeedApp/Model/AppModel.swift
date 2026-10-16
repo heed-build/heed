@@ -772,6 +772,23 @@ final class AppModel {
                 receive(message)
             }
         }
+        installCursorHooksEverywhere()
+    }
+
+    /// Cursor reads hooks only from a worktree's `.cursor/hooks.json`, so every local worktree a session has gets
+    /// one, whatever agent it started with: cursor started there by hand reports too. Outside a heed pane the hook
+    /// does nothing.
+    private func installCursorHooksEverywhere() {
+        guard !isFixture else { return }
+        let heed = integration.heedBinary
+        let paths = worktrees.filter { worktree in
+            worktree.location.isLocal && sessions.contains { $0.owns(worktree) }
+        }.map(\.path)
+        Task.detached(priority: .utility) {
+            for path in paths {
+                try? AgentIntegration.installCursorHooks(worktree: path, heed: heed)
+            }
+        }
     }
 
     /// One message from an agent's hook, applied to its session.
@@ -810,6 +827,13 @@ final class AppModel {
                 if let live = liveRuns[id], Runs.ended(state, worked: live.worked) { endRun(id) }
             }
             return
+        }
+        // Another agent took over the pane (you quit one and started another there): the session follows it, so its
+        // screen is read and its turns judged as that agent's.
+        if let agent = message.agent, agent != session.agent, settings.agent(agent) != nil {
+            session.agent = agent
+            session.record("\(agent) took over in its pane")
+            commit(.sessionUpserted(session))
         }
         guard let kind = throughSubagents(message, session: session) else { return }
         switch kind {

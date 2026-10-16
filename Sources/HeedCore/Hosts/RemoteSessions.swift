@@ -47,7 +47,9 @@ public enum HostEvents {
         guard let kinds = try? HookCommandLine.parse(args, readInput: { payload }) else { return [] }
         let pane = fields[2].isEmpty ? nil : fields[2]
         let at = Date(timeIntervalSince1970: seconds)
-        return kinds.map { HookMessage(session: fields[1], pane: pane, kind: $0, sentAt: at) }
+        return kinds.map {
+            HookMessage(session: fields[1], pane: pane, kind: $0, sentAt: at, agent: HookCommandLine.agent(args))
+        }
     }
 }
 

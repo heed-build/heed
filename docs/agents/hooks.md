@@ -15,7 +15,7 @@ configuration is edited.
 |---|---|
 | claude | `--settings ~/Library/Application Support/Heed/claude-hooks.json` and `--session-id <id>` |
 | codex | `-c hooks.<Event>=[…]` for each event, and `--dangerously-bypass-hook-trust` so they run |
-| cursor | Writes `.cursor/hooks.json` into worktrees it creates, excluded from git through `.git/info/exclude` |
+| cursor | Writes `.cursor/hooks.json` into every local worktree a session has, whatever agent it started with, excluded from git through `.git/info/exclude` |
 | pi | `-e …/heed-pi.js`, an extension that calls the helper |
 | opencode | `OPENCODE_CONFIG_CONTENT` with a plugin, `…/heed-opencode.js` |
 
@@ -35,6 +35,11 @@ The command preview at the bottom of [Start work](../start-work/agent-and-option
 ¹ Only a question in the turn's last words (below); other questions are read from the screen.
 
 Anything left blank is [read from the screen](screen-reading.md).
+
+If you quit a session's agent and start another one in its pane, the session follows the new one as soon as its first
+hook arrives: its screen is then read, and its turns judged, as that agent's. Cursor reports from any session's
+worktree; Claude and Codex started by hand get their hooks only from heed's own launch, so start them with Start work
+or `O` to have them reported.
 
 A turn can end without its end hook: cursor's `stop` does not always arrive, and codex runs `Interrupt` (not `Stop`)
 when you stop a turn, which Heed shows as idle. As a safety net for both, when a cursor or codex session has been

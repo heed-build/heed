@@ -83,8 +83,9 @@ public enum Import {
                     AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0, resuming: resuming)
                 } ?? []
             }
-            // Cursor reads hooks from a file in the worktree, which heed writes here only (not on hosts yet).
-            if agent.name == "cursor", worktree.location.isLocal, let heed = integration?.heedBinary {
+            // Cursor reads hooks from a file in the worktree, which heed writes here only (not on hosts yet), whatever
+            // agent starts: cursor started by hand later reports too.
+            if worktree.location.isLocal, let heed = integration?.heedBinary {
                 try? AgentIntegration.installCursorHooks(worktree: worktree.path, heed: heed)
             }
             if let resume,

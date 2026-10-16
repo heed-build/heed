@@ -50,12 +50,16 @@ public struct HookMessage: Codable, Equatable, Sendable {
     public var pane: String?
     public var kind: Kind
     public var sentAt: Date
+    /// The agent whose hook sent it (`heed hook <agent> …`): the one actually running in the pane, which may not be
+    /// the one the session started with (you quit it and started another there).
+    public var agent: String?
 
-    public init(session: String, pane: String? = nil, kind: Kind, sentAt: Date = Date()) {
+    public init(session: String, pane: String? = nil, kind: Kind, sentAt: Date = Date(), agent: String? = nil) {
         self.session = session
         self.pane = pane
         self.kind = kind
         self.sentAt = sentAt
+        self.agent = agent
     }
 
     public func encodedLine() throws -> Data {
@@ -91,6 +95,11 @@ public enum HookCommandLine {
 
     public struct UsageError: Error, Equatable, CustomStringConvertible {
         public let description: String
+    }
+
+    /// The agent a `heed hook <agent> <event>` line is from; nil for any other command.
+    public static func agent(_ arguments: [String]) -> String? {
+        arguments.first == "hook" && arguments.count >= 2 ? arguments[1] : nil
     }
 
     /// `readInput` supplies stdin, read only by `hook` (agents pass their hook payload there).

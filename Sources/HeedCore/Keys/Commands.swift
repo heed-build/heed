@@ -57,6 +57,11 @@ public enum Commands {
             .move
         ),
         .init("work.again", "start work from this session's prompt", .move),
+        .init(
+            "agent.switch", "hand the session to another agent: stop its agent, start that one on a handoff prompt",
+            .move,
+            arguments: "[agent]"
+        ),
         .init("view.history", "history", .move),
         // Panes & tabs
         .init("pane.left", "focus pane left", .panes),

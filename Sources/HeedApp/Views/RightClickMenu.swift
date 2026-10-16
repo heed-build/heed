@@ -81,21 +81,37 @@ enum RightClickMenu {
             case .separator:
                 menu.addItem(.separator())
             case let .item(item):
-                let action = Action { model.perform(item.command) }
-                let menuItem = NSMenuItem(title: item.title, action: #selector(Action.run), keyEquivalent: "")
-                menuItem.target = action
-                // The target is weak; the item keeps the action alive.
-                menuItem.representedObject = action
-                menuItem.isEnabled = item.enabled
-                menuItem.state = item.checked ? .on : .off
+                let menuItem = Self.item(item, model: model)
                 menuItem.attributedTitle = title(
                     item.title, key: keys[item.keyCommand] ?? "", enabled: item.enabled, font: font,
                     paragraph: paragraph
                 )
                 menu.addItem(menuItem)
+            case let .submenu(title, items):
+                // Its items name what they pick (an agent), not a key: the key opens the command line, not one pick.
+                let submenu = NSMenu(title: title)
+                submenu.autoenablesItems = false
+                for item in items {
+                    submenu.addItem(Self.item(item, model: model))
+                }
+                let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+                parent.submenu = submenu
+                menu.addItem(parent)
             }
         }
         return menu
+    }
+
+    /// One item that runs its command through the model.
+    private static func item(_ item: MenuItem, model: AppModel) -> NSMenuItem {
+        let action = Action { model.perform(item.command) }
+        let menuItem = NSMenuItem(title: item.title, action: #selector(Action.run), keyEquivalent: "")
+        menuItem.target = action
+        // The target is weak; the item keeps the action alive.
+        menuItem.representedObject = action
+        menuItem.isEnabled = item.enabled
+        menuItem.state = item.checked ? .on : .off
+        return menuItem
     }
 
     /// The key that runs the command where the menu opened. One that only works elsewhere (VISUAL's `y`, the PR

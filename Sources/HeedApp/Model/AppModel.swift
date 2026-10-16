@@ -1815,10 +1815,10 @@ final class AppModel {
         case "pilot.merge": togglePilotMerge()
         case "pilot.copilot":
             let refs = pilotTargets
-            if refs.isEmpty { flash = "no PR here" } else { Task { await askCopilot(refs, byHand: true) } }
+            if refs.isEmpty { flash = noOpenPR } else { Task { await askCopilot(refs, byHand: true) } }
         case "pilot.reviewers":
             let refs = pilotTargets
-            if refs.isEmpty { flash = "no PR here" } else { Task { await requestReviews(refs, byHand: true) } }
+            if refs.isEmpty { flash = noOpenPR } else { Task { await requestReviews(refs, byHand: true) } }
         case "merge.run": runMergeCommand(command.arguments.first)
         case "merge.queue": showMergeQueue(command.arguments.first)
         case "feedback.dismiss": dismissItem()
@@ -3834,8 +3834,9 @@ final class AppModel {
         let open = [overlay == .pr ? overlayPull : nil, reader].compactMap(\.self)
         let now = Date()
         let refs = Set(sessions.flatMap(\.trackedPRs)).filter { ref in
-            // Unwatched PRs keep only their summary from the sync; opening one still fetches it (`open`).
-            guard pilot(for: ref).watching else { return false }
+            // Unwatched PRs keep only their summary from the sync; opening one still fetches it (`open`). Merged and
+            // closed ones are done: polling them would only take turns from the open ones.
+            guard pilot(for: ref).watching, isOpen(ref) else { return false }
             return open.contains(ref) || syncSchedule.needsDetail(
                 pull: github.pull(ref), detail: pullDetails[ref.description], now: now
             )
@@ -3992,7 +3993,8 @@ final class AppModel {
     func pilotTimeline(_ ref: PullRef) -> [PilotEvent] { pilotLog.filter { $0.ref == ref } }
 
     /// What the pilot commands act on: the PR overlay's or reader's PR; in the Pilot and PRs views the picked rows
-    /// (VISUAL) or the one under the cursor; in Sessions the session's PRs.
+    /// (VISUAL) or the one under the cursor; in Sessions the session's PRs that are still open (a merged or closed
+    /// one has nothing left to watch, green or merge).
     private var pilotTargets: [PullRef] {
         if let refs = commandTarget?.pulls { return refs }
         if let ref = feedbackPull { return [ref] }
@@ -4004,10 +4006,16 @@ final class AppModel {
             let byID = Dictionary(pullRows.map { ($0.id, $0.ref) }) { first, _ in first }
             return actionIDs(.prs).compactMap { byID[$0] }
         case .sessions:
-            return currentSession?.trackedPRs ?? []
+            return (currentSession?.trackedPRs ?? []).filter(isOpen)
         default:
             return []
         }
+    }
+
+    /// Nothing to act on: in Sessions, say when that is because every PR is merged or closed.
+    private var noOpenPR: String {
+        view == .sessions && !(currentSession?.trackedPRs.isEmpty ?? true) ? "no open PR here: they are all merged or closed"
+            : "no PR here"
     }
 
     private func editPilot(_ refs: [PullRef], _ edit: (inout PullFeedback) -> Void) {
@@ -4042,7 +4050,7 @@ final class AppModel {
     /// `w`: watch or stop watching (all of them, when some are and some are not: watch).
     private func togglePilotWatch() {
         let refs = pilotTargets
-        guard !refs.isEmpty else { return flash = "no PR here" }
+        guard !refs.isEmpty else { return flash = noOpenPR }
         let watch = !refs.allSatisfy { pilot(for: $0).watching }
         editPilot(refs) { pipeline in
             pipeline.watching = watch
@@ -4059,7 +4067,7 @@ final class AppModel {
     /// `m`: the green mode, cycled from the first target's (off → ask → auto).
     private func cyclePilotGreen() {
         let refs = pilotTargets
-        guard let first = refs.first else { return flash = "no PR here" }
+        guard let first = refs.first else { return flash = noOpenPR }
         let next = pilot(for: first).green.next
         editPilot(refs) { pipeline in
             pipeline.autoFeed = next
@@ -4095,7 +4103,7 @@ final class AppModel {
 
     private func pausePilot(_ argument: String?) {
         let refs = pilotTargets
-        guard !refs.isEmpty else { return flash = "no PR here" }
+        guard !refs.isEmpty else { return flash = noOpenPR }
         let now = Clock.now
         let choice: PilotDuration.Parsed
         if let argument {
@@ -4139,7 +4147,7 @@ final class AppModel {
 
     /// `pilot.why`: the explainer over whatever is open, for the PR the pilot commands act on.
     private func showPilotWhy() {
-        guard let ref = pilotTargets.first else { return flash = "no PR here" }
+        guard let ref = pilotTargets.first else { return flash = noOpenPR }
         pilotExplain = ref
         explainRow = 0
         if pullDetails[ref.description] == nil { fetchDetail(ref) }
@@ -4588,6 +4596,9 @@ final class AppModel {
     }
 
     /// Whether a PR is open, merged or closed, as last seen; nil before heed has seen it.
+    /// Open, or not known yet (heed has not seen it): a PR the pilot can still act on.
+    private func isOpen(_ ref: PullRef) -> Bool { pullState(ref).map { $0 == .open } ?? true }
+
     private func pullState(_ ref: PullRef) -> PullRequest.State? {
         if let state = github.pull(ref)?.state { return state }
         return pullDetails[ref.description]?.state.flatMap(PullRequest.State.init(rawValue:))
@@ -4756,7 +4767,7 @@ final class AppModel {
     /// the repo's queue; off turns GitHub's auto-merge off again where it is on.
     private func togglePilotMerge() {
         let refs = pilotTargets
-        guard let first = refs.first else { return flash = "no PR here" }
+        guard let first = refs.first else { return flash = noOpenPR }
         let mode = pilot(for: first).merge.next
         editPilot(refs) { pipeline in
             pipeline.merge = mode

@@ -36,6 +36,10 @@ The command preview at the bottom of [Start work](../start-work/agent-and-option
 
 Anything left blank is [read from the screen](screen-reading.md).
 
+cursor's `stop` does not always arrive. When a cursor session has been working, its screen has not changed and no hook
+has come for 20 seconds, Heed takes the turn as over and shows it done (guessed); the agent's next hook puts it right.
+A background run waits 60 seconds before it ends that way, so a long silent build is not cut short.
+
 ## Questions at the end of a turn
 
 An agent that ends its turn with a question in plain text ("Should I also update the docs?") is waiting on you, but its

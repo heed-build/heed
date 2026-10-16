@@ -395,7 +395,8 @@ public enum StartWork {
                 group.addTask { await WorktreeInclude.copy(from: record.path, to: worktree.path, on: record.location) }
             }
         }
-        if plan.agent?.name == "cursor", plan.location.isLocal, let heed = plan.integration?.heedBinary {
+        // Whatever agent starts here: cursor started by hand in the pane later reports too.
+        if plan.location.isLocal, let heed = plan.integration?.heedBinary {
             for worktree in created {
                 try? AgentIntegration.installCursorHooks(worktree: worktree.path, heed: heed)
             }

@@ -23,6 +23,8 @@ public struct CompletionContext: Sendable {
     public var tabs: [String] = []
     public var hosts: [String] = []
     public var agents: [String] = []
+    /// The current session's agent, which `agent.switch` does not offer.
+    public var currentAgent: String?
     /// Repos with a merge queue (`owner/name`).
     public var mergeRepos: [String] = []
     /// Repos with issues, by name.
@@ -86,6 +88,8 @@ public enum CommandCompletions {
         case "tab.go": context.tabs.enumerated().map { ("\($0.offset + 1)", $0.element) }
         case "host.filter": context.hosts.map { ($0, "") }
         case "agent": context.agents.map { ($0, "start work with \($0)") }
+        case "agent.switch": Handoff.candidates(agents: context.agents, current: context.currentAgent)
+            .map { ($0, "hand the session to \($0)") }
         case "settings.open": settingsSections.map { ($0, "") }
         case "pilot.pause": pauseDurations.map { ($0.0, $0.1) }
         case "merge.run": context.mergeRepos.map { ($0, "") } + [("all", "every queue")]

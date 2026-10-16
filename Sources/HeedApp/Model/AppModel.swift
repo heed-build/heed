@@ -793,6 +793,8 @@ final class AppModel {
 
     /// One message from an agent's hook, applied to its session.
     func receive(_ message: HookMessage) {
+        // The agent a handoff stopped, on its way out: the session is the new agent's now.
+        if let pane = message.pane, retiredPanes.contains(pane) { return }
         if let pane = message.pane { lastHookAt[pane] = message.sentAt }
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
         // A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it;
@@ -1706,6 +1708,7 @@ final class AppModel {
         case "pr.track": trackPull(command.arguments.first)
         case "pr.untrack": untrackPull(command.arguments.first)
         case "select.pin": pinSelected()
+        case "agent.switch": switchAgent(to: command.arguments.first)
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "")
         case "worktree.new":
             openStartWork(prompt: "")
@@ -1956,6 +1959,7 @@ final class AppModel {
         context.tabs = currentTabs.map(\.title)
         context.hosts = Array(Set(config.hosts.keys).union(sessions.compactMap(\.host))).sorted()
         context.agents = settings.agents.map(\.name)
+        context.currentAgent = currentSession?.agent
         context.mergeRepos = mergeQueues.keys.sorted()
         context.issueRepos = issueRepoCounts.map(\.repo.name)
         if let session = currentSession {
@@ -5533,6 +5537,134 @@ final class AppModel {
                 startWorkError = "start failed: \(error)"
             }
         }
+    }
+
+    // MARK: Handing off
+
+    /// Agent panes replaced by a handoff: what their old agent still says on its way out is nobody's news.
+    private var retiredPanes: Set<String> = []
+
+    /// `agent.switch <agent>`: hands the session to another agent, asking first while its own still runs. With no
+    /// agent named, the command line opens on `agent.switch ` and offers the others.
+    private func switchAgent(to name: String?) {
+        guard let session = currentSession else { return flash = "no session to hand off" }
+        guard let name, !name.isEmpty else {
+            guard !Handoff.candidates(agents: settings.agents.map(\.name), current: session.agent).isEmpty else {
+                return flash = "no other agent to hand off to (Settings, Agents)"
+            }
+            return openCommandLine("agent.switch ")
+        }
+        guard let agent = settings.agent(name) else {
+            return flash = "no agent \(name) (\(settings.agents.map(\.name).joined(separator: ", ")))"
+        }
+        guard agent.name != session.agent else { return flash = "\(session.agent) already has \(session.title)" }
+        guard let layout = layouts[session.id], agentPane(in: layout) != nil else {
+            return flash = "\(session.title) has no pane to start \(agent.name) in"
+        }
+        guard session.agent != "shell", session.state.state != .exited else { return handOff(session.id, to: agent) }
+        ask(Confirmation(
+            title: "Hand off to \(agent.name)?",
+            lines: [
+                "\(session.agent) is still running in \(session.title)'s pane. Stop it and hand off to \(agent.name)?",
+                "\(agent.name) starts in the same worktree, told the task and to read git for what is done",
+            ],
+            accept: "Hand off"
+        ) { [weak self] in self?.handOff(session.id, to: agent) })
+    }
+
+    /// Opens the command line with `text` typed, its completions listed.
+    private func openCommandLine(_ text: String) {
+        let before = mode
+        engine.enter(.command)
+        if before != .command { modeChanged(from: before) }
+        commandText = text
+        completionAnchor = nil
+        completionIndex = nil
+    }
+
+    /// Replaces the session's agent pane, in the same place, with one running `agent` on a handoff prompt, launched as
+    /// Start work launches it (heed's hooks, its own session id, cursor's hooks file). The old pane's terminal ends
+    /// with it, its zmx session too, so the old agent is stopped rather than left running unseen.
+    private func handOff(_ id: String, to agent: AgentProfile) {
+        guard !isFixture, tutor == nil else { return flash = "fixture: no IO" }
+        guard let session = sessions.first(where: { $0.id == id }), let layout = layouts[id],
+              let (_, paneID) = agentPane(in: layout),
+              let pane = layout.tabs.flatMap(\.tree.panes).first(where: { $0.id == paneID })
+        else { return }
+        var files: IntegrationFiles? = integration
+        var hostFiles: [String: String] = [:]
+        if let host = session.host {
+            guard case let .connected(info) = hostStatus(host), let home = info.home else {
+                return flash = "@\(host) does not answer: gH shows why"
+            }
+            let (written, onHost) = hostIntegration(home: home)
+            hostFiles = written
+            files = onHost
+        }
+        let repo = session.repos.first
+        let base = repo.flatMap { repo in
+            repos.first { $0.repo == repo && $0.location == session.location }?.defaultBranch
+        }
+        let prompt = Handoff.prompt(
+            session: session, from: session.agent,
+            prs: session.trackedPRs.filter { github.pull($0).map { $0.state == .open } ?? true }, base: base,
+            instructions: repo.map { config.pilot.resolve($0).startInstructions } ?? ""
+        )
+        // A new id of its own: the old agent's may still be taken (handing back to an agent the session had before).
+        let agentSession = UUID().uuidString.lowercased()
+        let command = agent.launchCommand(
+            prompt: prompt,
+            extraArguments: files.map {
+                AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: $0)
+            } ?? [],
+            environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
+        )
+        let fresh = PaneSpec(
+            role: .agent, title: agent.name, directory: pane.directory, command: command, location: pane.location
+        )
+        let heed = files?.heedBinary
+        flash = "handing \(session.title) to \(agent.name)…"
+        Task {
+            if let host = session.host {
+                do {
+                    try await HostSetup.install(on: host, files: hostFiles)
+                } catch {
+                    return flash = "could not set up @\(host): \(error)"
+                }
+            } else if let heed {
+                // Every local worktree has it since launch; a worktree made since by hand may not.
+                let directory = pane.directory
+                await Task.detached(priority: .userInitiated) {
+                    try? AgentIntegration.installCursorHooks(worktree: directory, heed: heed)
+                }.value
+            }
+            replaceAgentPane(of: id, with: fresh, agent: agent, agentSession: agentSession)
+        }
+    }
+
+    private func replaceAgentPane(of id: String, with fresh: PaneSpec, agent: AgentProfile, agentSession: String) {
+        guard var session = sessions.first(where: { $0.id == id }), var layout = layouts[id],
+              let (tabIndex, old) = agentPane(in: layout)
+        else { return flash = "the session is gone" }
+        let from = session.agent
+        layout.tabs[tabIndex].tree = layout.tabs[tabIndex].tree.updating(old) { $0 = fresh }
+        if layout.tabs[tabIndex].focused == old { layout.tabs[tabIndex].focused = fresh.id }
+        retiredPanes.insert(old)
+        quietTurns.forget(pane: old)
+        lastHookAt[old] = nil
+        TerminalSurfaces.shared.close(paneID: old)
+        session.agent = agent.name
+        session.agentSessionID = AgentIntegration.preassignedSessionID(agent: agent, sessionID: agentSession)
+        session.usage = nil
+        session.state = ObservedState(.idle, source: .guessed, reason: "handed off")
+        session.activity = "starting"
+        session.lastActivity = Date()
+        session.record("handed off from \(from) to \(agent.name)")
+        setSubagents(nil, of: id)
+        TerminalSurfaces.shared.autostartPanes.insert(fresh.id)
+        commit([.layoutChanged(session: id, layout), .sessionUpserted(session)])
+        TerminalSurfaces.shared.prepare(fresh, sessionID: id)
+        flash = "handed to \(agent.name)"
     }
 
     // MARK: Panes and tabs

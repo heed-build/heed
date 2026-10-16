@@ -30,6 +30,7 @@ Right-click a session in the sidebar, or in the collapsed rail:
 | What will heed do? | `z?` |
 | Go to its run, Stop run (while a run works on it) | `gb`, `zx` |
 | Pin, Park, Start again from its prompt | `m`, `zz`, `O` |
+| Hand off to…, a submenu of the other agents ([handing off](../sessions/handoff.md)) | `gA` |
 | Close, keep worktree; Delete with worktrees… | `x`, `dd` |
 
 The pilot's items act on all the session's PRs, as their keys do in the sidebar.
@@ -70,7 +71,8 @@ A session in History reopens (`R`), starts again from its prompt (`O`), or opens
 ## Tabs
 
 A right-click on a tab selects it and offers a new tab (`gn`), splitting (`⌃w v`, `⌃w s`), zooming the pane (`⌃w z`)
-and closing the tab (`⌃w c`); a run's tab can also stop its run (`zx`).
+and closing the tab (`⌃w c`); a run's tab can also stop its run (`zx`), and the agent's tab can hand the session to
+another agent (**Hand off to…**, `gA`).
 
 ## The diff and the PR overlay
 

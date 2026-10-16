@@ -39,6 +39,7 @@ This page is generated from the code (`mise run shots`).
 | `resume` |  | pick up where you left off: the sessions to resume, as on launch |
 | `summary` | `gZ` | while you were away: what still waits on you, and what merged, ran, finished and closed |
 | `work.again` | `O` | start work from this session's prompt |
+| `agent.switch` `[agent]` | `gA` | hand the session to another agent: stop its agent, start that one on a handoff prompt |
 | `view.history` | `gh` | history |
 
 ## Panes & tabs

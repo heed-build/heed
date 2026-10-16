@@ -38,8 +38,8 @@ Anything left blank is [read from the screen](screen-reading.md).
 
 If you quit a session's agent and start another one in its pane, the session follows the new one as soon as its first
 hook arrives: its screen is then read, and its turns judged, as that agent's. Cursor reports from any session's
-worktree; Claude and Codex started by hand get their hooks only from heed's own launch, so start them with Start work
-or `O` to have them reported.
+worktree; Claude and Codex started by hand get their hooks only from heed's own launch, so
+[hand the session to them](../sessions/handoff.md) (`gA`) instead, or start them with Start work or `O`.
 
 A turn can end without its end hook: cursor's `stop` does not always arrive, and codex runs `Interrupt` (not `Stop`)
 when you stop a turn, which Heed shows as idle. As a safety net for both, when a cursor or codex session has been

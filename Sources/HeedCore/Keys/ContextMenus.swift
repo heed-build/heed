@@ -75,6 +75,8 @@ public enum MenuEntry: Equatable, Sendable {
     /// The thing the menu is about, greyed at the top.
     case header(String)
     case item(MenuItem)
+    /// A titled list of items that opens beside the menu ("Hand off to…").
+    case submenu(String, [MenuItem])
     case separator
 }
 
@@ -96,6 +98,8 @@ public enum ContextMenus {
         public var pinned = false
         public var parked = false
         public var hasPrompt = false
+        /// The agents it can be handed to (`agent.switch`): every configured one but its own.
+        public var handoffAgents: [String] = []
 
         public init(id: String, title: String) {
             self.id = id
@@ -155,6 +159,7 @@ public enum ContextMenus {
             item(facts.parked ? "Unpark" : "Park", "session.park"),
             facts.hasPrompt ? item("Start again from its prompt", "work.again") : nil,
         ])
+        menu.submenu("Hand off to…", handoffItems(facts.handoffAgents, target: target))
         menu.section([
             item("Close, keep worktree", "session.close"),
             item("Delete with worktrees…", "session.delete"),
@@ -366,8 +371,11 @@ public enum ContextMenus {
         return menu.entries
     }
 
-    /// A tab of the session. A run's tab can stop its run.
-    public static func tab(id: String, title: String, zoomed: Bool, runLive: Bool) -> [MenuEntry] {
+    /// A tab of the session. A run's tab can stop its run; the agent's tab can hand the session to another agent
+    /// (`handoffAgents`, empty for every other tab).
+    public static func tab(
+        id: String, title: String, zoomed: Bool, runLive: Bool, handoffAgents: [String] = []
+    ) -> [MenuEntry] {
         let target = CommandTarget.tab(id)
         func item(_ title: String, _ name: String, checked: Bool = false) -> MenuItem {
             MenuItem(title, CommandInvocation(name: name, target: target), checked: checked)
@@ -380,6 +388,7 @@ public enum ContextMenus {
             item("Zoom pane", "pane.zoom", checked: zoomed),
         ])
         if runLive { menu.section([item("Stop run", "pilot.run.stop")]) }
+        menu.submenu("Hand off to…", handoffItems(handoffAgents, target: target))
         menu.section([item("Close tab", "tab.close")])
         return menu.entries
     }
@@ -471,6 +480,11 @@ public enum ContextMenus {
         return items
     }
 
+    /// `agent.switch <name>` for each agent, acting on what the menu is about.
+    static func handoffItems(_ agents: [String], target: CommandTarget) -> [MenuItem] {
+        agents.map { MenuItem($0, CommandInvocation(name: "agent.switch", arguments: [$0], target: target)) }
+    }
+
     /// Sections with a separator between them; a section with nothing in it leaves no trace.
     struct Menu {
         var entries: [MenuEntry]
@@ -480,8 +494,20 @@ public enum ContextMenus {
         mutating func section(_ items: [MenuItem?]) {
             let kept = items.compactMap(\.self)
             guard !kept.isEmpty else { return }
-            if entries.contains(where: { if case .item = $0 { true } else { false } }) { entries.append(.separator) }
+            separate()
             entries += kept.map(MenuEntry.item)
+        }
+
+        /// A submenu as a section of its own; none when it would be empty.
+        mutating func submenu(_ title: String, _ items: [MenuItem]) {
+            guard !items.isEmpty else { return }
+            separate()
+            entries.append(.submenu(title, items))
+        }
+
+        /// A separator before the next section, unless nothing but the header is above it.
+        private mutating func separate() {
+            if entries.contains(where: { if case .header = $0 { false } else { true } }) { entries.append(.separator) }
         }
     }
 }

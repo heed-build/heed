@@ -9,7 +9,9 @@ public enum DefaultKeys {
         ("gg", "row.first"), ("G", "row.last"), ("/", "session.filter"),
         ("<C-d>", "row.halfpage.down"), ("<C-u>", "row.halfpage.up"), ("}", "group.next"), ("{", "group.prev"),
         ("h", "pane.left"), ("l", "pane.right"),
-        ("o", "work.start"), ("O", "work.again"), ("ga", "session.attention"), ("gZ", "summary"), (
+        ("o", "work.start"), ("O", "work.again"), ("gA", "agent.switch"), ("ga", "session.attention"),
+        ("gZ", "summary"),
+        (
             "zz",
             "session.park"
         ),

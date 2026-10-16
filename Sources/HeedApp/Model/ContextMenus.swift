@@ -15,6 +15,7 @@ extension AppModel {
         facts.pinned = session.pinned
         facts.parked = session.parked
         facts.hasPrompt = !session.prompt.isEmpty
+        facts.handoffAgents = handoffAgents(for: session)
         return ContextMenus.session(facts)
     }
 
@@ -102,9 +103,17 @@ extension AppModel {
     /// A tab of the current session.
     func tabMenu(_ id: String) -> [MenuEntry] {
         guard let tab = currentTabs.first(where: { $0.id == id }) else { return [] }
+        // Only the tab the agent runs in hands it off.
+        let holdsAgent = tab.tree.panes.contains { $0.role == .agent } && !liveRuns.values.contains { $0.tabID == id }
         return ContextMenus.tab(
-            id: id, title: tab.title, zoomed: tab.zoomed, runLive: liveRuns.values.contains { $0.tabID == id }
+            id: id, title: tab.title, zoomed: tab.zoomed, runLive: liveRuns.values.contains { $0.tabID == id },
+            handoffAgents: holdsAgent ? currentSession.map(handoffAgents) ?? [] : []
         )
+    }
+
+    /// The agents a session can be handed to: every configured one but its own.
+    private func handoffAgents(for session: Session) -> [String] {
+        Handoff.candidates(agents: settings.agents.map(\.name), current: session.agent)
     }
 
     /// The pilot as the commands see it for these PRs: watch and pause toggle on all of them, green and merge cycle

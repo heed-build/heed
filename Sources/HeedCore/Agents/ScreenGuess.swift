@@ -69,3 +69,39 @@ public enum ScreenGuess {
         }
     }
 }
+
+/// For agents whose turn-end hook does not always arrive (cursor): a turn that went quiet, with no hook and a screen
+/// that has not changed for `after`, is taken as over. A working agent's screen moves (its spinner, its output).
+public struct QuietTurn: Sendable {
+    /// A session's turn: a wrong guess is put right by the agent's next hook.
+    public static let after: TimeInterval = 20
+    /// A run's: ending one is final, so a long silent build should not look like the end.
+    public static let runAfter: TimeInterval = 60
+
+    /// The agents this applies to.
+    public static func applies(to agent: String) -> Bool { agent == "cursor" }
+
+    private var lastText: [String: String] = [:]
+    private var changedAt: [String: Date] = [:]
+
+    public init() {}
+
+    /// Records what a pane shows now; true when it has been still, and its hooks silent, for `after`.
+    public mutating func isQuiet(
+        pane: String, text: String, lastHook: Date?, now: Date, after: TimeInterval = QuietTurn.after
+    ) -> Bool {
+        if lastText[pane] != text {
+            lastText[pane] = text
+            changedAt[pane] = now
+            return false
+        }
+        let still = changedAt[pane].map { now.timeIntervalSince($0) >= after } ?? false
+        let silent = lastHook.map { now.timeIntervalSince($0) >= after } ?? true
+        return still && silent
+    }
+
+    public mutating func forget(pane: String) {
+        lastText[pane] = nil
+        changedAt[pane] = nil
+    }
+}

@@ -331,13 +331,41 @@ final class AppModel {
     /// The reason on screen guesses. Only these leave when the screen no longer shows them: a question the turn's last
     /// words asked stays until the agent moves on.
     private static let fromScreen = "from the screen"
+    /// Turns that went quiet without their end hook (cursor), and when each pane's hooks last spoke.
+    private var quietTurns = QuietTurn()
+    private var lastHookAt: [String: Date] = [:]
 
     private func readScreens() async {
         // Each live run's last line, for the sidebar and the PR card; set only when it changed.
+        let now = Date()
         for (id, live) in liveRuns {
-            let line = TerminalSurfaces.shared.visibleText(paneID: live.paneID).flatMap(Runs.lastLine)
+            let text = TerminalSurfaces.shared.visibleText(paneID: live.paneID)
+            let line = text.flatMap(Runs.lastLine)
             if runLastLines[id] != line { runLastLines[id] = line }
+            // A cursor run whose stop hook never came: done once it has worked and gone quiet.
+            if let text, live.worked, runStates[live.paneID] == .working,
+               let agent = runs.first(where: { $0.id == id })?.agent, QuietTurn.applies(to: agent),
+               quietTurns.isQuiet(
+                   pane: live.paneID, text: text, lastHook: lastHookAt[live.paneID], now: now, after: QuietTurn.runAfter
+               )
+            {
+                runStates[live.paneID] = .done
+                endRun(id)
+            }
         }
+        // A cursor session left working without its stop hook: done (guessed) once quiet.
+        var quiet: [DomainChange] = []
+        for session in sessions where QuietTurn.applies(to: session.agent) && session.state.state == .working {
+            guard let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout),
+                  let text = TerminalSurfaces.shared.visibleText(paneID: paneID),
+                  quietTurns.isQuiet(pane: paneID, text: text, lastHook: lastHookAt[paneID], now: now)
+            else { continue }
+            var updated = session
+            updated.state = ObservedState(.done, source: .guessed, reason: "quiet")
+            updated.activity = "done · quiet"
+            quiet.append(.sessionUpserted(updated))
+        }
+        commit(quiet)
         var work: [(String, String, ScreenGuess.Patterns, Set<AgentState>)] = []
         for session in sessions {
             guard let agent = settings.agent(session.agent) else { continue }
@@ -748,6 +776,7 @@ final class AppModel {
 
     /// One message from an agent's hook, applied to its session.
     func receive(_ message: HookMessage) {
+        if let pane = message.pane { lastHookAt[pane] = message.sentAt }
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
         // A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it;
         // asking or blocked shows the session in Needs you (through `sessionPilot`).
@@ -4265,6 +4294,10 @@ final class AppModel {
         } else {
             integration
         }
+        // Cursor reads hooks only from the worktree's .cursor/hooks.json, as for a session's worktree.
+        if agent.name == "cursor", record.location.isLocal, let heed = files?.heedBinary {
+            try? AgentIntegration.installCursorHooks(worktree: worktree, heed: heed)
+        }
         let agentSession = UUID().uuidString.lowercased()
         let command = agent.launchCommand(
             prompt: Runs.prompt(prompt, prBranch: prBranch, branch: branch),
@@ -4310,6 +4343,8 @@ final class AppModel {
     private func endRun(_ id: String, outcome forced: PilotRun.Outcome? = nil) {
         guard let live = liveRuns.removeValue(forKey: id) else { return }
         runLastLines[id] = nil
+        quietTurns.forget(pane: live.paneID)
+        lastHookAt[live.paneID] = nil
         let screen = TerminalSurfaces.shared.visibleText(paneID: live.paneID).map { text in
             text.split(separator: "\n", omittingEmptySubsequences: false).suffix(40).joined(separator: "\n")
         }

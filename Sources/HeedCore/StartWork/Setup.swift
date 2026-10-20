@@ -111,11 +111,30 @@ public enum WorktreeSetup {
         let script = steps.map { step in
             let failed = "heed: setup failed (\(step)); fix it, then \(next)"
             let tell = report ? #" "${HEED_BIN:-true}" task-exit "$c";"# : ""
-            return "printf '\\033[2mheed: setup: %s\\033[0m\\n' \(ShellQuote.quote(step)); "
+            let run = "printf '\\033[2mheed: setup: %s\\033[0m\\n' \(ShellQuote.quote(step)); "
                 + "{ \(step); } || { c=$?; printf '\\n%s\\n' \(ShellQuote.quote(failed));\(tell) exit \"$c\"; }"
+            guard let manifest = manifest(for: step) else { return run }
+            let skipped = "heed: setup: skipped \(step) (no \(manifest))"
+            return "if [ -f \(manifest) ]; then \(run); "
+                + "else printf '\\033[2m%s\\033[0m\\n' \(ShellQuote.quote(skipped)); fi"
         }.joined(separator: "; ")
         let setupLine = "sh -c " + ShellQuote.quote(script)
         return command.map { "\(setupLine) && \($0)" } ?? setupLine
+    }
+
+    /// The file a package manager's install needs in the worktree's root, so a repo without one (an org-wide `npm ci`
+    /// in a repo that has no `package.json`) skips the step instead of failing. Nil for any other command.
+    static func manifest(for step: String) -> String? {
+        let words = step.split(separator: " ")
+        guard words.count >= 2 else { return nil }
+        switch (words[0], words[1]) {
+        case ("npm", "ci"), ("npm", "install"), ("pnpm", "install"), ("yarn", "install"), ("bun", "install"):
+            return "package.json"
+        case ("uv", "sync"), ("poetry", "install"):
+            return "pyproject.toml"
+        default:
+            return nil
+        }
     }
 
     /// The reason a background run's setup failed, for its outcome.

@@ -98,6 +98,27 @@ struct SetupPaneCommandTests {
         #expect(!bad.stdout.contains("never"))
         #expect(!bad.stdout.split(separator: "\n").contains("agent"))
     }
+
+    /// An install whose manifest the worktree lacks is skipped, not failed: the next step and the command still run.
+    @Test func missingManifestSkipsTheInstall() async throws {
+        let dir = NSTemporaryDirectory() + "heed-setup-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+        let line = try #require(WorktreeSetup.paneCommand(setup: ["npm ci", "echo after"], then: "echo agent"))
+        let result = try await ProcessRunner.run("/bin/sh", ["-c", "cd '\(dir)' && \(line)"])
+        #expect(result.succeeded)
+        #expect(result.stdout.contains("heed: setup: skipped npm ci (no package.json)"))
+        #expect(result.stdout.contains("after\n"))
+        #expect(result.stdout.hasSuffix("agent\n"))
+        #expect(!result.stdout.contains("setup failed"))
+    }
+
+    @Test func manifestsPerPackageManager() {
+        #expect(WorktreeSetup.manifest(for: "pnpm install") == "package.json")
+        #expect(WorktreeSetup.manifest(for: "uv sync") == "pyproject.toml")
+        #expect(WorktreeSetup.manifest(for: "mise install") == nil)
+        #expect(WorktreeSetup.manifest(for: "npm") == nil)
+    }
 }
 
 struct WorktreeIncludeTests {

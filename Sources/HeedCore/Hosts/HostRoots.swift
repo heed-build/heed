@@ -62,8 +62,14 @@ public enum ProjectFolders {
 
     /// Looks on `host`; nil when it did not answer.
     public static func find(on host: String) async -> [ProjectFolder]? {
-        guard let result = try? await ProcessRunner.run(on: .host(host), "sh", ["-c", script], timeout: .seconds(20)),
-              result.succeeded
+        guard let result = try? await ProcessRunner.run(
+            on: .host(host),
+            "sh",
+            ["-c", script],
+            timeout: .seconds(20),
+            caller: "hosts.roots"
+        ),
+            result.succeeded
         else { return nil }
         return folders(fromOutput: result.stdout)
     }

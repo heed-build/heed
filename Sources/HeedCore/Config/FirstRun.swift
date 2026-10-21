@@ -37,7 +37,7 @@ public struct FirstRunReport: Equatable, Sendable {
         if let missing = tools.tool("gh"), missing.path == nil {
             problem = missing.problem
         } else {
-            do { login = try await GitHub.viewer() } catch { problem = "\(error)" }
+            do { login = try await GitHub.viewer(caller: "firstRun.check") } catch { problem = "\(error)" }
         }
         let found = agents.map { agent in
             let command = agent.command.split(separator: " ").first.map(String.init) ?? agent.command

@@ -505,7 +505,7 @@ final class AppModel {
         do {
             let state = try await GitHub.sync(
                 parts: parts, tracked: tracked, previous: previous, issueRules: config.issues,
-                localRepos: repos.map(\.repo)
+                localRepos: repos.map(\.repo), caller: "github.sync"
             )
             syncSchedule.fetched(parts, at: Date())
             commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
@@ -3599,7 +3599,7 @@ final class AppModel {
         guard !isFixture else { return }
         Task {
             for id in ids {
-                try? await GitHub.markRead(threadID: id)
+                try? await GitHub.markRead(threadID: id, caller: "inbox.markRead")
             }
         }
     }
@@ -3802,7 +3802,8 @@ final class AppModel {
         let wanted = Set(sessions.flatMap(issues(of:))).filter { ref in
             now.timeIntervalSince(issueInfoFetchedAt[ref] ?? .distantPast) > 600
         }.union(force)
-        guard !wanted.isEmpty, let fetched = try? await GitHub.issueInfo(Array(wanted)) else { return }
+        guard !wanted.isEmpty,
+              let fetched = try? await GitHub.issueInfo(Array(wanted), caller: "issues.info") else { return }
         for ref in wanted {
             issueInfoFetchedAt[ref] = now
         }
@@ -4032,7 +4033,7 @@ final class AppModel {
     func fetchDetail(_ ref: PullRef) {
         guard !isFixture else { return }
         Task {
-            guard let detail = try? await GitHub.pullDetail(ref) else { return }
+            guard let detail = try? await GitHub.pullDetail(ref, caller: "pr.detail") else { return }
             let wasOpen = pullDetails[ref.description].map { $0.state != "MERGED" } ?? false
             let before = feedback[ref.description]?.items.filter { $0.status != .resolved }.map(\.id) ?? []
             // The pipeline carries what the settings say before the fetch merges in, so new items arrive as the
@@ -4083,7 +4084,7 @@ final class AppModel {
         Task {
             var saved: [String: String] = [:]
             for item in wanted {
-                guard let log = try? await GitHub.failedLog(repo: ref.repo, job: item.job),
+                guard let log = try? await GitHub.failedLog(repo: ref.repo, job: item.job, caller: "pilot.failedLog"),
                       !log.isEmpty else { continue }
                 let name = "\(ref.repo.org)-\(ref.repo.name)-\(ref.number)-\(item.check)"
                     .replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: " ", with: "-")
@@ -4914,7 +4915,7 @@ final class AppModel {
             return known
         }
         copilotAskedRepos[repo.slug] = Clock.now
-        let available = await (try? GitHub.copilotAvailable(repo)) ?? false
+        let available = await (try? GitHub.copilotAvailable(repo, caller: "copilot.check")) ?? false
         copilotRepos[repo.slug] = available
         return available
     }
@@ -4943,7 +4944,11 @@ final class AppModel {
             guard !items.isEmpty else { continue }
             if !isFixture {
                 do {
-                    try await GitHub.comment(ref, body: CopilotAsk.comment(base: detail.baseBranch, items: items))
+                    try await GitHub.comment(
+                        ref,
+                        body: CopilotAsk.comment(base: detail.baseBranch, items: items),
+                        caller: "copilot.ask"
+                    )
                 } catch {
                     problem = "could not ask Copilot on #\(ref.number): \(error)"
                     continue
@@ -4988,7 +4993,7 @@ final class AppModel {
             var failure: String?
             if !isFixture {
                 do {
-                    try await GitHub.requestReviews(ref, from: wanted)
+                    try await GitHub.requestReviews(ref, from: wanted, caller: "pr.requestReviews")
                 } catch {
                     failure = "\(error)"
                 }
@@ -5068,7 +5073,7 @@ final class AppModel {
             guard !enabled.isEmpty, !isFixture else { return }
             Task {
                 for ref in enabled {
-                    if await (try? GitHub.disableAutoMerge(ref)) != nil {
+                    if await (try? GitHub.disableAutoMerge(ref, caller: "pilot.merge")) != nil {
                         logPilot(ref, .autoMerge, "auto-merge off (merge turned off)")
                     }
                     fetchDetail(ref)
@@ -5144,7 +5149,7 @@ final class AppModel {
             defer { mergeRunning.remove(repo) }
             var details: [PullRef: PullDetail] = [:]
             for ref in refs {
-                if !isFixture, let detail = try? await GitHub.pullDetail(ref) {
+                if !isFixture, let detail = try? await GitHub.pullDetail(ref, caller: "mergeQueue.run") {
                     commit(.pullDetailFetched(detail))
                     details[ref] = detail
                 } else if let detail = pullDetails[ref.description] {
@@ -5168,7 +5173,8 @@ final class AppModel {
                 switch step.action {
                 case let .enableAutoMerge(method):
                     do {
-                        if !isFixture { try await GitHub.enableAutoMerge(ref, method: method) }
+                        if !isFixture { try await GitHub.enableAutoMerge(ref, method: method, caller: "mergeQueue.run")
+                        }
                         record(
                             ref,
                             .autoMerge,
@@ -5180,14 +5186,14 @@ final class AppModel {
                     }
                 case let .disableAutoMerge(reason):
                     do {
-                        if !isFixture { try await GitHub.disableAutoMerge(ref) }
+                        if !isFixture { try await GitHub.disableAutoMerge(ref, caller: "mergeQueue.run") }
                         record(ref, .autoMerge, "auto-merge off", reason)
                     } catch {
                         record(ref, .held, "could not turn auto-merge off", "\(error)", ok: false)
                     }
                 case .updateBranch:
                     do {
-                        if !isFixture { try await GitHub.updateBranch(ref) }
+                        if !isFixture { try await GitHub.updateBranch(ref, caller: "mergeQueue.run") }
                         record(
                             ref,
                             .updated,
@@ -5240,18 +5246,18 @@ final class AppModel {
         if isFixture { return record(ref, .merged, "merged", "\(method) (fixture: nothing merged)", true) }
         var used = method
         do {
-            try await GitHub.merge(ref, method: method, head: detail.headSHA)
+            try await GitHub.merge(ref, method: method, head: detail.headSHA, caller: "heedMerge")
         } catch {
             guard admin else { return record(ref, .held, "merge refused", "\(error)", false) }
             do {
-                try await GitHub.merge(ref, method: method, head: detail.headSHA, admin: true)
+                try await GitHub.merge(ref, method: method, head: detail.headSHA, admin: true, caller: "heedMerge")
                 used = "\(method), --admin"
             } catch {
                 return record(ref, .held, "merge refused, even with --admin", "\(error)", false)
             }
         }
         record(ref, .merged, "merged", "\(used): every merge rule held", true)
-        try? await GitHub.comment(ref, body: HeedMerge.comment(verdict, method: used))
+        try? await GitHub.comment(ref, body: HeedMerge.comment(verdict, method: used), caller: "heedMerge")
     }
 
     /// The `self_review` command's verdict on the PR's diff at its head commit, kept on the pipeline.
@@ -5264,7 +5270,7 @@ final class AppModel {
             review = SelfReview(sha: detail.headSHA, approved: true, summary: "approved", at: Clock.now)
         } else {
             do {
-                let diff = try await GitHub.diff(ref)
+                let diff = try await GitHub.diff(ref, caller: "pilot.selfReview")
                 let output = try await SelfReview.run(command, prompt: SelfReview.prompt(
                     detail, diff: diff, instructions: pilotSettings(for: ref).reviewInstructions
                 ))

@@ -266,7 +266,13 @@ public enum HostProbe {
         let start = clock.now
         let result: ProcessResult
         do {
-            result = try await ProcessRunner.run(on: .host(host), "sh", ["-c", script], timeout: .seconds(15))
+            result = try await ProcessRunner.run(
+                on: .host(host),
+                "sh",
+                ["-c", script],
+                timeout: .seconds(15),
+                caller: "hosts.check"
+            )
         } catch {
             // Tailscale SSH's check mode prints where to confirm and waits, so the call times out.
             if let url = (error as? ProcessError)?.result.flatMap({ checkAuthURL(in: $0.stderr) }) {
@@ -299,7 +305,7 @@ public enum RemoteScan {
     public static func scan(_ host: HostConfig) async -> [RepoRecord] {
         let location = Location.host(host.name)
         let output = await (try? ProcessRunner.run(
-            on: location, "find", findArguments(roots: host.repoRoots), timeout: .seconds(30)
+            on: location, "find", findArguments(roots: host.repoRoots), timeout: .seconds(30), caller: "hosts.scan"
         ))?.stdout ?? ""
         var records: [RepoRecord] = []
         for path in checkouts(fromFind: output) {

@@ -73,14 +73,14 @@ struct DiffParserTests {
         defer { try? FileManager.default.removeItem(atPath: path) }
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
         for args in [["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"]] {
-            _ = try await ProcessRunner.output("git", ["-C", path] + args)
+            _ = try await ProcessRunner.output("git", ["-C", path] + args, caller: "test")
         }
         try "one\n".write(toFile: path + "/a.txt", atomically: true, encoding: .utf8)
-        _ = try await ProcessRunner.output("git", ["-C", path, "add", "."])
-        _ = try await ProcessRunner.output("git", ["-C", path, "commit", "-qm", "base"])
-        _ = try await ProcessRunner.output("git", ["-C", path, "checkout", "-qb", "feature"])
+        _ = try await ProcessRunner.output("git", ["-C", path, "add", "."], caller: "test")
+        _ = try await ProcessRunner.output("git", ["-C", path, "commit", "-qm", "base"], caller: "test")
+        _ = try await ProcessRunner.output("git", ["-C", path, "checkout", "-qb", "feature"], caller: "test")
         try "one\ntwo\n".write(toFile: path + "/a.txt", atomically: true, encoding: .utf8)
-        _ = try await ProcessRunner.output("git", ["-C", path, "commit", "-qam", "add two"])
+        _ = try await ProcessRunner.output("git", ["-C", path, "commit", "-qam", "add two"], caller: "test")
         try "one\ntwo\nthree\n".write(toFile: path + "/a.txt", atomically: true, encoding: .utf8)
 
         let committed = try await Git.diff(at: path, scope: .committed, base: "main", repo: nil)

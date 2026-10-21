@@ -75,7 +75,7 @@ struct HostRootsTests {
         defer { try? FileManager.default.removeItem(at: home) }
         let result = try await ProcessRunner.run(
             "/bin/sh", ["-c", ProjectFolders.script], environment: ["HOME": home.path, "PATH": "/usr/bin:/bin"],
-            timeout: .seconds(20)
+            timeout: .seconds(20), caller: "test"
         )
         #expect(result.succeeded)
         #expect(ProjectFolders.folders(fromOutput: result.stdout) == expected)
@@ -91,7 +91,7 @@ struct HostRootsTests {
         let line = Remote.shellLine(["sh", "-c", ProjectFolders.script])
         let result = try await ProcessRunner.run(
             fish, ["--no-config", "-c", line], environment: ["HOME": home.path, "PATH": "/usr/bin:/bin"],
-            timeout: .seconds(20)
+            timeout: .seconds(20), caller: "test"
         )
         #expect(result.succeeded)
         #expect(ProjectFolders.folders(fromOutput: result.stdout) == expected)

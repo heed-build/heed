@@ -123,7 +123,7 @@ struct HistoryTests {
             ["commit", "-q", "--allow-empty", "-m", "first"],
             ["branch", "feature"],
         ] {
-            _ = try await ProcessRunner.output("git", ["-C", repoPath] + args)
+            _ = try await ProcessRunner.output("git", ["-C", repoPath] + args, caller: "test")
         }
         let record = try #require(await Git.record(at: repoPath))
         var settings = WorkSettings.default

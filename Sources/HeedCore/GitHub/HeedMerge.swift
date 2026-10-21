@@ -150,7 +150,7 @@ public struct SelfReview: Hashable, Sendable, Codable {
         let path = await ToolLocator.shared.executable(tool).pathVariable
         let result = try await ProcessRunner.run(
             "/bin/sh", ["-c", "\(command) < \(ShellQuote.quote(file.path))"], environment: ["PATH": path],
-            timeout: .seconds(600)
+            timeout: .seconds(600), caller: "merge.command"
         )
         guard result.succeeded else {
             throw ProcessError(command: command, result: result, reason: "exit \(result.status)")

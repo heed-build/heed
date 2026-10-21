@@ -10,7 +10,7 @@ public enum Git {
         let url = try? await ProcessRunner.output(
             on: location, "git",
             ["-C", path, "remote", "get-url", "origin"],
-            timeout: .seconds(5)
+            timeout: .seconds(5), caller: "git.repo"
         )
         return url.flatMap { parseRemote($0) } ?? Repo(org: "local", name: URL(fileURLWithPath: path).lastPathComponent)
     }
@@ -19,7 +19,7 @@ public enum Git {
     public static func defaultBranch(at path: String, on location: Location = .local) async -> String {
         let ref = try? await ProcessRunner.output(
             on: location, "git", ["-C", path, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
-            timeout: .seconds(5)
+            timeout: .seconds(5), caller: "git.defaultBranch"
         )
         let name = ref?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return name.isEmpty ? "main" : String(name.split(separator: "/", maxSplits: 1).last ?? "main")
@@ -28,7 +28,8 @@ public enum Git {
     /// A record for the checkout at `path`, or nil when it is not a git repository's main checkout.
     public static func record(at path: String, on location: Location = .local) async -> RepoRecord? {
         guard let top = try? await ProcessRunner.output(
-            on: location, "git", ["-C", path, "rev-parse", "--show-toplevel"], timeout: .seconds(5)
+            on: location, "git", ["-C", path, "rev-parse", "--show-toplevel"], timeout: .seconds(5),
+            caller: "git.record"
         ) else { return nil }
         let root = top.trimmingCharacters(in: .whitespacesAndNewlines)
         async let repo = repo(at: root, on: location)
@@ -40,9 +41,10 @@ public enum Git {
     /// checkout through the shared git dir). Nil when the path is not inside a git worktree.
     public static func locate(_ path: String) async -> (record: RepoRecord, worktree: Worktree, all: [Worktree])? {
         guard let top = try? await ProcessRunner.output(
-            "git", ["-C", path, "rev-parse", "--show-toplevel"], timeout: .seconds(5)
+            "git", ["-C", path, "rev-parse", "--show-toplevel"], timeout: .seconds(5), caller: "git.locate"
         ), let common = try? await ProcessRunner.output(
-            "git", ["-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"], timeout: .seconds(5)
+            "git", ["-C", path, "rev-parse", "--path-format=absolute", "--git-common-dir"], timeout: .seconds(5),
+            caller: "git.locate"
         ) else { return nil }
         let root = URL(fileURLWithPath: top.trimmingCharacters(in: .whitespacesAndNewlines)).standardizedFileURL.path
         let shared = URL(fileURLWithPath: common.trimmingCharacters(in: .whitespacesAndNewlines)).standardizedFileURL
@@ -58,7 +60,7 @@ public enum Git {
 
     public static func worktrees(of record: RepoRecord) async throws -> [Worktree] {
         let output = try await ProcessRunner.output(
-            on: record.location, "git", ["-C", record.path, "worktree", "list", "--porcelain"]
+            on: record.location, "git", ["-C", record.path, "worktree", "list", "--porcelain"], caller: "git.worktrees"
         )
         return parseWorktrees(output, repo: record.repo).map { worktree in
             var worktree = worktree
@@ -69,7 +71,8 @@ public enum Git {
 
     public static func status(at path: String, on location: Location = .local) async throws -> WorktreeStatus {
         let output = try await ProcessRunner.output(
-            on: location, "git", ["-C", path, "status", "--porcelain=v2", "--branch"], timeout: .seconds(10)
+            on: location, "git", ["-C", path, "status", "--porcelain=v2", "--branch"], timeout: .seconds(10),
+            caller: "git.status"
         )
         return parseStatus(output)
     }
@@ -86,25 +89,36 @@ public enum Git {
             on: location,
             "git",
             ["-C", record.path, "fetch", "origin", base],
-            timeout: .seconds(30)
+            timeout: .seconds(30), caller: "git.addWorktree"
         )
         let hasRemote = await (try? ProcessRunner.run(
             on: location, "git", ["-C", record.path, "rev-parse", "--verify", "--quiet", "origin/\(base)"],
-            timeout: .seconds(5)
+            timeout: .seconds(5), caller: "git.addWorktree"
         ))?.succeeded ?? false
         let parent = (path as NSString).deletingLastPathComponent
         if location.isLocal {
             try FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
         } else {
-            _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", parent])
+            _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", parent], caller: "git.addWorktree")
         }
         _ = try await ProcessRunner.output(
             on: location, "git",
-            ["-C", record.path, "worktree", "add", "-b", branch, path, hasRemote ? "origin/\(base)" : base]
+            ["-C", record.path, "worktree", "add", "-b", branch, path, hasRemote ? "origin/\(base)" : base],
+            caller: "git.addWorktree"
         )
         // On a host `path` may start with ~: keep the worktree's real path.
-        let top = try await ProcessRunner.output(on: location, "git", ["-C", path, "rev-parse", "--show-toplevel"])
-        let head = try await ProcessRunner.output(on: location, "git", ["-C", path, "rev-parse", "--short", "HEAD"])
+        let top = try await ProcessRunner.output(
+            on: location,
+            "git",
+            ["-C", path, "rev-parse", "--show-toplevel"],
+            caller: "git.addWorktree"
+        )
+        let head = try await ProcessRunner.output(
+            on: location,
+            "git",
+            ["-C", path, "rev-parse", "--short", "HEAD"],
+            caller: "git.addWorktree"
+        )
         return Worktree(
             repo: record.repo, path: top.trimmingCharacters(in: .whitespacesAndNewlines), branch: branch,
             head: head.trimmingCharacters(in: .whitespacesAndNewlines), isMain: false, status: WorktreeStatus(),
@@ -120,30 +134,37 @@ public enum Git {
     ) async throws -> String {
         let location = record.location
         _ = try? await ProcessRunner.run(
-            on: location, "git", ["-C", record.path, "fetch", "origin", branch], timeout: .seconds(30)
+            on: location, "git", ["-C", record.path, "fetch", "origin", branch], timeout: .seconds(30),
+            caller: "git.addRunWorktree"
         )
         let hasRemote = await (try? ProcessRunner.run(
             on: location, "git", ["-C", record.path, "rev-parse", "--verify", "--quiet", "origin/\(branch)"],
-            timeout: .seconds(5)
+            timeout: .seconds(5), caller: "git.addRunWorktree"
         ))?.succeeded ?? false
         let parent = (path as NSString).deletingLastPathComponent
         if location.isLocal {
             try FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
         } else {
-            _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", parent])
+            _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", parent], caller: "git.addRunWorktree")
         }
         _ = try await ProcessRunner.output(
             on: location, "git",
             // -B: a branch left behind by an earlier helper starts over.
-            ["-C", record.path, "worktree", "add", "-B", runBranch, path, hasRemote ? "origin/\(branch)" : branch]
+            ["-C", record.path, "worktree", "add", "-B", runBranch, path, hasRemote ? "origin/\(branch)" : branch],
+            caller: "git.addRunWorktree"
         )
         if hasRemote {
             _ = try? await ProcessRunner.run(
                 on: location, "git", ["-C", path, "branch", "--set-upstream-to", "origin/\(branch)"],
-                timeout: .seconds(5)
+                timeout: .seconds(5), caller: "git.addRunWorktree"
             )
         }
-        let top = try await ProcessRunner.output(on: location, "git", ["-C", path, "rev-parse", "--show-toplevel"])
+        let top = try await ProcessRunner.output(
+            on: location,
+            "git",
+            ["-C", path, "rev-parse", "--show-toplevel"],
+            caller: "git.addRunWorktree"
+        )
         return top.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -151,11 +172,12 @@ public enum Git {
     public static func removeWorktree(_ record: RepoRecord, path: String, branch: String? = nil) async {
         _ = try? await ProcessRunner.run(
             on: record.location, "git", ["-C", record.path, "worktree", "remove", "--force", path],
-            timeout: .seconds(30)
+            timeout: .seconds(30), caller: "git.removeWorktree"
         )
         if let branch {
             _ = try? await ProcessRunner.run(
-                on: record.location, "git", ["-C", record.path, "branch", "-D", branch], timeout: .seconds(10)
+                on: record.location, "git", ["-C", record.path, "branch", "-D", branch], timeout: .seconds(10),
+                caller: "git.removeWorktree"
             )
         }
     }
@@ -163,10 +185,12 @@ public enum Git {
     /// The remote's commit for `branch`, fetched fresh; nil when it has none.
     public static func remoteSHA(_ record: RepoRecord, branch: String) async -> String? {
         _ = try? await ProcessRunner.run(
-            on: record.location, "git", ["-C", record.path, "fetch", "origin", branch], timeout: .seconds(30)
+            on: record.location, "git", ["-C", record.path, "fetch", "origin", branch], timeout: .seconds(30),
+            caller: "git.remoteSHA"
         )
         let sha = try? await ProcessRunner.output(
-            on: record.location, "git", ["-C", record.path, "rev-parse", "--verify", "--quiet", "origin/\(branch)"]
+            on: record.location, "git", ["-C", record.path, "rev-parse", "--verify", "--quiet", "origin/\(branch)"],
+            caller: "git.remoteSHA"
         )
         return sha?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
     }
@@ -174,7 +198,8 @@ public enum Git {
     /// Commits in `to` that are not in `from`.
     public static func commitCount(_ record: RepoRecord, from: String, to: String) async -> Int {
         let text = try? await ProcessRunner.output(
-            on: record.location, "git", ["-C", record.path, "rev-list", "--count", "\(from)..\(to)"]
+            on: record.location, "git", ["-C", record.path, "rev-list", "--count", "\(from)..\(to)"],
+            caller: "git.commitCount"
         )
         return Int(text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? 0
     }
@@ -183,10 +208,12 @@ public enum Git {
     public static func runBranches(_ record: RepoRecord) async -> [(branch: String, worktree: String?)] {
         let refs = await (try? ProcessRunner.output(
             on: record.location, "git",
-            ["-C", record.path, "for-each-ref", "--format=%(refname:short)", "refs/heads/heed/"]
+            ["-C", record.path, "for-each-ref", "--format=%(refname:short)", "refs/heads/heed/"],
+            caller: "git.runBranches"
         )) ?? ""
         let porcelain = await (try? ProcessRunner.output(
-            on: record.location, "git", ["-C", record.path, "worktree", "list", "--porcelain"]
+            on: record.location, "git", ["-C", record.path, "worktree", "list", "--porcelain"],
+            caller: "git.runBranches"
         )) ?? ""
         var checkedOut: [String: String] = [:]
         var path: String?
@@ -205,9 +232,16 @@ public enum Git {
         guard let status = try? await self.status(at: path, on: location),
               status.changedFiles == 0, status.untrackedFiles == 0, status.ahead == 0
         else { return false }
-        _ = try? await ProcessRunner.run(on: location, "git", ["-C", path, "fetch"], timeout: .seconds(30))
+        _ = try? await ProcessRunner.run(
+            on: location,
+            "git",
+            ["-C", path, "fetch"],
+            timeout: .seconds(30),
+            caller: "git.fastForward"
+        )
         let result = try? await ProcessRunner.run(
-            on: location, "git", ["-C", path, "merge", "--ff-only", "@{u}"], timeout: .seconds(30)
+            on: location, "git", ["-C", path, "merge", "--ff-only", "@{u}"], timeout: .seconds(30),
+            caller: "git.fastForward"
         )
         return result?.succeeded ?? false
     }
@@ -217,8 +251,16 @@ public enum Git {
         try FileManager.default.createDirectory(
             atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true
         )
-        _ = try await ProcessRunner.output("git", ["-C", record.path, "worktree", "add", path, branch])
-        let head = try await ProcessRunner.output("git", ["-C", path, "rev-parse", "--short", "HEAD"])
+        _ = try await ProcessRunner.output(
+            "git",
+            ["-C", record.path, "worktree", "add", path, branch],
+            caller: "git.restoreWorktree"
+        )
+        let head = try await ProcessRunner.output(
+            "git",
+            ["-C", path, "rev-parse", "--short", "HEAD"],
+            caller: "git.restoreWorktree"
+        )
         return Worktree(
             repo: record.repo, path: path, branch: branch, head: head.trimmingCharacters(in: .whitespacesAndNewlines),
             isMain: false, status: WorktreeStatus()

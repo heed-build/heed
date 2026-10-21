@@ -88,7 +88,7 @@ struct SetupPaneCommandTests {
     /// The line runs in a real shell: a passing setup starts the command, a failing one says so and stops there.
     @Test func failureStopsAndSaysHow() async throws {
         let passing = try #require(paneLine(["true", "echo set"], then: "echo agent"))
-        let ok = try await ProcessRunner.run("/bin/sh", ["-c", passing])
+        let ok = try await ProcessRunner.run("/bin/sh", ["-c", passing], caller: "test")
         #expect(ok.succeeded)
         #expect(ok.stdout.contains("set\n"))
         #expect(ok.stdout.hasSuffix("agent\n"))
@@ -96,7 +96,7 @@ struct SetupPaneCommandTests {
             ["sh -c 'exit 3'", "echo never"],
             then: "echo agent"
         ))
-        let bad = try await ProcessRunner.run("/bin/sh", ["-c", failing])
+        let bad = try await ProcessRunner.run("/bin/sh", ["-c", failing], caller: "test")
         #expect(bad.status == 3)
         #expect(bad.stdout
             .contains("heed: setup failed (sh -c 'exit 3'); fix it, then start the agent with:\n  echo agent"))
@@ -110,7 +110,7 @@ struct SetupPaneCommandTests {
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
         let line = try #require(paneLine(["npm ci", "echo after"], then: "echo agent"))
-        let result = try await ProcessRunner.run("/bin/sh", ["-c", "cd '\(dir)' && \(line)"])
+        let result = try await ProcessRunner.run("/bin/sh", ["-c", "cd '\(dir)' && \(line)"], caller: "test")
         #expect(result.succeeded)
         #expect(result.stdout.contains("heed: setup: skipped npm ci (no package.json)"))
         #expect(result.stdout.contains("after\n"))

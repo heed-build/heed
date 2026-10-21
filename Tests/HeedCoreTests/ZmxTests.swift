@@ -47,7 +47,7 @@ struct ZmxTests {
         _ = try await ProcessRunner.run(
             zmx,
             ["run", Zmx.sessionName(pane: "t1"), "-d", "sleep", "60"],
-            environment: env
+            environment: env, caller: "test"
         )
         #expect(await Zmx.livePanes(zmx: zmx, socketDirectory: dir) == ["t1"])
         await Zmx.kill(panes: ["t1", "never-was"], zmx: zmx, socketDirectory: dir)

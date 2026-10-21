@@ -23,7 +23,7 @@ private func type(
     case let path where path.hasSuffix("bash"): ["--norc", "--noprofile", "-c", prelude + "\n" + line]
     default: ["-c", prelude + "\n" + line]
     }
-    return try await ProcessRunner.run(shell.path, arguments, environment: env, timeout: .seconds(20))
+    return try await ProcessRunner.run(shell.path, arguments, environment: env, timeout: .seconds(20), caller: "test")
 }
 
 /// A directory with `stubagent` (prints `bin`, `$STUB_ENV`, then each argument in brackets; with `--stdin` first, what

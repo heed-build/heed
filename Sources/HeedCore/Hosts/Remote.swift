@@ -75,23 +75,24 @@ public extension ProcessRunner {
     /// `run`, on this Mac or on a host over ssh. `input` is fed to the command's stdin (an upload).
     static func run(
         on location: Location, _ executable: String, _ arguments: [String], timeout: Duration = .seconds(30),
-        input: URL? = nil
+        input: URL? = nil, caller: String
     ) async throws -> ProcessResult {
         guard let host = location.hostName else {
-            return try await run(executable, arguments, timeout: timeout, input: input)
+            return try await run(executable, arguments, timeout: timeout, input: input, caller: caller)
         }
         try? FileManager.default.createDirectory(atPath: Remote.controlDirectory(), withIntermediateDirectories: true)
         return try await run(
             "ssh", Remote.sshArguments(host: host, command: [executable] + arguments), timeout: timeout + .seconds(10),
-            input: input
+            input: input, caller: caller
         )
     }
 
     /// `output`, on this Mac or on a host over ssh.
     static func output(
-        on location: Location, _ executable: String, _ arguments: [String], timeout: Duration = .seconds(30)
+        on location: Location, _ executable: String, _ arguments: [String], timeout: Duration = .seconds(30),
+        caller: String
     ) async throws -> String {
-        let result = try await run(on: location, executable, arguments, timeout: timeout)
+        let result = try await run(on: location, executable, arguments, timeout: timeout, caller: caller)
         guard result.succeeded else {
             throw ProcessError(
                 command: "\(location.label) \(executable) \(arguments.joined(separator: " "))", result: result,

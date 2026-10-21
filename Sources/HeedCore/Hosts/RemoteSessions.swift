@@ -103,7 +103,7 @@ public enum RemotePane {
                 "-c",
                 "ZMX_DIR=\"$HOME/.heed/zmx\" \(Remote.word(zmx)) list --short 2>/dev/null",
             ],
-            timeout: .seconds(10)
+            timeout: .seconds(10), caller: "hosts.zmx.list"
         ), result.succeeded else { return [] }
         return Zmx.livePanes(fromList: result.stdout)
     }
@@ -116,7 +116,7 @@ public enum RemotePane {
                 "-c",
                 "ZMX_DIR=\"$HOME/.heed/zmx\" \(Remote.word(zmx)) kill \(names) 2>/dev/null",
             ],
-            timeout: .seconds(10)
+            timeout: .seconds(10), caller: "hosts.zmx.kill"
         )
     }
 }
@@ -143,7 +143,7 @@ public extension HostSetup {
             defer { try? FileManager.default.removeItem(at: file) }
             let result = try await ProcessRunner.run(
                 on: location, "sh", ["-c", write(path, executable: path.hasSuffix("heed-hook"))], timeout: .seconds(30),
-                input: file
+                input: file, caller: "hosts.install"
             )
             guard result.succeeded else { throw Failure.step("writing \(path)", result.stderr) }
         }

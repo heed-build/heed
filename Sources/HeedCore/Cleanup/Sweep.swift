@@ -126,11 +126,15 @@ public enum Sweep {
             do {
                 _ = try await ProcessRunner.output(
                     "git",
-                    ["-C", record.path, "worktree", "remove", removal.worktree.path]
+                    ["-C", record.path, "worktree", "remove", removal.worktree.path], caller: "cleanup.sweep"
                 )
                 if removal.deleteBranch, let branch = removal.worktree.branch {
                     // Everything on it is pushed (checked by the plan), so -D only drops the local name.
-                    _ = try? await ProcessRunner.output("git", ["-C", record.path, "branch", "-D", branch])
+                    _ = try? await ProcessRunner.output(
+                        "git",
+                        ["-C", record.path, "branch", "-D", branch],
+                        caller: "cleanup.sweep"
+                    )
                 }
                 touchedRepos.append(record.repo)
             } catch {
@@ -164,7 +168,7 @@ public extension Git {
         guard let text = try? await ProcessRunner.output(
             on: location, "git",
             ["-C", path, "log", "-1", "--format=%ct"],
-            timeout: .seconds(5)
+            timeout: .seconds(5), caller: "cleanup.lastCommit"
         ),
             let seconds = TimeInterval(text.trimmingCharacters(in: .whitespacesAndNewlines))
         else { return nil }

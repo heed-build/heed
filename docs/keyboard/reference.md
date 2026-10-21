@@ -40,6 +40,7 @@ This page is generated from the code (`mise run shots`).
 | `summary` | `gZ` | while you were away: what still waits on you, and what merged, ran, finished and closed |
 | `work.again` | `O` | start work from this session's prompt |
 | `chat.new` `[prompt]` |  | start a chat: an agent in a scratch folder or one you pick, no repo or worktree |
+| `chat.promote` |  | turn this chat into work: pick a repo, heed makes a worktree and hands the agent the chat |
 | `agent.switch` `[agent]` | `gA` | hand the session to another agent: stop its agent, start that one on a handoff prompt |
 | `view.history` | `gh` | history |
 

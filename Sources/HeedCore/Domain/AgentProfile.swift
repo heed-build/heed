@@ -75,8 +75,9 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     }
 
     /// The command line that resumes session `id`, or nil when this agent cannot resume.
+    /// `prompt`, when given, goes last as the resumed session's next message (claude takes it as its query).
     public func resumeCommand(
-        id: String, extraArguments: [String] = [], environment: [String: String] = [:]
+        id: String, extraArguments: [String] = [], environment: [String: String] = [:], prompt: String? = nil
     ) -> ShellCommand? {
         guard let resumeArguments else { return nil }
         // `{id}` is quoted for the shell wherever it sits; the rest is typed as configured.
@@ -86,7 +87,7 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
             if !part.isEmpty { resume.append(.raw(part)) }
         }
         let words: [ShellCommand.Word] = [.raw(command)] + extraArguments.map(ShellCommand.Word.text)
-            + [ShellCommand.Word(resume)]
+            + [ShellCommand.Word(resume)] + (prompt.map { [ShellCommand.Word.text($0)] } ?? [])
         return ShellCommand(environment: Self.assignments(environment), words: words)
     }
 

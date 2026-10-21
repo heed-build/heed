@@ -495,10 +495,11 @@ public enum Fixtures {
         let scratch = "/Users/you/Library/Application Support/Heed/chats"
         func chat(
             _ id: String, _ title: String, prompt: String, agent: String, _ state: ObservedState, activity: String,
-            _ folder: ChatFolder, host: String? = nil, minutesAgo: Double
+            _ folder: ChatFolder, host: String? = nil, minutesAgo: Double, agentSessionID: String? = nil
         ) -> (Session, SessionLayout) {
             var session = Session(
-                id: id, title: title, prompt: prompt, repos: [], branch: "", agent: agent, state: state,
+                id: id, title: title, prompt: prompt, repos: [], branch: "", agent: agent,
+                agentSessionID: agentSessionID, state: state,
                 activity: activity, lastActivity: now.addingTimeInterval(-minutesAgo * 60), workspace: .chat(folder)
             )
             session.host = host
@@ -517,7 +518,8 @@ public enum Fixtures {
                 "c1", "Cron line for weekdays at nine", prompt: "What cron line runs a job at nine on weekdays?",
                 agent: "claude", ObservedState(.asking, reason: "which timezone?"),
                 activity: "asking · which timezone?",
-                ChatFolder(.scratch, path: "\(scratch)/2026-10-21-cron-line-runs-job"), minutesAgo: 2
+                ChatFolder(.scratch, path: "\(scratch)/2026-10-21-cron-line-runs-job"), minutesAgo: 2,
+                agentSessionID: "5d0e7a41-9c3b-4f62-8e17-2b6c9a0f4d38"
             ),
             chat(
                 "c2", "Explain git rebase --onto", prompt: "Explain git rebase --onto with a small example.",

@@ -181,6 +181,10 @@ public struct StartWorkPlan: Hashable, Sendable {
     public var integration: IntegrationFiles?
     /// A chat: no repos, a folder instead of worktrees.
     public var chat: ChatPlan?
+    /// A chat becoming this work (`chat.promote`): its conversation is handed to the new agent.
+    public var promotion: Promotion?
+    /// The repo's `start_instructions`, for a promotion's handoff prompt.
+    public var instructions = ""
 
     public init(
         prompt: String, repos: [RepoRecord], name: String, base: String? = nil, agent: AgentProfile?,
@@ -204,11 +208,21 @@ public struct StartWorkPlan: Hashable, Sendable {
     /// The line typed into the agent pane's shell (in its syntax), shown in sh syntax in the dialog.
     public var command: ShellCommand? {
         guard autostart, let agent else { return nil }
+        let env = integration.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
+        if let promotion, let id = promotion.resuming(with: agent) {
+            // Claude continues the chat's own session, told where it is now.
+            let hooks = integration.map {
+                AgentIntegration.launchArguments(agent: agent, sessionID: sessionID, files: $0, resuming: true)
+            } ?? []
+            let told = Handoff.promotionResumed(promotion, task: prompt, branch: name, instructions: instructions)
+            return agent.resumeCommand(id: id, extraArguments: hooks, environment: env, prompt: told)
+        }
         let extra = integration.map {
             AgentIntegration.launchArguments(agent: agent, sessionID: sessionID, files: $0)
         } ?? []
-        let env = integration.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
-        return agent.launchCommand(prompt: prompt, planFirst: planFirst, extraArguments: extra, environment: env)
+        let text = promotion.map { Handoff.promotion($0, task: prompt, branch: name, instructions: instructions) }
+            ?? prompt
+        return agent.launchCommand(prompt: text, planFirst: planFirst, extraArguments: extra, environment: env)
     }
 
     public var title: String {
@@ -410,10 +424,8 @@ public enum StartWork {
             id: plan.sessionID, title: plan.title, prompt: plan.prompt, repos: plan.repos.map(\.repo),
             branch: plan.name,
             agent: plan.agent?.name ?? "shell",
-            agentSessionID: plan.agent.flatMap { AgentIntegration.preassignedSessionID(
-                agent: $0,
-                sessionID: plan.sessionID
-            ) },
+            agentSessionID: plan.promotion?.resuming(with: plan.agent)
+                ?? plan.agent.flatMap { AgentIntegration.preassignedSessionID(agent: $0, sessionID: plan.sessionID) },
             state: ObservedState(.idle, source: .guessed),
             activity: plan.command == nil ? "shell" : "starting", lastActivity: now
         )
@@ -424,6 +436,13 @@ public enum StartWork {
         )
         let panes = built.tabs.flatMap(\.tree.panes).count
         session.record("started · \(plan.agent?.name ?? "shell") · \(panes) pane\(panes == 1 ? "" : "s")", at: now)
+        if let promotion = plan.promotion {
+            session.record(
+                "promoted from chat “\(promotion.chatTitle)”"
+                    + (promotion.resuming(with: plan.agent) != nil ? " · its conversation resumed" : ""),
+                at: now
+            )
+        }
         var changes: [DomainChange] = []
         for record in plan.repos {
             let listed = try await Git.worktrees(of: record)

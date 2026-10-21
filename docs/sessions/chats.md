@@ -52,6 +52,35 @@ chat with the same prompt.
 
 The inspector shows the chat's folder where a session shows its worktree.
 
+## Turning a chat into work
+
+When a chat turns into something worth a branch, `:promote` (the full command is `chat.promote`, also **Promote to
+work…** in the chat's right-click menu) opens Start work as **Promote chat**. The chat's first prompt is the task. Pick
+the repo and the agent as for any Start work: by default the agent is the chat's own, and it can be another.
+
+![Promoting a claude chat: claude resumes the conversation in the new worktree](../images/shots/sessions/chats-promote.png)
+
+Heed makes the worktree and the session as Start work does, then hands over the conversation:
+
+- **claude into claude**: the new session resumes the chat's own Claude Code session (`claude --resume <id>`), which
+  Claude finds from any folder. It is told that it is now in a worktree on a new branch, where the chat's folder was,
+  and what the task is.
+- **Any other agent**, or a claude chat whose transcript is gone: the agent starts on a handoff prompt with the task,
+  the path to the chat's transcript (for claude chats), what was asked in the chat, the files in the chat's folder, and
+  the repo's `start_instructions`.
+
+![Promoting to another agent: a handoff prompt](../images/shots/sessions/chats-promote-codex.png)
+
+The files in a scratch chat's folder are listed in the handoff and stay where they are. The option **Copy its files
+into the worktree** copies them, leaving any file the worktree already has. A folder you picked is listed, never
+copied.
+
+The chat then closes into History as **promoted**, its timeline naming the branch it became.
+
+![A promoted chat in History](../images/shots/sessions/chats-promoted.png)
+
+A chat on a host hands over only its prompt: its transcript and files are on the host.
+
 ## In History
 
 A closed chat goes to History, marked **chat** where other sessions show their repo. `R` reopens it in its folder. If

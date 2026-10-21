@@ -40,7 +40,8 @@ struct StartWorkView: View {
     private func dialog(_ form: StartWorkForm, promptCap: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(form.chat == nil ? "Start work" : "New chat").font(Theme.ui(15, weight: .semibold))
+                Text(form.promotion != nil ? "Promote chat" : form.chat == nil ? "Start work" : "New chat")
+                    .font(Theme.ui(15, weight: .semibold))
                 Spacer()
                 KeyCap(text: "⌘↩")
                 Text(model.startingWork ? "starting…" : "start").foregroundStyle(Theme.fg2)
@@ -50,6 +51,7 @@ struct StartWorkView: View {
             .font(Theme.ui(12))
             .padding(20)
 
+            if let promotion = form.promotion { promotionNote(promotion, form).padding(.horizontal, 20) }
             promptBox(form, cap: promptCap).padding(.horizontal, 20).padding(.bottom, 16)
             section("Repo", .repo, form) { repoField(form) }
             if form.chat != nil {
@@ -126,10 +128,12 @@ struct StartWorkView: View {
                     )
                     .opacity(0.85)
                 }
-                choice(
-                    "chat, no repo", selected: form.chat != nil,
-                    focused: form.field == .repo && form.repoCursor == form.chatChipIndex
-                )
+                if form.promotion == nil {
+                    choice(
+                        "chat, no repo", selected: form.chat != nil,
+                        focused: form.field == .repo && form.repoCursor == form.chatChipIndex
+                    )
+                }
             }
             if let search = form.repoSearch { repoSearch(search) }
             if form.chat != nil {
@@ -277,7 +281,41 @@ struct StartWorkView: View {
             )
             toggle("Plan first", form.planFirst, focused: form.field == .options && form.optionCursor == 1)
             toggle("Open shell split", form.shellSplit, focused: form.field == .options && form.optionCursor == 2)
+            if form.options.contains(.copyFiles), let promotion = form.promotion {
+                toggle(
+                    "Copy its \(promotion.files.count) file\(promotion.files.count == 1 ? "" : "s") into the worktree",
+                    promotion.copyFiles, focused: form.field == .options && form.optionCursor == 3
+                )
+            }
         }
+    }
+
+    /// What the new agent gets of the chat: its conversation resumed (claude to claude), or a handoff prompt.
+    private func promotionNote(_ promotion: Promotion, _ form: StartWorkForm) -> some View {
+        let resumed = promotion.resuming(with: form.agent) != nil
+        let parts = [
+            promotion.transcript.map { _ in "its transcript" },
+            "\(promotion.prompts.count) prompt\(promotion.prompts.count == 1 ? "" : "s")",
+            promotion.files
+                .isEmpty ? nil : "\(promotion.files.count) file\(promotion.files.count == 1 ? "" : "s") listed",
+        ].compactMap(\.self)
+        return HStack(alignment: .top, spacing: 8) {
+            ChatGlyph(size: 12).padding(.top, 1)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("From the chat “\(promotion.chatTitle)”").font(Theme.ui(12.5, weight: .medium))
+                Text(resumed
+                    ? "claude resumes the chat's conversation in the new worktree; the chat closes into History."
+                    : "\(form.agent?.name ?? "The agent") starts on a handoff prompt: "
+                    + parts.joined(separator: ", ") + ". The chat closes into History.")
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.pane))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+        .padding(.bottom, 12)
     }
 
     private func commandPreview(_ form: StartWorkForm) -> some View {

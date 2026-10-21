@@ -62,6 +62,10 @@ public enum Commands {
             arguments: "[prompt]"
         ),
         .init(
+            "chat.promote", "turn this chat into work: pick a repo, heed makes a worktree and hands the agent the chat",
+            .move
+        ),
+        .init(
             "agent.switch", "hand the session to another agent: stop its agent, start that one on a handoff prompt",
             .move,
             arguments: "[agent]"

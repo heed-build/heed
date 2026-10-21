@@ -17,6 +17,7 @@ public enum CommandAliases {
         Alias(name: "start", runs: "work.start", arguments: "[prompt]"),
         Alias(name: "agent", runs: "work.start --agent", arguments: "<name>"),
         Alias(name: "chat", runs: "chat.new", arguments: "[prompt]"),
+        Alias(name: "promote", runs: "chat.promote", arguments: nil),
         Alias(name: "pr", runs: "open.reader pr", arguments: "<number>"),
         Alias(name: "track", runs: "pr.track", arguments: "<url>"),
         Alias(name: "import", runs: "session.import", arguments: "<path>"),
@@ -36,6 +37,7 @@ public enum CommandAliases {
         case "start": return CommandInvocation(name: "work.start", arguments: args)
         case "agent": return CommandInvocation(name: "work.start", arguments: ["--agent"] + args)
         case "chat": return CommandInvocation(name: "chat.new", arguments: args)
+        case "promote": return CommandInvocation(name: "chat.promote")
         case "pr": return CommandInvocation(name: "open.reader", arguments: ["pr"] + args)
         case "track": return CommandInvocation(name: "pr.track", arguments: args)
         case "import": return CommandInvocation(name: "session.import", arguments: args)

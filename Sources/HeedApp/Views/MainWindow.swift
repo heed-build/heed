@@ -34,6 +34,8 @@ struct MainWindow: View {
                         PullRequestsView()
                     case .watch:
                         WatchView()
+                    case .log:
+                        CallLogView()
                     }
                 }
             }
@@ -225,7 +227,7 @@ struct TitleBar: View {
 
     private func viewTabs(compact: Bool) -> some View {
         HStack(spacing: 4) {
-            ForEach(Array(AppView.allCases.enumerated()), id: \.element) { index, view in
+            ForEach(Array(AppView.tabs.enumerated()), id: \.element) { index, view in
                 // A hairline between views: separate without boxing them in.
                 if index > 0 { Theme.line.frame(width: 1, height: 14) }
                 ViewTab(
@@ -353,6 +355,7 @@ struct StatusBar: View {
             return "\(count == 0 ? 0 : model.cursor(in: model.view) + 1)/\(count)"
         case .repos: return "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
         case .history: return "\(model.historyRows.isEmpty ? 0 : model.historyCursor + 1)/\(model.historyRows.count)"
+        case .log: return "\(model.callLog.rows.isEmpty ? 0 : model.callLog.cursor + 1)/\(model.callLog.rows.count)"
         case .sessions: return "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
         }
     }
@@ -397,6 +400,17 @@ struct StatusBar: View {
             "j k item · space queue · s send · \(model.keyText(for: "pilot.green")) green · h l PRs · gS session · ⎋ back"
         case .normal where model.view == .repos: "o start work here · v select · dd remove · r rescan · w issues · { } repo · / filter"
         case .normal where model.view == .history: "j k move · / filter · R reopen · O new from prompt · t outcome"
+        case .normal where model.view == .log:
+            [
+                ("log.kind", "kind"),
+                ("log.failed", "failed"),
+                ("log.slow", "slow"),
+                ("log.writes", "writes"),
+                ("log.caller", "caller"),
+                ("log.agent", "agent"),
+                ("log.copy", "copy"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "log")) \($0.1)" }.joined(separator: " · ") + " · / search"
         case .normal where model.view == .inbox: "↩ read · space pick · v range · s start session · a add · x mark read · t unread/all · / filter"
         case .normal where model.view == .issues: "↩ read · space pick · s start session · t filter · ⇥ repo · w all/yours · / filter"
         case .normal where model.view == .prs: "↩ open · \(pilotHints) · v select · gS session · r sync"

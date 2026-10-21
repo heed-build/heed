@@ -113,5 +113,6 @@ toc:
       - file: index.md
       - file: cli.md
       - file: files.md
+      - file: call-log.md
       - file: environment.md
   - file: troubleshooting.md

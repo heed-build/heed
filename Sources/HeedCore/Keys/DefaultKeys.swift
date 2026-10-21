@@ -82,6 +82,11 @@ public enum DefaultKeys {
             ("<CR>", "select.open"), ("S", "setup.review"),
         ],
         "history": [("R", "history.reopen"), ("O", "history.again"), ("t", "history.outcome")],
+        // The call log has no key of its own (:log); inside it, its filters.
+        "log": [
+            ("t", "log.kind"), ("x", "log.failed"), ("s", "log.slow"), ("w", "log.writes"), ("c", "log.caller"),
+            ("a", "log.agent"), ("y", "log.copy"),
+        ],
         "inbox": [
             ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "items.read"),
             ("t", "items.filter"), ("r", "github.sync"),

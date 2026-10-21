@@ -355,6 +355,32 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// A call in the call log: copy it, or narrow the log to its caller or agent (unnarrow when it already is).
+    public static func call(
+        id: Int64, title: String, caller: String, agent: String?, callerFiltered: Bool, agentFiltered: Bool
+    ) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "log", id: String(id))
+        var menu = Menu(header: title)
+        menu.section([
+            MenuItem("Copy command", CommandInvocation(name: "log.copy", target: target)),
+            MenuItem(
+                callerFiltered ? "Every caller" : "Only \(caller)", CommandInvocation(
+                    name: "log.caller",
+                    target: target
+                )
+            ),
+            agent.map { agent in
+                MenuItem(
+                    agentFiltered ? "Every agent" : "Only \(agent)", CommandInvocation(
+                        name: "log.agent",
+                        target: target
+                    )
+                )
+            },
+        ])
+        return menu.entries
+    }
+
     /// A session in History.
     public static func history(id: String, title: String, hasPrompt: Bool, onGitHub: Bool) -> [MenuEntry] {
         let target = CommandTarget.row(view: "history", id: id)

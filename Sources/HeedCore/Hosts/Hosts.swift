@@ -192,7 +192,8 @@ public enum HostProbe {
     echo "platform=$(uname -sm)"
     echo "home=$HOME"
     echo "git=$(git --version 2>/dev/null | awk '{print $3}')"
-    . /etc/os-release 2>/dev/null; echo "os=${ID:-}"
+    # Only where it exists: `.` on a missing file ends a POSIX sh, and macOS has none.
+    [ -r /etc/os-release ] && . /etc/os-release; echo "os=${ID:-}"
     z="$(command -v zmx 2>/dev/null)"
     for c in "$HOME/.local/bin/zmx" "$HOME/bin/zmx" "$HOME/.nix-profile/bin/zmx" /usr/local/bin/zmx /opt/homebrew/bin/zmx; do
       [ -n "$z" ] || { [ -x "$c" ] && z="$c"; }

@@ -34,6 +34,13 @@ public enum DomainEvents {
                 writes.append(.closed(entry))
             case let .historyRemoved(id):
                 writes.append(.reopened(id))
+            case let .historyUpdated(entry):
+                // The entry replaces its row; its new timeline lines (the sweep's note) are notes like any other.
+                let known = Set(previous.history.first { $0.id == entry.id }?.session.timeline ?? [])
+                events = entry.session.timeline.filter { !known.contains($0) }.map {
+                    LoggedEvent(at: $0.at, kind: .note, about: entry.session, text: $0.text)
+                }
+                writes.append(.closed(entry))
             case let .worktreesListed(repo, listed):
                 events = worktreeEvents(repo, before: previous.worktrees, listed: listed, now: now)
             case let .pullDetailFetched(detail):

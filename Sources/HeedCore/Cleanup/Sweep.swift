@@ -27,25 +27,52 @@ public struct SweepPlan: Equatable, Sendable {
         public let reason: String
     }
 
+    /// A closed chat's scratch folder, long enough closed to go.
+    public struct ChatRemoval: Equatable, Sendable {
+        /// The chat's History entry.
+        public let id: String
+        public let title: String
+        public let path: String
+        public let closedDays: Int
+
+        public init(id: String, title: String, path: String, closedDays: Int) {
+            self.id = id
+            self.title = title
+            self.path = path
+            self.closedDays = closedDays
+        }
+
+        /// The folder's name, as the sweep's list shows it.
+        public var name: String { (path as NSString).lastPathComponent }
+    }
+
     public var removals: [Removal]
     public var skips: [Skip]
+    /// Scratch folders of chats closed `Sweep.chatDays` or more ago.
+    public var chatRemovals: [ChatRemoval]
     /// The idle worktree closest to the threshold that is not due yet, and how many days until it is.
     public var next: (worktree: Worktree, days: Int)?
 
-    public init(removals: [Removal], skips: [Skip], next: (worktree: Worktree, days: Int)?) {
+    public init(
+        removals: [Removal], skips: [Skip], next: (worktree: Worktree, days: Int)?, chatRemovals: [ChatRemoval] = []
+    ) {
         self.removals = removals
         self.skips = skips
         self.next = next
+        self.chatRemovals = chatRemovals
     }
 
     public static func == (lhs: SweepPlan, rhs: SweepPlan) -> Bool {
         lhs.removals == rhs.removals && lhs.skips == rhs.skips && lhs.next?.worktree == rhs.next?.worktree
-            && lhs.next?.days == rhs.next?.days
+            && lhs.next?.days == rhs.next?.days && lhs.chatRemovals == rhs.chatRemovals
     }
 
+    /// Whether running it would remove anything.
+    public var isEmpty: Bool { removals.isEmpty && chatRemovals.isEmpty }
+
     public var summary: String {
-        if removals.isEmpty, skips.isEmpty, next == nil { return "Nothing to clean up." }
-        if removals.isEmpty, skips.isEmpty {
+        if removals.isEmpty, skips.isEmpty, chatRemovals.isEmpty, next == nil { return "Nothing to clean up." }
+        if removals.isEmpty, skips.isEmpty, chatRemovals.isEmpty {
             return next
                 .map {
                     "Nothing past the threshold. Closest: \($0.worktree.repo.name)/\($0.worktree.branch ?? "") in \($0.days)d."
@@ -54,16 +81,28 @@ public struct SweepPlan: Equatable, Sendable {
         }
         var parts: [String] = []
         if !removals.isEmpty { parts.append("removes \(removals.count) worktree\(removals.count == 1 ? "" : "s")") }
+        if !chatRemovals.isEmpty {
+            parts.append(
+                "\(removals.isEmpty ? "removes " : "")\(chatRemovals.count) chat scratch folder"
+                    + (chatRemovals.count == 1 ? "" : "s")
+            )
+        }
         if !skips.isEmpty { parts.append("skips \(skips.count) with unsaved work") }
         return "The sweep " + parts.joined(separator: ", ") + "."
     }
 }
 
 public enum Sweep {
+    /// A closed chat's scratch folder goes this many days after it closed.
+    public static let chatDays = 30
+
     /// Plans a sweep over every added worktree of every known repo; the same rules apply wherever a worktree lives.
-    /// Off unless `rule.enabled`. `lastCommit` gives each worktree's last commit date when known.
+    /// Off unless `rule.enabled`. `lastCommit` gives each worktree's last commit date when known. Closed chats'
+    /// scratch folders on this Mac go `chatDays` after they closed, never a pinned one's, never one outside the chats
+    /// root, and once only: the entry's timeline then ends with `chatRemovedNote`. No IO: the plan is drawn in Repos.
     public static func plan(
-        domain: Domain, rule: CleanupRule, lastCommit: [String: Date] = [:], now: Date = Date()
+        domain: Domain, rule: CleanupRule, lastCommit: [String: Date] = [:], now: Date = Date(),
+        chatsRoot: String = Chats.localRoot
     ) -> SweepPlan {
         guard rule.enabled else { return SweepPlan(removals: [], skips: [], next: nil) }
         var removals: [SweepPlan.Removal] = []
@@ -89,7 +128,46 @@ public enum Sweep {
                 deleteBranch: rule.deleteBranch && worktree.branch != nil
             ))
         }
-        return SweepPlan(removals: removals, skips: skips, next: next)
+        let chats = domain.history.compactMap { entry -> SweepPlan.ChatRemoval? in
+            let session = entry.session
+            guard let chat = session.chat, chat.kind == .scratch, session.location.isLocal, !session.pinned,
+                  Chats.isScratch(chat.path, root: chatsRoot), session.timeline.last?.text != chatRemovedNote
+            else { return nil }
+            let days = Int(now.timeIntervalSince(entry.closedAt) / 86400)
+            guard days >= chatDays else { return nil }
+            return SweepPlan.ChatRemoval(id: entry.id, title: session.title, path: chat.path, closedDays: days)
+        }
+        return SweepPlan(removals: removals, skips: skips, next: next, chatRemovals: chats)
+    }
+
+    /// What a closed chat's timeline ends with once the sweep removed its scratch folder.
+    public static let chatRemovedNote = "scratch folder removed by the cleanup sweep"
+
+    /// Removes closed chats' scratch folders, each checked again to be one directly under the chats root (one already
+    /// gone counts as removed), and notes it on each entry. File IO: call it off the main actor.
+    public static func removeChatFolders(
+        _ removals: [SweepPlan.ChatRemoval], domain: Domain, chatsRoot: String = Chats.localRoot, now: Date = Date()
+    ) -> (changes: [DomainChange], failures: [String]) {
+        var changes: [DomainChange] = []
+        var failures: [String] = []
+        for removal in removals {
+            guard Chats.isScratch(removal.path, root: chatsRoot) else {
+                failures.append("\(removal.path): not a scratch folder")
+                continue
+            }
+            if FileManager.default.fileExists(atPath: removal.path) {
+                do {
+                    try FileManager.default.removeItem(atPath: removal.path)
+                } catch {
+                    failures.append("\(removal.path): \(error.localizedDescription)")
+                    continue
+                }
+            }
+            guard var entry = domain.history.first(where: { $0.id == removal.id }) else { continue }
+            entry.session.record(chatRemovedNote, at: now)
+            changes.append(.historyUpdated(entry))
+        }
+        return (changes, failures)
     }
 
     /// Why a worktree must not be removed: dirty, unpushed, or status unknown. Nil when it is safe.

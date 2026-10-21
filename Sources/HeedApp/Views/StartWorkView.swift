@@ -251,7 +251,8 @@ struct StartWorkView: View {
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(form.field == .worktree ? Theme.fg2 : Theme.line))
             if let plan {
                 Text(picked ? "The agent works in this folder with its normal permissions; heed never removes it."
-                    : "\(Paths.tilde(plan.path)) · an empty folder heed makes for this chat")
+                    :
+                    "\(Paths.tilde(plan.path)) · an empty folder heed makes; with cleanup on, the sweep removes it 30 days after the chat closes, unless pinned")
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.fg3)
                     .lineLimit(2)

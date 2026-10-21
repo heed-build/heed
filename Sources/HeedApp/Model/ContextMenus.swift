@@ -17,6 +17,7 @@ extension AppModel {
         facts.hasPrompt = !session.prompt.isEmpty
         facts.handoffAgents = handoffAgents(for: session)
         facts.chat = session.isChat
+        facts.scratch = session.chat?.kind == .scratch && session.location.isLocal
         return ContextMenus.session(facts)
     }
 

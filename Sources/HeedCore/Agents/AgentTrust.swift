@@ -247,14 +247,24 @@ public enum MiseTrust {
             return setsEnvironment(text)
         }
         guard setsEnv,
-              let result = try? await ProcessRunner.run("mise", ["-C", root, "trust", "--show"], timeout: .seconds(10))
+              let result = try? await ProcessRunner.run(
+                  "mise",
+                  ["-C", root, "trust", "--show"],
+                  timeout: .seconds(10),
+                  caller: "trust.mise"
+              )
         else { return false }
         return untrusted(result.stdout, root: root)
     }
 
     /// Trusts the mise config of the repo at `root`.
     public static func trust(_ root: String) async throws {
-        _ = try await ProcessRunner.output("mise", ["-C", root, "trust", "--yes"], timeout: .seconds(10))
+        _ = try await ProcessRunner.output(
+            "mise",
+            ["-C", root, "trust", "--yes"],
+            timeout: .seconds(10),
+            caller: "trust.mise"
+        )
     }
 
     /// A mise config sets environment variables: an `[env]` table (or `env.` keys).

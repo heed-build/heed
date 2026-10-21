@@ -44,7 +44,7 @@ final class HostEventStream {
                 "-c",
                 "mkdir -p \"$HOME/.heed\" && touch \"$HOME/.heed/events.log\" && wc -c < \"$HOME/.heed/events.log\"",
             ],
-            timeout: .seconds(15)
+            timeout: .seconds(15), caller: "hosts.events"
         )).flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
         guard !stopped, let size else { return retry() }
         if UserDefaults.standard.object(forKey: offsetKey) == nil || offset > size { offset = size }

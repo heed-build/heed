@@ -46,7 +46,8 @@ public enum RunCleanup {
                     await Git.removeWorktree(record, path: worktree, branch: branch)
                 } else {
                     _ = try? await ProcessRunner.run(
-                        on: record.location, "git", ["-C", record.path, "branch", "-D", branch], timeout: .seconds(10)
+                        on: record.location, "git", ["-C", record.path, "branch", "-D", branch], timeout: .seconds(10),
+                        caller: "cleanup.runs"
                     )
                 }
             }
@@ -59,7 +60,11 @@ public enum RunCleanup {
 
     /// When git last changed a worktree's index (its own git dir), on this Mac.
     static func lastTouched(_ worktree: String) async -> Date? {
-        guard let dir = try? await ProcessRunner.output("git", ["-C", worktree, "rev-parse", "--absolute-git-dir"])
+        guard let dir = try? await ProcessRunner.output(
+            "git",
+            ["-C", worktree, "rev-parse", "--absolute-git-dir"],
+            caller: "cleanup.runs"
+        )
         else { return nil }
         let index = dir.trimmingCharacters(in: .whitespacesAndNewlines) + "/index"
         return (try? FileManager.default.attributesOfItem(atPath: index))?[.modificationDate] as? Date

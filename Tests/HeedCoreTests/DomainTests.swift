@@ -239,7 +239,7 @@ struct GitIntegrationTests {
             ["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
             ["commit", "-q", "--allow-empty", "-m", "first"],
         ] {
-            _ = try await ProcessRunner.output("git", ["-C", path] + args)
+            _ = try await ProcessRunner.output("git", ["-C", path] + args, caller: "test")
         }
         return path
     }
@@ -251,7 +251,11 @@ struct GitIntegrationTests {
             try? FileManager.default.removeItem(atPath: path)
             try? FileManager.default.removeItem(atPath: linked)
         }
-        _ = try await ProcessRunner.output("git", ["-C", path, "worktree", "add", "-q", "-b", "side", linked])
+        _ = try await ProcessRunner.output(
+            "git",
+            ["-C", path, "worktree", "add", "-q", "-b", "side", linked],
+            caller: "test"
+        )
         let found = try #require(await Git.locate(linked + "/"))
         #expect(found.worktree.branch == "side")
         #expect(!found.worktree.isMain)
@@ -282,7 +286,7 @@ struct GitIntegrationTests {
 
     @Test func runnerTimesOut() async {
         await #expect(throws: ProcessError.self) {
-            _ = try await ProcessRunner.run("sleep", ["5"], timeout: .milliseconds(100))
+            _ = try await ProcessRunner.run("sleep", ["5"], timeout: .milliseconds(100), caller: "test")
         }
     }
 

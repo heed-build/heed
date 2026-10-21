@@ -25,7 +25,7 @@ struct RemoteSessionsIntegrationTests {
         _ = try await ProcessRunner.run(
             on: .host("box"),
             "sh",
-            ["-c", "rm -rf \"$HOME/.heed/bin/zmx\" \"$HOME/.local/bin/zmx\""]
+            ["-c", "rm -rf \"$HOME/.heed/bin/zmx\" \"$HOME/.local/bin/zmx\""], caller: "test"
         )
         guard case let .connected(before) = await HostProbe.check("box") else {
             Testing.Issue.record("offline")
@@ -38,7 +38,7 @@ struct RemoteSessionsIntegrationTests {
             on: .host("box"), "sh", ["-c", "mkdir -p \"$HOME/.local/bin\" && tar -xzf - -C \"$HOME/.local/bin\" zmx"],
             input: URL(
                 fileURLWithPath: "\(setup.tarballs)/zmx-linux-\(before.platform.hasSuffix("aarch64") ? "aarch64" : "x86_64").tar.gz"
-            )
+            ), caller: "test"
         )
         guard case let .connected(info) = await HostProbe.check("box") else {
             Testing.Issue.record("offline")
@@ -62,7 +62,7 @@ struct RemoteSessionsIntegrationTests {
         "$HEED_BIN" hook pi idle sid-1
         cat "$HOME/.heed/events.log"
         """
-        let output = try await ProcessRunner.output(on: .host("box"), "sh", ["-c", calls])
+        let output = try await ProcessRunner.output(on: .host("box"), "sh", ["-c", calls], caller: "test")
         let messages = output.split(separator: "\n").flatMap { HostEvents.messages(fromLine: String($0)) }
         #expect(messages.allSatisfy { $0.session == "s-42" && $0.pane == "p-7" })
         let kinds = messages.map(\.kind)

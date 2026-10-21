@@ -216,8 +216,14 @@ public enum ToolDetection {
     static func loginShellPath(_ shell: String) async -> [String]? {
         guard isExecutable(shell) else { return nil }
         for arguments in pathQueries(for: shell) {
-            if let result = try? await ProcessRunner.run(shell, arguments, in: NSHomeDirectory(), timeout: .seconds(8)),
-               let path = parsePath(result.stdout)
+            if let result = try? await ProcessRunner.run(
+                shell,
+                arguments,
+                in: NSHomeDirectory(),
+                timeout: .seconds(8),
+                caller: "tools.shellPath"
+            ),
+                let path = parsePath(result.stdout)
             {
                 return path
             }
@@ -229,7 +235,12 @@ public enum ToolDetection {
 
     /// The active Xcode or Command Line Tools directory; nil when neither is installed.
     static func developerDirectory() async -> String? {
-        guard let output = try? await ProcessRunner.output("/usr/bin/xcode-select", ["-p"], timeout: .seconds(5))
+        guard let output = try? await ProcessRunner.output(
+            "/usr/bin/xcode-select",
+            ["-p"],
+            timeout: .seconds(5),
+            caller: "tools.xcode"
+        )
         else { return nil }
         let path = output.trimmingCharacters(in: .whitespacesAndNewlines)
         return FileManager.default.fileExists(atPath: path) ? path : nil
@@ -243,8 +254,13 @@ public enum ToolDetection {
                   FileManager.default.fileExists(atPath: "\(developerDirectory)/usr/bin/\(name)")
             else { return nil }
         }
-        guard let result = try? await ProcessRunner.run(path, ["--version"], timeout: .seconds(10)),
-              result.succeeded
+        guard let result = try? await ProcessRunner.run(
+            path,
+            ["--version"],
+            timeout: .seconds(10),
+            caller: "tools.version"
+        ),
+            result.succeeded
         else { return nil }
         return result.stdout.split(separator: "\n").first.map { $0.trimmingCharacters(in: .whitespaces) }
     }

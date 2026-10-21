@@ -26,13 +26,18 @@ public enum GitHub {
         previous: GitHubState,
         issueRules: IssueRules = IssueRules(),
         localRepos: [Repo] = [],
-        now: Date = Date()
+        now: Date = Date(),
+        caller: String
     ) async throws -> GitHubState {
         let full = parts == Set(GitHubPart.allCases)
-        async let viewer = fetch(full || previous.viewer == nil) { try await viewer() }
-        async let inbox = fetch(parts.contains(.inbox)) { try await notifications() }
-        async let pulls = fetch(parts.contains(.pulls)) { try await pullRequests(tracked: tracked) }
-        async let issues = fetch(parts.contains(.issues)) { try await self.issues(rules: issueRules, local: localRepos)
+        async let viewer = fetch(full || previous.viewer == nil) { try await viewer(caller: caller) }
+        async let inbox = fetch(parts.contains(.inbox)) { try await notifications(caller: caller) }
+        async let pulls = fetch(parts.contains(.pulls)) { try await pullRequests(tracked: tracked, caller: caller) }
+        async let issues = fetch(parts.contains(.issues)) { try await self.issues(
+            rules: issueRules,
+            local: localRepos,
+            caller: caller
+        )
         }
         let login = try await viewer ?? previous.viewer
         let fetchedInbox = try await inbox
@@ -60,24 +65,38 @@ public enum GitHub {
         wanted ? try await body() : nil
     }
 
-    public static func viewer() async throws -> String {
-        let result = try await ProcessRunner.run("gh", ["api", "user", "--jq", ".login"], timeout: .seconds(20))
+    public static func viewer(caller: String) async throws -> String {
+        let result = try await ProcessRunner.run(
+            "gh",
+            ["api", "user", "--jq", ".login"],
+            timeout: .seconds(20),
+            caller: caller
+        )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    public static func notifications() async throws -> [InboxItem] {
-        let result = try await ProcessRunner.run("gh", ["api", "notifications?per_page=50"], timeout: .seconds(30))
+    public static func notifications(caller: String) async throws -> [InboxItem] {
+        let result = try await ProcessRunner.run(
+            "gh",
+            ["api", "notifications?per_page=50"],
+            timeout: .seconds(30),
+            caller: caller
+        )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return parseNotifications(Data(result.stdout.utf8))
     }
 
-    public static func pullRequests(tracked: [PullRef]) async throws -> Fetched<[PullRequest]> {
-        let mine = try await graphql(pullSearchQuery, variables: ["q": "is:open is:pr author:@me archived:false"])
+    public static func pullRequests(tracked: [PullRef], caller: String) async throws -> Fetched<[PullRequest]> {
+        let mine = try await graphql(
+            pullSearchQuery,
+            variables: ["q": "is:open is:pr author:@me archived:false"],
+            caller: caller
+        )
         var (pulls, hidden) = parsePullSearch(mine)
         let missing = tracked.filter { ref in !pulls.contains { $0.ref == ref } }
         if !missing.isEmpty {
-            let data = try await graphql(trackedPullsQuery(missing), variables: [:])
+            let data = try await graphql(trackedPullsQuery(missing), variables: [:], caller: caller)
             let (extra, extraHidden) = parseTrackedPulls(data, refs: missing)
             pulls += extra
             hidden += extraHidden
@@ -86,13 +105,13 @@ public enum GitHub {
     }
 
     /// Issues assigned to you or mentioning you, anywhere, plus every open issue in the repos `rules` shows all of.
-    public static func issues(rules: IssueRules, local: [Repo]) async throws -> Fetched<[Issue]> {
+    public static func issues(rules: IssueRules, local: [Repo], caller: String) async throws -> Fetched<[Issue]> {
         let base = "is:open is:issue archived:false"
-        async let assigned = search("\(base) assignee:@me")
-        async let mentioned = search("\(base) mentions:@me")
+        async let assigned = search("\(base) assignee:@me", caller: caller)
+        async let mentioned = search("\(base) mentions:@me", caller: caller)
         var watched: [([Issue], Int)] = []
         for query in watchQueries(base: base, qualifiers: rules.watchQualifiers(local: local)) {
-            try await watched.append(search(query))
+            try await watched.append(search(query, caller: caller))
         }
         let (mine, mineHidden) = try await assigned
         let (mentions, mentionsHidden) = try await mentioned
@@ -103,8 +122,12 @@ public enum GitHub {
         return Fetched(value: merged, hidden: mineHidden + mentionsHidden + watched.map(\.1).reduce(0, +))
     }
 
-    private static func search(_ query: String) async throws -> ([Issue], Int) {
-        try await parseIssueSearch(graphql(issueSearchQuery, variables: ["q": "\(query) sort:updated-desc"]))
+    private static func search(_ query: String, caller: String) async throws -> ([Issue], Int) {
+        try await parseIssueSearch(graphql(
+            issueSearchQuery,
+            variables: ["q": "\(query) sort:updated-desc"],
+            caller: caller
+        ))
     }
 
     /// GitHub caps a search query at 256 characters, so qualifiers are split over several queries (at most 8).
@@ -145,22 +168,22 @@ public enum GitHub {
     }
 
     /// Marks a notification thread read.
-    public static func markRead(threadID: String) async throws {
+    public static func markRead(threadID: String, caller: String) async throws {
         let result = try await ProcessRunner.run(
-            "gh", ["api", "-X", "PATCH", "notifications/threads/\(threadID)"], timeout: .seconds(20)
+            "gh", ["api", "-X", "PATCH", "notifications/threads/\(threadID)"], timeout: .seconds(20), caller: caller
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
     }
 
     /// Runs a GraphQL query. gh exits non-zero when the answer carries errors, even with data; the data is returned
     /// as long as there is some.
-    static func graphql(_ query: String, variables: [String: String]) async throws -> Data {
+    static func graphql(_ query: String, variables: [String: String], caller: String) async throws -> Data {
         var args = ["api", "graphql", "-f", "query=\(query)"]
         for (key, value) in variables.sorted(by: { $0.key < $1.key }) {
             // -F sends a typed field, so `number` reaches GraphQL as an Int; -f keeps strings strings.
             args += [key == "number" ? "-F" : "-f", "\(key)=\(value)"]
         }
-        let result = try await ProcessRunner.run("gh", args, timeout: .seconds(45))
+        let result = try await ProcessRunner.run("gh", args, timeout: .seconds(45), caller: caller)
         let data = Data(result.stdout.utf8)
         if !result.succeeded, (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] == nil {
             throw Failure(description: Self.explain(result))
@@ -178,9 +201,10 @@ public enum GitHub {
     }
 
     /// The reader's view of one PR.
-    public static func pullDetail(_ ref: PullRef, now: Date = Date()) async throws -> PullDetail {
+    public static func pullDetail(_ ref: PullRef, now: Date = Date(), caller: String) async throws -> PullDetail {
         let data = try await graphql(
-            pullDetailQuery, variables: ["owner": ref.repo.org, "name": ref.repo.name, "number": String(ref.number)]
+            pullDetailQuery, variables: ["owner": ref.repo.org, "name": ref.repo.name, "number": String(ref.number)],
+            caller: caller
         )
         guard let detail = parsePullDetail(data, ref: ref, now: now) else {
             throw Failure(description: "\(ref) is not visible to gh")
@@ -196,9 +220,9 @@ public enum GitHub {
     }
 
     /// The last `lines` of an Actions job's failed steps (`gh run view --job <id> --log-failed`).
-    public static func failedLog(repo: Repo, job: String, lines: Int = 80) async throws -> String {
+    public static func failedLog(repo: Repo, job: String, lines: Int = 80, caller: String) async throws -> String {
         let result = try await ProcessRunner.run(
-            "gh", ["run", "view", "--job", job, "--log-failed", "-R", repo.slug], timeout: .seconds(60)
+            "gh", ["run", "view", "--job", job, "--log-failed", "-R", repo.slug], timeout: .seconds(60), caller: caller
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return result.stdout.split(separator: "\n", omittingEmptySubsequences: false).suffix(lines)
@@ -206,26 +230,26 @@ public enum GitHub {
     }
 
     /// `gh pr merge --auto --<method>`: auto-merge on, or a merge right away when GitHub has nothing left to wait for.
-    public static func enableAutoMerge(_ ref: PullRef, method: String) async throws {
-        try await pr(["merge", "\(ref.number)", "--auto", "--\(method)", "-R", ref.repo.slug])
+    public static func enableAutoMerge(_ ref: PullRef, method: String, caller: String) async throws {
+        try await pr(["merge", "\(ref.number)", "--auto", "--\(method)", "-R", ref.repo.slug], caller: caller)
     }
 
-    public static func disableAutoMerge(_ ref: PullRef) async throws {
-        try await pr(["merge", "\(ref.number)", "--disable-auto", "-R", ref.repo.slug])
+    public static func disableAutoMerge(_ ref: PullRef, caller: String) async throws {
+        try await pr(["merge", "\(ref.number)", "--disable-auto", "-R", ref.repo.slug], caller: caller)
     }
 
     /// `gh pr update-branch`: merges the base into a PR that fell behind.
-    public static func updateBranch(_ ref: PullRef) async throws {
-        try await pr(["update-branch", "\(ref.number)", "-R", ref.repo.slug])
+    public static func updateBranch(_ ref: PullRef, caller: String) async throws {
+        try await pr(["update-branch", "\(ref.number)", "-R", ref.repo.slug], caller: caller)
     }
 
     /// Whether GitHub's Copilot coding agent can be assigned in a repo: it is among the repo's suggested actors.
-    public static func copilotAvailable(_ repo: Repo) async throws -> Bool {
+    public static func copilotAvailable(_ repo: Repo, caller: String) async throws -> Bool {
         let query = """
         query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) {
           suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) { nodes { login } } } }
         """
-        let data = try await graphql(query, variables: ["owner": repo.org, "name": repo.name])
+        let data = try await graphql(query, variables: ["owner": repo.org, "name": repo.name], caller: caller)
         return parseCopilotAvailable(data)
     }
 
@@ -237,36 +261,42 @@ public enum GitHub {
     }
 
     /// `gh pr edit --add-reviewer`: logins, `org/team`, or `@copilot`.
-    public static func requestReviews(_ ref: PullRef, from reviewers: [String]) async throws {
-        try await pr(["edit", "\(ref.number)", "--add-reviewer", reviewers.joined(separator: ","), "-R", ref.repo.slug])
+    public static func requestReviews(_ ref: PullRef, from reviewers: [String], caller: String) async throws {
+        try await pr(
+            ["edit", "\(ref.number)", "--add-reviewer", reviewers.joined(separator: ","), "-R", ref.repo.slug],
+            caller: caller
+        )
     }
 
     /// `gh pr merge --<method> --match-head-commit <sha>`: merges only the commit the rules were checked on.
-    public static func merge(_ ref: PullRef, method: String, head: String, admin: Bool = false) async throws {
+    public static func merge(
+        _ ref: PullRef, method: String, head: String, admin: Bool = false, caller: String
+    ) async throws {
         try await pr(
             ["merge", "\(ref.number)", "--\(method)", "--match-head-commit", head, "-R", ref.repo.slug]
-                + (admin ? ["--admin"] : [])
+                + (admin ? ["--admin"] : []),
+            caller: caller
         )
     }
 
     /// `gh pr diff`.
-    public static func diff(_ ref: PullRef) async throws -> String {
+    public static func diff(_ ref: PullRef, caller: String) async throws -> String {
         let result = try await ProcessRunner.run(
             "gh",
             ["pr", "diff", "\(ref.number)", "-R", ref.repo.slug],
-            timeout: .seconds(60)
+            timeout: .seconds(60), caller: caller
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return result.stdout
     }
 
     /// `gh pr comment`.
-    public static func comment(_ ref: PullRef, body: String) async throws {
-        try await pr(["comment", "\(ref.number)", "--body", body, "-R", ref.repo.slug])
+    public static func comment(_ ref: PullRef, body: String, caller: String) async throws {
+        try await pr(["comment", "\(ref.number)", "--body", body, "-R", ref.repo.slug], caller: caller)
     }
 
-    private static func pr(_ arguments: [String]) async throws {
-        let result = try await ProcessRunner.run("gh", ["pr"] + arguments, timeout: .seconds(60))
+    private static func pr(_ arguments: [String], caller: String) async throws {
+        let result = try await ProcessRunner.run("gh", ["pr"] + arguments, timeout: .seconds(60), caller: caller)
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
     }
 
@@ -318,10 +348,10 @@ public enum GitHub {
 
     /// Titles and states of the issues sessions link to, at most 50 a call. A number that turns out to be a PR is left
     /// out.
-    public static func issueInfo(_ refs: [IssueRef]) async throws -> [IssueRef: IssueInfo] {
+    public static func issueInfo(_ refs: [IssueRef], caller: String) async throws -> [IssueRef: IssueInfo] {
         guard !refs.isEmpty else { return [:] }
         let batch = Array(refs.prefix(50))
-        let data = try await graphql(linkedIssuesQuery(batch), variables: [:])
+        let data = try await graphql(linkedIssuesQuery(batch), variables: [:], caller: caller)
         return parseLinkedIssues(data, refs: batch)
     }
 

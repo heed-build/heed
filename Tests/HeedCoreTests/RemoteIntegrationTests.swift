@@ -66,9 +66,14 @@ struct RemoteIntegrationTests {
         let listed = try await Git.worktrees(of: repo)
         #expect(listed.contains { $0.path == path && $0.branch == session.branch && $0.location == .host("box") })
         _ = try? await ProcessRunner.run(
-            on: .host("box"), "git", ["-C", repo.path, "worktree", "remove", "--force", path]
+            on: .host("box"), "git", ["-C", repo.path, "worktree", "remove", "--force", path], caller: "test"
         )
-        _ = try? await ProcessRunner.run(on: .host("box"), "git", ["-C", repo.path, "branch", "-D", session.branch])
+        _ = try? await ProcessRunner.run(
+            on: .host("box"),
+            "git",
+            ["-C", repo.path, "branch", "-D", session.branch],
+            caller: "test"
+        )
     }
 
     @Test func failuresAreNamed() async {

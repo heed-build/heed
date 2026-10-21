@@ -200,7 +200,7 @@ struct AgentIntegrationTests {
             ["commit", "-q", "--allow-empty", "-m", "first"],
             ["worktree", "add", "-q", "-b", "f", worktree],
         ] {
-            _ = try await ProcessRunner.output("git", ["-C", repo] + args)
+            _ = try await ProcessRunner.output("git", ["-C", repo] + args, caller: "test")
         }
         try AgentIntegration.installCursorHooks(worktree: worktree, heed: "/app/heed")
         try AgentIntegration.installCursorHooks(worktree: worktree, heed: "/app/heed")

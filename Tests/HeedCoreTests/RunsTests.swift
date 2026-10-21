@@ -188,7 +188,8 @@ struct RunsTests {
 /// A run's worktree and its cleanup against real git.
 struct RunGitTests {
     private func git(_ path: String, _ args: [String]) async throws -> String {
-        try await ProcessRunner.output("git", ["-C", path] + args).trimmingCharacters(in: .whitespacesAndNewlines)
+        try await ProcessRunner.output("git", ["-C", path] + args, caller: "test")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     @Test func aRunPushesAndCleansUpAndTheSweepIsSafe() async throws {
@@ -196,8 +197,8 @@ struct RunGitTests {
         defer { try? FileManager.default.removeItem(atPath: base) }
         let remote = base + "/remote.git", clone = base + "/clone", main = base + "/wt/r/fix-a"
         try FileManager.default.createDirectory(atPath: base, withIntermediateDirectories: true)
-        _ = try await ProcessRunner.output("git", ["init", "-q", "--bare", "-b", "main", remote])
-        _ = try await ProcessRunner.output("git", ["clone", "-q", remote, clone])
+        _ = try await ProcessRunner.output("git", ["init", "-q", "--bare", "-b", "main", remote], caller: "test")
+        _ = try await ProcessRunner.output("git", ["clone", "-q", remote, clone], caller: "test")
         for args in [
             ["config", "user.email", "t@t"], ["config", "user.name", "t"], ["commit", "-q", "--allow-empty", "-m", "a"],
             ["push", "-q", "origin", "main"], ["worktree", "add", "-q", "-b", "fix-a", main],

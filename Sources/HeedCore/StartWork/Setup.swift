@@ -86,7 +86,7 @@ public enum SetupDetection {
             + #"[ -d "$d" ] && ls -A "$d" | sed "s|^|$d/|"; done; [ -d .config/mise ] && "#
             + #"ls -A .config/mise | sed "s|^|.config/mise/|"; exit 0"#
         let output = await (try? ProcessRunner.output(
-            on: location, "sh", ["-c", script, "sh", path], timeout: .seconds(10)
+            on: location, "sh", ["-c", script, "sh", path], timeout: .seconds(10), caller: "setup.files"
         )) ?? ""
         return output.split(separator: "\n").map(String.init)
     }
@@ -185,7 +185,7 @@ public enum WorktreeInclude {
         exit 0
         """
         let output = await (try? ProcessRunner.output(
-            on: location, "sh", ["-c", script, "sh", main, worktree], timeout: .seconds(60)
+            on: location, "sh", ["-c", script, "sh", main, worktree], timeout: .seconds(60), caller: "setup.copy"
         )) ?? ""
         return output.split(separator: "\n").map(String.init)
     }

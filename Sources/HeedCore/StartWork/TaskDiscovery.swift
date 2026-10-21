@@ -35,7 +35,7 @@ public enum TaskDiscovery {
     static func miseTasks(at path: String, on location: Location, files: Set<String>) async -> Result {
         guard (SetupDetection.miseFiles + miseTaskDirectories).contains(where: files.contains) else { return Result() }
         guard let result = try? await ProcessRunner.run(
-            on: location, "mise", ["-C", path, "tasks", "ls", "--json"], timeout: .seconds(15)
+            on: location, "mise", ["-C", path, "tasks", "ls", "--json"], timeout: .seconds(15), caller: "tasks.mise"
         ) else { return Result() }
         guard result.succeeded else {
             return Result(notes: result.stderr.contains("not trusted")
@@ -70,9 +70,15 @@ public enum TaskDiscovery {
         // make's own database lists every target, included makefiles' too; nothing is built (-q), and no built-in
         // rules or variables muddy it (-R -r).
         let database = await (try? ProcessRunner.run(
-            on: location, "make", ["-C", path, "-pRrq", "-f", makefile, ":"], timeout: .seconds(15)
+            on: location, "make", ["-C", path, "-pRrq", "-f", makefile, ":"], timeout: .seconds(15),
+            caller: "tasks.make"
         ))?.stdout ?? ""
-        let text = await (try? ProcessRunner.output(on: location, "cat", ["\(path)/\(makefile)"])) ?? ""
+        let text = await (try? ProcessRunner.output(
+            on: location,
+            "cat",
+            ["\(path)/\(makefile)"],
+            caller: "tasks.make"
+        )) ?? ""
         return Result(tasks: parseMake(database: database, makefile: text, name: makefile))
     }
 
@@ -124,7 +130,12 @@ public enum TaskDiscovery {
 
     static func packageScripts(at path: String, on location: Location, files: Set<String>) async -> Result {
         guard files.contains("package.json"),
-              let json = try? await ProcessRunner.output(on: location, "cat", ["\(path)/package.json"])
+              let json = try? await ProcessRunner.output(
+                  on: location,
+                  "cat",
+                  ["\(path)/package.json"],
+                  caller: "tasks.npm"
+              )
         else { return Result() }
         return Result(tasks: parsePackageScripts(json, runner: packageRunner(files: files)))
     }

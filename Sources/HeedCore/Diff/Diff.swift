@@ -236,11 +236,11 @@ public extension Git {
         case .unstaged: ["diff", "--no-color", "-M"]
         case let .commit(sha): ["show", "--no-color", "-M", "--format=", sha]
         }
-        async let text = ProcessRunner.output("git", ["-C", path] + args, timeout: .seconds(30))
+        async let text = ProcessRunner.output("git", ["-C", path] + args, timeout: .seconds(30), caller: "diff.changes")
         async let stagedNames = ProcessRunner.output(
             "git",
             ["-C", path, "diff", "--cached", "--name-only"],
-            timeout: .seconds(10)
+            timeout: .seconds(10), caller: "diff.changes"
         )
         let staged = await Set(((try? stagedNames) ?? "").split(separator: "\n").map(String.init))
         return try await DiffParser.parse(text, repo: repo, staged: staged)
@@ -250,7 +250,8 @@ public extension Git {
     static func commits(at path: String, base: String) async throws -> [CommitSummary] {
         let since = try await mergeBase(at: path, base: base)
         let log = try await ProcessRunner.output(
-            "git", ["-C", path, "log", "--format=%h%x09%s", "\(since)..HEAD"], timeout: .seconds(15)
+            "git", ["-C", path, "log", "--format=%h%x09%s", "\(since)..HEAD"], timeout: .seconds(15),
+            caller: "diff.commits"
         )
         return log.split(separator: "\n").compactMap { line in
             let parts = line.split(separator: "\t", maxSplits: 1)
@@ -264,7 +265,7 @@ public extension Git {
             if let sha = try? await ProcessRunner.output(
                 "git",
                 ["-C", path, "merge-base", "HEAD", candidate],
-                timeout: .seconds(10)
+                timeout: .seconds(10), caller: "diff.mergeBase"
             ) {
                 return sha.trimmingCharacters(in: .whitespacesAndNewlines)
             }

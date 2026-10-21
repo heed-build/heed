@@ -239,7 +239,12 @@ public actor TailscaleCLI {
         let searchPath = await ToolLocator.shared.report().searchPath
         let tailnet: Tailnet
         if let binary = Self.locate(configured, searchPath: searchPath) {
-            let result = try? await ProcessRunner.run(binary, ["status", "--json"], timeout: .seconds(5))
+            let result = try? await ProcessRunner.run(
+                binary,
+                ["status", "--json"],
+                timeout: .seconds(5),
+                caller: "tailscale.status"
+            )
             // A daemon that is not running (the app quit) answers with an error and no JSON: that is "off" too.
             tailnet = result.flatMap { TailscaleStatus.parse(Data($0.stdout.utf8)) } ?? Tailnet(state: .off)
         } else {

@@ -22,9 +22,10 @@ public struct ProcessError: Error, Sendable, CustomStringConvertible {
 /// Runs a command and returns its output, entirely off the calling actor: output is read concurrently (so a full
 /// pipe never deadlocks), termination is awaited, never waited on, and a timeout or task cancellation terminates it.
 public enum ProcessRunner {
+    /// `caller` says which part of heed ran it (`git.status`, `github.sync`), for the call log.
     public static func run(
         _ executable: String, _ arguments: [String], in directory: String? = nil,
-        environment: [String: String]? = nil, timeout: Duration = .seconds(30), input: URL? = nil
+        environment: [String: String]? = nil, timeout: Duration = .seconds(30), input: URL? = nil, caller _: String
     ) async throws -> ProcessResult {
         let command = ([executable] + arguments).joined(separator: " ")
         // A bare name is resolved through tool detection (an app opened from Finder has a minimal PATH) and runs with
@@ -111,9 +112,10 @@ public enum ProcessRunner {
 
     /// Runs and throws unless the command succeeded.
     public static func output(
-        _ executable: String, _ arguments: [String], in directory: String? = nil, timeout: Duration = .seconds(30)
+        _ executable: String, _ arguments: [String], in directory: String? = nil, timeout: Duration = .seconds(30),
+        caller: String
     ) async throws -> String {
-        let result = try await run(executable, arguments, in: directory, timeout: timeout)
+        let result = try await run(executable, arguments, in: directory, timeout: timeout, caller: caller)
         guard result.succeeded else {
             throw ProcessError(
                 command: ([executable] + arguments).joined(separator: " "), result: result,

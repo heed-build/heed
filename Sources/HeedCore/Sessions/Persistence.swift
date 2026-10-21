@@ -43,14 +43,14 @@ public enum ZmxCheck {
     /// Runs zmx the way heed will: its version, then listing heed's own sessions.
     public static func run(zmx: String?, socketDirectory: String = Zmx.socketDirectory()) async -> ZmxHealth {
         guard let zmx else { return ZmxHealth(path: nil, problem: "not installed") }
-        let version = try? await ProcessRunner.run(zmx, ["version"], timeout: .seconds(5))
+        let version = try? await ProcessRunner.run(zmx, ["version"], timeout: .seconds(5), caller: "zmx.check")
         guard let version, version.succeeded else {
             return ZmxHealth(path: zmx, problem: "zmx version failed: \(firstLine(version))")
         }
         try? FileManager.default.createDirectory(atPath: socketDirectory, withIntermediateDirectories: true)
         let list = try? await ProcessRunner.run(
             zmx, ["list", "--short"], environment: Zmx.environment(socketDirectory: socketDirectory),
-            timeout: .seconds(5)
+            timeout: .seconds(5), caller: "zmx.check"
         )
         let number = parseVersion(version.stdout)
         guard let list, list.succeeded else {
@@ -110,7 +110,8 @@ public enum Zmx {
     /// Lists heed's live sessions; empty when zmx cannot be run.
     public static func livePanes(zmx: String, socketDirectory: String) async -> Set<String> {
         guard let result = try? await ProcessRunner.run(
-            zmx, ["list", "--short"], environment: environment(socketDirectory: socketDirectory), timeout: .seconds(5)
+            zmx, ["list", "--short"], environment: environment(socketDirectory: socketDirectory), timeout: .seconds(5),
+            caller: "zmx.list"
         ), result.succeeded else { return [] }
         return livePanes(fromList: result.stdout)
     }
@@ -120,7 +121,7 @@ public enum Zmx {
         guard !panes.isEmpty else { return }
         _ = try? await ProcessRunner.run(
             zmx, ["kill"] + panes.map(sessionName(pane:)), environment: environment(socketDirectory: socketDirectory),
-            timeout: .seconds(10)
+            timeout: .seconds(10), caller: "zmx.kill"
         )
     }
 }

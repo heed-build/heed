@@ -10,7 +10,8 @@ let hasGhostty = FileManager.default.fileExists(atPath: "\(root)/Vendor/GhosttyK
 var targets: [Target] = [
     .target(name: "HeedCore"),
     .executableTarget(name: "heed", dependencies: ["HeedCore"]),
-    .testTarget(name: "HeedCoreTests", dependencies: ["HeedCore"]),
+    // Fixtures: files in the shapes older builds wrote (a domain.json), for migration tests.
+    .testTarget(name: "HeedCoreTests", dependencies: ["HeedCore"], resources: [.copy("Fixtures")]),
 ]
 var appDependencies: [Target.Dependency] = ["HeedCore", .product(name: "Sparkle", package: "Sparkle")]
 if hasGhostty {

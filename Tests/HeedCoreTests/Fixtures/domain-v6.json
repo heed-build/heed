@@ -1,0 +1,1310 @@
+{
+ "domain": {
+  "feedback": {},
+  "github": {
+   "inbox": [
+    {
+     "id": "n1",
+     "kind": "PR",
+     "number": 2845,
+     "reason": "review_requested",
+     "repo": {
+      "name": "docs-builder",
+      "org": "elastic"
+     },
+     "title": "Add link validation to assembler",
+     "unread": true,
+     "updatedAt": 813692560
+    },
+    {
+     "id": "n2",
+     "kind": "CI",
+     "reason": "ci_activity",
+     "repo": {
+      "name": "docs-builder",
+      "org": "elastic"
+     },
+     "title": "lint failed on #2841",
+     "unread": true,
+     "updatedAt": 813692260
+    }
+   ],
+   "issues": [
+    {
+     "assigned": true,
+     "author": "reviewer",
+     "body": "Moving a page drops its heading anchors from redirects.",
+     "labels": [
+      "bug"
+     ],
+     "mentioned": false,
+     "number": 2830,
+     "repo": {
+      "name": "docs-builder",
+      "org": "elastic"
+     },
+     "title": "Anchors lost when a page is moved",
+     "updatedAt": 813689200,
+     "url": ""
+    },
+    {
+     "assigned": false,
+     "author": "reviewer",
+     "body": "/reference redirects to itself after the nav change.",
+     "labels": [
+      "bug",
+      "redirects"
+     ],
+     "mentioned": true,
+     "number": 2833,
+     "repo": {
+      "name": "docs-builder",
+      "org": "elastic"
+     },
+     "title": "Redirect loop on /reference",
+     "updatedAt": 813685600,
+     "url": ""
+    }
+   ],
+   "pulls": [
+    {
+     "checks": {
+      "failed": 1,
+      "failedNames": [
+       "lint"
+      ],
+      "passed": 3,
+      "pending": 1,
+      "pendingNames": [],
+      "skipped": 0
+     },
+     "headBranch": "fix-anchors-redirects",
+     "isDraft": false,
+     "ref": {
+      "number": 2841,
+      "repo": {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     },
+     "review": "CHANGES_REQUESTED",
+     "state": "OPEN",
+     "title": "Fix broken anchors in redirects",
+     "unresolvedThreads": 2,
+     "updatedAt": 813691540,
+     "url": "https://github.com/elastic/docs-builder/pull/2841"
+    },
+    {
+     "checks": {
+      "failed": 0,
+      "failedNames": [],
+      "passed": 4,
+      "pending": 0,
+      "pendingNames": [],
+      "skipped": 0
+     },
+     "headBranch": "fix-anchors-redirects",
+     "isDraft": false,
+     "ref": {
+      "number": 1920,
+      "repo": {
+       "name": "docs-content",
+       "org": "elastic"
+      }
+     },
+     "state": "OPEN",
+     "title": "Redirects for moved pages",
+     "unresolvedThreads": 0,
+     "updatedAt": 813692800,
+     "url": "https://github.com/elastic/docs-content/pull/1920"
+    },
+    {
+     "checks": {
+      "failed": 0,
+      "failedNames": [],
+      "passed": 4,
+      "pending": 0,
+      "pendingNames": [],
+      "skipped": 0
+     },
+     "headBranch": "fix-anchors-redirects",
+     "isDraft": false,
+     "ref": {
+      "number": 2836,
+      "repo": {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     },
+     "review": "APPROVED",
+     "state": "MERGED",
+     "title": "Redirect checker: first pass",
+     "unresolvedThreads": 0,
+     "updatedAt": 813691840,
+     "url": "https://github.com/elastic/docs-builder/pull/2836"
+    },
+    {
+     "checks": {
+      "failed": 0,
+      "failedNames": [],
+      "passed": 38,
+      "pending": 4,
+      "pendingNames": [],
+      "skipped": 3
+     },
+     "headBranch": "cross-link-validator",
+     "isDraft": false,
+     "ref": {
+      "number": 2838,
+      "repo": {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     },
+     "state": "OPEN",
+     "title": "Cross-link validator for assembler",
+     "unresolvedThreads": 0,
+     "updatedAt": 813691720,
+     "url": "https://github.com/elastic/docs-builder/pull/2838"
+    },
+    {
+     "checks": {
+      "failed": 0,
+      "failedNames": [],
+      "passed": 3,
+      "pending": 0,
+      "pendingNames": [],
+      "skipped": 0
+     },
+     "headBranch": "bump-spec-tests",
+     "isDraft": false,
+     "ref": {
+      "number": 412,
+      "repo": {
+       "name": "editorconfig",
+       "org": "editorconfig"
+      }
+     },
+     "review": "APPROVED",
+     "state": "OPEN",
+     "title": "Bump spec tests to 0.17",
+     "unresolvedThreads": 0,
+     "updatedAt": 813689680,
+     "url": "https://github.com/editorconfig/editorconfig/pull/412"
+    },
+    {
+     "checks": {
+      "failed": 0,
+      "failedNames": [],
+      "passed": 2,
+      "pending": 0,
+      "pendingNames": [],
+      "skipped": 0
+     },
+     "headBranch": "ingest-backpressure",
+     "isDraft": false,
+     "ref": {
+      "number": 31,
+      "repo": {
+       "name": "ingest",
+       "org": "mpdreamz"
+      }
+     },
+     "state": "OPEN",
+     "title": "Backpressure for the ingest stage",
+     "unresolvedThreads": 0,
+     "updatedAt": 813690940,
+     "url": "https://github.com/mpdreamz/ingest/pull/31"
+    },
+    {
+     "checks": {
+      "failed": 0,
+      "failedNames": [],
+      "passed": 5,
+      "pending": 0,
+      "pendingNames": [],
+      "skipped": 0
+     },
+     "headBranch": "sequence-arrowheads",
+     "isDraft": false,
+     "ref": {
+      "number": 418,
+      "repo": {
+       "name": "mermaider",
+       "org": "nullean"
+      }
+     },
+     "state": "OPEN",
+     "title": "Arrowheads at small zoom",
+     "unresolvedThreads": 1,
+     "updatedAt": 813689320,
+     "url": "https://github.com/nullean/mermaider/pull/418"
+    },
+    {
+     "checks": {
+      "failed": 0,
+      "failedNames": [],
+      "passed": 1,
+      "pending": 2,
+      "pendingNames": [],
+      "skipped": 0
+     },
+     "headBranch": "docs-nav-spike",
+     "isDraft": false,
+     "ref": {
+      "number": 2852,
+      "repo": {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     },
+     "state": "OPEN",
+     "title": "Docs nav spike",
+     "unresolvedThreads": 0,
+     "updatedAt": 813690880,
+     "url": "https://github.com/elastic/docs-builder/pull/2852"
+    }
+   ],
+   "status": {
+    "ok": {}
+   },
+   "syncedAt": 813692782,
+   "viewer": "you"
+  },
+  "history": [
+   {
+    "closedAt": 813689200,
+    "outcome": "merged",
+    "session": {
+     "activity": "",
+     "agent": "claude",
+     "agentSessionID": "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
+     "branch": "fix-toc-ordering",
+     "branches": [
+      "fix-toc-ordering"
+     ],
+     "createdAt": 813681400,
+     "hiddenIssues": [],
+     "id": "h-fix-toc-ordering",
+     "issues": [],
+     "lastActivity": 813689200,
+     "notes": [],
+     "parked": false,
+     "pinned": false,
+     "prompt": "Fix toc ordering. Keep the change small and add a test.",
+     "repos": [
+      {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     ],
+     "state": {
+      "source": "reported",
+      "state": "done"
+     },
+     "timeline": [
+      {
+       "at": 813681400,
+       "text": "started \u00b7 claude \u00b7 2 panes"
+      },
+      {
+       "at": 813685300,
+       "text": "opened PR #2810"
+      },
+      {
+       "at": 813689200,
+       "text": "ended after 2h 10m"
+      }
+     ],
+     "title": "Fix toc ordering",
+     "trackedPRs": [
+      {
+       "number": 2810,
+       "repo": {
+        "name": "docs-builder",
+        "org": "elastic"
+       }
+      }
+     ],
+     "untrackedPRs": [],
+     "worktreePaths": []
+    }
+   },
+   {
+    "closedAt": 813682000,
+    "outcome": "merged",
+    "session": {
+     "activity": "",
+     "agent": "claude",
+     "agentSessionID": "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
+     "branch": "fix-redirect-typos",
+     "branches": [
+      "fix-redirect-typos"
+     ],
+     "createdAt": 813679540,
+     "hiddenIssues": [],
+     "id": "h-fix-redirect-typos",
+     "issues": [],
+     "lastActivity": 813682000,
+     "notes": [],
+     "parked": false,
+     "pinned": false,
+     "prompt": "Fix redirect typos. Keep the change small and add a test.",
+     "repos": [
+      {
+       "name": "docs-content",
+       "org": "elastic"
+      }
+     ],
+     "state": {
+      "source": "reported",
+      "state": "done"
+     },
+     "timeline": [
+      {
+       "at": 813679540,
+       "text": "started \u00b7 claude \u00b7 2 panes"
+      },
+      {
+       "at": 813680770,
+       "text": "opened PR #1912"
+      },
+      {
+       "at": 813682000,
+       "text": "ended after 0h 41m"
+      }
+     ],
+     "title": "Fix redirect typos",
+     "trackedPRs": [
+      {
+       "number": 1912,
+       "repo": {
+        "name": "docs-content",
+        "org": "elastic"
+       }
+      }
+     ],
+     "untrackedPRs": [],
+     "worktreePaths": []
+    }
+   },
+   {
+    "closedAt": 813599200,
+    "outcome": "merged",
+    "session": {
+     "activity": "",
+     "agent": "claude",
+     "agentSessionID": "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
+     "branch": "bump-spec-tests-0-17",
+     "branches": [
+      "bump-spec-tests-0-17"
+     ],
+     "createdAt": 813595300,
+     "hiddenIssues": [],
+     "id": "h-bump-spec-tests-0-17",
+     "issues": [],
+     "lastActivity": 813599200,
+     "notes": [],
+     "parked": false,
+     "pinned": false,
+     "prompt": "Bump spec tests to 0.17. Keep the change small and add a test.",
+     "repos": [
+      {
+       "name": "editorconfig",
+       "org": "editorconfig"
+      }
+     ],
+     "state": {
+      "source": "reported",
+      "state": "done"
+     },
+     "timeline": [
+      {
+       "at": 813595300,
+       "text": "started \u00b7 claude \u00b7 2 panes"
+      },
+      {
+       "at": 813597250,
+       "text": "opened PR #412"
+      },
+      {
+       "at": 813599200,
+       "text": "ended after 1h 5m"
+      }
+     ],
+     "title": "Bump spec tests to 0.17",
+     "trackedPRs": [
+      {
+       "number": 412,
+       "repo": {
+        "name": "editorconfig",
+        "org": "editorconfig"
+       }
+      }
+     ],
+     "untrackedPRs": [],
+     "worktreePaths": []
+    }
+   },
+   {
+    "closedAt": 813592000,
+    "outcome": "abandoned",
+    "session": {
+     "activity": "",
+     "agent": "opencode",
+     "agentSessionID": "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
+     "branch": "flowchart-label-wrapping",
+     "branches": [
+      "flowchart-label-wrapping"
+     ],
+     "createdAt": 813590440,
+     "hiddenIssues": [],
+     "id": "h-flowchart-label-wrapping",
+     "issues": [],
+     "lastActivity": 813592000,
+     "notes": [],
+     "parked": false,
+     "pinned": false,
+     "prompt": "Flowchart label wrapping. Keep the change small and add a test.",
+     "repos": [
+      {
+       "name": "mermaider",
+       "org": "nullean"
+      }
+     ],
+     "state": {
+      "source": "reported",
+      "state": "done"
+     },
+     "timeline": [
+      {
+       "at": 813590440,
+       "text": "started \u00b7 opencode \u00b7 2 panes"
+      },
+      {
+       "at": 813592000,
+       "text": "ended after 0h 26m"
+      }
+     ],
+     "title": "Flowchart label wrapping",
+     "trackedPRs": [],
+     "untrackedPRs": [],
+     "worktreePaths": []
+    }
+   },
+   {
+    "closedAt": 813584800,
+    "outcome": "closed",
+    "session": {
+     "activity": "",
+     "agent": "opencode",
+     "agentSessionID": "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
+     "branch": "docs-nav-spike-v1",
+     "branches": [
+      "docs-nav-spike-v1"
+     ],
+     "createdAt": 813571600,
+     "hiddenIssues": [],
+     "id": "h-docs-nav-spike-v1",
+     "issues": [],
+     "lastActivity": 813584800,
+     "notes": [],
+     "parked": false,
+     "pinned": false,
+     "prompt": "Docs nav spike v1. Keep the change small and add a test.",
+     "repos": [
+      {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     ],
+     "state": {
+      "source": "reported",
+      "state": "done"
+     },
+     "timeline": [
+      {
+       "at": 813571600,
+       "text": "started \u00b7 opencode \u00b7 2 panes"
+      },
+      {
+       "at": 813578200,
+       "text": "opened PR #2790"
+      },
+      {
+       "at": 813584800,
+       "text": "ended after 3h 40m"
+      }
+     ],
+     "title": "Docs nav spike v1",
+     "trackedPRs": [
+      {
+       "number": 2790,
+       "repo": {
+        "name": "docs-builder",
+        "org": "elastic"
+       }
+      }
+     ],
+     "untrackedPRs": [],
+     "worktreePaths": []
+    }
+   },
+   {
+    "closedAt": 813260800,
+    "outcome": "merged",
+    "session": {
+     "activity": "",
+     "agent": "claude",
+     "agentSessionID": "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
+     "branch": "snippet-include-performance",
+     "branches": [
+      "snippet-include-performance"
+     ],
+     "createdAt": 813250300,
+     "hiddenIssues": [],
+     "id": "h-snippet-include-performance",
+     "issues": [],
+     "lastActivity": 813260800,
+     "notes": [],
+     "parked": false,
+     "pinned": false,
+     "prompt": "Snippet include performance. Keep the change small and add a test.",
+     "repos": [
+      {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     ],
+     "state": {
+      "source": "reported",
+      "state": "done"
+     },
+     "timeline": [
+      {
+       "at": 813250300,
+       "text": "started \u00b7 claude \u00b7 2 panes"
+      },
+      {
+       "at": 813255550,
+       "text": "opened PR #2781"
+      },
+      {
+       "at": 813260800,
+       "text": "ended after 2h 55m"
+      }
+     ],
+     "title": "Snippet include performance",
+     "trackedPRs": [
+      {
+       "number": 2781,
+       "repo": {
+        "name": "docs-builder",
+        "org": "elastic"
+       }
+      }
+     ],
+     "untrackedPRs": [],
+     "worktreePaths": []
+    }
+   },
+   {
+    "closedAt": 813224800,
+    "outcome": "cleaned up",
+    "session": {
+     "activity": "",
+     "agent": "claude",
+     "agentSessionID": "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
+     "branch": "parser-fuzzing-harness",
+     "branches": [
+      "parser-fuzzing-harness"
+     ],
+     "createdAt": 813219400,
+     "hiddenIssues": [],
+     "id": "h-parser-fuzzing-harness",
+     "issues": [],
+     "lastActivity": 813224800,
+     "notes": [],
+     "parked": false,
+     "pinned": false,
+     "prompt": "Parser fuzzing harness. Keep the change small and add a test.",
+     "repos": [
+      {
+       "name": "mermaider",
+       "org": "nullean"
+      }
+     ],
+     "state": {
+      "source": "reported",
+      "state": "done"
+     },
+     "timeline": [
+      {
+       "at": 813219400,
+       "text": "started \u00b7 claude \u00b7 2 panes"
+      },
+      {
+       "at": 813224800,
+       "text": "ended after 1h 30m"
+      }
+     ],
+     "title": "Parser fuzzing harness",
+     "trackedPRs": [],
+     "untrackedPRs": [],
+     "worktreePaths": []
+    }
+   }
+  ],
+  "layouts": {},
+  "mergeRuns": {},
+  "pilotLog": [],
+  "pullDetails": {},
+  "registeredWorktrees": [
+   "devbox:/home/you/code/wt/flake-hunt"
+  ],
+  "repos": [
+   {
+    "defaultBranch": "main",
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/docs-builder",
+    "repo": {
+     "name": "docs-builder",
+     "org": "elastic"
+    }
+   },
+   {
+    "defaultBranch": "main",
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/docs-content",
+    "repo": {
+     "name": "docs-content",
+     "org": "elastic"
+    }
+   },
+   {
+    "defaultBranch": "main",
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/mermaider",
+    "repo": {
+     "name": "mermaider",
+     "org": "nullean"
+    }
+   },
+   {
+    "defaultBranch": "main",
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/editorconfig",
+    "repo": {
+     "name": "editorconfig",
+     "org": "editorconfig"
+    }
+   },
+   {
+    "defaultBranch": "main",
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/ingest",
+    "repo": {
+     "name": "ingest",
+     "org": "mpdreamz"
+    }
+   },
+   {
+    "defaultBranch": "main",
+    "location": {
+     "host": {
+      "_0": "devbox"
+     }
+    },
+    "path": "/home/you/code/docs-builder",
+    "repo": {
+     "name": "docs-builder",
+     "org": "elastic"
+    }
+   }
+  ],
+  "runs": [],
+  "sessions": [
+   {
+    "activity": "running tests \u00b7 14m",
+    "agent": "claude",
+    "agentSessionID": "7f3a9c1e-52b4-4e0d-9a61-0c8d3e1f2b77",
+    "branch": "fix-anchors-redirects",
+    "branches": [
+     "fix-anchors-redirects"
+    ],
+    "createdAt": 814310414.47708,
+    "hiddenIssues": [],
+    "id": "s1",
+    "issues": [],
+    "lastActivity": 814310414.47708,
+    "notes": [],
+    "parked": false,
+    "pinned": true,
+    "prompt": "Fix broken anchors in redirects.yml. Every redirect target must resolve to a real heading.\n\nFixes elastic/docs-content#88",
+    "repos": [
+     {
+      "name": "docs-builder",
+      "org": "elastic"
+     },
+     {
+      "name": "docs-content",
+      "org": "elastic"
+     }
+    ],
+    "state": {
+     "source": "reported",
+     "state": "working"
+    },
+    "timeline": [
+     {
+      "at": 813680000.0,
+      "text": "started \u00b7 claude \u00b7 3 panes"
+     },
+     {
+      "at": 813680600.0,
+      "text": "tracking PR docs-builder#2841 (opened by claude)"
+     },
+     {
+      "at": 813680900.0,
+      "text": "tracking PR docs-content#1920 (opened by claude)"
+     }
+    ],
+    "title": "Fix broken anchors in redirects",
+    "trackedPRs": [
+     {
+      "number": 2841,
+      "repo": {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     },
+     {
+      "number": 1920,
+      "repo": {
+       "name": "docs-content",
+       "org": "elastic"
+      }
+     },
+     {
+      "number": 2836,
+      "repo": {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     }
+    ],
+    "untrackedPRs": [],
+    "usage": {
+     "contextTokens": 76000,
+     "contextWindow": 200000,
+     "costUSD": 0.42,
+     "model": "model-a",
+     "tokens": {
+      "cacheRead": 9870,
+      "cacheWrite": 610,
+      "input": 1840,
+      "output": 4120
+     }
+    },
+    "worktreePaths": []
+   },
+   {
+    "activity": "wants to run dotnet publish",
+    "agent": "claude",
+    "agentSessionID": "2c81d6aa-9e17-4b3f-8d05-6a4e7b9c0d12",
+    "branch": "cross-link-validator",
+    "branches": [
+     "cross-link-validator"
+    ],
+    "createdAt": 814310414.477104,
+    "hiddenIssues": [],
+    "id": "s2",
+    "issues": [],
+    "lastActivity": 814310414.477104,
+    "notes": [],
+    "parked": false,
+    "pinned": true,
+    "prompt": "",
+    "repos": [
+     {
+      "name": "docs-builder",
+      "org": "elastic"
+     }
+    ],
+    "state": {
+     "reason": "Bash(dotnet publish)",
+     "source": "reported",
+     "state": "blocked"
+    },
+    "timeline": [
+     {
+      "at": 813680060.0,
+      "text": "started \u00b7 codex \u00b7 2 panes"
+     },
+     {
+      "at": 813683000.0,
+      "text": "resumed after restart"
+     }
+    ],
+    "title": "Cross-link validator for assemblies",
+    "trackedPRs": [
+     {
+      "number": 2838,
+      "repo": {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     }
+    ],
+    "untrackedPRs": [],
+    "worktreePaths": []
+   },
+   {
+    "activity": "3 questions waiting",
+    "agent": "codex",
+    "agentSessionID": "91be40d2-7a35-4c68-b2f9-13e5a8d07c46",
+    "branch": "ingest-backpressure",
+    "branches": [
+     "ingest-backpressure"
+    ],
+    "createdAt": 814310414.477105,
+    "hiddenIssues": [],
+    "id": "s3",
+    "issues": [],
+    "lastActivity": 814310414.477105,
+    "notes": [],
+    "parked": false,
+    "pinned": false,
+    "prompt": "",
+    "repos": [
+     {
+      "name": "ingest",
+      "org": "mpdreamz"
+     }
+    ],
+    "state": {
+     "source": "guessed",
+     "state": "asking"
+    },
+    "timeline": [],
+    "title": "Backpressure in ingest stage",
+    "trackedPRs": [
+     {
+      "number": 31,
+      "repo": {
+       "name": "ingest",
+       "org": "mpdreamz"
+      }
+     }
+    ],
+    "untrackedPRs": [],
+    "worktreePaths": []
+   },
+   {
+    "activity": "editing \u00b7 3m",
+    "agent": "claude",
+    "agentSessionID": "e0457f3b-18c2-4d9a-a6b1-5f2d9c8e3a04",
+    "branch": "sequence-arrowheads",
+    "branches": [
+     "sequence-arrowheads"
+    ],
+    "createdAt": 814310414.477106,
+    "hiddenIssues": [],
+    "id": "s4",
+    "issues": [],
+    "lastActivity": 814310414.477106,
+    "notes": [],
+    "parked": false,
+    "pinned": false,
+    "prompt": "",
+    "repos": [
+     {
+      "name": "mermaider",
+      "org": "nullean"
+     }
+    ],
+    "state": {
+     "source": "reported",
+     "state": "working"
+    },
+    "timeline": [],
+    "title": "Sequence diagram arrowheads",
+    "trackedPRs": [
+     {
+      "number": 418,
+      "repo": {
+       "name": "mermaider",
+       "org": "nullean"
+      }
+     }
+    ],
+    "untrackedPRs": [],
+    "worktreePaths": []
+   },
+   {
+    "activity": "done \u00b7 PR approved",
+    "agent": "claude",
+    "branch": "bump-spec-tests",
+    "branches": [
+     "bump-spec-tests"
+    ],
+    "createdAt": 813689800,
+    "hiddenIssues": [],
+    "id": "s5",
+    "issues": [],
+    "lastActivity": 813689800,
+    "notes": [],
+    "parked": false,
+    "pinned": false,
+    "prompt": "",
+    "repos": [
+     {
+      "name": "editorconfig",
+      "org": "editorconfig"
+     }
+    ],
+    "state": {
+     "source": "reported",
+     "state": "done"
+    },
+    "timeline": [],
+    "title": "Bump spec tests to 0.17",
+    "trackedPRs": [
+     {
+      "number": 412,
+      "repo": {
+       "name": "editorconfig",
+       "org": "editorconfig"
+      }
+     }
+    ],
+    "untrackedPRs": [],
+    "worktreePaths": []
+   },
+   {
+    "activity": "idle 2h",
+    "agent": "opencode",
+    "agentSessionID": "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
+    "branch": "docs-nav-spike",
+    "branches": [
+     "docs-nav-spike"
+    ],
+    "createdAt": 814310414.477108,
+    "hiddenIssues": [],
+    "id": "s6",
+    "issues": [],
+    "lastActivity": 814310414.477108,
+    "notes": [],
+    "parked": false,
+    "pinned": false,
+    "prompt": "",
+    "repos": [
+     {
+      "name": "docs-builder",
+      "org": "elastic"
+     }
+    ],
+    "state": {
+     "source": "reported",
+     "state": "idle"
+    },
+    "timeline": [],
+    "title": "Docs nav spike",
+    "trackedPRs": [
+     {
+      "number": 2852,
+      "repo": {
+       "name": "docs-builder",
+       "org": "elastic"
+      }
+     }
+    ],
+    "untrackedPRs": [],
+    "worktreePaths": []
+   },
+   {
+    "activity": "idle 20m",
+    "agent": "claude",
+    "branch": "flake-hunt",
+    "branches": [
+     "flake-hunt"
+    ],
+    "createdAt": 814310414.477109,
+    "hiddenIssues": [],
+    "host": "devbox",
+    "id": "s7",
+    "issues": [],
+    "lastActivity": 814310414.477109,
+    "notes": [],
+    "parked": false,
+    "pinned": false,
+    "prompt": "",
+    "repos": [
+     {
+      "name": "docs-builder",
+      "org": "elastic"
+     }
+    ],
+    "state": {
+     "source": "reported",
+     "state": "idle"
+    },
+    "timeline": [],
+    "title": "Nightly flake hunt",
+    "trackedPRs": [],
+    "untrackedPRs": [],
+    "worktreePaths": [
+     "/home/you/code/wt/flake-hunt"
+    ]
+   }
+  ],
+  "worktrees": [
+   {
+    "branch": "fix-anchors-redirects",
+    "head": "0000000",
+    "isMain": false,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/wt/docs-builder/fix-anchors-redirects",
+    "repo": {
+     "name": "docs-builder",
+     "org": "elastic"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 0,
+     "changedFiles": 2,
+     "untrackedFiles": 0,
+     "upstream": "origin/fix-anchors-redirects"
+    }
+   },
+   {
+    "branch": "fix-anchors-redirects",
+    "head": "0000000",
+    "isMain": false,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/wt/docs-content/fix-anchors-redirects",
+    "repo": {
+     "name": "docs-content",
+     "org": "elastic"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 0,
+     "changedFiles": 0,
+     "untrackedFiles": 0,
+     "upstream": "origin/fix-anchors-redirects"
+    }
+   },
+   {
+    "branch": "cross-link-validator",
+    "head": "0000000",
+    "isMain": false,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/wt/docs-builder/cross-link-validator",
+    "repo": {
+     "name": "docs-builder",
+     "org": "elastic"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 0,
+     "changedFiles": 0,
+     "untrackedFiles": 0,
+     "upstream": "origin/cross-link-validator"
+    }
+   },
+   {
+    "branch": "ingest-backpressure",
+    "head": "0000000",
+    "isMain": false,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/wt/ingest/ingest-backpressure",
+    "repo": {
+     "name": "ingest",
+     "org": "mpdreamz"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 0,
+     "changedFiles": 0,
+     "untrackedFiles": 0,
+     "upstream": "origin/ingest-backpressure"
+    }
+   },
+   {
+    "branch": "sequence-arrowheads",
+    "head": "0000000",
+    "isMain": false,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/wt/mermaider/sequence-arrowheads",
+    "repo": {
+     "name": "mermaider",
+     "org": "nullean"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 0,
+     "changedFiles": 0,
+     "untrackedFiles": 0,
+     "upstream": "origin/sequence-arrowheads"
+    }
+   },
+   {
+    "branch": "bump-spec-tests",
+    "head": "0000000",
+    "isMain": false,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/wt/editorconfig/bump-spec-tests",
+    "repo": {
+     "name": "editorconfig",
+     "org": "editorconfig"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 0,
+     "changedFiles": 0,
+     "untrackedFiles": 0,
+     "upstream": "origin/bump-spec-tests"
+    }
+   },
+   {
+    "branch": "docs-nav-spike",
+    "head": "0000000",
+    "isMain": false,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/wt/docs-builder/docs-nav-spike",
+    "repo": {
+     "name": "docs-builder",
+     "org": "elastic"
+    },
+    "status": {
+     "ahead": 1,
+     "behind": 0,
+     "changedFiles": 3,
+     "untrackedFiles": 1,
+     "upstream": "origin/docs-nav-spike"
+    }
+   },
+   {
+    "branch": "toc-ordering",
+    "head": "0000000",
+    "isMain": false,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/wt/docs-builder/toc-ordering",
+    "repo": {
+     "name": "docs-builder",
+     "org": "elastic"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 0,
+     "changedFiles": 0,
+     "untrackedFiles": 0,
+     "upstream": "origin/toc-ordering"
+    }
+   },
+   {
+    "branch": "gantt-labels",
+    "head": "0000000",
+    "isMain": false,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/wt/mermaider/gantt-labels",
+    "repo": {
+     "name": "mermaider",
+     "org": "nullean"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 0,
+     "changedFiles": 0,
+     "untrackedFiles": 0
+    }
+   },
+   {
+    "branch": "main",
+    "head": "0000000",
+    "isMain": true,
+    "location": {
+     "local": {}
+    },
+    "path": "/Users/you/code/ingest",
+    "repo": {
+     "name": "ingest",
+     "org": "mpdreamz"
+    }
+   },
+   {
+    "branch": "flake-hunt",
+    "head": "4e1c2aa",
+    "isMain": false,
+    "location": {
+     "host": {
+      "_0": "devbox"
+     }
+    },
+    "path": "/home/you/code/wt/flake-hunt",
+    "repo": {
+     "name": "docs-builder",
+     "org": "elastic"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 4,
+     "changedFiles": 0,
+     "untrackedFiles": 0,
+     "upstream": "origin/flake-hunt"
+    }
+   },
+   {
+    "branch": "old-spike",
+    "head": "9b0d113",
+    "isMain": false,
+    "location": {
+     "host": {
+      "_0": "devbox"
+     }
+    },
+    "path": "/home/you/code/wt/old-spike",
+    "repo": {
+     "name": "docs-builder",
+     "org": "elastic"
+    },
+    "status": {
+     "ahead": 0,
+     "behind": 0,
+     "changedFiles": 2,
+     "untrackedFiles": 0
+    }
+   }
+  ]
+ },
+ "version": 6
+}

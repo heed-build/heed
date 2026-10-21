@@ -137,7 +137,8 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         parked = try container.decode(Bool.self, forKey: .parked)
         lastActivity = try container.decode(Date.self, forKey: .lastActivity)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
-        timeline = try container.decode([TimelineEvent].self, forKey: .timeline)
+        // Kept in the event log now (`EventLog`); read from caches that still have it, to move it there.
+        timeline = try container.decodeIfPresent([TimelineEvent].self, forKey: .timeline) ?? []
         branches = try container.decodeIfPresent([String].self, forKey: .branches) ?? [branch]
         worktreePaths = try container.decodeIfPresent([String].self, forKey: .worktreePaths) ?? []
         untrackedPRs = try container.decodeIfPresent([PullRef].self, forKey: .untrackedPRs) ?? []

@@ -1,7 +1,8 @@
 // heed: what agent hooks call to tell the Heed app what they are doing.
 //
 // Never slows an agent down: one write to a unix socket with a short timeout, and if the app is not running the
-// message is dropped with exit 0, so a hook can never fail a tool call or a turn.
+// message is appended to a spool file the app reads on launch (`HookSpool`), with exit 0, so a hook can never fail a
+// tool call or a turn.
 import Foundation
 import HeedCore
 
@@ -96,8 +97,11 @@ func send(_ data: Data, to path: String) -> Bool {
     return data.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) } == data.count
 }
 
-if !lines.isEmpty, !send(lines.reduce(Data(), +), to: socketPath) {
-    FileHandle.standardError.write(Data("heed: app not reachable at \(socketPath), message dropped\n".utf8))
+let data = lines.reduce(Data(), +)
+if !lines.isEmpty, !send(data, to: socketPath) {
+    let spool = HookSpool.path(forSocket: socketPath)
+    let outcome = HookSpool.append(data, to: spool) ? "kept in \(spool) for its next launch" : "message dropped"
+    FileHandle.standardError.write(Data("heed: app not reachable at \(socketPath), \(outcome)\n".utf8))
 }
 
 exit(0)

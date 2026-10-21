@@ -93,7 +93,8 @@ public struct Domain: Hashable, Sendable, Codable {
         worktrees = try container.decode([Worktree].self, forKey: .worktrees)
         sessions = try container.decode([Session].self, forKey: .sessions)
         layouts = try container.decode([String: SessionLayout].self, forKey: .layouts)
-        history = try container.decode([HistoryEntry].self, forKey: .history)
+        // Kept in the event log now (`EventLog`); read from caches that still have it, to move it there.
+        history = try container.decodeIfPresent([HistoryEntry].self, forKey: .history) ?? []
         github = try container.decode(GitHubState.self, forKey: .github)
         pullDetails = try container.decode([String: PullDetail].self, forKey: .pullDetails)
         feedback = try container.decode([String: PullFeedback].self, forKey: .feedback)

@@ -101,25 +101,18 @@ public enum SetupDetection {
 /// are copied in from the main checkout.
 public enum WorktreeSetup {
     /// The line a new pane types: the setup commands, then `command` (the agent) only when every one of them passed.
-    /// The setup runs under `sh -c`, so the line works in any shell that knows `&&` (zsh, bash, fish). A failure says
-    /// which command failed and how to start the agent by hand, and leaves the pane at its prompt; with `report`, it
-    /// also tells heed (`heed task-exit`), which ends a background run as failed. No setup: `command` unchanged.
-    public static func paneCommand(setup: [String], then command: String?, report: Bool = false) -> String? {
+    /// The setup runs under `sh -c` as a step of its own, so the line works in any shell that knows `&&` (zsh, bash,
+    /// fish) and the agent still runs in your shell. A failure says which command failed and how to start the agent by
+    /// hand, and leaves the pane at its prompt; with `report`, it also tells heed (`heed task-exit`), which ends a
+    /// background run as failed. No setup: `command` unchanged.
+    public static func paneCommand(
+        setup: [String],
+        then command: ShellCommand?,
+        report: Bool = false
+    ) -> ShellCommand? {
         let steps = setup.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         guard !steps.isEmpty else { return command }
-        let next = command.map { "start the agent with:\n  \($0)" } ?? "open a new shell."
-        let script = steps.map { step in
-            let failed = "heed: setup failed (\(step)); fix it, then \(next)"
-            let tell = report ? #" "${HEED_BIN:-true}" task-exit "$c";"# : ""
-            let run = "printf '\\033[2mheed: setup: %s\\033[0m\\n' \(ShellQuote.quote(step)); "
-                + "{ \(step); } || { c=$?; printf '\\n%s\\n' \(ShellQuote.quote(failed));\(tell) exit \"$c\"; }"
-            guard let manifest = manifest(for: step) else { return run }
-            let skipped = "heed: setup: skipped \(step) (no \(manifest))"
-            return "if [ -f \(manifest) ]; then \(run); "
-                + "else printf '\\033[2m%s\\033[0m\\n' \(ShellQuote.quote(skipped)); fi"
-        }.joined(separator: "; ")
-        let setupLine = "sh -c " + ShellQuote.quote(script)
-        return command.map { "\(setupLine) && \($0)" } ?? setupLine
+        return ShellCommand([.setup(SetupScript(steps: steps, report: report))] + (command?.steps ?? []))
     }
 
     /// The file a package manager's install needs in the worktree's root, so a repo without one (an org-wide `npm ci`
@@ -140,6 +133,33 @@ public enum WorktreeSetup {
     /// The reason a background run's setup failed, for its outcome.
     public static func failureReason(_ setup: [String]) -> String {
         "setup failed (\(setup.joined(separator: " && ")))"
+    }
+}
+
+/// A worktree's setup commands as the sh script a pane runs before its agent.
+public struct SetupScript: Hashable, Sendable, Codable {
+    public var steps: [String]
+    /// Tell heed when a step fails (`heed task-exit`), for background runs.
+    public var report: Bool
+
+    public init(steps: [String], report: Bool = false) {
+        self.steps = steps
+        self.report = report
+    }
+
+    /// The script; `next` is the command that follows it on the line, as typed, for the failure's hint.
+    public func script(next: String?) -> String {
+        let hint = next.map { "start the agent with:\n  \($0)" } ?? "open a new shell."
+        return steps.map { step in
+            let failed = "heed: setup failed (\(step)); fix it, then \(hint)"
+            let tell = report ? #" "${HEED_BIN:-true}" task-exit "$c";"# : ""
+            let run = "printf '\\033[2mheed: setup: %s\\033[0m\\n' \(ShellQuote.quote(step)); "
+                + "{ \(step); } || { c=$?; printf '\\n%s\\n' \(ShellQuote.quote(failed));\(tell) exit \"$c\"; }"
+            guard let manifest = WorktreeSetup.manifest(for: step) else { return run }
+            let skipped = "heed: setup: skipped \(step) (no \(manifest))"
+            return "if [ -f \(manifest) ]; then \(run); "
+                + "else printf '\\033[2m%s\\033[0m\\n' \(ShellQuote.quote(skipped)); fi"
+        }.joined(separator: "; ")
     }
 }
 

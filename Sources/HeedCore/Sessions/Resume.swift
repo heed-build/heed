@@ -21,7 +21,7 @@ public struct ResumeCandidate: Identifiable, Hashable, Sendable {
     public let session: Session
     public let mode: Mode
     /// The exact line typed into the agent pane.
-    public let command: String
+    public let command: ShellCommand
     public let paneCount: Int
 
     /// Whether it is ticked by default.
@@ -62,7 +62,7 @@ public enum Resume {
                 AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0, resuming: true)
             } ?? []
             let env = integration.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
-            let resumable = session.agentSessionID.flatMap { id -> String? in
+            let resumable = session.agentSessionID.flatMap { id -> ShellCommand? in
                 hasSession(session) == false ? nil : agent.resumeCommand(
                     id: id,
                     extraArguments: extra,

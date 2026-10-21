@@ -230,7 +230,7 @@ struct StartWorkView: View {
             SectionHeader(title: runsWhere(form))
             HStack(spacing: 6) {
                 Text("$").foregroundStyle(Theme.done)
-                Text(form.plan.command ?? "(shell only)").lineLimit(4).truncationMode(.middle)
+                Text(form.plan.command?.posix ?? "(shell only)").lineLimit(4).truncationMode(.middle)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(Theme.mono(12))

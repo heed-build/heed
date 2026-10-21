@@ -18,6 +18,9 @@ heed: setup failed (pnpm install); fix it, then start the agent with:
   claude --session-id … 'Fix broken anchors'
 ```
 
+Setup commands are sh: they run under `sh -c` whatever your login shell is, and the agent then starts in your own
+shell, in its syntax.
+
 A background run whose setup fails ends as failed, with that reason, instead of an agent working in a broken tree.
 
 Heed proposes setup from what it finds in the repo's main checkout, and runs nothing until you approve it:

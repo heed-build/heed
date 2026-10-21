@@ -17,13 +17,14 @@ public struct PaneSpec: Hashable, Sendable, Codable, Identifiable {
     public var role: Role
     public var title: String
     public var directory: String
-    /// Typed into the shell once it starts (the agent command, a task's command). Nil for a plain shell.
-    public var command: String?
+    /// Typed into the shell once it starts (the agent command, a task's command), in that shell's syntax. Nil for a
+    /// plain shell.
+    public var command: ShellCommand?
     /// Where its terminal runs: this Mac, or a host over ssh (`directory` is then a path there).
     public var location: Location
 
     public init(
-        id: String = UUID().uuidString, role: Role, title: String, directory: String, command: String? = nil,
+        id: String = UUID().uuidString, role: Role, title: String, directory: String, command: ShellCommand? = nil,
         location: Location = .local
     ) {
         self.id = id
@@ -34,17 +35,30 @@ public struct PaneSpec: Hashable, Sendable, Codable, Identifiable {
         self.location = location
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, title, directory, command, location }
+    /// `command` keeps the line in sh syntax, as versions before `shellCommand` read it.
+    private enum CodingKeys: String, CodingKey { case id, role, title, directory, command, shellCommand, location }
 
-    /// Panes cached before hosts run here.
+    /// Panes cached before hosts run here, and before commands were kept as structure (their sh line is kept as is).
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         role = try container.decode(Role.self, forKey: .role)
         title = try container.decode(String.self, forKey: .title)
         directory = try container.decode(String.self, forKey: .directory)
-        command = try container.decodeIfPresent(String.self, forKey: .command)
+        command = try container.decodeIfPresent(ShellCommand.self, forKey: .shellCommand)
+            ?? container.decodeIfPresent(String.self, forKey: .command).map(ShellCommand.init(line:))
         location = try container.decodeIfPresent(Location.self, forKey: .location) ?? .local
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(role, forKey: .role)
+        try container.encode(title, forKey: .title)
+        try container.encode(directory, forKey: .directory)
+        try container.encodeIfPresent(command?.posix, forKey: .command)
+        try container.encodeIfPresent(command, forKey: .shellCommand)
+        try container.encode(location, forKey: .location)
     }
 }
 

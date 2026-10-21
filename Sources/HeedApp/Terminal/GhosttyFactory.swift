@@ -7,7 +7,10 @@
     @MainActor
     enum GhosttyTerminalFactory {
         /// `command` replaces the login shell (zmx attaching to the pane's session); nil runs your shell as usual.
-        static func makeView(pane: PaneSpec, environment: [String: String], command: String? = nil) -> NSView {
+        /// `shell` is the shell the pane's own command is typed into, which says the syntax it is written in.
+        static func makeView(
+            pane: PaneSpec, environment: [String: String], command: String? = nil, shell: PaneShell = .posix
+        ) -> NSView {
             let fileManager = FileManager.default
             var isDirectory: ObjCBool = false
             let exists = fileManager.fileExists(atPath: pane.directory, isDirectory: &isDirectory) && isDirectory
@@ -24,7 +27,8 @@
                 directory: exists ? pane.directory : NSHomeDirectory(),
                 command: command,
                 // On a host the worktree is there, not here: the remote pane command goes into it.
-                initialInput: exists || !pane.location.isLocal ? pane.command.map { "\(ShellLine.typed($0))\n" } : nil,
+                initialInput: exists || !pane.location.isLocal ? pane.command
+                    .map { "\($0.rendered(for: shell))\n" } : nil,
                 environment: env
             )
             return GhosttySurfaceView(launch: launch)

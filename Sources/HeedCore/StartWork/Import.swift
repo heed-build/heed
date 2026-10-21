@@ -75,7 +75,7 @@ public enum Import {
         )
         session.host = worktree.location.hostName
         session.worktreePaths = [worktree.path]
-        var command: String?
+        var command: ShellCommand?
         if let agent {
             let env = integration.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
             let hooks = { (resuming: Bool) in

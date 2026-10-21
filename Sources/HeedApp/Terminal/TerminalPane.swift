@@ -65,6 +65,19 @@ final class TerminalSurfaces {
         didSet { UserDefaults.standard.set(hostZmx, forKey: "heed.hostZmx") }
     }
 
+    /// Each host's login shell, as the host checks last found it: a remote pane's command is typed in its syntax.
+    var hostShells: [String: String] = UserDefaults.standard
+        .dictionary(forKey: "heed.hostShells") as? [String: String] ?? [:]
+    {
+        didSet { UserDefaults.standard.set(hostShells, forKey: "heed.hostShells") }
+    }
+
+    /// The shell a pane's command is typed into: your login shell, read now (a `chsh` since launch counts), or the
+    /// host's. zmx sessions run the login shell too.
+    private func shell(for location: Location) -> PaneShell {
+        location.hostName.map { PaneShell(name: hostShells[$0]) } ?? .login()
+    }
+
     /// PATH for new panes: the detected search path (an app opened from Finder has a minimal one).
     var searchPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
 
@@ -82,6 +95,8 @@ final class TerminalSurfaces {
         if autostartPanes.remove(pane.id) == nil { launch.command = nil }
         var withPath = environment
         withPath["PATH"] = searchPath
+        // A zmx session starts `$SHELL`: the login shell the command is written for, not the one heed was started in.
+        if pane.location.isLocal, let login = PaneShell.loginShellPath() { withPath["SHELL"] = login }
         var attach: String?
         paneLocations[pane.id] = pane.location
         if let host = pane.location.hostName {
@@ -137,7 +152,7 @@ final class TerminalSurfaces {
               FileManager.default.fileExists(atPath: pane.directory)
         else { return }
         #if HEED_GHOSTTY
-            (existing as? GhosttySurfaceView)?.typeLine(ShellLine.typed(command))
+            (existing as? GhosttySurfaceView)?.typeLine(command.rendered(for: shell(for: pane.location)))
         #else
             _ = existing
         #endif
@@ -201,7 +216,9 @@ final class TerminalSurfaces {
 
     private func makeTerminalView(pane: PaneSpec, environment: [String: String], command: String?) -> NSView {
         #if HEED_GHOSTTY
-            GhosttyTerminalFactory.makeView(pane: pane, environment: environment, command: command)
+            GhosttyTerminalFactory.makeView(
+                pane: pane, environment: environment, command: command, shell: shell(for: pane.location)
+            )
         #else
             PlaceholderTerminalView(pane: pane)
         #endif

@@ -164,11 +164,15 @@ public struct HostInfo: Hashable, Sendable {
     public var os: String?
     /// Over the tailnet: how traffic goes (direct, through a relay). Nil over plain ssh.
     public var link: TailnetLink?
+    /// The login shell's name there (`zsh`, `fish`): a pane's zmx session runs it, so its command is typed in that
+    /// shell's syntax.
+    public var shell: String?
 
     public init(
         latency: Duration, platform: String, git: String?, zmx: String?, agents: [String], checkedAt: Date = Date(),
-        home: String? = nil, zmxPath: String? = nil, os: String? = nil, link: TailnetLink? = nil
+        home: String? = nil, zmxPath: String? = nil, os: String? = nil, link: TailnetLink? = nil, shell: String? = nil
     ) {
+        self.shell = shell
         self.link = link
         self.home = home
         self.zmxPath = zmxPath
@@ -199,6 +203,7 @@ public enum HostProbe {
     public static let script = """
     echo "platform=$(uname -sm)"
     echo "home=$HOME"
+    echo "shell=${SHELL##*/}"
     echo "git=$(git --version 2>/dev/null | awk '{print $3}')"
     # Only where it exists: `.` on a missing file ends a POSIX sh, and macOS has none.
     [ -r /etc/os-release ] && . /etc/os-release; echo "os=${ID:-}"
@@ -224,7 +229,8 @@ public enum HostProbe {
         func nonEmpty(_ key: String) -> String? { values[key].flatMap { $0.isEmpty ? nil : $0 } }
         return HostInfo(
             latency: latency, platform: platform, git: nonEmpty("git"), zmx: nonEmpty("zmx"), agents: agents,
-            checkedAt: now, home: nonEmpty("home"), zmxPath: nonEmpty("zmxpath"), os: nonEmpty("os")
+            checkedAt: now, home: nonEmpty("home"), zmxPath: nonEmpty("zmxpath"), os: nonEmpty("os"),
+            shell: nonEmpty("shell")
         )
     }
 

@@ -50,32 +50,47 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
         self.planArguments = planArguments
     }
 
-    /// The command line typed into the session's shell to start the agent on `prompt`.
+    /// The command line typed into the session's shell to start the agent on `prompt`. The agent is called by its
+    /// `command` as configured, never a resolved path, so an alias or function of that name in your shell applies.
     public func launchCommand(
         prompt text: String, planFirst: Bool = false, extraArguments: [String] = [],
         environment: [String: String] = [:],
         model: String? = nil
-    ) -> String {
-        let env = environment.sorted { $0.key < $1.key }.map { "\($0.key)=\(ShellQuote.quote($0.value)) " }.joined()
-        var line = env + ([command] + extraArguments.map(ShellQuote.quote)).joined(separator: " ")
-        if let model, !model.isEmpty, let modelFlag { line += " \(modelFlag) \(ShellQuote.quote(model))" }
-        if planFirst, let planArguments { line += " " + planArguments }
-        guard !text.isEmpty else { return line }
+    ) -> ShellCommand {
+        var words: [ShellCommand.Word] = [.raw(command)] + extraArguments.map(ShellCommand.Word.text)
+        if let model, !model.isEmpty, let modelFlag { words += [.raw(modelFlag), .text(model)] }
+        if planFirst, let planArguments { words.append(.raw(planArguments)) }
+        let agent = ShellCommand.Simple(environment: Self.assignments(environment), words: words)
+        guard !text.isEmpty else { return ShellCommand([.run([agent])]) }
         switch prompt {
-        case .argument: return line + " " + (promptFlag.map { "\($0) " } ?? "") + ShellQuote.quote(text)
-        case .stdin: return "printf '%s' \(ShellQuote.quote(text)) | " + line
-        case .paste, .file: return line
+        case .argument:
+            let prompt = (promptFlag.map { [ShellCommand.Word.raw($0)] } ?? []) + [.text(text)]
+            return ShellCommand([.run([ShellCommand.Simple(environment: agent.environment, words: words + prompt)])])
+        case .stdin:
+            let printf = ShellCommand.Simple(words: [.raw("printf"), .raw("'%s'"), .text(text)])
+            return ShellCommand([.run([printf, agent])])
+        case .paste, .file: return ShellCommand([.run([agent])])
         }
     }
 
     /// The command line that resumes session `id`, or nil when this agent cannot resume.
     public func resumeCommand(
         id: String, extraArguments: [String] = [], environment: [String: String] = [:]
-    ) -> String? {
+    ) -> ShellCommand? {
         guard let resumeArguments else { return nil }
-        let resume = resumeArguments.replacingOccurrences(of: "{id}", with: ShellQuote.quote(id))
-        let env = environment.sorted { $0.key < $1.key }.map { "\($0.key)=\(ShellQuote.quote($0.value)) " }.joined()
-        return env + ([command] + extraArguments.map(ShellQuote.quote) + [resume]).joined(separator: " ")
+        // `{id}` is quoted for the shell wherever it sits; the rest is typed as configured.
+        var resume: [ShellCommand.Segment] = []
+        for (index, part) in resumeArguments.components(separatedBy: "{id}").enumerated() {
+            if index > 0 { resume.append(.text(id)) }
+            if !part.isEmpty { resume.append(.raw(part)) }
+        }
+        let words: [ShellCommand.Word] = [.raw(command)] + extraArguments.map(ShellCommand.Word.text)
+            + [ShellCommand.Word(resume)]
+        return ShellCommand(environment: Self.assignments(environment), words: words)
+    }
+
+    private static func assignments(_ environment: [String: String]) -> [ShellCommand.Assignment] {
+        environment.sorted { $0.key < $1.key }.map { ShellCommand.Assignment($0.key, .text($0.value)) }
     }
 
     /// Flags verified against each CLI's source or docs on 2026-10-12 (see PLAN.md).
@@ -98,28 +113,5 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
         var agent = agent
         agent.modelFlag = "--model"
         return agent
-    }
-}
-
-/// POSIX shell quoting for command lines Heed types into a shell.
-/// A command line to type into whatever shell a pane runs: heed builds commands in POSIX sh syntax, and a login
-/// shell like fish reads quotes and braces differently (`'\''` is not an escaped quote there). A plain line is typed
-/// as it is; anything else goes through sh, carried as base64 inside a single-quoted string that every shell reads the
-/// same way. The agent keeps the terminal: sh runs it in the foreground, and the shell comes back when it exits.
-public enum ShellLine {
-    public static func typed(_ command: String) -> String {
-        let plain = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " @%+=:,./-_"))
-        if !command.isEmpty, command.unicodeScalars.allSatisfy(plain.contains) { return command }
-        let encoded = Data(command.utf8).base64EncodedString()
-        return "sh -c 'eval \"$(printf %s \(encoded) | base64 -d)\"'"
-    }
-}
-
-public enum ShellQuote {
-    /// Single-quotes `text` unless it is made only of safe characters.
-    public static func quote(_ text: String) -> String {
-        let safe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "@%+=:,./-_"))
-        if !text.isEmpty, text.unicodeScalars.allSatisfy(safe.contains) { return text }
-        return "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 }

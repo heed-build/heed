@@ -866,7 +866,8 @@ public enum Fixtures {
     private static func tabs(for session: Session, root: String) -> [PaneTab] {
         let directory = "\(root)/wt/\(session.repos[0].name)/\(session.branch)"
         let agent = PaneSpec(
-            id: "\(session.id)-agent", role: .agent, title: session.agent, directory: directory, command: session.agent
+            id: "\(session.id)-agent", role: .agent, title: session.agent, directory: directory,
+            command: ShellCommand(words: [.raw(session.agent)])
         )
         let shell = PaneSpec(
             id: "\(session.id)-shell", role: .shell, title: "zsh \(session.branch)", directory: directory
@@ -875,7 +876,8 @@ public enum Fixtures {
         main.split(.horizontal, with: shell)
         main.focused = agent.id
         let tests = PaneSpec(
-            id: "\(session.id)-tests", role: .task, title: "tests", directory: directory, command: "dotnet watch test"
+            id: "\(session.id)-tests", role: .task, title: "tests", directory: directory,
+            command: ShellCommand(line: "dotnet watch test")
         )
         return [
             main,

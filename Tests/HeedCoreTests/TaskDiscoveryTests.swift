@@ -151,7 +151,7 @@ struct TaskDiscoveryTests {
         let pane = TaskSpec(name: "dev", command: "pnpm run dev", source: .packageJSON).pane(directory: "/code/x")
         #expect(pane.role == .task)
         #expect(pane.title == "dev")
-        #expect(pane.command == "pnpm run dev; \"${HEED_BIN:-true}\" task-exit $?")
+        #expect(pane.command?.posix == "pnpm run dev; \"${HEED_BIN:-true}\" task-exit $?")
     }
 
     @Test func pinnedTasksDecodeWithoutASource() throws {

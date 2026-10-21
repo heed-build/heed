@@ -24,7 +24,7 @@
                 directory: exists ? pane.directory : NSHomeDirectory(),
                 command: command,
                 // On a host the worktree is there, not here: the remote pane command goes into it.
-                initialInput: exists || !pane.location.isLocal ? pane.command.map { "\($0)\n" } : nil,
+                initialInput: exists || !pane.location.isLocal ? pane.command.map { "\(ShellLine.typed($0))\n" } : nil,
                 environment: env
             )
             return GhosttySurfaceView(launch: launch)

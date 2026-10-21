@@ -33,6 +33,10 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 - **Resume**: claude `--resume <id>` (its session file under `~/.claude/projects/<cwd, / and . as ->/` tells whether
   it still exists), codex `resume <id>`, cursor `--resume <id>`, pi and opencode `--session <id>`; gemini starts fresh
   until verified. Resumed agent panes start at launch even off screen.
+- **Web pages**: `Sources/HeedApp/Browser` wraps WebKit's `WKWebView` (a system framework), not Chromium (CEF: a
+  ~250 MB framework, helper apps and its own event loop, and no shared logins either). One web view per id, kept
+  across re-layout as terminals are; one cookie store for all. Web views may load plain http
+  (`NSAllowsArbitraryLoadsInWebContent`) for dev servers on `*.localhost`. Not wired into panes or keys yet.
 - **Signing and deploy**: ad-hoc signed, rsync to the MacBook's SMB share after every build (`HEED_DEPLOY_DIR` in `mise.local.toml`).
 
 ## Build order

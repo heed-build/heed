@@ -58,7 +58,8 @@ tailscale = "gpu-box"            # the machine on your tailnet
 
 A machine running Tailscale SSH needs no key of yours: your tailnet identity logs you in, and heed checks the
 machine's host keys against the ones your tailnet publishes, the way `tailscale ssh` does. A machine without it is
-reached over the tailnet too, by its MagicDNS name, with your own keys and `known_hosts`.
+reached over the tailnet too, by its MagicDNS name, with your own keys and `known_hosts`. Its key is looked up under the name you
+connected with (your ssh alias, or the machine's name), so a key you already accepted still counts.
 
 Heed prefers the tailnet. A host whose ssh alias or name matches a machine on it (its machine name or hostname,
 ignoring case) goes over it, so an existing `[hosts.devbox]` starts using the tailnet as soon as `devbox` is on it.

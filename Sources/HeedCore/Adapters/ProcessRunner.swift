@@ -60,6 +60,12 @@ public enum ProcessRunner {
             process.standardInput = FileHandle.nullDevice
         }
 
+        // Output is collected as it arrives rather than read to the end: something the command started (ssh's
+        // background master, a CLI's helper) can keep the pipes open long after it exits, and waiting for their end
+        // would wait for that, past any timeout.
+        let out = OutputBuffer(stdout.fileHandleForReading)
+        let err = OutputBuffer(stderr.fileHandleForReading)
+
         let exited = AsyncStream<Int32> { continuation in
             process.terminationHandler = { finished in
                 continuation.yield(finished.terminationStatus)
@@ -81,16 +87,18 @@ public enum ProcessRunner {
         defer { watchdog.cancel() }
 
         return try await withTaskCancellationHandler {
-            async let out = Task.detached { stdout.fileHandleForReading.readDataToEndOfFile() }.value
-            async let err = Task.detached { stderr.fileHandleForReading.readDataToEndOfFile() }.value
             var status: Int32 = -1
             for await code in exited {
                 status = code
             }
-            let result = await ProcessResult(
+            // The rest of its output, for as long as it takes the pipes to close, but no longer than a moment.
+            for _ in 0 ..< 40 where !(out.isFinished && err.isFinished) {
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            let result = ProcessResult(
                 status: status,
-                stdout: String(decoding: out, as: UTF8.self),
-                stderr: String(decoding: err, as: UTF8.self)
+                stdout: String(decoding: out.finish(), as: UTF8.self),
+                stderr: String(decoding: err.finish(), as: UTF8.self)
             )
             if timedOut.isSet {
                 throw ProcessError(command: command, result: result, reason: "timed out after \(timeout)")
@@ -117,6 +125,38 @@ public enum ProcessRunner {
 }
 
 /// A one-way flag shared with the watchdog task.
+/// A pipe's output as it arrives, until its end or until it is no longer wanted.
+private final class OutputBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+    private var ended = false
+    private let handle: FileHandle
+
+    init(_ handle: FileHandle) {
+        self.handle = handle
+        handle.readabilityHandler = { [weak self] handle in
+            let chunk = handle.availableData
+            guard let self else { return }
+            lock.withLock {
+                if chunk.isEmpty {
+                    ended = true
+                    handle.readabilityHandler = nil
+                } else {
+                    data.append(chunk)
+                }
+            }
+        }
+    }
+
+    var isFinished: Bool { lock.withLock { ended } }
+
+    /// What arrived; stops reading.
+    func finish() -> Data {
+        handle.readabilityHandler = nil
+        return lock.withLock { data }
+    }
+}
+
 private final class Flag: @unchecked Sendable {
     private let lock = NSLock()
     private var value = false

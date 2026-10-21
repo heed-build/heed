@@ -113,8 +113,18 @@ struct TailscaleTests {
         let host = HostConfig(name: "gpu", tailscale: "gpu-box", user: "you")
         let route = HostRoutes.route(for: host, tailnet: Self.tailnet, knownHostsFile: "/k")
         #expect(route.destination == "you@gpu-box.example-tailnet.ts.net.")
-        // No Tailscale SSH there: your own keys and known_hosts, no tailnet host keys.
-        #expect(route.options == ["-o", "ProxyJump=none", "-o", "ProxyCommand=none"])
+        // No Tailscale SSH there: your own keys and known_hosts, its key looked up under the machine's name.
+        #expect(route.options == [
+            "-o", "ProxyJump=none", "-o", "ProxyCommand=none", "-o", "HostKeyAlias=gpu-box.example-tailnet.ts.net",
+        ])
+    }
+
+    @Test func anAliasWithoutTailscaleSSHFindsTheKeyYouAcceptedUnderTheAlias() {
+        // The key you accepted with `ssh gpu-box` is filed under gpu-box, not the MagicDNS name the route goes to.
+        let host = HostConfig(name: "gpu", ssh: "you@gpu-box")
+        let route = HostRoutes.route(for: host, tailnet: Self.tailnet, knownHostsFile: "/k")
+        #expect(route.destination == "you@gpu-box")
+        #expect(route.options.suffix(2) == ["-o", "HostKeyAlias=gpu-box"])
     }
 
     @Test func plainSSHWhenOptedOutOrNotOnTheTailnet() {

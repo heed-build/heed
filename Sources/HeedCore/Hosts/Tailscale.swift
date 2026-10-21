@@ -310,8 +310,18 @@ public enum HostRoutes {
                 "-o", "UserKnownHostsFile=\(knownHostsFile)", "-o", "UpdateHostKeys=no",
                 "-o", "StrictHostKeyChecking=yes", "-o", "CanonicalizeHostname=no",
             ]
+        } else {
+            // Your own known_hosts: the key you accepted is filed under the name you connected with (the alias, or the
+            // machine's name without MagicDNS's trailing dot), not the address the tailnet route goes to.
+            let alias = host.explicitSSH ? Self.hostPart(host.ssh) : machine.dnsName
+            options += ["-o", "HostKeyAlias=\(alias)"]
         }
         return HostRoute(destination: destination, options: options, machine: machine)
+    }
+
+    /// `user@host` or `host`: the host.
+    static func hostPart(_ destination: String) -> String {
+        destination.split(separator: "@").last.map(String.init) ?? destination
     }
 
     /// Every host's route.

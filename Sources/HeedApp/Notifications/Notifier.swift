@@ -3,8 +3,9 @@ import HeedCore
 @preconcurrency import UserNotifications
 
 /// macOS notifications when sessions start needing you (`[notifications]`): asked for, never taken, so Heed stays out
-/// of the way until you choose Open. Nothing is shown for the session you are looking at, a burst comes as one
-/// summary, and permission to notify is asked the first time there is something to say, not at launch.
+/// of the way until you choose Open. When and what is `Notices`' call: a grace first, a burst as one summary, one
+/// reminder. Nothing is shown for the session you are looking at, and permission to notify is asked the first time
+/// there is something to say, not at launch.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     static let shared = Notifier()
@@ -12,6 +13,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private weak var model: AppModel?
     private var notices = Notices()
     private var drainTask: Task<Void, Never>?
+    /// When `drainTask` wakes.
+    private var wake: Date?
     /// Sessions with a notification in Notification Center: taken back when the session stops needing you.
     private var shown: Set<String> = []
 
@@ -43,7 +46,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     /// A session's state changed. Called for every change; what is not worth a notification falls out here.
     func note(_ session: Session, from old: AgentState, settings: NotificationSettings) {
-        guard let model, center != nil else { return }
+        guard model != nil, center != nil else { return }
         notices.note(
             id: session.id, title: session.title, agent: session.agent, from: old, to: session.state,
             settings: settings, at: Date()
@@ -51,13 +54,30 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         if !session.state.state.needsYou, shown.remove(session.id) != nil {
             center?.removeDeliveredNotifications(withIdentifiers: [Self.identifier(session.id)])
         }
-        guard notices.since != nil, drainTask == nil else { return }
-        drainTask = Task { [weak self, weak model] in
-            try? await Task.sleep(for: .seconds(Notices.window))
-            guard let self, let model else { return }
-            drainTask = nil
-            await post(notices.drain { model.isOnScreen(sessionID: $0) })
+        schedule()
+    }
+
+    /// Wakes when `Notices` says the next drain is due (the grace, the burst window, a reminder), and only then.
+    private func schedule() {
+        let next = notices.next
+        guard next != wake else { return }
+        wake = next
+        drainTask?.cancel()
+        guard let next else { return drainTask = nil }
+        drainTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(max(0, next.timeIntervalSinceNow)))
+            guard !Task.isCancelled, let self else { return }
+            await drain()
         }
+    }
+
+    private func drain() async {
+        wake = nil
+        drainTask = nil
+        guard let model else { return }
+        let notice = notices.drain(at: Date()) { model.isOnScreen(sessionID: $0) }
+        schedule()
+        await post(notice)
     }
 
     private static func identifier(_ session: String) -> String { "heed.session.\(session)" }

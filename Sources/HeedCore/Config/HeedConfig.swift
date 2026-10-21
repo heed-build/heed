@@ -532,6 +532,12 @@ public enum ConfigLoader {
         if let flag = bool(["notifications", "enabled"]) { config.notifications.enabled = flag }
         if let flag = bool(["notifications", "asking"]) { config.notifications.asking = flag }
         if let flag = bool(["notifications", "blocked"]) { config.notifications.blocked = flag }
+        if let seconds = integer(["notifications", "grace_seconds"], range: 0 ... 3600) {
+            config.notifications.graceSeconds = seconds
+        }
+        if let minutes = integer(["notifications", "reminder_minutes"], range: 0 ... 1440) {
+            config.notifications.reminderMinutes = minutes
+        }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         // [updates]
@@ -706,6 +712,10 @@ public enum ConfigLoader {
     enabled = true
     asking = true
     blocked = true
+    # Only once it has needed you this long, so a prompt that clears itself stays quiet; 0 notifies at once.
+    grace_seconds = 30
+    # One reminder if it still needs you this long after the notification, then nothing until it comes back; 0: none.
+    reminder_minutes = 15
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents
@@ -823,11 +833,21 @@ public struct NotificationSettings: Equatable, Sendable {
     public var enabled = true
     public var asking = true
     public var blocked = true
+    /// How long something must keep needing you before it notifies, so a prompt that clears itself stays quiet. 0:
+    /// at once (after the few seconds that gather a burst into one).
+    public var graceSeconds = 30
+    /// One reminder when it still needs you this long after the notification; 0: none.
+    public var reminderMinutes = 15
 
-    public init(enabled: Bool = true, asking: Bool = true, blocked: Bool = true) {
+    public init(
+        enabled: Bool = true, asking: Bool = true, blocked: Bool = true, graceSeconds: Int = 30,
+        reminderMinutes: Int = 15
+    ) {
         self.enabled = enabled
         self.asking = asking
         self.blocked = blocked
+        self.graceSeconds = graceSeconds
+        self.reminderMinutes = reminderMinutes
     }
 
     /// Whether a session entering `state` is worth a notification: the Needs you states, each when turned on.

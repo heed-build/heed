@@ -160,6 +160,7 @@ struct ChatStartTests {
         ))
         #expect(CommandAliases.listed.contains { $0.name == "chat" && $0.runs == "chat.new" })
         #expect(Commands.spec("chat.new") != nil)
+        #expect(DefaultKeys.normal.contains { $0 == ("gc", "chat.new") })
     }
 
     @Test func aChatsMenuStartsANewChatFromItsPrompt() {

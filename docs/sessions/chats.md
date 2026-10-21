@@ -15,8 +15,8 @@ look for what waits on you. A pinned chat is under Pinned, a parked one under Pa
 
 ## Starting one
 
-`:chat`, or `:chat` followed by what you want to ask, opens the Start work dialog as **New chat**. The full command is
-`chat.new`; it has no key of its own, and you can bind one (see [Customizing keys](../keyboard/customizing.md)).
+`gc`, `:chat`, or `:chat` followed by what you want to ask, opens the Start work dialog as **New chat**. The full
+command is `chat.new`; see [Customizing keys](../keyboard/customizing.md) to bind it to another key.
 
 ![New chat: a scratch folder, on this Mac](../images/shots/sessions/chats-new.png)
 

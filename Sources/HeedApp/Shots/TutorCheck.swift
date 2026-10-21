@@ -17,7 +17,7 @@ enum TutorCheck {
         "sessions": ["}}}}", "m'1", "<C-w>v", "/mer<CR>"],
         "start-work": [
             "o" + Shots.typed("Fix the broken anchors"), "<C-n>", "<D-CR>",
-            "<S-Esc>:chat<Space>" + Shots.typed("What is a cron line") + "<CR><D-CR>",
+            "<S-Esc>gc" + Shots.typed("What is a cron line") + "<D-CR>",
         ],
         "inbox": ["<CR><Esc>", "<Space>j<Space>", "x"],
         "issues": ["/a<CR>", "s", "<Esc><Esc><CR>"],

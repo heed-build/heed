@@ -86,7 +86,7 @@ public enum CommandCompletions {
         case "session.open": context.sessions.map { ($0, "") }
         case "pin.jump": context.pins.enumerated().map { ("\($0.offset + 1)", $0.element) }
         case "tab.go": context.tabs.enumerated().map { ("\($0.offset + 1)", $0.element) }
-        case "host.filter": context.hosts.map { ($0, "") }
+        case "host.filter", "host.roots": context.hosts.map { ($0, "") }
         case "agent": context.agents.map { ($0, "start work with \($0)") }
         case "agent.switch": Handoff.candidates(agents: context.agents, current: context.currentAgent)
             .map { ($0, "hand the session to \($0)") }

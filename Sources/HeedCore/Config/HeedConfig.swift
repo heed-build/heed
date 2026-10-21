@@ -457,8 +457,14 @@ public enum ConfigLoader {
             let colors = ["teal", "periwinkle", "pink", "sky"]
             for name in hosts.keys.sorted() {
                 var host = HostConfig(name: name, ssh: string(["hosts", name, "ssh"]))
-                if let roots = strings(["hosts", name, "repo_roots"]) { host.repoRoots = roots }
-                if let root = string(["hosts", name, "worktree_root"]) { host.worktreeRoot = root }
+                if let roots = strings(["hosts", name, "repo_roots"]) {
+                    host.repoRoots = roots
+                    host.explicitRepoRoots = true
+                }
+                if let root = string(["hosts", name, "worktree_root"]) {
+                    host.worktreeRoot = root
+                    host.explicitWorktreeRoot = true
+                }
                 if let machine = string(["hosts", name, "tailscale"]) {
                     if machine.isEmpty || machine.contains(where: \.isWhitespace) {
                         problems.append(ConfigProblem(
@@ -775,8 +781,8 @@ public enum ConfigLoader {
     # tailscale = "devbox"             # the machine on your tailnet, when its name differs
     # transport = "ssh"                # ssh | tailscale; unset prefers the tailnet
     # user = "you"                     # who to log in as over the tailnet, without an ssh alias
-    # repo_roots = ["~/code"]
-    # worktree_root = "~/code/wt"
+    # repo_roots = ["~/code"]          # where its repos are, two levels deep; unset, heed asks after the first check
+    # worktree_root = "~/code/wt"      # where its worktrees go; :host.roots (ctrl-r in gH) asks again
     # color = "teal"                   # teal, periwinkle, pink or sky
 
     [keys]

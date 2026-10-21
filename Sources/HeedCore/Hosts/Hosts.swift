@@ -20,9 +20,17 @@ public struct HostConfig: Hashable, Sendable {
     public var transport: HostTransport?
     /// Who to log in as over the tailnet when there is no ssh alias saying so.
     public var user: String?
+    /// `repo_roots` was given, rather than defaulting to `~/code`: heed does not ask where the projects are.
+    public var explicitRepoRoots = false
+    /// `worktree_root` was given, rather than defaulting to `~/code/wt`.
+    public var explicitWorktreeRoot = false
+
+    public static let defaultRepoRoots = ["~/code"]
+    public static let defaultWorktreeRoot = "~/code/wt"
 
     public init(
-        name: String, ssh: String? = nil, repoRoots: [String] = ["~/code"], worktreeRoot: String = "~/code/wt",
+        name: String, ssh: String? = nil, repoRoots: [String] = defaultRepoRoots,
+        worktreeRoot: String = defaultWorktreeRoot,
         color: String? = nil, tailscale: String? = nil, transport: HostTransport? = nil, user: String? = nil
     ) {
         self.name = name

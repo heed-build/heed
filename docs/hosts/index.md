@@ -18,7 +18,7 @@ closed lid or a restarted Heed never stops it.
 add. `↩` on one from your ssh config adds it to `config.toml`; `↩` on one Heed has checks it again. The checks say
 how it answers:
 
-![The hosts, with @devbox's checks: connected, its platform, git, zmx and agents](../images/shots/hosts/picker.png)
+![The hosts, with @devbox's checks: connected, its platform, git, zmx, agents and repos](../images/shots/hosts/picker.png)
 
 | Check | Means |
 |---|---|
@@ -30,12 +30,34 @@ how it answers:
 
 ![A host that wants your key](../images/shots/hosts/picker-auth.png)
 
+### Where its projects are
+
+Heed looks for repos on a host in its `repo_roots`, `~/code` unless you say otherwise. When you add a host, or check
+one whose `repo_roots` you have not set, heed asks where your projects are after its first check answers. It looks in
+the usual folders under the host's home (`~/Projects`, `~/code`, `~/src`, `~/dev`, `~/repos`, `~/git`, `~/work`,
+`~/Developer`, `~/workspace`, `~/go/src`) and in any other folder there that holds a git checkout, and lists the ones it
+found with how many repos each holds:
+
+![Where are your projects on @devbox: ~/Projects, ~/code and ~/experiments picked, ~/src empty](../images/shots/hosts/roots.png)
+
+The folders holding repos start picked; `space` picks or drops one, `a` adds one by hand (a folder under `~`), and `w`
+changes where heed puts the worktrees it makes there (`~/code/wt` unless config already says). `↩` writes both to
+`config.toml` as `[hosts.<name>] repo_roots` and `worktree_root`, and looks for repos again. `⎋` leaves config as it
+is; heed does not ask again on its own. `⌃r` in `gH` (or `:host.roots devbox`) asks any time.
+
+A host's checks say where heed looks and how many repos it found there, or that it found none:
+
+| Check | Means |
+|---|---|
+| 12 repos under ~/Projects | Found by the last scan |
+| no repos under ~/code | Nothing there: `⌃r` chooses the folders your projects are in |
+
 A host in `config.toml`:
 
 ```toml
 [hosts.devbox]
 # ssh = "devbox"                 # what ssh connects to; the name by default (an alias from ~/.ssh/config)
-repo_roots = ["~/code"]          # where repos are looked for on it, two levels deep
+repo_roots = ["~/code"]          # where repos are looked for on it, two levels deep (heed asks when unset)
 worktree_root = "~/code/wt"      # where Heed will put the worktrees it makes there
 color = "teal"                   # teal, periwinkle, pink or sky
 ```

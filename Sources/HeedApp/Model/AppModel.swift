@@ -1156,6 +1156,7 @@ final class AppModel {
         startHostEvents()
         for host in hostList where hostStatus(host.name).isConnected {
             let records = await RemoteScan.scan(host)
+            hostRepoCounts[host.name] = records.count
             commit(records.map { .repoUpserted($0) })
             for record in records {
                 guard var listed = try? await Git.worktrees(of: record) else { continue }
@@ -1367,6 +1368,10 @@ final class AppModel {
 
     private func answerHostsPicker(_ stroke: KeyStroke) {
         guard var picker = hostsPicker else { return }
+        // ⌃r: where heed looks for repos on the host under the cursor (letters go to the search).
+        if stroke == KeyStroke("r", .control) {
+            return perform(CommandInvocation(name: "host.roots"))
+        }
         switch picker.handle(stroke) {
         case .handled: hostsPicker = picker
         case .cancel: hostsPicker = nil
@@ -1381,9 +1386,11 @@ final class AppModel {
         switch row.kind {
         case .sshConfig:
             setConfig(["hosts", row.name, "ssh"], .string(row.name))
+            reloadConfig()
             flash = "added @\(row.name); checking it…"
         case let .tailnet(machine):
             setConfig(["hosts", row.name, "tailscale"], .string(machine.name))
+            reloadConfig()
             flash = "added @\(row.name) from your tailnet; checking it…"
         case .configured:
             if case let .tailscale(issue) = hostStatus(row.name), let url = issue.url.flatMap(URL.init(string:)) {
@@ -1396,10 +1403,125 @@ final class AppModel {
         }
         hostsPicker = nil
         guard !isFixture else { return }
-        Task { await refreshHosts() }
+        Task {
+            await refreshHosts()
+            askForHostRoots(row.name)
+        }
     }
 
     func cancelHostsPicker() { hostsPicker = nil }
+
+    /// config.toml as it is on disk now, without waiting for the watcher: a host just added is checked at once.
+    private func reloadConfig() {
+        guard !isFixture, let text = try? String(contentsOf: configFile, encoding: .utf8) else { return }
+        applyConfig(source: text)
+    }
+
+    // MARK: Where a host's projects are (host.roots)
+
+    /// "Where are your projects on @host?", while it shows.
+    private(set) var hostRootsChooser: HostRootsChooser?
+    /// How many repos the last scan found on each host that answered.
+    private(set) var hostRepoCounts: [String: Int] = [:]
+
+    /// Hosts already asked where their projects are (skipping counts), so a check does not ask again.
+    private var hostRootsAsked: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: "hostRootsAsked") ?? []) }
+        set { if !isFixture { UserDefaults.standard.set(newValue.sorted(), forKey: "hostRootsAsked") } }
+    }
+
+    /// The repos heed found on a host; nil before its first scan.
+    func repoCount(on host: String) -> Int? {
+        hostRepoCounts[host] ?? (isFixture ? repos.count { $0.location == .host(host) } : nil)
+    }
+
+    /// A dialog, overlay or typing that a question of heed's own must not cut into.
+    private var busy: Bool {
+        mode != .normal || confirmation != nil || importPicker != nil || taskPicker != nil || hostsPicker != nil
+            || linkPicker != nil || pathImport != nil || startWork != nil || resume != nil || firstRun != nil
+            || hostRootsChooser != nil || awaySummary != nil || runReader != nil || pilotExplain != nil
+            || overlay != nil || filtering || tutor != nil
+    }
+
+    /// After you added or checked a host: asks where its projects are, once, when config does not say. While you are
+    /// busy elsewhere it only says how to ask, and asks after a later check.
+    private func askForHostRoots(_ name: String) {
+        guard let host = config.hosts[name],
+              HostRoots.shouldAsk(host, status: hostStatus(name), asked: hostRootsAsked)
+        else { return }
+        guard !busy else { return flash = "@\(name): \(keyText(for: "host.roots")) chooses where heed looks for repos" }
+        chooseHostRoots(name, asked: true)
+    }
+
+    /// `host.roots [host]` (⌃r in `gH`): looks for project folders on the host, then asks which heed should look in.
+    /// With no name: the host under the cursor in `gH`, or the only host.
+    private func chooseHostRoots(_ argument: String?, asked: Bool = false) {
+        let selected = hostsPicker.flatMap { picker in
+            picker.matches.indices.contains(picker.cursor) ? picker.matches[picker.cursor] : nil
+        }
+        let name = argument ?? selected.map(\.name) ?? (hostList.count == 1 ? hostList[0].name : nil)
+        guard let name else { return flash = "which host? :host.roots <name>" }
+        guard let host = config.hosts[name] else {
+            return flash = selected == nil ? "no host @\(name) in config.toml" : "↩ adds @\(name) first"
+        }
+        let open = { [weak self] (found: [ProjectFolder]) in
+            guard let self else { return }
+            hostsPicker = nil
+            hostRootsChooser = HostRootsChooser(
+                host: name, found: found, current: host.explicitRepoRoots ? host.repoRoots : [],
+                worktreeRoot: HostRoots.proposedWorktreeRoot(host)
+            )
+        }
+        if isFixture {
+            // Snapshots and the tutor never reach a host: made-up folders on a made-up home.
+            return open([
+                ProjectFolder(path: "~/Projects", repos: 7), ProjectFolder(path: "~/code", repos: 2),
+                ProjectFolder(path: "~/experiments", repos: 1), ProjectFolder(path: "~/src", repos: 0),
+            ])
+        }
+        guard hostStatus(name).isConnected else { return flash = "@\(name) does not answer: gH shows why" }
+        hostRootsAsked.insert(name)
+        flash = "looking for projects on @\(name)…"
+        Task {
+            guard let found = await ProjectFolders.find(on: name) else {
+                return flash = "@\(name) did not answer: gH checks it again"
+            }
+            // Asked on its own: you may have moved on meanwhile, so it waits for the next check instead.
+            if asked, busy {
+                hostRootsAsked.remove(name)
+                return flash = "@\(name): \(keyText(for: "host.roots")) chooses where heed looks for repos"
+            }
+            flash = nil
+            open(found)
+        }
+    }
+
+    private func answerHostRootsChooser(_ stroke: KeyStroke) {
+        guard var chooser = hostRootsChooser else { return }
+        switch chooser.handle(stroke) {
+        case .handled:
+            hostRootsChooser = chooser
+        case let .invalid(reason):
+            hostRootsChooser = chooser
+            flash = reason
+        case .skip:
+            hostRootsChooser = nil
+            flash = "@\(chooser.host) keeps \(config.hosts[chooser.host]?.repoRoots.joined(separator: ", ") ?? "~/code"); "
+                + "\(keyText(for: "host.roots")) asks again"
+        case let .save(roots, worktreeRoot):
+            hostRootsChooser = nil
+            let name = chooser.host
+            flash = "@\(name): repos in \(roots.joined(separator: ", ")), worktrees in \(worktreeRoot)"
+            guard !isFixture else { return }
+            for (path, value) in HostRoots.settings(host: name, roots: roots, worktreeRoot: worktreeRoot) {
+                setConfig(path, value)
+            }
+            reloadConfig()
+            Task { await refreshHosts() }
+        }
+    }
+
+    func cancelHostRootsChooser() { answerHostRootsChooser(.escape) }
 
     /// `@` (or `:host.filter devbox`): narrows the view you are on to one host, through its filter.
     private func filterByHost(_ name: String?) {
@@ -1609,6 +1731,10 @@ final class AppModel {
         }
         if taskPicker != nil {
             answerTaskPicker(stroke)
+            return true
+        }
+        if hostRootsChooser != nil {
+            answerHostRootsChooser(stroke)
             return true
         }
         if hostsPicker != nil {
@@ -1854,6 +1980,7 @@ final class AppModel {
         case "tutor": openTutor(command.arguments)
         case "host.open": openHostsPicker()
         case "host.filter": filterByHost(command.arguments.first)
+        case "host.roots": chooseHostRoots(command.arguments.first)
         case "agents.stop": confirmStopAgents()
         case "update.check":
             if Updater.shared.isRunning { Updater.shared.checkForUpdates() } else {

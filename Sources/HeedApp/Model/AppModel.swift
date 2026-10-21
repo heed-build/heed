@@ -299,12 +299,16 @@ final class AppModel {
         Task.detached(priority: .utility) {
             do { try integration.write() } catch { NSLog("heed: could not write hook files: \(error)") }
         }
-        let cached = await DomainStore.load(from: file)
+        let loaded = await DomainStore.load(from: file)
+        // History and timelines live in the event log, beside the domain file; without it they stay in that file.
+        let log = await EventLog.open(at: file.deletingLastPathComponent().appendingPathComponent("heed.sqlite"))
+        let cached = await log?.adopt(loaded) ?? loaded
         // Before any pane is drawn: which panes still have a live zmx session to reattach to.
         await TerminalSurfaces.shared.refreshLivePanes()
         replace(with: cached)
         loadAvatars()
-        store = DomainStore(domain: cached, file: file)
+        store = DomainStore(domain: cached, file: file, log: log)
+        await receiveSpooled()
         await offerResume(domain: cached)
         startAwayTracking()
         startGitHubSync()
@@ -797,6 +801,19 @@ final class AppModel {
         }
     }
 
+    /// What hooks sent while heed was not running (`HookSpool`), in order, as if it arrived now. A notice or a task's
+    /// exit code from then is no news any more.
+    private func receiveSpooled() async {
+        let spool = HookSpool.path(forSocket: HeedEnvironment.defaultSocketPath())
+        let messages = await Task.detached(priority: .userInitiated) { HookSpool.drain(spool) }.value
+        for message in messages {
+            switch message.kind {
+            case .notify, .taskExit: continue
+            default: receive(message)
+            }
+        }
+    }
+
     /// One message from an agent's hook, applied to its session.
     func receive(_ message: HookMessage) {
         // The agent a handoff stopped, on its way out: the session is the new agent's now.
@@ -951,7 +968,7 @@ final class AppModel {
         }
     }
 
-    func flush() async { await store?.flush() }
+    func flush() async { await store?.flushAll() }
 
     private func rebuildList() {
         // The selection is a session, not a row. A session moving between groups (parked to working, say) reorders

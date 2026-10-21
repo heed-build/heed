@@ -16,8 +16,9 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
   timeouts; Ghostty renders on its own threads; output polling for guessed states runs off-main.
 - **Domain and cache**: `Domain` is one value (repos, worktrees, sessions, layouts); every edit is a `DomainChange`
   applied on the main actor per property and persisted by `DomainStore` off it, coalesced, to
-  `~/Library/Application Support/Heed/domain.json` (versioned; a mismatch starts fresh). JSON until history needs
-  querying, then SQLite. `HEED_FIXTURE=<name>` starts on a fixture with no IO.
+  `~/Library/Application Support/Heed/domain.json` (versioned; a mismatch starts fresh). Append-only data (history,
+  session timelines, the event log) is in SQLite, `heed.sqlite` beside it (`EventLog`, system SQLite through a thin
+  wrapper), and does not depend on the domain's version. `HEED_FIXTURE=<name>` starts on a fixture with no IO.
 - **GitHub**: only through `gh` (`gh api graphql`, `gh pr`, `gh issue`, `gh api notifications`). No tokens.
 - **Config**: `~/.config/heed/config.toml` is the source of truth, hot-reloaded, last good config kept on errors.
   The Settings window edits it (comment-preserving), except key bindings, which are edited in the file only.

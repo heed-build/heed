@@ -3,16 +3,25 @@ import Foundation
 /// Owns the persisted domain. Runs off the main actor: loading, applying and writing never touch the UI path.
 ///
 /// Writes are coalesced: a burst of changes (a git refresh across ten repos) produces one write, a moment later.
+///
+/// With an event log, what happened goes there as the domain changes (`DomainEvents`), batched the same way, and
+/// history and session timelines are kept there instead of in `domain.json`.
 public actor DomainStore {
     public private(set) var domain: Domain
     private let file: URL?
     private var writeScheduled = false
     private let writeDelay: Duration
+    private let log: EventLog?
+    private var pendingLog: [EventLogWrite] = []
+    private var logScheduled = false
+    /// The log write in flight: the next one waits for it, so writes land in the order the domain changed.
+    private var logWriting: Task<Void, Never>?
 
     /// `file` nil keeps everything in memory (fixtures, tests).
-    public init(domain: Domain = .empty, file: URL?, writeDelay: Duration = .milliseconds(250)) {
+    public init(domain: Domain = .empty, file: URL?, log: EventLog? = nil, writeDelay: Duration = .milliseconds(250)) {
         self.domain = domain
         self.file = file
+        self.log = log
         self.writeDelay = writeDelay
     }
 
@@ -72,19 +81,30 @@ public actor DomainStore {
 
     public func apply(_ changes: [DomainChange]) {
         guard !changes.isEmpty else { return }
-        for change in changes {
-            domain.apply(change)
+        if log != nil {
+            pendingLog += DomainEvents.apply(changes, to: &domain, now: Date())
+            scheduleLogWrite()
+        } else {
+            for change in changes {
+                domain.apply(change)
+            }
         }
         scheduleWrite()
     }
 
     public func apply(_ change: DomainChange) { apply([change]) }
 
-    /// Writes now, e.g. on quit.
+    /// Writes the domain now, and the event log, e.g. on quit.
+    public func flushAll() async {
+        flush()
+        await flushLog()
+    }
+
+    /// Writes the domain now.
     public func flush() {
         writeScheduled = false
         guard let file else { return }
-        let cached = CachedDomain(version: CachedDomain.currentVersion, domain: domain)
+        let cached = CachedDomain(version: CachedDomain.currentVersion, domain: log == nil ? domain : domain.leavingLog)
         do {
             try FileManager.default.createDirectory(
                 at: file.deletingLastPathComponent(), withIntermediateDirectories: true
@@ -92,6 +112,32 @@ public actor DomainStore {
             try JSONEncoder.heed.encode(cached).write(to: file, options: .atomic)
         } catch {
             NSLog("heed: could not write \(file.path): \(error)")
+        }
+    }
+
+    /// Hands what is pending to the log, after the one in flight.
+    public func flushLog() async {
+        logScheduled = false
+        let writes = pendingLog
+        pendingLog = []
+        let previous = logWriting
+        let log = log
+        let task = Task {
+            await previous?.value
+            guard let log, !writes.isEmpty else { return }
+            await log.write(writes)
+        }
+        logWriting = task
+        await task.value
+    }
+
+    private func scheduleLogWrite() {
+        guard !logScheduled else { return }
+        logScheduled = true
+        let delay = writeDelay
+        Task {
+            try? await Task.sleep(for: delay)
+            await self.flushLog()
         }
     }
 
@@ -103,6 +149,19 @@ public actor DomainStore {
             try? await Task.sleep(for: delay)
             self.flush()
         }
+    }
+}
+
+extension Domain {
+    /// The domain as `domain.json` keeps it once the event log keeps history and timelines. The fields stay, empty,
+    /// so an older build still reads the file.
+    var leavingLog: Domain {
+        var domain = self
+        domain.history = []
+        for index in domain.sessions.indices {
+            domain.sessions[index].timeline = []
+        }
+        return domain
     }
 }
 

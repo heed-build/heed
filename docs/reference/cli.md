@@ -6,8 +6,8 @@ description: The heed command line helper.
 
 `heed` is the small helper bundled inside the app (`Heed.app/Contents/Helpers/heed`). Agents' hooks call it to tell
 Heed what they are doing, and every pane has it on its PATH. It sends one line to the app over a local socket and
-exits; if the app is not running, the message is dropped. It never slows an agent down: whatever happens, it gives up
-after three seconds.
+exits; if the app is not running, the message is appended to `hooks.spool` beside the socket, and Heed takes it in on
+its next launch. It never slows an agent down: whatever happens, it gives up after three seconds.
 
 | Command | |
 |---|---|

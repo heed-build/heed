@@ -62,6 +62,7 @@ struct MainWindow: View {
             if let picker = model.importPicker { ImportPickerView(picker: picker) }
             if let state = model.taskPicker { TaskPickerView(state: state) }
             if let picker = model.hostsPicker { HostsPickerView(picker: picker) }
+            if let chooser = model.hostRootsChooser { HostRootsView(chooser: chooser) }
             if let picker = model.linkPicker { LinkPickerView(picker: picker) }
             if let run = model.runReader { RunReaderView(run: run) }
             if let summary = model.awaySummary { AwaySummaryView(summary: summary) }
@@ -386,6 +387,8 @@ struct StatusBar: View {
                 + " · ⎋ \(model.confirmation?.cancel.lowercased() ?? "cancel")"
         case .normal where model.confirmation != nil: "y or ↩ confirm · n, ⎋ or q cancel"
         case .normal where model.importPicker != nil: "type to filter · ⌃n ⌃p move · ↩ import · ⎋ cancel"
+        case .normal where model.hostRootsChooser?.editing != nil: "type a folder under ~ · ⌃w up a folder · ↩ done · ⎋ back"
+        case .normal where model.hostRootsChooser != nil: "j k move · space pick · a add a folder · w worktrees · ↩ save · ⎋ skip"
         case .normal where model.pathImport != nil: "⇥ complete · ⌃n ⌃p choose · ⌃w up a folder · ↩ import · ⎋ cancel"
         case .normal where model.filtering: "words match anywhere · ⌃w word · ⌃u clear · ↩ keep · ⎋ clear"
         case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
@@ -936,7 +939,8 @@ struct HostsPickerView: View {
                 .frame(minHeight: 220, alignment: .top)
                 HStack(spacing: 14) {
                     Spacer()
-                    Text("⌃n ⌃p move · ↩ add or check · ⎋ close").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                    Text("⌃n ⌃p move · ↩ add or check · ⌃r where repos are · ⎋ close").font(Theme.mono(11))
+                        .foregroundStyle(Theme.fg3)
                 }
                 .padding(14)
                 .overlay(alignment: .top) { Theme.line.frame(height: 1) }
@@ -988,6 +992,7 @@ private struct HostChecks: View {
                             !info.agents.isEmpty,
                             info.agents.isEmpty ? "no agents found" : "agents: \(info.agents.joined(separator: ", "))"
                         )
+                        RepoRootsCheck(host: row.name)
                     case let .needsAuth(detail):
                         check(false, "ssh needs your key: \(detail)", color: Theme.ask)
                         Text("Unlock or add your key (ssh-add), then ↩ checks again.").font(Theme.ui(12))
@@ -1047,6 +1052,122 @@ private struct HostChecks: View {
             Text(text).font(Theme.ui(12.5)).foregroundStyle(ok == false ? (color ?? Theme.fg2) : Theme.fg)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+}
+
+/// Where heed looks for repos on a host that answers, and how many it found there; none says how to choose folders.
+private struct RepoRootsCheck: View {
+    @Environment(AppModel.self) private var model
+    let host: String
+
+    var body: some View {
+        let roots = (model.config.hosts[host]?.repoRoots ?? HostConfig.defaultRepoRoots).joined(separator: ", ")
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            switch model.repoCount(on: host) {
+            case nil:
+                Text("◌").foregroundStyle(Theme.fg3).frame(width: 12)
+                Text("looking for repos under \(roots)…").font(Theme.ui(12.5))
+            case 0?:
+                Text("–").foregroundStyle(Theme.block).frame(width: 12)
+                (Text("no repos under \(roots): ").foregroundStyle(Theme.block)
+                    + Text("⌃r chooses folders").foregroundStyle(Theme.fg2))
+                    .font(Theme.ui(12.5)).fixedSize(horizontal: false, vertical: true)
+            case let count?:
+                Text("✓").foregroundStyle(Theme.done).frame(width: 12)
+                Text("\(count) repo\(count == 1 ? "" : "s") under \(roots)").font(Theme.ui(12.5))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+}
+
+/// "Where are your projects on @host?": the folders found there with their repos, picked with space, a line to add one
+/// by hand, and where worktrees go. ↩ writes them to config.toml; ⎋ leaves config as it is.
+struct HostRootsView: View {
+    @Environment(AppModel.self) private var model
+    let chooser: HostRootsChooser
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .onTapGesture { model.cancelHostRootsChooser() }
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Where are your projects on @\(chooser.host)?").font(Theme.ui(15, weight: .semibold))
+                    Text(
+                        "Heed looks for repos in these folders, two levels deep. The ones holding repos are picked; space picks or drops one."
+                    )
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(18)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(chooser.rows.enumerated()), id: \.element.folder.path) { index, row in
+                        line(index) {
+                            Image(systemName: row.chosen ? "checkmark.square.fill" : "square")
+                                .font(.system(size: 12)).foregroundStyle(row.chosen ? Theme.done : Theme.fg3)
+                            Text(row.folder.path).font(Theme.mono(12.5, weight: .semibold))
+                                .foregroundStyle(row.chosen ? Theme.fg : Theme.fg2)
+                            Spacer(minLength: 8)
+                            Text(row.folder.repos.map { "\($0) repo\($0 == 1 ? "" : "s")" } ?? "added by you")
+                                .font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                        }
+                    }
+                    if chooser.rows.isEmpty {
+                        Text("No folders with repos found in the usual places.").font(Theme.ui(12))
+                            .foregroundStyle(Theme.fg3).padding(.horizontal, 18).padding(.vertical, 8)
+                    }
+                    line(chooser.addRow) {
+                        Image(systemName: "plus").font(.system(size: 11)).foregroundStyle(Theme.fg3).frame(width: 14)
+                        if case let .folder(text) = chooser.editing {
+                            Text(text + "▌").font(Theme.mono(12.5))
+                        } else {
+                            Text("add a folder…").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                        }
+                        Spacer(minLength: 8)
+                        KeyCap(text: "a")
+                    }
+                }
+                .padding(.vertical, 6)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+                line(chooser.worktreeRow) {
+                    Text("worktrees go in").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                    if case let .worktreeRoot(text) = chooser.editing {
+                        Text(text + "▌").font(Theme.mono(12.5))
+                    } else {
+                        Text(chooser.worktreeRoot).font(Theme.mono(12.5, weight: .semibold))
+                    }
+                    Spacer(minLength: 8)
+                    KeyCap(text: "w")
+                }
+                .padding(.vertical, 6)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+                if let problem = chooser.problem {
+                    Text(problem).font(Theme.ui(12)).foregroundStyle(Theme.block)
+                        .padding(.horizontal, 18).padding(.bottom, 8)
+                }
+                HStack(spacing: 14) {
+                    Text("Saved to config.toml as [hosts.\(chooser.host)] repo_roots and worktree_root.")
+                        .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                    Spacer()
+                    Text("↩ save · ⎋ skip").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                }
+                .padding(14)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+            }
+            .frame(width: 560)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
+            .shadow(color: .black.opacity(0.5), radius: 30)
+            .shotRegion(.dialog)
+        }
+    }
+
+    private func line(_ index: Int, @ViewBuilder _ content: () -> some View) -> some View {
+        HStack(spacing: 10) { content() }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 7)
+            .background(index == chooser.cursor ? Theme.bg3 : .clear)
+            .overlay(alignment: .leading) { if index == chooser.cursor { Theme.block.frame(width: 2) } }
     }
 }
 

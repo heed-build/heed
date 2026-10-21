@@ -197,6 +197,11 @@ enum Shots {
             id: "hosts/picker-tailnet", keys: "<C-n><C-n><C-n><C-n><C-n>", crop: .dialog,
             prepare: { $0.perform(CommandInvocation(name: "host.open")) }
         ),
+        // Where are your projects on @devbox: made-up folders, the ones holding repos picked.
+        Shot(
+            id: "hosts/roots", crop: .dialog,
+            prepare: { $0.perform(CommandInvocation(name: "host.roots", arguments: ["devbox"])) }
+        ),
         // Repos with a host column: a registered and a discovered worktree on @devbox.
         Shot(id: "hosts/repos", keys: "gr"),
         // @ narrows a view to one host.

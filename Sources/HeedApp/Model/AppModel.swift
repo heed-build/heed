@@ -1616,6 +1616,12 @@ final class AppModel {
         switch view {
         case .sessions:
             guard let session = currentSession else { return nil }
+            if let chat = session.chat {
+                return TitleContext(
+                    lead: "chat", main: chat.kind == .scratch ? "scratch" : Paths.tilde(chat.path),
+                    detail: session.host.map { "@\($0)" }
+                )
+            }
             return TitleContext(
                 lead: session.repos.first?.name, main: session.branch,
                 detail: [session.trackedPRs.first.map { "#\($0.number)" }, session.host.map { "@\($0)" }]
@@ -1647,8 +1653,9 @@ final class AppModel {
         case .history:
             guard let entry = selectedHistory else { return nil }
             return TitleContext(
-                lead: entry.session.repos.first?.name,
-                main: entry.session.branch,
+                lead: entry.session.isChat ? "chat" : entry.session.repos.first?.name,
+                main: entry.session.chat.map { $0.kind == .scratch ? "scratch" : Paths.tilde($0.path) }
+                    ?? entry.session.branch,
                 detail: entry.session.title
             )
         case .log:
@@ -1990,7 +1997,8 @@ final class AppModel {
         case "pr.untrack": untrackPull(command.arguments.first)
         case "select.pin": pinSelected()
         case "agent.switch": switchAgent(to: command.arguments.first)
-        case "work.again": openStartWork(prompt: currentSession?.prompt ?? "")
+        case "work.again": openStartWork(prompt: currentSession?.prompt ?? "", chat: currentSession?.isChat == true)
+        case "chat.new": openStartWork(prompt: command.arguments.joined(separator: " "), fromCursor: false, chat: true)
         case "worktree.new":
             openStartWork(prompt: "")
             if worktreeRows.indices.contains(repoCursor) {
@@ -2152,7 +2160,8 @@ final class AppModel {
         case "feedback.session": startFromPull()
         case "pr.session": jumpToPullSession()
         case "history.reopen": reopenSelected()
-        case "history.again": openStartWork(prompt: selectedHistory?.session.prompt ?? "")
+        case "history.again":
+            openStartWork(prompt: selectedHistory?.session.prompt ?? "", chat: selectedHistory?.session.isChat == true)
         case "history.outcome": cycleOutcome()
         // :q in the tutor leaves the tutor, as its banner says; it never quits the app from there.
         case "app.quit": if tutor != nil { onTutorRequest?(.exit) } else { NSApp.terminate(nil) }
@@ -5696,13 +5705,14 @@ final class AppModel {
         startWork = nil
     }
 
-    private func openStartWork(prompt: String, fromCursor: Bool = true) {
+    private func openStartWork(prompt: String, fromCursor: Bool = true, chat: Bool = false) {
         startWorkError = nil
         let context = fromCursor ? startContext : nil
         if view == .history { view = .sessions }
         startWork = StartWorkForm(
             repos: repos, lastWorked: StartWork.lastWorked(sessions: sessions, closed: history), context: context,
-            settings: settings, prompt: prompt, integration: integration, hostIntegrations: hostIntegrations()
+            settings: settings, prompt: prompt, integration: integration, hostIntegrations: hostIntegrations(),
+            hosts: config.hosts.keys.sorted(), chat: chat
         )
     }
 
@@ -5831,6 +5841,7 @@ final class AppModel {
                     flash = "setting up @\(host)…"
                     try await HostSetup.install(on: host, files: hostFiles)
                 }
+                let trusted = await trustChatsRoot(for: plan)
                 let changes = try await StartWork.execute(plan, settings: settings, hosts: hosts)
                 for case let .layoutChanged(_, layout) in changes {
                     for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
@@ -5851,7 +5862,8 @@ final class AppModel {
                     focusPane(agent.id)
                 }
                 enterInsert()
-                flash = "started \(plan.name)"
+                flash = ["started \(plan.chat == nil ? plan.name : plan.title)", trusted].compactMap(\.self)
+                    .joined(separator: " · ")
                 proposeSetup(for: plan.repos)
             } catch {
                 flash = "start work failed: \(error)"
@@ -6309,6 +6321,15 @@ final class AppModel {
 
     /// Start work in the tutor: the session, its worktrees and panes as they would be, with no git and no agent.
     private func simulateStart(_ plan: StartWorkPlan) {
+        if let chat = plan.chat {
+            let changes = StartWork.chatChanges(plan, chat: chat, path: chat.path, now: Date())
+            commit(changes)
+            startWork = nil
+            view = .sessions
+            select(sessionID: plan.sessionID)
+            flash = "started \(plan.title) (tutor: nothing real ran)"
+            return
+        }
         let made = plan.repos.map { record in
             Worktree(
                 repo: record.repo,
@@ -6610,6 +6631,7 @@ final class AppModel {
         state.hostSessions = sessions.count { $0.host != nil }
         state.commandLine = mode == .command
         state.sessions = sessions.count
+        state.chats = sessions.count(where: \.isChat)
         let pins = list.ordered.filter(\.pinned)
         state.pins = pins.count
         if view == .sessions, let session = currentSession {

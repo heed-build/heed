@@ -53,6 +53,7 @@ enum ShotRunner {
         Clock.fixed = instant
         // The fake world lives in /Users/you: paths split at its roots, as they would on a real Mac.
         Paths.home = "/Users/you"
+        Chats.localRoot = "/Users/you/Library/Application Support/Heed/chats"
         StartWorkForm.newSessionID = { "6f1c2a90-4b7d-4e3a-9c15-2d8e7f0a3b64" }
         NSTimeZone.default = TimeZone(identifier: "Europe/Amsterdam")!
         var written = 0

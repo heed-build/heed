@@ -160,7 +160,9 @@ public enum ContextMenus {
         menu.section([
             item(facts.pinned ? "Unpin" : "Pin", "session.pin"),
             item(facts.parked ? "Unpark" : "Park", "session.park"),
-            repo && facts.hasPrompt ? item("Start again from its prompt", "work.again") : nil,
+            facts
+                .hasPrompt ? item(repo ? "Start again from its prompt" : "New chat from its prompt", "work.again") :
+                nil,
         ])
         menu.submenu("Hand off to…", handoffItems(facts.handoffAgents, target: target))
         menu.section(repo ? [
@@ -385,13 +387,15 @@ public enum ContextMenus {
     }
 
     /// A session in History.
-    public static func history(id: String, title: String, hasPrompt: Bool, onGitHub: Bool) -> [MenuEntry] {
+    public static func history(
+        id: String, title: String, hasPrompt: Bool, chat: Bool = false, onGitHub: Bool
+    ) -> [MenuEntry] {
         let target = CommandTarget.row(view: "history", id: id)
         var menu = Menu(header: title)
         menu.section([
             MenuItem("Reopen", CommandInvocation(name: "history.reopen", target: target)),
             hasPrompt ? MenuItem(
-                "Start again from its prompt",
+                chat ? "New chat from its prompt" : "Start again from its prompt",
                 CommandInvocation(name: "history.again", target: target)
             )
                 : nil,

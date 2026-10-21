@@ -128,7 +128,7 @@ struct ChatTests {
             default: []
             }
         }
-        #expect(names == ["session.pin", "session.park", "agent.switch", "session.close"])
+        #expect(names == ["session.pin", "session.park", "work.again", "agent.switch", "session.close"])
         let close = ContextMenus.session(facts).compactMap { if case let .item(item) = $0 { item } else { nil } }.last
         #expect(close?.title == "Close")
     }

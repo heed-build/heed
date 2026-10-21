@@ -304,8 +304,10 @@ struct StatusBar: View {
                 }
                 if let session = model.currentSession {
                     HStack(spacing: 6) {
-                        Image(systemName: "arrow.triangle.branch").font(.system(size: 10))
-                        Text(session.branch)
+                        // A chat has no branch: its speech bubble and title instead.
+                        Image(systemName: session.isChat ? "bubble.left" : "arrow.triangle.branch")
+                            .font(.system(size: 10))
+                        Text(session.isChat ? session.title : session.branch).lineLimit(1)
                     }
                     .padding(.horizontal, 12)
                 }

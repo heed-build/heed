@@ -44,13 +44,16 @@ struct StartWorkRepoSearchTests {
         #expect(form.repoChoices.contains { $0.repo.id == "elastic/extra-7" })
     }
 
-    @Test func theLastChipOpensSearch() {
+    @Test func theChipBeforeTheChatChipOpensSearch() {
         var form = StartWorkForm(repos: records, settings: .default)
         _ = form.handle(.escape)
         _ = form.handle(KeyStroke("j"))
         for _ in 0 ..< 20 {
             _ = form.handle(KeyStroke("l"))
         }
+        // The last chip is the chat chip; search is the one before it.
+        #expect(form.repoCursor == form.chatChipIndex)
+        _ = form.handle(KeyStroke("h"))
         #expect(form.repoCursor == form.repoChoices.count)
         _ = form.handle(KeyStroke("Space"))
         #expect(form.repoSearch != nil)

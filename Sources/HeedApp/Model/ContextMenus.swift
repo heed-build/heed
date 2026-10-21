@@ -79,7 +79,7 @@ extension AppModel {
             guard rows.indices.contains(index) else { return [] }
             let session = rows[index].session
             return ContextMenus.history(
-                id: session.id, title: session.title, hasPrompt: !session.prompt.isEmpty,
+                id: session.id, title: session.title, hasPrompt: !session.prompt.isEmpty, chat: session.isChat,
                 onGitHub: session.repos.contains { $0.org != "local" }
             )
         case .log:

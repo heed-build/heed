@@ -79,6 +79,32 @@ public extension Fixtures {
 
         {dim}Total cost: $0.42 · 18 turns{/}
         """,
+        "c1-agent": """
+        {bold}claude{/} {dim}· chat · scratch{/}
+
+        {bold}>{/} What cron line runs a job at nine
+          on weekdays?
+
+        {violet}●{/} {bold}0 9 * * 1-5{/} runs at 09:00,
+          Monday to Friday.
+
+          Cron uses the machine's timezone.
+          Which timezone should it be in?
+
+        {dim}› answer, or press enter to keep the local one{/}
+        """,
+        "c3-agent": """
+        {bold}claude{/} {dim}· chat · receipts{/}
+
+        {bold}>{/} Sort the PDFs in this folder into
+          one folder per month.
+
+        {green}●{/} {bold}Bash{/}(mkdir 2026-08 2026-09 2026-10)
+        {blue}●{/} {bold}Bash{/}(mv … 2026-09/)
+          {dim}⎿ 14 files moved{/}
+
+        {amber}✻ Moving files… (1m · esc){/}
+        """,
         "s6-agent": """
         {bold}opencode{/} {dim}· docs-nav-spike{/}
 

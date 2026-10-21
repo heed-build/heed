@@ -15,6 +15,7 @@ The sidebar lists every open session, grouped so that whatever needs you is near
 | **Stalled** | A PR of the session used its get-it-green rounds without a new approval, so heed stopped sending. `zr` gives it another round. |
 | **Working** | Agents busy on their task. |
 | **Watching** | Heed is getting a PR of the session green or merged. Leave these be. |
+| **Chats** | [Chats](chats.md): sessions with no repo or worktree. One that asks or is blocked is in Needs you instead. |
 | **Parked** | Sessions you set aside with `zz`, and finished ones. |
 
 Each row shows the session's state glyph, its worktree's name (hover it for the title from the prompt), its repos (one chip per worktree, then one per repo it opened a

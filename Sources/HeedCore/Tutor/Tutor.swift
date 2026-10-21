@@ -29,6 +29,8 @@ public struct TutorState: Equatable, Sendable {
     public var commandLine = false
     public var helpOpen = false
     public var sessions = 0
+    /// Sessions that are chats.
+    public var chats = 0
     /// The pin number of the session under the cursor (`'1` jumps to 1), if it is pinned.
     public var pinned: Int?
     public var pins = 0

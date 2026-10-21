@@ -46,7 +46,7 @@ struct WatchingTests {
         #expect(SessionGroup.of(session(.idle), pilot: yours) == .parked)
         #expect(SessionGroup.of(session(.working), pilot: yours) == .working)
         #expect(SessionGroup.of(session(.idle)) == .parked)
-        #expect(SessionGroup.allCases == [.pinned, .needsYou, .stalled, .working, .watching, .parked])
+        #expect(SessionGroup.allCases == [.pinned, .needsYou, .stalled, .working, .watching, .chats, .parked])
     }
 
     @Test func aSessionYouTypedInStaysYoursUntilHeedActs() {

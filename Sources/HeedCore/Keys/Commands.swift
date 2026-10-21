@@ -58,6 +58,10 @@ public enum Commands {
         ),
         .init("work.again", "start work from this session's prompt", .move),
         .init(
+            "chat.new", "start a chat: an agent in a scratch folder or one you pick, no repo or worktree", .move,
+            arguments: "[prompt]"
+        ),
+        .init(
             "agent.switch", "hand the session to another agent: stop its agent, start that one on a handoff prompt",
             .move,
             arguments: "[agent]"

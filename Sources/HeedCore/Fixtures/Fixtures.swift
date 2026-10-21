@@ -4,7 +4,7 @@ import Foundation
 /// every adapter switched off.
 public enum Fixtures {
     /// `resume` is `main` opening on the resume dialog (the app handles that name).
-    public static let names = ["main", "empty", "resume", "pr-storm", "fresh-repos"]
+    public static let names = ["main", "empty", "resume", "pr-storm", "fresh-repos", "chats"]
 
     /// What the fixtures' config would say about issues: docs-builder and the nullean org show all of them.
     public static let issueRules = IssueRules(orgs: ["nullean": .all], repos: ["elastic/docs-builder": .all])
@@ -107,6 +107,7 @@ public enum Fixtures {
         case "empty": .empty
         case "pr-storm": prStorm
         case "fresh-repos": freshRepos
+        case "chats": withChats
         default: nil
         }
     }
@@ -474,6 +475,83 @@ public enum Fixtures {
             domain.github.pulls.insert(pull, at: 0)
         }
         return domain
+    }()
+
+    /// `main` with chats: two in scratch folders (one asking, so it is in Needs you), one in a folder you picked, one
+    /// on @lab; and one closed in History.
+    public static let withChats: Domain = {
+        var domain = main
+        for (session, layout) in chats {
+            domain.sessions.append(session)
+            domain.layouts[session.id] = layout
+        }
+        domain.history.insert(closedChat, at: 1)
+        return domain
+    }()
+
+    /// The fake world's chats, each with its one agent pane in its folder.
+    public static let chats: [(Session, SessionLayout)] = {
+        let now = Clock.now
+        let scratch = "/Users/you/Library/Application Support/Heed/chats"
+        func chat(
+            _ id: String, _ title: String, prompt: String, agent: String, _ state: ObservedState, activity: String,
+            _ folder: ChatFolder, host: String? = nil, minutesAgo: Double
+        ) -> (Session, SessionLayout) {
+            var session = Session(
+                id: id, title: title, prompt: prompt, repos: [], branch: "", agent: agent, state: state,
+                activity: activity, lastActivity: now.addingTimeInterval(-minutesAgo * 60), workspace: .chat(folder)
+            )
+            session.host = host
+            session.record(
+                "started chat · \(agent) · \(folder.kind == .scratch ? "scratch folder" : "in \(folder.path)")",
+                at: now.addingTimeInterval(-(minutesAgo + 20) * 60)
+            )
+            let pane = PaneSpec(
+                id: "\(id)-agent", role: .agent, title: agent, directory: folder.path,
+                command: ShellCommand(words: [.raw(agent)]), location: host.map(Location.host) ?? .local
+            )
+            return (session, SessionLayout(tabs: [PaneTab(id: "\(id)-t1", title: "agent", tree: .leaf(pane))]))
+        }
+        return [
+            chat(
+                "c1", "Cron line for weekdays at nine", prompt: "What cron line runs a job at nine on weekdays?",
+                agent: "claude", ObservedState(.asking, reason: "which timezone?"),
+                activity: "asking · which timezone?",
+                ChatFolder(.scratch, path: "\(scratch)/2026-10-21-cron-line-runs-job"), minutesAgo: 2
+            ),
+            chat(
+                "c2", "Explain git rebase --onto", prompt: "Explain git rebase --onto with a small example.",
+                agent: "codex", ObservedState(.done), activity: "done",
+                ChatFolder(.scratch, path: "\(scratch)/2026-10-21-explain-git-rebase-onto"), minutesAgo: 12
+            ),
+            chat(
+                "c3", "Sort receipts by month", prompt: "Sort the PDFs in this folder into one folder per month.",
+                agent: "claude", ObservedState(.working), activity: "working · moving files",
+                ChatFolder(.folder, path: "/Users/you/Documents/receipts"), minutesAgo: 1
+            ),
+            chat(
+                "c4", "Read the nightly build log", prompt: "Why did last night's build stop halfway?",
+                agent: "claude", ObservedState(.idle), activity: "idle 40m",
+                ChatFolder(.scratch, path: "~/.heed/chats/2026-10-21-last-night-build-stop"), host: "lab",
+                minutesAgo: 40
+            ),
+        ]
+    }()
+
+    /// A chat closed this morning, as History lists it.
+    public static let closedChat: HistoryEntry = {
+        let closed = Clock.now.addingTimeInterval(-2 * 3600)
+        var session = Session(
+            id: "h-chat-csv", title: "Compare two CSV exports", prompt: "Which rows differ between these two exports?",
+            repos: [], branch: "", agent: "claude", state: ObservedState(.done), lastActivity: closed,
+            createdAt: closed.addingTimeInterval(-25 * 60),
+            workspace: .chat(ChatFolder(
+                .scratch, path: "/Users/you/Library/Application Support/Heed/chats/2026-10-21-rows-differ-exports"
+            ))
+        )
+        session.record("started chat · claude · scratch folder", at: closed.addingTimeInterval(-25 * 60))
+        session.record("ended after 0h 25m", at: closed)
+        return HistoryEntry(session: session, closedAt: closed, outcome: .closed)
     }()
 
     /// The tutor's fresh repos: every repo and worktree, no sessions or history yet.

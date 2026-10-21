@@ -297,6 +297,13 @@ struct CallLogTests {
         #expect(llm.tokens == TokenCounts(input: 1200, output: 80) && llm.cost == 0.004 && llm.costEstimated)
     }
 
+    /// Settings writes `[log]` into a config.toml that has no such table yet, and it reads back.
+    @Test func settingsWriteRetentionIntoConfig() throws {
+        let source = try TOMLDocument("[summary]\naway_hours = 8\n").setting(["log", "shell_days"], to: .integer(14))
+        #expect(ConfigLoader.decode(source).config?.log.shellDays == 14)
+        #expect(source.hasPrefix("[summary]\naway_hours = 8\n"))
+    }
+
     @Test func retentionIsReadFromConfig() {
         let config = ConfigLoader.decode("""
         [log]

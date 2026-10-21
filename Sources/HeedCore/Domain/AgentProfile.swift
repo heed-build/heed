@@ -102,6 +102,19 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
 }
 
 /// POSIX shell quoting for command lines Heed types into a shell.
+/// A command line to type into whatever shell a pane runs: heed builds commands in POSIX sh syntax, and a login
+/// shell like fish reads quotes and braces differently (`'\''` is not an escaped quote there). A plain line is typed
+/// as it is; anything else goes through sh, carried as base64 inside a single-quoted string that every shell reads the
+/// same way. The agent keeps the terminal: sh runs it in the foreground, and the shell comes back when it exits.
+public enum ShellLine {
+    public static func typed(_ command: String) -> String {
+        let plain = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " @%+=:,./-_"))
+        if !command.isEmpty, command.unicodeScalars.allSatisfy(plain.contains) { return command }
+        let encoded = Data(command.utf8).base64EncodedString()
+        return "sh -c 'eval \"$(printf %s \(encoded) | base64 -d)\"'"
+    }
+}
+
 public enum ShellQuote {
     /// Single-quotes `text` unless it is made only of safe characters.
     public static func quote(_ text: String) -> String {

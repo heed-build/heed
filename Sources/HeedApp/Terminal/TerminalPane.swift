@@ -137,7 +137,7 @@ final class TerminalSurfaces {
               FileManager.default.fileExists(atPath: pane.directory)
         else { return }
         #if HEED_GHOSTTY
-            (existing as? GhosttySurfaceView)?.typeLine(command)
+            (existing as? GhosttySurfaceView)?.typeLine(ShellLine.typed(command))
         #else
             _ = existing
         #endif

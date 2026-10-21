@@ -151,6 +151,9 @@ Heed looks for zmx on the host's PATH and in `~/.local/bin`, `~/bin`, `~/.nix-pr
 `/opt/homebrew/bin` (a non-interactive ssh often has no `~/.local/bin` on its PATH). Without zmx, a session there is a
 plain login shell over ssh, marked **not persistent**: it ends when the link drops.
 
+The checks also read your login shell there (`$SHELL`), and an agent's command is typed in its syntax, as on this Mac:
+fish gets fish's, sh, bash and zsh get sh's.
+
 ![A session on @devbox: the pane strip, the rail and chip in the sidebar, and the host in the status bar](../images/shots/hosts/session.png)
 
 A remote session shows where it runs without your reading anything: an `@host` chip and a rail in the host's colour

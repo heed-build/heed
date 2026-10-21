@@ -148,9 +148,9 @@ struct RunsTests {
 
     @Test func everyBuiltInAgentTakesAModel() throws {
         for agent in AgentProfile.builtIn {
-            let line = agent.launchCommand(prompt: "fix", model: "fast-one")
+            let line = agent.launchCommand(prompt: "fix", model: "fast-one").posix
             #expect(line.contains("--model fast-one"), "\(agent.name)")
-            #expect(!agent.launchCommand(prompt: "fix").contains("--model"))
+            #expect(!agent.launchCommand(prompt: "fix").posix.contains("--model"))
         }
         let (config, _) = ConfigLoader.decode("""
         [agents.mine]
@@ -158,7 +158,7 @@ struct RunsTests {
         model_flag = "-m"
         """)
         let mine = try #require(config?.work.agents.first { $0.name == "mine" })
-        #expect(mine.launchCommand(prompt: "", model: "x").hasSuffix("mine -m x"))
+        #expect(mine.launchCommand(prompt: "", model: "x").posix.hasSuffix("mine -m x"))
     }
 
     @Test func runsPersistAndOldCachesLoad() throws {

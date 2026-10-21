@@ -128,7 +128,7 @@ struct ResumeView: View {
                 ))
                 .fixedSize()
             VStack(alignment: .leading, spacing: 4) {
-                Text(candidate.command)
+                Text(candidate.command.posix)
                     .font(Theme.mono(11.5))
                     .foregroundStyle(selected ? Theme.fg : Theme.fg3)
                     .lineLimit(2)

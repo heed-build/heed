@@ -28,9 +28,9 @@ struct ResumeTests {
             "w": .resumeThenContinue, "b": .resumeOnly, "a": .resumeOnly, "d": .leftClosed,
             "g": .resumeThenContinue, "n": .startFresh,
         ])
-        #expect(candidates.first { $0.id == "w" }?.command == "claude --resume aid")
-        #expect(candidates.first { $0.id == "g" }?.command == "gemini --resume aid")
-        #expect(candidates.first { $0.id == "n" }?.command == "claude 'do n'")
+        #expect(candidates.first { $0.id == "w" }?.command.posix == "claude --resume aid")
+        #expect(candidates.first { $0.id == "g" }?.command.posix == "gemini --resume aid")
+        #expect(candidates.first { $0.id == "n" }?.command.posix == "claude 'do n'")
     }
 
     @Test func aDroppedSessionStartsFresh() {
@@ -42,7 +42,7 @@ struct ResumeTests {
     @Test func resumeKeepsHooksButNotTheSessionIDFlag() {
         let files = IntegrationFiles(directory: URL(fileURLWithPath: "/tmp/h"))
         let domain = Domain(sessions: [session("w", .working, agentID: "abc")])
-        let command = Resume.candidates(domain: domain, settings: .default, integration: files).first?.command
+        let command = Resume.candidates(domain: domain, settings: .default, integration: files).first?.command.posix
         #expect(command == "claude --settings /tmp/h/claude-hooks.json --resume abc")
     }
 
@@ -141,7 +141,7 @@ struct HistoryTests {
         #expect(FileManager.default.fileExists(atPath: settings.worktreePath(repo: record.repo, name: "feature")))
         let pane = restored.layouts["x"]?.tabs.first?.tree.panes.first
         // Claude keeps no session file for this made-up id, so the agent starts again from the prompt.
-        #expect(pane?.command == "claude 'do x'")
+        #expect(pane?.command?.posix == "claude 'do x'")
         #expect(restored.session("x")?.timeline.last?.text == "reopened · started fresh")
     }
 }

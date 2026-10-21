@@ -60,7 +60,7 @@ struct ClaudeHookTests {
         let plan = StartWorkPlan(
             prompt: "go", repos: [], name: "n", agent: AgentProfile.builtIn[0], sessionID: "S1", integration: files
         )
-        #expect(plan.command == "claude --settings '/tmp/Heed Support/claude-hooks.json' --session-id S1 go")
+        #expect(plan.command?.posix == "claude --settings '/tmp/Heed Support/claude-hooks.json' --session-id S1 go")
     }
 
     @Test func pullRefsFromURLs() {
@@ -147,7 +147,7 @@ struct AgentIntegrationTests {
             agent: AgentProfile.builtIn.first { $0.name == agent },
             sessionID: "S1",
             integration: files
-        ).command
+        ).command?.posix
     }
 
     @Test func eachAgentLaunchesWithItsWiring() throws {

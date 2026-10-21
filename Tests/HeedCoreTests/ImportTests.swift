@@ -104,7 +104,7 @@ struct ImportTests {
         #expect(session.title == "Fix the loop")
         #expect(session.agentSessionID == "abc-123")
         #expect(session.branch == "fix/loop")
-        #expect(layout.tabs[0].tree.panes[0].command == "claude --resume abc-123")
+        #expect(layout.tabs[0].tree.panes[0].command?.posix == "claude --resume abc-123")
         #expect(layout.tabs[0].tree.panes[0].directory == "/wt/docs/fix")
 
         let fresh = Import.session(for: worktree, agent: claude, resume: nil, integration: nil)
@@ -115,7 +115,7 @@ struct ImportTests {
             return
         }
         #expect(freshSession.title == "fix/loop")
-        #expect(freshLayout.tabs[0].tree.panes[0].command == "claude")
+        #expect(freshLayout.tabs[0].tree.panes[0].command?.posix == "claude")
     }
 }
 

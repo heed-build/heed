@@ -215,7 +215,7 @@ private struct HistoryDetail: View {
             if let id = entry.session.agentSessionID,
                let command = model.settings.agent(entry.session.agent)?.resumeCommand(id: id)
             {
-                Text(command)
+                Text(command.posix)
                     .font(Theme.mono(12))
                     .lineLimit(1)
                     .truncationMode(.middle)

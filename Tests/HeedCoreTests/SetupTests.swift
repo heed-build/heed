@@ -67,28 +67,33 @@ struct SetupDetectionTests {
 }
 
 struct SetupPaneCommandTests {
+    /// The pane's line in sh syntax, with `command` typed as written.
+    private func paneLine(_ setup: [String], then command: String?, report: Bool = false) -> String? {
+        WorktreeSetup.paneCommand(setup: setup, then: command.map(ShellCommand.init(line:)), report: report)?.posix
+    }
+
     @Test func noSetupLeavesTheCommand() {
-        #expect(WorktreeSetup.paneCommand(setup: [], then: "claude") == "claude")
-        #expect(WorktreeSetup.paneCommand(setup: [" "], then: nil) == nil)
+        #expect(paneLine([], then: "claude") == "claude")
+        #expect(paneLine([" "], then: nil) == nil)
     }
 
     @Test func setupRunsFirstAndTheAgentOnlyAfterIt() throws {
-        let line = try #require(WorktreeSetup.paneCommand(setup: ["pnpm install"], then: "claude 'fix it'"))
+        let line = try #require(paneLine(["pnpm install"], then: "claude 'fix it'"))
         #expect(line.hasPrefix("sh -c '"))
         #expect(line.hasSuffix(" && claude 'fix it'"))
         #expect(!line.contains("task-exit"))
-        #expect(WorktreeSetup.paneCommand(setup: ["x"], then: "claude", report: true)?.contains("task-exit") == true)
+        #expect(paneLine(["x"], then: "claude", report: true)?.contains("task-exit") == true)
     }
 
     /// The line runs in a real shell: a passing setup starts the command, a failing one says so and stops there.
     @Test func failureStopsAndSaysHow() async throws {
-        let passing = try #require(WorktreeSetup.paneCommand(setup: ["true", "echo set"], then: "echo agent"))
+        let passing = try #require(paneLine(["true", "echo set"], then: "echo agent"))
         let ok = try await ProcessRunner.run("/bin/sh", ["-c", passing])
         #expect(ok.succeeded)
         #expect(ok.stdout.contains("set\n"))
         #expect(ok.stdout.hasSuffix("agent\n"))
-        let failing = try #require(WorktreeSetup.paneCommand(
-            setup: ["sh -c 'exit 3'", "echo never"],
+        let failing = try #require(paneLine(
+            ["sh -c 'exit 3'", "echo never"],
             then: "echo agent"
         ))
         let bad = try await ProcessRunner.run("/bin/sh", ["-c", failing])
@@ -104,7 +109,7 @@ struct SetupPaneCommandTests {
         let dir = NSTemporaryDirectory() + "heed-setup-\(UUID().uuidString)"
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(atPath: dir) }
-        let line = try #require(WorktreeSetup.paneCommand(setup: ["npm ci", "echo after"], then: "echo agent"))
+        let line = try #require(paneLine(["npm ci", "echo after"], then: "echo agent"))
         let result = try await ProcessRunner.run("/bin/sh", ["-c", "cd '\(dir)' && \(line)"])
         #expect(result.succeeded)
         #expect(result.stdout.contains("heed: setup: skipped npm ci (no package.json)"))

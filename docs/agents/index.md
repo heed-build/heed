@@ -17,6 +17,11 @@ line agent can be added.
 | opencode | `opencode` | A plugin passed in `OPENCODE_CONFIG_CONTENT` | its own session id |
 | gemini | `gemini` | Nothing: Heed reads its screen | `--resume <id>` |
 
+Heed starts an agent by typing its command line into the pane's shell, written in that shell's own syntax: sh, bash
+and zsh get one quoting, fish (3.1 or later) its own. The agent runs in your shell by the name you configured, so your
+aliases, functions and environment for it apply. Only a worktree's [setup](../worktrees/setup.md) runs under `sh -c`,
+before the agent. Heed reads your login shell each time a pane starts, so a shell changed with `chsh` is picked up.
+
 What an agent cannot report, Heed [reads from its screen](screen-reading.md). Each agent's command, prompt delivery,
 plan and resume arguments can be changed, and new agents added: see [Custom agents](custom-agents.md).
 

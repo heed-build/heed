@@ -1141,7 +1141,10 @@ final class AppModel {
             }
             for await (name, status) in group {
                 hostStatuses[name] = status
-                if case let .connected(info) = status { TerminalSurfaces.shared.hostZmx[name] = info.zmxPath }
+                if case let .connected(info) = status {
+                    TerminalSurfaces.shared.hostZmx[name] = info.zmxPath
+                    TerminalSurfaces.shared.hostShells[name] = info.shell
+                }
             }
         }
         // The checks just sent traffic, so the tailnet now knows how it goes: direct, or through which relay.

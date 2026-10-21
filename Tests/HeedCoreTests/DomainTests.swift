@@ -110,9 +110,9 @@ struct StartWorkTests {
     @Test func commandsQuoteThePrompt() throws {
         let claude = try #require(AgentProfile.builtIn.first { $0.name == "claude" })
         var plan = StartWorkPlan(prompt: "Fix Bob's anchors", repos: [], name: "x", agent: claude)
-        #expect(plan.command == "claude 'Fix Bob'\\''s anchors'")
+        #expect(plan.command?.posix == "claude 'Fix Bob'\\''s anchors'")
         plan.planFirst = true
-        #expect(plan.command == "claude --permission-mode plan 'Fix Bob'\\''s anchors'")
+        #expect(plan.command?.posix == "claude --permission-mode plan 'Fix Bob'\\''s anchors'")
         plan.autostart = false
         #expect(plan.command == nil)
         #expect(ShellQuote.quote("simple-word") == "simple-word")
@@ -136,7 +136,7 @@ struct StartWorkTests {
         #expect(layout.tabs.count == 2)
         let panes = layout.tabs[0].tree.panes
         #expect(panes.map(\.role) == [.agent, .shell])
-        #expect(panes[0].command == "claude p")
+        #expect(panes[0].command?.posix == "claude p")
         #expect(layout.tabs[0].focused == panes[0].id)
         #expect(layout.tabs[1].tree.panes[0].directory == "/wt/two/n")
     }
@@ -312,7 +312,7 @@ struct StartWorkFormTests {
         #expect(form.name == "fix/anchors-docs-builder-docs")
         // Only the top guess: a second repo (and its worktree) is yours to add.
         #expect(form.selectedRepos == ["elastic/docs-builder"])
-        #expect(form.plan.command == "claude 'Fix anchors in docs-builder and docs-content'")
+        #expect(form.plan.command?.posix == "claude 'Fix anchors in docs-builder and docs-content'")
     }
 
     @Test func navigationTogglesAndStarts() {

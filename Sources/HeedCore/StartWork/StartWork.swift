@@ -116,7 +116,7 @@ public struct TaskSpec: Hashable, Sendable, Codable {
     public func pane(directory: String, location: Location = .local) -> PaneSpec {
         PaneSpec(
             role: .task, title: name, directory: directory,
-            command: "\(command); \"${HEED_BIN:-true}\" task-exit $?", location: location
+            command: ShellCommand([.line(command), .reportExit]), location: location
         )
     }
 }
@@ -198,8 +198,8 @@ public struct StartWorkPlan: Hashable, Sendable {
     /// Where the work runs: this Mac, or the host its repos are on (a session's repos are all in one place).
     public var location: Location { repos.first?.location ?? .local }
 
-    /// The line typed into the agent pane's shell, shown verbatim in the dialog.
-    public var command: String? {
+    /// The line typed into the agent pane's shell (in its syntax), shown in sh syntax in the dialog.
+    public var command: ShellCommand? {
         guard autostart, let agent else { return nil }
         let extra = integration.map {
             AgentIntegration.launchArguments(agent: agent, sessionID: sessionID, files: $0)
@@ -503,7 +503,7 @@ public enum Reopen {
             try await changes.append(.worktreesListed(repo: repo, Git.worktrees(of: record)))
         }
         // Reopening is explicit, so the only question is whether the agent can still resume its session.
-        var command: String?
+        var command: ShellCommand?
         if let agent = settings.agent(session.agent) {
             let hooks = { (resuming: Bool) in
                 integration.map {

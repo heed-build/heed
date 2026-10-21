@@ -11,5 +11,10 @@ struct HostProbeScriptTests {
         let info = HostProbe.info(fromOutput: result.stdout, latency: .milliseconds(1))
         #expect(info?.platform.hasPrefix("Darwin") == true)
         #expect(result.stdout.contains("os="))
+        // The login shell by name, as a pane's zmx session runs it.
+        let shell = try await ProcessRunner.run(
+            "/bin/sh", ["-c", HostProbe.script], environment: ["SHELL": "/opt/homebrew/bin/fish"], timeout: .seconds(20)
+        )
+        #expect(HostProbe.info(fromOutput: shell.stdout, latency: .zero)?.shell == "fish")
     }
 }

@@ -100,6 +100,8 @@ public enum ContextMenus {
         public var hasPrompt = false
         /// The agents it can be handed to (`agent.switch`): every configured one but its own.
         public var handoffAgents: [String] = []
+        /// A chat: no repo, worktree or branch, so nothing that reads one (diff, PRs, the pilot, the repo) applies.
+        public var chat = false
 
         public init(id: String, title: String) {
             self.id = id
@@ -143,27 +145,28 @@ public enum ContextMenus {
         func item(_ title: String, _ name: String, enabled: Bool = true, checked: Bool = false) -> MenuItem {
             MenuItem(title, CommandInvocation(name: name, target: target), enabled: enabled, checked: checked)
         }
+        let repo = !facts.chat
         var menu = Menu(header: facts.title)
         menu.section([
-            facts.pulls > 0 ? item("Open PR overlay", "overlay.item") : nil,
-            item("Diff", "overlay.diff"),
-            facts.links > 0 || facts.hasGitHubRepo
+            repo && facts.pulls > 0 ? item("Open PR overlay", "overlay.item") : nil,
+            repo ? item("Diff", "overlay.diff") : nil,
+            facts.links > 0 || repo && facts.hasGitHubRepo
                 ? item(facts.links > 1 ? "Open in browser…" : "Open in browser", "open.browser") : nil,
-            facts.hasGitHubRepo ? item("Open repo on GitHub", "open.repo") : nil,
+            repo && facts.hasGitHubRepo ? item("Open repo on GitHub", "open.repo") : nil,
         ])
-        if facts.pulls > 0 {
+        if repo, facts.pulls > 0 {
             menu.section(pilotItems(facts.pilot, open: facts.openPulls > 0, target: target))
         }
         menu.section([
             item(facts.pinned ? "Unpin" : "Pin", "session.pin"),
             item(facts.parked ? "Unpark" : "Park", "session.park"),
-            facts.hasPrompt ? item("Start again from its prompt", "work.again") : nil,
+            repo && facts.hasPrompt ? item("Start again from its prompt", "work.again") : nil,
         ])
         menu.submenu("Hand off to…", handoffItems(facts.handoffAgents, target: target))
-        menu.section([
+        menu.section(repo ? [
             item("Close, keep worktree", "session.close"),
             item("Delete with worktrees…", "session.delete"),
-        ])
+        ] : [item("Close", "session.close")])
         return menu.entries
     }
 

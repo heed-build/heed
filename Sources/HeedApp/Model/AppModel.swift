@@ -291,6 +291,7 @@ final class AppModel {
 
     /// Starts from the cache, then refreshes from git. The window is already up showing whatever the cache holds.
     func start(cache file: URL) async {
+        await startCallLog(beside: file)
         startConfig()
         Notifier.shared.attach(self)
         if !isFixture { await detectTools() }
@@ -968,7 +969,10 @@ final class AppModel {
         }
     }
 
-    func flush() async { await store?.flushAll() }
+    func flush() async {
+        await store?.flushAll()
+        await CallLog.active?.flush()
+    }
 
     private func rebuildList() {
         // The selection is a session, not a row. A session moving between groups (parked to working, say) reorders

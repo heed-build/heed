@@ -49,10 +49,21 @@ final class HostEventStream {
         guard !stopped, let size else { return retry() }
         if UserDefaults.standard.object(forKey: offsetKey) == nil || offset > size { offset = size }
         let process = Process()
+        let tail = ["sh", "-c", "exec tail -c +\(offset + 1) -F \"$HOME/.heed/events.log\" 2>/dev/null"]
         process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
-        process.arguments = Remote.sshArguments(
-            host: host, command: ["sh", "-c", "exec tail -c +\(offset + 1) -F \"$HOME/.heed/events.log\" 2>/dev/null"]
-        )
+        process.arguments = Remote.sshArguments(host: host, command: tail)
+        // The call log has the stream's start and its end (how long it ran, how it ended), as the command on the host.
+        let started = Date()
+        let host = host
+        let logged: @Sendable (String, Int32?) -> Void = { event, exit in
+            let ended = exit != nil
+            CallLog.record(LoggedCall(
+                at: ended ? started : Date(), kind: .shell, caller: "hosts.events", host: host,
+                command: tail.map(ShellQuote.quote).joined(separator: " "),
+                duration: ended ? Date().timeIntervalSince(started) : 0, exitCode: exit.map(Int.init),
+                failed: exit.map { $0 != 0 && $0 != SIGTERM } ?? false, detail: ["stream": event]
+            ))
+        }
         let out = Pipe()
         process.standardOutput = out
         process.standardError = FileHandle.nullDevice
@@ -62,12 +73,14 @@ final class HostEventStream {
             guard !data.isEmpty else { return }
             Task { @MainActor in self?.received(data) }
         }
-        process.terminationHandler = { [weak self] _ in
+        process.terminationHandler = { [weak self] finished in
+            logged("ended", finished.terminationStatus)
             out.fileHandleForReading.readabilityHandler = nil
             Task { @MainActor in self?.retry() }
         }
         do {
             try process.run()
+            logged("started", nil)
             self.process = process
         } catch {
             retry()

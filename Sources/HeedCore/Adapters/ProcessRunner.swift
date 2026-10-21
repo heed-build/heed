@@ -22,10 +22,48 @@ public struct ProcessError: Error, Sendable, CustomStringConvertible {
 /// Runs a command and returns its output, entirely off the calling actor: output is read concurrently (so a full
 /// pipe never deadlocks), termination is awaited, never waited on, and a timeout or task cancellation terminates it.
 public enum ProcessRunner {
-    /// `caller` says which part of heed ran it (`git.status`, `github.sync`), for the call log.
+    /// `caller` says which part of heed ran it (`git.status`, `github.sync`): the call log records it with the
+    /// command, where it ran, how long it took and how it ended (never the environment).
     public static func run(
         _ executable: String, _ arguments: [String], in directory: String? = nil,
-        environment: [String: String]? = nil, timeout: Duration = .seconds(30), input: URL? = nil, caller _: String
+        environment: [String: String]? = nil, timeout: Duration = .seconds(30), input: URL? = nil, caller: String
+    ) async throws -> ProcessResult {
+        try await logged(caller: caller, executable: executable, arguments: arguments, cwd: directory) {
+            try await execute(
+                executable, arguments, in: directory, environment: environment, timeout: timeout, input: input
+            )
+        }
+    }
+
+    /// Runs `body` and records it as a shell call, however it ends.
+    static func logged(
+        caller: String, host: String? = nil, executable: String, arguments: [String], cwd: String? = nil,
+        _ body: () async throws -> ProcessResult
+    ) async throws -> ProcessResult {
+        let started = Date()
+        func record(_ result: ProcessResult?, _ error: String?) {
+            CallLog.record(.shell(
+                at: started, caller: caller, host: host, executable: executable, arguments: arguments, cwd: cwd,
+                duration: Date().timeIntervalSince(started), result: result, error: error
+            ))
+        }
+        do {
+            let result = try await body()
+            record(result, nil)
+            return result
+        } catch let error as ProcessError {
+            record(error.result, error.reason)
+            throw error
+        } catch {
+            record(nil, "\(error)")
+            throw error
+        }
+    }
+
+    /// `run` without the call log: for callers that log the call their own way (GitHub, a host).
+    static func execute(
+        _ executable: String, _ arguments: [String], in directory: String? = nil,
+        environment: [String: String]? = nil, timeout: Duration = .seconds(30), input: URL? = nil
     ) async throws -> ProcessResult {
         let command = ([executable] + arguments).joined(separator: " ")
         // A bare name is resolved through tool detection (an app opened from Finder has a minimal PATH) and runs with

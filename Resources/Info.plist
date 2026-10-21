@@ -19,6 +19,12 @@
   <!-- The appcast itself must carry the same key's signature, and an update is checked before it is unpacked. -->
   <key>SURequireSignedFeed</key><true/>
   <key>SUVerifyUpdateBeforeExtraction</key><true/>
+  <!-- Web pages may use plain http (dev servers on *.localhost, docs previews). Only web views: everything else Heed
+       fetches still needs https. -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsArbitraryLoadsInWebContent</key><true/>
+  </dict>
   <key>LSMinimumSystemVersion</key><string>15.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>

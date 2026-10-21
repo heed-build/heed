@@ -366,6 +366,7 @@ public enum ConfigLoader {
         if let git = string(["tools", "git"]) { config.tools.git = git }
         if let gh = string(["tools", "gh"]) { config.tools.gh = gh }
         if let zmx = string(["tools", "zmx"]) { config.tools.zmx = zmx }
+        if let tailscale = string(["tools", "tailscale"]) { config.tools.tailscale = tailscale }
         if let path = strings(["tools", "path"]) { config.tools.path = path }
         func visibility(_ path: [String]) -> IssueVisibility? {
             guard let text = string(path) else { return nil }
@@ -451,13 +452,40 @@ public enum ConfigLoader {
                 if !pilot.isEmpty { config.pilot.orgs[org] = pilot }
             }
         }
-        // [hosts.<name>]: ssh, repo_roots, worktree_root, color.
+        // [hosts.<name>]: ssh, tailscale, transport, user, repo_roots, worktree_root, color.
         if let hosts = root.value(at: ["hosts"])?.table {
             let colors = ["teal", "periwinkle", "pink", "sky"]
             for name in hosts.keys.sorted() {
                 var host = HostConfig(name: name, ssh: string(["hosts", name, "ssh"]))
                 if let roots = strings(["hosts", name, "repo_roots"]) { host.repoRoots = roots }
                 if let root = string(["hosts", name, "worktree_root"]) { host.worktreeRoot = root }
+                if let machine = string(["hosts", name, "tailscale"]) {
+                    if machine.isEmpty || machine.contains(where: \.isWhitespace) {
+                        problems.append(ConfigProblem(
+                            path: "hosts.\(name).tailscale",
+                            message: "expected a machine name on your tailnet, like \"devbox\""
+                        ))
+                    } else {
+                        host.tailscale = machine
+                    }
+                }
+                if let transport = string(["hosts", name, "transport"]) {
+                    if let parsed = HostTransport(rawValue: transport) {
+                        host.transport = parsed
+                    } else {
+                        problems.append(ConfigProblem(
+                            path: "hosts.\(name).transport",
+                            message: "expected ssh or tailscale"
+                        ))
+                    }
+                }
+                if host.transport == .ssh, host.tailscale != nil {
+                    problems.append(ConfigProblem(
+                        path: "hosts.\(name).transport",
+                        message: "transport = \"ssh\" ignores tailscale = \"\(host.tailscale ?? "")\""
+                    ))
+                }
+                if let user = string(["hosts", name, "user"]), !user.isEmpty { host.user = user }
                 if let color = string(["hosts", name, "color"]) {
                     if colors.contains(color) {
                         host.color = color
@@ -701,6 +729,8 @@ public enum ConfigLoader {
     # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.
     git = ""                           # e.g. "/opt/homebrew/bin/git"
     gh = ""
+    # The tailscale CLI, for hosts on your tailnet. Empty: the search path, then the Tailscale app's own binary.
+    tailscale = ""
     # Directories searched first, for git, gh and agent commands alike.
     path = []
 
@@ -736,6 +766,18 @@ public enum ConfigLoader {
     # tabs; ! picks one to run, from these and what the worktree offers (mise tasks, make targets, package.json scripts).
     # [repos."elastic/docs-builder".tasks]
     # test = "dotnet test"
+
+    # Hosts: machines heed drives over your own ssh (gH adds them from ~/.ssh/config or your tailnet). A host whose
+    # machine is on your tailnet goes over it, its ssh alias pointed at the machine's MagicDNS name; a machine running
+    # Tailscale SSH needs no key of yours. transport = "ssh" keeps a host off the tailnet.
+    # [hosts.devbox]
+    # ssh = "devbox"                   # an alias from ~/.ssh/config, or user@address; the name by default
+    # tailscale = "devbox"             # the machine on your tailnet, when its name differs
+    # transport = "ssh"                # ssh | tailscale; unset prefers the tailnet
+    # user = "you"                     # who to log in as over the tailnet, without an ssh alias
+    # repo_roots = ["~/code"]
+    # worktree_root = "~/code/wt"
+    # color = "teal"                   # teal, periwinkle, pink or sky
 
     [keys]
     # Leaves INSERT. It is also the terminal's quit signal, so pick something else if you need that.

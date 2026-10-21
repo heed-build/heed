@@ -73,7 +73,7 @@ public enum RemotePane {
             "ZMX_DIR=\"$HOME/.heed/zmx\" ZMX_NO_DETACH_KEY=1 \(Remote.word(path)) attach \(Zmx.sessionName(pane: pane))"
         } ?? "\"${SHELL:-/bin/sh}\" -l"
         let remote = "cd \(Remote.word(directory)) 2>/dev/null || cd; exec env \(environment.joined(separator: " ")) \(run)"
-        let ssh = (["ssh", "-t"] + Remote.options(controlDirectory: controlDirectory) + [
+        let ssh = (["ssh", "-t"] + Remote.options(host: host, controlDirectory: controlDirectory) + [
             Remote.target(for: host),
             "--",
             remote,

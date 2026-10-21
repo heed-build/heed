@@ -5,8 +5,8 @@ description: "Hosts: machines Heed drives over ssh, and the repos and worktrees 
 # Hosts
 
 A host is a machine Heed reaches over ssh: a devbox, a GPU box, a build runner. Heed uses your own ssh: your
-`~/.ssh/config`, keys, agent and jump hosts. It never reads a key, and it shares one connection per host, so its
-calls are fast.
+`~/.ssh/config`, keys, agent and jump hosts, or your [tailnet](#tailscale). It never reads a key, and it shares one
+connection per host, so its calls are fast.
 
 Heed finds the repos and worktrees on your hosts and shows them next to the ones on this Mac, and runs sessions there:
 the agent runs on the host, in a [zmx](../sessions/zmx.md) session when the host has zmx, so a dropped connection, a
@@ -14,8 +14,9 @@ closed lid or a restarted Heed never stops it.
 
 ## Adding a host
 
-`gH` opens the hosts: the ones Heed has, and the ones in `~/.ssh/config` it could add. `↩` on one from your ssh
-config adds it to `config.toml`; `↩` on one Heed has checks it again. The checks say how it answers:
+`gH` opens the hosts: the ones Heed has, and the ones in `~/.ssh/config` or on your [tailnet](#tailscale) it could
+add. `↩` on one from your ssh config adds it to `config.toml`; `↩` on one Heed has checks it again. The checks say
+how it answers:
 
 ![The hosts, with @devbox's checks: connected, its platform, git, zmx and agents](../images/shots/hosts/picker.png)
 
@@ -40,6 +41,51 @@ color = "teal"                   # teal, periwinkle, pink or sky
 ```
 
 Amber and green are never host colours: they mean "needs you" and "done".
+
+## Tailscale
+
+When this Mac is on a [Tailscale](https://tailscale.com) tailnet, `gH` lists its machines that are not hosts yet
+under **On your tailnet**, each with its system, whether it is online, and a **Tailscale SSH** badge when it runs
+Tailscale SSH. `↩` on one adds it as a host:
+
+![The hosts dialog with gpu-box on the tailnet picked: online, Tailscale SSH, ↩ adds it](../images/shots/hosts/picker-tailnet.png)
+
+```toml
+[hosts.gpu-box]
+tailscale = "gpu-box"            # the machine on your tailnet
+# user = "you"                   # who to log in as, when no ssh alias says so
+```
+
+A machine running Tailscale SSH needs no key of yours: your tailnet identity logs you in, and heed checks the
+machine's host keys against the ones your tailnet publishes, the way `tailscale ssh` does. A machine without it is
+reached over the tailnet too, by its MagicDNS name, with your own keys and `known_hosts`.
+
+Heed prefers the tailnet. A host whose ssh alias or name matches a machine on it (its machine name or hostname,
+ignoring case) goes over it, so an existing `[hosts.devbox]` starts using the tailnet as soon as `devbox` is on it.
+Your alias stays what ssh connects to, pointed at the machine's MagicDNS name, so `~/.ssh/config`'s `User` and
+`IdentityFile` still apply; a `ProxyJump` there is skipped, since the tailnet already reaches the machine. To keep a
+host off the tailnet:
+
+```toml
+[hosts.devbox]
+transport = "ssh"                # ssh | tailscale
+```
+
+Heed finds the `tailscale` command on your PATH or inside the Tailscale app (Settings > General shows which, and
+`[tools] tailscale` sets it). The checks say what stands in the way:
+
+| Check | Means |
+|---|---|
+| Tailscale is not installed | `brew install --cask tailscale`, or the Mac app from tailscale.com |
+| Tailscale is off | Turn it on from the menu bar, then `↩` |
+| Sign in to Tailscale | `↩` opens the sign-in page |
+| Tailscale SSH wants you to confirm | The machine's check mode wants you to confirm it is you: `↩` opens the page |
+| offline on your tailnet | Tailscale says the machine is offline; heed does not try ssh, and shows it stale |
+
+Over the tailnet the pane strip says how the link goes, with its latency: **direct · 12 ms** when traffic goes
+straight to the machine, **via relay fra · 48 ms** through one of Tailscale's relays (its region), or **via peer
+relay** through a machine of yours. A relay works, just slower; it usually turns direct once the two machines find
+a path.
 
 ## Repos on hosts
 

@@ -42,12 +42,12 @@ public enum Fixtures {
         "devbox": .connected(HostInfo(
             latency: .milliseconds(24), platform: "Linux x86_64", git: "2.46.0", zmx: "0.8.1",
             agents: ["claude", "codex"], checkedAt: Clock.now, home: "/home/you",
-            zmxPath: "/home/you/.local/bin/zmx", os: "ubuntu"
+            zmxPath: "/home/you/.local/bin/zmx", os: "ubuntu", link: .direct
         )),
         // Answers, but zmx is not installed there yet: heed says how.
         "lab": .connected(HostInfo(
             latency: .milliseconds(41), platform: "Linux aarch64", git: "2.43.0", zmx: nil, agents: ["claude"],
-            checkedAt: Clock.now, home: "/home/you", os: "debian"
+            checkedAt: Clock.now, home: "/home/you", os: "debian", link: .relay("fra")
         )),
         "gpu": .needsAuth("martijn@gpu: Permission denied (publickey)."),
         "ci": .offline(
@@ -55,6 +55,29 @@ public enum Fixtures {
             lastSeen: Clock.now.addingTimeInterval(-3 * 86400)
         ),
     ]
+
+    /// A made-up tailnet: @devbox and @lab are hosts already (over it), gpu-box and build-mini are not added yet.
+    public static let tailnet = Tailnet(
+        state: .running, name: "example-tailnet.ts.net",
+        machines: [
+            TailnetMachine(
+                name: "build-mini", hostName: "Build Mini", dnsName: "build-mini.example-tailnet.ts.net",
+                addresses: ["100.64.0.12"], os: "macOS", online: false,
+                lastSeen: Clock.now.addingTimeInterval(-2 * 86400)
+            ),
+            TailnetMachine(
+                name: "devbox", dnsName: "devbox.example-tailnet.ts.net", addresses: ["100.64.0.7"], link: .direct,
+                hostKeys: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleDevboxHostKeyNotARealOne000000000"]
+            ),
+            TailnetMachine(
+                name: "gpu-box", dnsName: "gpu-box.example-tailnet.ts.net", addresses: ["100.64.0.9"],
+                hostKeys: ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleGpuBoxHostKeyNotARealOne000000000"]
+            ),
+            TailnetMachine(
+                name: "lab", dnsName: "lab.example-tailnet.ts.net", addresses: ["100.64.0.4"], link: .relay("fra")
+            ),
+        ]
+    )
 
     static let remoteRepos = [
         RepoRecord(

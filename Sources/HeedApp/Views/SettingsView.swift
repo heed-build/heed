@@ -341,6 +341,15 @@ private struct GeneralSettings: View {
                     ZmxStatus(health: model.zmxHealth, setting: model.settings.persist)
                 }
             }
+            Field(
+                label: "tailscale",
+                detail: "For hosts on your tailnet. Empty detects it (the search path, then the Tailscale app)."
+            ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ConfigTextField(path: ["tools", "tailscale"], value: model.config.tools.tailscale)
+                    TailscaleStatusLine(path: model.tailscalePath, tailnet: model.tailnet)
+                }
+            }
             ToolsList(report: model.tools)
         }
     }
@@ -837,6 +846,44 @@ private struct ZmxStatus: View {
             }
         }
         .font(Theme.ui(12))
+    }
+}
+
+/// Tailscale's check, under its field: where the CLI is, and whether your tailnet is up.
+private struct TailscaleStatusLine: View {
+    let path: String?
+    let tailnet: Tailnet?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let tailnet {
+                let (ok, text) = summary(tailnet)
+                HStack(spacing: 6) {
+                    Image(systemName: ok ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(ok ? Theme.done : Theme.block)
+                    if let path { Text(Paths.abbreviate(path)).font(Theme.mono(11.5)) }
+                    Text(text).foregroundStyle(ok ? Theme.done : Theme.block)
+                }
+                if tailnet.state == .notInstalled {
+                    Text("Optional. Install: " + TailscaleCLI.install.joined(separator: " ")).font(Theme.mono(11))
+                        .foregroundStyle(Theme.fg2)
+                        .textSelection(.enabled)
+                }
+            } else {
+                Text("Not checked yet.").foregroundStyle(Theme.fg3)
+            }
+        }
+        .font(Theme.ui(12))
+    }
+
+    private func summary(_ tailnet: Tailnet) -> (Bool, String) {
+        switch tailnet.state {
+        case .running:
+            (true, "on \(tailnet.name ?? "your tailnet") · \(tailnet.machines.count) machines")
+        case .notInstalled: (false, "not installed")
+        case .off, .starting: (false, "Tailscale is off")
+        case .needsLogin: (false, "signed out")
+        }
     }
 }
 

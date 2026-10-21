@@ -848,7 +848,8 @@ private struct TutorReminderView: View {
     }
 }
 
-/// `gH`: the hosts heed drives over ssh and the ones in ~/.ssh/config it could add, with the selected host's checks.
+/// `gH`: the hosts heed drives over ssh and the ones in ~/.ssh/config or on your tailnet it could add, with the
+/// selected host's checks.
 struct HostsPickerView: View {
     @Environment(AppModel.self) private var model
     let picker: Typeahead<AppModel.HostRow>
@@ -862,7 +863,7 @@ struct HostsPickerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Hosts").font(Theme.ui(15, weight: .semibold))
                     Text(
-                        "Machines heed drives over ssh, with your own config, keys and agent. ↩ adds one from ~/.ssh/config, or checks one again."
+                        "Machines heed drives over ssh, with your own config, keys and agent. ↩ adds one from ~/.ssh/config or your tailnet, or checks one again."
                     )
                     .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
@@ -879,20 +880,44 @@ struct HostsPickerView: View {
                 HStack(alignment: .top, spacing: 0) {
                     VStack(alignment: .leading, spacing: 0) {
                         if matches.isEmpty {
-                            Text("No hosts in ~/.ssh/config. Add [hosts.<name>] ssh = \"user@address\" to config.toml.")
-                                .font(Theme.ui(12)).foregroundStyle(Theme.fg3).padding(18)
+                            Text(
+                                "No hosts in ~/.ssh/config or on your tailnet. Add [hosts.<name>] ssh = \"user@address\" to config.toml."
+                            )
+                            .font(Theme.ui(12)).foregroundStyle(Theme.fg3).padding(18)
                         }
                         ForEach(Array(matches.enumerated()), id: \.element.id) { index, row in
                             let palette = HostPalette.color(
                                 for: row.name,
                                 configured: model.config.hosts[row.name]?.color
                             )
+                            // The machines on your tailnet that are not hosts yet, under their own heading.
+                            if row.machine != nil, index == 0 || matches[index - 1].machine == nil {
+                                Text("ON YOUR TAILNET").font(Theme.ui(10.5, weight: .semibold)).tracking(0.7)
+                                    .foregroundStyle(Theme.fg3)
+                                    .padding(.horizontal, 18).padding(.top, index == 0 ? 8 : 12).padding(.bottom, 4)
+                            }
                             HStack(spacing: 10) {
-                                RoundedRectangle(cornerRadius: 2).fill(palette.swatch).frame(width: 9, height: 9)
+                                if let machine = row.machine {
+                                    Circle().fill(machine.online ? Theme.done : Theme.fg3.opacity(0.6))
+                                        .frame(width: 7, height: 7).frame(width: 9)
+                                } else {
+                                    RoundedRectangle(cornerRadius: 2).fill(palette.swatch).frame(width: 9, height: 9)
+                                }
                                 Highlighted(text: row.name, query: picker.query).font(Theme.mono(13, weight: .semibold))
+                                    .foregroundStyle(row.machine?.online == false ? Theme.fg3 : Theme.fg)
                                 Spacer(minLength: 8)
-                                Text(row.configured ? row.summary : "\(row.summary) · add")
-                                    .font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                                if let machine = row.machine {
+                                    if machine.hasTailscaleSSH {
+                                        Text("Tailscale SSH").font(Theme.mono(10)).foregroundStyle(Theme.fg2)
+                                            .padding(.horizontal, 5).padding(.vertical, 1)
+                                            .background(Capsule().fill(Theme.bg3))
+                                    }
+                                    Text("\(machine.os)\(machine.online ? "" : " · offline") · add")
+                                        .font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                                } else {
+                                    Text(row.configured ? row.summary : "\(row.summary) · add")
+                                        .font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                                }
                             }
                             .padding(.horizontal, 18)
                             .padding(.vertical, 9)
@@ -940,7 +965,14 @@ private struct HostChecks: View {
                     case .unknown:
                         check(nil, "checking…")
                     case let .connected(info):
-                        check(true, "connected in \(info.latencyMilliseconds) ms through your ssh agent")
+                        if let machine = model.tailnetMachine(for: row.name) {
+                            check(true, "connected in \(info.latencyMilliseconds) ms over your tailnet" + (
+                                machine.hasTailscaleSSH ? ", with Tailscale SSH" : " through your ssh agent"
+                            ))
+                            check(true, (info.link.map { "\($0.label) · " } ?? "") + machine.dnsName)
+                        } else {
+                            check(true, "connected in \(info.latencyMilliseconds) ms through your ssh agent")
+                        }
                         check(true, "\(info.platform)")
                         check(info.git != nil, info.git.map { "git \($0)" } ?? "git not found")
                         check(
@@ -968,14 +1000,37 @@ private struct HostChecks: View {
                         .font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
                     case .unknownHostKey:
                         check(false, "host key not known yet", color: Theme.block)
-                        Text("Connect once in a terminal (ssh \(row.summary)) to check and accept its key.")
-                            .font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+                        Text(
+                            "Connect once in a terminal (ssh \(model.config.hosts[row.name]?.ssh ?? row.name)) to check and accept its key."
+                        )
+                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
                     case let .offline(reason, lastSeen):
                         check(false, "offline: \(reason)", color: Theme.fg3)
                         if let lastSeen {
                             Text("last seen \(Clock.relative(lastSeen))").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                         }
+                    case let .tailscale(issue):
+                        TailscaleIssueView(issue: issue)
                     }
+                } else if let machine = row.machine {
+                    check(
+                        machine.online,
+                        machine.online ? "online on your tailnet" : "offline"
+                            + (machine.lastSeen.map { ": last seen \(Clock.relative($0))" } ?? ""),
+                        color: Theme.fg3
+                    )
+                    check(
+                        machine.hasTailscaleSSH,
+                        machine.hasTailscaleSSH
+                            ? "Tailscale SSH: your tailnet identity logs you in, no key needed"
+                            : "no Tailscale SSH: your own ssh keys log in",
+                        color: Theme.fg3
+                    )
+                    Text(machine.dnsName).font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).textSelection(.enabled)
+                    Text(
+                        "↩ adds it to config.toml as [hosts.\(row.name)] tailscale = \"\(machine.name)\" and checks it."
+                    )
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
                 } else {
                     Text("↩ adds it to config.toml as [hosts.\(row.name)] and checks it.").font(Theme.ui(12))
                         .foregroundStyle(Theme.fg3)
@@ -992,6 +1047,48 @@ private struct HostChecks: View {
             Text(text).font(Theme.ui(12.5)).foregroundStyle(ok == false ? (color ?? Theme.fg2) : Theme.fg)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+}
+
+/// What Tailscale needs before heed can reach a host over the tailnet, and how to get there.
+private struct TailscaleIssueView: View {
+    let issue: TailscaleIssue
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            switch issue {
+            case .notInstalled:
+                line("Tailscale is not installed", color: Theme.block)
+                hint("This host is on your tailnet. Install Tailscale on this Mac, then ↩ checks again:")
+                ForEach(TailscaleCLI.install, id: \.self) { command in
+                    Text(command).font(Theme.mono(11.5)).textSelection(.enabled).padding(.leading, 20)
+                }
+            case .off:
+                line("Tailscale is off", color: Theme.block)
+                hint("Turn it on from Tailscale in the menu bar, then ↩ checks again.")
+            case let .needsLogin(url):
+                line("Sign in to Tailscale", color: Theme.ask)
+                hint(url == nil
+                    ? "Sign in from Tailscale in the menu bar, then ↩ checks again."
+                    : "↩ opens the sign-in page in your browser; sign in there, then ↩ checks again.")
+            case let .checkAuth(url):
+                line("Tailscale SSH wants you to confirm it is you", color: Theme.ask)
+                hint(
+                    "↩ opens \(URL(string: url)?.host ?? "the page") in your browser; confirm there, then ↩ checks again."
+                )
+            }
+        }
+    }
+
+    private func line(_ text: String, color: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text("–").foregroundStyle(color).frame(width: 12)
+            Text(text).font(Theme.ui(12.5)).foregroundStyle(color)
+        }
+    }
+
+    private func hint(_ text: String) -> some View {
+        Text(text).font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
     }
 }
 

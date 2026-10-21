@@ -7,6 +7,8 @@ public struct ToolSettings: Equatable, Sendable {
     public var gh = ""
     /// zmx, for persistent panes; empty: found on the search path.
     public var zmx = ""
+    /// The tailscale CLI, for hosts on your tailnet; empty: the search path, then the Mac app's own binary.
+    public var tailscale = ""
     /// Directories searched before anything detected, for git, gh and agent commands alike.
     public var path: [String] = []
 

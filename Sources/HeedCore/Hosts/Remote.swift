@@ -16,12 +16,19 @@ public enum Location: Hashable, Sendable, Codable {
 /// Running commands on hosts: the system's ssh, with your own config, keys and agent, over one shared connection per
 /// host (ControlMaster), so a command costs milliseconds rather than a handshake.
 public enum Remote {
-    /// Host name to what ssh connects to (`[hosts.x] ssh`, the name itself by default). Set from config.
-    private static let targets = Mutex<[String: String]>([:])
+    /// Host name to how ssh gets there: `[hosts.x] ssh` (the name itself by default), or the machine on the tailnet.
+    /// Set from config and the tailnet's status.
+    private static let routes = Mutex<[String: HostRoute]>([:])
 
-    public static func setTargets(_ map: [String: String]) { targets.withLock { $0 = map } }
+    public static func setRoutes(_ map: [String: HostRoute]) { routes.withLock { $0 = map } }
 
-    public static func target(for host: String) -> String { targets.withLock { $0[host] } ?? host }
+    public static func setTargets(_ map: [String: String]) { setRoutes(map.mapValues { HostRoute(destination: $0) }) }
+
+    public static func route(for host: String) -> HostRoute {
+        routes.withLock { $0[host] } ?? HostRoute(destination: host)
+    }
+
+    public static func target(for host: String) -> String { route(for: host).destination }
 
     /// Extra ssh options for every call (tests point ssh at a throwaway key and known_hosts this way).
     private static let extra = Mutex<[String]>([])
@@ -34,9 +41,11 @@ public enum Remote {
 
     /// ssh's options for heed's own calls: never prompt (a prompt in a background call would hang; needing your key is
     /// reported instead), share one connection, give up on a dead host quickly.
-    /// The extra options come first: ssh keeps the first value it sees for an option, so they win.
-    public static func options(controlDirectory: String = controlDirectory()) -> [String] {
-        extra.withLock { $0 } + [
+    /// The extra options come first: ssh keeps the first value it sees for an option, so they win; then the host's
+    /// route (over the tailnet: its address and Tailscale SSH's known hosts), ahead of `~/.ssh/config`. The control
+    /// path is keyed by where ssh actually goes (`%C`), so a tailnet route never reuses a connection made another way.
+    public static func options(host: String? = nil, controlDirectory: String = controlDirectory()) -> [String] {
+        extra.withLock { $0 } + (host.map { route(for: $0).options } ?? []) + [
             "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", "-o", "ServerAliveInterval=15",
             "-o", "ControlMaster=auto", "-o", "ControlPath=\(controlDirectory)/%C", "-o", "ControlPersist=10m",
         ]
@@ -46,7 +55,8 @@ public enum Remote {
     public static func sshArguments(
         host: String, command: [String], controlDirectory: String = controlDirectory(), target: String? = nil
     ) -> [String] {
-        options(controlDirectory: controlDirectory) + [target ?? self.target(for: host), "--", shellLine(command)]
+        options(host: host, controlDirectory: controlDirectory)
+            + [target ?? self.target(for: host), "--", shellLine(command)]
     }
 
     /// One line for the remote shell, each word quoted, except that a leading `~/` stays the remote home.

@@ -160,7 +160,7 @@ private struct PaneTreeView: View {
     }
 }
 
-/// `@devbox ~/code/wt/flake-hunt · connected · 24 ms`, tinted in the host's colour.
+/// `@devbox ~/code/wt/flake-hunt · connected · direct · 24 ms`, tinted in the host's colour.
 private struct RemotePaneStrip: View {
     @Environment(AppModel.self) private var model
     let host: String
@@ -184,14 +184,19 @@ private struct RemotePaneStrip: View {
 
     private var link: (String, Color) {
         switch model.hostStatus(host) {
+        // Over the tailnet the link says how traffic goes: `direct · 12 ms`, `via relay fra · 48 ms`.
         case let .connected(info):
             info.zmxPath == nil
-                ? ("connected · \(info.latencyMilliseconds) ms · not persistent", Theme.block)
-                : ("connected · \(info.latencyMilliseconds) ms", Theme.done)
+                ? ("connected · \(info.linkSummary) · not persistent", Theme.block)
+                : ("connected · \(info.linkSummary)", Theme.done)
         case .unknown: ("checking…", Theme.fg3)
         case .needsAuth: ("ssh needs your key · a", Theme.ask)
         case .hostKeyChanged: ("host key changed · blocked", Theme.err)
         case .unknownHostKey: ("host key not known", Theme.block)
+        case .tailscale(.notInstalled): ("Tailscale is not installed · gH", Theme.block)
+        case .tailscale(.off): ("Tailscale is off", Theme.block)
+        case .tailscale(.needsLogin): ("sign in to Tailscale · gH", Theme.ask)
+        case .tailscale(.checkAuth): ("Tailscale SSH wants you to confirm · gH", Theme.ask)
         case let .offline(_, lastSeen):
             ("offline" + (lastSeen.map { " · last seen \(Clock.relative($0))" } ?? ""), Theme.fg3)
         }

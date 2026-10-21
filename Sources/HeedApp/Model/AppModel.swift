@@ -269,6 +269,8 @@ final class AppModel {
             config.pilot = Fixtures.pilotRules
             zmxHealth = ZmxHealth(path: "/opt/homebrew/bin/zmx", version: "0.8.1")
             hostStatuses = Fixtures.hostStatuses
+            tailnet = Fixtures.tailnet
+            tailscalePath = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
             issueInfo = Fixtures.issueInfo
             for (id, live) in Fixtures.subagents {
                 setSubagents(Subagents(live), of: id)
@@ -682,7 +684,7 @@ final class AppModel {
         let pilotChanged = decoded.pilot != config.pilot
         config = decoded
         settings = decoded.work
-        Remote.setTargets(Dictionary(uniqueKeysWithValues: decoded.hosts.map { ($0.key, $0.value.ssh) }))
+        applyRoutes()
         if !isFixture {
             TerminalSurfaces.shared.persist = ZmxHealth.decide(decoded.work.persist, health: zmxHealth)
             Updater.shared.apply(decoded.updates)
@@ -725,6 +727,10 @@ final class AppModel {
         TerminalSurfaces.shared.searchPath = report.pathVariable
         // zmx is yours to install: `[tools] zmx`, or found on the search path like any tool, never shipped with heed.
         TerminalSurfaces.shared.zmxPath = Self.locateZmx(config.tools.zmx, searchPath: report.searchPath)
+        // Tailscale is yours too: `[tools] tailscale`, the search path, else the Mac app's own binary.
+        tailscalePath = TailscaleCLI.locate(config.tools.tailscale, searchPath: report.searchPath)
+        await TailscaleCLI.shared.configure(config.tools.tailscale)
+        await refreshTailnet(fresh: true)
         // Checked the way panes use it; `persist = "auto"` uses it only when it works.
         let health = await ZmxCheck.run(zmx: TerminalSurfaces.shared.zmxPath)
         zmxHealth = health
@@ -1087,20 +1093,64 @@ final class AppModel {
 
     func hostStatus(_ name: String) -> HostStatus { hostStatuses[name] ?? .unknown }
 
+    /// Your tailnet as Tailscale last described it; nil until asked.
+    private(set) var tailnet: Tailnet?
+    /// The tailscale CLI heed found (Settings > General shows it).
+    private(set) var tailscalePath: String?
+
+    /// The tailnet machine a host goes to, when it goes over the tailnet.
+    func tailnetMachine(for host: String) -> TailnetMachine? {
+        guard let config = config.hosts[host], let tailnet else { return nil }
+        return HostRoutes.machine(for: config, in: tailnet)
+    }
+
+    /// How ssh reaches each host, from config and the tailnet: every call, pane and check goes the same way.
+    private func applyRoutes() {
+        Remote.setRoutes(HostRoutes.plan(config.hosts, tailnet: tailnet))
+    }
+
+    /// Asks Tailscale for the tailnet; on a change, the routes and Tailscale SSH's known hosts follow.
+    private func refreshTailnet(fresh: Bool = false) async {
+        guard !isFixture else { return }
+        let found = await TailscaleCLI.shared.status(fresh: fresh)
+        guard found != tailnet else { return }
+        tailnet = found
+        if found.isRunning {
+            let tailnet = found
+            await Task.detached { HostRoutes.writeKnownHosts(tailnet) }.value
+        }
+        applyRoutes()
+    }
+
     /// Checks every host, and for each that answers: its repos and their worktrees, with status. Hosts that do not
-    /// answer keep what was last seen of them (shown stale).
+    /// answer keep what was last seen of them (shown stale). A host on the tailnet is not tried while Tailscale is off
+    /// or its machine is offline: the tailnet already says so.
     func refreshHosts() async {
         guard !isFixture else { return }
+        await refreshTailnet()
         await withTaskGroup(of: (String, HostStatus).self) { group in
             for host in hostList {
                 let lastSeen: Date? = if case let .connected(info) = hostStatuses[host.name] { info.checkedAt } else {
                     if case let .offline(_, seen) = hostStatuses[host.name] { seen } else { nil }
+                }
+                if let blocked = HostRoutes.blocker(for: host, tailnet: tailnet, lastSeen: lastSeen) {
+                    hostStatuses[host.name] = blocked
+                    continue
                 }
                 group.addTask { await (host.name, HostProbe.check(host.name, lastSeen: lastSeen)) }
             }
             for await (name, status) in group {
                 hostStatuses[name] = status
                 if case let .connected(info) = status { TerminalSurfaces.shared.hostZmx[name] = info.zmxPath }
+            }
+        }
+        // The checks just sent traffic, so the tailnet now knows how it goes: direct, or through which relay.
+        if hostList.contains(where: { tailnetMachine(for: $0.name) != nil }) {
+            await refreshTailnet(fresh: true)
+            for host in hostList {
+                guard case var .connected(info) = hostStatuses[host.name] else { continue }
+                info.link = tailnetMachine(for: host.name)?.link
+                hostStatuses[host.name] = .connected(info)
             }
         }
         startHostEvents()
@@ -1211,12 +1261,22 @@ final class AppModel {
 
     // MARK: Hosts picker (gH)
 
-    /// A host in the picker: one heed has, or one from ~/.ssh/config it could add.
+    /// A host in the picker: one heed has, or one from ~/.ssh/config or your tailnet it could add.
     struct HostRow: Sendable, Identifiable {
+        enum Kind: Sendable {
+            case configured
+            case sshConfig
+            case tailnet(TailnetMachine)
+        }
+
         let name: String
         let summary: String
-        let configured: Bool
-        var id: String { name }
+        let kind: Kind
+
+        var configured: Bool { if case .configured = kind { true } else { false } }
+        /// A machine on the tailnet that is not a host yet.
+        var machine: TailnetMachine? { if case let .tailnet(machine) = kind { machine } else { nil } }
+        var id: String { (machine == nil ? "" : "tailnet:") + name }
     }
 
     private(set) var hostsPicker: Typeahead<HostRow>?
@@ -1262,12 +1322,47 @@ final class AppModel {
     private var issueInfoFetchedAt: [IssueRef: Date] = [:]
 
     private func openHostsPicker() {
-        let configured = hostList.map { HostRow(name: $0.name, summary: $0.ssh, configured: true) }
+        hostsPicker = Typeahead(items: hostRows()) { [$0.name, $0.summary] }
+        if !isFixture {
+            Task {
+                await refreshTailnet()
+                // Machines that came up on the tailnet since: the rows follow, the query and cursor stay.
+                if let picker = hostsPicker, picker.items.count != hostRows().count {
+                    hostsPicker = Typeahead(items: hostRows()) { [$0.name, $0.summary] }
+                }
+                await refreshHosts()
+            }
+        }
+    }
+
+    /// The picker's rows: the hosts heed has, then the ones in ~/.ssh/config, then the machines on your tailnet that
+    /// are neither.
+    private func hostRows() -> [HostRow] {
+        let configured = hostList.map { host in
+            HostRow(
+                name: host.name, summary: host.ssh + (tailnetMachine(for: host.name) == nil ? "" : " · tailnet"),
+                kind: .configured
+            )
+        }
         let text = isFixture ? "" : (try? String(contentsOf: SSHConfig.defaultFile(), encoding: .utf8)) ?? ""
-        let available = SSHConfig.entries(text).filter { config.hosts[$0.alias] == nil }
-            .map { HostRow(name: $0.alias, summary: $0.summary, configured: false) }
-        hostsPicker = Typeahead(items: configured + available) { [$0.name, $0.summary] }
-        if !isFixture { Task { await refreshHosts() } }
+        let entries = SSHConfig.entries(text).filter { config.hosts[$0.alias] == nil }
+        let machines = tailnet.map(\.machines) ?? []
+        let available = entries.map { entry in
+            let onTailnet = tailnet?.machine(named: entry.hostName ?? entry.alias) != nil
+                || tailnet?.machine(named: entry.alias) != nil
+            return HostRow(
+                name: entry.alias, summary: entry.summary + (onTailnet ? " · tailnet" : ""), kind: .sshConfig
+            )
+        }
+        let taken = Set(hostList.compactMap { tailnetMachine(for: $0.name)?.dnsName })
+        let onTailnet = machines.filter { machine in
+            !taken.contains(machine.dnsName) && config.hosts[machine.name.lowercased()] == nil
+                && !entries.contains { tailnet?.machine(named: $0.hostName ?? $0.alias) == machine
+                    || $0.alias.lowercased() == machine.name.lowercased()
+                }
+        }
+        .map { HostRow(name: $0.name.lowercased(), summary: $0.os, kind: .tailnet($0)) }
+        return configured + available + onTailnet
     }
 
     private func answerHostsPicker(_ stroke: KeyStroke) {
@@ -1279,12 +1374,24 @@ final class AppModel {
         }
     }
 
-    /// ↩ on a host: one from ~/.ssh/config is added (`[hosts.<name>]`) and checked; one heed has is checked again.
+    /// ↩ on a host: one from ~/.ssh/config is added (`[hosts.<name>] ssh`), one from the tailnet as
+    /// `[hosts.<name>] tailscale`, and checked; one heed has is checked again, after opening the page Tailscale wants
+    /// you to sign in or confirm at, if it does.
     func pickHost(_ row: HostRow) {
-        if !row.configured {
+        switch row.kind {
+        case .sshConfig:
             setConfig(["hosts", row.name, "ssh"], .string(row.name))
             flash = "added @\(row.name); checking it…"
-        } else {
+        case let .tailnet(machine):
+            setConfig(["hosts", row.name, "tailscale"], .string(machine.name))
+            flash = "added @\(row.name) from your tailnet; checking it…"
+        case .configured:
+            if case let .tailscale(issue) = hostStatus(row.name), let url = issue.url.flatMap(URL.init(string:)) {
+                if !isFixture { NSWorkspace.shared.open(url) }
+                flash = "opened Tailscale's page in your browser; ↩ checks @\(row.name) again"
+                hostsPicker = nil
+                return
+            }
             flash = "checking @\(row.name)…"
         }
         hostsPicker = nil

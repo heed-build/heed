@@ -173,6 +173,8 @@ show_cost = true
 # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.
 git = ""                           # e.g. "/opt/homebrew/bin/git"
 gh = ""
+# The tailscale CLI, for hosts on your tailnet. Empty: the search path, then the Tailscale app's own binary.
+tailscale = ""
 # Directories searched first, for git, gh and agent commands alike.
 path = []
 
@@ -208,6 +210,18 @@ resume = "--resume {id}"
 # tabs; ! picks one to run, from these and what the worktree offers (mise tasks, make targets, package.json scripts).
 # [repos."elastic/docs-builder".tasks]
 # test = "dotnet test"
+
+# Hosts: machines heed drives over your own ssh (gH adds them from ~/.ssh/config or your tailnet). A host whose
+# machine is on your tailnet goes over it, its ssh alias pointed at the machine's MagicDNS name; a machine running
+# Tailscale SSH needs no key of yours. transport = "ssh" keeps a host off the tailnet.
+# [hosts.devbox]
+# ssh = "devbox"                   # an alias from ~/.ssh/config, or user@address; the name by default
+# tailscale = "devbox"             # the machine on your tailnet, when its name differs
+# transport = "ssh"                # ssh | tailscale; unset prefers the tailnet
+# user = "you"                     # who to log in as over the tailnet, without an ssh alias
+# repo_roots = ["~/code"]
+# worktree_root = "~/code/wt"
+# color = "teal"                   # teal, periwinkle, pink or sky
 
 [keys]
 # Leaves INSERT. It is also the terminal's quit signal, so pick something else if you need that.

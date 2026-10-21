@@ -11,17 +11,36 @@ public struct HostConfig: Hashable, Sendable {
     public var worktreeRoot: String
     /// One of the host colours (teal, periwinkle, pink, sky); nil picks one from the name.
     public var color: String?
+    /// `ssh` was given, rather than defaulting to the name: over the tailnet it stays the destination (an alias whose
+    /// User and IdentityFile apply), pointed at the machine.
+    public var explicitSSH: Bool
+    /// The tailnet machine it is (`tailscale = "devbox"`); nil matches one by its ssh alias or name.
+    public var tailscale: String?
+    /// How heed gets there; nil prefers the tailnet whenever the machine is on it.
+    public var transport: HostTransport?
+    /// Who to log in as over the tailnet when there is no ssh alias saying so.
+    public var user: String?
 
     public init(
         name: String, ssh: String? = nil, repoRoots: [String] = ["~/code"], worktreeRoot: String = "~/code/wt",
-        color: String? = nil
+        color: String? = nil, tailscale: String? = nil, transport: HostTransport? = nil, user: String? = nil
     ) {
         self.name = name
         self.ssh = ssh ?? name
+        explicitSSH = ssh != nil
         self.repoRoots = repoRoots
         self.worktreeRoot = worktreeRoot
         self.color = color
+        self.tailscale = tailscale
+        self.transport = transport
+        self.user = user
     }
+}
+
+/// `[hosts.x] transport`: over the tailnet, or plain ssh even when the machine is on it.
+public enum HostTransport: String, Hashable, Sendable, CaseIterable {
+    case ssh
+    case tailscale
 }
 
 /// The hosts named in ~/.ssh/config, for adding one without typing it.
@@ -94,8 +113,31 @@ public enum HostStatus: Hashable, Sendable {
     /// No known_hosts entry yet: connect once by hand (`ssh <host>`) to accept its key.
     case unknownHostKey
     case offline(reason: String, lastSeen: Date?)
+    /// The host goes over the tailnet, and Tailscale stands in the way.
+    case tailscale(TailscaleIssue)
 
     public var isConnected: Bool { if case .connected = self { true } else { false } }
+}
+
+/// What Tailscale needs before heed can reach a host over the tailnet.
+public enum TailscaleIssue: Hashable, Sendable {
+    /// No Tailscale on this Mac.
+    case notInstalled
+    /// Tailscale is off (stopped, or the app is not running).
+    case off
+    /// Signed out: the URL that signs in, when Tailscale has one.
+    case needsLogin(String?)
+    /// Tailscale SSH in check mode wants you to confirm who you are, at this URL, before it lets ssh in.
+    case checkAuth(String)
+
+    /// The page that resolves it, if there is one.
+    public var url: String? {
+        switch self {
+        case let .needsLogin(url): url
+        case let .checkAuth(url): url
+        case .notInstalled, .off: nil
+        }
+    }
 }
 
 /// A host's answers to the checks: how fast, and what it has.
@@ -112,11 +154,14 @@ public struct HostInfo: Hashable, Sendable {
     public var zmxPath: String?
     /// `/etc/os-release` ID (`ubuntu`, `alpine`, `nixos`), for install instructions.
     public var os: String?
+    /// Over the tailnet: how traffic goes (direct, through a relay). Nil over plain ssh.
+    public var link: TailnetLink?
 
     public init(
         latency: Duration, platform: String, git: String?, zmx: String?, agents: [String], checkedAt: Date = Date(),
-        home: String? = nil, zmxPath: String? = nil, os: String? = nil
+        home: String? = nil, zmxPath: String? = nil, os: String? = nil, link: TailnetLink? = nil
     ) {
+        self.link = link
         self.home = home
         self.zmxPath = zmxPath
         self.os = os
@@ -130,6 +175,11 @@ public struct HostInfo: Hashable, Sendable {
 
     public var latencyMilliseconds: Int {
         Int(latency.components.seconds * 1000) + Int(latency.components.attoseconds / 1_000_000_000_000_000)
+    }
+
+    /// `24 ms`, or over the tailnet `direct · 12 ms`, `via relay fra · 48 ms`.
+    public var linkSummary: String {
+        (link.map { "\($0.label) · " } ?? "") + "\(latencyMilliseconds) ms"
     }
 }
 
@@ -169,8 +219,18 @@ public enum HostProbe {
         )
     }
 
+    /// The URL Tailscale SSH's check mode prints ("To authenticate, visit: https://login.tailscale.com/…") and waits
+    /// on; nil when it did not.
+    public static func checkAuthURL(in text: String) -> String? {
+        guard let marker = text.range(of: "To authenticate, visit:") else { return nil }
+        let rest = text[marker.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+        let url = rest.prefix { !$0.isWhitespace }
+        return url.hasPrefix("https://") ? String(url) : nil
+    }
+
     /// What a failed ssh call means, from its exit and what it said.
     public static func failure(status: Int32, stderr: String, lastSeen: Date?) -> HostStatus {
+        if let url = checkAuthURL(in: stderr) { return .tailscale(.checkAuth(url)) }
         let text = stderr.lowercased()
         if text.contains("remote host identification has changed") { return .hostKeyChanged }
         if text.contains("host key verification failed") || text.contains("no matching host key")
@@ -189,9 +249,16 @@ public enum HostProbe {
     public static func check(_ host: String, lastSeen: Date? = nil) async -> HostStatus {
         let clock = ContinuousClock()
         let start = clock.now
-        guard let result = try? await ProcessRunner.run(
-            on: .host(host), "sh", ["-c", script], timeout: .seconds(15)
-        ) else { return .offline(reason: "ssh did not answer", lastSeen: lastSeen) }
+        let result: ProcessResult
+        do {
+            result = try await ProcessRunner.run(on: .host(host), "sh", ["-c", script], timeout: .seconds(15))
+        } catch {
+            // Tailscale SSH's check mode prints where to confirm and waits, so the call times out.
+            if let url = (error as? ProcessError)?.result.flatMap({ checkAuthURL(in: $0.stderr) }) {
+                return .tailscale(.checkAuth(url))
+            }
+            return .offline(reason: "ssh did not answer", lastSeen: lastSeen)
+        }
         let latency = clock.now - start
         guard result.succeeded, let info = info(fromOutput: result.stdout, latency: latency) else {
             return failure(status: result.status, stderr: result.stderr, lastSeen: lastSeen)

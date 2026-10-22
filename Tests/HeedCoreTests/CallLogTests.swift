@@ -381,7 +381,13 @@ struct CallLogViewTests {
 
         let store = try CallStore(path: ":memory:")
         await store.insert(calls)
-        #expect(try await store.usage(since: hourAgo) == usage)
+        let stored = try await store.usage(since: hourAgo)
+        #expect(stored.agents == usage.agents)
+        #expect(stored.rateRemaining == usage.rateRemaining)
+        // A date goes into the store as seconds since 1970 and comes back from them; Date keeps seconds since 2001, so
+        // the round trip can move it by a rounding step (sub-microsecond). Equal to the millisecond, not to the bit.
+        let rateAt = try #require(usage.rateAt)
+        #expect(try abs(#require(stored.rateAt).timeIntervalSince(rateAt)) < 0.001)
         #expect(try await store.usage(since: Clock.now).agents.isEmpty)
     }
 

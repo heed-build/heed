@@ -54,6 +54,27 @@ extension AppModel {
         return try await llm.run(request)
     }
 
+    /// A Decider over heed's model calls, for `caller` (`attention.rank`): what plans 6 and 7 ask questions with.
+    func decider(caller: String, priority: LLMRequest.Priority = .background) -> LLMDecider {
+        LLMDecider(caller: caller, priority: priority) { [weak self] request in
+            guard let self else { throw LLMError.disabled }
+            return try await runLLM(request)
+        }
+    }
+
+    /// Summaries over heed's model calls; pass `summaryInstructions(for:)` of the repo the work is in.
+    var summarizer: Summarizer {
+        Summarizer { [weak self] request in
+            guard let self else { throw LLMError.disabled }
+            return try await runLLM(request)
+        }
+    }
+
+    /// The repo's `summary_instructions`, resolved repo → org → `[pilot]` like the other instructions.
+    func summaryInstructions(for repo: Repo?) -> String {
+        repo.map { config.pilot.resolve($0).summaryInstructions } ?? config.pilot.defaults.summaryInstructions
+    }
+
     /// Settings' Test: one tiny call to `agent` alone, never cached, shown with its answer and timing.
     func testLLM(agent: String) {
         guard !isFixture, llmTests[agent]?.running != true else { return }

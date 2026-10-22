@@ -303,6 +303,14 @@ public enum Overrides {
             { .text($0.startInstructions) }
         ),
         pilot(
+            "summary_instructions",
+            "Summaries",
+            "Added to what heed asks its model calls for when it summarizes work.",
+            .instructions,
+            { $0.summaryInstructions.map(OverrideValue.text) },
+            { .text($0.summaryInstructions) }
+        ),
+        pilot(
             "admin_merge",
             "Admin merge",
             "heed merges past branch protection you are allowed to bypass.",
@@ -341,7 +349,9 @@ public enum Overrides {
             "hold_labels", "self_review", "admin_merge",
         ]),
         ("Copilot and reviewers", ["copilot_conflicts", "copilot_comments", "reviewers"]),
-        ("Extra instructions", ["green_instructions", "review_instructions", "start_instructions"]),
+        ("Extra instructions", [
+            "green_instructions", "review_instructions", "start_instructions", "summary_instructions",
+        ]),
     ]
 
     /// The keys that apply at a scope (an org has no `admin_merge`), in group order.

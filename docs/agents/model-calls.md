@@ -21,6 +21,19 @@ model, and they take turns.
 
 Custom agents take no part: Heed knows how to call each built-in headless, not an arbitrary command.
 
+## What they are for
+
+- **Summaries**: where a piece of work stands, written from its git history, its pull request, Heed's timeline and the
+  agent's last message, and a handoff brief for an agent taking work over. Heed's prompts for them are built in; add
+  your own with `summary_instructions` in `[pilot]`, per org or per repo, like the
+  [other instructions](../github/watch.md#extra-instructions).
+- **Decisions**: typed questions about a session or a PR (pick one of some options, place it on a scale, or how
+  likely something is true), answered with probabilities and a confidence. Each one writes a `decide` row in `:log`
+  with what it was about, so what you do next can be compared with it. The confidence is the model's own and
+  uncalibrated: Heed never takes an action that cannot be undone on it.
+
+Nothing in Heed uses them yet besides the Test button in Settings; the features that will are on their way.
+
 ## How a call runs
 
 - In an empty temporary directory, removed afterwards, with the agent's tools off and its session not saved

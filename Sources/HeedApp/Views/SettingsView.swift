@@ -801,6 +801,9 @@ private struct PilotSettingsView: View {
             Field(label: "Start work", detail: "After the issue text Start work begins from.") {
                 InstructionsField(path: ["pilot", "start_instructions"], value: pilot.defaults.startInstructions)
             }
+            Field(label: "Summaries", detail: "Added to what heed asks its model calls for when it summarizes work.") {
+                InstructionsField(path: ["pilot", "summary_instructions"], value: pilot.defaults.summaryInstructions)
+            }
             let orgs = pilot.orgs.count, repos = pilot.repos.count
             HStack(spacing: 6) {
                 Text(orgs + repos == 0

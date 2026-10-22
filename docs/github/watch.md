@@ -302,6 +302,7 @@ hold_labels = ["hold", "do-not-merge", "wip"]
 # green_instructions = "Resolve the review threads your changes addressed, and any that no longer apply."
 # review_instructions = ""
 # start_instructions = ""
+# summary_instructions = ""
 
 [orgs.employer]
 watch = false        # not this org's PRs, by default
@@ -323,6 +324,7 @@ heed's prompts can carry instructions of your own, set in `[pilot]` and per org 
 | `green_instructions` | after the feedback items each get it green run gets |
 | `review_instructions` | to what the self-review looks for, before the PR's description and diff |
 | `start_instructions` | after the issue text Start work begins from, before the `Closes` lines |
+| `summary_instructions` | to what heed asks for when its [model calls](../agents/model-calls.md) summarize work |
 
 They add to a prompt and never replace it: what heed relies on stays as it is, such as the push command a run is
 given and the `APPROVE` line it reads from the self-review. They are not a stand-in for the repo's own `AGENTS.md` or

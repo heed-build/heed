@@ -100,6 +100,9 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var notes: [FeedbackItem]
     /// The agent's latest model and what it used, as its hooks report; nil until they report any.
     public var usage: AgentUsage?
+    /// What its agent said last (`LastMessage`, capped), from its turn's end; nil until an agent sends one (gemini
+    /// never does).
+    public var lastMessage: String?
     /// Worktrees of `repos`, or a chat's folder.
     public var workspace: Workspace = .worktrees
 
@@ -155,7 +158,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     private enum CodingKeys: String, CodingKey {
         case id, title, prompt, repos, branch, agent, agentSessionID, state, activity, trackedPRs, pinned, parked,
              lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs, host, issues, hiddenIssues,
-             notes, usage, chat
+             notes, usage, chat, lastMessage
     }
 
     /// Sessions cached before branches were followed still load.
@@ -185,6 +188,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         hiddenIssues = try container.decodeIfPresent([IssueRef].self, forKey: .hiddenIssues) ?? []
         notes = try container.decodeIfPresent([FeedbackItem].self, forKey: .notes) ?? []
         usage = try container.decodeIfPresent(AgentUsage.self, forKey: .usage)
+        lastMessage = try container.decodeIfPresent(String.self, forKey: .lastMessage)
         workspace = try container.decodeIfPresent(ChatFolder.self, forKey: .chat).map(Workspace.chat) ?? .worktrees
     }
 
@@ -214,6 +218,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         try container.encode(hiddenIssues, forKey: .hiddenIssues)
         try container.encode(notes, forKey: .notes)
         try container.encodeIfPresent(usage, forKey: .usage)
+        try container.encodeIfPresent(lastMessage, forKey: .lastMessage)
         try container.encodeIfPresent(chat, forKey: .chat)
     }
 

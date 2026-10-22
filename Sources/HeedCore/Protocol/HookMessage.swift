@@ -44,6 +44,9 @@ public struct HookMessage: Codable, Equatable, Sendable {
         case subagentState(AgentState, reason: String?, id: String, type: String?)
         /// The main thread's turn ended with nothing left in the background: no subagent can still be running.
         case subagentsEnded
+        /// What the agent said last, sent with its turn's end (capped, `LastMessage`): what summaries read. Never a
+        /// subagent's.
+        case lastMessage(String)
     }
 
     public var session: String
@@ -174,5 +177,17 @@ public enum HookCommandLine {
         default:
             throw UsageError(description: usage)
         }
+    }
+}
+
+/// The agent's last message as heed keeps it: trimmed, at most `limit` characters, its end kept (where a turn
+/// concludes).
+public enum LastMessage {
+    public static let limit = 4000
+
+    /// The message kind for `text`, or nothing when there is nothing to keep.
+    public static func kinds(_ text: String?) -> [HookMessage.Kind] {
+        guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return [] }
+        return [.lastMessage(text.count > limit ? "…" + String(text.suffix(limit - 1)) : text)]
     }
 }

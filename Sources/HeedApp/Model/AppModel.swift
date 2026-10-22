@@ -960,6 +960,9 @@ final class AppModel {
             let usage = (session.usage ?? AgentUsage()).applying(report)
             guard usage != session.usage else { return }
             session.usage = usage
+        case let .lastMessage(text):
+            guard text != session.lastMessage else { return }
+            session.lastMessage = text
         case .subagent, .subagentState, .subagentsEnded:
             return
         }

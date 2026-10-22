@@ -313,6 +313,8 @@ enum Shots {
         // A chat closed 40 days ago: its scratch folder is in the sweep too.
         Shot(id: "worktrees/sweep-chats", keys: "gr", crop: .sweepBanner, prepare: withOldChat),
         Shot(id: "worktrees/sweep-chats-confirm", keys: "grgC", crop: .confirm, prepare: withOldChat),
+        // Work saved 120 days ago, past keep_archive_days: the sweep drops it, and says so first.
+        Shot(id: "worktrees/sweep-archives", keys: "grgC", crop: .confirm, prepare: withOldArchive),
         Shot(id: "worktrees/setup", keys: "gr", crop: .setupBanner, prepare: withSetupProposals),
         Shot(id: "worktrees/setup-review", keys: "grS", crop: .confirm, prepare: withSetupProposals),
     ]
@@ -327,6 +329,16 @@ enum Shots {
             .scratch, path: "/Users/you/Library/Application Support/Heed/chats/2026-09-03-rows-differ-exports"
         ))
         model.commit(.sessionClosed(entry))
+    }
+
+    /// Cleanup on (asking first), and work saved from a removed worktree 120 days ago.
+    private static let withOldArchive: @MainActor (AppModel) -> Void = { model in
+        model.applyConfig(source: "[cleanup]\nenabled = true\nidle_days = 3\nask_before_sweep = true\n")
+        let repo = Repo(org: "elastic", name: "docs-builder")
+        model.commit(.archivesListed(repo: repo, location: .local, [ArchiveRef(
+            repo: repo, branch: "toc-experiment", commit: "4e1f0a2",
+            archivedAt: Date().addingTimeInterval(-120 * 86400), unpushed: 2
+        )]))
     }
 
     /// The session under the cursor with tasks of every source, as a worktree with a mise config, a Makefile and a

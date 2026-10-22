@@ -23,6 +23,8 @@ public struct EventKind: RawRepresentable, Hashable, Sendable, Codable, CustomSt
     /// A session started tracking a PR (opened by its agent, found on its branch, or added by hand: the note says).
     public static let pullTracked = EventKind(rawValue: "pr.tracked")
     public static let pullMerged = EventKind(rawValue: "pr.merged")
+    /// What became of something needing you, as a notification: posted, or not and why (`Notices.Decision`).
+    public static let notification = EventKind(rawValue: "notification")
     /// A line of a session's timeline (`Session.record`).
     public static let note = EventKind(rawValue: "note")
 }

@@ -94,6 +94,13 @@ public actor DomainStore {
 
     public func apply(_ change: DomainChange) { apply([change]) }
 
+    /// Events that are not domain changes (what a notification did), into the log in order with the rest.
+    public func log(_ events: [LoggedEvent]) {
+        guard log != nil, !events.isEmpty else { return }
+        pendingLog.append(.events(events))
+        scheduleLogWrite()
+    }
+
     /// Writes the domain now, and the event log, e.g. on quit.
     public func flushAll() async {
         flush()

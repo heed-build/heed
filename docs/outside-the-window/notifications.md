@@ -33,6 +33,9 @@ time there is something to say, not when Heed starts; System Settings › Notifi
   midnight). What starts needing you meanwhile is not notified when they end, and gets no reminder: Needs you and the
   Dock badge show it. macOS Focus is respected too, by macOS itself.
 
+- **Logged.** What became of each one goes to the event log (`heed.sqlite`, see [files](../reference/files.md)):
+  notified, or not and why (you were looking at it, quiet hours, it cleared within the grace, macOS does not allow it).
+
 ```toml
 [notifications]
 enabled = true

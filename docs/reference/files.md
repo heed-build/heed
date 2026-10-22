@@ -8,7 +8,7 @@ description: Where Heed keeps its configuration, cache and other files.
 |---|---|
 | `~/.config/heed/config.toml` | Configuration (or under `$XDG_CONFIG_HOME`) |
 | `~/Library/Application Support/Heed/domain.json` | Sessions, worktrees and the last GitHub sync, cached for a fast start |
-| `~/Library/Application Support/Heed/heed.sqlite` | The event log (what happened to each session: states, PRs, worktrees, its timeline) and history (closed sessions). Kept apart from `domain.json`, so a cache that does not read does not hide history |
+| `~/Library/Application Support/Heed/heed.sqlite` | The event log (what happened to each session: states, PRs, worktrees, its timeline, its notifications) and history (closed sessions). Kept apart from `domain.json`, so a cache that does not read does not hide history |
 | `~/Library/Application Support/Heed/log.sqlite` | The call log: commands Heed ran and its GitHub calls, with how long each took and how it ended; never environment variables. Pruned per `[log]` |
 | `~/Library/Application Support/Heed/heed.sock` | The socket hooks report to |
 | `~/Library/Application Support/Heed/hooks.spool` | What hooks reported while Heed was not running; read and emptied on launch |

@@ -416,6 +416,17 @@ enum Shots {
         // Tall enough for the whole General page, down to the call log's retention and the tools.
         Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 900, height: 1780)),
         Shot(id: "configuration/orgs-repos", subject: .settings(.colors), size: CGSize(width: 1180, height: 1400)),
+        Shot(
+            id: "configuration/attention-rules", subject: .settings(.attention), size: CGSize(
+                width: 1180,
+                height: 1160
+            ),
+            prepare: { model in
+                model.attention.ruleDraftSeed = Fixtures.attentionRules.map {
+                    $0.hasPrefix("ci ") ? "ci ignore" : $0
+                } + ["mention team:? lower", "assigend boost 1"]
+            }
+        ),
     ]
 
     static let outside: [Shot] = [

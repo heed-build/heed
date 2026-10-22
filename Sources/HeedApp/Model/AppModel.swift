@@ -849,9 +849,9 @@ final class AppModel {
         }
     }
 
-    func setConfig(_ path: [String], _ value: TOMLValue) {
+    func setConfig(_ path: [String], _ value: TOMLValue, multiline: Bool = false) {
         do {
-            try ConfigWatcher.set(path, to: value, in: configFile)
+            try ConfigWatcher.set(path, to: value, multiline: multiline, in: configFile)
         } catch {
             flash = "could not write config.toml: \(error)"
         }

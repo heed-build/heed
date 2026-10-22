@@ -60,9 +60,9 @@ public final class ConfigWatcher: @unchecked Sendable {
         try document.removing(path).write(to: file, atomically: true, encoding: .utf8)
     }
 
-    public static func set(_ path: [String], to value: TOMLValue, in file: URL) throws {
+    public static func set(_ path: [String], to value: TOMLValue, multiline: Bool = false, in file: URL) throws {
         let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ConfigLoader.defaultSource
         let document = try TOMLDocument(text)
-        try document.setting(path, to: value).write(to: file, atomically: true, encoding: .utf8)
+        try document.setting(path, to: value, multiline: multiline).write(to: file, atomically: true, encoding: .utf8)
     }
 }

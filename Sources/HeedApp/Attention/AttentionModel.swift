@@ -20,6 +20,9 @@ final class AttentionModel {
     /// A reply being drafted (`nil` text) or drafted, for one item.
     var draft: (id: String, text: String?)?
 
+    /// Rules Settings opens on instead of the saved ones (screenshots show an edit in progress).
+    var ruleDraftSeed: [String]?
+
     var filter: AttentionFilter = .needsMe
     var sort: AttentionSort = .recent
 

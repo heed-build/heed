@@ -41,7 +41,7 @@ public struct CompletionContext: Sendable {
 
 public enum CommandCompletions {
     /// `:settings.open <section>`.
-    public static let settingsSections = ["general", "agents", "colors", "cleanup", "pilot", "keys"]
+    public static let settingsSections = ["general", "agents", "colors", "cleanup", "pilot", "attention", "keys"]
 
     /// `:pilot.pause <duration>`, the durations offered (any `<n>m|h|d` works).
     public static let pauseDurations: [(String, String)] = [

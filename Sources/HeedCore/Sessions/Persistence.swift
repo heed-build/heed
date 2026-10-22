@@ -40,17 +40,19 @@ public struct ZmxHealth: Equatable, Sendable {
 }
 
 public enum ZmxCheck {
-    /// Runs zmx the way heed will: its version, then listing heed's own sessions.
-    public static func run(zmx: String?, socketDirectory: String = Zmx.socketDirectory()) async -> ZmxHealth {
+    /// Runs zmx the way heed will: its version, then listing heed's own sessions, each given `timeout` to answer.
+    public static func run(
+        zmx: String?, socketDirectory: String = Zmx.socketDirectory(), timeout: Duration = .seconds(5)
+    ) async -> ZmxHealth {
         guard let zmx else { return ZmxHealth(path: nil, problem: "not installed") }
-        let version = try? await ProcessRunner.run(zmx, ["version"], timeout: .seconds(5), caller: "zmx.check")
+        let version = try? await ProcessRunner.run(zmx, ["version"], timeout: timeout, caller: "zmx.check")
         guard let version, version.succeeded else {
             return ZmxHealth(path: zmx, problem: "zmx version failed: \(firstLine(version))")
         }
         try? FileManager.default.createDirectory(atPath: socketDirectory, withIntermediateDirectories: true)
         let list = try? await ProcessRunner.run(
             zmx, ["list", "--short"], environment: Zmx.environment(socketDirectory: socketDirectory),
-            timeout: .seconds(5), caller: "zmx.check"
+            timeout: timeout, caller: "zmx.check"
         )
         let number = parseVersion(version.stdout)
         guard let list, list.succeeded else {

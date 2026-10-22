@@ -31,7 +31,7 @@ private struct FakeCLI {
         [ -f "$dir/delay" ] && sleep "$(cat "$dir/delay")"
         case "$mode" in
           fail) echo "boom" >&2; exit 1 ;;
-          sleep) sleep 30 ;;
+          sleep) sleep 120; echo woke > "$dir/woke"; exit 1 ;;
           limit) echo '{"type":"result","is_error":true,"result":"You have hit your session limit · resets 6pm (UTC)"}'; exit 1 ;;
           prose) echo '{"type":"result","is_error":false,"result":"I would rather not","total_cost_usd":0.001}'; exit 0 ;;
         esac
@@ -268,11 +268,10 @@ struct LLMRunnerTests {
         var settings = LLMSettings()
         settings.timeoutSeconds = 1
         let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings)
-        let clock = ContinuousClock()
-        let started = clock.now
         let response = try await runner.run(ask("a"))
         #expect(response.agent == "cursor")
-        #expect(clock.now - started < .seconds(10))
+        // The hanging call was ended, not waited out: it never woke from its sleep.
+        #expect(!FileManager.default.fileExists(atPath: fakes[0].folder.appendingPathComponent("woke").path))
     }
 
     // MARK: Cache

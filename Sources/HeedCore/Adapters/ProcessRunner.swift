@@ -120,6 +120,9 @@ public enum ProcessRunner {
         let timedOut = Flag()
         let watchdog = Task.detached {
             try await Task.sleep(for: timeout)
+            // A command that has exited did not time out, even when this wakes while its output is still being
+            // collected (something it started holds the pipes) or before its end was picked up on a busy machine.
+            guard process.isRunning else { return }
             timedOut.set()
             process.terminate()
         }

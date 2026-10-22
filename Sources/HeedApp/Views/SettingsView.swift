@@ -329,6 +329,14 @@ private struct GeneralSettings: View {
                 .frame(width: 160)
                 .disabled(!model.config.notifications.enabled)
             }
+            Field(
+                label: "Quiet hours",
+                detail: "No notifications from start to end, like 22:00-07:00; empty for none. What needed you "
+                    + "meanwhile shows in Needs you and on the Dock, not as a notification when they end."
+            ) {
+                ConfigTextField(path: ["attention", "quiet"], value: model.config.attention.quiet?.description ?? "")
+                    .frame(width: 160)
+            }
             GroupLabel(title: "GitHub")
             Field(label: "GitHub poll", detail: "Seconds between gh syncs.") {
                 Stepper(value: Binding(

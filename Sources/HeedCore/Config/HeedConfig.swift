@@ -110,12 +110,18 @@ public struct CleanupRule: Equatable, Sendable, Codable {
     public var idleDays = 14
     public var deleteBranch = true
     public var askBeforeSweep = false
+    /// How long work saved from removed worktrees (`refs/heed/archive/…`) is kept before a sweep drops it; 0 keeps it.
+    public var keepArchiveDays = 90
 
-    public init(enabled: Bool = false, idleDays: Int = 14, deleteBranch: Bool = true, askBeforeSweep: Bool = false) {
+    public init(
+        enabled: Bool = false, idleDays: Int = 14, deleteBranch: Bool = true, askBeforeSweep: Bool = false,
+        keepArchiveDays: Int = 90
+    ) {
         self.enabled = enabled
         self.idleDays = idleDays
         self.deleteBranch = deleteBranch
         self.askBeforeSweep = askBeforeSweep
+        self.keepArchiveDays = keepArchiveDays
     }
 }
 
@@ -241,6 +247,9 @@ public enum ConfigLoader {
         if let days = integer(["cleanup", "idle_days"], range: 1 ... 365) { config.cleanup.idleDays = days }
         if let flag = bool(["cleanup", "delete_branch"]) { config.cleanup.deleteBranch = flag }
         if let flag = bool(["cleanup", "ask_before_sweep"]) { config.cleanup.askBeforeSweep = flag }
+        if let days = integer(["cleanup", "keep_archive_days"], range: 0 ... 3650) {
+            config.cleanup.keepArchiveDays = days
+        }
         // [github]
         if let seconds = integer(["github", "poll_seconds"], range: 15 ... 3600) { config.githubPollSeconds = seconds }
         // [pilot], and the same keys under [orgs.<name>] and [repos."org/name"] below
@@ -683,6 +692,9 @@ public enum ConfigLoader {
     idle_days = 14
     delete_branch = true               # the local branch; the remote is left alone
     ask_before_sweep = false
+    # Removing a worktree saves its commits (and uncommitted changes) as refs/heed/archive/<branch> first, so R in
+    # History can bring it back. Sweeps drop those older than this many days; 0 keeps them.
+    keep_archive_days = 90
 
     [github]
     # How often the view on screen refreshes from GitHub; the others refresh five times less often.

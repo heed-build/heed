@@ -12,11 +12,12 @@ enabled = false
 idle_days = 14
 delete_branch = true        # the local branch; the remote is left alone
 ask_before_sweep = false
+keep_archive_days = 90      # saved work from removed worktrees; 0 keeps it
 ```
 
 A worktree is idle when nothing happened in it for `idle_days`: no agent output, keystrokes, hook events, commits or
-pull request updates. The same safety rules as [removing](removing.md) apply: dirty, unpushed and pinned work is never
-removed.
+pull request updates. Dirty, unpushed and pinned work is never removed by a sweep, even though a removal would
+[save it first](removing.md#saved-first): a sweep happens without you, so it leaves those to you.
 
 ![The cleanup rules in Repos](../images/shots/worktrees/rules.png)
 
@@ -35,6 +36,11 @@ chat's History timeline. Reopening the chat makes the folder again, empty.
 ![A closed chat's scratch folder in the sweep](../images/shots/worktrees/sweep-chats.png)
 
 ![The sweep's confirmation lists it with the worktrees](../images/shots/worktrees/sweep-chats-confirm.png)
+
+## Saved work
+
+Every removal saves the worktree as `refs/heed/archive/<branch>` first ([Removing](removing.md#saved-first)). A sweep
+also drops the saved work older than `keep_archive_days`, in every repo, and its confirmation lists each one. Set it to 0 to keep them all. With cleanup off, nothing is dropped.
 
 ## What runs leave behind
 

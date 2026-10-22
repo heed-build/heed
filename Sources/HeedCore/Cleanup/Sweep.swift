@@ -8,17 +8,23 @@ public struct SweepPlan: Equatable, Sendable {
         /// Sessions on this worktree; they move to history as cleaned up.
         public let sessions: [String]
         public let deleteBranch: Bool
+        /// Why it holds work that exists nowhere else (`Sweep.unsafe`), when it does: removing it by hand saves that
+        /// work as an archive ref first. The sweep never plans such a removal.
+        public let saving: String?
 
         /// "idle 21d", or "no activity recorded" when nothing dated was ever seen there.
         public var idleText: String {
             idleDays > 36500 ? "no activity recorded" : "idle \(idleDays)d"
         }
 
-        public init(worktree: Worktree, idleDays: Int, sessions: [String], deleteBranch: Bool) {
+        public init(
+            worktree: Worktree, idleDays: Int, sessions: [String], deleteBranch: Bool, saving: String? = nil
+        ) {
             self.worktree = worktree
             self.idleDays = idleDays
             self.sessions = sessions
             self.deleteBranch = deleteBranch
+            self.saving = saving
         }
     }
 
@@ -52,27 +58,33 @@ public struct SweepPlan: Equatable, Sendable {
     public var chatRemovals: [ChatRemoval]
     /// The idle worktree closest to the threshold that is not due yet, and how many days until it is.
     public var next: (worktree: Worktree, days: Int)?
+    /// Archive refs past `[cleanup] keep_archive_days`: the sweep deletes them.
+    public var expired: [ArchiveRef]
 
     public init(
-        removals: [Removal], skips: [Skip], next: (worktree: Worktree, days: Int)?, chatRemovals: [ChatRemoval] = []
+        removals: [Removal], skips: [Skip], next: (worktree: Worktree, days: Int)?, chatRemovals: [ChatRemoval] = [],
+        expired: [ArchiveRef] = []
     ) {
         self.removals = removals
         self.skips = skips
         self.next = next
         self.chatRemovals = chatRemovals
+        self.expired = expired
     }
 
     public static func == (lhs: SweepPlan, rhs: SweepPlan) -> Bool {
         lhs.removals == rhs.removals && lhs.skips == rhs.skips && lhs.next?.worktree == rhs.next?.worktree
-            && lhs.next?.days == rhs.next?.days && lhs.chatRemovals == rhs.chatRemovals
+            && lhs.next?.days == rhs.next?.days && lhs.chatRemovals == rhs.chatRemovals && lhs.expired == rhs.expired
     }
 
-    /// Whether running it would remove anything.
-    public var isEmpty: Bool { removals.isEmpty && chatRemovals.isEmpty }
+    /// Whether running it changes anything.
+    public var isEmpty: Bool { removals.isEmpty && chatRemovals.isEmpty && expired.isEmpty }
 
     public var summary: String {
-        if removals.isEmpty, skips.isEmpty, chatRemovals.isEmpty, next == nil { return "Nothing to clean up." }
-        if removals.isEmpty, skips.isEmpty, chatRemovals.isEmpty {
+        if removals.isEmpty, skips.isEmpty, chatRemovals.isEmpty, expired.isEmpty, next == nil {
+            return "Nothing to clean up."
+        }
+        if removals.isEmpty, skips.isEmpty, chatRemovals.isEmpty, expired.isEmpty {
             return next
                 .map {
                     "Nothing past the threshold. Closest: \($0.worktree.repo.name)/\($0.worktree.branch ?? "") in \($0.days)d."
@@ -88,6 +100,9 @@ public struct SweepPlan: Equatable, Sendable {
             )
         }
         if !skips.isEmpty { parts.append("skips \(skips.count) with unsaved work") }
+        if !expired.isEmpty {
+            parts.append("drops \(expired.count) saved archive\(expired.count == 1 ? "" : "s")")
+        }
         return "The sweep " + parts.joined(separator: ", ") + "."
     }
 }
@@ -137,7 +152,8 @@ public enum Sweep {
             guard days >= chatDays else { return nil }
             return SweepPlan.ChatRemoval(id: entry.id, title: session.title, path: chat.path, closedDays: days)
         }
-        return SweepPlan(removals: removals, skips: skips, next: next, chatRemovals: chats)
+        let expired = Archive.expired(domain.archives, keepDays: rule.keepArchiveDays, now: now)
+        return SweepPlan(removals: removals, skips: skips, next: next, chatRemovals: chats, expired: expired)
     }
 
     /// What a closed chat's timeline ends with once the sweep removed its scratch folder.
@@ -190,57 +206,97 @@ public enum Sweep {
         return dates.max() ?? .distantPast
     }
 
-    /// Removes the planned worktrees (git refuses dirty ones by itself too) and their branches, and returns the
-    /// domain changes: worktree lists refreshed, affected sessions closed into history as cleaned up.
-    public static func execute(
-        _ plan: SweepPlan,
-        domain: Domain,
-        now: Date = Date()
-    ) async -> (changes: [DomainChange], failures: [String]) {
-        var failures: [String] = []
-        var touched: [RepoRecord] = []
+    /// What running a plan did.
+    public struct Result: Sendable {
+        /// Worktree lists refreshed, affected sessions closed into history as cleaned up, archives saved and listed.
+        public var changes: [DomainChange] = []
+        public var failures: [String] = []
+        /// What was saved before each removal.
+        public var saved: [ArchiveRef] = []
+    }
+
+    /// Saves each planned worktree as an archive ref, then removes it (one that cannot be saved stays) and its branch;
+    /// then drops the expired archives.
+    public static func execute(_ plan: SweepPlan, domain: Domain, now: Date = Date()) async -> Result {
+        var result = Result()
+        var touchedRepos: [RepoRecord] = []
+        var removed: [SweepPlan.Removal] = []
         for removal in plan.removals {
-            // The repo where the worktree lives: on a host, that host's clone, over ssh. Never this Mac's clone of
-            // the same repo, which may have a worktree at the same path.
             let worktree = removal.worktree
+            // The repo where the worktree lives: on a host, that host's clone, over ssh.
             guard let record = domain.repo(StartContext.id(worktree.repo, worktree.location)) else { continue }
+            let saved: ArchiveRef
             do {
+                saved = try await Archive.save(worktree, in: record, now: now)
+            } catch {
+                result.failures.append("\(worktree.path): not removed, its work could not be saved: \(error)")
+                continue
+            }
+            result.saved.append(saved)
+            result.changes.append(.worktreeArchived(saved))
+            do {
+                // Uncommitted changes are in the archive now, so git may drop them with the worktree.
                 _ = try await ProcessRunner.output(
                     on: record.location, "git",
-                    ["-C", record.path, "worktree", "remove", worktree.path], caller: "cleanup.sweep"
+                    ["-C", record.path, "worktree", "remove"] + (saved.wip == nil ? [] : ["--force"]) + [worktree.path],
+                    caller: "cleanup.sweep"
                 )
                 if removal.deleteBranch, let branch = worktree.branch {
-                    // Everything on it is pushed (checked by the plan), so -D only drops the local name.
+                    // Whatever was on it is pushed or in the archive, so -D only drops the local name.
                     _ = try? await ProcessRunner.output(
-                        on: record.location, "git",
-                        ["-C", record.path, "branch", "-D", branch],
+                        on: record.location, "git", ["-C", record.path, "branch", "-D", branch],
                         caller: "cleanup.sweep"
                     )
                 }
+                if !touchedRepos.contains(record) { touchedRepos.append(record) }
+                removed.append(removal)
+            } catch {
+                result.failures.append("\(worktree.path): \(error)")
+            }
+        }
+        for record in touchedRepos {
+            if let listed = try? await Git.worktrees(of: record) {
+                result.changes.append(.worktreesListed(repo: record.repo, listed))
+            }
+        }
+        var closed: Set<String> = []
+        for removal in removed {
+            let note = result.saved.first { $0.repo == removal.worktree.repo && $0.location == removal.worktree.location
+                && $0.branch == Archive.name(of: removal.worktree)
+            }?.said
+            for id in removal.sessions where !closed.contains(id) {
+                guard var session = domain.session(id) else { continue }
+                closed.insert(id)
+                session.record("worktree cleaned up after \(removal.idleDays) idle days", at: now)
+                if let note { session.record(note, at: now) }
+                result.changes.append(.sessionClosed(HistoryEntry(
+                    session: session,
+                    closedAt: now,
+                    outcome: .cleanedUp
+                )))
+            }
+        }
+        await prune(plan.expired, domain: domain, into: &result)
+        return result
+    }
+
+    /// Deletes expired archives, and lists what is left in each repo they were in.
+    private static func prune(_ expired: [ArchiveRef], domain: Domain, into result: inout Result) async {
+        var touched: [RepoRecord] = []
+        for ref in expired {
+            guard let record = domain.repo(StartContext.id(ref.repo, ref.location)) else { continue }
+            do {
+                try await Archive.drop(ref, in: record)
                 if !touched.contains(record) { touched.append(record) }
             } catch {
-                failures.append("\(worktree.path): \(error)")
+                result.failures.append("\(ref.name): \(error)")
             }
         }
-        var changes: [DomainChange] = []
         for record in touched {
-            if let listed = try? await Git.worktrees(of: record) {
-                changes.append(.worktreesListed(repo: record.repo, listed))
+            if let listed = await Archive.list(record) {
+                result.changes.append(.archivesListed(repo: record.repo, location: record.location, listed))
             }
         }
-        let touchedRepos = touched.map(\.repo)
-        let removedIDs = Set(plan.removals.filter { removal in
-            touchedRepos.contains(removal.worktree.repo)
-        }.flatMap(\.sessions))
-        for id in removedIDs {
-            guard var session = domain.session(id) else { continue }
-            session.record(
-                "worktree cleaned up after \(plan.removals.first { $0.sessions.contains(id) }?.idleDays ?? 0) idle days",
-                at: now
-            )
-            changes.append(.sessionClosed(HistoryEntry(session: session, closedAt: now, outcome: .cleanedUp)))
-        }
-        return (changes, failures)
     }
 }
 

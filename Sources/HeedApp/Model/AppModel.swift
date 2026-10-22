@@ -475,14 +475,16 @@ final class AppModel {
             return
         }
         let domain = currentDomain
-        let (changes, failed) = await Sweep.execute(plan, domain: domain)
+        let result = await Sweep.execute(plan, domain: domain)
         let chats = plan.chatRemovals
         let (chatChanges, chatFailures) = await Task.detached { Sweep.removeChatFolders(chats, domain: domain) }.value
-        let failures = failed + chatFailures
-        commit(changes + chatChanges)
+        let failures = result.failures + chatFailures
+        commit(result.changes + chatChanges)
         let done = [
             plan.removals.isEmpty ? nil : "\(plan.removals.count) worktree\(plan.removals.count == 1 ? "" : "s")",
             chats.isEmpty ? nil : "\(chats.count) chat scratch folder\(chats.count == 1 ? "" : "s")",
+            plan.expired.isEmpty ? nil
+                : "\(plan.expired.count) saved archive\(plan.expired.count == 1 ? "" : "s")",
         ].compactMap(\.self).joined(separator: " and ")
         flash = failures.isEmpty ? "cleaned up \(done)" : "cleanup: \(failures.count) failed: \(failures[0])"
     }
@@ -1136,6 +1138,11 @@ final class AppModel {
             if let date = await Git.lastCommitDate(at: worktree.path) { commits[worktree.path] = date }
         }
         lastCommits = commits
+        for record in repos where record.location.isLocal {
+            if let archives = await Archive.list(record) {
+                commit(.archivesListed(repo: record.repo, location: .local, archives))
+            }
+        }
         await refreshHosts()
     }
 
@@ -1223,6 +1230,9 @@ final class AppModel {
                     listed[index].status = try? await Git.status(at: listed[index].path, on: record.location)
                 }
                 commit(.worktreesListed(repo: record.repo, listed))
+                if let archives = await Archive.list(record) {
+                    commit(.archivesListed(repo: record.repo, location: record.location, archives))
+                }
             }
         }
     }
@@ -2754,7 +2764,7 @@ final class AppModel {
         let (removals, kept) = planRemoval(mine, sessionsFollow: false)
         let lines = removals.map { removal in
             "remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "")"
-                + (removal.deleteBranch ? " and its local branch" : "")
+                + (removal.deleteBranch ? " and its local branch" : "") + Self.saving(removal)
         } + (mine.isEmpty && !session.isChat ? ["No worktree to remove"] : [])
         return (removals, kept, lines)
     }
@@ -2792,7 +2802,10 @@ final class AppModel {
             title: "Run the cleanup sweep?",
             lines: plan.removals.map {
                 "remove \($0.worktree.repo.name)/\($0.worktree.branch ?? "") (\($0.idleText))"
-            } + plan.chatRemovals.map { "remove chat scratch folder \($0.name) (closed \($0.closedDays)d)" },
+            } + plan.chatRemovals.map { "remove chat scratch folder \($0.name) (closed \($0.closedDays)d)" }
+                + plan.expired.map {
+                    "drop \($0.repo.name) \($0.name) (saved \(Int(Date().timeIntervalSince($0.archivedAt) / 86400))d ago)"
+                },
             kept: plan.skips.map { "\($0.worktree.repo.name)/\($0.worktree.branch ?? ""): \($0.reason)" },
             accept: "Sweep"
         ) { [weak self] in Task { await self?.runSweep(explicit: true) } })
@@ -3230,7 +3243,22 @@ final class AppModel {
         flash = "imported \(found.count) session\(found.count == 1 ? "" : "s")"
     }
 
-    /// Which of `rows` can go (clean, pushed, not pinned) and why the rest stay.
+    /// " · saves 2 unpushed commits as heed/archive/x" for a removal with work that exists nowhere else.
+    private static func saving(_ removal: SweepPlan.Removal) -> String {
+        removal.saving.map { " · saves \($0) as heed/archive/\(Archive.name(of: removal.worktree))" } ?? ""
+    }
+
+    /// What a removal saves, from why the sweep would not remove it (`Sweep.unsafe`).
+    private static func unsaved(_ reason: String) -> String {
+        switch reason {
+        case "never pushed": "its commits (never pushed)"
+        case "status unknown": "anything not pushed"
+        default: reason
+        }
+    }
+
+    /// Which of `rows` go (all but pinned sessions' worktrees; work that exists nowhere else is saved as an archive ref
+    /// first) and why the rest stay.
     private func planRemoval(_ rows: [Worktree], sessionsFollow: Bool = true) -> (
         removals: [SweepPlan.Removal], kept: [String]
     ) {
@@ -3240,12 +3268,11 @@ final class AppModel {
             let users = sessions.filter { $0.branch == worktree.branch && $0.repos.contains(worktree.repo) }
             if sessionsFollow, users.contains(where: \.pinned) {
                 kept.append("\(worktree.repo.name)/\(worktree.branch ?? worktree.path): pinned session")
-            } else if let reason = Sweep.unsafe(worktree) {
-                kept.append("\(worktree.repo.name)/\(worktree.branch ?? worktree.path): \(reason)")
             } else {
                 removals.append(SweepPlan.Removal(
                     worktree: worktree, idleDays: 0, sessions: sessionsFollow ? users.map(\.id) : [],
-                    deleteBranch: config.cleanup.deleteBranch && worktree.branch != nil
+                    deleteBranch: config.cleanup.deleteBranch && worktree.branch != nil,
+                    saving: Sweep.unsafe(worktree).map(Self.unsaved)
                 ))
             }
         }
@@ -3274,7 +3301,7 @@ final class AppModel {
                 : "Remove \(removals.count) worktrees?",
             lines: removals.map { removal in
                 "\(removal.worktree.repo.name)/\(removal.worktree.branch ?? removal.worktree.path)"
-                    + (removal.deleteBranch ? " · local branch too" : "")
+                    + (removal.deleteBranch ? " · local branch too" : "") + Self.saving(removal)
             } +
                 (closing > 0 ?
                     ["\(closing) session\(closing == 1 ? "" : "s") on them move\(closing == 1 ? "s" : "") to History"] :
@@ -3296,13 +3323,15 @@ final class AppModel {
         }
         let skipped = kept
         Task {
-            let (changes, failures) = await Sweep.execute(
+            let result = await Sweep.execute(
                 SweepPlan(removals: removals, skips: [], next: nil), domain: currentDomain
             )
-            commit(changes)
-            flash = "removed \(removals.count - failures.count)" +
-                (skipped.isEmpty ? "" : " · kept \(skipped.count): \(skipped[0])")
-                + (failures.isEmpty ? "" : " · failed: \(failures[0])")
+            commit(result.changes)
+            let saved = result.saved.compactMap(\.said)
+            flash = "removed \(removals.count - result.failures.count)"
+                + (saved.isEmpty ? "" : " · \(saved[0])" + (saved.count > 1 ? " and \(saved.count - 1) more" : ""))
+                + (skipped.isEmpty ? "" : " · kept \(skipped.count): \(skipped[0])")
+                + (result.failures.isEmpty ? "" : " · failed: \(result.failures[0])")
         }
     }
 

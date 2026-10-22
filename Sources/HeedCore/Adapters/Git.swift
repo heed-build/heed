@@ -168,7 +168,8 @@ public enum Git {
         return top.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Removes a worktree heed made for itself (a run's), changes and all, and its branch.
+    /// Removes a worktree heed made for itself (a run's), changes and all, and its branch. Nothing is archived
+    /// (`Archive`): a run's work is on the pull request's branch, and `RunCleanup` keeps a leftover that has any other.
     public static func removeWorktree(_ record: RepoRecord, path: String, branch: String? = nil) async {
         _ = try? await ProcessRunner.run(
             on: record.location, "git", ["-C", record.path, "worktree", "remove", "--force", path],
@@ -246,25 +247,67 @@ public enum Git {
         return result?.succeeded ?? false
     }
 
-    /// Re-adds a worktree for an existing local `branch` (a reopened session whose worktree was cleaned up).
-    public static func restoreWorktree(_ record: RepoRecord, path: String, branch: String) async throws -> Worktree {
-        try FileManager.default.createDirectory(
-            atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true
+    /// A worktree brought back for a reopened session, and what it was made from.
+    public struct Restored: Sendable {
+        public var worktree: Worktree
+        /// `heed/archive/<branch>` when the branch was gone and its archive brought it back; nil from the branch.
+        public var archive: String?
+        /// The archive's uncommitted changes were put back.
+        public var changes: Bool
+    }
+
+    /// Re-adds a worktree on `branch` for a reopened session whose worktree was removed, where its repo lives: from the
+    /// local branch when it is still there, else from its archive ref (`refs/heed/archive/<branch>`, the branch made
+    /// again there), else from the remote's branch. The archive's uncommitted changes come back as changes when they
+    /// were saved on top of what is checked out.
+    public static func restoreWorktree(_ record: RepoRecord, path: String, branch: String) async throws -> Restored {
+        let location = record.location
+        func git(_ directory: String, _ arguments: [String]) async throws -> String {
+            try await ProcessRunner.output(
+                on: location, "git", ["-C", directory] + arguments, caller: "git.restoreWorktree"
+            ).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        func exists(_ ref: String) async -> String? {
+            try? await git(record.path, ["rev-parse", "--verify", "--quiet", ref]).nilIfEmpty
+        }
+        let parent = (path as NSString).deletingLastPathComponent
+        if location.isLocal {
+            try FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
+        } else {
+            _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", parent], caller: "git.restoreWorktree")
+        }
+        let archiveRef = Archive.refName(for: branch)
+        var archive: String?
+        if await exists("refs/heads/\(branch)") != nil {
+            _ = try await git(record.path, ["worktree", "add", path, branch])
+        } else if let saved = await exists(archiveRef + "^{commit}") {
+            _ = try await git(record.path, ["worktree", "add", "-b", branch, path, saved])
+            if await exists("refs/remotes/origin/\(branch)") != nil {
+                _ = try? await git(path, ["branch", "--set-upstream-to", "origin/\(branch)"])
+            }
+            archive = "heed/archive/\(branch)"
+        } else {
+            // git makes the branch from origin's when there is one.
+            _ = try await git(record.path, ["worktree", "add", path, branch])
+        }
+        // On a host `path` may start with ~: keep the worktree's real path.
+        let top = location.isLocal ? path : try await git(path, ["rev-parse", "--show-toplevel"])
+        let head = try await git(path, ["rev-parse", "HEAD"])
+        var changes = false
+        if let wip = await exists(archiveRef + Archive.wipSuffix + "^{commit}"),
+           await exists(wip + "^") == head
+        {
+            // Two-tree merge from HEAD to the snapshot (deletions too), then the index back to HEAD: the work is
+            // uncommitted again, as it was.
+            _ = try await git(path, ["read-tree", "-m", "-u", "HEAD", wip])
+            _ = try await git(path, ["reset", "-q"])
+            changes = true
+        }
+        let worktree = Worktree(
+            repo: record.repo, path: top, branch: branch, head: String(head.prefix(7)), isMain: false,
+            status: WorktreeStatus(), location: location
         )
-        _ = try await ProcessRunner.output(
-            "git",
-            ["-C", record.path, "worktree", "add", path, branch],
-            caller: "git.restoreWorktree"
-        )
-        let head = try await ProcessRunner.output(
-            "git",
-            ["-C", path, "rev-parse", "--short", "HEAD"],
-            caller: "git.restoreWorktree"
-        )
-        return Worktree(
-            repo: record.repo, path: path, branch: branch, head: head.trimmingCharacters(in: .whitespacesAndNewlines),
-            isMain: false, status: WorktreeStatus()
-        )
+        return Restored(worktree: worktree, archive: archive, changes: changes)
     }
 
     // MARK: Parsing (pure, tested)

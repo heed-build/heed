@@ -100,11 +100,14 @@ struct RemoteIntegrationTests {
             removals: [SweepPlan.Removal(worktree: worktree, idleDays: 0, sessions: [], deleteBranch: true)],
             skips: [], next: nil
         )
-        let (changes, failures) = await Sweep.execute(plan, domain: Domain(repos: [record], worktrees: [worktree]))
-        #expect(failures.isEmpty)
+        let result = await Sweep.execute(plan, domain: Domain(repos: [record], worktrees: [worktree]))
+        #expect(result.failures.isEmpty)
         #expect(try await sh("test -e \(worktree.path) && echo there || echo gone") == "gone")
         #expect(try await sh("git -C \(record.path) branch --list spike").isEmpty)
-        #expect(changes.contains { if case .worktreesListed = $0 { true } else { false } })
+        #expect(result.changes.contains { if case .worktreesListed = $0 { true } else { false } })
+        // Saved first, in the host's clone.
+        #expect(result.saved.map(\.location) == [box])
+        #expect(await Archive.list(record)?.map(\.branch) == ["spike"])
     }
 
     @Test func failuresAreNamed() async {

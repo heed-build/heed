@@ -174,7 +174,12 @@ struct ReposView: View {
                     ? "Nothing for \(rule.idleDays)d: no agent output, keystrokes, commits or PR events."
                     : "Off. Turn it on in Settings (⌘,) or [cleanup] enabled; dd removes worktrees by hand."
             )
-            ruleRow("Never remove dirty or unpushed work", "Always on. Skipped trees show a warning instead.")
+            ruleRow("Sweeps never remove dirty or unpushed work", "Always on. Skipped trees show a warning instead.")
+            ruleRow(
+                "Save work before removing",
+                "Always on. Kept as heed/archive/<branch>"
+                    + (rule.keepArchiveDays == 0 ? "." : " for \(rule.keepArchiveDays)d.") + " R in History brings it back."
+            )
             ruleRow("Delete the local branch too\(rule.deleteBranch ? "" : " (off)")", "Remote branch is left alone.")
             ruleRow(
                 "Ask before each sweep\(rule.askBeforeSweep ? " (on)" : " (off)")",
@@ -321,6 +326,13 @@ private struct SweepBanner: View {
                     Text("would remove chat scratch folder \(removal.name) (closed \(removal.closedDays)d)")
                         .font(Theme.mono(11.5))
                         .foregroundStyle(Theme.fg2)
+                }
+                ForEach(plan.expired.prefix(3)) { archive in
+                    Text(
+                        "would drop \(archive.repo.name) \(archive.name) (saved \(archive.archivedAt.formatted(.relative(presentation: .named))))"
+                    )
+                    .font(Theme.mono(11.5))
+                    .foregroundStyle(Theme.fg2)
                 }
             }
             Spacer()

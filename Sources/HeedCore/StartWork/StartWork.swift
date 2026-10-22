@@ -585,6 +585,7 @@ public enum Reopen {
             // Cursor's hooks file goes into a folder heed made, never into one you picked.
             if chat.kind == .scratch { paths = [chat.path] }
         }
+        var recreated = false
         for repo in session.repos {
             guard let record = domain.repo(repo.slug) else { throw ReopenError.unknownRepo(repo.slug) }
             let existing = domain.worktrees.first { $0.repo == repo && $0.branch == session.branch }
@@ -592,8 +593,11 @@ public enum Reopen {
                 paths.append(existing.path)
             } else {
                 let path = settings.worktreePath(repo: repo, name: session.branch)
-                try await paths.append(Git.restoreWorktree(record, path: path, branch: session.branch).path)
-                session.record("worktree recreated from \(session.branch)", at: now)
+                let restored = try await Git.restoreWorktree(record, path: path, branch: session.branch)
+                paths.append(restored.worktree.path)
+                session.record("worktree recreated from \(restored.archive ?? session.branch)", at: now)
+                if restored.changes { session.record("uncommitted changes put back from the archive", at: now) }
+                if repo == session.repos.first { recreated = true }
             }
             try await changes.append(.worktreesListed(repo: repo, Git.worktrees(of: record)))
         }
@@ -632,9 +636,11 @@ public enum Reopen {
         session.lastActivity = now
         // A chat runs where its folder is; worktree sessions reopen here, as they always have.
         let location: Location = session.isChat ? session.location : .local
+        // A worktree made again is a new checkout: it gets the repo's setup first, as a new session's does.
+        let setup = recreated ? session.repos.first.flatMap { settings.setup.commands(for: $0) } ?? [] : []
         let agentPane = PaneSpec(
             role: command == nil ? .shell : .agent, title: command == nil ? "zsh" : session.agent,
-            directory: directory, command: command, location: location
+            directory: directory, command: WorktreeSetup.paneCommand(setup: setup, then: command), location: location
         )
         var main = PaneTab(title: command == nil ? "shell" : "agent", tree: .leaf(agentPane))
         if settings.shellSplit {

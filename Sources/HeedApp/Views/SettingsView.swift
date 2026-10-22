@@ -861,10 +861,23 @@ private struct CleanupSettings: View {
                 }
             }
             Field(
-                label: "Never remove dirty or unpushed work",
+                label: "The sweep never removes dirty or unpushed work",
                 detail: "Always on. Skipped worktrees show a warning instead."
             ) {
                 Toggle("", isOn: .constant(true)).labelsHidden().disabled(true)
+            }
+            Field(
+                label: "Keep saved work",
+                detail: "Removing a worktree saves its commits and changes as heed/archive/<branch> first; R in History "
+                    + "brings it back. Sweeps drop older ones (0: keep them)."
+            ) {
+                Stepper(value: Binding(
+                    get: { rule.keepArchiveDays },
+                    set: { model.setConfig(["cleanup", "keep_archive_days"], .integer($0)) }
+                ), in: 0 ... 3650, step: 30) {
+                    Text(rule.keepArchiveDays == 0 ? "forever" : "\(rule.keepArchiveDays) days")
+                        .font(Theme.mono(12.5))
+                }
             }
             Field(label: "Delete the local branch too", detail: "The remote branch is left alone.") {
                 Toggle("", isOn: Binding(

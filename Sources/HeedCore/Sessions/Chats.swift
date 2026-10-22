@@ -15,6 +15,15 @@ public enum Chats {
         location.isLocal ? localRoot : hostRoot
     }
 
+    /// Whether `path` is a scratch folder heed made: one folder directly under `root`, nothing else. Heed removes only
+    /// those.
+    public static func isScratch(_ path: String, root: String = localRoot) -> Bool {
+        let base = root.hasSuffix("/") ? String(root.dropLast()) : root
+        guard !base.isEmpty, path.hasPrefix(base + "/") else { return false }
+        let name = path.dropFirst(base.count + 1)
+        return !name.isEmpty && !name.contains("/") && name != "." && name != ".."
+    }
+
     /// `2026-10-21-cron-line-weekdays`: the day it started, then the prompt's first meaningful words.
     public static func scratchName(for prompt: String, on date: Date, calendar: Calendar = .current) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)

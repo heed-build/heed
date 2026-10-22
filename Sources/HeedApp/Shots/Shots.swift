@@ -303,9 +303,24 @@ enum Shots {
         Shot(id: "worktrees/sweep", keys: "gr", crop: .sweepBanner, prepare: { model in
             model.applyConfig(source: "[cleanup]\nenabled = true\nidle_days = 3\n")
         }),
+        // A chat closed 40 days ago: its scratch folder is in the sweep too.
+        Shot(id: "worktrees/sweep-chats", keys: "gr", crop: .sweepBanner, prepare: withOldChat),
+        Shot(id: "worktrees/sweep-chats-confirm", keys: "grgC", crop: .confirm, prepare: withOldChat),
         Shot(id: "worktrees/setup", keys: "gr", crop: .setupBanner, prepare: withSetupProposals),
         Shot(id: "worktrees/setup-review", keys: "grS", crop: .confirm, prepare: withSetupProposals),
     ]
+
+    /// Cleanup on, and a chat closed 40 days ago whose scratch folder is still there.
+    private static let withOldChat: @MainActor (AppModel) -> Void = { model in
+        model.applyConfig(source: "[cleanup]\nenabled = true\nidle_days = 3\nask_before_sweep = true\n")
+        var entry = Fixtures.closedChat
+        // The sweep measures from the real now, as it does for worktrees.
+        entry.closedAt = Date().addingTimeInterval(-40 * 86400)
+        entry.session.workspace = .chat(ChatFolder(
+            .scratch, path: "/Users/you/Library/Application Support/Heed/chats/2026-09-03-rows-differ-exports"
+        ))
+        model.commit(.sessionClosed(entry))
+    }
 
     /// The session under the cursor with tasks of every source, as a worktree with a mise config, a Makefile and a
     /// package.json offers them.

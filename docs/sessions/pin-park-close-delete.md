@@ -13,6 +13,8 @@ description: Pinning, parking, closing and deleting sessions, and what each keep
 
 Pinned sessions are never removed by [cleanup](../worktrees/cleanup.md).
 
+For a [chat](chats.md), `dd` removes its scratch folder instead. A folder you picked for a chat is never removed.
+
 ## Closing and deleting ask first
 
 Both ask before doing anything, and say exactly what will happen. `y` or `↩` goes ahead; `n`, `⎋` or `q` cancels.

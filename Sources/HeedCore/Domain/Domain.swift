@@ -131,6 +131,8 @@ public enum DomainChange: Hashable, Sendable, Codable {
     case sessionClosed(HistoryEntry)
     /// A history entry comes back as an active session (`R` reopen).
     case historyRemoved(String)
+    /// A history entry changed in place (a closed chat's scratch folder removed).
+    case historyUpdated(HistoryEntry)
     /// A GitHub sync finished (or failed: the status says so and the data is the previous data).
     case githubSynced(GitHubState)
     /// Notification threads marked read.
@@ -202,6 +204,8 @@ public extension Domain {
             history.insert(entry, at: 0)
         case let .historyRemoved(id):
             history.removeAll { $0.id == id }
+        case let .historyUpdated(entry):
+            if let index = history.firstIndex(where: { $0.id == entry.id }) { history[index] = entry }
         case let .githubSynced(state):
             github = state
         case let .pullDetailFetched(detail):

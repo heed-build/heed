@@ -317,6 +317,11 @@ private struct SweepBanner: View {
                     .font(Theme.mono(11.5))
                     .foregroundStyle(Theme.fg2)
                 }
+                ForEach(plan.chatRemovals.prefix(3), id: \.id) { removal in
+                    Text("would remove chat scratch folder \(removal.name) (closed \(removal.closedDays)d)")
+                        .font(Theme.mono(11.5))
+                        .foregroundStyle(Theme.fg2)
+                }
             }
             Spacer()
             KeyCap(text: "gC")

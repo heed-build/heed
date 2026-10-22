@@ -102,6 +102,8 @@ public enum ContextMenus {
         public var handoffAgents: [String] = []
         /// A chat: no repo, worktree or branch, so nothing that reads one (diff, PRs, the pilot, the repo) applies.
         public var chat = false
+        /// A chat in a scratch folder heed made here: deleting it removes the folder.
+        public var scratch = false
 
         public init(id: String, title: String) {
             self.id = id
@@ -169,7 +171,10 @@ public enum ContextMenus {
         menu.section(repo ? [
             item("Close, keep worktree", "session.close"),
             item("Delete with worktrees…", "session.delete"),
-        ] : [item("Close", "session.close")])
+        ] : [
+            item("Close", "session.close"),
+            facts.scratch ? item("Delete with its scratch folder…", "session.delete") : nil,
+        ])
         return menu.entries
     }
 

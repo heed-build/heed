@@ -462,15 +462,21 @@ final class AppModel {
             return
         }
         let plan = sweepPlan
-        guard !plan.removals.isEmpty else {
+        guard !plan.isEmpty else {
             if explicit { flash = plan.summary }
             return
         }
-        let (changes, failures) = await Sweep.execute(plan, domain: currentDomain)
-        commit(changes)
-        flash = failures.isEmpty
-            ? "cleaned up \(plan.removals.count) worktree\(plan.removals.count == 1 ? "" : "s")"
-            : "cleanup: \(failures.count) failed: \(failures[0])"
+        let domain = currentDomain
+        let (changes, failed) = await Sweep.execute(plan, domain: domain)
+        let chats = plan.chatRemovals
+        let (chatChanges, chatFailures) = await Task.detached { Sweep.removeChatFolders(chats, domain: domain) }.value
+        let failures = failed + chatFailures
+        commit(changes + chatChanges)
+        let done = [
+            plan.removals.isEmpty ? nil : "\(plan.removals.count) worktree\(plan.removals.count == 1 ? "" : "s")",
+            chats.isEmpty ? nil : "\(chats.count) chat scratch folder\(chats.count == 1 ? "" : "s")",
+        ].compactMap(\.self).joined(separator: " and ")
+        flash = failures.isEmpty ? "cleaned up \(done)" : "cleanup: \(failures.count) failed: \(failures[0])"
     }
 
     // MARK: GitHub
@@ -2727,8 +2733,14 @@ final class AppModel {
         ) { [weak self] in self?.deleteSession(session.id, removals: removals, kept: kept) })
     }
 
-    /// What deleting a session removes: its worktrees, minus those with work not saved anywhere else.
+    /// What deleting a session removes: its worktrees, minus those with work not saved anywhere else. A scratch chat's
+    /// folder goes with it (`deleteSession`); a folder you picked never does.
     private func deletion(of session: Session) -> ([SweepPlan.Removal], [String], [String]) {
+        if let chat = session.chat {
+            let scratch = chat.kind == .scratch && session.location.isLocal && Chats.isScratch(chat.path)
+            return ([], [], [scratch ? "remove its scratch folder \(Paths.tilde(chat.path))"
+                    : "\(Paths.tilde(chat.path)) stays: heed never removes a folder you picked"])
+        }
         let mine = worktrees.filter { !$0.isMain && session.owns($0) }
         let (removals, kept) = planRemoval(mine, sessionsFollow: false)
         let lines = removals.map { removal in
@@ -2739,6 +2751,20 @@ final class AppModel {
     }
 
     private func deleteSession(_ id: String, removals: [SweepPlan.Removal], kept: [String]) {
+        if let session = sessions.first(where: { $0.id == id }), let chat = session.chat, chat.kind == .scratch,
+           session.location.isLocal, !isFixture
+        {
+            let removal = SweepPlan.ChatRemoval(id: id, title: session.title, path: chat.path, closedDays: 0)
+            closeSession(id)
+            let domain = currentDomain
+            Task {
+                let (changes, failures) = await Task.detached { Sweep.removeChatFolders([removal], domain: domain) }
+                    .value
+                commit(changes)
+                if let failure = failures.first { flash = "could not remove the scratch folder: \(failure)" }
+            }
+            return
+        }
         closeSession(id)
         if !removals.isEmpty { removeWorktrees(removals, kept: kept) }
     }
@@ -2749,7 +2775,7 @@ final class AppModel {
             return
         }
         let plan = sweepPlan
-        guard !plan.removals.isEmpty else {
+        guard !plan.isEmpty else {
             flash = plan.summary
             return
         }
@@ -2757,7 +2783,7 @@ final class AppModel {
             title: "Run the cleanup sweep?",
             lines: plan.removals.map {
                 "remove \($0.worktree.repo.name)/\($0.worktree.branch ?? "") (\($0.idleText))"
-            },
+            } + plan.chatRemovals.map { "remove chat scratch folder \($0.name) (closed \($0.closedDays)d)" },
             kept: plan.skips.map { "\($0.worktree.repo.name)/\($0.worktree.branch ?? ""): \($0.reason)" },
             accept: "Sweep"
         ) { [weak self] in Task { await self?.runSweep(explicit: true) } })

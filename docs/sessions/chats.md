@@ -28,7 +28,9 @@ chat. Picking a repo chip turns it back into work in that repo.
 The Folder field, where Start work has the Worktree field, says where the agent works:
 
 - **scratch** (the default): an empty folder Heed makes for this chat, named after the day and your prompt, under
-  `~/Library/Application Support/Heed/chats` on this Mac or `~/.heed/chats` on a host. `i` edits its name.
+  `~/Library/Application Support/Heed/chats` on this Mac or `~/.heed/chats` on a host. `i` edits its name. With
+  [cleanup](../worktrees/cleanup.md#chats-scratch-folders) on, the sweep removes it 30 days after the chat closes,
+  unless the chat is pinned.
 - **folder**: a folder you pick. `i` types its path. The agent works there with its normal permissions, and Heed never
   removes it.
 
@@ -82,6 +84,9 @@ The chat then closes into History as **promoted**, its timeline naming the branc
 A chat on a host hands over only its prompt: its transcript and files are on the host.
 
 ## In History
+
+`dd` on a scratch chat deletes it and its scratch folder. On a chat in a folder you picked, `dd` only closes it: the
+folder stays.
 
 A closed chat goes to History, marked **chat** where other sessions show their repo. `R` reopens it in its folder. If
 its scratch folder is gone, Heed makes it again, empty. If a folder you picked is gone, Heed says so and does not

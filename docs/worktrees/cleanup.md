@@ -25,6 +25,17 @@ one now, after a confirmation that lists every worktree it would remove.
 
 ![The sweep banner: what would be removed, what is kept](../images/shots/worktrees/sweep.png)
 
+## Chats' scratch folders
+
+The sweep also removes the scratch folder of a [chat](../sessions/chats.md) that closed 30 or more days ago. It never
+removes the folder of a pinned chat, a folder you picked for a chat, or a chat's folder on a host. The scratch folders are
+in the sweep's list with the worktrees, and nothing is removed while cleanup is off. A removed folder is noted in the
+chat's History timeline. Reopening the chat makes the folder again, empty.
+
+![A closed chat's scratch folder in the sweep](../images/shots/worktrees/sweep-chats.png)
+
+![The sweep's confirmation lists it with the worktrees](../images/shots/worktrees/sweep-chats-confirm.png)
+
 ## What runs leave behind
 
 Get it green [runs](../github/watch.md#runs) work in worktrees of their own, on `heed/get-it-green/…` (or

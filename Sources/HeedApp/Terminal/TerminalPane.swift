@@ -18,8 +18,9 @@ struct TerminalPane: NSViewRepresentable {
         TerminalSurfaces.shared.view(for: pane, sessionID: sessionID)
     }
 
-    func updateNSView(_ view: NSView, context _: Context) {
+    func updateNSView(_ host: NSView, context _: Context) {
         guard isFocused else { return }
+        let view = (host as? PaneHost)?.terminal ?? host
         if let window = view.window {
             if window.firstResponder !== view { window.makeFirstResponder(view) }
         } else {
@@ -31,13 +32,33 @@ struct TerminalPane: NSViewRepresentable {
     }
 }
 
+/// Holds a pane's terminal for SwiftUI, so the terminal inside can be replaced (a resumed agent started as the pane's
+/// process in place of the plain shell drawn at launch) without SwiftUI knowing.
+final class PaneHost: NSView {
+    private(set) var terminal: NSView?
+
+    func show(_ view: NSView) {
+        let hadFocus = terminal != nil && window?.firstResponder === terminal
+        terminal?.removeFromSuperview()
+        view.removeFromSuperview()
+        view.frame = bounds
+        view.autoresizingMask = [.width, .height]
+        addSubview(view)
+        terminal = view
+        if hadFocus { window?.makeFirstResponder(view) }
+    }
+}
+
 /// Owns every pane's terminal view, keyed by pane id, so a pane keeps its process and scrollback when SwiftUI
 /// rebuilds the layout (splits, zoom, switching sessions).
 @MainActor
 final class TerminalSurfaces {
     static let shared = TerminalSurfaces()
+    /// Each pane's terminal.
     private var views: [String: NSView] = [:]
-    /// Panes whose command should be typed when their terminal is created: only those Start work just made. A pane
+    /// What SwiftUI holds for each pane: the terminal's host.
+    private var hosts: [String: PaneHost] = [:]
+    /// Panes whose command should start when their terminal is created: only those Start work just made. A pane
     /// restored from the cache opens a plain shell, so a relaunch never starts a second agent (resume is step 5).
     var autostartPanes: Set<String> = []
     /// A left click in a pane's terminal (the model focuses it and enters INSERT).
@@ -65,63 +86,74 @@ final class TerminalSurfaces {
         didSet { UserDefaults.standard.set(hostZmx, forKey: "heed.hostZmx") }
     }
 
-    /// Each host's login shell, as the host checks last found it: a remote pane's command is typed in its syntax.
+    /// Each host's login shell, as the host checks last found it: a remote pane's command is written in its syntax.
     var hostShells: [String: String] = UserDefaults.standard
         .dictionary(forKey: "heed.hostShells") as? [String: String] ?? [:]
     {
         didSet { UserDefaults.standard.set(hostShells, forKey: "heed.hostShells") }
     }
 
-    /// The shell a pane's command is typed into: your login shell, read now (a `chsh` since launch counts), or the
-    /// host's. zmx sessions run the login shell too.
-    private func shell(for location: Location) -> PaneShell {
-        location.hostName.map { PaneShell(name: hostShells[$0]) } ?? .login()
-    }
-
     /// PATH for new panes: the detected search path (an app opened from Finder has a minimal one).
     var searchPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
 
     func view(for pane: PaneSpec, sessionID: String) -> NSView {
-        if let existing = views[pane.id] {
-            existing.removeFromSuperview()
-            return existing
+        if let host = hosts[pane.id] {
+            host.removeFromSuperview()
+            return host
         }
+        let host = PaneHost()
+        hosts[pane.id] = host
+        host.show(makeTerminal(for: pane, sessionID: sessionID))
+        wireExits()
+        return host
+    }
+
+    /// A pane's terminal. A new pane with a command runs it as the terminal's process (`PaneLaunch`): your login
+    /// shell runs the line, then becomes the pane's shell. Nothing is typed into a shell that is still starting.
+    private func makeTerminal(for pane: PaneSpec, sessionID: String) -> NSView {
         let environment = [
             HeedEnvironment.sessionID: sessionID,
             HeedEnvironment.socket: HeedEnvironment.defaultSocketPath(),
             HeedEnvironment.pane: pane.id,
         ]
-        var launch = pane
-        if autostartPanes.remove(pane.id) == nil { launch.command = nil }
+        var command = autostartPanes.remove(pane.id) == nil ? nil : pane.command
         var withPath = environment
         withPath["PATH"] = searchPath
-        // A zmx session starts `$SHELL`: the login shell the command is written for, not the one heed was started in.
-        if pane.location.isLocal, let login = PaneShell.loginShellPath() { withPath["SHELL"] = login }
-        var attach: String?
+        // A zmx session starts `$SHELL`: your login shell, not the one heed was started in.
+        let login = PaneShell.loginShellPath() ?? "/bin/zsh"
+        if pane.location.isLocal { withPath["SHELL"] = login }
+        let exists = FileManager.default.fileExists(atPath: pane.directory)
+        // Only a pane in a real worktree starts its command: fixture and tutor panes, and ones whose worktree is gone,
+        // open a plain shell instead of starting an agent somewhere unexpected. On a host the worktree is there.
+        if pane.location.isLocal, !exists { command = nil }
+        var process: String?
         paneLocations[pane.id] = pane.location
         if let host = pane.location.hostName {
             // On a host: ssh there and attach to the pane's zmx session in its worktree (always zmx: a remote agent
-            // must
-            // outlive the link). A live session is reattached as it is, with nothing typed again.
-            attach = RemotePane.command(
-                host: host, pane: pane.id, directory: pane.directory, sessionID: sessionID, zmx: hostZmx[host]
+            // must outlive the link). A live session is reattached as it is, with nothing started again.
+            process = RemotePane.command(
+                host: host, pane: pane.id, directory: pane.directory, sessionID: sessionID, zmx: hostZmx[host],
+                command: command, shell: PaneShell(name: hostShells[host])
             )
+        } else {
+            let launch = command.map { PaneLaunch(command: $0, shellPath: login) }
+            withPath.merge(launch?.environment ?? [:]) { _, new in new }
+            if let zmx, exists {
+                withPath.merge(Zmx.environment(socketDirectory: zmxDirectory)) { _, new in new }
+                // A live session is reattached as it is: whatever runs in it keeps running, and nothing starts again.
+                process = Zmx.attachCommand(zmx: zmx, pane: pane.id, launch: livePanes.contains(pane.id) ? nil : launch)
+                livePanes.insert(pane.id)
+            } else {
+                // Ghostty runs a command through `bash -c 'exec -l …'`: sh words.
+                process = launch?.commandLine(quotedFor: .posix)
+            }
         }
-        // Only a pane in a real worktree: fixture and tutor panes, and ones whose worktree is gone, stay plain shells.
-        else if let zmx, FileManager.default.fileExists(atPath: pane.directory) {
-            withPath.merge(Zmx.environment(socketDirectory: zmxDirectory)) { _, new in new }
-            attach = Zmx.attachCommand(zmx: zmx, pane: pane.id)
-            // A live session is reattached as it is: whatever runs in it keeps running, and nothing is typed again.
-            if livePanes.contains(pane.id) { launch.command = nil }
-            livePanes.insert(pane.id)
-        }
-        let view = makeTerminalView(pane: launch, environment: withPath, command: attach)
+        let view = makeTerminalView(pane: pane, environment: withPath, command: process, starts: command != nil)
         #if HEED_GHOSTTY
             let paneID = pane.id
             (view as? GhosttySurfaceView)?.onClick = { [weak self] in self?.onPaneClick?(paneID) }
         #endif
         views[pane.id] = view
-        wireExits()
         return view
     }
 
@@ -133,32 +165,46 @@ final class TerminalSurfaces {
             GhosttyRuntime.shared.onSurfaceClosed = { [weak self] view, _ in
                 guard let self, let id = views.first(where: { $0.value === view })?.key else { return }
                 views.removeValue(forKey: id)?.removeFromSuperview()
+                hosts.removeValue(forKey: id)?.removeFromSuperview()
                 onPaneExited?(id)
             }
         #endif
     }
 
-    /// Starts a pane's command now (a resumed agent), whether or not its terminal exists yet. A new terminal gets it
-    /// as its first input. One that is already open, typically the session on screen at launch (drawn with a plain
-    /// shell before resume decided what to start), gets it typed into that shell. Before this, that pane was left
-    /// alone and its agent never started.
+    /// Starts a pane's command now (a resumed agent), whether or not its terminal exists yet. A new terminal runs it
+    /// as its process. One that is already open, typically the session on screen at launch (drawn with a plain shell
+    /// before resume decided what to start), is replaced by a terminal that runs it: that shell, and its zmx session,
+    /// end first, or the new terminal would only reattach to them. Nothing is typed into the shell.
     func prepare(_ pane: PaneSpec, sessionID: String) {
-        guard let existing = views[pane.id] else {
+        guard let host = hosts[pane.id], views[pane.id] != nil else {
             _ = view(for: pane, sessionID: sessionID)
             return
         }
-        // As for a new terminal: only into the worktree it belongs to, never a shell that fell back to home.
-        guard autostartPanes.remove(pane.id) != nil, let command = pane.command,
-              FileManager.default.fileExists(atPath: pane.directory)
-        else { return }
-        #if HEED_GHOSTTY
-            (existing as? GhosttySurfaceView)?.typeLine(command.rendered(for: shell(for: pane.location)))
-        #else
-            _ = existing
-        #endif
+        guard autostartPanes.contains(pane.id), pane.command != nil else { return }
+        // Out of `views` first: the old terminal ending is not the pane ending.
+        views.removeValue(forKey: pane.id)
+        let end = endSession(paneID: pane.id, location: pane.location)
+        Task { @MainActor in
+            await end()
+            // Closed meanwhile: nothing to start.
+            guard hosts[pane.id] === host else { return }
+            host.show(makeTerminal(for: pane, sessionID: sessionID))
+        }
     }
 
-    /// Types a line into a pane's terminal (the continue prompt). No-op for placeholder panes.
+    /// Ends a pane's zmx session, here or on its host, if it has one; the returned work does it.
+    private func endSession(paneID: String, location: Location) -> @Sendable () async -> Void {
+        if let host = location.hostName {
+            guard let zmx = hostZmx[host] else { return {} }
+            return { await RemotePane.kill(panes: [paneID], host: host, zmx: zmx) }
+        }
+        guard let zmx, livePanes.remove(paneID) != nil else { return {} }
+        let directory = zmxDirectory
+        return { await Zmx.kill(panes: [paneID], zmx: zmx, socketDirectory: directory) }
+    }
+
+    /// Types a line into a pane's running program (the continue prompt to an agent), never to start one. No-op for
+    /// placeholder panes.
     func typeLine(_ text: String, paneID: String) {
         #if HEED_GHOSTTY
             (views[paneID] as? GhosttySurfaceView)?.typeLine(text)
@@ -189,14 +235,10 @@ final class TerminalSurfaces {
     /// zmx its session too, so nothing is left running.
     func close(paneID: String) {
         views.removeValue(forKey: paneID)?.removeFromSuperview()
-        if let host = paneLocations.removeValue(forKey: paneID)?.hostName {
-            if let zmx = hostZmx[host] { Task.detached { await RemotePane.kill(panes: [paneID], host: host, zmx: zmx) }
-            }
-            return
-        }
-        guard let zmx, livePanes.remove(paneID) != nil else { return }
-        let directory = zmxDirectory
-        Task.detached { await Zmx.kill(panes: [paneID], zmx: zmx, socketDirectory: directory) }
+        hosts.removeValue(forKey: paneID)?.removeFromSuperview()
+        guard let location = paneLocations.removeValue(forKey: paneID) else { return }
+        let end = endSession(paneID: paneID, location: location)
+        Task.detached { await end() }
     }
 
     /// Reads which panes still have a live zmx session here (at launch, before any pane is drawn).
@@ -214,13 +256,13 @@ final class TerminalSurfaces {
         return live.count
     }
 
-    private func makeTerminalView(pane: PaneSpec, environment: [String: String], command: String?) -> NSView {
+    private func makeTerminalView(
+        pane: PaneSpec, environment: [String: String], command: String?, starts: Bool
+    ) -> NSView {
         #if HEED_GHOSTTY
-            GhosttyTerminalFactory.makeView(
-                pane: pane, environment: environment, command: command, shell: shell(for: pane.location)
-            )
+            GhosttyTerminalFactory.makeView(pane: pane, environment: environment, command: command)
         #else
-            PlaceholderTerminalView(pane: pane)
+            PlaceholderTerminalView(pane: pane, starts: starts)
         #endif
     }
 }
@@ -228,10 +270,13 @@ final class TerminalSurfaces {
 /// Stand-in until GhosttyKit is built. Accepts first responder and echoes what INSERT sends it.
 final class PlaceholderTerminalView: NSView {
     private let pane: PaneSpec
+    /// Whether the pane's command started, rather than a plain shell.
+    private let starts: Bool
     private var typed = ""
 
-    init(pane: PaneSpec) {
+    init(pane: PaneSpec, starts: Bool) {
         self.pane = pane
+        self.starts = starts
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = NSColor(red: 0.047, green: 0.051, blue: 0.059, alpha: 1).cgColor
@@ -264,7 +309,7 @@ final class PlaceholderTerminalView: NSView {
         let lines = [
             ("libghostty not built yet: mise run ghostty", dim),
             ("cwd \(pane.directory)", dim),
-            (pane.command.map { "$ \($0)" } ?? "$", text),
+            (starts ? pane.command.map { "$ \($0)" } ?? "$" : "$", text),
             (typed + "▌", text),
         ]
         var y = bounds.height - 26

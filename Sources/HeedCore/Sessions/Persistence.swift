@@ -96,10 +96,11 @@ public enum Zmx {
         ["ZMX_DIR": socketDirectory, "ZMX_NO_DETACH_KEY": "1"]
     }
 
-    /// The command a pane's terminal runs: attach to its session, creating it (with your login shell) when it is not
-    /// there.
-    public static func attachCommand(zmx: String, pane: String) -> String {
+    /// The command a pane's terminal runs: attach to its session, creating it when it is not there, with your login
+    /// shell or, for a new pane with a command, `launch` as its process (zmx runs the words it is given as they are).
+    public static func attachCommand(zmx: String, pane: String, launch: PaneLaunch? = nil) -> String {
         "\(ShellQuote.quote(zmx)) attach \(sessionName(pane: pane))"
+            + (launch.map { " " + $0.commandLine(quotedFor: .posix) } ?? "")
     }
 
     /// The panes with a live session, from `zmx list --short`.

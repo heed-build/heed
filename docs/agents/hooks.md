@@ -8,7 +8,7 @@ Agents report what they are doing through hooks: small commands the agent runs a
 or "finished the turn". Heed's hook is its bundled `heed` helper, which sends one line to the app over a local socket
 and exits; it never slows the agent down and never fails a tool call.
 
-Heed passes its hooks **per run**, on the command line it types into the agent's pane. Nothing in your own agent
+Heed passes its hooks **per run**, on the command line that starts the agent in its pane. Nothing in your own agent
 configuration is edited.
 
 | Agent | What Heed passes |

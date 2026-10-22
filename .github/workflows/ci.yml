@@ -26,6 +26,10 @@ jobs:
       - name: Lint
         run: mise run lint
 
+      # The pane launch tests start agents in every login shell a pane can have; the runner has zsh and bash, not fish.
+      - name: fish
+        run: brew install fish
+
       - name: Test
         run: mise run test
 

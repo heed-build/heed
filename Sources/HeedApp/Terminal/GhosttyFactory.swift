@@ -6,11 +6,9 @@
     /// Makes libghostty panes. Every pane gets the session's hook environment and the bundled `heed` on its PATH.
     @MainActor
     enum GhosttyTerminalFactory {
-        /// `command` replaces the login shell (zmx attaching to the pane's session); nil runs your shell as usual.
-        /// `shell` is the shell the pane's own command is typed into, which says the syntax it is written in.
-        static func makeView(
-            pane: PaneSpec, environment: [String: String], command: String? = nil, shell: PaneShell = .posix
-        ) -> NSView {
+        /// `command` replaces the login shell: the pane's own command (`PaneLaunch`), zmx attaching to the pane's
+        /// session, or ssh to a host; nil runs your shell as usual.
+        static func makeView(pane: PaneSpec, environment: [String: String], command: String? = nil) -> NSView {
             let fileManager = FileManager.default
             var isDirectory: ObjCBool = false
             let exists = fileManager.fileExists(atPath: pane.directory, isDirectory: &isDirectory) && isDirectory
@@ -21,15 +19,8 @@
                 env["PATH"] = "\(helpers):\(environment["PATH"] ?? ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin")"
                 env[HeedEnvironment.binary] = helper
             }
-            // A pane's command is typed into its shell only when its worktree exists, so a fixture or a cleaned-up
-            // worktree opens a plain shell instead of starting an agent somewhere unexpected.
             let launch = TerminalLaunch(
-                directory: exists ? pane.directory : NSHomeDirectory(),
-                command: command,
-                // On a host the worktree is there, not here: the remote pane command goes into it.
-                initialInput: exists || !pane.location.isLocal ? pane.command
-                    .map { "\($0.rendered(for: shell))\n" } : nil,
-                environment: env
+                directory: exists ? pane.directory : NSHomeDirectory(), command: command, environment: env
             )
             return GhosttySurfaceView(launch: launch)
         }

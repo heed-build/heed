@@ -17,10 +17,21 @@ line agent can be added.
 | opencode | `opencode` | A plugin passed in `OPENCODE_CONFIG_CONTENT` | its own session id |
 | gemini | `gemini` | Nothing: Heed reads its screen | `--resume <id>` |
 
-Heed starts an agent by typing its command line into the pane's shell, written in that shell's own syntax: sh, bash
-and zsh get one quoting, fish (3.1 or later) its own. The agent runs in your shell by the name you configured, so your
-aliases, functions and environment for it apply. Only a worktree's [setup](../worktrees/setup.md) runs under `sh -c`,
-before the agent. Heed reads your login shell each time a pane starts, so a shell changed with `chsh` is picked up.
+Heed starts an agent as the pane's own process, never by typing into a shell: your login shell runs the agent's
+command line, interactive so your config is read, then becomes the pane's shell when the agent exits:
+
+```text
+fish -l -i -c 'claude --session-id … "$HEED_PROMPT"
+exec fish -l'
+```
+
+The line is written in your shell's own syntax: sh, bash and zsh get one quoting, fish (3.1 or later) its own. The
+agent runs in your shell by the name you configured, so your aliases, functions and environment for it apply. The
+prompt is never on the line: it is in the pane's environment as `HEED_PROMPT`, so a prompt over several lines, with
+quotes, `$` or backticks, reaches the agent exactly as you wrote it. Only a worktree's
+[setup](../worktrees/setup.md) runs under `sh -c`, before the agent. Heed reads your login shell each time a pane
+starts, so a shell changed with `chsh` is picked up. A shell Heed does not write the syntax of (nu, for one) gets the
+line run by `sh`, then the pane is handed to it.
 
 What an agent cannot report, Heed [reads from its screen](screen-reading.md). Each agent's command, prompt delivery,
 plan and resume arguments can be changed, and new agents added: see [Custom agents](custom-agents.md).

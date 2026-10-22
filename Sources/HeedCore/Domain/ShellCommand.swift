@@ -43,10 +43,11 @@ public enum PaneShell: String, Hashable, Sendable, Codable, CaseIterable {
     }
 }
 
-/// A command line heed types into a pane's shell, kept as structure so it can be written in that shell's own syntax
-/// when it is typed (`rendered(for:)`): sh syntax for sh, bash and zsh, fish's for fish. The agent always runs in the
-/// pane's shell itself, by the name you configured, so your aliases, functions and environment apply; only the
-/// worktree setup runs under `sh -c`, as a step of its own before it.
+/// A pane's command line, kept as structure so it can be written in its shell's own syntax (`rendered(for:)`): sh
+/// syntax for sh, bash and zsh, fish's for fish. It runs as the pane's process, in your login shell (`PaneLaunch`),
+/// never typed into one. The agent runs in that shell itself, by the name you configured, so your aliases, functions
+/// and environment apply; only the worktree setup runs under `sh -c`, as a step of its own before it. A prompt is
+/// never on the line: it is `"$HEED_PROMPT"` there, and the pane's environment holds it.
 public struct ShellCommand: Hashable, Sendable, Codable, CustomStringConvertible {
     /// One piece of a word.
     public enum Segment: Hashable, Sendable, Codable {
@@ -56,6 +57,9 @@ public struct ShellCommand: Hashable, Sendable, Codable, CustomStringConvertible
         case raw(String)
         /// Your home directory, as `"$HOME"`.
         case home
+        /// The prompt, as `"$HEED_PROMPT"`: the pane's environment carries it (`PaneLaunch`), so it never has to
+        /// survive a command line's quoting. Shown in place for reading (`posix`).
+        case prompt(String)
     }
 
     /// One word of a command: its segments, side by side.
@@ -71,12 +75,13 @@ public struct ShellCommand: Hashable, Sendable, Codable, CustomStringConvertible
             path.hasPrefix("~/") ? Word([.home, .raw("/"), .text(String(path.dropFirst(2)))]) : .text(path)
         }
 
-        func rendered(for shell: PaneShell) -> String {
+        func rendered(for shell: PaneShell, promptInPlace: Bool) -> String {
             segments.map { segment in
                 switch segment {
                 case let .text(text): shell.quote(text)
                 case let .raw(text): text
                 case .home: "\"$HOME\""
+                case let .prompt(text): promptInPlace ? shell.quote(text) : "\"$\(PaneLaunch.promptVariable)\""
                 }
             }.joined()
         }
@@ -103,11 +108,11 @@ public struct ShellCommand: Hashable, Sendable, Codable, CustomStringConvertible
             self.words = words
         }
 
-        func rendered(for shell: PaneShell) -> String {
+        func rendered(for shell: PaneShell, promptInPlace: Bool) -> String {
             // fish 3.1 and later take `NAME=value cmd` too, and set it for a function or alias of that name as well
             // (`env NAME=value cmd` would skip those and run the program on PATH).
-            environment.map { "\($0.name)=\($0.value.rendered(for: shell)) " }.joined()
-                + words.map { $0.rendered(for: shell) }.joined(separator: " ")
+            environment.map { "\($0.name)=\($0.value.rendered(for: shell, promptInPlace: promptInPlace)) " }.joined()
+                + words.map { $0.rendered(for: shell, promptInPlace: promptInPlace) }.joined(separator: " ")
         }
     }
 
@@ -135,17 +140,20 @@ public struct ShellCommand: Hashable, Sendable, Codable, CustomStringConvertible
     /// A command line exactly as written (a task's command from config), in sh syntax.
     public init(line: String) { self.init([.line(line)]) }
 
-    /// The steps, each after the one before passed (`&&`); an exit report follows whatever came before (`;`).
-    public func rendered(for shell: PaneShell) -> String {
+    /// The steps, each after the one before passed (`&&`); an exit report follows whatever came before (`;`). The
+    /// prompt is `"$HEED_PROMPT"`.
+    public func rendered(for shell: PaneShell) -> String { rendered(for: shell, promptInPlace: false) }
+
+    func rendered(for shell: PaneShell, promptInPlace: Bool) -> String {
         var out = ""
         for (index, step) in steps.enumerated() {
             if index > 0 { out += step == .reportExit ? "; " : " && " }
             switch step {
             case let .run(pipeline):
-                out += pipeline.map { $0.rendered(for: shell) }.joined(separator: " | ")
+                out += pipeline.map { $0.rendered(for: shell, promptInPlace: promptInPlace) }.joined(separator: " | ")
             case let .setup(setup):
                 let rest = ShellCommand(Array(steps.dropFirst(index + 1)))
-                out += "sh -c " + shell.quote(setup.script(next: rest.steps.isEmpty ? nil : rest.rendered(for: shell)))
+                out += "sh -c " + shell.quote(setup.script(agent: rest.agentName))
             case .reportExit:
                 // fish has `$status` for `$?`, and no `${…:-…}`; sh reads the fallback for both.
                 out += shell == .fish
@@ -158,8 +166,33 @@ public struct ShellCommand: Hashable, Sendable, Codable, CustomStringConvertible
         return out
     }
 
-    /// In sh syntax (zsh, bash): for showing the command, and for panes cached by older versions.
-    public var posix: String { rendered(for: .posix) }
+    /// In sh syntax (zsh, bash), the prompt in place: for showing the command, and for panes cached by older versions.
+    public var posix: String { rendered(for: .posix, promptInPlace: true) }
+
+    /// The prompt the line passes as `"$HEED_PROMPT"`, for the pane's environment; nil when it has none.
+    public var prompt: String? {
+        for case let .run(pipeline) in steps {
+            for simple in pipeline {
+                for word in simple.environment.map(\.value) + simple.words {
+                    for case let .prompt(text) in word.segments {
+                        return text
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    /// The program the first command runs, by its first word as configured (`claude`, `codex`): the agent, for a
+    /// failed setup's hint. A pipeline's last command is the agent (`printf … | agent`).
+    public var agentName: String? {
+        for case let .run(pipeline) in steps {
+            guard let word = pipeline.last?.words.first else { return nil }
+            let text = word.rendered(for: .posix, promptInPlace: true)
+            return text.split(separator: " ").first.map(String.init)
+        }
+        return nil
+    }
 
     public var description: String { posix }
 

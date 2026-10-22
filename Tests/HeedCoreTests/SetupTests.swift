@@ -98,8 +98,8 @@ struct SetupPaneCommandTests {
         ))
         let bad = try await ProcessRunner.run("/bin/sh", ["-c", failing], caller: "test")
         #expect(bad.status == 3)
-        #expect(bad.stdout
-            .contains("heed: setup failed (sh -c 'exit 3'); fix it, then start the agent with:\n  echo agent"))
+        // No agent to name (a command line as written): the failure alone.
+        #expect(bad.stdout.contains("heed: setup failed (sh -c 'exit 3')\n"))
         #expect(!bad.stdout.contains("never"))
         #expect(!bad.stdout.split(separator: "\n").contains("agent"))
     }

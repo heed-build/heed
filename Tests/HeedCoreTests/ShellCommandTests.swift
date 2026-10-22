@@ -9,13 +9,14 @@ private let shells: [(path: String, kind: PaneShell)] = [
     ("/opt/homebrew/bin/fish", .fish), ("/usr/local/bin/fish", .fish), ("/usr/bin/fish", .fish),
 ].filter { FileManager.default.isExecutableFile(atPath: $0.path) }
 
-/// Runs `line` as typed into `shell`, with none of your own shell config, after `prelude` (shell code that defines
-/// functions). `bin` goes first on PATH.
+/// Runs `line` in `shell`, with none of your own shell config, after `prelude` (shell code that defines functions).
+/// `bin` goes first on PATH; `prompt` is the pane's `HEED_PROMPT`.
 private func type(
     _ line: String, into shell: (path: String, kind: PaneShell), prelude: String = "", bin: String,
-    environment: [String: String] = [:]
+    environment: [String: String] = [:], prompt: String? = nil
 ) async throws -> ProcessResult {
     var env = environment
+    env[PaneLaunch.promptVariable] = prompt
     env["PATH"] = "\(bin):/usr/bin:/bin"
     let arguments: [String] = switch shell.path {
     case let path where path.hasSuffix("fish"): ["--no-config", "-C", prelude, "-c", line]
@@ -112,7 +113,8 @@ struct ShellCommandTests {
         for shell in shells {
             for test in cases {
                 let line = test.command.rendered(for: shell.kind)
-                let result = try await type(line, into: shell, bin: bin)
+                #expect(!line.contains("second line"), "the prompt is never on the line: \(line)")
+                let result = try await type(line, into: shell, bin: bin, prompt: test.command.prompt)
                 let output = test.name == "setup"
                     ? String(result.stdout.drop { $0 != "\n" }.dropFirst())
                     .replacingOccurrences(of: "it's set\n", with: "")
@@ -135,7 +137,7 @@ struct ShellCommandTests {
                 : #"stubagent() { printf 'function\nenv=%s\n' "$STUB_ENV"; for a in "$@"; do printf '[%s]\n' "$a"; done; }"#
             for command in [line, behind] {
                 let typed = command.rendered(for: shell.kind)
-                let result = try await type(typed, into: shell, prelude: prelude, bin: bin)
+                let result = try await type(typed, into: shell, prelude: prelude, bin: bin, prompt: command.prompt)
                 #expect(
                     result.stdout.hasSuffix(printed(["--x", "it's"], env: "on", by: "function")),
                     "in \(shell.path): \(typed)\n\(result.stdout)\(result.stderr)"
@@ -144,17 +146,25 @@ struct ShellCommandTests {
         }
     }
 
-    /// A failed setup says how to start the agent, in the syntax of the shell it was typed into, and stops there.
-    @Test func aFailedSetupNamesTheAgentLineInYourShell() async throws {
+    /// A failed setup names the agent to run again, short and as you would type it, and stops there: neither the
+    /// agent's line nor its prompt is in it.
+    @Test func aFailedSetupNamesTheAgent() async throws {
         let bin = try stubs()
         defer { try? FileManager.default.removeItem(atPath: bin) }
-        let agent = stub.launchCommand(prompt: "it's", environment: ["STUB_ENV": "x"])
-        let command = try #require(WorktreeSetup.paneCommand(setup: ["sh -c 'exit 3'"], then: agent))
-        for shell in shells {
-            let result = try await type(command.rendered(for: shell.kind), into: shell, bin: bin)
-            #expect(result.status == 3, "in \(shell.path): \(result.stderr)")
-            #expect(result.stdout.contains("start the agent with:\n  \(agent.rendered(for: shell.kind))\n"))
-            #expect(!result.stdout.contains("bin\n"))
+        var piped = stub
+        piped.prompt = .stdin
+        for agent in [stub, piped] {
+            let line = agent.launchCommand(prompt: prompt, environment: ["STUB_ENV": "x"])
+            let command = try #require(WorktreeSetup.paneCommand(setup: ["sh -c 'exit 3'"], then: line))
+            for shell in shells {
+                let result = try await type(command.rendered(for: shell.kind), into: shell, bin: bin, prompt: prompt)
+                #expect(result.status == 3, "in \(shell.path): \(result.stderr)")
+                #expect(result.stdout.hasSuffix(
+                    "\nheed: setup failed (sh -c 'exit 3'); fix it, then run the agent again: stubagent\n"
+                ), "in \(shell.path): \(result.stdout)")
+                #expect(!result.stdout.contains("bin\n"))
+                #expect(!command.rendered(for: shell.kind).contains("second line"))
+            }
         }
     }
 
@@ -179,7 +189,7 @@ struct ShellCommandTests {
         guard let fish = shells.first(where: { $0.kind == .fish }) else { return }
         let bin = try stubs()
         defer { try? FileManager.default.removeItem(atPath: bin) }
-        let line = stub.launchCommand(prompt: prompt).rendered(for: .posix)
+        let line = stub.launchCommand(prompt: prompt).posix
         let result = try await type(line, into: fish, bin: bin)
         #expect(result.stdout != printed([prompt]))
     }
@@ -196,7 +206,8 @@ struct ShellCommandTests {
         #expect(json["command"] as? String == #"stubagent 'it'\''s'"#)
     }
 
-    /// In sh syntax every line is byte for byte what heed typed before it kept commands as structure.
+    /// In sh syntax, the prompt in place, every line is byte for byte what heed typed before it kept commands as
+    /// structure, but for a failed setup's hint, which names the agent now instead of repeating its line.
     @Test func shSyntaxIsUnchanged() throws {
         let env = ["OPENCODE_CONFIG_CONTENT": #"{"plugin":["file:///x y/p.js"]}"#, "A": ""]
         for agent in AgentProfile.builtIn + [stub] {
@@ -218,7 +229,10 @@ struct ShellCommandTests {
                             let setup = ["pnpm install", "echo \"it's\" $HOME", "uv sync"]
                             #expect(
                                 WorktreeSetup.paneCommand(setup: setup, then: line, report: report)?.posix
-                                    == Legacy.pane(setup: setup, then: before, report: report)
+                                    == Legacy.pane(
+                                        setup: setup, then: before, agent: agent.command.split(separator: " ").first
+                                            .map(String.init), report: report
+                                    )
                             )
                         }
                     }
@@ -232,7 +246,7 @@ struct ShellCommandTests {
             }
         }
         #expect(WorktreeSetup.paneCommand(setup: ["npm ci"], then: nil)?.posix
-            == Legacy.pane(setup: ["npm ci"], then: nil, report: false))
+            == Legacy.pane(setup: ["npm ci"], then: nil, agent: nil, report: false))
         #expect(TaskSpec(name: "t", command: "mise run 'a b'").pane(directory: "/x").command?.posix
             == #"mise run 'a b'; "${HEED_BIN:-true}" task-exit $?"#)
     }
@@ -263,10 +277,11 @@ private enum Legacy {
         return env + ([agent.command] + extra.map(ShellQuote.quote) + [resume]).joined(separator: " ")
     }
 
-    static func pane(setup steps: [String], then command: String?, report: Bool) -> String? {
-        let next = command.map { "start the agent with:\n  \($0)" } ?? "open a new shell."
+    /// As before, but for the failure's hint, which names the agent (`agent`) instead of repeating its line.
+    static func pane(setup steps: [String], then command: String?, agent: String?, report: Bool) -> String? {
+        let next = agent.map { "; fix it, then run the agent again: \($0)" } ?? ""
         let script = steps.map { step in
-            let failed = "heed: setup failed (\(step)); fix it, then \(next)"
+            let failed = "heed: setup failed (\(step))\(next)"
             let tell = report ? #" "${HEED_BIN:-true}" task-exit "$c";"# : ""
             let run = "printf '\\033[2mheed: setup: %s\\033[0m\\n' \(ShellQuote.quote(step)); "
                 + "{ \(step); } || { c=$?; printf '\\n%s\\n' \(ShellQuote.quote(failed));\(tell) exit \"$c\"; }"

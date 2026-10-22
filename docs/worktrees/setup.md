@@ -11,11 +11,10 @@ sets every worktree it makes up the same way, for sessions from Start work and f
 ## Setup commands
 
 Setup is a list of commands a new worktree runs in its pane before the agent starts. The agent starts only when every one
-of them passed; a failure leaves the pane at its prompt with what failed and the line that starts the agent:
+of them passed; a failure says what failed and which agent to run again, and leaves the pane at your shell:
 
 ```text
-heed: setup failed (pnpm install); fix it, then start the agent with:
-  claude --session-id … 'Fix broken anchors'
+heed: setup failed (pnpm install); fix it, then run the agent again: claude
 ```
 
 Setup commands are sh: they run under `sh -c` whatever your login shell is, and the agent then starts in your own

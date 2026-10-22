@@ -53,4 +53,4 @@ written; the daily caps of `[llm]` apply.
 
 An edited summary says so, and stays until you write it again.
 
-![An entry in full](../images/shots/history/ledger-detail.png)
+![An abandoned spike in full: its follow-up, and the agent time an estimate](../images/shots/history/ledger-detail.png)

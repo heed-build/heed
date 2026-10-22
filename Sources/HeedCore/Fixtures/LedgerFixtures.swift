@@ -20,7 +20,11 @@ public extension Fixtures {
                 branch: "fix-anchors-redirects", agent: "claude", startedAt: ago(6.3), outcome: "PR open",
                 pulls: [PullRef(repo: docsBuilder, number: 2841)],
                 diff: DiffStat(files: 9, added: 212, removed: 38),
-                files: ["src/Redirects/RedirectMap.cs", "src/Redirects/AnchorCheck.cs", "tests/RedirectTests.cs"],
+                files: [
+                    "src/Redirects/RedirectMap.cs", "src/Redirects/AnchorCheck.cs", "tests/RedirectTests.cs",
+                    "src/Redirects/RedirectFile.cs", "src/Build/BuildContext.cs", "docs/redirects.md",
+                    "tests/Fixtures/redirects.yml", "src/Redirects/AnchorIndex.cs", "CHANGELOG.md",
+                ],
                 agentTime: 3 * 3600 + 12 * 60, usage: usage("opus", 41000, 9200, 2.84),
                 summary: "Redirect targets are now checked against the headings they point at; a failing test names "
                     + "the redirect and the missing anchor. The redirect map is generated at build time. Two review "
@@ -36,7 +40,7 @@ public extension Fixtures {
                 id: "h-fix-toc-ordering", title: "Fix toc ordering", repos: [builder], branch: "fix-toc-ordering",
                 agent: "claude", startedAt: ago(3.2), endedAt: ago(1), outcome: "merged",
                 pulls: [PullRef(repo: docsBuilder, number: 2810)], diff: DiffStat(files: 3, added: 46, removed: 12),
-                files: ["src/Navigation/TocBuilder.cs", "tests/TocTests.cs"], agentTime: 104 * 60,
+                files: ["src/Navigation/TocBuilder.cs", "tests/TocTests.cs", "docs/navigation.md"], agentTime: 104 * 60,
                 usage: usage("sonnet", 18000, 3100, 0.61),
                 summary: "Table of contents entries keep the order of the folder's index file instead of sorting by "
                     + "title. Merged after one review.",
@@ -54,7 +58,8 @@ public extension Fixtures {
             LedgerEntry(
                 id: "h-flowchart-label-wrapping", title: "Flowchart label wrapping", repos: [mermaider.slug],
                 branch: "flowchart-label-wrapping", agent: "opencode", startedAt: ago(28.4), endedAt: ago(28),
-                outcome: "abandoned", diff: DiffStat(files: 2, added: 88, removed: 5), agentTime: 19 * 60,
+                outcome: "abandoned", diff: DiffStat(files: 2, added: 88, removed: 5),
+                files: ["src/layout/labels.ts", "src/layout/labels.test.ts"], agentTime: 19 * 60,
                 agentTimeEstimated: true,
                 summary: "Tried wrapping long flowchart labels at word boundaries in the layout pass. Wrapping before "
                     + "measuring broke edge routing; left unfinished, the work saved before the worktree was removed.",

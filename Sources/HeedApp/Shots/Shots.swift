@@ -379,7 +379,8 @@ enum Shots {
         Shot(id: "history/detail", keys: "gh", crop: .historyDetail),
         Shot(id: "history/timeline", keys: "ghT"),
         Shot(id: "history/ledger", keys: "ghL"),
-        Shot(id: "history/ledger-detail", keys: "ghL", crop: .ledgerDetail),
+        // The abandoned spike: its follow-up, the agent time an estimate.
+        Shot(id: "history/ledger-detail", keys: "ghLjjj"),
         Shot(id: "history/timeline-worktrees", keys: "ghTtt"),
         Shot(id: "history/timeline-detail", keys: "ghTtt/flowchart<CR>", crop: .timelineDetail),
     ]

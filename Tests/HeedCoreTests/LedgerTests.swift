@@ -265,3 +265,11 @@ struct LedgerFixtureTests {
         #expect(names == ["ledger.summarize", "ledger.edit", "history.reopen", "open.repo", "history.ledger"])
     }
 }
+
+struct LedgerFixtureConsistencyTests {
+    @Test func listedFilesMatchTheDiff() {
+        for entry in Fixtures.ledger where !entry.files.isEmpty {
+            #expect(entry.files.count == min(entry.diff?.files ?? 0, Ledger.fileLimit), "\(entry.id)")
+        }
+    }
+}

@@ -6,6 +6,8 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case session
     /// A brief for an agent taking work over (a chat promoted to a session): what was decided and what is left.
     case handoff
+    /// History's ledger: a summary, the decisions and the follow-ups, in the sections `LedgerText` reads.
+    case ledger
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -82,6 +84,14 @@ public struct Summarizer: Sendable {
             You write a handoff brief for a coding agent that takes this work over, from its git history, pull \
             request, timeline and the last message. State the goal, what was decided, what is done and what is left, \
             in at most six short lines. Only facts from the input; no preamble.
+            """
+        case .ledger:
+            """
+            You keep a ledger of software work for the developer who owns it, from its git history, pull request, \
+            timeline and the coding agent's last message. Answer in exactly these sections, each heading on its own \
+            line: "Summary:" then at most three short sentences of plain prose on what the work did and where it \
+            stands; "Decisions:" then one "- " line per decision that was taken (none: "- none"); "Follow-ups:" then \
+            one "- " line per thing left to do (none: "- none"). Only facts from the input; no preamble.
             """
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)

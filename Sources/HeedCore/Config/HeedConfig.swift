@@ -20,6 +20,8 @@ public struct HeedConfig: Equatable, Sendable {
     /// `[summary] away_hours`: how long away (from the Mac, or with heed quit) before the summary of what happened
     /// opens on its own; 0 never opens it.
     public var summaryAwayHours = 8
+    /// `[summary] when`, `idle_hours`, `include`: when History's ledger is written, and what it holds.
+    public var ledger = LedgerSettings()
     /// `[keys.normal]`, `[keys.visual]`, ...: overrides laid over the defaults.
     public var keys: [Mode: [(String, String)]]
     /// `[keys.repos]`, `[keys.inbox]`, ...: per-view overrides.
@@ -79,6 +81,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.notifications == rhs.notifications,
             lhs.attention == rhs.attention,
             lhs.summaryAwayHours == rhs.summaryAwayHours,
+            lhs.ledger == rhs.ledger,
             flat(lhs.keys) == flat(rhs.keys),
             flat(lhs.scopedKeys) == flat(rhs.scopedKeys),
             lhs.orgColors == rhs.orgColors,
@@ -577,6 +580,31 @@ public enum ConfigLoader {
         }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
+        if let names = strings(["summary", "when"]) {
+            let triggers = names.compactMap { LedgerTrigger(rawValue: $0) }.filter(LedgerTrigger.configurable.contains)
+            if triggers.count == names.count {
+                config.ledger.when = Set(triggers)
+            } else {
+                problems.append(ConfigProblem(
+                    path: "summary.when",
+                    message: "expected some of " + LedgerTrigger.configurable.map { "\"\($0.rawValue)\"" }
+                        .joined(separator: ", ")
+                ))
+            }
+        }
+        if let hours = integer(["summary", "idle_hours"], range: 0 ... 720) { config.ledger.idleHours = hours }
+        if let names = strings(["summary", "include"]) {
+            let parts = names.compactMap(LedgerPart.init(rawValue:))
+            if parts.count == names.count {
+                config.ledger.include = Set(parts)
+            } else {
+                problems.append(ConfigProblem(
+                    path: "summary.include",
+                    message: "expected some of " + LedgerPart.allCases.map { "\"\($0.rawValue)\"" }
+                        .joined(separator: ", ")
+                ))
+            }
+        }
         // [updates]
         if let flag = bool(["updates", "check"]) { config.updates.check = flag }
         if let text = string(["updates", "install"]) {
@@ -798,6 +826,13 @@ public enum ConfigLoader {
     # finished, the reviews that arrived and the sessions that closed, by day. It opens on its own when you come back
     # after this many hours away from the Mac or with heed quit (0: never on its own); gZ opens it any time.
     away_hours = 8
+    # History's ledger (L in History): a short summary of each piece of work, kept after its worktree is gone, written
+    # by a cheap model through heed's model calls ([llm]). When: "pr_opened", "pr_merged", "worktree_removed" (the
+    # removal waits for it, 30 s at most), "idle" (no activity for idle_hours), "chat_closed". ledger.summarize writes
+    # one any time. Include: "summary", "decisions", "follow_ups", "files" (from git, no model).
+    when = ["pr_opened", "pr_merged", "worktree_removed", "idle"]
+    idle_hours = 24
+    include = ["summary", "decisions", "follow_ups", "files"]
 
     [updates]
     # Look for a new version of heed once a day (on GitHub, heed's releases). Each update is signed; heed installs

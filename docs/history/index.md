@@ -21,6 +21,7 @@ timeline (started, PR opened, ended) and the agent's resume command.
 
 Heed keeps only the prompt, the session id and the timeline; the transcript belongs to the agent.
 
-`T` shows the same history as a [timeline](timeline.md): sessions, worktrees, PRs and questions, by day.
+`T` shows the same history as a [timeline](timeline.md): sessions, worktrees, PRs and questions, by day. `L` shows the
+[ledger](ledger.md): a short summary of each piece of work, kept after its worktree is gone.
 
 See [Reopening](reopening.md) to pick a session up again.

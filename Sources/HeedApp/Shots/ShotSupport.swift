@@ -20,6 +20,7 @@ enum ShotRegion: String, CaseIterable {
     case diffFiles, diffBody
     case historyList, historyDetail
     case timelineFilters, timelineList, timelineDetail
+    case ledgerList, ledgerDetail
     case logList, logDetail, logUsage
     case pilotDetail, pilotActivity
 }

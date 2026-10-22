@@ -7,14 +7,16 @@ enum AppView: String, CaseIterable, Identifiable {
     case sessions, watch, inbox, issues, prs, repos, history, log
     /// History as a timeline (`history.timeline`): under History's tab, not one of its own.
     case timeline
+    /// History's ledger (`history.ledger`): under History's tab too.
+    case ledger
 
     var id: String { rawValue }
 
     /// The views the title bar lists: the call log is reached with `:log` only, the timeline from History.
-    static var tabs: [AppView] { allCases.filter { $0 != .log && $0 != .timeline } }
+    static var tabs: [AppView] { allCases.filter { $0 != .log && $0 != .timeline && $0 != .ledger } }
 
     /// The tab that is lit while this view shows.
-    var tab: AppView { self == .timeline ? .history : self }
+    var tab: AppView { self == .timeline || self == .ledger ? .history : self }
 
     var title: String {
         switch self {
@@ -27,11 +29,18 @@ enum AppView: String, CaseIterable, Identifiable {
         case .history: "History"
         case .log: "Log"
         case .timeline: "Timeline"
+        case .ledger: "Ledger"
         }
     }
 
     /// The command that switches to this view; its key comes from the live keymap.
-    var command: String { self == .timeline ? "history.timeline" : "view.\(rawValue)" }
+    var command: String {
+        switch self {
+        case .timeline: "history.timeline"
+        case .ledger: "history.ledger"
+        default: "view.\(rawValue)"
+        }
+    }
 }
 
 extension Notification.Name {
@@ -155,6 +164,7 @@ final class AppModel {
             if filters[.repos] != oldValue[.repos] { rebuildWorktreeRows() }
             if filters[.log] != oldValue[.log] { callLog.setSearch(filters[.log] ?? "") }
             if filters[.timeline] != oldValue[.timeline] { timeline.setSearch(filters[.timeline] ?? "") }
+            if filters[.ledger] != oldValue[.ledger] { ledger.setSearch(filters[.ledger] ?? "") }
         }
     }
 
@@ -214,6 +224,8 @@ final class AppModel {
 
     /// History's timeline: its lines, filters and cursor.
     let timeline: TimelineBrowser
+    /// History's ledger: its entries and cursor.
+    let ledger: LedgerBrowser
 
     /// The `:log` view's rows and filters.
     let callLog: CallLogBrowser
@@ -265,6 +277,9 @@ final class AppModel {
     private var completionAnchor: String?
     private(set) var completionIndex: Int?
     private(set) var flash: String?
+
+    /// Shows `message` in the status bar, for the model's extensions.
+    func say(_ message: String) { flash = message }
     private(set) var hintText = ""
     private var hintThenInsert = false
     /// The Start work dialog, while open.
@@ -292,6 +307,7 @@ final class AppModel {
         self.isFixture = isFixture
         callLog = CallLogBrowser(fixture: isFixture)
         timeline = TimelineBrowser(fixture: isFixture)
+        ledger = LedgerBrowser(fixture: isFixture)
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
@@ -345,6 +361,7 @@ final class AppModel {
         loadAvatars()
         store = DomainStore(domain: cached, file: file, log: log)
         timeline.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
+        startLedger(log: log)
         await receiveSpooled()
         await offerResume(domain: cached)
         startAwayTracking()
@@ -489,6 +506,7 @@ final class AppModel {
             if explicit { flash = plan.summary }
             return
         }
+        await summarizingFirst(plan.removals.map(\.worktree)) {}
         let domain = currentDomain
         let result = await Sweep.execute(plan, domain: domain)
         let chats = plan.chatRemovals
@@ -531,7 +549,7 @@ final class AppModel {
         case .issues: [.issues]
         // Sessions show their PRs' state; Repos and History their PR numbers.
         case .sessions, .prs, .watch, .repos, .history: [.pulls]
-        case .log, .timeline: []
+        case .log, .timeline, .ledger: []
         }
     }
 
@@ -1088,10 +1106,14 @@ final class AppModel {
         guard !changes.isEmpty else { return }
         let before = currentDomain
         let after = before.applying(changes)
-        if after.history != before.history { history = after.history }
-        if after.github != before.github { github = after.github }
+        let historyChanged = after.history != before.history
+        let githubChanged = after.github != before.github
+        let detailsChanged = after.pullDetails != before.pullDetails
+        let sessionsChanged = after.sessions != before.sessions
+        if historyChanged { history = after.history }
+        if githubChanged { github = after.github }
         if after.repos != before.repos || after.github.pulls != before.github.pulls { loadAvatars() }
-        if after.pullDetails != before.pullDetails { pullDetails = after.pullDetails }
+        if detailsChanged { pullDetails = after.pullDetails }
         if after.feedback != before.feedback { feedback = after.feedback }
         if after.pilotLog != before.pilotLog { pilotLog = after.pilotLog }
         if after.mergeRuns != before.mergeRuns { mergeRuns = after.mergeRuns }
@@ -1101,11 +1123,14 @@ final class AppModel {
             registeredWorktrees = after.registeredWorktrees
             rebuildWorktreeRows()
         }
-        if after.sessions != before.sessions { sessions = after.sessions }
+        if sessionsChanged { sessions = after.sessions }
         if after.layouts != before.layouts { layouts = after.layouts }
         if after.repos != before.repos { repos = after.repos }
         if after.worktrees != before.worktrees { worktrees = after.worktrees }
         if let store { Task { await store.apply(changes) } }
+        if !replacingDomain, historyChanged || githubChanged || detailsChanged || sessionsChanged {
+            noticeLedger(before: before, after: after)
+        }
     }
 
     func commit(_ change: DomainChange) { commit([change]) }
@@ -1711,6 +1736,13 @@ final class AppModel {
         case .timeline:
             guard let item = timeline.selected else { return nil }
             return TitleContext(lead: "timeline", main: item.name, detail: item.lead)
+        case .ledger:
+            guard let entry = ledger.selected else { return nil }
+            return TitleContext(
+                lead: "ledger",
+                main: entry.branch.isEmpty ? entry.place : entry.branch,
+                detail: entry.title
+            )
         }
     }
 
@@ -1790,6 +1822,7 @@ final class AppModel {
         case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
         case .log: callLog.rows.indices.map { HintTarget.row(.log, $0) }
         case .timeline: timeline.rows.indices.map { HintTarget.row(.timeline, $0) }
+        case .ledger: ledger.rows.indices.map { HintTarget.row(.ledger, $0) }
         }
         return zip(HintLabels.generate(count: targets.count), targets).map { ($0, $1) }
     }
@@ -2080,6 +2113,10 @@ final class AppModel {
         case "view.history": view = .history
         case "view.log": view = .log
         case "view.timeline": view = .timeline
+        case "view.ledger": view = .ledger
+        case "history.ledger": view = view == .ledger ? .history : .ledger
+        case "ledger.summarize": summarizeLedgerNow()
+        case "ledger.edit": editLedger(command.arguments)
         case "history.timeline": view = view == .timeline ? .history : .timeline
         case "timeline.kind": timeline.change { $0.cycleKind(command.arguments.first) }
         case "timeline.repo":
@@ -2261,6 +2298,7 @@ final class AppModel {
         case .history: historyRows.map(\.id)
         case .log: callLog.rows.map { String($0.id) }
         case .timeline: timeline.rows.map(\.id)
+        case .ledger: ledger.rows.map(\.id)
         case .sessions: []
         default: itemIDs(list)
         }
@@ -2363,6 +2401,7 @@ final class AppModel {
         case .history: setRow(historyCursor + delta)
         case .log: setRow(callLog.cursor + delta)
         case .timeline: setRow(timeline.cursor + delta)
+        case .ledger: setRow(ledger.cursor + delta)
         case .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
@@ -2383,6 +2422,7 @@ final class AppModel {
         case .log: (callLog.rows.map(\.caller), callLog.cursor)
         // A day is a group: { and } go from day to day.
         case .timeline: (timeline.rows.map { Calendar.current.startOfDay(for: $0.at).description }, timeline.cursor)
+        case .ledger: (ledger.rows.map { Calendar.current.startOfDay(for: $0.updatedAt).description }, ledger.cursor)
         }
     }
 
@@ -2406,6 +2446,8 @@ final class AppModel {
             callLog.setCursor(index)
         } else if view == .timeline {
             timeline.setCursor(index)
+        } else if view == .ledger {
+            ledger.setCursor(index)
         } else if view == .repos {
             let count = worktreeRows.count
             guard count > 0 else { return }
@@ -2931,6 +2973,8 @@ final class AppModel {
                 callLog.setCursor(index)
             case .timeline:
                 timeline.setCursor(index)
+            case .ledger:
+                ledger.setCursor(index)
             default:
                 itemCursor[view] = index
                 if thenInsert { openReader() }
@@ -3370,15 +3414,18 @@ final class AppModel {
         }
         let skipped = kept
         Task {
-            let result = await Sweep.execute(
-                SweepPlan(removals: removals, skips: [], next: nil), domain: currentDomain
-            )
-            commit(result.changes)
-            let saved = result.saved.compactMap(\.said)
-            flash = "removed \(removals.count - result.failures.count)"
-                + (saved.isEmpty ? "" : " · \(saved[0])" + (saved.count > 1 ? " and \(saved.count - 1) more" : ""))
-                + (skipped.isEmpty ? "" : " · kept \(skipped.count): \(skipped[0])")
-                + (result.failures.isEmpty ? "" : " · failed: \(result.failures[0])")
+            // The ledger's summary of the work goes first (or 30 s pass): it reads the worktree.
+            await summarizingFirst(removals.map(\.worktree)) { [self] in
+                let result = await Sweep.execute(
+                    SweepPlan(removals: removals, skips: [], next: nil), domain: currentDomain
+                )
+                commit(result.changes)
+                let saved = result.saved.compactMap(\.said)
+                flash = "removed \(removals.count - result.failures.count)"
+                    + (saved.isEmpty ? "" : " · \(saved[0])" + (saved.count > 1 ? " and \(saved.count - 1) more" : ""))
+                    + (skipped.isEmpty ? "" : " · kept \(skipped.count): \(skipped[0])")
+                    + (result.failures.isEmpty ? "" : " · failed: \(result.failures[0])")
+            }
         }
     }
 
@@ -3425,9 +3472,13 @@ final class AppModel {
 
     private func reopenSelected() {
         // In the timeline: the session of the line under the cursor, when it is in History.
-        let picked = view == .timeline ? timeline.selected.flatMap(timelineEntry) : selectedHistory
+        let picked = view == .timeline ? timeline.selected.flatMap(timelineEntry)
+            : view == .ledger ? ledger.selected.flatMap { entry in history.first { $0.id == entry.id } }
+            : selectedHistory
         guard let entry = picked else {
-            if view == .timeline { flash = "nothing to reopen: this line's session is not in History" }
+            if view == .timeline || view == .ledger {
+                flash = "nothing to reopen: its session is not in History"
+            }
             return
         }
         if tutor != nil {
@@ -3925,6 +3976,11 @@ final class AppModel {
         case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
         case .history: return selectedHistory?.session.repos ?? []
         case .timeline: return timeline.selected?.repository.map { [$0] } ?? []
+        case .ledger:
+            return ledger.selected?.repos.compactMap { slug in
+                let parts = slug.split(separator: "/", maxSplits: 1)
+                return parts.count == 2 ? Repo(org: String(parts[0]), name: String(parts[1])) : nil
+            } ?? []
         case .log: return []
         }
     }
@@ -5803,6 +5859,7 @@ final class AppModel {
         case .history: historyCursor = 0
         case .log: callLog.setCursor(0)
         case .timeline: timeline.setCursor(0)
+        case .ledger: ledger.setCursor(0)
         case .repos: repoCursor = 0
         case .inbox, .issues, .prs, .watch: itemCursor[view] = 0
         }
@@ -5815,6 +5872,7 @@ final class AppModel {
         case .history: historyRows.count
         case .log: callLog.rows.count
         case .timeline: timeline.rows.count
+        case .ledger: ledger.rows.count
         case .repos: worktreeRows.count
         case .inbox, .issues, .prs, .watch: itemIDs(view).count
         }
@@ -5905,7 +5963,7 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
-        case .log, .timeline:
+        case .log, .timeline, .ledger:
             return nil
         case .inbox:
             let ids = Set(actionIDs(.inbox))
@@ -6066,7 +6124,7 @@ final class AppModel {
     }
 
     /// Opens the command line with `text` typed, its completions listed.
-    private func openCommandLine(_ text: String) {
+    func openCommandLine(_ text: String) {
         let before = mode
         engine.enter(.command)
         if before != .command { modeChanged(from: before) }
@@ -6771,6 +6829,9 @@ final class AppModel {
         case .timeline:
             state.cursor = timeline.cursor
             state.rows = timeline.rows.count
+        case .ledger:
+            state.cursor = ledger.cursor
+            state.rows = ledger.rows.count
         case .inbox, .issues, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count

@@ -378,6 +378,8 @@ enum Shots {
         Shot(id: "history/history", keys: "gh"),
         Shot(id: "history/detail", keys: "gh", crop: .historyDetail),
         Shot(id: "history/timeline", keys: "ghT"),
+        Shot(id: "history/ledger", keys: "ghL"),
+        Shot(id: "history/ledger-detail", keys: "ghL", crop: .ledgerDetail),
         Shot(id: "history/timeline-worktrees", keys: "ghTtt"),
         Shot(id: "history/timeline-detail", keys: "ghTtt/flowchart<CR>", crop: .timelineDetail),
     ]

@@ -255,6 +255,7 @@ private struct GeneralSettings: View {
                 .labelsHidden()
                 .frame(width: 220)
             }
+            LedgerSettingsGroup()
             GroupLabel(title: "Outside the window")
             Field(
                 label: "Menu bar item",
@@ -1114,6 +1115,61 @@ private struct CallLogSettings: View {
                 Text("\(value) day\(value == 1 ? "" : "s")").font(Theme.mono(12.5))
             }
             .frame(width: 160)
+        }
+    }
+}
+
+/// `[summary] when`, `idle_hours`, `include`: when History's ledger writes a summary, and what it keeps.
+private struct LedgerSettingsGroup: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let ledger = model.config.ledger
+        GroupLabel(title: "History ledger")
+        Text("A cheap model (Agents › Model calls) writes a short summary of each piece of work; S in the ledger "
+            + "writes one any time. Summaries stay on this Mac.")
+            .font(Theme.ui(11.5))
+            .foregroundStyle(Theme.fg3)
+            .fixedSize(horizontal: false, vertical: true)
+        ForEach(LedgerTrigger.configurable, id: \.self) { trigger in
+            Field(label: "When \(trigger == .idle ? "idle for \(ledger.idleHours) h" : trigger.title)") {
+                HStack {
+                    Toggle("", isOn: Binding(
+                        get: { ledger.when.contains(trigger) },
+                        set: { on in
+                            var when = ledger.when
+                            if on { when.insert(trigger) } else { when.remove(trigger) }
+                            let names = LedgerTrigger.configurable.filter(when.contains)
+                                .map { TOMLValue.string($0.rawValue) }
+                            model.setConfig(["summary", "when"], .array(names))
+                        }
+                    )).labelsHidden().toggleStyle(.switch)
+                    if trigger == .idle {
+                        Stepper(value: Binding(
+                            get: { ledger.idleHours },
+                            set: { model.setConfig(["summary", "idle_hours"], .integer($0)) }
+                        ), in: 1 ... 720) { EmptyView() }
+                            .labelsHidden()
+                    }
+                }
+            }
+        }
+        Field(label: "Include", detail: "Files come from git; the rest is what the model writes.") {
+            HStack(spacing: 12) {
+                ForEach(LedgerPart.allCases, id: \.self) { part in
+                    Toggle(part.title, isOn: Binding(
+                        get: { ledger.include.contains(part) },
+                        set: { on in
+                            var include = ledger.include
+                            if on { include.insert(part) } else { include.remove(part) }
+                            let names = LedgerPart.allCases.filter(include.contains)
+                                .map { TOMLValue.string($0.rawValue) }
+                            model.setConfig(["summary", "include"], .array(names))
+                        }
+                    ))
+                    .font(Theme.ui(12))
+                }
+            }
         }
     }
 }

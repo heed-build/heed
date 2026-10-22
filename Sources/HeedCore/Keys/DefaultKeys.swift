@@ -89,11 +89,17 @@ public enum DefaultKeys {
             ("O", "history.again"),
             ("t", "history.outcome"),
             ("T", "history.timeline"),
+            ("L", "history.ledger"),
         ],
         // History's timeline (T, :timeline); T again goes back to the list.
         "timeline": [
-            ("T", "history.timeline"), ("R", "history.reopen"), ("t", "timeline.kind"), ("r", "timeline.repo"),
-            ("w", "timeline.where"), ("D", "timeline.gone"),
+            ("T", "history.timeline"), ("L", "history.ledger"), ("R", "history.reopen"), ("t", "timeline.kind"),
+            ("r", "timeline.repo"), ("w", "timeline.where"), ("D", "timeline.gone"),
+        ],
+        // History's ledger (L, :ledger); L again goes back to the list.
+        "ledger": [
+            ("L", "history.ledger"), ("T", "history.timeline"), ("R", "history.reopen"), ("S", "ledger.summarize"),
+            ("E", "ledger.edit"),
         ],
         // The call log has no key of its own (:log); inside it, its filters.
         "log": [

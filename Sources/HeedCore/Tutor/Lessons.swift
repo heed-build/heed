@@ -265,6 +265,13 @@ public extension Tutor {
                 doneLine: "Removed worktrees stay on the timeline, struck through, with what was saved."
             ) { _, now, seen in seen.contains { $0.view == "timeline" } && now.view == "history" },
             TutorStep(
+                "The ledger",
+                say: "{history.ledger} shows the ledger: a short summary of each piece of work, written by a cheap "
+                    + "model, kept after its worktree is gone. {history.ledger} again comes back.",
+                keys: ["{history.ledger}", "{history.ledger}"], target: "historyList",
+                doneLine: "{ledger.summarize} in the ledger writes a summary now; {ledger.edit} edits one."
+            ) { _, now, seen in seen.contains { $0.view == "ledger" } && now.view == "history" },
+            TutorStep(
                 "Reopen it",
                 say: "{history.reopen} brings the session back: its worktree, and its agent resuming where it was.",
                 keys: ["{history.reopen}"], target: "historyList",

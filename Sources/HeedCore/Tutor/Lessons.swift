@@ -113,8 +113,8 @@ public extension Tutor {
             ) { start, now, _ in now.sessions > start.sessions },
             TutorStep(
                 "Or just a chat",
-                say: "No repo needed? :chat starts a chat: an agent in an empty folder, no worktree or branch. Ask it something, then ⌘↩.",
-                keys: [":chat", "⌘↩"], target: "dialog",
+                say: "No repo needed? {chat.new} starts a chat: an agent in an empty folder, no worktree or branch. Ask it something, then ⌘↩.",
+                keys: ["{chat.new}", "⌘↩"], target: "dialog",
                 doneLine: "A chat, under Chats in the sidebar. If it asks you something, it shows in Needs you."
             ) { start, now, _ in now.chats > start.chats },
         ]),

@@ -131,6 +131,70 @@ public struct Notices: Equatable, Sendable {
         }
     }
 
+    /// What became of an entry, for the event log.
+    public struct Decision: Equatable, Sendable {
+        public enum Outcome: String, Sendable {
+            /// Shown (alone or in a summary).
+            case posted
+            /// Its session was on screen.
+            case onScreen = "on screen"
+            /// In quiet hours.
+            case quiet = "quiet hours"
+            /// It stopped needing you before its grace ended.
+            case cleared = "cleared within the grace"
+            /// macOS does not allow Heed to notify (the app decides this one, when it posts).
+            case notAllowed = "not allowed by macOS"
+        }
+
+        public var entry: Entry
+        public var outcome: Outcome
+        public var at: Date
+
+        public init(entry: Entry, outcome: Outcome, at: Date) {
+            self.entry = entry
+            self.outcome = outcome
+            self.at = at
+        }
+
+        /// The event: on the entry's session, the PR or helper tab as its subject.
+        public func event(about session: Session?) -> LoggedEvent {
+            let text = outcome == .posted ? "notified: \(entry.body)" : "not notified (\(outcome.rawValue)): \(entry.body)"
+            let payload = [
+                "outcome": outcome.rawValue,
+                "kind": entry.kind.rawValue,
+                "reminder": entry.reminder ? "true" : "false",
+            ]
+            let subject = entry.kind == .session ? nil : entry.id
+            if let session {
+                return LoggedEvent(
+                    at: at,
+                    kind: .notification,
+                    about: session,
+                    subject: subject,
+                    text: text,
+                    payload: payload
+                )
+            }
+            return LoggedEvent(
+                at: at,
+                kind: .notification,
+                session: entry.session,
+                subject: subject,
+                text: text,
+                payload: payload
+            )
+        }
+    }
+
+    /// What was decided since `takeDecisions` last emptied it.
+    public private(set) var decisions: [Decision] = []
+
+    /// The decisions so far, emptied.
+    public mutating func takeDecisions() -> [Decision] {
+        defer { decisions = [] }
+        return decisions
+    }
+
     /// How long the batch stays open after the first entry is ready: long enough to collect a burst, short enough to
     /// matter.
     public static let window: TimeInterval = 3
@@ -171,7 +235,12 @@ public struct Notices: Equatable, Sendable {
     public mutating func note(id: String, _ entry: Entry?, timing: Timing, at now: Date, seen: Bool = false) {
         let index = waiting.firstIndex { $0.entry.id == id }
         guard let entry else {
-            if let index { waiting.remove(at: index) }
+            if let index {
+                if case .grace = waiting[index].stage {
+                    decisions.append(Decision(entry: waiting[index].entry, outcome: .cleared, at: now))
+                }
+                waiting.remove(at: index)
+            }
             return
         }
         if let index {
@@ -187,7 +256,9 @@ public struct Notices: Equatable, Sendable {
     /// entries start their wait, ones that changed state start over, and ones of that kind not in `entries` end.
     public mutating func sync(_ kind: Kind, _ entries: [Entry], timing: Timing, at now: Date, seen: Bool = false) {
         let current = Set(entries.map(\.id))
-        waiting.removeAll { $0.entry.kind == kind && !current.contains($0.entry.id) }
+        for gone in waiting where gone.entry.kind == kind && !current.contains(gone.entry.id) {
+            note(id: gone.entry.id, nil, timing: timing, at: now)
+        }
         for entry in entries where entry.kind == kind {
             note(id: entry.id, entry, timing: timing, at: now, seen: seen)
         }
@@ -219,7 +290,14 @@ public struct Notices: Equatable, Sendable {
             case .done:
                 continue
             }
-            if !quiet, !onScreen(entry.session) { shown.append(entry) }
+            if quiet {
+                decisions.append(Decision(entry: entry, outcome: .quiet, at: now))
+            } else if onScreen(entry.session) {
+                decisions.append(Decision(entry: entry, outcome: .onScreen, at: now))
+            } else {
+                decisions.append(Decision(entry: entry, outcome: .posted, at: now))
+                shown.append(entry)
+            }
         }
         switch shown.count {
         case 0: return nil

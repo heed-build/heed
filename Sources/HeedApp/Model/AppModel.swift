@@ -98,7 +98,7 @@ final class AppModel {
     /// Opens the Settings window (set by the view, which has the SwiftUI action).
     var openSettings: (() -> Void)?
     /// Nil for fixtures: nothing is persisted and no adapter runs.
-    private var store: DomainStore?
+    private(set) var store: DomainStore?
     let isFixture: Bool
     private var hookServer: HookServer?
     /// Where the per-run hook files live. Screenshots show a made-up home, never the real one.

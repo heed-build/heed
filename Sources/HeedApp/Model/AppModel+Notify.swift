@@ -29,3 +29,14 @@ extension AppModel {
         Notifier.shared.sync(.helper, helpers, settings: settings, seen: seen)
     }
 }
+
+extension AppModel {
+    /// What became of each thing that needed you, into the event log (`notification` events).
+    func logNotifications(_ decisions: [Notices.Decision]) {
+        guard !decisions.isEmpty, let store else { return }
+        let events = decisions.map { decision in
+            decision.event(about: sessions.first { $0.id == decision.entry.session })
+        }
+        Task { await store.log(events) }
+    }
+}

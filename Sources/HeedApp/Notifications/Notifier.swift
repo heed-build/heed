@@ -55,6 +55,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         if !session.state.state.needsYou, shown.removeValue(forKey: session.id) != nil {
             center?.removeDeliveredNotifications(withIdentifiers: [Self.identifier(session.id)])
         }
+        model?.logNotifications(notices.takeDecisions())
         schedule()
     }
 
@@ -68,6 +69,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             gone.forEach { shown.removeValue(forKey: $0) }
             center?.removeDeliveredNotifications(withIdentifiers: gone.map(Self.identifier))
         }
+        model?.logNotifications(notices.takeDecisions())
         schedule()
     }
 
@@ -92,14 +94,25 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let now = Date()
         let quiet = model.config.attention.quiet?.contains(now) ?? false
         let notice = notices.drain(at: now, quiet: quiet) { model.isOnScreen(sessionID: $0) }
+        var decisions = notices.takeDecisions()
         schedule()
-        await post(notice)
+        if await !post(notice) {
+            decisions = decisions.map { decision in
+                var decision = decision
+                if decision.outcome == .posted { decision.outcome = .notAllowed }
+                return decision
+            }
+        }
+        model.logNotifications(decisions)
     }
 
     private static func identifier(_ id: String) -> String { "heed.session.\(id)" }
 
-    private func post(_ notice: Notices.Notice?) async {
-        guard let notice, let center, await authorized(center) else { return }
+    /// Posts the notice; false when macOS does not allow Heed to notify.
+    @discardableResult
+    private func post(_ notice: Notices.Notice?) async -> Bool {
+        guard let notice, let center else { return true }
+        guard await authorized(center) else { return false }
         let content = UNMutableNotificationContent()
         content.title = notice.title
         content.body = notice.body
@@ -118,6 +131,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             content.categoryIdentifier = Self.sessionCategory
         }
         try? await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
+        return true
     }
 
     /// Asks the first time; after that, whatever you answered (System Settings › Notifications changes it).

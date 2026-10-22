@@ -77,6 +77,21 @@ struct ResumeTests {
         ) == false)
         #expect(AgentIntegration.hasSession(agent: "codex", id: "abc", directory: "/", home: home) == nil)
     }
+
+    @Test func aClaudeSessionResumedFromAnotherFolderIsStillFound() throws {
+        // A throwaway home with a made-up transcript: claude keeps writing a session where it began, even when
+        // `--resume` continues it from another folder.
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("home-\(UUID().uuidString)").path
+        defer { try? FileManager.default.removeItem(atPath: home) }
+        let folder = "\(home)/.claude/projects/-tmp-first-folder"
+        try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: "\(folder)/abc.jsonl", contents: Data())
+        #expect(AgentIntegration.hasSession(agent: "claude", id: "abc", directory: "/code/wt/r/x", home: home) == true)
+        #expect(AgentIntegration
+            .hasSession(agent: "claude", id: "gone", directory: "/code/wt/r/x", home: home) == false)
+        // No projects folder at all: nothing found, no error.
+        #expect(AgentIntegration.hasSession(agent: "claude", id: "abc", directory: "/x", home: home + "/none") == false)
+    }
 }
 
 struct HistoryTests {

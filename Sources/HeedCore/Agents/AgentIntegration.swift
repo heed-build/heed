@@ -344,7 +344,9 @@ public enum AgentIntegration {
     """#
 
     /// Whether the agent still has session `id` for `directory`: true or false when Heed can tell (claude keeps
-    /// `~/.claude/projects/<cwd with / and . as ->/<id>.jsonl`), nil when it cannot (assume it does).
+    /// `~/.claude/projects/<cwd with / and . as ->/<id>.jsonl`), nil when it cannot (assume it does). Claude's
+    /// `--resume` finds a session from any folder and keeps writing it where it began, so a session resumed elsewhere
+    /// (resumed by hand from another folder) is looked for in every project folder when it is not under `directory`'s.
     public static func hasSession(
         agent: String,
         id: String,
@@ -355,10 +357,16 @@ public enum AgentIntegration {
         case "claude":
             FileManager.default.fileExists(
                 atPath: "\(home)/.claude/projects/\(claudeProjectFolder(directory))/\(id).jsonl"
-            )
+            ) || claudeSessionAnywhere(id: id, home: home)
         default:
             nil
         }
+    }
+
+    static func claudeSessionAnywhere(id: String, home: String) -> Bool {
+        let root = "\(home)/.claude/projects"
+        let folders = (try? FileManager.default.contentsOfDirectory(atPath: root)) ?? []
+        return folders.contains { FileManager.default.fileExists(atPath: "\(root)/\($0)/\(id).jsonl") }
     }
 
     // MARK: Claude Code

@@ -8,6 +8,7 @@ public enum Handoff {
     public static func prompt(
         session: Session, from agent: String, prs: [PullRef] = [], base: String? = nil, instructions: String = ""
     ) -> String {
+        if session.isChat { return chatPrompt(session: session, from: agent) }
         var lines = ["You are taking over work on the branch \(session.branch) from \(agent), in this worktree."]
         let task = session.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         if !task.isEmpty { lines.append("The task was:\n\n\(task)\n") }
@@ -23,6 +24,16 @@ public enum Handoff {
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
         if !extra.isEmpty { lines.append(extra) }
+        return lines.joined(separator: "\n")
+    }
+
+    /// A chat has no branch or git history to read: the new agent is told whose conversation it takes over, where, and
+    /// how it began.
+    static func chatPrompt(session: Session, from agent: String) -> String {
+        var lines = ["You are taking over a conversation from \(agent), in this folder."]
+        let first = session.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !first.isEmpty { lines.append("It began with:\n\n\(first)\n") }
+        lines.append("Look at the files here for what is already done, then carry on.")
         return lines.joined(separator: "\n")
     }
 

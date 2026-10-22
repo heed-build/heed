@@ -2698,7 +2698,8 @@ final class AppModel {
             lines: [
                 running ? "\(session.agent) is \(session.state.state.rawValue): it stops with the panes" :
                     "Its panes close",
-                "The worktree stays; the session moves to History, where R reopens it",
+                session.isChat ? "Its folder stays; the chat moves to History, where R reopens it"
+                    : "The worktree stays; the session moves to History, where R reopens it",
             ],
             accept: "Close"
         ) { [weak self] in self?.closeCurrent() })
@@ -2723,7 +2724,7 @@ final class AppModel {
         let lines = removals.map { removal in
             "remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "")"
                 + (removal.deleteBranch ? " and its local branch" : "")
-        } + (mine.isEmpty ? ["No worktree to remove"] : [])
+        } + (mine.isEmpty && !session.isChat ? ["No worktree to remove"] : [])
         return (removals, kept, lines)
     }
 
@@ -2786,7 +2787,7 @@ final class AppModel {
             TerminalSurfaces.shared.close(paneID: pane.id)
         }
         cursor = min(cursor, max(list.ordered.count - 1, 0))
-        flash = "closed; worktree kept · in history (gh)"
+        flash = "closed; \(session.isChat ? "folder" : "worktree") kept · in history (gh)"
     }
 
     private func jump(to target: HintTarget) {
@@ -5366,10 +5367,11 @@ final class AppModel {
             overlay = nil
             return
         }
-        guard currentSession != nil else {
+        guard let session = currentSession else {
             flash = "no session"
             return
         }
+        guard !session.isChat else { return flash = "a chat has no repo to diff" }
         overlay = .diff
         loadDiff()
     }
@@ -5885,7 +5887,8 @@ final class AppModel {
             title: "Hand off to \(agent.name)?",
             lines: [
                 "\(session.agent) is still running in \(session.title)'s pane. Stop it and hand off to \(agent.name)?",
-                "\(agent.name) starts in the same worktree, told the task and to read git for what is done",
+                session.isChat ? "\(agent.name) starts in the same folder, told how the chat began"
+                    : "\(agent.name) starts in the same worktree, told the task and to read git for what is done",
             ],
             accept: "Hand off"
         ) { [weak self] in self?.handOff(session.id, to: agent) })
@@ -6004,7 +6007,8 @@ final class AppModel {
     private func split(_ axis: PaneTree.Axis) {
         guard let session = currentSession else { return }
         let directory = currentTab?.tree.panes.first?.directory ?? NSHomeDirectory()
-        updateTab { $0.split(axis, with: PaneSpec(role: .shell, title: "zsh \(session.branch)", directory: directory)) }
+        let title = session.isChat ? "zsh" : "zsh \(session.branch)"
+        updateTab { $0.split(axis, with: PaneSpec(role: .shell, title: title, directory: directory)) }
     }
 
     private func closePane() {
@@ -6111,7 +6115,9 @@ final class AppModel {
             destructive: false,
             action: { [weak self] in self?.reopenShell(in: id) },
             alternatives: [
-                .init(label: "Close, keep the worktree", key: "c") { [weak self] in self?.closeSession(id) },
+                .init(label: session.isChat ? "Close" : "Close, keep the worktree", key: "c") { [weak self] in
+                    self?.closeSession(id)
+                },
                 .init(label: "Delete", key: "d", destructive: true) { [weak self] in
                     self?.deleteSession(id, removals: removals, kept: kept)
                 },
@@ -6123,11 +6129,12 @@ final class AppModel {
     /// Keep: the session gets a shell tab again, in its worktree.
     private func reopenShell(in id: String) {
         guard let session = sessions.first(where: { $0.id == id }) else { return }
-        let directory = worktrees.first { session.owns($0) }?.path
+        let directory = session.chat?.path ?? worktrees.first { session.owns($0) }?.path
             ?? NSHomeDirectory()
         var layout = layouts[id] ?? SessionLayout(tabs: [])
         layout.tabs.append(PaneTab(title: "shell", tree: .leaf(PaneSpec(
-            role: .shell, title: "zsh \(session.branch)", directory: directory
+            role: .shell, title: session.isChat ? "zsh" : "zsh \(session.branch)", directory: directory,
+            location: session.isChat ? session.location : .local
         ))))
         layout.activeTab = layout.tabs.count - 1
         commit(.layoutChanged(session: id, layout))

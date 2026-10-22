@@ -36,8 +36,33 @@ public struct PullRef: Hashable, Sendable, Codable, CustomStringConvertible {
     public var url: String { "https://github.com/\(repo.slug)/pull/\(number)" }
 }
 
+/// A chat's folder: an empty one heed made for it (scratch), or one you picked (folder).
+public struct ChatFolder: Hashable, Sendable, Codable {
+    public enum Kind: String, Hashable, Sendable, Codable, CaseIterable {
+        /// A new empty folder per chat, under the chats root; heed may remove it once the chat is long closed.
+        case scratch
+        /// A folder you picked; heed never removes it.
+        case folder
+    }
+
+    public var kind: Kind
+    /// Where the agent runs: on this Mac, or on the session's host.
+    public var path: String
+
+    public init(_ kind: Kind, path: String) {
+        self.kind = kind
+        self.path = path
+    }
+}
+
+/// Where a session works: in worktrees of its repos, or, for a chat, in a folder with no repo or branch.
+public enum Workspace: Hashable, Sendable {
+    case worktrees
+    case chat(ChatFolder)
+}
+
 /// One task: a prompt, its worktrees (possibly across repos), terminals, the agent's own session id, tracked PRs.
-/// Heed keeps only this record; the agent owns its transcript.
+/// Heed keeps only this record; the agent owns its transcript. A chat is a session without repos: it runs in a folder.
 public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var id: String
     public var title: String
@@ -75,6 +100,18 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var notes: [FeedbackItem]
     /// The agent's latest model and what it used, as its hooks report; nil until they report any.
     public var usage: AgentUsage?
+    /// Worktrees of `repos`, or a chat's folder.
+    public var workspace: Workspace = .worktrees
+
+    /// The chat's folder; nil for a session in worktrees.
+    public var chat: ChatFolder? {
+        if case let .chat(folder) = workspace { folder } else { nil }
+    }
+
+    public var isChat: Bool { chat != nil }
+
+    /// Where its agent starts: a chat's folder, else its first worktree (nil before it has one).
+    public var directory: String? { chat?.path ?? worktreePaths.first }
 
     /// The repos it works in (its worktrees), then those of PRs it opened elsewhere.
     public var involvedRepos: [Repo] {
@@ -89,7 +126,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         id: String = UUID().uuidString.lowercased(), title: String, prompt: String = "", repos: [Repo], branch: String,
         agent: String, agentSessionID: String? = nil, state: ObservedState, activity: String = "",
         trackedPRs: [PullRef] = [], pinned: Bool = false, parked: Bool = false, lastActivity: Date = Date(),
-        createdAt: Date? = nil, timeline: [TimelineEvent] = []
+        createdAt: Date? = nil, timeline: [TimelineEvent] = [], workspace: Workspace = .worktrees
     ) {
         self.id = id
         self.title = title
@@ -106,7 +143,8 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         self.lastActivity = lastActivity
         self.createdAt = createdAt ?? lastActivity
         self.timeline = timeline
-        branches = [branch]
+        self.workspace = workspace
+        branches = workspace == .worktrees ? [branch] : []
         worktreePaths = []
         untrackedPRs = []
         issues = []
@@ -117,7 +155,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     private enum CodingKeys: String, CodingKey {
         case id, title, prompt, repos, branch, agent, agentSessionID, state, activity, trackedPRs, pinned, parked,
              lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs, host, issues, hiddenIssues,
-             notes, usage
+             notes, usage, chat
     }
 
     /// Sessions cached before branches were followed still load.
@@ -147,18 +185,50 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         hiddenIssues = try container.decodeIfPresent([IssueRef].self, forKey: .hiddenIssues) ?? []
         notes = try container.decodeIfPresent([FeedbackItem].self, forKey: .notes) ?? []
         usage = try container.decodeIfPresent(AgentUsage.self, forKey: .usage)
+        workspace = try container.decodeIfPresent(ChatFolder.self, forKey: .chat).map(Workspace.chat) ?? .worktrees
+    }
+
+    /// A chat keeps its folder under `chat`; a session in worktrees writes nothing for it, as before chats.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(prompt, forKey: .prompt)
+        try container.encode(repos, forKey: .repos)
+        try container.encode(branch, forKey: .branch)
+        try container.encode(agent, forKey: .agent)
+        try container.encodeIfPresent(agentSessionID, forKey: .agentSessionID)
+        try container.encode(state, forKey: .state)
+        try container.encode(activity, forKey: .activity)
+        try container.encode(trackedPRs, forKey: .trackedPRs)
+        try container.encode(pinned, forKey: .pinned)
+        try container.encode(parked, forKey: .parked)
+        try container.encode(lastActivity, forKey: .lastActivity)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(timeline, forKey: .timeline)
+        try container.encode(branches, forKey: .branches)
+        try container.encode(worktreePaths, forKey: .worktreePaths)
+        try container.encode(untrackedPRs, forKey: .untrackedPRs)
+        try container.encodeIfPresent(host, forKey: .host)
+        try container.encode(issues, forKey: .issues)
+        try container.encode(hiddenIssues, forKey: .hiddenIssues)
+        try container.encode(notes, forKey: .notes)
+        try container.encodeIfPresent(usage, forKey: .usage)
+        try container.encodeIfPresent(chat, forKey: .chat)
     }
 
     /// What the sidebar calls the session: its worktree's folder name (Start work names it after the task, the same
-    /// as the branch), else its branch. The prompt-derived `title` stays for the title bar and the inspector.
+    /// as the branch), else its branch. The prompt-derived `title` stays for the title bar and the inspector. A chat
+    /// has neither, so it goes by its title.
     public var worktreeName: String {
-        worktreePaths.first.map { ($0 as NSString).lastPathComponent } ?? branch
+        if isChat { return title }
+        return worktreePaths.first.map { ($0 as NSString).lastPathComponent } ?? branch
     }
 
     /// Whether a worktree is this session's: one it has by path, or (for sessions that predate paths) one on its
     /// first branch, in one of its repos.
     public func owns(_ worktree: Worktree) -> Bool {
-        worktree.location == location && repos.contains(worktree.repo)
+        !isChat && worktree.location == location && repos.contains(worktree.repo)
             && (worktreePaths.contains(worktree.path) || worktree.branch == branch)
     }
 
@@ -166,9 +236,10 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var location: Location { host.map(Location.host) ?? .local }
 
     /// Tracks a PR unless it is already tracked or was untracked by hand; says why on the timeline. True when added.
+    /// A chat tracks none: it has no branch for a PR to come from, and `:promote` is how one becomes work.
     @discardableResult
     public mutating func track(_ pull: PullRef, because reason: String, at date: Date = Date()) -> Bool {
-        guard !trackedPRs.contains(pull), !untrackedPRs.contains(pull) else { return false }
+        guard !isChat, !trackedPRs.contains(pull), !untrackedPRs.contains(pull) else { return false }
         trackedPRs.append(pull)
         record("tracking PR \(pull.repo.name)#\(pull.number) (\(reason))", at: date)
         return true
@@ -344,8 +415,9 @@ public struct HistoryEntry: Identifiable, Hashable, Sendable, Codable {
 
     public var duration: TimeInterval { closedAt.timeIntervalSince(session.createdAt) }
 
-    /// The outcome when a session is closed by hand, before GitHub knows better (step 6 refines it from PR state).
+    /// The outcome when a session is closed by hand, before GitHub knows better (step 6 refines it from PR state). A
+    /// chat had no work to abandon: it is closed.
     public static func outcome(closing session: Session) -> Outcome {
-        session.trackedPRs.isEmpty ? .abandoned : .closed
+        session.trackedPRs.isEmpty && !session.isChat ? .abandoned : .closed
     }
 }

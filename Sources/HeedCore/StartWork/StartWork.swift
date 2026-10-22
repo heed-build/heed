@@ -490,6 +490,11 @@ public enum Reopen {
         var session = entry.session
         var paths: [String] = []
         var changes: [DomainChange] = []
+        if let chat = session.chat {
+            try reopenFolder(chat, session: &session, now: now)
+            // Cursor's hooks file goes into a folder heed made, never into one you picked.
+            if chat.kind == .scratch { paths = [chat.path] }
+        }
         for repo in session.repos {
             guard let record = domain.repo(repo.slug) else { throw ReopenError.unknownRepo(repo.slug) }
             let existing = domain.worktrees.first { $0.repo == repo && $0.branch == session.branch }
@@ -502,6 +507,7 @@ public enum Reopen {
             }
             try await changes.append(.worktreesListed(repo: repo, Git.worktrees(of: record)))
         }
+        guard let directory = session.chat?.path ?? paths.first else { throw ReopenError.nowhere }
         // Reopening is explicit, so the only question is whether the agent can still resume its session.
         var command: ShellCommand?
         if let agent = settings.agent(session.agent) {
@@ -511,7 +517,7 @@ public enum Reopen {
                 } ?? []
             }
             let stillThere = session.agentSessionID.map {
-                AgentIntegration.hasSession(agent: agent.name, id: $0, directory: paths[0]) != false
+                AgentIntegration.hasSession(agent: agent.name, id: $0, directory: directory) != false
             } ?? false
             let env = integration.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
             if agent.name == "cursor", let heed = integration?.heedBinary {
@@ -534,13 +540,18 @@ public enum Reopen {
         session.state = ObservedState(.idle, source: .guessed)
         session.parked = false
         session.lastActivity = now
+        // A chat runs where its folder is; worktree sessions reopen here, as they always have.
+        let location: Location = session.isChat ? session.location : .local
         let agentPane = PaneSpec(
-            role: command == nil ? .shell : .agent, title: command == nil ? "zsh" : session.agent, directory: paths[0],
-            command: command
+            role: command == nil ? .shell : .agent, title: command == nil ? "zsh" : session.agent,
+            directory: directory, command: command, location: location
         )
         var main = PaneTab(title: command == nil ? "shell" : "agent", tree: .leaf(agentPane))
         if settings.shellSplit {
-            main.split(.horizontal, with: PaneSpec(role: .shell, title: "zsh \(session.branch)", directory: paths[0]))
+            main.split(.horizontal, with: PaneSpec(
+                role: .shell, title: session.isChat ? "zsh" : "zsh \(session.branch)", directory: directory,
+                location: location
+            ))
             main.focused = agentPane.id
         }
         changes += [
@@ -551,12 +562,30 @@ public enum Reopen {
     }
 }
 
+public extension Reopen {
+    /// A chat's folder, before its agent starts there again: a scratch folder heed removed (or you did) is made again,
+    /// empty; a folder you picked that is gone is not, since heed never makes or removes those. A chat on a host is
+    /// left to the host.
+    static func reopenFolder(_ chat: ChatFolder, session: inout Session, now: Date) throws {
+        guard session.location.isLocal, !FileManager.default.fileExists(atPath: chat.path) else { return }
+        guard chat.kind == .scratch else { throw ReopenError.folderGone(chat.path) }
+        try FileManager.default.createDirectory(atPath: chat.path, withIntermediateDirectories: true)
+        session.record("scratch folder made again, empty", at: now)
+    }
+}
+
 public enum ReopenError: Error, CustomStringConvertible {
     case unknownRepo(String)
+    /// A chat's picked folder is not there any more.
+    case folderGone(String)
+    /// A session with neither a repo nor a chat folder: nothing to reopen it in.
+    case nowhere
 
     public var description: String {
         switch self {
         case let .unknownRepo(slug): "\(slug) is not a known repo any more"
+        case let .folderGone(path): "\(Paths.abbreviate(path)) is not there any more"
+        case .nowhere: "it has no repo or folder to reopen in"
         }
     }
 }

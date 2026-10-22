@@ -575,7 +575,7 @@ public enum Reopen {
     /// an agent pane that resumes it (or starts fresh from the prompt when the agent dropped it).
     public static func execute(
         _ entry: HistoryEntry, domain: Domain, settings: WorkSettings, integration: IntegrationFiles?,
-        now: Date = Date()
+        hosts: [String: HostConfig] = [:], now: Date = Date()
     ) async throws -> [DomainChange] {
         var session = entry.session
         var paths: [String] = []
@@ -586,13 +586,20 @@ public enum Reopen {
             if chat.kind == .scratch { paths = [chat.path] }
         }
         var recreated = false
+        // A chat runs where its folder is, a session where its worktrees are: here, or on its host. Its archive refs
+        // are in the host's clone too.
+        let location = session.location
         for repo in session.repos {
-            guard let record = domain.repo(repo.slug) else { throw ReopenError.unknownRepo(repo.slug) }
-            let existing = domain.worktrees.first { $0.repo == repo && $0.branch == session.branch }
-            if let existing, FileManager.default.fileExists(atPath: existing.path) {
+            let id = StartContext.id(repo, location)
+            guard let record = domain.repo(id) else { throw ReopenError.unknownRepo(id) }
+            let existing = domain.worktrees.first {
+                $0.repo == repo && $0.location == location && $0.branch == session.branch
+            }
+            // A host's listing is what there is; here the directory can have gone since.
+            if let existing, !location.isLocal || FileManager.default.fileExists(atPath: existing.path) {
                 paths.append(existing.path)
             } else {
-                let path = settings.worktreePath(repo: repo, name: session.branch)
+                let path = StartWork.worktreePath(for: record, name: session.branch, settings: settings, hosts: hosts)
                 let restored = try await Git.restoreWorktree(record, path: path, branch: session.branch)
                 paths.append(restored.worktree.path)
                 session.record("worktree recreated from \(restored.archive ?? session.branch)", at: now)
@@ -634,8 +641,6 @@ public enum Reopen {
         session.state = ObservedState(.idle, source: .guessed)
         session.parked = false
         session.lastActivity = now
-        // A chat runs where its folder is; worktree sessions reopen here, as they always have.
-        let location: Location = session.isChat ? session.location : .local
         // A worktree made again is a new checkout: it gets the repo's setup first, as a new session's does.
         let setup = recreated ? session.repos.first.flatMap { settings.setup.commands(for: $0) } ?? [] : []
         let agentPane = PaneSpec(

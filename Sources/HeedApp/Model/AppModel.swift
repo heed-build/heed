@@ -3397,6 +3397,7 @@ final class AppModel {
         let domain = currentDomain
         let settings = settings
         let integration = integration
+        let hosts = config.hosts
         flash = "reopening \(entry.session.title)…"
         Task {
             do {
@@ -3404,7 +3405,8 @@ final class AppModel {
                     entry,
                     domain: domain,
                     settings: settings,
-                    integration: integration
+                    integration: integration,
+                    hosts: hosts
                 )
                 for case let .layoutChanged(_, layout) in changes {
                     for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {

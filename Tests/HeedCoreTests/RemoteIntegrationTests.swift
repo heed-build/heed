@@ -110,6 +110,53 @@ struct RemoteIntegrationTests {
         #expect(await Archive.list(record)?.map(\.branch) == ["spike"])
     }
 
+    @Test func reopenBringsBackAWorktreeOnItsHostFromItsArchive() async throws {
+        guard let setup else { return }
+        configure(setup)
+        defer { Remote.setExtraOptions([]); Remote.setTargets([:]) }
+        let box = Location.host("box")
+        func sh(_ line: String) async throws -> String {
+            try await ProcessRunner.output(on: box, "sh", ["-c", line], caller: "test")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        let home = try await sh("echo $HOME")
+        let base = "\(home)/heed-archive-\(UUID().uuidString.prefix(8))"
+        defer { Task { _ = try? await sh("rm -rf \(base)") } }
+        _ = try await sh("""
+        set -e; mkdir -p \(base); cd \(base); git init -q -b main repo; cd repo
+        git config user.email t@t; git config user.name t; echo one > a.txt; git add .; git commit -qm a
+        git worktree add -q -b spike \(base)/wt/repo/spike; cd \(base)/wt/repo/spike
+        echo two > a.txt; git commit -qam spike; echo wip > c.txt
+        """)
+        let commit = try await sh("git -C \(base)/wt/repo/spike rev-parse HEAD")
+        let record = RepoRecord(repo: Repo(org: "local", name: "repo"), path: base + "/repo", location: box)
+        let worktree = Worktree(
+            repo: record.repo, path: base + "/wt/repo/spike", branch: "spike", head: "", isMain: false, location: box
+        )
+        // Saved where it lives, then removed with its branch, as a removal does.
+        let saved = try await Archive.save(worktree, in: record)
+        #expect(saved.said == "saved 2 unpushed commits and uncommitted changes as heed/archive/spike")
+        _ =
+            try await sh(
+                "git -C \(record.path) worktree remove --force \(worktree.path) && git -C \(record.path) branch -D spike"
+            )
+
+        var closed = Session(
+            id: "s", title: "s", prompt: "p", repos: [record.repo], branch: "spike", agent: "none",
+            state: ObservedState(.done)
+        )
+        closed.host = "box"
+        let entry = HistoryEntry(session: closed, closedAt: Date(), outcome: .cleanedUp)
+        let changes = try await Reopen.execute(
+            entry, domain: Domain(repos: [record], history: [entry]), settings: WorkSettings.default,
+            integration: nil, hosts: ["box": HostConfig(name: "box", worktreeRoot: base + "/wt")]
+        )
+        #expect(try await sh("git -C \(worktree.path) rev-parse HEAD") == commit)
+        #expect(try await sh("cat \(worktree.path)/c.txt") == "wip")
+        let pane = Domain().applying(changes).layouts["s"]?.tabs.first?.tree.panes.first
+        #expect(pane?.location == box && pane?.directory == worktree.path)
+    }
+
     @Test func failuresAreNamed() async {
         guard let setup else { return }
         let empty = setup.dir + "/empty_known_hosts"

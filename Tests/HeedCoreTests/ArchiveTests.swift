@@ -243,3 +243,34 @@ struct ArchiveTests {
         #expect(CleanupRule().keepArchiveDays == 90)
     }
 }
+
+struct ReopenPlaceTests {
+    @Test func aHostSessionIsNeverRecreatedOnThisMac() async throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("heed-rp-\(UUID().uuidString)").path
+        defer { try? FileManager.default.removeItem(atPath: base) }
+        let clone = base + "/clone"
+        try FileManager.default.createDirectory(atPath: clone, withIntermediateDirectories: true)
+        for args in [
+            ["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
+            ["commit", "-q", "--allow-empty", "-m", "a"], ["branch", "spike"],
+        ] {
+            _ = try await ProcessRunner.output("git", ["-C", clone] + args, caller: "test")
+        }
+        // Only this Mac's clone of the repo is known; the session ran on @box.
+        let record = RepoRecord(repo: Repo(org: "o", name: "r"), path: clone)
+        var settings = WorkSettings.default
+        settings.worktreeRoot = base + "/wt"
+        var closed = Session(
+            id: "s", title: "s", prompt: "p", repos: [record.repo], branch: "spike", agent: "none",
+            state: ObservedState(.done)
+        )
+        closed.host = "box"
+        let entry = HistoryEntry(session: closed, closedAt: Date(), outcome: .cleanedUp)
+        await #expect(throws: ReopenError.self) {
+            _ = try await Reopen.execute(
+                entry, domain: Domain(repos: [record], history: [entry]), settings: settings, integration: nil
+            )
+        }
+        #expect(!FileManager.default.fileExists(atPath: base + "/wt/r/spike"))
+    }
+}

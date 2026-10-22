@@ -60,6 +60,7 @@ toc:
     children:
       - file: index.md
       - file: inbox.md
+      - file: attention-rules.md
       - file: issues.md
       - file: pull-requests.md
       - file: reading.md

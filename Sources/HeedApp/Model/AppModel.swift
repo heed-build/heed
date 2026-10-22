@@ -86,6 +86,12 @@ final class AppModel {
     private(set) var config = HeedConfig.default
     /// What is wrong with config.toml, if anything; the last good config stays in use.
     private(set) var configProblems: [ConfigProblem] = []
+    /// heed's own model calls (`[llm]`): every call goes through `runLLM` (AppModel+LLM).
+    let llm = LLMRunner()
+    /// What detection found per agent, for Settings › Agents.
+    var llmStatuses: [LLMAgentStatus] = []
+    /// Settings' Test per agent: running, or how the last one ended.
+    var llmTests: [String: LLMTest] = [:]
     let configFile = ConfigLoader.defaultFile()
     private var configWatcher: ConfigWatcher?
     /// Last commit date per worktree path, gathered with the repo refresh (sweep activity).
@@ -285,6 +291,7 @@ final class AppModel {
             tailnet = Fixtures.tailnet
             tailscalePath = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
             issueInfo = Fixtures.issueInfo
+            llmStatuses = Self.fixtureLLMStatuses
             for (id, live) in Fixtures.subagents {
                 setSubagents(Subagents(live), of: id)
             }
@@ -308,6 +315,7 @@ final class AppModel {
         startConfig()
         Notifier.shared.attach(self)
         if !isFixture { await detectTools() }
+        await startLLM()
         startHooks()
         let integration = integration
         Task.detached(priority: .utility) {
@@ -736,6 +744,7 @@ final class AppModel {
         if issuesChanged, !isFixture, github.syncedAt != nil { Task { await syncGitHub(parts: [.issues]) } }
         // PRs nobody set by hand follow the new pilot settings.
         if pilotChanged { settlePilots() }
+        configureLLM()
     }
 
     /// `[tools] zmx` (a path, or a name on the search path), else zmx on the search path.

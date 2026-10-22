@@ -190,6 +190,25 @@ public actor LLMRunner {
         limited = agents
     }
 
+    /// The agents rate limited in one of `sessions`, with when the limit lifts: the latest reset known, nil when any
+    /// of them did not say.
+    public static func limits(of sessions: [Session]) -> [String: Date?] {
+        var limits: [String: Date?] = [:]
+        for session in sessions where session.state.state == .limited {
+            let resets = session.usage?.rateLimitResetsAt
+            if let known = limits[session.agent] {
+                guard let current = known, let resets else {
+                    limits[session.agent] = Date?.none
+                    continue
+                }
+                limits[session.agent] = max(current, resets)
+            } else {
+                limits[session.agent] = resets
+            }
+        }
+        return limits
+    }
+
     /// Today's spend so far from the call log's `llm` rows, so a restart does not reset the daily cap.
     public func seedSpend(from calls: [LoggedCall]) {
         rollDay()

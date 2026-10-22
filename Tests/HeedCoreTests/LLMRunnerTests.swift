@@ -193,6 +193,26 @@ struct LLMRunnerTests {
         #expect(try await runner.run(ask("e")).agent == "claude")
     }
 
+    @Test func sessionsSayWhichAgentsAreLimited() {
+        func session(_ id: String, _ agent: String, _ state: AgentState, resets: Date?) -> Session {
+            var session = Session(
+                id: id, title: id, repos: [], branch: id, agent: agent, state: ObservedState(state)
+            )
+            session.usage = AgentUsage(rateLimitResetsAt: resets)
+            return session
+        }
+        let soon = Self.start.addingTimeInterval(600)
+        let later = Self.start.addingTimeInterval(3600)
+        let limits = LLMRunner.limits(of: [
+            session("a", "claude", .limited, resets: soon), session("b", "claude", .limited, resets: later),
+            session("c", "codex", .limited, resets: later), session("d", "codex", .limited, resets: nil),
+            session("e", "pi", .working, resets: later), session("f", "gemini", .limited, resets: nil),
+        ])
+        #expect(limits.count == 3)
+        #expect(limits["claude"] == .some(later))
+        #expect(limits["codex"] == .some(nil) && limits["gemini"] == .some(nil) && limits["pi"] == nil)
+    }
+
     @Test func aFailedAgentBacksOffAndTheCallMovesOn() async throws {
         let fakes = try [FakeCLI(), FakeCLI()]
         try fakes[0].set("mode", "fail")

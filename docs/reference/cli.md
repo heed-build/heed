@@ -20,6 +20,7 @@ its next launch. It never slows an agent down: whatever happens, it gives up aft
 | `heed task-exit <code>` | Report a task tab's exit code |
 | `heed hook <agent> <event>` | An agent's hook: reads its JSON on stdin |
 | `heed tools` | Where `git` and `gh` are found (see [Finding git and gh](../configuration/tools.md)) |
+| `heed cleanup runs [path]` | Removes what get it green and get it merged runs left behind (`heed/get-it-green/*`, `heed/get-it-merged/*` branches and their worktrees) in the repo at `path` or here, when nothing would be lost and no run touched it in the last hour |
 
 It reads `HEED_SESSION_ID` and `HEED_SOCKET` from the environment, which every Heed pane sets; run elsewhere, it does
-nothing.
+nothing. `heed tools` and `heed cleanup runs` work anywhere.

@@ -25,4 +25,5 @@ The issue reader shows the title, labels, author and body. From it:
 
 ![The issue reader](../images/shots/github/reader-issue.png)
 
-Inbox issues that are not assigned to you show only their title, as only those are synced in full.
+Only the issues in the [Issues](issues.md) view are synced in full. Any other issue shows what was synced of it: in
+the Inbox its title, in [Attention](attention.md) also its labels, author and the body fetched for its detail.

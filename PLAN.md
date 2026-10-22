@@ -17,8 +17,11 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 - **Domain and cache**: `Domain` is one value (repos, worktrees, sessions, layouts); every edit is a `DomainChange`
   applied on the main actor per property and persisted by `DomainStore` off it, coalesced, to
   `~/Library/Application Support/Heed/domain.json` (versioned; a mismatch starts fresh). Append-only data (history,
-  session timelines, the event log) is in SQLite, `heed.sqlite` beside it (`EventLog`, system SQLite through a thin
-  wrapper), and does not depend on the domain's version. `HEED_FIXTURE=<name>` starts on a fixture with no IO.
+  session timelines, the event log, the ledger) is in SQLite, `heed.sqlite` beside it (`EventLog`, system SQLite
+  through a thin wrapper, with migrations), and does not depend on the domain's version. The call log (`log.sqlite`)
+  and Attention's items (`attention.sqlite`) have files of their own, so pruning them never touches history. Hooks
+  that fire while the app is closed append to `hooks.spool`, read on launch. `HEED_FIXTURE=<name>` starts on a
+  fixture with no IO.
 - **GitHub**: only through `gh` (`gh api graphql`, `gh pr`, `gh issue`, `gh api notifications`). No tokens.
 - **Config**: `~/.config/heed/config.toml` is the source of truth, hot-reloaded, last good config kept on errors.
   The Settings window edits it (comment-preserving), except key bindings, which are edited in the file only.
@@ -34,6 +37,9 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 - **Resume**: claude `--resume <id>` (its session file under `~/.claude/projects/<cwd, / and . as ->/` tells whether
   it still exists), codex `resume <id>`, cursor `--resume <id>`, pi and opencode `--session <id>`; gemini starts fresh
   until verified. Resumed agent panes start at launch even off screen.
+- **heed's own model calls**: no API key. `LLMRunner` calls the agent CLIs you are logged in to, headless, on their
+  cheapest model, taking turns, with daily caps and a backoff; `Summarizer` and `Decider` sit on it. A decision is
+  never acted on where it cannot be undone. Every call, model call and decision is a row in the call log.
 - **Signing and deploy**: ad-hoc signed, rsync to the MacBook's SMB share after every build (`HEED_DEPLOY_DIR` in `mise.local.toml`).
 
 ## Build order
@@ -58,6 +64,28 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 9. Other agents, custom command, first run, empty and offline states, cleanup sweep, config file and Settings.
    *(done: config.toml with live reload and Settings, all agent integrations, custom agents with screen patterns,
    cleanup sweep, first-run screen)*
+10. The store. *(done: `heed.sqlite` for history, timelines and the event log (#94, #96); hooks spool while the app is
+    closed; every command and GitHub call names its caller (#97) and lands in the call log, `log.sqlite`, kept per
+    `[log]` (#100, #106); `:log` shows it live with filters and today's model usage (#104))*
+11. heed's own model calls. *(done: `LLMRunner` over the logged-in agent CLIs, `[llm]` and `llm`/`llm_model` per
+    agent (#108); Settings › Agents › Model calls with a Test (#111); `Decider`, `Summarizer`, `summary_instructions`
+    (#112))*
+12. Notifications that wait. *(done: `grace_seconds` and one reminder (#105), PRs and helper tabs in Needs you notify
+    (#107), quiet hours from `[attention] quiet` (#109), each decision in the event log (#110))*
+13. Chats. *(done: a session in a folder with no repo or branch (#95); `:chat`, the chat chip and a Chats group (#98),
+    `gc` (#103); `:promote` turns one into work, outcome "promoted" (#99); the sweep removes closed chats' scratch
+    folders after 30 days (#101))*
+14. Removal that loses nothing. *(done: removing a worktree saves `refs/heed/archive/<branch>` and `<branch>-wip`
+    first, Reopen in History brings them back, `[cleanup] keep_archive_days` (#114); the sweep sees the refs (#120);
+    a host's worktree is removed on that host (#115), and reopening a host session recreates it there (#116))*
+15. History beyond the list. *(done: the timeline, `T` (#117); the agent's last message with each turn's end (#118);
+    the ledger, `L`, `[summary]` when and include, `S` and `E` (#123); `[pilot] summary_sign_off` (#124); the
+    dashboard, `D` and `r` (#125))*
+16. Attention. *(done: one item per thread with every reason, kept 30 days (#121); team attribution, needing gh's
+    `read:org` (#119); `[attention] rules`, first match wins (#122); the feed, `gm`, with `gi` and `gp` opening it
+    filtered and Inbox, Issues and PRs left out of the tab bar but reachable with `:` (#127); the rules editor in
+    Settings › Attention with a preview (#128); Attention notifications, the Decider's suggested weights and what you
+    do kept as labels (#129))*
 
 ## Open questions
 

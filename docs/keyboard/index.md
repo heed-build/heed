@@ -34,12 +34,12 @@ Single keys are kept for what you do many times an hour; anything rarer is two k
 | `⌃w…` | Panes and tabs (`⌃w c` closes the tab) |
 | `dd` | Remove (it asks first) |
 
-A key means the same thing in every view where it means anything: `x` closes a session, marks an Inbox item read and
-dismisses a feedback item; `o` always starts work, picking the repo under the cursor in Repos.
+A key means the same thing in every view where it means anything: `x` closes a session, is done with an Attention item
+and dismisses a feedback item; `o` always starts work, picking the repo under the cursor in Repos.
 
 ## Views have their own keys
 
-Some keys only mean something in one view: `s` starts a session in the Inbox, `dd` removes a worktree in Repos. Those
+Some keys only mean something in one view: `s` starts a session in Attention, `dd` removes a worktree in Repos. Those
 come first there; elsewhere the same key is free or means something else. The status bar always lists the keys that
 matter in the view you are in, and `?` shows every command: its key where you are, or its `:name` when it has none.
 

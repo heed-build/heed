@@ -1,6 +1,6 @@
 ---
 navigation_title: GitHub
-description: Your inbox, issues and pull requests, synced through the GitHub CLI.
+description: Attention, your inbox, issues and pull requests, synced through the GitHub CLI.
 ---
 
 # GitHub
@@ -29,3 +29,6 @@ Heed keeps the last sync and keeps working. A banner says when the data was sync
 
 Items in orgs your `gh` token is not authorized for (SAML single sign-on) are counted in the title bar ("· 49 hidden")
 rather than shown. `gh auth refresh`, or authorizing the GitHub CLI for that org, brings them in.
+
+Saying which of your teams a team mention came through needs gh's `read:org` scope: `gh auth refresh -s read:org`
+(see [Team mentions](attention-rules.md#team-mentions)).

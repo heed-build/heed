@@ -582,6 +582,12 @@ public enum ConfigLoader {
                 ))
             }
         }
+        if let lines = strings(["attention", "rules"]) {
+            config.attention.rules = lines
+            for problem in AttentionRules(lines: lines).problems {
+                problems.append(ConfigProblem(path: "attention.rules", message: problem.description))
+            }
+        }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         if let names = strings(["summary", "when"]) {
@@ -827,6 +833,21 @@ public enum ConfigLoader {
     # Quiet hours: no notifications from start to end, local time, 24-hour ("22:00-07:00"); "" for none. What needed
     # you meanwhile is not notified when they end: Needs you and the Dock badge show it. macOS Focus applies as well.
     quiet = ""
+    # What matters in Attention, one rule a line, first match wins: what to match, then boost 1-3, lower, ignore, pin
+    # or notify. Inputs: mention, review, assigned, ci, mine, agent, user:me, team:org/slug (team:? when unknown),
+    # requested:me|team, author (a login, me, bot, bot:name, human), label, repo, branch, kind, draft, ready,
+    # size >n, age >7d, turn mine|theirs, reason, any. Globs (*, ?) and a|b work in values. Ignored items stay
+    # under Muted for 30 days.
+    # rules = [
+    #   "mention user:me             boost 3",
+    #   "review requested:me         boost 2",
+    #   "mention team:acme/docs-eng  boost 2",
+    #   "mention team:acme/everyone  ignore",
+    #   "author bot:dependabot       ignore",
+    #   "label \"blocker\"             pin",
+    #   "agent blocked|asking        boost 3",
+    #   "ci branch:main              lower",
+    # ]
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents

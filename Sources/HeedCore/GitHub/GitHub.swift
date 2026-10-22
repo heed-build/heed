@@ -332,6 +332,78 @@ public enum GitHub {
         })
     }
 
+    // MARK: Thread details
+
+    /// How many threads one details call asks for.
+    static let detailsBatch = 20
+
+    /// Author, labels, draft, size and the last comments of each thread (`urls`: issue and PR pages, with the update
+    /// each is fetched for), in batches of 20 `resource(url:)` lookups. A batch that fails is left out (tried again
+    /// next sync); a thread GitHub withholds (SAML) gets an empty detail.
+    public static func threadDetails(
+        _ urls: [(url: String, updatedAt: Date)], caller: String
+    ) async -> [ThreadDetail] {
+        var details: [ThreadDetail] = []
+        for batch in urls.chunked(detailsBatch) {
+            let variables = Dictionary(uniqueKeysWithValues: batch.enumerated()
+                .map { ("u\($0.offset)", $0.element.url) })
+            guard let data = try? await graphql(
+                threadDetailsQuery(count: batch.count), operation: "threadDetails", variables: variables,
+                caller: caller
+            ) else { continue }
+            details += parseThreadDetails(data, asked: batch)
+        }
+        return details
+    }
+
+    static func threadDetailsQuery(count: Int) -> String {
+        let comments = "comments(last: 3) { nodes { author { login } bodyText createdAt } }"
+        let common = "url updatedAt author { __typename login } labels(first: 10) { nodes { name } } bodyText \(comments)"
+        let fields = "... on Issue { \(common) } ... on PullRequest { \(common) isDraft additions deletions headRefName "
+            + "reviews(last: 3) { nodes { author { login } bodyText state submittedAt } } }"
+        let variables = (0 ..< count).map { "$u\($0): URI!" }.joined(separator: ", ")
+        let lookups = (0 ..< count).map { "r\($0): resource(url: $u\($0)) { \(fields) }" }.joined(separator: " ")
+        return "query(\(variables)) { \(lookups) }"
+    }
+
+    static func parseThreadDetails(_ data: Data, asked: [(url: String, updatedAt: Date)]) -> [ThreadDetail] {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let answer = json["data"] as? [String: Any] else { return [] }
+        return asked.enumerated().compactMap { index, wanted -> ThreadDetail? in
+            // Withheld (SAML) or gone: an empty detail, so it is not asked for again until the thread changes.
+            guard let node = answer["r\(index)"] as? [String: Any], node["url"] is String else {
+                return ThreadDetail(url: wanted.url, updatedAt: wanted.updatedAt)
+            }
+            let author = node["author"] as? [String: Any]
+            let labels = ((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]])?
+                .compactMap { $0["name"] as? String } ?? []
+            func entries(_ key: String, at dateKey: String) -> [ThreadDetail.Comment] {
+                (((node[key] as? [String: Any])?["nodes"] as? [Any]) ?? []).compactMap { value in
+                    guard let entry = value as? [String: Any] else { return nil }
+                    let login = (entry["author"] as? [String: Any])?["login"] as? String ?? "ghost"
+                    var text = (entry["bodyText"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                    if text.isEmpty, let state = entry["state"] as? String {
+                        text = state.lowercased().replacingOccurrences(of: "_", with: " ")
+                    }
+                    guard !text.isEmpty else { return nil }
+                    return ThreadDetail.Comment(author: login, text: text, at: date(entry[dateKey] as? String))
+                }
+            }
+            let comments = (entries("comments", at: "createdAt") + entries("reviews", at: "submittedAt"))
+                .sorted { $0.at < $1.at }.suffix(3)
+            let additions = node["additions"] as? Int, deletions = node["deletions"] as? Int
+            let body = (node["bodyText"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            return ThreadDetail(
+                url: wanted.url, author: author?["login"] as? String,
+                authorIsBot: author?["__typename"] as? String == "Bot", labels: labels,
+                isDraft: node["isDraft"] as? Bool,
+                size: additions.flatMap { added in deletions.map { added + $0 } },
+                headBranch: node["headRefName"] as? String, body: String(body.prefix(600)), comments: Array(comments),
+                updatedAt: max(wanted.updatedAt, date(node["updatedAt"] as? String))
+            )
+        }
+    }
+
     /// Marks a notification thread read.
     public static func markRead(threadID: String, caller: String) async throws {
         let result = try await gh(

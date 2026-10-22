@@ -129,6 +129,8 @@ final class AppModel {
     /// Nil for fixtures: nothing is persisted and no adapter runs.
     private(set) var store: DomainStore?
     let isFixture: Bool
+    /// Attention's store, marks and thread details.
+    let attention = AttentionModel()
     private var hookServer: HookServer?
     /// Where the per-run hook files live. Screenshots show a made-up home, never the real one.
     let integration = ShotMode.active
@@ -372,6 +374,7 @@ final class AppModel {
         timeline.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         dashboard.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         startLedger(log: log)
+        if !isFixture { await attention.open(beside: file) }
         await receiveSpooled()
         await offerResume(domain: cached)
         startAwayTracking()
@@ -585,6 +588,7 @@ final class AppModel {
             commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
             await refreshWatchedDetails()
             await refreshIssueInfo()
+            await attentionSynced()
         } catch {
             var offline = previous
             offline.status = .offline("\(error)")

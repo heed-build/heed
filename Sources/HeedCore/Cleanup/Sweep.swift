@@ -198,33 +198,37 @@ public enum Sweep {
         now: Date = Date()
     ) async -> (changes: [DomainChange], failures: [String]) {
         var failures: [String] = []
-        var touchedRepos: [Repo] = []
+        var touched: [RepoRecord] = []
         for removal in plan.removals {
-            guard let record = domain.repo(removal.worktree.repo.slug) else { continue }
+            // The repo where the worktree lives: on a host, that host's clone, over ssh. Never this Mac's clone of
+            // the same repo, which may have a worktree at the same path.
+            let worktree = removal.worktree
+            guard let record = domain.repo(StartContext.id(worktree.repo, worktree.location)) else { continue }
             do {
                 _ = try await ProcessRunner.output(
-                    "git",
-                    ["-C", record.path, "worktree", "remove", removal.worktree.path], caller: "cleanup.sweep"
+                    on: record.location, "git",
+                    ["-C", record.path, "worktree", "remove", worktree.path], caller: "cleanup.sweep"
                 )
-                if removal.deleteBranch, let branch = removal.worktree.branch {
+                if removal.deleteBranch, let branch = worktree.branch {
                     // Everything on it is pushed (checked by the plan), so -D only drops the local name.
                     _ = try? await ProcessRunner.output(
-                        "git",
+                        on: record.location, "git",
                         ["-C", record.path, "branch", "-D", branch],
                         caller: "cleanup.sweep"
                     )
                 }
-                touchedRepos.append(record.repo)
+                if !touched.contains(record) { touched.append(record) }
             } catch {
-                failures.append("\(removal.worktree.path): \(error)")
+                failures.append("\(worktree.path): \(error)")
             }
         }
         var changes: [DomainChange] = []
-        for repo in Set(touchedRepos) {
-            if let record = domain.repo(repo.slug), let listed = try? await Git.worktrees(of: record) {
-                changes.append(.worktreesListed(repo: repo, listed))
+        for record in touched {
+            if let listed = try? await Git.worktrees(of: record) {
+                changes.append(.worktreesListed(repo: record.repo, listed))
             }
         }
+        let touchedRepos = touched.map(\.repo)
         let removedIDs = Set(plan.removals.filter { removal in
             touchedRepos.contains(removal.worktree.repo)
         }.flatMap(\.sessions))

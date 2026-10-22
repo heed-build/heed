@@ -76,6 +76,37 @@ struct RemoteIntegrationTests {
         )
     }
 
+    @Test func removesAWorktreeOnAHost() async throws {
+        guard let setup else { return }
+        configure(setup)
+        defer { Remote.setExtraOptions([]); Remote.setTargets([:]) }
+        let box = Location.host("box")
+        func sh(_ line: String) async throws -> String {
+            try await ProcessRunner.output(on: box, "sh", ["-c", line], caller: "test")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        let base = try await sh("echo $HOME") + "/heed-remove-\(UUID().uuidString.prefix(8))"
+        defer { Task { _ = try? await sh("rm -rf \(base)") } }
+        _ = try await sh("""
+        set -e; mkdir -p \(base); cd \(base); git init -q -b main repo; cd repo
+        git config user.email t@t; git config user.name t; git commit -q --allow-empty -m a
+        git worktree add -q -b spike \(base)/wt/spike
+        """)
+        let record = RepoRecord(repo: Repo(org: "local", name: "repo"), path: base + "/repo", location: box)
+        let worktree = Worktree(
+            repo: record.repo, path: base + "/wt/spike", branch: "spike", head: "", isMain: false, location: box
+        )
+        let plan = SweepPlan(
+            removals: [SweepPlan.Removal(worktree: worktree, idleDays: 0, sessions: [], deleteBranch: true)],
+            skips: [], next: nil
+        )
+        let (changes, failures) = await Sweep.execute(plan, domain: Domain(repos: [record], worktrees: [worktree]))
+        #expect(failures.isEmpty)
+        #expect(try await sh("test -e \(worktree.path) && echo there || echo gone") == "gone")
+        #expect(try await sh("git -C \(record.path) branch --list spike").isEmpty)
+        #expect(changes.contains { if case .worktreesListed = $0 { true } else { false } })
+    }
+
     @Test func failuresAreNamed() async {
         guard let setup else { return }
         let empty = setup.dir + "/empty_known_hosts"

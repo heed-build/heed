@@ -13,7 +13,8 @@ If the agent no longer has the session, reopening starts it fresh with the same 
 
 ## A removed worktree comes back
 
-When the worktree was removed, reopening makes it again where new worktrees go:
+When the worktree was removed, reopening makes it again where new worktrees go, on the session's host for one
+there (its `worktree_root`):
 
 1. From the local branch, when it is still there.
 2. Otherwise from what was [saved when it was removed](../worktrees/removing.md#saved-first): the branch is made again

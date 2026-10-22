@@ -81,10 +81,13 @@ public extension ProcessRunner {
             return try await run(executable, arguments, timeout: timeout, input: input, caller: caller)
         }
         try? FileManager.default.createDirectory(atPath: Remote.controlDirectory(), withIntermediateDirectories: true)
-        return try await run(
-            "ssh", Remote.sshArguments(host: host, command: [executable] + arguments), timeout: timeout + .seconds(10),
-            input: input, caller: caller
-        )
+        // Logged as the command on the host, not as the ssh line around it.
+        return try await logged(caller: caller, host: host, executable: executable, arguments: arguments) {
+            try await execute(
+                "ssh", Remote.sshArguments(host: host, command: [executable] + arguments),
+                timeout: timeout + .seconds(10), input: input
+            )
+        }
     }
 
     /// `output`, on this Mac or on a host over ssh.

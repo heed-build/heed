@@ -36,6 +36,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var updates = UpdateSettings()
     /// `[usage]`: whether the inspector shows a cost, and the prices it estimates one from.
     public var usage = UsageSettings()
+    /// `[log]`: how long the call log keeps each kind of call.
+    public var log = CallRetention()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -83,6 +85,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.pilot == rhs.pilot,
             lhs.hosts == rhs.hosts,
             lhs.usage == rhs.usage,
+            lhs.log == rhs.log,
         ]
         return !same.contains(false)
     }
@@ -543,6 +546,13 @@ public enum ConfigLoader {
                 problems.append(ConfigProblem(path: "updates.install", message: "expected ask or auto"))
             }
         }
+        // [log]
+        if let days = integer(["log", "shell_days"], range: 1 ... 365) { config.log.shellDays = days }
+        if let days = integer(["log", "github_read_days"], range: 1 ... 365) { config.log.githubReadDays = days }
+        if let days = integer(["log", "github_write_days"], range: 1 ... 365) { config.log.githubWriteDays = days }
+        if let days = integer(["log", "llm_days"], range: 1 ... 365) { config.log.llmDays = days }
+        if let days = integer(["log", "decide_days"], range: 1 ... 365) { config.log.decideDays = days }
+        if let rows = integer(["log", "max_rows"], range: 1000 ... 1_000_000) { config.log.maxRows = rows }
         // [usage]
         if let flag = bool(["usage", "show_cost"]) { config.usage.showCost = flag }
         for (prefix, text) in pairs(["usage", "prices"]) {
@@ -729,6 +739,16 @@ public enum ConfigLoader {
     # built in, so with none set only reported costs show.
     [usage.prices]
     # "model-a" = "3 / 15"
+
+    [log]
+    # The call log (:log): every command heed runs, its GitHub calls and (later) its model runs, with how long each
+    # took and how it ended. Kept this many days per kind, and at most max_rows rows of each kind; pruned hourly.
+    shell_days = 7
+    github_read_days = 3
+    github_write_days = 90
+    llm_days = 30
+    decide_days = 30
+    max_rows = 50000
 
     [tools]
     # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places

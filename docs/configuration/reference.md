@@ -168,6 +168,16 @@ show_cost = true
 [usage.prices]
 # "model-a" = "3 / 15"
 
+[log]
+# The call log (:log): every command heed runs, its GitHub calls and (later) its model runs, with how long each
+# took and how it ended. Kept this many days per kind, and at most max_rows rows of each kind; pruned hourly.
+shell_days = 7
+github_read_days = 3
+github_write_days = 90
+llm_days = 30
+decide_days = 30
+max_rows = 50000
+
 [tools]
 # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
 # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.

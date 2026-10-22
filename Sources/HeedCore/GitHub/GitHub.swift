@@ -66,22 +66,17 @@ public enum GitHub {
     }
 
     public static func viewer(caller: String) async throws -> String {
-        let result = try await ProcessRunner.run(
-            "gh",
-            ["api", "user", "--jq", ".login"],
-            timeout: .seconds(20),
-            caller: caller
+        let result = try await gh(
+            ["api", "user", "--jq", ".login"], operation: "GET user", timeout: .seconds(20), caller: caller
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     public static func notifications(caller: String) async throws -> [InboxItem] {
-        let result = try await ProcessRunner.run(
-            "gh",
-            ["api", "notifications?per_page=50"],
-            timeout: .seconds(30),
-            caller: caller
+        let result = try await gh(
+            ["api", "notifications?per_page=50"], operation: "GET notifications", timeout: .seconds(30),
+            caller: caller, items: { ((try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [Any])?.count }
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return parseNotifications(Data(result.stdout.utf8))
@@ -89,14 +84,19 @@ public enum GitHub {
 
     public static func pullRequests(tracked: [PullRef], caller: String) async throws -> Fetched<[PullRequest]> {
         let mine = try await graphql(
-            pullSearchQuery,
+            pullSearchQuery, operation: "pullSearch",
             variables: ["q": "is:open is:pr author:@me archived:false"],
             caller: caller
         )
         var (pulls, hidden) = parsePullSearch(mine)
         let missing = tracked.filter { ref in !pulls.contains { $0.ref == ref } }
         if !missing.isEmpty {
-            let data = try await graphql(trackedPullsQuery(missing), variables: [:], caller: caller)
+            let data = try await graphql(
+                trackedPullsQuery(missing),
+                operation: "trackedPulls",
+                variables: [:],
+                caller: caller
+            )
             let (extra, extraHidden) = parseTrackedPulls(data, refs: missing)
             pulls += extra
             hidden += extraHidden
@@ -124,7 +124,7 @@ public enum GitHub {
 
     private static func search(_ query: String, caller: String) async throws -> ([Issue], Int) {
         try await parseIssueSearch(graphql(
-            issueSearchQuery,
+            issueSearchQuery, operation: "issueSearch",
             variables: ["q": "\(query) sort:updated-desc"],
             caller: caller
         ))
@@ -169,27 +169,101 @@ public enum GitHub {
 
     /// Marks a notification thread read.
     public static func markRead(threadID: String, caller: String) async throws {
-        let result = try await ProcessRunner.run(
-            "gh", ["api", "-X", "PATCH", "notifications/threads/\(threadID)"], timeout: .seconds(20), caller: caller
+        let result = try await gh(
+            ["api", "-X", "PATCH", "notifications/threads/\(threadID)"], operation: "PATCH notifications/threads",
+            write: true, timeout: .seconds(20), caller: caller
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
     }
 
     /// Runs a GraphQL query. gh exits non-zero when the answer carries errors, even with data; the data is returned
     /// as long as there is some.
-    static func graphql(_ query: String, variables: [String: String], caller: String) async throws -> Data {
-        var args = ["api", "graphql", "-f", "query=\(query)"]
+    ///
+    /// Every query also asks for its `rateLimit` (cost and what remains), which the call log keeps; `operation` names
+    /// it there, in place of the query text.
+    static func graphql(
+        _ query: String, operation: String, variables: [String: String], caller: String
+    ) async throws -> Data {
+        var fields: [String] = []
         for (key, value) in variables.sorted(by: { $0.key < $1.key }) {
             // -F sends a typed field, so `number` reaches GraphQL as an Int; -f keeps strings strings.
-            args += [key == "number" ? "-F" : "-f", "\(key)=\(value)"]
+            fields += [key == "number" ? "-F" : "-f", "\(key)=\(value)"]
         }
-        let result = try await ProcessRunner.run("gh", args, timeout: .seconds(45), caller: caller)
+        let result = try await gh(
+            ["api", "graphql", "-f", "query=\(withRateLimit(query))"] + fields, operation: "graphql \(operation)",
+            shown: ["api", "graphql", "-f", "query=@\(operation)"] + fields, variables: variables,
+            timeout: .seconds(45), caller: caller, counts: graphqlCounts
+        )
         let data = Data(result.stdout.utf8)
         if !result.succeeded, (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] == nil {
             throw Failure(description: Self.explain(result))
         }
         return data
     }
+
+    /// The query with `rateLimit { cost remaining }` added to its top-level selection (the first `{`: variable
+    /// definitions are in parentheses).
+    static func withRateLimit(_ query: String) -> String {
+        guard let brace = query.firstIndex(of: "{") else { return query }
+        return query.replacingCharacters(in: brace ... brace, with: "{ rateLimit { cost remaining }")
+    }
+
+    /// What a GraphQL answer says for the call log: items (the nodes of a search, else each aliased field that
+    /// answered), SAML-withheld entries, and the rate limit.
+    static func graphqlCounts(_ stdout: String) -> GitHubCounts {
+        guard let json = try? JSONSerialization.jsonObject(with: Data(stdout.utf8)) as? [String: Any] else {
+            return GitHubCounts()
+        }
+        let data = json["data"] as? [String: Any] ?? [:]
+        let rate = data["rateLimit"] as? [String: Any]
+        let items = data.filter { $0.key != "rateLimit" }.values.reduce(0) { total, value in
+            guard let field = value as? [String: Any] else { return total }
+            return total + ((field["nodes"] as? [Any])?.count ?? 1)
+        }
+        return GitHubCounts(
+            items: items, hidden: hiddenCount(json), rateCost: rate?["cost"] as? Int,
+            rateRemaining: rate?["remaining"] as? Int, answered: json["data"] is [String: Any]
+        )
+    }
+
+    /// Runs gh, and records it in the call log as a GitHub call (not as a shell call: one row per call). `shown` is
+    /// the command as the log keeps it, when the real one is too long to keep (a GraphQL query's text).
+    static func gh(
+        _ arguments: [String], operation: String, write: Bool = false, shown: [String]? = nil,
+        variables: [String: String] = [:], timeout: Duration, caller: String,
+        items: @escaping @Sendable (String) -> Int? = { _ in nil },
+        counts: (@Sendable (String) -> GitHubCounts)? = nil
+    ) async throws -> ProcessResult {
+        let started = Date()
+        func record(_ result: ProcessResult?, _ error: String?) {
+            let found = result.map { counts?($0.stdout) ?? GitHubCounts(items: items($0.stdout)) } ?? GitHubCounts()
+            // gh exits non-zero when a GraphQL answer carries errors (SAML-withheld items), even with data: answered.
+            let failed = result.map { !$0.succeeded && !found.answered } ?? true
+            CallLog.record(LoggedCall(
+                at: started, kind: .github, caller: caller,
+                command: (["gh"] + (shown ?? arguments)).map(ShellQuote.quote).joined(separator: " "),
+                duration: Date().timeIntervalSince(started), exitCode: result.map { Int($0.status) }, failed: failed,
+                stdout: failed ? LoggedCall.truncated(result?.stdout) : nil,
+                stderr: LoggedCall.truncated(error ?? result?.stderr), operation: operation, write: write,
+                items: found.items, hidden: found.hidden, rateCost: found.rateCost, rateRemaining: found.rateRemaining,
+                detail: variables
+            ))
+        }
+        do {
+            let result = try await ProcessRunner.execute(executable, arguments, timeout: timeout)
+            record(result, nil)
+            return result
+        } catch let error as ProcessError {
+            record(error.result, error.reason)
+            throw error
+        } catch {
+            record(nil, "\(error)")
+            throw error
+        }
+    }
+
+    /// The gh to run: `gh`, found as every tool is; tests point it at a stand-in.
+    @TaskLocal static var executable = "gh"
 
     static func explain(_ result: ProcessResult) -> String {
         let text = (result.stderr.isEmpty ? result.stdout : result.stderr)
@@ -203,8 +277,8 @@ public enum GitHub {
     /// The reader's view of one PR.
     public static func pullDetail(_ ref: PullRef, now: Date = Date(), caller: String) async throws -> PullDetail {
         let data = try await graphql(
-            pullDetailQuery, variables: ["owner": ref.repo.org, "name": ref.repo.name, "number": String(ref.number)],
-            caller: caller
+            pullDetailQuery, operation: "pullDetail",
+            variables: ["owner": ref.repo.org, "name": ref.repo.name, "number": String(ref.number)], caller: caller
         )
         guard let detail = parsePullDetail(data, ref: ref, now: now) else {
             throw Failure(description: "\(ref) is not visible to gh")
@@ -221,8 +295,9 @@ public enum GitHub {
 
     /// The last `lines` of an Actions job's failed steps (`gh run view --job <id> --log-failed`).
     public static func failedLog(repo: Repo, job: String, lines: Int = 80, caller: String) async throws -> String {
-        let result = try await ProcessRunner.run(
-            "gh", ["run", "view", "--job", job, "--log-failed", "-R", repo.slug], timeout: .seconds(60), caller: caller
+        let result = try await gh(
+            ["run", "view", "--job", job, "--log-failed", "-R", repo.slug], operation: "run view --log-failed",
+            timeout: .seconds(60), caller: caller
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return result.stdout.split(separator: "\n", omittingEmptySubsequences: false).suffix(lines)
@@ -249,7 +324,9 @@ public enum GitHub {
         query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) {
           suggestedActors(capabilities: [CAN_BE_ASSIGNED], first: 100) { nodes { login } } } }
         """
-        let data = try await graphql(query, variables: ["owner": repo.org, "name": repo.name], caller: caller)
+        let data = try await graphql(
+            query, operation: "suggestedActors", variables: ["owner": repo.org, "name": repo.name], caller: caller
+        )
         return parseCopilotAvailable(data)
     }
 
@@ -281,10 +358,9 @@ public enum GitHub {
 
     /// `gh pr diff`.
     public static func diff(_ ref: PullRef, caller: String) async throws -> String {
-        let result = try await ProcessRunner.run(
-            "gh",
-            ["pr", "diff", "\(ref.number)", "-R", ref.repo.slug],
-            timeout: .seconds(60), caller: caller
+        let result = try await gh(
+            ["pr", "diff", "\(ref.number)", "-R", ref.repo.slug], operation: "pr diff", timeout: .seconds(60),
+            caller: caller
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return result.stdout
@@ -296,7 +372,11 @@ public enum GitHub {
     }
 
     private static func pr(_ arguments: [String], caller: String) async throws {
-        let result = try await ProcessRunner.run("gh", ["pr"] + arguments, timeout: .seconds(60), caller: caller)
+        // Every `gh pr` heed runs changes the PR (merge, edit, comment, update-branch).
+        let result = try await gh(
+            ["pr"] + arguments, operation: "pr \(arguments.first ?? "")", write: true, timeout: .seconds(60),
+            caller: caller
+        )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
     }
 
@@ -351,7 +431,12 @@ public enum GitHub {
     public static func issueInfo(_ refs: [IssueRef], caller: String) async throws -> [IssueRef: IssueInfo] {
         guard !refs.isEmpty else { return [:] }
         let batch = Array(refs.prefix(50))
-        let data = try await graphql(linkedIssuesQuery(batch), variables: [:], caller: caller)
+        let data = try await graphql(
+            linkedIssuesQuery(batch),
+            operation: "linkedIssues",
+            variables: [:],
+            caller: caller
+        )
         return parseLinkedIssues(data, refs: batch)
     }
 
@@ -664,5 +749,25 @@ public enum GitHub {
             )
         }
         return (issues, hiddenCount(json))
+    }
+}
+
+/// What the call log keeps of a GitHub answer.
+public struct GitHubCounts: Equatable, Sendable {
+    public var items: Int?
+    public var hidden: Int?
+    public var rateCost: Int?
+    public var rateRemaining: Int?
+    /// A GraphQL answer with data, whatever gh's exit code.
+    public var answered: Bool
+
+    public init(
+        items: Int? = nil, hidden: Int? = nil, rateCost: Int? = nil, rateRemaining: Int? = nil, answered: Bool = false
+    ) {
+        self.items = items
+        self.hidden = hidden
+        self.rateCost = rateCost
+        self.rateRemaining = rateRemaining
+        self.answered = answered
     }
 }

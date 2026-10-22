@@ -42,6 +42,8 @@ chat's History timeline. Reopening the chat makes the folder again, empty.
 Every removal saves the worktree as `refs/heed/archive/<branch>` first ([Removing](removing.md#saved-first)). A sweep
 also drops the saved work older than `keep_archive_days`, in every repo, and its confirmation lists each one. Set it to 0 to keep them all. With cleanup off, nothing is dropped.
 
+![The sweep's confirmation lists the saved work it drops](../images/shots/worktrees/sweep-archives.png)
+
 ## What runs leave behind
 
 Get it green [runs](../github/watch.md#runs) work in worktrees of their own, on `heed/get-it-green/…` (or

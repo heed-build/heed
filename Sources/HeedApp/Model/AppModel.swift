@@ -1078,6 +1078,7 @@ final class AppModel {
         pilotLog = domain.pilotLog
         mergeRuns = domain.mergeRuns
         runs = domain.runs
+        archives = domain.archives
         registeredWorktrees = domain.registeredWorktrees
         cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
@@ -1095,6 +1096,7 @@ final class AppModel {
         if after.pilotLog != before.pilotLog { pilotLog = after.pilotLog }
         if after.mergeRuns != before.mergeRuns { mergeRuns = after.mergeRuns }
         if after.runs != before.runs { runs = after.runs }
+        if after.archives != before.archives { archives = after.archives }
         if after.registeredWorktrees != before.registeredWorktrees {
             registeredWorktrees = after.registeredWorktrees
             rebuildWorktreeRows()
@@ -1112,7 +1114,7 @@ final class AppModel {
         Domain(
             repos: repos, worktrees: worktrees, sessions: sessions, layouts: layouts, history: history, github: github,
             pullDetails: pullDetails, feedback: feedback, pilotLog: pilotLog,
-            mergeRuns: mergeRuns, registeredWorktrees: registeredWorktrees, runs: runs
+            mergeRuns: mergeRuns, registeredWorktrees: registeredWorktrees, runs: runs, archives: archives
         )
     }
 
@@ -1395,6 +1397,8 @@ final class AppModel {
     private var startingRuns: Set<String> = []
     /// Every run, newest first (the domain's).
     private(set) var runs: [PilotRun] = []
+    /// Work saved from removed worktrees, as each repo last listed it (the domain's): what the sweep's retention reads.
+    private(set) var archives: [ArchiveRef] = []
     /// The run the reader shows (`↩` on a Runs row).
     var runReader: PilotRun?
     /// While you were away (`summary`), while it shows.

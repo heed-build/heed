@@ -15,6 +15,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var showDockState = true
     /// `[notifications]`: a macOS notification when a session starts needing you.
     public var notifications = NotificationSettings()
+    /// `[attention]`: quiet hours, which notifications respect.
+    public var attention = AttentionSettings()
     /// `[summary] away_hours`: how long away (from the Mac, or with heed quit) before the summary of what happened
     /// opens on its own; 0 never opens it.
     public var summaryAwayHours = 8
@@ -73,6 +75,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.showMenuBarItem == rhs.showMenuBarItem,
             lhs.showDockState == rhs.showDockState,
             lhs.notifications == rhs.notifications,
+            lhs.attention == rhs.attention,
             lhs.summaryAwayHours == rhs.summaryAwayHours,
             flat(lhs.keys) == flat(rhs.keys),
             flat(lhs.scopedKeys) == flat(rhs.scopedKeys),
@@ -541,6 +544,19 @@ public enum ConfigLoader {
         if let minutes = integer(["notifications", "reminder_minutes"], range: 0 ... 1440) {
             config.notifications.reminderMinutes = minutes
         }
+        // [attention]
+        if let text = string(["attention", "quiet"]) {
+            if text.isEmpty {
+                config.attention.quiet = nil
+            } else if let quiet = QuietHours(parsing: text) {
+                config.attention.quiet = quiet
+            } else {
+                problems.append(ConfigProblem(
+                    path: "attention.quiet",
+                    message: "expected \"HH:MM-HH:MM\" (24-hour, like \"22:00-07:00\"), or \"\""
+                ))
+            }
+        }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         // [updates]
@@ -727,6 +743,11 @@ public enum ConfigLoader {
     grace_seconds = 30
     # One reminder if it still needs you this long after the notification, then nothing until it comes back; 0: none.
     reminder_minutes = 15
+
+    [attention]
+    # Quiet hours: no notifications from start to end, local time, 24-hour ("22:00-07:00"); "" for none. What needed
+    # you meanwhile is not notified when they end: Needs you and the Dock badge show it. macOS Focus applies as well.
+    quiet = ""
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents

@@ -29,6 +29,10 @@ time there is something to say, not when Heed starts; System Settings › Notifi
   it brings Heed forward on the session instead, so you answer it yourself. macOS asks you to unlock first when the
   screen is locked. Other agents' prompts get Open only.
 
+- **Quiet hours.** `[attention] quiet` names hours with no notifications, in local time (`"22:00-07:00"` crosses
+  midnight). What starts needing you meanwhile is not notified when they end, and gets no reminder: Needs you and the
+  Dock badge show it. macOS Focus is respected too, by macOS itself.
+
 ```toml
 [notifications]
 enabled = true
@@ -36,6 +40,9 @@ asking = true      # questions, a plan to approve
 blocked = true     # permission prompts
 grace_seconds = 30
 reminder_minutes = 15
+
+[attention]
+quiet = "22:00-07:00"   # "" for none
 ```
 
 The same settings are in Settings (`⌘,`), under Outside the window.

@@ -4,7 +4,8 @@ import HeedCore
 
 /// macOS notifications when sessions start needing you (`[notifications]`): asked for, never taken, so Heed stays out
 /// of the way until you choose Open. When and what is `Notices`' call: a grace first, a burst as one summary, one
-/// reminder. Nothing is shown for the session you are looking at, and permission to notify is asked the first time
+/// reminder, nothing in quiet hours. Nothing is shown for the session you are looking at, and permission to notify is
+/// asked the first time
 /// there is something to say, not at launch.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
@@ -88,7 +89,9 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         wake = nil
         drainTask = nil
         guard let model else { return }
-        let notice = notices.drain(at: Date()) { model.isOnScreen(sessionID: $0) }
+        let now = Date()
+        let quiet = model.config.attention.quiet?.contains(now) ?? false
+        let notice = notices.drain(at: now, quiet: quiet) { model.isOnScreen(sessionID: $0) }
         schedule()
         await post(notice)
     }

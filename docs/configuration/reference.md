@@ -150,6 +150,11 @@ grace_seconds = 30
 # One reminder if it still needs you this long after the notification, then nothing until it comes back; 0: none.
 reminder_minutes = 15
 
+[attention]
+# Quiet hours: no notifications from start to end, local time, 24-hour ("22:00-07:00"); "" for none. What needed
+# you meanwhile is not notified when they end: Needs you and the Dock badge show it. macOS Focus applies as well.
+quiet = ""
+
 [summary]
 # While you were away: what still waits on you, then what merged, how background runs ended, which agents
 # finished, the reviews that arrived and the sessions that closed, by day. It opens on its own when you come back

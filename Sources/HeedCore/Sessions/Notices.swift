@@ -198,24 +198,28 @@ public struct Notices: Equatable, Sendable {
 
     /// Once a drain is due, what is ready by `now` as one notice: each entry past its grace, or due its reminder, moves
     /// on a stage. Those whose session `onScreen` says you are looking at are left out; seen counts as notified, so the
-    /// reminder
-    /// still comes. Before then, nothing changes.
-    public mutating func drain(at now: Date, onScreen: (String) -> Bool = { _ in false }) -> Notice? {
+    /// reminder still comes. In `quiet` hours nothing is shown and what came due is done: no reminder, and nothing when
+    /// they end (Needs you and the Dock badge still show it). Before a drain is due, nothing changes.
+    public mutating func drain(
+        at now: Date, quiet: Bool = false, onScreen: (String) -> Bool = { _ in false }
+    ) -> Notice? {
         guard due(at: now) else { return nil }
         var shown: [Entry] = []
         for index in waiting.indices {
             guard let ready = waiting[index].ready, ready <= now else { continue }
             var entry = waiting[index].entry
             switch waiting[index].stage {
-            case .grace:
+            case .grace where !quiet:
                 waiting[index].stage = .notified(remind: waiting[index].timing.reminder.map(now.addingTimeInterval))
+            case .grace:
+                waiting[index].stage = .done
             case .notified:
                 waiting[index].stage = .done
                 entry.reminder = true
             case .done:
                 continue
             }
-            if !onScreen(entry.session) { shown.append(entry) }
+            if !quiet, !onScreen(entry.session) { shown.append(entry) }
         }
         switch shown.count {
         case 0: return nil

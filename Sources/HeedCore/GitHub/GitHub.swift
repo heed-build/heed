@@ -26,6 +26,7 @@ public enum GitHub {
         previous: GitHubState,
         issueRules: IssueRules = IssueRules(),
         localRepos: [Repo] = [],
+        refreshTeams: Bool = false,
         now: Date = Date(),
         caller: String
     ) async throws -> GitHubState {
@@ -55,9 +56,19 @@ public enum GitHub {
         } else {
             .ok
         }
+        var teams = previous.teams
+        var mentions = previous.teamMentions
+        var inboxItems = fetchedInbox ?? previous.inbox
+        if let fetchedInbox {
+            (teams, mentions) = await attributeTeams(
+                inbox: fetchedInbox, teams: teams, cache: mentions, refresh: refreshTeams, now: now, caller: caller
+            )
+            inboxItems = mentions.applied(to: fetchedInbox)
+        }
         return GitHubState(
-            viewer: login, inbox: fetchedInbox ?? previous.inbox, issues: fetchedIssues?.value ?? previous.issues,
-            pulls: fetchedPulls?.value ?? previous.pulls, syncedAt: now, status: status
+            viewer: login, inbox: inboxItems, issues: fetchedIssues?.value ?? previous.issues,
+            pulls: fetchedPulls?.value ?? previous.pulls, syncedAt: now, status: status, teams: teams,
+            teamMentions: mentions
         )
     }
 
@@ -165,6 +176,160 @@ public enum GitHub {
             byID[issue.id] = merged
         }
         return byID.values.sorted { $0.updatedAt == $1.updatedAt ? $0.id < $1.id : $0.updatedAt > $1.updatedAt }
+    }
+
+    // MARK: Teams
+
+    /// The teams you are on (`gh api user/teams`, every page: one call). Without the `read:org` scope GitHub refuses
+    /// the call: no teams, and a note saying how to fix it. Throws when gh itself fails.
+    public static func viewerTeams(now: Date = Date(), caller: String) async throws -> ViewerTeams {
+        let result = try await gh(
+            [
+                "api",
+                "user/teams",
+                "--paginate",
+                "--jq",
+                #".[] | [.organization.login, .slug, (.parent.slug // "")] | @tsv"#,
+            ],
+            operation: "GET user/teams", timeout: .seconds(30), caller: caller,
+            items: { $0.split(separator: "\n").count }
+        )
+        guard result.succeeded else {
+            let text = result.stderr + result.stdout
+            if text.contains("read:org") || text.contains("HTTP 403") {
+                return ViewerTeams(fetchedAt: now, note: ViewerTeams.missingScopeNote)
+            }
+            throw Failure(description: Self.explain(result))
+        }
+        return ViewerTeams(teams: parseViewerTeams(result.stdout), fetchedAt: now)
+    }
+
+    /// How many team searches go in one GraphQL call: a dozen came back as HTTP 502.
+    static let teamSearchBatch = 6
+    /// How many threads are worked out per sync at most, so a first sync over a full inbox stays cheap.
+    public static let teamAttributionLimit = 10
+
+    /// Works out which of your teams each `team_mention` and `review_requested` thread in `inbox` came through, for
+    /// the threads `cache` does not know yet: refreshes your teams first when they are stale (daily) or `refresh` asks
+    /// and a thread needs them. Never throws: what fails is tried again next sync, or settled as unknown.
+    ///
+    /// A team mention is looked up with one search per team of the repo's org, `repo:o/r team:o/slug` (batched, and
+    /// shared by every thread in that repo); the team is mentioned when the thread is in its results. Search finding
+    /// nothing falls back to the thread's text. A review request asks the PR's requested reviewers.
+    public static func attributeTeams(
+        inbox: [InboxItem], teams: ViewerTeams, cache: TeamMentionCache, refresh: Bool = false,
+        limit: Int = teamAttributionLimit, now: Date = Date(), caller: String
+    ) async -> (ViewerTeams, TeamMentionCache) {
+        var cache = cache
+        var teams = teams
+        cache.seen(inbox, now: now)
+        let pending = Array(inbox.filter { cache.needs($0) }.prefix(limit))
+        guard !pending.isEmpty else { return (teams, cache) }
+        if refresh || teams.isStale(now: now), let fresh = try? await viewerTeams(now: now, caller: caller) {
+            teams = fresh
+        }
+        guard teams.available else { return (teams, cache) }
+
+        for item in pending where item.reason == "review_requested" {
+            guard item.kind == .pr, let number = item.number else {
+                cache.record(item, teams: [], source: .unknown, now: now)
+                continue
+            }
+            let ours = Set(teams.teams(in: item.repo.org).map(\.id))
+            do {
+                let requested = try await requestedTeams(repo: item.repo, number: number, caller: caller)
+                cache.record(item, teams: requested.intersection(ours), source: .reviewers, now: now)
+            } catch {
+                cache.failed(item, now: now)
+            }
+        }
+
+        let mentions = pending.filter { $0.reason == "team_mention" }
+        for repo in Array(Set(mentions.map(\.repo))).sorted(by: { $0.slug < $1.slug }) {
+            let threads = mentions.filter { $0.repo == repo }
+            let orgTeams = teams.teams(in: repo.org)
+            guard !orgTeams.isEmpty else {
+                for item in threads {
+                    cache.record(item, teams: [], source: .unknown, now: now)
+                }
+                continue
+            }
+            let found = await searchTeams(repo: repo, teams: orgTeams, caller: caller)
+            for item in threads {
+                let url = item.url?.lowercased()
+                let searched = Set(found.filter { url != nil && $0.value.contains(url!) }.keys)
+                if !searched.isEmpty {
+                    cache.record(item, teams: searched, source: .search, now: now)
+                    continue
+                }
+                guard let number = item.number else {
+                    cache.record(item, teams: [], source: .unknown, now: now)
+                    continue
+                }
+                do {
+                    let text = try await threadText(repo: repo, number: number, caller: caller)
+                    let named = TeamMentions.parse(text).intersection(orgTeams.map(\.id))
+                    cache.record(item, teams: named, source: named.isEmpty ? .unknown : .text, now: now)
+                } catch {
+                    cache.failed(item, now: now)
+                }
+            }
+        }
+        return (teams, cache)
+    }
+
+    /// Each of `teams` that answered, with the threads (web URLs, lowercased) in `repo` that mention it. A batch that
+    /// fails (HTTP 502, a timeout) is tried again in pairs; what still fails is left out.
+    static func searchTeams(repo: Repo, teams: [GitHubTeam], caller: String) async -> [String: Set<String>] {
+        var found: [String: Set<String>] = [:]
+        for batch in teams.chunked(teamSearchBatch) {
+            if let answer = try? await teamSearch(repo: repo, teams: batch, caller: caller) {
+                found.merge(answer) { $0.union($1) }
+                continue
+            }
+            guard batch.count > 2 else { continue }
+            for pair in batch.chunked(2) {
+                if let answer = try? await teamSearch(repo: repo, teams: pair, caller: caller) {
+                    found.merge(answer) { $0.union($1) }
+                }
+            }
+        }
+        return found
+    }
+
+    private static func teamSearch(repo: Repo, teams: [GitHubTeam], caller: String) async throws
+        -> [String: Set<String>]
+    {
+        let data = try await graphql(
+            teamSearchQuery(count: teams.count), operation: "teamSearch",
+            variables: teamSearchVariables(repo: repo, teams: teams), caller: caller
+        )
+        return parseTeamSearch(data, teams: teams)
+    }
+
+    /// The thread's body, comments and (for a PR) reviews and review comments, as one text.
+    static func threadText(repo: Repo, number: Int, caller: String) async throws -> String {
+        let data = try await graphql(
+            threadTextQuery, operation: "threadText",
+            variables: ["owner": repo.org, "name": repo.name, "number": String(number)], caller: caller
+        )
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let thread = ((json["data"] as? [String: Any])?["repository"] as? [String: Any])?["issueOrPullRequest"]
+        else { throw Failure(description: "no thread \(repo.slug)#\(number)") }
+        return bodies(in: thread).joined(separator: "\n")
+    }
+
+    /// The teams (`org/slug`, lowercased) asked to review a PR. REST, as GraphQL hides teams you cannot see.
+    static func requestedTeams(repo: Repo, number: Int, caller: String) async throws -> Set<String> {
+        let result = try await gh(
+            ["api", "repos/\(repo.slug)/pulls/\(number)/requested_reviewers", "--jq", ".teams[].slug"],
+            operation: "GET pulls/requested_reviewers", timeout: .seconds(20), caller: caller,
+            items: { $0.split(separator: "\n").count }
+        )
+        guard result.succeeded else { throw Failure(description: Self.explain(result)) }
+        return Set(result.stdout.split(separator: "\n").map {
+            "\(repo.org)/\($0.trimmingCharacters(in: .whitespaces))".lowercased()
+        })
     }
 
     /// Marks a notification thread read.
@@ -481,7 +646,70 @@ public enum GitHub {
     } } } }
     """
 
+    /// One aliased search per team (`t0`…), each over the thread's repo: `$qN` is `repo:o/r team:o/slug`.
+    static func teamSearchQuery(count: Int) -> String {
+        let variables = (0 ..< count).map { "$q\($0): String!" }.joined(separator: ", ")
+        let searches = (0 ..< count).map {
+            "t\($0): search(type: ISSUE, first: 100, query: $q\($0)) { issueCount nodes { ... on Issue { url } ... on PullRequest { url } } }"
+        }.joined(separator: " ")
+        return "query(\(variables)) { \(searches) }"
+    }
+
+    static func teamSearchVariables(repo: Repo, teams: [GitHubTeam]) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: teams.enumerated().map { index, team in
+            ("q\(index)", "repo:\(repo.slug) team:\(team.org)/\(team.slug)")
+        })
+    }
+
+    static let threadTextQuery = """
+    query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) {
+      issueOrPullRequest(number: $number) {
+        ... on Issue { body comments(last: 100) { nodes { body } } }
+        ... on PullRequest { body comments(last: 100) { nodes { body } }
+          reviews(last: 50) { nodes { body comments(first: 50) { nodes { body } } } } }
+    } } }
+    """
+
     // MARK: Parsing (pure, tested)
+
+    /// `org\tslug\tparent` lines (parent empty for a top-level team).
+    static func parseViewerTeams(_ text: String) -> [GitHubTeam] {
+        text.split(separator: "\n").compactMap { line in
+            let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map {
+                $0.trimmingCharacters(in: .whitespaces)
+            }
+            guard fields.count >= 2, !fields[0].isEmpty, !fields[1].isEmpty else { return nil }
+            let parent = fields.count > 2 && !fields[2].isEmpty ? fields[2] : nil
+            return GitHubTeam(org: fields[0], slug: fields[1], parent: parent)
+        }
+    }
+
+    /// For each team whose search answered, the URLs (lowercased) it returned. A search GitHub withheld or failed
+    /// (null, SAML) is left out, so it neither confirms nor rules out a mention.
+    static func parseTeamSearch(_ data: Data, teams: [GitHubTeam]) -> [String: Set<String>] {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let answer = json["data"] as? [String: Any] else { return [:] }
+        var found: [String: Set<String>] = [:]
+        for (index, team) in teams.enumerated() {
+            guard let search = answer["t\(index)"] as? [String: Any],
+                  let nodes = search["nodes"] as? [Any] else { continue }
+            let urls = nodes.compactMap { (($0 as? [String: Any])?["url"] as? String)?.lowercased() }
+            found[team.id, default: []].formUnion(urls)
+        }
+        return found
+    }
+
+    /// Every `body` string anywhere in a JSON value, in document order.
+    static func bodies(in value: Any) -> [String] {
+        if let object = value as? [String: Any] {
+            return object.keys.sorted().flatMap { key -> [String] in
+                if key == "body", let body = object[key] as? String { return [body] }
+                return bodies(in: object[key] as Any)
+            }
+        }
+        if let list = value as? [Any] { return list.flatMap(bodies(in:)) }
+        return []
+    }
 
     static func date(_ text: String?) -> Date {
         text.flatMap { try? Date($0, strategy: .iso8601) } ?? .distantPast
@@ -522,7 +750,8 @@ public enum GitHub {
                 id: id, kind: kind, repo: repo, number: web?.number, title: subject["title"] as? String ?? "",
                 reason: item["reason"] as? String ?? "", unread: item["unread"] as? Bool ?? false,
                 updatedAt: date(item["updated_at"] as? String),
-                url: web?.url ?? (kind == .ci ? "https://github.com/\(repo.slug)/actions" : nil)
+                url: web?.url ?? (kind == .ci ? "https://github.com/\(repo.slug)/actions" : nil),
+                subjectAPI: subject["url"] as? String
             )
         }
     }

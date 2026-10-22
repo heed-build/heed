@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Lint, the tests, a release build, and the tutor played with the real keys: what `mise run lint test bundle
-  # tutor-check` does locally.
+  # Lint, the tests, a release build, the tutor played with the real keys, and the shots against a fresh render: what
+  # `mise run lint test bundle tutor-check` and `scripts/shots-check.sh` do locally.
   build:
     runs-on: macos-26
     timeout-minutes: 45
@@ -50,6 +50,19 @@ jobs:
 
       - name: Tutor check
         run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
+
+      # Every committed shot (docs/images/shots) and generated reference page against a fresh render from the fake
+      # world. Rendered once, into a scratch dir; on a difference the fresh renders are uploaded to compare.
+      - name: Shots are current
+        run: scripts/shots-check.sh "$RUNNER_TEMP/shots"
+
+      - name: Upload the fresh shots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shots
+          path: ${{ runner.temp }}/shots
+          if-no-files-found: ignore
 
   # The docs build as docs.yml publishes it, without publishing.
   docs:

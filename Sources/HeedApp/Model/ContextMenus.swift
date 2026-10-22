@@ -81,6 +81,14 @@ extension AppModel {
                 id: session.id, title: session.title, hasPrompt: !session.prompt.isEmpty,
                 onGitHub: session.repos.contains { $0.org != "local" }
             )
+        case .log:
+            let rows = callLog.rows
+            guard rows.indices.contains(index) else { return [] }
+            let call = rows[index]
+            return ContextMenus.call(
+                id: call.id, title: call.operation ?? call.caller, caller: call.caller, agent: call.agent,
+                callerFiltered: callLog.query.caller != nil, agentFiltered: callLog.query.agent != nil
+            )
         case .sessions:
             return []
         }

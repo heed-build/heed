@@ -99,6 +99,7 @@ public enum CommandCompletions {
         case "issue.remove": context.issues.map { ($0, "") }
         case "tutor": ([Tutor.tour] + Tutor.viewLessons).map { ($0.id, $0.title) }
         case "tutor.hide": [("all", "every lesson's reminder")]
+        case "log.kind": CallKind.all.map { ($0.rawValue, "") }
         case "wt": [("sweep", "→ :cleanup.sweep")]
         default: []
         }

@@ -22,4 +22,7 @@ Clicking a view's name works too, and `:inbox`, `:prs` and the rest switch by na
 what you are looking at: the session's branch and PR, or the item under the cursor. On narrow windows the view keys
 are hidden first, never the names.
 
+One more view has no key and no name along the top: `:log`, the [call log](../reference/call-log.md) of every
+command and GitHub call Heed made.
+
 `⎋` closes an overlay or a reader, but never changes the view: views are places of their own.

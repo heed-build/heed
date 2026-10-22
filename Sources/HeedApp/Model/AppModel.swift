@@ -4,9 +4,12 @@ import Observation
 
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
-    case sessions, watch, inbox, issues, prs, repos, history
+    case sessions, watch, inbox, issues, prs, repos, history, log
 
     var id: String { rawValue }
+
+    /// The views the title bar lists: the call log is reached with `:log` only.
+    static var tabs: [AppView] { allCases.filter { $0 != .log } }
 
     var title: String {
         switch self {
@@ -17,6 +20,7 @@ enum AppView: String, CaseIterable, Identifiable {
         case .watch: "Watch"
         case .repos: "Repos"
         case .history: "History"
+        case .log: "Log"
         }
     }
 
@@ -137,6 +141,7 @@ final class AppModel {
         didSet {
             if filters[.sessions] != oldValue[.sessions] { rebuildList() }
             if filters[.repos] != oldValue[.repos] { rebuildWorktreeRows() }
+            if filters[.log] != oldValue[.log] { callLog.setSearch(filters[.log] ?? "") }
         }
     }
 
@@ -187,8 +192,13 @@ final class AppModel {
         didSet {
             updateScope()
             if view != oldValue { viewChangedForSync() }
+            if view == .log, oldValue != .log { callLog.opened() }
+            if oldValue == .log, view != .log { callLog.closed() }
         }
     }
+
+    /// The `:log` view's rows and filters.
+    let callLog: CallLogBrowser
 
     private(set) var overlay: Overlay? { didSet { updateScope() } }
     /// The PR open in the reader, over whatever view it was opened from.
@@ -262,6 +272,7 @@ final class AppModel {
     init(domain: Domain, settings: WorkSettings = .default, isFixture: Bool) {
         self.settings = settings
         self.isFixture = isFixture
+        callLog = CallLogBrowser(fixture: isFixture)
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
@@ -489,6 +500,7 @@ final class AppModel {
         case .issues: [.issues]
         // Sessions show their PRs' state; Repos and History their PR numbers.
         case .sessions, .prs, .watch, .repos, .history: [.pulls]
+        case .log: []
         }
     }
 
@@ -1639,6 +1651,9 @@ final class AppModel {
                 main: entry.session.branch,
                 detail: entry.session.title
             )
+        case .log:
+            guard let call = callLog.selected else { return nil }
+            return TitleContext(lead: call.kind.rawValue, main: call.caller, detail: call.operation ?? call.command)
         }
     }
 
@@ -1716,6 +1731,7 @@ final class AppModel {
         case .inbox, .issues, .prs, .watch: itemIDs(view).indices.map { HintTarget.row(view, $0) }
         case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
         case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
+        case .log: callLog.rows.indices.map { HintTarget.row(.log, $0) }
         }
         return zip(HintLabels.generate(count: targets.count), targets).map { ($0, $1) }
     }
@@ -2002,6 +2018,24 @@ final class AppModel {
         case "task.refresh": refreshTasks()
         case "view": if let target = AppView(rawValue: command.arguments.first ?? "") { view = target }
         case "view.history": view = .history
+        case "view.log": view = .log
+        case "log.kind":
+            let kind = command.arguments.first.map(CallKind.init(rawValue:))
+            callLog.change { $0.cycleKind(to: kind) }
+        case "log.failed": callLog.change { $0.failedOnly.toggle() }
+        case "log.slow": callLog.change { $0.slowOnly.toggle() }
+        case "log.writes": callLog.change { $0.githubWritesOnly.toggle() }
+        case "log.caller":
+            let caller = callLog.selected?.caller
+            callLog.change { $0.toggleCaller($0.caller == nil ? caller : nil) }
+        case "log.agent":
+            let agent = callLog.selected?.agent
+            callLog.change { $0.toggleAgent($0.agent == nil ? agent : nil) }
+        case "log.copy":
+            if let call = callLog.selected {
+                callLog.copy(call)
+                flash = "copied: \(call.command)"
+            }
         case "view.watch": view = .watch
         case "view.repos": view = .repos
         case "view.sessions": view = .sessions
@@ -2154,6 +2188,7 @@ final class AppModel {
         let ids: [String] = switch list {
         case .repos: worktreeRows.map(\.id)
         case .history: historyRows.map(\.id)
+        case .log: callLog.rows.map { String($0.id) }
         case .sessions: []
         default: itemIDs(list)
         }
@@ -2251,6 +2286,7 @@ final class AppModel {
         switch view {
         case .repos: setRow(repoCursor + delta)
         case .history: setRow(historyCursor + delta)
+        case .log: setRow(callLog.cursor + delta)
         case .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
@@ -2267,6 +2303,8 @@ final class AppModel {
         case .watch: (pilotRows.map(\.status.group.rawValue), cursor(in: .watch))
         case .history:
             (historyRows.map { Calendar.current.startOfDay(for: $0.closedAt).description }, historyCursor)
+        // A run of calls from one caller (a sync, a repo refresh) is a group.
+        case .log: (callLog.rows.map(\.caller), callLog.cursor)
         }
     }
 
@@ -2286,6 +2324,8 @@ final class AppModel {
             let count = historyRows.count
             guard count > 0 else { return }
             historyCursor = min(max(index, 0), count - 1)
+        } else if view == .log {
+            callLog.setCursor(index)
         } else if view == .repos {
             let count = worktreeRows.count
             guard count > 0 else { return }
@@ -2770,6 +2810,8 @@ final class AppModel {
                 if thenInsert { openSelected() }
             case .history:
                 historyCursor = index
+            case .log:
+                callLog.setCursor(index)
             default:
                 itemCursor[view] = index
                 if thenInsert { openReader() }
@@ -3740,6 +3782,7 @@ final class AppModel {
         case .prs: return pullRows.indices.contains(index) ? [pullRows[index].ref.repo] : []
         case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
         case .history: return selectedHistory?.session.repos ?? []
+        case .log: return []
         }
     }
 
@@ -5614,6 +5657,7 @@ final class AppModel {
         switch view {
         case .sessions: cursor = 0
         case .history: historyCursor = 0
+        case .log: callLog.setCursor(0)
         case .repos: repoCursor = 0
         case .inbox, .issues, .prs, .watch: itemCursor[view] = 0
         }
@@ -5624,6 +5668,7 @@ final class AppModel {
         switch view {
         case .sessions: list.ordered.count
         case .history: historyRows.count
+        case .log: callLog.rows.count
         case .repos: worktreeRows.count
         case .inbox, .issues, .prs, .watch: itemIDs(view).count
         }
@@ -5690,6 +5735,8 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
+        case .log:
+            return nil
         case .inbox:
             let ids = Set(actionIDs(.inbox))
             return items(inboxRows.filter { ids.contains($0.id) }.map { item in
@@ -6531,6 +6578,9 @@ final class AppModel {
         case .history:
             state.cursor = historyCursor
             state.rows = historyRows.count
+        case .log:
+            state.cursor = callLog.cursor
+            state.rows = callLog.rows.count
         case .inbox, .issues, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count
@@ -6695,7 +6745,7 @@ final class AppModel {
         guard clicksReachLists, view == list else { return }
         clickedOutsideTerminal()
         setRow(index)
-        guard open else { return }
+        guard open, list != .log else { return }
         if list == .repos { openSelected() } else { openReader() }
     }
 

@@ -17,7 +17,9 @@ public struct CallKind: RawRepresentable, Hashable, Sendable, Codable, CustomStr
 }
 
 /// One row of the call log. Never holds environment variables; stdout is kept only when the call failed.
-public struct LoggedCall: Hashable, Sendable {
+public struct LoggedCall: Hashable, Sendable, Identifiable {
+    /// Its row in the log; 0 until it is written.
+    public var id: Int64 = 0
     public var at: Date
     public var kind: CallKind
     /// Which part of heed made it (`git.status`, `github.sync`).
@@ -154,6 +156,8 @@ public struct CallFilter: Equatable, Sendable {
     public var githubWritesOnly = false
     /// `/`: matched against the command, caller, operation, host and stderr.
     public var search = ""
+    /// Only calls from this time on.
+    public var since: Date?
     public var limit = 500
 
     /// A call this long or longer is slow.
@@ -300,6 +304,10 @@ public actor CallStore {
             values.append(.real(CallFilter.slow))
         }
         if filter.githubWritesOnly { clauses.append("kind = 'github' AND write = 1") }
+        if let since = filter.since {
+            clauses.append("at >= ?")
+            values.append(SQLiteValue(since))
+        }
         let search = filter.search.trimmingCharacters(in: .whitespaces)
         if !search.isEmpty {
             let pattern = "%" + search.replacingOccurrences(of: "\\", with: "\\\\")
@@ -310,25 +318,39 @@ public actor CallStore {
             )
             values += Array(repeating: .text(pattern), count: 6)
         }
-        var sql = "SELECT at, kind, caller, host, command, cwd, duration, exit_code, failed, stdout, stderr, operation, "
+        var sql = "SELECT id, at, kind, caller, host, command, cwd, duration, exit_code, failed, stdout, stderr, operation, "
             + "write, items, hidden, rate_cost, rate_remaining, agent, model, tokens, cost, cost_estimated, detail "
             + "FROM calls"
         if !clauses.isEmpty { sql += " WHERE " + clauses.joined(separator: " AND ") }
         sql += " ORDER BY at DESC, id DESC LIMIT ?"
         values.append(.integer(Int64(filter.limit)))
         return try database.query(sql, values) { row in
-            LoggedCall(
-                at: row[0].date ?? .distantPast, kind: CallKind(rawValue: row[1].text ?? ""),
-                caller: row[2].text ?? "", host: row[3].text, command: row[4].text ?? "", cwd: row[5].text,
-                duration: row[6].double ?? 0, exitCode: row[7].int, failed: row[8].bool ?? false,
-                stdout: row[9].text, stderr: row[10].text, operation: row[11].text, write: row[12].bool ?? false,
-                items: row[13].int, hidden: row[14].int, rateCost: row[15].int, rateRemaining: row[16].int,
-                agent: row[17].text, model: row[18].text,
-                tokens: row[19].data.flatMap { try? JSONDecoder.heed.decode(TokenCounts.self, from: $0) },
-                cost: row[20].double, costEstimated: row[21].bool ?? false,
-                detail: row[22].data.flatMap { try? JSONDecoder.heed.decode([String: String].self, from: $0) } ?? [:]
+            var call = LoggedCall(
+                at: row[1].date ?? .distantPast, kind: CallKind(rawValue: row[2].text ?? ""),
+                caller: row[3].text ?? "", host: row[4].text, command: row[5].text ?? "", cwd: row[6].text,
+                duration: row[7].double ?? 0, exitCode: row[8].int, failed: row[9].bool ?? false,
+                stdout: row[10].text, stderr: row[11].text, operation: row[12].text, write: row[13].bool ?? false,
+                items: row[14].int, hidden: row[15].int, rateCost: row[16].int, rateRemaining: row[17].int,
+                agent: row[18].text, model: row[19].text,
+                tokens: row[20].data.flatMap { try? JSONDecoder.heed.decode(TokenCounts.self, from: $0) },
+                cost: row[21].double, costEstimated: row[22].bool ?? false,
+                detail: row[23].data.flatMap { try? JSONDecoder.heed.decode([String: String].self, from: $0) } ?? [:]
             )
+            call.id = row[0].int64 ?? 0
+            return call
         }
+    }
+
+    /// LLM calls per agent since `since` (today, for the view's strip), and the GitHub rate limit as last seen.
+    public func usage(since: Date) throws -> CallUsage {
+        var llm = CallFilter()
+        llm.kinds = [.llm]
+        llm.since = since
+        llm.limit = 100_000
+        let rate = try database.query(
+            "SELECT rate_remaining, at FROM calls WHERE rate_remaining IS NOT NULL ORDER BY at DESC, id DESC LIMIT 1"
+        ) { ($0[0].int, $0[1].date) }.first
+        return try CallUsage(llm: calls(llm), rateRemaining: rate?.0, rateAt: rate?.1)
     }
 
     /// Rows per kind, for the measurements and the view's counts.

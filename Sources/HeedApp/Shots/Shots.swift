@@ -9,7 +9,7 @@ enum Shots {
         hosts +
         github +
         worktrees
-        + diff + history + keyboard + outside + configuration
+        + diff + history + log + keyboard + outside + configuration
 
     /// Types a sentence (spaces become <Space>).
     static func typed(_ text: String) -> String {
@@ -306,6 +306,14 @@ enum Shots {
     static let history: [Shot] = [
         Shot(id: "history/history", keys: "gh"),
         Shot(id: "history/detail", keys: "gh", crop: .historyDetail),
+    ]
+
+    /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).
+    static let log: [Shot] = [
+        Shot(id: "log/log", keys: ":log<CR>"),
+        Shot(id: "log/failed", keys: ":log<CR>x"),
+        Shot(id: "log/detail", keys: ":log<CR>x", crop: .logDetail),
+        Shot(id: "log/llm", keys: ":log<CR>ttt"),
     ]
 
     static let keyboard: [Shot] = [

@@ -309,3 +309,109 @@ struct CallLogTests {
         #expect(HeedConfig.default.log == CallRetention())
     }
 }
+
+struct CallLogViewTests {
+    @Test func theKindCyclesThroughAllThenEach() {
+        var query = CallLogQuery()
+        var seen: [CallKind?] = []
+        for _ in 0 ..< 5 {
+            query.cycleKind()
+            seen.append(query.kind)
+        }
+        #expect(seen == [.shell, .github, .llm, .decide, nil])
+        query.cycleKind(to: .github)
+        #expect(query.kind == .github)
+        query.cycleKind(to: .github)
+        #expect(query.kind == nil)
+    }
+
+    @Test func callerAndAgentToggle() {
+        var query = CallLogQuery()
+        query.toggleCaller("git.status")
+        #expect(query.caller == "git.status")
+        query.toggleCaller("git.status")
+        #expect(query.caller == nil)
+        query.toggleAgent("claude")
+        query.toggleAgent(nil)
+        #expect(query.agent == nil && query.isEmpty)
+    }
+
+    /// Fixtures and shots filter in memory, the app in SQL: both must say the same of every call.
+    @Test func filteringInMemoryAgreesWithTheStore() async throws {
+        let store = try CallStore(path: ":memory:")
+        let calls = Fixtures.calls
+        await store.insert(calls.reversed())
+        var queries: [CallLogQuery] = [CallLogQuery()]
+        for kind in CallKind.all {
+            var query = CallLogQuery()
+            query.kind = kind
+            queries.append(query)
+        }
+        let edits: [(inout CallLogQuery) -> Void] = [
+            { $0.failedOnly = true }, { $0.slowOnly = true }, { $0.githubWritesOnly = true },
+            { $0.caller = "github.sync" }, { $0.agent = "claude" },
+        ]
+        for edit in edits {
+            var query = CallLogQuery()
+            edit(&query)
+            queries.append(query)
+        }
+        for query in queries {
+            for search in ["", "GIT", "devbox", "resolve host", "%"] {
+                let filter = query.filter(search: search)
+                let stored = try await store.calls(filter).map(\.command)
+                let inMemory = calls.filter(filter.matches).map(\.command)
+                #expect(stored == inMemory, "\(query) /\(search)")
+            }
+        }
+        #expect(try await store.calls(CallLogQuery().filter(search: "")).count == calls.count)
+    }
+
+    @Test func todaysUsageIsPerAgentWithEstimatesMarked() async throws {
+        let calls = Fixtures.calls
+        let hourAgo = Clock.now.addingTimeInterval(-3600)
+        let usage = CallUsage(rows: calls, since: hourAgo)
+        #expect(usage.agents.map(\.name) == ["claude", "codex"])
+        #expect(usage.agents[0].calls == 1 && usage.agents[0].estimated && usage.agents[0].cost == 0.0052)
+        #expect(!usage.agents[1].estimated)
+        // The newest rate limit seen.
+        #expect(usage.rateRemaining == 4812)
+        #expect(CallUsage.money(0.0052, estimated: true) == "≈$0.005")
+        #expect(CallUsage.money(1.5, estimated: false) == "$1.50")
+
+        let store = try CallStore(path: ":memory:")
+        await store.insert(calls)
+        let stored = try await store.usage(since: hourAgo)
+        #expect(stored.agents == usage.agents)
+        #expect(stored.rateRemaining == usage.rateRemaining)
+        // A date goes into the store as seconds since 1970 and comes back from them; Date keeps seconds since 2001, so
+        // the round trip can move it by a rounding step (sub-microsecond). Equal to the millisecond, not to the bit.
+        let rateAt = try #require(usage.rateAt)
+        #expect(try abs(#require(stored.rateAt).timeIntervalSince(rateAt)) < 0.001)
+        #expect(try await store.usage(since: Clock.now).agents.isEmpty)
+    }
+
+    @Test func aCallsMenuCopiesAndNarrows() {
+        let menu = ContextMenus.call(
+            id: 7, title: "graphql pullSearch", caller: "github.sync", agent: nil, callerFiltered: false,
+            agentFiltered: false
+        )
+        let items = menu.compactMap { entry -> MenuItem? in
+            if case let .item(item) = entry { return item }
+            return nil
+        }
+        #expect(items.map(\.command.name) == ["log.copy", "log.caller"])
+        #expect(items.allSatisfy { $0.command.target == .row(view: "log", id: "7") })
+        #expect(items[1].title == "Only github.sync")
+        let narrowed = ContextMenus.call(
+            id: 7, title: "x", caller: "c", agent: "claude", callerFiltered: true, agentFiltered: false
+        )
+        #expect(narrowed.count == 4)
+    }
+
+    @Test func theLogIsReachedByName() {
+        #expect(CommandAliases.resolve("log") == CommandInvocation(name: "view", arguments: ["log"]))
+        #expect(CommandCompletions.candidates("log.kind g").map(\.label) == ["github"])
+        #expect(DefaultKeys.normal.allSatisfy { $0.1 != "view.log" })
+    }
+}

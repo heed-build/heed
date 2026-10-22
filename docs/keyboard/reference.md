@@ -66,13 +66,14 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|inbox|issues|prs|watch|repos|history>` |  | switch view |
+| `view` `<sessions|inbox|issues|prs|watch|repos|history|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.inbox` | `gm` | inbox |
 | `view.issues` | `gi` | issues |
 | `view.prs` | `gp` | pull requests |
 | `view.watch` | `gw` | watch: the PRs your sessions track, what heed does for each and has done |
 | `view.repos` | `gr` | repos & worktrees |
+| `view.log` |  | the call log: every command and GitHub call heed made, how long it took, how it ended |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
@@ -133,6 +134,13 @@ This page is generated from the code (`mise run shots`).
 | `history.reopen` | `R` (history) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` | `t` (history) | cycle the outcome filter |
+| `log.kind` `[kind]` | `t` (log) | call log: all, or one kind (shell, github, llm, decide) |
+| `log.failed` | `x` (log) | call log: only calls that failed, or all |
+| `log.slow` | `s` (log) | call log: only slow calls (5 s or more), or all |
+| `log.writes` | `w` (log) | call log: only GitHub writes, or all |
+| `log.caller` | `c` (log) | call log: only the caller of the call under the cursor, or every caller |
+| `log.agent` | `a` (log) | call log: only the agent of the call under the cursor, or every agent |
+| `log.copy` | `y` (log) | copy the command of the call under the cursor |
 | `github.sync` | `r` (inbox), `r` (issues), `r` (pr), `r` (prs), `r` (watch) | sync GitHub now |
 | `items.start` | `s` (inbox), `s` (issue), `s` (issues) | start one session from the picked items |
 | `items.add` | `a` (inbox), `a` (issue), `a` (issues) | add the picked items to the current session |

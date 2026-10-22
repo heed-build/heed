@@ -1279,8 +1279,17 @@ private struct AttentionRuleSettings: View {
                 weight("ignore", "out of the feed, under Muted for 30 days")
                 weight("pin", "always at the top")
             }
-            GroupLabel(title: "Quiet hours")
-            Field(label: "No notifications", detail: "Local time, 24-hour (\"22:00-07:00\"); empty for none.") {
+            GroupLabel(title: "Notifications")
+            Field(
+                label: "Notify",
+                detail: "Items a rule says to notify about (notify, or boost 3); several from one sync come as one."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { model.config.notifications.attention },
+                    set: { model.setConfig(["notifications", "attention"], .bool($0)) }
+                )).labelsHidden()
+            }
+            Field(label: "Quiet hours", detail: "Local time, 24-hour (\"22:00-07:00\"); empty for none.") {
                 ConfigTextField(path: ["attention", "quiet"], value: model.config.attention.quiet?.description ?? "")
                     .frame(width: 160)
             }

@@ -2339,7 +2339,7 @@ final class AppModel {
 
     /// The cursor onto a row named by id, in the view you are in: a list that changed while a menu was open still
     /// acts on the row clicked.
-    private func moveCursor(_ list: AppView, to id: String) {
+    func moveCursor(_ list: AppView, to id: String) {
         guard list == view else { return }
         let ids: [String] = switch list {
         case .repos: worktreeRows.map(\.id)
@@ -7029,6 +7029,9 @@ final class AppModel {
     func isOnScreen(sessionID: String) -> Bool {
         guard NSApp.isActive, NSApp.windows.contains(where: { $0.identifier == Self.mainWindowID && $0.isVisible })
         else { return false }
+        if sessionID.hasPrefix(Notices.attentionPrefix) {
+            return view == .attention && attentionSelected.map { Notices.attentionPrefix + $0.id } == sessionID
+        }
         return view == .sessions && currentSession?.id == sessionID
     }
 
@@ -7060,6 +7063,9 @@ final class AppModel {
 
     /// A session chosen outside the window (the menu bar): Heed in front, on that session.
     func show(sessionID: String) {
+        if sessionID.hasPrefix(Notices.attentionPrefix) {
+            return showAttentionItem(String(sessionID.dropFirst(Notices.attentionPrefix.count)))
+        }
         view = .sessions
         select(sessionID: sessionID)
         activateHeed()

@@ -20,6 +20,11 @@ final class AttentionModel {
     /// A reply being drafted (`nil` text) or drafted, for one item.
     var draft: (id: String, text: String?)?
 
+    /// Whether the first sync's items were handed to the notifications (as already seen).
+    var notified = false
+    /// The Decider's suggested weight for items no rule matched, for the update it was asked about.
+    var suggestions: [String: (updatedAt: Date, level: String?)] = [:]
+
     /// Rules Settings opens on instead of the saved ones (screenshots show an edit in progress).
     var ruleDraftSeed: [String]?
 
@@ -39,6 +44,7 @@ final class AttentionModel {
         details = Fixtures.attentionDetails
         stored = Fixtures.attentionStored
         summaries = Fixtures.attentionSummaries.mapValues { (Clock.now, $0) }
+        suggestions = Fixtures.attentionSuggestions.mapValues { (Clock.now, $0) }
     }
 
     /// Keeps the live items (seen now), drops what is past 30 days, and reloads.

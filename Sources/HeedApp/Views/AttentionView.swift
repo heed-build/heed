@@ -346,6 +346,14 @@ private struct AttentionDetail: View {
                             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg3))
                         } else {
                             Text("No rule matched: recency order.").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                            if let level = model.attention.suggestions[item.id]?.level {
+                                HStack(spacing: 6) {
+                                    Text("The model suggests").foregroundStyle(Theme.fg3)
+                                    Text(level).foregroundStyle(Theme.ask)
+                                    Text("· a rule decides").foregroundStyle(Theme.fg3)
+                                }
+                                .font(Theme.mono(11.5))
+                            }
                         }
                     }
                 }

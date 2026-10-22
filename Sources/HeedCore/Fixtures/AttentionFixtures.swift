@@ -79,6 +79,9 @@ public extension Fixtures {
             + "Friday; your team owns most of the pages.",
     ]
 
+    /// The Decider's suggestions for items no rule matched, by item id.
+    static let attentionSuggestions: [String: String] = ["elastic/docs-builder#2830": "boost 1"]
+
     /// Marks: one thread muted earlier.
     static let attentionMarks: [String: AttentionMark] = [
         "acme/guides#64": AttentionMark(mutedAt: Clock.now.addingTimeInterval(-3 * 86400)),

@@ -9,10 +9,15 @@ public struct GitHubState: Hashable, Sendable, Codable {
     public var pulls: [PullRequest]
     public var syncedAt: Date?
     public var status: SyncStatus
+    /// The teams you are on, refreshed daily: what `team_mention`s are attributed against.
+    public var teams: ViewerTeams
+    /// Which team each `team_mention` and `review_requested` thread came through, by thread id.
+    public var teamMentions: TeamMentionCache
 
     public init(
         viewer: String? = nil, inbox: [InboxItem] = [], issues: [Issue] = [], pulls: [PullRequest] = [],
-        syncedAt: Date? = nil, status: SyncStatus = .never
+        syncedAt: Date? = nil, status: SyncStatus = .never, teams: ViewerTeams = ViewerTeams(),
+        teamMentions: TeamMentionCache = TeamMentionCache()
     ) {
         self.viewer = viewer
         self.inbox = inbox
@@ -20,6 +25,26 @@ public struct GitHubState: Hashable, Sendable, Codable {
         self.pulls = pulls
         self.syncedAt = syncedAt
         self.status = status
+        self.teams = teams
+        self.teamMentions = teamMentions
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case viewer, inbox, issues, pulls, syncedAt, status, teams, teamMentions
+    }
+
+    /// Caches from before team attribution still load.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        viewer = try container.decodeIfPresent(String.self, forKey: .viewer)
+        inbox = try container.decode([InboxItem].self, forKey: .inbox)
+        issues = try container.decode([Issue].self, forKey: .issues)
+        pulls = try container.decode([PullRequest].self, forKey: .pulls)
+        syncedAt = try container.decodeIfPresent(Date.self, forKey: .syncedAt)
+        status = try container.decode(SyncStatus.self, forKey: .status)
+        teams = try container.decodeIfPresent(ViewerTeams.self, forKey: .teams) ?? ViewerTeams()
+        teamMentions = try container.decodeIfPresent(TeamMentionCache.self, forKey: .teamMentions)
+            ?? TeamMentionCache()
     }
 
     public func pull(_ ref: PullRef) -> PullRequest? { pulls.first { $0.ref == ref } }
@@ -58,10 +83,15 @@ public struct InboxItem: Identifiable, Hashable, Sendable, Codable {
     public var updatedAt: Date
     /// The web page for the subject, when it has one.
     public var url: String?
+    /// The subject's API URL (`https://api.github.com/repos/o/r/pulls/12`), as the notification gave it.
+    public var subjectAPI: String?
+    /// The viewer's teams (`org/slug`, lowercased) this thread reached you through: the team mentioned, for a
+    /// `team_mention`; the team asked to review, for a `review_requested`. Empty when none or not (yet) known.
+    public var teams: Set<String>
 
     public init(
         id: String, kind: Kind, repo: Repo, number: Int?, title: String, reason: String, unread: Bool,
-        updatedAt: Date, url: String?
+        updatedAt: Date, url: String?, subjectAPI: String? = nil, teams: Set<String> = []
     ) {
         self.id = id
         self.kind = kind
@@ -72,6 +102,28 @@ public struct InboxItem: Identifiable, Hashable, Sendable, Codable {
         self.unread = unread
         self.updatedAt = updatedAt
         self.url = url
+        self.subjectAPI = subjectAPI
+        self.teams = teams
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, kind, repo, number, title, reason, unread, updatedAt, url, subjectAPI, teams
+    }
+
+    /// Caches from before team attribution still load.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        kind = try container.decode(Kind.self, forKey: .kind)
+        repo = try container.decode(Repo.self, forKey: .repo)
+        number = try container.decodeIfPresent(Int.self, forKey: .number)
+        title = try container.decode(String.self, forKey: .title)
+        reason = try container.decode(String.self, forKey: .reason)
+        unread = try container.decode(Bool.self, forKey: .unread)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        url = try container.decodeIfPresent(String.self, forKey: .url)
+        subjectAPI = try container.decodeIfPresent(String.self, forKey: .subjectAPI)
+        teams = try container.decodeIfPresent(Set<String>.self, forKey: .teams) ?? []
     }
 
     /// `review requested`, `assigned to you`, `mentioned`, ...

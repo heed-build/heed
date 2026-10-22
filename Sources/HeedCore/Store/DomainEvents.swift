@@ -64,9 +64,11 @@ public enum DomainEvents {
     static func sessionEvents(_ old: Session?, _ new: Session, reopened: Bool, now: Date) -> [LoggedEvent] {
         var events: [LoggedEvent] = []
         guard let old else {
+            // A chat says so, and where it runs: it has no repo or worktree to tell it by.
+            let chat = new.chat.map { ["chat": $0.kind.rawValue, "folder": $0.path] } ?? [:]
             events.append(LoggedEvent(
                 at: reopened ? now : new.createdAt, kind: reopened ? .sessionReopened : .sessionStarted, about: new,
-                text: new.title, payload: ["agent": new.agent]
+                text: new.title, payload: ["agent": new.agent].merging(chat) { first, _ in first }
             ))
             events += new.timeline.map { LoggedEvent(at: $0.at, kind: .note, about: new, text: $0.text) }
             return events

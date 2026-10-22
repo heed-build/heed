@@ -81,6 +81,25 @@ struct ChatTests {
         #expect(events.map(\.subject) == ["Cron line for weekdays"])
     }
 
+    // MARK: The event log
+
+    @Test func theEventLogRecordsAChatAsAChatAndKeepsItInHistory() async throws {
+        let started = DomainEvents.writes(before: Domain(), changes: [.sessionUpserted(chat())], now: Date())
+        let events = started.flatMap { write -> [LoggedEvent] in if case let .events(e) = write { e } else { [] } }
+        let start = try #require(events.first { $0.kind == .sessionStarted })
+        #expect(start.payload["chat"] == "scratch")
+        #expect(start.payload["folder"] == "/tmp/chats/2026-10-21-cron-weekdays")
+        #expect(start.repo == nil)
+        // History keeps the whole entry: a closed chat comes back from heed.sqlite as a chat.
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-chatlog-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let log = try EventLog(path: dir.appendingPathComponent("heed.sqlite").path)
+        await log.write([.closed(HistoryEntry(session: chat(), closedAt: Date(), outcome: .closed))])
+        let back = try #require(try await log.history().first)
+        #expect(back.session.chat == ChatFolder(.scratch, path: "/tmp/chats/2026-10-21-cron-weekdays"))
+    }
+
     // MARK: Handing over
 
     @Test func handingAChatOverSaysNothingAboutBranchesOrGit() {

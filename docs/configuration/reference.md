@@ -59,6 +59,9 @@ enabled = false
 idle_days = 14
 delete_branch = true               # the local branch; the remote is left alone
 ask_before_sweep = false
+# Removing a worktree saves its commits (and uncommitted changes) as refs/heed/archive/<branch> first, so R in
+# History can bring it back. Sweeps drop those older than this many days; 0 keeps them.
+keep_archive_days = 90
 
 [github]
 # How often the view on screen refreshes from GitHub; the others refresh five times less often.

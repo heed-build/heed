@@ -43,6 +43,13 @@ public enum DomainEvents {
                 writes.append(.closed(entry))
             case let .worktreesListed(repo, listed):
                 events = worktreeEvents(repo, before: previous.worktrees, listed: listed, now: now)
+            case let .worktreeArchived(ref):
+                events.append(LoggedEvent(
+                    at: ref.archivedAt, kind: .worktreeArchived, repo: ref.repo.slug, host: ref.location.hostName,
+                    subject: ref.name, text: ref.said ?? "saved as \(ref.name)",
+                    payload: ["commit": ref.commit, "unpushed": "\(ref.unpushed)"]
+                        .merging(ref.wip.map { ["wip": $0] } ?? [:]) { first, _ in first }
+                ))
             case let .pullDetailFetched(detail):
                 let was = previous.pullDetails[detail.ref.description]
                 if detail.state == "MERGED", was.map({ $0.state != "MERGED" }) == true {

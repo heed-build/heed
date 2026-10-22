@@ -58,13 +58,17 @@ public struct Domain: Hashable, Sendable, Codable {
     /// Worktrees on hosts that heed manages (made by heed, or registered with ↩), by worktree id. Ones a scan found
     /// and nobody registered are left alone.
     public var registeredWorktrees: Set<String>
+    /// Work saved from removed worktrees (`refs/heed/archive/…`), as last listed in each repo, wherever it lives.
+    public var archives: [ArchiveRef]
 
     public init(
         repos: [RepoRecord] = [], worktrees: [Worktree] = [], sessions: [Session] = [],
         layouts: [String: SessionLayout] = [:], history: [HistoryEntry] = [], github: GitHubState = GitHubState(),
         pullDetails: [String: PullDetail] = [:], feedback: [String: PullFeedback] = [:], pilotLog: [PilotEvent] = [],
-        mergeRuns: [String: [MergeRun]] = [:], registeredWorktrees: Set<String> = [], runs: [PilotRun] = []
+        mergeRuns: [String: [MergeRun]] = [:], registeredWorktrees: Set<String> = [], runs: [PilotRun] = [],
+        archives: [ArchiveRef] = []
     ) {
+        self.archives = archives
         self.runs = runs
         self.registeredWorktrees = registeredWorktrees
         self.mergeRuns = mergeRuns
@@ -83,7 +87,7 @@ public struct Domain: Hashable, Sendable, Codable {
 
     private enum CodingKeys: String, CodingKey {
         case repos, worktrees, sessions, layouts, history, github, pullDetails, feedback, pilotLog, mergeRuns,
-             registeredWorktrees, runs
+             registeredWorktrees, runs, archives
     }
 
     /// Caches from before the pilot log still load (no version bump, which would drop sessions).
@@ -102,6 +106,7 @@ public struct Domain: Hashable, Sendable, Codable {
         mergeRuns = try container.decodeIfPresent([String: [MergeRun]].self, forKey: .mergeRuns) ?? [:]
         registeredWorktrees = try container.decodeIfPresent(Set<String>.self, forKey: .registeredWorktrees) ?? []
         runs = try container.decodeIfPresent([PilotRun].self, forKey: .runs) ?? []
+        archives = try container.decodeIfPresent([ArchiveRef].self, forKey: .archives) ?? []
     }
 
     public func repo(_ slug: String) -> RepoRecord? { repos.first { $0.id == slug } }
@@ -148,6 +153,10 @@ public enum DomainChange: Hashable, Sendable, Codable {
     case worktreeRegistered(String)
     /// A get it green / get it merged run started or ended (by id: a later one replaces it).
     case runUpdated(PilotRun)
+    /// A repo's archive refs on one machine, as git listed them (after a scan, or a sweep that dropped some).
+    case archivesListed(repo: Repo, location: Location, [ArchiveRef])
+    /// A worktree's work was saved before it was removed.
+    case worktreeArchived(ArchiveRef)
 }
 
 public extension Domain {
@@ -236,6 +245,12 @@ public extension Domain {
             mergeRuns[run.repo] = Array(([run] + (mergeRuns[run.repo] ?? [])).prefix(MergeRun.keep))
         case let .feedbackChanged(pipeline):
             feedback[pipeline.ref.description] = pipeline
+        case let .archivesListed(repo, location, listed):
+            archives.removeAll { $0.repo == repo && $0.location == location }
+            archives.append(contentsOf: listed)
+        case let .worktreeArchived(ref):
+            archives.removeAll { $0.id == ref.id }
+            archives.append(ref)
         case let .inboxRead(ids):
             for index in github.inbox.indices where ids.contains(github.inbox[index].id) {
                 github.inbox[index].unread = false

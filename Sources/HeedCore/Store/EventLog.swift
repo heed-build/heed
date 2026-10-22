@@ -20,6 +20,8 @@ public struct EventKind: RawRepresentable, Hashable, Sendable, Codable, CustomSt
     public static let questionAnswered = EventKind(rawValue: "question.answered")
     public static let worktreeCreated = EventKind(rawValue: "worktree.created")
     public static let worktreeRemoved = EventKind(rawValue: "worktree.removed")
+    /// A worktree's work was saved under `refs/heed/archive/` before it was removed.
+    public static let worktreeArchived = EventKind(rawValue: "worktree.archived")
     /// A session started tracking a PR (opened by its agent, found on its branch, or added by hand: the note says).
     public static let pullTracked = EventKind(rawValue: "pr.tracked")
     public static let pullMerged = EventKind(rawValue: "pr.merged")

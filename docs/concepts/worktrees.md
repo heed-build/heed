@@ -15,5 +15,5 @@ checkout stays yours.
 - A cross-repo session gets a worktree in each repo, on the same branch name.
 - Worktrees made outside Heed can be [imported](../worktrees/importing.md) as sessions.
 
-Heed never removes a worktree with uncommitted changes or unpushed commits. See [Removing](../worktrees/removing.md)
-and [Cleanup](../worktrees/cleanup.md).
+Removing a worktree saves its unpushed commits and uncommitted changes as `refs/heed/archive/<branch>` first, and
+cleanup never removes one that has any. See [Removing](../worktrees/removing.md) and [Cleanup](../worktrees/cleanup.md).

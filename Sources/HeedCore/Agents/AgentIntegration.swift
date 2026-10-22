@@ -73,7 +73,9 @@ public enum AgentIntegration {
         case "PostToolUse":
             return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })] + created(input)
         case "PermissionRequest": return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
-        case "Stop": return codexUsage(input) + [TurnEnd.kind(lastWords: input["last_assistant_message"] as? String)]
+        case "Stop":
+            let lastWords = input["last_assistant_message"] as? String
+            return codexUsage(input) + LastMessage.kinds(lastWords) + [TurnEnd.kind(lastWords: lastWords)]
         case "SessionEnd": return codexUsage(input) + [.state(.exited, reason: input["reason"] as? String)]
         case "Interrupt": return [.state(.idle, reason: "interrupted")]
         default: return []
@@ -169,8 +171,9 @@ public enum AgentIntegration {
             ).map { .prAdd(url: $0) }
         // The agent's reply, before `stop`: a reply that asks you leaves the session asking (`stop` keeps it).
         case "afterAgentResponse":
-            guard let text = input["text"] as? String, TurnEnd.asksYou(text) else { return [] }
-            return [.guess(.asking, reason: TurnEnd.question)]
+            let text = input["text"] as? String
+            guard let text, TurnEnd.asksYou(text) else { return LastMessage.kinds(text) }
+            return LastMessage.kinds(text) + [.guess(.asking, reason: TurnEnd.question)]
         case "stop":
             switch input["status"] as? String {
             case "aborted": return modelOnly(input) + [.state(.idle, reason: "aborted")]
@@ -194,7 +197,7 @@ public enum AgentIntegration {
         // The extension sends a PR it saw the agent create; the URL is checked here.
         case "pr": PullRef(url: detail ?? "") == nil ? [] : [.prAdd(url: detail!)]
         case "waiting": [.state(.asking, reason: detail)]
-        case "idle": [TurnEnd.kind(lastWords: text)]
+        case "idle": LastMessage.kinds(text) + [TurnEnd.kind(lastWords: text)]
         case "aborted": [.state(.idle, reason: "aborted")]
         case "error": [.state(.done, reason: "error")]
         case "exit": [.state(.exited, reason: nil)]
@@ -211,7 +214,7 @@ public enum AgentIntegration {
         case "session.status":
             switch detail {
             case "busy": [.state(.working, reason: nil)]
-            case "idle": [TurnEnd.kind(lastWords: text)]
+            case "idle": LastMessage.kinds(text) + [TurnEnd.kind(lastWords: text)]
             case "retry": [.state(.limited, reason: "retrying")]
             default: []
             }
@@ -437,8 +440,8 @@ public enum AgentIntegration {
             // A turn that left background work running, or a scheduled prompt, is not finished with: background tasks
             // keep it working (their results start the next turn), a schedule leaves it idle until it fires. A
             // question in the turn's last words outranks both.
-            let usage = claudeUsage(input)
             let lastWords = input["last_assistant_message"] as? String
+            let usage = claudeUsage(input) + LastMessage.kinds(lastWords)
             if let lastWords, TurnEnd.asksYou(lastWords) { return usage + [TurnEnd.kind(lastWords: lastWords)] }
             if let tasks = input["background_tasks"] as? [Any], !tasks.isEmpty {
                 return usage + [.state(
@@ -493,7 +496,7 @@ public enum AgentIntegration {
         return kinds.compactMap { kind in
             switch kind {
             case let .state(state, reason): .subagentState(state, reason: reason, id: id, type: type)
-            case .guess, .atPrompt, .subagentsEnded, .agentSession: nil
+            case .guess, .atPrompt, .subagentsEnded, .agentSession, .lastMessage: nil
             default: kind
             }
         }

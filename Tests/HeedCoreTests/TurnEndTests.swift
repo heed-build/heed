@@ -78,9 +78,9 @@ struct TurnEndTests {
 
 struct TurnEndHookTests {
     @Test func claudeStopReadsTheLastMessage() {
-        #expect(AgentIntegration.claudeHook(event: "Stop", input: ["last_assistant_message": "Want me to push?"])
+        #expect(AgentIntegration.claudeHook(event: "Stop", input: ["last_assistant_message": "Want me to push?"]).turn
             == [.guess(.asking, reason: TurnEnd.question)])
-        #expect(AgentIntegration.claudeHook(event: "Stop", input: ["last_assistant_message": "Pushed."])
+        #expect(AgentIntegration.claudeHook(event: "Stop", input: ["last_assistant_message": "Pushed."]).turn
             == [.state(.done, reason: nil)])
     }
 
@@ -94,7 +94,7 @@ struct TurnEndHookTests {
             == [.subagentsEnded, .state(.done, reason: nil)])
         // A question still asks, background work or not.
         let asking: [String: Any] = ["last_assistant_message": "Should I wait?", "background_tasks": [1]]
-        #expect(AgentIntegration.claudeHook(event: "Stop", input: asking) == [.guess(
+        #expect(AgentIntegration.claudeHook(event: "Stop", input: asking).turn == [.guess(
             .asking,
             reason: TurnEnd.question
         )])
@@ -111,25 +111,25 @@ struct TurnEndHookTests {
     }
 
     @Test func codexStopReadsTheLastMessage() {
-        #expect(AgentIntegration.codexHook(event: "Stop", input: ["last_assistant_message": "Shall I commit?"])
+        #expect(AgentIntegration.codexHook(event: "Stop", input: ["last_assistant_message": "Shall I commit?"]).turn
             == [.guess(.asking, reason: TurnEnd.question)])
         #expect(AgentIntegration.codexHook(event: "Stop", input: ["last_assistant_message": NSNull()])
             == [.state(.done, reason: nil)])
     }
 
     @Test func cursorReplyThatAsks() {
-        #expect(AgentIntegration.cursorHook(event: "afterAgentResponse", input: ["text": "Should I continue?"])
+        #expect(AgentIntegration.cursorHook(event: "afterAgentResponse", input: ["text": "Should I continue?"]).turn
             == [.guess(.asking, reason: TurnEnd.question)])
-        #expect(AgentIntegration.cursorHook(event: "afterAgentResponse", input: ["text": "Done."]).isEmpty)
+        #expect(AgentIntegration.cursorHook(event: "afterAgentResponse", input: ["text": "Done."]).turn.isEmpty)
     }
 
     @Test func piAndOpencodeSendTheLastTextWithTheirEnd() throws {
-        #expect(try HookCommandLine.parse(["hook", "pi", "idle", "p1", "", "Do you want the tests too?"])
+        #expect(try HookCommandLine.parse(["hook", "pi", "idle", "p1", "", "Do you want the tests too?"]).turn
             == [.guess(.asking, reason: TurnEnd.question)])
         #expect(try HookCommandLine.parse(["hook", "pi", "idle", "p1", ""]) == [.state(.done, reason: nil)])
-        #expect(try HookCommandLine.parse(["hook", "opencode", "session.status", "s", "idle", "Which one?"])
+        #expect(try HookCommandLine.parse(["hook", "opencode", "session.status", "s", "idle", "Which one?"]).turn
             == [.guess(.asking, reason: TurnEnd.question)])
-        #expect(try HookCommandLine.parse(["hook", "opencode", "session.status", "s", "idle", "All green."])
+        #expect(try HookCommandLine.parse(["hook", "opencode", "session.status", "s", "idle", "All green."]).turn
             == [.state(.done, reason: nil)])
     }
 }
@@ -159,4 +159,9 @@ struct ObservedStateTurnTests {
         let screen = ObservedState(.asking, source: .guessed, reason: "from the screen")
         #expect(screen.accepting(ObservedState(.done)) == ObservedState(.done))
     }
+}
+
+extension [HookMessage.Kind] {
+    /// What the turn's end says about the session's state, without the last message it also carries.
+    var turn: [HookMessage.Kind] { filter { if case .lastMessage = $0 { false } else { true } } }
 }

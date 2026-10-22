@@ -67,6 +67,9 @@ anything else", "hope this helps") do not.
 | opencode | the plugin sends the last assistant text with the session's idle |
 | pi | the extension sends the last assistant message's text with `agent_settled` |
 
+Heed also keeps the newest of these per session (its last 4,000 characters): the [summaries](model-calls.md) of a
+session read it. A subagent's last words are never kept as the session's. gemini sends none.
+
 Claude also reports these as asking: its `AskUserQuestion` tool ("3 questions"), and in plan mode its plan, waiting
 for your approval ("plan to approve"). A Claude turn that ends with background tasks still running stays **working**
 (their results start the next turn); one that ends with a scheduled prompt shows **idle** until it fires. Claude's idle

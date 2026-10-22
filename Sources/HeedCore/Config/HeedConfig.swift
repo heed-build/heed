@@ -716,9 +716,10 @@ public enum ConfigLoader {
     dock_state = true
 
     [notifications]
-    # A macOS notification when a session starts needing you, unless Heed is in front showing that session. Several
-    # within a few seconds come as one. Open brings Heed forward on the session; a Claude permission prompt also gets
-    # Allow. Per state: asking (questions, a plan to approve) and blocked (a permission prompt).
+    # A macOS notification when a session starts needing you (its agent, a helper tab, or a PR the pilot cannot send
+    # feedback for), unless Heed is in front showing that session. Several within a few seconds come as one. Open brings
+    # Heed forward on the session; a Claude permission prompt also gets Allow. Per state: asking (questions, a plan to
+    # approve) and blocked (a permission prompt).
     enabled = true
     asking = true
     blocked = true
@@ -870,7 +871,8 @@ public struct NotificationSettings: Equatable, Sendable {
         self.reminderMinutes = reminderMinutes
     }
 
-    /// Whether a session entering `state` is worth a notification: the Needs you states, each when turned on.
+    /// Whether a session (or a helper tab) entering `state` is worth a notification: the Needs you states, each when
+    /// turned on. A PR that needs you only asks for `enabled`.
     public func wants(_ state: AgentState) -> Bool {
         guard enabled else { return false }
         return switch state {

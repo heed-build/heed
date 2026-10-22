@@ -224,6 +224,91 @@ struct NoticesTests {
     }
 }
 
+/// Needs you is one queue: PRs that need you and helper tabs notify under the sessions' rules.
+struct OtherNeedsTests {
+    private let start = Date(timeIntervalSince1970: 1000)
+    private let timing = Notices.Timing(grace: 30, reminder: 900)
+    private let ref = PullRef(repo: Repo(org: "acme", name: "api"), number: 12)
+
+    private func at(_ seconds: TimeInterval) -> Date { start.addingTimeInterval(seconds) }
+
+    private var session: Session {
+        Session(
+            id: "s1", title: "Fix the parser", repos: [ref.repo], branch: "fix-parser", agent: "claude",
+            state: ObservedState(.working), trackedPRs: [ref]
+        )
+    }
+
+    @Test func aStuckPullIsAnEntryForItsSession() {
+        #expect(Notices.pull(ref, status: .failing(1), of: session) == nil)
+        let entry = Notices.pull(ref, status: .stuck("2 review threads"), of: session)
+        #expect(entry?.id == "pull:acme/api#12")
+        #expect(entry?.title == "Fix the parser · #12")
+        #expect(entry?.body == "Needs you: 2 review threads")
+        #expect(entry?.session == "s1")
+    }
+
+    @Test func aHelperTabAskingOrBlockedIsAnEntry() {
+        #expect(Notices.helper(pane: "p9", state: .working, agent: "codex", ref: ref, of: session) == nil)
+        let entry = Notices.helper(pane: "p9", state: .blocked, agent: "codex", ref: ref, of: session)
+        #expect(entry?.kind == .helper && entry?.body == "Blocked" && entry?.session == "s1")
+    }
+
+    @Test func syncedItemsWaitTheGraceAndRemindOnce() throws {
+        var notices = Notices()
+        let pull = try #require(Notices.pull(ref, status: .stuck("conflicts"), of: session))
+        notices.sync(.pull, [pull], timing: timing, at: start)
+        notices.sync(.pull, [pull], timing: timing, at: at(20))
+        #expect(notices.drain(at: at(30)) == nil)
+        let notice = notices.drain(at: at(33))
+        #expect(notice?.body == "Needs you: conflicts")
+        #expect(notice?.session == "s1")
+        notices.sync(.pull, [pull], timing: timing, at: at(500))
+        #expect(notices.drain(at: at(33 + 900 + 3))?.body == "Still needs you: conflicts")
+        #expect(notices.next == nil)
+    }
+
+    @Test func whatLeavesTheSyncLeavesTheQueue() throws {
+        var notices = Notices()
+        let pull = try #require(Notices.pull(ref, status: .stuck("conflicts"), of: session))
+        let helper = try #require(Notices.helper(pane: "p9", state: .asking, agent: "codex", ref: ref, of: session))
+        notices.sync(.pull, [pull], timing: timing, at: start)
+        notices.sync(.helper, [helper], timing: timing, at: start)
+        notices.sync(.pull, [], timing: timing, at: at(10))
+        #expect(notices.pending.map(\.id) == ["helper:p9"])
+    }
+
+    @Test func sessionsPullsAndHelpersComeAsOneSummary() throws {
+        var notices = Notices()
+        notices.note(
+            id: "s2", title: "Docs", agent: "claude", from: .working, to: ObservedState(.blocked),
+            settings: NotificationSettings(), at: start
+        )
+        let pull = try #require(Notices.pull(ref, status: .stuck("conflicts"), of: session))
+        notices.sync(.pull, [pull], timing: timing, at: at(1))
+        guard case let .summary(entries) = notices.drain(at: at(33)) else { Issue.record("expected a summary"); return }
+        #expect(entries.map(\.id) == ["s2", "pull:acme/api#12"])
+        #expect(Notices.Notice.summary(entries).body == "Docs · blocked\nFix the parser · #12 · needs you")
+    }
+
+    @Test func onScreenMeansTheirSession() throws {
+        var notices = Notices()
+        let pull = try #require(Notices.pull(ref, status: .stuck("conflicts"), of: session))
+        notices.sync(.pull, [pull], timing: timing, at: start)
+        #expect(notices.drain(at: at(33)) { $0 == "s1" } == nil)
+    }
+
+    @Test func whatWasThereAtLaunchIsNotNews() throws {
+        var notices = Notices()
+        let pull = try #require(Notices.pull(ref, status: .stuck("conflicts"), of: session))
+        notices.sync(.pull, [pull], timing: timing, at: start, seen: true)
+        #expect(notices.next == nil)
+        notices.sync(.pull, [], timing: timing, at: at(60))
+        notices.sync(.pull, [pull], timing: timing, at: at(120))
+        #expect(notices.drain(at: at(153))?.body == "Needs you: conflicts")
+    }
+}
+
 struct AllowFromNotificationTests {
     private let prompt = """
     ╭───────────────────────────────────────────╮

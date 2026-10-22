@@ -103,6 +103,7 @@ public enum CommandCompletions {
         case "tutor": ([Tutor.tour] + Tutor.viewLessons).map { ($0.id, $0.title) }
         case "tutor.hide": [("all", "every lesson's reminder")]
         case "log.kind": CallKind.all.map { ($0.rawValue, "") }
+        case "dashboard.range": [("7", "a week"), ("28", "four weeks"), ("84", "twelve weeks")]
         case "timeline.kind": TimelineItem.Kind.allCases.map { ($0.rawValue, "") } + [("all", "every kind")]
         case "timeline.repo": context.timelineRepos.map { ($0, "") } + [("all", "every repo")]
         case "timeline.where": context.timelinePlaces.map { ($0, "") } + [("all", "everywhere")]

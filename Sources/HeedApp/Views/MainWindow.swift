@@ -40,6 +40,8 @@ struct MainWindow: View {
                         HistoryTimelineView()
                     case .ledger:
                         LedgerView()
+                    case .dashboard:
+                        DashboardView()
                     }
                 }
             }
@@ -368,6 +370,8 @@ struct StatusBar: View {
         case .ledger:
             let rows = model.ledger.rows
             return "\(rows.isEmpty ? 0 : model.ledger.cursor + 1)/\(rows.count)"
+        case .dashboard:
+            return DashboardText.range(model.dashboard.range)
         case .sessions: return "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
         }
     }
@@ -413,7 +417,8 @@ struct StatusBar: View {
         case .normal where model.view == .repos: "o start work here · v select · dd remove · r rescan · w issues · { } repo · / filter"
         case .normal where model.view == .history:
             "j k move · / filter · R reopen · O new from prompt · t outcome · \(model.keyText(for: "history.timeline", in: "history")) timeline · "
-                + "\(model.keyText(for: "history.ledger", in: "history")) ledger"
+                + "\(model.keyText(for: "history.ledger", in: "history")) ledger · "
+                + "\(model.keyText(for: "history.dashboard", in: "history")) dashboard"
         case .normal where model.view == .timeline:
             [
                 ("timeline.kind", "kind"),
@@ -424,6 +429,15 @@ struct StatusBar: View {
                 ("history.timeline", "list"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "timeline")) \($0.1)" }.joined(separator: " · ") + " · { } day · / search"
+        case .normal where model.view == .dashboard:
+            [
+                ("dashboard.range", "range"),
+                ("history.reopen", "reopen"),
+                ("history.dashboard", "list"),
+                ("history.timeline", "timeline"),
+                ("history.ledger", "ledger"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "dashboard")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .ledger:
             [
                 ("ledger.summarize", "write again"),

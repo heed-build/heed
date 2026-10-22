@@ -378,6 +378,9 @@ enum Shots {
         Shot(id: "history/history", keys: "gh"),
         Shot(id: "history/detail", keys: "gh", crop: .historyDetail),
         Shot(id: "history/timeline", keys: "ghT"),
+        Shot(id: "history/dashboard", keys: "ghD"),
+        // Twelve weeks: r steps the range on from four weeks.
+        Shot(id: "history/dashboard-weeks", keys: "ghDr"),
         Shot(id: "history/ledger", keys: "ghL"),
         // The abandoned spike: its follow-up, the agent time an estimate.
         Shot(id: "history/ledger-detail", keys: "ghLjjj"),

@@ -272,6 +272,13 @@ public extension Tutor {
                 doneLine: "{ledger.summarize} in the ledger writes a summary now; {ledger.edit} edits one."
             ) { _, now, seen in seen.contains { $0.view == "ledger" } && now.view == "history" },
             TutorStep(
+                "The dashboard",
+                say: "{history.dashboard} sums it up: sessions, agent time per day, where the time went by agent and "
+                    + "repo, and how recent sessions went. {history.dashboard} again comes back.",
+                keys: ["{history.dashboard}", "{history.dashboard}"], target: "historyList",
+                doneLine: "{dashboard.range} on the dashboard steps from a week to four and twelve weeks."
+            ) { _, now, seen in seen.contains { $0.view == "dashboard" } && now.view == "history" },
+            TutorStep(
                 "Reopen it",
                 say: "{history.reopen} brings the session back: its worktree, and its agent resuming where it was.",
                 keys: ["{history.reopen}"], target: "historyList",

@@ -21,6 +21,7 @@ enum ShotRegion: String, CaseIterable {
     case historyList, historyDetail
     case timelineFilters, timelineList, timelineDetail
     case ledgerList, ledgerDetail
+    case dashboardTiles, dashboardHeatmap, dashboardShares, dashboardRecent
     case logList, logDetail, logUsage
     case pilotDetail, pilotActivity
 }

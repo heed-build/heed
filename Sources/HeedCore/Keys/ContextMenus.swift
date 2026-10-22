@@ -426,6 +426,19 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// A recent session on the dashboard.
+    public static func dashboard(id: String, title: String, reopenable: Bool, onGitHub: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "dashboard", id: id)
+        var menu = Menu(header: title)
+        menu.section([
+            reopenable ? MenuItem("Reopen", CommandInvocation(name: "history.reopen", target: target)) : nil,
+            onGitHub ? MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target)) : nil,
+            MenuItem("Next range", CommandInvocation(name: "dashboard.range")),
+        ])
+        menu.section([MenuItem("Back to the list", CommandInvocation(name: "history.dashboard"))])
+        return menu.entries
+    }
+
     /// A ledger entry: write its summary again, edit it, reopen its session when it is in History.
     public static func ledger(id: String, title: String, reopenable: Bool, onGitHub: Bool) -> [MenuEntry] {
         let target = CommandTarget.row(view: "ledger", id: id)

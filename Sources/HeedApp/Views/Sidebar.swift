@@ -103,7 +103,7 @@ struct Sidebar: View {
         case .watching, .stalled: true
         case .pinned:
             if case .stalled = pilot.status { true } else { pilot.acting }
-        case .needsYou, .working, .parked: false
+        case .needsYou, .working, .chats, .parked: false
         }
     }
 
@@ -113,7 +113,7 @@ struct Sidebar: View {
         case .needsYou: Theme.block
         case .stalled: Theme.err
         case .watching: Theme.busy
-        case .pinned, .working, .parked: Theme.fg3
+        case .pinned, .working, .chats, .parked: Theme.fg3
         }
     }
 
@@ -127,6 +127,9 @@ struct Sidebar: View {
                 title: "\(section.group.rawValue) · \(count)",
                 tint: Self.tint(section.group)
             )
+            if section.group == .chats {
+                Text("no repo, no worktree").font(Theme.ui(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+            }
             Spacer()
             if section.group == .pinned { KeyCap(text: "'") }
         }
@@ -167,6 +170,7 @@ struct SessionRow: View {
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
+                    if session.isChat { ChatGlyph() }
                     Text(session.worktreeName)
                         .font(Theme.ui(13, weight: .medium))
                         .lineLimit(1)
@@ -185,7 +189,11 @@ struct SessionRow: View {
                             .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
                     }
                 }
-                if !compact { FlowChips(repos: session.involvedRepos) }
+                if let chat = session.chat {
+                    ChatFolderChip(chat: chat)
+                } else if !compact {
+                    FlowChips(repos: session.involvedRepos)
+                }
                 // A pinned session keeps its agent's line, with heed's under it.
                 if label == nil || group == .pinned {
                     // Working: the spinner says it, so just the agent, its model and how full its context is; the
@@ -229,6 +237,9 @@ struct SessionRow: View {
                 } else {
                     palette.swatch.frame(width: 3).padding(.vertical, 4)
                 }
+            } else if session.isChat {
+                // A chat's rail is neutral: it belongs to no repo.
+                Theme.fg3.opacity(0.5).frame(width: 3).padding(.vertical, 4)
             }
         }
         .opacity(isOffline ? 0.55 : 1)

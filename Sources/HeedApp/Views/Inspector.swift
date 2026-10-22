@@ -18,7 +18,9 @@ struct Inspector: View {
     /// pushes the others out of sight.
     private func content(height: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            if let session = model.currentSession {
+            if let session = model.currentSession, let chat = session.chat {
+                chatSections(session, chat)
+            } else if let session = model.currentSession {
                 section {
                     HStack {
                         SectionHeader(title: "Worktree")
@@ -153,6 +155,55 @@ struct Inspector: View {
                 }
             }
             Spacer(minLength: 0)
+        }
+    }
+
+    /// A chat: its folder where a session's worktree would be, and its agent's events. No links: it has no branch for a
+    /// PR to come from.
+    @ViewBuilder private func chatSections(_ session: Session, _ chat: ChatFolder) -> some View {
+        section {
+            HStack {
+                SectionHeader(title: "Chat")
+                Spacer()
+                CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    ChatKindChip()
+                    ChatFolderChip(chat: chat)
+                    if let host = session.host { HostChip(location: .host(host)) }
+                }
+                Text(Paths.tilde(chat.path)).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+                    .lineLimit(1).truncationMode(.middle)
+                    .help(chat.path)
+                Text(chat.kind == .scratch
+                    ? "An empty folder heed made for this chat. No repo, no branch."
+                    : "A folder you picked. No repo, no branch; heed never removes it.")
+                    .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        section {
+            SectionHeader(title: "Agent events")
+            UsageLine(session: session)
+            let log = model.events[session.id] ?? []
+            if log.isEmpty {
+                HStack(spacing: 8) {
+                    StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
+                    Text(session.state.state.rawValue).foregroundStyle(Theme.fg)
+                    Text(session.state.reason ?? "").foregroundStyle(Theme.fg3).lineLimit(1)
+                }
+                .font(Theme.mono(11))
+            }
+            ForEach(Array(log.prefix(8).enumerated()), id: \.offset) { _, event in
+                HStack(spacing: 8) {
+                    Text(event.at, format: .dateTime.hour().minute().second()).foregroundStyle(Theme.fg3)
+                    StateGlyph(state: event.state)
+                    Text(event.state.rawValue).foregroundStyle(Theme.fg)
+                    Text(event.reason ?? "").foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.tail)
+                }
+                .font(Theme.mono(11))
+            }
         }
     }
 

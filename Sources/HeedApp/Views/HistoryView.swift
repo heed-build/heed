@@ -139,7 +139,11 @@ private struct HistoryRow: View {
             }
             .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)
-            if let repo = entry.session.repos.first { RepoChip(repo: repo).fixedSize() }
+            if entry.session.isChat {
+                ChatKindChip().fixedSize()
+            } else if let repo = entry.session.repos.first {
+                RepoChip(repo: repo).fixedSize()
+            }
             if !compact {
                 Text(entry.session.agent).font(Theme.mono(12)).foregroundStyle(Theme.fg2)
                     .frame(width: 76, alignment: .leading)
@@ -185,7 +189,11 @@ private struct HistoryDetail: View {
                     title: "\(entry.outcome.rawValue) \(Clock.relative(entry.closedAt, named: true))"
                 )
                 Spacer()
-                if let repo = entry.session.repos.first { RepoChip(repo: repo) }
+                if entry.session.isChat {
+                    ChatKindChip()
+                } else if let repo = entry.session.repos.first {
+                    RepoChip(repo: repo)
+                }
             }
             Text(entry.session.title).font(Theme.ui(16, weight: .semibold))
             Text(entry.session.prompt.isEmpty ? "(no prompt)" : entry.session.prompt)
@@ -207,7 +215,9 @@ private struct HistoryDetail: View {
                 }
             }
             Text(
-                "Branch \(entry.session.branch). Heed keeps only the prompt, the session id and this timeline; the transcript belongs to the agent."
+                entry.session.chat.map { chat in
+                    "A chat in \(chat.kind == .scratch ? "a scratch folder, " : "")\(Paths.tilde(chat.path)). Heed keeps only the prompt, the session id and this timeline; the transcript belongs to the agent."
+                } ?? "Branch \(entry.session.branch). Heed keeps only the prompt, the session id and this timeline; the transcript belongs to the agent."
             )
             .font(Theme.ui(12))
             .foregroundStyle(Theme.fg2)

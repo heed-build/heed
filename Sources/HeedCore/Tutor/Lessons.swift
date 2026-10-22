@@ -111,6 +111,12 @@ public extension Tutor {
                 keys: ["⌘↩"], target: "dialog",
                 doneLine: "A worktree, a branch and the agent with your prompt, in one key."
             ) { start, now, _ in now.sessions > start.sessions },
+            TutorStep(
+                "Or just a chat",
+                say: "No repo needed? :chat starts a chat: an agent in an empty folder, no worktree or branch. Ask it something, then ⌘↩.",
+                keys: [":chat", "⌘↩"], target: "dialog",
+                doneLine: "A chat, under Chats in the sidebar. If it asks you something, it shows in Needs you."
+            ) { start, now, _ in now.chats > start.chats },
         ]),
         TutorLesson(id: "inbox", title: "Inbox", minutes: 2, world: .prStorm, steps: [
             TutorStep(

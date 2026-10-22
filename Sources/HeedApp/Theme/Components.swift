@@ -96,6 +96,45 @@ struct RepoChip: View {
     }
 }
 
+/// A chat's mark: a speech bubble, where a session in a repo would show its repo.
+struct ChatGlyph: View {
+    var size: CGFloat = 11
+
+    var body: some View {
+        Image(systemName: "bubble.left").font(.system(size: size)).foregroundStyle(Theme.fg2)
+            .accessibilityLabel("chat")
+    }
+}
+
+/// A chat's folder, in a neutral chip: `scratch`, or the folder you picked (`~/Downloads`).
+struct ChatFolderChip: View {
+    let chat: ChatFolder
+
+    var body: some View {
+        Text(chat.kind == .scratch ? "scratch" : Paths.tilde(chat.path))
+            .font(Theme.mono(10.5)).lineLimit(1).truncationMode(.middle)
+            .foregroundStyle(Theme.fg2)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+            .help(chat.path)
+    }
+}
+
+/// "chat" where a history row or detail would show a repo: the glyph and the word.
+struct ChatKindChip: View {
+    var body: some View {
+        HStack(spacing: 4) {
+            ChatGlyph(size: 10)
+            Text("chat").font(Theme.mono(10.5))
+        }
+        .foregroundStyle(Theme.fg2)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 1)
+        .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+    }
+}
+
 /// Where something runs: `@devbox` in the host's colour, or a quiet "local" (local is the unmarked default).
 struct HostChip: View {
     let location: Location

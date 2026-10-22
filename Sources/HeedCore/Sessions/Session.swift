@@ -262,16 +262,19 @@ public enum SessionGroup: String, CaseIterable, Sendable {
     case working = "Working"
     /// Heed is getting a PR of the session green or merged, and you have not typed in it since heed last acted.
     case watching = "Watching"
+    /// Chats: no repo, no worktree. One that is asking or blocked is in Needs you instead, like any session.
+    case chats = "Chats"
     case parked = "Parked"
 
     public static let maxPins = 9
 
-    /// Pinned, then what needs you, then what you parked; then stalled, then watching (heed is driving, the session is
-    /// not yours); then the agent's state decides, working or parked.
+    /// Pinned, then what needs you, then what you parked; then chats, which have no PRs for the pilot; then stalled,
+    /// then watching (heed is driving, the session is not yours); then the agent's state decides, working or parked.
     public static func of(_ session: Session, pilot: SessionPilot = SessionPilot()) -> SessionGroup {
         if session.pinned { return .pinned }
         if session.state.state.needsYou || pilot.status?.needsYou == true || pilot.helperNeedsYou { return .needsYou }
         if session.parked { return .parked }
+        if session.isChat { return .chats }
         if case .stalled = pilot.status { return .stalled }
         if pilot.acting, !pilot.yours { return .watching }
         if session.parked || session.state.state == .done || session.state.state == .idle

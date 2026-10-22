@@ -40,7 +40,7 @@ struct StartWorkView: View {
     private func dialog(_ form: StartWorkForm, promptCap: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Start work").font(Theme.ui(15, weight: .semibold))
+                Text(form.chat == nil ? "Start work" : "New chat").font(Theme.ui(15, weight: .semibold))
                 Spacer()
                 KeyCap(text: "⌘↩")
                 Text(model.startingWork ? "starting…" : "start").foregroundStyle(Theme.fg2)
@@ -52,7 +52,11 @@ struct StartWorkView: View {
 
             promptBox(form, cap: promptCap).padding(.horizontal, 20).padding(.bottom, 16)
             section("Repo", .repo, form) { repoField(form) }
-            section("Worktree", .worktree, form) { worktreeField(form) }
+            if form.chat != nil {
+                section("Folder", .worktree, form) { folderField(form) }
+            } else {
+                section("Worktree", .worktree, form) { worktreeField(form) }
+            }
             section("Agent", .agent, form) { agentField(form) }
             section("Options", .options, form) { optionsField(form) }
             commandPreview(form)
@@ -68,7 +72,8 @@ struct StartWorkView: View {
         let active = form.field == .prompt
         // Grows with the text up to `cap`, then scrolls, kept at the end where the typing happens.
         return ListScroll {
-            (Text(form.prompt.isEmpty && !active ? "Describe the task…" : form.prompt)
+            (Text(form.prompt.isEmpty && !active ? form.chat == nil ? "Describe the task…" : "Ask anything…" : form
+                    .prompt)
                 .foregroundStyle(form.prompt.isEmpty ? Theme.fg3 : Theme.fg)
                 + Text(active && form.editing ? "▌" : "").foregroundStyle(Theme.done))
                 .font(Theme.mono(13))
@@ -121,9 +126,16 @@ struct StartWorkView: View {
                     )
                     .opacity(0.85)
                 }
+                choice(
+                    "chat, no repo", selected: form.chat != nil,
+                    focused: form.field == .repo && form.repoCursor == form.chatChipIndex
+                )
             }
             if let search = form.repoSearch { repoSearch(search) }
-            if form.guesses.isEmpty {
+            if form.chat != nil {
+                Text("A chat: the agent works in a folder, with no repo, worktree or branch.")
+                    .foregroundStyle(Theme.fg3)
+            } else if form.guesses.isEmpty {
                 Text("No repos known yet: they appear once the repo scan finishes.").foregroundStyle(Theme.fg3)
             } else if let reason = form.guesses.first(where: { form.selectedRepos.first == $0.repo.id })?.reason,
                       !reason.isEmpty
@@ -198,6 +210,49 @@ struct StartWorkView: View {
                 .foregroundStyle(Theme.fg3)
                 .lineLimit(1)
                 .truncationMode(.middle)
+            }
+        }
+    }
+
+    /// A chat's folder: a scratch folder heed makes (its name editable) or one you pick (its path typed), and where
+    /// it runs.
+    private func folderField(_ form: StartWorkForm) -> some View {
+        let chips = form.chatChips
+        let cursor = form.chat?.cursor ?? 0
+        let picked = form.chat?.kind == .folder
+        let plan = form.plan.chat
+        return VStack(alignment: .leading, spacing: 8) {
+            FlowLayout {
+                ForEach(Array(chips.enumerated()), id: \.offset) { index, chip in
+                    choice(
+                        chip.label, selected: chip.selected,
+                        focused: form.field == .worktree && !form.editing && cursor == index
+                    )
+                    .padding(.leading, index == 2 ? 12 : 0)
+                }
+            }
+            HStack {
+                Text((picked ? form.chat?.path ?? "" : form.name) +
+                    (form.field == .worktree && form.editing ? "▌" : ""))
+                    .font(Theme.mono(12.5))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 12)
+                Text(picked ? "path" : "auto-named").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .frame(width: 380)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(form.field == .worktree ? Theme.fg2 : Theme.line))
+            if let plan {
+                Text(picked ? "The agent works in this folder with its normal permissions; heed never removes it."
+                    : "\(Paths.tilde(plan.path)) · an empty folder heed makes for this chat")
+                    .font(Theme.mono(11))
+                    .foregroundStyle(Theme.fg3)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

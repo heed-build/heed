@@ -5,7 +5,8 @@ import SwiftUI
 /// docs/images/shots; pages reference them as `../images/shots/<id>.png`.
 @MainActor
 enum Shots {
-    static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + startWork + agents + pilot +
+    static let all: [Shot] = landing + home + gettingStarted + concepts + sessions + chats + startWork + agents +
+        pilot +
         hosts +
         github +
         worktrees
@@ -149,6 +150,31 @@ enum Shots {
     ]
 
     static let prompt = typed("Fix broken anchors in the redirect pages")
+
+    /// The fake world's chats, added to `main`: in the sidebar's Chats group (one asking, in Needs you) and History.
+    static func withChats(_ model: AppModel) {
+        var changes: [DomainChange] = Fixtures.chats.flatMap { session, layout in
+            [DomainChange.sessionUpserted(session), .layoutChanged(session: session.id, layout)]
+        }
+        changes.append(.sessionClosed(Fixtures.closedChat))
+        model.commit(changes)
+    }
+
+    static let chatPrompt = typed("Which shell one-liner counts lines per file type in a folder?")
+
+    static let chats: [Shot] = [
+        Shot(id: "sessions/chats-sidebar", size: CGSize(width: 1440, height: 1240), crop: .sidebar, prepare: withChats),
+        // The scratch chat that is asking: no repo chip, its folder in the inspector. Tall enough for every session.
+        Shot(id: "sessions/chats-session", size: CGSize(width: 1440, height: 1240), keys: "4G", prepare: withChats),
+        Shot(id: "sessions/chats-new", keys: ":chat<Space>" + chatPrompt + "<CR>", crop: .dialog),
+        Shot(id: "sessions/chats-new-folder", keys: ":chat<Space>" + chatPrompt + "<CR><Esc>jjl<Space>", crop: .dialog),
+        Shot(
+            id: "sessions/chats-from-start-work",
+            keys: "o" + chatPrompt + "<Esc>j" + String(repeating: "l", count: 7),
+            crop: .dialog
+        ),
+        Shot(id: "sessions/chats-history", keys: "gh", prepare: withChats),
+    ]
 
     static let startWork: [Shot] = [
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),

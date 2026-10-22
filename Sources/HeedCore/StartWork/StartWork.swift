@@ -179,6 +179,8 @@ public struct StartWorkPlan: Hashable, Sendable {
     public var sessionID: String
     /// Where the agents' hook files live; nil launches agents without Heed's hooks (tests).
     public var integration: IntegrationFiles?
+    /// A chat: no repos, a folder instead of worktrees.
+    public var chat: ChatPlan?
 
     public init(
         prompt: String, repos: [RepoRecord], name: String, base: String? = nil, agent: AgentProfile?,
@@ -195,8 +197,9 @@ public struct StartWorkPlan: Hashable, Sendable {
 
     public func base(for record: RepoRecord) -> String { base ?? record.defaultBranch ?? "main" }
 
-    /// Where the work runs: this Mac, or the host its repos are on (a session's repos are all in one place).
-    public var location: Location { repos.first?.location ?? .local }
+    /// Where the work runs: this Mac, or the host its repos (or its chat) are on (a session's repos are all in one
+    /// place).
+    public var location: Location { chat?.location ?? repos.first?.location ?? .local }
 
     /// The line typed into the agent pane's shell (in its syntax), shown in sh syntax in the dialog.
     public var command: ShellCommand? {
@@ -209,6 +212,7 @@ public struct StartWorkPlan: Hashable, Sendable {
     }
 
     public var title: String {
+        if chat != nil, prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "chat" }
         let firstLine = prompt.split(separator: "\n").first.map(String.init) ?? prompt
         let sentence = firstLine.split(separator: ".").first.map(String.init) ?? firstLine
         let trimmed = sentence.trimmingCharacters(in: .whitespaces)
@@ -371,6 +375,7 @@ public enum StartWork {
     public static func execute(
         _ plan: StartWorkPlan, settings: WorkSettings, hosts: [String: HostConfig] = [:], now: Date = Date()
     ) async throws -> [DomainChange] {
+        if let chat = plan.chat { return try await executeChat(plan, chat: chat, now: now) }
         guard !plan.repos.isEmpty else { throw StartWorkError.noRepo }
         guard Set(plan.repos.map(\.location)).count == 1 else { throw StartWorkError.mixedHosts }
         let created = try await withThrowingTaskGroup(of: (Int, Worktree).self) { group in
@@ -427,6 +432,72 @@ public enum StartWork {
         changes.append(.sessionUpserted(session))
         changes.append(.layoutChanged(session: session.id, built))
         return changes
+    }
+
+    /// Makes the chat's scratch folder (a picked one must be there already) and returns the session and its layout:
+    /// the agent in the folder, a shell beside it when asked. No setup, tasks or worktree files: there is no repo.
+    static func executeChat(_ plan: StartWorkPlan, chat: ChatPlan, now: Date) async throws -> [DomainChange] {
+        let location = chat.location
+        let path: String
+        switch chat.kind {
+        case .scratch:
+            guard !chat.name.isEmpty else { throw StartWorkError.noFolder }
+            let root = Chats.root(on: location)
+            if location.isLocal {
+                path = Chats.unique(chat.name, in: root) { FileManager.default.fileExists(atPath: $0) }
+                try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+            } else {
+                path = chat.path
+                _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", path], caller: "chat.scratchFolder")
+            }
+        case .folder:
+            path = chat.path
+            guard !chat.name.isEmpty else { throw StartWorkError.noFolder }
+            if location.isLocal {
+                var isDirectory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue
+                else { throw StartWorkError.notAFolder(path) }
+            } else {
+                _ = try await ProcessRunner.output(on: location, "test", ["-d", path], caller: "chat.folderCheck")
+            }
+        }
+        // Cursor's hooks file goes into a folder heed made, never into one you picked.
+        if chat.kind == .scratch, location.isLocal, plan.agent?.name == "cursor",
+           let heed = plan.integration?.heedBinary
+        {
+            try? AgentIntegration.installCursorHooks(worktree: path, heed: heed)
+        }
+        return chatChanges(plan, chat: chat, path: path, now: now)
+    }
+
+    /// The new chat's session and layout, once its folder is there: the agent in it, a shell beside it when asked.
+    public static func chatChanges(_ plan: StartWorkPlan, chat: ChatPlan, path: String, now: Date) -> [DomainChange] {
+        let location = chat.location
+        var session = Session(
+            id: plan.sessionID, title: plan.title, prompt: plan.prompt, repos: [], branch: "",
+            agent: plan.agent?.name ?? "shell",
+            agentSessionID: plan.agent.flatMap {
+                AgentIntegration.preassignedSessionID(agent: $0, sessionID: plan.sessionID)
+            },
+            state: ObservedState(.idle, source: .guessed),
+            activity: plan.command == nil ? "shell" : "starting", lastActivity: now,
+            workspace: .chat(ChatFolder(chat.kind, path: path))
+        )
+        session.host = location.hostName
+        let agentPane = PaneSpec(
+            role: plan.command == nil ? .shell : .agent, title: plan.agent?.name ?? "zsh", directory: path,
+            command: plan.command, location: location
+        )
+        var main = PaneTab(title: plan.command == nil ? "shell" : "agent", tree: .leaf(agentPane))
+        if plan.shellSplit {
+            main.split(.horizontal, with: PaneSpec(role: .shell, title: "zsh", directory: path, location: location))
+            main.focused = agentPane.id
+        }
+        session.record(
+            "started chat · \(plan.agent?.name ?? "shell") · \(chat.kind == .scratch ? "scratch folder" : "in \(Paths.abbreviate(path))")",
+            at: now
+        )
+        return [.sessionUpserted(session), .layoutChanged(session: session.id, SessionLayout(tabs: [main]))]
     }
 
     /// Where a new worktree goes: under `[worktrees] root` here, under the host's `worktree_root` there (`~` is the
@@ -590,15 +661,21 @@ public enum ReopenError: Error, CustomStringConvertible {
     }
 }
 
-public enum StartWorkError: Error, CustomStringConvertible {
+public enum StartWorkError: Error, Equatable, CustomStringConvertible {
     case noRepo
     /// A session's repos are all in one place: here, or on one host.
     case mixedHosts
+    /// A chat with no folder named.
+    case noFolder
+    /// A chat's picked folder is not a folder.
+    case notAFolder(String)
 
     public var description: String {
         switch self {
         case .noRepo: "pick at least one repo"
         case .mixedHosts: "a session's repos must all be on this Mac or all on the same host"
+        case .noFolder: "name the chat's folder first"
+        case let .notAFolder(path): "\(Paths.abbreviate(path)) is not a folder"
         }
     }
 }

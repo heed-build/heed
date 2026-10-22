@@ -42,6 +42,31 @@ public struct StartWorkForm: Sendable {
     public private(set) var error: String?
     /// Picking any repo by name (the last chip in the repo field, or `/` there); nil when not searching.
     public private(set) var repoSearch: Typeahead<RepoRecord>?
+    /// A chat instead of work in repos (the chat chip in the repo field, or `chat.new`); nil for work in worktrees.
+    public private(set) var chat: ChatChoice?
+    /// Hosts a chat can run on, besides this Mac.
+    public let hosts: [String]
+
+    /// A chat's folder and where it runs. The Folder field (in place of Worktree) holds the scratch folder's name in
+    /// `name`, or the picked folder's path in `path`.
+    public struct ChatChoice: Equatable, Sendable {
+        public var kind: ChatFolder.Kind = .scratch
+        public var path = "~/"
+        /// The host it runs on; nil for this Mac.
+        public var host: String?
+        /// The focused chip in the Folder field: the kinds, then this Mac and each host.
+        public var cursor = 0
+    }
+
+    /// The Folder field's chips in a chat: scratch, folder, then this Mac and each host.
+    public var chatChips: [(label: String, selected: Bool)] {
+        guard let chat else { return [] }
+        return [("scratch", chat.kind == .scratch), ("folder", chat.kind == .folder), ("this Mac", chat.host == nil)]
+            + hosts.map { ("@\($0)", chat.host == $0) }
+    }
+
+    /// Where the chat chip sits in the repo field: after the repos and the search chip.
+    public var chatChipIndex: Int { repoChoices.isEmpty ? 0 : repoChoices.count + 1 }
 
     /// How many guesses get a chip of their own; the rest are a search away.
     public static let chipCount = 6
@@ -74,9 +99,10 @@ public struct StartWorkForm: Sendable {
     public init(
         repos: [RepoRecord], lastWorked: [String: Date] = [:], context: StartContext? = nil,
         settings: WorkSettings, prompt: String = "", integration: IntegrationFiles? = nil,
-        hostIntegrations: [String: IntegrationFiles] = [:]
+        hostIntegrations: [String: IntegrationFiles] = [:], hosts: [String] = [], chat: Bool = false
     ) {
         self.hostIntegrations = hostIntegrations
+        self.hosts = hosts
         self.repos = repos
         self.lastWorked = lastWorked
         self.context = context
@@ -85,7 +111,19 @@ public struct StartWorkForm: Sendable {
         self.integration = integration
         agents = settings.agents.map(Optional.some) + [nil]
         agentIndex = settings.agents.firstIndex { $0.name == settings.defaultAgent } ?? 0
+        if chat { self.chat = ChatChoice() }
         setPrompt(prompt)
+        if chat { repoCursor = chatChipIndex }
+    }
+
+    /// `chat.new`, or the chat chip: a chat, no repo. Off again goes back to the guessed repo.
+    public mutating func setChat(_ on: Bool) {
+        guard on != (chat != nil) else { return }
+        chat = on ? ChatChoice() : nil
+        reposTouched = on
+        if on { selectedRepos = [] }
+        let typed = prompt
+        setPrompt(typed)
     }
 
     /// `:agent codex`: that agent, chosen.
@@ -99,6 +137,7 @@ public struct StartWorkForm: Sendable {
     /// Start work from a repo (`o` on a Repos row): that repo, chosen, whatever the prompt suggests later.
     public mutating func choose(repo id: String) {
         guard repos.contains(where: { $0.id == id }) else { return }
+        setChat(false)
         reposTouched = true
         selectedRepos = [id]
         repoCursor = repoChoices.firstIndex { $0.repo.id == id } ?? repoCursor
@@ -113,6 +152,18 @@ public struct StartWorkForm: Sendable {
     }
 
     public var plan: StartWorkPlan {
+        if let chat {
+            let location = chat.host.map(Location.host) ?? .local
+            var plan = StartWorkPlan(
+                prompt: prompt, repos: [], name: name, agent: agent, sessionID: sessionID,
+                integration: chat.host.map { hostIntegrations[$0] } ?? integration
+            )
+            plan.chat = ChatPlan(kind: chat.kind, name: chat.kind == .scratch ? name : chat.path, location: location)
+            plan.autostart = autostart && agent != nil
+            plan.planFirst = planFirst
+            plan.shellSplit = shellSplit
+            return plan
+        }
         let records = selectedRecords
         var plan = StartWorkPlan(
             prompt: prompt, repos: records, name: name, agent: agent, sessionID: sessionID,
@@ -124,7 +175,21 @@ public struct StartWorkForm: Sendable {
         return plan
     }
 
-    public var canStart: Bool { !selectedRepos.isEmpty && !name.isEmpty }
+    public var canStart: Bool {
+        if let chat { return chat.kind == .scratch ? !name.isEmpty : !folderPath(chat).isEmpty }
+        return !selectedRepos.isEmpty && !name.isEmpty
+    }
+
+    private func folderPath(_ chat: ChatChoice) -> String {
+        let path = chat.path.trimmingCharacters(in: .whitespaces)
+        return path == "~/" || path == "~" ? "" : path
+    }
+
+    /// Why ⌘↩ does not start.
+    private var cannotStart: String {
+        if let chat { return chat.kind == .scratch ? "name the chat's folder first" : "type the folder's path first" }
+        return selectedRepos.isEmpty ? "pick a repo first" : "name the worktree first"
+    }
 
     // MARK: Keys
 
@@ -132,7 +197,7 @@ public struct StartWorkForm: Sendable {
         error = nil
         if stroke == KeyStroke("CR", .command) {
             guard canStart else {
-                error = selectedRepos.isEmpty ? "pick a repo first" : "name the worktree first"
+                error = cannotStart
                 return .handled
             }
             return .start(plan)
@@ -152,7 +217,8 @@ public struct StartWorkForm: Sendable {
             editing = false
             return .handled
         }
-        var text = field == .prompt ? prompt : name
+        let folder = field == .worktree && chat?.kind == .folder
+        var text = field == .prompt ? prompt : folder ? chat?.path ?? "" : name
         switch stroke {
         case KeyStroke("BS"):
             if !text.isEmpty { text.removeLast() }
@@ -174,8 +240,11 @@ public struct StartWorkForm: Sendable {
         }
         if field == .prompt {
             setPrompt(text)
+        } else if folder {
+            chat?.path = text
         } else {
-            name = Self.branchSafe(text)
+            // A scratch folder's name is one folder: no `/`.
+            name = chat == nil ? Self.branchSafe(text) : Self.branchSafe(text).replacingOccurrences(of: "/", with: "-")
             nameEdited = true
         }
         return .handled
@@ -228,7 +297,9 @@ public struct StartWorkForm: Sendable {
 
     /// Paste goes into whatever is being edited.
     public mutating func paste(_ text: String) {
-        if field == .worktree {
+        if field == .worktree, chat?.kind == .folder {
+            chat?.path += text.trimmingCharacters(in: .newlines)
+        } else if field == .worktree {
             name = Self.branchSafe(name + text)
             nameEdited = true
         } else {
@@ -249,8 +320,12 @@ public struct StartWorkForm: Sendable {
     private mutating func moveWithin(by delta: Int) {
         switch field {
         case .repo:
-            // The last stop is the search chip.
-            repoCursor = min(max(repoCursor + delta, 0), repoChoices.count)
+            // The last stops are the search chip and the chat chip.
+            repoCursor = min(max(repoCursor + delta, 0), chatChipIndex)
+        case .worktree where chat != nil:
+            let last = chatChips.count - 1
+            let next = min(max((chat?.cursor ?? 0) + delta, 0), last)
+            chat?.cursor = next
         case .agent:
             agentIndex = ((agentIndex + delta) % agents.count + agents.count) % agents.count
         case .options:
@@ -262,16 +337,34 @@ public struct StartWorkForm: Sendable {
 
     private mutating func toggle() {
         switch field {
+        case .repo where repoCursor == chatChipIndex:
+            setChat(chat == nil)
         case .repo where repoCursor == repoChoices.count:
             openSearch()
         case .repo where repoChoices.indices.contains(repoCursor):
             reposTouched = true
             let id = repoChoices[repoCursor].repo.id
+            // Picking a repo is work in it, not a chat: that repo, alone.
+            if chat != nil {
+                setChat(false)
+                reposTouched = true
+                selectedRepos = [id]
+                return
+            }
             if let index = selectedRepos.firstIndex(of: id) {
                 selectedRepos.remove(at: index)
             } else {
                 selectedRepos.append(id)
             }
+        case .worktree:
+            guard var picked = chat else { break }
+            switch picked.cursor {
+            case 0: picked.kind = .scratch
+            case 1: picked.kind = .folder
+            case 2: picked.host = nil
+            default: picked.host = hosts[picked.cursor - 3]
+            }
+            chat = picked
         case .options:
             switch Option(rawValue: optionCursor)! {
             case .autostart: autostart.toggle()
@@ -289,7 +382,8 @@ public struct StartWorkForm: Sendable {
         case .agent:
             moveWithin(by: delta)
         default:
-            guard !guesses.isEmpty else { return .handled }
+            // A chat has no repo to guess.
+            guard chat == nil, !guesses.isEmpty else { return .handled }
             reposTouched = true
             let current = selectedRepos.first.flatMap { id in guesses.firstIndex { $0.repo.id == id } } ?? -delta
             let next = ((current + delta) % guesses.count + guesses.count) % guesses.count
@@ -305,12 +399,13 @@ public struct StartWorkForm: Sendable {
         prompt = text
         guesses = StartWork.guessRepos(for: text, in: repos, lastWorked: lastWorked, context: context)
         if !nameEdited {
-            name = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : StartWork.branchName(
-                for: text,
-                prefixes: prefixes
-            )
+            name = chat != nil ? Chats.scratchName(for: text, on: Clock.now)
+                : text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : StartWork.branchName(
+                    for: text,
+                    prefixes: prefixes
+                )
         }
-        if !reposTouched {
+        if !reposTouched, chat == nil {
             // The top guess only. Each selected repo gets a worktree, so a second one is yours to add (space), never a
             // guess: a prompt names repos for many reasons (an issue link, a repo it reads from).
             selectedRepos = guesses.first.flatMap { $0.confidence > 0 ? [$0.repo.id] : nil } ?? []

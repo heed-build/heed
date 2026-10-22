@@ -218,9 +218,11 @@ private struct HistoryDetail: View {
                 }
             }
             Text(
-                entry.session.chat.map { chat in
-                    "A chat in \(chat.kind == .scratch ? "a scratch folder, " : "")\(Paths.tilde(chat.path)). Heed keeps only the prompt, the session id and this timeline; the transcript belongs to the agent."
-                } ?? "Branch \(entry.session.branch). Heed keeps only the prompt, the session id and this timeline; the transcript belongs to the agent."
+                (entry.session.chat.map { chat in
+                    "A chat in \(chat.kind == .scratch ? "a scratch folder, " : "")\(Paths.tilde(chat.path))."
+                } ?? "Branch \(entry.session.branch).")
+                    + " Heed keeps the prompt, the agent's session id, this timeline and the agent's last message, and"
+                    + " the ledger a summary; the transcript belongs to the agent."
             )
             .font(Theme.ui(12))
             .foregroundStyle(Theme.fg2)

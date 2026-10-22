@@ -286,7 +286,8 @@ struct GitIntegrationTests {
 
     @Test func runnerTimesOut() async {
         await #expect(throws: ProcessError.self) {
-            _ = try await ProcessRunner.run("sleep", ["5"], timeout: .milliseconds(100), caller: "test")
+            // Far longer than any wait for a busy machine: only a running command is said to have timed out.
+            _ = try await ProcessRunner.run("sleep", ["120"], timeout: .milliseconds(100), caller: "test")
         }
     }
 

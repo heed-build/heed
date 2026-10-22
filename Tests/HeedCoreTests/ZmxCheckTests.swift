@@ -44,10 +44,16 @@ struct ZmxCheckTests {
             try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
             return path
         }
-        let good = try await ZmxCheck.run(zmx: script("good", list: "exit 0"), socketDirectory: dir + "/sock")
+        // The stand-ins answer at once; the generous timeout keeps a busy machine (the rest of the suite runs
+        // alongside) from turning a slow start into a failed check.
+        let good = try await ZmxCheck.run(
+            zmx: script("good", list: "exit 0"), socketDirectory: dir + "/sock", timeout: .seconds(60)
+        )
         #expect(good == ZmxHealth(path: dir + "/good", version: "0.8.1"))
         #expect(FileManager.default.fileExists(atPath: dir + "/sock"))
-        let bad = try await ZmxCheck.run(zmx: script("bad", list: "echo nope >&2; exit 1"), socketDirectory: dir + "/s")
+        let bad = try await ZmxCheck.run(
+            zmx: script("bad", list: "echo nope >&2; exit 1"), socketDirectory: dir + "/s", timeout: .seconds(60)
+        )
         #expect(!bad.works && bad.problem == "zmx list failed: nope" && bad.version == "0.8.1")
         #expect(await ZmxCheck.run(zmx: nil) == ZmxHealth(path: nil, problem: "not installed"))
     }

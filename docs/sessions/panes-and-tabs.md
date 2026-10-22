@@ -52,7 +52,7 @@ Pinned tasks open as tabs in new sessions, one each, running their command. The 
 when it passed, a red square when it failed.
 
 ```toml
-[repos."elastic/docs-builder".tasks]
+[repos."acme/docs-toolkit".tasks]
 test = "dotnet test"
 ```
 

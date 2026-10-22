@@ -8,7 +8,7 @@ As you type, Heed ranks your repos and selects the best guess, only that one: ea
 second is always yours to add. Each guess shows how sure it is, and the line under the
 chips says why:
 
-- **The prompt names it**: the strongest signal (`… in docs-builder`). Whole names only, and not inside a link or
+- **The prompt names it**: the strongest signal (`… in docs-toolkit`). Whole names only, and not inside a link or
   an `org/repo#12` reference: those point at an issue, not at where the work happens.
 - **Words in common** with the repo's name.
 - **Where you opened it**: the repos of the session under the cursor (on its host, if it runs on one), or of the
@@ -32,4 +32,4 @@ repo field). Type to narrow, `⌃n` `⌃p` to move, `↩` to add it. It then kee
 
 The very last chip, **chat, no repo**, turns the dialog into a [chat](../sessions/chats.md).
 
-![Searching every repo: mer typed, mermaider matched](../images/shots/start-work/repo-search.png)
+![Searching every repo: mar typed, markgraph matched](../images/shots/start-work/repo-search.png)

@@ -4,18 +4,18 @@ import Testing
 
 struct TypeaheadTests {
     @Test func typingNarrowsAndReturnPicks() {
-        var typeahead = Typeahead(items: ["elastic/docs-builder", "elastic/kibana", "nullean/curb"]) { [$0] }
+        var typeahead = Typeahead(items: ["acme/docs-toolkit", "acme/kibana", "globex/curb"]) { [$0] }
         for key in ["d", "o", "c"] {
             _ = typeahead.handle(KeyStroke(key))
         }
-        #expect(typeahead.matches == ["elastic/docs-builder"])
+        #expect(typeahead.matches == ["acme/docs-toolkit"])
         _ = typeahead.handle(KeyStroke("u", .control))
         _ = typeahead.handle(KeyStroke("n", .control))
         guard case let .picked(item) = typeahead.handle(KeyStroke("CR")) else {
             Issue.record("expected a pick")
             return
         }
-        #expect(item == "elastic/kibana")
+        #expect(item == "acme/kibana")
         guard case .cancel = typeahead.handle(.escape) else {
             Issue.record("expected cancel")
             return
@@ -24,8 +24,8 @@ struct TypeaheadTests {
 }
 
 struct StartWorkRepoSearchTests {
-    private let records = (["docs-builder", "docs-content", "mermaider"] + (1 ... 8).map { "extra-\($0)" }).map {
-        RepoRecord(repo: Repo(org: "elastic", name: $0), path: "/code/\($0)", defaultBranch: "main")
+    private let records = (["docs-toolkit", "docs-website", "markgraph"] + (1 ... 8).map { "extra-\($0)" }).map {
+        RepoRecord(repo: Repo(org: "acme", name: $0), path: "/code/\($0)", defaultBranch: "main")
     }
 
     @Test func anyRepoCanBePickedBySearchAndGetsAChip() {
@@ -40,8 +40,8 @@ struct StartWorkRepoSearchTests {
         }
         _ = form.handle(KeyStroke("CR"))
         #expect(form.repoSearch == nil)
-        #expect(form.selectedRepos == ["elastic/extra-7"])
-        #expect(form.repoChoices.contains { $0.repo.id == "elastic/extra-7" })
+        #expect(form.selectedRepos == ["acme/extra-7"])
+        #expect(form.repoChoices.contains { $0.repo.id == "acme/extra-7" })
     }
 
     @Test func theChipBeforeTheChatChipOpensSearch() {
@@ -94,7 +94,7 @@ struct ImportTests {
 
     @Test func importResumesTheFoundSessionOrStartsFresh() {
         let worktree = Worktree(
-            repo: Repo(org: "elastic", name: "docs-builder"), path: "/wt/docs/fix", branch: "fix/loop", head: "abc",
+            repo: Repo(org: "acme", name: "docs-toolkit"), path: "/wt/docs/fix", branch: "fix/loop", head: "abc",
             isMain: false
         )
         let claude = AgentProfile.builtIn[0]

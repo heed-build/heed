@@ -291,7 +291,7 @@ merge_schedule = "1h" # how often a repo's queue runs, or manual
 update_branches = true
 copilot_conflicts = false  # Copilot resolves merge conflicts
 copilot_comments = false   # Copilot addresses review comments
-reviewers = []             # e.g. ["copilot", "alice", "elastic/docs-team"]
+reviewers = []             # e.g. ["copilot", "alice", "acme/docs-team"]
 quiet_minutes = 5          # merge = "heed": the rules
 trusted_reviewers = []     # e.g. ["copilot-pull-request-reviewer"]
 gate_checks = []

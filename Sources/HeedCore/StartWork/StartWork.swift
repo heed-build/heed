@@ -144,7 +144,7 @@ public enum Paths {
     public static func abbreviate(_ path: String) -> String { (path as NSString).abbreviatingWithTildeInPath }
 
     /// A path split at the root it lives under: the longest of `roots` that contains it, else the home folder.
-    /// `~/code/wt/docs-builder/fix-x` under `~/code/wt` is `("~/code/wt/", "docs-builder/fix-x")`. Filters match the
+    /// `~/code/wt/docs-toolkit/fix-x` under `~/code/wt` is `("~/code/wt/", "docs-toolkit/fix-x")`. Filters match the
     /// relative part only, so a root's own words (`code`, `Projects`) do not match every row.
     /// The home folder `split` measures from: the real one, or the fake world's in screenshots.
     public nonisolated(unsafe) static var home = NSHomeDirectory()
@@ -347,7 +347,7 @@ public enum StartWork {
     ) -> [RepoGuess] {
         let text = referencesRemoved(prompt.lowercased())
         let words = Set(text.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map(String.init))
-        // Whole names only: docs must not match inside docs-builder.
+        // Whole names only: docs must not match inside docs-toolkit.
         let names = Set(text.split(whereSeparator: { !isNameCharacter($0) }).flatMap { token in
             [String(token), String(token.split(separator: "/").last ?? token)]
         })
@@ -764,7 +764,7 @@ public enum RepoScanner {
 public struct StartContext: Equatable, Sendable {
     /// Repo record ids (`org/name`, or `org/name@host`), the primary one first.
     public var repos: [String]
-    /// What the cursor was on, as the reason names it: a session, a worktree, `docs-builder#12`.
+    /// What the cursor was on, as the reason names it: a session, a worktree, `docs-toolkit#12`.
     public var label: String
 
     public init(repos: [String], label: String) {

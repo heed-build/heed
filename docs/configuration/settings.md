@@ -24,11 +24,11 @@ here, and the other way round. Key bindings live only in the file.
 Every org and repo heed knows, from the repo list and from `config.toml` (ones you have not cloned here say so). A
 marked one, `● 3`, overrides three settings; **Only overridden** hides the rest.
 
-![Orgs & repos: elastic/docs-builder overrides four settings and inherits two from its org](../images/shots/configuration/orgs-repos.png)
+![Orgs & repos: acme/docs-toolkit overrides four settings and inherits two from its org](../images/shots/configuration/orgs-repos.png)
 
 For the selected org or repo, each setting shows the value that applies and where it comes from: `default` (heed's,
 or `[pilot]`), `org` or `repo`. Overridden rows are marked. Changing a value writes the override
-(`[orgs.elastic] reviewers = ["copilot"]`, `[repos."elastic/docs-builder"] quiet_minutes = 15`); ↺ removes it, and
+(`[orgs.acme] reviewers = ["copilot"]`, `[repos."acme/docs-toolkit"] quiet_minutes = 15`); ↺ removes it, and
 the value falls back to the org's, then the default. A repo's tasks show here and are edited in the file.
 
 Problems in the file show at the top of Settings as well as in the status bar.

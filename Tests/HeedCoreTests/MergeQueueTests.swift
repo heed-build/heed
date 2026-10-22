@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 struct MergeQueueTests {
-    private let repo = Repo(org: "nullean", name: "heed")
+    private let repo = Repo(org: "globex", name: "heed")
 
     private func detail(
         _ number: Int = 7, mergeable: String? = "MERGEABLE", state: String? = "CLEAN", failing: [String] = [],
@@ -120,7 +120,7 @@ struct MergeQueueTests {
         pipeline.mergeSet = true
         #expect(pipeline.effective(PilotSettings(merge: .auto)).merge == .off)
         // A pipeline cached before merging existed still loads.
-        let old = #"{"ref":{"repo":{"org":"nullean","name":"heed"},"number":7},"items":[],"autoFeed":"Ask","#
+        let old = #"{"ref":{"repo":{"org":"globex","name":"heed"},"number":7},"items":[],"autoFeed":"Ask","#
             + #""watching":true,"rounds":0,"approvalsSeen":0}"#
         let decoded = try JSONDecoder().decode(PullFeedback.self, from: Data(old.utf8))
         #expect(decoded.merge == .off)
@@ -139,7 +139,7 @@ struct MergeQueueTests {
         [repos."employer/main"]
         merge = "auto"
         merge_method = "squash"
-        [repos."elastic/x"]
+        [repos."acme/x"]
         merge = "yolo"
         merge_method = "fast-forward"
         """)
@@ -151,7 +151,7 @@ struct MergeQueueTests {
         let main = config.pilot.resolve(Repo(org: "employer", name: "main"))
         #expect(main.merge == .auto)
         #expect(main.mergeMethod == "squash")
-        #expect(config.pilot.resolve(Repo(org: "nullean", name: "heed")).mergeMethod == "rebase")
+        #expect(config.pilot.resolve(Repo(org: "globex", name: "heed")).mergeMethod == "rebase")
         #expect(problems.count == 2)
 
         let manual = ConfigLoader.decode("[pilot]\nmerge_schedule = \"manual\"").0

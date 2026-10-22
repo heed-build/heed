@@ -6,8 +6,8 @@ public enum Fixtures {
     /// `resume` is `main` opening on the resume dialog (the app handles that name).
     public static let names = ["main", "empty", "resume", "pr-storm", "fresh-repos", "chats"]
 
-    /// What the fixtures' config would say about issues: docs-builder and the nullean org show all of them.
-    public static let issueRules = IssueRules(orgs: ["nullean": .all], repos: ["elastic/docs-builder": .all])
+    /// What the fixtures' config would say about issues: docs-toolkit and the globex org show all of them.
+    public static let issueRules = IssueRules(orgs: ["globex": .all], repos: ["acme/docs-toolkit": .all])
 
     /// Org and repo overrides for Settings › Orgs & repos: none changes what the other screens show.
     public static let pilotRules: PilotRules = {
@@ -17,17 +17,17 @@ public enum Fixtures {
         repo.quietMinutes = 15
         repo.gateChecks = ["build", "integration"]
         repo.holdLabels = ["do-not-merge"]
-        return PilotRules(orgs: ["elastic": org], repos: ["elastic/docs-builder": repo])
+        return PilotRules(orgs: ["acme": org], repos: ["acme/docs-toolkit": repo])
     }()
 
     /// What the issue links of the fake world fetched: their titles and states.
     public static let issueInfo: [IssueRef: IssueInfo] = [
-        IssueRef(repo: docsContent, number: 88): IssueInfo(
+        IssueRef(repo: docsWebsite, number: 88): IssueInfo(
             title: "Old links to moved pages 404", closed: false,
             body: "Pages moved in the reorg are linked from outside; their old URLs now 404.", labels: ["bug"],
             author: "reader", updatedAt: Clock.now.addingTimeInterval(-86400)
         ),
-        IssueRef(repo: docsBuilder, number: 2830): IssueInfo(title: "Anchors lost when a page is moved", closed: false),
+        IssueRef(repo: docsToolkit, number: 2830): IssueInfo(title: "Anchors lost when a page is moved", closed: false),
     ]
 
     /// Hosts: @devbox answers, @gpu wants your key, @ci is down.
@@ -81,8 +81,8 @@ public enum Fixtures {
 
     static let remoteRepos = [
         RepoRecord(
-            repo: docsBuilder,
-            path: "/home/you/code/docs-builder",
+            repo: docsToolkit,
+            path: "/home/you/code/docs-toolkit",
             defaultBranch: "main",
             location: .host("devbox")
         ),
@@ -91,12 +91,12 @@ public enum Fixtures {
     /// On @devbox: one registered worktree, one a scan found.
     static let remoteWorktrees = [
         Worktree(
-            repo: docsBuilder, path: "/home/you/code/wt/flake-hunt", branch: "flake-hunt", head: "4e1c2aa",
+            repo: docsToolkit, path: "/home/you/code/wt/flake-hunt", branch: "flake-hunt", head: "4e1c2aa",
             isMain: false, status: WorktreeStatus(ahead: 0, behind: 4, upstream: "origin/flake-hunt"),
             location: .host("devbox")
         ),
         Worktree(
-            repo: docsBuilder, path: "/home/you/code/wt/old-spike", branch: "old-spike", head: "9b0d113",
+            repo: docsToolkit, path: "/home/you/code/wt/old-spike", branch: "old-spike", head: "9b0d113",
             isMain: false, status: WorktreeStatus(changedFiles: 2, upstream: nil), location: .host("devbox")
         ),
     ]
@@ -112,36 +112,36 @@ public enum Fixtures {
         }
     }
 
-    static let docsBuilder = Repo(org: "elastic", name: "docs-builder")
-    static let docsContent = Repo(org: "elastic", name: "docs-content")
-    static let mermaider = Repo(org: "nullean", name: "mermaider")
-    static let editorconfig = Repo(org: "editorconfig", name: "editorconfig")
-    static let ingest = Repo(org: "mpdreamz", name: "ingest")
+    static let docsToolkit = Repo(org: "acme", name: "docs-toolkit")
+    static let docsWebsite = Repo(org: "acme", name: "docs-website")
+    static let markgraph = Repo(org: "globex", name: "markgraph")
+    static let editorRules = Repo(org: "initech", name: "editor-rules")
+    static let ingest = Repo(org: "umbrella", name: "ingest")
 
     /// design/screens/Main.png.
     public static let main: Domain = {
         let root = "/Users/you/code"
-        let repos = [docsBuilder, docsContent, mermaider, editorconfig, ingest].map {
+        let repos = [docsToolkit, docsWebsite, markgraph, editorRules, ingest].map {
             RepoRecord(repo: $0, path: "\(root)/\($0.name)", defaultBranch: "main")
         }
         var sessions = [
             Session(
                 id: "s1", title: "Fix broken anchors in redirects",
                 prompt: "Fix broken anchors in redirects.yml. Every redirect target must resolve to a real heading."
-                    + "\n\nFixes elastic/docs-content#88",
-                repos: [docsBuilder, docsContent], branch: "fix-anchors-redirects", agent: "claude",
+                    + "\n\nFixes acme/docs-website#88",
+                repos: [docsToolkit, docsWebsite], branch: "fix-anchors-redirects", agent: "claude",
                 agentSessionID: "7f3a9c1e-52b4-4e0d-9a61-0c8d3e1f2b77",
                 state: ObservedState(.working), activity: "running tests · 14m", trackedPRs: [
-                    PullRef(repo: docsBuilder, number: 2841),
-                    PullRef(repo: docsContent, number: 1920),
-                    PullRef(repo: docsBuilder, number: 2836),
+                    PullRef(repo: docsToolkit, number: 2841),
+                    PullRef(repo: docsWebsite, number: 1920),
+                    PullRef(repo: docsToolkit, number: 2836),
                 ], pinned: true
             ),
             Session(
-                id: "s2", title: "Cross-link validator for assemblies", repos: [docsBuilder],
+                id: "s2", title: "Cross-link validator for assemblies", repos: [docsToolkit],
                 branch: "cross-link-validator", agent: "claude", agentSessionID: "2c81d6aa-9e17-4b3f-8d05-6a4e7b9c0d12",
                 state: ObservedState(.blocked, reason: "Bash(dotnet publish)"),
-                activity: "wants to run dotnet publish", trackedPRs: [PullRef(repo: docsBuilder, number: 2838)],
+                activity: "wants to run dotnet publish", trackedPRs: [PullRef(repo: docsToolkit, number: 2838)],
                 pinned: true
             ),
             Session(
@@ -152,26 +152,26 @@ public enum Fixtures {
                 ), activity: "3 questions waiting", trackedPRs: [PullRef(repo: ingest, number: 31)]
             ),
             Session(
-                id: "s4", title: "Sequence diagram arrowheads", repos: [mermaider], branch: "sequence-arrowheads",
+                id: "s4", title: "Sequence diagram arrowheads", repos: [markgraph], branch: "sequence-arrowheads",
                 agent: "claude", agentSessionID: "e0457f3b-18c2-4d9a-a6b1-5f2d9c8e3a04", state: ObservedState(.working),
-                activity: "editing · 3m", trackedPRs: [PullRef(repo: mermaider, number: 418)]
+                activity: "editing · 3m", trackedPRs: [PullRef(repo: markgraph, number: 418)]
             ),
             Session(
-                id: "s5", title: "Bump spec tests to 0.17", repos: [editorconfig], branch: "bump-spec-tests",
+                id: "s5", title: "Bump spec tests to 0.17", repos: [editorRules], branch: "bump-spec-tests",
                 agent: "claude", state: ObservedState(.done), activity: "done · PR approved", trackedPRs: [PullRef(
-                    repo: editorconfig,
+                    repo: editorRules,
                     number: 412
                 )], lastActivity: Clock.now.addingTimeInterval(-50 * 60)
             ),
             Session(
-                id: "s6", title: "Docs nav spike", repos: [docsBuilder], branch: "docs-nav-spike", agent: "opencode",
+                id: "s6", title: "Docs nav spike", repos: [docsToolkit], branch: "docs-nav-spike", agent: "opencode",
                 agentSessionID: "b36c9d71-04fa-42e8-8a3d-7e1c5b2f9d60",
-                state: ObservedState(.idle), activity: "idle 2h", trackedPRs: [PullRef(repo: docsBuilder, number: 2852)]
+                state: ObservedState(.idle), activity: "idle 2h", trackedPRs: [PullRef(repo: docsToolkit, number: 2852)]
             ),
             // On @devbox: its agent runs there, in zmx, and outlives the link.
             {
                 var session = Session(
-                    id: "s7", title: "Nightly flake hunt", repos: [docsBuilder], branch: "flake-hunt", agent: "claude",
+                    id: "s7", title: "Nightly flake hunt", repos: [docsToolkit], branch: "flake-hunt", agent: "claude",
                     state: ObservedState(.idle), activity: "idle 20m"
                 )
                 session.host = "devbox"
@@ -200,7 +200,7 @@ public enum Fixtures {
                 var status = WorktreeStatus(upstream: "origin/\(session.branch)")
                 // Work not shared yet, for the rows' pending chips: s1 has files to commit, s6 a commit and files.
                 switch (session.id, repo) {
-                case ("s1", docsBuilder): status.changedFiles = 2
+                case ("s1", docsToolkit): status.changedFiles = 2
                 case ("s6", _): (status.ahead, status.changedFiles, status.untrackedFiles) = (1, 3, 1)
                 default: break
                 }
@@ -215,18 +215,18 @@ public enum Fixtures {
         if var layout = layouts["s5"] {
             layout.tabs.append(PaneTab(id: "s5-helper-tab", title: "get it green", tree: .leaf(PaneSpec(
                 id: "s5-helper", role: .helper, title: "get it green",
-                directory: "\(root)/wt/editorconfig/bump-spec-tests"
+                directory: "\(root)/wt/editor-rules/bump-spec-tests"
             ))))
             layouts["s5"] = layout
         }
         // Worktrees made outside Heed, with no session yet: what `I` in Sessions imports.
         worktrees += [
             Worktree(
-                repo: docsBuilder, path: "\(root)/wt/docs-builder/toc-ordering", branch: "toc-ordering",
+                repo: docsToolkit, path: "\(root)/wt/docs-toolkit/toc-ordering", branch: "toc-ordering",
                 head: "0000000", isMain: false, status: WorktreeStatus(upstream: "origin/toc-ordering")
             ),
             Worktree(
-                repo: mermaider, path: "\(root)/wt/mermaider/gantt-labels", branch: "gantt-labels", head: "0000000",
+                repo: markgraph, path: "\(root)/wt/markgraph/gantt-labels", branch: "gantt-labels", head: "0000000",
                 isMain: false, status: WorktreeStatus(upstream: nil)
             ),
             Worktree(repo: ingest, path: "\(root)/ingest", branch: "main", head: "0000000", isMain: true),
@@ -246,7 +246,7 @@ public enum Fixtures {
         resolved.resolvedAt = Clock.now
         pipeline.items.append(resolved)
         var (pilots, log) = pilotStates
-        // editorconfig#412 conflicts, and Copilot was asked to resolve it.
+        // editor-rules#412 conflicts, and Copilot was asked to resolve it.
         if let conflicting = otherDetails.first(where: { $0.mergeable == "CONFLICTING" }) {
             var copilot = PullFeedback(ref: conflicting.ref)
             copilot.merge(conflicting)
@@ -263,19 +263,19 @@ public enum Fixtures {
             ))
             log.sort { $0.at > $1.at }
         }
-        // While you were away: #2836 merged this morning, mermaider#415 last night.
+        // While you were away: #2836 merged this morning, markgraph#415 last night.
         log += [
             PilotEvent(
-                at: Clock.now.addingTimeInterval(-109 * 60), ref: PullRef(repo: docsBuilder, number: 2836),
+                at: Clock.now.addingTimeInterval(-109 * 60), ref: PullRef(repo: docsToolkit, number: 2836),
                 kind: .merged, text: "merged into main"
             ),
             PilotEvent(
-                at: Clock.now.addingTimeInterval(-879 * 60), ref: PullRef(repo: mermaider, number: 415),
+                at: Clock.now.addingTimeInterval(-879 * 60), ref: PullRef(repo: markgraph, number: 415),
                 kind: .merged, text: "Fix label clipping"
             ),
         ]
         log.sort { $0.at > $1.at }
-        // heed merges #2841 (held: lint failed), docs-content#1920 has auto-merge on.
+        // heed merges #2841 (held: lint failed), docs-website#1920 has auto-merge on.
         pipeline.merge = .heed
         pipeline.mergeSet = true
         return Domain(
@@ -287,16 +287,16 @@ public enum Fixtures {
         )
     }()
 
-    /// The pilot's other states: #2852 paused, ingest#31 not watched (set by hand), mermaider#418 stuck after three
+    /// The pilot's other states: #2852 paused, ingest#31 not watched (set by hand), markgraph#418 stuck after three
     /// rounds, and a morning of activity.
     static let pilotStates: ([String: PullFeedback], [PilotEvent]) = {
         let now = Clock.now
         func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
-        let nav = PullRef(repo: docsBuilder, number: 2852)
+        let nav = PullRef(repo: docsToolkit, number: 2852)
         let ingestPR = PullRef(repo: ingest, number: 31)
-        let arrows = PullRef(repo: mermaider, number: 418)
-        let anchors = PullRef(repo: docsBuilder, number: 2841)
-        let redirects = PullRef(repo: docsContent, number: 1920)
+        let arrows = PullRef(repo: markgraph, number: 418)
+        let anchors = PullRef(repo: docsToolkit, number: 2841)
+        let redirects = PullRef(repo: docsWebsite, number: 1920)
         var paused = PullFeedback(ref: nav)
         paused.pausedUntil = now.addingTimeInterval(42 * 60)
         var unwatched = PullFeedback(ref: ingestPR, watching: false)
@@ -339,7 +339,7 @@ public enum Fixtures {
         )
     }()
 
-    /// The merge queues' runs: docs-content turned green and got auto-merge, docs-builder holds #2841 on lint.
+    /// The merge queues' runs: docs-website turned green and got auto-merge, docs-toolkit holds #2841 on lint.
     /// Get it green runs: one working on s5's PR, and s1's history (pushed, nothing to change, timed out).
     static let runs: [PilotRun] = {
         let now = Clock.now
@@ -362,11 +362,11 @@ public enum Fixtures {
             run.usage = usage
             return run
         }
-        let anchors = PullRef(repo: docsBuilder, number: 2841)
+        let anchors = PullRef(repo: docsToolkit, number: 2841)
         return [
             run(
                 "r4",
-                PullRef(repo: editorconfig, number: 412),
+                PullRef(repo: editorRules, number: 412),
                 "s5",
                 agent: "codex",
                 model: "gpt-5-codex",
@@ -390,7 +390,7 @@ public enum Fixtures {
                 ✓ Fixed the anchor slugs in redirects.yml (2 files)
                 ✓ lint passes locally
                 $ git push origin HEAD:fix-anchors-redirects
-                To github.com:elastic/docs-builder.git
+                To github.com:acme/docs-toolkit.git
                    4f2a1c9..b81e0d3  HEAD -> fix-anchors-redirects
                 Done: pushed 2 commits.
                 """
@@ -424,25 +424,25 @@ public enum Fixtures {
     static let mergeRuns: [String: [MergeRun]] = {
         let now = Clock.now
         func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
-        let anchors = PullRef(repo: docsBuilder, number: 2841)
-        let redirects = PullRef(repo: docsContent, number: 1920)
+        let anchors = PullRef(repo: docsToolkit, number: 2841)
+        let redirects = PullRef(repo: docsWebsite, number: 1920)
         return [
-            docsBuilder.slug: [
-                MergeRun(repo: docsBuilder.slug, at: ago(20), why: "schedule", lines: [
+            docsToolkit.slug: [
+                MergeRun(repo: docsToolkit.slug, at: ago(20), why: "schedule", lines: [
                     .init(ref: anchors, action: "held", detail: "Green: checks pass: lint failed"),
                 ]),
-                MergeRun(repo: docsBuilder.slug, at: ago(80), why: "merge turned on", lines: [
+                MergeRun(repo: docsToolkit.slug, at: ago(80), why: "merge turned on", lines: [
                     .init(ref: anchors, action: "brought up to date", detail: "merged main in"),
                 ]),
             ],
-            docsContent.slug: [
-                MergeRun(repo: docsContent.slug, at: ago(40), why: "#1920 turned green", lines: [
+            docsWebsite.slug: [
+                MergeRun(repo: docsWebsite.slug, at: ago(40), why: "#1920 turned green", lines: [
                     .init(
                         ref: redirects, action: "auto-merge on",
                         detail: "squash; GitHub merges once its requirements are met"
                     ),
                 ]),
-                MergeRun(repo: docsContent.slug, at: ago(100), why: "merge turned on", lines: [
+                MergeRun(repo: docsWebsite.slug, at: ago(100), why: "merge turned on", lines: [
                     .init(ref: redirects, action: "held", detail: "Checks pass: link-check failed"),
                 ]),
             ],
@@ -575,9 +575,9 @@ public enum Fixtures {
 
     public static let diff: [FileDiff] = {
         let text = """
-        diff --git a/src/Elastic.Markdown/Redirects/RedirectFile.cs b/src/Elastic.Markdown/Redirects/RedirectFile.cs
-        --- a/src/Elastic.Markdown/Redirects/RedirectFile.cs
-        +++ b/src/Elastic.Markdown/Redirects/RedirectFile.cs
+        diff --git a/src/Acme.Markdown/Redirects/RedirectFile.cs b/src/Acme.Markdown/Redirects/RedirectFile.cs
+        --- a/src/Acme.Markdown/Redirects/RedirectFile.cs
+        +++ b/src/Acme.Markdown/Redirects/RedirectFile.cs
         @@ -76,9 +76,11 @@ public sealed class RedirectFile
              public bool TryResolve(string page, string fragment)
              {
@@ -613,14 +613,14 @@ public enum Fixtures {
         +Another line.
 
         """
-        return DiffParser.parse(text, repo: docsBuilder, staged: ["src/Elastic.Markdown/Redirects/RedirectFile.cs"])
+        return DiffParser.parse(text, repo: docsToolkit, staged: ["src/Acme.Markdown/Redirects/RedirectFile.cs"])
     }()
 
     /// design/screens/Reader.png.
     static let pullDetail: PullDetail = {
         var detail = PullDetail(
-            ref: PullRef(repo: docsBuilder, number: 2841), title: "Fix broken anchors in redirects",
-            body: "Validates redirect targets against real headings, so moved pages no longer lose their anchors.\nCloses #2830. Companion change in docs-content #1920.",
+            ref: PullRef(repo: docsToolkit, number: 2841), title: "Fix broken anchors in redirects",
+            body: "Validates redirect targets against real headings, so moved pages no longer lose their anchors.\nCloses #2830. Companion change in docs-website #1920.",
             author: "you", baseBranch: "main", headBranch: "fix-anchors-redirects", additions: 82, deletions: 4,
             commitCount: 3, headSHA: "a91e3d0",
             reviews: [PullDetail.Review(
@@ -648,7 +648,7 @@ public enum Fixtures {
                 url: nil
             )],
             checks: CheckSummary(passed: 3, failed: 1, pending: 1, failedNames: ["lint"]),
-            closes: [PullRef(repo: docsBuilder, number: 2830)], fetchedAt: Clock.now
+            closes: [PullRef(repo: docsToolkit, number: 2830)], fetchedAt: Clock.now
         )
         detail.state = "OPEN"
         detail.isDraft = false
@@ -661,11 +661,11 @@ public enum Fixtures {
         // The companion change links here (yours, tracked); someone's docs PR mentions it (suggested, not tracked).
         detail.references = [
             PullDetail.Reference(
-                ref: PullRef(repo: docsContent, number: 1920), title: "Redirects for moved pages", author: "you",
+                ref: PullRef(repo: docsWebsite, number: 1920), title: "Redirects for moved pages", author: "you",
                 state: "OPEN", createdAt: Clock.now.addingTimeInterval(-3 * 3600)
             ),
             PullDetail.Reference(
-                ref: PullRef(repo: docsContent, number: 1934), title: "Document anchor redirects",
+                ref: PullRef(repo: docsWebsite, number: 1934), title: "Document anchor redirects",
                 author: "docs-writer", state: "OPEN", createdAt: Clock.now.addingTimeInterval(-50 * 60)
             ),
         ]
@@ -673,7 +673,7 @@ public enum Fixtures {
         return detail
     }()
 
-    /// The other PRs' details, one per green verdict: docs-content#1920 green, editorconfig#412 conflicting.
+    /// The other PRs' details, one per green verdict: docs-website#1920 green, editor-rules#412 conflicting.
     static let otherDetails: [PullDetail] = {
         func detail(
             _ repo: Repo, _ number: Int, _ title: String, _ branch: String, mergeable: String, state: String,
@@ -700,7 +700,7 @@ public enum Fixtures {
         }
         return [
             detail(
-                docsContent,
+                docsWebsite,
                 1920,
                 "Redirects for moved pages",
                 "fix-anchors-redirects",
@@ -710,7 +710,7 @@ public enum Fixtures {
                 review: nil
             ),
             detail(
-                editorconfig,
+                editorRules,
                 412,
                 "Bump spec tests to 0.17",
                 "bump-spec-tests",
@@ -740,7 +740,7 @@ public enum Fixtures {
             InboxItem(
                 id: "n1",
                 kind: .pr,
-                repo: docsBuilder,
+                repo: docsToolkit,
                 number: 2845,
                 title: "Add link validation to assembler",
                 reason: "review_requested",
@@ -751,7 +751,7 @@ public enum Fixtures {
             InboxItem(
                 id: "n2",
                 kind: .ci,
-                repo: docsBuilder,
+                repo: docsToolkit,
                 number: nil,
                 title: "lint failed on #2841",
                 reason: "ci_activity",
@@ -762,7 +762,7 @@ public enum Fixtures {
             InboxItem(
                 id: "n3",
                 kind: .pr,
-                repo: docsContent,
+                repo: docsWebsite,
                 number: 1920,
                 title: "2 new review comments",
                 reason: "comment",
@@ -773,7 +773,7 @@ public enum Fixtures {
             InboxItem(
                 id: "n4",
                 kind: .issue,
-                repo: docsBuilder,
+                repo: docsToolkit,
                 number: 2830,
                 title: "Anchors lost when a page is moved",
                 reason: "assign",
@@ -784,7 +784,7 @@ public enum Fixtures {
             InboxItem(
                 id: "n5",
                 kind: .issue,
-                repo: docsBuilder,
+                repo: docsToolkit,
                 number: 2833,
                 title: "Redirect loop on /reference",
                 reason: "mention",
@@ -795,7 +795,7 @@ public enum Fixtures {
             InboxItem(
                 id: "n6",
                 kind: .pr,
-                repo: mermaider,
+                repo: markgraph,
                 number: 187,
                 title: "Arrowhead markers on sequence diagrams",
                 reason: "review_requested",
@@ -817,7 +817,7 @@ public enum Fixtures {
         ]
         let issues = [
             Issue(
-                repo: docsBuilder,
+                repo: docsToolkit,
                 number: 2830,
                 title: "Anchors lost when a page is moved",
                 url: "",
@@ -828,7 +828,7 @@ public enum Fixtures {
                 assigned: true
             ),
             Issue(
-                repo: docsBuilder,
+                repo: docsToolkit,
                 number: 2833,
                 title: "Redirect loop on /reference",
                 url: "",
@@ -849,9 +849,9 @@ public enum Fixtures {
                 updatedAt: ago(300),
                 assigned: true
             ),
-            // Shown because docs-builder shows all issues, not because it involves you.
+            // Shown because docs-toolkit shows all issues, not because it involves you.
             Issue(
-                repo: docsBuilder,
+                repo: docsToolkit,
                 number: 2851,
                 title: "Support nested includes in snippets",
                 url: "",
@@ -861,7 +861,7 @@ public enum Fixtures {
                 updatedAt: ago(400)
             ),
             Issue(
-                repo: mermaider,
+                repo: markgraph,
                 number: 12,
                 title: "Arrow heads render detached at small zoom",
                 url: "",
@@ -873,7 +873,7 @@ public enum Fixtures {
         ]
         let pulls = [
             pull(
-                docsBuilder,
+                docsToolkit,
                 2841,
                 "Fix broken anchors in redirects",
                 "fix-anchors-redirects",
@@ -881,18 +881,18 @@ public enum Fixtures {
                 .changesRequested,
                 threads: 2
             ),
-            pull(docsContent, 1920, "Redirects for moved pages", "fix-anchors-redirects", CheckSummary(passed: 4), nil),
+            pull(docsWebsite, 1920, "Redirects for moved pages", "fix-anchors-redirects", CheckSummary(passed: 4), nil),
             // Merged earlier on the same branch: done, its checks as they finished.
             {
                 var merged = pull(
-                    docsBuilder, 2836, "Redirect checker: first pass", "fix-anchors-redirects",
+                    docsToolkit, 2836, "Redirect checker: first pass", "fix-anchors-redirects",
                     CheckSummary(passed: 4), .approved
                 )
                 merged.state = .merged
                 return merged
             }(),
             pull(
-                docsBuilder,
+                docsToolkit,
                 2838,
                 "Cross-link validator for assembler",
                 "cross-link-validator",
@@ -900,13 +900,13 @@ public enum Fixtures {
                 CheckSummary(passed: 38, pending: 4, skipped: 3),
                 nil
             ),
-            pull(editorconfig, 412, "Bump spec tests to 0.17", "bump-spec-tests", CheckSummary(passed: 3), .approved),
+            pull(editorRules, 412, "Bump spec tests to 0.17", "bump-spec-tests", CheckSummary(passed: 3), .approved),
             pull(ingest, 31, "Backpressure for the ingest stage", "ingest-backpressure", CheckSummary(passed: 2), nil),
             pull(
-                mermaider, 418, "Arrowheads at small zoom", "sequence-arrowheads", CheckSummary(passed: 5), nil,
+                markgraph, 418, "Arrowheads at small zoom", "sequence-arrowheads", CheckSummary(passed: 5), nil,
                 threads: 1
             ),
-            pull(docsBuilder, 2852, "Docs nav spike", "docs-nav-spike", CheckSummary(passed: 1, pending: 2), nil),
+            pull(docsToolkit, 2852, "Docs nav spike", "docs-nav-spike", CheckSummary(passed: 1, pending: 2), nil),
         ]
         return GitHubState(viewer: "you", inbox: inbox, issues: issues, pulls: pulls, syncedAt: ago(0.3), status: .ok)
     }()
@@ -942,26 +942,26 @@ public enum Fixtures {
         }
         return [
             entry(
-                "Fix toc ordering", docsBuilder, "claude", hoursAgo: 1, minutes: 130, .merged, pr: 2810,
+                "Fix toc ordering", docsToolkit, "claude", hoursAgo: 1, minutes: 130, .merged, pr: 2810,
                 tokens: 129_100, cost: 0.61
             ),
             entry(
-                "Fix redirect typos", docsContent, "claude", hoursAgo: 3, minutes: 41, .merged, pr: 1912,
+                "Fix redirect typos", docsWebsite, "claude", hoursAgo: 3, minutes: 41, .merged, pr: 1912,
                 tokens: 38000, cost: 0.17
             ),
             entry(
-                "Bump spec tests to 0.17", editorconfig, "claude", hoursAgo: 26, minutes: 65, .merged, pr: 412,
+                "Bump spec tests to 0.17", editorRules, "claude", hoursAgo: 26, minutes: 65, .merged, pr: 412,
                 tokens: 52000, cost: 0.24
             ),
             entry(
-                "Flowchart label wrapping", mermaider, "opencode", hoursAgo: 28, minutes: 26, .abandoned, tokens: 21000
+                "Flowchart label wrapping", markgraph, "opencode", hoursAgo: 28, minutes: 26, .abandoned, tokens: 21000
             ),
             entry(
-                "Docs nav spike v1", docsBuilder, "opencode", hoursAgo: 30, minutes: 220, .closed, pr: 2790,
+                "Docs nav spike v1", docsToolkit, "opencode", hoursAgo: 30, minutes: 220, .closed, pr: 2790,
                 tokens: 64000
             ),
-            entry("Snippet include performance", docsBuilder, "claude", hoursAgo: 120, minutes: 175, .merged, pr: 2781),
-            entry("Parser fuzzing harness", mermaider, "claude", hoursAgo: 130, minutes: 90, .cleanedUp),
+            entry("Snippet include performance", docsToolkit, "claude", hoursAgo: 120, minutes: 175, .merged, pr: 2781),
+            entry("Parser fuzzing harness", markgraph, "claude", hoursAgo: 130, minutes: 90, .cleanedUp),
         ]
     }()
 

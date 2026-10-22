@@ -18,7 +18,7 @@ struct TOMLTests {
         days = 1_4
         ratio = 0.5
         on = true
-        [repos."elastic/docs-builder".tasks]
+        [repos."acme/docs-toolkit".tasks]
         test = "dotnet test"
         inline = { a = 1, "b c" = "d" }
         prompt = \"\"\"
@@ -32,10 +32,10 @@ struct TOMLTests {
         #expect(doc.root.value(at: ["agents", "claude", "days"]) == .integer(14))
         #expect(doc.root.value(at: ["agents", "claude", "ratio"]) == .float(0.5))
         #expect(doc.root.value(at: ["agents", "claude", "on"]) == .bool(true))
-        #expect(doc.root.value(at: ["repos", "elastic/docs-builder", "tasks", "test"]) == .string("dotnet test"))
-        #expect(doc.root.value(at: ["repos", "elastic/docs-builder", "tasks", "inline", "b c"]) == .string("d"))
+        #expect(doc.root.value(at: ["repos", "acme/docs-toolkit", "tasks", "test"]) == .string("dotnet test"))
+        #expect(doc.root.value(at: ["repos", "acme/docs-toolkit", "tasks", "inline", "b c"]) == .string("d"))
         #expect(doc.root
-            .value(at: ["repos", "elastic/docs-builder", "tasks", "prompt"]) == .string("line one\nline two"))
+            .value(at: ["repos", "acme/docs-toolkit", "tasks", "prompt"]) == .string("line one\nline two"))
     }
 
     @Test func reportsErrorsWithLines() {
@@ -64,9 +64,9 @@ struct TOMLTests {
         #expect(edited.contains("# my notes"))
         let added = try TOMLDocument(edited).setting(["cleanup", "delete_branch"], to: .bool(false))
         #expect(added.contains("idle_days = 14\ndelete_branch = false"))
-        let newTable = try TOMLDocument(added).setting(["orgs", "elastic", "color"], to: .string("teal"))
-        #expect(try TOMLDocument(newTable).root.value(at: ["orgs", "elastic", "color"]) == .string("teal"))
-        #expect(newTable.hasSuffix("[orgs.elastic]\ncolor = \"teal\"\n"))
+        let newTable = try TOMLDocument(added).setting(["orgs", "acme", "color"], to: .string("teal"))
+        #expect(try TOMLDocument(newTable).root.value(at: ["orgs", "acme", "color"]) == .string("teal"))
+        #expect(newTable.hasSuffix("[orgs.acme]\ncolor = \"teal\"\n"))
     }
 }
 
@@ -90,9 +90,9 @@ struct ConfigTests {
         prompt = "stdin"
         [agents.codex]
         resume = ""
-        [orgs.elastic]
+        [orgs.acme]
         color = "teal"
-        [repos."elastic/docs-builder".tasks]
+        [repos."acme/docs-toolkit".tasks]
         test = "dotnet test"
         [keys]
         insert_escape = "<C-g>"
@@ -107,8 +107,8 @@ struct ConfigTests {
         #expect(config.work.resumeOnLaunch == .always)
         #expect(config.work.agent("mytool")?.prompt == .stdin)
         #expect(config.work.agent("codex")?.resumeArguments == nil)
-        #expect(config.orgColors["elastic"] == "teal")
-        #expect(config.repos["elastic/docs-builder"]?.tasks.first?.1 == "dotnet test")
+        #expect(config.orgColors["acme"] == "teal")
+        #expect(config.repos["acme/docs-toolkit"]?.tasks.first?.1 == "dotnet test")
         let built = config.keymaps()
         #expect(built.problems.isEmpty)
         #expect(try built.keymaps[.normal]?.lookup(KeyNotation.parse("J")) == .command("row.next"))

@@ -22,7 +22,7 @@ public struct AwayEvent: Hashable, Sendable {
 
     public let at: Date
     public let kind: Kind
-    /// What it is about, in mono: `docs-builder #2836`, `get it green #412`, a session's name.
+    /// What it is about, in mono: `docs-toolkit #2836`, `get it green #412`, a session's name.
     public let subject: String
     /// A few words on what happened.
     public let text: String

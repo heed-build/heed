@@ -64,8 +64,8 @@ struct ClaudeHookTests {
     }
 
     @Test func pullRefsFromURLs() {
-        #expect(PullRef(url: "https://github.com/elastic/docs-builder/pull/2841")
-            == PullRef(repo: Repo(org: "elastic", name: "docs-builder"), number: 2841))
+        #expect(PullRef(url: "https://github.com/acme/docs-toolkit/pull/2841")
+            == PullRef(repo: Repo(org: "acme", name: "docs-toolkit"), number: 2841))
         #expect(PullRef(url: "https://github.com/o/r/pull/12/files")?.number == 12)
         #expect(PullRef(url: "https://github.com/o/r/issues/12") == nil)
     }

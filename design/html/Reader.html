@@ -58,7 +58,7 @@ body{margin:0}
   <div style="flex:1;min-height:0;display:flex">
     <div style="flex:1;min-width:0;display:flex;flex-direction:column">
       <div style="padding:18px 24px 14px;display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;align-items:center;gap:10px"><span class="chip e mono">docs-builder</span><span class="dim mono">#2841</span><span class="tag">open</span></div>
+        <div style="display:flex;align-items:center;gap:10px"><span class="chip e mono">docs-toolkit</span><span class="dim mono">#2841</span><span class="tag">open</span></div>
         <div style="font-size:18px;font-weight:600">Fix broken anchors in redirects</div>
         <div class="mono dim" style="font-size:11.5px">fix-anchors-redirects → main · 3 commits · +82 −4</div>
       </div>
@@ -66,7 +66,7 @@ body{margin:0}
       <div style="flex:1;min-height:0;overflow:hidden">
         <div class="tm">
           <div class="it"><div class="ih"><b style="color:var(--fg);font-weight:500">you</b>opened this 1h ago</div>
-            <div class="ib">Validates redirect targets against real headings, so moved pages no longer lose their anchors.<br>Closes <span class="mono" style="color:var(--busy)">#2830</span>. Companion change in docs-content <span class="mono" style="color:var(--busy)">#1920</span>.</div></div>
+            <div class="ib">Validates redirect targets against real headings, so moved pages no longer lose their anchors.<br>Closes <span class="mono" style="color:var(--busy)">#2830</span>. Companion change in docs-website <span class="mono" style="color:var(--busy)">#1920</span>.</div></div>
 
           <div class="it cur"><div class="ih"><div class="ck on">✓</div><b style="color:var(--fg);font-weight:500">@reviewer</b>commented on <span class="mono">RedirectFile.cs:88</span><span style="flex:1"></span><span class="dim">queued for session</span></div>
             <div class="df mono"><div class="dim"> 86   var slug = Slugify(heading);</div><div class="rm">-87   var exists = anchors.Contains(target);</div><div class="ad">+87   var exists = anchors.Contains(target, StringComparer.Ordinal);</div></div>
@@ -84,8 +84,8 @@ body{margin:0}
       <div class="h">Linked</div>
       <div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px">
         <div style="display:flex;align-items:center;gap:8px"><span class="g busy"></span><span class="mono">fix-anchors-redirects</span></div>
-        <div style="display:flex;align-items:center;gap:8px" class="mono"><span class="chip e">docs-builder</span>closes #2830</div>
-        <div style="display:flex;align-items:center;gap:8px" class="mono"><span class="chip e">docs-content</span>PR #1920</div>
+        <div style="display:flex;align-items:center;gap:8px" class="mono"><span class="chip e">docs-toolkit</span>closes #2830</div>
+        <div style="display:flex;align-items:center;gap:8px" class="mono"><span class="chip e">docs-website</span>PR #1920</div>
       </div>
       <div class="h" style="margin-top:4px">Reviewers</div>
       <div style="font-size:12.5px;color:var(--fg2)">@reviewer · changes requested</div>

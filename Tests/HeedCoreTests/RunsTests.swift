@@ -244,8 +244,8 @@ struct RunGitTests {
 }
 
 struct RunBaseWorktreeTests {
-    private let upstream = Repo(org: "elastic", name: "docs-builder")
-    private let fork = Repo(org: "me", name: "docs-builder")
+    private let upstream = Repo(org: "acme", name: "docs-toolkit")
+    private let fork = Repo(org: "me", name: "docs-toolkit")
 
     private func worktree(_ repo: Repo, _ path: String, branch: String?, main: Bool = false) -> Worktree {
         Worktree(repo: repo, path: path, branch: branch, head: "", isMain: main)
@@ -253,16 +253,16 @@ struct RunBaseWorktreeTests {
 
     @Test func aForkStillFindsItsWorktree() {
         let ref = PullRef(repo: upstream, number: 1)
-        let mine = worktree(fork, "/wt/docs-builder/fix-a", branch: "fix-a")
+        let mine = worktree(fork, "/wt/docs-toolkit/fix-a", branch: "fix-a")
         let other = worktree(Repo(org: "o", name: "other"), "/wt/other/fix-a", branch: "x")
         // The PR is upstream, the clone's origin is the fork: same repo name, or the PR's branch.
         #expect(Runs.baseWorktree(for: ref, headBranch: "fix-a", owned: [other, mine], all: [other, mine]) == mine)
         #expect(Runs.baseWorktree(for: ref, headBranch: nil, owned: [other, mine], all: []) == mine)
         // The exact repo wins when there is one.
-        let exact = worktree(upstream, "/wt/docs-builder/fix-a-up", branch: "fix-a")
+        let exact = worktree(upstream, "/wt/docs-toolkit/fix-a-up", branch: "fix-a")
         #expect(Runs.baseWorktree(for: ref, headBranch: "fix-a", owned: [mine, exact], all: []) == exact)
         // Nothing owned: any worktree on the PR's branch, never a main checkout.
-        let loose = worktree(fork, "/code/docs-builder", branch: "fix-a", main: true)
+        let loose = worktree(fork, "/code/docs-toolkit", branch: "fix-a", main: true)
         #expect(Runs.baseWorktree(for: ref, headBranch: "fix-a", owned: [], all: [loose, mine]) == mine)
         #expect(Runs.baseWorktree(for: ref, headBranch: "fix-a", owned: [], all: [loose]) == nil)
     }
@@ -270,11 +270,11 @@ struct RunBaseWorktreeTests {
 
 struct RunCloneTests {
     @Test func aPROpenedElsewhereStillFindsTheRepo() {
-        let upstream = Repo(org: "elastic", name: "docs-builder")
+        let upstream = Repo(org: "acme", name: "docs-toolkit")
         let ref = PullRef(repo: upstream, number: 1)
-        let local = RepoRecord(repo: upstream, path: "/code/docs-builder")
-        let onHost = RepoRecord(repo: upstream, path: "/home/me/docs-builder", location: .host("devbox"))
-        let fork = RepoRecord(repo: Repo(org: "me", name: "docs-builder"), path: "/code/fork")
+        let local = RepoRecord(repo: upstream, path: "/code/docs-toolkit")
+        let onHost = RepoRecord(repo: upstream, path: "/home/me/docs-toolkit", location: .host("devbox"))
+        let fork = RepoRecord(repo: Repo(org: "me", name: "docs-toolkit"), path: "/code/fork")
         #expect(Runs.clone(for: ref, in: [onHost, local], at: .local) == local)
         #expect(Runs.clone(for: ref, in: [local, onHost], at: .host("devbox")) == onHost)
         #expect(Runs.clone(for: ref, in: [fork], at: .local) == fork)

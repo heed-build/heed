@@ -19,10 +19,10 @@ repo_paths = []          # repos outside the roots, added when you import one of
 - **Colours.** Every org has a colour, and its repos inherit it. Set them in Settings (`⌘,`) or in `config.toml`:
 
 ```toml
-[orgs.elastic]
+[orgs.acme]
 color = "teal"      # teal, pink, lime, orange, periwinkle, sky
 
-[repos."elastic/docs-builder"]
+[repos."acme/docs-toolkit"]
 color = "orange"
 ```
 

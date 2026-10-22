@@ -29,7 +29,7 @@ enum TutorCheck {
         "hosts": [
             "gH<Esc>",
             "@dev<CR>gg",
-            "o" + Shots.typed("Fix the flaky link checker in docs-builder"),
+            "o" + Shots.typed("Fix the flaky link checker in docs-toolkit"),
             "<D-CR>",
         ],
         "agents": ["ga", "i<S-Esc>", "jjzz"],

@@ -18,8 +18,8 @@ struct SetupDetectionTests {
         #expect(SetupDetection.propose(files: ["yarn.lock"]).commands == ["yarn install"])
         #expect(SetupDetection.propose(files: ["uv.lock", "pnpm-lock.yaml"]).commands == ["pnpm install", "uv sync"])
         #expect(SetupDetection.propose(files: ["poetry.lock"]).commands == ["poetry install"])
-        #expect(SetupDetection.propose(files: ["docs-builder.sln", "README.md"]).lines
-            == ["dotnet restore (docs-builder.sln)"])
+        #expect(SetupDetection.propose(files: ["docs-toolkit.sln", "README.md"]).lines
+            == ["dotnet restore (docs-toolkit.sln)"])
     }
 
     @Test func nothingForReposThatFetchOnBuild() {
@@ -39,30 +39,30 @@ struct SetupDetectionTests {
     }
 
     @Test func repoBeforeOrg() {
-        let rules = SetupRules(orgs: ["elastic": ["make deps"]], repos: ["elastic/kibana": []])
-        #expect(rules.commands(for: Repo(org: "elastic", name: "kibana")) == [])
-        #expect(rules.commands(for: Repo(org: "elastic", name: "docs-builder")) == ["make deps"])
-        #expect(rules.commands(for: Repo(org: "nullean", name: "curb")) == nil)
+        let rules = SetupRules(orgs: ["acme": ["make deps"]], repos: ["acme/kibana": []])
+        #expect(rules.commands(for: Repo(org: "acme", name: "kibana")) == [])
+        #expect(rules.commands(for: Repo(org: "acme", name: "docs-toolkit")) == ["make deps"])
+        #expect(rules.commands(for: Repo(org: "globex", name: "curb")) == nil)
     }
 
     @Test func configReadsSetupAndTheTrustSwitch() {
         let source = """
         [worktrees]
         offer_trust = false
-        [orgs.elastic]
+        [orgs.acme]
         setup = ["make deps"]
-        [repos."elastic/kibana"]
+        [repos."acme/kibana"]
         setup = []
         """
         let config = ConfigLoader.decode(source).config
         #expect(config?.work.offerTrust == false)
-        #expect(config?.work.setup.orgs["elastic"] == ["make deps"])
-        #expect(config?.work.setup.repos["elastic/kibana"] == [])
+        #expect(config?.work.setup.orgs["acme"] == ["make deps"])
+        #expect(config?.work.setup.repos["acme/kibana"] == [])
         #expect(ConfigLoader.decode(ConfigLoader.defaultSource).config?.work.offerTrust == true)
         let key = Overrides.keys.first { $0.id == "setup" }!
-        let kibana = OverrideScope.repo(Repo(org: "elastic", name: "kibana"))
+        let kibana = OverrideScope.repo(Repo(org: "acme", name: "kibana"))
         #expect(Overrides.effective(key, at: kibana, in: config!).value == .list([]))
-        #expect(Overrides.effective(key, at: .repo(Repo(org: "elastic", name: "x")), in: config!).source == .org)
+        #expect(Overrides.effective(key, at: .repo(Repo(org: "acme", name: "x")), in: config!).source == .org)
     }
 }
 

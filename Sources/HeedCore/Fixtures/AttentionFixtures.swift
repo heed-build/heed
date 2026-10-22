@@ -42,7 +42,7 @@ public extension Fixtures {
         func ago(_ minutes: Double) -> Date { Clock.now.addingTimeInterval(-minutes * 60) }
         let details = [
             ThreadDetail(
-                url: "https://github.com/elastic/docs-builder/pull/2845", author: "reviewer", labels: ["feature"],
+                url: "https://github.com/acme/docs-toolkit/pull/2845", author: "reviewer", labels: ["feature"],
                 isDraft: false, size: 212, headBranch: "link-validation",
                 body: "Validates every link the assembler writes, and fails the build on a broken one.",
                 comments: [
@@ -73,14 +73,14 @@ public extension Fixtures {
 
     /// What the cheap model wrote, by item id.
     static let attentionSummaries: [String: String] = [
-        "elastic/docs-builder#2845": "Asks you one thing before approving: whether the redirect map is generated at "
+        "acme/docs-toolkit#2845": "Asks you one thing before approving: whether the redirect map is generated at "
             + "build time or checked in, and to say so in the PR description. Checks are green.",
         "acme/guides#77": "A proposal to archive the 7.x guides in Q1, with redirects. Each team is asked to reply by "
             + "Friday; your team owns most of the pages.",
     ]
 
     /// The Decider's suggestions for items no rule matched, by item id.
-    static let attentionSuggestions: [String: String] = ["elastic/docs-builder#2830": "boost 1"]
+    static let attentionSuggestions: [String: String] = ["acme/docs-toolkit#2830": "boost 1"]
 
     /// Marks: one thread muted earlier.
     static let attentionMarks: [String: AttentionMark] = [

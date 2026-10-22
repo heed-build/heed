@@ -266,7 +266,7 @@ resume = "--resume {id}"
 # working = "Thinking"
 
 # Org and repo colors: teal, pink, lime, orange, periwinkle, sky. Repos inherit their org's.
-# [orgs.elastic]
+# [orgs.acme]
 # color = "teal"
 # issues = "all"
 
@@ -274,12 +274,12 @@ resume = "--resume {id}"
 # proposes what it detects (mise install when the repo uses mise, else its lockfiles' installs) and runs nothing
 # until you approve it in Repos (S); [] runs nothing and stops the proposal. Files .worktreeinclude names (gitignored
 # ones only) are copied from the main checkout into each new worktree either way.
-# [repos."elastic/docs-builder"]
+# [repos."acme/docs-toolkit"]
 # setup = ["pnpm install"]
 
 # Pinned tasks per repo, each run in its own pane; the exit code sets the tab's glyph. New sessions open them as
 # tabs; ! picks one to run, from these and what the worktree offers (mise tasks, make targets, package.json scripts).
-# [repos."elastic/docs-builder".tasks]
+# [repos."acme/docs-toolkit".tasks]
 # test = "dotnet test"
 
 # Hosts: machines heed drives over your own ssh (gH adds them from ~/.ssh/config or your tailnet). A host whose

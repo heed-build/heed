@@ -33,7 +33,7 @@ longer does. When heed [saved its work](../worktrees/removing.md#saved-first) be
 | `{` `}` | The previous and next day |
 | `/` | Search the lines |
 
-Each takes a name on the command line too: `:timeline.kind worktrees`, `:timeline.repo docs-builder`,
+Each takes a name on the command line too: `:timeline.kind worktrees`, `:timeline.repo docs-toolkit`,
 `:timeline.where devbox`, `all` to go back. Clicking a filter in the left column does the same.
 
 ![Only worktrees: the removed ones struck through, one with its work saved](../images/shots/history/timeline-worktrees.png)

@@ -3,9 +3,9 @@ import Foundation
 import Testing
 
 struct PilotTests {
-    private let heed = Repo(org: "nullean", name: "heed")
-    private let kibana = Repo(org: "elastic", name: "kibana")
-    private let docs = Repo(org: "elastic", name: "docs-builder")
+    private let heed = Repo(org: "globex", name: "heed")
+    private let kibana = Repo(org: "acme", name: "kibana")
+    private let docs = Repo(org: "acme", name: "docs-toolkit")
     private let now = Date(timeIntervalSince1970: 1_000_000)
 
     private func pull(_ repo: Repo, checks: CheckSummary = CheckSummary(passed: 1), threads: Int = 0) -> PullRequest {
@@ -18,8 +18,8 @@ struct PilotTests {
     @Test func settingsResolveRepoThenOrgThenDefaultPerField() {
         let rules = PilotRules(
             defaults: PilotSettings(watch: true, green: .ask, maxRounds: 3),
-            orgs: ["elastic": PilotOverrides(watch: false, green: .auto)],
-            repos: ["elastic/docs-builder": PilotOverrides(watch: true)]
+            orgs: ["acme": PilotOverrides(watch: false, green: .auto)],
+            repos: ["acme/docs-toolkit": PilotOverrides(watch: true)]
         )
         #expect(rules.resolve(heed) == PilotSettings(watch: true, green: .ask, maxRounds: 3))
         #expect(rules.resolve(kibana).watch == false)
@@ -158,7 +158,7 @@ struct PilotTests {
         [repos."employer/main"]
         watch = true
         green = "ask"
-        [repos."elastic/x"]
+        [repos."acme/x"]
         green = "sometimes"
         """)
         #expect(config?.pilot.defaults == PilotSettings(watch: true, green: .auto, maxRounds: 5, pause: 4 * 3600))
@@ -166,6 +166,6 @@ struct PilotTests {
         #expect(config?.pilot.repos["employer/main"] == PilotOverrides(watch: true, green: .ask))
         #expect(config?.pilot.resolve(Repo(org: "employer", name: "other")).watch == false)
         #expect(config?.pilot.resolve(Repo(org: "employer", name: "main")).watch == true)
-        #expect(problems.map(\.path) == ["repos.elastic/x.green"])
+        #expect(problems.map(\.path) == ["repos.acme/x.green"])
     }
 }

@@ -3,7 +3,7 @@ import Testing
 
 /// The title bar's middle, fitted to the room between the view tabs and the status.
 struct TitleCrumbTests {
-    private let session = TitleCrumb(lead: "docs-builder", main: "fix-anchors-redirects", tags: ["#2841"])
+    private let session = TitleCrumb(lead: "docs-toolkit", main: "fix-anchors-redirects", tags: ["#2841"])
 
     /// Columns the fitted crumb takes, gaps included.
     private func width(_ crumb: TitleCrumb) -> Int {
@@ -14,7 +14,7 @@ struct TitleCrumbTests {
     }
 
     @Test func everythingWholeWhenThereIsRoom() {
-        let crumb = TitleCrumb(lead: "docs-builder", main: "#2841", detail: "Fix broken anchors in redirects")
+        let crumb = TitleCrumb(lead: "docs-toolkit", main: "#2841", detail: "Fix broken anchors in redirects")
         #expect(crumb.fitted(columns: 80) == crumb)
         #expect(session.fitted(columns: 80) == session)
     }
@@ -40,7 +40,7 @@ struct TitleCrumbTests {
     }
 
     @Test func tagsGoLastFirst() {
-        let remote = TitleCrumb(lead: "docs-builder", main: "flake-hunt", tags: ["#12", "@devbox"])
+        let remote = TitleCrumb(lead: "docs-toolkit", main: "flake-hunt", tags: ["#12", "@devbox"])
         #expect(remote.fitted(columns: 37).tags == ["#12", "@devbox"])
         #expect(remote.fitted(columns: 36).tags == ["#12"])
         #expect(remote.fitted(columns: 29).tags == ["#12"])
@@ -49,7 +49,7 @@ struct TitleCrumbTests {
     }
 
     @Test func theTitleIsCutAtTheEndAndDroppedBeforeItIsUseless() {
-        let pull = TitleCrumb(lead: "docs-builder", main: "#2841", detail: "Fix broken anchors in redirects")
+        let pull = TitleCrumb(lead: "docs-toolkit", main: "#2841", detail: "Fix broken anchors in redirects")
         #expect(pull.fitted(columns: 30).detail == "Fix brok…")
         #expect(width(pull.fitted(columns: 30)) == 30)
         #expect(pull.fitted(columns: 23).detail == "F…")

@@ -3,8 +3,8 @@ import Foundation
 import Testing
 
 /// Against a real ssh host, when one is set up: HEED_SSH_TEST=<dir> with `id` (a key the host accepts) and
-/// `known_hosts`, and HEED_SSH_TEST_TARGET (e.g. ssh://dev@127.0.0.1:2222) for a host with ~/code/docs-builder (origin
-/// elastic/docs-builder) and a worktree ~/code/wt/flake-hunt. Skipped otherwise.
+/// `known_hosts`, and HEED_SSH_TEST_TARGET (e.g. ssh://dev@127.0.0.1:2222) for a host with ~/code/docs-toolkit (origin
+/// acme/docs-toolkit) and a worktree ~/code/wt/flake-hunt. Skipped otherwise.
 @Suite(.serialized)
 struct RemoteIntegrationTests {
     private var setup: (dir: String, target: String)? {
@@ -34,9 +34,9 @@ struct RemoteIntegrationTests {
         #expect(info.git != nil)
 
         let records = await RemoteScan.scan(HostConfig(name: "box"))
-        let repo = try #require(records.first { $0.repo.slug == "elastic/docs-builder" })
+        let repo = try #require(records.first { $0.repo.slug == "acme/docs-toolkit" })
         #expect(repo.location == .host("box"))
-        #expect(repo.id == "elastic/docs-builder@box")
+        #expect(repo.id == "acme/docs-toolkit@box")
         #expect(repo.defaultBranch != nil)
 
         let worktrees = try await Git.worktrees(of: repo)
@@ -51,7 +51,7 @@ struct RemoteIntegrationTests {
         configure(setup)
         defer { Remote.setExtraOptions([]); Remote.setTargets([:]) }
         let records = await RemoteScan.scan(HostConfig(name: "box"))
-        let repo = try #require(records.first { $0.repo.slug == "elastic/docs-builder" })
+        let repo = try #require(records.first { $0.repo.slug == "acme/docs-toolkit" })
         let name = "start-\(Int(Date().timeIntervalSince1970))"
         let plan = StartWorkPlan(prompt: "p", repos: [repo], name: name, agent: nil)
         let changes = try await StartWork.execute(
@@ -62,7 +62,7 @@ struct RemoteIntegrationTests {
         }.first)
         let path = try #require(session.worktreePaths.first)
         #expect(session.host == "box")
-        #expect(path.hasPrefix("/") && path.hasSuffix("/code/wt/docs-builder/\(name)"))
+        #expect(path.hasPrefix("/") && path.hasSuffix("/code/wt/docs-toolkit/\(name)"))
         let listed = try await Git.worktrees(of: repo)
         #expect(listed.contains { $0.path == path && $0.branch == session.branch && $0.location == .host("box") })
         _ = try? await ProcessRunner.run(

@@ -128,7 +128,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public init(
         id: String = UUID().uuidString.lowercased(), title: String, prompt: String = "", repos: [Repo], branch: String,
         agent: String, agentSessionID: String? = nil, state: ObservedState, activity: String = "",
-        trackedPRs: [PullRef] = [], pinned: Bool = false, parked: Bool = false, lastActivity: Date = Date(),
+        trackedPRs: [PullRef] = [], pinned: Bool = false, parked: Bool = false, lastActivity: Date = Clock.now,
         createdAt: Date? = nil, timeline: [TimelineEvent] = [], workspace: Workspace = .worktrees
     ) {
         self.id = id
@@ -243,7 +243,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     /// Tracks a PR unless it is already tracked or was untracked by hand; says why on the timeline. True when added.
     /// A chat tracks none: it has no branch for a PR to come from, and `:promote` is how one becomes work.
     @discardableResult
-    public mutating func track(_ pull: PullRef, because reason: String, at date: Date = Date()) -> Bool {
+    public mutating func track(_ pull: PullRef, because reason: String, at date: Date = Clock.now) -> Bool {
         guard !isChat, !trackedPRs.contains(pull), !untrackedPRs.contains(pull) else { return false }
         trackedPRs.append(pull)
         record("tracking PR \(pull.repo.name)#\(pull.number) (\(reason))", at: date)
@@ -252,7 +252,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
 
     public static let timelineLimit = 50
 
-    public mutating func record(_ text: String, at date: Date = Date()) {
+    public mutating func record(_ text: String, at date: Date = Clock.now) {
         timeline.append(TimelineEvent(at: date, text: text))
         if timeline.count > Self.timelineLimit { timeline.removeFirst(timeline.count - Self.timelineLimit) }
     }

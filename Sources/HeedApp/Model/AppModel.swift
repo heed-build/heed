@@ -6301,7 +6301,7 @@ final class AppModel {
         session.usage = nil
         session.state = ObservedState(.idle, source: .guessed, reason: "handed off")
         session.activity = "starting"
-        session.lastActivity = Date()
+        session.lastActivity = Clock.now
         session.record("handed off from \(from) to \(agent.name)")
         setSubagents(nil, of: id)
         TerminalSurfaces.shared.autostartPanes.insert(fresh.id)
@@ -6650,7 +6650,7 @@ final class AppModel {
         var session = Session(
             id: plan.sessionID, title: plan.title, prompt: plan.prompt, repos: plan.repos.map(\.repo),
             branch: plan.name, agent: plan.agent?.name ?? "shell", state: ObservedState(.working),
-            activity: "starting", lastActivity: Date()
+            activity: "starting", lastActivity: Clock.now
         )
         session.host = plan.location.hostName
         session.record("started · \(plan.agent?.name ?? "shell")")

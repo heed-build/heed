@@ -45,13 +45,14 @@ struct StateGlyph: View {
 }
 
 /// The working spinner. Driven by the render clock rather than a repeating animation, so it costs nothing when the
-/// window is hidden.
+/// window is hidden. Shots draw it at rest, so two renders of the same shot are the same picture.
 private struct Spinner: View {
     let size: CGFloat
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30)) { context in
-            let angle = context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1) * 360
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: ShotMode.active)) { context in
+            let angle = ShotMode.active ? 0
+                : context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1) * 360
             ZStack {
                 Circle().stroke(Theme.busy.opacity(0.3), lineWidth: 2)
                 Circle().trim(from: 0, to: 0.25).stroke(Theme.busy, style: StrokeStyle(lineWidth: 2, lineCap: .round))

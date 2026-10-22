@@ -414,6 +414,19 @@ struct RepoOrderTests {
         #expect(named.first?.repo.id == "a/one")
     }
 
+    @Test func guessesTiedOnConfidenceAndTimeAreListedByName() {
+        let now = Date()
+        let slugs = ["c/zeta", "a/beta", "b/Alpha", "d/gamma"]
+        // All worked in at the same instant: the same confidence, and nothing between them but the name.
+        let lastWorked = Dictionary(uniqueKeysWithValues: slugs.map { ($0, now.addingTimeInterval(-3600)) })
+        let expected = ["b/Alpha", "a/beta", "d/gamma", "c/zeta"]
+        for repos in [slugs, slugs.reversed(), slugs.shuffled()].map({ $0.map(record) }) {
+            let guesses = StartWork.guessRepos(for: "tidy something", in: repos, lastWorked: lastWorked, now: now)
+            #expect(Set(guesses.map(\.confidence)).count == 1)
+            #expect(guesses.map(\.repo.id) == expected)
+        }
+    }
+
     @Test func whereStartWorkWasOpenedHints() {
         let now = Date()
         let repos = ["a/one", "a/two", "a/three"].map(record)

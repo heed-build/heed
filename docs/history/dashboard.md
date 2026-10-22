@@ -1,5 +1,5 @@
 ---
-description: What the work amounted to over a range: sessions, agent time, PRs, questions, by day, agent and repo.
+description: "What the work amounted to over a range: sessions, agent time, PRs, questions, by day, agent and repo."
 ---
 
 # Dashboard

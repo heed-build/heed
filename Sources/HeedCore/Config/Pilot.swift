@@ -74,10 +74,12 @@ public struct PilotSettings: Hashable, Sendable {
     /// Background runs, or the session's agent.
     public var runIn: RunIn = .background
     /// Extra instructions heed adds to its prompts: after get it green's feedback items, to heed merge's self-review
-    /// criteria, and after Start work's issue text. Additions only: what heed needs from a prompt stays as it is.
+    /// criteria, after Start work's issue text, and to the summaries heed's model calls write. Additions only: what
+    /// heed needs from a prompt stays as it is.
     public var greenInstructions = ""
     public var reviewInstructions = ""
     public var startInstructions = ""
+    public var summaryInstructions = ""
 
     public init(
         watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600,
@@ -137,6 +139,7 @@ public struct PilotOverrides: Hashable, Sendable {
     public var greenInstructions: String?
     public var reviewInstructions: String?
     public var startInstructions: String?
+    public var summaryInstructions: String?
 
     public init(
         watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil, merge: MergeMode? = nil,
@@ -160,6 +163,7 @@ public struct PilotOverrides: Hashable, Sendable {
             && trustedReviewers == nil && gateChecks == nil && holdLabels == nil && selfReview == nil && adminMerge ==
             nil && agent == nil && model == nil
             && greenInstructions == nil && reviewInstructions == nil && startInstructions == nil && runIn == nil
+            && summaryInstructions == nil
             && mergeAgent == nil && mergeModel == nil
     }
 }
@@ -209,6 +213,8 @@ public struct PilotRules: Hashable, Sendable {
             ?? defaults.reviewInstructions
         settings.startInstructions = repoLevel.startInstructions ?? orgLevel.startInstructions
             ?? defaults.startInstructions
+        settings.summaryInstructions = repoLevel.summaryInstructions ?? orgLevel.summaryInstructions
+            ?? defaults.summaryInstructions
         return settings
     }
 

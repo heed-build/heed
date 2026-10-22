@@ -84,6 +84,7 @@ toc:
   - folder: history
     children:
       - file: index.md
+      - file: timeline.md
       - file: reopening.md
   - folder: keyboard
     children:

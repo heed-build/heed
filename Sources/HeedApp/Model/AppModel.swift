@@ -5,11 +5,16 @@ import Observation
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
     case sessions, watch, inbox, issues, prs, repos, history, log
+    /// History as a timeline (`history.timeline`): under History's tab, not one of its own.
+    case timeline
 
     var id: String { rawValue }
 
-    /// The views the title bar lists: the call log is reached with `:log` only.
-    static var tabs: [AppView] { allCases.filter { $0 != .log } }
+    /// The views the title bar lists: the call log is reached with `:log` only, the timeline from History.
+    static var tabs: [AppView] { allCases.filter { $0 != .log && $0 != .timeline } }
+
+    /// The tab that is lit while this view shows.
+    var tab: AppView { self == .timeline ? .history : self }
 
     var title: String {
         switch self {
@@ -21,11 +26,12 @@ enum AppView: String, CaseIterable, Identifiable {
         case .repos: "Repos"
         case .history: "History"
         case .log: "Log"
+        case .timeline: "Timeline"
         }
     }
 
     /// The command that switches to this view; its key comes from the live keymap.
-    var command: String { "view.\(rawValue)" }
+    var command: String { self == .timeline ? "history.timeline" : "view.\(rawValue)" }
 }
 
 extension Notification.Name {
@@ -148,6 +154,7 @@ final class AppModel {
             if filters[.sessions] != oldValue[.sessions] { rebuildList() }
             if filters[.repos] != oldValue[.repos] { rebuildWorktreeRows() }
             if filters[.log] != oldValue[.log] { callLog.setSearch(filters[.log] ?? "") }
+            if filters[.timeline] != oldValue[.timeline] { timeline.setSearch(filters[.timeline] ?? "") }
         }
     }
 
@@ -200,8 +207,13 @@ final class AppModel {
             if view != oldValue { viewChangedForSync() }
             if view == .log, oldValue != .log { callLog.opened() }
             if oldValue == .log, view != .log { callLog.closed() }
+            if view == .timeline, oldValue != .timeline { timeline.opened() }
+            if oldValue == .timeline, view != .timeline { timeline.closed() }
         }
     }
+
+    /// History's timeline: its lines, filters and cursor.
+    let timeline: TimelineBrowser
 
     /// The `:log` view's rows and filters.
     let callLog: CallLogBrowser
@@ -279,6 +291,7 @@ final class AppModel {
         self.settings = settings
         self.isFixture = isFixture
         callLog = CallLogBrowser(fixture: isFixture)
+        timeline = TimelineBrowser(fixture: isFixture)
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
@@ -298,6 +311,7 @@ final class AppModel {
         }
         replace(with: domain)
         if isFixture { adoptFixtureRuns() } else { interruptRuns() }
+        timeline.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
         updateScope()
         tutorRecord = tutorProgress
         // The tutor runs in its own window and model; the reminder here follows what it saves.
@@ -330,6 +344,7 @@ final class AppModel {
         replace(with: cached)
         loadAvatars()
         store = DomainStore(domain: cached, file: file, log: log)
+        timeline.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         await receiveSpooled()
         await offerResume(domain: cached)
         startAwayTracking()
@@ -516,7 +531,7 @@ final class AppModel {
         case .issues: [.issues]
         // Sessions show their PRs' state; Repos and History their PR numbers.
         case .sessions, .prs, .watch, .repos, .history: [.pulls]
-        case .log: []
+        case .log, .timeline: []
         }
     }
 
@@ -1686,6 +1701,9 @@ final class AppModel {
         case .log:
             guard let call = callLog.selected else { return nil }
             return TitleContext(lead: call.kind.rawValue, main: call.caller, detail: call.operation ?? call.command)
+        case .timeline:
+            guard let item = timeline.selected else { return nil }
+            return TitleContext(lead: "timeline", main: item.name, detail: item.lead)
         }
     }
 
@@ -1764,6 +1782,7 @@ final class AppModel {
         case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
         case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
         case .log: callLog.rows.indices.map { HintTarget.row(.log, $0) }
+        case .timeline: timeline.rows.indices.map { HintTarget.row(.timeline, $0) }
         }
         return zip(HintLabels.generate(count: targets.count), targets).map { ($0, $1) }
     }
@@ -2053,6 +2072,16 @@ final class AppModel {
         case "view": if let target = AppView(rawValue: command.arguments.first ?? "") { view = target }
         case "view.history": view = .history
         case "view.log": view = .log
+        case "view.timeline": view = .timeline
+        case "history.timeline": view = view == .timeline ? .history : .timeline
+        case "timeline.kind": timeline.change { $0.cycleKind(command.arguments.first) }
+        case "timeline.repo":
+            let repos = timeline.choices.repos
+            timeline.change { $0.cycleRepo(among: repos, named: command.arguments.first) }
+        case "timeline.where":
+            let places = timeline.choices.places
+            timeline.change { $0.cyclePlace(among: places, named: command.arguments.first) }
+        case "timeline.gone": timeline.change { $0.showGone.toggle() }
         case "log.kind":
             let kind = command.arguments.first.map(CallKind.init(rawValue:))
             callLog.change { $0.cycleKind(to: kind) }
@@ -2224,6 +2253,7 @@ final class AppModel {
         case .repos: worktreeRows.map(\.id)
         case .history: historyRows.map(\.id)
         case .log: callLog.rows.map { String($0.id) }
+        case .timeline: timeline.rows.map(\.id)
         case .sessions: []
         default: itemIDs(list)
         }
@@ -2298,6 +2328,9 @@ final class AppModel {
         context.currentAgent = currentSession?.agent
         context.mergeRepos = mergeQueues.keys.sorted()
         context.issueRepos = issueRepoCounts.map(\.repo.name)
+        let choices = timeline.choices
+        context.timelineRepos = choices.repos.map { String($0.split(separator: "/").last ?? "") }
+        context.timelinePlaces = choices.places
         if let session = currentSession {
             context.pulls = session.trackedPRs.map(\.url)
             context.issues = issues(of: session).map(\.url)
@@ -2322,6 +2355,7 @@ final class AppModel {
         case .repos: setRow(repoCursor + delta)
         case .history: setRow(historyCursor + delta)
         case .log: setRow(callLog.cursor + delta)
+        case .timeline: setRow(timeline.cursor + delta)
         case .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
@@ -2340,6 +2374,8 @@ final class AppModel {
             (historyRows.map { Calendar.current.startOfDay(for: $0.closedAt).description }, historyCursor)
         // A run of calls from one caller (a sync, a repo refresh) is a group.
         case .log: (callLog.rows.map(\.caller), callLog.cursor)
+        // A day is a group: { and } go from day to day.
+        case .timeline: (timeline.rows.map { Calendar.current.startOfDay(for: $0.at).description }, timeline.cursor)
         }
     }
 
@@ -2361,6 +2397,8 @@ final class AppModel {
             historyCursor = min(max(index, 0), count - 1)
         } else if view == .log {
             callLog.setCursor(index)
+        } else if view == .timeline {
+            timeline.setCursor(index)
         } else if view == .repos {
             let count = worktreeRows.count
             guard count > 0 else { return }
@@ -2884,6 +2922,8 @@ final class AppModel {
                 historyCursor = index
             case .log:
                 callLog.setCursor(index)
+            case .timeline:
+                timeline.setCursor(index)
             default:
                 itemCursor[view] = index
                 if thenInsert { openReader() }
@@ -3377,7 +3417,12 @@ final class AppModel {
     }
 
     private func reopenSelected() {
-        guard let entry = selectedHistory else { return }
+        // In the timeline: the session of the line under the cursor, when it is in History.
+        let picked = view == .timeline ? timeline.selected.flatMap(timelineEntry) : selectedHistory
+        guard let entry = picked else {
+            if view == .timeline { flash = "nothing to reopen: this line's session is not in History" }
+            return
+        }
         if tutor != nil {
             // The tutor: the session comes back as it would, its agent pane in its worktree, nothing resumed.
             let path = worktrees.first { $0.branch == entry.session.branch }?.path ?? "/Users/you/code"
@@ -3872,6 +3917,7 @@ final class AppModel {
         case .prs: return pullRows.indices.contains(index) ? [pullRows[index].ref.repo] : []
         case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
         case .history: return selectedHistory?.session.repos ?? []
+        case .timeline: return timeline.selected?.repository.map { [$0] } ?? []
         case .log: return []
         }
     }
@@ -5749,6 +5795,7 @@ final class AppModel {
         case .sessions: cursor = 0
         case .history: historyCursor = 0
         case .log: callLog.setCursor(0)
+        case .timeline: timeline.setCursor(0)
         case .repos: repoCursor = 0
         case .inbox, .issues, .prs, .watch: itemCursor[view] = 0
         }
@@ -5760,6 +5807,7 @@ final class AppModel {
         case .sessions: list.ordered.count
         case .history: historyRows.count
         case .log: callLog.rows.count
+        case .timeline: timeline.rows.count
         case .repos: worktreeRows.count
         case .inbox, .issues, .prs, .watch: itemIDs(view).count
         }
@@ -5850,7 +5898,7 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
-        case .log:
+        case .log, .timeline:
             return nil
         case .inbox:
             let ids = Set(actionIDs(.inbox))
@@ -6713,6 +6761,9 @@ final class AppModel {
         case .log:
             state.cursor = callLog.cursor
             state.rows = callLog.rows.count
+        case .timeline:
+            state.cursor = timeline.cursor
+            state.rows = timeline.rows.count
         case .inbox, .issues, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count

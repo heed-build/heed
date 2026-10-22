@@ -84,7 +84,17 @@ public enum DefaultKeys {
             ("o", "worktree.new"), ("r", "repo.scan"), ("w", "issues.visibility"), ("dd", "select.remove"),
             ("<CR>", "select.open"), ("S", "setup.review"),
         ],
-        "history": [("R", "history.reopen"), ("O", "history.again"), ("t", "history.outcome")],
+        "history": [
+            ("R", "history.reopen"),
+            ("O", "history.again"),
+            ("t", "history.outcome"),
+            ("T", "history.timeline"),
+        ],
+        // History's timeline (T, :timeline); T again goes back to the list.
+        "timeline": [
+            ("T", "history.timeline"), ("R", "history.reopen"), ("t", "timeline.kind"), ("r", "timeline.repo"),
+            ("w", "timeline.where"), ("D", "timeline.gone"),
+        ],
         // The call log has no key of its own (:log); inside it, its filters.
         "log": [
             ("t", "log.kind"), ("x", "log.failed"), ("s", "log.slow"), ("w", "log.writes"), ("c", "log.caller"),

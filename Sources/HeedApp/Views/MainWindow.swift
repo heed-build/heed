@@ -36,6 +36,8 @@ struct MainWindow: View {
                         WatchView()
                     case .log:
                         CallLogView()
+                    case .timeline:
+                        HistoryTimelineView()
                     }
                 }
             }
@@ -232,7 +234,7 @@ struct TitleBar: View {
                 if index > 0 { Theme.line.frame(width: 1, height: 14) }
                 ViewTab(
                     view: view,
-                    active: model.view == view,
+                    active: model.view.tab == view,
                     count: badge(view),
                     key: compact ? nil : model.keyCap(for: view.command)
                 )
@@ -338,7 +340,7 @@ struct StatusBar: View {
             Spacer()
             Text(model.pendingKeys).foregroundStyle(Theme.fg).padding(.horizontal, 12)
             // A quiet nudge until you have done this view's lesson.
-            if model.tutor == nil, !model.tutorRecord.done.contains(Tutor.lessonID(forView: model.view.rawValue)) {
+            if model.tutor == nil, !model.tutorRecord.done.contains(Tutor.lessonID(forView: model.view.tab.rawValue)) {
                 Text("? t tutor").foregroundStyle(Theme.fg3).padding(.leading, 12)
             }
             Text(hints).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.head).padding(.horizontal, 12)
@@ -358,6 +360,9 @@ struct StatusBar: View {
         case .repos: return "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
         case .history: return "\(model.historyRows.isEmpty ? 0 : model.historyCursor + 1)/\(model.historyRows.count)"
         case .log: return "\(model.callLog.rows.isEmpty ? 0 : model.callLog.cursor + 1)/\(model.callLog.rows.count)"
+        case .timeline:
+            let rows = model.timeline.rows
+            return "\(rows.isEmpty ? 0 : model.timeline.cursor + 1)/\(rows.count)"
         case .sessions: return "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
         }
     }
@@ -401,7 +406,18 @@ struct StatusBar: View {
         case .normal where model.reader != nil || model.overlay == .pr:
             "j k item · space queue · s send · \(model.keyText(for: "pilot.green")) green · h l PRs · gS session · ⎋ back"
         case .normal where model.view == .repos: "o start work here · v select · dd remove · r rescan · w issues · { } repo · / filter"
-        case .normal where model.view == .history: "j k move · / filter · R reopen · O new from prompt · t outcome"
+        case .normal where model.view == .history:
+            "j k move · / filter · R reopen · O new from prompt · t outcome · \(model.keyText(for: "history.timeline", in: "history")) timeline"
+        case .normal where model.view == .timeline:
+            [
+                ("timeline.kind", "kind"),
+                ("timeline.repo", "repo"),
+                ("timeline.where", "where"),
+                ("timeline.gone", "removed"),
+                ("history.reopen", "reopen"),
+                ("history.timeline", "list"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "timeline")) \($0.1)" }.joined(separator: " · ") + " · { } day · / search"
         case .normal where model.view == .log:
             [
                 ("log.kind", "kind"),

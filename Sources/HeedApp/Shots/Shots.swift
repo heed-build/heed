@@ -365,6 +365,9 @@ enum Shots {
     static let history: [Shot] = [
         Shot(id: "history/history", keys: "gh"),
         Shot(id: "history/detail", keys: "gh", crop: .historyDetail),
+        Shot(id: "history/timeline", keys: "ghT"),
+        Shot(id: "history/timeline-worktrees", keys: "ghTtt"),
+        Shot(id: "history/timeline-detail", keys: "ghTtt/flowchart<CR>", crop: .timelineDetail),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

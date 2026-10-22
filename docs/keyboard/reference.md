@@ -68,7 +68,7 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|inbox|issues|prs|watch|repos|history|log>` |  | switch view |
+| `view` `<sessions|inbox|issues|prs|watch|repos|history|timeline|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.inbox` | `gm` | inbox |
 | `view.issues` | `gi` | issues |
@@ -76,6 +76,7 @@ This page is generated from the code (`mise run shots`).
 | `view.watch` | `gw` | watch: the PRs your sessions track, what heed does for each and has done |
 | `view.repos` | `gr` | repos & worktrees |
 | `view.log` |  | the call log: every command and GitHub call heed made, how long it took, how it ended |
+| `view.timeline` |  | History's timeline: sessions, worktrees, PRs and questions, by day |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
@@ -113,6 +114,7 @@ This page is generated from the code (`mise run shots`).
 | `settings.open` `[section]` | `<D-,>` | open Settings, on a section (general, agents, colors, cleanup, pilot, keys) |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
+| `history.timeline` | `T` (history), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |
 
 ## Modes
 
@@ -133,9 +135,13 @@ This page is generated from the code (`mise run shots`).
 | Command | Keys | Does |
 |---|---|---|
 | `select.toggle` | `<Space>` (VISUAL), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (watch) | toggle row |
-| `history.reopen` | `R` (history) | reopen: resume, recreating the worktree if needed |
+| `history.reopen` | `R` (history), `R` (timeline) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` | `t` (history) | cycle the outcome filter |
+| `timeline.kind` `[kind]` | `t` (timeline) | timeline: every kind, or one (sessions, worktrees, prs, questions, chats) |
+| `timeline.repo` `[name]` | `r` (timeline) | timeline: every repo, or the next one |
+| `timeline.where` `[local|host]` | `w` (timeline) | timeline: everywhere, this Mac, or a host |
+| `timeline.gone` | `D` (timeline) | timeline: show or hide removed worktrees |
 | `log.kind` `[kind]` | `t` (log) | call log: all, or one kind (shell, github, llm, decide) |
 | `log.failed` | `x` (log) | call log: only calls that failed, or all |
 | `log.slow` | `s` (log) | call log: only slow calls (5 s or more), or all |

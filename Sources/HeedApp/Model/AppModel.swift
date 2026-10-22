@@ -1696,11 +1696,7 @@ final class AppModel {
 
     // MARK: Title
 
-    struct TitleContext: Equatable {
-        var lead: String?
-        var main: String
-        var detail: String?
-    }
+    typealias TitleContext = TitleCrumb
 
     /// The title bar's middle: what is open, else what the cursor is on in the current view.
     var titleContext: TitleContext? {
@@ -1717,13 +1713,13 @@ final class AppModel {
             if let chat = session.chat {
                 return TitleContext(
                     lead: "chat", main: chat.kind == .scratch ? "scratch" : Paths.tilde(chat.path),
-                    detail: session.host.map { "@\($0)" }
+                    tags: [session.host.map { "@\($0)" }].compactMap(\.self)
                 )
             }
             return TitleContext(
                 lead: session.repos.first?.name, main: session.branch,
-                detail: [session.trackedPRs.first.map { "#\($0.number)" }, session.host.map { "@\($0)" }]
-                    .compactMap(\.self).joined(separator: " ").nilIfEmpty
+                tags: [session.trackedPRs.first.map { "#\($0.number)" }, session.host.map { "@\($0)" }]
+                    .compactMap(\.self)
             )
         case .attention:
             guard let item = attentionSelected?.item else { return nil }

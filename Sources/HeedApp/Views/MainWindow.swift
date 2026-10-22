@@ -145,9 +145,9 @@ struct TitleBar: View {
                         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { rightWidth = $0 }
                 }
                 if centred >= 160 {
-                    crumb.frame(maxWidth: centred)
+                    crumb(width: centred).frame(maxWidth: centred)
                 } else if between >= 80 {
-                    crumb.frame(maxWidth: between)
+                    crumb(width: between).frame(maxWidth: between)
                         .offset(x: (leftWidth - rightWidth) / 2)
                 }
             }
@@ -210,24 +210,32 @@ struct TitleBar: View {
     }
 
     /// What you are looking at: the session's branch and PR, or the PR, issue, worktree or history entry under the
-    /// cursor (or open in a reader).
-    @ViewBuilder private var crumb: some View {
+    /// cursor (or open in a reader). Fitted to `width` in columns of the mono font: the repo and a PR number or host
+    /// stay whole (or go whole), the branch is cut in the middle, the title at the end.
+    @ViewBuilder private func crumb(width: CGFloat) -> some View {
         if let context = model.titleContext {
+            let fitted = context.fitted(columns: Int(width / Self.crumbColumn))
             HStack(spacing: 6) {
-                // The repo and the branch or number stay whole; the title gives way.
-                if let lead = context.lead {
-                    Text(lead).foregroundStyle(Theme.fg2).fixedSize()
-                    Text("/").foregroundStyle(Theme.dim).fixedSize()
+                if let lead = fitted.lead {
+                    Text(lead).foregroundStyle(Theme.fg2)
+                    Text("/").foregroundStyle(Theme.dim)
                 }
-                Text(context.main).fontWeight(.medium).foregroundStyle(Theme.fg).truncationMode(.middle)
-                    .layoutPriority(1)
-                if let detail = context.detail { Text(detail).foregroundStyle(Theme.fg3).truncationMode(.tail) }
+                Text(fitted.main).fontWeight(.medium).foregroundStyle(Theme.fg)
+                ForEach(fitted.tags, id: \.self) { Text($0).foregroundStyle(Theme.fg3) }
+                if let detail = fitted.detail { Text(detail).foregroundStyle(Theme.fg3) }
             }
             .font(Theme.mono(12))
+            .fixedSize()
             .lineLimit(1)
-            .clipped()
         }
     }
+
+    /// One column of the crumb: a character of the mono font at 12 points, plus a little for the gaps between parts.
+    private static let crumbColumn: CGFloat = {
+        let font = NSFont(name: "JetBrains Mono", size: 12) ?? .monospacedSystemFont(ofSize: 12, weight: .medium)
+        let advance = ("0" as NSString).size(withAttributes: [.font: font]).width
+        return max(advance, 6)
+    }()
 
     /// The views as names with their key (`Inbox 7 gm`); narrow windows drop the keys, never the names.
     private func views(compact: Bool) -> some View {

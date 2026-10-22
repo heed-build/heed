@@ -24,7 +24,8 @@ extension AppModel {
 
     /// After a commit: the summaries the change asks for (a PR opened or merged, a chat closed).
     func noticeLedger(before: Domain, after: Domain) {
-        guard !isFixture, config.llm.enabled else { return }
+        // With model calls off an entry still gets its facts, and the agent's sign-off when it gave one.
+        guard !isFixture else { return }
         for (id, trigger) in Ledger.triggers(before: before, after: after, settings: config.ledger) {
             Task { await writeLedger(id, trigger: trigger) }
         }
@@ -41,7 +42,7 @@ extension AppModel {
     /// Removes after the summaries of the work in these worktrees were written, or `Ledger.removalWait` passed.
     func summarizingFirst(_ worktrees: [Worktree], remove: @escaping @MainActor @Sendable () async -> Void) async {
         let ids = ledgerSessions(of: worktrees)
-        guard !isFixture, config.llm.enabled, config.ledger.writes(on: .worktreeRemoved), !ids.isEmpty else {
+        guard !isFixture, config.ledger.writes(on: .worktreeRemoved), !ids.isEmpty else {
             await remove()
             return
         }
@@ -65,11 +66,7 @@ extension AppModel {
             say("no session to summarize")
             return
         }
-        guard config.llm.enabled else {
-            say("model calls are off ([llm] enabled, or Settings › Agents)")
-            return
-        }
-        say("writing the summary…")
+        say(config.llm.enabled ? "writing the summary…" : "model calls are off ([llm] enabled): the facts only")
         Task {
             await writeLedger(id, trigger: .onDemand)
             say(ledger.entries[id]?.failure.map { "summary failed: \($0)" } ?? "summary written")
@@ -117,12 +114,15 @@ extension AppModel {
             entry.agentTime = worked.time
             entry.agentTimeEstimated = worked.estimated
         }
-        if config.llm.enabled, !settings.include.isDisjoint(with: [.summary, .decisions, .followUps]) {
+        // The agent's own sign-off is the summary even with model calls off; the model writes only what is left.
+        let signedOff = SignOff.extract(session.lastMessage)
+        let include = config.llm.enabled ? settings.include : settings.include.intersection([.files])
+        if signedOff != nil || (config.llm.enabled && !include.isDisjoint(with: [.summary, .decisions, .followUps])) {
             let pulls = session.trackedPRs.compactMap { pullDetails[$0.description] }
             entry = await Ledger.write(
                 entry, inputs: Ledger.inputs(session: session, git: git?.text, pulls: pulls),
-                include: settings.include, trigger: trigger, summarizer: summarizer,
-                instructions: summaryInstructions(for: session.repos.first), now: Date()
+                include: include, trigger: trigger, summarizer: summarizer,
+                instructions: summaryInstructions(for: session.repos.first), signedOff: signedOff, now: Date()
             )
         }
         ledger.upsert(entry)

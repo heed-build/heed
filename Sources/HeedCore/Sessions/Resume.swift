@@ -58,8 +58,11 @@ public enum Resume {
         domain.sessions.compactMap { session -> ResumeCandidate? in
             guard !session.parked, let agent = settings.agent(session.agent) else { return nil }
             let panes = domain.layouts[session.id]?.tabs.flatMap(\.tree.panes).count ?? 0
+            let signOff = settings.signOffArguments(agent: agent, repo: session.repos.first)
             let extra = integration.map {
-                AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0, resuming: true)
+                AgentIntegration.launchArguments(
+                    agent: agent, sessionID: session.id, files: $0, resuming: true, signOff: signOff
+                )
             } ?? []
             let env = integration.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
             let resumable = session.agentSessionID.flatMap { id -> ShellCommand? in
@@ -72,7 +75,7 @@ public enum Resume {
             guard let resume = resumable else {
                 // Fresh start: a new agent session from the original prompt.
                 let fresh = integration.map {
-                    AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0)
+                    AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0, signOff: signOff)
                 } ?? []
                 let command = agent.launchCommand(prompt: session.prompt, extraArguments: fresh, environment: env)
                 let active = [.working, .blocked, .asking, .limited].contains(session.state.state)

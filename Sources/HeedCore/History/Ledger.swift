@@ -258,13 +258,30 @@ public enum Ledger {
     }
 
     /// The model's part, written into `entry`: the summary and what `include` asks for. A failure keeps what was
-    /// there and says why.
+    /// there and says why. `signedOff`: the agent's own `heed-summary:` line (`SignOff`); it is the summary, and the
+    /// model is asked only for the rest, when anything else is included.
     public static func write(
         _ entry: LedgerEntry, inputs: SummaryInputs, include: Set<LedgerPart>, trigger: LedgerTrigger,
-        summarizer: Summarizer, instructions: String, now: Date
+        summarizer: Summarizer, instructions: String, signedOff: String? = nil, now: Date
     ) async -> LedgerEntry {
         var entry = entry
+        if let signedOff {
+            entry.summary = signedOff
+            entry.source = .signOff
+            entry.trigger = trigger.title
+            entry.summarizedAt = now
+            entry.failure = nil
+            guard !include.isDisjoint(with: [.decisions, .followUps]) else {
+                entry.decisions = []
+                entry.followUps = []
+                return entry
+            }
+        }
         var extra = instructions
+        if let signedOff {
+            extra += (extra.isEmpty ? "" : "\n") + "The agent summarized the work itself: \"\(signedOff)\". "
+                + "Repeat that under Summary; write the other sections from the input."
+        }
         let left = [LedgerPart.decisions, .followUps].filter { !include.contains($0) }
         if !left.isEmpty {
             extra += (extra.isEmpty ? "" : "\n") + "Leave these sections out: "
@@ -275,10 +292,10 @@ public enum Ledger {
                 kind: .ledger, inputs: inputs, instructions: extra, caller: "ledger.\(trigger.rawValue)"
             )
             let parsed = LedgerText.parse(text)
-            entry.summary = parsed.summary.isEmpty ? text : parsed.summary
+            entry.summary = signedOff ?? (parsed.summary.isEmpty ? text : parsed.summary)
             entry.decisions = include.contains(.decisions) ? parsed.decisions : []
             entry.followUps = include.contains(.followUps) ? parsed.followUps : []
-            entry.source = .model
+            entry.source = signedOff == nil ? .model : .signOff
             entry.trigger = trigger.title
             entry.summarizedAt = now
             entry.failure = nil

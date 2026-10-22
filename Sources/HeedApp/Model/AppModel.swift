@@ -6166,7 +6166,10 @@ final class AppModel {
         let command = agent.launchCommand(
             prompt: prompt,
             extraArguments: files.map {
-                AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: $0)
+                AgentIntegration.launchArguments(
+                    agent: agent, sessionID: agentSession, files: $0,
+                    signOff: settings.signOffArguments(agent: agent, repo: session.repos.first)
+                )
             } ?? [],
             environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
         )

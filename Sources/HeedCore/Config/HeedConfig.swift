@@ -323,6 +323,7 @@ public enum ConfigLoader {
             overrides.reviewInstructions = trimmed("review_instructions")
             overrides.startInstructions = trimmed("start_instructions")
             overrides.summaryInstructions = trimmed("summary_instructions")
+            overrides.summarySignOff = bool(base + ["summary_sign_off"])
             return overrides
         }
         let pilotDefaults = pilotOverrides(["pilot"])
@@ -349,6 +350,7 @@ public enum ConfigLoader {
         config.pilot.defaults.reviewInstructions = pilotDefaults.reviewInstructions ?? ""
         config.pilot.defaults.startInstructions = pilotDefaults.startInstructions ?? ""
         config.pilot.defaults.summaryInstructions = pilotDefaults.summaryInstructions ?? ""
+        if let flag = pilotDefaults.summarySignOff { config.pilot.defaults.summarySignOff = flag }
         if let text = string(["pilot", "run_timeout"]) {
             if case let .seconds(seconds) = PilotDuration.parse(text), seconds >= 60 {
                 config.pilot.defaults.runTimeout = seconds
@@ -547,6 +549,8 @@ public enum ConfigLoader {
                     .isEmpty { config.work.tasks[slug] = repo.tasks.map { TaskSpec(name: $0.0, command: $0.1) } }
             }
         }
+        // Launches read it from the work settings; the rule itself is [pilot]'s, with its org and repo levels.
+        config.work.signOff = config.pilot.signOffRule
 
         // [keys]
         if let escape = string(["keys", "insert_escape"]) { config.insertEscape = escape }
@@ -790,6 +794,9 @@ public enum ConfigLoader {
     # review_instructions = ""
     # start_instructions = ""
     # summary_instructions = ""
+    # Ask agents (claude, codex) to end their final message with a "heed-summary: ..." line, which then is the ledger's
+    # summary (History, L). Off by default; per org and per repo too.
+    summary_sign_off = false
 
     [issues]
     # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

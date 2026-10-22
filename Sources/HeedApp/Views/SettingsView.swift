@@ -805,6 +805,16 @@ private struct PilotSettingsView: View {
             Field(label: "Summaries", detail: "Added to what heed asks its model calls for when it summarizes work.") {
                 InstructionsField(path: ["pilot", "summary_instructions"], value: pilot.defaults.summaryInstructions)
             }
+            Field(
+                label: "Sign off with a summary",
+                detail: "Ask claude and codex to end their final message with a heed-summary: line; it becomes the "
+                    + "ledger's summary (History, L). Per org and repo too, in Orgs & repos."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { pilot.defaults.summarySignOff },
+                    set: { model.setConfig(["pilot", "summary_sign_off"], .bool($0)) }
+                )).labelsHidden().toggleStyle(.switch)
+            }
             let orgs = pilot.orgs.count, repos = pilot.repos.count
             HStack(spacing: 6) {
                 Text(orgs + repos == 0

@@ -129,6 +129,9 @@ hold_labels = ["hold", "do-not-merge", "wip"]
 # review_instructions = ""
 # start_instructions = ""
 # summary_instructions = ""
+# Ask agents (claude, codex) to end their final message with a "heed-summary: ..." line, which then is the ledger's
+# summary (History, L). Off by default; per org and per repo too.
+summary_sign_off = false
 
 [issues]
 # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open

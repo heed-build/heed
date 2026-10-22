@@ -91,7 +91,12 @@ public enum Commands {
         ),
         .init("task.refresh", "read the session's tasks again (mise, make, package.json)", .panes),
         // Views & overlays
-        .init("view", "switch view", .views, arguments: "<sessions|inbox|issues|prs|watch|repos|history|timeline|log>"),
+        .init(
+            "view",
+            "switch view",
+            .views,
+            arguments: "<sessions|inbox|issues|prs|watch|repos|history|timeline|ledger|log>"
+        ),
         .init("view.sessions", "sessions", .views),
         .init("view.inbox", "inbox", .views),
         .init("view.issues", "issues", .views),
@@ -104,6 +109,7 @@ public enum Commands {
             .views
         ),
         .init("view.timeline", "History's timeline: sessions, worktrees, PRs and questions, by day", .views),
+        .init("view.ledger", "History's ledger: a summary of each piece of work, kept after its worktree", .views),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -177,6 +183,12 @@ public enum Commands {
         .init("timeline.repo", "timeline: every repo, or the next one", .selection, arguments: "[name]"),
         .init("timeline.where", "timeline: everywhere, this Mac, or a host", .selection, arguments: "[local|host]"),
         .init("timeline.gone", "timeline: show or hide removed worktrees", .selection),
+        .init("history.ledger", "History's ledger: a summary of each piece of work (again: back to the list)", .views),
+        .init("ledger.summarize", "write the ledger summary of this work now", .selection),
+        .init(
+            "ledger.edit", "edit the ledger entry's summary (no text: the command line opens with it)", .selection,
+            arguments: "[text]"
+        ),
         .init("log.kind", "call log: all, or one kind (shell, github, llm, decide)", .selection, arguments: "[kind]"),
         .init("log.failed", "call log: only calls that failed, or all", .selection),
         .init("log.slow", "call log: only slow calls (5 s or more), or all", .selection),

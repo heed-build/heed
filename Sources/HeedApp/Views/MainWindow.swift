@@ -38,6 +38,8 @@ struct MainWindow: View {
                         CallLogView()
                     case .timeline:
                         HistoryTimelineView()
+                    case .ledger:
+                        LedgerView()
                     }
                 }
             }
@@ -363,6 +365,9 @@ struct StatusBar: View {
         case .timeline:
             let rows = model.timeline.rows
             return "\(rows.isEmpty ? 0 : model.timeline.cursor + 1)/\(rows.count)"
+        case .ledger:
+            let rows = model.ledger.rows
+            return "\(rows.isEmpty ? 0 : model.ledger.cursor + 1)/\(rows.count)"
         case .sessions: return "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
         }
     }
@@ -407,7 +412,8 @@ struct StatusBar: View {
             "j k item · space queue · s send · \(model.keyText(for: "pilot.green")) green · h l PRs · gS session · ⎋ back"
         case .normal where model.view == .repos: "o start work here · v select · dd remove · r rescan · w issues · { } repo · / filter"
         case .normal where model.view == .history:
-            "j k move · / filter · R reopen · O new from prompt · t outcome · \(model.keyText(for: "history.timeline", in: "history")) timeline"
+            "j k move · / filter · R reopen · O new from prompt · t outcome · \(model.keyText(for: "history.timeline", in: "history")) timeline · "
+                + "\(model.keyText(for: "history.ledger", in: "history")) ledger"
         case .normal where model.view == .timeline:
             [
                 ("timeline.kind", "kind"),
@@ -418,6 +424,15 @@ struct StatusBar: View {
                 ("history.timeline", "list"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "timeline")) \($0.1)" }.joined(separator: " · ") + " · { } day · / search"
+        case .normal where model.view == .ledger:
+            [
+                ("ledger.summarize", "write again"),
+                ("ledger.edit", "edit"),
+                ("history.reopen", "reopen"),
+                ("history.ledger", "list"),
+                ("history.timeline", "timeline"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "ledger")) \($0.1)" }.joined(separator: " · ") + " · / search"
         case .normal where model.view == .log:
             [
                 ("log.kind", "kind"),

@@ -24,7 +24,7 @@ enum TutorCheck {
         "prs": ["<CR>", "<Space>", "s", "<Esc>"],
         "watch": ["gw", "j", "zp", "vjzp", "zm", "gM"],
         "repos": ["G", "o<Esc><Esc>", "ddn"],
-        "history": ["j", "t", "TT", "R"],
+        "history": ["j", "t", "TT", "LL", "R"],
         "hosts": [
             "gH<Esc>",
             "@dev<CR>gg",

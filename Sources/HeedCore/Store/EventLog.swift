@@ -86,6 +86,8 @@ public enum EventLogWrite: Hashable, Sendable {
     case closed(HistoryEntry)
     /// A history entry came back as a session.
     case reopened(String)
+    /// History's ledger entry of a session, replacing the one before.
+    case ledger(LedgerEntry)
 }
 
 /// `heed.sqlite`: the append-only record of what happened (events) and closed sessions (history). It lives beside
@@ -150,6 +152,14 @@ public actor EventLog {
         );
         CREATE INDEX history_closed ON history (closed_at);
         """),
+        SQLiteMigration(sql: """
+        CREATE TABLE ledger (
+            id TEXT PRIMARY KEY,
+            updated_at REAL NOT NULL,
+            entry TEXT NOT NULL
+        );
+        CREATE INDEX ledger_updated ON ledger (updated_at);
+        """),
     ]
 
     // MARK: Writing
@@ -170,6 +180,12 @@ public actor EventLog {
                         try store(entry, replacing: true)
                     case let .reopened(id):
                         try database.run("DELETE FROM history WHERE id = ?", [.text(id)])
+                    case let .ledger(entry):
+                        let json = try String(decoding: JSONEncoder.heed.encode(entry), as: UTF8.self)
+                        try database.run(
+                            "INSERT OR REPLACE INTO ledger (id, updated_at, entry) VALUES (?, ?, ?)",
+                            [.text(entry.id), SQLiteValue(entry.updatedAt), .text(json)]
+                        )
                     }
                 }
             }
@@ -254,6 +270,13 @@ public actor EventLog {
             [SQLiteValue(since ?? .distantPast)]
         ) { row in
             try JSONDecoder.heed.decode(HistoryEntry.self, from: row[0].data ?? Data())
+        }
+    }
+
+    /// History's ledger, newest first.
+    public func ledger() throws -> [LedgerEntry] {
+        try database.query("SELECT entry FROM ledger ORDER BY updated_at DESC", []) { row in
+            try JSONDecoder.heed.decode(LedgerEntry.self, from: row[0].data ?? Data())
         }
     }
 

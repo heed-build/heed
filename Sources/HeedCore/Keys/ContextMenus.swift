@@ -426,6 +426,20 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// A ledger entry: write its summary again, edit it, reopen its session when it is in History.
+    public static func ledger(id: String, title: String, reopenable: Bool, onGitHub: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "ledger", id: id)
+        var menu = Menu(header: title)
+        menu.section([
+            MenuItem("Write the summary again", CommandInvocation(name: "ledger.summarize", target: target)),
+            MenuItem("Edit the summary", CommandInvocation(name: "ledger.edit", target: target)),
+            reopenable ? MenuItem("Reopen", CommandInvocation(name: "history.reopen", target: target)) : nil,
+            onGitHub ? MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target)) : nil,
+        ])
+        menu.section([MenuItem("Back to the list", CommandInvocation(name: "history.ledger"))])
+        return menu.entries
+    }
+
     /// A tab of the session. A run's tab can stop its run; the agent's tab can hand the session to another agent
     /// (`handoffAgents`, empty for every other tab).
     public static func tab(

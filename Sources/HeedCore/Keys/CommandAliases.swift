@@ -10,7 +10,18 @@ public enum CommandAliases {
     }
 
     /// The views `:sessions`, `:watch`, … switch to, and `:view` takes.
-    public static let views = ["sessions", "inbox", "issues", "prs", "watch", "repos", "history", "timeline", "log"]
+    public static let views = [
+        "sessions",
+        "inbox",
+        "issues",
+        "prs",
+        "watch",
+        "repos",
+        "history",
+        "timeline",
+        "ledger",
+        "log",
+    ]
 
     /// Every short form, for `:` completion. `resolve` is what runs them; a test keeps the two in step.
     public static let listed: [Alias] = [

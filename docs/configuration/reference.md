@@ -165,6 +165,13 @@ quiet = ""
 # finished, the reviews that arrived and the sessions that closed, by day. It opens on its own when you come back
 # after this many hours away from the Mac or with heed quit (0: never on its own); gZ opens it any time.
 away_hours = 8
+# History's ledger (L in History): a short summary of each piece of work, kept after its worktree is gone, written
+# by a cheap model through heed's model calls ([llm]). When: "pr_opened", "pr_merged", "worktree_removed" (the
+# removal waits for it, 30 s at most), "idle" (no activity for idle_hours), "chat_closed". ledger.summarize writes
+# one any time. Include: "summary", "decisions", "follow_ups", "files" (from git, no model).
+when = ["pr_opened", "pr_merged", "worktree_removed", "idle"]
+idle_hours = 24
+include = ["summary", "decisions", "follow_ups", "files"]
 
 [updates]
 # Look for a new version of heed once a day (on GitHub, heed's releases). Each update is signed; heed installs

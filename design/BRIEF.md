@@ -84,7 +84,7 @@ Persist active sessions. On launch show a dialog (setting: Ask / Always / Never 
 
 ## History (board: `History`)
 
-`⌘6` or `gh`. Searchable list of past sessions grouped by day, with outcome (merged, closed, abandoned, cleaned up), repo chip, agent, duration. Detail shows prompt, timeline, resume command. `R` reopens: resume the agent, recreate the worktree from its branch if it was cleaned up (or from `refs/heed/archive/<branch>`, where every removal saves unpushed and uncommitted work first), or start fresh if the agent dropped the session. `O` new session from the prompt, `p` pin. The app stores only prompt, session id, branch and timeline; the agent owns transcripts.
+`⌘6` or `gh`. Searchable list of past sessions grouped by day, with outcome (merged, closed, abandoned, cleaned up), repo chip, agent, duration. Detail shows prompt, timeline, resume command. `R` reopens: resume the agent, recreate the worktree from its branch if it was cleaned up (or from `refs/heed/archive/<branch>`, where every removal saves unpushed and uncommitted work first), or start fresh if the agent dropped the session. `O` new session from the prompt, `p` pin. The app stores the prompt, session id, branch and timeline, and the ledger: a short summary of each piece of work (what it did, decisions, follow-ups) written by a cheap model from git, the PR, the timeline and the agent's last message, kept on this Mac in heed.sqlite. The agent owns transcripts; heed never copies them.
 
 ## Build order
 

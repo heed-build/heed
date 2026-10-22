@@ -76,6 +76,8 @@ final class AppModel {
     private(set) var mergeRuns: [String: [MergeRun]] = [:]
     private(set) var registeredWorktrees: Set<String> = []
     private(set) var list = SessionList([])
+    /// While a whole domain loads: what needs you in it is not news (`noteOtherNeeds`).
+    @ObservationIgnored private var replacingDomain = false
     private(set) var settings: WorkSettings
     private(set) var config = HeedConfig.default
     /// What is wrong with config.toml, if anything; the last good config stays in use.
@@ -1000,9 +1002,15 @@ final class AppModel {
             cursor = min(cursor, max(list.ordered.count - 1, 0))
         }
         heldSession = currentSession?.id
+        if !replacingDomain { noteOtherNeeds() }
     }
 
     private func replace(with domain: Domain) {
+        replacingDomain = true
+        defer {
+            replacingDomain = false
+            noteOtherNeeds(seen: true)
+        }
         sessions = domain.sessions
         // Helper tabs do not come back: a PR that still needs work gets a fresh one on its next round.
         layouts = isFixture ? domain.layouts : domain.layouts.mapValues { layout in

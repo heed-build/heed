@@ -9,31 +9,50 @@ import Foundation
 /// given, so tests drive it with a fake clock. Entries are keyed by id and carry their own timing, so another input
 /// (attention items, coalesced per sync) can note its own without sharing the sessions' grace.
 public struct Notices: Equatable, Sendable {
+    /// What in Needs you an entry is: one queue, several sources.
+    public enum Kind: String, Equatable, Sendable {
+        /// A session's agent is asking or blocked.
+        case session
+        /// A helper tab of a session (a get it green or get it merged run in its own tab) is asking or blocked.
+        case helper
+        /// A PR of a session needs you (`PilotStatus.stuck`): feedback to send and nowhere to send it.
+        case pull
+    }
+
     /// Something that started needing you.
     public struct Entry: Equatable, Sendable {
         public var id: String
         public var title: String
         public var agent: String
+        /// For a PR, `.asking`: what it waits on is you.
         public var state: AgentState
         public var reason: String?
+        public var kind: Kind
+        /// The session Open brings Heed forward on.
+        public var session: String
         /// The second notification for the same wait: it still needs you.
         public var reminder: Bool
 
         public init(
-            id: String, title: String, agent: String, state: AgentState, reason: String? = nil, reminder: Bool = false
+            id: String, title: String, agent: String, state: AgentState, reason: String? = nil, kind: Kind = .session,
+            session: String? = nil, reminder: Bool = false
         ) {
             self.id = id
             self.title = title
             self.agent = agent
             self.state = state
             self.reason = reason
+            self.kind = kind
+            self.session = session ?? id
             self.reminder = reminder
         }
 
+        /// What it waits on, in words: `blocked`, `asking`, `needs you` (a PR).
+        public var label: String { kind == .pull ? "needs you" : state.rawValue }
+
         /// The notification's text under the title: `Blocked: Bash(rm -rf build)`, `Still asking: asked a question`.
         public var body: String {
-            let name = reminder
-                ? "Still \(state.rawValue)" : state.rawValue.prefix(1).uppercased() + state.rawValue.dropFirst()
+            let name = reminder ? "Still \(label)" : label.prefix(1).uppercased() + label.dropFirst()
             return reason.map { "\(name): \($0)" } ?? name
         }
     }
@@ -74,15 +93,15 @@ public struct Notices: Equatable, Sendable {
         public var body: String {
             switch self {
             case let .one(entry): entry.body
-            case let .summary(entries): entries.map { "\($0.title) · \($0.state.rawValue)" }.joined(separator: "\n")
+            case let .summary(entries): entries.map { "\($0.title) · \($0.label)" }.joined(separator: "\n")
             }
         }
 
         /// The session Open brings Heed forward on: the one, or the first (most urgent) of a summary.
         public var session: String? {
             switch self {
-            case let .one(entry): entry.id
-            case let .summary(entries): entries.first?.id
+            case let .one(entry): entry.session
+            case let .summary(entries): entries.first?.session
             }
         }
     }
@@ -147,8 +166,9 @@ public struct Notices: Equatable, Sendable {
     }
 
     /// `id` needs you as `entry` says, or (nil) no longer does. A new entry, or one whose state changed, starts its
-    /// wait over; the same one again changes nothing.
-    public mutating func note(id: String, _ entry: Entry?, timing: Timing, at now: Date) {
+    /// wait over; the same one again changes nothing. `seen`: it was already there (loaded from the cache at launch),
+    /// so it is kept without a notification, as sessions are.
+    public mutating func note(id: String, _ entry: Entry?, timing: Timing, at now: Date, seen: Bool = false) {
         let index = waiting.firstIndex { $0.entry.id == id }
         guard let entry else {
             if let index { waiting.remove(at: index) }
@@ -159,15 +179,26 @@ public struct Notices: Equatable, Sendable {
             waiting.remove(at: index)
         }
         waiting.append(Waiting(
-            entry: entry, timing: timing, stage: .grace(until: now.addingTimeInterval(timing.grace))
+            entry: entry, timing: timing, stage: seen ? .done : .grace(until: now.addingTimeInterval(timing.grace))
         ))
+    }
+
+    /// Everything of one kind that needs you now, from a source read whole (the pilot's PRs, the helper tabs): new
+    /// entries start their wait, ones that changed state start over, and ones of that kind not in `entries` end.
+    public mutating func sync(_ kind: Kind, _ entries: [Entry], timing: Timing, at now: Date, seen: Bool = false) {
+        let current = Set(entries.map(\.id))
+        waiting.removeAll { $0.entry.kind == kind && !current.contains($0.entry.id) }
+        for entry in entries where entry.kind == kind {
+            note(id: entry.id, entry, timing: timing, at: now, seen: seen)
+        }
     }
 
     /// Whether a drain is due.
     public func due(at now: Date) -> Bool { next.map { now >= $0 } ?? false }
 
     /// Once a drain is due, what is ready by `now` as one notice: each entry past its grace, or due its reminder, moves
-    /// on a stage. Those `onScreen` says you are looking at are left out; seen counts as notified, so the reminder
+    /// on a stage. Those whose session `onScreen` says you are looking at are left out; seen counts as notified, so the
+    /// reminder
     /// still comes. Before then, nothing changes.
     public mutating func drain(at now: Date, onScreen: (String) -> Bool = { _ in false }) -> Notice? {
         guard due(at: now) else { return nil }
@@ -184,12 +215,32 @@ public struct Notices: Equatable, Sendable {
             case .done:
                 continue
             }
-            if !onScreen(entry.id) { shown.append(entry) }
+            if !onScreen(entry.session) { shown.append(entry) }
         }
         switch shown.count {
         case 0: return nil
         case 1: return .one(shown[0])
         default: return .summary(shown.filter { $0.state == .blocked } + shown.filter { $0.state != .blocked })
         }
+    }
+}
+
+public extension Notices {
+    /// A PR of `session` that needs you (`PilotStatus.stuck`), as an entry; nil when it does not.
+    static func pull(_ ref: PullRef, status: PilotStatus, of session: Session) -> Entry? {
+        guard case let .stuck(reason) = status else { return nil }
+        return Entry(
+            id: "pull:\(ref)", title: "\(session.title) · #\(ref.number)", agent: session.agent, state: .asking,
+            reason: reason, kind: .pull, session: session.id
+        )
+    }
+
+    /// A helper tab of `session` working on `ref`, as an entry when its agent is asking or blocked.
+    static func helper(pane: String, state: AgentState, agent: String, ref: PullRef, of session: Session) -> Entry? {
+        guard state.needsYou else { return nil }
+        return Entry(
+            id: "helper:\(pane)", title: "\(session.title) · #\(ref.number) helper", agent: agent, state: state,
+            kind: .helper, session: session.id
+        )
     }
 }

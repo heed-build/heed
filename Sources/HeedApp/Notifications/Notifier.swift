@@ -15,8 +15,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private var drainTask: Task<Void, Never>?
     /// When `drainTask` wakes.
     private var wake: Date?
-    /// Sessions with a notification in Notification Center: taken back when the session stops needing you.
-    private var shown: Set<String> = []
+    /// Entries with a notification in Notification Center, by kind: taken back when they stop needing you.
+    private var shown: [String: Notices.Kind] = [:]
 
     private static let open = "heed.open"
     private static let allow = "heed.allow"
@@ -51,8 +51,21 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             id: session.id, title: session.title, agent: session.agent, from: old, to: session.state,
             settings: settings, at: Date()
         )
-        if !session.state.state.needsYou, shown.remove(session.id) != nil {
+        if !session.state.state.needsYou, shown.removeValue(forKey: session.id) != nil {
             center?.removeDeliveredNotifications(withIdentifiers: [Self.identifier(session.id)])
+        }
+        schedule()
+    }
+
+    /// Everything of one kind that needs you now (PRs, helper tabs), read whole; what is gone is taken back.
+    func sync(_ kind: Notices.Kind, _ entries: [Notices.Entry], settings: NotificationSettings, seen: Bool) {
+        guard model != nil, center != nil else { return }
+        notices.sync(kind, entries, timing: Notices.Timing(settings), at: Date(), seen: seen)
+        let current = Set(entries.map(\.id))
+        let gone = shown.filter { $0.value == kind && !current.contains($0.key) }.map(\.key)
+        if !gone.isEmpty {
+            gone.forEach { shown.removeValue(forKey: $0) }
+            center?.removeDeliveredNotifications(withIdentifiers: gone.map(Self.identifier))
         }
         schedule()
     }
@@ -80,7 +93,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         await post(notice)
     }
 
-    private static func identifier(_ session: String) -> String { "heed.session.\(session)" }
+    private static func identifier(_ id: String) -> String { "heed.session.\(id)" }
 
     private func post(_ notice: Notices.Notice?) async {
         guard let notice, let center, await authorized(center) else { return }
@@ -93,9 +106,10 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         switch notice {
         case let .one(entry):
             identifier = Self.identifier(entry.id)
-            content.categoryIdentifier = entry.state == .blocked && entry.agent == "claude"
+            // Allow presses Return in the session's own agent pane, so only a session's prompt gets it.
+            content.categoryIdentifier = entry.kind == .session && entry.state == .blocked && entry.agent == "claude"
                 ? Self.blockedCategory : Self.sessionCategory
-            shown.insert(entry.id)
+            shown[entry.id] = entry.kind
         case .summary:
             identifier = "heed.summary"
             content.categoryIdentifier = Self.sessionCategory

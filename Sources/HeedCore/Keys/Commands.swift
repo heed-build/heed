@@ -91,7 +91,7 @@ public enum Commands {
         ),
         .init("task.refresh", "read the session's tasks again (mise, make, package.json)", .panes),
         // Views & overlays
-        .init("view", "switch view", .views, arguments: "<sessions|inbox|issues|prs|watch|repos|history|log>"),
+        .init("view", "switch view", .views, arguments: "<sessions|inbox|issues|prs|watch|repos|history|timeline|log>"),
         .init("view.sessions", "sessions", .views),
         .init("view.inbox", "inbox", .views),
         .init("view.issues", "issues", .views),
@@ -103,6 +103,7 @@ public enum Commands {
             "the call log: every command and GitHub call heed made, how long it took, how it ended",
             .views
         ),
+        .init("view.timeline", "History's timeline: sessions, worktrees, PRs and questions, by day", .views),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -168,6 +169,14 @@ public enum Commands {
         .init("history.reopen", "reopen: resume, recreating the worktree if needed", .selection),
         .init("history.again", "start a new session from this prompt", .selection),
         .init("history.outcome", "cycle the outcome filter", .selection),
+        .init("history.timeline", "History as a timeline: what happened, by day (again: back to the list)", .views),
+        .init(
+            "timeline.kind", "timeline: every kind, or one (sessions, worktrees, prs, questions, chats)", .selection,
+            arguments: "[kind]"
+        ),
+        .init("timeline.repo", "timeline: every repo, or the next one", .selection, arguments: "[name]"),
+        .init("timeline.where", "timeline: everywhere, this Mac, or a host", .selection, arguments: "[local|host]"),
+        .init("timeline.gone", "timeline: show or hide removed worktrees", .selection),
         .init("log.kind", "call log: all, or one kind (shell, github, llm, decide)", .selection, arguments: "[kind]"),
         .init("log.failed", "call log: only calls that failed, or all", .selection),
         .init("log.slow", "call log: only slow calls (5 s or more), or all", .selection),

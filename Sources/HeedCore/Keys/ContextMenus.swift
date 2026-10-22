@@ -410,6 +410,22 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// A line of History's timeline: its session can be reopened when it is in History, and the line's kind shown
+    /// alone.
+    public static func timeline(
+        id: String, title: String, kind: String, reopenable: Bool, onGitHub: Bool
+    ) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "timeline", id: id)
+        var menu = Menu(header: title)
+        menu.section([
+            reopenable ? MenuItem("Reopen", CommandInvocation(name: "history.reopen", target: target)) : nil,
+            MenuItem("Only \(kind)", CommandInvocation(name: "timeline.kind", arguments: [kind], target: target)),
+            onGitHub ? MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target)) : nil,
+        ])
+        menu.section([MenuItem("Back to the list", CommandInvocation(name: "history.timeline"))])
+        return menu.entries
+    }
+
     /// A tab of the session. A run's tab can stop its run; the agent's tab can hand the session to another agent
     /// (`handoffAgents`, empty for every other tab).
     public static func tab(

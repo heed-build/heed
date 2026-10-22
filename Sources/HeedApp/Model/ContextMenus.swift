@@ -91,6 +91,14 @@ extension AppModel {
                 id: call.id, title: call.operation ?? call.caller, caller: call.caller, agent: call.agent,
                 callerFiltered: callLog.query.caller != nil, agentFiltered: callLog.query.agent != nil
             )
+        case .timeline:
+            let rows = timeline.rows
+            guard rows.indices.contains(index) else { return [] }
+            let item = rows[index]
+            return ContextMenus.timeline(
+                id: item.id, title: "\(item.lead) \(item.name)", kind: item.kind.rawValue,
+                reopenable: timelineEntry(item) != nil, onGitHub: item.repository.map { $0.org != "local" } ?? false
+            )
         case .sessions:
             return []
         }

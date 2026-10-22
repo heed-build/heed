@@ -258,6 +258,13 @@ public extension Tutor {
                 doneLine: "{history.outcome} again cycles on."
             ) { start, now, _ in now.historyOutcome != start.historyOutcome },
             TutorStep(
+                "The timeline",
+                say: "{history.timeline} shows the same days as a timeline: sessions, worktrees, PRs and questions as "
+                    + "they happened. {history.timeline} again comes back to the list.",
+                keys: ["{history.timeline}", "{history.timeline}"], target: "historyList",
+                doneLine: "Removed worktrees stay on the timeline, struck through, with what was saved."
+            ) { _, now, seen in seen.contains { $0.view == "timeline" } && now.view == "history" },
+            TutorStep(
                 "Reopen it",
                 say: "{history.reopen} brings the session back: its worktree, and its agent resuming where it was.",
                 keys: ["{history.reopen}"], target: "historyList",

@@ -49,6 +49,12 @@ public enum CommandCompletions {
         ("forever", "until resumed"), ("off", "resume now"),
     ]
 
+    /// `:attention.snooze <duration>`, the durations offered (any `<n>m|h|d` works).
+    public static let snoozeDurations: [(String, String)] = [
+        ("1h", "an hour"), ("3h", "three hours"), ("tomorrow", "9:00 tomorrow"), ("2d", "two days"),
+        ("7d", "a week"),
+    ]
+
     /// Everything `:` offers for `line`. Before a space: every command and short form starting with it (commands that
     /// only work as COMMAND's own keys left out). After one: the arguments the command takes that start with (or, for
     /// words such as session titles, contain) what follows.
@@ -95,6 +101,8 @@ public enum CommandCompletions {
             .map { ($0, "hand the session to \($0)") }
         case "settings.open": settingsSections.map { ($0, "") }
         case "pilot.pause": pauseDurations.map { ($0.0, $0.1) }
+        case "view.attention", "attention.filter": AttentionFilter.allCases.map { ($0.rawValue, $0.title) }
+        case "attention.snooze": snoozeDurations.map { ($0.0, $0.1) }
         case "merge.run": context.mergeRepos.map { ($0, "") } + [("all", "every queue")]
         case "merge.queue": context.mergeRepos.map { ($0, "") }
         case "issues.repo": context.issueRepos.map { ($0, "") }

@@ -95,9 +95,14 @@ public enum Commands {
             "view",
             "switch view",
             .views,
-            arguments: "<sessions|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|log>"
+            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|log>"
         ),
         .init("view.sessions", "sessions", .views),
+        .init(
+            "view.attention",
+            "attention: everything that wants you, one feed, with why (a filter: tagged, reviews, mine, ...)",
+            .views, arguments: "[filter]"
+        ),
         .init("view.inbox", "inbox", .views),
         .init("view.issues", "issues", .views),
         .init("view.prs", "pull requests", .views),
@@ -207,6 +212,24 @@ public enum Commands {
         .init("items.add", "add the picked items to the current session", .selection),
         .init("items.read", "mark read", .selection),
         .init("items.filter", "cycle the filter chips", .selection),
+        .init(
+            "attention.done", "done: mark the thread read on GitHub; it comes back when something new happens",
+            .selection
+        ),
+        .init(
+            "attention.snooze", "snooze: out of the feed until later (3h, or 30m, 2d, tomorrow)", .selection,
+            arguments: "[duration]"
+        ),
+        .init(
+            "attention.mute", "mute the thread on GitHub (no more notifications about it); listed under Muted",
+            .selection
+        ),
+        .init(
+            "attention.reply", "draft a reply with the model; you read it before anything is posted", .selection
+        ),
+        .init("attention.session", "go to the item's session", .selection),
+        .init("attention.filter", "next Attention filter, or the one named", .selection, arguments: "[filter]"),
+        .init("attention.sort", "Attention: recent first, or weight then recent", .selection),
         .init("issues.repo.next", "next repo in the Issues repo column", .selection),
         .init("issues.repo.prev", "previous repo in the Issues repo column", .selection),
         .init("issues.repo", "show one repo's issues (no name: every repo)", .selection, arguments: "[name]"),

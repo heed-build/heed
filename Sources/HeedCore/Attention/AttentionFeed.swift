@@ -27,7 +27,8 @@ public enum AttentionFeed {
             if reasons.isEmpty { reasons.insert(.watching) }
             add(AttentionItem(
                 id: AttentionItem.threadID(issue.repo, issue.number), kind: .issue, repo: issue.repo,
-                number: issue.number, title: issue.title, url: issue.url, reasons: reasons, updatedAt: issue.updatedAt,
+                number: issue.number, title: issue.title, url: issue.url.isEmpty ? nil : issue.url, reasons: reasons,
+                updatedAt: issue.updatedAt,
                 author: issue.author, labels: issue.labels
             ))
         }
@@ -53,6 +54,11 @@ public enum AttentionFeed {
 
         return byID.values.map { item in
             var item = item
+            if item.url == nil, item.kind == .pr || item.kind == .issue, let repo = item.repo,
+               let number = item.number
+            {
+                item.url = "https://github.com/\(repo.slug)/\(item.kind == .pr ? "pull" : "issues")/\(number)"
+            }
             if let url = item.url?.lowercased(), let detail = details[url] { apply(detail, to: &item) }
             if item.session == nil { item.session = session(for: item, in: sessions) }
             return item
@@ -145,7 +151,8 @@ public enum AttentionFeed {
 
 /// The sidebar's filters.
 public enum AttentionFilter: String, CaseIterable, Hashable, Sendable {
-    case needsMe, tagged, reviews, myPRs, agents, ci, issues, muted
+    /// The raw values are what `view.attention` and `attention.filter` take: `gi` is `view.attention issues`.
+    case needsMe = "needs", tagged, reviews, myPRs = "mine", agents, ci, issues, muted
 
     public var title: String {
         switch self {

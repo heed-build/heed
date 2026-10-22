@@ -4,7 +4,7 @@ description: Your GitHub notifications in Heed, filtered, read and turned into s
 
 # Inbox
 
-`gm` opens your notifications: pull requests, issues, CI runs, releases and discussions, newest first.
+`:inbox` opens your notifications (`gm` opens [Attention](attention.md), which they are part of): pull requests, issues, CI runs, releases and discussions, newest first.
 
 ![The Inbox: filter chips across the top, notifications below](../images/shots/github/inbox.png)
 

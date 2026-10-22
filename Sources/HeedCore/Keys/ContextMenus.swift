@@ -291,6 +291,54 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// An Attention row. `count` is how many rows the actions act on (the picked ones when the row clicked is among
+    /// them, else that row alone).
+    public struct AttentionFacts: Sendable {
+        public var id: String
+        public var title: String
+        public var count = 1
+        public var hasSession = false
+        /// The item's own session (an agent's, or one tracking the thread).
+        public var itemSession = false
+        public var hasURL = true
+        /// A GitHub notification thread, which done marks read and mute ignores.
+        public var hasThread = true
+        public var isAgent = false
+
+        public init(id: String, title: String) {
+            self.id = id
+            self.title = title
+        }
+    }
+
+    public static func attention(_ facts: AttentionFacts) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "attention", id: facts.id)
+        func item(_ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, arguments: arguments, target: target), enabled: enabled)
+        }
+        let them = facts.count > 1 ? "the \(facts.count) picked" : "it"
+        var menu = Menu(header: facts.title)
+        menu.section([
+            facts.isAgent ? nil : item("Open", "open.reader"),
+            facts.hasURL ? item("Open in browser", "open.browser") : nil,
+            item("Go to its session", "attention.session", enabled: facts.itemSession),
+        ])
+        if !facts.isAgent {
+            menu.section([
+                item("Draft a reply…", "attention.reply", enabled: facts.count == 1 && facts.hasURL),
+                item("Start a session from \(them)", "items.start"),
+                item("Add \(them) to this session", "items.add", enabled: facts.hasSession),
+            ])
+        }
+        menu.section([
+            item(facts.count > 1 ? "Done with \(them)" : "Done", "attention.done"),
+            item("Snooze 1 hour", "attention.snooze", ["1h"]),
+            item("Snooze until tomorrow", "attention.snooze", ["tomorrow"]),
+            facts.isAgent ? nil : item("Mute thread", "attention.mute", enabled: facts.hasThread),
+        ])
+        return menu.entries
+    }
+
     /// A repo in the Issues repo column; nil is its All row.
     public static func issueRepo(_ repo: Repo?, allIssues: Bool) -> [MenuEntry] {
         guard let repo else {

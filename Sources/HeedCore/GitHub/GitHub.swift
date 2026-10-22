@@ -413,6 +413,27 @@ public enum GitHub {
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
     }
 
+    /// Mutes a notification thread: its subscription is set to ignored, so GitHub stops notifying about it (everywhere,
+    /// not only in heed).
+    public static func muteThread(threadID: String, caller: String) async throws {
+        let result = try await gh(
+            ["api", "-X", "PUT", "notifications/threads/\(threadID)/subscription", "-F", "ignored=true"],
+            operation: "PUT notifications/threads/subscription", write: true, timeout: .seconds(20), caller: caller
+        )
+        guard result.succeeded else { throw Failure(description: Self.explain(result)) }
+    }
+
+    /// Comments on an issue or PR (they share the issue comments API).
+    public static func comment(repo: Repo, number: Int, body: String, caller: String) async throws {
+        let result = try await gh(
+            ["api", "-X", "POST", "repos/\(repo.slug)/issues/\(number)/comments", "-f", "body=\(body)"],
+            operation: "POST issues/comments", write: true, shown: [
+                "api", "-X", "POST", "repos/\(repo.slug)/issues/\(number)/comments", "-f", "body=…",
+            ], timeout: .seconds(30), caller: caller
+        )
+        guard result.succeeded else { throw Failure(description: Self.explain(result)) }
+    }
+
     /// Runs a GraphQL query. gh exits non-zero when the answer carries errors, even with data; the data is returned
     /// as long as there is some.
     ///

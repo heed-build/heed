@@ -16,6 +16,42 @@ struct ContextMenuTests {
         items(entries).first { $0.command.name == name }
     }
 
+    @Test func anAttentionThreadOffersItsActionsOnItself() {
+        var facts = ContextMenus.AttentionFacts(id: "acme/guides#77", title: "guides #77")
+        facts.hasSession = true
+        let menu = ContextMenus.attention(facts)
+        #expect(commands(menu) == [
+            "open.reader", "open.browser", "attention.session", "attention.reply", "items.start", "items.add",
+            "attention.done", "attention.snooze", "attention.snooze", "attention.mute",
+        ])
+        #expect(items(menu).allSatisfy { $0.command.target == .row(view: "attention", id: "acme/guides#77") })
+        #expect(item("attention.session", in: menu)?.enabled == false)
+        #expect(items(menu).filter { $0.command.name == "attention.snooze" }.map(\.command.arguments) == [
+            ["1h"], ["tomorrow"],
+        ])
+    }
+
+    @Test func anAgentInAttentionHasNoThreadToReplyToOrMute() {
+        var facts = ContextMenus.AttentionFacts(id: "agent:s2", title: "Cross-link validator")
+        facts.isAgent = true
+        facts.itemSession = true
+        facts.hasURL = false
+        facts.hasThread = false
+        let menu = ContextMenus.attention(facts)
+        #expect(commands(menu) == ["attention.session", "attention.done", "attention.snooze", "attention.snooze"])
+        #expect(item("attention.session", in: menu)?.enabled == true)
+    }
+
+    @Test func severalPickedAttentionItemsSayHowMany() {
+        var facts = ContextMenus.AttentionFacts(id: "a", title: "a")
+        facts.count = 3
+        facts.hasThread = false
+        let menu = ContextMenus.attention(facts)
+        #expect(items(menu).map(\.title).contains("Done with the 3 picked"))
+        #expect(item("attention.reply", in: menu)?.enabled == false)
+        #expect(item("attention.mute", in: menu)?.enabled == false)
+    }
+
     @Test func aTargetResolvesWhatTheCommandsReadFromTheCursor() {
         let issue = IssueRef(repo: Repo(org: "a", name: "b"), number: 3)
         #expect(CommandTarget.pull(ref).pulls == [ref])

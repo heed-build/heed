@@ -5,6 +5,12 @@ public struct StoredAttentionItem: Hashable, Sendable {
     public var item: AttentionItem
     public var firstSeen: Date
     public var lastSeen: Date
+
+    public init(item: AttentionItem, firstSeen: Date, lastSeen: Date) {
+        self.item = item
+        self.firstSeen = firstSeen
+        self.lastSeen = lastSeen
+    }
 }
 
 /// `attention.sqlite`: every Attention item heed has seen in the last 30 days (muted and ignored ones too, so the

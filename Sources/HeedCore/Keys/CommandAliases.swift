@@ -12,6 +12,7 @@ public enum CommandAliases {
     /// The views `:sessions`, `:watch`, … switch to, and `:view` takes.
     public static let views = [
         "sessions",
+        "attention",
         "inbox",
         "issues",
         "prs",

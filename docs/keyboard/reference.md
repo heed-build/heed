@@ -68,11 +68,12 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|log>` |  | switch view |
+| `view` `<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
-| `view.inbox` | `gm` | inbox |
-| `view.issues` | `gi` | issues |
-| `view.prs` | `gp` | pull requests |
+| `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: everything that wants you, one feed, with why (a filter: tagged, reviews, mine, ...) |
+| `view.inbox` |  | inbox |
+| `view.issues` |  | issues |
+| `view.prs` |  | pull requests |
 | `view.watch` | `gw` | watch: the PRs your sessions track, what heed does for each and has done |
 | `view.repos` | `gr` | repos & worktrees |
 | `view.log` |  | the call log: every command and GitHub call heed made, how long it took, how it ended |
@@ -138,7 +139,7 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `select.toggle` | `<Space>` (VISUAL), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (watch) | toggle row |
+| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (watch) | toggle row |
 | `history.reopen` | `R` (dashboard), `R` (history), `R` (ledger), `R` (timeline) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` | `t` (history) | cycle the outcome filter |
@@ -156,11 +157,18 @@ This page is generated from the code (`mise run shots`).
 | `log.caller` | `c` (log) | call log: only the caller of the call under the cursor, or every caller |
 | `log.agent` | `a` (log) | call log: only the agent of the call under the cursor, or every agent |
 | `log.copy` | `y` (log) | copy the command of the call under the cursor |
-| `github.sync` | `r` (inbox), `r` (issues), `r` (pr), `r` (prs), `r` (watch) | sync GitHub now |
-| `items.start` | `s` (inbox), `s` (issue), `s` (issues) | start one session from the picked items |
-| `items.add` | `a` (inbox), `a` (issue), `a` (issues) | add the picked items to the current session |
+| `github.sync` | `r` (attention), `r` (inbox), `r` (issues), `r` (pr), `r` (prs), `r` (watch) | sync GitHub now |
+| `items.start` | `s` (attention), `s` (inbox), `s` (issue), `s` (issues) | start one session from the picked items |
+| `items.add` | `a` (attention), `a` (inbox), `a` (issue), `a` (issues) | add the picked items to the current session |
 | `items.read` | `x` (inbox) | mark read |
 | `items.filter` | `t` (inbox), `t` (issues) | cycle the filter chips |
+| `attention.done` | `x` (attention) | done: mark the thread read on GitHub; it comes back when something new happens |
+| `attention.snooze` `[duration]` | `Z` (attention) | snooze: out of the feed until later (3h, or 30m, 2d, tomorrow) |
+| `attention.mute` | `M` (attention) | mute the thread on GitHub (no more notifications about it); listed under Muted |
+| `attention.reply` | `R` (attention) | draft a reply with the model; you read it before anything is posted |
+| `attention.session` | `gS` (attention) | go to the item's session |
+| `attention.filter` `[filter]` | `t` (attention) | next Attention filter, or the one named |
+| `attention.sort` | `T` (attention) | Attention: recent first, or weight then recent |
 | `issues.repo.next` | `<Tab>` (issues) | next repo in the Issues repo column |
 | `issues.repo.prev` | `<S-Tab>` (issues) | previous repo in the Issues repo column |
 | `issues.repo` `[name]` |  | show one repo's issues (no name: every repo) |

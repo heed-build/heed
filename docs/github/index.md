@@ -12,9 +12,10 @@ when its checks or review threads change.
 
 | View | Key | Shows |
 |---|---|---|
-| [Inbox](inbox.md) | `gm` | Your notifications |
-| [Issues](issues.md) | `gi` | Issues assigned to you or mentioning you, and every issue in repos you watch |
-| [Pull requests](pull-requests.md) | `gp` | Your open pull requests and the ones your sessions track |
+| [Attention](attention.md) | `gm` | Everything that wants you, one feed: notifications, issues, your PRs and agents waiting on you. `gi` opens it on Issues, `gp` on My PRs |
+| [Inbox](inbox.md) | `:inbox` | Your notifications |
+| [Issues](issues.md) | `:issues` | Issues assigned to you or mentioning you, and every issue in repos you watch |
+| [Pull requests](pull-requests.md) | `:prs` | Your open pull requests and the ones your sessions track |
 | [Watch](watch.md) | `gw` | The PRs your sessions track, what heed is doing for each, and what it has done |
 
 From any of them you can [read](reading.md) an item in the app, [start a session](../start-work/from-github.md) from

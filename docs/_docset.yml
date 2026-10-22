@@ -59,8 +59,9 @@ toc:
   - folder: github
     children:
       - file: index.md
-      - file: inbox.md
+      - file: attention.md
       - file: attention-rules.md
+      - file: inbox.md
       - file: issues.md
       - file: pull-requests.md
       - file: reading.md

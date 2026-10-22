@@ -4,7 +4,7 @@ description: Your open pull requests, their checks and reviews.
 
 # Pull requests
 
-`gp` lists your open pull requests, and the ones your sessions track.
+`:prs` lists your open pull requests (`gp` opens [Attention](attention.md) on My PRs), and the ones your sessions track.
 
 ![Pull requests: repo and number, title and branch, checks, review](../images/shots/github/prs.png)
 

@@ -25,6 +25,4 @@
 - Keys: add a command to `Commands.all`, bind it in `DefaultKeys`, handle it in `AppModel.perform`. Never handle a key
   anywhere else.
 - Check UI against the design with `HEED_SNAPSHOT` (see README).
-- When the UI or the fake world changes, re-render the docs' shots with `mise run shots` and commit them; CI fails when a
-  committed shot differs from a fresh render (`scripts/shots-check.sh`).
 - GitHub only via `gh`.

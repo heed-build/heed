@@ -916,7 +916,7 @@ public enum Fixtures {
         let now = Clock.now
         func entry(
             _ title: String, _ repo: Repo, _ agent: String, hoursAgo: Double, minutes: Double, _ outcome: Outcome,
-            pr: Int? = nil
+            pr: Int? = nil, tokens: Int = 0, cost: Double? = nil
         ) -> HistoryEntry {
             let closed = now.addingTimeInterval(-hoursAgo * 3600)
             let started = closed.addingTimeInterval(-minutes * 60)
@@ -930,14 +930,36 @@ public enum Fixtures {
             session.record("started · \(agent) · 2 panes", at: started)
             if let pr { session.record("opened PR #\(pr)", at: started.addingTimeInterval(minutes * 30)) }
             session.record("ended after \(Int(minutes / 60))h \(Int(minutes) % 60)m", at: closed)
+            // What its agent reported it used: claude reports a cost, opencode none.
+            if tokens > 0 {
+                session.usage = AgentUsage(
+                    model: agent == "claude" ? "model-a" : "model-o",
+                    tokens: TokenCounts(input: tokens * 3 / 10, output: tokens / 10, cacheRead: tokens * 6 / 10),
+                    costUSD: cost
+                )
+            }
             return HistoryEntry(session: session, closedAt: closed, outcome: outcome)
         }
         return [
-            entry("Fix toc ordering", docsBuilder, "claude", hoursAgo: 1, minutes: 130, .merged, pr: 2810),
-            entry("Fix redirect typos", docsContent, "claude", hoursAgo: 3, minutes: 41, .merged, pr: 1912),
-            entry("Bump spec tests to 0.17", editorconfig, "claude", hoursAgo: 26, minutes: 65, .merged, pr: 412),
-            entry("Flowchart label wrapping", mermaider, "opencode", hoursAgo: 28, minutes: 26, .abandoned),
-            entry("Docs nav spike v1", docsBuilder, "opencode", hoursAgo: 30, minutes: 220, .closed, pr: 2790),
+            entry(
+                "Fix toc ordering", docsBuilder, "claude", hoursAgo: 1, minutes: 130, .merged, pr: 2810,
+                tokens: 129_100, cost: 0.61
+            ),
+            entry(
+                "Fix redirect typos", docsContent, "claude", hoursAgo: 3, minutes: 41, .merged, pr: 1912,
+                tokens: 38000, cost: 0.17
+            ),
+            entry(
+                "Bump spec tests to 0.17", editorconfig, "claude", hoursAgo: 26, minutes: 65, .merged, pr: 412,
+                tokens: 52000, cost: 0.24
+            ),
+            entry(
+                "Flowchart label wrapping", mermaider, "opencode", hoursAgo: 28, minutes: 26, .abandoned, tokens: 21000
+            ),
+            entry(
+                "Docs nav spike v1", docsBuilder, "opencode", hoursAgo: 30, minutes: 220, .closed, pr: 2790,
+                tokens: 64000
+            ),
             entry("Snippet include performance", docsBuilder, "claude", hoursAgo: 120, minutes: 175, .merged, pr: 2781),
             entry("Parser fuzzing harness", mermaider, "claude", hoursAgo: 130, minutes: 90, .cleanedUp),
         ]

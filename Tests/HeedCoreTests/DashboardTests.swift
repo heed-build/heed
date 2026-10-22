@@ -107,3 +107,26 @@ struct DashboardTests {
         #expect(Dashboard.outcome(parked, closed: nil, pulls: GitHubState()) == "parked")
     }
 }
+
+/// The fake world tells one story: the dashboard sums the same sessions, with the same usage, the ledger shows.
+struct DashboardFixtureTests {
+    @Test func theDashboardAndTheLedgerAgree() throws {
+        let world = Fixtures.main
+        let sessions = world.sessions + world.history.map(\.session)
+        for entry in Fixtures.ledger {
+            let session = try #require(sessions.first { $0.id == entry.id })
+            #expect(entry.usage == session.usage, "\(entry.id)")
+        }
+        let board = Dashboard.build(
+            events: Fixtures.dashboardEvents, sessions: world.sessions, closed: world.history, pulls: world.github,
+            days: 28, now: Clock.now
+        )
+        let started = Set(Fixtures.dashboardEvents.filter { $0.kind == .sessionStarted }.compactMap(\.session))
+        let reported = sessions.filter { started.contains($0.id) }.compactMap(\.usage)
+        #expect(board.tokens == reported.map { $0.tokens.allInput + $0.tokens.output }.reduce(0, +))
+        #expect(board.cost == reported.compactMap(\.costUSD).reduce(0, +))
+        // The ledger's biggest entry is part of it.
+        let toc = try #require(Fixtures.ledger.first { $0.id == "h-fix-toc-ordering" }?.usage)
+        #expect(board.tokens >= toc.tokens.allInput + toc.tokens.output)
+    }
+}

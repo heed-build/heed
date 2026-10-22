@@ -22,8 +22,14 @@ struct DashboardView: View {
                             .padding(.vertical, 40)
                     } else {
                         HStack(alignment: .top, spacing: 16) {
-                            Heatmap(board: board).shotRegion(.dashboardHeatmap)
-                            if geometry.size.width >= 1000 {
+                            // Half the width beside the shares, all of it alone.
+                            let wide = geometry.size.width >= 1000
+                            Heatmap(
+                                board: board,
+                                width: wide ? (geometry.size.width - 56) / 2 : geometry.size.width - 40
+                            )
+                            .shotRegion(.dashboardHeatmap)
+                            if wide {
                                 Shares(board: board).shotRegion(.dashboardShares)
                             }
                         }
@@ -118,8 +124,10 @@ private struct Panel<Content: View>: View {
 /// time on hover.
 private struct Heatmap: View {
     let board: Dashboard
-    private let cell: CGFloat = 13
+    /// The panel's width: the cells grow to fill it (a few weeks read as well as many), within bounds.
+    let width: CGFloat
     private let gap: CGFloat = 3
+    private let swatch: CGFloat = 13
 
     var body: some View {
         let calendar = Calendar.current
@@ -128,6 +136,9 @@ private struct Heatmap: View {
         let lead = weekday
         let total = lead + board.perDay.count
         let weeks = (total + 6) / 7
+        // Columns share the panel's width (a few weeks are wide cells, many are narrow); rows stay short.
+        let cellWidth = max(13, (width - 32 - 48) / CGFloat(weeks) - gap)
+        let cell = min(28, cellWidth)
         Panel(title: "Agent time per day", note: DashboardText.range(board.days)) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .trailing, spacing: gap) {
@@ -149,11 +160,11 @@ private struct Heatmap: View {
                                         .start
                                     RoundedRectangle(cornerRadius: 3)
                                         .fill(Self.shade(board.level(seconds)))
-                                        .frame(width: cell, height: cell)
+                                        .frame(width: cellWidth, height: cell)
                                         .help(day.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
                                             + " · " + (seconds > 0 ? DashboardText.hours(seconds) : "no agent time"))
                                 } else {
-                                    Color.clear.frame(width: cell, height: cell)
+                                    Color.clear.frame(width: cellWidth, height: cell)
                                 }
                             }
                         }
@@ -163,7 +174,7 @@ private struct Heatmap: View {
             HStack(spacing: 6) {
                 Text("less").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
                 ForEach(0 ..< 5, id: \.self) { level in
-                    RoundedRectangle(cornerRadius: 3).fill(Self.shade(level)).frame(width: cell, height: cell)
+                    RoundedRectangle(cornerRadius: 3).fill(Self.shade(level)).frame(width: swatch, height: swatch)
                 }
                 Text("more agent time · rows are Mon to Sun").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
             }

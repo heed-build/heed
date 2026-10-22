@@ -100,11 +100,11 @@ public enum SetupDetection {
 /// Setting a new worktree up: its setup commands run in the pane before the agent, and files `.worktreeinclude` names
 /// are copied in from the main checkout.
 public enum WorktreeSetup {
-    /// The line a new pane types: the setup commands, then `command` (the agent) only when every one of them passed.
-    /// The setup runs under `sh -c` as a step of its own, so the line works in any shell that knows `&&` (zsh, bash,
-    /// fish) and the agent still runs in your shell. A failure says which command failed and how to start the agent by
-    /// hand, and leaves the pane at its prompt; with `report`, it also tells heed (`heed task-exit`), which ends a
-    /// background run as failed. No setup: `command` unchanged.
+    /// A new pane's command: the setup commands, then `command` (the agent) only when every one of them passed. The
+    /// setup runs under `sh -c` as a step of its own, so the line works in any shell that knows `&&` (zsh, bash, fish)
+    /// and the agent still runs in your shell. A failure says which command failed and names the agent to run again;
+    /// the pane goes on to your shell either way (`PaneLaunch`). With `report`, a failure also tells heed
+    /// (`heed task-exit`), which ends a background run as failed. No setup: `command` unchanged.
     public static func paneCommand(
         setup: [String],
         then command: ShellCommand?,
@@ -147,11 +147,12 @@ public struct SetupScript: Hashable, Sendable, Codable {
         self.report = report
     }
 
-    /// The script; `next` is the command that follows it on the line, as typed, for the failure's hint.
-    public func script(next: String?) -> String {
-        let hint = next.map { "start the agent with:\n  \($0)" } ?? "open a new shell."
+    /// The script; `agent` is the program that follows it on the line (`claude`), named in the failure's hint. The
+    /// pane goes on to your shell either way, so that is where you run it again.
+    public func script(agent: String?) -> String {
+        let hint = agent.map { "; fix it, then run the agent again: \($0)" } ?? ""
         return steps.map { step in
-            let failed = "heed: setup failed (\(step)); fix it, then \(hint)"
+            let failed = "heed: setup failed (\(step))\(hint)"
             let tell = report ? #" "${HEED_BIN:-true}" task-exit "$c";"# : ""
             let run = "printf '\\033[2mheed: setup: %s\\033[0m\\n' \(ShellQuote.quote(step)); "
                 + "{ \(step); } || { c=$?; printf '\\n%s\\n' \(ShellQuote.quote(failed));\(tell) exit \"$c\"; }"

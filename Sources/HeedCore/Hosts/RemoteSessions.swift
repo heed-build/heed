@@ -61,17 +61,25 @@ public enum RemotePane {
     /// reconnects; zmx kept the session, so the screen and scrollback come back as they were. Any other exit (the
     /// session ended) closes the pane. Without zmx on the host it is a plain login shell over ssh, which ends with the
     /// link.
+    ///
+    /// `command` (a new pane's agent) is the session's process, run by the host's login shell as `PaneLaunch` says
+    /// and never typed into it; `shell` is that shell's syntax, which the host check found, and the part after `--` is
+    /// written in it, since the host's login shell reads it. The prompt rides in the environment (`HEED_PROMPT`).
     public static func command(
         host: String, pane: String, directory: String, sessionID: String, zmx: String?,
+        command: ShellCommand? = nil, shell: PaneShell = .posix,
         controlDirectory: String = Remote.controlDirectory()
     ) -> String {
+        let launch = command.map { PaneLaunch(command: $0, shell: .login, kind: shell) }
         let environment = [
             "HEED_SESSION_ID=\(ShellQuote.quote(sessionID))", "HEED_PANE_ID=\(ShellQuote.quote(pane))",
             "HEED_BIN=\"$HOME/.heed/bin/heed-hook\"",
-        ]
+        ] + (launch?.environment ?? [:]).sorted { $0.key < $1.key }.map { "\($0.key)=\(shell.quote($0.value))" }
+        let process = launch?.commandLine(quotedFor: shell)
         let run = zmx.map { path in
             "ZMX_DIR=\"$HOME/.heed/zmx\" ZMX_NO_DETACH_KEY=1 \(Remote.word(path)) attach \(Zmx.sessionName(pane: pane))"
-        } ?? "\"${SHELL:-/bin/sh}\" -l"
+                + (process.map { " " + $0 } ?? "")
+        } ?? process ?? "\"$SHELL\" -l"
         let remote = "cd \(Remote.word(directory)) 2>/dev/null || cd; exec env \(environment.joined(separator: " ")) \(run)"
         let ssh = (["ssh", "-t"] + Remote.options(host: host, controlDirectory: controlDirectory) + [
             Remote.target(for: host),

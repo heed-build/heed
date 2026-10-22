@@ -4,17 +4,14 @@ import GhosttyKit
 /// What a terminal surface starts with.
 public struct TerminalLaunch: Sendable {
     public var directory: String
-    /// Command to run instead of the login shell. Nil runs the user's shell.
+    /// Command to run instead of the login shell, in sh words (Ghostty runs it with `bash -c 'exec -l …'`). Nil runs
+    /// the user's shell.
     public var command: String?
-    /// Typed into the shell once it starts, e.g. `claude "<prompt>"\n`, so the agent runs inside a shell that
-    /// outlives it.
-    public var initialInput: String?
     public var environment: [String: String]
 
-    public init(directory: String, command: String? = nil, initialInput: String? = nil, environment: [String: String]) {
+    public init(directory: String, command: String? = nil, environment: [String: String]) {
         self.directory = directory
         self.command = command
-        self.initialInput = initialInput
         self.environment = environment
     }
 }
@@ -66,7 +63,6 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
 
         config.working_directory = UnsafePointer(c(launch.directory))
         if let command = launch.command { config.command = UnsafePointer(c(command)) }
-        if let input = launch.initialInput { config.initial_input = UnsafePointer(c(input)) }
         var env = launch.environment.map { ghostty_env_var_s(key: c($0.key), value: c($0.value)) }
         surface = env.withUnsafeMutableBufferPointer { buffer in
             config.env_vars = buffer.baseAddress
@@ -103,7 +99,9 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
         text.withCString { ghostty_surface_text(surface, $0, UInt(text.utf8.count)) }
     }
 
-    /// Types `text` and presses Return, as if the user did: used to send the continue prompt to a resumed agent.
+    /// Types `text` and presses Return, as if the user did: used to send the continue prompt to a resumed agent. Never
+    /// to
+    /// start one: a shell that is still starting can lose or garble what is typed (`PaneLaunch`).
     public func typeLine(_ text: String) {
         guard let surface else { return }
         text.withCString { ghostty_surface_text(surface, $0, UInt(text.utf8.count)) }

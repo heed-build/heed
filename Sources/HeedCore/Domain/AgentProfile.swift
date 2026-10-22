@@ -50,8 +50,9 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
         self.planArguments = planArguments
     }
 
-    /// The command line typed into the session's shell to start the agent on `prompt`. The agent is called by its
-    /// `command` as configured, never a resolved path, so an alias or function of that name in your shell applies.
+    /// The command line that starts the agent on `prompt`, run by your login shell as the pane's process
+    /// (`PaneLaunch`). The agent is called by its `command` as configured, never a resolved path, so an alias or
+    /// function of that name in your shell applies. The prompt is `"$HEED_PROMPT"` on the line, never the text itself.
     public func launchCommand(
         prompt text: String, planFirst: Bool = false, extraArguments: [String] = [],
         environment: [String: String] = [:],
@@ -64,10 +65,10 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
         guard !text.isEmpty else { return ShellCommand([.run([agent])]) }
         switch prompt {
         case .argument:
-            let prompt = (promptFlag.map { [ShellCommand.Word.raw($0)] } ?? []) + [.text(text)]
+            let prompt = (promptFlag.map { [ShellCommand.Word.raw($0)] } ?? []) + [ShellCommand.Word([.prompt(text)])]
             return ShellCommand([.run([ShellCommand.Simple(environment: agent.environment, words: words + prompt)])])
         case .stdin:
-            let printf = ShellCommand.Simple(words: [.raw("printf"), .raw("'%s'"), .text(text)])
+            let printf = ShellCommand.Simple(words: [.raw("printf"), .raw("'%s'"), ShellCommand.Word([.prompt(text)])])
             return ShellCommand([.run([printf, agent])])
         case .paste, .file: return ShellCommand([.run([agent])])
         }

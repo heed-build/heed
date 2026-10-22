@@ -6,7 +6,7 @@ description: Keep agents running when Heed quits, restarts or updates, with zmx.
 
 Install [zmx](https://zmx.sh) and every pane runs in a zmx session that Heed attaches to. Quitting, restarting or
 updating Heed leaves the agents running, mid-turn if they were, and the next launch reattaches: same screen, same
-scrollback, nothing typed again. Without zmx, a pane's terminal belongs to Heed: quitting stops its agent, and the
+scrollback, nothing started again. Without zmx, a pane's terminal belongs to Heed: quitting stops its agent, and the
 next launch [resumes](resume.md) it from its own history.
 
 zmx is yours to install; Heed does not ship it. On this Mac:

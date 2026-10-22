@@ -11,7 +11,7 @@ one selected first.
 
 | Option | |
 |---|---|
-| **Autostart agent with prompt** | Type the command into the agent pane and run it. Off opens the pane with the command typed but not run. |
+| **Autostart agent with prompt** | Start the agent in its pane on the prompt. Off opens the pane with a plain shell. |
 | **Plan first** | Start the agent in its planning mode where it has one (claude's `--permission-mode plan`). |
 | **Open shell split** | A shell beside the agent. Defaults to `shell_split` under `[sessions]`. |
 

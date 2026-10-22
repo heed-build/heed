@@ -74,3 +74,32 @@ struct SweepTests {
         #expect(Sweep.unsafe(worktree("c")) == nil)
     }
 }
+
+/// Removing runs against the repo where the worktree lives, against real git in a throwaway directory.
+struct SweepPlaceTests {
+    @Test func aHostWorktreeIsNeverRemovedFromTheLocalClone() async throws {
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("heed-place-\(UUID().uuidString)").path
+        defer { try? FileManager.default.removeItem(atPath: base) }
+        let clone = base + "/clone", path = base + "/wt/r/spike"
+        try FileManager.default.createDirectory(atPath: clone, withIntermediateDirectories: true)
+        for args in [
+            ["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
+            ["commit", "-q", "--allow-empty", "-m", "a"], ["worktree", "add", "-q", "-b", "spike", path],
+        ] {
+            _ = try await ProcessRunner.output("git", ["-C", clone] + args, caller: "test")
+        }
+        let repo = Repo(org: "o", name: "r")
+        // The same repo here and on @box, with a worktree at the same path in both places. Only this Mac's clone is
+        // known: removing @box's worktree must not touch the one here.
+        let local = RepoRecord(repo: repo, path: clone)
+        let remote = Worktree(repo: repo, path: path, branch: "spike", head: "", isMain: false, location: .host("box"))
+        let plan = SweepPlan(
+            removals: [SweepPlan.Removal(worktree: remote, idleDays: 0, sessions: [], deleteBranch: true)],
+            skips: [], next: nil
+        )
+        _ = await Sweep.execute(plan, domain: Domain(repos: [local], worktrees: [remote]))
+        #expect(FileManager.default.fileExists(atPath: path))
+        #expect(try await ProcessRunner.output("git", ["-C", clone, "branch", "--list", "spike"], caller: "test")
+            .contains("spike"))
+    }
+}

@@ -111,7 +111,14 @@ enum Shots {
         Shot(id: "landing/resume", chrome: false, prepare: { $0.showResumeForFixture() }),
         Shot(id: "landing/hosts", chrome: false, keys: "G"),
         Shot(id: "landing/diff", chrome: false, keys: "gd"),
-        Shot(id: "landing/inbox", chrome: false, keys: ":inbox<CR><Space>j<Space>"),
+        // Attention on a pull request that asks for your review: its summary, the thread in three lines, the rule.
+        Shot(id: "landing/attention", chrome: false, keys: "gm3j"),
+        // The asking scratch chat, tall enough for the whole sidebar and its Chats group.
+        Shot(
+            id: "landing/chats", chrome: false, size: CGSize(width: 1440, height: 1240), keys: "4G",
+            prepare: withChats
+        ),
+        Shot(id: "landing/history", chrome: false, keys: "ghL"),
     ]
 
     /// The docs' home page.

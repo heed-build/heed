@@ -433,6 +433,7 @@ private struct AgentSettings: View {
                 Field(label: "State", detail: integration(agent.name)) {
                     Text(stateSource(agent.name)).font(Theme.mono(12)).foregroundStyle(Theme.done)
                 }
+                ModelCallSettings(agent: agent)
             }
             Text("Custom agents: add an [agents.<name>] table with a command in config.toml.")
                 .font(Theme.ui(11.5))
@@ -453,6 +454,122 @@ private struct AgentSettings: View {
 
     private func integration(_: String) -> String {
         "Heed never edits your own agent config; hooks are passed per run where the agent allows it."
+    }
+}
+
+/// One agent's part in heed's own model calls (`[llm]`): on or off, its model, what detection found, and a Test.
+private struct ModelCallSettings: View {
+    @Environment(AppModel.self) private var model
+    let agent: AgentProfile
+
+    var body: some View {
+        GroupLabel(title: "Model calls")
+        if LLMDialect.of(agent) == nil {
+            Text("Custom agents take no part in heed's own model calls (summaries, decisions).")
+                .font(Theme.ui(11.5))
+                .foregroundStyle(Theme.fg3)
+        } else {
+            let status = model.llmStatuses.first { $0.name == agent.name }
+            let settings = model.config.llm
+            Field(
+                label: "Use for model calls",
+                detail: "heed's own short calls (summaries, decisions) take turns over the agents you are logged in "
+                    + "to, each with a cheap model. Off leaves this one out."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { settings.isEnabled(agent.name) },
+                    set: { model.setConfig(["agents", agent.name, "llm"], .bool($0)) }
+                ))
+                .toggleStyle(.switch)
+                .labelsHidden()
+                .disabled(!settings.enabled)
+            }
+            Field(label: "Login", detail: loginDetail(status)) {
+                HStack(spacing: 10) {
+                    Text(loginText(status)).font(Theme.mono(12)).foregroundStyle(loginColor(status))
+                    Button("Check again") { Task { await model.refreshLLMStatuses(force: true) } }
+                        .buttonStyle(.link)
+                        .font(Theme.ui(12))
+                }
+            }
+            Field(
+                label: "Model",
+                detail: "Empty: \(status?.detectedModel.map { "\($0), detected" } ?? "the agent's own default")."
+            ) {
+                ConfigTextField(path: ["agents", agent.name, "llm_model"], value: settings.model(for: agent.name) ?? "")
+                    .frame(width: 260)
+            }
+            Field(label: "Test", detail: "One tiny call to this agent alone; it shows in :log.") {
+                TestResult(agent: agent.name)
+            }
+            if !settings.enabled {
+                Text("[llm] enabled = false: heed makes no model calls at all.")
+                    .font(Theme.ui(11.5))
+                    .foregroundStyle(Theme.block)
+            }
+        }
+    }
+
+    private func loginText(_ status: LLMAgentStatus?) -> String {
+        switch status?.login {
+        case .loggedIn: "logged in"
+        case .loggedOut: "not logged in"
+        case .unknown: "installed (no login check: a failed call says)"
+        case .notInstalled: "\(agent.command.split(separator: " ").first.map(String.init) ?? agent.command) not found"
+        case nil: "checking…"
+        }
+    }
+
+    private func loginColor(_ status: LLMAgentStatus?) -> Color {
+        switch status?.login {
+        case .loggedIn: Theme.done
+        case .unknown: Theme.fg2
+        case .loggedOut, .notInstalled: Theme.block
+        case nil: Theme.fg3
+        }
+    }
+
+    private func loginDetail(_ status: LLMAgentStatus?) -> String {
+        switch status?.login {
+        case .notInstalled:
+            "heed runs it without your shell, so an alias or shell function does not count: set Command to its path, "
+                + "or add its folder to [tools] path."
+        case .loggedOut: "Log in with the agent itself; heed only uses logins you already have."
+        default: status?.path.map(Paths.abbreviate) ?? ""
+        }
+    }
+}
+
+/// The Test button, and how the last test went.
+private struct TestResult: View {
+    @Environment(AppModel.self) private var model
+    let agent: String
+
+    var body: some View {
+        let test = model.llmTests[agent]
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Button(test?.running == true ? "Testing…" : "Test") { model.testLLM(agent: agent) }
+                .disabled(test?.running == true)
+            if let test, !test.running {
+                if let error = test.error {
+                    Text(error).font(Theme.ui(12)).foregroundStyle(Theme.err).fixedSize(
+                        horizontal: false,
+                        vertical: true
+                    )
+                } else {
+                    Text(summary(test)).font(Theme.mono(12)).foregroundStyle(Theme.fg)
+                }
+            }
+        }
+    }
+
+    private func summary(_ test: LLMTest) -> String {
+        var parts = ["“\(test.answer ?? "")”"]
+        if let model = test.model { parts.append(model) }
+        if let seconds = test.seconds { parts.append(String(format: "%.1fs", seconds)) }
+        // A test costs a fraction of a cent: shown to four places, not as <$0.01.
+        if let cost = test.cost { parts.append(cost < 0.01 ? String(format: "$%.4f", cost) : AgentUsage.dollars(cost)) }
+        return parts.joined(separator: " · ")
     }
 }
 

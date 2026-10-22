@@ -207,6 +207,13 @@ enum Shots {
 
     static let agents: [Shot] = [
         Shot(id: "agents/guessed", size: short, keys: "2j", crop: .sidebar),
+        // Settings › Agents: claude's part in heed's model calls, after a Test.
+        Shot(
+            id: "agents/model-calls", subject: .settings(.agents), size: CGSize(width: 1000, height: 820),
+            prepare: { model in
+                model.llmTests["claude"] = LLMTest(answer: "Hello!", model: "claude-haiku", seconds: 2.9, cost: 0.00026)
+            }
+        ),
     ]
 
     static let hosts: [Shot] = [

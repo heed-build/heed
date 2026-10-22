@@ -40,6 +40,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var usage = UsageSettings()
     /// `[log]`: how long the call log keeps each kind of call.
     public var log = CallRetention()
+    /// `[llm]`, and `llm` / `llm_model` in `[agents.<name>]`: heed's own model calls.
+    public var llm = LLMSettings()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -89,6 +91,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.hosts == rhs.hosts,
             lhs.usage == rhs.usage,
             lhs.log == rhs.log,
+            lhs.llm == rhs.llm,
         ]
         return !same.contains(false)
     }
@@ -433,6 +436,10 @@ public enum ConfigLoader {
                     }
                     agent.patterns[state] = pattern
                 }
+                let llm = LLMSettings.Agent(
+                    enabled: bool(["agents", name, "llm"]), model: string(["agents", name, "llm_model"])
+                )
+                if llm != LLMSettings.Agent() { config.llm.agents[name] = llm }
                 if let index = config.work.agents.firstIndex(where: { $0.name == name }) {
                     config.work.agents[index] = agent
                 } else {
@@ -575,6 +582,27 @@ public enum ConfigLoader {
         if let days = integer(["log", "llm_days"], range: 1 ... 365) { config.log.llmDays = days }
         if let days = integer(["log", "decide_days"], range: 1 ... 365) { config.log.decideDays = days }
         if let rows = integer(["log", "max_rows"], range: 1000 ... 1_000_000) { config.log.maxRows = rows }
+        // [llm]
+        if let flag = bool(["llm", "enabled"]) { config.llm.enabled = flag }
+        if let seconds = integer(["llm", "timeout_seconds"], range: 10 ... 900) { config.llm.timeoutSeconds = seconds }
+        if let count = integer(["llm", "concurrency"], range: 1 ... 8) { config.llm.concurrency = count }
+        if let minutes = integer(["llm", "backoff_minutes"], range: 0 ... 1440) { config.llm.backoffMinutes = minutes }
+        if let count = integer(["llm", "daily_calls"], range: 0 ... 100_000) { config.llm.dailyCalls = count }
+        if let value = root.value(at: ["llm", "daily_dollars"]) {
+            let dollars: Double? = switch value {
+            case let .float(number): number
+            case let .integer(number): Double(number)
+            default: nil
+            }
+            if let dollars, dollars >= 0 {
+                config.llm.dailyDollars = dollars
+            } else {
+                problems.append(ConfigProblem(
+                    path: "llm.daily_dollars",
+                    message: "expected a number of dollars, 0 or more"
+                ))
+            }
+        }
         // [usage]
         if let flag = bool(["usage", "show_cost"]) { config.usage.showCost = flag }
         for (prefix, text) in pairs(["usage", "prices"]) {
@@ -782,6 +810,22 @@ public enum ConfigLoader {
     decide_days = 30
     max_rows = 50000
 
+    [llm]
+    # heed's own short model calls (summaries, typed decisions), made headless through the agent CLIs you are logged
+    # in to (claude, codex, gemini, opencode, pi, cursor), each with a cheap model, taking turns. No API keys: your
+    # logins are used as they are. Each call runs in an empty temporary directory with tools off and nothing saved, and
+    # shows in :log with which agent took it and why others were skipped. false: heed makes no model calls at all.
+    enabled = true
+    # A call still running after this long is stopped; this many run at once (more wait, the ones you asked for first).
+    timeout_seconds = 120
+    concurrency = 2
+    # An agent whose call failed is skipped for this long; one rate limited in a session, until its limit resets.
+    backoff_minutes = 10
+    # Per agent per day: background calls stop until tomorrow at this many calls, or once this many dollars were spent
+    # (counted where a cost is known: reported by the agent, or estimated from [usage.prices]). 0: no cap.
+    daily_calls = 100
+    daily_dollars = 1.0
+
     [tools]
     # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
     # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.
@@ -794,11 +838,14 @@ public enum ConfigLoader {
 
     # Agents. Built-ins (claude, codex, cursor, pi, opencode, gemini) can be overridden field by field; any other name
     # is a custom agent. Fields: command, prompt (argument | stdin | paste | file), plan, resume ("{id}" is the
-    # agent's session id), and [agents.<name>.profiles] of name = command line.
+    # agent's session id), and [agents.<name>.profiles] of name = command line. For heed's own model calls ([llm]):
+    # llm = false leaves an agent out, and llm_model picks its model (empty: a cheap one heed detects, haiku for claude).
     [agents.claude]
     command = "claude"
     plan = "--permission-mode plan"
     resume = "--resume {id}"
+    # llm = true
+    # llm_model = "haiku"
 
     # [agents.mytool]
     # command = "mytool"

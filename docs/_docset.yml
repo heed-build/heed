@@ -55,6 +55,7 @@ toc:
       - file: hooks.md
       - file: screen-reading.md
       - file: custom-agents.md
+      - file: model-calls.md
   - folder: github
     children:
       - file: index.md

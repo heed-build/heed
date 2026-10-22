@@ -39,3 +39,4 @@ plan and resume arguments can be changed, and new agents added: see [Custom agen
 - [Hooks](hooks.md): what Heed passes to each agent, and why your own agent config never changes.
 - [Reading the screen](screen-reading.md): guessed states, and the patterns behind them.
 - [Custom agents](custom-agents.md): adding your own.
+- [Model calls](model-calls.md): Heed's own short calls (summaries, decisions), through the agents you are logged in to.

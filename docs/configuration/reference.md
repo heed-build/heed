@@ -188,6 +188,22 @@ llm_days = 30
 decide_days = 30
 max_rows = 50000
 
+[llm]
+# heed's own short model calls (summaries, typed decisions), made headless through the agent CLIs you are logged
+# in to (claude, codex, gemini, opencode, pi, cursor), each with a cheap model, taking turns. No API keys: your
+# logins are used as they are. Each call runs in an empty temporary directory with tools off and nothing saved, and
+# shows in :log with which agent took it and why others were skipped. false: heed makes no model calls at all.
+enabled = true
+# A call still running after this long is stopped; this many run at once (more wait, the ones you asked for first).
+timeout_seconds = 120
+concurrency = 2
+# An agent whose call failed is skipped for this long; one rate limited in a session, until its limit resets.
+backoff_minutes = 10
+# Per agent per day: background calls stop until tomorrow at this many calls, or once this many dollars were spent
+# (counted where a cost is known: reported by the agent, or estimated from [usage.prices]). 0: no cap.
+daily_calls = 100
+daily_dollars = 1.0
+
 [tools]
 # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
 # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.
@@ -200,11 +216,14 @@ path = []
 
 # Agents. Built-ins (claude, codex, cursor, pi, opencode, gemini) can be overridden field by field; any other name
 # is a custom agent. Fields: command, prompt (argument | stdin | paste | file), plan, resume ("{id}" is the
-# agent's session id), and [agents.<name>.profiles] of name = command line.
+# agent's session id), and [agents.<name>.profiles] of name = command line. For heed's own model calls ([llm]):
+# llm = false leaves an agent out, and llm_model picks its model (empty: a cheap one heed detects, haiku for claude).
 [agents.claude]
 command = "claude"
 plan = "--permission-mode plan"
 resume = "--resume {id}"
+# llm = true
+# llm_model = "haiku"
 
 # [agents.mytool]
 # command = "mytool"

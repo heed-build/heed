@@ -17,6 +17,8 @@ public struct Notices: Equatable, Sendable {
         case helper
         /// A PR of a session needs you (`PilotStatus.stuck`): feedback to send and nowhere to send it.
         case pull
+        /// An Attention item a rule says to notify about (`notify`, `boost 3`).
+        case attention
     }
 
     /// Something that started needing you.
@@ -48,7 +50,13 @@ public struct Notices: Equatable, Sendable {
         }
 
         /// What it waits on, in words: `blocked`, `asking`, `needs you` (a PR).
-        public var label: String { kind == .pull ? "needs you" : state.rawValue }
+        public var label: String {
+            switch kind {
+            case .pull: "needs you"
+            case .attention: "wants you"
+            default: state.rawValue
+            }
+        }
 
         /// The notification's text under the title: `Blocked: Bash(rm -rf build)`, `Still asking: asked a question`.
         public var body: String {
@@ -84,6 +92,8 @@ public struct Notices: Equatable, Sendable {
         public var title: String {
             switch self {
             case let .one(entry): entry.title
+            case let .summary(entries) where entries.allSatisfy { $0.kind == .attention }:
+                "\(entries.count) things want you in Attention"
             case let .summary(entries):
                 entries.allSatisfy(\.reminder)
                     ? "\(entries.count) sessions still need you" : "\(entries.count) sessions need you"
@@ -165,6 +175,9 @@ public struct Notices: Equatable, Sendable {
                 "reminder": entry.reminder ? "true" : "false",
             ]
             let subject = entry.kind == .session ? nil : entry.id
+            if entry.kind == .attention {
+                return LoggedEvent(at: at, kind: .notification, subject: subject, text: text, payload: payload)
+            }
             if let session {
                 return LoggedEvent(
                     at: at,

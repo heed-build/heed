@@ -60,9 +60,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// Everything of one kind that needs you now (PRs, helper tabs), read whole; what is gone is taken back.
-    func sync(_ kind: Notices.Kind, _ entries: [Notices.Entry], settings: NotificationSettings, seen: Bool) {
+    func sync(
+        _ kind: Notices.Kind, _ entries: [Notices.Entry], settings: NotificationSettings, seen: Bool,
+        timing: Notices.Timing? = nil
+    ) {
         guard model != nil, center != nil else { return }
-        notices.sync(kind, entries, timing: Notices.Timing(settings), at: Date(), seen: seen)
+        notices.sync(kind, entries, timing: timing ?? Notices.Timing(settings), at: Date(), seen: seen)
         let current = Set(entries.map(\.id))
         let gone = shown.filter { $0.value == kind && !current.contains($0.key) }.map(\.key)
         if !gone.isEmpty {

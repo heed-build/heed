@@ -42,6 +42,11 @@ and next to the line in the editor) and left out; the other rules still apply.
 | `pin` | At the top of the feed |
 | `notify` | A notification when it arrives; combines with the others (`boost 2 notify`) |
 
+`notify` and `boost 3` post a macOS [notification](../outside-the-window/notifications.md) when the item arrives.
+For an item no rule matched, heed's [Decider](../agents/model-calls.md) may suggest a weight, shown next to the item
+and never acted on. What you do with items (done, snooze, mute) is kept beside those suggestions in the call log, for
+a better ranking later.
+
 Quiet hours are a setting, not a rule: `[attention] quiet = "22:00-08:00"`.
 
 ## What a rule can match

@@ -65,6 +65,7 @@ extension AppModel {
         guard !isFixture else { return }
         let now = Clock.now
         await attention.record(attentionItems, now: now)
+        noteAttention()
         let needed = AttentionFeed.detailsNeeded(attentionItems, details: attention.details)
         if !needed.isEmpty {
             await attention.saveDetails(GitHub.threadDetails(needed, caller: "attention.details"), now: now)
@@ -72,6 +73,26 @@ extension AppModel {
         for entry in attentionEntries.filter({ $0.live && $0.weight >= 2 && !$0.muted }).prefix(5) {
             summarize(entry.item)
         }
+    }
+
+    /// The items rules say to notify about, into `Notices` as one input: several from one sync come as one
+    /// notification. What was there before heed's first sync is not news.
+    func noteAttention() {
+        let settings = config.notifications
+        let entries = settings.enabled && settings.attention
+            ? attentionEntries.compactMap { Notices.attention($0, now: Clock.now) } : []
+        Notifier.shared.sync(
+            .attention, entries, settings: settings, seen: !attention.notified, timing: Notices.attentionTiming
+        )
+        attention.notified = true
+    }
+
+    /// A notification's Open: Attention, on the item.
+    func showAttentionItem(_ id: String) {
+        attention.filter = attentionEntries.first { $0.id == id }?.muted == true ? .muted : .needsMe
+        view = .attention
+        moveCursor(.attention, to: id)
+        activateHeed()
     }
 
     // MARK: Commands
@@ -128,6 +149,7 @@ extension AppModel {
         if !threads.isEmpty { commit(.inboxRead(threads)) }
         clearPicks()
         say(targets.count == 1 ? "done" : "done with \(targets.count)")
+        recordLabel(.done, targets)
         guard !isFixture, !threads.isEmpty else { return }
         Task {
             for thread in threads {
@@ -152,6 +174,7 @@ extension AppModel {
         clearPicks()
         let day = until.timeIntervalSince(Clock.now) > 20 * 3600
         say("snoozed until \(until.formatted(date: day ? .abbreviated : .omitted, time: .shortened))")
+        recordLabel(.snooze, targets)
     }
 
     /// `M`: mute the thread on GitHub (its subscription ignored, so it holds everywhere); listed under Muted.
@@ -168,6 +191,7 @@ extension AppModel {
         }
         clearPicks()
         say(targets.count == 1 ? "muted" : "muted \(targets.count)")
+        recordLabel(.mute, targets)
         guard !isFixture else { return }
         let threads = targets.compactMap(\.item.notificationID)
         Task {
@@ -273,6 +297,7 @@ extension AppModel {
             guard view == .attention, attentionSelected?.item.id == item.id else { return }
             await fetchDetail(item)
             summarize(item)
+            suggestWeight(item)
         }
     }
 
@@ -311,6 +336,33 @@ extension AppModel {
         return AttentionRulePreview.of(
             saved: config.attention.parsedRules, edited: rules, items: items, viewer: github.viewer, now: Clock.now
         )
+    }
+
+    /// For an item no rule matched, the Decider suggests a weight: shown next to it, never acted on.
+    func suggestWeight(_ item: AttentionItem) {
+        guard !isFixture, config.llm.enabled, attentionEntries.first(where: { $0.id == item.id })?.outcome.rule == nil
+        else { return }
+        if let known = attention.suggestions[item.id], known.updatedAt >= item.updatedAt { return }
+        attention.suggestions[item.id] = (item.updatedAt, nil)
+        let state = AttentionDecide.state(for: item, detail: detail(of: item))
+        let decider = decider(caller: "attention.rank")
+        Task {
+            guard let answers = try? await decider.decide(
+                subject: item.id, state: state, questions: AttentionDecide.questions
+            ) else { return }
+            attention.suggestions[item.id] = (item.updatedAt, AttentionDecide.suggestion(answers))
+        }
+    }
+
+    /// What you did with items, beside the Decider's rows: what a later local model learns from.
+    private func recordLabel(_ label: AttentionLabel, _ entries: [AttentionEntry]) {
+        guard !isFixture else { return }
+        for entry in entries {
+            CallLog.record(label.call(
+                for: entry.item, rule: entry.outcome.rule, suggestion: attention.suggestions[entry.id]?.level,
+                at: Clock.now
+            ))
+        }
     }
 
     // MARK: Menus

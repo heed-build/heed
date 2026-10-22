@@ -563,6 +563,7 @@ public enum ConfigLoader {
         if let flag = bool(["notifications", "enabled"]) { config.notifications.enabled = flag }
         if let flag = bool(["notifications", "asking"]) { config.notifications.asking = flag }
         if let flag = bool(["notifications", "blocked"]) { config.notifications.blocked = flag }
+        if let flag = bool(["notifications", "attention"]) { config.notifications.attention = flag }
         if let seconds = integer(["notifications", "grace_seconds"], range: 0 ... 3600) {
             config.notifications.graceSeconds = seconds
         }
@@ -824,6 +825,8 @@ public enum ConfigLoader {
     enabled = true
     asking = true
     blocked = true
+    # Attention items a rule says to notify about (notify, or boost 3), several from one sync as one notification.
+    attention = true
     # Only once it has needed you this long, so a prompt that clears itself stays quiet; 0 notifies at once.
     grace_seconds = 30
     # One reminder if it still needs you this long after the notification, then nothing until it comes back; 0: none.
@@ -1001,6 +1004,8 @@ public struct NotificationSettings: Equatable, Sendable {
     public var enabled = true
     public var asking = true
     public var blocked = true
+    /// Attention items a rule says to notify about.
+    public var attention = true
     /// How long something must keep needing you before it notifies, so a prompt that clears itself stays quiet. 0:
     /// at once (after the few seconds that gather a burst into one).
     public var graceSeconds = 30

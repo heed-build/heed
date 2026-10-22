@@ -153,6 +153,8 @@ dock_state = true
 enabled = true
 asking = true
 blocked = true
+# Attention items a rule says to notify about (notify, or boost 3), several from one sync as one notification.
+attention = true
 # Only once it has needed you this long, so a prompt that clears itself stays quiet; 0 notifies at once.
 grace_seconds = 30
 # One reminder if it still needs you this long after the notification, then nothing until it comes back; 0: none.

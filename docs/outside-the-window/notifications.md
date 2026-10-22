@@ -29,6 +29,11 @@ time there is something to say, not when Heed starts; System Settings › Notifi
   it brings Heed forward on the session instead, so you answer it yourself. macOS asks you to unlock first when the
   screen is locked. Other agents' prompts get Open only.
 
+- **Attention.** An [Attention](../github/attention.md) item a [rule](../github/attention-rules.md) says to notify
+  about (`notify`, or `boost 3`) notifies when a sync brings it in, under the same quiet hours, without a grace or a
+  reminder: several from one sync come as one ("3 things want you in Attention"). Open brings Heed forward on the item.
+  `attention = false` turns this off; items already there when Heed started are not notified.
+
 - **Quiet hours.** `[attention] quiet` names hours with no notifications, in local time (`"22:00-07:00"` crosses
   midnight). What starts needing you meanwhile is not notified when they end, and gets no reminder: Needs you and the
   Dock badge show it. macOS Focus is respected too, by macOS itself.
@@ -41,6 +46,7 @@ time there is something to say, not when Heed starts; System Settings › Notifi
 enabled = true
 asking = true      # questions, a plan to approve
 blocked = true     # permission prompts
+attention = true   # Attention items a rule says to notify about
 grace_seconds = 30
 reminder_minutes = 15
 

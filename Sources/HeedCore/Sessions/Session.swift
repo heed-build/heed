@@ -401,6 +401,8 @@ public struct TimelineEvent: Hashable, Sendable, Codable {
 public enum Outcome: String, Hashable, Sendable, Codable, CaseIterable {
     case merged, closed, abandoned
     case cleanedUp = "cleaned up"
+    /// A chat that became work (`chat.promote`): its timeline names the session it became.
+    case promoted
 }
 
 /// A session that is no longer active: kept for search, reopening and starting again from its prompt.

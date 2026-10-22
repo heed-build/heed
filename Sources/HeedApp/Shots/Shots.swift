@@ -174,6 +174,17 @@ enum Shots {
             crop: .dialog
         ),
         Shot(id: "sessions/chats-history", keys: "gh", prepare: withChats),
+        // :promote on the asking scratch chat: its conversation goes to the new worktree's agent.
+        Shot(id: "sessions/chats-promote", keys: "4G:promote<CR>", crop: .dialog, prepare: withChats),
+        Shot(id: "sessions/chats-promote-codex", keys: "4G:promote<CR><Esc>jjjl", crop: .dialog, prepare: withChats),
+        // The chat closed into History as promoted, naming the session it became.
+        Shot(id: "sessions/chats-promoted", keys: "gh", prepare: { model in
+            withChats(model)
+            guard var chat = Fixtures.chats.first?.0 else { return }
+            chat.record("promoted → feature/nightly-cron-job", at: ShotRunner.instant)
+            chat.record("ended after 0h 22m", at: ShotRunner.instant)
+            model.commit(.sessionClosed(HistoryEntry(session: chat, closedAt: ShotRunner.instant, outcome: .promoted)))
+        }),
     ]
 
     static let startWork: [Shot] = [

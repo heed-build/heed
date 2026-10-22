@@ -1998,6 +1998,7 @@ final class AppModel {
         case "select.pin": pinSelected()
         case "agent.switch": switchAgent(to: command.arguments.first)
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "", chat: currentSession?.isChat == true)
+        case "chat.promote": promoteChat()
         case "chat.new": openStartWork(prompt: command.arguments.joined(separator: " "), fromCursor: false, chat: true)
         case "worktree.new":
             openStartWork(prompt: "")
@@ -2781,16 +2782,29 @@ final class AppModel {
         closeSession(session.id)
     }
 
+    /// The promoted chat to History as promoted, naming the session it became; its files copied first when asked.
+    private func finishPromotion(_ promotion: Promotion, into plan: StartWorkPlan) {
+        let worktree = worktrees.first { $0.branch == plan.name && plan.repos.first?.repo == $0.repo }?.path
+        if promotion.copyFiles, promotion.canCopy, let worktree, plan.location.isLocal {
+            let from = promotion.folder.path
+            let files = promotion.files
+            Task.detached { Promote.copy(files, from: from, to: worktree) }
+        }
+        closeSession(promotion.chatID, outcome: .promoted, note: "promoted → \(plan.name)")
+        flash = "promoted “\(promotion.chatTitle)” to \(plan.name)"
+    }
+
     /// A session to History, its panes closed; its worktree stays.
-    private func closeSession(_ id: String) {
+    private func closeSession(_ id: String, outcome: Outcome? = nil, note: String? = nil) {
         guard var session = sessions.first(where: { $0.id == id }) else { return }
         let minutes = Int(Date().timeIntervalSince(session.createdAt) / 60)
+        if let note { session.record(note) }
         session.record("ended after \(minutes / 60)h \(minutes % 60)m")
         // The panes are read before the close drops the layout.
         let panes = layouts[id]?.tabs.flatMap(\.tree.panes) ?? []
         setSubagents(nil, of: id)
         commit(.sessionClosed(HistoryEntry(
-            session: session, closedAt: Date(), outcome: HistoryEntry.outcome(closing: session)
+            session: session, closedAt: Date(), outcome: outcome ?? HistoryEntry.outcome(closing: session)
         )))
         for pane in panes {
             TerminalSurfaces.shared.close(paneID: pane.id)
@@ -5705,15 +5719,38 @@ final class AppModel {
         startWork = nil
     }
 
-    private func openStartWork(prompt: String, fromCursor: Bool = true, chat: Bool = false) {
+    private func openStartWork(
+        prompt: String, fromCursor: Bool = true, chat: Bool = false, promotion: Promotion? = nil
+    ) {
         startWorkError = nil
         let context = fromCursor ? startContext : nil
         if view == .history { view = .sessions }
-        startWork = StartWorkForm(
+        var form = StartWorkForm(
             repos: repos, lastWorked: StartWork.lastWorked(sessions: sessions, closed: history), context: context,
             settings: settings, prompt: prompt, integration: integration, hostIntegrations: hostIntegrations(),
-            hosts: config.hosts.keys.sorted(), chat: chat
+            hosts: config.hosts.keys.sorted(), chat: chat, promotion: promotion
         )
+        if promotion != nil {
+            form.instructions = repos.reduce(into: [:]) { result, record in
+                let text = config.pilot.resolve(record.repo).startInstructions
+                if !text.isEmpty { result[record.repo.slug] = text }
+            }
+        }
+        startWork = form
+    }
+
+    /// `chat.promote`: Start work for the chat's conversation, once its transcript and files are read (off the main
+    /// actor). The chat closes when the new session starts.
+    private func promoteChat() {
+        guard let session = currentSession else { return flash = "no chat to promote" }
+        guard session.isChat else { return flash = "\(session.title) is work already; :promote turns a chat into work" }
+        if tutor != nil || isFixture {
+            return openStartWork(prompt: session.prompt, fromCursor: false, promotion: Self.fixturePromotion(session))
+        }
+        Task {
+            let promotion = await Self.promotion(for: session)
+            openStartWork(prompt: session.prompt, fromCursor: false, promotion: promotion)
+        }
     }
 
     /// What the cursor is on, as a hint for Start work's repo: the session, worktree, history entry, or the items
@@ -5864,6 +5901,7 @@ final class AppModel {
                 enterInsert()
                 flash = ["started \(plan.chat == nil ? plan.name : plan.title)", trusted].compactMap(\.self)
                     .joined(separator: " · ")
+                if let promotion = plan.promotion { finishPromotion(promotion, into: plan) }
                 proposeSetup(for: plan.repos)
             } catch {
                 flash = "start work failed: \(error)"

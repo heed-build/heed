@@ -164,6 +164,7 @@ public enum ContextMenus {
                 .hasPrompt ? item(repo ? "Start again from its prompt" : "New chat from its prompt", "work.again") :
                 nil,
         ])
+        if facts.chat { menu.section([item("Promote to work…", "chat.promote")]) }
         menu.submenu("Hand off to…", handoffItems(facts.handoffAgents, target: target))
         menu.section(repo ? [
             item("Close, keep worktree", "session.close"),

@@ -13,6 +13,13 @@ public struct StartWorkForm: Sendable {
 
     public enum Option: Int, CaseIterable, Sendable {
         case autostart, planFirst, shellSplit
+        /// Promoting a scratch chat with files: copy them into the worktree.
+        case copyFiles
+    }
+
+    /// The options shown: copying a chat's files only when promoting a scratch chat that has any.
+    public var options: [Option] {
+        [.autostart, .planFirst, .shellSplit] + (promotion?.canCopy == true ? [.copyFiles] : [])
     }
 
     public enum Outcome: Equatable, Sendable {
@@ -68,6 +75,13 @@ public struct StartWorkForm: Sendable {
     /// Where the chat chip sits in the repo field: after the repos and the search chip.
     public var chatChipIndex: Int { repoChoices.isEmpty ? 0 : repoChoices.count + 1 }
 
+    /// A chat being promoted into this work (`chat.promote`); nil for plain Start work. It has no chat chip: the
+    /// work goes in a repo.
+    public private(set) var promotion: Promotion?
+
+    /// The last stop in the repo field: the chat chip, or the search chip when promoting.
+    private var lastRepoStop: Int { promotion == nil ? chatChipIndex : repoChoices.count }
+
     /// How many guesses get a chip of their own; the rest are a search away.
     public static let chipCount = 6
 
@@ -99,8 +113,10 @@ public struct StartWorkForm: Sendable {
     public init(
         repos: [RepoRecord], lastWorked: [String: Date] = [:], context: StartContext? = nil,
         settings: WorkSettings, prompt: String = "", integration: IntegrationFiles? = nil,
-        hostIntegrations: [String: IntegrationFiles] = [:], hosts: [String] = [], chat: Bool = false
+        hostIntegrations: [String: IntegrationFiles] = [:], hosts: [String] = [], chat: Bool = false,
+        promotion: Promotion? = nil
     ) {
+        self.promotion = promotion
         self.hostIntegrations = hostIntegrations
         self.hosts = hosts
         self.repos = repos
@@ -110,7 +126,10 @@ public struct StartWorkForm: Sendable {
         shellSplit = settings.shellSplit
         self.integration = integration
         agents = settings.agents.map(Optional.some) + [nil]
-        agentIndex = settings.agents.firstIndex { $0.name == settings.defaultAgent } ?? 0
+        // Promoting: the chat's own agent unless you pick another.
+        let preferred = promotion?.chatAgent ?? settings.defaultAgent
+        agentIndex = settings.agents.firstIndex { $0.name == preferred }
+            ?? settings.agents.firstIndex { $0.name == settings.defaultAgent } ?? 0
         if chat { self.chat = ChatChoice() }
         setPrompt(prompt)
         if chat { repoCursor = chatChipIndex }
@@ -172,8 +191,13 @@ public struct StartWorkForm: Sendable {
         plan.autostart = autostart && agent != nil
         plan.planFirst = planFirst
         plan.shellSplit = shellSplit
+        plan.promotion = promotion
+        plan.instructions = instructions[records.first?.repo.slug ?? ""] ?? ""
         return plan
     }
+
+    /// `start_instructions` per repo slug, for a promotion's handoff prompt.
+    public var instructions: [String: String] = [:]
 
     public var canStart: Bool {
         if let chat { return chat.kind == .scratch ? !name.isEmpty : !folderPath(chat).isEmpty }
@@ -321,7 +345,7 @@ public struct StartWorkForm: Sendable {
         switch field {
         case .repo:
             // The last stops are the search chip and the chat chip.
-            repoCursor = min(max(repoCursor + delta, 0), chatChipIndex)
+            repoCursor = min(max(repoCursor + delta, 0), lastRepoStop)
         case .worktree where chat != nil:
             let last = chatChips.count - 1
             let next = min(max((chat?.cursor ?? 0) + delta, 0), last)
@@ -329,7 +353,7 @@ public struct StartWorkForm: Sendable {
         case .agent:
             agentIndex = ((agentIndex + delta) % agents.count + agents.count) % agents.count
         case .options:
-            optionCursor = min(max(optionCursor + delta, 0), Option.allCases.count - 1)
+            optionCursor = min(max(optionCursor + delta, 0), options.count - 1)
         default:
             break
         }
@@ -337,7 +361,7 @@ public struct StartWorkForm: Sendable {
 
     private mutating func toggle() {
         switch field {
-        case .repo where repoCursor == chatChipIndex:
+        case .repo where repoCursor == chatChipIndex && promotion == nil:
             setChat(chat == nil)
         case .repo where repoCursor == repoChoices.count:
             openSearch()
@@ -366,10 +390,11 @@ public struct StartWorkForm: Sendable {
             }
             chat = picked
         case .options:
-            switch Option(rawValue: optionCursor)! {
+            switch options[optionCursor] {
             case .autostart: autostart.toggle()
             case .planFirst: planFirst.toggle()
             case .shellSplit: shellSplit.toggle()
+            case .copyFiles: promotion?.copyFiles.toggle()
             }
         default:
             break

@@ -169,6 +169,9 @@ struct OutcomeGlyph: View {
         case .merged: StateGlyph(state: .done)
         case .closed: StateGlyph(state: .exited)
         case .abandoned: StateGlyph(state: .idle)
+        case .promoted:
+            Image(systemName: "arrow.up.forward").font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Theme.done).frame(width: 12, height: 12)
         case .cleanedUp:
             Circle().strokeBorder(Theme.fg3, style: StrokeStyle(lineWidth: 1.5, dash: [2, 2])).frame(
                 width: 12,

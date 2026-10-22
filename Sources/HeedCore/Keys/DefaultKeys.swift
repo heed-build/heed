@@ -30,7 +30,8 @@ public enum DefaultKeys {
         ("<C-w>q", "pane.close"), ("<C-w>h", "pane.left"), ("<C-w>l", "pane.right"), ("<C-w>j", "pane.down"),
         ("<C-w>k", "pane.up"), ("<C-w>c", "tab.close"),
         ("gt", "tab.next"), ("gT", "tab.prev"), ("gn", "tab.new"), ("!", "task.run"),
-        ("gs", "view.sessions"), ("gm", "view.inbox"), ("gi", "view.issues"), ("gp", "view.prs"),
+        ("gs", "view.sessions"), ("gm", "view.attention"), ("gi", "view.attention issues"),
+        ("gp", "view.attention mine"),
         ("gl", "links.pick"), ("gI", "issue.add"), ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), (
             "gd",
             "overlay.diff"
@@ -111,6 +112,11 @@ public enum DefaultKeys {
         "log": [
             ("t", "log.kind"), ("x", "log.failed"), ("s", "log.slow"), ("w", "log.writes"), ("c", "log.caller"),
             ("a", "log.agent"), ("y", "log.copy"),
+        ],
+        "attention": [
+            ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "attention.done"),
+            ("Z", "attention.snooze"), ("M", "attention.mute"), ("R", "attention.reply"), ("gS", "attention.session"),
+            ("t", "attention.filter"), ("T", "attention.sort"), ("r", "github.sync"),
         ],
         "inbox": [
             ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "items.read"),

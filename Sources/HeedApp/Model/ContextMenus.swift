@@ -40,6 +40,8 @@ extension AppModel {
     /// A row of a list view, by position; nil where the view has no menu.
     func rowMenu(_ list: AppView, _ index: Int) -> [MenuEntry] {
         switch list {
+        case .attention:
+            return attentionMenu(index)
         case .prs:
             let rows = pullRows
             return rows.indices.contains(index) ? pullMenu(rows[index].ref, place: .prs) : []

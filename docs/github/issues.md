@@ -4,7 +4,7 @@ description: Issues assigned to you or mentioning you, and every open issue in t
 
 # Issues
 
-`gi` shows open issues: those assigned to you or mentioning you, everywhere, plus every open issue in the repos you
+`:issues` shows open issues (`gi` opens [Attention](attention.md) on its Issues filter): those assigned to you or mentioning you, everywhere, plus every open issue in the repos you
 choose to watch.
 
 ![Issues: the repo column on the left, filter chips, issues tagged assigned or mentioned](../images/shots/github/issues.png)

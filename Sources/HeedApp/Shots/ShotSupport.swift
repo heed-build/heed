@@ -24,6 +24,7 @@ enum ShotRegion: String, CaseIterable {
     case dashboardTiles, dashboardHeatmap, dashboardShares, dashboardRecent
     case logList, logDetail, logUsage
     case pilotDetail, pilotActivity
+    case attentionFilters, attentionDetail
 }
 
 struct ShotRegionKey: PreferenceKey {

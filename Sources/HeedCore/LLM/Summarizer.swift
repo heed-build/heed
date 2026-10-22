@@ -8,6 +8,10 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case handoff
     /// History's ledger: a summary, the decisions and the follow-ups, in the sections `LedgerText` reads.
     case ledger
+    /// A GitHub thread in Attention: what it is about and what it asks of you.
+    case thread
+    /// A reply to a GitHub thread, drafted for you to read before anything is posted.
+    case reply
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -92,6 +96,20 @@ public struct Summarizer: Sendable {
             line: "Summary:" then at most three short sentences of plain prose on what the work did and where it \
             stands; "Decisions:" then one "- " line per decision that was taken (none: "- none"); "Follow-ups:" then \
             one "- " line per thing left to do (none: "- none"). Only facts from the input; no preamble.
+            """
+        case .thread:
+            """
+            You summarize a GitHub issue or pull request thread for one developer, from its description and latest \
+            comments. Say first what it asks of them, if anything (a review, an answer, a decision), then where it \
+            stands, in at most three short sentences of plain prose. Name people when it matters who asked. No \
+            preamble, no headings, no lists.
+            """
+        case .reply:
+            """
+            You draft a reply to a GitHub issue or pull request thread for the developer it is addressed to, from its \
+            description and latest comments. Answer what was asked of them, briefly and politely, in their voice; \
+            where you do not know a fact, leave a [placeholder] for them to fill in. Only the reply's text, in \
+            GitHub Markdown, no preamble.
             """
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -4,7 +4,7 @@ import Observation
 
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
-    case sessions, watch, inbox, issues, prs, repos, history, log
+    case sessions, attention, watch, inbox, issues, prs, repos, history, log
     /// History as a timeline (`history.timeline`): under History's tab, not one of its own.
     case timeline
     /// History's ledger (`history.ledger`): under History's tab too.
@@ -14,8 +14,12 @@ enum AppView: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// The views the title bar lists: the call log is reached with `:log` only, the timeline from History.
-    static var tabs: [AppView] { allCases.filter { ![.log, .timeline, .ledger, .dashboard].contains($0) } }
+    /// The views the title bar lists. Attention stands for Inbox, Issues and PRs (`gm`, `gi`, `gp` open it), which
+    /// are still there as `:inbox`, `:issues` and `:prs`; the call log is reached with `:log` only, the timeline,
+    /// ledger and dashboard from History.
+    static var tabs: [AppView] {
+        allCases.filter { ![.log, .timeline, .ledger, .dashboard, .inbox, .issues, .prs].contains($0) }
+    }
 
     /// The tab that is lit while this view shows.
     var tab: AppView { [.timeline, .ledger, .dashboard].contains(self) ? .history : self }
@@ -23,6 +27,7 @@ enum AppView: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .sessions: "Sessions"
+        case .attention: "Attention"
         case .inbox: "Inbox"
         case .issues: "Issues"
         case .prs: "PRs"
@@ -180,7 +185,10 @@ final class AppModel {
     private(set) var historyCursor = 0
 
     // GitHub lists: cursor and picked ids per view
-    private(set) var itemCursor: [AppView: Int] = [:]
+    var itemCursor: [AppView: Int] = [:] {
+        didSet { if view == .attention, itemCursor[.attention] != oldValue[.attention] { attentionSelectionChanged() } }
+    }
+
     private(set) var picked: [AppView: Set<String>] = [:]
     private(set) var inboxFilter: InboxFilter = .unread
     private(set) var issueFilter: IssueFilter = .all
@@ -217,10 +225,11 @@ final class AppModel {
     var pendingKeys: String { engine.pendingDisplay }
 
     // Chrome
-    private(set) var view: AppView = .sessions {
+    var view: AppView = .sessions {
         didSet {
             updateScope()
             if view != oldValue { viewChangedForSync() }
+            if view == .attention, oldValue != .attention { attentionSelectionChanged() }
             if view == .log, oldValue != .log { callLog.opened() }
             if oldValue == .log, view != .log { callLog.closed() }
             if view == .timeline, oldValue != .timeline { timeline.opened() }
@@ -323,6 +332,8 @@ final class AppModel {
         keyProblems = built.problems
         if isFixture {
             config.issues = Fixtures.issueRules
+            config.attention.rules = Fixtures.attentionRules
+            attention.adoptFixtures()
             config.hosts = Fixtures.hosts
             config.pilot = Fixtures.pilotRules
             zmxHealth = ZmxHealth(path: "/opt/homebrew/bin/zmx", version: "0.8.1")
@@ -560,6 +571,7 @@ final class AppModel {
         switch view {
         case .inbox: [.inbox]
         case .issues: [.issues]
+        case .attention: [.inbox, .issues, .pulls]
         // Sessions show their PRs' state; Repos and History their PR numbers.
         case .sessions, .prs, .watch, .repos, .history: [.pulls]
         case .log, .timeline, .ledger, .dashboard: []
@@ -1713,6 +1725,13 @@ final class AppModel {
                 detail: [session.trackedPRs.first.map { "#\($0.number)" }, session.host.map { "@\($0)" }]
                     .compactMap(\.self).joined(separator: " ").nilIfEmpty
             )
+        case .attention:
+            guard let item = attentionSelected?.item else { return nil }
+            return TitleContext(
+                lead: item.repo?.name ?? item.kind.rawValue,
+                main: item.number.map { "#\($0)" } ?? item.kind.rawValue,
+                detail: item.title
+            )
         case .inbox:
             let rows = inboxRows
             guard rows.indices.contains(index) else { return nil }
@@ -1834,7 +1853,7 @@ final class AppModel {
         case .sessions:
             list.ordered
                 .map { HintTarget.session($0.id) } + (currentTab?.tree.panes.map { HintTarget.pane($0.id) } ?? [])
-        case .inbox, .issues, .prs, .watch: itemIDs(view).indices.map { HintTarget.row(view, $0) }
+        case .attention, .inbox, .issues, .prs, .watch: itemIDs(view).indices.map { HintTarget.row(view, $0) }
         case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
         case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
         case .log: callLog.rows.indices.map { HintTarget.row(.log, $0) }
@@ -1993,7 +2012,7 @@ final class AppModel {
         if mode == .visual {
             visualAnchor = switch view {
             case .repos: repoCursor
-            case .inbox, .issues, .prs, .watch: itemCursor[view] ?? 0
+            case .attention, .inbox, .issues, .prs, .watch: itemCursor[view] ?? 0
             default: nil
             }
         }
@@ -2167,6 +2186,14 @@ final class AppModel {
         case "view.watch": view = .watch
         case "view.repos": view = .repos
         case "view.sessions": view = .sessions
+        case "view.attention": openAttention(command.arguments.first)
+        case "attention.done": attentionDone()
+        case "attention.snooze": attentionSnooze(command.arguments.first)
+        case "attention.mute": attentionMute()
+        case "attention.reply": attentionReply()
+        case "attention.session": attentionGoToSession()
+        case "attention.filter": cycleAttentionFilter(command.arguments.first)
+        case "attention.sort": toggleAttentionSort()
         case "view.inbox": view = .inbox
         case "view.issues": view = .issues
         case "view.prs": view = .prs
@@ -2425,7 +2452,7 @@ final class AppModel {
         case .timeline: setRow(timeline.cursor + delta)
         case .ledger: setRow(ledger.cursor + delta)
         case .dashboard: setRow(dashboard.cursor + delta)
-        case .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
+        case .attention, .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
     }
@@ -2435,6 +2462,7 @@ final class AppModel {
         switch view {
         case .sessions: (list.ordered.map { sessionGroup($0).rawValue }, cursor)
         case .repos: (worktreeRows.map(\.repo.slug), repoCursor)
+        case .attention: (attentionRows.map { AttentionView.section($0.item.updatedAt) }, cursor(in: .attention))
         case .inbox: (inboxRows.map(\.repo.slug), cursor(in: .inbox))
         case .issues: (issueRows.map(\.repo.slug), cursor(in: .issues))
         case .prs: (pullRows.map(\.ref.repo.slug), cursor(in: .prs))
@@ -2458,7 +2486,7 @@ final class AppModel {
 
     private func setRow(_ index: Int) {
         if view == .watch { mergeQueueShown = nil }
-        if [.inbox, .issues, .prs, .watch].contains(view) {
+        if [.attention, .inbox, .issues, .prs, .watch].contains(view) {
             let count = itemIDs(view).count
             guard count > 0 else { return }
             itemCursor[view] = min(max(index, 0), count - 1)
@@ -2491,7 +2519,7 @@ final class AppModel {
         cursor = clamped
     }
 
-    private func select(sessionID: String) {
+    func select(sessionID: String) {
         if let index = list.ordered.firstIndex(where: { $0.id == sessionID }) { setCursor(index) }
     }
 
@@ -2757,7 +2785,7 @@ final class AppModel {
 
     private(set) var confirmation: Confirmation?
 
-    private func ask(_ confirmation: Confirmation) {
+    func ask(_ confirmation: Confirmation) {
         if mode == .insert {
             engine.enter(.normal)
             modeChanged(from: .insert)
@@ -3013,7 +3041,7 @@ final class AppModel {
     // MARK: Repos view
 
     private func toggleRow() {
-        if [.inbox, .issues, .prs, .watch].contains(view) {
+        if [.attention, .inbox, .issues, .prs, .watch].contains(view) {
             let ids = itemIDs(view)
             let index = itemCursor[view] ?? 0
             guard ids.indices.contains(index) else { return }
@@ -3766,6 +3794,7 @@ final class AppModel {
 
     func itemIDs(_ view: AppView) -> [String] {
         switch view {
+        case .attention: attentionRows.map(\.id)
         case .inbox: inboxRows.map(\.id)
         case .issues: issueRows.map(\.id)
         case .prs: pullRows.map(\.id)
@@ -3790,7 +3819,7 @@ final class AppModel {
     }
 
     /// What `s`, `a`, `m` act on: the picked items, else the one under the cursor.
-    private func actionIDs(_ view: AppView) -> [String] {
+    func actionIDs(_ view: AppView) -> [String] {
         let ids = itemIDs(view)
         let chosen = pickedIDs(view)
         // A right-click on a row that is not picked acts on that row alone, as Finder does.
@@ -3802,7 +3831,7 @@ final class AppModel {
         return ids.indices.contains(index) ? [ids[index]] : []
     }
 
-    private func clearPicks() {
+    func clearPicks() {
         picked[view] = []
         if mode == .visual {
             engine.enter(.normal)
@@ -3816,6 +3845,11 @@ final class AppModel {
         case .issues:
             let issues = github.issues.filter { ids.contains($0.id) }
             return WorkPrompt.from(issues: issues, instructions: startInstructions(issues.map(\.repo)))
+        case .attention:
+            let items = attentionRows.map(\.item).filter { ids.contains($0.id) }
+            return AttentionText.workPrompt(
+                items, issues: github.issues, instructions: startInstructions(items.compactMap(\.repo))
+            )
         case .inbox:
             let items = inboxRows.filter { ids.contains($0.id) }
             // Issues in the inbox get their full text when Issues has it.
@@ -3832,7 +3866,7 @@ final class AppModel {
     var itemsPromptPreview: String { itemsPrompt }
 
     /// The `start_instructions` of the repos work starts from, each once.
-    private func startInstructions(_ repos: [Repo]) -> String {
+    func startInstructions(_ repos: [Repo]) -> String {
         var seen: [String] = []
         for repo in repos {
             let text = config.pilot.resolve(repo).startInstructions
@@ -3886,6 +3920,7 @@ final class AppModel {
         if let ref = feedbackPull { return pullDetails[ref.description].map { _ in ref.url } ?? ref.url }
         let index = cursor(in: view)
         switch view {
+        case .attention: return attentionSelected?.item.url
         case .inbox: return inboxRows.indices.contains(index) ? inboxRows[index].url : nil
         case .issues: return issueRows.indices.contains(index) ? issueRows[index].url : nil
         case .prs: return pullRows.indices.contains(index) ? pullRows[index].url : nil
@@ -3999,6 +4034,7 @@ final class AppModel {
         switch view {
         case .sessions: return currentSession?.involvedRepos ?? []
         case .repos: return worktreeRows.indices.contains(repoCursor) ? [worktreeRows[repoCursor].repo] : []
+        case .attention: return attentionSelected?.item.repo.map { [$0] } ?? []
         case .inbox: return inboxRows.indices.contains(index) ? [inboxRows[index].repo] : []
         case .issues: return issueRows.indices.contains(index) ? [issueRows[index].repo] : []
         case .prs: return pullRows.indices.contains(index) ? [pullRows[index].ref.repo] : []
@@ -4160,12 +4196,20 @@ final class AppModel {
             guard inboxRows.indices.contains(index), inboxRows[index].kind == .pr,
                   let number = inboxRows[index].number else { return nil }
             return PullRef(repo: inboxRows[index].repo, number: number)
+        case .attention:
+            guard let item = attentionSelected?.item, item.kind == .pr, let repo = item.repo,
+                  let number = item.number else { return nil }
+            return PullRef(repo: repo, number: number)
         case .sessions: return currentSession?.trackedPRs.first
         default: return nil
         }
     }
 
     private func openReader() {
+        // An agent in Attention has no thread to read: its session is where you answer it.
+        if view == .attention, commandTarget == nil, attentionSelected?.item.kind == .agent {
+            return attentionGoToSession()
+        }
         if let id = commandTarget?.runID, let run = runs.first(where: { $0.id == id }) {
             open(run: run)
         } else if let ref = pullUnderCursor {
@@ -4218,6 +4262,16 @@ final class AppModel {
                     repo: item.repo, number: number, title: item.title,
                     url: item.url ?? "https://github.com/\(item.repo.slug)/issues/\(number)", body: "", labels: [],
                     author: nil, updatedAt: item.updatedAt
+                )
+        case .attention:
+            guard let item = attentionSelected?.item, item.kind == .issue, let repo = item.repo,
+                  let number = item.number else { return nil }
+            return github.issues.first { $0.repo == repo && $0.number == number }
+                ?? Issue(
+                    repo: repo, number: number, title: item.title,
+                    url: item.url ?? "https://github.com/\(repo.slug)/issues/\(number)",
+                    body: detail(of: item)?.body ?? "", labels: item.labels, author: item.author,
+                    updatedAt: item.updatedAt
                 )
         default: return nil
         }
@@ -5894,7 +5948,7 @@ final class AppModel {
         case .ledger: ledger.setCursor(0)
         case .dashboard: dashboard.setCursor(0)
         case .repos: repoCursor = 0
-        case .inbox, .issues, .prs, .watch: itemCursor[view] = 0
+        case .attention, .inbox, .issues, .prs, .watch: itemCursor[view] = 0
         }
     }
 
@@ -5908,7 +5962,7 @@ final class AppModel {
         case .ledger: ledger.rows.count
         case .dashboard: dashboard.board.recent.count
         case .repos: worktreeRows.count
-        case .inbox, .issues, .prs, .watch: itemIDs(view).count
+        case .attention, .inbox, .issues, .prs, .watch: itemIDs(view).count
         }
     }
 
@@ -5999,6 +6053,11 @@ final class AppModel {
             }
         case .log, .timeline, .ledger, .dashboard:
             return nil
+        case .attention:
+            let ids = Set(actionIDs(.attention))
+            return items(attentionRows.map(\.item).filter { ids.contains($0.id) }.compactMap { item in
+                item.repo.map { ($0, item.number.map { "\($0)" }.map { "\(item.repo!.name)#\($0)" } ?? $0.name) }
+            })
         case .inbox:
             let ids = Set(actionIDs(.inbox))
             return items(inboxRows.filter { ids.contains($0.id) }.map { item in
@@ -6850,6 +6909,7 @@ final class AppModel {
         var state = TutorState()
         state.mode = mode
         state.view = view.rawValue
+        state.attentionFilter = attention.filter.rawValue
         switch view {
         case .sessions:
             state.cursor = cursor
@@ -6872,7 +6932,7 @@ final class AppModel {
         case .dashboard:
             state.cursor = dashboard.cursor
             state.rows = dashboard.board.recent.count
-        case .inbox, .issues, .prs, .watch:
+        case .attention, .inbox, .issues, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count
         }

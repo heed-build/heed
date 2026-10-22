@@ -42,6 +42,8 @@ public struct TutorState: Equatable, Sendable {
     /// Items picked (space) in the current view.
     public var picked = 0
     public var unread = 0
+    /// Attention's filter (`needs`, `muted`, ...).
+    public var attentionFilter = ""
     /// The open PR's feedback items by stage, and deliveries waiting for an idle agent.
     public var queued = 0
     public var sent = 0

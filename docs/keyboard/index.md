@@ -10,7 +10,7 @@ in INSERT your keys go to the focused terminal.
 
 ## Sequences
 
-Many commands are two keys: `g` then a letter for views (`gm` Inbox), `⌃w` then a letter for panes (`⌃w v` split).
+Many commands are two keys: `g` then a letter for views (`gm` Attention), `⌃w` then a letter for panes (`⌃w v` split).
 Press the first key and wait: a panel at the bottom lists every key that can follow, and what it does.
 
 ![After g: every key that can follow, and what it does](../images/shots/keyboard/leader.png)
@@ -27,7 +27,7 @@ Single keys are kept for what you do many times an hour; anything rarer is two k
 | `⌃d` `⌃u`, `{` `}` | Half a page; the previous or next group (a sidebar group, a repo, a day) |
 | `↩` `o` `i` `v` `x` `m` | Open, start work, type into the agent, select, done with it, pin |
 | `r` | Refresh the view you are in |
-| `g…` | Go somewhere: views (`gm` Inbox), overlays (`go`, `gd`), tabs (`gt`), the browser (`gB`, `gl`), the repo on GitHub (`gR`), the running run (`gb`) |
+| `g…` | Go somewhere: views (`gm` Attention), overlays (`go`, `gd`), tabs (`gt`), the browser (`gB`, `gl`), the repo on GitHub (`gR`), the running run (`gb`) |
 | `z…` | Toggles: `zz` park, `zi` inspector, `zs` sidebar; the pilot's `zw` watch, `zg` green, `zm` merge, `zp` pause, `z?` why, `zx` stop the run |
 | `'…` | Jump to a pin (`'1`–`'9`), or back (`''`) |
 | `]…` `[…` | Next or previous of a kind: `]p` PR, `]f` file |

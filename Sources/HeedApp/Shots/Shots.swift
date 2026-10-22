@@ -104,14 +104,14 @@ enum Shots {
         Shot(id: "landing/start-work", chrome: false, keys: "o" + typed("Fix broken anchors in the redirect pages")),
         Shot(id: "landing/agents", subject: .settings(.agents), size: CGSize(width: 1100, height: 700)),
         Shot(id: "landing/keys", chrome: false, keys: "?"),
-        Shot(id: "landing/prs", chrome: false, keys: "gp"),
+        Shot(id: "landing/prs", chrome: false, keys: ":prs<CR>"),
         Shot(id: "landing/green", chrome: false, keys: "gw"),
         Shot(id: "landing/merged", chrome: false, keys: "gw/anchors<CR>"),
         Shot(id: "landing/worktrees", chrome: false, keys: "gr4jvj"),
         Shot(id: "landing/resume", chrome: false, prepare: { $0.showResumeForFixture() }),
         Shot(id: "landing/hosts", chrome: false, keys: "G"),
         Shot(id: "landing/diff", chrome: false, keys: "gd"),
-        Shot(id: "landing/inbox", chrome: false, keys: "gm<Space>j<Space>"),
+        Shot(id: "landing/inbox", chrome: false, keys: ":inbox<CR><Space>j<Space>"),
     ]
 
     /// The docs' home page.
@@ -194,8 +194,8 @@ enum Shots {
         Shot(id: "start-work/branch-name", keys: "o" + prompt + "<Esc>jj", crop: .dialog),
         Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjj", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
-        Shot(id: "start-work/from-github-picked", keys: "gi<Space>j<Space>", highlight: [.list, .pickedPanel]),
-        Shot(id: "start-work/from-github-dialog", keys: "gi<Space>j<Space>s", crop: .dialog),
+        Shot(id: "start-work/from-github-picked", keys: ":issues<CR><Space>j<Space>", highlight: [.list, .pickedPanel]),
+        Shot(id: "start-work/from-github-dialog", keys: ":issues<CR><Space>j<Space>s", crop: .dialog),
         Shot(id: "start-work/again", keys: "ghO", crop: .dialog),
         Shot(
             id: "start-work/on-a-host", keys: "o" + typed("Fix the flaky link checker in docs-builder") + "<C-n>",
@@ -271,22 +271,26 @@ enum Shots {
         Shot(id: "watch/inspector", crop: .inspector),
         // `z?`: what heed will do for the PR, and what holds it back.
         Shot(id: "watch/explain", keys: "gw/anchors<CR>z?", crop: .dialog),
-        Shot(id: "watch/prs", keys: "gp", crop: .list),
+        Shot(id: "watch/prs", keys: ":prs<CR>", crop: .list),
     ]
 
     static let github: [Shot] = [
-        Shot(id: "github/offline", keys: "gm", highlight: [.syncBanner], prepare: { model in
+        Shot(id: "github/offline", keys: ":inbox<CR>", highlight: [.syncBanner], prepare: { model in
             var state = model.github
             state.status = .offline("gh: could not resolve host api.github.com")
             model.commit(.githubSynced(state))
         }),
-        Shot(id: "github/inbox", keys: "gm", highlight: [.chips]),
-        Shot(id: "github/inbox-rows", size: short, keys: "gm", crop: .list),
-        Shot(id: "github/issues", keys: "gi", highlight: [.issueRepos, .chips]),
-        Shot(id: "github/issue-rows", size: short, keys: "gi", crop: .list),
-        Shot(id: "github/prs", keys: "gp"),
-        Shot(id: "github/reader-pr", keys: "gpgo"),
-        Shot(id: "github/reader-issue", size: CGSize(width: 1200, height: 420), keys: "gigo", crop: .reader),
+        Shot(id: "github/attention", keys: "gm", highlight: [.attentionFilters]),
+        Shot(id: "github/attention-detail", keys: "gm/2845<CR>", crop: .attentionDetail),
+        Shot(id: "github/attention-muted", keys: "gm" + String(repeating: "t", count: 7)),
+        Shot(id: "github/attention-reply", keys: "gm/2845<CR>R", crop: .confirm),
+        Shot(id: "github/inbox", keys: ":inbox<CR>", highlight: [.chips]),
+        Shot(id: "github/inbox-rows", size: short, keys: ":inbox<CR>", crop: .list),
+        Shot(id: "github/issues", keys: ":issues<CR>", highlight: [.issueRepos, .chips]),
+        Shot(id: "github/issue-rows", size: short, keys: ":issues<CR>", crop: .list),
+        Shot(id: "github/prs", keys: ":prs<CR>"),
+        Shot(id: "github/reader-pr", keys: ":prs<CR>go"),
+        Shot(id: "github/reader-issue", size: CGSize(width: 1200, height: 420), keys: ":issues<CR>go", crop: .reader),
         Shot(id: "github/feedback", keys: "go", prepare: withGreenInstructions),
         Shot(id: "github/delivery", keys: "go", crop: .delivery),
         Shot(id: "github/prompt", keys: "go", crop: .promptPreview, prepare: withGreenInstructions),
@@ -400,7 +404,7 @@ enum Shots {
         Shot(id: "keyboard/leader", keys: "g", crop: .leaderHints),
         Shot(id: "keyboard/view-tabs", crop: .viewTabs, cropPadding: 8),
         Shot(id: "keyboard/hints-sessions", keys: "f"),
-        Shot(id: "keyboard/hints-list", size: short, keys: "gif", crop: .list),
+        Shot(id: "keyboard/hints-list", size: short, keys: ":issues<CR>f", crop: .list),
         Shot(id: "keyboard/command-line", keys: ":vie", crop: .commandLine),
         Shot(id: "keyboard/visual", size: short, keys: "grvjj", crop: .worktreeTable),
     ]

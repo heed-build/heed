@@ -26,6 +26,8 @@ struct MainWindow: View {
                         ReposView()
                     case .history:
                         HistoryView()
+                    case .attention:
+                        AttentionView()
                     case .inbox:
                         InboxView()
                     case .issues:
@@ -179,6 +181,7 @@ struct TitleBar: View {
     /// Unread inbox items; PRs that need you.
     private func badge(_ view: AppView) -> Int {
         switch view {
+        case .attention: model.attentionCounts[.needsMe] ?? 0
         case .inbox: model.github.inbox.count(where: \.unread)
         case .prs: model.github.pullsNeedingAttention
         default: 0
@@ -186,7 +189,7 @@ struct TitleBar: View {
     }
 
     @ViewBuilder private var syncStatus: some View {
-        if model.view == .inbox || model.view == .issues || model.view == .prs {
+        if [.attention, .inbox, .issues, .prs].contains(model.view) {
             Group {
                 if model.syncing {
                     Text("syncing…")
@@ -358,7 +361,7 @@ struct StatusBar: View {
 
     private var position: String {
         switch model.view {
-        case .inbox, .issues, .prs, .watch:
+        case .attention, .inbox, .issues, .prs, .watch:
             let count = model.itemIDs(model.view).count
             return "\(count == 0 ? 0 : model.cursor(in: model.view) + 1)/\(count)"
         case .repos: return "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
@@ -458,6 +461,12 @@ struct StatusBar: View {
                 ("log.copy", "copy"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "log")) \($0.1)" }.joined(separator: " · ") + " · / search"
+        case .normal where model.view == .attention:
+            [
+                ("attention.done", "done"), ("attention.snooze", "snooze"), ("attention.mute", "mute"),
+                ("attention.reply", "reply"), ("attention.session", "session"), ("attention.filter", "filter"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "attention")) \($0.1)" }.joined(separator: " · ") + " · / search"
         case .normal where model.view == .inbox: "↩ read · space pick · v range · s start session · a add · x mark read · t unread/all · / filter"
         case .normal where model.view == .issues: "↩ read · space pick · s start session · t filter · ⇥ repo · w all/yours · / filter"
         case .normal where model.view == .prs: "↩ open · \(pilotHints) · v select · gS session · r sync"

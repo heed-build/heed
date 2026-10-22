@@ -43,8 +43,8 @@ public extension Tutor {
         ) { start, now, _ in now.panes > start.panes },
         TutorStep(
             "Views",
-            say: "Each view is g and a letter: {view.watch} Watch, {view.inbox} Inbox, {view.prs} PRs, {view.repos} Repos. Visit two, then {view.sessions} comes home.",
-            keys: ["{view.watch}", "{view.prs}", "{view.sessions}"], target: "viewTabs",
+            say: "Each view is g and a letter: {view.attention} Attention, {view.watch} Watch, {view.repos} Repos. Visit two, then {view.sessions} comes home.",
+            keys: ["{view.watch}", "{view.attention}", "{view.sessions}"], target: "viewTabs",
             doneLine: "Views stay where you left them: switching back finds the same row."
         ) { _, now, seen in Set(seen.map(\.view)).count >= 3 && now.view == "sessions" },
         TutorStep(
@@ -117,6 +117,28 @@ public extension Tutor {
                 keys: ["{chat.new}", "⌘↩"], target: "dialog",
                 doneLine: "A chat, under Chats in the sidebar. If it asks you something, it shows in Needs you."
             ) { start, now, _ in now.chats > start.chats },
+        ]),
+        TutorLesson(id: "attention", title: "Attention", minutes: 3, world: .mondayMorning, steps: [
+            TutorStep(
+                "Why it is here",
+                say: "Every item says why it wants you; on the right, its summary and the rule that matched. {attention.filter} goes through the filters on the left: go to Muted.",
+                keys: ["{attention.filter}"], target: "attentionFilters",
+                doneLine: "Muted keeps what rules ignore and what you muted, for 30 days."
+            ) { _, now, _ in now.attentionFilter == "muted" },
+            TutorStep(
+                "Done",
+                say: "{attention.filter} once more is Needs me again. {attention.done} is done with the item under the cursor.",
+                keys: ["{attention.filter}", "{attention.done}"], target: "list",
+                doneLine: "Read on GitHub too. It comes back when something new happens in it."
+            ) { _, now, seen in
+                now.attentionFilter == "needs" && seen.contains { $0.attentionFilter == "needs" && $0.rows > now.rows }
+            },
+            TutorStep(
+                "Later",
+                say: "{attention.snooze} snoozes the item for three hours (:attention.snooze tomorrow for longer).",
+                keys: ["{attention.snooze}"], target: "list",
+                doneLine: "Snoozing stays in heed. {attention.mute} mutes a thread on GitHub itself."
+            ) { start, now, _ in now.rows < start.rows },
         ]),
         TutorLesson(id: "inbox", title: "Inbox", minutes: 2, world: .prStorm, steps: [
             TutorStep(

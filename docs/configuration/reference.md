@@ -144,6 +144,10 @@ dock_state = true
 enabled = true
 asking = true
 blocked = true
+# Only once it has needed you this long, so a prompt that clears itself stays quiet; 0 notifies at once.
+grace_seconds = 30
+# One reminder if it still needs you this long after the notification, then nothing until it comes back; 0: none.
+reminder_minutes = 15
 
 [summary]
 # While you were away: what still waits on you, then what merged, how background runs ended, which agents

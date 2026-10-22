@@ -321,7 +321,7 @@ enum Shots {
         Shot(id: "configuration/problem", keys: "", crop: .statusBar, cropPadding: 0, prepare: { model in
             model.applyConfig(source: "[cleanup]\nidle_days = 0\n")
         }),
-        Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 900, height: 1180)),
+        Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 900, height: 1300)),
         Shot(id: "configuration/orgs-repos", subject: .settings(.colors), size: CGSize(width: 1180, height: 1400)),
     ]
 

@@ -9,10 +9,16 @@ notification: the session's title, the state and why ("Blocked: Bash(rm -rf buil
 Nothing is posted for the session you are looking at, with Heed in front. macOS asks whether Heed may notify the first
 time there is something to say, not when Heed starts; System Settings › Notifications changes your answer later.
 
+- **After a grace.** A session notifies only once it has needed you for `grace_seconds` (30 by default), so a prompt
+  that clears itself, or that you answer straight away, is never shown. States Heed guessed from the screen wait the
+  same grace as the ones an agent's hooks reported. `grace_seconds = 0` notifies at once.
 - **One per change.** A session gets one notification when it enters a state, not one per hook call while it stays
   there. Once it moves on, its notification is taken out of Notification Center.
-- **Bursts come as one.** Changes within a few seconds of each other become a single notification ("3 sessions need
-  you") listing them, blocked first. A prompt that clears within those seconds is never shown.
+- **Bursts come as one.** Sessions whose grace ends within a few seconds of each other become a single notification
+  ("3 sessions need you") listing them, blocked first.
+- **One reminder.** A session still waiting `reminder_minutes` (15 by default) after its notification gets one more
+  ("Still blocked: …"), then nothing until it moves on and comes back. `reminder_minutes = 0` sends none. A session
+  you were looking at when it would have notified counts as notified: it gets the reminder if you leave it waiting.
 - **Open** (or clicking the notification) brings Heed forward on the session.
 - **Allow**, on a Claude permission prompt, answers it with yes without leaving the app you are in. Heed presses Return
   only while the session is still blocked and its screen shows Claude's prompt with the cursor on `1. Yes`; otherwise
@@ -24,6 +30,8 @@ time there is something to say, not when Heed starts; System Settings › Notifi
 enabled = true
 asking = true      # questions, a plan to approve
 blocked = true     # permission prompts
+grace_seconds = 30
+reminder_minutes = 15
 ```
 
-The same switches are in Settings (`⌘,`), under Outside the window.
+The same settings are in Settings (`⌘,`), under Outside the window.

@@ -300,6 +300,35 @@ private struct GeneralSettings: View {
                     .disabled(!model.config.notifications.enabled)
                 }
             }
+            Field(
+                label: "Grace",
+                detail: "How long a session must keep needing you before it notifies, so a prompt that clears itself "
+                    + "stays quiet. 0 notifies at once."
+            ) {
+                Stepper(value: Binding(
+                    get: { model.config.notifications.graceSeconds },
+                    set: { model.setConfig(["notifications", "grace_seconds"], .integer($0)) }
+                ), in: 0 ... 3600, step: 5) {
+                    Text("\(model.config.notifications.graceSeconds)s").font(Theme.mono(12.5))
+                }
+                .frame(width: 160)
+                .disabled(!model.config.notifications.enabled)
+            }
+            Field(
+                label: "Reminder",
+                detail: "One more notification if it still needs you this long after the first, then none until it "
+                    + "comes back."
+            ) {
+                Stepper(value: Binding(
+                    get: { model.config.notifications.reminderMinutes },
+                    set: { model.setConfig(["notifications", "reminder_minutes"], .integer($0)) }
+                ), in: 0 ... 1440, step: 5) {
+                    let minutes = model.config.notifications.reminderMinutes
+                    Text(minutes == 0 ? "Off" : "\(minutes) min").font(Theme.mono(12.5))
+                }
+                .frame(width: 160)
+                .disabled(!model.config.notifications.enabled)
+            }
             GroupLabel(title: "GitHub")
             Field(label: "GitHub poll", detail: "Seconds between gh syncs.") {
                 Stepper(value: Binding(

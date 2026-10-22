@@ -362,6 +362,7 @@ private struct GeneralSettings: View {
                 .labelsHidden()
                 .frame(width: 220)
             }
+            CallLogSettings()
             GroupLabel(title: "Tools")
             Field(label: "git", detail: "Empty detects it. A path, or a name looked up on the search path.") {
                 ConfigTextField(path: ["tools", "git"], value: model.config.tools.git)
@@ -937,5 +938,49 @@ private struct DurationPicker: View {
         }
         .labelsHidden()
         .frame(width: 200)
+    }
+}
+
+/// `[log]`: how long the call log (`:log`) keeps each kind of call, and how many rows at most.
+private struct CallLogSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let log = model.config.log
+        GroupLabel(title: "Call log")
+        days("Commands", "Every command heed runs (git, zmx, a check on a host).", "shell_days", log.shellDays)
+        days(
+            "GitHub reads",
+            "Syncs and the PRs' details: many a day, seldom needed long.",
+            "github_read_days",
+            log.githubReadDays
+        )
+        days(
+            "GitHub writes",
+            "Merges, comments, review requests: what heed changed on GitHub.",
+            "github_write_days",
+            log.githubWriteDays
+        )
+        days("Model runs", "Summaries and other cheap-model runs, with their tokens and cost.", "llm_days", log.llmDays)
+        days("Decisions", "What heed decided, and how sure it was.", "decide_days", log.decideDays)
+        Field(label: "At most", detail: "Rows of each kind, newest kept, whatever their age.") {
+            Stepper(value: Binding(
+                get: { log.maxRows }, set: { model.setConfig(["log", "max_rows"], .integer($0)) }
+            ), in: 1000 ... 1_000_000, step: 10000) {
+                Text("\(Counts.text(log.maxRows)) rows").font(Theme.mono(12.5))
+            }
+            .frame(width: 200)
+        }
+    }
+
+    private func days(_ label: String, _ detail: String, _ key: String, _ value: Int) -> some View {
+        Field(label: label, detail: detail) {
+            Stepper(value: Binding(
+                get: { value }, set: { model.setConfig(["log", key], .integer($0)) }
+            ), in: 1 ... 365) {
+                Text("\(value) day\(value == 1 ? "" : "s")").font(Theme.mono(12.5))
+            }
+            .frame(width: 160)
+        }
     }
 }

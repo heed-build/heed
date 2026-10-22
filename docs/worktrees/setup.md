@@ -45,10 +45,10 @@ Approving writes the commands to `config.toml`; never writes an empty list. Set 
 Orgs & repos, per repo or for a whole org:
 
 ```toml
-[repos."elastic/docs-builder"]
+[repos."acme/docs-toolkit"]
 setup = ["pnpm install", "pnpm build:icons"]
 
-[orgs.elastic]
+[orgs.acme]
 setup = []          # no setup, and no proposals, for the org's repos that do not set their own
 ```
 

@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 struct HeedMergeTests {
-    private let ref = PullRef(repo: Repo(org: "nullean", name: "heed"), number: 7)
+    private let ref = PullRef(repo: Repo(org: "globex", name: "heed"), number: 7)
     private let now = Date(timeIntervalSince1970: 2_000_000)
     private let head = "abc1234def"
 

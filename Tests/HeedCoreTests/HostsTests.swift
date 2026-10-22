@@ -5,13 +5,13 @@ import Testing
 struct HostsTests {
     @Test func sshCommandsShareAConnectionAndNeverPrompt() {
         let args = Remote.sshArguments(
-            host: "devbox", command: ["git", "-C", "~/code/docs-builder", "status"], controlDirectory: "/c",
+            host: "devbox", command: ["git", "-C", "~/code/docs-toolkit", "status"], controlDirectory: "/c",
             target: "martijn@devbox.lan"
         )
         #expect(args.contains("BatchMode=yes"))
         #expect(args.contains("ControlMaster=auto"))
         #expect(args.contains("ControlPath=/c/%C"))
-        #expect(args.suffix(3) == ["martijn@devbox.lan", "--", #"git -C "$HOME"/code/docs-builder status"#])
+        #expect(args.suffix(3) == ["martijn@devbox.lan", "--", #"git -C "$HOME"/code/docs-toolkit status"#])
         #expect(Remote.shellLine(["echo", "it's", "~"]) == #"echo 'it'\''s' "$HOME""#)
     }
 
@@ -75,20 +75,20 @@ struct HostsTests {
 
     @Test func theScanFindsMainCheckouts() {
         #expect(RemoteScan.findArguments(roots: ["~/code"]).prefix(3) == ["~/code", "-maxdepth", "3"])
-        let output = "/home/m/code/docs-builder/.git\n/home/m/code/docs/.git\nfind: '/home/m/src': No such file\n"
-        #expect(RemoteScan.checkouts(fromFind: output) == ["/home/m/code/docs-builder", "/home/m/code/docs"])
+        let output = "/home/m/code/docs-toolkit/.git\n/home/m/code/docs/.git\nfind: '/home/m/src': No such file\n"
+        #expect(RemoteScan.checkouts(fromFind: output) == ["/home/m/code/docs-toolkit", "/home/m/code/docs"])
     }
 
     @Test func theSameRepoOnTwoMachinesIsTwoRecordsAndListingsStayApart() {
-        let repo = Repo(org: "elastic", name: "docs-builder")
-        let local = RepoRecord(repo: repo, path: "/Users/m/code/docs-builder")
-        let remote = RepoRecord(repo: repo, path: "/home/m/code/docs-builder", location: .host("devbox"))
-        #expect(local.id == "elastic/docs-builder")
-        #expect(remote.id == "elastic/docs-builder@devbox")
+        let repo = Repo(org: "acme", name: "docs-toolkit")
+        let local = RepoRecord(repo: repo, path: "/Users/m/code/docs-toolkit")
+        let remote = RepoRecord(repo: repo, path: "/home/m/code/docs-toolkit", location: .host("devbox"))
+        #expect(local.id == "acme/docs-toolkit")
+        #expect(remote.id == "acme/docs-toolkit@devbox")
         var domain = Domain()
         domain.apply(.worktreesListed(
             repo: repo,
-            [Worktree(repo: repo, path: "/Users/m/code/docs-builder", branch: "main", head: "a", isMain: true)]
+            [Worktree(repo: repo, path: "/Users/m/code/docs-toolkit", branch: "main", head: "a", isMain: true)]
         ))
         let there = Worktree(
             repo: repo,

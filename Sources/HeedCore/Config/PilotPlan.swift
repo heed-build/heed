@@ -123,7 +123,7 @@ public enum PilotPlan {
         public let origin: String
 
         public var isDefault: Bool { origin == "default" }
-        /// `agent: codex (org elastic)`.
+        /// `agent: codex (org acme)`.
         public var line: String { "\(key): \(value) (\(origin))" }
     }
 
@@ -200,7 +200,7 @@ public enum PilotPlan {
         public let value: String
         public let detail: String
         public let tone: Tone
-        /// `default`, or the non-default sources joined (`org elastic · repo`).
+        /// `default`, or the non-default sources joined (`org acme · repo`).
         public let origin: String
 
         public var isDefault: Bool { origin == "default" }

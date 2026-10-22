@@ -5,7 +5,7 @@ import Testing
 /// Starting a chat: `chat.new` and the chat chip in Start work, the folder it makes, and where it is listed.
 @Suite(.serialized)
 struct ChatStartTests {
-    private let records = ["docs-builder", "mermaider"].map {
+    private let records = ["docs-toolkit", "markgraph"].map {
         RepoRecord(repo: Repo(org: "o", name: $0), path: "/code/\($0)", defaultBranch: "main")
     }
 
@@ -47,11 +47,11 @@ struct ChatStartTests {
 
     @Test func chatNewOpensOnAScratchChatWithNoRepo() {
         var form = StartWorkForm(repos: records, settings: .default, chat: true)
-        type("mermaider arrows question", into: &form)
+        type("markgraph arrows question", into: &form)
         // A chat has no repo to guess, even when the prompt names one.
         #expect(form.selectedRepos.isEmpty)
         #expect(form.chat?.kind == .scratch)
-        #expect(form.name.hasSuffix("-mermaider-arrows-question"))
+        #expect(form.name.hasSuffix("-markgraph-arrows-question"))
         guard case let .start(plan) = form.handle(KeyStroke("CR", .command)) else {
             Testing.Issue.record("expected start")
             return
@@ -60,13 +60,13 @@ struct ChatStartTests {
         #expect(plan.chat?.kind == .scratch)
         #expect(plan.chat?.name == form.name)
         #expect(plan.location == .local)
-        #expect(plan.command?.posix == "claude 'mermaider arrows question'")
+        #expect(plan.command?.posix == "claude 'markgraph arrows question'")
     }
 
     @Test func theChatChipTurnsStartWorkIntoAChatAndARepoTurnsItBack() {
         var form = StartWorkForm(repos: records, settings: .default)
-        type("mermaider arrows", into: &form)
-        #expect(form.selectedRepos == ["o/mermaider"])
+        type("markgraph arrows", into: &form)
+        #expect(form.selectedRepos == ["o/markgraph"])
         press("Esc", "j", into: &form)
         // Two repos, the search chip, then the chat chip.
         #expect(form.chatChipIndex == 3)
@@ -77,7 +77,7 @@ struct ChatStartTests {
         press("h", "h", "h", "Space", into: &form)
         #expect(form.chat == nil)
         // The repo picked, alone, even the one that was guessed before.
-        #expect(form.selectedRepos == ["o/mermaider"])
+        #expect(form.selectedRepos == ["o/markgraph"])
     }
 
     @Test func aPickedFolderAndAHostAreChosenInTheFolderField() {

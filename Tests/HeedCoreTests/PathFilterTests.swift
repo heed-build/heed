@@ -7,8 +7,8 @@ struct PathFilterTests {
 
     @Test func pathsSplitAtTheLongestRootTheyLiveUnder() {
         let split = { Paths.split($0, roots: roots, home: home) }
-        #expect(split("/Users/you/code/wt/docs-builder/fix-x") == ("~/code/wt/", "docs-builder/fix-x"))
-        #expect(split("/Users/you/code/elastic/kibana") == ("~/code/", "elastic/kibana"))
+        #expect(split("/Users/you/code/wt/docs-toolkit/fix-x") == ("~/code/wt/", "docs-toolkit/fix-x"))
+        #expect(split("/Users/you/code/acme/kibana") == ("~/code/", "acme/kibana"))
         #expect(split("/Users/you/Projects/heed") == ("~/Projects/", "heed"))
         // Outside every root: relative to the home folder.
         #expect(split("/Users/you/.supacode/repos/mermaid/feature/erd") == (
@@ -19,9 +19,9 @@ struct PathFilterTests {
     }
 
     @Test func aRootsOwnWordsNoLongerMatch() {
-        let relative = Paths.split("/Users/you/code/wt/docs-builder/fix-x", roots: roots, home: home).relative
-        #expect(!FilterQuery.matches("code", ["elastic/docs-builder", "fix/x", relative]))
-        #expect(FilterQuery.matches("fix", ["elastic/docs-builder", "fix/x", relative]))
+        let relative = Paths.split("/Users/you/code/wt/docs-toolkit/fix-x", roots: roots, home: home).relative
+        #expect(!FilterQuery.matches("code", ["acme/docs-toolkit", "fix/x", relative]))
+        #expect(FilterQuery.matches("fix", ["acme/docs-toolkit", "fix/x", relative]))
     }
 
     @Test func rangesFindEveryOccurrenceOfEveryWord() {

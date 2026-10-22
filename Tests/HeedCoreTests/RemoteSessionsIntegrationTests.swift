@@ -73,13 +73,13 @@ struct RemoteSessionsIntegrationTests {
 
         // The pane command, for the pseudo-terminal check.
         let command = RemotePane.command(
-            host: "box", pane: "rp1", directory: "~/code/docs-builder", sessionID: "s-42", zmx: zmx
+            host: "box", pane: "rp1", directory: "~/code/docs-toolkit", sessionID: "s-42", zmx: zmx
         )
         try command.write(toFile: "\(setup.dir)/pane-command.sh", atomically: true, encoding: .utf8)
         let plain = RemotePane.command(
             host: "box",
             pane: "rp2",
-            directory: "~/code/docs-builder",
+            directory: "~/code/docs-toolkit",
             sessionID: "s-42",
             zmx: nil
         )

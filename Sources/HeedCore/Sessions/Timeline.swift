@@ -92,7 +92,7 @@ public struct TimelineFilter: Equatable, Sendable {
     }
 
     public mutating func cycleRepo(among repos: [String], named: String? = nil) {
-        // A name may be the repo's own (`docs-builder`) or its slug.
+        // A name may be the repo's own (`docs-toolkit`) or its slug.
         let slug = named.map { name in repos.first { $0 == name || $0.hasSuffix("/" + name) } ?? name }
         repo = Self.next(repo, in: repos, named: slug)
     }

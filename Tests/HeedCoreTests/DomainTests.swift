@@ -2,35 +2,35 @@ import Foundation
 @testable import HeedCore
 import Testing
 
-private let repo = Repo(org: "elastic", name: "docs-builder")
+private let repo = Repo(org: "acme", name: "docs-toolkit")
 
 struct GitParsingTests {
     @Test func remotes() {
-        #expect(Git.parseRemote("git@github.com:elastic/docs-builder.git") == repo)
-        #expect(Git.parseRemote("https://github.com/elastic/docs-builder") == repo)
-        #expect(Git.parseRemote("https://github.com/elastic/docs-builder.git\n") == repo)
-        #expect(Git.parseRemote("ssh://git@github.com/elastic/docs-builder.git") == repo)
+        #expect(Git.parseRemote("git@github.com:acme/docs-toolkit.git") == repo)
+        #expect(Git.parseRemote("https://github.com/acme/docs-toolkit") == repo)
+        #expect(Git.parseRemote("https://github.com/acme/docs-toolkit.git\n") == repo)
+        #expect(Git.parseRemote("ssh://git@github.com/acme/docs-toolkit.git") == repo)
         #expect(Git.parseRemote("nonsense") == nil)
     }
 
     @Test func worktreeList() {
         let porcelain = """
-        worktree /code/docs-builder
+        worktree /code/docs-toolkit
         HEAD 1234567890abcdef
         branch refs/heads/main
 
-        worktree /code/wt/docs-builder/fix-anchors
+        worktree /code/wt/docs-toolkit/fix-anchors
         HEAD abcdef1234567890
         branch refs/heads/fix-anchors
 
-        worktree /code/wt/docs-builder/detached
+        worktree /code/wt/docs-toolkit/detached
         HEAD 0000000000000000
         detached
 
         """
         let worktrees = Git.parseWorktrees(porcelain, repo: repo)
         #expect(worktrees.map(\.path) == [
-            "/code/docs-builder", "/code/wt/docs-builder/fix-anchors", "/code/wt/docs-builder/detached",
+            "/code/docs-toolkit", "/code/wt/docs-toolkit/fix-anchors", "/code/wt/docs-toolkit/detached",
         ])
         #expect(worktrees.map(\.isMain) == [true, false, false])
         #expect(worktrees.map(\.branch) == ["main", "fix-anchors", nil])
@@ -47,7 +47,7 @@ struct GitParsingTests {
         branch refs/heads/feature/erd
 
         """
-        let worktrees = Git.parseWorktrees(porcelain, repo: Repo(org: "nullean", name: "mermaider"))
+        let worktrees = Git.parseWorktrees(porcelain, repo: Repo(org: "globex", name: "markgraph"))
         #expect(worktrees.map(\.path) == ["/code/mermaid-dotnet/feature/erd"])
         #expect(worktrees.map(\.isMain) == [false])
     }
@@ -92,17 +92,17 @@ struct StartWorkTests {
     }
 
     @Test func guessesNamedReposFirstWithReasons() {
-        let records = ["docs-builder", "docs-content", "mermaider"].map {
-            RepoRecord(repo: Repo(org: "elastic", name: $0), path: "/code/\($0)")
+        let records = ["docs-toolkit", "docs-website", "markgraph"].map {
+            RepoRecord(repo: Repo(org: "acme", name: $0), path: "/code/\($0)")
         }
         let now = Date()
         let guesses = StartWork.guessRepos(
-            for: "Redirects in docs-content need the matching entries", in: records,
-            lastWorked: ["elastic/docs-builder": now.addingTimeInterval(-3600)], now: now
+            for: "Redirects in docs-website need the matching entries", in: records,
+            lastWorked: ["acme/docs-toolkit": now.addingTimeInterval(-3600)], now: now
         )
-        #expect(guesses.first?.repo.repo.name == "docs-content")
-        #expect(guesses.first?.reason.contains("Prompt names docs-content") == true)
-        #expect(guesses[1].repo.repo.name == "docs-builder")
+        #expect(guesses.first?.repo.repo.name == "docs-website")
+        #expect(guesses.first?.reason.contains("Prompt names docs-website") == true)
+        #expect(guesses[1].repo.repo.name == "docs-toolkit")
         #expect(guesses[1].reason.contains("You worked here") == true)
         #expect(guesses.last?.confidence == 0)
     }
@@ -142,15 +142,15 @@ struct StartWorkTests {
     }
 
     @Test func guessesKeepHostsApartAndSayWhereARepoIs() {
-        let repo = Repo(org: "elastic", name: "docs-builder")
-        let local = RepoRecord(repo: repo, path: "/code/docs-builder")
-        let remote = RepoRecord(repo: repo, path: "/home/me/code/docs-builder", location: .host("devbox"))
+        let repo = Repo(org: "acme", name: "docs-toolkit")
+        let local = RepoRecord(repo: repo, path: "/code/docs-toolkit")
+        let remote = RepoRecord(repo: repo, path: "/home/me/code/docs-toolkit", location: .host("devbox"))
         var ran = Session(title: "x", repos: [repo], branch: "x", agent: "claude", state: ObservedState(.done))
         ran.host = "devbox"
         let lastWorked = StartWork.lastWorked(sessions: [ran])
-        #expect(lastWorked.keys.sorted() == ["elastic/docs-builder@devbox"])
+        #expect(lastWorked.keys.sorted() == ["acme/docs-toolkit@devbox"])
         let guesses = StartWork.guessRepos(for: "tidy things", in: [local, remote], lastWorked: lastWorked)
-        #expect(guesses.first?.repo.id == "elastic/docs-builder@devbox")
+        #expect(guesses.first?.repo.id == "acme/docs-toolkit@devbox")
         #expect(guesses.first?.reason.contains("You worked here") == true)
         #expect(guesses.first?.reason.contains("On @devbox.") == true)
         #expect(guesses.last?.reason.contains("You worked here") == false)
@@ -301,8 +301,8 @@ struct GitIntegrationTests {
 }
 
 struct StartWorkFormTests {
-    private let records = ["docs-builder", "docs-content", "mermaider"].map {
-        RepoRecord(repo: Repo(org: "elastic", name: $0), path: "/code/\($0)", defaultBranch: "main")
+    private let records = ["docs-toolkit", "docs-website", "markgraph"].map {
+        RepoRecord(repo: Repo(org: "acme", name: $0), path: "/code/\($0)", defaultBranch: "main")
     }
 
     private func type(_ text: String, into form: inout StartWorkForm) {
@@ -313,21 +313,21 @@ struct StartWorkFormTests {
 
     @Test func typingGuessesReposAndNamesTheWorktree() {
         var form = StartWorkForm(repos: records, settings: .default)
-        type("Fix anchors in docs-builder and docs-content", into: &form)
-        #expect(form.name == "fix/anchors-docs-builder-docs")
+        type("Fix anchors in docs-toolkit and docs-website", into: &form)
+        #expect(form.name == "fix/anchors-docs-toolkit-docs")
         // Only the top guess: a second repo (and its worktree) is yours to add.
-        #expect(form.selectedRepos == ["elastic/docs-builder"])
-        #expect(form.plan.command?.posix == "claude 'Fix anchors in docs-builder and docs-content'")
+        #expect(form.selectedRepos == ["acme/docs-toolkit"])
+        #expect(form.plan.command?.posix == "claude 'Fix anchors in docs-toolkit and docs-website'")
     }
 
     @Test func navigationTogglesAndStarts() {
         var form = StartWorkForm(repos: records, settings: .default)
-        type("mermaider arrows", into: &form)
+        type("markgraph arrows", into: &form)
         #expect(form.handle(.escape) == .handled)
         #expect(!form.editing)
         #expect(form.handle(KeyStroke("j")) == .handled)
         #expect(form.field == .repo)
-        // The cursor is on the first guess (mermaider, selected); move right and add docs-builder.
+        // The cursor is on the first guess (markgraph, selected); move right and add docs-toolkit.
         _ = form.handle(KeyStroke("l"))
         _ = form.handle(KeyStroke("Space"))
         #expect(form.selectedRepos.count == 2)
@@ -341,7 +341,7 @@ struct StartWorkFormTests {
             return
         }
         #expect(plan.command == nil)
-        #expect(plan.repos.first?.repo.name == "mermaider")
+        #expect(plan.repos.first?.repo.name == "markgraph")
         #expect(form.handle(.escape) == .cancel)
     }
 
@@ -449,15 +449,15 @@ struct RepoOrderTests {
     }
 
     @Test func onlyWholeRepoNamesOutsideLinksCount() {
-        let repos = ["elastic/docs", "elastic/docs-builder", "elastic/docs-eng-team"].map(record)
+        let repos = ["acme/docs", "acme/docs-toolkit", "acme/docs-eng-team"].map(record)
         let guesses = StartWork.guessRepos(
-            for: "Improve the error in docs-builder, see https://github.com/elastic/docs-eng-team/issues/1025",
+            for: "Improve the error in docs-toolkit, see https://github.com/acme/docs-eng-team/issues/1025",
             in: repos
         )
-        #expect(guesses.first?.repo.id == "elastic/docs-builder")
-        #expect(guesses.first { $0.repo.id == "elastic/docs" }.map { $0.confidence < 80 } == true)
-        #expect(guesses.first { $0.repo.id == "elastic/docs-eng-team" }.map { $0.confidence < 80 } == true)
-        let reference = StartWork.guessRepos(for: "Fixes elastic/docs-eng-team#1025", in: repos)
+        #expect(guesses.first?.repo.id == "acme/docs-toolkit")
+        #expect(guesses.first { $0.repo.id == "acme/docs" }.map { $0.confidence < 80 } == true)
+        #expect(guesses.first { $0.repo.id == "acme/docs-eng-team" }.map { $0.confidence < 80 } == true)
+        let reference = StartWork.guessRepos(for: "Fixes acme/docs-eng-team#1025", in: repos)
         #expect(reference.allSatisfy { $0.confidence < 80 })
     }
 }

@@ -1,4 +1,4 @@
-/// The title bar's middle: what you are looking at, as `lead / main tags detail` (`docs-builder / fix-anchors #2841`).
+/// The title bar's middle: what you are looking at, as `lead / main tags detail` (`docs-toolkit / fix-anchors #2841`).
 /// It is set in a monospaced font, so it is fitted in columns.
 public struct TitleCrumb: Equatable, Sendable {
     /// The repo, or what kind of thing this is. Always whole.

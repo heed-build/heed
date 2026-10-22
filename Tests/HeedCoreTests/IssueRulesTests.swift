@@ -4,7 +4,7 @@ import Testing
 
 struct IssueRulesTests {
     private let work = Repo(org: "employer", name: "service")
-    private let oss = Repo(org: "nullean", name: "mermaider")
+    private let oss = Repo(org: "globex", name: "markgraph")
 
     private func issue(_ repo: Repo, _ number: Int, age: TimeInterval = 0) -> HeedCore.Issue {
         HeedCore.Issue(
@@ -15,22 +15,22 @@ struct IssueRulesTests {
 
     @Test func theMostSpecificSettingWins() {
         let rules = IssueRules(
-            fallback: .involved, orgs: ["nullean": .all], repos: ["nullean/noisy": .involved, "employer/docs": .all]
+            fallback: .involved, orgs: ["globex": .all], repos: ["globex/noisy": .involved, "employer/docs": .all]
         )
         #expect(rules.visibility(work) == .involved)
         #expect(rules.visibility(oss) == .all)
-        #expect(rules.visibility(Repo(org: "nullean", name: "noisy")) == .involved)
+        #expect(rules.visibility(Repo(org: "globex", name: "noisy")) == .involved)
         #expect(rules.visibility(Repo(org: "employer", name: "docs")) == .all)
     }
 
     @Test func watchedOrgsAreSearchedByOrgAndOtherReposByRepo() {
-        let rules = IssueRules(orgs: ["nullean": .all], repos: ["nullean/extra": .all, "employer/docs": .all])
-        #expect(rules.watchQualifiers(local: [work, oss]) == ["org:nullean", "repo:employer/docs"])
+        let rules = IssueRules(orgs: ["globex": .all], repos: ["globex/extra": .all, "employer/docs": .all])
+        #expect(rules.watchQualifiers(local: [work, oss]) == ["org:globex", "repo:employer/docs"])
     }
 
     @Test func anAllFallbackWatchesLocalReposWithoutTheirOwnSetting() {
         let rules = IssueRules(fallback: .all, orgs: ["employer": .involved])
-        #expect(rules.watchQualifiers(local: [work, oss]) == ["repo:nullean/mermaider"])
+        #expect(rules.watchQualifiers(local: [work, oss]) == ["repo:globex/markgraph"])
     }
 
     @Test func longQualifierListsAreSplitUnderGitHubsLimit() {
@@ -58,15 +58,15 @@ struct IssueRulesTests {
         let (config, problems) = ConfigLoader.decode("""
         [issues]
         default = "involved"
-        [orgs.nullean]
+        [orgs.globex]
         issues = "all"
-        [repos."nullean/noisy"]
+        [repos."globex/noisy"]
         issues = "involved"
         [repos."employer/x"]
         issues = "sometimes"
         """)
-        #expect(config?.issues.orgs == ["nullean": .all])
-        #expect(config?.issues.repos == ["nullean/noisy": .involved])
+        #expect(config?.issues.orgs == ["globex": .all])
+        #expect(config?.issues.repos == ["globex/noisy": .involved])
         #expect(problems.map(\.path) == ["repos.employer/x.issues"])
     }
 }

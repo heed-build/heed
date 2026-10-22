@@ -11,7 +11,7 @@ This walks through one task from start to finish. Each step links to the page th
 Press `o` and describe what you want done. Heed guesses the repo from your words and recent sessions, names a branch
 from the first word (`Fix …` becomes `fix/…`), and shows the command it will run. `⌘↩` starts it.
 
-![The Start work dialog with a prompt typed, docs-builder guessed, and the branch named fix/broken-anchors-redirect-pages](../images/shots/getting-started/first-session-1-start.png)
+![The Start work dialog with a prompt typed, docs-toolkit guessed, and the branch named fix/broken-anchors-redirect-pages](../images/shots/getting-started/first-session-1-start.png)
 
 Heed makes a git worktree for the branch, opens a session for it, and starts the agent on your prompt.
 More in [Start work](../start-work/index.md).

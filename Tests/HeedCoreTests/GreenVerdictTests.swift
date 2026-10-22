@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 struct GreenVerdictTests {
-    private let ref = PullRef(repo: Repo(org: "nullean", name: "heed"), number: 7)
+    private let ref = PullRef(repo: Repo(org: "globex", name: "heed"), number: 7)
 
     private func detail(
         mergeable: String? = "MERGEABLE", state: String? = "CLEAN", failing: [String] = [], pending: [String] = [],

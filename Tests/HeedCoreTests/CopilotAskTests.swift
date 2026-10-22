@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 struct CopilotAskTests {
-    private let ref = PullRef(repo: Repo(org: "nullean", name: "heed"), number: 7)
+    private let ref = PullRef(repo: Repo(org: "globex", name: "heed"), number: 7)
 
     private func pipeline(behind: Bool = false, threads: Int = 2) -> PullFeedback {
         PullFeedback(ref: ref, items: [FeedbackItem(
@@ -70,9 +70,9 @@ struct CopilotAskTests {
         )
         detail.state = "OPEN"
         detail.isDraft = false
-        let settings = PilotSettings(reviewers: ["copilot", "alice", "me", "elastic/docs"])
-        #expect(ReviewRequests.wanted(settings, detail: detail, asked: []) == ["@copilot", "alice", "elastic/docs"])
-        #expect(ReviewRequests.wanted(settings, detail: detail, asked: ["@copilot", "ALICE"]) == ["elastic/docs"])
+        let settings = PilotSettings(reviewers: ["copilot", "alice", "me", "acme/docs"])
+        #expect(ReviewRequests.wanted(settings, detail: detail, asked: []) == ["@copilot", "alice", "acme/docs"])
+        #expect(ReviewRequests.wanted(settings, detail: detail, asked: ["@copilot", "ALICE"]) == ["acme/docs"])
         detail.isDraft = true
         #expect(ReviewRequests.wanted(settings, detail: detail, asked: []).isEmpty)
     }
@@ -102,7 +102,7 @@ struct CopilotAskTests {
         #expect(!quiet.copilotConflicts && quiet.copilotComments)
         #expect(quiet.reviewers == ["copilot", "employer/platform"])
         // A pipeline cached before review requests still loads.
-        let old = #"{"ref":{"repo":{"org":"nullean","name":"heed"},"number":7},"items":[],"autoFeed":"Ask","#
+        let old = #"{"ref":{"repo":{"org":"globex","name":"heed"},"number":7},"items":[],"autoFeed":"Ask","#
             + #""watching":true,"rounds":0,"approvalsSeen":0}"#
         #expect(try JSONDecoder().decode(PullFeedback.self, from: Data(old.utf8)).reviewersRequested.isEmpty)
     }

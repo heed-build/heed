@@ -3098,7 +3098,7 @@ final class AppModel {
         /// Directories completing the query; the cursor picks one for ⇥.
         var candidates: [String] = []
         var cursor = 0
-        /// What is at the query: "nullean/curb · fix/x", or why nothing can be imported there.
+        /// What is at the query: "globex/curb · fix/x", or why nothing can be imported there.
         var preview: String?
         var importable = false
     }
@@ -3160,14 +3160,14 @@ final class AppModel {
         if ShotMode.active {
             // Screenshots never read the real disk: a made-up tree under /Users/you.
             let folders = [
-                "/Users/you/code/wt/docs-builder",
-                "/Users/you/code/wt/mermaider",
+                "/Users/you/code/wt/docs-toolkit",
+                "/Users/you/code/wt/markgraph",
                 "/Users/you/Projects/sandbox",
             ]
             updatePathImport(query) {
                 let typed = query.replacingOccurrences(of: "~", with: "/Users/you")
                 $0.candidates = folders.filter { $0.hasPrefix(typed) && $0 != typed.trimmingCharacters(in: ["/"]) }
-                $0.preview = query.contains("toc") ? "elastic/docs-builder · toc-ordering" : nil
+                $0.preview = query.contains("toc") ? "acme/docs-toolkit · toc-ordering" : nil
                 $0.importable = query.contains("toc")
             }
             return
@@ -3622,7 +3622,7 @@ final class AppModel {
         itemCursor[.issues] = 0
     }
 
-    /// `:issues.repo docs-builder`: by name or org/name; none shows every repo.
+    /// `:issues.repo docs-toolkit`: by name or org/name; none shows every repo.
     private func pickIssueRepo(named name: String?) {
         view = .issues
         guard let name else { return pickIssueRepo(nil) }

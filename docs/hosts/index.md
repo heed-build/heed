@@ -181,9 +181,9 @@ host. Cursor's hooks are not set up on hosts yet; its state is read from the scr
 
 [Start work](../start-work/index.md) offers a host's repos next to the ones on this Mac, each chip naming its host.
 A repo on two machines appears once for each, and recent sessions count only where they ran, so if you
-usually work in `docs-builder` on `@devbox`, that chip comes first.
+usually work in `docs-toolkit` on `@devbox`, that chip comes first.
 
-![Start work with docs-builder @devbox picked: the agent will run there in zmx](../images/shots/start-work/on-a-host.png)
+![Start work with docs-toolkit @devbox picked: the agent will run there in zmx](../images/shots/start-work/on-a-host.png)
 
 With a host's repo picked:
 

@@ -201,7 +201,7 @@ struct SQLiteTests {
         let db = try SQLiteDatabase.inMemory()
         #expect(try db.hasFTS5())
         try db.execute("CREATE VIRTUAL TABLE f USING fts5(body)")
-        try db.run("INSERT INTO f (body) VALUES (?)", ["merged the docs-builder fix"])
+        try db.run("INSERT INTO f (body) VALUES (?)", ["merged the docs-toolkit fix"])
         #expect(try db.scalar("SELECT count(*) FROM f WHERE f MATCH 'docs*'")?.int == 1)
     }
 }

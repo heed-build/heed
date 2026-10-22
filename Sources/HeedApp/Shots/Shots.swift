@@ -197,7 +197,7 @@ enum Shots {
     static let startWork: [Shot] = [
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),
         Shot(id: "start-work/repos", keys: "o" + prompt + "<Esc>j", crop: .dialog),
-        Shot(id: "start-work/repo-search", keys: "o" + prompt + "<Esc>j/mer", crop: .dialog),
+        Shot(id: "start-work/repo-search", keys: "o" + prompt + "<Esc>j/mar", crop: .dialog),
         Shot(id: "start-work/branch-name", keys: "o" + prompt + "<Esc>jj", crop: .dialog),
         Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjj", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
@@ -205,7 +205,7 @@ enum Shots {
         Shot(id: "start-work/from-github-dialog", keys: ":issues<CR><Space>j<Space>s", crop: .dialog),
         Shot(id: "start-work/again", keys: "ghO", crop: .dialog),
         Shot(
-            id: "start-work/on-a-host", keys: "o" + typed("Fix the flaky link checker in docs-builder") + "<C-n>",
+            id: "start-work/on-a-host", keys: "o" + typed("Fix the flaky link checker in docs-toolkit") + "<C-n>",
             crop: .dialog
         ),
     ]
@@ -315,7 +315,7 @@ enum Shots {
         Shot(id: "worktrees/import-worktree", keys: "Iw", crop: .picker),
         // Typing narrows by repo, branch or the path below its root, and marks what matched.
         Shot(id: "worktrees/import-worktree-filtered", keys: "Iwgantt", crop: .picker),
-        Shot(id: "worktrees/import-path", keys: "Ip" + "code/wt/docs-builder/toc", crop: .picker),
+        Shot(id: "worktrees/import-path", keys: "Ip" + "code/wt/docs-toolkit/toc", crop: .picker),
         Shot(id: "worktrees/remove", keys: "gr4jvjd", crop: .confirm),
         Shot(id: "worktrees/rules", keys: "gr", crop: .rulesPanel),
         Shot(id: "worktrees/sweep", keys: "gr", crop: .sweepBanner, prepare: { model in
@@ -345,7 +345,7 @@ enum Shots {
     /// Cleanup on (asking first), and work saved from a removed worktree 120 days ago.
     private static let withOldArchive: @MainActor (AppModel) -> Void = { model in
         model.applyConfig(source: "[cleanup]\nenabled = true\nidle_days = 3\nask_before_sweep = true\n")
-        let repo = Repo(org: "elastic", name: "docs-builder")
+        let repo = Repo(org: "acme", name: "docs-toolkit")
         model.commit(.archivesListed(repo: repo, location: .local, [ArchiveRef(
             repo: repo, branch: "toc-experiment", commit: "4e1f0a2",
             archivedAt: Date().addingTimeInterval(-120 * 86400), unpushed: 2
@@ -357,7 +357,7 @@ enum Shots {
     private static let withDiscoveredTasks: @MainActor (AppModel) -> Void = { model in
         model.showTasks([
             TaskSpec(name: "tests", command: "dotnet test"),
-            TaskSpec(name: "build", command: "mise run build", source: .mise, detail: "Build the docs-builder binary"),
+            TaskSpec(name: "build", command: "mise run build", source: .mise, detail: "Build the docs-toolkit binary"),
             TaskSpec(name: "lint", command: "mise run lint", source: .mise, detail: "dotnet format, verify only"),
             TaskSpec(name: "clean", command: "make clean", source: .make, detail: "Remove build output"),
             TaskSpec(name: "release", command: "make release", source: .make, detail: "Publish a release build"),

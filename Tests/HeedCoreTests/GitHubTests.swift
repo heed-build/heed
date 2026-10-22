@@ -6,20 +6,20 @@ struct GitHubParsingTests {
     @Test func notifications() {
         let json = """
         [{"id":"1","reason":"review_requested","unread":true,"updated_at":"2026-10-05T19:00:52Z",
-          "subject":{"title":"Add link validation","type":"PullRequest","url":"https://api.github.com/repos/elastic/docs-builder/pulls/2845"},
-          "repository":{"full_name":"elastic/docs-builder"}},
+          "subject":{"title":"Add link validation","type":"PullRequest","url":"https://api.github.com/repos/acme/docs-toolkit/pulls/2845"},
+          "repository":{"full_name":"acme/docs-toolkit"}},
          {"id":"2","reason":"ci_activity","unread":false,"updated_at":"2026-10-05T18:00:00Z",
           "subject":{"title":"lint failed","type":"CheckSuite","url":null},
-          "repository":{"full_name":"elastic/docs-builder"}}]
+          "repository":{"full_name":"acme/docs-toolkit"}}]
         """
         let items = GitHub.parseNotifications(Data(json.utf8))
         #expect(items.count == 2)
         #expect(items[0].kind == .pr)
         #expect(items[0].number == 2845)
-        #expect(items[0].url == "https://github.com/elastic/docs-builder/pull/2845")
+        #expect(items[0].url == "https://github.com/acme/docs-toolkit/pull/2845")
         #expect(items[0].reasonText == "review requested")
         #expect(items[1].kind == .ci)
-        #expect(items[1].url == "https://github.com/elastic/docs-builder/actions")
+        #expect(items[1].url == "https://github.com/acme/docs-toolkit/actions")
     }
 
     @Test func pullSearchSkipsSAMLHiddenNodesAndCountsThem() {
@@ -93,7 +93,7 @@ struct GitHubParsingTests {
 struct WorkPromptTests {
     private func issue(_ number: Int, _ title: String) -> HeedCore.Issue {
         HeedCore.Issue(
-            repo: Repo(org: "elastic", name: "docs-builder"),
+            repo: Repo(org: "acme", name: "docs-toolkit"),
             number: number,
             title: title,
             url: "",
@@ -106,16 +106,16 @@ struct WorkPromptTests {
 
     @Test func severalIssuesBecomeOnePromptWithClosesLines() {
         let prompt = WorkPrompt.from(issues: [issue(2830, "Anchors lost"), issue(2833, "Redirect loop")])
-        #expect(prompt.contains("- docs-builder#2830 Anchors lost"))
-        #expect(prompt.contains("Closes elastic/docs-builder#2833"))
+        #expect(prompt.contains("- docs-toolkit#2830 Anchors lost"))
+        #expect(prompt.contains("Closes acme/docs-toolkit#2833"))
         #expect(!WorkPrompt.from(issues: [issue(1, "x")], closesLines: false).contains("Closes"))
     }
 
     @Test func startInstructionsGoBeforeTheClosesLines() {
         let one = WorkPrompt.from(issues: [issue(1, "x")], instructions: "Write a failing test first.")
-        #expect(one.hasSuffix("Body 1\n\nWrite a failing test first.\n\nCloses elastic/docs-builder#1"))
+        #expect(one.hasSuffix("Body 1\n\nWrite a failing test first.\n\nCloses acme/docs-toolkit#1"))
         let two = WorkPrompt.from(issues: [issue(1, "x"), issue(2, "y")], instructions: "Keep it small.")
-        #expect(two.contains("- docs-builder#2 y\n\nKeep it small.\n\nCloses"))
+        #expect(two.contains("- docs-toolkit#2 y\n\nKeep it small.\n\nCloses"))
         #expect(!WorkPrompt.from(issues: [issue(1, "x")]).contains("\n\n\n"))
     }
 
@@ -145,7 +145,7 @@ struct WorkPromptTests {
 }
 
 struct FeedbackTests {
-    private let ref = PullRef(repo: Repo(org: "elastic", name: "docs-builder"), number: 2841)
+    private let ref = PullRef(repo: Repo(org: "acme", name: "docs-toolkit"), number: 2841)
 
     private func detail(
         threads: [ReviewThread], failing: [String] = [], sha: String = "a1", approvals: Int = 0, pending: [String] = []
@@ -276,7 +276,7 @@ struct FeedbackTests {
           "commits":{"totalCount":3,"nodes":[{"commit":{"oid":"abc","statusCheckRollup":{"contexts":{"nodes":[
             {"__typename":"CheckRun","name":"lint","status":"COMPLETED","conclusion":"FAILURE","title":"docs/redirects.md:41 line too long\\nmore","summary":null,"detailsUrl":"u"}]}}}}]},
           "reviews":{"nodes":[{"author":{"login":"rev"},"state":"CHANGES_REQUESTED"},{"author":{"login":"rev"},"state":"APPROVED"}]},
-          "closingIssuesReferences":{"nodes":[{"number":2830,"repository":{"nameWithOwner":"elastic/docs-builder"}}]},
+          "closingIssuesReferences":{"nodes":[{"number":2830,"repository":{"nameWithOwner":"acme/docs-toolkit"}}]},
           "reviewThreads":{"nodes":[{"id":"T1","isResolved":false,"path":"src/RedirectFile.cs","line":88,
             "comments":{"totalCount":2,"nodes":[{"author":{"login":"rev"},"body":"Case sensitive","diffHunk":"@@ -80,8 +80,8 @@\\n a\\n b\\n c\\n d\\n e\\n f\\n-g\\n+h","url":"x"}]}}]}}}}}
         """
@@ -297,14 +297,14 @@ struct AvatarCacheTests {
             .appendingPathComponent("heed-avatars-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: directory) }
         let cache = AvatarCache(directory: directory, maxAge: 60)
-        #expect(cache.cached("Elastic") == nil)
-        #expect(cache.isStale("elastic"))
+        #expect(cache.cached("Acme") == nil)
+        #expect(cache.isStale("acme"))
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try Data([1, 2, 3]).write(to: cache.file(for: "Elastic"))
-        #expect(cache.cached("elastic") == Data([1, 2, 3]))
-        #expect(!cache.isStale("elastic"))
-        #expect(cache.isStale("elastic", now: Date().addingTimeInterval(120)))
-        #expect(AvatarCache.url(for: "elastic")?.absoluteString == "https://github.com/elastic.png?size=64")
+        try Data([1, 2, 3]).write(to: cache.file(for: "Acme"))
+        #expect(cache.cached("acme") == Data([1, 2, 3]))
+        #expect(!cache.isStale("acme"))
+        #expect(cache.isStale("acme", now: Date().addingTimeInterval(120)))
+        #expect(AvatarCache.url(for: "acme")?.absoluteString == "https://github.com/acme.png?size=64")
     }
 }
 
@@ -322,7 +322,7 @@ struct SyncScheduleTests {
     }
 
     @Test func aDetailIsFetchedOnlyWhenItsSummaryMoved() {
-        let ref = PullRef(repo: Repo(org: "elastic", name: "docs-builder"), number: 1)
+        let ref = PullRef(repo: Repo(org: "acme", name: "docs-toolkit"), number: 1)
         func pull(_ checks: CheckSummary) -> PullRequest {
             PullRequest(
                 ref: ref, title: "t", url: ref.url, state: .open, isDraft: false, headBranch: "b", review: nil,

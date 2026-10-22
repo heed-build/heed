@@ -5,7 +5,7 @@ import Testing
 /// `chat.promote`: a chat becomes work in a worktree, and its conversation goes along: resumed for claude, a handoff
 /// prompt for every other agent.
 struct PromoteTests {
-    private let records = ["docs-builder", "mermaider"].map {
+    private let records = ["docs-toolkit", "markgraph"].map {
         RepoRecord(repo: Repo(org: "o", name: $0), path: "/code/\($0)", defaultBranch: "main")
     }
 
@@ -101,11 +101,11 @@ struct PromoteTests {
 
     @Test func promotingStartsWorkWithTheChatsAgentAndNoChatChip() {
         var form = StartWorkForm(
-            repos: records, settings: .default, prompt: "Add the nightly job to mermaider",
+            repos: records, settings: .default, prompt: "Add the nightly job to markgraph",
             promotion: promotion(agent: "codex", resume: nil)
         )
         #expect(form.agent?.name == "codex")
-        #expect(form.selectedRepos == ["o/mermaider"])
+        #expect(form.selectedRepos == ["o/markgraph"])
         _ = form.handle(.escape)
         _ = form.handle(KeyStroke("j"))
         for _ in 0 ..< 10 {
@@ -123,7 +123,7 @@ struct PromoteTests {
 
     @Test func claudeIntoClaudeResumesTheChatsSession() {
         let form = StartWorkForm(
-            repos: records, settings: .default, prompt: "Add the job to mermaider", promotion: promotion()
+            repos: records, settings: .default, prompt: "Add the job to markgraph", promotion: promotion()
         )
         let line = form.plan.command?.posix ?? ""
         #expect(line.hasPrefix("claude --resume c1d2 '"))

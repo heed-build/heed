@@ -7,7 +7,7 @@ public extension Fixtures {
         let now = Clock.now
         func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
         let root = "/Users/you/code"
-        let wt = "/Users/you/code/wt/docs-builder"
+        let wt = "/Users/you/code/wt/docs-toolkit"
         let searchQuery = "is:open is:pr author:@me archived:false"
         func shell(
             _ minutes: Double, _ caller: String, _ command: String, cwd: String? = nil, host: String? = nil,
@@ -58,10 +58,10 @@ public extension Fixtures {
             ),
             github(
                 3, "heedMerge", "pr merge",
-                "gh pr merge 2836 --squash --match-head-commit 9f3c2e1 -R elastic/docs-builder", took: 2.4, write: true
+                "gh pr merge 2836 --squash --match-head-commit 9f3c2e1 -R acme/docs-toolkit", took: 2.4, write: true
             ),
             shell(
-                4, "git.fastForward", "git -C \(root)/docs-builder merge --ff-only '@{u}'", took: 0.42, exit: 128,
+                4, "git.fastForward", "git -C \(root)/docs-toolkit merge --ff-only '@{u}'", took: 0.42, exit: 128,
                 stdout: "Updating 41c9a0e..9f3c2e1\n",
                 stderr: "error: Your local changes to the following files would be overwritten by merge:\n"
                     + "\tsrc/Navigation/TableOfContents.cs\nPlease commit your changes or stash them.\n"
@@ -73,7 +73,7 @@ public extension Fixtures {
             ),
             github(
                 6, "pilot.failedLog", "run view --log-failed",
-                "gh run view --job 51873310 --log-failed -R elastic/docs-builder", took: 7.9
+                "gh run view --job 51873310 --log-failed -R acme/docs-toolkit", took: 7.9
             ),
             shell(
                 7, "hosts.events", "sh -c 'exec tail -c +18322 -F \"$HOME/.heed/events.log\" 2>/dev/null'",
@@ -92,21 +92,21 @@ public extension Fixtures {
             ),
             shell(
                 12, "git.addWorktree",
-                "git -C \(root)/docs-builder worktree add -b fix/toc-ordering \(wt)/fix-toc-ordering origin/main",
+                "git -C \(root)/docs-toolkit worktree add -b fix/toc-ordering \(wt)/fix-toc-ordering origin/main",
                 took: 1.1
             ),
             github(
                 14,
                 "copilot.ask",
                 "pr comment",
-                "gh pr comment 412 --body … -R editorconfig/editorconfig",
+                "gh pr comment 412 --body … -R initech/editor-rules",
                 took: 1.6,
                 write: true
             ),
             shell(
-                16, "git.fetch", "git -C \(root)/mermaider fetch origin heed/get-it-green/fix-arrows", took: 12.4,
+                16, "git.fetch", "git -C \(root)/markgraph fetch origin heed/get-it-green/fix-arrows", took: 12.4,
                 exit: 128,
-                stderr: "fatal: unable to access 'https://github.com/nullean/mermaider/': Could not resolve host\n"
+                stderr: "fatal: unable to access 'https://github.com/globex/markgraph/': Could not resolve host\n"
             ),
             shell(18, "zmx.list", "zmx list --short", took: 0.02),
             shell(19, "tasks.mise", "mise -C \(root)/ingest tasks ls --json", took: 0.38),

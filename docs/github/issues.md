@@ -21,10 +21,10 @@ marks repos showing all of them.
 [issues]
 default = "involved"        # only issues assigned to you or mentioning you
 
-[orgs.nullean]
+[orgs.globex]
 issues = "all"              # every open issue in this org's repos
 
-[repos."nullean/noisy"]
+[repos."globex/noisy"]
 issues = "involved"         # except this one
 ```
 

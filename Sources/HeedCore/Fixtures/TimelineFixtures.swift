@@ -83,7 +83,7 @@ public extension Fixtures {
         // Today.
         events += life(
             "s1",
-            docsBuilder,
+            docsToolkit,
             branch: "fix-anchors-redirects",
             startedAgo: 380,
             endedAgo: nil,
@@ -92,7 +92,7 @@ public extension Fixtures {
         )
         events += life(
             "h-fix-toc-ordering",
-            docsBuilder,
+            docsToolkit,
             branch: "fix-toc-ordering",
             startedAgo: 190,
             endedAgo: 60,
@@ -101,15 +101,15 @@ public extension Fixtures {
         )
         events += life(
             "h-fix-redirect-typos",
-            docsContent,
+            docsWebsite,
             branch: "fix-redirect-typos",
             startedAgo: 221,
             endedAgo: 180,
             outcome: "merged",
             pr: 1912
         )
-        events.append(event(95, .sessionParked, session: "s6", repo: docsBuilder))
-        events.append(event(14, .questionAnswered, session: "s2", repo: docsBuilder))
+        events.append(event(95, .sessionParked, session: "s6", repo: docsToolkit))
+        events.append(event(14, .questionAnswered, session: "s2", repo: docsToolkit))
         events.append(event(
             145,
             .sessionStarted,
@@ -121,7 +121,7 @@ public extension Fixtures {
         // Yesterday.
         events += life(
             "h-bump-spec-tests-0-17",
-            editorconfig,
+            editorRules,
             branch: "bump-spec-tests-0-17",
             startedAgo: 26 * 60 + 65,
             endedAgo: 26 * 60,
@@ -129,13 +129,13 @@ public extension Fixtures {
             pr: 412
         )
         events += life(
-            "h-flowchart-label-wrapping", mermaider, branch: "flowchart-label-wrapping", startedAgo: 28 * 60 + 26,
+            "h-flowchart-label-wrapping", markgraph, branch: "flowchart-label-wrapping", startedAgo: 28 * 60 + 26,
             endedAgo: 28 * 60, outcome: "abandoned",
             saved: "saved 2 unpushed commits and uncommitted changes as heed/archive/flowchart-label-wrapping"
         )
         events += life(
             "s7",
-            docsBuilder,
+            docsToolkit,
             branch: "flake-hunt",
             startedAgo: 29 * 60,
             endedAgo: nil,
@@ -144,7 +144,7 @@ public extension Fixtures {
         )
         events += life(
             "h-docs-nav-spike-v1",
-            docsBuilder,
+            docsToolkit,
             branch: "docs-nav-spike-v1",
             startedAgo: 30 * 60 + 220,
             endedAgo: 30 * 60,
@@ -161,7 +161,7 @@ public extension Fixtures {
     static var dashboardEvents: [LoggedEvent] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Clock.now)
-        let repos = [docsBuilder, docsContent, editorconfig, mermaider]
+        let repos = [docsToolkit, docsWebsite, editorRules, markgraph]
         let agents = ["claude", "claude", "codex", "opencode"]
         var seed: UInt64 = 0x5EED
         func next(_ bound: Int) -> Int {

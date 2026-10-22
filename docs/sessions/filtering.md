@@ -12,7 +12,7 @@ type.
 ![The kept filter: only sessions matching docs, the pill showing it](../images/shots/sessions/filter-kept.png)
 
 Every word you type must appear somewhere in the session: its title, branch, agent, repos or pull request numbers.
-`docs fix` finds a docs-builder session on a fix branch.
+`docs fix` finds a docs-toolkit session on a fix branch.
 
 | Key | |
 |---|---|

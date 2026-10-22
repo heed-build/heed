@@ -166,7 +166,7 @@ quiet = ""
 # or notify. Inputs: mention, review, assigned, ci, mine, agent, user:me, team:org/slug (team:? when unknown),
 # requested:me|team, author (a login, me, bot, bot:name, human), label, repo, branch, kind, draft, ready,
 # size >n, age >7d, turn mine|theirs, reason, any. Globs (*, ?) and a|b work in values. Ignored items stay
-# under Muted for 30 days.
+# under Muted for 30 days. Settings › Attention edits them and shows what an edit would change.
 # rules = [
 #   "mention user:me             boost 3",
 #   "review requested:me         boost 2",

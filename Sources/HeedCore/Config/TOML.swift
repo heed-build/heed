@@ -31,6 +31,12 @@ public indirect enum TOMLValue: Equatable, Sendable {
         }
     }
 
+    /// An array one item a line (what a list of rules reads best as); anything else as `literal`.
+    public var multilineLiteral: String {
+        guard case let .array(items) = self, !items.isEmpty else { return literal }
+        return "[\n" + items.map { "  \($0.literal),\n" }.joined() + "]"
+    }
+
     static func quote(_ text: String) -> String {
         var out = "\""
         for char in text {
@@ -104,15 +110,16 @@ public struct TOMLDocument: Sendable {
 
     /// The source with the value at `path` replaced (or added to its table, creating the table if needed). Comments,
     /// order and spacing elsewhere are untouched.
-    public func setting(_ path: [String], to value: TOMLValue) -> String {
+    public func setting(_ path: [String], to value: TOMLValue, multiline: Bool = false) -> String {
         precondition(!path.isEmpty)
+        let literal = multiline ? value.multilineLiteral : value.literal
         if let range = valueRanges[path] {
             var text = source
-            text.replaceSubrange(range, with: value.literal)
+            text.replaceSubrange(range, with: literal)
             return text
         }
         let table = Array(path.dropLast())
-        let line = "\(TOMLValue.key(path.last!)) = \(value.literal)"
+        let line = "\(TOMLValue.key(path.last!)) = \(literal)"
         if let end = tableEnds[table] {
             var text = source
             let needsNewline = end > text.startIndex && text[text.index(before: end)] != "\n"

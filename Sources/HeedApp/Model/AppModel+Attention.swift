@@ -302,6 +302,17 @@ extension AppModel {
         }
     }
 
+    /// Settings' try before you save: what `rules` would change, against the rules in use, over the items of the last
+    /// 30 days (live and remembered).
+    func attentionPreview(_ rules: AttentionRules) -> AttentionRulePreview {
+        let live = attentionItems
+        let ids = Set(live.map(\.id))
+        let items = live + attention.stored.map(\.item).filter { !ids.contains($0.id) }
+        return AttentionRulePreview.of(
+            saved: config.attention.parsedRules, edited: rules, items: items, viewer: github.viewer, now: Clock.now
+        )
+    }
+
     // MARK: Menus
 
     func attentionMenu(_ index: Int) -> [MenuEntry] {

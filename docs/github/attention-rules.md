@@ -23,6 +23,12 @@ rules = [
 ]
 ```
 
+Settings › Attention (`:settings.open attention`) edits them as a list (reorder, add, remove) and as text, side by
+side. Before you save, it shows what the edited rules would have changed over the items of the last 30 days, and how
+many items each rule matched.
+
+![Settings › Attention: the rules as a list and as text, and what the edit would change](../images/shots/configuration/attention-rules.png)
+
 A line is what to match, then what to do. A line that does not parse is reported with its number (in the status bar,
 and next to the line in the editor) and left out; the other rules still apply.
 

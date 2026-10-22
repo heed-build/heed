@@ -311,6 +311,14 @@ public enum Overrides {
             { .text($0.summaryInstructions) }
         ),
         pilot(
+            "summary_sign_off",
+            "Sign off with a summary",
+            "Agents are asked to end their final message with a heed-summary: line, which becomes the ledger's summary.",
+            .bool,
+            { $0.summarySignOff.map(OverrideValue.bool) },
+            { .bool($0.summarySignOff) }
+        ),
+        pilot(
             "admin_merge",
             "Admin merge",
             "heed merges past branch protection you are allowed to bypass.",
@@ -351,6 +359,7 @@ public enum Overrides {
         ("Copilot and reviewers", ["copilot_conflicts", "copilot_comments", "reviewers"]),
         ("Extra instructions", [
             "green_instructions", "review_instructions", "start_instructions", "summary_instructions",
+            "summary_sign_off",
         ]),
     ]
 

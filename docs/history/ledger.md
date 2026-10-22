@@ -53,4 +53,19 @@ written; the daily caps of `[llm]` apply.
 
 An edited summary says so, and stays until you write it again.
 
+## The agent's own summary
+
+Off by default: with `summary_sign_off` on, heed asks the agent at launch to end its final message with one line that
+starts with `heed-summary:`. When the session's last message has one, that line is the summary, marked "the agent's
+own sign-off", and the model only writes what else the entry includes (decisions, follow-ups); with nothing else to
+write, no model is called at all. It works with model calls off too.
+
+```toml
+[pilot]
+summary_sign_off = true        # or under [orgs.<name>] and [repos."org/name"]
+```
+
+claude gets it as `--append-system-prompt`, codex as `developer_instructions` (`-c`); other agents are not asked.
+Settings › Pilot › Extra instructions has the switch, and Orgs & repos the per-org and per-repo ones.
+
 ![An abandoned spike in full: its follow-up, and the agent time an estimate](../images/shots/history/ledger-detail.png)

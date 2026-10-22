@@ -124,6 +124,7 @@ public struct StartWorkForm: Sendable {
         self.context = context
         prefixes = settings.prefixes
         shellSplit = settings.shellSplit
+        signOff = settings.signOff
         self.integration = integration
         agents = settings.agents.map(Optional.some) + [nil]
         // Promoting: the chat's own agent unless you pick another.
@@ -181,6 +182,7 @@ public struct StartWorkForm: Sendable {
             plan.autostart = autostart && agent != nil
             plan.planFirst = planFirst
             plan.shellSplit = shellSplit
+            plan.signOff = signOffArguments(nil)
             return plan
         }
         let records = selectedRecords
@@ -193,11 +195,19 @@ public struct StartWorkForm: Sendable {
         plan.shellSplit = shellSplit
         plan.promotion = promotion
         plan.instructions = instructions[records.first?.repo.slug ?? ""] ?? ""
+        plan.signOff = signOffArguments(records.first?.repo)
         return plan
     }
 
     /// `start_instructions` per repo slug, for a promotion's handoff prompt.
     public var instructions: [String: String] = [:]
+    /// Which repos' agents are asked to sign off with a summary.
+    public var signOff = SignOffRule()
+
+    private func signOffArguments(_ repo: Repo?) -> [String] {
+        guard let agent, signOff.applies(to: repo) else { return [] }
+        return SignOff.arguments(agent: agent.name)
+    }
 
     public var canStart: Bool {
         if let chat { return chat.kind == .scratch ? !name.isEmpty : !folderPath(chat).isEmpty }

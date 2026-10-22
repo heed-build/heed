@@ -5,8 +5,10 @@ import Foundation
 public enum AgentIntegration {
     /// Extra arguments for launching `agent` in `session`, placed right after the agent's command: its hook wiring,
     /// and the session id when Heed assigns it. When `resuming`, only the hook wiring.
+    /// `signOff`: the sign-off's arguments (`WorkSettings.signOffArguments`), added after the hooks.
     public static func launchArguments(
-        agent: AgentProfile, sessionID: String, files: IntegrationFiles, resuming: Bool = false
+        agent: AgentProfile, sessionID: String, files: IntegrationFiles, resuming: Bool = false,
+        signOff: [String] = []
     ) -> [String] {
         var args: [String] = switch agent.name {
         case "claude": ["--settings", files.claudeSettings]
@@ -15,7 +17,7 @@ public enum AgentIntegration {
         default: []
         }
         if !resuming, let flag = agent.sessionIDFlag { args += [flag, sessionID] }
-        return args
+        return args + signOff
     }
 
     /// Environment set on the agent's command line itself (opencode's plugin travels in its config env var).

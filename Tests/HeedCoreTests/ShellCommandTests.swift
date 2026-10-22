@@ -126,6 +126,21 @@ struct ShellCommandTests {
 
     /// The agent is whatever your shell calls by that name: a function (or alias) you defined wins over the program
     /// on PATH, and gets the environment heed sets on the line.
+    /// The sign-off's arguments (claude's system prompt, codex's `-c` config) arrive as one word each, in every shell.
+    @Test func theSignOffReachesTheAgentIntactInEveryShell() async throws {
+        let bin = try stubs()
+        defer { try? FileManager.default.removeItem(atPath: bin) }
+        for agent in ["claude", "codex"] {
+            let extra = SignOff.arguments(agent: agent)
+            let line = stub.launchCommand(prompt: "do it", extraArguments: extra)
+            for shell in shells {
+                let typed = line.rendered(for: shell.kind)
+                let result = try await type(typed, into: shell, bin: bin, prompt: line.prompt)
+                #expect(result.stdout == printed(extra + ["do it"]), "in \(shell.path): \(typed)\n\(result.stderr)")
+            }
+        }
+    }
+
     @Test func theAgentIsYourShellsOwnFunction() async throws {
         let bin = try stubs()
         defer { try? FileManager.default.removeItem(atPath: bin) }

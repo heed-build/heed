@@ -27,6 +27,13 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var shellSplit = false
     /// Whether panes outlive heed: `zmx` keeps each pane's terminal in a zmx session that heed reattaches to.
     public var persist: PanePersistence = .auto
+    /// Which repos' sessions are asked to sign off with a summary (`[pilot] summary_sign_off`, per org and repo).
+    public var signOff = SignOffRule()
+
+    /// The launch arguments of the sign-off for `agent` working in `repo`, when it applies there.
+    public func signOffArguments(agent: AgentProfile, repo: Repo?) -> [String] {
+        signOff.applies(to: repo) ? SignOff.arguments(agent: agent.name) : []
+    }
 
     public init(
         worktreeRoot: String = "~/code/wt", repoRoots: [String] = ["~/Projects", "~/code"],
@@ -185,6 +192,8 @@ public struct StartWorkPlan: Hashable, Sendable {
     public var promotion: Promotion?
     /// The repo's `start_instructions`, for a promotion's handoff prompt.
     public var instructions = ""
+    /// The sign-off's launch arguments (`SignOff`), when it applies to the work's repo.
+    public var signOff: [String] = []
 
     public init(
         prompt: String, repos: [RepoRecord], name: String, base: String? = nil, agent: AgentProfile?,
@@ -212,13 +221,15 @@ public struct StartWorkPlan: Hashable, Sendable {
         if let promotion, let id = promotion.resuming(with: agent) {
             // Claude continues the chat's own session, told where it is now.
             let hooks = integration.map {
-                AgentIntegration.launchArguments(agent: agent, sessionID: sessionID, files: $0, resuming: true)
+                AgentIntegration.launchArguments(
+                    agent: agent, sessionID: sessionID, files: $0, resuming: true, signOff: signOff
+                )
             } ?? []
             let told = Handoff.promotionResumed(promotion, task: prompt, branch: name, instructions: instructions)
             return agent.resumeCommand(id: id, extraArguments: hooks, environment: env, prompt: told)
         }
         let extra = integration.map {
-            AgentIntegration.launchArguments(agent: agent, sessionID: sessionID, files: $0)
+            AgentIntegration.launchArguments(agent: agent, sessionID: sessionID, files: $0, signOff: signOff)
         } ?? []
         let text = promotion.map { Handoff.promotion($0, task: prompt, branch: name, instructions: instructions) }
             ?? prompt
@@ -612,9 +623,12 @@ public enum Reopen {
         // Reopening is explicit, so the only question is whether the agent can still resume its session.
         var command: ShellCommand?
         if let agent = settings.agent(session.agent) {
+            let signOff = settings.signOffArguments(agent: agent, repo: session.repos.first)
             let hooks = { (resuming: Bool) in
                 integration.map {
-                    AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0, resuming: resuming)
+                    AgentIntegration.launchArguments(
+                        agent: agent, sessionID: session.id, files: $0, resuming: resuming, signOff: signOff
+                    )
                 } ?? []
             }
             let stillThere = session.agentSessionID.map {

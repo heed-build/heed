@@ -80,6 +80,9 @@ public struct PilotSettings: Hashable, Sendable {
     public var reviewInstructions = ""
     public var startInstructions = ""
     public var summaryInstructions = ""
+    /// Ask agents to end their final message with a `heed-summary:` line (`SignOff`), which becomes the ledger's
+    /// summary. Off by default.
+    public var summarySignOff = false
 
     public init(
         watch: Bool = true, green: AutoFeed = .ask, maxRounds: Int = 3, pause: TimeInterval? = 3600,
@@ -140,6 +143,7 @@ public struct PilotOverrides: Hashable, Sendable {
     public var reviewInstructions: String?
     public var startInstructions: String?
     public var summaryInstructions: String?
+    public var summarySignOff: Bool?
 
     public init(
         watch: Bool? = nil, green: AutoFeed? = nil, maxRounds: Int? = nil, merge: MergeMode? = nil,
@@ -163,7 +167,7 @@ public struct PilotOverrides: Hashable, Sendable {
             && trustedReviewers == nil && gateChecks == nil && holdLabels == nil && selfReview == nil && adminMerge ==
             nil && agent == nil && model == nil
             && greenInstructions == nil && reviewInstructions == nil && startInstructions == nil && runIn == nil
-            && summaryInstructions == nil
+            && summaryInstructions == nil && summarySignOff == nil
             && mergeAgent == nil && mergeModel == nil
     }
 }
@@ -215,6 +219,7 @@ public struct PilotRules: Hashable, Sendable {
             ?? defaults.startInstructions
         settings.summaryInstructions = repoLevel.summaryInstructions ?? orgLevel.summaryInstructions
             ?? defaults.summaryInstructions
+        settings.summarySignOff = repoLevel.summarySignOff ?? orgLevel.summarySignOff ?? defaults.summarySignOff
         return settings
     }
 

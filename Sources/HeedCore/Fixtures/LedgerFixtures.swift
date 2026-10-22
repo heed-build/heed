@@ -6,15 +6,11 @@ public extension Fixtures {
     static var ledger: [LedgerEntry] {
         let now = Clock.now
         func ago(_ hours: Double) -> Date { now.addingTimeInterval(-hours * 3600) }
-        func usage(_ model: String, _ input: Int, _ output: Int, _ cost: Double?) -> AgentUsage {
-            var usage = AgentUsage()
-            usage.model = model
-            usage.tokens = TokenCounts(input: input, output: output, cacheRead: input * 6)
-            usage.costUSD = cost
-            return usage
-        }
+        // What the agents reported, as the fake world's sessions hold it: the same numbers the dashboard sums.
+        let world = Fixtures.main.sessions + Fixtures.main.history.map(\.session)
+        func usage(_ id: String) -> AgentUsage? { world.first { $0.id == id }?.usage }
         let builder = docsBuilder.slug
-        return [
+        let entries = [
             LedgerEntry(
                 id: "s1", title: "Fix broken anchors in redirects", repos: [builder, docsContent.slug],
                 branch: "fix-anchors-redirects", agent: "claude", startedAt: ago(6.3), outcome: "PR open",
@@ -25,7 +21,7 @@ public extension Fixtures {
                     "src/Redirects/RedirectFile.cs", "src/Build/BuildContext.cs", "docs/redirects.md",
                     "tests/Fixtures/redirects.yml", "src/Redirects/AnchorIndex.cs", "CHANGELOG.md",
                 ],
-                agentTime: 3 * 3600 + 12 * 60, usage: usage("opus", 41000, 9200, 2.84),
+                agentTime: 3 * 3600 + 12 * 60,
                 summary: "Redirect targets are now checked against the headings they point at; a failing test names "
                     + "the redirect and the missing anchor. The redirect map is generated at build time. Two review "
                     + "rounds, both addressed; waiting on the last approval.",
@@ -41,7 +37,7 @@ public extension Fixtures {
                 agent: "claude", startedAt: ago(3.2), endedAt: ago(1), outcome: "merged",
                 pulls: [PullRef(repo: docsBuilder, number: 2810)], diff: DiffStat(files: 3, added: 46, removed: 12),
                 files: ["src/Navigation/TocBuilder.cs", "tests/TocTests.cs", "docs/navigation.md"], agentTime: 104 * 60,
-                usage: usage("sonnet", 18000, 3100, 0.61),
+
                 summary: "Table of contents entries keep the order of the folder's index file instead of sorting by "
                     + "title. Merged after one review.",
                 decisions: ["Fall back to title order when a folder has no index"],
@@ -77,5 +73,10 @@ public extension Fixtures {
                 source: .edited, trigger: "on demand", summarizedAt: ago(29)
             ),
         ]
+        return entries.map { entry in
+            var entry = entry
+            entry.usage = usage(entry.id)
+            return entry
+        }
     }
 }

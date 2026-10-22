@@ -95,7 +95,7 @@ public enum Commands {
             "view",
             "switch view",
             .views,
-            arguments: "<sessions|inbox|issues|prs|watch|repos|history|timeline|ledger|log>"
+            arguments: "<sessions|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|log>"
         ),
         .init("view.sessions", "sessions", .views),
         .init("view.inbox", "inbox", .views),
@@ -109,6 +109,7 @@ public enum Commands {
             .views
         ),
         .init("view.timeline", "History's timeline: sessions, worktrees, PRs and questions, by day", .views),
+        .init("view.dashboard", "History's dashboard: what the work amounted to over a range", .views),
         .init("view.ledger", "History's ledger: a summary of each piece of work, kept after its worktree", .views),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
@@ -184,6 +185,11 @@ public enum Commands {
         .init("timeline.where", "timeline: everywhere, this Mac, or a host", .selection, arguments: "[local|host]"),
         .init("timeline.gone", "timeline: show or hide removed worktrees", .selection),
         .init("history.ledger", "History's ledger: a summary of each piece of work (again: back to the list)", .views),
+        .init("history.dashboard", "History's dashboard: sessions, agent time, PRs, by day, agent and repo", .views),
+        .init(
+            "dashboard.range", "dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w)",
+            .selection, arguments: "[days]"
+        ),
         .init("ledger.summarize", "write the ledger summary of this work now", .selection),
         .init(
             "ledger.edit", "edit the ledger entry's summary (no text: the command line opens with it)", .selection,

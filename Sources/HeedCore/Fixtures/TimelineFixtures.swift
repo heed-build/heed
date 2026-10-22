@@ -154,3 +154,58 @@ public extension Fixtures {
         return events.sorted { $0.at > $1.at }
     }
 }
+
+public extension Fixtures {
+    /// The dashboard's fake world: the timeline's events, and twelve weeks of invented work before them (weekdays
+    /// mostly, some weekends), so the heatmap and the shares have something to show. Deterministic.
+    static var dashboardEvents: [LoggedEvent] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Clock.now)
+        let repos = [docsBuilder, docsContent, editorconfig, mermaider]
+        let agents = ["claude", "claude", "codex", "opencode"]
+        var seed: UInt64 = 0x5EED
+        func next(_ bound: Int) -> Int {
+            seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            return Int((seed >> 33) % UInt64(bound))
+        }
+        var events = Fixtures.events
+        for back in 2 ..< 84 {
+            guard let day = calendar.date(byAdding: .day, value: -back, to: today) else { continue }
+            let weekday = calendar.component(.weekday, from: day)
+            let weekend = weekday == 1 || weekday == 7
+            guard next(10) < (weekend ? 2 : 8) else { continue }
+            for index in 0 ..< 1 + next(3) {
+                let id = "d\(back)-\(index)"
+                let repo = repos[next(repos.count)]
+                let agent = agents[next(agents.count)]
+                let start = day.addingTimeInterval(TimeInterval(8 * 3600 + next(8) * 3600 + next(60) * 60))
+                events.append(LoggedEvent(
+                    at: start, kind: .sessionStarted, session: id, repo: repo.slug, payload: ["agent": agent]
+                ))
+                var at = start
+                for _ in 0 ..< 1 + next(4) {
+                    let worked = TimeInterval(10 + next(70)) * 60
+                    events.append(LoggedEvent(
+                        at: at, kind: .state, session: id, repo: repo.slug, guessed: agent == "opencode",
+                        payload: ["state": AgentState.working.rawValue]
+                    ))
+                    at = at.addingTimeInterval(worked)
+                    events.append(LoggedEvent(
+                        at: at, kind: .state, session: id, repo: repo.slug, payload: ["state": AgentState.idle.rawValue]
+                    ))
+                    at = at.addingTimeInterval(TimeInterval(5 + next(40)) * 60)
+                }
+                if next(3) == 0 {
+                    events.append(LoggedEvent(at: at, kind: .questionAnswered, session: id, repo: repo.slug))
+                }
+                if next(2) == 0 {
+                    events.append(LoggedEvent(
+                        at: at, kind: .pullMerged, session: id, repo: repo.slug,
+                        subject: "\(repo.slug)#\(1000 + back * 3 + index)"
+                    ))
+                }
+            }
+        }
+        return events.sorted { $0.at > $1.at }
+    }
+}

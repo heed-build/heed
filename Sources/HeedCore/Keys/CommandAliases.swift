@@ -20,6 +20,7 @@ public enum CommandAliases {
         "history",
         "timeline",
         "ledger",
+        "dashboard",
         "log",
     ]
 

@@ -9,14 +9,16 @@ enum AppView: String, CaseIterable, Identifiable {
     case timeline
     /// History's ledger (`history.ledger`): under History's tab too.
     case ledger
+    /// History's dashboard (`history.dashboard`): under History's tab too.
+    case dashboard
 
     var id: String { rawValue }
 
     /// The views the title bar lists: the call log is reached with `:log` only, the timeline from History.
-    static var tabs: [AppView] { allCases.filter { $0 != .log && $0 != .timeline && $0 != .ledger } }
+    static var tabs: [AppView] { allCases.filter { ![.log, .timeline, .ledger, .dashboard].contains($0) } }
 
     /// The tab that is lit while this view shows.
-    var tab: AppView { self == .timeline || self == .ledger ? .history : self }
+    var tab: AppView { [.timeline, .ledger, .dashboard].contains(self) ? .history : self }
 
     var title: String {
         switch self {
@@ -30,6 +32,7 @@ enum AppView: String, CaseIterable, Identifiable {
         case .log: "Log"
         case .timeline: "Timeline"
         case .ledger: "Ledger"
+        case .dashboard: "Dashboard"
         }
     }
 
@@ -38,6 +41,7 @@ enum AppView: String, CaseIterable, Identifiable {
         switch self {
         case .timeline: "history.timeline"
         case .ledger: "history.ledger"
+        case .dashboard: "history.dashboard"
         default: "view.\(rawValue)"
         }
     }
@@ -219,6 +223,7 @@ final class AppModel {
             if oldValue == .log, view != .log { callLog.closed() }
             if view == .timeline, oldValue != .timeline { timeline.opened() }
             if oldValue == .timeline, view != .timeline { timeline.closed() }
+            if view == .dashboard, oldValue != .dashboard { dashboard.reload() }
         }
     }
 
@@ -226,6 +231,8 @@ final class AppModel {
     let timeline: TimelineBrowser
     /// History's ledger: its entries and cursor.
     let ledger: LedgerBrowser
+    /// History's dashboard: the range's numbers.
+    let dashboard: DashboardBrowser
 
     /// The `:log` view's rows and filters.
     let callLog: CallLogBrowser
@@ -308,6 +315,7 @@ final class AppModel {
         callLog = CallLogBrowser(fixture: isFixture)
         timeline = TimelineBrowser(fixture: isFixture)
         ledger = LedgerBrowser(fixture: isFixture)
+        dashboard = DashboardBrowser(fixture: isFixture)
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
@@ -328,6 +336,7 @@ final class AppModel {
         replace(with: domain)
         if isFixture { adoptFixtureRuns() } else { interruptRuns() }
         timeline.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
+        dashboard.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
         updateScope()
         tutorRecord = tutorProgress
         // The tutor runs in its own window and model; the reminder here follows what it saves.
@@ -361,6 +370,7 @@ final class AppModel {
         loadAvatars()
         store = DomainStore(domain: cached, file: file, log: log)
         timeline.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
+        dashboard.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         startLedger(log: log)
         await receiveSpooled()
         await offerResume(domain: cached)
@@ -549,7 +559,7 @@ final class AppModel {
         case .issues: [.issues]
         // Sessions show their PRs' state; Repos and History their PR numbers.
         case .sessions, .prs, .watch, .repos, .history: [.pulls]
-        case .log, .timeline, .ledger: []
+        case .log, .timeline, .ledger, .dashboard: []
         }
     }
 
@@ -1736,6 +1746,9 @@ final class AppModel {
         case .timeline:
             guard let item = timeline.selected else { return nil }
             return TitleContext(lead: "timeline", main: item.name, detail: item.lead)
+        case .dashboard:
+            guard let row = dashboard.selected else { return nil }
+            return TitleContext(lead: "dashboard", main: row.place, detail: row.title)
         case .ledger:
             guard let entry = ledger.selected else { return nil }
             return TitleContext(
@@ -1823,6 +1836,7 @@ final class AppModel {
         case .log: callLog.rows.indices.map { HintTarget.row(.log, $0) }
         case .timeline: timeline.rows.indices.map { HintTarget.row(.timeline, $0) }
         case .ledger: ledger.rows.indices.map { HintTarget.row(.ledger, $0) }
+        case .dashboard: dashboard.board.recent.indices.map { HintTarget.row(.dashboard, $0) }
         }
         return zip(HintLabels.generate(count: targets.count), targets).map { ($0, $1) }
     }
@@ -2114,6 +2128,9 @@ final class AppModel {
         case "view.log": view = .log
         case "view.timeline": view = .timeline
         case "view.ledger": view = .ledger
+        case "view.dashboard": view = .dashboard
+        case "history.dashboard": view = view == .dashboard ? .history : .dashboard
+        case "dashboard.range": dashboard.cycleRange(command.arguments.first)
         case "history.ledger": view = view == .ledger ? .history : .ledger
         case "ledger.summarize": summarizeLedgerNow()
         case "ledger.edit": editLedger(command.arguments)
@@ -2299,6 +2316,7 @@ final class AppModel {
         case .log: callLog.rows.map { String($0.id) }
         case .timeline: timeline.rows.map(\.id)
         case .ledger: ledger.rows.map(\.id)
+        case .dashboard: dashboard.board.recent.map(\.id)
         case .sessions: []
         default: itemIDs(list)
         }
@@ -2402,6 +2420,7 @@ final class AppModel {
         case .log: setRow(callLog.cursor + delta)
         case .timeline: setRow(timeline.cursor + delta)
         case .ledger: setRow(ledger.cursor + delta)
+        case .dashboard: setRow(dashboard.cursor + delta)
         case .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
@@ -2423,6 +2442,7 @@ final class AppModel {
         // A day is a group: { and } go from day to day.
         case .timeline: (timeline.rows.map { Calendar.current.startOfDay(for: $0.at).description }, timeline.cursor)
         case .ledger: (ledger.rows.map { Calendar.current.startOfDay(for: $0.updatedAt).description }, ledger.cursor)
+        case .dashboard: (dashboard.board.recent.map(\.place), dashboard.cursor)
         }
     }
 
@@ -2448,6 +2468,8 @@ final class AppModel {
             timeline.setCursor(index)
         } else if view == .ledger {
             ledger.setCursor(index)
+        } else if view == .dashboard {
+            dashboard.setCursor(index)
         } else if view == .repos {
             let count = worktreeRows.count
             guard count > 0 else { return }
@@ -2975,6 +2997,8 @@ final class AppModel {
                 timeline.setCursor(index)
             case .ledger:
                 ledger.setCursor(index)
+            case .dashboard:
+                dashboard.setCursor(index)
             default:
                 itemCursor[view] = index
                 if thenInsert { openReader() }
@@ -3474,9 +3498,10 @@ final class AppModel {
         // In the timeline: the session of the line under the cursor, when it is in History.
         let picked = view == .timeline ? timeline.selected.flatMap(timelineEntry)
             : view == .ledger ? ledger.selected.flatMap { entry in history.first { $0.id == entry.id } }
+            : view == .dashboard ? dashboard.selected.flatMap { row in history.first { $0.id == row.id } }
             : selectedHistory
         guard let entry = picked else {
-            if view == .timeline || view == .ledger {
+            if [.timeline, .ledger, .dashboard].contains(view) {
                 flash = "nothing to reopen: its session is not in History"
             }
             return
@@ -3976,6 +4001,9 @@ final class AppModel {
         case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
         case .history: return selectedHistory?.session.repos ?? []
         case .timeline: return timeline.selected?.repository.map { [$0] } ?? []
+        case .dashboard:
+            let id = dashboard.selected?.id
+            return (sessions + history.map(\.session)).first { $0.id == id }?.repos ?? []
         case .ledger:
             return ledger.selected?.repos.compactMap { slug in
                 let parts = slug.split(separator: "/", maxSplits: 1)
@@ -5860,6 +5888,7 @@ final class AppModel {
         case .log: callLog.setCursor(0)
         case .timeline: timeline.setCursor(0)
         case .ledger: ledger.setCursor(0)
+        case .dashboard: dashboard.setCursor(0)
         case .repos: repoCursor = 0
         case .inbox, .issues, .prs, .watch: itemCursor[view] = 0
         }
@@ -5873,6 +5902,7 @@ final class AppModel {
         case .log: callLog.rows.count
         case .timeline: timeline.rows.count
         case .ledger: ledger.rows.count
+        case .dashboard: dashboard.board.recent.count
         case .repos: worktreeRows.count
         case .inbox, .issues, .prs, .watch: itemIDs(view).count
         }
@@ -5963,7 +5993,7 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
-        case .log, .timeline, .ledger:
+        case .log, .timeline, .ledger, .dashboard:
             return nil
         case .inbox:
             let ids = Set(actionIDs(.inbox))
@@ -6835,6 +6865,9 @@ final class AppModel {
         case .ledger:
             state.cursor = ledger.cursor
             state.rows = ledger.rows.count
+        case .dashboard:
+            state.cursor = dashboard.cursor
+            state.rows = dashboard.board.recent.count
         case .inbox, .issues, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count

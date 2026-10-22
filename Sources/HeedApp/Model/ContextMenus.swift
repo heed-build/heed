@@ -99,6 +99,15 @@ extension AppModel {
                 id: item.id, title: "\(item.lead) \(item.name)", kind: item.kind.rawValue,
                 reopenable: timelineEntry(item) != nil, onGitHub: item.repository.map { $0.org != "local" } ?? false
             )
+        case .dashboard:
+            let rows = dashboard.board.recent
+            guard rows.indices.contains(index) else { return [] }
+            let row = rows[index]
+            let session = (sessions + history.map(\.session)).first { $0.id == row.id }
+            return ContextMenus.dashboard(
+                id: row.id, title: row.title, reopenable: history.contains { $0.id == row.id },
+                onGitHub: session?.repos.contains { $0.org != "local" } ?? false
+            )
         case .ledger:
             let rows = ledger.rows
             guard rows.indices.contains(index) else { return [] }

@@ -84,6 +84,7 @@ toc:
   - folder: history
     children:
       - file: index.md
+      - file: dashboard.md
       - file: timeline.md
       - file: ledger.md
       - file: reopening.md

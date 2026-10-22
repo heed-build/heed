@@ -21,7 +21,8 @@ global_activate = "<C-M-h>"        # brings Heed forward from any app
 ```
 
 - **Per mode**: `[keys.normal]`, `[keys.visual]`, `[keys.insert]`, `[keys.command]`, `[keys.hint]`.
-- **Per view**: `[keys.sessions]`, `[keys.inbox]`, `[keys.issues]`, `[keys.prs]`, `[keys.repos]`, `[keys.history]`,
+- **Per view**: `[keys.sessions]`, `[keys.attention]`, `[keys.watch]`, `[keys.repos]`, `[keys.history]`,
+  `[keys.timeline]`, `[keys.ledger]`, `[keys.dashboard]`, `[keys.log]`, `[keys.inbox]`, `[keys.issues]`, `[keys.prs]`,
   `[keys.diff]`, `[keys.pr]`, `[keys.issue]`. View keys apply in NORMAL in that view, before NORMAL's own.
 - **Notation**: `gg`, `<C-w>v` (⌃w then v), `<D-/>` (⌘/), `<M-x>` (⌥x), `<S-Tab>`, `<CR>`, `<Esc>`, `<Space>`.
 

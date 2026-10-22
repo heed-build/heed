@@ -9,5 +9,6 @@ Agents keep working while you are in another app. Heed lets you know when one ne
 
 - [The menu bar](menu-bar.md): an owl that counts what needs you.
 - [The Dock](dock.md): the same count, as a badge.
-- [Notifications](notifications.md): a notification when a session starts needing you.
+- [Notifications](notifications.md): a notification when a session starts needing you, or an Attention rule asks
+  for one, and none in quiet hours.
 - [Global shortcuts](global-shortcuts.md): Start work from any app, and Heed to the front.

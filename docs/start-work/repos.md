@@ -27,7 +27,9 @@ the work there.
 
 ## Any other repo
 
-When none of the guesses is right, the last chip, **other repo…**, opens a search over every repo (or press `/` on the
+When none of the guesses is right, the chip **other repo…** opens a search over every repo (or press `/` on the
 repo field). Type to narrow, `⌃n` `⌃p` to move, `↩` to add it. It then keeps a chip of its own.
+
+The very last chip, **chat, no repo**, turns the dialog into a [chat](../sessions/chats.md).
 
 ![Searching every repo: mer typed, mermaider matched](../images/shots/start-work/repo-search.png)

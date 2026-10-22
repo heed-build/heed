@@ -11,12 +11,12 @@ here, and the other way round. Key bindings live only in the file.
 
 | Section | Holds |
 |---|---|
-| **General** | Default agent, resume on launch, the continue prompt, shell split, menu bar item, Dock state, notifications, GitHub poll interval, issues default, how long the [call log](../reference/call-log.md) keeps each kind of call, and where `git` and `gh` are |
-| **Agents** | Each agent's command, prompt delivery, plan and resume arguments |
+| **General** | Default agent, resume on launch, the continue prompt, shell split, persistent panes, when the History [ledger](../history/ledger.md) writes a summary and what it includes, menu bar item, Dock state, [notifications](../outside-the-window/notifications.md) (which states, the grace, the reminder, quiet hours), GitHub poll interval, issues default, how long the [call log](../reference/call-log.md) keeps each kind of call, and where `git`, `gh` and `zmx` are |
+| **Agents** | Each agent's command, prompt delivery, plan and resume arguments, and its part in Heed's [model calls](../agents/model-calls.md): whether it takes part, whether it is installed and logged in, its model, and a **Test** |
 | **Orgs & repos** | Per org and per repo: colour, issues, and every Pilot setting, with which ones override the defaults (see below) |
-| **Worktrees & cleanup** | Where worktrees go, the repo roots, and the cleanup rules |
-| **Pilot** | The defaults every PR starts from: watching, get it green, get it merged and their rules, and extra instructions for heed's prompts |
-| **Attention** | The [rules](../github/attention-rules.md) as a list and as text, what an edit would change before you save it, and quiet hours |
+| **Worktrees & cleanup** | Where worktrees go, the repo roots, offering to trust repos for agents, the cleanup rules, and how long [saved work](../worktrees/removing.md#saved-first) is kept |
+| **Pilot** | The defaults every PR starts from: watching, get it green, get it merged and their rules, extra instructions for heed's prompts (summaries too), and whether agents sign off with a summary |
+| **Attention** | The [rules](../github/attention-rules.md) as a list and as text, what an edit would change over the last 30 days before you save it, the weights, Attention notifications and quiet hours |
 | **Keys & modes** | The INSERT escape chord and every binding as it stands, read-only: bindings are edited in `config.toml` |
 
 ## Orgs & repos

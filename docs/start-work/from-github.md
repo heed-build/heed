@@ -1,10 +1,10 @@
 ---
-description: Start a session from inbox items or issues, or add them to a running one.
+description: Start a session from Attention items, inbox items or issues, or add them to a running one.
 ---
 
 # From GitHub
 
-In the Inbox and Issues, pick items with `space` (or a range with `v`), then:
+In [Attention](../github/attention.md), the Inbox and Issues, pick items with `space` (or a range with `v`), then:
 
 | Key | |
 |---|---|

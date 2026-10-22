@@ -21,4 +21,5 @@ global_activate = "<C-M-h>"
 Accessibility permission. If another app already owns the combination, or both are set to the same keys, the status
 bar says so.
 
-Heed never takes focus by itself: these, and clicking a session in the menu bar, are the only times it comes forward.
+Heed never takes focus by itself: these, clicking a session in the menu bar, and Open on a notification are the only
+times it comes forward.

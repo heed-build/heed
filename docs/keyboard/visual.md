@@ -19,5 +19,5 @@ on all of them at once.
 | `o` | Open them (in Repos: their sessions, importing those without one) |
 | `⎋` | Back to NORMAL |
 
-In the Inbox and Issues, `space` picks items without VISUAL, for [starting a session](../start-work/from-github.md)
-from several at once.
+In Attention, the Inbox and Issues, `space` picks items without VISUAL, for
+[starting a session](../start-work/from-github.md) from several at once.

@@ -2,6 +2,9 @@
 
 Paste this into a fresh Claude Code session in an empty repo. Keep `design/` next to it.
 
+This is the original brief. Where it and `Sources/` disagree, the code wins and `PLAN.md` says what was decided; keys
+in particular moved (see `docs/keyboard/reference.md`).
+
 ---
 
 Build a native macOS app, a **command center for agentic coding**. It hosts coding agents and shells in terminals, manages repos and git worktrees, and tracks the GitHub issues and PRs around each task. It is heavily keyboard driven, with vim-style modes.
@@ -14,7 +17,8 @@ Build a native macOS app, a **command center for agentic coding**. It hosts codi
 - Terminals: **libghostty** (GhosttyKit). Each pane is an AppKit view wrapped for SwiftUI. Verify how mature the embedding API is before committing, and report back.
 - Not sandboxed (it spawns shells, git, and agents). Notarized, distributed outside the Mac App Store.
 - Local helper CLI `cc` that agents call to talk to the app over a unix domain socket. Either a small Swift binary or a .NET single-file program. Propose one.
-- Do not store agent transcripts. Agents own them. The app keeps only session records.
+- Do not store agent transcripts. Agents own them. The app keeps session records: prompt, ids, timeline, outcome, the
+  agent's last message and a short summary.
 - Dark UI, mono type for data and keys, system font for chrome. See `design/screens/Main.png`.
 
 ## Core concepts
@@ -77,6 +81,7 @@ Persist active sessions. On launch show a dialog (setting: Ask / Always / Never 
 - PRs: auto-watch the user's open PRs across repos for review comments and CI checks. Track PRs for a session automatically (branch match, or reported by the agent via `cc pr add`), including across repos.
 - Feedback pipeline per PR: New, Queued, Sent, Addressed, Resolved. Auto-feed mode per PR: Off, Ask (default), Auto when idle. Feedback is delivered to the running session as one prompt, only when the agent is idle, never while it is blocked or asking, and waits again if the user types in the pane. Preview and edit the prompt first (`e`). CI loop: after the agent pushes, watch the new run and report if the failure is gone. Stop after 3 rounds without a new approval. `w` pauses watching.
 - Reader (`↩`/`o`): description, review comments with the diff they refer to, failing checks, linked session and issues. `space` queues a comment, `s` sends queued ones.
+- Since built: Attention (`gm`) is one feed of all of it (notifications, issues, your PRs, agents waiting on you), one row per thread with every reason, weighed by rules in config.toml. `gi` and `gp` open it filtered; the Inbox, Issues and PRs views are left out of the tab bar and reached with `:`.
 
 ## Diff overlay (board: `Diff`)
 

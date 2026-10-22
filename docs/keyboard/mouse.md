@@ -33,7 +33,9 @@ Right-click a session in the sidebar, or in the collapsed rail:
 | Hand off to…, a submenu of the other agents ([handing off](../sessions/handoff.md)) | `gA` |
 | Close, keep worktree; Delete with worktrees… | `x`, `dd` |
 
-The pilot's items act on all the session's PRs, as their keys do in the sidebar.
+The pilot's items act on all the session's PRs, as their keys do in the sidebar. A [chat](../sessions/chats.md) leaves
+out the PR, diff, repo and pilot items and adds **Promote to work…** (`:chat.promote`); its prompt starts **New chat
+from its prompt** (`O`), and closing is **Close**, or **Delete with its scratch folder…** (`dd`) for a scratch chat.
 
 ## The inspector
 
@@ -49,6 +51,13 @@ An **issue** opens in the [reader](../github/reading.md) or the browser, or come
 A right-click on a row in [PRs](../github/pull-requests.md) or [Watch](../github/watch.md) offers that PR: open it,
 open it in the browser or its repo on GitHub, go to its session, and the pilot's items for it alone. In Watch it also
 runs or shows the PR's [merge queue](../github/watch.md) (`R`, `gM`).
+
+## Attention
+
+A right-click on a row offers to open it (`↩`), open it in the browser, go to its session (`gS`), draft a reply (`R`),
+start a session from it (`s`) or add it to the selected session (`a`), and be done with it (`x`), snooze it for an hour
+or until tomorrow, or mute its thread (`M`). An agent's row offers only its session, done and snooze. Picked rows
+(`␣`) work as in the Inbox below.
 
 ## Inbox and Issues
 
@@ -66,7 +75,15 @@ session, opens its repo on GitHub, flips its repo's issues (`w`), runs the clean
 setup (`S`), or removes it (`dd`, which asks first; never offered for the repo's own checkout). Selected worktrees
 (VISUAL) work as picked rows do above.
 
-A session in History reopens (`R`), starts again from its prompt (`O`), or opens its repo on GitHub.
+A session in History reopens (`R`), starts again from its prompt (`O`), or opens its repo on GitHub. A row of History's
+[timeline](../history/timeline.md), [ledger](../history/ledger.md) or [dashboard](../history/dashboard.md) reopens its
+session (`R`) or opens its repo on GitHub, and goes back to the list; the timeline also shows only the row's kind, and
+the ledger writes the summary again (`S`) or edits it (`E`).
+
+## The call log
+
+A call in the [call log](../reference/call-log.md) copies its command (`y`), or narrows the log to its caller (`c`) or
+its agent (`a`), and widens it again.
 
 ## Tabs
 

@@ -10,7 +10,8 @@ saved first, and what will be kept and why.
 ![Removing two worktrees: both go, and the uncommitted changes of one are saved first](../images/shots/worktrees/remove.png)
 
 Removing a worktree also removes its local branch (`delete_branch` under `[cleanup]`, on by default); the branch on
-GitHub is left alone. Sessions working there move to History.
+GitHub is left alone. Sessions working there move to History. A worktree on a [host](../hosts/index.md) is saved and
+removed on that host, in its clone there; this Mac's clone of the same repo is never touched.
 
 ## Saved first
 

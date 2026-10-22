@@ -32,7 +32,10 @@ Custom agents take no part: Heed knows how to call each built-in headless, not a
   with what it was about, so what you do next can be compared with it. The confidence is the model's own and
   uncalibrated: Heed never takes an action that cannot be undone on it.
 
-Nothing in Heed uses them yet besides the Test button in Settings; the features that will are on their way.
+Today they write the [ledger](../history/ledger.md)'s summaries, and in [Attention](../github/attention.md) a
+summary of each thread, a drafted reply (shown in full before anything is posted) and a suggested weight for items no
+[rule](../github/attention-rules.md) matched. With `[llm] enabled = false`, none of that happens and the rest of Heed
+works as before.
 
 ## How a call runs
 

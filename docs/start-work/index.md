@@ -26,7 +26,7 @@ The dialog has its own small modes, like Heed itself:
 | Field | |
 |---|---|
 | **Prompt** | What you want done. It grows with what you type, up to a third of the window, then scrolls. |
-| **Repo** | The guessed repo, and any others for a cross-repo session. See [Choosing repos](repos.md). |
+| **Repo** | The guessed repo, and any others for a cross-repo session. See [Choosing repos](repos.md). The last chip makes it a [chat](../sessions/chats.md). |
 | **Worktree** | The branch and folder name, from your first word. See [Branch names](branch-names.md). |
 | **Agent** | Which agent starts, or a shell only. See [Agent and options](agent-and-options.md). |
 | **Options** | Autostart, plan first, shell split. |
@@ -36,5 +36,5 @@ The bottom of the dialog shows the exact command the agent pane will run.
 ## Other ways in
 
 - [From anywhere](from-anywhere.md): `⌃⌥Space` opens it over any app.
-- [From GitHub](from-github.md): `s` on issues or inbox items starts a session from them.
+- [From GitHub](from-github.md): `s` on Attention items, issues or inbox items starts a session from them.
 - [Starting again](again.md): `O` starts from a previous session's prompt.

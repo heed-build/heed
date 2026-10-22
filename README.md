@@ -59,7 +59,17 @@ first screen for the tour, or `:tutor` any time.
 - **Keyboard first.** NORMAL, INSERT, VISUAL, COMMAND and HINT modes, counts, relative numbers, `:` commands, and every
   feature a named command you can rebind. The tutor teaches it by doing, on a pretend world.
 - **Worktrees that tidy up.** Create, list and remove worktrees across repos; cleanup removes only what has been quiet
-  for days, never dirty or unpushed work.
+  for days, never dirty or unpushed work, and saves each one's commits and changes as a git ref first, so History can
+  reopen it.
+- **Attention.** `gm` is one feed of everything that wants you: GitHub notifications, review requests, mentions (your
+  teams' too), your PRs and the agents waiting on you, one row per thread with every reason. Rules in config.toml boost,
+  lower, pin, ignore or notify.
+- **Chats.** `gc` starts an agent in a folder, no repo or branch, for a question; `:promote` turns it into work.
+- **History.** What ended, with its outcome (`gh`), and from there a timeline of what happened by day (`T`), a ledger
+  with a short summary of each piece of work (`L`), and a dashboard of what it amounted to (`D`).
+- **Cheap model calls, no API key.** Summaries, drafted replies and suggestions go through the agent CLIs you are
+  already logged in to, on their cheapest model, with daily caps. Every command, GitHub call and model call heed makes
+  is in the call log (`:log`).
 
 <table>
   <tr>
@@ -72,8 +82,8 @@ first screen for the tour, or `:tutor` any time.
   </tr>
 </table>
 
-heed keeps a record of each session; the agents own their transcripts. It is macOS only and not sandboxed: it has to
-spawn shells, git and agents.
+heed keeps a record of each session (its timeline, outcome and summary, in SQLite); the agents own their transcripts.
+It is macOS only and not sandboxed: it has to spawn shells, git and agents.
 
 ## Development
 
@@ -105,9 +115,10 @@ Headless checks: `HEED_SNAPSHOT=out.png build/Heed.app/Contents/MacOS/Heed` rend
   and its agents running.
 - The Dock icon (`[ui] dock_state`, on by default) gets a badge in the state's colour (blocked, else asking) with the
   count.
-- A notification (`[notifications]`, on by default) when a session starts asking or gets blocked, unless Heed is in
-  front on it; a burst comes as one. Open brings Heed forward on the session; a Claude permission prompt also gets
-  Allow.
+- A notification (`[notifications]`, on by default) when a session, a helper tab or a PR has needed you for 30
+  seconds, unless Heed is in front on it, and one reminder after 15 minutes; a burst comes as one. Attention items a
+  rule says to notify about get one too. None during quiet hours (`[attention] quiet`). Open brings Heed forward on
+  the session; a Claude permission prompt also gets Allow.
 
 The brand pack (icon, logo, menu bar template, social preview, org avatars) lives in `design/brand/`.
 
@@ -139,7 +150,7 @@ yabai -m rule --add app="^Heed$" title="^Heed Start Work$" manage=off
 | `Sources/HeedCore` | No UI: key notation, keymaps, the mode engine, commands, sessions, pane trees, the hook protocol |
 | `Sources/HeedApp` | SwiftUI shell, AppKit key routing (`Keys/KeyRouter.swift`), terminal hosting (`Terminal/`) |
 | `Sources/HeedTerminal` | The libghostty wrapper; the only code that touches `ghostty.h` (built when GhosttyKit exists) |
-| `Sources/heed` | The CLI agent hooks call: `heed state blocked --reason "..."` over a unix socket |
+| `Sources/heed` | The CLI agent hooks call: `heed state blocked --reason "..."` over a unix socket, spooled while the app is closed |
 | `design/` | The approved boards (`screens/*.png`) and the original brief (`BRIEF.md`) |
 | `PLAN.md` | The plan, decisions and build order |
 

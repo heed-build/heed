@@ -207,9 +207,9 @@ public struct AttentionRules: Hashable, Sendable {
     /// Why a part of a line did not parse.
     struct RuleMessage: Error, ExpressibleByStringInterpolation {
         let text: String
+        init(_ text: String) { self.text = text }
         init(stringLiteral value: String) { text = value }
-        init(stringInterpolation: DefaultStringInterpolation) { text = String(stringInterpolation: stringInterpolation)
-        }
+        init(stringInterpolation: DefaultStringInterpolation) { text = stringInterpolation.description }
     }
 
     static let actionWords: Set<String> = ["boost", "lower", "ignore", "pin", "notify"]
@@ -300,7 +300,7 @@ public struct AttentionRules: Hashable, Sendable {
             let word = words[index]
             let lower = word.lowercased()
             index += 1
-            if let note = notYet[lower] { return .failure(RuleMessage(stringLiteral: note)) }
+            if let note = notYet[lower] { return .failure(RuleMessage(note)) }
             if let colon = word.firstIndex(of: ":"), !word.hasPrefix("\"") {
                 switch qualifier(String(word[..<colon]).lowercased(), String(word[word.index(after: colon)...])) {
                 case let .success(condition): conditions.append(condition)

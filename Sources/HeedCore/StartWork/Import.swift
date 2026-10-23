@@ -64,7 +64,7 @@ public enum Import {
     /// shell when `agent` is nil), told `prompt` when there is one (a session started over the control socket).
     public static func session(
         for worktree: Worktree, agent: AgentProfile?, resume: AgentSession?, integration: IntegrationFiles?,
-        prompt: String = "", now: Date = Date()
+        prompt: String = "", arguments: [String] = [], now: Date = Date()
     ) -> [DomainChange] {
         let told = resume?.prompt ?? (prompt.isEmpty ? nil : prompt)
         let firstLine = told?.split(separator: "\n").first.map(String.init)
@@ -95,7 +95,9 @@ public enum Import {
                 command = line
                 session.record("imported · resumed \(agent.name) session", at: now)
             } else {
-                command = agent.launchCommand(prompt: prompt, extraArguments: hooks(false), environment: env)
+                command = agent.launchCommand(
+                    prompt: prompt, extraArguments: hooks(false) + arguments, environment: env
+                )
                 session.record(
                     prompt.isEmpty ? "imported · \(agent.name) started fresh" : "started by another app",
                     at: now

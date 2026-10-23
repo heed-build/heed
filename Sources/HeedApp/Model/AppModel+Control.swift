@@ -62,11 +62,13 @@ extension AppModel {
                 return ControlReply(ok: false, error: "\(existing.title) already works there", session: existing.id)
             }
             changes = Import.session(
-                for: worktree, agent: agent, resume: nil, integration: integration, prompt: prompt
+                for: worktree, agent: agent, resume: nil, integration: integration, prompt: prompt,
+                arguments: request.arguments ?? []
             )
         } else {
             var plan = StartWorkPlan(prompt: prompt, repos: [], name: "", agent: agent, integration: integration)
             plan.chat = ChatPlan(kind: .folder, name: path)
+            plan.arguments = request.arguments ?? []
             do {
                 changes = try await StartWork.execute(plan, settings: settings, hosts: config.hosts)
             } catch {

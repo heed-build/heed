@@ -194,6 +194,8 @@ public struct StartWorkPlan: Hashable, Sendable {
     public var instructions = ""
     /// The sign-off's launch arguments (`SignOff`), when it applies to the work's repo.
     public var signOff: [String] = []
+    /// More words for the agent's command line, from whoever asked for the session (an editor's MCP config).
+    public var arguments: [String] = []
 
     public init(
         prompt: String, repos: [RepoRecord], name: String, base: String? = nil, agent: AgentProfile?,
@@ -228,9 +230,9 @@ public struct StartWorkPlan: Hashable, Sendable {
             let told = Handoff.promotionResumed(promotion, task: prompt, branch: name, instructions: instructions)
             return agent.resumeCommand(id: id, extraArguments: hooks, environment: env, prompt: told)
         }
-        let extra = integration.map {
+        let extra = (integration.map {
             AgentIntegration.launchArguments(agent: agent, sessionID: sessionID, files: $0, signOff: signOff)
-        } ?? []
+        } ?? []) + arguments
         let text = promotion.map { Handoff.promotion($0, task: prompt, branch: name, instructions: instructions) }
             ?? prompt
         return agent.launchCommand(prompt: text, planFirst: planFirst, extraArguments: extra, environment: env)

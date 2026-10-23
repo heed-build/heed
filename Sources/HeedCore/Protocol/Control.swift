@@ -20,7 +20,8 @@ public enum HeedControl {
 /// One request. Which fields count depends on the method:
 /// - `sessions`: none.
 /// - `watch`: none; the connection then receives events.
-/// - `start`: `directory` (an existing folder), `prompt`, `agent` (the default agent when nil), `focus`.
+/// - `start`: `directory` (an existing folder), `prompt`, `agent` (the default agent when nil), `arguments` (more
+///   words for the agent's command line, such as an editor's MCP config), `focus`.
 /// - `send`: `session`, `text`. Typed into the agent's pane with Return, only while it is idle or done.
 /// - `show`: `session`, `focus`. Heed shows the session; it comes to the front only with `focus`.
 public struct ControlRequest: Codable, Equatable, Sendable {
@@ -34,12 +35,13 @@ public struct ControlRequest: Codable, Equatable, Sendable {
     public var directory: String?
     public var agent: String?
     public var prompt: String?
+    public var arguments: [String]?
     public var text: String?
     public var focus: Bool?
 
     public init(
         id: Int? = nil, method: Method, session: String? = nil, directory: String? = nil, agent: String? = nil,
-        prompt: String? = nil, text: String? = nil, focus: Bool? = nil
+        prompt: String? = nil, arguments: [String]? = nil, text: String? = nil, focus: Bool? = nil
     ) {
         self.id = id
         self.method = method
@@ -47,6 +49,7 @@ public struct ControlRequest: Codable, Equatable, Sendable {
         self.directory = directory
         self.agent = agent
         self.prompt = prompt
+        self.arguments = arguments
         self.text = text
         self.focus = focus
     }
@@ -392,7 +395,7 @@ public enum ControlCommandLine {
     public static let usage = """
     usage: heed sessions                                  (every session: id, state, needs you, title)
            heed watch                                     (the session list as JSON lines, each time it changes)
-           heed start [--agent <name>] [--dir <path>] [--focus] "<prompt>"
+           heed start [--agent <name>] [--dir <path>] [--arg <word>]... [--focus] "<prompt>"
            heed send <session> "<text>"                   (only while its agent is idle or done)
            heed show [--focus] <session>
     Talks to the app over \(HeedControl.defaultSocketPath()) (or $\(HeedControl.socketVariable)).
@@ -409,11 +412,15 @@ public enum ControlCommandLine {
         while let word = rest.popFirst() {
             switch word {
             case "--focus": request.focus = true
-            case "--agent", "--dir":
+            case "--agent", "--dir", "--arg":
                 guard let value = rest.popFirst() else {
                     throw HookCommandLine.UsageError(description: "\(word) needs a value\n\(usage)")
                 }
-                if word == "--agent" { request.agent = value } else { request.directory = value }
+                switch word {
+                case "--agent": request.agent = value
+                case "--dir": request.directory = value
+                default: request.arguments = (request.arguments ?? []) + [value]
+                }
             default: words.append(word)
             }
         }

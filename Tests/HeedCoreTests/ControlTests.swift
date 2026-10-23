@@ -95,7 +95,12 @@ struct ControlTests {
         #expect(start == ControlRequest(
             method: .start, directory: "/w", agent: "codex", prompt: "fix the build", focus: true
         ))
-        #expect(try ControlCommandLine.parse(["start", "--dir", "/x", "go"], directory: "/w").directory == "/x")
+        let words = try ControlCommandLine.parse(
+            ["start", "--dir", "/x", "--arg", "--mcp-config", "--arg", "/m.json", "go"], directory: "/w"
+        )
+        #expect(words.directory == "/x")
+        #expect(words.arguments == ["--mcp-config", "/m.json"])
+        #expect(words.prompt == "go")
         let send = try ControlCommandLine.parse(["send", "s1", "look", "again"], directory: "/w")
         #expect(send.session == "s1")
         #expect(send.text == "look again")
@@ -129,7 +134,7 @@ struct ControlTests {
         )
         let changes = Import.session(
             for: worktree, agent: AgentProfile(name: "claude", command: "claude"), resume: nil, integration: nil,
-            prompt: "Fix the build"
+            prompt: "Fix the build", arguments: ["--mcp-config", "/tmp/m.json"]
         )
         guard case let .sessionUpserted(session) = changes.first else {
             Issue.record("no session")
@@ -143,5 +148,14 @@ struct ControlTests {
         }
         let command = try #require(layout.tabs.first?.tree.panes.first?.command)
         #expect("\(command)".contains("Fix the build"))
+        #expect("\(command)".contains("/tmp/m.json"))
+    }
+
+    @Test func aPlanCarriesTheCallersArguments() {
+        var plan = StartWorkPlan(
+            prompt: "Fix it", repos: [], name: "", agent: AgentProfile(name: "claude", command: "claude")
+        )
+        plan.arguments = ["--mcp-config", "/tmp/m.json"]
+        #expect(plan.command.map { "\($0)" }?.contains("--mcp-config") == true)
     }
 }

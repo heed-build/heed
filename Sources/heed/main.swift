@@ -9,6 +9,38 @@ import HeedCore
 let environment = ProcessInfo.processInfo.environment
 let arguments = Array(CommandLine.arguments.dropFirst())
 
+// `heed sessions|watch|start|send|show`: the control socket, from a terminal or a script. Not a hook: no time limit.
+if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
+    do {
+        let request = try ControlCommandLine.parse(
+            arguments, directory: FileManager.default.currentDirectoryPath
+        )
+        let client = try ControlClient()
+        let reply = try client.call(request)
+        guard reply.ok else {
+            FileHandle.standardError.write(Data("heed \(verb): \(reply.error ?? "failed")\n".utf8))
+            exit(1)
+        }
+        switch request.method {
+        case .sessions:
+            let table = ControlCommandLine.table(reply.sessions ?? [])
+            if !table.isEmpty { print(table) }
+        case .watch:
+            setvbuf(stdout, nil, _IOLBF, 0)
+            try FileHandle.standardOutput.write(ControlCoding.line(reply))
+            while true {
+                try FileHandle.standardOutput.write(ControlCoding.line(client.next()))
+            }
+        case .start, .send, .show:
+            print(reply.session ?? "")
+        }
+        exit(0)
+    } catch {
+        FileHandle.standardError.write(Data("\(error)\n".utf8))
+        exit(2)
+    }
+}
+
 // A hook must never hold up an agent: whatever happens (a stdin that never closes, a stuck socket), give up quietly.
 if arguments.first != "tools", arguments.first != "cleanup" {
     signal(SIGALRM) { _ in _exit(0) }

@@ -92,7 +92,8 @@ enum SmartGuesses {
             let session = LanguageModelSession(instructions: Self.instructions(question))
             let response = try await session.respond(
                 to: "Task: \(question.prompt.prefix(1500))", schema: schema,
-                options: GenerationOptions(samplingMode: .greedy)
+                // Temperature 0 rather than `samplingMode: .greedy`, which only Xcode 27's SDK has.
+                options: GenerationOptions(temperature: 0)
             )
             let content = response.content
             func text(_ property: String) -> String? { try? content.value(String.self, forProperty: property) }

@@ -178,6 +178,24 @@ public actor EventLog {
         -- Covers the size cap's running total, so pruning reads no text.
         CREATE INDEX screens_at ON screens (at, bytes);
         """),
+        // What Start work guessed and what was chosen (`StartWorkOutcome`): labels for better guesses, kept apart.
+        SQLiteMigration(sql: """
+        CREATE TABLE start_outcomes (
+            id INTEGER PRIMARY KEY,
+            at REAL NOT NULL,
+            prompt TEXT NOT NULL,
+            guessed_repo TEXT,
+            guessed_name TEXT NOT NULL,
+            guessed_prefix TEXT,
+            advised INTEGER NOT NULL,
+            repos TEXT NOT NULL,
+            name TEXT NOT NULL,
+            prefix TEXT,
+            agent TEXT,
+            plan_first INTEGER NOT NULL
+        );
+        CREATE INDEX start_outcomes_at ON start_outcomes (at);
+        """),
     ]
 
     // MARK: Writing

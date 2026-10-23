@@ -168,6 +168,10 @@ public struct RepoGuess: Hashable, Sendable {
     /// 0...100.
     public let confidence: Int
     public let reason: String
+    /// The prompt names this repo: the strongest signal, which the model's pick never overrides.
+    public var named = false
+    /// The on-device model picked it (`StartWork.merge`).
+    public var advised = false
 }
 
 /// Everything Start work will do, decided before anything runs, so the dialog can show it and the user can change it.
@@ -357,7 +361,8 @@ public enum StartWork {
             let name = record.repo.name.lowercased()
             var score = 0.0
             var reasons: [String] = []
-            if names.contains(name) {
+            let named = names.contains(name)
+            if named {
                 score += 0.8
                 reasons.append("Prompt names \(record.repo.name).")
             } else {
@@ -384,7 +389,7 @@ public enum StartWork {
             if let host = record.location.hostName { reasons.append("On @\(host).") }
             return RepoGuess(
                 repo: record, confidence: Int((min(score, 0.98) * 100).rounded()),
-                reason: reasons.joined(separator: " ")
+                reason: reasons.joined(separator: " "), named: named
             )
         }
         let order = RepoOrder.recent(repos, lastWorked: lastWorked).map(\.id)

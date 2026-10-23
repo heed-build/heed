@@ -119,6 +119,12 @@ final class AppModel {
     /// Settings › Agents › Local decisions: what the screen snapshots kept amount to; nil until read
     /// (AppModel+ScreenSnapshots).
     var screenCounts: ScreenSnapshotCounts?
+    /// Settings › Agents › Local decisions: Start work outcomes kept; nil until read (AppModel+StartWorkSmarts).
+    var startOutcomeCount: Int?
+    /// Asks the on-device model while Start work is open with smart guesses on; nil otherwise.
+    @ObservationIgnored var startWorkAdvice: StartWorkAdviceScheduler?
+    /// Each local repo's README's first line, by record id, read once per run.
+    @ObservationIgnored var readmeAbout: [String: String] = [:]
     @ObservationIgnored var screenSampler = ScreenSampler()
     /// `heed.sqlite`, once open: where screen snapshots are kept.
     @ObservationIgnored var eventLog: EventLog?
@@ -308,13 +314,14 @@ final class AppModel {
     func say(_ message: String) { flash = message }
     private(set) var hintText = ""
     private var hintThenInsert = false
-    /// The Start work dialog, while open.
-    private(set) var startWork: StartWorkForm? {
+    /// The Start work dialog, while open. Set from AppModel+StartWorkSmarts too (the model's advice).
+    var startWork: StartWorkForm? {
         didSet {
             if startWork == nil, startWorkStandalone {
                 startWorkStandalone = false
                 StartWorkPanelController.shared.close()
             }
+            adviseStartWork()
         }
     }
 
@@ -346,6 +353,7 @@ final class AppModel {
             config.pilot = Fixtures.pilotRules
             config.local.recordScreens = true
             screenCounts = Fixtures.screenCounts(now: Clock.now)
+            startOutcomeCount = 214
             zmxHealth = ZmxHealth(path: "/opt/homebrew/bin/zmx", version: "0.8.1")
             hostStatuses = Fixtures.hostStatuses
             tailnet = Fixtures.tailnet
@@ -6020,6 +6028,8 @@ final class AppModel {
             }
         }
         startWork = form
+        prepareStartWorkSmarts()
+        adviseStartWork()
     }
 
     /// `chat.promote`: Start work for the chat's conversation, once its transcript and files are read (off the main
@@ -6175,6 +6185,7 @@ final class AppModel {
                 }
                 commit(changes)
                 if host != nil { startHostEvents() }
+                recordStartOutcome()
                 startWork = nil
                 view = .sessions
                 if case let .sessionUpserted(session)? = changes.first(where: {

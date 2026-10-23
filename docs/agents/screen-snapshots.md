@@ -56,3 +56,14 @@ size. **Delete all** removes every snapshot after you confirm.
 
 A screen can show anything that was in the terminal, including secrets an agent printed. They stay on this Mac with
 the rest of Heed's data, but keep that in mind before you copy `heed.sqlite` anywhere.
+
+## Start work outcomes
+
+Each time work starts from [Start work](../start-work/index.md), Heed also keeps a row with what it guessed and what
+you started with: the prompt, the guessed repo, branch name and prefix, whether the on-device model's
+[smart guesses](../start-work/repos.md#smart-guesses) were part of it, and the repos, name, prefix, agent and
+plan-first you chose. A local model can learn better guesses from them later. Nothing learns from them yet.
+
+They are kept in the same `heed.sqlite`, on this Mac only, and deleted after `keep_days` like snapshots. They are kept
+whether or not `record_screens` is on, since your prompts are already part of your sessions and history. Settings ›
+Agents › Local decisions shows how many are kept. **Delete all** removes snapshots only.

@@ -602,6 +602,13 @@ private struct LocalDecisionSettings: View {
                     }
                 }
             }
+            Field(
+                label: "Start work",
+                detail: "What Start work guessed and what you started with, kept as long as snapshots."
+            ) {
+                Text("\(Counts.text(model.startOutcomeCount ?? 0)) outcomes").font(Theme.mono(12))
+                    .task { await model.refreshStartOutcomeCount() }
+            }
             Field(label: "Kept", detail: "Text, in heed.sqlite beside domain.json.") {
                 Text("\(Counts.text(counts.total)) snapshots · \(Self.size(counts.bytes))").font(Theme.mono(12))
             }
@@ -960,6 +967,17 @@ private struct CleanupSettings: View {
                 Toggle("", isOn: Binding(
                     get: { model.config.work.offerTrust },
                     set: { model.setConfig(["worktrees", "offer_trust"], .bool($0)) }
+                )).labelsHidden()
+            }
+            GroupLabel(title: "Start work")
+            Field(
+                label: "Smart guesses",
+                detail: "The on-device model suggests the repo, the branch name and its prefix as you type; your "
+                    + "own picks always win. \(model.isFixture ? "Apple's on-device model is ready." : SmartGuesses.status)"
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { model.config.startWork.smartGuesses },
+                    set: { model.setConfig(["start_work", "smart_guesses"], .bool($0)) }
                 )).labelsHidden()
             }
             GroupLabel(title: "Cleanup")

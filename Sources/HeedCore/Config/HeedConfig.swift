@@ -46,6 +46,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var llm = LLMSettings()
     /// `[local]`: what heed keeps on this Mac to learn local decisions from (screen snapshots). Off by default.
     public var local = LocalSettings()
+    /// `[start_work]`: whether the on-device model helps Start work guess.
+    public var startWork = StartWorkSettings()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -98,6 +100,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.log == rhs.log,
             lhs.llm == rhs.llm,
             lhs.local == rhs.local,
+            lhs.startWork == rhs.startWork,
         ]
         return !same.contains(false)
     }
@@ -227,6 +230,8 @@ public enum ConfigLoader {
             }
             config.work.prefixes.prefixes = prefixes
         }
+        // [start_work]
+        if let flag = bool(["start_work", "smart_guesses"]) { config.startWork.smartGuesses = flag }
         // [sessions]
         if let agent = string(["sessions", "default_agent"]) { config.work.defaultAgent = agent }
         if let policy = string(["sessions", "resume_on_launch"]) {
@@ -715,6 +720,12 @@ public enum ConfigLoader {
     test = ["test", "tests", "cover"]
     perf = ["perf", "speed", "optimize", "faster"]
     feature = ["add", "implement", "support", "create", "introduce", "build", "feature"]
+
+    [start_work]
+    # Where the Mac has Apple's on-device model (Apple Intelligence, macOS 26): it suggests the repo when the prompt
+    # names none, the branch name's words, and the prefix when the first word picks none. On this Mac only, never sent
+    # anywhere; your own picks and typing always win. Elsewhere, or false: the rules above alone.
+    smart_guesses = true
 
     [sessions]
     default_agent = "claude"

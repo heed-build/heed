@@ -236,6 +236,14 @@ backoff_minutes = 10
 daily_calls = 100
 daily_dollars = 1.0
 
+[local]
+# Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,
+# asking, blocked, idle, done), the cleaned last 30 lines of its pane, the agent and the state; now and then one
+# while it works; and, unlabelled, states read from the screen. Kept in heed.sqlite on this Mac only, never sent
+# anywhere and never in the call log; dropped after keep_days, the oldest first past 64 MB. Off by default.
+record_screens = false
+keep_days = 30
+
 [tools]
 # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
 # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.

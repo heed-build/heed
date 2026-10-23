@@ -441,6 +441,7 @@ private struct AgentSettings: View {
             Text("Custom agents: add an [agents.<name>] table with a command in config.toml.")
                 .font(Theme.ui(11.5))
                 .foregroundStyle(Theme.fg3)
+            LocalDecisionSettings()
         }
     }
 
@@ -540,6 +541,115 @@ private struct ModelCallSettings: View {
         case .loggedOut: "Log in with the agent itself; heed only uses logins you already have."
         default: status?.path.map(Paths.abbreviate) ?? ""
         }
+    }
+}
+
+/// `[local]`: screen snapshots kept for a local decision model to learn from, and what is kept so far.
+private struct LocalDecisionSettings: View {
+    @Environment(AppModel.self) private var model
+    @State private var confirmDelete = false
+
+    var body: some View {
+        let local = model.config.local
+        GroupLabel(title: "Local decisions")
+            .task(id: local.recordScreens) { await model.refreshScreenCounts() }
+        Text(
+            "Screen snapshots for a local model to learn from: what an agent's pane showed when its hooks said what it "
+                + "was doing. Kept in heed.sqlite on this Mac only, never sent anywhere and never in the call log."
+        )
+        .font(Theme.ui(11.5))
+        .foregroundStyle(Theme.fg3)
+        .fixedSize(horizontal: false, vertical: true)
+        Field(
+            label: "Record screens",
+            detail: "At each state a hook reports, the cleaned last \(ScreenSnapshot.lines) lines of the agent's pane; "
+                + "one every \(Int(ScreenSampler.workingEvery / 60)) minutes while it works; states read from the "
+                + "screen, unlabelled. Off by default."
+        ) {
+            Toggle("", isOn: Binding(
+                get: { local.recordScreens }, set: { model.setConfig(["local", "record_screens"], .bool($0)) }
+            ))
+            .toggleStyle(.switch)
+            .labelsHidden()
+        }
+        Field(label: "Keep", detail: "Older snapshots go, and the oldest past 64 MB of text.") {
+            Stepper(value: Binding(
+                get: { local.keepDays }, set: { model.setConfig(["local", "keep_days"], .integer($0)) }
+            ), in: 1 ... 365) {
+                Text("\(local.keepDays) day\(local.keepDays == 1 ? "" : "s")").font(Theme.mono(12.5))
+            }
+            .frame(width: 160)
+        }
+        if let counts = model.screenCounts {
+            Field(label: "Labelled", detail: "Per agent and the state its hooks reported.") {
+                if counts.labelled.isEmpty {
+                    Text("none yet").font(Theme.mono(12)).foregroundStyle(Theme.fg3)
+                } else {
+                    labelled(counts.labelled)
+                }
+            }
+            Field(label: "Unlabelled", detail: "States read from the screen, for agents without hooks for them.") {
+                Text(Counts.text(counts.unlabelled)).font(Theme.mono(12))
+            }
+            Field(label: "Last 7 days") {
+                HStack(spacing: 14) {
+                    ForEach(counts.days, id: \.day) { day in
+                        VStack(spacing: 2) {
+                            Text(Self.weekday.string(from: day.day)).font(Theme.ui(11)).foregroundStyle(Theme.fg3)
+                            Text(Counts.text(day.count)).font(Theme.mono(12))
+                                .foregroundStyle(day.count == 0 ? Theme.fg3 : Theme.fg)
+                        }
+                    }
+                }
+            }
+            Field(label: "Kept", detail: "Text, in heed.sqlite beside domain.json.") {
+                Text("\(Counts.text(counts.total)) snapshots · \(Self.size(counts.bytes))").font(Theme.mono(12))
+            }
+            Field(label: "Delete all") {
+                Button("Delete all…") { confirmDelete = true }
+                    .disabled(counts.total == 0)
+                    .confirmationDialog(
+                        "Delete all \(Counts.text(counts.total)) screen snapshots?", isPresented: $confirmDelete
+                    ) {
+                        Button("Delete all", role: .destructive) { Task { await model.deleteScreenSnapshots() } }
+                    } message: {
+                        Text("They cannot be brought back. Recording goes on if it is on.")
+                    }
+            }
+        }
+    }
+
+    private func labelled(_ rows: [ScreenSnapshotCounts.Labelled]) -> some View {
+        let agents = rows.map(\.agent).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+        return VStack(alignment: .leading, spacing: 6) {
+            ForEach(agents, id: \.self) { agent in
+                HStack(spacing: 12) {
+                    Text(agent).font(Theme.mono(12)).frame(width: 80, alignment: .leading)
+                    ForEach(AgentState.allCases, id: \.self) { state in
+                        if let row = rows.first(where: { $0.agent == agent && $0.state == state }) {
+                            HStack(spacing: 5) {
+                                StateGlyph(state: state, size: 10)
+                                Text(state.rawValue).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                                Text(Counts.text(row.count)).font(Theme.mono(12))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static let weekday: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.dateFormat = "EEE"
+        return formatter
+    }()
+
+    /// `1.2 MB`, `340 KB`: the same whatever the Mac's region.
+    static func size(_ bytes: Int) -> String {
+        if bytes >= 1_000_000 { return String(format: "%.1f MB", Double(bytes) / 1_000_000) }
+        return "\(max(bytes / 1000, bytes > 0 ? 1 : 0)) KB"
     }
 }
 

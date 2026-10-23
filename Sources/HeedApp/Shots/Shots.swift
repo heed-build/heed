@@ -221,6 +221,8 @@ enum Shots {
                 model.llmTests["claude"] = LLMTest(answer: "Hello!", model: "claude-haiku", seconds: 2.9, cost: 0.00026)
             }
         ),
+        // Settings › Agents › Local decisions: screen snapshots on, with the fake world's invented counts.
+        Shot(id: "agents/local-decisions", subject: .settings(.agents), size: CGSize(width: 1000, height: 1400)),
     ]
 
     static let hosts: [Shot] = [

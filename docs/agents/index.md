@@ -40,3 +40,4 @@ plan and resume arguments can be changed, and new agents added: see [Custom agen
 - [Reading the screen](screen-reading.md): guessed states, and the patterns behind them.
 - [Custom agents](custom-agents.md): adding your own.
 - [Model calls](model-calls.md): Heed's own short calls (summaries, decisions), through the agents you are logged in to.
+- [Screen snapshots](screen-snapshots.md): an opt-in, local-only record of what a pane showed at each reported state.

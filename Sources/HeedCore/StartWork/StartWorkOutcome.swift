@@ -101,6 +101,15 @@ public extension EventLog {
         }
     }
 
+    /// Settings' Delete all in Local decisions.
+    func deleteStartOutcomes() {
+        do {
+            try database.run("DELETE FROM start_outcomes")
+        } catch {
+            NSLog("heed: could not delete Start work outcomes: \(error)")
+        }
+    }
+
     /// How many are kept, for Settings.
     func startOutcomeCount() throws -> Int {
         try database.scalar("SELECT COUNT(*) FROM start_outcomes")?.int ?? 0

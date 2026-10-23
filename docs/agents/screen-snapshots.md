@@ -52,7 +52,7 @@ older than `keep_days` (30 by default) are deleted, and so are the oldest ones o
 Turning recording off stops new snapshots. What is already kept stays until it ages out, or until you delete it.
 
 Settings shows what is kept: labelled snapshots per agent and state, the unlabelled count, the last seven days and the
-size. **Delete all** removes every snapshot after you confirm.
+size. **Delete all** removes every snapshot, and every [Start work outcome](#start-work-outcomes), after you confirm.
 
 A screen can show anything that was in the terminal, including secrets an agent printed. They stay on this Mac with
 the rest of Heed's data, but keep that in mind before you copy `heed.sqlite` anywhere.
@@ -66,4 +66,4 @@ plan-first you chose. A local model can learn better guesses from them later. No
 
 They are kept in the same `heed.sqlite`, on this Mac only, and deleted after `keep_days` like snapshots. They are kept
 whether or not `record_screens` is on, since your prompts are already part of your sessions and history. Settings ›
-Agents › Local decisions shows how many are kept. **Delete all** removes snapshots only.
+Agents › Local decisions shows how many are kept. **Delete all** removes them together with the snapshots.

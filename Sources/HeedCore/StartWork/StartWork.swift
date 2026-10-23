@@ -170,6 +170,10 @@ public struct RepoGuess: Hashable, Sendable {
     public let reason: String
     /// The prompt names this repo: the strongest signal, which the model's pick never overrides.
     public var named = false
+    /// Start work was opened from something in this repo (a session, worktree, PR or issue): kept like a named one.
+    public var opened = false
+    /// Named or opened from: the model's pick never overrides it.
+    public var settled: Bool { named || opened }
     /// The on-device model picked it (`StartWork.merge`).
     public var advised = false
 }
@@ -362,6 +366,7 @@ public enum StartWork {
             var score = 0.0
             var reasons: [String] = []
             let named = names.contains(name)
+            var opened = false
             if named {
                 score += 0.8
                 reasons.append("Prompt names \(record.repo.name).")
@@ -377,6 +382,7 @@ public enum StartWork {
                 // The primary repo of what you were on; the others of a cross-repo session count for less.
                 score += index == 0 ? 0.45 : 0.25
                 reasons.append("Opened from \(context.label).")
+                opened = true
             }
             if let last = lastWorked[record.id] {
                 let days = max(now.timeIntervalSince(last), 0) / 86400
@@ -389,7 +395,7 @@ public enum StartWork {
             if let host = record.location.hostName { reasons.append("On @\(host).") }
             return RepoGuess(
                 repo: record, confidence: Int((min(score, 0.98) * 100).rounded()),
-                reason: reasons.joined(separator: " "), named: named
+                reason: reasons.joined(separator: " "), named: named, opened: opened
             )
         }
         let order = RepoOrder.recent(repos, lastWorked: lastWorked).map(\.id)

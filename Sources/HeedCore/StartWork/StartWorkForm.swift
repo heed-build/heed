@@ -447,7 +447,7 @@ public struct StartWorkForm: Sendable {
         prompt = text
         ruledGuesses = StartWork.guessRepos(for: text, in: repos, lastWorked: lastWorked, context: context)
         guesses = ruledGuesses
-        if let advisedRepo, !reposTouched, chat == nil, !ruledGuesses.contains(where: \.named) {
+        if let advisedRepo, !reposTouched, chat == nil, !ruledGuesses.contains(where: \.settled) {
             guesses = StartWork.merge(ruledGuesses, pick: advisedRepo.id, why: advisedRepo.why)
         } else {
             advisedRepo = nil
@@ -476,7 +476,7 @@ public struct StartWorkForm: Sendable {
     /// have not typed one; the prefix only when the first word picked none (and there is a default prefix).
     public var question: StartWorkQuestion? {
         guard chat == nil, !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        let asksRepo = !reposTouched && repos.count > 1 && !ruledGuesses.contains(where: \.named)
+        let asksRepo = !reposTouched && repos.count > 1 && !ruledGuesses.contains(where: \.settled)
         let candidates = asksRepo ? ruledGuesses.prefix(StartWorkHints.candidates).map { guess in
             StartWorkQuestion.Candidate(
                 id: guess.repo.id, about: hints.about[guess.repo.id] ?? "", recent: hints.recent[guess.repo.id] ?? []
@@ -498,7 +498,7 @@ public struct StartWorkForm: Sendable {
         guard question.prompt == prompt else { return }
         thinking = false
         guard let advice else { return }
-        if question.asksRepo, !reposTouched, chat == nil, !ruledGuesses.contains(where: \.named),
+        if question.asksRepo, !reposTouched, chat == nil, !ruledGuesses.contains(where: \.settled),
            let pick = advice.repo,
            question.candidates.contains(where: { $0.id == pick })
         {

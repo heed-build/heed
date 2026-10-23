@@ -69,6 +69,25 @@ struct StartWorkRepoAdviceTests {
         #expect(start.guesses.first?.repo.id == "acme/ledger")
     }
 
+    @Test func aRepoStartWorkWasOpenedFromIsKeptLikeANamedOne() throws {
+        var start = StartWorkForm(
+            repos: records, context: StartContext(repos: ["acme/mobile"], label: "fix/offline-notes"),
+            settings: .default, prompt: "look why deploys are slow"
+        )
+        #expect(start.selectedRepos == ["acme/mobile"])
+        let question = try #require(start.question)
+        #expect(!question.asksRepo)
+        // Even answered as if asked, the model's pick changes nothing, now or as you type on.
+        start.apply(
+            StartWorkAdvice(repo: "acme/infra"),
+            for: StartWorkQuestion(prompt: start.prompt, candidates: [.init(id: "acme/infra")])
+        )
+        #expect(start.selectedRepos == ["acme/mobile"])
+        #expect(start.guesses.first?.repo.id == "acme/mobile")
+        type("!", into: &start)
+        #expect(start.selectedRepos == ["acme/mobile"])
+    }
+
     @Test func aRepoYouPickedIsNotAskedNorChanged() {
         var start = form("look why deploys are slow")
         start.choose(repo: "acme/mobile")
@@ -394,5 +413,7 @@ struct StartWorkOutcomeTests {
         await log.record(new, keepDays: 30)
         #expect(try await log.startOutcomes() == [new])
         #expect(try await log.startOutcomeCount() == 1)
+        await log.deleteStartOutcomes()
+        #expect(try await log.startOutcomeCount() == 0)
     }
 }

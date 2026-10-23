@@ -228,7 +228,14 @@ public extension StartWork {
         var merged = guesses
         merged.remove(at: index)
         merged.insert(
-            RepoGuess(repo: picked.repo, confidence: confidence, reason: reason, named: picked.named, advised: true),
+            RepoGuess(
+                repo: picked.repo,
+                confidence: confidence,
+                reason: reason,
+                named: picked.named,
+                opened: picked.opened,
+                advised: true
+            ),
             at: 0
         )
         return merged

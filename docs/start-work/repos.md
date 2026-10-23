@@ -27,8 +27,8 @@ name, the first line of its README and the titles of your last few sessions ther
 is selected, and the line under the chips starts with **Fits the prompt:** and the model's reason. Every other chip
 stays where it was.
 
-The model is not asked about the repo when the prompt names one, because a named repo always wins, or once you have
-picked a repo yourself. The field says **thinking…** while an answer is on its way. Typing never waits for it, and an
+The model is not asked about the repo when the prompt names one, because a named repo always wins, when you opened
+Start work from something in a repo (a session, worktree, PR or issue), or once you have picked a repo yourself. The field says **thinking…** while an answer is on its way. Typing never waits for it, and an
 answer to a prompt you have since changed is dropped. An answer takes about one to two seconds.
 
 The model runs on this Mac: nothing is sent anywhere. Turn it off in **Settings › Worktrees & cleanup › Start work**,

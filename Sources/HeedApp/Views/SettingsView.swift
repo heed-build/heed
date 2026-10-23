@@ -613,14 +613,17 @@ private struct LocalDecisionSettings: View {
                 Text("\(Counts.text(counts.total)) snapshots · \(Self.size(counts.bytes))").font(Theme.mono(12))
             }
             Field(label: "Delete all") {
+                let outcomes = model.startOutcomeCount ?? 0
                 Button("Delete all…") { confirmDelete = true }
-                    .disabled(counts.total == 0)
+                    .disabled(counts.total == 0 && outcomes == 0)
                     .confirmationDialog(
-                        "Delete all \(Counts.text(counts.total)) screen snapshots?", isPresented: $confirmDelete
+                        "Delete all \(Counts.text(counts.total)) screen snapshots and \(Counts.text(outcomes)) Start "
+                            + "work outcomes?",
+                        isPresented: $confirmDelete
                     ) {
-                        Button("Delete all", role: .destructive) { Task { await model.deleteScreenSnapshots() } }
+                        Button("Delete all", role: .destructive) { Task { await model.deleteLocalDecisions() } }
                     } message: {
-                        Text("They cannot be brought back. Recording goes on if it is on.")
+                        Text("They cannot be brought back. Recording goes on: snapshots if it is on, outcomes always.")
                     }
             }
         }

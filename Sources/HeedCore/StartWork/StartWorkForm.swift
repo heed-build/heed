@@ -35,6 +35,19 @@ public struct StartWorkForm: Sendable {
     public private(set) var prompt = ""
     public private(set) var name = ""
     public private(set) var guesses: [RepoGuess] = []
+    /// The guesses by the rules alone, before a model's pick.
+    private var ruledGuesses: [RepoGuess] = []
+    /// The model's last repo pick and why: kept while you type on, until it answers again or the prompt names a repo.
+    private var advisedRepo: (id: String, why: String?)?
+    /// What the model is told about your repos (`StartWorkHints`); the app fills it in.
+    public var hints = StartWorkHints()
+    /// A question is out to the model: the dialog shows it, subtly.
+    public var thinking = false
+    /// What Start work guessed, before you changed anything: recorded with what you chose (`StartWorkOutcome`).
+    public private(set) var guessedRepo: String?
+    public private(set) var guessedName = ""
+    /// The model's advice made it into the guesses.
+    public private(set) var advised = false
     /// Selected repo ids (`org/name`), in the order they were picked; the first is primary.
     public private(set) var selectedRepos: [String] = []
     /// The focused chip in the repo field.
@@ -432,7 +445,14 @@ public struct StartWorkForm: Sendable {
 
     private mutating func setPrompt(_ text: String) {
         prompt = text
-        guesses = StartWork.guessRepos(for: text, in: repos, lastWorked: lastWorked, context: context)
+        ruledGuesses = StartWork.guessRepos(for: text, in: repos, lastWorked: lastWorked, context: context)
+        guesses = ruledGuesses
+        if let advisedRepo, !reposTouched, chat == nil, !ruledGuesses.contains(where: \.settled) {
+            guesses = StartWork.merge(ruledGuesses, pick: advisedRepo.id, why: advisedRepo.why)
+        } else {
+            advisedRepo = nil
+        }
+        advised = advisedRepo != nil
         if !nameEdited {
             name = chat != nil ? Chats.scratchName(for: text, on: Clock.now)
                 : text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : StartWork.branchName(
@@ -444,7 +464,65 @@ public struct StartWorkForm: Sendable {
             // The top guess only. Each selected repo gets a worktree, so a second one is yours to add (space), never a
             // guess: a prompt names repos for many reasons (an issue link, a repo it reads from).
             selectedRepos = guesses.first.flatMap { $0.confidence > 0 ? [$0.repo.id] : nil } ?? []
+            guessedRepo = selectedRepos.first
         }
+        if !nameEdited { guessedName = name }
+    }
+
+    // MARK: Smart guesses
+
+    /// What is still open to ask the model about this prompt, or nil when nothing is: not in a chat, not with an
+    /// empty prompt. The repo only when you have not picked one and the prompt names none; the name only while you
+    /// have not typed one; the prefix only when the first word picked none (and there is a default prefix).
+    public var question: StartWorkQuestion? {
+        guard chat == nil, !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        let asksRepo = !reposTouched && repos.count > 1 && !ruledGuesses.contains(where: \.settled)
+        let candidates = asksRepo ? ruledGuesses.prefix(StartWorkHints.candidates).map { guess in
+            StartWorkQuestion.Candidate(
+                id: guess.repo.id, about: hints.about[guess.repo.id] ?? "", recent: hints.recent[guess.repo.id] ?? []
+            )
+        } : []
+        let asksName = !nameEdited
+        guard !candidates.isEmpty || asksName else { return nil }
+        let asksPrefix = asksName && !prefixes.defaultPrefix.isEmpty
+            && StartWork.keywordPrefix(for: prompt, prefixes: prefixes) == nil
+        return StartWorkQuestion(
+            prompt: prompt, candidates: candidates, asksName: asksName,
+            prefixes: asksPrefix ? StartWork.prefixChoices(prefixes) : [], examples: asksName ? hints.branches : []
+        )
+    }
+
+    /// The model's answer to `question`: its repo on top of the guesses (and selected, unless you picked repos), its
+    /// name in the worktree field (unless you typed one). An answer to an older prompt changes nothing.
+    public mutating func apply(_ advice: StartWorkAdvice?, for question: StartWorkQuestion) {
+        guard question.prompt == prompt else { return }
+        thinking = false
+        guard let advice else { return }
+        if question.asksRepo, !reposTouched, chat == nil, !ruledGuesses.contains(where: \.settled),
+           let pick = advice.repo,
+           question.candidates.contains(where: { $0.id == pick })
+        {
+            advisedRepo = (pick, advice.why)
+            guesses = StartWork.merge(ruledGuesses, pick: pick, why: advice.why)
+            selectedRepos = [pick]
+            guessedRepo = pick
+            advised = true
+        }
+        if question.asksName, !nameEdited, chat == nil {
+            let named = StartWorkAdvice(name: advice.name, prefix: question.prefixes.isEmpty ? nil : advice.prefix)
+            name = StartWork.branchName(for: prompt, prefixes: prefixes, advice: named)
+            guessedName = name
+            advised = advised || advice.name != nil || named.prefix != nil
+        }
+    }
+
+    /// What was guessed and what you chose, for work in repos (a chat has neither repo nor branch).
+    public func outcome(at date: Date) -> StartWorkOutcome? {
+        guard chat == nil else { return nil }
+        return StartWorkOutcome(
+            at: date, prompt: prompt, guessedRepo: guessedRepo, guessedName: guessedName, advised: advised,
+            repos: selectedRepos, name: name, agent: agent?.name, planFirst: planFirst
+        )
     }
 
     static func deletingLastWord(_ text: String) -> String {

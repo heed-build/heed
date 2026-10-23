@@ -38,6 +38,12 @@ test = ["test", "tests", "cover"]
 perf = ["perf", "speed", "optimize", "faster"]
 feature = ["add", "implement", "support", "create", "introduce", "build", "feature"]
 
+[start_work]
+# Where the Mac has Apple's on-device model (Apple Intelligence, macOS 26): it suggests the repo when the prompt
+# names none, the branch name's words, and the prefix when the first word picks none. On this Mac only, never sent
+# anywhere; your own picks and typing always win. Elsewhere, or false: the rules above alone.
+smart_guesses = true
+
 [sessions]
 default_agent = "claude"
 # On launch: ask which sessions to resume, resume them all, or none.

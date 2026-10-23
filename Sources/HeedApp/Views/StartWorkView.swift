@@ -194,7 +194,8 @@ struct StartWorkView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer(minLength: 12)
-                    Text("auto-named").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                    // The on-device model is thinking about a better name (and repo): the name may still change.
+                    Text(form.thinking ? "thinking…" : "auto-named").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)

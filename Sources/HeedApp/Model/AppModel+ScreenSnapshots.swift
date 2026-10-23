@@ -67,14 +67,17 @@ extension AppModel {
         screenCounts = try? await log.screenCounts()
     }
 
-    /// Settings' Delete all, after it was confirmed.
-    func deleteScreenSnapshots() async {
+    /// Settings' Delete all in Local decisions, after it was confirmed: screen snapshots and Start work outcomes.
+    func deleteLocalDecisions() async {
         if isFixture {
             screenCounts = .empty(now: Clock.now)
+            startOutcomeCount = 0
             return
         }
         guard let log = eventLog else { return }
         await log.deleteScreens()
+        await log.deleteStartOutcomes()
         await refreshScreenCounts()
+        await refreshStartOutcomeCount()
     }
 }

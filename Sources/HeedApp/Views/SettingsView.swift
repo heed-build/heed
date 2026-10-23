@@ -602,18 +602,28 @@ private struct LocalDecisionSettings: View {
                     }
                 }
             }
+            Field(
+                label: "Start work",
+                detail: "What Start work guessed and what you started with, kept as long as snapshots."
+            ) {
+                Text("\(Counts.text(model.startOutcomeCount ?? 0)) outcomes").font(Theme.mono(12))
+                    .task { await model.refreshStartOutcomeCount() }
+            }
             Field(label: "Kept", detail: "Text, in heed.sqlite beside domain.json.") {
                 Text("\(Counts.text(counts.total)) snapshots · \(Self.size(counts.bytes))").font(Theme.mono(12))
             }
             Field(label: "Delete all") {
+                let outcomes = model.startOutcomeCount ?? 0
                 Button("Delete all…") { confirmDelete = true }
-                    .disabled(counts.total == 0)
+                    .disabled(counts.total == 0 && outcomes == 0)
                     .confirmationDialog(
-                        "Delete all \(Counts.text(counts.total)) screen snapshots?", isPresented: $confirmDelete
+                        "Delete all \(Counts.text(counts.total)) screen snapshots and \(Counts.text(outcomes)) Start "
+                            + "work outcomes?",
+                        isPresented: $confirmDelete
                     ) {
-                        Button("Delete all", role: .destructive) { Task { await model.deleteScreenSnapshots() } }
+                        Button("Delete all", role: .destructive) { Task { await model.deleteLocalDecisions() } }
                     } message: {
-                        Text("They cannot be brought back. Recording goes on if it is on.")
+                        Text("They cannot be brought back. Recording goes on: snapshots if it is on, outcomes always.")
                     }
             }
         }
@@ -960,6 +970,17 @@ private struct CleanupSettings: View {
                 Toggle("", isOn: Binding(
                     get: { model.config.work.offerTrust },
                     set: { model.setConfig(["worktrees", "offer_trust"], .bool($0)) }
+                )).labelsHidden()
+            }
+            GroupLabel(title: "Start work")
+            Field(
+                label: "Smart guesses",
+                detail: "The on-device model suggests the repo, the branch name and its prefix as you type; your "
+                    + "own picks always win. \(model.isFixture ? "Apple's on-device model is ready." : SmartGuesses.status)"
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { model.config.startWork.smartGuesses },
+                    set: { model.setConfig(["start_work", "smart_guesses"], .bool($0)) }
                 )).labelsHidden()
             }
             GroupLabel(title: "Cleanup")

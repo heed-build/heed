@@ -116,6 +116,12 @@ final class AppModel {
     var llmStatuses: [LLMAgentStatus] = []
     /// Settings' Test per agent: running, or how the last one ended.
     var llmTests: [String: LLMTest] = [:]
+    /// Settings › Agents › Local decisions: what the screen snapshots kept amount to; nil until read
+    /// (AppModel+ScreenSnapshots).
+    var screenCounts: ScreenSnapshotCounts?
+    @ObservationIgnored var screenSampler = ScreenSampler()
+    /// `heed.sqlite`, once open: where screen snapshots are kept.
+    @ObservationIgnored var eventLog: EventLog?
     let configFile = ConfigLoader.defaultFile()
     private var configWatcher: ConfigWatcher?
     /// Last commit date per worktree path, gathered with the repo refresh (sweep activity).
@@ -338,6 +344,8 @@ final class AppModel {
             attention.adoptFixtures()
             config.hosts = Fixtures.hosts
             config.pilot = Fixtures.pilotRules
+            config.local.recordScreens = true
+            screenCounts = Fixtures.screenCounts(now: Clock.now)
             zmxHealth = ZmxHealth(path: "/opt/homebrew/bin/zmx", version: "0.8.1")
             hostStatuses = Fixtures.hostStatuses
             tailnet = Fixtures.tailnet
@@ -384,6 +392,8 @@ final class AppModel {
         replace(with: cached)
         loadAvatars()
         store = DomainStore(domain: cached, file: file, log: log)
+        eventLog = log
+        pruneScreenSnapshots()
         timeline.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         dashboard.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         startLedger(log: log)
@@ -450,8 +460,10 @@ final class AppModel {
             updated.state = ObservedState(.done, source: .guessed, reason: "quiet")
             updated.activity = "done · quiet"
             quiet.append(.sessionUpserted(updated))
+            recordScreen(of: updated, from: session.state)
         }
         commit(quiet)
+        sampleWorkingScreens(now: now)
         var work: [(String, String, ScreenGuess.Patterns, Set<AgentState>)] = []
         for session in sessions {
             guard let agent = settings.agent(session.agent) else { continue }
@@ -484,10 +496,12 @@ final class AppModel {
                 continue
             }
             guard next.state != session.state.state || next.source != session.state.source else { continue }
+            let previous = session.state
             session.state = next
             if next.state == .exited { setSubagents(nil, of: id) }
             session.activity = "\(next.state.rawValue) · guessed"
             changes.append(.sessionUpserted(session))
+            recordScreen(of: session, from: previous)
         }
         commit(changes)
     }
@@ -974,7 +988,9 @@ final class AppModel {
                 next.reason = "\(next.reason ?? "rate limited") · \(resets)"
             }
             let state = next.state, reason = next.reason
+            let previous = session.state
             session.state = next
+            recordScreen(of: session, from: previous)
             session.activity = reason.map { "\(state.rawValue) · \($0)" } ?? state.rawValue
             session.lastActivity = message.sentAt
             events[session.id] = AgentEvent.log(

@@ -44,6 +44,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var log = CallRetention()
     /// `[llm]`, and `llm` / `llm_model` in `[agents.<name>]`: heed's own model calls.
     public var llm = LLMSettings()
+    /// `[local]`: what heed keeps on this Mac to learn local decisions from (screen snapshots). Off by default.
+    public var local = LocalSettings()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -95,6 +97,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.usage == rhs.usage,
             lhs.log == rhs.log,
             lhs.llm == rhs.llm,
+            lhs.local == rhs.local,
         ]
         return !same.contains(false)
     }
@@ -653,6 +656,9 @@ public enum ConfigLoader {
                 ))
             }
         }
+        // [local]
+        if let flag = bool(["local", "record_screens"]) { config.local.recordScreens = flag }
+        if let days = integer(["local", "keep_days"], range: 1 ... 365) { config.local.keepDays = days }
         // [usage]
         if let flag = bool(["usage", "show_cost"]) { config.usage.showCost = flag }
         for (prefix, text) in pairs(["usage", "prices"]) {
@@ -907,6 +913,14 @@ public enum ConfigLoader {
     # (counted where a cost is known: reported by the agent, or estimated from [usage.prices]). 0: no cap.
     daily_calls = 100
     daily_dollars = 1.0
+
+    [local]
+    # Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,
+    # asking, blocked, idle, done), the cleaned last 30 lines of its pane, the agent and the state; now and then one
+    # while it works; and, unlabelled, states read from the screen. Kept in heed.sqlite on this Mac only, never sent
+    # anywhere and never in the call log; dropped after keep_days, the oldest first past 64 MB. Off by default.
+    record_screens = false
+    keep_days = 30
 
     [tools]
     # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places

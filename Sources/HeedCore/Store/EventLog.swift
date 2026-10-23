@@ -96,7 +96,7 @@ public enum EventLogWrite: Hashable, Sendable {
 /// The domain keeps `history` and each session's `timeline` in memory, for the views; this is where they are kept on
 /// disk. `adopt` fills them in at launch, and `DomainStore` writes here as the domain changes.
 public actor EventLog {
-    private let database: SQLiteDatabase
+    let database: SQLiteDatabase
 
     /// `~/Library/Application Support/Heed/heed.sqlite`.
     public static func defaultFile() -> URL {
@@ -159,6 +159,24 @@ public actor EventLog {
             entry TEXT NOT NULL
         );
         CREATE INDEX ledger_updated ON ledger (updated_at);
+        """),
+        // Screen snapshots (`[local] record_screens`): kept apart from events, pruned on their own.
+        SQLiteMigration(sql: """
+        CREATE TABLE screens (
+            id INTEGER PRIMARY KEY,
+            at REAL NOT NULL,
+            session TEXT,
+            agent TEXT NOT NULL,
+            state TEXT NOT NULL,
+            previous TEXT,
+            source TEXT NOT NULL,
+            labelled INTEGER NOT NULL,
+            remote INTEGER NOT NULL DEFAULT 0,
+            text TEXT NOT NULL,
+            bytes INTEGER NOT NULL
+        );
+        -- Covers the size cap's running total, so pruning reads no text.
+        CREATE INDEX screens_at ON screens (at, bytes);
         """),
     ]
 

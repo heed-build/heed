@@ -989,4 +989,21 @@ public enum Fixtures {
             PaneTab(id: "\(session.id)-t3", title: "tests", tree: .leaf(tests)),
         ]
     }
+
+    /// Settings › Agents › Local decisions in the fake world: invented counts of screen snapshots kept.
+    public static func screenCounts(now: Date, calendar: Calendar = .current) -> ScreenSnapshotCounts {
+        let labelled: [(String, AgentState, Int)] = [
+            ("claude", .asking, 17), ("claude", .blocked, 38), ("claude", .done, 64), ("claude", .idle, 41),
+            ("claude", .working, 112), ("codex", .blocked, 12), ("codex", .done, 22), ("codex", .idle, 20),
+            ("codex", .working, 46), ("opencode", .asking, 3), ("opencode", .done, 5), ("opencode", .working, 9),
+        ]
+        let perDay = [31, 48, 0, 0, 57, 62, 19]
+        return ScreenSnapshotCounts(
+            labelled: labelled.map { ScreenSnapshotCounts.Labelled(agent: $0, state: $1, count: $2) },
+            unlabelled: 27, total: labelled.map(\.2).reduce(0, +) + 27,
+            days: zip(ScreenSnapshotCounts.lastWeek(now: now, calendar: calendar), perDay)
+                .map { ScreenSnapshotCounts.Day(day: $0, count: $1) },
+            bytes: 1_240_000
+        )
+    }
 }

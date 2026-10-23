@@ -61,15 +61,16 @@ public enum Import {
     }
 
     /// The changes that make `worktree` a session: resuming `resume` when given, else starting `agent` fresh (or a
-    /// shell when `agent` is nil).
+    /// shell when `agent` is nil), told `prompt` when there is one (a session started over the control socket).
     public static func session(
         for worktree: Worktree, agent: AgentProfile?, resume: AgentSession?, integration: IntegrationFiles?,
-        now: Date = Date()
+        prompt: String = "", now: Date = Date()
     ) -> [DomainChange] {
-        let firstLine = resume?.prompt?.split(separator: "\n").first.map(String.init)
+        let told = resume?.prompt ?? (prompt.isEmpty ? nil : prompt)
+        let firstLine = told?.split(separator: "\n").first.map(String.init)
         var session = Session(
             title: firstLine.map { $0.count > 60 ? String($0.prefix(59)) + "…" : $0 } ?? worktree.branch ?? "worktree",
-            prompt: resume?.prompt ?? "", repos: [worktree.repo], branch: worktree.branch ?? worktree.head,
+            prompt: told ?? "", repos: [worktree.repo], branch: worktree.branch ?? worktree.head,
             agent: agent?.name ?? "shell", agentSessionID: resume?.id, state: ObservedState(.idle, source: .guessed),
             lastActivity: now, createdAt: now
         )
@@ -94,8 +95,11 @@ public enum Import {
                 command = line
                 session.record("imported · resumed \(agent.name) session", at: now)
             } else {
-                command = agent.launchCommand(prompt: "", extraArguments: hooks(false), environment: env)
-                session.record("imported · \(agent.name) started fresh", at: now)
+                command = agent.launchCommand(prompt: prompt, extraArguments: hooks(false), environment: env)
+                session.record(
+                    prompt.isEmpty ? "imported · \(agent.name) started fresh" : "started by another app",
+                    at: now
+                )
             }
         } else {
             session.record("imported · shell only", at: now)

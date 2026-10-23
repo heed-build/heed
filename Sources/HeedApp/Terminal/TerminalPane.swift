@@ -220,6 +220,9 @@ final class TerminalSurfaces {
         #endif
     }
 
+    /// Whether the pane has a terminal now: typing into one that does not goes nowhere.
+    func hasTerminal(paneID: String) -> Bool { views[paneID] != nil }
+
     /// Types text into a pane without pressing Return.
     func typeText(_ text: String, paneID: String) {
         #if HEED_GHOSTTY

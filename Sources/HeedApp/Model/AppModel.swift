@@ -137,6 +137,8 @@ final class AppModel {
     /// Attention's store, marks and thread details.
     let attention = AttentionModel()
     private var hookServer: HookServer?
+    /// The control socket (`HeedControl`): editors and scripts start, type into and follow sessions through it.
+    var controlServer: ControlServer?
     /// Where the per-run hook files live. Screenshots show a made-up home, never the real one.
     let integration = ShotMode.active
         ? IntegrationFiles(
@@ -257,7 +259,7 @@ final class AppModel {
     private(set) var overlayPull: PullRef?
     private(set) var feedbackCursor = 0
     /// When you last typed into each session's panes; feedback waits after that.
-    private var lastTyped: [String: Date] = [:]
+    private(set) var lastTyped: [String: Date] = [:]
     /// PRs with queued feedback waiting for their agent to be idle.
     private var pendingDelivery: Set<PullRef> = []
 
@@ -294,7 +296,7 @@ final class AppModel {
     /// While ⇥ / ↓ cycle the command line's matches: the line they were matched against, and the one taken.
     private var completionAnchor: String?
     private(set) var completionIndex: Int?
-    private(set) var flash: String?
+    var flash: String?
 
     /// Shows `message` in the status bar, for the model's extensions.
     func say(_ message: String) { flash = message }
@@ -709,7 +711,7 @@ final class AppModel {
     }
 
     /// The pane the agent runs in: the first `.agent` pane, else the first pane. A run's tab is never it.
-    private func agentPane(in layout: SessionLayout) -> (Int, String)? {
+    func agentPane(in layout: SessionLayout) -> (Int, String)? {
         for (index, tab) in layout.tabs.enumerated() {
             if let pane = tab.tree.panes.first(where: { $0.role == .agent && !runPanes.contains($0.id) }) {
                 return (index, pane.id)
@@ -868,6 +870,7 @@ final class AppModel {
             return
         }
         hookServer = server
+        startControl()
         Task {
             for await message in server.messages {
                 receive(message)
@@ -1093,6 +1096,7 @@ final class AppModel {
             cursor = min(cursor, max(list.ordered.count - 1, 0))
         }
         heldSession = currentSession?.id
+        publishControl()
         if !replacingDomain { noteOtherNeeds() }
     }
 

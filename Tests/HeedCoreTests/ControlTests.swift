@@ -22,13 +22,13 @@ struct ControlTests {
         try server.start()
         defer { server.stop() }
 
-        let reply = try await Task.detached {
+        let reply = try await onThread {
             let client = try ControlClient(path: path)
             let sessions = try client.call(ControlRequest(method: .sessions))
             let started = try client.call(ControlRequest(method: .start, directory: "/tmp", prompt: "go"))
             let refused = try client.call(ControlRequest(method: .send, session: "s1", text: "hi"))
             return (sessions, started, refused)
-        }.value
+        }
         #expect(reply.0.sessions == [Self.sample])
         #expect(reply.0.id == 1)
         #expect(reply.1.session == "new-go")
@@ -48,14 +48,14 @@ struct ControlTests {
         changed.state = "working"
         changed.needsYou = false
         let next = changed
-        let events = try await Task.detached {
+        let events = try await onThread {
             let client = try ControlClient(path: path)
             let first = try client.call(ControlRequest(method: .watch))
             // The same list again is not news; the changed one is.
             server.publish([Self.sample])
             server.publish([next])
             return try (first, client.next())
-        }.value
+        }
         #expect(events.0.sessions == [Self.sample])
         #expect(events.1.event == "sessions")
         #expect(events.1.sessions == [changed])
@@ -66,7 +66,7 @@ struct ControlTests {
         let server = ControlServer(path: path) { _ in ControlReply(sessions: []) }
         try server.start()
         defer { server.stop() }
-        let replies = try await Task.detached {
+        let replies = try await onThread {
             let client = try ControlClient(path: path)
             let fd = socket(AF_UNIX, SOCK_STREAM, 0)
             var address = HookServer.address(path)
@@ -82,7 +82,7 @@ struct ControlTests {
             let count = read(fd, &buffer, buffer.count)
             let answer = try ControlCoding.decode(ControlReply.self, line: Data(buffer[0 ..< max(count - 1, 0)]))
             return try (answer, client.call(ControlRequest(method: .sessions)))
-        }.value
+        }
         #expect(replies.0.ok == false)
         #expect(replies.0.error?.hasPrefix("not a request") == true)
         #expect(replies.1.ok)
@@ -157,5 +157,13 @@ struct ControlTests {
         )
         plan.arguments = ["--mcp-config", "/tmp/m.json"]
         #expect(plan.command.map { "\($0)" }?.contains("--mcp-config") == true)
+    }
+}
+
+/// Runs blocking socket work on a thread of its own: blocked in the cooperative pool, it could starve the server's
+/// reply task on a machine with few cores (CI), and never return.
+private func onThread<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
+    try await withCheckedThrowingContinuation { continuation in
+        Thread { continuation.resume(with: Result { try body() }) }.start()
     }
 }

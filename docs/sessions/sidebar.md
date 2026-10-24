@@ -31,7 +31,7 @@ A session with a get it green or get it merged [run](../github/watch.md#runs) wo
 any group: `↳`, the goal and PR (`get it green #412`), how long it has run, then its agent and model and the last line
 of its screen. Click it to go to the run's tab. The rail leaves it out.
 
-Click a session to select it; double-click it to type into its agent (INSERT). Rows in the other lists (Attention,
+Click a session to select it; double-click it (or press `↩`) to type into its agent (INSERT). Rows in the other lists (Attention,
 Watch, Repos, History and the rest) take clicks the same way: a click moves the cursor there, a double-click opens the
 row as `↩` does. A right-click opens a menu of what you can do with it, each item with its key
 ([right-click](../keyboard/mouse.md)).

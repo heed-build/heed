@@ -32,6 +32,7 @@ This page is generated from the code (`mise run shots`).
 | `session.import.path` | `Ip` (sessions) | import the worktree at a path (any repo, anywhere) |
 | `session.pin` | `m` | pin / unpin session |
 | `session.back` | `''` | back to previous session |
+| `session.agent` | `<CR>` (sessions) | INSERT into the session's agent pane (the focused pane when it has none) |
 | `session.open` `<words>` |  | go to the session matching these words |
 | `pin.jump` `<1-9>` | `'1`, `'2`, `'3`, `'4`, `'5`, `'6`, `'7`, `'8`, `'9` | jump to pinned session |
 | `work.start` | `o` | start work |

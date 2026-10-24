@@ -161,6 +161,18 @@ struct ScopedKeyTests {
         #expect(press(&engine, "j") == [.run(CommandInvocation(name: "row.next"))])
     }
 
+    @Test func enterInSessionsTypesIntoTheAgentAndReadsElsewhere() {
+        var engine = engine()
+        engine.scope = "sessions"
+        #expect(press(&engine, "<CR>") == [.run(CommandInvocation(name: "session.agent"))])
+        // The reader and the browser keep their own keys there.
+        #expect(press(&engine, "go").last == .run(CommandInvocation(name: "overlay.item")))
+        #expect(press(&engine, "gB").last == .run(CommandInvocation(name: "open.browser")))
+        engine.scope = "inbox"
+        #expect(press(&engine, "<CR>") == [.run(CommandInvocation(name: "open.reader"))])
+        #expect(Commands.spec("session.agent") != nil)
+    }
+
     @Test func oneKeyOneMeaning() {
         // x is "done with it" wherever it is bound, o is always starting work, and the GitHub views read with ↩.
         #expect(DefaultKeys.normal.contains { $0 == ("x", "session.close") })

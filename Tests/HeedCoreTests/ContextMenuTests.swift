@@ -74,8 +74,10 @@ struct ContextMenuTests {
         let menu = ContextMenus.session(facts)
         #expect(menu.first == .header("Fix it"))
         #expect(commands(menu) == [
-            "overlay.diff", "session.pin", "session.park", "work.again", "session.close", "session.delete",
+            "session.agent", "overlay.diff", "session.pin", "session.park", "work.again", "session.close",
+            "session.delete",
         ])
+        #expect(item("session.agent", in: menu)?.title == "Type into its agent")
         // Every item acts on the session clicked.
         #expect(items(menu).allSatisfy { $0.command.target == .session("s") })
         // Sections are apart, with no separator at either end or twice.
@@ -92,7 +94,9 @@ struct ContextMenuTests {
         facts.pinned = true
         facts.pilot.merging = true
         var menu = ContextMenus.session(facts)
-        #expect(commands(menu).starts(with: ["overlay.item", "overlay.diff", "open.browser", "open.repo"]))
+        #expect(commands(menu).starts(with: [
+            "session.agent", "overlay.item", "overlay.diff", "open.browser", "open.repo",
+        ]))
         #expect(item("open.browser", in: menu)?.title == "Open in browser…")
         #expect(item("session.pin", in: menu)?.title == "Unpin")
         #expect(item("pilot.merge", in: menu)?.checked == true)

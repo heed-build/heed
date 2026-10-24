@@ -47,6 +47,7 @@ public enum Commands {
         .init("session.import.path", "import the worktree at a path (any repo, anywhere)", .move),
         .init("session.pin", "pin / unpin session", .move),
         .init("session.back", "back to previous session", .move),
+        .init("session.agent", "INSERT into the session's agent pane (the focused pane when it has none)", .move),
         .init("session.open", "go to the session matching these words", .move, arguments: "<words>"),
         .init("pin.jump", "jump to pinned session", .move, arguments: "<1-9>"),
         .init("work.start", "start work", .move),

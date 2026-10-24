@@ -150,6 +150,7 @@ public enum ContextMenus {
         let repo = !facts.chat
         var menu = Menu(header: facts.title)
         menu.section([
+            item("Type into its agent", "session.agent"),
             repo && facts.pulls > 0 ? item("Open PR overlay", "overlay.item") : nil,
             repo ? item("Diff", "overlay.diff") : nil,
             facts.links > 0 || repo && facts.hasGitHubRepo

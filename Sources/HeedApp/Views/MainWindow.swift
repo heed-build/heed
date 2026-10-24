@@ -479,7 +479,8 @@ struct StatusBar: View {
         case .normal where model.view == .issues: "↩ read · space pick · s start session · t filter · ⇥ repo · w all/yours · / filter"
         case .normal where model.view == .prs: "↩ open · \(pilotHints) · v select · gS session · r sync"
         case .normal where model.view == .watch: "↩ open · \(pilotHints) · v select · R merge now · gM queue"
-        case .normal: "i insert · o start work · m pin · { } group · Iw import · : command · ? keys"
+        case .normal:
+            "\(model.keyText(for: "session.agent", in: "sessions")) agent · i insert · o start work · m pin · { } group · Iw import · : command · ? keys"
         case .insert: "⇧⎋ or \(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
         case .visual where model.view == .watch || model.view == .prs:
             "\(model.pickedIDs(model.view).count) selected · \(model.keyText(for: "pilot.pause")) pause or resume · space toggle · ⎋ cancel"

@@ -31,7 +31,15 @@ The dialog has its own small modes, like Heed itself:
 | **Agent** | Which agent starts, or a shell only. See [Agent and options](agent-and-options.md). |
 | **Options** | Autostart, plan first, shell split. |
 
-The bottom of the dialog shows the exact command the agent pane will run.
+The bottom of the dialog shows the exact command the agent pane will run, and **Cancel** and **Start** buttons that do
+what `⎋` and `⌘↩` do.
+
+## With the mouse
+
+Every part of the dialog takes a click, in either mode. Clicking the prompt or the worktree name edits it; clicking a
+chip picks it as `space` would (a repo, `other repo…`, the chat chip, an agent, a folder kind or host); clicking a
+switch flips it; clicking a row of the repo search adds that repo. Clicking a field's label moves there. Clicking
+outside the dialog cancels it, as it does for the [floating panel](from-anywhere.md).
 
 ## Other ways in
 

@@ -78,6 +78,152 @@ struct KeyCap: View {
     }
 }
 
+/// A key hint you can click: the key cap and what it does. A click runs what the key runs, by the key's path: the
+/// command through `AppModel.perform`, or for a dialog that reads its keys itself (`⎋`), the keys pressed. The pointer
+/// and a faint highlight say it is clickable; the tooltip names the command.
+struct KeyHint<Label: View>: View {
+    enum Action {
+        case command(CommandInvocation)
+        case keys([KeyStroke])
+    }
+
+    @Environment(AppModel.self) private var model
+    private let action: Action
+    private let key: String?
+    private let scope: String?
+    private let spacing: CGFloat
+    private let alignment: VerticalAlignment
+    private let capWidth: CGFloat?
+    private let label: Label
+
+    /// `command` with `arguments`, acting on `target` (else on what the cursor is on, as the key does). The cap shows
+    /// `key`, else the command's key as bound, in `scope`'s bindings first (`pr`, `ledger`).
+    init(
+        _ command: String, _ arguments: [String] = [], target: CommandTarget? = nil, count: Int? = nil,
+        key: String? = nil, scope: String? = nil, spacing: CGFloat = 6, alignment: VerticalAlignment = .center,
+        capWidth: CGFloat? = nil, @ViewBuilder label: () -> Label
+    ) {
+        action = .command(CommandInvocation(name: command, arguments: arguments, count: count, target: target))
+        self.key = key
+        self.scope = scope
+        self.spacing = spacing
+        self.alignment = alignment
+        self.capWidth = capWidth
+        self.label = label()
+    }
+
+    /// Keys pressed, in notation (`<Esc>`), for what is not a command.
+    init(keys notation: String, spacing: CGFloat = 6, @ViewBuilder label: () -> Label) {
+        let strokes = (try? KeyNotation.parse(notation)) ?? []
+        action = .keys(strokes)
+        key = KeyCapText.of(strokes)
+        scope = nil
+        self.spacing = spacing
+        alignment = .center
+        capWidth = nil
+        self.label = label()
+    }
+
+    var body: some View {
+        HStack(alignment: alignment, spacing: spacing) {
+            KeyCap(text: cap).frame(minWidth: capWidth)
+            label
+        }
+        .clickable()
+        .onTapGesture { run() }
+        .help(help)
+    }
+
+    private var cap: String {
+        if let key { return key }
+        guard case let .command(invocation) = action else { return "" }
+        return scope.map { model.keyText(for: invocation.name, in: $0) } ?? model.keyText(for: invocation.name)
+    }
+
+    private var help: String {
+        switch action {
+        case let .command(invocation): Clicks.help(invocation)
+        case let .keys(strokes): "Press \(KeyCapText.of(strokes))"
+        }
+    }
+
+    private func run() {
+        switch action {
+        case let .command(invocation): model.clickHint(invocation)
+        case let .keys(strokes): model.press(strokes)
+        }
+    }
+}
+
+extension KeyHint where Label == HintText {
+    /// The usual hint: a key cap and a few quiet words.
+    init(
+        _ command: String, _ arguments: [String] = [], target: CommandTarget? = nil, count: Int? = nil,
+        key: String? = nil, scope: String? = nil, spacing: CGFloat = 6, capWidth: CGFloat? = nil, label: String,
+        color: Color = Theme.fg3, font: Font = Theme.ui(12)
+    ) {
+        self.init(
+            command, arguments, target: target, count: count, key: key, scope: scope, spacing: spacing,
+            capWidth: capWidth
+        ) { HintText(text: label, color: color, font: font) }
+    }
+
+    init(
+        keys notation: String, spacing: CGFloat = 6, label: String, color: Color = Theme.fg3, font: Font = Theme.ui(12)
+    ) {
+        self.init(keys: notation, spacing: spacing) { HintText(text: label, color: color, font: font) }
+    }
+}
+
+extension View {
+    /// A click runs `invocation` as its key would (see `KeyHint`): the pointer says it is clickable, the tooltip names
+    /// the command. Nil: an ordinary view, not clickable.
+    @ViewBuilder func clickRuns(_ invocation: CommandInvocation?) -> some View {
+        if let invocation { modifier(ClickRuns(invocation: invocation)) } else { self }
+    }
+}
+
+private struct ClickRuns: ViewModifier {
+    @Environment(AppModel.self) private var model
+    let invocation: CommandInvocation
+
+    func body(content: Content) -> some View {
+        content
+            .clickable()
+            .onTapGesture { model.clickHint(invocation) }
+            .help(Clicks.help(invocation))
+    }
+}
+
+extension View {
+    /// Says a view is clickable: the pointing hand, and a faint highlight under it while hovered.
+    func clickable() -> some View { modifier(Clickable()) }
+}
+
+private struct Clickable: ViewModifier {
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(RoundedRectangle(cornerRadius: 5).fill(hovering ? Theme.selected : .clear).padding(-3))
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+            .pointerStyle(.link)
+    }
+}
+
+/// A key hint's words.
+struct HintText: View {
+    let text: String
+    var color: Color = Theme.fg3
+    var font: Font = Theme.ui(12)
+
+    var body: some View {
+        // Whole, never wrapped or cut: a row of hints wraps between them instead.
+        Text(text).font(font).foregroundStyle(color).fixedSize()
+    }
+}
+
 /// A repo chip: org avatar tile plus repo name, in the org's color.
 struct RepoChip: View {
     let repo: Repo

@@ -2201,9 +2201,7 @@ final class AppModel {
             let places = timeline.choices.places
             timeline.change { $0.cyclePlace(among: places, named: command.arguments.first) }
         case "timeline.gone": timeline.change { $0.showGone.toggle() }
-        case "log.kind":
-            let kind = command.arguments.first.map(CallKind.init(rawValue:))
-            callLog.change { $0.cycleKind(to: kind) }
+        case "log.kind": callLog.change { $0.cycleKind(named: command.arguments.first) }
         case "log.failed": callLog.change { $0.failedOnly.toggle() }
         case "log.slow": callLog.change { $0.slowOnly.toggle() }
         case "log.writes": callLog.change { $0.githubWritesOnly.toggle() }
@@ -2311,8 +2309,8 @@ final class AppModel {
         case "issue.remove": removeIssue(command.arguments.first)
         case "overlay.pr": togglePullOverlay()
         case "overlay.item": toggleItemOverlay()
-        case "pr.next": cyclePull(by: 1)
-        case "pr.prev": cyclePull(by: -1)
+        case "pr.next": cyclePull(by: count)
+        case "pr.prev": cyclePull(by: -count)
         case "jump.back": closeReaderOrOverlay()
         case "feedback.queue": toggleQueued()
         case "feedback.send":
@@ -2322,7 +2320,7 @@ final class AppModel {
                 deliverNotes(session.id, explicit: true)
             }
         // feedback.mode and feedback.watch were their names before the pilot settings; both still work.
-        case "pilot.green", "feedback.mode": cyclePilotGreen()
+        case "pilot.green", "feedback.mode": cyclePilotGreen(command.arguments.first)
         case "pilot.watch", "feedback.watch": togglePilotWatch()
         case "pilot.pause": pausePilot(command.arguments.first)
         case "pilot.retry": retryPilot()
@@ -4731,11 +4729,11 @@ final class AppModel {
         if watch { refs.forEach(fetchDetail) }
     }
 
-    /// `m`: the green mode, cycled from the first target's (off → ask → auto).
-    private func cyclePilotGreen() {
+    /// `zg`: the green mode, cycled from the first target's (off → ask → auto); `:pilot.green ask` sets the one named.
+    private func cyclePilotGreen(_ name: String?) {
         let refs = pilotTargets
         guard let first = refs.first else { return flash = noOpenPR }
-        let next = pilot(for: first).green.next
+        let next = AutoFeed.chosen(name, after: pilot(for: first).green)
         editPilot(refs) { pipeline in
             pipeline.autoFeed = next
             pipeline.greenSet = true
@@ -7186,14 +7184,52 @@ final class AppModel {
         startWork = nil
     }
 
-    /// A click on a list row (Inbox, Issues, PRs, Watch, Repos, History) moves the cursor there; a double-click opens
-    /// it, as ↩ does: the worktree's session in Repos, the reader for an inbox item, issue or PR.
+    /// A click on a key hint: what its key runs. Not while a dialog or form has the keyboard, and the keyboard comes
+    /// back to Heed first, as for any click outside a terminal.
+    func clickHint(_ invocation: CommandInvocation) {
+        guard clicksReachLists else { return }
+        clickedOutsideTerminal()
+        flash = nil
+        perform(invocation)
+    }
+
+    /// A command row of the `?` overlay, clicked: the overlay closes and the command runs as its key would, or `:`
+    /// opens with it typed when it needs an argument.
+    func clickHelpRow(_ name: String) {
+        guard let spec = Commands.spec(name) else { return }
+        overlay = nil
+        switch Clicks.helpAction(for: spec) {
+        case let .run(invocation): clickHint(invocation)
+        case let .prompt(text): openCommandLine(text)
+        }
+    }
+
+    /// A row of `:`'s completions, clicked: the line becomes it, as ⇥ to it would; a double-click also runs it, as ↩.
+    func clickCompletion(_ completion: CommandCompletion, run: Bool = false) {
+        guard mode == .command else { return }
+        commandText = completion.line
+        completionAnchor = nil
+        completionIndex = nil
+        if run { perform(CommandInvocation(name: "command.submit")) }
+    }
+
+    /// Keys pressed by a click (a leader hint's rest, a dialog's ⎋): exactly as if typed.
+    func press(_ strokes: [KeyStroke]) {
+        for stroke in strokes {
+            _ = handle(stroke)
+        }
+    }
+
+    /// A click on a list row (Inbox, Issues, PRs, Watch, Repos, History) moves the cursor there; a double-click runs
+    /// what ↩ runs in that view, as you have it bound: the worktree's session in Repos, the reader for an inbox item,
+    /// issue or PR, reopen in History and its timeline, ledger and dashboard.
     func clickRow(_ list: AppView, _ index: Int, open: Bool = false) {
         guard clicksReachLists, view == list else { return }
         clickedOutsideTerminal()
         setRow(index)
         guard open, list != .log else { return }
-        if list == .repos { openSelected() } else { openReader() }
+        perform(engine.normalCommand(for: [KeyStroke("CR")], scope: engine.scope)
+            ?? CommandInvocation(name: "open.reader"))
     }
 
     /// A right-click in the diff overlay: its cursor onto that file and line.

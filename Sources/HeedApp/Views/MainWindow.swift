@@ -172,8 +172,7 @@ struct TitleBar: View {
             Label { Text(compact ? "\(model.askingCount)" : "\(model.askingCount) asking").fixedSize() }
                 icon: { StateGlyph(state: .asking) }
         }
-        HStack(spacing: 6) {
-            KeyCap(text: "ga")
+        KeyHint("session.attention", key: "ga") {
             if !compact { Text("next attention").foregroundStyle(Theme.fg3).fixedSize() }
         }
         if let reminder = model.tutorReminder { TutorReminderView(reminder: reminder, compact: compact) }
@@ -359,7 +358,15 @@ struct StatusBar: View {
             if model.tutor == nil, !model.tutorRecord.done.contains(Tutor.lessonID(forView: model.view.tab.rawValue)) {
                 Text("? t tutor").foregroundStyle(Theme.fg3).padding(.leading, 12)
             }
-            Text(hints).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.head).padding(.horizontal, 12)
+            // The longest run of hints that fits, whole hints dropped from the end: the first ones matter most.
+            ViewThatFits(in: .horizontal) {
+                ForEach(HintLine.shortenings(hints), id: \.self) { line in
+                    Text(line).lineLimit(1).fixedSize()
+                }
+                Text(hints).lineLimit(1).truncationMode(.tail)
+            }
+            .foregroundStyle(Theme.fg3)
+            .padding(.horizontal, 12)
             Text(position).foregroundStyle(Theme.fg2).padding(.horizontal, 12)
         }
         .font(Theme.mono(11.5))
@@ -561,6 +568,11 @@ extension CommandLineView {
         .padding(.horizontal, 12)
         .frame(height: Self.rowHeight)
         .background(selected ? Theme.selected : .clear)
+        // A click takes it, as ⇥ to it would; a double-click runs it, as ↩.
+        .contentShape(Rectangle())
+        .pointerStyle(.link)
+        .onTapGesture(count: 2) { model.clickCompletion(match, run: true) }
+        .onTapGesture { model.clickCompletion(match) }
     }
 }
 

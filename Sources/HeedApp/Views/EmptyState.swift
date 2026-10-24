@@ -50,20 +50,11 @@ struct EmptyState: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// A key and what it does, as the design board draws them; a click runs it as the key would.
+    /// A key and what it does, as the design board draws them; a click runs it as the key would (`KeyHint`).
     private func row(_ action: Action, text: String, tint: Color) -> some View {
-        Button { model.perform(action.command) } label: {
-            HStack(spacing: 10) {
-                KeyCap(text: key(action))
-                Text(text).font(Theme.ui(13)).foregroundStyle(tint)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(action.label)
-    }
-
-    private func key(_ action: Action) -> String {
-        action.key ?? model.keyText(for: action.command.name)
+        KeyHint(
+            action.command.name, action.command.arguments, key: action.key, spacing: 10, label: text, color: tint,
+            font: Theme.ui(13)
+        )
     }
 }

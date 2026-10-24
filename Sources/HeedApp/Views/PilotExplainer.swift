@@ -15,9 +15,7 @@ struct PilotPlanLine: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             // The explainer, by click as by key.
-            KeyCap(text: model.keyText(for: "pilot.why"))
-                .contentShape(Rectangle())
-                .onTapGesture { model.perform(CommandInvocation(name: "pilot.why", target: .pull(ref))) }
+            KeyHint("pilot.why", target: .pull(ref)) { EmptyView() }
                 .help("What heed will do for this PR, and what holds it back")
         }
         .font(Theme.mono(11))
@@ -78,13 +76,7 @@ struct PilotMergeLine: View {
     }
 
     private func action(_ label: String, _ command: String) -> some View {
-        HStack(spacing: 5) {
-            KeyCap(text: model.keyText(for: command))
-            Text(label).foregroundStyle(Theme.fg2)
-        }
-        .fixedSize()
-        .contentShape(Rectangle())
-        .onTapGesture { model.perform(CommandInvocation(name: command, target: .pull(ref))) }
+        KeyHint(command, target: .pull(ref), spacing: 5) { Text(label).foregroundStyle(Theme.fg2).fixedSize() }
     }
 }
 
@@ -106,7 +98,7 @@ struct PilotExplainerView: View {
                     Text(model.github.pull(ref)?.title ?? "").font(Theme.ui(13)).foregroundStyle(Theme.fg3)
                         .lineLimit(1).truncationMode(.tail)
                     Spacer(minLength: 8)
-                    KeyCap(text: "⎋")
+                    KeyHint(keys: "<Esc>") { EmptyView() }
                 }
                 scroller
             }

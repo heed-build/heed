@@ -49,16 +49,24 @@ struct CallLogView: View {
 
     private func filters(_ query: CallLogQuery) -> some View {
         HStack(spacing: 8) {
+            // A click on a chip does what its key does: t names the kind, x s w toggle, c and a clear.
             FilterChip(label: "All", on: query.kind == nil)
+                .clickRuns(CommandInvocation(name: "log.kind", arguments: ["all"]))
             ForEach(CallKind.all, id: \.self) { kind in
                 FilterChip(label: kind.rawValue, on: query.kind == kind)
+                    .clickRuns(CommandInvocation(name: "log.kind", arguments: [kind.rawValue]))
             }
             Theme.line.frame(width: 1, height: 14).padding(.horizontal, 4)
-            FilterChip(label: "failed", on: query.failedOnly)
-            FilterChip(label: "slow", on: query.slowOnly)
+            FilterChip(label: "failed", on: query.failedOnly).clickRuns(CommandInvocation(name: "log.failed"))
+            FilterChip(label: "slow", on: query.slowOnly).clickRuns(CommandInvocation(name: "log.slow"))
             FilterChip(label: "github writes", on: query.githubWritesOnly)
-            if let caller = query.caller { FilterChip(label: "caller \(caller)", on: true) }
-            if let agent = query.agent { FilterChip(label: "agent \(agent)", on: true) }
+                .clickRuns(CommandInvocation(name: "log.writes"))
+            if let caller = query.caller {
+                FilterChip(label: "caller \(caller)", on: true).clickRuns(CommandInvocation(name: "log.caller"))
+            }
+            if let agent = query.agent {
+                FilterChip(label: "agent \(agent)", on: true).clickRuns(CommandInvocation(name: "log.agent"))
+            }
             Spacer(minLength: 8)
             FilterPill(view: .log)
         }
@@ -231,10 +239,8 @@ private struct CallDetail: View {
             Spacer(minLength: 0)
             Theme.line.frame(height: 1)
             HStack(spacing: 10) {
-                KeyCap(text: model.keyText(for: "log.copy", in: "log"))
-                Text("copy the command").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-                KeyCap(text: model.keyText(for: "log.caller", in: "log"))
-                Text("only this caller").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                KeyHint("log.copy", scope: "log", spacing: 10, label: "copy the command", color: Theme.fg2)
+                KeyHint("log.caller", scope: "log", spacing: 10, label: "only this caller", color: Theme.fg2)
             }
         }
         .padding(22)

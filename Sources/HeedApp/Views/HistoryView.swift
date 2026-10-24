@@ -56,6 +56,12 @@ struct HistoryView: View {
                                         .hint(model.hintLabel(for: .row(.history, index)))
                                         .contentShape(Rectangle())
                                         .onTapGesture { model.clickRow(.history, index) }
+                                        // A double-click reopens, as ↩ does here.
+                                        .simultaneousGesture(TapGesture(count: 2).onEnded { model.clickRow(
+                                            .history,
+                                            index,
+                                            open: true
+                                        ) })
                                         .rightClickMenu { model.rightClickRow(.history, index) } _: {
                                             model.rowMenu(.history, index)
                                         }
@@ -258,11 +264,11 @@ private struct HistoryDetail: View {
             Theme.line.frame(height: 1)
             VStack(alignment: .leading, spacing: 10) {
                 keyRow(
-                    "R",
+                    "history.reopen",
                     "reopen: resume the agent; recreates the worktree if cleaned up. If the agent has dropped the session, starts fresh with the same prompt"
                 )
-                keyRow("O", "start a new session from this prompt")
-                keyRow("t", "cycle the outcome filter")
+                keyRow("history.again", "start a new session from this prompt")
+                keyRow("history.outcome", "cycle the outcome filter")
             }
         }
         .padding(22)
@@ -271,9 +277,8 @@ private struct HistoryDetail: View {
         .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
     }
 
-    private func keyRow(_ key: String, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            KeyCap(text: key)
+    private func keyRow(_ command: String, _ text: String) -> some View {
+        KeyHint(command, scope: "history", spacing: 10, alignment: .top) {
             Text(text).font(Theme.ui(12)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
         }
     }

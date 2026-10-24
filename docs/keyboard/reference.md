@@ -141,7 +141,7 @@ This page is generated from the code (`mise run shots`).
 | Command | Keys | Does |
 |---|---|---|
 | `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (watch) | toggle row |
-| `history.reopen` | `R` (dashboard), `R` (history), `R` (ledger), `R` (timeline) | reopen: resume, recreating the worktree if needed |
+| `history.reopen` | `R` (dashboard), `<CR>` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger), `R` (timeline), `<CR>` (timeline) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` | `t` (history) | cycle the outcome filter |
 | `timeline.kind` `[kind]` | `t` (timeline) | timeline: every kind, or one (sessions, worktrees, prs, questions, chats) |
@@ -151,7 +151,7 @@ This page is generated from the code (`mise run shots`).
 | `dashboard.range` `[days]` | `r` (dashboard) | dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w) |
 | `ledger.summarize` | `S` (ledger) | write the ledger summary of this work now |
 | `ledger.edit` `[text]` | `E` (ledger) | edit the ledger entry's summary (no text: the command line opens with it) |
-| `log.kind` `[kind]` | `t` (log) | call log: all, or one kind (shell, github, llm, decide) |
+| `log.kind` `[all|kind]` | `t` (log) | call log: all, or one kind (shell, github, llm, decide) |
 | `log.failed` | `x` (log) | call log: only calls that failed, or all |
 | `log.slow` | `s` (log) | call log: only slow calls (5 s or more), or all |
 | `log.writes` | `w` (log) | call log: only GitHub writes, or all |
@@ -180,7 +180,7 @@ This page is generated from the code (`mise run shots`).
 | `feedback.watch` |  | pilot.watch, by its former name |
 | `pilot.why` | `z?` | what heed will do for the PR, and what holds it back |
 | `pilot.watch` | `zw` | watch or stop watching the PR (or the picked PRs) |
-| `pilot.green` | `zg` | cycle get it green for the PR: off, ask, auto |
+| `pilot.green` `[off|ask|auto]` | `zg` | cycle get it green for the PR: off, ask, auto (or set the one named) |
 | `pilot.run` | `gb` | show the session's running get it green / get it merged run |
 | `pilot.run.stop` | `zx` | stop the session's running get it green / get it merged run |
 | `pilot.retry` | `zr` | one more round of get it green for a stalled PR (or the picked PRs) |

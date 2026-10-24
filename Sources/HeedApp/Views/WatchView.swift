@@ -212,23 +212,29 @@ private struct PilotDetail: View {
                         PilotMergeLine(ref: row.ref)
                     }
                 }
-                HStack(spacing: 14) {
-                    keyHint("↩", "open")
-                    keyHint(model.keyText(for: "pilot.watch"), row.effective.watching ? "stop watching" : "watch")
-                    keyHint(model.keyText(for: "pilot.green"), "green")
-                    keyHint(
-                        model.keyText(for: "pilot.merge"),
-                        row.effective.merge.next == .off ? "stop merging" : "merge \(row.effective.merge.next.configName)"
+                // Whole hints wrap to a new line on a narrow window; none breaks inside its words.
+                FlowLayout(spacing: 14, lineSpacing: 6) {
+                    KeyHint("open.reader", key: "↩", spacing: 5, label: "open")
+                    KeyHint(
+                        "pilot.watch", target: .pull(row.ref), spacing: 5,
+                        label: row.effective.watching ? "stop watching" : "watch"
                     )
-                    keyHint(
-                        model.keyText(for: "pilot.pause"), pipeline?.isPaused(Clock.now) == true ? "resume" : "pause"
+                    KeyHint("pilot.green", target: .pull(row.ref), spacing: 5, label: "green")
+                    KeyHint(
+                        "pilot.merge", target: .pull(row.ref), spacing: 5,
+                        label: row.effective.merge.next == .off ? "stop merging"
+                            : "merge \(row.effective.merge.next.configName)"
+                    )
+                    KeyHint(
+                        "pilot.pause", target: .pull(row.ref), spacing: 5,
+                        label: pipeline?.isPaused(Clock.now) == true ? "resume" : "pause"
                     )
                     if let pipeline, !CopilotAsk.items(
                         pipeline,
                         settings: model.pilotSettings(for: row.ref),
                         everything: true
                     ).isEmpty {
-                        keyHint("C", "ask Copilot")
+                        KeyHint("pilot.copilot", target: .pull(row.ref), key: "C", spacing: 5, label: "ask Copilot")
                     }
                 }
                 // The verdict, rule by rule: what holds the PR back from green, or that nothing does.
@@ -282,13 +288,6 @@ private struct PilotDetail: View {
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private func keyHint(_ key: String, _ label: String) -> some View {
-        HStack(spacing: 5) {
-            KeyCap(text: key)
-            Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
     }
 }
@@ -471,9 +470,9 @@ struct MergeQueueView: View {
                     Text(repo).font(Theme.ui(16, weight: .semibold))
                     Text(header).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
                 }
-                HStack(spacing: 14) {
-                    hint("R", "run now")
-                    hint("gM", "back to the PR")
+                FlowLayout(spacing: 14, lineSpacing: 6) {
+                    KeyHint("merge.run", [repo], key: "R", spacing: 5, label: "run now")
+                    KeyHint("merge.queue", key: "gM", spacing: 5, label: "back to the PR")
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     SectionHeader(title: "PRs · \(refs.count)")
@@ -545,13 +544,6 @@ struct MergeQueueView: View {
         case "held": Theme.block
         case "waiting": Theme.fg3
         default: Theme.busy
-        }
-    }
-
-    private func hint(_ key: String, _ label: String) -> some View {
-        HStack(spacing: 5) {
-            KeyCap(text: key)
-            Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
     }
 

@@ -33,7 +33,8 @@ struct PullOverlayView: View {
             ScrollViewReader { proxy in
                 ListScroll(.horizontal) {
                     HStack(spacing: 10) {
-                        ForEach(model.pullOverlayTabs, id: \.self) { ref in
+                        let tabs = model.pullOverlayTabs
+                        ForEach(Array(tabs.enumerated()), id: \.element) { index, ref in
                             HStack(spacing: 6) {
                                 if let ref {
                                     RepoChip(repo: ref.repo).fixedSize()
@@ -53,6 +54,16 @@ struct PullOverlayView: View {
                             .background(
                                 RoundedRectangle(cornerRadius: 8).strokeBorder(ref == current ? Theme.fg3 : .clear)
                             )
+                            // A click goes to the tab as h and l would, counted.
+                            .contentShape(Rectangle())
+                            .pointerStyle(.link)
+                            .onTapGesture {
+                                let from = tabs.firstIndex(of: current) ?? 0
+                                if let step = Clicks.tabStep(from: from, to: index, count: tabs.count) {
+                                    model.clickHint(step)
+                                }
+                            }
+                            .help(ref.map { "\($0.repo.slug)#\($0.number)" } ?? "Your notes")
                             .id(ref)
                         }
                     }
@@ -64,17 +75,18 @@ struct PullOverlayView: View {
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .clipped()
             HStack(spacing: 10) {
-                KeyCap(text: "h")
-                KeyCap(text: "l")
-                if wide {
-                    Text(model.currentSession?.trackedPRs.isEmpty == false ? "PRs of this session" : "tabs")
-                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                KeyHint("pr.prev", key: "h") { EmptyView() }
+                KeyHint("pr.next", key: "l", spacing: 10) {
+                    if wide {
+                        Text(model.currentSession?.trackedPRs.isEmpty == false ? "PRs of this session" : "tabs")
+                            .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    }
                 }
                 Theme.line.frame(width: 1, height: 16).padding(.horizontal, 4)
-                KeyCap(text: "go")
-                Text("or").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                KeyCap(text: "⎋")
-                Text(wide ? "back to session" : "back").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                KeyHint("overlay.item", key: "go", spacing: 10) {
+                    Text("or").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                }
+                KeyHint("overlay.close", key: "⎋", spacing: 10, label: wide ? "back to session" : "back")
             }
             .fixedSize()
         }
@@ -157,6 +169,10 @@ struct FeedbackPanel: View {
                         .padding(.vertical, 4)
                         .background(mode == effective.green ? Theme.inverse : .clear)
                         .fixedSize()
+                        // A click sets that mode, as `:pilot.green ask` does.
+                        .clickRuns(mode == effective.green ? nil : CommandInvocation(
+                            name: "pilot.green", arguments: [mode.configName], target: .pull(ref)
+                        ))
                 }
             }
             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
@@ -169,14 +185,13 @@ struct FeedbackPanel: View {
                 .foregroundStyle(effective.merge == .off ? Theme.fg3 : Theme.fg2)
                 .fixedSize()
             HStack(spacing: 6) {
-                KeyCap(text: model.keyText(for: "pilot.green"))
-                Text("green").foregroundStyle(Theme.fg3)
-                KeyCap(text: model.keyText(for: "pilot.merge"))
-                Text("merge").foregroundStyle(Theme.fg3)
-                KeyCap(text: model.keyText(for: "pilot.watch"))
-                Text(effective.watching ? "stop watching" : "watch").foregroundStyle(Theme.fg3)
-                KeyCap(text: model.keyText(for: "pilot.pause"))
-                Text(paused ? "resume" : "pause").foregroundStyle(Theme.fg3)
+                KeyHint("pilot.green", target: .pull(ref), label: "green", font: Theme.ui(12.5))
+                KeyHint("pilot.merge", target: .pull(ref), label: "merge", font: Theme.ui(12.5))
+                KeyHint(
+                    "pilot.watch", target: .pull(ref), label: effective.watching ? "stop watching" : "watch",
+                    font: Theme.ui(12.5)
+                )
+                KeyHint("pilot.pause", target: .pull(ref), label: paused ? "resume" : "pause", font: Theme.ui(12.5))
             }
             .fixedSize()
         }
@@ -242,22 +257,19 @@ struct FeedbackPanel: View {
                 .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
             }
             VStack(alignment: .leading, spacing: 8) {
-                keyRow(model.keyText(for: "feedback.queue", in: "pr"), "queue / unqueue")
-                keyRow(model.keyText(for: "feedback.send", in: "pr"), "send queued now")
-                keyRow(model.keyText(for: "feedback.dismiss", in: "pr"), "dismiss item")
-                keyRow(model.keyText(for: "feedback.session", in: "pr"), "new session from this PR")
-                keyRow(model.keyText(for: "pr.session", in: "pr"), "full session view")
+                keyRow("feedback.queue", "queue / unqueue")
+                keyRow("feedback.send", "send queued now")
+                keyRow("feedback.dismiss", "dismiss item")
+                keyRow("feedback.session", "new session from this PR")
+                keyRow("pr.session", "full session view")
             }
             .padding(14)
             .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
         }
     }
 
-    private func keyRow(_ key: String, _ text: String) -> some View {
-        HStack(spacing: 10) {
-            KeyCap(text: key)
-            Text(text).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-        }
+    private func keyRow(_ command: String, _ text: String) -> some View {
+        KeyHint(command, scope: "pr", spacing: 10, label: text, color: Theme.fg2)
     }
 }
 
@@ -319,9 +331,9 @@ struct NotesPanel: View {
                             .background(RoundedRectangle(cornerRadius: 8).fill(Theme.pane))
                         }
                         VStack(alignment: .leading, spacing: 8) {
-                            keyRow(model.keyText(for: "feedback.queue"), "queue / unqueue")
-                            keyRow(model.keyText(for: "feedback.send"), "send queued now")
-                            keyRow(model.keyText(for: "feedback.dismiss"), "dismiss note")
+                            KeyHint("feedback.queue", spacing: 10, label: "queue / unqueue", color: Theme.fg2)
+                            KeyHint("feedback.send", spacing: 10, label: "send queued now", color: Theme.fg2)
+                            KeyHint("feedback.dismiss", spacing: 10, label: "dismiss note", color: Theme.fg2)
                         }
                         .padding(14)
                         .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
@@ -332,13 +344,6 @@ struct NotesPanel: View {
         }
         .padding(20)
     }
-
-    private func keyRow(_ key: String, _ text: String) -> some View {
-        HStack(spacing: 10) {
-            KeyCap(text: key)
-            Text(text).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-        }
-    }
 }
 
 private struct FeedbackRow: View {
@@ -347,7 +352,7 @@ private struct FeedbackRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: item.status == .new ? "square" : "checkmark.square.fill")
+            QueueBox(id: item.id, checked: item.status != .new, queueable: [.new, .queued].contains(item.status))
                 .foregroundStyle(item.status == .resolved || item.status == .addressed ? Theme.done
                     : item.status == .new ? Theme.fg3 : Theme.block)
             VStack(alignment: .leading, spacing: 4) {
@@ -459,8 +464,7 @@ struct ReaderView: View {
                 Text(verbatim: "#\(ref.number)").font(Theme.mono(12)).foregroundStyle(Theme.fg2)
                 if let pull = model.github.pull(ref) { StateTag(state: pull.state, draft: pull.isDraft) }
                 Spacer()
-                KeyCap(text: "⌃o")
-                Text("back").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                KeyHint("jump.back", key: "⌃o", spacing: 8, label: "back")
             }
             Text(detail?.title ?? model.github.pull(ref)?.title ?? "").font(Theme.ui(17, weight: .semibold))
             if let detail {
@@ -476,7 +480,7 @@ struct ReaderView: View {
     private func threadCard(_ thread: ReviewThread, queued: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                Image(systemName: queued ? "checkmark.square.fill" : "square")
+                QueueBox(id: thread.id, checked: queued, queueable: true)
                     .foregroundStyle(queued ? Theme.block : Theme.fg3)
                 Text("@\(thread.author)").fontWeight(.medium)
                 Text("commented on").foregroundStyle(Theme.fg3)
@@ -547,11 +551,11 @@ struct ReaderView: View {
             }
             Spacer()
             VStack(alignment: .leading, spacing: 8) {
-                keyRow(model.keyText(for: "feedback.queue", in: "pr"), "queue comment for session")
-                keyRow(model.keyText(for: "feedback.send", in: "pr"), "send queued to session")
-                keyRow(model.keyText(for: "feedback.session", in: "pr"), "start a new session from this PR")
-                keyRow(model.keyText(for: "open.browser", in: "pr"), "open on GitHub")
-                keyRow(model.keyText(for: "pr.session", in: "pr"), "jump to its session")
+                keyRow("feedback.queue", "queue comment for session")
+                keyRow("feedback.send", "send queued to session")
+                keyRow("feedback.session", "start a new session from this PR")
+                keyRow("open.browser", "open on GitHub")
+                keyRow("pr.session", "jump to its session")
             }
         }
         .padding(20)
@@ -560,10 +564,20 @@ struct ReaderView: View {
         .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
     }
 
-    private func keyRow(_ key: String, _ text: String) -> some View {
-        HStack(spacing: 10) {
-            KeyCap(text: key)
-            Text(text).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-        }
+    private func keyRow(_ command: String, _ text: String) -> some View {
+        KeyHint(command, scope: "pr", spacing: 10, label: text, color: Theme.fg2)
+    }
+}
+
+/// A feedback item's checkbox: a click queues or unqueues it, as space does with the cursor on it.
+private struct QueueBox: View {
+    let id: String
+    let checked: Bool
+    /// New and queued items toggle; one sent or resolved stays as it is.
+    let queueable: Bool
+
+    var body: some View {
+        Image(systemName: checked ? "checkmark.square.fill" : "square")
+            .clickRuns(queueable ? CommandInvocation(name: "feedback.queue", target: .feedback(id)) : nil)
     }
 }

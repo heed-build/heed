@@ -184,7 +184,7 @@ private struct LedgerDetail: View {
                     }
                 }
                 Theme.line.frame(height: 1).padding(.top, 6)
-                HStack(spacing: 18) {
+                FlowLayout(spacing: 18, lineSpacing: 6) {
                     keyHint("ledger.summarize", writing ? "writing…" : "write again")
                     keyHint("ledger.edit", "edit")
                     if reopenable { keyHint("history.reopen", "reopen") }
@@ -242,9 +242,6 @@ private struct LedgerDetail: View {
     }
 
     private func keyHint(_ command: String, _ text: String) -> some View {
-        HStack(spacing: 6) {
-            KeyCap(text: model.keyText(for: command, in: "ledger"))
-            Text(text).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-        }
+        KeyHint(command, scope: "ledger", label: text, color: Theme.fg2)
     }
 }

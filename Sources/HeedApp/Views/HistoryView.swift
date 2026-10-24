@@ -35,41 +35,56 @@ struct HistoryView: View {
             .frame(height: 44)
             .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
 
-            GeometryReader { geometry in
-                let compact = geometry.size.width < 760
-                ScrollViewReader { proxy in
-                    ListScroll {
-                        ListStack(alignment: .leading, spacing: 0) {
-                            ForEach(groups(rows), id: \.title) { group in
-                                SectionHeader(title: group.title)
-                                    .padding(.horizontal, 20)
-                                    .padding(.top, 14)
-                                    .padding(.bottom, 6)
-                                ForEach(group.indices, id: \.self) { index in
-                                    HistoryRow(
-                                        entry: rows[index],
-                                        number: index == cursor ? index + 1 : abs(index - cursor),
-                                        isCursor: index == cursor,
-                                        compact: compact
-                                    )
-                                    .hint(model.hintLabel(for: .row(.history, index)))
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { model.clickRow(.history, index) }
-                                    .rightClickMenu { model.rightClickRow(.history, index) } _: {
-                                        model.rowMenu(.history, index)
+            if !rows.isEmpty {
+                GeometryReader { geometry in
+                    let compact = geometry.size.width < 760
+                    ScrollViewReader { proxy in
+                        ListScroll {
+                            ListStack(alignment: .leading, spacing: 0) {
+                                ForEach(groups(rows), id: \.title) { group in
+                                    SectionHeader(title: group.title)
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 14)
+                                        .padding(.bottom, 6)
+                                    ForEach(group.indices, id: \.self) { index in
+                                        HistoryRow(
+                                            entry: rows[index],
+                                            number: index == cursor ? index + 1 : abs(index - cursor),
+                                            isCursor: index == cursor,
+                                            compact: compact
+                                        )
+                                        .hint(model.hintLabel(for: .row(.history, index)))
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { model.clickRow(.history, index) }
+                                        .rightClickMenu { model.rightClickRow(.history, index) } _: {
+                                            model.rowMenu(.history, index)
+                                        }
+                                        .id(rows[index].id)
                                     }
-                                    .id(rows[index].id)
                                 }
                             }
                         }
-                    }
-                    .onChange(of: model.historyCursor) {
-                        if rows.indices.contains(model.historyCursor) { proxy.scrollTo(rows[model.historyCursor].id) }
+                        .onChange(of: model.historyCursor) {
+                            if rows.indices
+                                .contains(model.historyCursor) { proxy.scrollTo(rows[model.historyCursor].id) }
+                        }
                     }
                 }
             }
-            if rows.isEmpty {
-                Text(model.history.isEmpty ? "Closed sessions land here (x on a session)." : "Nothing matches.")
+            if rows.isEmpty, model.history.isEmpty {
+                EmptyState(
+                    title: "Nothing closed yet",
+                    detail: "A session lands here when you close it (\(model.keyText(for: "session.close"))) or its "
+                        + "worktree is removed, with its prompt, branch, PRs and how it ended; "
+                        + "\(model.keyText(for: "history.reopen", in: "history")) brings one back. The timeline and "
+                        + "the ledger fill as you work.",
+                    actions: [
+                        .init("the timeline: sessions, worktrees and PRs by day", "history.timeline"),
+                        .init("the ledger: a summary of each piece of work", "history.ledger"),
+                    ]
+                )
+            } else if rows.isEmpty {
+                Text("Nothing matches.")
                     .font(Theme.ui(12.5))
                     .foregroundStyle(Theme.fg3)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

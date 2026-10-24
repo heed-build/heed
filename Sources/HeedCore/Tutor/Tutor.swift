@@ -61,6 +61,12 @@ public struct TutorState: Equatable, Sendable {
     public var paused = 0
     public var merging = 0
     public var mergeQueue = false
+    /// The pilot's explainer (`pilot.why`) is open; tracked PRs heed watches.
+    public var explainOpen = false
+    public var watching = 0
+    /// The call log's filters: the kind shown (`""` for all), and whether only failed calls show.
+    public var logKind = ""
+    public var logFailed = false
 
     public init() {}
 }
@@ -132,6 +138,8 @@ public struct TutorLesson: Sendable, Identifiable {
     public let minutes: Int
     public let world: TutorWorld
     public let steps: [TutorStep]
+    /// config.toml laid over the defaults in the lesson's world, for what is off until you turn it on.
+    public var config = ""
 
     public var isTour: Bool { id == "tour" }
 }

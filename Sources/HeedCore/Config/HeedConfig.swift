@@ -96,6 +96,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.issues == rhs.issues,
             lhs.pilot == rhs.pilot,
             lhs.hosts == rhs.hosts,
+            lhs.updates == rhs.updates,
             lhs.usage == rhs.usage,
             lhs.log == rhs.log,
             lhs.llm == rhs.llm,

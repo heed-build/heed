@@ -101,55 +101,71 @@ struct ReposView: View {
         let selected = model.selectedRows
         return VStack(spacing: 0) {
             header
-            ScrollViewReader { proxy in
-                ListScroll {
-                    ListStack(spacing: 0) {
-                        ForEach(Array(rows.enumerated()), id: \.element.id) { index, worktree in
-                            WorktreeRow(
-                                worktree: worktree,
-                                session: model.session(for: worktree),
-                                number: index == model.repoCursor ? index + 1 : abs(index - model.repoCursor),
-                                isCursor: index == model.repoCursor,
-                                isSelected: selected.contains(worktree.id),
-                                roots: model.settings.pathRoots,
-                                query: model.filter(for: .repos),
-                                pilot: model.session(for: worktree).flatMap { model.pilotStatus(of: $0) },
-                                registration: model.registration(of: worktree),
-                                hostColor: worktree.location.hostName.flatMap { model.config.hosts[$0]?.color }
-                            )
-                            .hint(model.hintLabel(for: .row(.repos, index)))
-                            .contentShape(Rectangle())
-                            .onTapGesture { model.clickRow(.repos, index) }
-                            .simultaneousGesture(TapGesture(count: 2).onEnded {
-                                model.clickRow(.repos, index, open: true)
-                            })
-                            .rightClickMenu { model.rightClickRow(.repos, index) } _: { model.rowMenu(.repos, index) }
-                            .id(worktree.id)
+            if !rows.isEmpty {
+                ScrollViewReader { proxy in
+                    ListScroll {
+                        ListStack(spacing: 0) {
+                            ForEach(Array(rows.enumerated()), id: \.element.id) { index, worktree in
+                                WorktreeRow(
+                                    worktree: worktree,
+                                    session: model.session(for: worktree),
+                                    number: index == model.repoCursor ? index + 1 : abs(index - model.repoCursor),
+                                    isCursor: index == model.repoCursor,
+                                    isSelected: selected.contains(worktree.id),
+                                    roots: model.settings.pathRoots,
+                                    query: model.filter(for: .repos),
+                                    pilot: model.session(for: worktree).flatMap { model.pilotStatus(of: $0) },
+                                    registration: model.registration(of: worktree),
+                                    hostColor: worktree.location.hostName.flatMap { model.config.hosts[$0]?.color }
+                                )
+                                .hint(model.hintLabel(for: .row(.repos, index)))
+                                .contentShape(Rectangle())
+                                .onTapGesture { model.clickRow(.repos, index) }
+                                .simultaneousGesture(TapGesture(count: 2).onEnded {
+                                    model.clickRow(.repos, index, open: true)
+                                })
+                                .rightClickMenu { model.rightClickRow(.repos, index) } _: {
+                                    model.rowMenu(.repos, index)
+                                }
+                                .id(worktree.id)
+                            }
                         }
                     }
-                }
-                .onChange(of: model.repoCursor) {
-                    if rows.indices.contains(model.repoCursor) { proxy.scrollTo(rows[model.repoCursor].id) }
+                    .onChange(of: model.repoCursor) {
+                        if rows.indices.contains(model.repoCursor) { proxy.scrollTo(rows[model.repoCursor].id) }
+                    }
                 }
             }
             if let (record, proposal) = setupUnderCursor {
                 SetupBanner(record: record, proposal: proposal).shotRegion(.setupBanner)
             }
             if model.config.cleanup.enabled { SweepBanner(plan: model.sweepPlan).shotRegion(.sweepBanner) }
-            if rows.isEmpty {
-                VStack(spacing: 8) {
-                    Text(model.repos.isEmpty ? "No repos found yet."
-                        : model.worktreeCount > 0 ? "No worktrees match /\(model.filter(for: .repos))."
-                        : "No worktrees yet.")
-                        .foregroundStyle(Theme.fg2)
-                    if model.worktreeCount == 0 { Text(model.repos.isEmpty
-                            ? "Scanning \(model.settings.repoRoots.joined(separator: ", ")) for repositories."
-                            : "Start work (o) creates one under \(model.settings.worktreeRoot).")
-                        .foregroundStyle(Theme.fg3)
-                    }
-                }
-                .font(Theme.ui(12.5))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if rows.isEmpty, model.repos.isEmpty {
+                EmptyState(
+                    title: "No repos found yet",
+                    detail: "Heed looks two levels deep in \(model.settings.repoRoots.joined(separator: ", ")) for git "
+                        + "repositories. Add the folder yours live in, or import a worktree from anywhere: its repo "
+                        + "comes with it. :repo.add <path> adds one repo.",
+                    actions: [
+                        .init("add the folder your repos are in", "settings.open", arguments: ["cleanup"], key: "⌘,"),
+                        .init("import a worktree by its path", "session.import.path"),
+                        .init("scan again", "repo.scan"),
+                    ]
+                )
+            } else if rows.isEmpty, model.worktreeCount == 0 {
+                EmptyState(
+                    title: "No worktrees yet",
+                    detail: "Start work makes one per task under \(model.settings.worktreeRoot), with its branch and "
+                        + "agent; worktrees you made yourself can be imported.",
+                    actions: [
+                        .init("start work in a repo", "worktree.new"), .init("import a worktree", "session.import"),
+                    ]
+                )
+            } else if rows.isEmpty {
+                Text("No worktrees match /\(model.filter(for: .repos)).")
+                    .foregroundStyle(Theme.fg2)
+                    .font(Theme.ui(12.5))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

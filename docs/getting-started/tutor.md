@@ -15,14 +15,14 @@ underneath (the Dock and the menu bar stay live). They come back exactly as they
 - **The global tour**: nine steps, about six minutes. Two modes, moving around, pins, the session that needs you,
   Start work, panes, views, the command line, and the keys sheet. The first-run screen offers it (`t`, show me around).
 - **View lessons**: one per view, two to four minutes each: Sessions, Start work, Attention, Inbox, Issues, PRs,
-  Watch, Repos, History, Agents, Hosts and Diff. Each opens in its view.
+  Watch, Repos, History, the call log, Agents, Hosts and Diff. Each opens in its view.
 
 ## Starting it
 
 | From | |
 |---|---|
 | `:tutor` | The picker: the lesson for the view you are on first, then the tour and every other lesson |
-| `:tutor prs` | Straight into a lesson: `tour`, `sessions`, `start-work`, `attention`, `inbox`, `issues`, `prs`, `watch`, `repos`, `history`, `agents`, `hosts`, `diff` |
+| `:tutor prs` | Straight into a lesson: `tour`, `sessions`, `start-work`, `attention`, `inbox`, `issues`, `prs`, `watch`, `repos`, `history`, `log`, `agents`, `hosts`, `diff` |
 | `?` then `t` | The keys sheet ends with "t tutor for this view" |
 | `⌘⇧T` | The picker, from anywhere in the window, even a terminal pane (never typed into the shell) |
 | Help ▸ Heed Tutor | The picker, for the mouse |
@@ -77,12 +77,14 @@ next lesson you have not done (`↩`), the cheat sheet (`?`) and a replay (`r`).
 
 | World | What is in it | Lessons |
 |---|---|---|
-| Monday morning | Five agents, two PRs, one blocked on a permission, one asking questions | The tour, Sessions, Attention, Issues, Watch, Repos, History, Agents, Hosts, Diff |
+| Monday morning | Five agents, two PRs, one blocked on a permission, one asking questions | The tour, Sessions, Attention, Issues, Watch, Repos, History, the call log, Agents, Hosts, Diff |
 | PR storm | Review comments and a failing check on a PR whose agent is busy | Inbox, PRs |
 | Fresh repos | Your repos and worktrees, no sessions yet | Start work |
 
 Agents in them are scripted: their panes show a transcript rather than a shell, so every lesson plays the same. Starting
-work, reopening from History and sending feedback happen as they would, without git or an agent.
+work, reopening from History and sending feedback happen as they would, without git or an agent. The Repos lesson's
+world has automatic cleanup on (worktrees idle for 3 days), so its sweep has something to show; yours stays off until
+you turn it on.
 
 Only your progress is kept between launches: which lessons are done, and the step you were on, so quitting mid-lesson
 resumes there. The world is never saved.

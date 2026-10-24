@@ -162,7 +162,9 @@ public enum Commands {
         .init("tools.detect", "find git and gh again (login shell PATH, usual places, [tools])", .views),
         .init("app.quit", "quit Heed", .views),
         .init(
-            "settings.open", "open Settings, on a section (general, agents, colors, cleanup, pilot, keys)", .views,
+            "settings.open",
+            "open Settings, on a section (general, agents, colors, cleanup, pilot, attention, keys, hosts)",
+            .views,
             arguments: "[section]"
         ),
         .init("app.activate", "bring Heed's window to the front, as the global shortcut does", .views),

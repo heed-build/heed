@@ -34,6 +34,8 @@ struct Shot {
     var highlight: [ShotRegion] = []
     /// Anything keys cannot reach (a state to set up), run before the keys.
     var prepare: (@MainActor (AppModel) -> Void)?
+    /// The fake world drawn (`Fixtures.named`): `main`, or `empty` for what a first launch shows.
+    var fixture = "main"
 }
 
 /// `HEED_SHOTS=<dir>`: renders every shot (or those whose id starts with `HEED_SHOTS_ONLY`) offscreen from the fake
@@ -89,7 +91,7 @@ enum ShotRunner {
     }
 
     static func render(_ shot: Shot, into directory: URL) async throws {
-        let model = AppModel(domain: Fixtures.main, isFixture: true)
+        let model = AppModel(domain: Fixtures.named(shot.fixture) ?? Fixtures.main, isFixture: true)
         shot.prepare?(model)
         for stroke in (try? KeyNotation.parse(shot.keys)) ?? [] {
             _ = model.handle(stroke)

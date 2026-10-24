@@ -42,7 +42,9 @@ struct CallLogView: View {
     private func empty(_ log: CallLogBrowser) -> String {
         if log.unavailable { return "The call log could not be opened; nothing is logged this run." }
         if !log.query.isEmpty || !model.filter(for: .log).isEmpty { return "No call matches." }
-        return "Commands heed runs and its GitHub calls land here as they happen."
+        return "Nothing logged yet. Every command heed runs, each GitHub call and its own model calls land here as "
+            + "they happen, with how long each took and how it ended. \(model.keyText(for: "log.kind", in: "log")) "
+            + "shows one kind, \(model.keyText(for: "log.failed", in: "log")) only what failed."
     }
 
     private func filters(_ query: CallLogQuery) -> some View {

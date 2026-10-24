@@ -35,14 +35,24 @@ struct HistoryTimelineView: View {
     private func header(_ browser: TimelineBrowser) -> some View {
         let filter = browser.filter
         return HStack(spacing: 8) {
+            // A click on a chip does what its key does; on one that narrows, it takes the narrowing off.
+            let everything = filter.kinds.count == TimelineItem.Kind.allCases.count
             FilterChip(
-                label: filter.kinds.count == TimelineItem.Kind.allCases.count ? "Everything"
-                    : filter.kinds.map(\.title).sorted().joined(separator: ", "),
-                on: filter.kinds.count != TimelineItem.Kind.allCases.count
+                label: everything ? "Everything" : filter.kinds.map(\.title).sorted().joined(separator: ", "),
+                on: !everything
             )
-            if let repo = filter.repo { FilterChip(label: String(repo.split(separator: "/").last ?? ""), on: true) }
-            if let place = filter.place { FilterChip(label: place == "local" ? "this Mac" : "@\(place)", on: true) }
-            if !filter.showGone { FilterChip(label: "removed hidden", on: true) }
+            .clickRuns(CommandInvocation(name: "timeline.kind", arguments: everything ? [] : ["all"]))
+            if let repo = filter.repo {
+                FilterChip(label: String(repo.split(separator: "/").last ?? ""), on: true)
+                    .clickRuns(CommandInvocation(name: "timeline.repo", arguments: ["all"]))
+            }
+            if let place = filter.place {
+                FilterChip(label: place == "local" ? "this Mac" : "@\(place)", on: true)
+                    .clickRuns(CommandInvocation(name: "timeline.where", arguments: ["all"]))
+            }
+            if !filter.showGone {
+                FilterChip(label: "removed hidden", on: true).clickRuns(CommandInvocation(name: "timeline.gone"))
+            }
             Spacer(minLength: 8)
             Text("last \(TimelineBrowser.days) days").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
             FilterPill(view: .timeline)
@@ -143,6 +153,12 @@ private struct TimelineLines: View {
                                     .hint(model.hintLabel(for: .row(.timeline, index)))
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.clickRow(.timeline, index) }
+                                    // A double-click reopens, as ↩ does here.
+                                    .simultaneousGesture(TapGesture(count: 2).onEnded { model.clickRow(
+                                        .timeline,
+                                        index,
+                                        open: true
+                                    ) })
                                     .rightClickMenu { model.rightClickRow(.timeline, index) } _: {
                                         model.rowMenu(.timeline, index)
                                     }
@@ -320,11 +336,11 @@ private struct TimelineDetail: View {
             VStack(alignment: .leading, spacing: 10) {
                 if entry != nil {
                     keyRow(
-                        model.keyText(for: "history.reopen", in: "timeline"),
+                        "history.reopen",
                         "reopen the session, recreating its worktree (from what was saved, when its branch is gone)"
                     )
                 }
-                keyRow(model.keyText(for: "history.timeline", in: "timeline"), "back to History's list")
+                keyRow("history.timeline", "back to History's list")
             }
         }
         .padding(22)
@@ -347,9 +363,8 @@ private struct TimelineDetail: View {
         .font(Theme.ui(12.5))
     }
 
-    private func keyRow(_ key: String, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            KeyCap(text: key)
+    private func keyRow(_ command: String, _ text: String) -> some View {
+        KeyHint(command, scope: "timeline", spacing: 10, alignment: .top) {
             Text(text).font(Theme.ui(12)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
         }
     }

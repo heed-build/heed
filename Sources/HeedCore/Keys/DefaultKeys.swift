@@ -92,8 +92,9 @@ public enum DefaultKeys {
             ("o", "worktree.new"), ("r", "repo.scan"), ("w", "issues.visibility"), ("dd", "select.remove"),
             ("<CR>", "select.open"), ("S", "setup.review"), ("M", "repo.setup"),
         ],
+        // ↩ and a double-click reopen, as R does: there is nothing else in History to open.
         "history": [
-            ("R", "history.reopen"),
+            ("R", "history.reopen"), ("<CR>", "history.reopen"),
             ("O", "history.again"),
             ("t", "history.outcome"),
             ("T", "history.timeline"),
@@ -102,18 +103,19 @@ public enum DefaultKeys {
         ],
         // History's timeline (T, :timeline); T again goes back to the list.
         "timeline": [
-            ("T", "history.timeline"), ("L", "history.ledger"), ("R", "history.reopen"), ("t", "timeline.kind"),
+            ("T", "history.timeline"), ("L", "history.ledger"), ("R", "history.reopen"), ("<CR>", "history.reopen"),
+            ("t", "timeline.kind"),
             ("r", "timeline.repo"), ("w", "timeline.where"), ("D", "timeline.gone"),
         ],
         // History's ledger (L, :ledger); L again goes back to the list.
         "ledger": [
             ("L", "history.ledger"), ("T", "history.timeline"), ("D", "history.dashboard"), ("R", "history.reopen"),
-            ("S", "ledger.summarize"), ("E", "ledger.edit"),
+            ("<CR>", "history.reopen"), ("S", "ledger.summarize"), ("E", "ledger.edit"),
         ],
         // History's dashboard (D, :dashboard); D again goes back to the list.
         "dashboard": [
             ("D", "history.dashboard"), ("T", "history.timeline"), ("L", "history.ledger"), ("R", "history.reopen"),
-            ("r", "dashboard.range"),
+            ("<CR>", "history.reopen"), ("r", "dashboard.range"),
         ],
         // The call log has no key of its own (:log); inside it, its filters.
         "log": [

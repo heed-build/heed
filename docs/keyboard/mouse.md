@@ -8,6 +8,13 @@ Heed is keyboard-first, but a click works where you would expect one: a click se
 into the agent (see [the sidebar](../sessions/sidebar.md)). A right-click (or `⌃`-click) opens a menu of what you can do
 with the thing under the mouse.
 
+A key hint is a button too: click `zg green` beside a PR, `x done` in Attention or a row of the `?` overlay, and it runs
+what the key runs, on what it sits beside. The pointer turns to a hand over it and its tooltip names the command
+(`:pilot.green`). So do the filter chips of the [call log](../reference/call-log.md) and the [timeline](../history/timeline.md), the PR overlay's tabs,
+its Green modes and the checkbox on a feedback item (it queues or unqueues the item, as `space` does). A row of `:`'s
+completions takes the line as `⇥` would, a double-click runs it; a key listed after a pending `g` presses the rest. In
+History, its timeline, ledger and dashboard, `↩` and a double-click reopen, as `R` does.
+
 Every item in a right-click menu runs a command, the same one its key runs, and shows that key on the right: the menu
 teaches the keys as you use it. A command with no key shows its `:name` instead (`:pr.untrack`), which is what still
 runs it from the [command line](command-line.md). The key shown is the one that works where you are, so a key you

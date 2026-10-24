@@ -102,6 +102,8 @@ private struct StatTile: View {
 private struct Panel<Content: View>: View {
     let title: String
     let note: String
+    /// What a click on the note runs: the range's note cycles the range, as r does.
+    var noteRuns: CommandInvocation?
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -109,7 +111,7 @@ private struct Panel<Content: View>: View {
             HStack {
                 Text(title).font(Theme.ui(13, weight: .semibold)).foregroundStyle(Theme.fg)
                 Spacer()
-                Text(note).font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                Text(note).font(Theme.mono(11)).foregroundStyle(Theme.fg3).clickRuns(noteRuns)
             }
             content
         }
@@ -139,7 +141,10 @@ private struct Heatmap: View {
         // Columns share the panel's width (a few weeks are wide cells, many are narrow); rows stay short.
         let cellWidth = max(13, (width - 32 - 48) / CGFloat(weeks) - gap)
         let cell = min(28, cellWidth)
-        Panel(title: "Agent time per day", note: DashboardText.range(board.days)) {
+        Panel(
+            title: "Agent time per day", note: DashboardText.range(board.days),
+            noteRuns: CommandInvocation(name: "dashboard.range")
+        ) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .trailing, spacing: gap) {
                     ForEach(0 ..< 7, id: \.self) { row in
@@ -264,6 +269,8 @@ private struct RecentSessions: View {
                     .hint(model.hintLabel(for: .row(.dashboard, index)))
                     .contentShape(Rectangle())
                     .onTapGesture { model.clickRow(.dashboard, index) }
+                    // A double-click reopens, as ↩ does here.
+                    .simultaneousGesture(TapGesture(count: 2).onEnded { model.clickRow(.dashboard, index, open: true) })
                     .rightClickMenu { model.rightClickRow(.dashboard, index) } _: { model.rowMenu(.dashboard, index) }
                 }
             }

@@ -83,8 +83,7 @@ struct HelpOverlay: View {
             Text("every mode except INSERT").foregroundStyle(Theme.fg2)
             KeyCap(text: "⌘/")
             Text("everywhere").foregroundStyle(Theme.fg2)
-            KeyCap(text: "⎋")
-            Text("close").foregroundStyle(Theme.fg2)
+            KeyHint("overlay.close", key: "⎋", spacing: 10, label: "close", color: Theme.fg2, font: Theme.ui(12))
             KeyCap(text: "t")
             Text("tutor for this view").foregroundStyle(Theme.fg2)
         }
@@ -142,6 +141,10 @@ struct HelpOverlay: View {
                         }
                     }
                     .frame(height: 20)
+                    // A click runs it, as its key would (one that needs an argument opens `:` with it typed).
+                    .clickable()
+                    .onTapGesture { model.clickHelpRow(row.name) }
+                    .help(Clicks.help(CommandInvocation(name: row.name)))
                 }
                 Spacer().frame(height: 10)
             }

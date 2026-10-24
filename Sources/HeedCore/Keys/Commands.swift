@@ -203,7 +203,10 @@ public enum Commands {
             "ledger.edit", "edit the ledger entry's summary (no text: the command line opens with it)", .selection,
             arguments: "[text]"
         ),
-        .init("log.kind", "call log: all, or one kind (shell, github, llm, decide)", .selection, arguments: "[kind]"),
+        .init(
+            "log.kind", "call log: all, or one kind (shell, github, llm, decide)", .selection,
+            arguments: "[all|kind]"
+        ),
         .init("log.failed", "call log: only calls that failed, or all", .selection),
         .init("log.slow", "call log: only slow calls (5 s or more), or all", .selection),
         .init("log.writes", "call log: only GitHub writes, or all", .selection),
@@ -243,7 +246,10 @@ public enum Commands {
         .init("feedback.watch", "pilot.watch, by its former name", .selection),
         .init("pilot.why", "what heed will do for the PR, and what holds it back", .selection),
         .init("pilot.watch", "watch or stop watching the PR (or the picked PRs)", .selection),
-        .init("pilot.green", "cycle get it green for the PR: off, ask, auto", .selection),
+        .init(
+            "pilot.green", "cycle get it green for the PR: off, ask, auto (or set the one named)", .selection,
+            arguments: "[off|ask|auto]"
+        ),
         .init("pilot.run", "show the session's running get it green / get it merged run", .selection),
         .init("pilot.run.stop", "stop the session's running get it green / get it merged run", .selection),
         .init("pilot.retry", "one more round of get it green for a stalled PR (or the picked PRs)", .selection),

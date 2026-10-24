@@ -136,8 +136,8 @@ private struct AttentionFilters: View {
             Spacer(minLength: 0)
             Theme.line.frame(height: 1)
             VStack(alignment: .leading, spacing: 8) {
-                keyRow(model.keyText(for: "attention.filter", in: "attention"), "next filter")
-                keyRow(model.keyText(for: "attention.sort", in: "attention"), "sort")
+                keyRow("attention.filter", "next filter")
+                keyRow("attention.sort", "sort")
                 Text(model.config.llm.enabled ? "Summaries by heed's model calls" : "Summaries are off ([llm])")
                     .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
             }
@@ -161,11 +161,8 @@ private struct AttentionFilters: View {
         .padding(.horizontal, 8)
     }
 
-    private func keyRow(_ key: String, _ label: String) -> some View {
-        HStack(spacing: 8) {
-            KeyCap(text: key).frame(minWidth: 18)
-            Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-        }
+    private func keyRow(_ command: String, _ label: String) -> some View {
+        KeyHint(command, scope: "attention", spacing: 8, capWidth: 18, label: label, color: Theme.fg2)
     }
 }
 
@@ -369,23 +366,31 @@ private struct AttentionDetail: View {
                     VStack(alignment: .leading, spacing: 7) {
                         if item.reasons.contains(.readyToMerge) {
                             HStack(spacing: 14) {
-                                action("pilot.merge.now", "merge now").contentShape(Rectangle())
-                                    .onTapGesture { model.perform(CommandInvocation(name: "pilot.merge.now")) }
+                                action("pilot.merge.now", "merge now", item: item.id)
                                 Text("set up merging").font(Theme.ui(12)).foregroundStyle(Theme.fg2).underline()
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.perform(CommandInvocation(name: "pilot.merge.setup")) }
                             }
                         }
-                        if item.kind == .pr || item.kind == .issue { action("attention.reply", "draft a reply") }
+                        if item.kind == .pr || item.kind == .issue { action(
+                            "attention.reply",
+                            "draft a reply",
+                            item: item.id
+                        ) }
                         if item.session != nil {
-                            action("attention.session", "go to session", detail: sessionTitle(item.session))
+                            action(
+                                "attention.session",
+                                "go to session",
+                                item: item.id,
+                                detail: sessionTitle(item.session)
+                            )
                         }
                         HStack(spacing: 14) {
-                            action("attention.done", "done")
-                            action("attention.snooze", "snooze")
-                            if item.notificationID != nil { action("attention.mute", "mute thread") }
+                            action("attention.done", "done", item: item.id)
+                            action("attention.snooze", "snooze", item: item.id)
+                            if item.notificationID != nil { action("attention.mute", "mute thread", item: item.id) }
                         }
-                        if item.url != nil { action("open.browser", "open on GitHub") }
+                        if item.url != nil { action("open.browser", "open on GitHub", item: item.id) }
                     }
                 }
             }
@@ -404,9 +409,9 @@ private struct AttentionDetail: View {
         }
     }
 
-    private func action(_ command: String, _ label: String, detail: String? = nil) -> some View {
-        HStack(spacing: 7) {
-            KeyCap(text: model.keyText(for: command, in: "attention"))
+    /// What the key does to the item shown, by click as by key: on this item, as a right-click on its row would.
+    private func action(_ command: String, _ label: String, item id: String, detail: String? = nil) -> some View {
+        KeyHint(command, target: .row(view: "attention", id: id), scope: "attention", spacing: 7) {
             Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
             if let detail { Text(detail).font(Theme.ui(12, weight: .semibold)).lineLimit(1) }
         }

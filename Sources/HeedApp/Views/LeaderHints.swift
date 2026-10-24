@@ -17,8 +17,7 @@ struct LeaderHints: View {
                     KeyCap(text: (model.engine.count.map(String.init) ?? "") + KeyCapText.of(model.engine.pending))
                     Text("then").foregroundStyle(Theme.fg3)
                     Spacer()
-                    KeyCap(text: "⎋")
-                    Text("cancel").foregroundStyle(Theme.fg3)
+                    KeyHint(keys: "<Esc>", spacing: 8, label: "cancel")
                 }
                 .font(Theme.ui(12))
                 FlowLayout(spacing: 22, lineSpacing: 8) {
@@ -34,6 +33,10 @@ struct LeaderHints: View {
                                 .lineLimit(1)
                         }
                         .frame(width: 250, alignment: .leading)
+                        // A click presses the rest of the keys, so it runs exactly what they would.
+                        .clickable()
+                        .onTapGesture { model.press(entry.rest) }
+                        .help(Clicks.help(CommandInvocation(parsing: entry.command)))
                     }
                 }
             }

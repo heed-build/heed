@@ -57,10 +57,17 @@ This page is generated from the code (`mise run shots`).
 | `pane.split.below` | `<C-w>s` | split below |
 | `pane.zoom` | `<C-w>z` | zoom pane |
 | `pane.close` | `<C-w>q` | close pane |
+| `pane.wider` | `<C-w>>` | widen the focused pane |
+| `pane.narrower` | `<C-w><lt>` | narrow the focused pane |
+| `pane.taller` | `<C-w>+` | make the focused pane taller |
+| `pane.shorter` | `<C-w>-` | make the focused pane shorter |
+| `pane.equalize` | `<C-w>=` | make every pane in the tab the same size |
 | `tab.close` | `<C-w>c` | close the tab, every pane in it |
 | `tab.next` | `gt` | next tab |
 | `tab.prev` | `gT` | previous tab |
 | `tab.new` | `gn` | new tab with shell |
+| `tab.move.left` | `g<lt>` | move the tab left |
+| `tab.move.right` | `g>` | move the tab right |
 | `tab.go` `<n>` |  | go to tab n |
 | `task.run` `[name]` | `!` | run a task in a tab of its own: pinned, mise, make, package.json (no name: pick one) |
 | `task.refresh` |  | read the session's tasks again (mise, make, package.json) |

@@ -29,7 +29,11 @@ public enum DefaultKeys {
         ("<C-w>v", "pane.split.right"), ("<C-w>s", "pane.split.below"), ("<C-w>z", "pane.zoom"),
         ("<C-w>q", "pane.close"), ("<C-w>h", "pane.left"), ("<C-w>l", "pane.right"), ("<C-w>j", "pane.down"),
         ("<C-w>k", "pane.up"), ("<C-w>c", "tab.close"),
+        // Sizes as in vim: the focused pane grows or shrinks; = makes them all equal again.
+        ("<C-w>>", "pane.wider"), ("<C-w><lt>", "pane.narrower"), ("<C-w>+", "pane.taller"),
+        ("<C-w>-", "pane.shorter"), ("<C-w>=", "pane.equalize"),
         ("gt", "tab.next"), ("gT", "tab.prev"), ("gn", "tab.new"), ("!", "task.run"),
+        ("g>", "tab.move.right"), ("g<lt>", "tab.move.left"),
         ("gs", "view.sessions"), ("gm", "view.attention"), ("gi", "view.attention issues"),
         ("gp", "view.attention mine"),
         ("gl", "links.pick"), ("gI", "issue.add"), ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), (

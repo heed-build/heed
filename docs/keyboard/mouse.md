@@ -40,7 +40,7 @@ works in every mode like the other [Mac shortcuts](mac-shortcuts.md).
 | View | Every view, those without a tab too (Inbox, Issues, PRs, the timeline, ledger, dashboard and call log), hosts, the filter, the sidebar and inspector, and a submenu each for Attention, Inbox and Issues, Repos, History and the call log |
 | PR | The PR overlay, the diff, the session's PRs, the browser and links, tracking, everything the pilot does (watch, get it green, get it merged, merge now, pause, one more round, Copilot, reviewers, its run), merge queues, setting up a repo, and submenus for review feedback and the diff |
 | Go | The next session needing you (`ga`), back, a session by name, your pinned sessions, hints, VISUAL and the command line |
-| Window | Splitting, zooming, closing and moving between panes; new, next, previous and closing tabs, and each tab by number |
+| Window | Splitting, sizing, zooming, closing and moving between panes; new, next, previous, moving and closing tabs, and each tab by number |
 | Help | Keys & states (`?`), the [tutor](../getting-started/tutor.md) and its steps, the getting-started checks, these docs |
 
 The menus act on what you are looking at, as a key would: the selected session, or the PR in front (the one open in the
@@ -127,6 +127,14 @@ its agent (`a`), and widens it again.
 A right-click on a tab selects it and offers a new tab (`gn`), splitting (`⌃w v`, `⌃w s`), zooming the pane (`⌃w z`)
 and closing the tab (`⌃w c`); a run's tab can also stop its run (`zx`), and the agent's tab can hand the session to
 another agent (**Hand off to…**, `gA`).
+
+Drag a tab along the strip to move it, as `g>` and `g<` do; the other tabs make room as it passes.
+
+## Panes
+
+Drag the line between two panes to resize them, as `⌃w >`, `⌃w <`, `⌃w +` and `⌃w -` do; the pointer turns into a
+resize arrow over it. A double-click on the line makes that split equal again. See
+[sizing panes](../sessions/panes-and-tabs.md#sizing-panes).
 
 ## The diff and the PR overlay
 

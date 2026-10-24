@@ -16,6 +16,28 @@ A session's terminals are panes, arranged in tabs. Pane keys start with `⌃w`, 
 | `gt` / `gT` | Next / previous tab |
 | `gn` | New tab with a shell (or click `+`) |
 | `⌃w c` | Close the tab and every pane in it (or click its `×`); a tab with the agent asks first |
+| `g>` / `g<` | Move the tab right / left (or drag it) |
+
+## Sizing panes
+
+A split starts equal. Drag the line between two panes to resize them: the pointer turns into a resize arrow over it,
+and the terminals on both sides reflow as you drag. No pane gets smaller than about twenty columns by four rows, however
+far you drag or however small the window gets. Double-click the line to make that split equal again.
+
+| Key | |
+|---|---|
+| `⌃w >` / `⌃w <` | Widen / narrow the focused pane |
+| `⌃w +` / `⌃w -` | Make the focused pane taller / shorter |
+| `⌃w =` | Make every pane in the tab the same size |
+
+Each press moves the line by a twentieth of its split; a count moves it further (`4⌃w >`). The sizes are part of the
+session's layout: they come back when heed relaunches, and when a session is resumed.
+
+## Moving tabs
+
+Drag a tab along the strip to move it: the other tabs make room as it passes them, and it lands where you let go. `g>`
+and `g<` move the open tab one place right or left; a count moves it further (`3g>`). The tab you were in stays the
+one you are in.
 
 ![After ⌃w v: the agent pane split, a new shell on the right](../images/shots/sessions/split.png)
 

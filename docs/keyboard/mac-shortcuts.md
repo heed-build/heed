@@ -13,6 +13,7 @@ The standard Mac shortcuts work in every mode, even with a terminal taking your 
 | `⌘H` | Hide Heed |
 | `⌘M` | Minimise |
 | `⌘,` | Settings |
+| `⌘N` | Start work (also `o`) |
 | `⌘/` | Every key (also `?`) |
 
 Other `⌘` shortcuts Heed does not bind go to the app menu as in any Mac app. In INSERT, everything else (`⌘C`, `⌘V`

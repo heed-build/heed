@@ -1,8 +1,8 @@
 ---
-description: "Right-click menus: every item is a command, with its key beside it."
+description: "The menu bar and right-click menus: every item is a command, with its key beside it."
 ---
 
-# The mouse and right-click
+# The mouse, the menu bar and right-click
 
 Heed is keyboard-first, but a click works where you would expect one: a click selects, a double-click opens or types
 into the agent (see [the sidebar](../sessions/sidebar.md)). A right-click (or `⌃`-click) opens a menu of what you can do
@@ -17,6 +17,35 @@ in the PR overlay) shows its `:name` too.
 A right-click first selects what you clicked, as a click would (without typing into it), then the menu acts on it.
 Items that cannot apply are left out (no *Stop run* without a run); items that apply but cannot run now are greyed (the
 pilot's items on a merged PR). A check mark shows a setting that is on: watching, get it green, get it merged, paused.
+
+## The menu bar
+
+Every command Heed has is in the menu bar too, so you can find anything with the mouse and learn its key on the way.
+As in a right-click menu, each item shows its key on the right as text (or its `:name`, when nothing binds it): the
+menus register no shortcuts of their own, because Heed's keys are sequences (`gd`, `⌃w v`) that the mode engine reads,
+and a menu that claimed `o` would take it from your terminals. The one exception is `⌘N` for **Start work**, which
+works in every mode like the other [Mac shortcuts](mac-shortcuts.md).
+
+| Menu | What is in it |
+|---|---|
+| File | Start work (`⌘N`), the floating panel, a new chat, importing a worktree, adding a repo, resume and *While you were away…*, syncing GitHub, rescanning repos, the cleanup sweep and rules, `config.toml`, finding git and gh again |
+| Session | Type into its agent or the focused pane, pin, park, start again from its prompt, *Hand off to…*, promote a chat, run a task, link or take off an issue, close, delete, stop every agent |
+| View | Every view, those without a tab too (Inbox, Issues, PRs, the timeline, ledger, dashboard and call log), hosts, the filter, the sidebar and inspector, and a submenu each for Attention, Inbox and Issues, Repos, History and the call log |
+| PR | The PR overlay, the diff, the session's PRs, the browser and links, tracking, everything the pilot does (watch, get it green, get it merged, merge now, pause, one more round, Copilot, reviewers, its run), merge queues, setting up a repo, and submenus for review feedback and the diff |
+| Go | The next session needing you (`ga`), back, a session by name, your pinned sessions, hints, VISUAL and the command line |
+| Window | Splitting, zooming, closing and moving between panes; new, next, previous and closing tabs, and each tab by number |
+| Help | Keys & states (`?`), the [tutor](../getting-started/tutor.md) and its steps, the getting-started checks, these docs |
+
+The menus act on what you are looking at, as a key would: the selected session, or the PR in front (the one open in the
+PR overlay or the reader, or the row under the cursor in PRs and Watch). An item is greyed when it cannot run there,
+by the same rules as the right-click menus: no pilot items without an open PR, no diff for a chat, no *Stop run* without
+a run. A view's own submenu (the call log's filters, the diff's hunks) is greyed outside that view. A check mark shows
+what is on: the view you are on, a pinned or parked session, watching, get it green, get it merged, paused, the sidebar
+and inspector. An item that needs words (**Track a PR…**, **Session named…**) opens the [command line](command-line.md)
+with the command typed, for you to finish.
+
+A few commands are left out of the menus on purpose: moving the cursor (`j`, `k`, `gg`; the mouse clicks and scrolls),
+the command line's own keys, closing an overlay (`⎋`), and the app menu's own Settings, Check for Updates and Quit.
 
 ## Sessions
 

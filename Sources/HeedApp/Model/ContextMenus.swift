@@ -5,7 +5,12 @@ import HeedCore
 extension AppModel {
     /// A session in the sidebar or the rail.
     func sessionMenu(_ id: String) -> [MenuEntry] {
-        guard let session = sessions.first(where: { $0.id == id }) else { return [] }
+        sessionFacts(id).map(ContextMenus.session) ?? []
+    }
+
+    /// What a session's menus build from: its right-click menu, and the menu bar for the selected one.
+    func sessionFacts(_ id: String) -> ContextMenus.SessionFacts? {
+        guard let session = sessions.first(where: { $0.id == id }) else { return nil }
         var facts = ContextMenus.SessionFacts(id: id, title: session.title)
         facts.pulls = session.trackedPRs.count
         facts.openPulls = session.trackedPRs.count { github.pull($0).map { $0.state == .open } ?? true }
@@ -18,16 +23,21 @@ extension AppModel {
         facts.handoffAgents = handoffAgents(for: session)
         facts.chat = session.isChat
         facts.scratch = session.chat?.kind == .scratch && session.location.isLocal
-        return ContextMenus.session(facts)
+        return facts
     }
 
     /// A PR: a session's card in the inspector, or a PRs or Watch row.
     func pullMenu(_ ref: PullRef, place: ContextMenus.Place) -> [MenuEntry] {
+        ContextMenus.pull(pullFacts(ref, place: place))
+    }
+
+    /// What a PR's menus build from: its right-click menu, and the menu bar for the PR in front.
+    func pullFacts(_ ref: PullRef, place: ContextMenus.Place) -> ContextMenus.PullFacts {
         var facts = ContextMenus.PullFacts(ref: ref, place: place)
         facts.open = github.pull(ref).map { $0.state == .open } ?? true
         facts.pilot = pilotFacts([ref], runLive: liveRuns.values.contains { $0.ref == ref })
         facts.hasSession = sessions.contains { $0.trackedPRs.contains(ref) }
-        return ContextMenus.pull(facts)
+        return facts
     }
 
     /// A run in the inspector.

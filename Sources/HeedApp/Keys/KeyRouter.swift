@@ -36,7 +36,8 @@ final class KeyRouter {
         }
         monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             // Only the main window is Heed's keyboard; Settings and other windows get their keys untouched.
-            // ⌘Q ⌘W ⌘H ⌘M are the app menu's, whatever has focus: a focused terminal would otherwise take them.
+            // ⌘Q ⌘W ⌘H ⌘M and ⌘N (Start work) are the menu bar's, whatever has focus: a focused terminal would
+            // otherwise take them.
             if event.window?.identifier == AppModel.mainWindowID, Self.isMenuShortcut(event),
                NSApp.mainMenu?.performKeyEquivalent(with: event) == true
             {
@@ -52,11 +53,12 @@ final class KeyRouter {
         }
     }
 
-    /// The standard window and app shortcuts every Mac app answers, and nothing else (⌘C, ⌘V stay the terminal's).
+    /// The standard window and app shortcuts every Mac app answers, ⌘N among them, and nothing else (⌘C, ⌘V stay the
+    /// terminal's).
     private static func isMenuShortcut(_ event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard flags == .command, let key = event.charactersIgnoringModifiers?.lowercased() else { return false }
-        return ["q", "w", "h", "m"].contains(key)
+        return ["q", "w", "h", "m", "n"].contains(key)
     }
 
     func stop() {

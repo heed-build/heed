@@ -2111,6 +2111,7 @@ final class AppModel {
                 importPath(command.arguments.joined(separator: " "))
             }
         case "session.back": goBack()
+        case "session.agent": typeIntoAgent()
         case "pin.jump": jumpToPin(Int(command.arguments.first ?? "") ?? 1)
         case "work.start" where command.arguments.first == "--agent":
             // `:agent codex`: Start work with that agent chosen.
@@ -7119,9 +7120,44 @@ final class AppModel {
         guard clicksReachLists else { return }
         clickedOutsideTerminal()
         select(sessionID: id)
-        guard insert, let layout = layouts[id], let (tabIndex, paneID) = agentPane(in: layout) else { return }
-        selectTab(tabIndex)
-        clickedPane(paneID)
+        if insert { typeIntoAgent() }
+    }
+
+    /// `session.agent` (↩ in Sessions, a double-click on a session): INSERT in the current session's agent pane, on
+    /// its tab; a session with no agent pane takes the keys in its focused pane.
+    private func typeIntoAgent() {
+        guard let session = currentSession, let layout = layouts[session.id] else { return }
+        view = .sessions
+        let hasAgent = layout.tabs.contains { tab in
+            tab.tree.panes.contains { $0.role == .agent && !runPanes.contains($0.id) }
+        }
+        if hasAgent, let (tabIndex, paneID) = agentPane(in: layout) {
+            selectTab(tabIndex)
+            clickedPane(paneID)
+        } else if let tab = currentTab {
+            clickedPane(tab.focused)
+        }
+    }
+
+    // MARK: Start work by mouse
+
+    /// A click in Start work: the form changes as the keys there would change it (`StartWorkForm`'s mouse entries).
+    func clickStartWork(_ change: (inout StartWorkForm) -> Void) {
+        guard var form = startWork else { return }
+        change(&form)
+        startWork = form
+    }
+
+    /// The Start button: exactly ⌘↩.
+    func startWorkClicked() {
+        guard !startingWork else { return }
+        handleStartWork(KeyStroke("CR", .command))
+    }
+
+    /// The Cancel button, or a click on the backdrop: what ⎋ does in NORMAL. Not while the work is being started.
+    func cancelStartWork() {
+        guard startWork != nil, !startingWork else { return }
+        startWork = nil
     }
 
     /// A click on a list row (Inbox, Issues, PRs, Watch, Repos, History) moves the cursor there; a double-click opens

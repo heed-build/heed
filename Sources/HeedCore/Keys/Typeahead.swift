@@ -21,6 +21,14 @@ public struct Typeahead<Item: Sendable>: Sendable {
 
     public var matches: [Item] { items.filter { FilterQuery.matches(query, fields($0)) } }
 
+    /// A match clicked: the cursor onto it, and it picked; nil when there is no such match.
+    public mutating func pick(at index: Int) -> Item? {
+        let found = matches
+        guard found.indices.contains(index) else { return nil }
+        cursor = index
+        return found[index]
+    }
+
     public mutating func handle(_ stroke: KeyStroke) -> Outcome {
         switch stroke {
         case .escape:

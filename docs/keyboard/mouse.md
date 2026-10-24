@@ -24,6 +24,7 @@ Right-click a session in the sidebar, or in the collapsed rail:
 
 | Item | Key |
 |---|---|
+| Type into its agent | `↩` |
 | Open PR overlay, Diff, Open in browser, Open repo on GitHub | `go`, `gd`, `gB`, `gR` |
 | Get it green, Get it merged, Pause | `zg`, `zm`, `zp` |
 | One more round (when a PR stalled) | `zr` |

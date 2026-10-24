@@ -9,6 +9,7 @@ In NORMAL your keys drive Heed and never reach a terminal. To type into one, ent
 | Key | |
 |---|---|
 | `i` | INSERT on the focused pane |
+| `↩` | INSERT on the session's agent pane, on its tab (the focused pane when it has none) |
 | `F` | Jump to a pane by label and enter INSERT on it |
 | `⇧⎋` | Back to NORMAL |
 | `⌃\` | Back to NORMAL (configurable as `insert_escape`) |
@@ -25,7 +26,8 @@ you see no white border, your keys are Heed's.
 ## With the mouse
 
 Clicking a pane focuses it and enters INSERT; clicking anywhere else (the sidebar, a list, the title bar) goes back to
-NORMAL. A double click selects a word in the terminal, as it does in any terminal.
+NORMAL. A double click selects a word in the terminal, as it does in any terminal. Double-clicking a session in the
+sidebar does what `↩` does: INSERT on its agent pane.
 
 ## Starting in INSERT
 

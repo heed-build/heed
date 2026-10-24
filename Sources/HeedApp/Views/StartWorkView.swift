@@ -20,7 +20,9 @@ struct StartWorkView: View {
         } else if let form = model.startWork {
             GeometryReader { geometry in
                 ZStack {
+                    // A click on the backdrop cancels, as a click away from the floating panel does.
                     Color.black.opacity(0.55)
+                        .onTapGesture { model.cancelStartWork() }
                     // Up to the design's 780pt wide, never wider than the window; the prompt grows with what is typed
                     // up to a cap and scrolls past it, and the whole dialog scrolls only if the window is very short.
                     ListScroll {
@@ -28,7 +30,9 @@ struct StartWorkView: View {
                             .frame(width: min(780, max(geometry.size.width - 48, 360)))
                             .shotRegion(.dialog)
                             .padding(.vertical, 24)
-                            .frame(minHeight: geometry.size.height)
+                            .frame(maxWidth: .infinity, minHeight: geometry.size.height)
+                            .contentShape(Rectangle())
+                            .onTapGesture { model.cancelStartWork() }
                     }
                     .scrollIndicators(.never)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -43,8 +47,6 @@ struct StartWorkView: View {
                 Text(form.promotion != nil ? "Promote chat" : form.chat == nil ? "Start work" : "New chat")
                     .font(Theme.ui(15, weight: .semibold))
                 Spacer()
-                KeyCap(text: "⌘↩")
-                Text(model.startingWork ? "starting…" : "start").foregroundStyle(Theme.fg2)
                 KeyCap(text: "⎋")
                 Text(form.editing ? "normal" : "cancel").foregroundStyle(Theme.fg2)
             }
@@ -62,9 +64,13 @@ struct StartWorkView: View {
             section("Agent", .agent, form) { agentField(form) }
             section("Options", .options, form) { optionsField(form) }
             commandPreview(form)
+            actions(form)
             footer(form)
         }
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
+        // A click on the dialog where nothing answers it stays in the dialog: it never reaches the backdrop.
+        .contentShape(Rectangle())
+        .onTapGesture {}
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.5), radius: 30)
@@ -89,6 +95,8 @@ struct StartWorkView: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.pane))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(active ? Theme.fg2 : Theme.line))
+        .contentShape(Rectangle())
+        .onTapGesture { model.clickStartWork { $0.focus(field: .prompt, edit: true) } }
     }
 
     private func section(
@@ -105,6 +113,9 @@ struct StartWorkView: View {
         .padding(.vertical, 14)
         .background(form.field == field ? Theme.bg3.opacity(0.5) : .clear)
         .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        // A click on the section, not on one of its chips: that field has focus.
+        .contentShape(Rectangle())
+        .onTapGesture { model.clickStartWork { $0.focus(field: field) } }
     }
 
     private func repoField(_ form: StartWorkForm) -> some View {
@@ -120,6 +131,7 @@ struct StartWorkView: View {
                         selected: primary, secondary: selected && !primary,
                         focused: form.field == .repo && form.repoCursor == index
                     )
+                    .onTapGesture { model.clickStartWork { $0.pickRepo(at: index) } }
                 }
                 if form.repoSearch == nil, !form.guesses.isEmpty {
                     choice(
@@ -127,12 +139,14 @@ struct StartWorkView: View {
                         focused: form.field == .repo && form.repoCursor == form.repoChoices.count
                     )
                     .opacity(0.85)
+                    .onTapGesture { model.clickStartWork { $0.pickRepo(at: $0.repoChoices.count) } }
                 }
                 if form.promotion == nil {
                     choice(
                         "chat, no repo", selected: form.chat != nil,
                         focused: form.field == .repo && form.repoCursor == form.chatChipIndex
                     )
+                    .onTapGesture { model.clickStartWork { $0.pickRepo(at: $0.chatChipIndex) } }
                 }
             }
             if let search = form.repoSearch { repoSearch(search) }
@@ -172,6 +186,8 @@ struct StartWorkView: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(index == search.cursor ? Theme.bg3 : .clear)
+                .contentShape(Rectangle())
+                .onTapGesture { model.clickStartWork { $0.pickSearchMatch(at: index) } }
             }
             if matches.count > 8 {
                 Text("\(matches.count - 8) more: keep typing").font(Theme.ui(11)).foregroundStyle(Theme.fg3)
@@ -203,6 +219,8 @@ struct StartWorkView: View {
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
                 .overlay(RoundedRectangle(cornerRadius: 6)
                     .strokeBorder(form.field == .worktree ? Theme.fg2 : Theme.line))
+                .contentShape(Rectangle())
+                .onTapGesture { model.clickStartWork { $0.focus(field: .worktree, edit: true) } }
                 if let primary = form.selectedRecords.first {
                     choice("from origin/\(form.plan.base(for: primary))", selected: false, focused: false)
                 }
@@ -233,6 +251,7 @@ struct StartWorkView: View {
                         chip.label, selected: chip.selected,
                         focused: form.field == .worktree && !form.editing && cursor == index
                     )
+                    .onTapGesture { model.clickStartWork { $0.pickChatChip(index) } }
                     .padding(.leading, index == 2 ? 12 : 0)
                 }
             }
@@ -250,6 +269,8 @@ struct StartWorkView: View {
             .frame(width: 380)
             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(form.field == .worktree ? Theme.fg2 : Theme.line))
+            .contentShape(Rectangle())
+            .onTapGesture { model.clickStartWork { $0.focus(field: .worktree, edit: true) } }
             if let plan {
                 Text(picked ? "The agent works in this folder with its normal permissions; heed never removes it."
                     :
@@ -270,6 +291,7 @@ struct StartWorkView: View {
                     agent?.name ?? "none, shell only", selected: index == form.agentIndex,
                     focused: form.field == .agent && index == form.agentIndex
                 )
+                .onTapGesture { model.clickStartWork { $0.pickAgent(at: index) } }
             }
         }
     }
@@ -279,14 +301,15 @@ struct StartWorkView: View {
             toggle(
                 "Autostart agent with prompt",
                 form.autostart,
-                focused: form.field == .options && form.optionCursor == 0
+                .autostart,
+                form
             )
-            toggle("Plan first", form.planFirst, focused: form.field == .options && form.optionCursor == 1)
-            toggle("Open shell split", form.shellSplit, focused: form.field == .options && form.optionCursor == 2)
+            toggle("Plan first", form.planFirst, .planFirst, form)
+            toggle("Open shell split", form.shellSplit, .shellSplit, form)
             if form.options.contains(.copyFiles), let promotion = form.promotion {
                 toggle(
                     "Copy its \(promotion.files.count) file\(promotion.files.count == 1 ? "" : "s") into the worktree",
-                    promotion.copyFiles, focused: form.field == .options && form.optionCursor == 3
+                    promotion.copyFiles, .copyFiles, form
                 )
             }
         }
@@ -348,6 +371,40 @@ struct StartWorkView: View {
         return "Will run on @\(host) · not persistent"
     }
 
+    /// Cancel and Start, for the mouse: exactly ⎋ (in NORMAL) and ⌘↩.
+    private func actions(_ form: StartWorkForm) -> some View {
+        let label = form.promotion != nil ? "Promote" : form.chat == nil ? "Start" : "Start chat"
+        return HStack(spacing: 10) {
+            Spacer()
+            HStack(spacing: 6) {
+                Text("Cancel")
+                if !form.editing { KeyCap(text: "⎋") }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+            .contentShape(Rectangle())
+            .onTapGesture { model.cancelStartWork() }
+            .opacity(model.startingWork ? 0.5 : 1)
+            .disabled(model.startingWork)
+            HStack(spacing: 6) {
+                Text(model.startingWork ? "Starting…" : label).fontWeight(.semibold)
+                KeyCap(text: "⌘↩")
+            }
+            .foregroundStyle(Theme.ink)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.inverse))
+            .contentShape(Rectangle())
+            .onTapGesture { model.startWorkClicked() }
+            .opacity(model.startingWork ? 0.5 : 1)
+            .disabled(model.startingWork)
+        }
+        .font(Theme.ui(12.5))
+        .padding(.horizontal, 20)
+        .padding(.bottom, 14)
+    }
+
     private func footer(_ form: StartWorkForm) -> some View {
         HStack(spacing: 0) {
             Text(form.editing ? "INSERT" : "NORMAL")
@@ -388,8 +445,11 @@ struct StartWorkView: View {
         ))
     }
 
-    private func toggle(_ label: String, _ on: Bool, focused: Bool) -> some View {
-        HStack(spacing: 8) {
+    private func toggle(
+        _ label: String, _ on: Bool, _ option: StartWorkForm.Option, _ form: StartWorkForm
+    ) -> some View {
+        let focused = form.field == .options && form.options.firstIndex(of: option) == form.optionCursor
+        return HStack(spacing: 8) {
             Capsule()
                 .fill(on ? Theme.done : Theme.selected)
                 .frame(width: 28, height: 16)
@@ -400,5 +460,7 @@ struct StartWorkView: View {
         }
         .padding(4)
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(focused ? Theme.fg2 : .clear))
+        .contentShape(Rectangle())
+        .onTapGesture { model.clickStartWork { $0.toggleOption(option) } }
     }
 }

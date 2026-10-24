@@ -80,7 +80,11 @@ public enum DefaultKeys {
 
     /// Bindings that only apply in one view, keyed by view name.
     public static let scoped: [String: [(String, String)]] = [
-        "sessions": [("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path")],
+        // ↩ on a session types into its agent; go, gB and gl still read or open its PRs and issues.
+        "sessions": [
+            ("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path"),
+            ("<CR>", "session.agent"),
+        ],
         "repos": [
             ("o", "worktree.new"), ("r", "repo.scan"), ("w", "issues.visibility"), ("dd", "select.remove"),
             ("<CR>", "select.open"), ("S", "setup.review"),

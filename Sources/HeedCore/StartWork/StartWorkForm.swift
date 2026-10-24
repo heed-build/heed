@@ -334,12 +334,67 @@ public struct StartWorkForm: Sendable {
         case .cancel:
             repoSearch = nil
         case let .picked(record):
-            repoSearch = nil
-            reposTouched = true
-            if !selectedRepos.contains(record.id) { selectedRepos.append(record.id) }
-            repoCursor = repoChoices.firstIndex { $0.repo.id == record.id } ?? repoCursor
+            add(searched: record)
         }
         return .handled
+    }
+
+    private mutating func add(searched record: RepoRecord) {
+        repoSearch = nil
+        reposTouched = true
+        if !selectedRepos.contains(record.id) { selectedRepos.append(record.id) }
+        repoCursor = repoChoices.firstIndex { $0.repo.id == record.id } ?? repoCursor
+    }
+
+    // MARK: Mouse
+
+    // A click lands on the field it is in, and then does what the keys there do: space on a chip, `i` in a text field.
+
+    /// A click on a field: it has focus, and a text field (the prompt, the worktree's name or the folder) is edited
+    /// when `edit` is set. Focusing elsewhere closes the repo search.
+    public mutating func focus(field: Field, edit: Bool = false) {
+        error = nil
+        if field != .repo { repoSearch = nil }
+        self.field = field
+        editing = edit && (field == .prompt || field == .worktree)
+    }
+
+    /// A click on a chip in the repo field (a guess, the search chip or the chat chip): as space there.
+    public mutating func pickRepo(at index: Int) {
+        guard (0 ... lastRepoStop).contains(index) else { return }
+        focus(field: .repo)
+        repoCursor = index
+        toggle()
+    }
+
+    /// A click on a row of the repo search: that repo, added.
+    public mutating func pickSearchMatch(at index: Int) {
+        guard var typeahead = repoSearch, let record = typeahead.pick(at: index) else { return }
+        error = nil
+        add(searched: record)
+    }
+
+    /// A click on an agent: chosen.
+    public mutating func pickAgent(at index: Int) {
+        guard agents.indices.contains(index) else { return }
+        focus(field: .agent)
+        agentIndex = index
+    }
+
+    /// A click on a chip in a chat's Folder field (scratch, folder, this Mac, a host): as space there.
+    public mutating func pickChatChip(_ index: Int) {
+        guard chat != nil, chatChips.indices.contains(index) else { return }
+        focus(field: .worktree)
+        chat?.cursor = index
+        toggle()
+    }
+
+    /// A click on an option's switch: flipped.
+    public mutating func toggleOption(_ option: Option) {
+        guard let index = options.firstIndex(of: option) else { return }
+        focus(field: .options)
+        optionCursor = index
+        toggle()
     }
 
     /// Paste goes into whatever is being edited.

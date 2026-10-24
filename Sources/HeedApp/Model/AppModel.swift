@@ -2320,6 +2320,8 @@ final class AppModel {
         case "pilot.run.stop": stopRun()
         case "pilot.why": showPilotWhy()
         case "pilot.merge": togglePilotMerge()
+        case "pilot.merge.now": mergeNow()
+        case "pilot.merge.setup": setUpMerging()
         case "pilot.copilot":
             let refs = pilotTargets
             if refs.isEmpty { flash = noOpenPR } else { Task { await askCopilot(refs, byHand: true) } }
@@ -4557,7 +4559,7 @@ final class AppModel {
         case .open, nil: break
         }
         guard effective.watching else { return "not watched · \(keyText(for: "pilot.watch")) to watch" }
-        var parts = ["watching", "green \(effective.green.configName)"]
+        var parts = ["watching", "green \(effective.green.configName)", "merge \(effective.merge.configName)"]
         if let pipeline {
             if pipeline.isPaused(Clock.now) {
                 parts
@@ -4643,7 +4645,7 @@ final class AppModel {
     /// What the pilot commands act on: the PR overlay's or reader's PR; in the Pilot and PRs views the picked rows
     /// (VISUAL) or the one under the cursor; in Sessions the session's PRs that are still open (a merged or closed
     /// one has nothing left to watch, green or merge).
-    private var pilotTargets: [PullRef] {
+    var pilotTargets: [PullRef] {
         if let refs = commandTarget?.pulls { return refs }
         if let ref = feedbackPull { return [ref] }
         switch view {
@@ -4655,13 +4657,19 @@ final class AppModel {
             return actionIDs(.prs).compactMap { byID[$0] }
         case .sessions:
             return (currentSession?.trackedPRs ?? []).filter(isOpen)
+        case .attention:
+            // A PR in Attention (ready to merge, say): merge now and set up act on it.
+            guard let item = attentionSelected?.item, item.kind == .pr, let repo = item.repo,
+                  let number = item.number
+            else { return [] }
+            return [PullRef(repo: repo, number: number)]
         default:
             return []
         }
     }
 
     /// Nothing to act on: in Sessions, say when that is because every PR is merged or closed.
-    private var noOpenPR: String {
+    var noOpenPR: String {
         view == .sessions && !(currentSession?.trackedPRs.isEmpty ?? true) ? "no open PR here: they are all merged or closed"
             : "no PR here"
     }

@@ -650,9 +650,10 @@ public enum GitHub {
 
     static let pullDetailQuery = """
     query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) {
-      autoMergeAllowed squashMergeAllowed mergeCommitAllowed rebaseMergeAllowed
+      autoMergeAllowed squashMergeAllowed mergeCommitAllowed rebaseMergeAllowed viewerPermission
       pullRequest(number: $number) {
       number title body author { login } baseRefName headRefName additions deletions
+      baseRef { refUpdateRule { requiresLinearHistory } }
       state isDraft mergeable mergeStateStatus reviewDecision
       autoMergeRequest { enabledAt mergeMethod } labels(first: 20) { nodes { name } }
       commits(last: 1) { totalCount nodes { commit { oid committedDate statusCheckRollup { contexts(first: 100) { nodes {
@@ -1030,6 +1031,10 @@ public enum GitHub {
             ("squash", "squashMergeAllowed"), ("merge", "mergeCommitAllowed"), ("rebase", "rebaseMergeAllowed"),
         ]
         detail.repoMergeMethods = methods.filter { repository[$0.1] as? Bool == true }.map(\.0)
+        detail.viewerPermission = repository["viewerPermission"] as? String
+        detail.repoRequiresLinearHistory = ((node["baseRef"] as? [String: Any])?["refUpdateRule"] as? [String: Any])?[
+            "requiresLinearHistory"
+        ] as? Bool
         detail.headCommittedAt = date(commit?["committedDate"] as? String)
         let crossReferences = ((node["timelineItems"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
         detail.references = crossReferences.compactMap { event -> PullDetail.Reference? in

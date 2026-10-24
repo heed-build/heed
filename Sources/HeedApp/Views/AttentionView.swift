@@ -365,6 +365,15 @@ private struct AttentionDetail: View {
                 }
                 section("Do something") {
                     VStack(alignment: .leading, spacing: 7) {
+                        if item.reasons.contains(.readyToMerge) {
+                            HStack(spacing: 14) {
+                                action("pilot.merge.now", "merge now").contentShape(Rectangle())
+                                    .onTapGesture { model.perform(CommandInvocation(name: "pilot.merge.now")) }
+                                Text("set up merging").font(Theme.ui(12)).foregroundStyle(Theme.fg2).underline()
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { model.perform(CommandInvocation(name: "pilot.merge.setup")) }
+                            }
+                        }
                         if item.kind == .pr || item.kind == .issue { action("attention.reply", "draft a reply") }
                         if item.session != nil {
                             action("attention.session", "go to session", detail: sessionTitle(item.session))

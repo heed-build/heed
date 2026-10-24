@@ -222,6 +222,7 @@ public struct AttentionRules: Hashable, Sendable {
         "mine": [.yourPR, .author],
         "changes": [.changesRequested],
         "threads": [.unresolvedThreads],
+        "mergeable": [.readyToMerge],
         "comment": [.comment],
         "subscribed": [.subscribed],
         "watching": [.watching],

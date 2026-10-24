@@ -17,7 +17,8 @@ extension AppModel {
         var state = github
         if isFixture { state.inbox += Fixtures.attentionInbox }
         return AttentionFeed.items(
-            github: state, sessions: sessions, details: attention.details, pilotDriving: pilotDriving
+            github: state, sessions: sessions, details: attention.details, pilotDriving: pilotDriving,
+            readyToMerge: readyToMergeRefs
         )
     }
 

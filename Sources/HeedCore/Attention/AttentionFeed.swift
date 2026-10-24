@@ -8,9 +8,10 @@ public enum AttentionFeed {
     /// - `details`: thread details by URL (lowercased), for author, labels, draft, size and whose turn it is.
     /// - `pilotDriving`: PRs the pilot is getting green; their failing CI is the pilot's, so it is no reason here
     ///   (the PR shows under Watching), unless it stalls and leaves the set.
+    /// - `readyToMerge`: PRs that meet every merge requirement while get it merged is off for them (`MergeCandidate`).
     public static func items(
         github: GitHubState, sessions: [Session], details: [String: ThreadDetail] = [:],
-        pilotDriving: Set<PullRef> = []
+        pilotDriving: Set<PullRef> = [], readyToMerge: Set<PullRef> = []
     ) -> [AttentionItem] {
         var byID: [String: AttentionItem] = [:]
         func add(_ item: AttentionItem) {
@@ -37,6 +38,7 @@ public enum AttentionFeed {
             if pull.checks.failed > 0, !pilotDriving.contains(pull.ref) { reasons.insert(.ciFailed) }
             if pull.review == .changesRequested { reasons.insert(.changesRequested) }
             if pull.unresolvedThreads > 0 { reasons.insert(.unresolvedThreads) }
+            if readyToMerge.contains(pull.ref) { reasons.insert(.readyToMerge) }
             add(AttentionItem(
                 id: AttentionItem.threadID(pull.ref.repo, pull.ref.number), kind: .pr, repo: pull.ref.repo,
                 number: pull.ref.number, title: pull.title, url: pull.url, reasons: reasons, updatedAt: pull.updatedAt,

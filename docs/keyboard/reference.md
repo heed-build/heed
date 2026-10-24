@@ -187,6 +187,8 @@ This page is generated from the code (`mise run shots`).
 | `pilot.copilot` | `C` (pr), `C` (watch) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |
 | `pilot.reviewers` | `zv` | ask the PR's configured reviewers ([pilot] reviewers) to review it |
 | `pilot.merge` | `zm` | get it merged for the PR (or the picked PRs): off or auto |
+| `pilot.merge.now` | `zM` | merge the PR now; past unmet required reviews or checks with --admin when you are an admin (merge_now, force_merge) |
+| `pilot.merge.setup` |  | set up get it merged for the PR's repo |
 | `merge.run` `[repo|all]` | `R` (watch) | run a repo's merge queue now (no name: the PR's repo; all: every queue) |
 | `merge.queue` `[repo]` | `gM` | show a repo's merge queue and its runs (no name: the PR's repo) |
 | `pilot.pause` `[duration]` | `zp`, `zp` (VISUAL) | pause the PR (or the picked PRs), or resume: 30m, 1h, 4h, 1d, forever, off |

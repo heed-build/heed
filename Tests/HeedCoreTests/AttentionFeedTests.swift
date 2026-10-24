@@ -77,6 +77,18 @@ struct AttentionFeedTests {
         #expect(byNumber[3]?.reasons == [.yourPR])
     }
 
+    @Test func aPRReadyToMergeWithMergingOffWantsYou() {
+        let ready = pull(5)
+        let items = AttentionFeed.items(
+            github: GitHubState(pulls: [ready, pull(6)]), sessions: [], readyToMerge: [ready.ref]
+        )
+        let byNumber = Dictionary(uniqueKeysWithValues: items.map { ($0.number ?? 0, $0) })
+        #expect(byNumber[5]?.reasons == [.yourPR, .readyToMerge] && byNumber[5]?.wantsYou == true)
+        #expect(byNumber[6]?.reasons == [.yourPR])
+        #expect(AttentionReason.readyToMerge.text == "ready to merge")
+        #expect(AttentionRules.reasonWords["mergeable"] == [.readyToMerge])
+    }
+
     @Test func closedPRsAndWatchedIssuesStayOutOfNeedsMe() {
         var closed = pull(4)
         closed.state = .merged

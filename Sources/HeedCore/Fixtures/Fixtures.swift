@@ -9,7 +9,8 @@ public enum Fixtures {
     /// What the fixtures' config would say about issues: docs-toolkit and the globex org show all of them.
     public static let issueRules = IssueRules(orgs: ["globex": .all], repos: ["acme/docs-toolkit": .all])
 
-    /// Org and repo overrides for Settings › Orgs & repos: none changes what the other screens show.
+    /// Org and repo overrides for Settings › Orgs & repos. Only markgraph's shows elsewhere: it asks for GitHub's
+    /// auto-merge, which that repo does not allow, so its PR reads "Merging misconfigured".
     public static let pilotRules: PilotRules = {
         var org = PilotOverrides(reviewers: ["copilot"])
         org.quietMinutes = 10
@@ -17,7 +18,10 @@ public enum Fixtures {
         repo.quietMinutes = 15
         repo.gateChecks = ["build", "integration"]
         repo.holdLabels = ["do-not-merge"]
-        return PilotRules(orgs: ["acme": org], repos: ["acme/docs-toolkit": repo])
+        let misconfigured = PilotOverrides(merge: .auto)
+        return PilotRules(
+            orgs: ["acme": org], repos: ["acme/docs-toolkit": repo, "globex/markgraph": misconfigured]
+        )
     }()
 
     /// What the issue links of the fake world fetched: their titles and states.
@@ -719,6 +723,35 @@ public enum Fixtures {
                 checks: CheckSummary(passed: 3),
                 review: "APPROVED"
             ),
+            // Ready to merge while get it merged is off: green, no review required, quiet for hours.
+            {
+                var ready = detail(
+                    ingest, 31, "Backpressure for the ingest stage", "ingest-backpressure", mergeable: "MERGEABLE",
+                    state: "CLEAN", checks: CheckSummary(passed: 2), review: nil
+                )
+                ready.autoMergeEnabled = false
+                ready.autoMergeMethod = nil
+                ready.labels = []
+                ready.headCommittedAt = Clock.now.addingTimeInterval(-3 * 3600)
+                ready.viewerPermission = "WRITE"
+                return ready
+            }(),
+            // markgraph sets merge = "auto", but the repo does not allow GitHub's auto-merge: misconfigured.
+            {
+                var arrows = detail(
+                    markgraph, 418, "Arrowheads at small zoom", "sequence-arrowheads", mergeable: "MERGEABLE",
+                    state: "BLOCKED", checks: CheckSummary(passed: 5), review: "REVIEW_REQUIRED"
+                )
+                arrows.threads = [ReviewThread(
+                    id: "A1", isResolved: false, path: "Arrow.cs", line: 57, author: "reviewer",
+                    body: "Arrowheads still detach below 50% zoom.", diff: [], replies: 0, url: nil
+                )]
+                arrows.repoAllowsAutoMerge = false
+                arrows.autoMergeEnabled = false
+                arrows.autoMergeMethod = nil
+                arrows.viewerPermission = "WRITE"
+                return arrows
+            }(),
         ]
     }()
 

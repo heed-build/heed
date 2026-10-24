@@ -86,6 +86,40 @@ struct PilotPlanTests {
         #expect(text(next(settings(), pipeline: pipeline)) == "nothing: get it green is off")
     }
 
+    @Test func greenOffWithMergingOnSaysHowItMerges() {
+        let auto = next(settings {
+            $0.green = .off
+            $0.merge = .auto
+        }, .green)
+        #expect(auto == .merging(.auto))
+        #expect(text(auto) == "no rounds (green off) · GitHub's auto-merge, once its requirements are met")
+        #expect(PilotPlan.keys(for: auto) == ["green", "merge"])
+        // Merge set on the PR by hand counts.
+        var pipeline = PullFeedback(ref: ref)
+        pipeline.merge = .heed
+        pipeline.mergeSet = true
+        #expect(text(next(settings { $0.green = .off }, pipeline: pipeline))
+            == "no rounds (green off) · heed merges once its rules hold")
+    }
+
+    @Test func greenProgressSaysTheRoundAndWhatWentLast() {
+        var pipeline = PullFeedback(ref: ref)
+        pipeline.rounds = 1
+        let log = [
+            PilotEvent(at: now - 60, ref: ref, kind: .items, text: "check lint arrived"),
+            PilotEvent(at: now - 31 * 60, ref: ref, kind: .sent, text: "sent 2 items to claude (round 1)"),
+            PilotEvent(at: now - 90 * 60, ref: ref, kind: .sent, text: "sent 1 item to claude (round 1)"),
+        ]
+        #expect(PilotPlan.greenProgress(pipeline: pipeline, settings: settings(), log: log, now: now)
+            == "round 1 of 3 · last: sent 2 items to claude (round 1), 31m ago")
+        #expect(PilotPlan.greenProgress(pipeline: nil, settings: settings(), log: [], now: now)
+            == "round 0 of 3 · nothing sent yet")
+        #expect(PilotPlan.greenProgress(pipeline: nil, settings: settings { $0.green = .off }, log: log, now: now)
+            == nil)
+        #expect(PilotPlan.greenProgress(pipeline: nil, settings: settings { $0.watch = false }, log: log, now: now)
+            == nil)
+    }
+
     @Test func pausedAndStopped() {
         #expect(text(next(settings(), .paused(until: nil))) == "paused until resumed")
         // 1_000_000 is 13:46:40 UTC.

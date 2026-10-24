@@ -252,6 +252,12 @@ public enum Commands {
         .init("pilot.reviewers", "ask the PR's configured reviewers ([pilot] reviewers) to review it", .selection),
         .init("pilot.merge", "get it merged for the PR (or the picked PRs): off or auto", .selection),
         .init(
+            "pilot.merge.now",
+            "merge the PR now; past unmet required reviews or checks with --admin when you are an admin (merge_now, force_merge)",
+            .selection
+        ),
+        .init("pilot.merge.setup", "set up get it merged for the PR's repo", .selection),
+        .init(
             "merge.run",
             "run a repo's merge queue now (no name: the PR's repo; all: every queue)",
             .selection,

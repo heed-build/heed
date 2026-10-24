@@ -126,7 +126,15 @@ gate_checks = []
 hold_labels = ["hold", "do-not-merge", "wip"]
 # A command that reads the prompt and the PR's diff on stdin and answers APPROVE, or REQUEST_CHANGES: <why>.
 # self_review = "claude -p"
-# [repos."org/name"] admin_merge = true retries a refused merge with --admin, bypassing branch protection. Repo only.
+# [repos."org/name"] admin_merge = true retries a refused merge with --admin, bypassing branch protection. Repo only,
+# and only heed's own merges (merge = "heed"); merging now by hand follows force_merge below.
+# Merging a PR now by hand (zM, or merge now on a PR that is ready to merge): ask shows the PR, the method and
+# anything not met first; auto merges at once. Per org and per repo too.
+merge_now = "ask"
+# Merging now past what GitHub enforces (a required review, a required check), with --admin: offered only when you
+# are an admin of the repo. off never offers it; ask lists exactly what is bypassed first; auto does not ask. Per
+# org and per repo too.
+force_merge = "ask"
 # Extra instructions heed adds to its prompts, per org and per repo too (a repo's "" clears its org's): after get it
 # green's feedback items, to the self-review's criteria, after the issue text Start work begins from, and to what
 # heed asks its model calls ([llm]) for in a summary. They add to what heed sends, and the agent still reads the

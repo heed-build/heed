@@ -135,6 +135,35 @@ with `--admin`.
 
 ![A PR heed merges: the rules, and the one holding it](../images/shots/watch/heed.png)
 
+### Ready to merge, and merge now
+
+With merging off, heed still checks whether a PR it has fetched could be merged: open, not a draft, no conflicts, up to
+date when the repo requires it, its required checks passed, approved (or no review required), nothing else blocking it
+on GitHub, no open threads, none of `hold_labels`, quiet for `quiet_minutes`, and GitHub's auto-merge not already on.
+When every one holds, its card, its sidebar row and the PRs view say **Ready to merge**, and it shows in
+[Attention](attention.md) as *ready to merge*. Two things to do from there, by key or by click:
+
+- **merge now** (`zM`, `:pilot.merge.now`): `gh pr merge` with the PR's method, on the head commit heed checked.
+  `merge_now = "ask"` (the default) first shows the PR, the method and anything not met; `"auto"` merges at once. It
+  works on any open PR GitHub would take: heed's own waits (quiet, open threads, auto-merge on) are named and skipped.
+- **set up merging**: Settings › Orgs & repos on the PR's repo, where `merge` and the rules above are set.
+
+When what is unmet is something GitHub enforces (a required review, a required check, being up to date) and you are an
+admin of the repo, merge now offers a **force merge** with `--admin` instead. `force_merge = "ask"` (the default) lists
+exactly what is bypassed first; `"auto"` does not ask; `"off"` never offers it. A draft, conflicts and a hold label are
+never bypassed. `admin_merge` is separate: it is only for heed's own merges with `merge = "heed"`.
+
+![Merge now's confirmation: the PR, the method and what is not met](../images/shots/watch/merge-now.png)
+
+### Merging misconfigured
+
+Whether a repo's merge settings can work is worked out ahead of time, from what heed already fetches about the repo:
+`merge = "auto"` where the repo does not allow auto-merge, a `merge_method` the repo does not allow, merge commits where
+the base branch requires linear history, and `admin_merge` where you are not an admin. A PR in such a repo says
+**Merging misconfigured** with the reason, instead of being held for it at the next run.
+
+![A PR whose repo asks for auto-merge it does not allow](../images/shots/watch/misconfigured.png)
+
 ## What heed will do
 
 Settings come from three levels and a choice made on the PR, so it is not always plain what the next round will be.
@@ -145,12 +174,17 @@ Every PR card, in the inspector and in Watch's middle pane, says it in one line 
 - `next  conflict run · …`: the PR conflicts with its base, so the round takes `merge_agent` and `merge_model`.
 - `next  typed into the session's claude`: `run_in = "session"`.
 - `next  Copilot is asked to resolve the conflicts`: `copilot_conflicts`.
+- `next  no rounds (green off) · GitHub's auto-merge, once its requirements are met`: get it green is off and merging
+  is on, so no round goes but the PR still gets merged.
 - `next  nothing: get it green is off`, `paused until 14:00`, `stopped after 3 rounds`: why no round goes.
+
+Above it, `green  round 1 of 3 · last: sent 2 items to claude (round 1), 31m ago` says how far get it green is and what
+it sent last; the pilot's line itself names both modes, `watching · green ask · merge off`.
 
 Hover the line for each setting behind it and where its value comes from: `default`, `org <name>`, `repo`, or
 `this PR` for a choice made with `zw`, `zg` or `zm`.
 
-`z?` (`:pilot.why`) opens the whole picture for the PR you are on: in Watch and the PRs view the PR under the cursor,
+`z?` (`:pilot.why`), or a click on its key cap, opens the whole picture for the PR you are on: in Watch and the PRs view the PR under the cursor,
 in the PR overlay its PR, in Sessions the session's first PR. One row each for **Watching**, **Get it green**, **A
 round**, **Conflicts** and **Get it merged**: the value, what it means for this PR now, and on the right where it comes
 from, amber when it is not the default. Below them, **what holds it back**: the green rules and, with
@@ -167,6 +201,7 @@ from, amber when it is not the default. Below them, **what holds it back**: the 
 | `zw` | Watch or stop watching |
 | `zg` | Cycle green: off, ask, auto |
 | `zm` | Cycle merging: off, auto, heed |
+| `zM` | Merge now (force merge with `--admin` where you are an admin and GitHub's requirements are unmet) |
 | `C` | Ask Copilot to resolve the PR's merge conflicts and address its review comments |
 | `zr` | Another round for a stalled PR |
 | `zp` | Pause or resume |
@@ -298,6 +333,8 @@ gate_checks = []
 hold_labels = ["hold", "do-not-merge", "wip"]
 # self_review = "claude -p"
 # merge_method = "squash"  # unset: the first of squash, merge, rebase the repo allows
+merge_now = "ask"          # zM: ask first, or auto (merge at once)
+force_merge = "ask"        # merging now past required reviews/checks with --admin, as an admin: off, ask, auto
 # Extra instructions, added to what heed sends (see below)
 # green_instructions = "Resolve the review threads your changes addressed, and any that no longer apply."
 # review_instructions = ""

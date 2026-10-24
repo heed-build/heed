@@ -363,7 +363,9 @@ private struct LinkCard: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
             .font(Theme.mono(11))
+            PilotGreenLine(ref: ref)
             PilotPlanLine(ref: ref)
+            PilotMergeLine(ref: ref)
         }
         if let run = model.workingRun(for: ref) {
             RunCardBox(

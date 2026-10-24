@@ -18,6 +18,8 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case changesRequested
     /// Your PR has review threads nobody resolved.
     case unresolvedThreads
+    /// Your PR meets every merge requirement and get it merged is off for it: merge it now, or set merging up.
+    case readyToMerge
     case agentBlocked
     case agentAsking
     case agentLimited
@@ -44,6 +46,7 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         case .ciFailed: "CI failed"
         case .changesRequested: "changes requested"
         case .unresolvedThreads: "unresolved threads"
+        case .readyToMerge: "ready to merge"
         case .agentBlocked: "agent blocked"
         case .agentAsking: "agent asking"
         case .agentLimited: "rate limited"

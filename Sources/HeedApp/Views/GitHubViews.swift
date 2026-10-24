@@ -352,7 +352,7 @@ struct PullRequestsView: View {
                             Text("TITLE").frame(maxWidth: .infinity, alignment: .leading)
                             Text("CHECKS").frame(width: 200, alignment: .leading).padding(.trailing, 12)
                             Text("REVIEW").frame(width: 150, alignment: .leading)
-                            Text("WATCH").frame(width: 130, alignment: .leading)
+                            Text("WATCH").frame(width: 180, alignment: .leading)
                         }
                         .font(Theme.ui(10.5, weight: .semibold))
                         .tracking(0.7)
@@ -378,6 +378,8 @@ struct PullRequestsView: View {
                             session: model.sessions.first { $0.trackedPRs.contains(rows[index].ref) },
                             pilot: model.pilotStatus(for: rows[index].ref),
                             green: model.pilot(for: rows[index].ref).green,
+                            merge: model.pilot(for: rows[index].ref).merge,
+                            ready: model.readyToMerge(rows[index].ref),
                             isPicked: model.pickedIDs(.prs).contains(rows[index].id)
                         )
                     }
@@ -395,6 +397,9 @@ private struct PullRow: View {
     let session: Session?
     let pilot: PilotStatus
     let green: AutoFeed
+    var merge: MergeMode = .off
+    /// Meets every merge requirement while get it merged is off.
+    var ready = false
     let isPicked: Bool
 
     var body: some View {
@@ -426,11 +431,14 @@ private struct PullRow: View {
             // Watched or not, and get it green's mode: `w` `m` `zz` act on the row (or the VISUAL picks).
             VStack(alignment: .leading, spacing: 3) {
                 PilotMark(status: pilot)
-                if pilot != .unwatched {
-                    Text("green \(green.configName)").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                if ready {
+                    Text("ready to merge").font(Theme.mono(10.5)).foregroundStyle(Theme.done)
+                } else if pilot != .unwatched {
+                    Text("green \(green.configName) · merge \(merge.configName)").font(Theme.mono(10.5))
+                        .foregroundStyle(Theme.fg3).lineLimit(1)
                 }
             }
-            .frame(width: 130, alignment: .leading)
+            .frame(width: 180, alignment: .leading)
         }
         .padding(.horizontal, 16)
         .frame(height: 56)
@@ -544,6 +552,16 @@ private struct PullDetail: View {
             )
             .font(Theme.ui(12.5))
             .foregroundStyle(Theme.fg2)
+            // What the pilot does for it: watching, get it green and get it merged, and merging ahead of time.
+            VStack(alignment: .leading, spacing: 6) {
+                Text(model.pilotLine(for: pull.ref, mentionsRun: false)).font(Theme.mono(11))
+                    .foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
+                if pull.state == .open {
+                    PilotGreenLine(ref: pull.ref)
+                    PilotPlanLine(ref: pull.ref)
+                    PilotMergeLine(ref: pull.ref)
+                }
+            }
             if let session = model.sessions.first(where: { $0.trackedPRs.contains(pull.ref) }) {
                 HStack(spacing: 8) {
                     StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)

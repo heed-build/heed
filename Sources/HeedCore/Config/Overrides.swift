@@ -327,6 +327,22 @@ public enum Overrides {
             { _ in .bool(false) },
             repoOnly: true
         ),
+        pilot(
+            "merge_now",
+            "Merge now",
+            "Merging a PR now by hand: ask shows the PR, the method and what is not met first; auto does not ask.",
+            .choice(MergeNowConfirm.allCases.map(\.rawValue)),
+            { $0.mergeNow.map { .text($0.rawValue) } },
+            { .text($0.mergeNow.rawValue) }
+        ),
+        pilot(
+            "force_merge",
+            "Force merge",
+            "Merging now past required reviews or checks with --admin, when you are an admin: off, ask, auto.",
+            .choice(ForceMerge.allCases.map(\.rawValue)),
+            { $0.forceMerge.map { .text($0.rawValue) } },
+            { .text($0.forceMerge.rawValue) }
+        ),
     ]
 
     private static func pilot(
@@ -354,7 +370,7 @@ public enum Overrides {
         ("Get it green", ["green", "max_rounds", "run_in", "agent", "model", "merge_agent", "merge_model"]),
         ("Get it merged", [
             "merge", "merge_method", "update_branches", "quiet_minutes", "trusted_reviewers", "gate_checks",
-            "hold_labels", "self_review", "admin_merge",
+            "hold_labels", "self_review", "admin_merge", "merge_now", "force_merge",
         ]),
         ("Copilot and reviewers", ["copilot_conflicts", "copilot_comments", "reviewers"]),
         ("Extra instructions", [

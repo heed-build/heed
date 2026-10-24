@@ -544,9 +544,10 @@ public enum ContextMenus {
         return menu.entries
     }
 
-    /// A file in the diff overlay's list, or a line of its diff (`line` false: the file, at its top).
+    /// A file in the diff overlay's list, or a line of its diff (`line` false: the file, at its top). `selected`: the
+    /// line is in the selection, and the items act on all its lines.
     public static func diff(
-        file: Int, row: Int, path: String, line _: Bool, split: Bool, hasCommits: Bool
+        file: Int, row: Int, path: String, line _: Bool, split: Bool, hasCommits: Bool, selected: Bool = false
     ) -> [MenuEntry] {
         let target = CommandTarget.diffLine(file: file, row: row)
         func item(_ title: String, _ name: String, checked: Bool = false, enabled: Bool = true) -> MenuItem {
@@ -554,10 +555,10 @@ public enum ContextMenus {
         }
         var menu = Menu(header: path.split(separator: "/").last.map(String.init) ?? path)
         menu.section([
-            item("Copy path:line", "diff.copy"),
+            item(selected ? "Copy path:lines" : "Copy path:line", "diff.copy"),
             item("Open in editor", "diff.edit"),
-            item("Note on this hunk", "diff.ask"),
-            item("Ask the agent now", "diff.ask.now"),
+            item(selected ? "Note on these lines" : "Note on this hunk", "diff.ask"),
+            item(selected ? "Ask the agent about these lines now" : "Ask the agent now", "diff.ask.now"),
         ])
         menu.section([
             item("Show one commit", "diff.commit", enabled: hasCommits),

@@ -27,7 +27,8 @@ public struct ModeEngine: Sendable {
     public private(set) var pending: [KeyStroke] = []
     public private(set) var count: Int?
     public private(set) var keymaps: [Mode: Keymap]
-    /// Per-view bindings (`[keys.repos]`), checked before NORMAL's own; VISUAL keeps to its own keymap.
+    /// Per-view bindings (`[keys.repos]`), checked before NORMAL's own; VISUAL keeps to its own keymap, except in the
+    /// views of `DefaultKeys.visualScopes`.
     public private(set) var scopedKeymaps: [String: Keymap]
     /// The view whose scoped bindings apply, e.g. `repos`.
     public var scope: String?
@@ -46,7 +47,7 @@ public struct ModeEngine: Sendable {
     /// Empty when nothing is pending.
     public var continuations: [(rest: [KeyStroke], command: String)] {
         guard !pending.isEmpty, mode == .normal || mode == .visual else { return [] }
-        let scoped = mode == .normal ? scope.flatMap { scopedKeymaps[$0] }?.continuations(of: pending) ?? [] : []
+        let scoped = scopedKeymap?.continuations(of: pending) ?? []
         let own = (keymaps[mode] ?? Keymap()).continuations(of: pending)
         var seen = Set(scoped.map(\.rest))
         var result = scoped
@@ -97,8 +98,7 @@ public struct ModeEngine: Sendable {
             return .pending
         }
         let keys = pending + [stroke]
-        // View bindings are NORMAL's: VISUAL has its own (Repos' dd must not turn VISUAL's d into a prefix).
-        let scoped = mode == .normal ? scope.flatMap { scopedKeymaps[$0] }?.lookup(keys) ?? .none : .none
+        let scoped = scopedKeymap?.lookup(keys) ?? .none
         switch scoped == .none ? keymap.lookup(keys) : scoped {
         case let .command(line):
             let count = count
@@ -111,6 +111,14 @@ public struct ModeEngine: Sendable {
             reset()
             return .unbound(keys)
         }
+    }
+
+    /// The view's bindings, when they apply. They are NORMAL's: VISUAL has its own (Repos' dd must not turn VISUAL's d
+    /// into a prefix), except where they act on the selection (the diff's lines).
+    private var scopedKeymap: Keymap? {
+        guard let scope else { return nil }
+        guard mode == .normal || mode == .visual && DefaultKeys.visualScopes.contains(scope) else { return nil }
+        return scopedKeymaps[scope]
     }
 
     private mutating func run(_ line: String, count: Int?) -> Outcome {

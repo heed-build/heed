@@ -285,8 +285,10 @@ final class AppModel {
     private(set) var diffScope: DiffScope = .all
     private(set) var diffFiles: [FileDiff] = []
     private(set) var diffCommits: [CommitSummary] = []
-    private(set) var diffFileIndex = 0
-    private(set) var diffRow = 0
+    /// The file, the row and the selection: keys and clicks move it through `DiffCursor`'s functions.
+    private(set) var diffCursor = DiffCursor()
+    var diffFileIndex: Int { diffCursor.file }
+    var diffRow: Int { diffCursor.row }
     private(set) var diffSplit = false
     /// The comment box under a hunk (`a`): while it is open, keys type into it.
     private(set) var diffNote: HunkNoteDraft?
@@ -2042,7 +2044,9 @@ final class AppModel {
         if previous == .visual {
             toggledRows = []
             visualAnchor = nil
+            diffCursor.clearSelection()
         }
+        if mode == .visual, overlay == .diff, diffCursor.selection == nil { diffCursor.startSelection() }
         if mode == .visual {
             visualAnchor = switch view {
             case .repos: repoCursor
@@ -2258,13 +2262,20 @@ final class AppModel {
         case "diff.file.prev": moveDiffFile(by: -1)
         case "diff.scope.next": cycleDiffScope(by: 1)
         case "diff.scope.prev": cycleDiffScope(by: -1)
-        case "diff.commit": cycleDiffCommit()
+        case "diff.commit": cycleDiffCommit(command.arguments.first)
         case "diff.split": diffSplit.toggle()
         case "diff.ask": openDiffNote()
         case "diff.ask.now": askAboutHunk()
         case "diff.copy": copyDiffLocation()
         case "diff.edit": openDiffFile()
-        case "overlay.close": closeTopmost()
+        case "overlay.close":
+            // ⎋ over selected lines drops the selection first, as it leaves VISUAL anywhere else.
+            if overlay == .diff, mode == .visual {
+                engine.enter(.normal)
+                modeChanged(from: .visual)
+            } else {
+                closeTopmost()
+            }
         case "inspector.toggle": inspectorVisible.toggle()
         case "sidebar.toggle": sidebarCollapsed.toggle()
         case "mode.normal", "mode.insert", "mode.visual", "mode.command", "mode.hint":
@@ -2472,8 +2483,7 @@ final class AppModel {
 
     private func moveRow(by delta: Int) {
         if overlay == .diff {
-            let count = diffRows.count
-            if count > 0 { diffRow = min(max(diffRow + delta, 0), count - 1) }
+            diffCursor.move(by: delta, in: diffFiles)
             return
         }
         if feedbackPull != nil || notesSession != nil, overlay == .pr || reader != nil {
@@ -2521,6 +2531,10 @@ final class AppModel {
     }
 
     private func setRow(_ index: Int) {
+        if overlay == .diff {
+            diffCursor.moveTo(row: index, in: diffFiles)
+            return
+        }
         if view == .watch { mergeQueueShown = nil }
         if [.attention, .inbox, .issues, .prs, .watch].contains(view) {
             let count = itemIDs(view).count
@@ -5672,23 +5686,14 @@ final class AppModel {
 
     // MARK: Diff overlay
 
-    /// One row of the current file: a hunk header or a line.
-    enum DiffRow: Hashable {
-        case header(hunk: Int, text: String)
-        case line(hunk: Int, DiffLine)
-    }
-
     var currentDiffFile: FileDiff? { diffFiles.indices.contains(diffFileIndex) ? diffFiles[diffFileIndex] : nil }
 
-    var diffRows: [DiffRow] {
-        guard let file = currentDiffFile else { return [] }
-        return file.hunks.enumerated().flatMap { index, hunk in
-            [DiffRow.header(hunk: index, text: hunk.header)] + hunk.lines.map { DiffRow.line(hunk: index, $0) }
-        }
-    }
+    var diffRows: [DiffRow] { currentDiffFile?.rows ?? [] }
 
     private func toggleDiff() {
         diffNote = nil
+        diffCursor.clearSelection()
+        leaveDiffVisual()
         if overlay == .diff {
             overlay = nil
             return
@@ -5728,8 +5733,8 @@ final class AppModel {
             guard !Task.isCancelled else { return }
             diffFiles = files
             diffCommits = commits
-            diffFileIndex = min(diffFileIndex, max(files.count - 1, 0))
-            diffRow = 0
+            diffCursor.reset(in: files)
+            leaveDiffVisual()
         }
     }
 
@@ -5738,16 +5743,34 @@ final class AppModel {
         let headers = rows.indices.filter { if case .header = rows[$0] { true } else { false } }
         guard !headers.isEmpty else { return }
         if delta > 0 {
-            if let next = headers.first(where: { $0 > diffRow }) { diffRow = next } else { moveDiffFile(by: 1) }
+            if let next = headers.first(where: { $0 > diffRow }) {
+                diffCursor.moveTo(row: next, in: diffFiles)
+            } else {
+                moveDiffFile(by: 1)
+            }
         } else if let previous = headers.last(where: { $0 < diffRow }) {
-            diffRow = previous
+            diffCursor.moveTo(row: previous, in: diffFiles)
         }
     }
 
     private func moveDiffFile(by delta: Int) {
-        guard !diffFiles.isEmpty else { return }
-        diffFileIndex = min(max(diffFileIndex + delta, 0), diffFiles.count - 1)
-        diffRow = 0
+        diffCursor.moveFile(by: delta, in: diffFiles)
+        leaveDiffVisual()
+    }
+
+    /// A selection that is gone takes VISUAL with it, as ⎋ would.
+    private func leaveDiffVisual() {
+        guard overlay == .diff, mode == .visual, diffCursor.selection == nil else { return }
+        engine.enter(.normal)
+        modeChanged(from: .visual)
+    }
+
+    /// A drag or a click on a hunk's header selects lines: VISUAL, as `v` would start it.
+    private func enterDiffVisual() {
+        guard mode != .visual else { return }
+        let before = engine.mode
+        engine.enter(.visual)
+        modeChanged(from: before)
     }
 
     private func cycleDiffScope(by delta: Int) {
@@ -5757,10 +5780,21 @@ final class AppModel {
         loadDiff()
     }
 
-    private func cycleDiffCommit() {
+    private func cycleDiffCommit(_ argument: String? = nil) {
         guard !diffCommits.isEmpty else {
             flash = "no commits on this branch yet"
             return
+        }
+        if let argument {
+            // A click on a commit in the list: that one, or `all` for the whole branch.
+            if argument == "all" {
+                diffScope = .all
+            } else if let commit = diffCommits.first(where: { $0.sha.hasPrefix(argument) }) {
+                diffScope = .commit(commit.sha)
+            } else {
+                return flash = "no commit \(argument) on this branch"
+            }
+            return loadDiff()
         }
         if case let .commit(sha) = diffScope, let index = diffCommits.firstIndex(where: { $0.sha == sha }),
            index + 1 < diffCommits.count
@@ -5774,22 +5808,18 @@ final class AppModel {
         loadDiff()
     }
 
-    /// The file line under the cursor (the new side, else the old side).
+    /// The file line under the cursor (the new side, else the old side), or the selection's first.
     private var diffLocation: (path: String, line: Int)? {
         guard let file = currentDiffFile else { return nil }
-        let rows = diffRows
-        guard rows.indices.contains(diffRow) else { return (file.path, 1) }
-        switch rows[diffRow] {
-        case let .line(_, line): return (file.path, line.newNumber ?? line.oldNumber ?? 1)
-        case let .header(hunk, _): return (file.path, file.hunks[hunk].newStart)
-        }
+        return (file.path, diffCursor.lines(in: file)?.lowerBound ?? file.line(at: diffRow) ?? 1)
     }
 
     private func copyDiffLocation() {
-        guard let location = diffLocation else { return }
+        guard let file = currentDiffFile else { return }
+        let location = diffCursor.location(in: file)
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString("\(location.path):\(location.line)", forType: .string)
-        flash = "copied \(location.path):\(location.line)"
+        NSPasteboard.general.setString(location, forType: .string)
+        flash = "copied \(location)"
     }
 
     private func worktreePath(for file: FileDiff) -> String? {
@@ -5802,18 +5832,20 @@ final class AppModel {
         NSWorkspace.shared.open(URL(fileURLWithPath: root).appendingPathComponent(file.path))
     }
 
-    /// `a`: the comment box under the hunk under the cursor (unified view: under the cursor's row).
+    /// `a`: the comment box under the hunk under the cursor (unified view: under the cursor's row), or under the
+    /// selected lines, on the first of them.
     private func openDiffNote() {
-        guard let file = currentDiffFile, let location = diffLocation, currentSession != nil else { return }
-        let rows = diffRows
-        let hunk: Int = switch rows.indices.contains(diffRow) ? rows[diffRow] : nil {
-        case let .header(index, _)?, let .line(index, _)?: index
-        case nil: 0
-        }
+        guard diffNote == nil, let file = currentDiffFile, let location = diffLocation, currentSession != nil
+        else { return }
+        let hunk = diffCursor.hunk(in: file) ?? 0
         guard file.hunks.indices.contains(hunk) else { return }
         diffNote = HunkNoteDraft(
-            fileID: file.id, hunk: hunk, row: diffRow, path: location.path, line: location.line, repo: file.repo
+            fileID: file.id, hunk: hunk, row: diffCursor.noteRow, path: location.path, line: location.line,
+            repo: file.repo
         )
+        // The box has the keyboard now; the selection has done its job.
+        diffCursor.clearSelection()
+        leaveDiffVisual()
     }
 
     private func typeDiffNote(_ stroke: KeyStroke) {
@@ -5929,13 +5961,11 @@ final class AppModel {
 
     /// Types a question about the hunk into the agent's pane, unsent, and switches to INSERT there to finish it.
     private func askAboutHunk() {
-        guard let location = diffLocation, let session = currentSession, let layout = layouts[session.id],
+        guard let file = currentDiffFile, let session = currentSession, let layout = layouts[session.id],
               let (tabIndex, paneID) = agentPane(in: layout)
         else { return }
-        TerminalSurfaces.shared.typeText(
-            "About \(location.path) around line \(location.line) (the hunk in my diff): ",
-            paneID: paneID
-        )
+        TerminalSurfaces.shared.typeText(diffCursor.question(in: file), paneID: paneID)
+        diffCursor.clearSelection()
         overlay = nil
         updateLayout { $0.activeTab = tabIndex }
         updateTab { $0.focused = paneID }
@@ -7232,11 +7262,52 @@ final class AppModel {
             ?? CommandInvocation(name: "open.reader"))
     }
 
-    /// A right-click in the diff overlay: its cursor onto that file and line.
+    /// A right-click in the diff overlay: its cursor onto that file and line, unless the line is selected (the menu
+    /// then acts on the selection).
     func pointDiff(file: Int, row: Int) {
-        guard diffFiles.indices.contains(file) else { return }
-        if file != diffFileIndex { diffFileIndex = file }
-        diffRow = max(0, min(row, diffRows.count - 1))
+        diffCursor.point(file: file, row: row, in: diffFiles)
+        leaveDiffVisual()
+    }
+
+    /// A click in the diff overlay's file list: the cursor to that file's top.
+    func clickDiffFile(_ index: Int) {
+        guard clicksReachLists, overlay == .diff, diffNote == nil else { return }
+        clickedOutsideTerminal()
+        diffCursor.moveTo(file: index, row: 0, in: diffFiles)
+        leaveDiffVisual()
+    }
+
+    /// A click on a line of the diff moves the cursor there; with ⇧, the selection runs from where the cursor was. A
+    /// double-click runs what ↩ runs there, as you have it bound (a note on the line).
+    func clickDiffLine(_ row: Int, extend: Bool = false, open: Bool = false) {
+        guard clicksReachLists, overlay == .diff, diffNote == nil else { return }
+        clickedOutsideTerminal()
+        if extend {
+            enterDiffVisual()
+            diffCursor.extend(to: row, in: diffFiles)
+            return
+        }
+        diffCursor.moveTo(file: diffFileIndex, row: row, in: diffFiles)
+        leaveDiffVisual()
+        guard open else { return }
+        perform(engine.normalCommand(for: [KeyStroke("CR")], scope: "diff") ?? CommandInvocation(name: "diff.ask"))
+    }
+
+    /// A drag over the diff's lines selects them, from the row it started on.
+    func dragDiff(from start: Int, to end: Int) {
+        guard clicksReachLists, overlay == .diff, diffNote == nil else { return }
+        clickedOutsideTerminal()
+        diffCursor.moveTo(file: diffFileIndex, row: start, in: diffFiles)
+        enterDiffVisual()
+        diffCursor.extend(to: end, in: diffFiles)
+    }
+
+    /// A click on a hunk's header selects the hunk.
+    func clickDiffHunk(_ hunk: Int) {
+        guard clicksReachLists, overlay == .diff, diffNote == nil else { return }
+        clickedOutsideTerminal()
+        enterDiffVisual()
+        diffCursor.selectHunk(hunk, in: diffFiles)
     }
 
     /// A right-click on a feedback item: the overlay's cursor onto it.

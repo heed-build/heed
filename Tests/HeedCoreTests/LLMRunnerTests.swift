@@ -4,7 +4,8 @@ import Synchronization
 import Testing
 
 /// A fake agent CLI: a shell script that answers like claude (`-p`), cursor-agent (`-p`, `status`) or codex (`exec`),
-/// as files next to it say. Every call it answers appends the prompt's last line to `calls`.
+/// as files next to it say. Every call it answers appends the prompt's last line to `calls`, then waits while `hold`
+/// exists.
 private struct FakeCLI {
     let folder: URL
     let path: String
@@ -28,6 +29,7 @@ private struct FakeCLI {
         if [ -z "$input" ]; then for last; do :; done; input="$last"; fi
         first="$(printf '%s\n' "$input" | tail -n 1)"
         echo "$first" >> "$dir/calls"
+        while [ -f "$dir/hold" ]; do sleep 0.02; done
         [ -f "$dir/delay" ] && sleep "$(cat "$dir/delay")"
         case "$mode" in
           fail) echo "boom" >&2; exit 1 ;;
@@ -421,19 +423,36 @@ struct LLMRunnerTests {
 
     // MARK: The queue
 
-    @Test func interactiveCallsGoFirst() async throws {
+    @Test(arguments: [false, true]) func interactiveCallsGoFirst(cached: Bool) async throws {
         let fake = try FakeCLI()
-        try fake.set("delay", "1")
+        try fake.set("hold", "")
         var settings = LLMSettings()
         settings.concurrency = 1
         let runner = runner([fake.agent("claude")], settings: settings)
-        let first = Task { try await runner.run(ask("first")) }
-        try await Task.sleep(for: .milliseconds(300))
-        let background = Task { try await runner.run(ask("background")) }
-        try await Task.sleep(for: .milliseconds(100))
-        let interactive = Task { try await runner.run(ask("interactive", priority: .interactive)) }
+        // The first call holds the only slot until both others are queued, however slow the machine.
+        let first = Task { try await runner.run(ask("first", cached: cached)) }
+        try await until { fake.calls == ["first"] }
+        let background = Task { try await runner.run(ask("background", cached: cached)) }
+        try await until { await runner.queuedCount == 1 }
+        let interactive = Task { try await runner.run(ask("interactive", priority: .interactive, cached: cached)) }
+        try await until { await runner.queuedCount == 2 }
+        try fake.set("hold", nil)
         _ = try await [first.value, background.value, interactive.value]
         #expect(fake.calls == ["first", "interactive", "background"])
+    }
+
+    /// Waits for `condition`, failing after ten seconds.
+    private func until(
+        _ condition: () async -> Bool, sourceLocation: SourceLocation = #_sourceLocation
+    ) async throws {
+        let deadline = ContinuousClock.now + .seconds(10)
+        while await !condition() {
+            guard ContinuousClock.now < deadline else {
+                Issue.record("timed out waiting", sourceLocation: sourceLocation)
+                throw CancellationError()
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
     }
 
     @Test func noMoreThanTheConcurrencyRunAtOnce() async throws {

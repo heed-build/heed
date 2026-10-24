@@ -153,7 +153,13 @@ public actor LLMRunner {
     private var cacheOrder: [String] = []
     private var inFlight: [String: Task<LLMResponse, Error>] = [:]
     private var running = 0
-    private var waiting: [(priority: LLMRequest.Priority, continuation: CheckedContinuation<Void, Never>)] = []
+    /// Calls waiting for a slot, in the order they were made.
+    private var waiting: [(ticket: Int, priority: LLMRequest.Priority)] = []
+    private var nextTicket = 0
+    /// Waiting calls parked until a slot is handed to them.
+    private var parked: [Int: CheckedContinuation<Void, Never>] = [:]
+    /// Calls handed a slot before they got round to waiting for it.
+    private var granted: Set<Int> = []
 
     /// How long a detection result is trusted.
     public static let detectionTTL: TimeInterval = 10 * 60
@@ -295,7 +301,7 @@ public actor LLMRunner {
     /// Makes the call, or answers it from the cache.
     public func run(_ request: LLMRequest) async throws -> LLMResponse {
         guard settings.enabled else { throw LLMError.disabled }
-        guard request.cached else { return try await queued(request) }
+        guard request.cached else { return try await queued(request, ticket: reserve(request.priority)) }
         let key = Self.key(request.call)
         if var hit = cache[key] {
             hit.fromCache = true
@@ -306,7 +312,10 @@ public actor LLMRunner {
             response.fromCache = true
             return response
         }
-        let task = Task { try await self.queued(request) }
+        // The place in the queue is taken now, not when the task gets round to it: a slot freed in between must not
+        // go to a background call made after this one.
+        let ticket = reserve(request.priority)
+        let task = Task { try await self.queued(request, ticket: ticket) }
         inFlight[key] = task
         defer { inFlight[key] = nil }
         let response = try await task.value
@@ -327,27 +336,45 @@ public actor LLMRunner {
         }
     }
 
-    private func queued(_ request: LLMRequest) async throws -> LLMResponse {
-        await acquire(request.priority)
+    private func queued(_ request: LLMRequest, ticket: Int?) async throws -> LLMResponse {
+        await acquire(ticket)
         defer { release() }
         return try await pickAndRun(request)
     }
 
-    private func acquire(_ priority: LLMRequest.Priority) async {
+    /// Takes a slot, or a place in the queue (the ticket returned), without suspending: the call's place is fixed by
+    /// when it was made.
+    private func reserve(_ priority: LLMRequest.Priority) -> Int? {
         if running < max(1, settings.concurrency) {
             running += 1
-            return
+            return nil
         }
+        nextTicket += 1
+        waiting.append((nextTicket, priority))
+        return nextTicket
+    }
+
+    /// Waits until the slot reserved for `ticket` is handed over; nil: the slot was taken already.
+    private func acquire(_ ticket: Int?) async {
+        guard let ticket, granted.remove(ticket) == nil else { return }
         await withCheckedContinuation { continuation in
-            waiting.append((priority, continuation))
+            parked[ticket] = continuation
         }
     }
+
+    /// Calls waiting for a slot, for tests.
+    var queuedCount: Int { waiting.count }
 
     /// Hands the slot to the longest-waiting interactive call, else the longest-waiting background one.
     private func release() {
         let next = waiting.firstIndex { $0.priority == .interactive } ?? waiting.indices.first
         if let next {
-            waiting.remove(at: next).continuation.resume()
+            let ticket = waiting.remove(at: next).ticket
+            if let continuation = parked.removeValue(forKey: ticket) {
+                continuation.resume()
+            } else {
+                granted.insert(ticket)
+            }
         } else {
             running -= 1
         }

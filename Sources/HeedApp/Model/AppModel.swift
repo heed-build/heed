@@ -2183,6 +2183,13 @@ final class AppModel {
         case "tab.next": cycleTab(by: count)
         case "tab.prev": cycleTab(by: -count)
         case "tab.new": newTab()
+        case "tab.move.left": moveActiveTab(by: -count)
+        case "tab.move.right": moveActiveTab(by: count)
+        case "pane.wider": resizePane(.horizontal, by: count)
+        case "pane.narrower": resizePane(.horizontal, by: -count)
+        case "pane.taller": resizePane(.vertical, by: count)
+        case "pane.shorter": resizePane(.vertical, by: -count)
+        case "pane.equalize": updateTab { $0.tree = $0.tree.equalized() }
         case "task.run": runTask(named: command.arguments.joined(separator: " ").nilIfEmpty)
         case "task.refresh": refreshTasks()
         case "view": if let target = AppView(rawValue: command.arguments.first ?? "") { view = target }
@@ -6539,6 +6546,36 @@ final class AppModel {
         layout.activeTab = layout.tabs.count - 1
         commit(.layoutChanged(session: id, layout))
         flash = "kept \(session.title), with a new shell"
+    }
+
+    /// `g>`, `g<`: the open tab moves along the strip.
+    private func moveActiveTab(by offset: Int) {
+        guard currentTabs.count > 1 else { return flash = "only one tab" }
+        updateLayout { $0.moveActiveTab(by: offset) }
+    }
+
+    /// A tab dropped at another place in the strip.
+    func moveTab(from index: Int, to destination: Int) {
+        updateLayout { $0.moveTab(from: index, to: destination) }
+    }
+
+    /// `⌃w >`, `⌃w <`, `⌃w +`, `⌃w -`: the focused pane grows (or shrinks) by `steps` along `axis`.
+    private func resizePane(_ axis: PaneTree.Axis, by steps: Int) {
+        guard let tab = currentTab else { return }
+        guard let resized = tab.tree.resizing(tab.focused, along: axis, by: Double(steps) * PaneTree.resizeStep) else {
+            return flash = axis == .horizontal ? "no pane beside this one" : "no pane above or below this one"
+        }
+        updateTab { $0.tree = resized }
+    }
+
+    /// A divider dragged and let go: the split at `path` in the open tab keeps `ratio`.
+    func setSplitRatio(_ ratio: Double, at path: PaneTree.SplitPath) {
+        updateTab { $0.tree = $0.tree.settingRatio(ratio, at: path) }
+    }
+
+    /// A double-click on a divider: its split back to equal.
+    func resetSplit(at path: PaneTree.SplitPath) {
+        updateTab { $0.tree = $0.tree.resettingRatio(at: path) }
     }
 
     private func cycleTab(by delta: Int) {

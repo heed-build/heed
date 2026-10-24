@@ -1,3 +1,4 @@
+import AppKit
 import HeedCore
 import SwiftUI
 
@@ -30,10 +31,18 @@ struct CenterArea: View {
 
 private struct TabStrip: View {
     @Environment(AppModel.self) private var model
+    /// Each tab's width as drawn, for working out where a dragged tab lands.
+    @State private var widths: [String: Double] = [:]
+    /// The tab being dragged and how far, while it is.
+    @State private var dragging: (id: String, offset: Double)?
 
     var body: some View {
+        let tabs = model.currentTabs
+        let strip = tabs.map { widths[$0.id] ?? 0 }
+        let dragIndex = dragging.flatMap { drag in tabs.firstIndex { $0.id == drag.id } }
+        let target = dragIndex.map { TabDrag.target(dragging: $0, by: dragging?.offset ?? 0, widths: strip) }
         HStack(spacing: 0) {
-            ForEach(Array(model.currentTabs.enumerated()), id: \.element.id) { index, tab in
+            ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
                 let on = index == model.currentTabIndex
                 HStack(spacing: 8) {
                     if index == 0, let session = model.currentSession {
@@ -61,8 +70,32 @@ private struct TabStrip: View {
                 .background(on ? Theme.pane : .clear)
                 .overlay(alignment: .bottom) { if on { Theme.inverse.frame(height: 2) } }
                 .contentShape(Rectangle())
+                .background(GeometryReader { geometry in
+                    Color.clear.preference(key: TabWidths.self, value: [tab.id: geometry.size.width])
+                })
                 .onTapGesture { model.selectTab(index) }
                 .rightClickMenu { model.rightClickTab(index) } _: { model.tabMenu(tab.id) }
+                // Dragged along the strip, the tab follows the pointer and the others make room; let go, it moves.
+                .offset(x: dragIndex == index ? dragging?.offset ?? 0 : dragIndex.flatMap { from in
+                    target.map { TabDrag.shift(of: index, dragging: from, to: $0, widths: strip) }
+                } ?? 0)
+                .zIndex(dragIndex == index ? 1 : 0)
+                .animation(.easeOut(duration: 0.12), value: target)
+                .gesture(
+                    DragGesture(minimumDistance: 5)
+                        .onChanged { dragging = (tab.id, $0.translation.width) }
+                        .onEnded { value in
+                            let destination = TabDrag.target(
+                                dragging: index, by: value.translation.width, widths: strip
+                            )
+                            var quiet = Transaction()
+                            quiet.disablesAnimations = true
+                            withTransaction(quiet) {
+                                dragging = nil
+                                if destination != index { model.moveTab(from: index, to: destination) }
+                            }
+                        }
+                )
             }
             Text("+").font(Theme.mono(13)).foregroundStyle(Theme.fg3).padding(.horizontal, 14)
                 .frame(height: 36)
@@ -99,6 +132,14 @@ private struct TabStrip: View {
         .frame(height: 36)
         .background(Theme.bg2)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+        .onPreferenceChange(TabWidths.self) { widths = $0 }
+    }
+}
+
+private struct TabWidths: PreferenceKey {
+    static let defaultValue: [String: Double] = [:]
+    static func reduce(value: inout [String: Double], nextValue: () -> [String: Double]) {
+        value.merge(nextValue()) { $1 }
     }
 }
 
@@ -136,27 +177,201 @@ private struct TabCloseButton: View {
 private struct PaneTreeView: View {
     let tree: PaneTree
     let tab: PaneTab
+    /// Where this subtree sits in the tab's tree, for naming the split a divider belongs to.
+    var path: PaneTree.SplitPath = []
 
     var body: some View {
         switch tree {
         case let .leaf(pane):
             PaneView(pane: pane, number: (tab.tree.panes.firstIndex(of: pane) ?? 0) + 1, tab: tab)
-        case let .split(axis, first, second, ratio):
+        case .split:
+            SplitView(tree: tree, tab: tab, path: path)
+        }
+    }
+}
+
+/// Two sides and the divider between them. Dragging the divider resizes them live, at most once a frame, and the ratio
+/// is kept when it is let go; a double-click makes the split equal again.
+private struct SplitView: View {
+    @Environment(AppModel.self) private var model
+    let tree: PaneTree
+    let tab: PaneTab
+    let path: PaneTree.SplitPath
+    /// The ratio shown while the divider is dragged; nil when the tree's own is.
+    @State private var live: Double?
+    /// The first side's extent when the drag began.
+    @State private var dragStart: Double?
+    @State private var throttle = FrameThrottle()
+    /// A ratio the throttle held back, shown at the next frame unless a newer one replaced it.
+    @State private var pending: Double?
+
+    private let sizing = PaneSizing.standard
+    /// How far either side of the 1-point line the divider can be grabbed.
+    private let grab = 3.0
+
+    var body: some View {
+        if case let .split(axis, first, second, _) = tree {
             GeometryReader { geometry in
-                if axis == .horizontal {
-                    HStack(spacing: 1) {
-                        PaneTreeView(tree: first, tab: tab).frame(width: (geometry.size.width - 1) * ratio)
-                        PaneTreeView(tree: second, tab: tab)
+                let horizontal = axis == .horizontal
+                let total = horizontal ? geometry.size.width : geometry.size.height
+                let extent = sizing.firstExtent(of: live.map { tree.settingRatio($0, at: []) } ?? tree, total: total)
+                Group {
+                    if horizontal {
+                        HStack(spacing: sizing.divider) {
+                            PaneTreeView(tree: first, tab: tab, path: path + [.first]).frame(width: extent)
+                            PaneTreeView(tree: second, tab: tab, path: path + [.second])
+                        }
+                    } else {
+                        VStack(spacing: sizing.divider) {
+                            PaneTreeView(tree: first, tab: tab, path: path + [.first]).frame(height: extent)
+                            PaneTreeView(tree: second, tab: tab, path: path + [.second])
+                        }
                     }
-                } else {
-                    VStack(spacing: 1) {
-                        PaneTreeView(tree: first, tab: tab).frame(height: (geometry.size.height - 1) * ratio)
-                        PaneTreeView(tree: second, tab: tab)
-                    }
+                }
+                // Shots render with SwiftUI alone, which cannot draw an AppKit view; there is nothing to drag there.
+                .overlay(alignment: .topLeading) {
+                    if !ShotMode.active { handle(axis, extent: extent, size: geometry.size) }
                 }
             }
             .background(Theme.line)
         }
+    }
+
+    private func handle(_ axis: PaneTree.Axis, extent: Double, size: CGSize) -> some View {
+        let horizontal = axis == .horizontal
+        let total = horizontal ? size.width : size.height
+        return DividerHandle(
+            axis: axis,
+            dragged: { dragged($0, from: extent, total: total) },
+            released: { released($0, total: total) },
+            reset: { model.resetSplit(at: path) }
+        )
+        .frame(
+            width: horizontal ? sizing.divider + 2 * grab : size.width,
+            height: horizontal ? size.height : sizing.divider + 2 * grab
+        )
+        .offset(x: horizontal ? extent - grab : 0, y: horizontal ? 0 : extent - grab)
+    }
+
+    private func dragged(_ delta: Double, from extent: Double, total: Double) {
+        let start = dragStart ?? extent
+        dragStart = start
+        let ratio = sizing.ratio(forFirstExtent: start + delta, of: tree, total: total)
+        let now = CACurrentMediaTime()
+        if throttle.admit(at: now) {
+            pending = nil
+            live = ratio
+            return
+        }
+        let waiting = pending != nil
+        pending = ratio
+        guard !waiting else { return }
+        let wait = throttle.wait(at: now)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(wait))
+            guard let next = pending, dragStart != nil else { return }
+            pending = nil
+            _ = throttle.admit(at: CACurrentMediaTime())
+            live = next
+        }
+    }
+
+    private func released(_ delta: Double, total: Double) {
+        guard let start = dragStart else { return }
+        let ratio = sizing.ratio(forFirstExtent: start + delta, of: tree, total: total)
+        model.setSplitRatio(ratio, at: path)
+        live = nil
+        dragStart = nil
+        pending = nil
+        throttle.reset()
+    }
+}
+
+/// The grab area over a divider: a resize pointer on hover, a drag that reports how far it moved along the split, and
+/// a double-click. An AppKit view so it sits above the terminals beside it and gets the mouse before they do.
+private struct DividerHandle: NSViewRepresentable {
+    let axis: PaneTree.Axis
+    let dragged: (Double) -> Void
+    let released: (Double) -> Void
+    let reset: () -> Void
+
+    func makeNSView(context _: Context) -> DividerHandleView { DividerHandleView() }
+
+    func updateNSView(_ view: DividerHandleView, context _: Context) {
+        view.axis = axis
+        view.dragged = dragged
+        view.released = released
+        view.reset = reset
+    }
+}
+
+final class DividerHandleView: NSView {
+    var axis: PaneTree.Axis = .horizontal {
+        didSet { if axis != oldValue { window?.invalidateCursorRects(for: self) } }
+    }
+
+    var dragged: (Double) -> Void = { _ in }
+    var released: (Double) -> Void = { _ in }
+    var reset: () -> Void = {}
+    private var start: NSPoint?
+    private var hovering = false { didSet { needsDisplay = true } }
+
+    private var cursor: NSCursor { axis == .horizontal ? .resizeLeftRight : .resizeUpDown }
+
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    override func acceptsFirstMouse(for _: NSEvent?) -> Bool { true }
+
+    override func resetCursorRects() { addCursorRect(bounds, cursor: cursor) }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(
+            rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self
+        ))
+    }
+
+    override func mouseEntered(with _: NSEvent) { hovering = true }
+    override func mouseExited(with _: NSEvent) { hovering = false }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 2 {
+            start = nil
+            reset()
+            return
+        }
+        start = event.locationInWindow
+        needsDisplay = true
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let delta = delta(event) else { return }
+        cursor.set()
+        dragged(delta)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard let delta = delta(event) else { return }
+        start = nil
+        needsDisplay = true
+        released(delta)
+    }
+
+    /// How far the pointer moved along the split since the press: right, or down (the window's y grows upward).
+    private func delta(_ event: NSEvent) -> Double? {
+        guard let start else { return nil }
+        let point = event.locationInWindow
+        return axis == .horizontal ? point.x - start.x : start.y - point.y
+    }
+
+    override func draw(_: NSRect) {
+        guard hovering || start != nil else { return }
+        NSColor.white.withAlphaComponent(start != nil ? 0.35 : 0.2).setFill()
+        let line = axis == .horizontal
+            ? NSRect(x: bounds.midX - 1, y: 0, width: 2, height: bounds.height)
+            : NSRect(x: 0, y: bounds.midY - 1, width: bounds.width, height: 2)
+        line.fill()
     }
 }
 

@@ -27,6 +27,9 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
     /// Text committed by the input method during the current `keyDown`; nil outside one.
     private var keyTextAccumulator: [String]?
     private var contentSize: CGSize = .zero
+    /// The size in pixels last given to the surface: a divider dragged within one pixel, or a layout pass that changed
+    /// nothing, does not make the terminal resize (and redraw) again.
+    private var surfacePixels: (width: UInt32, height: UInt32)?
 
     public init(launch: TerminalLaunch) {
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
@@ -144,19 +147,24 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
         guard let surface, frame.width > 0, frame.height > 0 else { return }
         let backing = convertToBacking(frame)
         ghostty_surface_set_content_scale(surface, backing.width / frame.width, backing.height / frame.height)
+        surfacePixels = nil
         updateSurfaceSize()
     }
 
     override public func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let surface { ghostty_surface_set_occlusion(surface, window != nil) }
+        surfacePixels = nil
         updateSurfaceSize()
     }
 
     private func updateSurfaceSize() {
         guard let surface, contentSize.width > 0, contentSize.height > 0 else { return }
         let scaled = convertToBacking(contentSize)
-        ghostty_surface_set_size(surface, UInt32(scaled.width), UInt32(scaled.height))
+        let pixels = (width: UInt32(scaled.width), height: UInt32(scaled.height))
+        if let last = surfacePixels, last == pixels { return }
+        surfacePixels = pixels
+        ghostty_surface_set_size(surface, pixels.width, pixels.height)
     }
 
     override public var acceptsFirstResponder: Bool { true }

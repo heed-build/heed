@@ -72,7 +72,47 @@ public indirect enum PaneTree: Hashable, Sendable, Codable {
     }
 
     case leaf(PaneSpec)
+    /// `ratio` is the first side's share of the space beside the divider, dragged or set with `⌃w +` and the like.
     case split(Axis, PaneTree, PaneTree, ratio: Double)
+
+    /// Written as Swift's own coding of the enum wrote it before ratios could change, so older builds read it.
+    private enum CodingKeys: String, CodingKey { case leaf, split }
+    private enum LeafKeys: String, CodingKey { case pane = "_0" }
+    private enum SplitKeys: String, CodingKey {
+        case axis = "_0", first = "_1", second = "_2", ratio
+    }
+
+    /// A split cached without a ratio, or with one no divider can have, reads as an equal split.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if container.contains(.leaf) {
+            let leaf = try container.nestedContainer(keyedBy: LeafKeys.self, forKey: .leaf)
+            self = try .leaf(leaf.decode(PaneSpec.self, forKey: .pane))
+            return
+        }
+        let split = try container.nestedContainer(keyedBy: SplitKeys.self, forKey: .split)
+        let ratio = try split.decodeIfPresent(Double.self, forKey: .ratio)
+        self = try .split(
+            split.decode(Axis.self, forKey: .axis), split.decode(PaneTree.self, forKey: .first),
+            split.decode(PaneTree.self, forKey: .second),
+            ratio: ratio.flatMap { $0 > 0 && $0 < 1 ? $0 : nil } ?? Self.equalRatio
+        )
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .leaf(pane):
+            var leaf = container.nestedContainer(keyedBy: LeafKeys.self, forKey: .leaf)
+            try leaf.encode(pane, forKey: .pane)
+        case let .split(axis, first, second, ratio):
+            var split = container.nestedContainer(keyedBy: SplitKeys.self, forKey: .split)
+            try split.encode(axis, forKey: .axis)
+            try split.encode(first, forKey: .first)
+            try split.encode(second, forKey: .second)
+            try split.encode(ratio, forKey: .ratio)
+        }
+    }
 
     /// Panes in reading order (left to right, top to bottom); their 1-based position is the pane number in the UI.
     public var panes: [PaneSpec] {
@@ -100,7 +140,7 @@ public indirect enum PaneTree: Hashable, Sendable, Codable {
     public func splitting(_ id: String, axis: Axis, with new: PaneSpec) -> PaneTree {
         switch self {
         case let .leaf(pane) where pane.id == id:
-            .split(axis, self, .leaf(new), ratio: 0.5)
+            .split(axis, self, .leaf(new), ratio: Self.equalRatio)
         case .leaf:
             self
         case let .split(splitAxis, first, second, ratio):

@@ -33,6 +33,24 @@ public struct SessionLayout: Hashable, Sendable, Codable {
         if index < activeTab { activeTab -= 1 }
         activeTab = max(0, min(activeTab, tabs.count - 1))
     }
+
+    /// Moves a tab to `destination` (a tab dragged along the strip); the tab that was active stays active.
+    public mutating func moveTab(from index: Int, to destination: Int) {
+        guard tabs.indices.contains(index), tabs.indices.contains(destination), index != destination else { return }
+        let active = tabs.indices.contains(activeTab) ? tabs[activeTab].id : nil
+        tabs.insert(tabs.remove(at: index), at: destination)
+        if let active, let moved = tabs.firstIndex(where: { $0.id == active }) { activeTab = moved }
+    }
+
+    /// Moves the active tab `offset` places (`g>`, `g<`), stopping at either end. False when it is already there.
+    @discardableResult
+    public mutating func moveActiveTab(by offset: Int) -> Bool {
+        guard tabs.indices.contains(activeTab) else { return false }
+        let destination = min(max(activeTab + offset, 0), tabs.count - 1)
+        guard destination != activeTab else { return false }
+        moveTab(from: activeTab, to: destination)
+        return true
+    }
 }
 
 /// Everything Heed knows, as one value. The window is drawn from this (plus input state), it is what the cache

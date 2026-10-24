@@ -77,6 +77,7 @@ struct MainWindow: View {
             if let run = model.runReader { RunReaderView(run: run) }
             if let summary = model.awaySummary { AwaySummaryView(summary: summary) }
             if let ref = model.pilotExplain { PilotExplainerView(ref: ref) }
+            if let wizard = model.repoSetup { RepoSetupView(wizard: wizard) }
         }
         .overlay {
             if let state = model.pathImport { PathImportView(state: state) }
@@ -425,7 +426,9 @@ struct StatusBar: View {
         case .normal where model.issueReader != nil: "s start session · a add to session · gB browser · ⎋ back"
         case .normal where model.reader != nil || model.overlay == .pr:
             "j k item · space queue · s send · \(model.keyText(for: "pilot.green")) green · h l PRs · gS session · ⎋ back"
-        case .normal where model.view == .repos: "o start work here · v select · dd remove · r rescan · w issues · { } repo · / filter"
+        case .normal where model.repoSetup != nil: "j k move · h l change · space write or not · ↩ next · ⌫ back · ⎋ close"
+        case .normal where model.view == .repos:
+            "o start work here · \(model.keyText(for: "repo.setup", in: "repos")) set up merging · v select · dd remove · r rescan · w issues · / filter"
         case .normal where model.view == .history:
             "j k move · / filter · R reopen · O new from prompt · t outcome · \(model.keyText(for: "history.timeline", in: "history")) timeline · "
                 + "\(model.keyText(for: "history.ledger", in: "history")) ledger · "

@@ -1486,6 +1486,12 @@ final class AppModel {
     var pendingAwaySince: Date?
     /// The PR `pilot.why` explains: what heed will do for it and what holds it back.
     var pilotExplain: PullRef?
+    /// The setup wizard for a repo's get it merged and get it green (`repo.setup`), while it shows
+    /// (AppModel+RepoSetup).
+    var repoSetup: RepoSetupWizard?
+    @ObservationIgnored var repoSetupTask: Task<Void, Never>?
+    /// What GitHub said about each repo's merge settings, by slug, from the wizard's samples and PR details.
+    var repoMergeSettings: [String: RepoMergeSettings] = [:]
     /// The explainer's row at its top (`j` `k`).
     private(set) var explainRow = 0
     /// Titles and states of the issues sessions link to (fetched, not cached on disk).
@@ -1610,7 +1616,7 @@ final class AppModel {
         mode != .normal || confirmation != nil || importPicker != nil || taskPicker != nil || hostsPicker != nil
             || linkPicker != nil || pathImport != nil || startWork != nil || resume != nil || firstRun != nil
             || hostRootsChooser != nil || awaySummary != nil || runReader != nil || pilotExplain != nil
-            || overlay != nil || filtering || tutor != nil
+            || overlay != nil || filtering || tutor != nil || repoSetup != nil
     }
 
     /// After you added or checked a host: asks where its projects are, once, when config does not say. While you are
@@ -1955,6 +1961,10 @@ final class AppModel {
         }
         if pilotExplain != nil {
             answerPilotExplain(stroke)
+            return true
+        }
+        if repoSetup != nil {
+            answerRepoSetup(stroke)
             return true
         }
         if pathImport != nil {
@@ -2353,6 +2363,7 @@ final class AppModel {
             openSettings?()
         case "welcome": showFirstRun()
         case "setup.review": reviewSetup()
+        case "repo.setup": openRepoSetup(command.arguments.first)
         case "setup.approve": approveSetup()
         case "setup.never": neverSetup()
         case "setup.edit": editSetup()
@@ -4053,7 +4064,7 @@ final class AppModel {
     }
 
     /// The repos under the cursor, for `gR`: a session's (all of them), a Repos row's, an item's.
-    private var reposUnderCursor: [Repo] {
+    var reposUnderCursor: [Repo] {
         if let repos = commandTarget?.repos { return repos }
         if let issue = issueReader { return [issue.repo] }
         if let ref = feedbackPull, overlay == .pr || reader != nil { return [ref.repo] }
@@ -6985,6 +6996,8 @@ final class AppModel {
         state.startWorkPrompt = startWork?.prompt ?? ""
         state.startWorkRepo = startWork?.selectedRepos.first
         state.confirmationOpen = confirmation != nil
+        state.repoSetupOpen = repoSetup != nil
+        state.repoSetupStep = repoSetup?.step.rawValue ?? 0
         state.importOpen = importPicker != nil || pathImport != nil
         state.hostsOpen = hostsPicker != nil
         state.hostSessions = sessions.count { $0.host != nil }
@@ -7120,7 +7133,7 @@ final class AppModel {
     /// Whether a click on a list may act: not while a dialog or form has the keyboard.
     var clicksReachLists: Bool {
         startWork == nil && confirmation == nil && resume == nil && firstRun == nil && importPicker == nil
-            && pathImport == nil && tutorPicker == nil && awaySummary == nil
+            && pathImport == nil && tutorPicker == nil && awaySummary == nil && repoSetup == nil
     }
 
     /// A click on a session in the sidebar or the rail selects it; a double-click also types into its agent pane.

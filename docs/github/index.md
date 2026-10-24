@@ -18,6 +18,8 @@ when its checks or review threads change.
 | [Pull requests](pull-requests.md) | `:prs` | Your open pull requests and the ones your sessions track |
 | [Watch](watch.md) | `gw` | The PRs your sessions track, what heed is doing for each, and what it has done |
 
+[Setting up a repo](repo-setup.md) proposes get it merged and get it green for a repo from its own merged PRs and CI.
+
 From any of them you can [read](reading.md) an item in the app, [start a session](../start-work/from-github.md) from
 it, and feed [review feedback](review-feedback.md) back to the agent working on it.
 

@@ -341,6 +341,25 @@ public enum ContextMenus {
     }
 
     /// A repo in the Issues repo column; nil is its All row.
+    /// A repo in the Repos view's column: its setup for get it merged and get it green first.
+    public static func repo(_ repo: Repo, allIssues: Bool) -> [MenuEntry] {
+        let target = CommandTarget.repo(repo)
+        let onGitHub = repo.org != "local"
+        var menu = Menu(header: repo.slug)
+        menu.section([
+            onGitHub ? MenuItem("Set up merging and green…", CommandInvocation(name: "repo.setup", target: target)) :
+                nil,
+        ])
+        menu.section([
+            MenuItem(
+                "All issues, not only yours", CommandInvocation(name: "issues.visibility", target: target),
+                checked: allIssues
+            ),
+            onGitHub ? MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target)) : nil,
+        ])
+        return menu.entries
+    }
+
     public static func issueRepo(_ repo: Repo?, allIssues: Bool) -> [MenuEntry] {
         guard let repo else {
             var menu = Menu(header: "Every repo")
@@ -407,6 +426,7 @@ public enum ContextMenus {
         menu.section([
             item("Run the cleanup sweep…", "cleanup.sweep"),
             item("Setup for new worktrees…", "setup.review"),
+            facts.onGitHub ? item("Set up merging and green…", "repo.setup") : nil,
         ])
         // The repo's own checkout is never removed.
         if !facts.isMain || several {

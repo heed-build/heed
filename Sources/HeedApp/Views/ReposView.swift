@@ -35,30 +35,58 @@ struct ReposView: View {
             Spacer(minLength: 0)
             Theme.line.frame(height: 1)
             VStack(alignment: .leading, spacing: 8) {
+                keyRow(model.keyText(for: "repo.setup", in: "repos"), "set up merging and green")
                 keyRow(model.keyText(for: "repo.scan", in: "repos"), "rescan roots for repos")
                 keyRow(model.keyText(for: "worktree.new", in: "repos"), "new worktree")
                 keyRow(model.keyText(for: "select.remove", in: "repos"), "remove worktree (asks)")
             }
             .padding(16)
         }
-        .frame(width: 220)
+        .frame(width: 260)
         .background(Theme.bg2)
         .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
     }
 
     private func row(name: String, count: Int, repo: Repo?) -> some View {
-        HStack(spacing: 8) {
-            if let repo {
-                OrgTile(org: repo.org, color: repo.color, size: 16)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 8) {
+                if let repo {
+                    OrgTile(org: repo.org, color: repo.color, size: 16)
+                }
+                Text(name).font(Theme.mono(12.5)).foregroundStyle(repo == nil ? Theme.fg : Theme.fg2)
+                    .lineLimit(1).truncationMode(.middle)
+                Spacer()
+                Text("\(count)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
             }
-            Text(name).font(Theme.mono(12.5)).foregroundStyle(repo == nil ? Theme.fg : Theme.fg2)
-                .lineLimit(1).truncationMode(.middle)
-            Spacer()
-            Text("\(count)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
+            // How get it merged and get it green stand for the repo, and the way to set them up.
+            if let repo, repo.org != "local" {
+                let readiness = model.setupStatus(for: repo)
+                HStack(alignment: .top, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ReadinessText(line: readiness.merging)
+                        ReadinessText(line: readiness.green)
+                    }
+                    Spacer(minLength: 4)
+                    Text("Set up…")
+                        .font(Theme.ui(11.5, weight: .semibold))
+                        .foregroundStyle(Theme.ink)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.inverse))
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            model.perform(CommandInvocation(name: "repo.setup", target: .repo(repo)))
+                        }
+                        .help("Sample \(repo.slug)'s merged PRs and CI, then propose get it merged and get it green")
+                }
+                .padding(.leading, 24)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 7)
         .background(repo == nil ? Theme.bg3 : .clear)
+        .contentShape(Rectangle())
+        .rightClickMenu { model.rightClickNamed() } _: { repo.map(model.repoMenu) ?? [] }
     }
 
     private func keyRow(_ key: String, _ label: String) -> some View {
@@ -274,6 +302,28 @@ private struct WorktreeRow: View {
         .frame(height: 48)
         .background(isSelected ? Theme.block.opacity(0.18) : isCursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
+    }
+}
+
+/// One readiness line on a repo: not set up in the dim colour, off plain, ok in green, a problem in amber.
+private struct ReadinessText: View {
+    let line: RepoSetupStatus.Line
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(line.text).font(Theme.ui(11)).foregroundStyle(line.state == .notSetUp ? Theme.fg3 : color)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var color: Color {
+        switch line.state {
+        case .notSetUp: Theme.fg3
+        case .off: Theme.fg2
+        case .ok: Theme.done
+        case .warning: Theme.block
+        }
     }
 }
 

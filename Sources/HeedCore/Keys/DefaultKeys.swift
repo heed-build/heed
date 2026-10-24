@@ -90,7 +90,7 @@ public enum DefaultKeys {
         ],
         "repos": [
             ("o", "worktree.new"), ("r", "repo.scan"), ("w", "issues.visibility"), ("dd", "select.remove"),
-            ("<CR>", "select.open"), ("S", "setup.review"),
+            ("<CR>", "select.open"), ("S", "setup.review"), ("M", "repo.setup"),
         ],
         "history": [
             ("R", "history.reopen"),

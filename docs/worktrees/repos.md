@@ -14,6 +14,8 @@ repo_paths = []          # repos outside the roots, added when you import one of
 
 ![The repo column: repos with the most worktrees first](../images/shots/worktrees/repo-column.png)
 
+- **Merging and green.** Under each repo on GitHub, where get it merged and get it green stand, and **Set up…**,
+  which proposes them from the repo's history (`M`, see [Setting up a repo](../github/repo-setup.md)).
 - **Order.** Repos with the most worktrees come first, then by name; the worktree table groups rows in the same
   order, and Start work ranks those repos higher too.
 - **Colours.** Every org has a colour, and its repos inherit it. Set them in Settings (`⌘,`) or in `config.toml`:

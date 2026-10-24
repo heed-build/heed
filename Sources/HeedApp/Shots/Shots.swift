@@ -308,7 +308,19 @@ enum Shots {
         Shot(id: "github/feedback", keys: "go", prepare: withGreenInstructions),
         Shot(id: "github/delivery", keys: "go", crop: .delivery),
         Shot(id: "github/prompt", keys: "go", crop: .promptPreview, prepare: withGreenInstructions),
+        // The setup wizard on the fake world's invented history: the Repos column's status, then each step.
+        Shot(id: "github/repo-setup-repos", size: short, keys: "gr", crop: .repoColumn),
+        Shot(id: "github/repo-setup-1-sampling", keys: "gr", crop: .dialog, prepare: { model in
+            model.showRepoSetupSampling(Fixtures.main.repos[0].repo)
+        }),
+        Shot(id: "github/repo-setup-1-sample", keys: "grM", crop: .dialog),
+        Shot(id: "github/repo-setup-2-propose", size: tall, keys: "grM<CR>", crop: .dialog),
+        Shot(id: "github/repo-setup-3-validate", keys: "grM<CR><CR>", crop: .dialog),
+        Shot(id: "github/repo-setup-4-write", keys: "grM<CR><CR><CR>", crop: .dialog),
     ]
+
+    /// Tall enough for the wizard's whole proposal.
+    private static let tall = CGSize(width: 1440, height: 1500)
 
     /// A `green_instructions`, so the prompt preview shows where they go.
     private static let withGreenInstructions: @MainActor (AppModel) -> Void = { model in

@@ -68,6 +68,7 @@ toc:
       - file: reading.md
       - file: review-feedback.md
       - file: watch.md
+      - file: repo-setup.md
       - file: tracking-prs.md
   - folder: worktrees
     children:

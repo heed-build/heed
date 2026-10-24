@@ -298,6 +298,12 @@ public enum Commands {
         .init("setup.approve", "approve the detected setup for the repo's new worktrees", .selection),
         .init("setup.never", "no setup for the repo's new worktrees, and no more proposals", .selection),
         .init("setup.edit", "edit the repo's setup commands (Settings, Orgs & repos)", .selection),
+        .init(
+            "repo.setup",
+            "set up get it merged and get it green for the repo: sample its history, propose, validate, write config",
+            .selection,
+            arguments: "[repo]"
+        ),
         .init("select.remove", "remove the selected worktrees, or the one under the cursor (asks first)", .selection),
         .init("select.pin", "pin selected", .selection),
         .init("select.copy", "copy paths", .selection),

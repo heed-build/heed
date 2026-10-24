@@ -241,12 +241,27 @@ struct ContextMenuTests {
         #expect(item("issues.repo", in: all)?.command.target == nil)
     }
 
+    @Test func theReposColumnSetsARepoUp() {
+        let repo = Repo(org: "o", name: "r")
+        let menu = ContextMenus.repo(repo, allIssues: true)
+        #expect(menu.first == .header("o/r"))
+        #expect(commands(menu) == ["repo.setup", "issues.visibility", "open.repo"])
+        #expect(items(menu).allSatisfy { $0.command.target == .repo(repo) })
+        #expect(item("issues.visibility", in: menu)?.checked == true)
+        // A repo that is not on GitHub has nothing to sample.
+        #expect(commands(ContextMenus.repo(Repo(org: "local", name: "x"), allIssues: false)) == ["issues.visibility"])
+    }
+
     @Test func aWorktreeMenuNeverRemovesTheMainCheckout() {
         var facts = ContextMenus.WorktreeFacts(id: "/w", title: "r · fix")
         var menu = ContextMenus.worktree(facts)
         #expect(item("select.open", in: menu)?.title == "Import as a session")
         #expect(item("select.pin", in: menu) == nil)
         #expect(item("select.remove", in: menu) != nil)
+        #expect(item("repo.setup", in: menu)?.title == "Set up merging and green…")
+        facts.onGitHub = false
+        #expect(item("repo.setup", in: ContextMenus.worktree(facts)) == nil)
+        facts.onGitHub = true
         facts.hasSession = true
         facts.pinned = true
         facts.isMain = true
@@ -279,6 +294,7 @@ struct ContextMenuTests {
             ContextMenus.item(.init(kind: .inbox, id: "a", title: "a")),
             ContextMenus.item(.init(kind: .issue, id: "a", title: "a")),
             ContextMenus.issueRepo(Repo(org: "o", name: "r"), allIssues: true), ContextMenus.worktree(worktree),
+            ContextMenus.repo(Repo(org: "o", name: "r"), allIssues: false),
             ContextMenus.history(id: "h", title: "h", hasPrompt: true, onGitHub: true),
             ContextMenus.tab(id: "t", title: "t", zoomed: false, runLive: true),
         ]

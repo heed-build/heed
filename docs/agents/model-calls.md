@@ -67,7 +67,9 @@ run at all writes a row saying why, so background work that waits on the cap sho
 
 Settings › Agents shows, per agent, whether it takes part, whether it is installed and logged in, the model it uses
 (empty: the cheap one detected), and a **Test** button: one tiny call to that agent alone, with its answer, how long
-it took and what it cost. The test shows in `:log` like any other call.
+it took and what it cost. The test shows in `:log` like any other call. Below the agents, **Model calls, every
+agent** holds the `[llm]` settings: the switch that turns every model call off (and back on), the timeout, how many run
+at once, the back-off after a failure, and the daily caps.
 
 ![Settings › Agents: claude's part in model calls, after a test](../images/shots/agents/model-calls.png)
 

@@ -92,13 +92,25 @@ public extension Tutor {
                 doneLine: "The pill shows the filter; {session.filter} then ⎋ clears it."
             ) { _, now, _ in !now.filtering && !now.filter.isEmpty },
         ]),
-        TutorLesson(id: "start-work", title: "Start work", minutes: 3, world: .freshRepos, steps: [
+        TutorLesson(id: "start-work", title: "Start work", minutes: 4, world: .freshRepos, steps: [
             TutorStep(
                 "Describe the task",
                 say: "{work.start}, then say what you want done, as you would to a colleague.",
                 keys: ["{work.start}"], target: "dialog",
                 doneLine: "heed guessed the repo and named the branch from your words."
             ) { _, now, _ in now.startWorkOpen && now.startWorkPrompt.count >= 8 },
+            TutorStep(
+                "Smart guesses",
+                say: "Where the Mac has Apple Intelligence (macOS 26), its on-device model reads your words for the "
+                    + "repo, the branch name and its prefix, on this Mac only. Without it, or with smart guesses off "
+                    + "(Settings › Worktrees & cleanup), heed's own rules guess from your words and recent sessions. "
+                    + "Type a few more words: the guesses follow.",
+                keys: [], target: "dialog",
+                doneLine: "Your own picks always win: a repo or prefix you choose is never guessed over."
+            ) { start, now, _ in
+                now.startWorkOpen && now.startWorkPrompt.count >= start.startWorkPrompt.count + 6
+                    && now.startWorkRepo != nil
+            },
             TutorStep(
                 "Change the guess",
                 say: "Each guess shows why. ⌃n tries the next one; ⎋ then j reaches the repo field to pick by hand.",
@@ -117,6 +129,15 @@ public extension Tutor {
                 keys: ["{chat.new}", "⌘↩"], target: "dialog",
                 doneLine: "A chat, under Chats in the sidebar. If it asks you something, it shows in Needs you."
             ) { start, now, _ in now.chats > start.chats },
+            TutorStep(
+                "Promote it",
+                say: "The chat turned into real work? :promote on it opens Start work with the chat as the prompt: "
+                    + "pick a repo, and ⌘↩ makes the worktree and hands the agent the conversation.",
+                keys: [":promote", "⌘↩"], target: "dialog",
+                doneLine: "The chat closes into History as promoted, naming the session it became."
+            ) { start, now, seen in
+                seen.contains(where: \.startWorkOpen) && !now.startWorkOpen && now.sessions > start.sessions
+            },
         ]),
         TutorLesson(id: "attention", title: "Attention", minutes: 3, world: .mondayMorning, steps: [
             TutorStep(
@@ -220,6 +241,13 @@ public extension Tutor {
                 doneLine: "Below the rules: its items, and a timeline of everything heed noticed and did for it."
             ) { start, now, _ in now.view == "watch" && now.cursor != start.cursor },
             TutorStep(
+                "What will heed do?",
+                say: "{pilot.why} says, in plain words, what heed will do for the PR next and what holds it back. ⎋ "
+                    + "closes it.",
+                keys: ["{pilot.why}", "⎋"], target: "pilotDetail",
+                doneLine: "The same keys work on a session or in a PR's overlay: z keys act on the PR in front of you."
+            ) { _, now, seen in seen.contains(where: \.explainOpen) && !now.explainOpen },
+            TutorStep(
                 "Pause one",
                 say: "{pilot.pause} pauses the PR for an hour: still watched, but nothing is sent or merged for it.",
                 keys: ["{pilot.pause}"], target: "list",
@@ -245,6 +273,13 @@ public extension Tutor {
                 keys: ["{merge.queue}"], target: "pilotDetail",
                 doneLine: "Its PRs, what the next run does with each, and every run so far. {merge.run} runs it now."
             ) { _, now, _ in now.mergeQueue },
+            TutorStep(
+                "Stop watching one",
+                say: "⎋ closes the queue. {pilot.watch} stops watching the PR under the cursor: heed stops following "
+                    + "its checks and reviews, and sends and merges nothing for it.",
+                keys: ["⎋", "{pilot.watch}"], target: "list",
+                doneLine: "{pilot.watch} again watches it. Watching is on by default; an org or repo can turn it off."
+            ) { start, now, _ in now.watching < start.watching },
         ]),
         TutorLesson(id: "repos", title: "Repos", minutes: 4, world: .mondayMorning, steps: [
             TutorStep(
@@ -266,6 +301,14 @@ public extension Tutor {
                 doneLine: "Nothing is removed until you say y, and the dialog names what goes."
             ) { _, now, seen in seen.contains(where: \.confirmationOpen) && !now.confirmationOpen },
             TutorStep(
+                "The cleanup sweep",
+                say: "Cleanup is off until you turn it on (Settings › Worktrees & cleanup); here it removes worktrees "
+                    + "idle for 3 days. {cleanup.sweep} runs the sweep now: it lists what goes and what it keeps, "
+                    + "and asks first. n keeps everything.",
+                keys: ["{cleanup.sweep}", "n"], target: "confirm",
+                doneLine: "Dirty or unpushed work is never swept, and removed work is saved first: R in History."
+            ) { _, now, seen in seen.contains(where: \.confirmationOpen) && !now.confirmationOpen },
+            TutorStep(
                 "Set up merging",
                 say: "{repo.setup} sets up get it merged and get it green for the repo: heed samples its merged PRs "
                     + "and CI, proposes each setting with why, and replays its rules. ↩ twice gets to Validate, ⎋ "
@@ -273,7 +316,7 @@ public extension Tutor {
                 keys: ["{repo.setup}", "↩", "↩", "⎋"], target: "dialog",
                 doneLine: "Config is written only on the last step's ↩; GitHub's own settings never change."
             ) { _, now, seen in seen.contains { $0.repoSetupStep >= 2 } && !now.repoSetupOpen },
-        ]),
+        ], config: "[cleanup]\nenabled = true\nidle_days = 3\n"),
         TutorLesson(id: "history", title: "History", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(
                 "Pick one",
@@ -314,6 +357,28 @@ public extension Tutor {
                 keys: ["{history.reopen}"], target: "historyList",
                 doneLine: "Back in Sessions. {history.again} starts the same prompt fresh instead."
             ) { start, now, _ in now.sessions > start.sessions },
+        ]),
+        TutorLesson(id: "log", title: "Call log", minutes: 2, world: .mondayMorning, steps: [
+            TutorStep(
+                "One kind at a time",
+                say: "This is the call log, which :log opens: every command heed ran, its GitHub calls and its own "
+                    + "model calls, newest first, with how long each took. {log.kind} shows one kind at a time.",
+                keys: ["{log.kind}"], target: "logList",
+                doneLine: "Shell commands only. The call under the cursor shows in full on the right."
+            ) { start, now, _ in now.logKind != start.logKind },
+            TutorStep(
+                "heed's model calls",
+                say: "{log.kind} on to llm: summaries and other cheap-model calls, with the agent that took each, "
+                    + "its tokens and cost.",
+                keys: ["{log.kind}"], target: "logUsage",
+                doneLine: "The strip above sums today's model calls per agent, against the daily caps in Settings."
+            ) { _, now, _ in now.logKind == "llm" },
+            TutorStep(
+                "Only what failed",
+                say: "{log.kind} until all kinds show again, then {log.failed}: only the calls that failed.",
+                keys: ["{log.kind}", "{log.failed}"], target: "logList",
+                doneLine: "{log.failed} again shows everything. {log.copy} copies the command under the cursor."
+            ) { _, now, _ in now.logKind.isEmpty && now.logFailed },
         ]),
         TutorLesson(id: "agents", title: "Agents", minutes: 3, world: .mondayMorning, steps: [
             TutorStep(

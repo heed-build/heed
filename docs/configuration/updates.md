@@ -35,6 +35,8 @@ install = "ask"                    # ask | auto
 - `check = false`: Heed never looks on its own. `:update` still does.
 - `install = "auto"`: a new version downloads in the background and is installed when you quit Heed.
 
+Settings › General › Updates sets both.
+
 ## Homebrew
 
 The cask says Heed updates itself, so `brew upgrade` leaves it alone; `brew upgrade --greedy heed` still upgrades it

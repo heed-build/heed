@@ -90,7 +90,9 @@ struct WatchView: View {
                         cursor: cursor,
                         ids: rows.map(\.id),
                         empty: model.filter(for: .watch).isEmpty
-                            ? "No PRs yet. Sessions pick PRs up by branch; watching is on unless an org or repo says off."
+                            ? "No PRs to watch yet. A session's PR shows here once it is open on the session's "
+                            + "branch (\(model.keyText(for: "pr.track")) tracks one by hand); heed then follows its "
+                            + "checks and reviews. \(model.keyText(for: "pilot.watch")) stops or starts watching one."
                             : "Nothing matches /\(model.filter(for: .watch)).",
                         hintView: .watch
                     ) { index in

@@ -17,6 +17,36 @@ struct Sidebar: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
 
+            if model.sessions.isEmpty {
+                // Centred where the sessions would be, rather than under an empty list.
+                EmptyState(
+                    title: "No sessions yet",
+                    detail: "A session is one task: a prompt, a worktree, an agent and its PRs. A chat is an agent "
+                        + "with no repo.",
+                    actions: [.init("start work from a prompt", "work.start"), .init("new chat", "chat.new")],
+                    pointer: .init("Take the tour", "tutor", arguments: ["tour"]),
+                    pointerText: "New to heed?"
+                )
+            } else {
+                sessionList(list)
+            }
+            Theme.line.frame(height: 1)
+            HStack {
+                Text("\(model.repos.count) repos · \(model.worktreeCount) worktrees").foregroundStyle(Theme.fg2)
+                Spacer()
+                KeyCap(text: "gr")
+            }
+            .font(Theme.ui(12))
+            .padding(.horizontal, 16)
+            .frame(height: 40)
+        }
+        .frame(width: width)
+        .background(Theme.bg2)
+        .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
+    }
+
+    private func sessionList(_ list: SessionList) -> some View {
+        VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ListScroll {
                     ListStack(alignment: .leading, spacing: 0) {
@@ -69,31 +99,8 @@ struct Sidebar: View {
                 }
             }
 
-            if model.sessions.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("No sessions yet.").foregroundStyle(Theme.fg2)
-                    HStack(spacing: 6) {
-                        KeyCap(text: "o")
-                        Text("start work").foregroundStyle(Theme.fg3)
-                    }
-                }
-                .font(Theme.ui(12.5))
-                .padding(16)
-            }
             Spacer(minLength: 0)
-            Theme.line.frame(height: 1)
-            HStack {
-                Text("\(model.repos.count) repos · \(model.worktreeCount) worktrees").foregroundStyle(Theme.fg2)
-                Spacer()
-                KeyCap(text: "gr")
-            }
-            .font(Theme.ui(12))
-            .padding(.horizontal, 16)
-            .frame(height: 40)
         }
-        .frame(width: width)
-        .background(Theme.bg2)
-        .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
     }
 
     /// Heed's label: in Watching and Stalled instead of the agent's line; on a pinned session whenever heed acts on

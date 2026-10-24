@@ -49,6 +49,8 @@ enum Shots {
 
     static let gettingStarted: [Shot] = [
         Shot(id: "getting-started/first-run", crop: .dialog, prepare: { $0.showFirstRun(report: firstRunReport) }),
+        // A first launch with nothing yet: the sidebar's first steps, clickable.
+        Shot(id: "getting-started/empty", size: CGSize(width: 1440, height: 760), crop: .sidebar, fixture: "empty"),
         // The tour on its fourth step: the banner, the spotlight on what needs you, the card, the TUTOR pill.
         Shot(id: "getting-started/tutor", prepare: { $0.beginTutor(lesson: "tour", step: 3) }),
         // The title bar's reminder, until the tour is done.
@@ -222,7 +224,7 @@ enum Shots {
             }
         ),
         // Settings › Agents › Local decisions: screen snapshots on, with the fake world's invented counts.
-        Shot(id: "agents/local-decisions", subject: .settings(.agents), size: CGSize(width: 1000, height: 1400)),
+        Shot(id: "agents/local-decisions", subject: .settings(.agents), size: CGSize(width: 1000, height: 1900)),
     ]
 
     static let hosts: [Shot] = [
@@ -330,6 +332,8 @@ enum Shots {
     static let worktrees: [Shot] = [
         Shot(id: "worktrees/repos", keys: "gr", highlight: [.repoColumn, .worktreeTable, .rulesPanel]),
         Shot(id: "worktrees/repos-filtered", keys: "gr/fix<CR>", crop: .worktreeTable),
+        // No repos under the roots yet: where to look, and the next step.
+        Shot(id: "worktrees/repos-empty", size: CGSize(width: 1440, height: 760), keys: "gr", fixture: "empty"),
         Shot(id: "worktrees/repo-column", size: short, keys: "gr", crop: .repoColumn),
         Shot(id: "worktrees/import-worktree", keys: "Iw", crop: .picker),
         // Typing narrows by repo, branch or the path below its root, and marks what matched.
@@ -440,8 +444,9 @@ enum Shots {
             model.applyConfig(source: "[cleanup]\nidle_days = 0\n")
         }),
         // Tall enough for the whole General page, down to the call log's retention and the tools.
-        Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 900, height: 1780)),
+        Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 900, height: 2280)),
         Shot(id: "configuration/orgs-repos", subject: .settings(.colors), size: CGSize(width: 1180, height: 1400)),
+        Shot(id: "configuration/settings-hosts", subject: .settings(.hosts), size: CGSize(width: 1000, height: 820)),
         Shot(
             id: "configuration/attention-rules", subject: .settings(.attention), size: CGSize(
                 width: 1180,

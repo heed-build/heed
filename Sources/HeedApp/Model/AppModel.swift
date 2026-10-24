@@ -6791,6 +6791,7 @@ final class AppModel {
     func beginTutor(lesson id: String, world: TutorWorld? = nil, step: Int? = nil, startedAt: Date = Clock.now) {
         guard let lesson = Tutor.lesson(id) else { return }
         tutorWorld = world ?? lesson.world
+        if !lesson.config.isEmpty, isFixture { applyConfig(source: lesson.config) }
         // A view's lesson opens in that view.
         view = AppView(rawValue: id) ?? .sessions
         let resume = step ?? tutorProgress.resumeStep(id)
@@ -7027,6 +7028,10 @@ final class AppModel {
         state.paused = tracked.count { feedback[$0.description]?.isPaused(Clock.now) == true }
         state.merging = tracked.count { pilot(for: $0).merge != .off }
         state.mergeQueue = view == .watch && mergeQueueShown != nil
+        state.explainOpen = pilotExplain != nil
+        state.watching = tracked.count { pilot(for: $0).watching }
+        state.logKind = callLog.query.kind?.rawValue ?? ""
+        state.logFailed = callLog.query.failedOnly
         return state
     }
 

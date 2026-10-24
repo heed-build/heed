@@ -21,5 +21,9 @@ global_activate = "<C-M-h>"
 Accessibility permission. If another app already owns the combination, or both are set to the same keys, the status
 bar says so.
 
+Settings › Keys & modes shows both and changes them: type one in vim notation, or **Record** and press the keys.
+A shortcut that cannot work (no ⌃, ⌥ or ⌘, more than one key, the same as the other one) is refused there, before
+it reaches `config.toml`.
+
 Heed never takes focus by itself: these, clicking a session in the menu bar, and Open on a notification are the only
 times it comes forward.

@@ -81,9 +81,11 @@ struct AttentionView: View {
         let text = model.filter(for: .attention)
         if !text.isEmpty { return "Nothing matches /\(text)." }
         return switch model.attention.filter {
-        case .needsMe: "Nothing wants you."
+        case .needsMe: "Nothing wants you. Review requests, mentions, assignments and failing checks on your PRs "
+            + "land here as GitHub syncs (\(model.keyText(for: "github.sync", in: "attention")) syncs now); rules in "
+            + "Settings › Attention decide what counts."
         case .muted: "Nothing muted. M mutes a thread; an ignore rule mutes what it matches."
-        default: "Nothing here."
+        default: "Nothing here. \(model.keyText(for: "attention.filter", in: "attention")) steps through the filters."
         }
     }
 }

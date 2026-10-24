@@ -20,13 +20,13 @@ struct SettingsView: View {
                 "general": .general, "agents": .agents, "colors": .colors, "repos": .colors, "orgs": .colors,
                 "cleanup": .cleanup,
                 "worktrees": .cleanup, "keys": .keys, "modes": .keys, "pilot": .pilot, "attention": .attention,
-                "rules": .attention,
+                "rules": .attention, "hosts": .hosts, "ssh": .hosts,
             ]
             return short[key]
         }
 
-        case general = "General", agents = "Agents", colors = "Orgs & repos", cleanup = "Worktrees & cleanup"
-        case pilot = "Pilot", attention = "Attention", keys = "Keys & modes"
+        case general = "General", agents = "Agents", colors = "Orgs & repos", hosts = "Hosts"
+        case cleanup = "Worktrees & cleanup", pilot = "Pilot", attention = "Attention", keys = "Keys & modes"
 
         var id: String { rawValue }
     }
@@ -80,6 +80,7 @@ struct SettingsView: View {
                     case .general: GeneralSettings()
                     case .agents: AgentSettings()
                     case .colors: OrgRepoSettings()
+                    case .hosts: HostSettings()
                     case .cleanup: CleanupSettings()
                     case .pilot: PilotSettingsView()
                     case .attention: AttentionRuleSettings()
@@ -366,6 +367,7 @@ private struct GeneralSettings: View {
                 .frame(width: 220)
             }
             CallLogSettings()
+            UpdateSettingsGroup()
             GroupLabel(title: "Tools")
             Field(label: "git", detail: "Empty detects it. A path, or a name looked up on the search path.") {
                 ConfigTextField(path: ["tools", "git"], value: model.config.tools.git)
@@ -441,6 +443,8 @@ private struct AgentSettings: View {
             Text("Custom agents: add an [agents.<name>] table with a command in config.toml.")
                 .font(Theme.ui(11.5))
                 .foregroundStyle(Theme.fg3)
+            ModelCallLimits()
+            UsageSettingsGroup()
             LocalDecisionSettings()
         }
     }
@@ -507,9 +511,14 @@ private struct ModelCallSettings: View {
                 TestResult(agent: agent.name)
             }
             if !settings.enabled {
-                Text("[llm] enabled = false: heed makes no model calls at all.")
-                    .font(Theme.ui(11.5))
-                    .foregroundStyle(Theme.block)
+                HStack(spacing: 8) {
+                    Text("Model calls are off for every agent ([llm] enabled = false): heed makes none at all.")
+                        .font(Theme.ui(11.5))
+                        .foregroundStyle(Theme.block)
+                    Button("Turn them on") { model.setConfig(["llm", "enabled"], .bool(true)) }
+                        .buttonStyle(.link)
+                        .font(Theme.ui(11.5))
+                }
             }
         }
     }
@@ -1140,6 +1149,28 @@ private struct KeySettings: View {
                 Text("Leave INSERT").font(Theme.ui(13)).foregroundStyle(Theme.fg2)
                 KeyCap(text: KeyCapText.of(model.config.insertEscape))
             }
+            GroupLabel(title: "Global shortcuts")
+            Text("They work from any app. One key with ⌃, ⌥ or ⌘; Record takes the next one you press, ⎋ cancels. "
+                + "Empty turns one off.")
+                .font(Theme.ui(11.5))
+                .foregroundStyle(Theme.fg3)
+                .fixedSize(horizontal: false, vertical: true)
+            Field(
+                label: "Start work",
+                detail: "Opens Start work in a floating panel over any app (window title \"Heed Start Work\")."
+            ) {
+                ShortcutField(
+                    path: ["keys", "global_start_work"], value: model.config.globalStartWork,
+                    other: model.config.globalActivate
+                )
+            }
+            Field(label: "Bring Heed forward", detail: "Brings Heed to the front from any app.") {
+                ShortcutField(
+                    path: ["keys", "global_activate"], value: model.config.globalActivate,
+                    other: model.config.globalStartWork
+                )
+            }
+            GroupLabel(title: "Bindings")
             Button("Edit bindings in config.toml") { NSWorkspace.shared.open(model.configFile) }
             ForEach(Array(keymap.bindings.enumerated()), id: \.offset) { _, binding in
                 HStack(spacing: 12) {
@@ -1511,6 +1542,333 @@ private struct AttentionRuleSettings: View {
         HStack(spacing: 10) {
             Text(action).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).frame(width: 80, alignment: .leading)
             Text(meaning).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+        }
+    }
+}
+
+/// `[updates]`: whether heed looks for a new version, and whether it asks before installing one.
+private struct UpdateSettingsGroup: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let updates = model.config.updates
+        GroupLabel(title: "Updates")
+        Field(
+            label: "Check for updates",
+            detail: "Once a day, on GitHub, heed's releases. Only what heed's key signed and Apple notarized installs. "
+                + ":update checks now either way."
+        ) {
+            Toggle("", isOn: Binding(
+                get: { updates.check }, set: { model.setConfig(["updates", "check"], .bool($0)) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+        }
+        Field(
+            label: "Install",
+            detail: "Ask shows what is new and installs when you say so; Auto downloads in the background and installs "
+                + "on quit."
+        ) {
+            Picker("", selection: Binding(
+                get: { updates.install },
+                set: { model.setConfig(["updates", "install"], .string($0.rawValue)) }
+            )) {
+                Text("Ask").tag(UpdateSettings.Install.ask)
+                Text("Auto").tag(UpdateSettings.Install.auto)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 160)
+            .disabled(!updates.check)
+        }
+    }
+}
+
+/// `[llm]`: heed's own model calls for every agent: the switch for all of them, and their limits.
+private struct ModelCallLimits: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let llm = model.config.llm
+        GroupLabel(title: "Model calls, every agent")
+        Field(
+            label: "Model calls",
+            detail: "heed's own short calls (summaries, decisions), through the agent CLIs you are logged in to. Off: "
+                + "heed makes no model calls at all, whatever each agent says."
+        ) {
+            Toggle("", isOn: Binding(
+                get: { llm.enabled }, set: { model.setConfig(["llm", "enabled"], .bool($0)) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+        }
+        Group {
+            Field(label: "Timeout", detail: "A call still running after this long is stopped.") {
+                Stepper(value: Binding(
+                    get: { llm.timeoutSeconds },
+                    set: { model.setConfig(["llm", "timeout_seconds"], .integer($0)) }
+                ), in: 10 ... 900, step: 10) {
+                    Text("\(llm.timeoutSeconds)s").font(Theme.mono(12.5))
+                }
+                .frame(width: 160)
+            }
+            Field(
+                label: "At once",
+                detail: "Calls running at the same time; more wait, the ones you asked for first."
+            ) {
+                Stepper(value: Binding(
+                    get: { llm.concurrency }, set: { model.setConfig(["llm", "concurrency"], .integer($0)) }
+                ), in: 1 ... 8) {
+                    Text("\(llm.concurrency)").font(Theme.mono(12.5))
+                }
+                .frame(width: 160)
+            }
+            Field(
+                label: "Back off",
+                detail: "An agent whose call failed is skipped for this long; one rate limited, until its limit resets."
+            ) {
+                Stepper(value: Binding(
+                    get: { llm.backoffMinutes },
+                    set: { model.setConfig(["llm", "backoff_minutes"], .integer($0)) }
+                ), in: 0 ... 1440, step: 5) {
+                    Text("\(llm.backoffMinutes) min").font(Theme.mono(12.5))
+                }
+                .frame(width: 160)
+            }
+            Field(
+                label: "Daily calls",
+                detail: "Per agent per day: background calls stop until tomorrow at this many. 0: no cap."
+            ) {
+                Stepper(value: Binding(
+                    get: { llm.dailyCalls }, set: { model.setConfig(["llm", "daily_calls"], .integer($0)) }
+                ), in: 0 ... 100_000, step: 10) {
+                    Text(llm.dailyCalls == 0 ? "no cap" : "\(llm.dailyCalls) calls").font(Theme.mono(12.5))
+                }
+                .frame(width: 200)
+            }
+            Field(
+                label: "Daily dollars",
+                detail: "Per agent per day, counted where a cost is known (reported, or estimated from [usage.prices]). "
+                    + "0: no cap."
+            ) {
+                DollarsField(path: ["llm", "daily_dollars"], value: llm.dailyDollars)
+            }
+        }
+        .disabled(!llm.enabled)
+    }
+}
+
+/// A dollar amount, written as a TOML number when it is one (0 or more); anything else is said, not written.
+private struct DollarsField: View {
+    @Environment(AppModel.self) private var model
+    let path: [String]
+    let value: Double
+    @State private var text = ""
+    @State private var problem: String?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("$").font(Theme.mono(12.5)).foregroundStyle(Theme.fg3)
+            TextField("", text: $text)
+                .textFieldStyle(.roundedBorder)
+                .font(Theme.mono(12.5))
+                .frame(width: 90)
+                .focused($focused)
+                .onAppear { text = Self.text(value) }
+                .onChange(of: value) { if !focused { text = Self.text(value) } }
+                .onSubmit(save)
+                .onChange(of: focused) { if !focused { save() } }
+            if let problem { Text(problem).font(Theme.ui(11.5)).foregroundStyle(Theme.err) }
+        }
+    }
+
+    static func text(_ value: Double) -> String { String(format: "%.2f", value) }
+
+    private func save() {
+        let trimmed = text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "$", with: "")
+        guard let dollars = Double(trimmed), dollars >= 0 else {
+            problem = "a number of dollars, 0 or more"
+            return
+        }
+        problem = nil
+        guard dollars != value else { return }
+        model.setConfig(path, .float(dollars))
+    }
+}
+
+/// `[usage] show_cost`, and how many prices `[usage.prices]` sets.
+private struct UsageSettingsGroup: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let usage = model.config.usage
+        GroupLabel(title: "Usage")
+        Field(
+            label: "Show cost",
+            detail: "The inspector shows each session's model and tokens, and a cost marked ≈: what the agent "
+                + "reported, else an estimate from your prices. Off leaves the cost out."
+        ) {
+            Toggle("", isOn: Binding(
+                get: { usage.showCost }, set: { model.setConfig(["usage", "show_cost"], .bool($0)) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
+        }
+        Field(
+            label: "Prices",
+            detail: "USD per million tokens by model name prefix, in [usage.prices]. None are built in: with none set "
+                + "only reported costs show."
+        ) {
+            HStack(spacing: 10) {
+                let count = usage.prices.byPrefix.count
+                Text(count == 0 ? "none set" : "\(count) model\(count == 1 ? "" : "s")").font(Theme.mono(12))
+                    .foregroundStyle(count == 0 ? Theme.fg3 : Theme.fg)
+                Button("Edit in config.toml") { NSWorkspace.shared.open(model.configFile) }
+                    .buttonStyle(.link)
+                    .font(Theme.ui(12))
+            }
+        }
+    }
+}
+
+/// A system-wide shortcut: typed in vim notation, or recorded from the next key pressed. Checked before it is
+/// written, so a shortcut that cannot work never reaches config.toml.
+private struct ShortcutField: View {
+    @Environment(AppModel.self) private var model
+    let path: [String]
+    let value: String
+    /// The other global shortcut, which this one may not repeat.
+    let other: String
+    @State private var text = ""
+    @State private var problem: String?
+    @State private var recording = false
+    @State private var monitor: Any?
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                TextField("off", text: $text)
+                    .textFieldStyle(.roundedBorder)
+                    .font(Theme.mono(12.5))
+                    .frame(width: 150)
+                    .focused($focused)
+                    .onAppear { text = value }
+                    .onChange(of: value) { if !focused, !recording { text = value } }
+                    .onSubmit { save(text) }
+                    .onChange(of: focused) { if !focused, !recording { save(text) } }
+                if !value.isEmpty { KeyCap(text: KeyCapText.of(value)) }
+                Button(recording ? "Press a key…" : "Record") { recording ? stop() : record() }
+                Button("Off") { save("") }
+                    .buttonStyle(.link)
+                    .font(Theme.ui(12))
+                    .disabled(value.isEmpty)
+            }
+            if let problem { Text(problem).font(Theme.ui(11.5)).foregroundStyle(Theme.err) }
+        }
+        .onDisappear(perform: stop)
+    }
+
+    private func record() {
+        problem = nil
+        recording = true
+        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard let stroke = KeyStroke(event: event) else { return nil }
+            MainActor.assumeIsolated {
+                if stroke == .escape {
+                    stop()
+                } else {
+                    text = stroke.description
+                    stop()
+                    save(text)
+                }
+            }
+            return nil
+        }
+    }
+
+    private func stop() {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        monitor = nil
+        recording = false
+    }
+
+    private func save(_ notation: String) {
+        let notation = notation.trimmingCharacters(in: .whitespaces)
+        if let problem = GlobalShortcut.problem(notation, other: other) {
+            self.problem = problem
+            return
+        }
+        problem = nil
+        text = notation
+        guard notation != value else { return }
+        model.setConfig(path, .string(notation))
+    }
+}
+
+/// Settings › Hosts: the machines in `[hosts.<name>]`, as config.toml has them. Adding and checking one is gH's (it
+/// reads ~/.ssh/config and your tailnet); editing one is the file's.
+private struct HostSettings: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let hosts = model.config.hosts.values.sorted { $0.name < $1.name }
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Hosts").font(Theme.ui(17, weight: .semibold))
+            Text(
+                "Machines heed drives over your own ssh, or over your tailnet. gH adds them from ~/.ssh/config or your "
+                    + "tailnet and checks what each has (git, zmx, agents); each one's settings are edited in config.toml."
+            )
+            .font(Theme.ui(12)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 12) {
+                Button("Add or check hosts (gH)") {
+                    model.activateHeed()
+                    model.perform(CommandInvocation(name: "host.open"))
+                }
+                Button("Edit in config.toml") { NSWorkspace.shared.open(model.configFile) }
+            }
+            if hosts.isEmpty {
+                Text("No hosts yet. gH lists the ones in ~/.ssh/config and on your tailnet to add.")
+                    .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                    .padding(.top, 6)
+            }
+            ForEach(hosts, id: \.name) { host in
+                VStack(alignment: .leading, spacing: 8) {
+                    GroupLabel(title: "@\(host.name)")
+                    row("ssh", host.ssh, key: "ssh")
+                    row(
+                        "transport",
+                        host.transport?.rawValue ?? "unset: the tailnet when the machine is on it",
+                        key: "transport"
+                    )
+                    if let machine = host.tailscale { row("tailscale", machine, key: "tailscale") }
+                    if let user = host.user { row("user", user, key: "user") }
+                    row(
+                        "repo roots", host.repoRoots.joined(separator: ", ")
+                            +
+                            (host.explicitRepoRoots || host.repoRoots != HostConfig
+                                .defaultRepoRoots ? "" : "  (default)"),
+                        key: "repo_roots"
+                    )
+                    row(
+                        "worktree root", host.worktreeRoot
+                            + (host.explicitWorktreeRoot || host.worktreeRoot != HostConfig.defaultWorktreeRoot
+                                ? "" : "  (default)"),
+                        key: "worktree_root"
+                    )
+                    row("color", host.color ?? "picked from the name", key: "color")
+                }
+            }
+        }
+    }
+
+    private func row(_ label: String, _ value: String, key: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 16) {
+            Text(label).font(Theme.ui(13)).foregroundStyle(Theme.fg2).frame(width: 170, alignment: .leading)
+            Text(value).font(Theme.mono(12)).foregroundStyle(Theme.fg).textSelection(.enabled)
+            Spacer(minLength: 8)
+            Text(key).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
         }
     }
 }

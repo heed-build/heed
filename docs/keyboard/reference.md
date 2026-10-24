@@ -115,7 +115,7 @@ This page is generated from the code (`mise run shots`).
 | `update.check` |  | look for a new version of heed now (also :update) |
 | `tools.detect` |  | find git and gh again (login shell PATH, usual places, [tools]) |
 | `app.quit` |  | quit Heed |
-| `settings.open` `[section]` | `<D-,>` | open Settings, on a section (general, agents, colors, cleanup, pilot, keys) |
+| `settings.open` `[section]` | `<D-,>` | open Settings, on a section (general, agents, colors, cleanup, pilot, attention, keys, hosts) |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
 | `history.timeline` | `T` (dashboard), `T` (history), `T` (ledger), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |

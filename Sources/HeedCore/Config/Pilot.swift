@@ -14,6 +14,22 @@ public enum MergeMode: String, CaseIterable, Hashable, Sendable, Codable {
     }
 }
 
+/// `merge_now`: whether merging a PR now (`zM`) asks first. `ask` shows what will happen and what is not met; `auto`
+/// merges at once. Either way merging now is something you do: heed's own merging stays `merge`.
+public enum MergeNowConfirm: String, CaseIterable, Hashable, Sendable {
+    case ask, auto
+
+    public static func named(_ name: String) -> MergeNowConfirm? { MergeNowConfirm(rawValue: name.lowercased()) }
+}
+
+/// `force_merge`: merging now past requirements GitHub enforces, with `--admin`, when you are an admin of the repo.
+/// `off` never offers it, `ask` lists exactly what is bypassed first, `auto` does not ask.
+public enum ForceMerge: String, CaseIterable, Hashable, Sendable {
+    case off, ask, auto
+
+    public static func named(_ name: String) -> ForceMerge? { ForceMerge(rawValue: name.lowercased()) }
+}
+
 /// Where get it green sends a PR's feedback: a background run (an agent in its own tab, worktree and branch), or the
 /// session's own agent, typed in once it is idle and you have left it alone for a while.
 public enum RunIn: String, CaseIterable, Hashable, Sendable {
@@ -60,8 +76,13 @@ public struct PilotSettings: Hashable, Sendable {
     public var holdLabels = ["hold", "do-not-merge", "wip"]
     /// A command that reviews the PR's diff (on stdin) and answers APPROVE or REQUEST_CHANGES; nil skips it.
     public var selfReview: String?
-    /// Retry a refused merge with `--admin` (bypassing branch protection). Per repo only.
+    /// Retry a refused merge with `--admin` (bypassing branch protection). Per repo only. heed's own merges only:
+    /// merging now by hand follows `force_merge`.
     public var adminMerge = false
+    /// Merging a PR now by hand: ask first, or not.
+    public var mergeNow: MergeNowConfirm = .ask
+    /// Merging now past what GitHub enforces, as an admin: never, ask first, or not.
+    public var forceMerge: ForceMerge = .ask
     /// The agent get it green and get it merged runs use; nil: the session's.
     public var agent: String?
     /// Its model (`--model`); nil: the agent's own default.
@@ -133,6 +154,8 @@ public struct PilotOverrides: Hashable, Sendable {
     public var selfReview: String?
     /// Read only under `[repos."org/name"]`.
     public var adminMerge: Bool?
+    public var mergeNow: MergeNowConfirm?
+    public var forceMerge: ForceMerge?
     public var agent: String?
     public var model: String?
     public var mergeAgent: String?
@@ -168,7 +191,7 @@ public struct PilotOverrides: Hashable, Sendable {
             nil && agent == nil && model == nil
             && greenInstructions == nil && reviewInstructions == nil && startInstructions == nil && runIn == nil
             && summaryInstructions == nil && summarySignOff == nil
-            && mergeAgent == nil && mergeModel == nil
+            && mergeAgent == nil && mergeModel == nil && mergeNow == nil && forceMerge == nil
     }
 }
 
@@ -206,6 +229,8 @@ public struct PilotRules: Hashable, Sendable {
         settings.holdLabels = repoLevel.holdLabels ?? orgLevel.holdLabels ?? defaults.holdLabels
         settings.selfReview = repoLevel.selfReview ?? orgLevel.selfReview ?? defaults.selfReview
         settings.adminMerge = repoLevel.adminMerge ?? false
+        settings.mergeNow = repoLevel.mergeNow ?? orgLevel.mergeNow ?? defaults.mergeNow
+        settings.forceMerge = repoLevel.forceMerge ?? orgLevel.forceMerge ?? defaults.forceMerge
         settings.agent = repoLevel.agent ?? orgLevel.agent ?? defaults.agent
         settings.model = repoLevel.model ?? orgLevel.model ?? defaults.model
         settings.runIn = repoLevel.runIn ?? orgLevel.runIn ?? defaults.runIn

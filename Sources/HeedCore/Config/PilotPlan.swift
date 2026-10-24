@@ -14,6 +14,8 @@ public enum PilotPlan {
         case paused(until: Date?)
         /// Out of rounds without a new approval.
         case stopped(rounds: Int)
+        /// Get it green is off and get it merged is on: no rounds, and how merging goes.
+        case merging(MergeMode)
         /// Nothing will be sent, and why.
         case nothing(String)
     }
@@ -43,7 +45,9 @@ public enum PilotPlan {
         case .stuck: return .nothing("no session to send to")
         default: break
         }
-        guard effective.green != .off else { return .nothing("get it green is off") }
+        guard effective.green != .off else {
+            return effective.merge == .off ? .nothing("get it green is off") : .merging(effective.merge)
+        }
         if let pipeline, pipeline.isPaused(now) {
             return .paused(until: pipeline.pausedForever ? nil : pipeline.pausedUntil)
         }
@@ -96,9 +100,25 @@ public enum PilotPlan {
             "paused " + pauseText(until, now: now, calendar: calendar)
         case let .stopped(rounds):
             "stopped after \(rounds) round\(rounds == 1 ? "" : "s")"
+        case let .merging(mode):
+            mode == .heed ? "no rounds (green off) · heed merges once its rules hold"
+                : "no rounds (green off) · GitHub's auto-merge, once its requirements are met"
         case let .nothing(reason):
             "nothing: \(reason)"
         }
+    }
+
+    /// Get it green's progress on a PR, for its card: the round it is on and what it sent last. `log` is the PR's
+    /// pilot events, newest first. Nil when get it green does nothing for it.
+    /// `round 1 of 3 · last: sent 2 items to claude (round 1), 31m ago`, `round 0 of 3 · nothing sent yet`.
+    public static func greenProgress(
+        pipeline: PullFeedback?, settings: PilotSettings, log: [PilotEvent], now: Date = Date()
+    ) -> String? {
+        let effective = PullFeedback.effective(pipeline, settings)
+        guard effective.watching, effective.green != .off else { return nil }
+        let round = "round \(min(pipeline?.rounds ?? 0, effective.maxRounds)) of \(effective.maxRounds)"
+        guard let sent = log.first(where: { $0.kind == .sent }) else { return "\(round) · nothing sent yet" }
+        return "\(round) · last: \(sent.text), \(PilotDuration.text(now.timeIntervalSince(sent.at))) ago"
     }
 
     /// `until 14:00` the same day, `for 2d` beyond it, `until resumed`.
@@ -169,6 +189,7 @@ public enum PilotPlan {
         case .copilot: ["copilot_conflicts"]
         case .paused: ["watch"]
         case .stopped: ["max_rounds"]
+        case .merging: ["green", "merge"]
         case .nothing: ["watch", "green"]
         }
     }

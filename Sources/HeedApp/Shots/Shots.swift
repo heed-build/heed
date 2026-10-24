@@ -281,6 +281,11 @@ enum Shots {
         // `z?`: what heed will do for the PR, and what holds it back.
         Shot(id: "watch/explain", keys: "gw/anchors<CR>z?", crop: .dialog),
         Shot(id: "watch/prs", keys: ":prs<CR>", crop: .list),
+        // Merging ahead of time: a PR ready to merge with merging off, merge now's confirmation, and a repo whose
+        // merge settings cannot work.
+        Shot(id: "watch/ready", keys: "gw/backpressure<CR>", crop: .pilotDetail),
+        Shot(id: "watch/merge-now", keys: "gw/backpressure<CR>zM", crop: .confirm),
+        Shot(id: "watch/misconfigured", keys: "gw/arrowheads<CR>", crop: .pilotDetail),
     ]
 
     static let github: [Shot] = [

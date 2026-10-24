@@ -882,6 +882,32 @@ private struct PilotSettingsView: View {
                     set: { model.setConfig(["pilot", "update_branches"], .bool($0)) }
                 )).labelsHidden()
             }
+            Field(
+                label: "Merge now",
+                detail: "zM, or merge now on a PR that is ready: ask shows the PR, the method and anything not met first; auto merges at once."
+            ) {
+                Picker("", selection: Binding(
+                    get: { pilot.defaults.mergeNow },
+                    set: { model.setConfig(["pilot", "merge_now"], .string($0.rawValue)) }
+                )) {
+                    ForEach(MergeNowConfirm.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
+            Field(
+                label: "Force merge",
+                detail: "Merging now past required reviews or checks with --admin, offered only where you are an admin: off, ask (lists what is bypassed), auto."
+            ) {
+                Picker("", selection: Binding(
+                    get: { pilot.defaults.forceMerge },
+                    set: { model.setConfig(["pilot", "force_merge"], .string($0.rawValue)) }
+                )) {
+                    ForEach(ForceMerge.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+            }
             GroupLabel(title: "Copilot and reviewers")
             Field(
                 label: "Copilot: conflicts",

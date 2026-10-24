@@ -32,6 +32,7 @@ struct Sidebar: View {
                                         pinNumber: list.pins.firstIndex(of: session).map { $0 + 1 },
                                         hint: model.hintLabel(for: .session(session.id)),
                                         pilot: model.pilotStatus(of: session),
+                                        readyToMerge: session.trackedPRs.contains(where: model.readyToMerge),
                                         group: section.group,
                                         label: Self.showsLabel(section.group, model.sessionPilot(session))
                                             ? model.watchLabel(of: session) : nil,
@@ -147,6 +148,8 @@ struct SessionRow: View {
     let hint: String?
     /// The most urgent pilot state among the session's PRs.
     var pilot: PilotStatus?
+    /// One of its PRs meets every merge requirement while get it merged is off for it.
+    var readyToMerge = false
     /// The group it is shown in: in Watching the row is one line plus heed's label, unless the cursor is on it.
     var group: SessionGroup = .working
     /// What heed is doing about its PRs ("getting it merged · waiting for checks"), shown instead of the agent's line.
@@ -179,7 +182,12 @@ struct SessionRow: View {
                     Spacer(minLength: 4)
                     PendingChips(pending: pending, hasPR: !session.trackedPRs.isEmpty)
                     if let pinNumber { KeyCap(text: "'\(pinNumber)") }
-                    if let pilot, pilot != .unwatched { PilotMark(status: pilot, compact: true) }
+                    if readyToMerge {
+                        Text("✓ ready").font(Theme.mono(10.5)).foregroundStyle(Theme.done).fixedSize()
+                            .help("A PR of this session is ready to merge, and get it merged is off: zM merges it")
+                    } else if let pilot, pilot != .unwatched {
+                        PilotMark(status: pilot, compact: true)
+                    }
                     if let host = session.host { HostChip(location: .host(host), color: hostColor) }
                     if !session.trackedPRs.isEmpty {
                         Text("\(session.trackedPRs.count) PR")

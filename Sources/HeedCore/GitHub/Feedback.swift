@@ -39,6 +39,10 @@ public struct PullDetail: Hashable, Sendable, Codable {
     /// What the repo allows: auto-merge, and the merge methods (`squash`, `merge`, `rebase`).
     public var repoAllowsAutoMerge: Bool?
     public var repoMergeMethods: [String]?
+    /// The base branch's protection requires linear history (no merge commits); nil when unknown or unprotected.
+    public var repoRequiresLinearHistory: Bool?
+    /// Your permission on the repo: `ADMIN`, `MAINTAIN`, `WRITE`, `TRIAGE`, `READ`. Only an admin can force a merge.
+    public var viewerPermission: String?
     /// When the head commit was made, for the merge rules' quiet window.
     public var headCommittedAt: Date?
     /// The checks that passed on the head commit, by name.

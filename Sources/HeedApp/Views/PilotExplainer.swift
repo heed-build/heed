@@ -14,10 +14,77 @@ struct PilotPlanLine: View {
             Text(PilotPlan.text(step, now: Clock.now)).foregroundStyle(Theme.fg2)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            // The explainer, by click as by key.
             KeyCap(text: model.keyText(for: "pilot.why"))
+                .contentShape(Rectangle())
+                .onTapGesture { model.perform(CommandInvocation(name: "pilot.why", target: .pull(ref))) }
+                .help("What heed will do for this PR, and what holds it back")
         }
         .font(Theme.mono(11))
         .help(PilotPlan.help(step, sources: model.pilotPlanSources(for: ref)))
+    }
+}
+
+/// Get it green's progress on a PR: the round it is on and what it sent last. Nothing while get it green is off.
+struct PilotGreenLine: View {
+    @Environment(AppModel.self) private var model
+    let ref: PullRef
+
+    var body: some View {
+        if let text = PilotPlan.greenProgress(
+            pipeline: model.feedback[ref.description], settings: model.pilotSettings(for: ref),
+            log: model.pilotTimeline(ref), now: Clock.now
+        ) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("green").foregroundStyle(Theme.fg3).fixedSize()
+                Text(text).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .font(Theme.mono(11))
+        }
+    }
+}
+
+/// Merging, ahead of time: `Ready to merge · set up merging` with merge now while get it merged is off, or
+/// `Merging misconfigured: …` when the repo cannot do what its settings ask. Nothing otherwise.
+struct PilotMergeLine: View {
+    @Environment(AppModel.self) private var model
+    let ref: PullRef
+
+    var body: some View {
+        if model.readyToMerge(ref) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("✓ Ready to merge").foregroundStyle(Theme.done).fixedSize()
+                Text("·").foregroundStyle(Theme.fg3)
+                link("set up merging", "pilot.merge.setup")
+                Spacer(minLength: 4)
+                action("merge now", "pilot.merge.now")
+            }
+            .font(Theme.mono(11))
+        } else if let line = model.mergeReadiness(for: ref).line {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("⚠ \(line)").foregroundStyle(Theme.err).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                link("set up", "pilot.merge.setup")
+            }
+            .font(Theme.mono(11))
+        }
+    }
+
+    private func link(_ label: String, _ command: String) -> some View {
+        Text(label).foregroundStyle(Theme.fg2).underline().fixedSize()
+            .contentShape(Rectangle())
+            .onTapGesture { model.perform(CommandInvocation(name: command, target: .pull(ref))) }
+    }
+
+    private func action(_ label: String, _ command: String) -> some View {
+        HStack(spacing: 5) {
+            KeyCap(text: model.keyText(for: command))
+            Text(label).foregroundStyle(Theme.fg2)
+        }
+        .fixedSize()
+        .contentShape(Rectangle())
+        .onTapGesture { model.perform(CommandInvocation(name: command, target: .pull(ref))) }
     }
 }
 

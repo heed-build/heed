@@ -213,6 +213,7 @@ This page is generated from the code (`mise run shots`).
 | `setup.approve` |  | approve the detected setup for the repo's new worktrees |
 | `setup.never` |  | no setup for the repo's new worktrees, and no more proposals |
 | `setup.edit` |  | edit the repo's setup commands (Settings, Orgs & repos) |
+| `repo.setup` `[repo]` | `M` (repos) | set up get it merged and get it green for the repo: sample its history, propose, validate, write config |
 | `select.remove` | `d` (VISUAL), `dd` (repos) | remove the selected worktrees, or the one under the cursor (asks first) |
 | `select.pin` | `m` (VISUAL) | pin selected |
 | `select.copy` | `y` (VISUAL) | copy paths |

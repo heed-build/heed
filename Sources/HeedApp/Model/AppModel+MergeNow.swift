@@ -22,9 +22,9 @@ extension AppModel {
         Set(pullDetails.values.map(\.ref).filter(readyToMerge))
     }
 
-    /// What the repo allows, from the newest detail of one of its PRs.
+    /// What the repo allows: from the setup wizard's last sample of it, else the newest detail of one of its PRs.
     func repoMergeFacts(_ repo: Repo) -> RepoMergeFacts? {
-        RepoMergeFacts.of(repo, details: pullDetails.values)
+        repoMergeSettings[repo.slug]?.facts ?? RepoMergeFacts.of(repo, details: pullDetails.values)
     }
 
     /// Whether get it merged is set up for a repo and can work there (the Repos view's badge and the setup flow).
@@ -90,12 +90,9 @@ extension AppModel {
         }
     }
 
-    /// Set up get it merged for the PR's repo: Settings › Orgs & repos on the repo, where its merge settings are. The
-    /// repos setup flow takes this over once it exists.
+    /// Set up get it merged for the PR's repo: the setup wizard (`repo.setup`) on it.
     func setUpMerging(_ repo: Repo? = nil) {
         guard let repo = repo ?? pilotTargets.first?.repo else { return flash = noOpenPR }
-        settingsScope = .repo(repo)
-        settingsSection = .colors
-        openSettings?()
+        openRepoSetup(nil, repo: repo)
     }
 }

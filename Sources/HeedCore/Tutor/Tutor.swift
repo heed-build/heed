@@ -21,6 +21,9 @@ public struct TutorState: Equatable, Sendable {
     public var startWorkPrompt = ""
     public var startWorkRepo: String?
     public var confirmationOpen = false
+    /// The setup wizard (`repo.setup`) is open, and on which step (0 sample … 3 write).
+    public var repoSetupOpen = false
+    public var repoSetupStep = 0
     public var importOpen = false
     /// The hosts dialog (`gH`) is open.
     public var hostsOpen = false

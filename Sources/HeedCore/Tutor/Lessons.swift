@@ -246,7 +246,7 @@ public extension Tutor {
                 doneLine: "Its PRs, what the next run does with each, and every run so far. {merge.run} runs it now."
             ) { _, now, _ in now.mergeQueue },
         ]),
-        TutorLesson(id: "repos", title: "Repos", minutes: 3, world: .mondayMorning, steps: [
+        TutorLesson(id: "repos", title: "Repos", minutes: 4, world: .mondayMorning, steps: [
             TutorStep(
                 "Read the table",
                 say: "Every worktree of every repo, with its session, PR and status. {row.next} walks it.",
@@ -265,6 +265,14 @@ public extension Tutor {
                 keys: ["dd", "n"], target: "confirm",
                 doneLine: "Nothing is removed until you say y, and the dialog names what goes."
             ) { _, now, seen in seen.contains(where: \.confirmationOpen) && !now.confirmationOpen },
+            TutorStep(
+                "Set up merging",
+                say: "{repo.setup} sets up get it merged and get it green for the repo: heed samples its merged PRs "
+                    + "and CI, proposes each setting with why, and replays its rules. ↩ twice gets to Validate, ⎋ "
+                    + "closes without writing.",
+                keys: ["{repo.setup}", "↩", "↩", "⎋"], target: "dialog",
+                doneLine: "Config is written only on the last step's ↩; GitHub's own settings never change."
+            ) { _, now, seen in seen.contains { $0.repoSetupStep >= 2 } && !now.repoSetupOpen },
         ]),
         TutorLesson(id: "history", title: "History", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(

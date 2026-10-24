@@ -66,6 +66,19 @@ struct TutorTests {
         }
     }
 
+    @Test func theReposLessonEndsWithTheSetupWizard() throws {
+        let lesson = try #require(Tutor.viewLessons.first { $0.id == "repos" })
+        let step = try #require(lesson.steps.last)
+        #expect(step.title == "Set up merging")
+        var tutor = Tutor(lesson: lesson, step: lesson.steps.count - 1, state: state())
+        // Opening and closing on the first step is not enough: it ticks off once Validate was seen.
+        #expect(observe(&tutor, state { $0.repoSetupOpen = true }) == .none)
+        #expect(observe(&tutor, state { $0.repoSetupOpen = false }) == .none)
+        #expect(observe(&tutor, state { $0.repoSetupOpen = true; $0.repoSetupStep = 2 }) == .none)
+        #expect(observe(&tutor, state()) == .advanced)
+        #expect(tutor.finished)
+    }
+
     @Test func twoModesNeedsInsertAndBack() {
         var tutor = Tutor(lesson: Tutor.tour, state: state())
         #expect(observe(&tutor, state { $0.mode = .insert }) == .none)

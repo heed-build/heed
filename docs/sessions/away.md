@@ -30,7 +30,7 @@ On its own, when Heed has not been the app in front for `away_hours` (8 by defau
 the Mac wakes with Heed in front, or when Heed starts after that long. It opens only when there is something to show,
 after the [resume dialog](resume.md) if that is up, and it never takes focus: it waits in the window until you look.
 
-Any time, `gZ` (or `:summary`, or **While you were away…** in the menu bar owl's menu and the Window menu) opens it for
+Any time, `gZ` (or `:summary`, or **While you were away…** in the menu bar owl's menu and the File menu) opens it for
 today and yesterday, or further back when the last one that opened on its own went back further.
 
 ```toml

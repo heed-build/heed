@@ -46,4 +46,4 @@ matter in the view you are in, and `?` shows every command: its key where you ar
 ## In this section
 
 - [Views](views.md) · [Hints](hints.md) · [The command line](command-line.md) · [Selecting](visual.md)
-- [Mac shortcuts](mac-shortcuts.md) · [The mouse and right-click](mouse.md) · [Customizing keys](customizing.md) · [Key reference](reference.md)
+- [Mac shortcuts](mac-shortcuts.md) · [The mouse, the menu bar and right-click](mouse.md) · [Customizing keys](customizing.md) · [Key reference](reference.md)

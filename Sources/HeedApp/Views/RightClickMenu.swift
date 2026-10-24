@@ -63,12 +63,15 @@ private struct RightClickArea: NSViewRepresentable {
 /// The NSMenu for a list of entries: each item runs its command through the model, its key on the right.
 @MainActor
 enum RightClickMenu {
-    static func menu(_ entries: [MenuEntry], model: AppModel) -> NSMenu {
+    /// `menuBar`: the menu bar's, whose submenus show their keys too (a right-click's pick an agent, which no key
+    /// does), and whose keys show even where they work in one view only: its submenus say which view ("In the diff").
+    static func menu(_ entries: [MenuEntry], model: AppModel, menuBar: Bool = false) -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
         let font = NSFont.menuFont(ofSize: 0)
         let items = entries.compactMap { if case let .item(item) = $0 { item } else { nil } }
-        let keys = Dictionary(items.map { ($0.keyCommand, key(for: $0.keyCommand, model)) }) { first, _ in first }
+        let keys = Dictionary(items
+            .map { ($0.keyCommand, key(for: $0.keyCommand, model, anywhere: menuBar)) }) { first, _ in first }
         // One tab stop for the whole menu, past its widest title, so the keys line up as shortcuts do.
         let widest = items.map { width($0.title, font) }.max() ?? 0
         let widestKey = keys.values.map { width($0, font) }.max() ?? 0
@@ -89,11 +92,17 @@ enum RightClickMenu {
                 menu.addItem(menuItem)
             case let .submenu(title, items):
                 // Its items name what they pick (an agent), not a key: the key opens the command line, not one pick.
-                let submenu = NSMenu(title: title)
-                submenu.autoenablesItems = false
-                for item in items {
-                    submenu.addItem(Self.item(item, model: model))
+                let submenu: NSMenu
+                if menuBar {
+                    submenu = Self.menu(items.map(MenuEntry.item), model: model, menuBar: true)
+                } else {
+                    submenu = NSMenu()
+                    submenu.autoenablesItems = false
+                    for item in items {
+                        submenu.addItem(Self.item(item, model: model))
+                    }
                 }
+                submenu.title = title
                 let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
                 parent.submenu = submenu
                 menu.addItem(parent)
@@ -104,7 +113,14 @@ enum RightClickMenu {
 
     /// One item that runs its command through the model.
     private static func item(_ item: MenuItem, model: AppModel) -> NSMenuItem {
-        let action = Action { model.perform(item.command) }
+        // One that needs words the menu cannot know (`pr.track <url>`) opens the command line with it typed.
+        let action = Action(item.command.name, enabled: item.enabled) {
+            if MenuBar.asks(item) {
+                model.openCommandLine("\(item.command.name) ")
+            } else {
+                model.perform(item.command)
+            }
+        }
         let menuItem = NSMenuItem(title: item.title, action: #selector(Action.run), keyEquivalent: "")
         menuItem.target = action
         // The target is weak; the item keeps the action alive.
@@ -116,8 +132,8 @@ enum RightClickMenu {
 
     /// The key that runs the command where the menu opened. One that only works elsewhere (VISUAL's `y`, the PR
     /// overlay's `C`) would mislead here, so the menu shows the `:name` that does work, as it does for an unbound one.
-    private static func key(for command: String, _ model: AppModel) -> String {
-        guard let label = model.keyBinding(for: command), label.context == nil else { return ":\(command)" }
+    private static func key(for command: String, _ model: AppModel, anywhere: Bool = false) -> String {
+        guard let label = model.keyBinding(for: command), anywhere || label.context == nil else { return ":\(command)" }
         return label.text
     }
 
@@ -139,11 +155,20 @@ enum RightClickMenu {
         ceil((text as NSString).size(withAttributes: [.font: font]).width)
     }
 
-    private final class Action: NSObject {
+    final class Action: NSObject, NSMenuItemValidation {
+        let command: String
+        let enabled: Bool
         let perform: () -> Void
 
-        init(_ perform: @escaping () -> Void) { self.perform = perform }
+        init(_ command: String, enabled: Bool, perform: @escaping () -> Void) {
+            self.command = command
+            self.enabled = enabled
+            self.perform = perform
+        }
 
         @objc func run() { perform() }
+
+        /// A menu that enables its own items (the menu bar's, which SwiftUI makes) asks here.
+        func validateMenuItem(_: NSMenuItem) -> Bool { enabled }
     }
 }

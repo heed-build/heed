@@ -19,22 +19,15 @@ struct HeedApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1440, height: 900)
         .commands {
-            // Keys are the mode engine's; the menu must not claim ⌘/ or other keys before it sees them.
+            // Keys are the mode engine's; the menu must not claim ⌘/ or other keys before it sees them. File, Session,
+            // View, PR, Go, Window and Help are filled from `MenuBar` by `MainMenu`, with no key equivalents but ⌘N.
             CommandGroup(replacing: .newItem) {}
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") {
                     delegate.host.current.perform(CommandInvocation(name: "update.check"))
                 }
             }
-            // No key equivalent either: gZ is the mode engine's.
-            CommandGroup(before: .windowList) {
-                Button("While you were away…") { delegate.host.current.perform(CommandInvocation(name: "summary")) }
-                Divider()
-            }
-            // No key equivalent: ⌘⇧T is the mode engine's, so it works from a terminal pane too.
-            CommandGroup(replacing: .help) {
-                Button("Heed Tutor") { delegate.host.current.perform(CommandInvocation(name: "tutor")) }
-            }
+            CommandGroup(replacing: .help) {}
         }
 
         Settings {
@@ -131,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // No NSApp.activate(): Heed never takes focus, it only asks for attention.
         NSApp.setActivationPolicy(.regular)
         router.start()
+        MainMenu.shared.install(host: host)
         if !model.isFixture {
             Task { await model.start(cache: DomainStore.defaultFile()) }
         }

@@ -183,7 +183,8 @@ extension AppModel {
         guard diffFiles.indices.contains(file) else { return [] }
         return ContextMenus.diff(
             file: file, row: row ?? 0, path: diffFiles[file].path, line: row != nil, split: diffSplit,
-            hasCommits: !diffCommits.isEmpty
+            hasCommits: !diffCommits.isEmpty,
+            selected: row.map { file == diffFileIndex && diffCursor.selection?.contains($0) == true } ?? false
         )
     }
 

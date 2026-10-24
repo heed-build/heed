@@ -1,3 +1,4 @@
+import AppKit
 import HeedCore
 import SwiftUI
 
@@ -6,6 +7,8 @@ struct DiffOverlayView: View {
     @Environment(AppModel.self) private var model
     /// The diff body's visible width: the comment box spans it, not the longest line.
     @State private var bodyWidth: CGFloat = 800
+    /// Where each row of the unified diff is drawn, for a drag to find the rows it passes over.
+    @State private var rowFrames = DiffRowFrames()
 
     var body: some View {
         GeometryReader { geometry in
@@ -35,26 +38,28 @@ struct DiffOverlayView: View {
             }
             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
             .clipShape(RoundedRectangle(cornerRadius: 5))
-            KeyCap(text: "⇥")
-            Text("scope").foregroundStyle(Theme.fg3)
+            KeyHint("diff.scope.next", scope: "diff", label: "scope")
             if model.diffLoading { Text("loading…").foregroundStyle(Theme.fg3) }
             Spacer()
+            // The view you are not in switches to it, as t does.
             HStack(spacing: 0) {
-                segment("Unified", on: !model.diffSplit)
-                segment("Split", on: model.diffSplit)
+                segment("Unified", on: !model.diffSplit).clickRuns(model.diffSplit ? splitToggle : nil)
+                segment("Split", on: model.diffSplit).clickRuns(model.diffSplit ? nil : splitToggle)
             }
             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
             .clipShape(RoundedRectangle(cornerRadius: 5))
-            KeyCap(text: "t")
-            KeyCap(text: "gd")
+            KeyHint("diff.split", scope: "diff") { EmptyView() }
+            KeyHint("overlay.diff", key: "gd") { EmptyView() }
             Text("or").foregroundStyle(Theme.fg3)
-            KeyCap(text: "⎋")
+            KeyHint("overlay.close", scope: "diff") { EmptyView() }
         }
         .font(Theme.ui(12))
         .padding(.horizontal, 20)
         .frame(height: 52)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
     }
+
+    private var splitToggle: CommandInvocation { CommandInvocation(name: "diff.split") }
 
     private func segment(_ label: String, on: Bool) -> some View {
         Text(label)
@@ -70,13 +75,17 @@ struct DiffOverlayView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
                 SectionHeader(title: "Commits")
-                KeyCap(text: "c")
+                KeyHint("diff.commit", scope: "diff") { EmptyView() }
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
+            // A click shows that commit alone, or the whole branch again.
             commitRow("all", "\(model.diffCommits.count) commits vs base", on: !isCommitScope)
+                .clickRuns(isCommitScope ? CommandInvocation(name: "diff.commit", arguments: ["all"]) : nil)
             ForEach(model.diffCommits) { commit in
-                commitRow(commit.sha, commit.subject, on: model.diffScope == .commit(commit.sha))
+                let on = model.diffScope == .commit(commit.sha)
+                commitRow(commit.sha, commit.subject, on: on)
+                    .clickRuns(on ? nil : CommandInvocation(name: "diff.commit", arguments: [commit.sha]))
             }
             SectionHeader(title: "Files").padding(.horizontal, 14).padding(.top, 18).padding(.bottom, 8)
             ListScroll {
@@ -100,7 +109,9 @@ struct DiffOverlayView: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
                         .background(index == model.diffFileIndex ? Theme.bg3 : .clear)
-                        .contentShape(Rectangle())
+                        .modifier(DiffRowHover(pointer: true))
+                        .onTapGesture { model.clickDiffFile(index) }
+                        .help(file.path)
                         .rightClickMenu { model.rightClickDiff(file: index, row: nil) } _: {
                             model.diffMenu(file: index, row: nil)
                         }
@@ -207,12 +218,27 @@ struct DiffOverlayView: View {
                                                     isCursor: index == model.diffRow,
                                                     notes: notes[hunk] ?? 0
                                                 )
+                                                .modifier(DiffRowHover(pointer: true))
+                                                .help("Click to select the hunk")
                                             case let .line(_, line): UnifiedLine(
                                                     line: line,
                                                     isCursor: index == model.diffRow
                                                 )
+                                                .modifier(DiffRowHover(pointer: false))
                                             }
                                         }
+                                        .overlay {
+                                            if selection?.contains(index) == true {
+                                                Theme.block.opacity(0.18).allowsHitTesting(false)
+                                            }
+                                        }
+                                        .onTapGesture { click(row, at: index) }
+                                        .simultaneousGesture(TapGesture(count: 2).onEnded {
+                                            model.clickDiffLine(index, open: true)
+                                        })
+                                        .onGeometryChange(for: CGRect.self) {
+                                            $0.frame(in: .named(DiffRowFrames.space))
+                                        } action: { rowFrames.rows[index] = $0 }
                                         .rightClickMenu {
                                             model.rightClickDiff(file: model.diffFileIndex, row: index)
                                         } _: {
@@ -225,11 +251,22 @@ struct DiffOverlayView: View {
                                     }
                                 }
                             }
+                            .coordinateSpace(.named(DiffRowFrames.space))
+                            .simultaneousGesture(
+                                DragGesture(minimumDistance: 4, coordinateSpace: .named(DiffRowFrames.space))
+                                    .onChanged { drag in
+                                        guard !model.diffSplit, let start = rowFrames.row(at: drag.startLocation.y),
+                                              let end = rowFrames.row(at: drag.location.y)
+                                        else { return }
+                                        model.dragDiff(from: start, to: end)
+                                    }
+                            )
                             .padding(.bottom, 20)
                         }
                         .defaultScrollAnchor(.topLeading)
                         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { bodyWidth = $0 }
                         .onChange(of: model.diffRow) { proxy.scrollTo(model.diffRow, anchor: .center) }
+                        .onChange(of: file.id) { rowFrames.rows = [:] }
                     }
                 }
             }
@@ -238,6 +275,18 @@ struct DiffOverlayView: View {
                 .font(Theme.ui(12.5))
                 .foregroundStyle(Theme.fg3)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var selection: ClosedRange<Int>? { model.diffCursor.selection }
+
+    /// A click on a hunk's header selects the hunk, on a line moves the cursor there; ⇧ selects from the cursor.
+    private func click(_ row: DiffRow, at index: Int) {
+        let shift = NSEvent.modifierFlags.contains(.shift)
+        if case let .header(hunk, _) = row, !shift {
+            model.clickDiffHunk(hunk)
+        } else {
+            model.clickDiffLine(index, extend: shift)
         }
     }
 
@@ -265,13 +314,24 @@ struct DiffOverlayView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 14) {
-            hint("n N", "hunk")
-            hint("]f [f", "file")
-            hint(model.keyText(for: "diff.ask"), "note on this hunk")
-            hint(model.keyText(for: "diff.ask.now"), "ask the agent now")
-            hint("y", "copy path:line")
-            hint("e", "open in editor")
+        // Buttons as well as hints: a click runs what the key runs, on the selected lines when there are some.
+        let lines = selection != nil
+        return HStack(spacing: 14) {
+            KeyHint("diff.hunk.next", key: "n N", label: "hunk", color: Theme.fg2)
+            KeyHint("diff.file.next", key: "]f [f", label: "file", color: Theme.fg2)
+            KeyHint(
+                "diff.ask",
+                scope: "diff",
+                label: lines ? "note on these lines" : "note on this hunk",
+                color: Theme.fg2
+            )
+            KeyHint(
+                "diff.ask.now", scope: "diff", label: lines ? "ask about these lines now" : "ask the agent now",
+                color: Theme.fg2
+            )
+            KeyHint("diff.copy", scope: "diff", label: lines ? "copy path:lines" : "copy path:line", color: Theme.fg2)
+            KeyHint("diff.edit", scope: "diff", label: "open in editor", color: Theme.fg2)
+            if !lines { KeyHint(keys: "v", label: "select lines", color: Theme.fg2) }
             Spacer()
         }
         .font(Theme.ui(12))
@@ -279,12 +339,33 @@ struct DiffOverlayView: View {
         .frame(height: 38)
         .overlay(alignment: .top) { Theme.line.frame(height: 1) }
     }
+}
 
-    private func hint(_ key: String, _ label: String) -> some View {
-        HStack(spacing: 6) {
-            KeyCap(text: key)
-            Text(label).foregroundStyle(Theme.fg2).fixedSize()
-        }
+/// The unified diff's row frames, in the body's coordinates: a drag looks up the rows under it. Not observed, so a
+/// frame changing redraws nothing.
+@MainActor final class DiffRowFrames {
+    static let space = "diffRows"
+    var rows: [Int: CGRect] = [:]
+
+    /// The row at `y`: the last that starts above it, so a drag past the end or over a comment box stays on a row.
+    func row(at y: CGFloat) -> Int? {
+        rows.filter { $0.value.minY <= y }.max { $0.value.minY < $1.value.minY }?.key
+            ?? rows.min { $0.value.minY < $1.value.minY }?.key
+    }
+}
+
+/// A row of the diff says it can be clicked: a faint highlight while hovered, and the pointing hand where a click
+/// does more than move the cursor (a file, a hunk's header).
+private struct DiffRowHover: ViewModifier {
+    let pointer: Bool
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .overlay { if hovering { Theme.fg.opacity(0.04).allowsHitTesting(false) } }
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
+            .pointerStyle(pointer ? .link : nil)
     }
 }
 
@@ -318,11 +399,12 @@ private struct NoteBox: View {
             .frame(maxWidth: .infinity, minHeight: 38, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.busy.opacity(0.6)))
+            // Clickable: each presses its keys into the box.
             HStack(spacing: 12) {
-                hint("↩", "queue")
-                hint("⌘↩", "queue and send")
-                hint("⇧↩", "new line")
-                hint("⎋", "cancel")
+                KeyHint(keys: "<CR>", label: "queue", font: Theme.ui(11.5))
+                KeyHint(keys: "<D-CR>", label: "queue and send", font: Theme.ui(11.5))
+                KeyHint(keys: "<S-CR>", label: "new line", font: Theme.ui(11.5))
+                KeyHint(keys: "<Esc>", label: "cancel", font: Theme.ui(11.5))
                 Spacer()
                 Text(model.noteDestination(repo: draft.repo)).foregroundStyle(Theme.fg3).lineLimit(1)
             }
@@ -332,13 +414,6 @@ private struct NoteBox: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg3))
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
-    }
-
-    private func hint(_ key: String, _ label: String) -> some View {
-        HStack(spacing: 6) {
-            KeyCap(text: key)
-            Text(label).foregroundStyle(Theme.fg3).fixedSize()
-        }
     }
 }
 

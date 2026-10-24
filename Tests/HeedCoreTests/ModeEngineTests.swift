@@ -314,3 +314,31 @@ struct VisualKeysTests {
         #expect(engine.handle(KeyStroke("d")) == .run(CommandInvocation(name: "select.remove")))
     }
 }
+
+struct DiffKeysTests {
+    @Test func returnInTheDiffWritesANoteAsADoubleClickDoes() {
+        var engine = engine()
+        engine.scope = "diff"
+        #expect(press(&engine, "<CR>") == [.run(CommandInvocation(name: "diff.ask"))])
+        #expect(engine.normalCommand(for: [KeyStroke("CR")], scope: "diff") == CommandInvocation(name: "diff.ask"))
+    }
+
+    @Test func theDiffsKeysActOnASelectionInVisual() {
+        var engine = engine()
+        engine.scope = "diff"
+        engine.enter(.visual)
+        #expect(press(&engine, "a") == [.run(CommandInvocation(name: "diff.ask"))])
+        #expect(press(&engine, "A") == [.run(CommandInvocation(name: "diff.ask.now"))])
+        #expect(press(&engine, "y") == [.run(CommandInvocation(name: "diff.copy"))])
+        #expect(press(&engine, "j") == [.run(CommandInvocation(name: "row.next"))])
+        #expect(engine.mode == .visual)
+        // Other views keep VISUAL's own keys: Repos' dd does not make d wait.
+        engine.scope = "repos"
+        #expect(press(&engine, "d") == [.run(CommandInvocation(name: "select.remove"))])
+        #expect(press(&engine, "y") == [.run(CommandInvocation(name: "select.copy"))])
+    }
+
+    @Test func oneCommitByName() {
+        #expect(Commands.spec("diff.commit")?.arguments != nil)
+    }
+}

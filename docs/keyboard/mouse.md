@@ -130,9 +130,14 @@ another agent (**Hand off to…**, `gA`).
 
 ## The diff and the PR overlay
 
-In the [diff overlay](../diff/index.md), a right-click on a file in the list, or on a line of the diff, copies its
-`path:line` (`y`), opens the file in your editor (`e`), puts a note on the hunk (`a`) or asks the agent about it now
-(`A`), shows one commit at a time (`c`), or switches to the split view (`t`).
+In the [diff overlay](../diff/index.md), a click on a file shows it, a click on a commit shows that commit alone, a
+click on a line moves the cursor there and a double-click writes a note on it (as `↩`). Drag over lines, or shift-click,
+to [select them](../diff/index.md#selecting-lines); a click on a hunk's header selects the hunk. Its key hints are
+buttons: the scope, unified or split, the next commit, close, and the note, ask, copy and editor actions below the diff.
+
+A right-click on a file in the list, or on a line of the diff, copies its `path:line` (`y`), opens the file in your
+editor (`e`), puts a note on the hunk (`a`) or asks the agent about it now (`A`), shows one commit at a time (`c`), or
+switches to the split view (`t`). On a selected line, the items act on all the selected lines.
 
 A feedback item in the [PR overlay](../github/review-feedback.md) can be queued or unqueued (`␣`), sent with the rest
 of the queue (`s`) or dismissed (`x`); for a PR, you can also start a session from it (`S`) or open it in the browser

@@ -398,6 +398,8 @@ enum Shots {
     static let diff: [Shot] = [
         Shot(id: "diff/overlay", keys: "gd"),
         Shot(id: "diff/split", keys: "gdt"),
+        // Lines selected, as a drag over them or `v` selects them: the footer's actions say they act on the lines.
+        Shot(id: "diff/select", keys: "gdjjvjj"),
         // `a` on a line: the comment box under it, a note being typed.
         Shot(id: "diff/note", keys: "gdjja" + typed(noteText)),
         // Queued: the hunk's header counts it, and it joins the PR's feedback.

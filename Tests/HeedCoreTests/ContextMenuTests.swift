@@ -312,6 +312,17 @@ struct ContextMenuTests {
         #expect(item("diff.split", in: menu)?.checked == true)
     }
 
+    @Test func aRightClickOnSelectedLinesActsOnThemAll() {
+        let menu = ContextMenus.diff(
+            file: 0, row: 3, path: "a.swift", line: true, split: false, hasCommits: true, selected: true
+        )
+        #expect(item("diff.copy", in: menu)?.title == "Copy path:lines")
+        #expect(item("diff.ask", in: menu)?.title == "Note on these lines")
+        #expect(item("diff.ask.now", in: menu)?.title == "Ask the agent about these lines now")
+        let plain = ContextMenus.diff(file: 0, row: 3, path: "a.swift", line: true, split: false, hasCommits: true)
+        #expect(item("diff.ask", in: plain)?.title == "Note on this hunk")
+    }
+
     @Test func feedbackItems() {
         var facts = ContextMenus.FeedbackFacts(id: "t1", title: "a.swift:3 typo")
         facts.queueable = true

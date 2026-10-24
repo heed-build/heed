@@ -142,11 +142,11 @@ public enum DefaultKeys {
         "watch": [
             ("r", "github.sync"), ("<Space>", "select.toggle"), ("R", "merge.run"), ("C", "pilot.copilot"),
         ],
-        /// The diff overlay.
+        /// The diff overlay. ↩ writes a note on the line, as a double-click does.
         "diff": [
             ("n", "diff.hunk.next"), ("N", "diff.hunk.prev"), ("]f", "diff.file.next"), ("[f", "diff.file.prev"),
             ("<Tab>", "diff.scope.next"), ("<S-Tab>", "diff.scope.prev"), ("c", "diff.commit"), ("t", "diff.split"),
-            ("a", "diff.ask"), ("A", "diff.ask.now"), ("y", "diff.copy"), ("e", "diff.edit"),
+            ("a", "diff.ask"), ("A", "diff.ask.now"), ("y", "diff.copy"), ("e", "diff.edit"), ("<CR>", "diff.ask"),
             ("<Esc>", "overlay.close"),
         ],
         /// The issue reader.
@@ -159,6 +159,10 @@ public enum DefaultKeys {
             ("x", "feedback.dismiss"), ("S", "feedback.session"), ("<Esc>", "overlay.close"), ("r", "github.sync"),
         ],
     ]
+
+    /// Views whose own bindings work in VISUAL too, ahead of VISUAL's: in the diff, `a`, `A` and `y` act on the
+    /// selected lines.
+    public static let visualScopes: Set<String> = ["diff"]
 
     public static func table(for mode: Mode) -> [(String, String)] {
         switch mode {

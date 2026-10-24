@@ -200,11 +200,11 @@ This page is generated from the code (`mise run shots`).
 | `diff.file.prev` | `[f` (diff) | previous file |
 | `diff.scope.next` | `<Tab>` (diff) | next scope: all, committed, staged, unstaged |
 | `diff.scope.prev` | `<S-Tab>` (diff) | previous scope |
-| `diff.commit` | `c` (diff) | show one commit (cycles) |
+| `diff.commit` `[sha|all]` | `c` (diff) | show one commit (cycles; a sha shows that one, all the whole branch) |
 | `diff.split` | `t` (diff) | unified / split |
-| `diff.ask` | `a` (diff) | queue feedback on this hunk |
-| `diff.ask.now` | `A` (diff) | ask the agent about this hunk now |
-| `diff.copy` | `y` (diff) | copy path:line |
+| `diff.ask` | `a` (diff), `<CR>` (diff) | queue feedback on this hunk (or the selected lines) |
+| `diff.ask.now` | `A` (diff) | ask the agent about this hunk (or the selected lines) now |
+| `diff.copy` | `y` (diff) | copy path:line (path:first-last for selected lines) |
 | `diff.edit` | `e` (diff) | open the file in the editor |
 | `repo.add` `<path>` |  | add a repo outside the scanned roots (kept in repo_paths) |
 | `repo.scan` | `r` (repos) | refresh: rescan the repo roots |

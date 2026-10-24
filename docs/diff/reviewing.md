@@ -8,11 +8,11 @@ description: The split view, and notes to the agent on a hunk.
 
 ![The split view: old on the left, new on the right](../images/shots/diff/split.png)
 
-From the line under the cursor:
+From the line under the cursor, or the [selected lines](index.md#selecting-lines):
 
 | Key | |
 |---|---|
-| `a` | Write a note on this hunk, queued for the agent (below) |
+| `a` or `↩` | Write a note on this hunk, queued for the agent (below); a double-click on a line does the same |
 | `A` | Ask the agent about this hunk now: its location goes to the agent's pane, and you finish the question there |
 | `e` | Open the file at that line in your editor |
 | `y` | Copy `path:line` |
@@ -31,6 +31,8 @@ Changed words within a line are highlighted, so a one-character fix stands out i
 | `⌘↩` | Queue it and send what is queued now |
 | `⇧↩` | New line |
 | `⎋` | Cancel |
+
+The keys under the box are buttons too.
 
 A note keeps the file, the line (on the new side), your words, and up to 20 lines of the hunk around the line. The
 prompt carries it as `path:line (you): your note`, with those lines in a fenced block after it.

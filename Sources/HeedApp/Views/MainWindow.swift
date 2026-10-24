@@ -494,6 +494,8 @@ struct StatusBar: View {
         case .insert: "⇧⎋ or \(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
         case .visual where model.view == .watch || model.view == .prs:
             "\(model.pickedIDs(model.view).count) selected · \(model.keyText(for: "pilot.pause")) pause or resume · space toggle · ⎋ cancel"
+        case .visual where model.overlay == .diff:
+            "\(model.diffCursor.selection?.count ?? 0) selected · j k extend · \(model.keyText(for: "diff.ask", in: "diff")) note · \(model.keyText(for: "diff.ask.now", in: "diff")) ask now · \(model.keyText(for: "diff.copy", in: "diff")) copy path:lines · ⎋ cancel"
         case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
         case .command: "⇥ complete · ↑↓ choose · ↩ run · ⎋ cancel"
         case .hint: "type a label · ⎋ cancel"

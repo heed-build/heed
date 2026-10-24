@@ -357,8 +357,7 @@ enum Shots {
     private static let withOldChat: @MainActor (AppModel) -> Void = { model in
         model.applyConfig(source: "[cleanup]\nenabled = true\nidle_days = 3\nask_before_sweep = true\n")
         var entry = Fixtures.closedChat
-        // The sweep measures from the real now, as it does for worktrees.
-        entry.closedAt = Date().addingTimeInterval(-40 * 86400)
+        entry.closedAt = Clock.now.addingTimeInterval(-40 * 86400)
         entry.session.workspace = .chat(ChatFolder(
             .scratch, path: "/Users/you/Library/Application Support/Heed/chats/2026-09-03-rows-differ-exports"
         ))
@@ -371,7 +370,7 @@ enum Shots {
         let repo = Repo(org: "acme", name: "docs-toolkit")
         model.commit(.archivesListed(repo: repo, location: .local, [ArchiveRef(
             repo: repo, branch: "toc-experiment", commit: "4e1f0a2",
-            archivedAt: Date().addingTimeInterval(-120 * 86400), unpushed: 2
+            archivedAt: Clock.now.addingTimeInterval(-120 * 86400), unpushed: 2
         )]))
     }
 

@@ -517,7 +517,7 @@ final class AppModel {
     // MARK: Cleanup
 
     var sweepPlan: SweepPlan {
-        Sweep.plan(domain: currentDomain, rule: config.cleanup, lastCommit: lastCommits)
+        Sweep.plan(domain: currentDomain, rule: config.cleanup, lastCommit: lastCommits, now: Clock.now)
     }
 
     /// Sweeps hourly unless config asks to be asked first; `gs` always runs one now.
@@ -2981,7 +2981,7 @@ final class AppModel {
                 "remove \($0.worktree.repo.name)/\($0.worktree.branch ?? "") (\($0.idleText))"
             } + plan.chatRemovals.map { "remove chat scratch folder \($0.name) (closed \($0.closedDays)d)" }
                 + plan.expired.map {
-                    "drop \($0.repo.name) \($0.name) (saved \(Int(Date().timeIntervalSince($0.archivedAt) / 86400))d ago)"
+                    "drop \($0.repo.name) \($0.name) (saved \(Int(Clock.now.timeIntervalSince($0.archivedAt) / 86400))d ago)"
                 },
             kept: plan.skips.map { "\($0.worktree.repo.name)/\($0.worktree.branch ?? ""): \($0.reason)" },
             accept: "Sweep"

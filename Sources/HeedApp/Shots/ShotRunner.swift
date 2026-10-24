@@ -121,9 +121,8 @@ enum ShotRunner {
         .environment(\.colorScheme, .dark)
 
         let renderer = ImageRenderer(content: view)
-        renderer.scale = 2
         renderer.proposedSize = ProposedViewSize(shot.size)
-        guard var image = renderer.cgImage else { throw Failure(description: "nothing rendered") }
+        guard var image = rasterize(renderer) else { throw Failure(description: "nothing rendered") }
         if let crop = shot.crop {
             guard let rect = frames.rects[crop] else { throw Failure(description: "region \(crop) not on screen") }
             let padded = rect.insetBy(dx: -shot.cropPadding, dy: -shot.cropPadding)
@@ -138,6 +137,25 @@ enum ShotRunner {
             image = cropped
         }
         try write(image, shot: shot, into: directory)
+    }
+
+    /// Draws at 2x into a bitmap of our own, with glyphs on whole pixels: CoreText's subpixel glyph cache otherwise
+    /// makes a shot's text differ by a bit or two depending on what the process drew before it.
+    private static func rasterize(_ renderer: ImageRenderer<some View>) -> CGImage? {
+        var image: CGImage?
+        renderer.render(rasterizationScale: 2) { rendered, draw in
+            guard let context = CGContext(
+                data: nil, width: Int(rendered.width * 2), height: Int(rendered.height * 2), bitsPerComponent: 8,
+                bytesPerRow: 0, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return }
+            context.scaleBy(x: 2, y: 2)
+            context.setShouldSubpixelPositionFonts(false)
+            context.setShouldSubpixelQuantizeFonts(false)
+            draw(context)
+            image = context.makeImage()
+        }
+        return image
     }
 
     private static func hostedImage(_ view: some View, size: CGSize) throws -> CGImage {

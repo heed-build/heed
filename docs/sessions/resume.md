@@ -10,8 +10,8 @@ under `[sessions]`:
 
 | Value | On launch |
 |---|---|
-| `ask` | List the sessions that were open and let you pick which agents to resume (the default) |
-| `always` | Resume them all |
+| `ask` | List the sessions that were open, all ticked, and let you untick the ones to leave closed (the default) |
+| `always` | Resume the ones that were working, blocked or asking; idle and finished ones stay closed |
 | `never` | Open plain shells; resume by hand |
 
 ![The resume dialog: sessions that were open, which can resume, and which agent sessions are gone](../images/shots/sessions/resume.png)

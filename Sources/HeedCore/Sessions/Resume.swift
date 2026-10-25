@@ -13,7 +13,7 @@ public struct ResumeCandidate: Identifiable, Hashable, Sendable {
         case resumeOnly = "resume only"
         /// The agent no longer has the session (or cannot resume): start again from the prompt.
         case startFresh = "start fresh"
-        /// Idle or finished: offered, not ticked.
+        /// Idle or finished: ticked in the dialog like the rest, but `always` leaves it closed.
         case leftClosed = "left closed"
     }
 
@@ -23,9 +23,19 @@ public struct ResumeCandidate: Identifiable, Hashable, Sendable {
     /// The exact line typed into the agent pane.
     public let command: ShellCommand
     public let paneCount: Int
+    /// The agent no longer has the session, so `command` starts it again from its prompt.
+    public var startsFresh = false
 
-    /// Whether it is ticked by default.
-    public var defaultSelected: Bool { mode != .leftClosed }
+    /// What the dialog says will happen. An idle or finished session is "left closed" until you tick it; ticked, it
+    /// resumes (or starts fresh when the agent no longer has the session).
+    public func label(ticked: Bool) -> String {
+        guard mode == .leftClosed else { return mode.rawValue }
+        guard ticked else { return mode.rawValue }
+        return startsFresh ? Mode.startFresh.rawValue : "resume"
+    }
+
+    /// Whether `resume_on_launch = "always"` resumes it without asking (the dialog ticks every candidate).
+    public var resumesWithoutAsking: Bool { mode != .leftClosed }
 
     /// "was working", "was blocked on a permission prompt", "idle for 2h".
     public var summary: String {
@@ -80,7 +90,8 @@ public enum Resume {
                 let command = agent.launchCommand(prompt: session.prompt, extraArguments: fresh, environment: env)
                 let active = [.working, .blocked, .asking, .limited].contains(session.state.state)
                 return ResumeCandidate(
-                    session: session, mode: active ? .startFresh : .leftClosed, command: command, paneCount: panes
+                    session: session, mode: active ? .startFresh : .leftClosed, command: command, paneCount: panes,
+                    startsFresh: true
                 )
             }
             let mode: ResumeCandidate.Mode = switch session.state.state {
@@ -109,7 +120,7 @@ public struct ResumeForm: Sendable {
 
     public init(candidates: [ResumeCandidate]) {
         self.candidates = candidates
-        selected = Set(candidates.filter(\.defaultSelected).map(\.id))
+        selected = Set(candidates.map(\.id))
     }
 
     public var chosen: [ResumeCandidate] { candidates.filter { selected.contains($0.id) } }

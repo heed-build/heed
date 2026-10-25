@@ -46,15 +46,31 @@ struct ResumeTests {
         #expect(command == "claude --settings /tmp/h/claude-hooks.json --resume abc")
     }
 
-    @Test func formTicksActiveSessionsAndToggles() {
+    @Test func formTicksEverySessionAndToggles() {
         let domain = Domain(sessions: [session("w", .working), session("d", .done)])
         var form = ResumeForm(candidates: Resume.candidates(domain: domain, settings: .default, integration: nil))
-        #expect(form.chosen.map(\.id) == ["w"])
+        #expect(form.chosen.map(\.id) == ["w", "d"])
         _ = form.handle(KeyStroke("j"))
         _ = form.handle(KeyStroke("Space"))
         #expect(form.handle(KeyStroke("CR", .command)) == .resume(form.chosen))
-        #expect(form.chosen.map(\.id) == ["w", "d"])
+        #expect(form.chosen.map(\.id) == ["w"])
         #expect(form.handle(.escape) == .startEmpty)
+    }
+
+    @Test func aTickedIdleSessionSaysWhatHappens() {
+        let domain = Domain(sessions: [session("d", .done, agentID: "abc"), session("i", .idle, agentID: nil)])
+        let candidates = Resume.candidates(domain: domain, settings: .default, integration: nil) { _ in true }
+        let resumes = try? #require(candidates.first { $0.id == "d" })
+        #expect(resumes?.label(ticked: false) == "left closed")
+        #expect(resumes?.label(ticked: true) == "resume")
+        let fresh = try? #require(candidates.first { $0.id == "i" })
+        #expect(fresh?.label(ticked: true) == "start fresh")
+    }
+
+    @Test func alwaysStillLeavesIdleAndFinishedSessionsClosed() {
+        let domain = Domain(sessions: [session("w", .working), session("d", .done), session("i", .idle)])
+        let candidates = Resume.candidates(domain: domain, settings: .default, integration: nil)
+        #expect(candidates.filter(\.resumesWithoutAsking).map(\.id) == ["w"])
     }
 
     @Test func claudeSessionFilesAreFoundByEncodedDirectory() throws {

@@ -118,7 +118,7 @@ struct ResumeView: View {
                 .lineLimit(1)
             }
             .frame(minWidth: 180, maxWidth: 320, alignment: .leading)
-            Text(candidate.mode.rawValue)
+            Text(candidate.label(ticked: selected))
                 .font(Theme.mono(10.5))
                 .foregroundStyle(candidate.mode == .resumeThenContinue ? Theme.busy : Theme.fg2)
                 .padding(.horizontal, 6)

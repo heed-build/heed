@@ -683,7 +683,7 @@ final class AppModel {
             return
         }
         if settings.resumeOnLaunch == .always, !asked {
-            resumeSessions(candidates.filter(\.defaultSelected))
+            resumeSessions(candidates.filter(\.resumesWithoutAsking))
         } else {
             resume = ResumeForm(candidates: candidates)
         }

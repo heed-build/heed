@@ -125,6 +125,17 @@ public struct ResumeForm: Sendable {
 
     public var chosen: [ResumeCandidate] { candidates.filter { selected.contains($0.id) } }
 
+    /// A click on a row: the cursor moves there and the row's tick flips, as `j`/`k` then space would.
+    public mutating func click(_ index: Int) {
+        guard candidates.indices.contains(index) else { return }
+        cursor = index
+        toggle(candidates[index].id)
+    }
+
+    private mutating func toggle(_ id: String) {
+        if selected.contains(id) { selected.remove(id) } else { selected.insert(id) }
+    }
+
     public mutating func handle(_ stroke: KeyStroke) -> Outcome {
         switch stroke {
         case KeyStroke("j"), KeyStroke("Down"):
@@ -133,8 +144,7 @@ public struct ResumeForm: Sendable {
             cursor = max(cursor - 1, 0)
         case KeyStroke("Space"), KeyStroke("x"):
             guard candidates.indices.contains(cursor) else { break }
-            let id = candidates[cursor].id
-            if selected.contains(id) { selected.remove(id) } else { selected.insert(id) }
+            toggle(candidates[cursor].id)
         case KeyStroke("CR", .command), KeyStroke("CR"):
             return .resume(chosen)
         case .escape:

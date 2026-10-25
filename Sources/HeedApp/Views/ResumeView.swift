@@ -40,6 +40,10 @@ struct ResumeView: View {
 
             ForEach(Array(form.candidates.enumerated()), id: \.element.id) { index, candidate in
                 row(candidate, selected: form.selected.contains(candidate.id), focused: index == form.cursor)
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.clickResume(row: index) }
+                    .pointerStyle(.link)
+                    .help(form.selected.contains(candidate.id) ? "Leave this session closed" : "Resume this session")
             }
 
             HStack(alignment: .top, spacing: 28) {
@@ -69,10 +73,16 @@ struct ResumeView: View {
             .overlay(alignment: .top) { Theme.line.frame(height: 1) }
 
             HStack(spacing: 10) {
-                KeyCap(text: "space")
-                Text("toggle").foregroundStyle(Theme.fg3)
+                HStack(spacing: 6) {
+                    KeyCap(text: "space")
+                    Text("toggle").foregroundStyle(Theme.fg3)
+                }
+                .clickable()
+                .onTapGesture { model.press([KeyStroke("Space")]) }
+                .help("Tick or untick the highlighted session")
                 KeyCap(text: "j k")
                 Text("move").foregroundStyle(Theme.fg3)
+                Text("· click a session to tick it").foregroundStyle(Theme.fg3)
                 Spacer()
                 HStack(spacing: 6) {
                     KeyCap(text: "⎋")
@@ -81,6 +91,10 @@ struct ResumeView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+                .contentShape(Rectangle())
+                .onTapGesture { model.press([.escape]) }
+                .pointerStyle(.link)
+                .help("Start without resuming anything")
                 HStack(spacing: 6) {
                     Text("Resume \(form.selected.count) session\(form.selected.count == 1 ? "" : "s")")
                         .fontWeight(.medium)
@@ -90,6 +104,10 @@ struct ResumeView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.inverse))
+                .contentShape(Rectangle())
+                .onTapGesture { model.press([KeyStroke("CR")]) }
+                .pointerStyle(.link)
+                .help("Resume the ticked sessions")
             }
             .font(Theme.ui(12.5))
             .padding(22)

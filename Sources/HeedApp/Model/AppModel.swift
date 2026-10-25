@@ -709,6 +709,13 @@ final class AppModel {
         }
     }
 
+    /// A click on a row of the resume dialog: the cursor goes there and its tick flips.
+    func clickResume(row index: Int) {
+        guard var form = resume else { return }
+        form.click(index)
+        resume = form
+    }
+
     /// Starts each chosen session's agent pane on its resume (or fresh) command, now, even off screen.
     private func resumeSessions(_ chosen: [ResumeCandidate]) {
         guard !isFixture else {

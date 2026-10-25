@@ -57,6 +57,19 @@ struct ResumeTests {
         #expect(form.handle(.escape) == .startEmpty)
     }
 
+    @Test func aClickMovesTheCursorAndFlipsTheTick() {
+        let domain = Domain(sessions: [session("w", .working), session("d", .done)])
+        var form = ResumeForm(candidates: Resume.candidates(domain: domain, settings: .default, integration: nil))
+        form.click(1)
+        #expect(form.cursor == 1)
+        #expect(form.chosen.map(\.id) == ["w"])
+        form.click(1)
+        #expect(form.chosen.map(\.id) == ["w", "d"])
+        form.click(5)
+        #expect(form.cursor == 1)
+        #expect(form.chosen.map(\.id) == ["w", "d"])
+    }
+
     @Test func aTickedIdleSessionSaysWhatHappens() {
         let domain = Domain(sessions: [session("d", .done, agentID: "abc"), session("i", .idle, agentID: nil)])
         let candidates = Resume.candidates(domain: domain, settings: .default, integration: nil) { _ in true }

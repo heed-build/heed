@@ -279,7 +279,8 @@ final class AppModel {
     /// PRs with queued feedback waiting for their agent to be idle.
     private var pendingDelivery: Set<PullRef> = []
 
-    /// Scoped key bindings follow what has focus: the diff, the PR overlay or reader, else the view.
+    /// Scoped key bindings follow what has focus: the diff, the PR overlay or reader, else the view (Goals'
+    /// Unassigned pane has its own: y n m i answer there).
     func updateScope() {
         engine.scope = overlay == .diff ? "diff" : issueReader != nil ? "issue"
             : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope : view.rawValue
@@ -376,7 +377,10 @@ final class AppModel {
             self?.applyGoalPointers()
             self?.observeTutorNow()
         }
-        goals.paneChanged = { [weak self] in self?.updateScope() }
+        goals.paneChanged = { [weak self] in
+            self?.updateScope()
+            self?.observeTutorNow()
+        }
         applyGoalPointers()
         if isFixture { adoptFixtureRuns() } else { interruptRuns() }
         timeline.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
@@ -1211,6 +1215,7 @@ final class AppModel {
             noticeLedger(before: before, after: after)
         }
         if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
+        if !replacingDomain, sessionsChanged { noticeGoalAttach(before: before, after: after) }
     }
 
     func commit(_ change: DomainChange) { commit([change]) }
@@ -2252,6 +2257,13 @@ final class AppModel {
         case "goal.proposal.edit": answerProposal(.edit, command.arguments)
         case "goal.undo": undoGoalEdit()
         case "goal.sharpen": sharpenGoal()
+        case "goal.unassigned": showUnassigned()
+        case "goal.ask.yes": answerGoalYes()
+        case "goal.ask.no": answerGoalNo()
+        case "goal.ask.move": answerGoalMove(command.arguments)
+        case "goal.ask.ignore": answerGoalIgnore()
+        case "goal.attach.undo": undoGoalAttach()
+        case "goal.attach.find": findGoalNow()
         case "history.dashboard": view = view == .dashboard ? .history : .dashboard
         case "dashboard.range": dashboard.cycleRange(command.arguments.first)
         case "history.ledger": view = view == .ledger ? .history : .ledger
@@ -7188,6 +7200,7 @@ final class AppModel {
         state.goalProposals = goals.proposals.count
         state.goalMoves = goals.moves
         state.goalSelected = goals.selected?.id ?? ""
+        state.goalAsks = goals.attach.asks.count
         return state
     }
 

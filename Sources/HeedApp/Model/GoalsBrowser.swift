@@ -13,6 +13,8 @@ final class GoalsBrowser {
     /// as cases here, each a pane of its own.
     enum Pane: String {
         case overview, doc, board
+        /// Goals › Unassigned: heed's attach decisions, asks and suggested goals (`AttachBrowser`).
+        case unassigned
     }
 
     /// Where j and k move: the goals list, or what belongs to the goal under the cursor.
@@ -35,6 +37,8 @@ final class GoalsBrowser {
         didSet { if pane != oldValue { paneChanged() } }
     }
 
+    /// Attachment: decisions, asks, suggestions and rules (Unassigned).
+    let attach = AttachBrowser()
     private(set) var focus = Focus.goals
     private(set) var linkCursor = 0
     /// The selected goal's versions, newest first.
@@ -69,9 +73,15 @@ final class GoalsBrowser {
         apply(GoalFixtures.snapshot(fixtures))
         fixtureVersions = GoalFixtures.versions(fixtures)
         loadVersions()
+        let decisions = GoalFixtures.attachDecisions()
+        loadFixtureAttach(decisions)
         if let ops = try? GoalOps.inMemory() {
             self.ops = ops
-            Task { try? await ops.adopt(fixtures) }
+            Task {
+                try? await ops.adopt(fixtures)
+                try? await ops.adopt(decisions: decisions)
+                try? await ops.setRules(GoalFixtures.attachRules)
+            }
         }
     }
 
@@ -82,6 +92,7 @@ final class GoalsBrowser {
         guard let ops, let snapshot = try? await ops.snapshot() else { return }
         apply(snapshot)
         loadVersions()
+        await reloadAttach()
     }
 
     var files: GoalFiles { ops?.files ?? .fixture }
@@ -104,6 +115,7 @@ final class GoalsBrowser {
     // MARK: Moving
 
     func setCursor(_ index: Int) {
+        if pane == .unassigned { return attach.setCursor(index) }
         if pane == .board {
             boardRow = min(max(index, 0), max(cards.count - 1, 0))
             return
@@ -124,8 +136,14 @@ final class GoalsBrowser {
         loadVersions()
     }
 
-    var rowCount: Int { pane == .board ? cards.count : focus == .links ? links.count : rows.count }
-    var rowCursor: Int { pane == .board ? boardRow : focus == .links ? linkCursor : cursor }
+    var rowCount: Int {
+        pane == .unassigned ? attach.rows.count : pane == .board ? cards.count : focus == .links ? links.count : rows
+            .count
+    }
+
+    var rowCursor: Int {
+        pane == .unassigned ? attach.cursor : pane == .board ? boardRow : focus == .links ? linkCursor : cursor
+    }
 
     // MARK: Items
 
@@ -175,6 +193,7 @@ final class GoalsBrowser {
         case .board: "goalboard"
         case .doc: "goaldoc"
         case .overview: "goals"
+        case .unassigned: "unassigned"
         }
     }
 
@@ -216,7 +235,7 @@ final class GoalsBrowser {
     }
 
     func togglePane() {
-        pane = pane == .doc ? .overview : .doc
+        pane = pane == .overview ? .doc : .overview
         if pane == .overview { draft = nil }
     }
 
@@ -248,6 +267,7 @@ final class GoalsBrowser {
             let result: Result<T, Error>
             do { result = try await .success(operation(ops)) } catch { result = .failure(error) }
             if let snapshot = try? await ops.snapshot() { apply(snapshot) }
+            await reloadAttach()
             if let goal = selected?.id, let versions = try? await ops.versions(of: goal) {
                 fixtureVersions[goal] = versions
                 if selected?.id == goal { self.versions = versions }

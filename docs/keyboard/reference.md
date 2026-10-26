@@ -90,8 +90,9 @@ This page is generated from the code (`mise run shots`).
 | `view.dashboard` |  | History's dashboard: what the work amounted to over a range |
 | `view.ledger` |  | History's ledger: a summary of each piece of work, kept after its worktree |
 | `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
-| `goal.doc` | `E` (goalboard), `E` (goaldoc), `E` (goals) | Goals: the goal's GOAL.md and its versions (again: the overview) |
-| `goal.board` | `B` (goalboard), `B` (goaldoc), `B` (goals) | Goals: the goal as a board, its items by column (again: the overview) |
+| `goal.doc` | `E` (goalboard), `E` (goaldoc), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
+| `goal.board` | `B` (goalboard), `B` (goaldoc), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
+| `goal.unassigned` | `U` (goalboard), `U` (goaldoc), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
@@ -163,10 +164,10 @@ This page is generated from the code (`mise run shots`).
 | `goal.new` `[title]` | `n` (goals) | new goal: a title and what it is (on a session: from its prompt, and the session on it) |
 | `goal.attach` `<goal>` |  | put the session or chat on a goal (no goal: the command line opens to pick one) |
 | `goal.detach` | `x` (goaldoc), `x` (goals) | take the session or chat off its goal |
-| `goal.archive` | `a` (goalboard), `a` (goaldoc), `a` (goals) | archive the goal (again: bring it back) |
-| `goal.open` | `<CR>` (goaldoc), `<CR>` (goals) | Goals: what belongs to the goal; on a session or chat, go to it |
+| `goal.archive` | `a` (goalboard), `a` (goaldoc), `a` (goals), `a` (unassigned) | archive the goal (again: bring it back) |
+| `goal.open` | `<CR>` (goaldoc), `<CR>` (goals), `<CR>` (unassigned) | Goals: what belongs to the goal; on a session or chat, go to it |
 | `goal.focus` | `<Tab>` (goaldoc), `<S-Tab>` (goaldoc), `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
-| `goal.edit` | `e` (goalboard), `e` (goaldoc), `e` (goals) | edit the goal's GOAL.md in place; each save is a new version |
+| `goal.edit` | `e` (goalboard), `e` (goaldoc), `e` (goals), `e` (unassigned) | edit the goal's GOAL.md in place; each save is a new version |
 | `goal.restore` `<version>` |  | make one of the goal's GOAL.md versions current again (as a new version) |
 | `goal.item.add` `[title]` | `n` (goalboard) | Goals: add an item to the goal (on the board: in the column under the cursor) |
 | `goal.item.done` | `D` (goalboard) | Goals: the item under the cursor is done (its card to Done) |
@@ -180,7 +181,13 @@ This page is generated from the code (`mise run shots`).
 | `goal.proposal.reject` | `n` (goaldoc) | GOAL.md: no to the first change waiting (or the one clicked) |
 | `goal.proposal.edit` `[text]` | `c` (goaldoc) | GOAL.md: reword the first change waiting, then accept it (no text: the command line) |
 | `goal.undo` | `u` (goaldoc) | GOAL.md: take back the last change heed made on its own |
-| `goal.sharpen` | `w` (goalboard), `w` (goaldoc), `w` (goals) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
+| `goal.sharpen` | `w` (goalboard), `w` (goaldoc), `w` (goals), `w` (unassigned) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
+| `goal.ask.yes` | `y` (attention), `y` (unassigned) | yes: on the goal heed proposed (on a suggested goal: make it) |
+| `goal.ask.no` | `n` (attention), `n` (unassigned) | no: not on that goal, and heed learns it (on a suggested goal: drop it) |
+| `goal.ask.move` `<goal>` | `m` (attention), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
+| `goal.ask.ignore` | `i` (attention), `i` (unassigned) | leave things like this on no goal, and heed learns to (an ignore rule) |
+| `goal.attach.undo` | `u` (goalboard), `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
+| `goal.attach.find` |  | look for the session's goal now: rules, signals, the model when unsure |
 | `ledger.summarize` | `S` (ledger) | write the ledger summary of this work now |
 | `ledger.edit` `[text]` | `E` (ledger) | edit the ledger entry's summary (no text: the command line opens with it) |
 | `log.kind` `[all|kind]` | `t` (log) | call log: all, or one kind (shell, github, llm, decide) |

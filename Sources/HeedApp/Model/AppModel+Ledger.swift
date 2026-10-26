@@ -127,6 +127,8 @@ extension AppModel {
         }
         ledger.upsert(entry)
         learnFromLedger(entry)
+        // Files touched are the best evidence of which goal the work is on.
+        findGoal(id, trigger: .ledger)
     }
 
     /// Git's view of the session's work in its first repo: its worktree when it is still there, else its branch,

@@ -18,6 +18,8 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case goalEdits
     /// A sharper GOAL.md, as the same JSON edits, every one of them waiting for you (`w`).
     case goalSharpen
+    /// A new goal's `GOAL.md`, drafted from the sessions and chats on no goal that hang together (Unassigned).
+    case goalDraft
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -150,6 +152,15 @@ public struct Summarizer: Sendable {
             goal, notTheGoal, doneWhen, openQuestions, decisions; "op": one of add, remove, replace; "text": the \
             line; "target": the existing line a remove or replace is about, or null; "evidence": null; "reason": one \
             short sentence}]}.
+            """
+        case .goalDraft:
+            """
+            You draft a GOAL.md for a long-running goal that several pieces of software work share, from their titles \
+            and first prompts. Write markdown in exactly this shape: "# " and a short title (at most five words); \
+            "## Goal" then one or two sentences on the outcome they work toward; "## Not the goal" then "- " lines for \
+            what is plainly out of scope (none: leave it empty); "## Done when" then "- [ ] " lines, each a checkable \
+            result; "## Open questions" then "- " lines; "## Decisions" left empty. Only what the input supports; no \
+            preamble.
             """
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)

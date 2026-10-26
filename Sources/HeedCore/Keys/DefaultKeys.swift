@@ -136,6 +136,11 @@ public enum DefaultKeys {
             ("y", "goal.proposal.accept"), ("n", "goal.proposal.reject"), ("c", "goal.proposal.edit"),
             ("u", "goal.undo"), ("w", "goal.sharpen"),
         ]),
+        // Goals › Unassigned (U): y n m i answer heed's asks (y on a suggested goal makes it), u undoes.
+        "unassigned": goalsWith([
+            ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
+            ("u", "goal.attach.undo"), ("x", ""), ("<Tab>", ""), ("<S-Tab>", ""),
+        ]),
         // The call log has no key of its own (:log); inside it, its filters.
         "log": [
             ("t", "log.kind"), ("x", "log.failed"), ("s", "log.slow"), ("w", "log.writes"), ("c", "log.caller"),
@@ -145,6 +150,8 @@ public enum DefaultKeys {
             ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "attention.done"),
             ("Z", "attention.snooze"), ("M", "attention.mute"), ("R", "attention.reply"), ("gS", "attention.session"),
             ("t", "attention.filter"), ("T", "attention.sort"), ("r", "github.sync"),
+            // heed's goal asks, one key each; on other items m pins as before.
+            ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
         ],
         "inbox": [
             ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "items.read"),
@@ -185,7 +192,7 @@ public enum DefaultKeys {
     static let goals: [(String, String)] = [
         ("n", "goal.new"), ("E", "goal.doc"), ("e", "goal.edit"), ("a", "goal.archive"), ("x", "goal.detach"),
         ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"), ("B", "goal.board"),
-        ("w", "goal.sharpen"),
+        ("w", "goal.sharpen"), ("U", "goal.unassigned"), ("u", "goal.attach.undo"),
     ]
 
     /// Goals' keys with `overrides` laid over (an empty command drops the key).

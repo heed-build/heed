@@ -262,6 +262,14 @@ keep_days = 30
 # Sessions and chats on a goal are told so when they start or resume (claude, codex): which goal, and to read its
 # GOAL.md first and keep to its Not the goal list. false: agents are not told.
 tell_agents = true
+# New sessions and chats find their goal on their own: from free signals (worktree and branch family, files, PRs,
+# the prompt against GOAL.md, repo, recency), and a cheap model call when those are unsure. At attach_auto or
+# more heed attaches (u undoes); from attach_ask it asks with one key in Attention; below, the work stays in
+# Unassigned. Your corrections become lines in goals/attach.rules. attach_model = false: signals only.
+attach = true
+attach_auto = 0.85
+attach_ask = 0.5
+attach_model = true
 
 [tools]
 # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places

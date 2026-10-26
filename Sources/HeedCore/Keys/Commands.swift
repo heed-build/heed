@@ -128,6 +128,11 @@ public enum Commands {
         .init("view.goals", "goals: long-running work, what belongs to each goal, and its GOAL.md", .views),
         .init("goal.doc", "Goals: the goal's GOAL.md and its versions (again: the overview)", .views),
         .init("goal.board", "Goals: the goal as a board, its items by column (again: the overview)", .views),
+        .init(
+            "goal.unassigned",
+            "Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview)",
+            .views
+        ),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -256,6 +261,19 @@ public enum Commands {
         ),
         .init("goal.undo", "GOAL.md: take back the last change heed made on its own", .selection),
         .init("goal.sharpen", "GOAL.md: ask a model to sharpen the goal; what it suggests waits for you", .selection),
+        .init("goal.ask.yes", "yes: on the goal heed proposed (on a suggested goal: make it)", .selection),
+        .init("goal.ask.no", "no: not on that goal, and heed learns it (on a suggested goal: drop it)", .selection),
+        .init(
+            "goal.ask.move", "on another goal instead, and heed learns it was not the one it proposed", .selection,
+            arguments: "<goal>"
+        ),
+        .init("goal.ask.ignore", "leave things like this on no goal, and heed learns to (an ignore rule)", .selection),
+        .init(
+            "goal.attach.undo",
+            "take heed's last attachment off again, and heed learns it (a never rule)",
+            .selection
+        ),
+        .init("goal.attach.find", "look for the session's goal now: rules, signals, the model when unsure", .selection),
         .init("ledger.summarize", "write the ledger summary of this work now", .selection),
         .init(
             "ledger.edit", "edit the ledger entry's summary (no text: the command line opens with it)", .selection,

@@ -482,6 +482,12 @@ struct StatusBar: View {
                 ("goal.edit", "edit"), ("goal.doc", "overview"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "goaldoc")) \($0.1)" }.joined(separator: " · ")
+        case .normal where model.view == .goals && model.goals.pane == .unassigned:
+            [
+                ("goal.ask.yes", "yes"), ("goal.ask.no", "no"), ("goal.ask.move", "move"),
+                ("goal.ask.ignore", "ignore like this"), ("goal.attach.undo", "undo last"), ("goal.unassigned", "back"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "unassigned")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .goals:
             [
                 ("goal.open", model.goals.focus == .links ? "go there" : "open"),

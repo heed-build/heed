@@ -74,6 +74,11 @@ enum TutorCheck {
                         targetSeen = regions(model).contains(target)
                     }
                 }
+                // Some steps tick off when an operation off the main actor finishes (accepting a risk or friction
+                // writes to the goals store): give it up to two seconds, as a person would wait.
+                for _ in 0 ..< 100 where (model.tutor?.step ?? .max) <= index {
+                    try? await Task.sleep(for: .milliseconds(20))
+                }
                 guard let tutor = model.tutor, tutor.step > index else {
                     print(
                         "tutor-check \(lesson.id) step \(index + 1) “\(step.title)”: did not tick off"

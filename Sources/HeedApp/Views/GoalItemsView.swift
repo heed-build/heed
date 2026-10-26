@@ -35,8 +35,11 @@ struct GoalMatrix: View {
                     ForEach(items) { item in
                         let marks = Stages.of(item, evidence: evidence, requiredLenses: lenses)
                         HStack(spacing: 0) {
-                            Text(item.title).font(Theme.ui(12.5)).lineLimit(1)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            HStack(spacing: 6) {
+                                Text(item.title).font(Theme.ui(12.5)).lineLimit(1)
+                                SubIssueNumber(item: item)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             ForEach(Stage.allCases, id: \.self) { stage in
                                 let mark = marks[stage] ?? .notYet
                                 Text(mark.glyph)
@@ -258,6 +261,7 @@ private struct BoardCard: View {
                     .fixedSize()
                     .layoutPriority(1)
                 Spacer(minLength: 4)
+                SubIssueNumber(item: item)
                 Text(item.source.rawValue).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3).lineLimit(1)
             }
             Text(item.title).font(Theme.ui(12.5, weight: .semibold)).foregroundStyle(Theme.fg)

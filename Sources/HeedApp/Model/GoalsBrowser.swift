@@ -45,6 +45,10 @@ final class GoalsBrowser {
         var title = ""
         var statement = ""
         var session: String?
+        /// The tracker repo it mirrors to on GitHub (`org/name`), from `[goals] tracker` and the org's or repo's.
+        var tracker = ""
+        /// It mirrors from the start (the org's or repo's `goals_mirror`, else `[goals] mirror`).
+        var mirror = false
     }
 
     private(set) var snapshot = GoalSnapshot.empty
@@ -114,10 +118,20 @@ final class GoalsBrowser {
     @ObservationIgnored var changed: () -> Void = {}
     /// Called when another pane shows (the key scope follows).
     @ObservationIgnored var paneChanged: () -> Void = {}
+    /// Each goal's GitHub mirror, by goal id (`goal_mirrors`).
+    private(set) var mirrors: [String: GoalMirrorState] = [:]
+    /// The last read-only check of each tracker repo, by repo.
+    private(set) var checks: [String: TrackerCheck] = [:]
+    /// The mirror's sync, made on first use (never in fixtures).
+    @ObservationIgnored var mirrorSync: GoalMirrorSync?
+    /// When each mirrored goal was last read back.
+    @ObservationIgnored var lastMirrorPoll: [String: Date] = [:]
 
     init(fixture: Bool) {
         guard fixture else { return }
-        let fixtures = GoalFixtures.all()
+        let fixtures = GoalMirrorFixtures.apply(to: GoalFixtures.all())
+        let mirrors = GoalMirrorFixtures.states(fixtures)
+        self.mirrors = mirrors
         let records = GoalQualityFixtures.all()
         let qualities = GoalQualityFixtures.qualities(records, goals: fixtures)
         self.qualities = qualities
@@ -142,6 +156,9 @@ final class GoalsBrowser {
                 try? await ops.setRules(GoalFixtures.attachRules)
                 try? await ops.adopt(quality: records)
                 try? await ops.adopt(personas: personaFiles, records: personaRecords)
+                for (goal, state) in mirrors {
+                    try? await ops.save(mirror: state, goal: goal)
+                }
             }
         }
     }
@@ -154,8 +171,32 @@ final class GoalsBrowser {
         if let fresh = try? await ops.qualities(table: table) { qualities = fresh }
         apply(snapshot)
         loadVersions()
+        if let fresh = try? await ops.mirrors() { mirrors = fresh }
         await reloadAttach()
         await personas.reload(ops)
+    }
+
+    // MARK: Mirror
+
+    func mirror(of goal: String) -> GoalMirrorState { mirrors[goal] ?? .off }
+
+    /// The selected goal's colleague changes on GitHub waiting for an answer.
+    var asks: [MirrorAsk] { selected.map { mirror(of: $0.id).asks } ?? [] }
+
+    func setCheck(_ check: TrackerCheck) {
+        if checks[check.repo] != check { checks[check.repo] = check }
+    }
+
+    /// Reads the mirrors (and the goals, whose issue numbers a sync fills in) again.
+    func reloadMirrors() {
+        guard let ops else { return }
+        Task {
+            if let fresh = try? await ops.mirrors(), fresh != mirrors {
+                mirrors = fresh
+                changed()
+            }
+            if let snapshot = try? await ops.snapshot() { apply(snapshot) }
+        }
     }
 
     // MARK: Quality

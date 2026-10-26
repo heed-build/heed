@@ -176,6 +176,7 @@ private struct GoalOverviewPane: View {
                     }
                     VStack(alignment: .leading, spacing: 16) {
                         HowHappy(goal: goal).shotRegion(.goalHappy)
+                        GoalMirrorPanel(goal: goal).shotRegion(.goalMirror)
                         Panel(title: "Resulting PRs", note: overview.pulls.isEmpty ? "" : "\(overview.pulls.count)") {
                             if overview.pulls.isEmpty {
                                 Quiet("None yet: PRs the goal's sessions open show here.")
@@ -497,7 +498,7 @@ struct GoalFormView: View {
     @Environment(AppModel.self) private var model
     @FocusState private var field: Field?
 
-    enum Field { case title, statement }
+    enum Field { case title, statement, tracker }
 
     var body: some View {
         let form = model.goals.form
@@ -543,6 +544,36 @@ struct GoalFormView: View {
                 .focused($field, equals: .statement)
                 Text("GOAL.md starts from these, with empty sections for what is not the goal, when it is done, "
                     + "open questions and decisions.")
+                    .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+                SectionHeader(title: "Tracker on GitHub")
+                HStack(spacing: 12) {
+                    Group {
+                        if ShotMode.active {
+                            Text(form?.tracker.isEmpty == false ? form?.tracker ?? "" : "org/name")
+                                .foregroundStyle(form?.tracker.isEmpty == false ? Theme.fg : Theme.fg3)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        } else {
+                            TextField("org/name: where colleagues follow along", text: binding(\.tracker))
+                                .textFieldStyle(.plain)
+                        }
+                    }
+                    .font(Theme.mono(12.5))
+                    .padding(8)
+                    .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
+                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+                    .focused($field, equals: .tracker)
+                    let mirror = form?.mirror == true
+                    HStack(spacing: 6) {
+                        Image(systemName: mirror ? "checkmark.square.fill" : "square")
+                            .foregroundStyle(mirror ? Theme.block : Theme.fg3)
+                        Text("mirror it").font(Theme.ui(12.5))
+                    }
+                    .clickable()
+                    .onTapGesture { model.goals.form?.mirror.toggle() }
+                    .help("Make its issues on GitHub now, and keep them up to date (M on the goal does it later)")
+                }
+                Text("A meta issue and a sub-issue per item, in a repo of their own; heed checks it can write there "
+                    + "first. Mirroring publishes, so it is off unless ticked.")
                     .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 18) {
                     Spacer()

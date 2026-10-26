@@ -79,7 +79,8 @@ extension AppModel {
         let goal = goals.rows[index]
         return ContextMenus.goal(
             id: goal.id, title: goal.title, archived: goal.status == .archived, docShown: goals.pane == .doc,
-            reviewersShown: goals.pane == .reviewers, done: goal.status == .done
+            reviewersShown: goals.pane == .reviewers, done: goal.status == .done,
+            mirrored: goals.mirror(of: goal.id).on, meta: goal.tracker?.metaIssue
         )
     }
 
@@ -113,12 +114,17 @@ extension AppModel {
             session = currentSession
         }
         let title = words.joined(separator: " ")
+        let repo = session?.repos.first?.slug
+        let tracker = config.goals.mirror.tracker(for: repo) ?? ""
+        let mirror = !tracker.isEmpty && config.goals.mirror.mirrors(for: repo)
         guard title.isEmpty else {
-            return createGoal(GoalsBrowser.Form(title: title, statement: session?.prompt ?? "", session: session?.id))
+            return createGoal(GoalsBrowser.Form(
+                title: title, statement: session?.prompt ?? "", session: session?.id, tracker: tracker, mirror: mirror
+            ))
         }
         goals.form = GoalsBrowser.Form(
             title: session?.title ?? "", statement: session.map { GoalsBrowser.firstParagraph($0.prompt) } ?? "",
-            session: session?.id
+            session: session?.id, tracker: tracker, mirror: mirror
         )
         textInputActive = true
     }
@@ -156,6 +162,7 @@ extension AppModel {
                 goals.point(to: goal.id)
                 say("goal \(goal.title) made" + (session.map { ", \($0.title) on it" } ?? ""))
                 planGoal(goal: goal.id)
+                mirrorNewGoal(goal, tracker: form.tracker, on: form.mirror)
             case let .failure(error): say("no goal made: \(error)")
             }
         }

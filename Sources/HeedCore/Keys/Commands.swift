@@ -293,6 +293,19 @@ public enum Commands {
             "goal.bar", "pin a quality bar for the goal: a lens and 0–10, off to drop the lens, auto for the profile's",
             .selection, arguments: "<lens> <bar|off|auto>"
         ),
+        .init(
+            "goal.mirror",
+            "mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop",
+            .selection
+        ),
+        .init(
+            "goal.tracker", "the repo the goal mirrors to on GitHub, checked read-only first (none: no tracker)",
+            .selection, arguments: "[org/name|none]"
+        ),
+        .init("goal.mirror.sync", "sync the goal's GitHub issues now and read them back", .selection),
+        .init("goal.mirror.open", "open the goal's meta issue on GitHub (on a card: its sub-issue)", .selection),
+        .init("goal.mirror.yes", "a colleague's change on GitHub: yes, the item follows it", .selection),
+        .init("goal.mirror.no", "a colleague's change on GitHub: no, heed puts the sub-issue back", .selection),
         .init("goal.reopen", "not done yet: undo heed marking the goal done (held until something new)", .selection),
         .init(
             "review.recheck",

@@ -283,6 +283,14 @@ reviewer_agent = ""
 # Past either, heed asks in Attention (y starts them, n drops them).
 spawn_concurrent = 2
 spawn_per_day = 6
+# The GitHub mirror (docs: goals/github): a goal can follow along as a meta issue with a sub-issue per item, in a
+# tracker repo of its own (any repo you can triage, not necessarily one the work is in). heed writes there on its
+# own once a goal's mirror is on (one key, M); colleagues' changes come back as asks and proposals. tracker: the
+# repo a new goal gets ("org/name"); per org or repo: goals_tracker under [orgs.<name>] or [repos."org/name"].
+# mirror: new goals mirror from the start (goals_mirror per org or repo). mirror_label: put on heed's issues.
+tracker = ""
+mirror = false
+mirror_label = ""
 
 [goals.bars]
 # The lenses each kind of goal requires and the bar (0-10) each must reach before heed calls the goal done. A

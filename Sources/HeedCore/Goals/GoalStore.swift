@@ -9,7 +9,8 @@ import Foundation
 /// Migration 1 also lays down the tables later parts of Goals fill (items, evidence, edits, reviews, evaluations,
 /// attach decisions): a key, the goal, a time, the columns their queries need and a JSON body, so those parts add
 /// readers and writers, and a migration only when they need a column. Issue refs for the GitHub mirror have their
-/// columns already: `goals.tracker_repo`/`tracker_issue` (the meta issue) and `goal_items.issue_number` (sub-issues).
+/// columns already: `goals.tracker_repo`/`tracker_issue` (the meta issue) and `goal_items.issue_number` (sub-issues);
+/// migration 2 adds `goal_mirrors`, the mirror's own state per goal.
 public final class GoalStore {
     let database: SQLiteDatabase
 
@@ -101,6 +102,13 @@ public final class GoalStore {
             target TEXT NOT NULL,
             goal TEXT,
             at REAL NOT NULL,
+            data TEXT NOT NULL
+        );
+        """),
+        // The GitHub mirror's state per goal (`GoalMirrorState`): what heed last wrote, what it read back, its asks.
+        SQLiteMigration(sql: """
+        CREATE TABLE goal_mirrors (
+            goal TEXT PRIMARY KEY REFERENCES goals (id),
             data TEXT NOT NULL
         );
         """),

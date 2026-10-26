@@ -21,6 +21,7 @@ extension AppModel {
             github: state, sessions: sessions, details: attention.details, pilotDriving: pilotDriving,
             readyToMerge: readyToMergeRefs, goals: GoalNotice.of(goals.snapshot)
         ) + GoalAttachAsks.items(goals.attach.asks, titles: titles).map(\.item) + goalAttentionItems
+            + goalMirrorAttention
     }
 
     var attentionEntries: [AttentionEntry] {

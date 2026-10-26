@@ -661,6 +661,7 @@ final class AppModel {
             await refreshWatchedDetails()
             await refreshIssueInfo()
             await attentionSynced()
+            syncGoalMirrors()
         } catch {
             var offline = previous
             offline.status = .offline("\(error)")
@@ -2330,6 +2331,12 @@ final class AppModel {
         case "persona.use": usePersona(command.arguments)
         case "goal.bar": pinGoalBar(command.arguments)
         case "goal.reopen": reopenGoal()
+        case "goal.mirror": toggleGoalMirror()
+        case "goal.tracker": setGoalTracker(command.arguments)
+        case "goal.mirror.sync": syncGoalMirrorNow()
+        case "goal.mirror.open": openGoalOnGitHub()
+        case "goal.mirror.yes": answerMirrorAsk(yes: true)
+        case "goal.mirror.no": answerMirrorAsk(yes: false)
         case "review.recheck": recheckReviewers(command.arguments)
         case "review.accept": acceptRisk()
         case "review.fix": fixObjection()
@@ -4435,7 +4442,9 @@ final class AppModel {
         }
         // A goal in Attention: to the goal, its reviewers when they wait.
         if view == .attention, commandTarget == nil, let item = attentionSelected?.item, item.kind == .goal,
-           !item.reasons.isDisjoint(with: [.goalDone, .goalBudget, .goalReviewBlocked, .goalSpawn, .goalPersonaGap]),
+           !item.reasons.isDisjoint(with: [
+               .goalDone, .goalBudget, .goalReviewBlocked, .goalSpawn, .goalPersonaGap, .goalMirror,
+           ]),
            let goal = GoalAttention.goal(of: item)
         {
             view = .goals

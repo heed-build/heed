@@ -192,6 +192,12 @@ This page is generated from the code (`mise run shots`).
 | `goal.attach.undo` | `u` (goalboard), `u` (goalevals), `u` (goalpersonas), `u` (goalreviewers), `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
 | `goal.attach.find` |  | look for the session's goal now: rules, signals, the model when unsure |
 | `goal.bar` `<lens> <bar|off|auto>` |  | pin a quality bar for the goal: a lens and 0–10, off to drop the lens, auto for the profile's |
+| `goal.mirror` | `M` (goalboard), `M` (goaldoc), `M` (goalevals), `M` (goalpersonas), `M` (goalreviewers), `M` (goals), `M` (unassigned) | mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop |
+| `goal.tracker` `[org/name|none]` |  | the repo the goal mirrors to on GitHub, checked read-only first (none: no tracker) |
+| `goal.mirror.sync` |  | sync the goal's GitHub issues now and read them back |
+| `goal.mirror.open` |  | open the goal's meta issue on GitHub (on a card: its sub-issue) |
+| `goal.mirror.yes` | `Y` (goalboard), `Y` (goaldoc), `Y` (goalevals), `Y` (goalpersonas), `Y` (goalreviewers), `Y` (goals), `Y` (unassigned) | a colleague's change on GitHub: yes, the item follows it |
+| `goal.mirror.no` | `K` (goalboard), `K` (goaldoc), `K` (goalevals), `K` (goalpersonas), `K` (goalreviewers), `K` (goals), `K` (unassigned) | a colleague's change on GitHub: no, heed puts the sub-issue back |
 | `goal.reopen` |  | not done yet: undo heed marking the goal done (held until something new) |
 | `review.recheck` `[reviewer]` | `r` (goalboard), `r` (goaldoc), `r` (goalpersonas), `r` (goalreviewers), `r` (goals), `r` (unassigned) | re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs) |
 | `review.accept` | `A` (goalreviewers) | accept the risk of the objection under the cursor (again: open it) |

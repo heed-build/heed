@@ -290,6 +290,9 @@ public enum MenuBar {
                     ("Pin a quality bar…", "goal.bar"), ("Not done yet", "goal.reopen"),
                     ("Personas", "goal.personas"),
                     ("Evaluations", "goal.evaluations"),
+                    ("Mirror to GitHub, or stop", "goal.mirror"), ("Tracker repo…", "goal.tracker"),
+                    ("Sync its GitHub issues now", "goal.mirror.sync"), ("Open it on GitHub", "goal.mirror.open"),
+                    ("Yes to a change on GitHub", "goal.mirror.yes"), ("No to a change on GitHub", "goal.mirror.no"),
                 ], in: ["goals"]),
                 scoped("In Personas", [
                     ("Spawn as a session…", "persona.session"), ("Spawn as a chat…", "persona.chat"),

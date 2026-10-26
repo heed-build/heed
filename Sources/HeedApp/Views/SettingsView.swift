@@ -1403,6 +1403,43 @@ private struct GoalsSettingsGroup: View {
             }
             .frame(width: 160)
         }
+        let mirror = model.config.goals.mirror
+        Field(
+            label: "Tracker on GitHub",
+            detail: "Where a new goal mirrors to, as org/name: a meta issue and a sub-issue per item, in any repo you "
+                + "can triage. Per org below; per repo under [repos.\"org/name\"] goals_tracker."
+        ) {
+            ConfigTextField(path: ["goals", "tracker"], value: mirror.tracker).frame(width: 220)
+        }
+        Field(
+            label: "Mirror new goals",
+            detail: "New goals mirror from the start; off, M on a goal turns it on. Mirroring publishes: heed then "
+                + "writes there on its own, and colleagues' changes come back as asks."
+        ) {
+            Toggle("", isOn: Binding(
+                get: { mirror.on }, set: { model.setConfig(["goals", "mirror"], .bool($0)) }
+            )).labelsHidden()
+        }
+        Field(label: "Label for heed's issues", detail: "Put on the issues heed makes; empty: none.") {
+            ConfigTextField(path: ["goals", "mirror_label"], value: mirror.label).frame(width: 220)
+        }
+        ForEach(orgs, id: \.self) { org in
+            Field(label: "Tracker for \(org)", detail: "Goals whose work is in \(org)'s repos; empty: the one above.") {
+                HStack(spacing: 10) {
+                    ConfigTextField(path: ["orgs", org, "goals_tracker"], value: mirror.trackers[org] ?? "")
+                        .frame(width: 220)
+                    Toggle("mirror", isOn: Binding(
+                        get: { mirror.mirrors[org] ?? mirror.on },
+                        set: { model.setConfig(["orgs", org, "goals_mirror"], .bool($0)) }
+                    ))
+                }
+            }
+        }
+    }
+
+    /// The orgs of the repos heed knows, for their tracker defaults.
+    private var orgs: [String] {
+        Array(Set(model.repos.map(\.repo.org).filter { $0 != "local" })).sorted()
     }
 
     private func threshold(

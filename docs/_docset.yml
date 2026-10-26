@@ -102,6 +102,7 @@ toc:
       - file: evaluations.md
       - file: cli.md
       - file: personas.md
+      - file: github.md
   - folder: keyboard
     children:
       - file: index.md

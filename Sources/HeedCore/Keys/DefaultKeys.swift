@@ -209,6 +209,8 @@ public enum DefaultKeys {
         ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"), ("B", "goal.board"),
         ("w", "goal.sharpen"), ("U", "goal.unassigned"), ("u", "goal.attach.undo"), ("R", "goal.reviewers"),
         ("r", "review.recheck"), ("P", "goal.personas"), ("X", "goal.evaluations"),
+        // The GitHub mirror: M turns it on or off; Y and K answer a colleague's change (yes / keep heed's).
+        ("M", "goal.mirror"), ("Y", "goal.mirror.yes"), ("K", "goal.mirror.no"),
     ]
 
     /// Goals' keys with `overrides` laid over (an empty command drops the key).

@@ -270,6 +270,34 @@ attach = true
 attach_auto = 0.85
 attach_ask = 0.5
 attach_model = true
+# Reviewers look at a goal's work on their own when it changes (a PR opened, updated or merged, a new GOAL.md
+# version) and nightly, only for the lenses the goal requires, and go quiet once at their bar until something
+# new. This many runs per goal per day; past it heed asks in Attention. false: only when you press re-check.
+auto_review = true
+reviewer_runs_per_day = 6
+# The agent reviewers run as. Empty: the agent of the goal's session the run's tab opens in.
+reviewer_agent = ""
+
+[goals.bars]
+# The lenses each kind of goal requires and the bar (0-10) each must reach before heed calls the goal done. A
+# goal's profile is its stakes plus the flags that apply; it gets the highest bar of every row that applies. A row
+# here replaces the built-in one. Per goal, pins in the Reviewers pane override these.
+spike = "plan 5, code 6"
+internal = "plan 6, code 7, tests 6"
+product = "plan 7, code 7.5, tests 7, docs 6"
+public-api = "plan 7, code 8, tests 7.5, docs 7, dx 8, security 7"
+user-facing = "ux 7"
+perf-sensitive = "perf 7"
+security-sensitive = "security 8"
+
+[goals.reviewers]
+# The model each reviewer kind runs on: "best" (the agent's default) or "cheap" (its cheap model).
+plan-critic = "best"
+implementation = "best"
+security = "best"
+perf-prober = "cheap"
+test-architect = "cheap"
+docs-reader = "cheap"
 
 [tools]
 # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places

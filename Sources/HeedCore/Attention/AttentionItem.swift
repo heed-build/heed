@@ -175,6 +175,12 @@ public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
         switch kind {
         case .agent: "An agent waiting on you."
         case .goal where reasons.contains(.goalAttach): "heed is unsure which goal this belongs to."
+        case .goal where reasons.contains(.goalDone):
+            "heed marked the goal done: every criterion has evidence and every lens is at its bar. :goal.reopen undoes it."
+        case .goal where reasons.contains(.goalBudget):
+            "Reviewers were due but the goal's reviewer runs for today are spent: ↩ shows them, r runs them anyway."
+        case .goal where reasons.contains(.goalReviewBlocked):
+            "The goal's reviewers have nowhere to run: its repo is not cloned on this Mac."
         case .goal: "Changes to the goal's GOAL.md the work suggests: ↩ shows them."
         default: "No summary yet."
         }

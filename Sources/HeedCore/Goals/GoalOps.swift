@@ -72,6 +72,9 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
 /// the caller reads `snapshot()` to redraw. Runs off the main actor, one operation at a time.
 public actor GoalOps {
     let store: GoalStore
+    /// Persona files when `files.writes` is off (fixtures, shots, the tutor): goal → id → text, and the library's.
+    var memoryPersonas: [String: [String: String]] = [:]
+    var memoryLibrary: [String: String] = [:]
     public nonisolated let files: GoalFiles
     /// `attach.rules` while `files` are not written (fixtures, shots, the tutor).
     var memoryRules = ""

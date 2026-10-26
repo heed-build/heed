@@ -138,6 +138,11 @@ public enum Commands {
             "Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview)",
             .views
         ),
+        .init(
+            "goal.personas",
+            "Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview)",
+            .views
+        ),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -297,6 +302,22 @@ public enum Commands {
             .selection, arguments: "[kind]"
         ),
         .init("reviewer.remove", "take the reviewer under the cursor off the goal (its history stays)", .selection),
+        .init("persona.session", "start a session as the persona under the cursor: Start work, filled in", .selection),
+        .init(
+            "persona.chat",
+            "start a chat with the persona under the cursor, seeded with it, the goal and why",
+            .selection
+        ),
+        .init(
+            "persona.reviewer", "spawn the persona under the cursor as a reviewer: read-only, it looks now", .selection
+        ),
+        .init("persona.edit", "edit the persona's file in place (again, ⎋ or ⌘S: save it)", .selection),
+        .init("persona.derive", "work out again who the goal needs, now (one of the goal's model calls)", .selection),
+        .init("persona.share", "copy the persona's file to the shared library, for other goals", .selection),
+        .init(
+            "persona.use", "put a persona from the shared library on the goal (a copy)", .selection,
+            arguments: "<persona>"
+        ),
         .init("ledger.summarize", "write the ledger summary of this work now", .selection),
         .init(
             "ledger.edit", "edit the ledger entry's summary (no text: the command line opens with it)", .selection,

@@ -135,6 +135,7 @@ extension AppModel {
             case .links: return goalLinkMenu(index)
             case .reviewers: return reviewerMenu(index)
             case .objections: return objectionMenu(index)
+            case .personas: return personaMenu(index)
             }
         case .sessions:
             return []

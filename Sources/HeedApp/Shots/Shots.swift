@@ -455,6 +455,10 @@ enum Shots {
             model.goals.spawn.kind = .security
             model.goals.spawn.policy = .nightly
         }),
+        // Personas (P): who the goal needs, gaps first; the first gap under the cursor, its evidence and its file.
+        Shot(id: "goals/personas", keys: "gGjP<Tab>"),
+        Shot(id: "goals/persona-table", keys: "gGjP<Tab>", crop: .goalPersonaList, cropPadding: 8),
+        Shot(id: "goals/persona-file", keys: "gGjP<Tab>", crop: .goalPersonaFile, cropPadding: 8),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

@@ -37,6 +37,7 @@ enum TutorCheck {
             "L",
             "R",
             "<Tab>j<Tab>A",
+            "P",
             "U",
             "y",
             ":goal.new Faster search<CR>",

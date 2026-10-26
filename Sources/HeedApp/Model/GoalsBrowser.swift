@@ -17,12 +17,16 @@ final class GoalsBrowser {
         case unassigned
         /// Who the goal needs (`PersonaBrowser`).
         case personas
+        /// Stranger walks: an evaluator's walk, its friction log, and the lens picker.
+        case evaluations
     }
 
     /// Where j and k move: the goals list, what belongs to the goal under the cursor, or (in Reviewers) its reviewers
     /// and the objections of the one under the cursor.
     enum Focus: String {
         case goals, links, reviewers, objections, personas
+        /// The friction log of the evaluation under the lens picker.
+        case friction
     }
 
     /// The spawn-a-reviewer panel: what the next reviewer is.
@@ -80,6 +84,11 @@ final class GoalsBrowser {
     private(set) var reviewerCursor = 0
     private(set) var objectionCursor = 0
     var spawn = Spawn()
+    /// Evaluations: the lens picked, and the cursor on its friction log.
+    private(set) var evalLens = EvaluationLens.dxFirstRun
+    private(set) var frictionCursor = 0
+    /// What the goals' work touched at the last look, to tell when an evaluator's area changed.
+    @ObservationIgnored var seenPaths: [String: Set<String>] = [:]
     /// The custom reviewer's instructions are being typed.
     var spawnTyping = false
     /// Reviewers due but held back by the day's budget, by goal: an Attention ask.
@@ -170,6 +179,55 @@ final class GoalsBrowser {
         return objections[min(objectionCursor, objections.count - 1)]
     }
 
+    // MARK: Evaluations
+
+    /// The selected goal's evaluations, one per lens.
+    var evaluations: [Evaluation] { selectedQuality.map(Evaluation.all) ?? [] }
+
+    var selectedEvaluation: Evaluation? { evaluations.first { $0.lens == evalLens } }
+
+    /// The friction log of the picked lens: open first, then accepted, then fixed.
+    var friction: [Evaluation.Row] { selectedEvaluation?.rows ?? [] }
+
+    var selectedFriction: Evaluation.Row? {
+        let rows = friction
+        guard !rows.isEmpty else { return nil }
+        return rows[min(frictionCursor, rows.count - 1)]
+    }
+
+    /// Picks a lens: `delta` steps through them, or a lens by name.
+    func pickLens(_ lens: EvaluationLens) {
+        guard lens != evalLens else { return }
+        evalLens = lens
+        frictionCursor = 0
+        if focus == .friction, friction.isEmpty { focus = .goals }
+    }
+
+    func stepLens(_ delta: Int) {
+        let all = EvaluationLens.allCases
+        let index = all.firstIndex(of: evalLens) ?? 0
+        pickLens(all[(index + delta + all.count) % all.count])
+    }
+
+    /// The lens a goal's evaluations open on: its first required one with a walk, else its first required one.
+    private func defaultLens() {
+        let evaluations = evaluations
+        let lens = evaluations.first { $0.required && $0.walk != nil }?.lens
+            ?? evaluations.first(where: \.required)?.lens ?? evalLens
+        if lens != evalLens {
+            evalLens = lens
+            frictionCursor = 0
+        }
+    }
+
+    /// `goal.evaluations`: the Evaluations pane, or back to the overview.
+    func toggleEvaluations() {
+        pane = pane == .evaluations ? .overview : .evaluations
+        draft = nil
+        if pane == .evaluations { defaultLens() }
+        leftPane()
+    }
+
     /// Goals whose reviewers have nowhere to run, and why: an Attention note.
     private(set) var blocked: [String: String] = [:]
 
@@ -222,6 +280,8 @@ final class GoalsBrowser {
     private func clampQualityCursors() {
         reviewerCursor = min(reviewerCursor, max(reviewers.count - 1, 0))
         objectionCursor = min(objectionCursor, max(objections.count - 1, 0))
+        frictionCursor = min(frictionCursor, max(friction.count - 1, 0))
+        if focus == .friction, friction.isEmpty { focus = .goals }
         if focus == .objections, objections.isEmpty { focus = reviewers.isEmpty ? .goals : .reviewers }
         if focus == .reviewers, reviewers.isEmpty { focus = .goals }
     }
@@ -261,6 +321,12 @@ final class GoalsBrowser {
             return
         }
         if focus == .objections { return setObjectionCursor(index) }
+        if focus == .friction {
+            let count = friction.count
+            guard count > 0 else { return }
+            frictionCursor = min(max(index, 0), count - 1)
+            return
+        }
         if focus == .links {
             let count = links.count
             guard count > 0 else { return }
@@ -277,8 +343,10 @@ final class GoalsBrowser {
         objectionCursor = 0
         personas.setCursor(0, count: 1)
         personas.draft = nil
+        frictionCursor = 0
         draft = nil
         loadVersions()
+        if pane == .evaluations { defaultLens() }
     }
 
     // MARK: Items
@@ -332,6 +400,7 @@ final class GoalsBrowser {
         case .unassigned: "unassigned"
         case .reviewers: "goalreviewers"
         case .personas: "goalpersonas"
+        case .evaluations: "goalevals"
         }
     }
 
@@ -344,6 +413,7 @@ final class GoalsBrowser {
         case .reviewers: reviewers.count
         case .objections: objections.count
         case .personas: personaRows.count
+        case .friction: friction.count
         }
     }
 
@@ -356,6 +426,7 @@ final class GoalsBrowser {
         case .reviewers: min(reviewerCursor, max(reviewers.count - 1, 0))
         case .objections: min(objectionCursor, max(objections.count - 1, 0))
         case .personas: min(personas.cursor, max(personaRows.count - 1, 0))
+        case .friction: min(frictionCursor, max(friction.count - 1, 0))
         }
     }
 
@@ -366,12 +437,16 @@ final class GoalsBrowser {
             switch focus {
             case .goals, .links: focus = reviewers.isEmpty ? .goals : .reviewers
             case .reviewers: focus = objections.isEmpty ? .goals : .objections
-            case .objections, .personas: focus = .goals
+            case .objections, .personas, .friction: focus = .goals
             }
             return
         }
         if pane == .personas {
             focus = focus == .personas || personaRows.isEmpty ? .goals : .personas
+            return
+        }
+        if pane == .evaluations {
+            focus = focus == .goals && !friction.isEmpty ? .friction : .goals
             return
         }
         focus = focus == .goals && !links.isEmpty ? .links : .goals
@@ -383,6 +458,7 @@ final class GoalsBrowser {
         case .reviewers: focus = reviewers.isEmpty ? .goals : .reviewers
         case .objections: focus = objections.isEmpty ? .goals : .objections
         case .personas: focus = personaRows.isEmpty ? .goals : .personas
+        case .friction: focus = friction.isEmpty ? .goals : .friction
         case .goals: focus = .goals
         }
     }
@@ -454,7 +530,8 @@ final class GoalsBrowser {
     private func leftPane() {
         if pane != .reviewers, focus == .reviewers || focus == .objections { focus = .goals }
         if pane != .personas, focus == .personas { focus = .goals }
-        if pane == .reviewers || pane == .personas, focus == .links { focus = .goals }
+        if pane != .evaluations, focus == .friction { focus = .goals }
+        if pane == .reviewers || pane == .personas || pane == .evaluations, focus == .links { focus = .goals }
         if pane != .personas { personas.draft = nil }
     }
 

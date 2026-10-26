@@ -311,14 +311,26 @@ extension AppModel {
         }
         let bars = quality.lenses.reduce(into: [GoalLens: Double]()) { $0[$1.lens] = $1.bar }
         let basis = reviewBasis(goal)
+        let used = ReviewPlanner.used(quality.runs, now: Clock.now)
+        // Evaluators walk on their own plan (`EvaluationPlanner`), after the reviewers, from the same budget.
         let plan = ReviewPlanner.plan(
-            trigger: trigger, only: only, reviewers: quality.live, bars: bars, basis: basis,
-            used: ReviewPlanner.used(quality.runs, now: Clock.now), limit: config.goals.reviewerRunsPerDay
+            trigger: trigger, only: only, reviewers: quality.live.filter { $0.config.walk == nil }, bars: bars,
+            basis: basis, used: used, limit: config.goals.reviewerRunsPerDay
         )
-        goals.setWaiting(goal.id, plan.overBudget)
-        if trigger == .manual, plan.run.isEmpty {
-            say(plan.quiet.values.first.map { "nothing to re-check: \($0)" } ?? "no reviewers on \(goal.title)")
-            return plan
+        let walks = EvaluationPlanner.plan(
+            trigger: trigger, only: only, evaluators: quality.live.filter { $0.config.walk != nil }, bars: bars,
+            required: Set(EvaluationLens.required(profile: quality.profile?.profile, bars: bars)),
+            used: used + (trigger == .manual ? 0 : plan.run.count), limit: config.goals.reviewerRunsPerDay
+        )
+        goals.setWaiting(goal.id, plan.overBudget + walks.overBudget)
+        if trigger == .manual, plan.run.isEmpty, walks.run.isEmpty {
+            let quiet = plan.quiet.values.first ?? walks.quiet.values.first
+            say(quiet.map { "nothing to re-check: \($0)" } ?? "no reviewers on \(goal.title)")
+            return ReviewPlan(quiet: plan.quiet.merging(walks.quiet) { first, _ in first })
+        }
+        for id in walks.run {
+            guard let state = quality.reviewer(id) else { continue }
+            launchWalk(goal: goal, state: state, trigger: trigger, basis: basis)
         }
         for id in plan.run {
             guard let state = quality.reviewer(id) else { continue }
@@ -331,9 +343,11 @@ extension AppModel {
                     .flatMap { bars[$0] }
             )
         }
-        if trigger == .manual, !plan.run.isEmpty {
-            say(plan.run.count == 1 ? "\(quality.reviewer(plan.run[0])?.config.title ?? "the reviewer") is looking"
-                : "\(plan.run.count) reviewers are looking")
+        let started = plan.run + walks.run
+        if trigger == .manual, !started.isEmpty {
+            let title = quality.reviewer(started[0])?.config.title ?? "the reviewer"
+            say(started.count == 1 ? title + (walks.run.isEmpty ? " is looking" : " is walking, in a fresh clone")
+                : "\(started.count) reviewers are looking")
         }
         return plan
     }
@@ -531,6 +545,18 @@ extension AppModel {
             goals.seenVersions[goal.id] = goal.version
             if nightly { triggers.append(.nightly) }
             if config.goals.autoReview, let trigger = triggers.first { runReviewers(goal: goal, trigger: trigger) }
+            // Walks of their own: a change in their area, a fix for a finding merged; not when a merge or a new
+            // version walks them already.
+            let merged = Set(triggers.compactMap { trigger -> String? in
+                if case let .prMerged(ref) = trigger { return ref }
+                return nil
+            })
+            let walking = triggers.first.map { trigger in
+                if case .prMerged = trigger { return true }
+                if case .goalVersion = trigger { return true }
+                return false
+            } ?? false
+            checkEvaluations(goal, merged: walking ? [] : merged, walk: !walking)
             if let quality { checkDone(goal.id, quality: quality) }
         }
     }

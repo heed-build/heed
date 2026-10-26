@@ -143,6 +143,11 @@ public enum Commands {
             "Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview)",
             .views
         ),
+        .init(
+            "goal.evaluations",
+            "Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview)",
+            .views
+        ),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -317,6 +322,19 @@ public enum Commands {
         .init(
             "persona.use", "put a persona from the shared library on the goal (a copy)", .selection,
             arguments: "<persona>"
+        ),
+        .init(
+            "eval.fix", "start a session to fix the friction under the cursor: Start work, filled in", .selection
+        ),
+        .init("eval.accept", "accept the friction under the cursor (again: open it)", .selection),
+        .init(
+            "eval.rewalk",
+            "walk again now, in a fresh clone: the lens picked (after a fix, to see whether it helped)",
+            .selection, arguments: "[lens]"
+        ),
+        .init(
+            "eval.lens", "Evaluations: pick a lens, the next (1), the one before (-1) or one by name", .selection,
+            arguments: "<1|-1|lens>"
         ),
         .init("ledger.summarize", "write the ledger summary of this work now", .selection),
         .init(

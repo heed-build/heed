@@ -459,6 +459,11 @@ enum Shots {
         Shot(id: "goals/personas", keys: "gGjP<Tab>"),
         Shot(id: "goals/persona-table", keys: "gGjP<Tab>", crop: .goalPersonaList, cropPadding: 8),
         Shot(id: "goals/persona-file", keys: "gGjP<Tab>", crop: .goalPersonaFile, cropPadding: 8),
+        // Evaluations (X): the DX evaluator's two walks, its friction log, and the lens picker.
+        Shot(id: "goals/evaluations", keys: "gGjX<Tab>"),
+        Shot(id: "goals/walk", keys: "gGjX", crop: .goalEvaluator, cropPadding: 8),
+        Shot(id: "goals/friction", keys: "gGjX<Tab>", crop: .goalFriction, cropPadding: 8),
+        Shot(id: "goals/lenses", keys: "gGjX", crop: .goalLenses, cropPadding: 8),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

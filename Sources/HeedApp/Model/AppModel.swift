@@ -2336,6 +2336,11 @@ final class AppModel {
         case "review.why": askReviewerWhy()
         case "reviewer.spawn": spawnReviewer(command.arguments)
         case "reviewer.remove": removeReviewer()
+        case "goal.evaluations": toggleGoalEvaluations()
+        case "eval.fix": fixFriction()
+        case "eval.accept": acceptFriction()
+        case "eval.rewalk": rewalk(command.arguments)
+        case "eval.lens": pickEvaluationLens(command.arguments)
         case "history.dashboard": view = view == .dashboard ? .history : .dashboard
         case "dashboard.range": dashboard.cycleRange(command.arguments.first)
         case "history.ledger": view = view == .ledger ? .history : .ledger

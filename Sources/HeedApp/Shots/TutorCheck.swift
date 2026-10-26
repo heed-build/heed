@@ -37,6 +37,8 @@ enum TutorCheck {
             "L",
             "R",
             "<Tab>j<Tab>A",
+            "X",
+            "<Tab>a",
             "P",
             "U",
             "y",

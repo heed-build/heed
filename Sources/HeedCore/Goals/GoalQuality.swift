@@ -16,10 +16,13 @@ public struct ReviewerConfig: Hashable, Sendable, Codable, Identifiable {
     public var removed: Bool
     /// The persona it is (its name), when one was spawned as a reviewer: its instructions are the persona's brief.
     public var persona: String?
+    /// The walk an evaluator does, when it is not its kind's own (`walk`): API and config, accessibility, docs.
+    public var evaluation: EvaluationLens?
 
     public init(
         id: String, kind: ReviewerKind, instructions: String? = nil, policy: ReviewPolicy = .onChange,
-        agent: String? = nil, tier: ModelTier? = nil, removed: Bool = false, persona: String? = nil
+        agent: String? = nil, tier: ModelTier? = nil, removed: Bool = false, persona: String? = nil,
+        evaluation: EvaluationLens? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -29,10 +32,12 @@ public struct ReviewerConfig: Hashable, Sendable, Codable, Identifiable {
         self.tier = tier
         self.removed = removed
         self.persona = persona
+        self.evaluation = evaluation
     }
 
     public var title: String {
         if let persona { return persona }
+        if let walk { return walk.evaluatorTitle }
         return kind == .custom ? (instructions.map { "Custom: " + String($0.prefix(30)) } ?? kind.title) : kind.title
     }
 }
@@ -79,6 +84,8 @@ public enum QualityEntry: Hashable, Sendable, Codable {
     case personas(PersonaDerivation)
     /// A persona put to work as a reviewer, a chat or a session.
     case personaSpawn(PersonaSpawn)
+    /// The steps an evaluator walks for a GOAL.md version (`WalkDraft`).
+    case walkDraft(WalkDraft)
 
     /// The `kind` column.
     public var kind: String {
@@ -92,6 +99,7 @@ public enum QualityEntry: Hashable, Sendable, Codable {
         case .done: "done"
         case .personas: "personas"
         case .personaSpawn: "persona-spawn"
+        case .walkDraft: "walk-draft"
         }
     }
 }
@@ -216,6 +224,10 @@ public struct ReviewerState: Hashable, Sendable, Identifiable {
     public var lastRun: ReviewRunStart?
     public var lastRunAt: Date?
     public var summary: String
+    /// An evaluator's walks, oldest first (`config.walk`).
+    public var walks: [EvaluationWalk] = []
+    /// An evaluator's latest drafted steps.
+    public var draft: WalkDraft?
 
     public var id: String { config.id }
     public var open: [Objection] { objections.filter { $0.state == .open } }
@@ -230,6 +242,18 @@ public struct ReviewerState: Hashable, Sendable, Identifiable {
     public var running: Bool {
         guard let lastRun else { return false }
         return lastReview?.run != lastRun.id
+    }
+
+    /// Its score from its objections: a walk's (`GoalScore.walk`, with credit for a faster re-walk of the same draft)
+    /// for an evaluator that walked, else a review's, with what `report` ran and read.
+    func scored(_ report: ReviewReport?) -> GoalScore {
+        if config.walk != nil, let last = walks.last {
+            let previous = walks.dropLast().last { $0.lens == last.lens && $0.draftVersion == last.draftVersion }
+            return GoalScore.walk(
+                objections, seconds: last.seconds, previous: previous?.seconds, steps: last.steps.count
+            )
+        }
+        return GoalScore.reviewer(objections, ran: report?.ran.count ?? 0, files: report?.files ?? 0)
     }
 
     /// Objections in the order the detail lists them: open first, then accepted, then fixed; worst first in each.
@@ -319,7 +343,8 @@ public struct GoalQuality: Hashable, Sendable {
                         known: state.objections, raised: report.objections, pairs: result.pairs, at: record.at
                     )
                     state.summary = report.summary
-                    let score = GoalScore.reviewer(state.objections, ran: report.ran.count, files: report.files)
+                    if let walk = report.walk { state.walks.append(walk) }
+                    let score = state.scored(report)
                     state.score = score
                     state.history.append(score.value)
                 }
@@ -329,27 +354,23 @@ public struct GoalQuality: Hashable, Sendable {
                       let index = state.objections.firstIndex(where: { $0.id == action.objection })
                 else { continue }
                 state.objections[index].state = action.state
-                if let report = state.lastReview?.report {
-                    state.score = GoalScore.reviewer(state.objections, ran: report.ran.count, files: report.files)
-                } else {
-                    state.score = GoalScore.reviewer(state.objections)
-                }
+                state.score = state.scored(state.lastReview?.report)
                 states[action.reviewer] = state
             case let .done(mark):
                 doneMark = mark
                 doneAt = record.at
             case .personas, .personaSpawn:
                 continue
+            case let .walkDraft(draft):
+                states[draft.reviewer]?.draft = draft
             }
         }
         let profile = profiles.last
         let bars = Self.bars(profile: profile, pins: pins, table: table)
         let reviewers = order.compactMap { states[$0] }
+        let walks = Set(EvaluationLens.required(profile: profile?.profile, bars: bars))
         let lenses = bars.keys.sorted().map { lens in
-            // The lens's score: the best of its live reviewers that have scored.
-            let score = reviewers.filter { !$0.config.removed && $0.config.kind.lens == lens }
-                .compactMap { $0.score?.value }.max()
-            return GoalScore.Lens(lens: lens, bar: bars[lens]!, score: score)
+            GoalScore.Lens(lens: lens, bar: bars[lens]!, score: lensScore(lens, reviewers: reviewers, walks: walks))
         }
         let met = doc?.criteriaMet ?? (met: 0, total: 0)
         return GoalQuality(
@@ -358,6 +379,17 @@ public struct GoalQuality: Hashable, Sendable {
             done: doc.map { GoalScore.done(doc: $0, lenses: lenses) } ?? (false, ["no GOAL.md"]),
             doneMark: doneMark, doneAt: doneAt, runs: runs
         )
+    }
+
+    /// A lens's score: the best of its live reviewers that have scored, and each required walk's, whichever is lowest
+    /// (every walk of the lens has to clear its bar: a first run at 9 does not carry an API walk at 4). A walk the
+    /// goal does not require does not count.
+    static func lensScore(_ lens: GoalLens, reviewers: [ReviewerState], walks: Set<EvaluationLens>) -> Double? {
+        let live = reviewers.filter { !$0.config.removed && $0.config.kind.lens == lens }
+        let reviewed = live.filter { $0.config.walk == nil }.compactMap { $0.score?.value }.max()
+        let walked = live.filter { $0.config.walk.map(walks.contains) == true && !$0.walks.isEmpty }
+            .compactMap { $0.score?.value }
+        return ((reviewed.map { [$0] } ?? []) + walked).min()
     }
 
     public func reviewer(_ id: String) -> ReviewerState? { reviewers.first { $0.id == id } }

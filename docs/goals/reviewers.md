@@ -22,12 +22,13 @@ accept a risk, and when a reviewer looks again.
 | Security | security | Input from outside, secrets, permissions, injection |
 | Test architect | tests | Whether the tests cover the criteria and would fail if the code broke |
 | Docs reader | docs | Whether what changed is documented, right and followable |
-| UX evaluator | UX | What changed as someone new would meet it |
-| DX evaluator | DX first run | A first run from the README, as a stranger |
+| UX evaluator | UX | Walks the product's screens as a stranger ([Evaluations](evaluations.md)) |
+| DX evaluator | DX first run | Walks a first run from the README and the CLI, as a stranger ([Evaluations](evaluations.md)) |
 | Custom | none | Your own instructions |
 
-heed spawns one reviewer for each lens the goal's [profile](quality.md) requires. The UX and DX evaluators review
-like the others for now; walks in a fresh clone, timed step by step, come later.
+heed spawns one reviewer for each lens the goal's [profile](quality.md) requires. The UX and DX evaluators, and the
+docs walker, do not review: they walk the goal's task in a fresh clone, step by step, and keep a friction log
+([Evaluations](evaluations.md)).
 
 ## When they run
 

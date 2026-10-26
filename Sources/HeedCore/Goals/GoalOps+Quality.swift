@@ -92,9 +92,7 @@ public extension GoalOps {
             goalVersion: goal.version, source: source
         )
         var entries: [QualityEntry] = [.profile(decision)]
-        entries += ReviewPlanner.missing(bars: new, reviewers: before.reviewers).map {
-            .reviewer(ReviewerConfig(id: $0.rawValue, kind: $0))
-        }
+        entries += Self.spawns(profile: profile, bars: new, reviewers: before.reviewers).map(QualityEntry.reviewer)
         try record(entries, goal: id, at: now, table: table)
         return decision
     }
@@ -107,10 +105,28 @@ public extension GoalOps {
         let before = try quality(of: id, table: table)
         let bars = GoalQuality.bars(profile: before.profile, pins: pins, table: table)
         var entries: [QualityEntry] = [.pins(pins)]
-        entries += ReviewPlanner.missing(bars: bars, reviewers: before.reviewers).map {
-            .reviewer(ReviewerConfig(id: $0.rawValue, kind: $0))
-        }
+        entries += Self.spawns(profile: before.profile?.profile, bars: bars, reviewers: before.reviewers)
+            .map(QualityEntry.reviewer)
         return try record(entries, goal: id, at: now, table: table)
+    }
+
+    /// The reviewers heed spawns for new bars: one per required lens that has none (`ReviewPlanner.missing`), then an
+    /// evaluator per required walk that has none (`EvaluationPlanner.missing`).
+    internal static func spawns(profile: GoalProfile?, bars: [GoalLens: Double], reviewers: [ReviewerState])
+        -> [ReviewerConfig]
+    {
+        let reviewing = ReviewPlanner.missing(bars: bars, reviewers: reviewers).map {
+            ReviewerConfig(id: $0.rawValue, kind: $0)
+        }
+        let walking = EvaluationPlanner.missing(
+            profile: profile, bars: bars, configs: reviewers.map(\.config) + reviewing
+        )
+        return reviewing + walking
+    }
+
+    /// The steps an evaluator walks for the goal's current GOAL.md version.
+    func draftWalk(_ draft: WalkDraft, goal id: String, now: Date, table: GoalBarTable = .defaults) throws {
+        try record([.walkDraft(draft)], goal: id, at: now, table: table)
     }
 
     /// A new reviewer on the goal (`id` made unique), or a change to one.
@@ -169,8 +185,11 @@ public extension GoalOps {
         var items = try store.items().filter { $0.goal == goal }
         if let id, let reviewer = quality.reviewer(id) {
             let bar = reviewer.config.kind.lens.flatMap { lens in quality.lenses.first { $0.lens == lens }?.bar }
-            for evidence in ReviewEvidence.of(reviewer: reviewer, bar: bar, goal: goal, items: items, at: now) {
-                try addEvidence(evidence)
+            let evidence = reviewer.config.walk == nil
+                ? ReviewEvidence.of(reviewer: reviewer, bar: bar, goal: goal, items: items, at: now)
+                : EvaluationEvidence.of(evaluator: reviewer, bar: bar, goal: goal, items: items, at: now)
+            for entry in evidence {
+                try addEvidence(entry)
             }
         }
         for (reviewer, objection) in ReviewEvidence.newItems(quality, items: items) {
@@ -183,20 +202,20 @@ public extension GoalOps {
                 now: now
             )
             items.append(item)
-            if let lens = reviewer.config.kind.lens, let stage = ReviewEvidence.stage(lens) {
+            if let kind = EvaluationEvidence.kind(reviewer) {
                 try addEvidence(GoalEvidence(
-                    goal: goal, item: item.id, kind: stage.evidence, state: .issue, at: now,
-                    source: reviewer.config.kind.title.lowercased(), text: objection.evidence ?? "HIGH objection",
+                    goal: goal, item: item.id, kind: kind, state: .issue, at: now,
+                    source: EvaluationEvidence.source(reviewer), text: objection.evidence ?? "HIGH objection",
                     ref: "review:\(reviewer.id)"
                 ))
             }
         }
         for (item, objection) in ReviewEvidence.settled(quality, items: items) {
             let reviewer = item.linked(.review).first.flatMap { quality.reviewer($0) }
-            let kind = reviewer?.config.kind.lens.flatMap(ReviewEvidence.stage)?.evidence ?? .codeReview
+            let kind = reviewer.flatMap(EvaluationEvidence.kind) ?? .codeReview
             try addEvidence(GoalEvidence(
                 goal: goal, item: item.id, kind: kind, state: .done, at: now,
-                source: reviewer?.config.kind.title.lowercased() ?? "reviewer", text: objection.state.text,
+                source: reviewer.map(EvaluationEvidence.source) ?? "reviewer", text: objection.state.text,
                 ref: reviewer.map { "review:\($0.id)" }
             ))
         }

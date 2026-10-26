@@ -136,6 +136,7 @@ extension AppModel {
             case .reviewers: return reviewerMenu(index)
             case .objections: return objectionMenu(index)
             case .personas: return personaMenu(index)
+            case .friction: return frictionMenu(index)
             }
         case .sessions:
             return []

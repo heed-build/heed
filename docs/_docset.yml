@@ -99,6 +99,7 @@ toc:
       - file: attach.md
       - file: quality.md
       - file: reviewers.md
+      - file: evaluations.md
       - file: cli.md
       - file: personas.md
   - folder: keyboard

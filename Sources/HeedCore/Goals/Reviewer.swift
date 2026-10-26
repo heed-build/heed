@@ -9,8 +9,7 @@ public enum ReviewerKind: String, Hashable, Sendable, Codable, CaseIterable {
     case security
     case testArchitect = "test-architect"
     case docsReader = "docs-reader"
-    /// Stranger walks (a fresh clone, the README only, a friction log) come with evaluations; until then these review
-    /// as a newcomer would read.
+    /// Stranger walks: a fresh clone, the README only, a friction log (`EvaluationLens`, `EvaluationRun`).
     case uxEvaluator = "ux-evaluator"
     case dxEvaluator = "dx-evaluator"
     /// Your own instructions; required by no lens.
@@ -65,7 +64,7 @@ public enum ReviewerKind: String, Hashable, Sendable, Codable, CaseIterable {
         allCases.first { $0.lens == lens }!
     }
 
-    /// Where stranger walks will come from: until evaluations exist, a stub that reviews like the others.
+    /// Kinds whose runs are stranger walks (the docs reader walks too when spawned for a docs walk).
     public var isEvaluator: Bool { self == .uxEvaluator || self == .dxEvaluator }
 
     /// The model it runs on unless `[goals.reviewers]` says otherwise: judgement calls on the best one.
@@ -223,12 +222,22 @@ public struct ReviewReport: Hashable, Sendable, Codable {
     public var ran: [String]
     /// Files it read.
     public var files: Int
+    /// An evaluator's walk: its steps, their times and its friction log (whose entries are `objections`).
+    public var walk: EvaluationWalk?
 
-    public init(summary: String, objections: [Raised], ran: [String] = [], files: Int = 0) {
+    public init(
+        summary: String, objections: [Raised], ran: [String] = [], files: Int = 0, walk: EvaluationWalk? = nil
+    ) {
         self.summary = summary
         self.objections = objections
         self.ran = ran
         self.files = files
+        self.walk = walk
+    }
+
+    /// A walk as its evaluator's review: its summary, and its friction as the objections.
+    public init(walk: EvaluationWalk) {
+        self.init(summary: walk.summary, objections: walk.raised, walk: walk)
     }
 
     /// The file's name, in the run's worktree under `.heed/`.

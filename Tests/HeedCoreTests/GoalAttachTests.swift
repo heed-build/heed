@@ -670,3 +670,23 @@ struct ClustersTests {
         #expect(model.prompts.withLock { $0[0] }.contains("You draft a GOAL.md"))
     }
 }
+
+struct GoalAttachAttentionTests {
+    @Test func theDetailSaysWhatTheGoalItemIsByItsReason() {
+        let decision = AttachDecision(
+            subject: subject("c1", kind: .chat, title: "Lifelines"), trigger: .prompt,
+            verdict: AttachVerdict(action: .ask, goal: "a", confidence: 0.6, reason: "why"), at: now
+        )
+        let ask = AttachItemSource(decision: decision, goalTitle: "A").item
+        #expect(ask.id == "goal-attach:chat:c1" && ask.kind == .goal && ask.reasons == [.goalAttach])
+        #expect(ask.placeholderSummary == "heed is unsure which goal this belongs to.")
+        var proposals = ask
+        proposals.reasons = [.goalProposals]
+        #expect(proposals.placeholderSummary == "Changes to the goal's GOAL.md the work suggests: ↩ shows them.")
+        proposals.kind = .agent
+        #expect(proposals.placeholderSummary == "An agent waiting on you.")
+        proposals.kind = .pr
+        #expect(proposals.placeholderSummary == "No summary yet.")
+        #expect(GoalAttachAsks.key(of: ask.id) == "chat:c1" && GoalAttachAsks.key(of: "acme/x#1") == nil)
+    }
+}

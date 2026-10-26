@@ -268,6 +268,14 @@ struct AskCard: View {
                 .font(Theme.ui(13)).fixedSize(horizontal: false, vertical: true)
             Text("\(Int((decision.verdict.confidence * 100).rounded()))% · " + decision.verdict.reason)
                 .font(Theme.ui(12)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
+            let others = decision.candidates.filter { $0.goal != decision.verdict.goal }
+            if !others.isEmpty {
+                Text("also: " + others.map { candidate in
+                    let title = model.goals.snapshot.goal(candidate.goal)?.title ?? candidate.goal
+                    return "\(title) \(Int((candidate.confidence * 100).rounded()))%"
+                }.joined(separator: " · "))
+                    .font(Theme.mono(11)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: 14) {
                 KeyHint("goal.ask.yes", scope: scope, label: "yes")
                 KeyHint("goal.ask.no", scope: scope, label: "no")

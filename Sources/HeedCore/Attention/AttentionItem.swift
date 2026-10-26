@@ -161,6 +161,16 @@ public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
     /// Its reasons, most telling first.
     public var orderedReasons: [AttentionReason] { reasons.sorted() }
 
+    /// What the detail says when there is no summary: about an agent or one of heed's goal items, by its reason.
+    public var placeholderSummary: String {
+        switch kind {
+        case .agent: "An agent waiting on you."
+        case .goal where reasons.contains(.goalAttach): "heed is unsure which goal this belongs to."
+        case .goal: "Changes to the goal's GOAL.md the work suggests: ↩ shows them."
+        default: "No summary yet."
+        }
+    }
+
     /// `acme/docs#12`, `acme/docs`, or the agent's title.
     public var place: String {
         guard let repo else { return "" }

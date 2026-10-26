@@ -320,12 +320,7 @@ private struct AttentionDetail: View {
                     } else if model.attention.summarizing.contains(item.id) {
                         Text("summarizing…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     } else {
-                        Text(
-                            item.kind == .agent ? "An agent waiting on you."
-                                : item.kind == .goal ? "Changes to the goal's GOAL.md the work suggests: ↩ shows them."
-                                : "No summary yet."
-                        )
-                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                        Text(item.placeholderSummary).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
                 }
                 if let digest = detail?.digest, !digest.isEmpty {

@@ -10,6 +10,8 @@ public enum ReviewTrigger: Hashable, Sendable, Codable {
     case nightly
     /// You pressed re-check.
     case manual
+    /// An agent asked (`heed goal review request`): like a change, within the day's budget.
+    case asked(String)
 
     public var text: String {
         switch self {
@@ -19,6 +21,7 @@ public enum ReviewTrigger: Hashable, Sendable, Codable {
         case let .goalVersion(number): "after GOAL.md v\(number)"
         case .nightly: "nightly"
         case .manual: "you asked"
+        case let .asked(who): "\(who) asked"
         }
     }
 

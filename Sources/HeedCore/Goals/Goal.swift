@@ -200,7 +200,8 @@ public enum GoalSlug {
 /// `[goals]` in config.toml.
 public struct GoalSettings: Equatable, Sendable {
     /// Sessions and chats on a goal are told at launch and resume which goal, and to read its `GOAL.md` first
-    /// (`GoalPointer`).
+    /// (`GoalPointer`), and how to keep the goal: claude through heed's plugin and its `heed-goal` skill, codex
+    /// through its instructions (`GoalGuidance`).
     public var tellAgents = true
     /// `attach`, `attach_auto`, `attach_ask`, `attach_model`: how heed finds new work's goal.
     public var attach = AttachSettings()
@@ -215,6 +216,10 @@ public struct GoalSettings: Equatable, Sendable {
     public var reviewerAgent = ""
     /// Reviewers run on their own when the work changes; off: only when you press re-check.
     public var autoReview = true
+    /// Sessions and background runs `heed goal item spawn` may have going at once on a goal; past it, heed asks.
+    public var spawnConcurrent = 2
+    /// Spawns a goal may start in a day; past it, heed asks.
+    public var spawnPerDay = 6
 
     public init(tellAgents: Bool = true, attach: AttachSettings = AttachSettings()) {
         self.tellAgents = tellAgents

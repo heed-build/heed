@@ -529,19 +529,25 @@ public struct IntegrationFiles: Hashable, Sendable {
     public var opencodePlugin: String
     /// The bundled `heed`, for hooks that run without Heed's PATH (codex, cursor).
     public var heedBinary: String
+    /// heed's Claude Code plugin folder (`HeedPlugin`), passed with `--plugin-dir` to claude sessions on a goal.
+    public var plugin: String
+    /// heed's version, which the plugin carries: a new heed rewrites it.
+    public var version: String
 
-    public init(directory: URL, heedBinary: String = "heed") {
+    public init(directory: URL, heedBinary: String = "heed", version: String = "dev") {
         claudeSettings = directory.appendingPathComponent("claude-hooks.json").path
         piExtension = directory.appendingPathComponent("heed-pi.js").path
         opencodePlugin = directory.appendingPathComponent("heed-opencode.js").path
+        plugin = directory.appendingPathComponent("plugin").path
         self.heedBinary = heedBinary
+        self.version = version
     }
 
-    public static func `default`(heedBinary: String = "heed") -> IntegrationFiles {
+    public static func `default`(heedBinary: String = "heed", version: String = "dev") -> IntegrationFiles {
         IntegrationFiles(
             directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("Heed"),
-            heedBinary: heedBinary
+            heedBinary: heedBinary, version: version
         )
     }
 
@@ -562,5 +568,6 @@ public struct IntegrationFiles: Hashable, Sendable {
                 try content.write(to: url, atomically: true, encoding: .utf8)
             }
         }
+        try HeedPlugin.write(to: URL(fileURLWithPath: plugin, isDirectory: true), version: version)
     }
 }

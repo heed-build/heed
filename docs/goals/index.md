@@ -81,9 +81,10 @@ links. `'g` jumps from a session to its goal.
 ## Agents read the goal
 
 When a session or chat on a goal starts or resumes, its agent is told which goal the work belongs to, to read the
-goal's `GOAL.md` first and to keep to its **Not the goal** list (claude through its system prompt, codex through its
-developer instructions). Turn it off with `tell_agents = false` under `[goals]` in config.toml, or in Settings ›
-General › Goals.
+goal's `GOAL.md` first and to keep to its **Not the goal** list, and how to keep the goal itself with `heed goal`:
+claude through heed's `heed-goal` skill (a plugin loaded for the session only), codex through its developer
+instructions. See [Agents keep the goal](cli.md). Turn it off with `tell_agents = false` under `[goals]` in
+config.toml, or in Settings › General › Goals.
 
 ```toml
 [goals]

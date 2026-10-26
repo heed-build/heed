@@ -78,6 +78,10 @@ final class GoalsBrowser {
     var spawnTyping = false
     /// Reviewers due but held back by the day's budget, by goal: an Attention ask.
     private(set) var waiting: [String: [String]] = [:]
+    /// Spawns asked for past a goal's cap (`heed goal item spawn`), by goal: an Attention ask until y or n.
+    private(set) var heldSpawns: [String: [GoalHeldSpawn]] = [:]
+    /// Spawned background runs still working (`run:<id>`), for the cap.
+    @ObservationIgnored var spawnRuns: Set<String> = []
     /// What the goals' PRs and versions were at the last look, to tell what changed (`ReviewTrigger.from`).
     @ObservationIgnored var seenPulls: [String: [String: (head: String?, state: String)]] = [:]
     @ObservationIgnored var seenVersions: [String: Int] = [:]
@@ -160,6 +164,19 @@ final class GoalsBrowser {
 
     func setBlocked(_ goal: String, _ why: String?) {
         if blocked[goal] != why { blocked[goal] = why }
+    }
+
+    /// A spawn waits for you; the same item asked twice waits once.
+    func hold(_ spawn: GoalHeldSpawn) {
+        var held = heldSpawns[spawn.spawn.goal] ?? []
+        held.removeAll { $0.spawn.item == spawn.spawn.item }
+        held.append(spawn)
+        heldSpawns[spawn.spawn.goal] = held
+    }
+
+    /// The spawns waiting on a goal, no longer waiting.
+    func release(_ goal: String) -> [GoalHeldSpawn] {
+        heldSpawns.removeValue(forKey: goal) ?? []
     }
 
     func setWaiting(_ goal: String, _ reviewers: [String]) {

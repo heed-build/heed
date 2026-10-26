@@ -39,6 +39,7 @@ extension AppModel {
         case .start: await controlStart(request)
         case .send: controlSend(request)
         case .show: controlShow(request)
+        case .goal: await controlGoal(request)
         }
     }
 

@@ -300,11 +300,14 @@ extension AppModel {
         }
     }
 
-    /// Plans and starts the goal's reviewers for `trigger`; the over-budget ones wait in Attention.
-    func runReviewers(goal: HeedGoal, trigger: ReviewTrigger, only: Set<String>? = nil) {
-        guard let quality = goals.qualities[goal.id] else { return }
+    /// Plans and starts the goal's reviewers for `trigger`; the over-budget ones wait in Attention. The plan, for
+    /// `heed goal review request`; nil when nothing was planned.
+    @discardableResult
+    func runReviewers(goal: HeedGoal, trigger: ReviewTrigger, only: Set<String>? = nil) -> ReviewPlan? {
+        guard let quality = goals.qualities[goal.id] else { return nil }
         if isFixture || tutor != nil {
-            return say("reviewers do not run in the fake world")
+            say("reviewers do not run in the fake world")
+            return nil
         }
         let bars = quality.lenses.reduce(into: [GoalLens: Double]()) { $0[$1.lens] = $1.bar }
         let basis = reviewBasis(goal)
@@ -314,7 +317,8 @@ extension AppModel {
         )
         goals.setWaiting(goal.id, plan.overBudget)
         if trigger == .manual, plan.run.isEmpty {
-            return say(plan.quiet.values.first.map { "nothing to re-check: \($0)" } ?? "no reviewers on \(goal.title)")
+            say(plan.quiet.values.first.map { "nothing to re-check: \($0)" } ?? "no reviewers on \(goal.title)")
+            return plan
         }
         for id in plan.run {
             guard let state = quality.reviewer(id) else { continue }
@@ -331,6 +335,7 @@ extension AppModel {
             say(plan.run.count == 1 ? "\(quality.reviewer(plan.run[0])?.config.title ?? "the reviewer") is looking"
                 : "\(plan.run.count) reviewers are looking")
         }
+        return plan
     }
 
     /// Where a goal's reviewer runs (`ReviewRun.place`): its open PR's head, else a branch its work is on, from a
@@ -577,11 +582,11 @@ extension AppModel {
         }
     }
 
-    /// Goals' Attention items: goals heed marked done, and reviewers waiting for budget.
+    /// Goals' Attention items: goals heed marked done, reviewers waiting for budget, spawns waiting past the cap.
     var goalAttentionItems: [AttentionItem] {
         GoalAttention.items(
             goals: goals.snapshot.goals, qualities: goals.qualities, waiting: goals.waiting, blocked: goals.blocked,
-            now: Clock.now
+            spawns: goals.heldSpawns, now: Clock.now
         )
     }
 }

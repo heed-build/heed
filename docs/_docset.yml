@@ -99,6 +99,7 @@ toc:
       - file: attach.md
       - file: quality.md
       - file: reviewers.md
+      - file: cli.md
   - folder: keyboard
     children:
       - file: index.md

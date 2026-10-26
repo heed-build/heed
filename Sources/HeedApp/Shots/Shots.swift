@@ -450,6 +450,8 @@ enum Shots {
         Shot(id: "goals/reviewers", keys: "gGjR<Tab>j"),
         Shot(id: "goals/reviewer-detail", keys: "gGjR<Tab>j<Tab>", crop: .goalReviewerDetail, cropPadding: 8),
         Shot(id: "goals/how-happy", keys: "gGj", crop: .goalHappy, cropPadding: 8),
+        // The goal mirrored to GitHub: its tracker, meta issue, last sync and a colleague's change waiting.
+        Shot(id: "goals/mirror", keys: "gGj", crop: .goalMirror, cropPadding: 8),
         Shot(id: "goals/quality-bars", keys: "gGjR", crop: .goalBars, cropPadding: 8),
         Shot(id: "goals/spawn", keys: "gGjR", crop: .goalSpawn, cropPadding: 8, prepare: { model in
             model.goals.spawn.kind = .security

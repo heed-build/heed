@@ -511,6 +511,8 @@ public enum ConfigLoader {
                 if let setup = strings(["orgs", org, "setup"]) { config.work.setup.orgs[org] = setup }
                 let pilot = pilotOverrides(["orgs", org])
                 if !pilot.isEmpty { config.pilot.orgs[org] = pilot }
+                if let tracker = string(["orgs", org, "goals_tracker"]) { config.goals.mirror.trackers[org] = tracker }
+                if let flag = bool(["orgs", org, "goals_mirror"]) { config.goals.mirror.mirrors[org] = flag }
             }
         }
         // [hosts.<name>]: ssh, tailscale, transport, user, repo_roots, worktree_root, color.
@@ -577,6 +579,10 @@ public enum ConfigLoader {
                 if let issues = repo.issues { config.issues.repos[slug] = issues }
                 let pilot = pilotOverrides(["repos", slug])
                 if !pilot.isEmpty { config.pilot.repos[slug] = pilot }
+                if let tracker = string(["repos", slug, "goals_tracker"]) {
+                    config.goals.mirror.trackers[slug] = tracker
+                }
+                if let flag = bool(["repos", slug, "goals_mirror"]) { config.goals.mirror.mirrors[slug] = flag }
                 if !repo.tasks
                     .isEmpty { config.work.tasks[slug] = repo.tasks.map { TaskSpec(name: $0.0, command: $0.1) } }
             }
@@ -718,6 +724,9 @@ public enum ConfigLoader {
         if let count = integer(["goals", "spawn_per_day"], range: 0 ... 100) { config.goals.spawnPerDay = count }
         if let flag = bool(["goals", "auto_review"]) { config.goals.autoReview = flag }
         if let name = string(["goals", "reviewer_agent"]) { config.goals.reviewerAgent = name }
+        if let tracker = string(["goals", "tracker"]) { config.goals.mirror.tracker = tracker }
+        if let flag = bool(["goals", "mirror"]) { config.goals.mirror.on = flag }
+        if let label = string(["goals", "mirror_label"]) { config.goals.mirror.label = label }
         for (row, text) in pairs(["goals", "bars"]) {
             guard GoalBarTable.rowNames.contains(row) else {
                 problems.append(ConfigProblem(
@@ -1050,6 +1059,14 @@ public enum ConfigLoader {
     # Past either, heed asks in Attention (y starts them, n drops them).
     spawn_concurrent = 2
     spawn_per_day = 6
+    # The GitHub mirror (docs: goals/github): a goal can follow along as a meta issue with a sub-issue per item, in a
+    # tracker repo of its own (any repo you can triage, not necessarily one the work is in). heed writes there on its
+    # own once a goal's mirror is on (one key, M); colleagues' changes come back as asks and proposals. tracker: the
+    # repo a new goal gets ("org/name"); per org or repo: goals_tracker under [orgs.<name>] or [repos."org/name"].
+    # mirror: new goals mirror from the start (goals_mirror per org or repo). mirror_label: put on heed's issues.
+    tracker = ""
+    mirror = false
+    mirror_label = ""
 
     [goals.bars]
     # The lenses each kind of goal requires and the bar (0-10) each must reach before heed calls the goal done. A

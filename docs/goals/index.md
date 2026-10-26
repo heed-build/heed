@@ -32,6 +32,7 @@ bars ([Quality bars](quality.md)). It shows `–` until there is something to co
 | `r` | Re-check: every reviewer the goal needs looks again |
 | `P` | Who the goal needs ([Personas](personas.md)); again, the overview |
 | `X` | Stranger walks of the goal, their friction logs and scores ([Evaluations](evaluations.md)); again, the overview |
+| `M` | Mirror the goal to GitHub for colleagues to follow; again, stop ([GitHub mirror](github.md)) |
 
 Everything here also takes the mouse: a click picks a goal, a double-click opens it, and a right-click offers what
 the keys do.
@@ -46,7 +47,8 @@ chats on it, and how many of their PRs merged. **Implementation state** is the g
 **Resulting PRs** lists their PRs with where each stands; **Needs you** lists the changes to `GOAL.md` waiting for
 you, the open questions and the goal's sessions that wait on you; **Last time** is the newest ledger summary of one of
 its sessions, so you see where the work was left. **How happy are they** lists its reviewers with their scores and which
-way each moved; a click opens it in [Reviewers](reviewers.md).
+way each moved; a click opens it in [Reviewers](reviewers.md). **On GitHub** shows where the goal mirrors to, its
+meta issue and its last sync, and a colleague's change waiting for your answer ([GitHub mirror](github.md)).
 
 ## GOAL.md
 

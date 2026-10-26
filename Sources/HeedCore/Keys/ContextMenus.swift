@@ -198,7 +198,8 @@ public enum ContextMenus {
 
     /// A goal in the Goals list.
     public static func goal(
-        id: String, title: String, archived: Bool, docShown: Bool, reviewersShown: Bool = false, done: Bool = false
+        id: String, title: String, archived: Bool, docShown: Bool, reviewersShown: Bool = false, done: Bool = false,
+        mirrored: Bool = false, meta: Int? = nil
     ) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: id)
         func item(_ title: String, _ name: String) -> MenuItem {
@@ -214,6 +215,10 @@ public enum ContextMenus {
             item("Who it needs", "goal.personas"),
             item("Evaluations: stranger walks", "goal.evaluations"),
         ])
+        menu.section([
+            item(mirrored ? "Stop mirroring to GitHub" : "Mirror to GitHub", "goal.mirror"),
+            item("Tracker repo…", "goal.tracker"),
+        ] + (meta.map { [item("Open #\($0) on GitHub", "goal.mirror.open")] } ?? []))
         menu.section([item(archived ? "Bring back" : "Archive", "goal.archive")]
             + (done ? [item("Not done yet", "goal.reopen")] : []))
         menu.section([MenuItem("New goal…", CommandInvocation(name: "goal.new"))])
@@ -312,7 +317,9 @@ public enum ContextMenus {
     }
 
     /// An item's card on a goal's board, or its row in the overview's matrix.
-    public static func goalItem(id: String, title: String, column: Board.Column, question: Bool) -> [MenuEntry] {
+    public static func goalItem(
+        id: String, title: String, column: Board.Column, question: Bool, issue: Int? = nil
+    ) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: id)
         func item(_ title: String, _ command: String) -> MenuItem {
             let parsed = CommandInvocation(parsing: command)
@@ -327,6 +334,7 @@ public enum ContextMenus {
             item(other.title, "goal.item.move \(other.word)")
         })
         menu.section([item("Done", "goal.item.done"), item("Split it…", "goal.item.split")])
+        if let issue { menu.section([item("Open #\(issue) on GitHub", "goal.mirror.open")]) }
         menu.section([MenuItem("Add an item…", CommandInvocation(name: "goal.item.add"))])
         return menu.entries
     }

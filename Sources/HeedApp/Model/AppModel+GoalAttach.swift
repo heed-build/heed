@@ -151,6 +151,12 @@ extension AppModel {
     }
 
     private func notHere(_ command: String) {
+        // A colleague's change on GitHub in Attention: y and n answer it.
+        if view == .attention, command == "goal.ask.yes" || command == "goal.ask.no",
+           attentionSelected?.item.reasons.contains(.goalMirror) == true
+        {
+            return answerMirrorAsk(yes: command == "goal.ask.yes")
+        }
         // In Attention these keys keep their old use on everything that is not an ask.
         if view == .attention, command == "goal.ask.move" { return perform(CommandInvocation(name: "session.pin")) }
         if view == .attention, command == "goal.ask.ignore" { return }

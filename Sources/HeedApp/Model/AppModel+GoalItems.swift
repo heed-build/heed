@@ -43,7 +43,7 @@ extension AppModel {
         guard let item = goals.snapshot.item(id) else { return [] }
         return ContextMenus.goalItem(
             id: item.id, title: item.title, column: Board.column(item, evidence: goals.snapshot.evidence),
-            question: item.kind == .question
+            question: item.kind == .question, issue: item.issueNumber
         )
     }
 

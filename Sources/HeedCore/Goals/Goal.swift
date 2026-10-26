@@ -220,6 +220,8 @@ public struct GoalSettings: Equatable, Sendable {
     public var spawnConcurrent = 2
     /// Spawns a goal may start in a day; past it, heed asks.
     public var spawnPerDay = 6
+    /// The GitHub mirror's defaults for new goals (`GoalMirrorSettings`).
+    public var mirror = GoalMirrorSettings()
 
     public init(tellAgents: Bool = true, attach: AttachSettings = AttachSettings()) {
         self.tellAgents = tellAgents

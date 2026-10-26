@@ -36,8 +36,8 @@ works in every mode like the other [Mac shortcuts](mac-shortcuts.md).
 | Menu | What is in it |
 |---|---|
 | File | Start work (`⌘N`), the floating panel, a new chat, importing a worktree, adding a repo, resume and *While you were away…*, syncing GitHub, rescanning repos, the cleanup sweep and rules, `config.toml`, finding git and gh again |
-| Session | Type into its agent or the focused pane, pin, park, start again from its prompt, *Hand off to…*, promote a chat, run a task, link or take off an issue, close, delete, stop every agent |
-| View | Every view, those without a tab too (Inbox, Issues, PRs, the timeline, ledger, dashboard and call log), hosts, the filter, the sidebar and inspector, and a submenu each for Attention, Inbox and Issues, Repos, History and the call log |
+| Session | Type into its agent or the focused pane, pin, park, start again from its prompt, *Hand off to…*, promote a chat, its goal (go to it, put it on one, take it off, a new goal from it), run a task, link or take off an issue, close, delete, stop every agent |
+| View | Every view, those without a tab too (Inbox, Issues, PRs, the timeline, ledger, dashboard and call log), hosts, the filter, the sidebar and inspector, and a submenu each for Attention, Inbox and Issues, Repos, History, Goals (and a goal's board, `GOAL.md`, personas, evaluations and Unassigned) and the call log |
 | PR | The PR overlay, the diff, the session's PRs, the browser and links, tracking, everything the pilot does (watch, get it green, get it merged, merge now, pause, one more round, Copilot, reviewers, its run), merge queues, setting up a repo, and submenus for review feedback and the diff |
 | Go | The next session needing you (`ga`), back, a session by name, your pinned sessions, hints, VISUAL and the command line |
 | Window | Splitting, sizing, zooming, closing and moving between panes; new, next, previous, moving and closing tabs, and each tab by number |
@@ -116,6 +116,25 @@ A session in History reopens (`R`), starts again from its prompt (`O`), or opens
 [timeline](../history/timeline.md), [ledger](../history/ledger.md) or [dashboard](../history/dashboard.md) reopens its
 session (`R`) or opens its repo on GitHub, and goes back to the list; the timeline also shows only the row's kind, and
 the ledger writes the summary again (`S`) or edits it (`E`).
+
+## Goals
+
+In [Goals](../goals/index.md), a click picks a goal and a double-click opens it. A right-click on a goal offers what
+belongs to it, its `GOAL.md`, its reviewers, personas and evaluations, mirroring it to GitHub and its tracker, and
+archiving it. On the overview, a session or chat on the goal goes there or comes off; a reviewer opens in Reviewers;
+a row of **Implementation state** shows its item on the board.
+
+On the [board](../goals/items.md#the-board), drag a card to another column to move it, as `H` and `L` do; a right-click
+on a card opens it, starts work on it, moves it to any column, marks it done or splits it. A change to `GOAL.md` that
+waits for you has **accept**, **no** and **reword** buttons, and the same in its right-click menu. Reviewers,
+objections, personas, evaluation lenses and friction entries each have a right-click menu of what their keys do.
+
+## Dialogs
+
+[Start work](../start-work/index.md) takes the mouse: click the prompt or the name to edit it, a chip to pick it, a
+switch to flip it, a search result to add that repo; **Start** and **Cancel** do what `⌘↩` and `⎋` do, and a click
+beside the dialog cancels. In the [resume dialog](../sessions/resume.md), a click on a row ticks or unticks it, and
+**Resume N sessions** and **Start empty** do what `↩` and `⎋` do.
 
 ## The call log
 

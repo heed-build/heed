@@ -48,6 +48,33 @@ as `llm`.
 A tiling window manager is managing it. Add a rule for the window titled `Heed Start Work`; see
 [From anywhere](start-work/from-anywhere.md).
 
+## Work went on the wrong goal, or on none
+
+`U` in Goals opens [Unassigned](goals/attach.md): what heed decided lately and why. `u` undoes heed's last attachment,
+and `:goal.attach` puts a session on the right goal; each correction becomes a line in `goals/attach.rules`, so it
+learns. Work heed was unsure about waits in Attention as **which goal?**. To have it attach more or ask less, change
+`attach_auto` and `attach_ask` under `[goals]`; `attach = false` turns finding goals off.
+
+## A goal's reviewers never run
+
+Attention says why. **reviewers wait**: the goal used its `reviewer_runs_per_day`. **reviewers blocked**: the work is
+in a repo with no clone on this Mac. A reviewer at or over its bar stays quiet until something
+changes, and with `auto_review = false` they run only when you press `r`. With no session on the goal open, a reviewer
+runs headless, which only claude and codex can: set `[goals] reviewer_agent`. See [Reviewers](goals/reviewers.md).
+
+## A mirrored goal is not on GitHub
+
+Mirroring is off until you press `M` on the goal. A tracker repo is taken only if it exists, has issues on, is not
+archived and you can triage there; the overview's **On GitHub** panel says which failed. A sync makes at most 20 writes,
+and the rest follow on the next one. `:goal.mirror.sync` syncs now, and every write is in `:log` under the caller
+`goals.mirror`. See [GitHub mirror](goals/github.md).
+
+## heed goal says Heed is not reachable, or no goal
+
+Exit code 3: Heed is not running, or the shell is on a host, where the control socket cannot be reached. Exit code 4:
+the session is on no goal; `heed goal attach <goal>` puts it on one, or pass `--goal`. See
+[Agents keep the goal](goals/cli.md).
+
 ## A key does nothing
 
 The status bar says what Heed made of it ("gq is not bound"). Check `config.toml` for a binding that was refused (the

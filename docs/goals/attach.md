@@ -94,7 +94,7 @@ spaces: `title:"fix the build*"`). Fields: `worktree` (its full path), `branch`,
 
 Rules apply before any signal, in file order: the first `ignore` or `always` that matches settles it, and every `never`
 that matches takes its goal out. A line heed cannot read is skipped and shown with its number (in Unassigned and in
-Settings › Goals); the others still apply. heed learns "like this" as the work's worktree family, else its branch
+Settings › General › Goals); the others still apply. heed learns "like this" as the work's worktree family, else its branch
 family, else, for a chat, chats (in its repo).
 
 ## Suggested goals

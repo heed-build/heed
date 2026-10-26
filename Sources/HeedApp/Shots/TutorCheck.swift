@@ -27,7 +27,7 @@ enum TutorCheck {
         "repos": ["G", "o<Esc><Esc>", "ddn", "gCn", "M<CR><CR><Esc>"],
         "history": ["j", "t", "TT", "LL", "DD", "R"],
         "log": ["t", "tt", "ttx"],
-        "goals": ["gG", "<CR><CR>", "'g", "E", "<Tab>jy", "B", "L", ":goal.new Faster search<CR>"],
+        "goals": ["gG", "<CR><CR>", "'g", "E", "<Tab>jy", "B", "L", "U", "y", ":goal.new Faster search<CR>"],
         "hosts": [
             "gH<Esc>",
             "@dev<CR>gg",

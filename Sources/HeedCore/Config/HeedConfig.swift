@@ -690,6 +690,27 @@ public enum ConfigLoader {
         if let days = integer(["local", "keep_days"], range: 1 ... 365) { config.local.keepDays = days }
         // [goals]
         if let flag = bool(["goals", "tell_agents"]) { config.goals.tellAgents = flag }
+        if let flag = bool(["goals", "attach"]) { config.goals.attach.enabled = flag }
+        if let flag = bool(["goals", "attach_model"]) { config.goals.attach.model = flag }
+        for (key, path) in [("attach_auto", \AttachSettings.auto), ("attach_ask", \AttachSettings.ask)] {
+            guard let value = root.value(at: ["goals", key]) else { continue }
+            let number: Double? = switch value {
+            case let .float(number): number
+            case let .integer(number): Double(number)
+            default: nil
+            }
+            if let number, (0 ... 1).contains(number) {
+                config.goals.attach[keyPath: path] = number
+            } else {
+                problems.append(ConfigProblem(path: "goals.\(key)", message: "expected a number from 0 to 1"))
+            }
+        }
+        if config.goals.attach.ask > config.goals.attach.auto {
+            problems.append(ConfigProblem(
+                path: "goals.attach_ask", message: "is above attach_auto: heed would attach before it asks"
+            ))
+            config.goals.attach.ask = config.goals.attach.auto
+        }
         // [usage]
         if let flag = bool(["usage", "show_cost"]) { config.usage.showCost = flag }
         for (prefix, text) in pairs(["usage", "prices"]) {
@@ -971,6 +992,14 @@ public enum ConfigLoader {
     # Sessions and chats on a goal are told so when they start or resume (claude, codex): which goal, and to read its
     # GOAL.md first and keep to its Not the goal list. false: agents are not told.
     tell_agents = true
+    # New sessions and chats find their goal on their own: from free signals (worktree and branch family, files, PRs,
+    # the prompt against GOAL.md, repo, recency), and a cheap model call when those are unsure. At attach_auto or
+    # more heed attaches (u undoes); from attach_ask it asks with one key in Attention; below, the work stays in
+    # Unassigned. Your corrections become lines in goals/attach.rules. attach_model = false: signals only.
+    attach = true
+    attach_auto = 0.85
+    attach_ask = 0.5
+    attach_model = true
 
     [tools]
     # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places

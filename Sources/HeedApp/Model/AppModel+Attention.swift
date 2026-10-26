@@ -16,10 +16,11 @@ extension AppModel {
     var attentionItems: [AttentionItem] {
         var state = github
         if isFixture { state.inbox += Fixtures.attentionInbox }
+        let titles = Dictionary(goals.snapshot.goals.map { ($0.id, $0.title) }) { first, _ in first }
         return AttentionFeed.items(
             github: state, sessions: sessions, details: attention.details, pilotDriving: pilotDriving,
             readyToMerge: readyToMergeRefs, goals: GoalNotice.of(goals.snapshot)
-        )
+        ) + GoalAttachAsks.items(goals.attach.asks, titles: titles).map(\.item)
     }
 
     var attentionEntries: [AttentionEntry] {

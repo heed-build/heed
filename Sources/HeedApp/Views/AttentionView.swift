@@ -308,6 +308,11 @@ private struct AttentionDetail: View {
                     Text("opened by \(author)\(item.authorIsBot ? " (bot)" : "")")
                         .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                 }
+                if let key = GoalAttachAsks.key(of: item.id),
+                   let ask = model.goals.attach.asks.first(where: { $0.subject.key == key })
+                {
+                    AskCard(decision: ask, isCursor: true, scope: "attention").shotRegion(.goalAsk)
+                }
                 section("Summary") {
                     if let summary = model.attention.summary(for: item) {
                         Text(summary).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
@@ -315,12 +320,7 @@ private struct AttentionDetail: View {
                     } else if model.attention.summarizing.contains(item.id) {
                         Text("summarizing…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     } else {
-                        Text(
-                            item.kind == .agent ? "An agent waiting on you."
-                                : item.kind == .goal ? "Changes to the goal's GOAL.md the work suggests: ↩ shows them."
-                                : "No summary yet."
-                        )
-                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                        Text(item.placeholderSummary).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
                 }
                 if let digest = detail?.digest, !digest.isEmpty {

@@ -1336,6 +1336,62 @@ private struct GoalsSettingsGroup: View {
                 set: { model.setConfig(["goals", "tell_agents"], .bool($0)) }
             )).labelsHidden()
         }
+        let attach = model.config.goals.attach
+        Field(
+            label: "Find new work's goal",
+            detail: "When a session or chat starts, gets its first prompt, tracks a PR or gets a ledger entry, heed "
+                + "looks for its goal: it attaches when sure, asks in Attention when unsure, else leaves it in "
+                + "Unassigned."
+        ) {
+            Toggle("", isOn: Binding(
+                get: { attach.enabled }, set: { model.setConfig(["goals", "attach"], .bool($0)) }
+            )).labelsHidden()
+        }
+        Group {
+            threshold(
+                "Attach on its own at", "At this confidence or more heed attaches, with undo (u).", "attach_auto",
+                attach.auto, range: max(attach.ask, 0.05) ... 1
+            )
+            threshold(
+                "Ask from",
+                "From here up to the line above, heed asks with one key (y n m i); below, it leaves the work.",
+                "attach_ask", attach.ask, range: 0 ... attach.auto
+            )
+            Field(
+                label: "Ask the model when unsure",
+                detail: "A cheap model call (Agents › Model calls) when the signals are between the two lines or two "
+                    + "goals are close. Off: signals alone."
+            ) {
+                Toggle("", isOn: Binding(
+                    get: { attach.model }, set: { model.setConfig(["goals", "attach_model"], .bool($0)) }
+                )).labelsHidden()
+            }
+            Field(
+                label: "Rules",
+                detail: "Your corrections become lines here, and apply before any signal. "
+                    + (model.goals.attach.rules.problems.isEmpty ? ""
+                        : "\(model.goals.attach.rules.problems.count) line(s) heed cannot read are skipped.")
+            ) {
+                Text(Paths.tilde(model.goals.files.rules.path))
+                    .font(Theme.mono(12)).foregroundStyle(Theme.busy).lineLimit(1).truncationMode(.head)
+                    .clickable().onTapGesture { model.openAttachRules() }
+                    .help("Open attach.rules in your editor")
+            }
+        }
+        .disabled(!attach.enabled)
+    }
+
+    private func threshold(
+        _ label: String, _ detail: String, _ key: String, _ value: Double, range: ClosedRange<Double>
+    ) -> some View {
+        Field(label: label, detail: detail) {
+            Stepper(value: Binding(
+                get: { value }, set: { model.setConfig(["goals", key], .float(($0 * 100).rounded() / 100)) }
+            ), in: range, step: 0.05) {
+                Text(String(format: "%.2f", value)).font(Theme.mono(12.5))
+            }
+            .frame(width: 160)
+        }
     }
 }
 

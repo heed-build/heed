@@ -62,6 +62,8 @@ as a new version, so nothing is lost. The work writes into `GOAL.md` too; see
 - **New goal from this session…** (right-click, or `:goal.new` in Sessions) starts the dialog with the session's title
   and prompt, and puts the session on the new goal.
 - `:goal.detach`, or **Take off** in the inspector, takes it off.
+- Most of the time you do none of this: heed puts new work on its goal itself, and asks with one key when it is
+  unsure. See [How work finds its goal](attach.md).
 
 ![New goal from a session](../images/shots/goals/new.png)
 

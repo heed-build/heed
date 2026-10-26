@@ -17,9 +17,11 @@ struct GoalsView: View {
                     .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
                     .shotRegion(.goalsList)
                 Group {
-                    if let goal = goals.selected {
+                    if goals.pane == .unassigned {
+                        UnassignedPane()
+                    } else if let goal = goals.selected {
                         switch goals.pane {
-                        case .overview: GoalOverviewPane(goal: goal).shotRegion(.goalsOverview)
+                        case .overview, .unassigned: GoalOverviewPane(goal: goal).shotRegion(.goalsOverview)
                         case .doc: GoalDocPane(goal: goal).shotRegion(.goalsDoc)
                         case .board: GoalBoardPane(goal: goal).shotRegion(.goalsBoard)
                         }
@@ -36,7 +38,9 @@ struct GoalsView: View {
                         )
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
+                .frame(height: geometry.size.height, alignment: .top)
+                .clipped()
             }
         }
     }
@@ -64,7 +68,8 @@ private struct GoalList: View {
                     ForEach(Array(goals.rows.enumerated()), id: \.element.id) { index, goal in
                         GoalRow(
                             goal: goal, links: goals.snapshot.links(of: goal.id),
-                            isCursor: index == goals.cursor, focused: goals.focus == .goals
+                            isCursor: index == goals.cursor,
+                            focused: goals.focus == .goals && goals.pane != .unassigned
                         )
                         .hint(goals.focus == .goals ? model.hintLabel(for: .row(.goals, index)) : nil)
                         .contentShape(Rectangle())
@@ -79,6 +84,8 @@ private struct GoalList: View {
                 }
             }
             Spacer(minLength: 0)
+            Theme.line.frame(height: 1)
+            UnassignedRow()
             Theme.line.frame(height: 1)
             FlowLayout(spacing: 14, lineSpacing: 6) {
                 KeyHint("goal.focus", scope: "goals", label: "what is on it")

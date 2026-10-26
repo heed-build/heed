@@ -71,8 +71,10 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
 /// over the control socket later. Each operation writes the store, then the goal's files, and returns what changed;
 /// the caller reads `snapshot()` to redraw. Runs off the main actor, one operation at a time.
 public actor GoalOps {
-    private let store: GoalStore
+    let store: GoalStore
     public nonisolated let files: GoalFiles
+    /// `attach.rules` while `files` are not written (fixtures, shots, the tutor).
+    var memoryRules = ""
 
     /// `path` is `goals.sqlite`; `":memory:"` keeps nothing.
     public init(path: String, files: GoalFiles) throws {

@@ -76,6 +76,8 @@ public struct TutorState: Equatable, Sendable {
     public var goalProposals = 0
     public var goalMoves = 0
     public var goalSelected = ""
+    /// heed's open goal asks (Unassigned, Attention).
+    public var goalAsks = 0
 
     public init() {}
 }

@@ -172,6 +172,7 @@ public struct AttentionOutcome: Hashable, Sendable {
 /// label "blocker"              pin
 /// repo acme/*-archive          ignore
 /// agent blocked|asking         boost 3
+/// attach                       notify
 /// ci branch:main               lower
 /// ```
 public struct AttentionRules: Hashable, Sendable {
@@ -227,6 +228,7 @@ public struct AttentionRules: Hashable, Sendable {
         "subscribed": [.subscribed],
         "watching": [.watching],
         "proposals": [.goalProposals],
+        "attach": [.goalAttach],
     ]
 
     static let notYet: [String: String] = [

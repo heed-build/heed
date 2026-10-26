@@ -202,8 +202,11 @@ public struct GoalSettings: Equatable, Sendable {
     /// Sessions and chats on a goal are told at launch and resume which goal, and to read its `GOAL.md` first
     /// (`GoalPointer`).
     public var tellAgents = true
+    /// `attach`, `attach_auto`, `attach_ask`, `attach_model`: how heed finds new work's goal.
+    public var attach = AttachSettings()
 
-    public init(tellAgents: Bool = true) {
+    public init(tellAgents: Bool = true, attach: AttachSettings = AttachSettings()) {
         self.tellAgents = tellAgents
+        self.attach = attach
     }
 }

@@ -96,6 +96,7 @@ toc:
     children:
       - file: index.md
       - file: items.md
+      - file: attach.md
   - folder: keyboard
     children:
       - file: index.md

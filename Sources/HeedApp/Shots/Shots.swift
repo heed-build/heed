@@ -440,6 +440,12 @@ enum Shots {
         Shot(id: "goals/proposals", keys: "gGjE", crop: .goalProposals, cropPadding: 8),
         Shot(id: "goals/session-chip", keys: "", crop: .sidebar, cropPadding: 0),
         Shot(id: "goals/inspector", keys: "", crop: .inspectorGoal, cropPadding: 8),
+        // Unassigned: what heed decided about new work lately, its ask, and a goal it suggests.
+        Shot(id: "goals/unassigned", keys: "gGU"),
+        // The cursor on the suggested goal, its keys showing.
+        Shot(id: "goals/suggestion", keys: "gGUj", crop: .goalsUnassigned, cropPadding: 0),
+        // heed's ask in Attention, answered with one key.
+        Shot(id: "goals/attach-ask", keys: "gm/z-order<CR>", crop: .attentionDetail),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

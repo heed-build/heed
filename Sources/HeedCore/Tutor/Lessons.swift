@@ -411,6 +411,20 @@ public extension Tutor {
                 doneLine: "{goal.item.work} starts work on a card's item, Start work filled in from it."
             ) { start, now, _ in now.goalMoves > start.goalMoves },
             TutorStep(
+                "Where new work goes",
+                say: "heed puts new sessions and chats on goals itself, and asks only when it is unsure. "
+                    + "{goal.unassigned} opens Unassigned: what it decided lately, and why.",
+                keys: ["{goal.unassigned}"], target: "goalsUnassigned",
+                doneLine: "Attached on its own, proposed, left alone; and work on no goal that could be one."
+            ) { _, now, _ in now.goalPane == "unassigned" },
+            TutorStep(
+                "Answer an ask",
+                say: "An ask waits for one key: {goal.ask.yes} yes, {goal.ask.no} no, {goal.ask.move} another goal, "
+                    + "{goal.ask.ignore} ignore things like it. The cursor is on one: say yes.",
+                keys: ["{goal.ask.yes}"], target: "goalsUnassigned",
+                doneLine: "On its goal. A no, a move or an undo ({goal.attach.undo}) becomes a line in attach.rules."
+            ) { start, now, _ in now.goalAsks < start.goalAsks },
+            TutorStep(
                 "One of your own",
                 say: "{goal.new} opens a new goal; :goal.new with a title makes one at once. Make one.",
                 keys: [":goal.new Faster search↩"], target: "goalsList",

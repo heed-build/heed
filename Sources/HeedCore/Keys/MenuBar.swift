@@ -207,6 +207,7 @@ public enum MenuBar {
                 session("Put on a goal…", "goal.attach"),
                 session("Take off its goal", "goal.detach"),
                 session("New goal from this session…", "goal.new"),
+                session("Find its goal", "goal.attach.find"),
                 .separator,
                 item("Run a task…", "task.run", enabled: hasSession, target: sessionTarget),
                 item("Read its tasks again", "task.refresh", enabled: hasSession, target: sessionTarget),
@@ -281,6 +282,7 @@ public enum MenuBar {
                     ("Open", "goal.open"), ("Goals or what is on one", "goal.focus"),
                     ("Take off the goal", "goal.detach"), ("Board", "goal.board"),
                     ("Sharpen the goal…", "goal.sharpen"), ("Plan its items now", "goal.plan"),
+                    ("Unassigned", "goal.unassigned"), ("Undo heed's last attachment", "goal.attach.undo"),
                 ], in: ["goals"]),
                 scopedInvocations("On a goal's board", [
                     ("Add an item…", "goal.item.add"), ("Move the card left", "goal.item.move left"),
@@ -292,6 +294,10 @@ public enum MenuBar {
                     ("Say no to the first change", "goal.proposal.reject"),
                     ("Reword the first change…", "goal.proposal.edit"), ("Undo heed's last change", "goal.undo"),
                 ], in: ["goaldoc"]),
+                scoped("In Unassigned", [
+                    ("Yes, on that goal", "goal.ask.yes"), ("No, not that goal", "goal.ask.no"),
+                    ("On another goal…", "goal.ask.move"), ("Ignore things like this", "goal.ask.ignore"),
+                ], in: ["unassigned", "attention"]),
                 scoped("In the call log", [
                     ("Next kind", "log.kind"), ("Only failed", "log.failed"), ("Only slow", "log.slow"),
                     ("Only GitHub writes", "log.writes"), ("Only this caller", "log.caller"),

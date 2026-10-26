@@ -11,7 +11,7 @@ import Foundation
 /// readers and writers, and a migration only when they need a column. Issue refs for the GitHub mirror have their
 /// columns already: `goals.tracker_repo`/`tracker_issue` (the meta issue) and `goal_items.issue_number` (sub-issues).
 public final class GoalStore {
-    private let database: SQLiteDatabase
+    let database: SQLiteDatabase
 
     /// `~/Library/Application Support/Heed/goals.sqlite`.
     public static func defaultFile() -> URL {

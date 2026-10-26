@@ -67,6 +67,10 @@ public struct TutorState: Equatable, Sendable {
     /// The call log's filters: the kind shown (`""` for all), and whether only failed calls show.
     public var logKind = ""
     public var logFailed = false
+    /// Goals: how many there are, which pane shows (`overview`, `doc`), and where j k move (`goals`, `links`).
+    public var goals = 0
+    public var goalPane = "overview"
+    public var goalFocus = "goals"
 
     public init() {}
 }

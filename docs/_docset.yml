@@ -92,6 +92,9 @@ toc:
       - file: timeline.md
       - file: ledger.md
       - file: reopening.md
+  - folder: goals
+    children:
+      - file: index.md
   - folder: keyboard
     children:
       - file: index.md

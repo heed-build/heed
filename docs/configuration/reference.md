@@ -258,6 +258,11 @@ daily_dollars = 1.0
 record_screens = false
 keep_days = 30
 
+[goals]
+# Sessions and chats on a goal are told so when they start or resume (claude, codex): which goal, and to read its
+# GOAL.md first and keep to its Not the goal list. false: agents are not told.
+tell_agents = true
+
 [tools]
 # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places
 # (Homebrew, mise, nix, ~/.local/bin), then /usr/bin. Set a path when detection picks the wrong one.

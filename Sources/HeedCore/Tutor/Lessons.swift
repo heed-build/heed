@@ -358,6 +358,40 @@ public extension Tutor {
                 doneLine: "Back in Sessions. {history.again} starts the same prompt fresh instead."
             ) { start, now, _ in now.sessions > start.sessions },
         ]),
+        TutorLesson(id: "goals", title: "Goals", minutes: 3, world: .mondayMorning, steps: [
+            TutorStep(
+                "Goals",
+                say: "A goal is long-running work: sessions, chats and PRs belong to it, and its GOAL.md says what it "
+                    + "is. {view.goals} opens Goals.",
+                keys: ["{view.goals}"], target: "goalsList",
+                doneLine: "Each goal with its score ring (– until something scores it) and what is on it."
+            ) { _, now, _ in now.view == "goals" },
+            TutorStep(
+                "What is on it",
+                say: "{goal.open} moves to the sessions and chats on the goal; {goal.open} on one goes there.",
+                keys: ["{goal.open}", "{goal.open}"], target: "goalsOverview",
+                doneLine: "On that session, in Sessions. Its row carries the goal's name."
+            ) { _, now, seen in seen.contains { $0.goalFocus == "links" } && now.view == "sessions" },
+            TutorStep(
+                "Back to its goal",
+                say: "From any session on a goal, {goal.jump} jumps to the goal.",
+                keys: ["{goal.jump}"], target: "sessionGoal",
+                doneLine: "Agents on a goal start and resume told to read its GOAL.md first."
+            ) { start, now, _ in start.view == "sessions" && now.view == "goals" },
+            TutorStep(
+                "GOAL.md",
+                say: "{goal.doc} shows the goal's GOAL.md and its versions. {goal.edit} edits it in place; every save "
+                    + "is a version, and an older one restores as a new one.",
+                keys: ["{goal.doc}"], target: "goalsDoc",
+                doneLine: "{goal.doc} again is the overview."
+            ) { _, now, _ in now.goalPane == "doc" },
+            TutorStep(
+                "One of your own",
+                say: "{goal.new} opens a new goal; :goal.new with a title makes one at once. Make one.",
+                keys: [":goal.new Faster search↩"], target: "goalsList",
+                doneLine: "On a session, right-click › Put on a goal, or :goal.attach, puts it on one."
+            ) { start, now, _ in now.goals > start.goals },
+        ]),
         TutorLesson(id: "log", title: "Call log", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(
                 "One kind at a time",

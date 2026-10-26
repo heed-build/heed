@@ -69,7 +69,8 @@ struct Sidebar: View {
                                         hostColor: session.host.flatMap { model.config.hosts[$0]?.color },
                                         hostLink: session.host.map { model.hostStatus($0) },
                                         subagents: model.liveSubagents(of: session).count,
-                                        pending: model.pendingChanges(of: session)
+                                        pending: model.pendingChanges(of: session),
+                                        goal: model.goals.bySession[session.id]?.title
                                     )
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.clickSession(session.id) }
@@ -168,6 +169,8 @@ struct SessionRow: View {
     var subagents = 0
     /// Commits ahead and files changed over its worktrees: the `↑N` and `~N` chips.
     var pending = PendingChanges()
+    /// The title of the goal it is on.
+    var goal: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -205,9 +208,19 @@ struct SessionRow: View {
                     }
                 }
                 if let chat = session.chat {
-                    ChatFolderChip(chat: chat)
+                    HStack(spacing: 6) {
+                        ChatFolderChip(chat: chat)
+                        if let goal { GoalChip(session: session.id, title: goal) }
+                    }
                 } else if !compact {
                     FlowChips(repos: session.involvedRepos)
+                    if let goal {
+                        if isCursor {
+                            GoalChip(session: session.id, title: goal).shotRegion(.sessionGoal)
+                        } else {
+                            GoalChip(session: session.id, title: goal)
+                        }
+                    }
                 }
                 // A pinned session keeps its agent's line, with heed's under it.
                 if label == nil || group == .pinned {
@@ -283,6 +296,26 @@ struct SessionRow: View {
     private var isStalled: Bool { if case .stalled = pilot { true } else { false } }
     /// One line plus heed's label: Watching, unless the cursor is on it.
     private var compact: Bool { group == .watching && !isCursor }
+}
+
+/// The goal a session is on, as a chip on its row; a click goes to the goal, as `'g` does.
+struct GoalChip: View {
+    let session: String
+    let title: String
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "scope").font(.system(size: 9, weight: .semibold))
+            Text(title).lineLimit(1).truncationMode(.tail)
+        }
+        .font(Theme.mono(10.5))
+        .foregroundStyle(Theme.fg2)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 1)
+        .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+        .fixedSize(horizontal: false, vertical: true)
+        .clickRuns(CommandInvocation(name: "goal.jump", target: .session(session)))
+    }
 }
 
 /// `↑3 ~2` on a session's row: commits not pushed (amber) and files not committed, each only when there are any.

@@ -48,6 +48,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var local = LocalSettings()
     /// `[start_work]`: whether the on-device model helps Start work guess.
     public var startWork = StartWorkSettings()
+    /// `[goals]`: what goals do on their own.
+    public var goals = GoalSettings()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -102,6 +104,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.llm == rhs.llm,
             lhs.local == rhs.local,
             lhs.startWork == rhs.startWork,
+            lhs.goals == rhs.goals,
         ]
         return !same.contains(false)
     }
@@ -685,6 +688,8 @@ public enum ConfigLoader {
         // [local]
         if let flag = bool(["local", "record_screens"]) { config.local.recordScreens = flag }
         if let days = integer(["local", "keep_days"], range: 1 ... 365) { config.local.keepDays = days }
+        // [goals]
+        if let flag = bool(["goals", "tell_agents"]) { config.goals.tellAgents = flag }
         // [usage]
         if let flag = bool(["usage", "show_cost"]) { config.usage.showCost = flag }
         for (prefix, text) in pairs(["usage", "prices"]) {
@@ -961,6 +966,11 @@ public enum ConfigLoader {
     # anywhere and never in the call log; dropped after keep_days, the oldest first past 64 MB. Off by default.
     record_screens = false
     keep_days = 30
+
+    [goals]
+    # Sessions and chats on a goal are told so when they start or resume (claude, codex): which goal, and to read its
+    # GOAL.md first and keep to its Not the goal list. false: agents are not told.
+    tell_agents = true
 
     [tools]
     # Where git and gh are. Empty means detect: your login shell's PATH (fish, zsh, bash, nu), then the usual places

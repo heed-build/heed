@@ -402,3 +402,34 @@ struct OrgTile: View {
         }
     }
 }
+
+/// A goal's score, 0–10, as a ring filled that far with the number in it; "–" in a quiet ring until something scored
+/// it. The colour says where it stands (under 5, under 7, 7 and up) and the number says it in words too.
+struct ScoreRing: View {
+    let score: Double?
+    var size: CGFloat = 30
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(Theme.line, lineWidth: 2.5)
+            if let score {
+                Circle().trim(from: 0, to: min(max(score / 10, 0), 1))
+                    .stroke(tint, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+            } else {
+                Circle().stroke(Theme.fg3, style: StrokeStyle(lineWidth: 1.5, dash: [2, 3]))
+            }
+            Text(score.map { String(format: "%.1f", $0) } ?? "–")
+                .font(Theme.mono(size * 0.32, weight: .semibold))
+                .foregroundStyle(score == nil ? Theme.fg3 : tint)
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel(score.map { "score \(String(format: "%.1f", $0)) of 10" } ?? "no score yet")
+        .help(score == nil ? "No score yet: reviewers score a goal once they have looked at it" : "Score out of 10")
+    }
+
+    private var tint: Color {
+        guard let score else { return Theme.fg3 }
+        return score >= 7 ? Theme.done : score >= 5 ? Theme.block : Theme.err
+    }
+}

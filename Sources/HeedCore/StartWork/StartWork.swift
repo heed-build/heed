@@ -29,10 +29,17 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var persist: PanePersistence = .auto
     /// Which repos' sessions are asked to sign off with a summary (`[pilot] summary_sign_off`, per org and repo).
     public var signOff = SignOffRule()
+    /// What sessions on a goal are told (`GoalPointer`), by session id; empty unless `[goals] tell_agents`. Not
+    /// config: the app sets it from the goals it holds.
+    public var goalPointers: [String: String] = [:]
 
-    /// The launch arguments of the sign-off for `agent` working in `repo`, when it applies there.
-    public func signOffArguments(agent: AgentProfile, repo: Repo?) -> [String] {
-        signOff.applies(to: repo) ? SignOff.arguments(agent: agent.name) : []
+    /// The launch arguments carrying what `agent` is told: the sign-off when it applies in `repo`, and `session`'s
+    /// goal pointer when it has one.
+    public func signOffArguments(agent: AgentProfile, repo: Repo?, session: String? = nil) -> [String] {
+        let pointer = session.flatMap { goalPointers[$0] }
+        return AgentInstructions.arguments(
+            agent: agent.name, [signOff.applies(to: repo) ? SignOff.instruction : nil, pointer].compactMap(\.self)
+        )
     }
 
     public init(
@@ -636,7 +643,7 @@ public enum Reopen {
         // Reopening is explicit, so the only question is whether the agent can still resume its session.
         var command: ShellCommand?
         if let agent = settings.agent(session.agent) {
-            let signOff = settings.signOffArguments(agent: agent, repo: session.repos.first)
+            let signOff = settings.signOffArguments(agent: agent, repo: session.repos.first, session: session.id)
             let hooks = { (resuming: Bool) in
                 integration.map {
                     AgentIntegration.launchArguments(

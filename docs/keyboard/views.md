@@ -4,7 +4,7 @@ description: Switching between Heed's views.
 
 # Views
 
-Heed has five views, named along the top with their keys. Every view key starts with `g`.
+Heed has six views, named along the top with their keys. Every view key starts with `g`.
 
 ![The title bar: the views with their keys](../images/shots/keyboard/view-tabs.png)
 
@@ -12,6 +12,7 @@ Heed has five views, named along the top with their keys. Every view key starts 
 |---|---|
 | `gs` | [Sessions](../sessions/index.md) |
 | `gm` | [Attention](../github/attention.md) |
+| `gG` | [Goals](../goals/index.md) |
 | `gi` | [Attention](../github/attention.md), on Issues |
 | `gp` | [Attention](../github/attention.md), on My PRs |
 | `gw` | [Watch](../github/watch.md) |

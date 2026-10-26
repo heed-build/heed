@@ -44,6 +44,7 @@ struct Inspector: View {
                         }
                     }
                 }
+                section { GoalCard(session: session) }.shotRegion(.inspectorGoal)
                 section {
                     HStack {
                         SectionHeader(title: "Links")
@@ -183,6 +184,7 @@ struct Inspector: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        section { GoalCard(session: session) }.shotRegion(.inspectorGoal)
         section {
             SectionHeader(title: "Agent events")
             UsageLine(session: session)
@@ -253,6 +255,57 @@ struct Inspector: View {
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+}
+
+/// The goal the session is on: what it is, how far along, and the keys to go there, move it or take it off; with
+/// none, the ways to put it on one.
+struct GoalCard: View {
+    @Environment(AppModel.self) private var model
+    let session: Session
+
+    var body: some View {
+        let target = CommandTarget.session(session.id)
+        if let goal = model.goals.bySession[session.id] {
+            HStack {
+                SectionHeader(title: "Goal")
+                Spacer()
+                KeyHint("goal.jump", target: target, label: "go there")
+            }
+            HStack(alignment: .top, spacing: 10) {
+                ScoreRing(score: goal.score, size: 26)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(goal.title).font(Theme.ui(13, weight: .semibold)).lineLimit(2)
+                    let doc = model.goals.snapshot.docs[goal.id]
+                    if let summary = doc?.summary, !summary.isEmpty {
+                        Text(summary).font(Theme.ui(11.5)).foregroundStyle(Theme.fg2).lineLimit(2)
+                    }
+                    let met = doc?.criteriaMet ?? (met: 0, total: 0)
+                    Text(([
+                        met.total > 0 ? "\(met.met)/\(met.total) criteria met" : nil,
+                        "GOAL.md v\(goal.version)",
+                        goal.status == .active ? nil : goal.status.rawValue,
+                    ] as [String?])
+                        .compactMap(\.self).joined(separator: " · "))
+                        .font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                }
+            }
+            .contentShape(Rectangle())
+            .clickRuns(CommandInvocation(name: "goal.jump", target: target))
+            FlowLayout(spacing: 14, lineSpacing: 6) {
+                KeyHint("goal.attach", target: target, label: "move")
+                // Its x is Goals' own; here x closes the session.
+                KeyHint("goal.detach", target: target, key: ":goal.detach", label: "take off")
+            }
+        } else {
+            SectionHeader(title: "Goal")
+            Text("On no goal. Agents on a goal read its GOAL.md first.")
+                .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+            FlowLayout(spacing: 14, lineSpacing: 6) {
+                KeyHint("goal.attach", target: target, label: "put on a goal")
+                KeyHint("goal.new", target: target, label: "new goal from it")
+            }
+        }
     }
 }
 

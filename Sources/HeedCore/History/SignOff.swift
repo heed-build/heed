@@ -10,13 +10,7 @@ public enum SignOff {
         + "heed-summary: and says in one or two plain sentences what you did and where the work stands."
 
     /// The launch arguments that carry it, for the agents that take one: none for the others.
-    public static func arguments(agent: String) -> [String] {
-        switch agent {
-        case "claude": ["--append-system-prompt", instruction]
-        case "codex": ["-c", "developer_instructions=" + TOMLValue.quote(instruction)]
-        default: []
-        }
-    }
+    public static func arguments(agent: String) -> [String] { AgentInstructions.arguments(agent: agent, [instruction]) }
 
     /// The text of the last `heed-summary:` line in `message` (markdown emphasis and a list marker allowed), nil when
     /// there is none or it says nothing.

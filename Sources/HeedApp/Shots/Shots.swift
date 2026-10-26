@@ -10,7 +10,7 @@ enum Shots {
         hosts +
         github +
         worktrees
-        + diff + history + log + keyboard + outside + configuration
+        + diff + history + goals + log + keyboard + outside + configuration
 
     /// Types a sentence (spaces become <Space>).
     static func typed(_ text: String) -> String {
@@ -421,6 +421,21 @@ enum Shots {
         Shot(id: "history/ledger-detail", keys: "ghLjjj"),
         Shot(id: "history/timeline-worktrees", keys: "ghTtt"),
         Shot(id: "history/timeline-detail", keys: "ghTtt/flowchart<CR>", crop: .timelineDetail),
+    ]
+
+    /// Goals (`gG`), on the fake world's goals (`GoalFixtures`).
+    static let goals: [Shot] = [
+        Shot(id: "goals/goals", keys: "gG"),
+        // The goal with three versions: what is on it, its PRs and where its work was left.
+        Shot(id: "goals/overview", keys: "gGj<Tab>", crop: .goalsOverview, cropPadding: 0),
+        Shot(id: "goals/doc", keys: "gGjE"),
+        // New goal from the session under the cursor: its title and prompt filled in.
+        Shot(id: "goals/new", crop: .goalForm, cropPadding: 24, prepare: { model in
+            model.perform(CommandInvocation(name: "goal.new", target: .session("s5")))
+            model.goals.form?.statement = "Every editor rule passes the 0.17 spec tests, and the suite runs on each PR."
+        }),
+        Shot(id: "goals/session-chip", keys: "", crop: .sidebar, cropPadding: 0),
+        Shot(id: "goals/inspector", keys: "", crop: .inspectorGoal, cropPadding: 8),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

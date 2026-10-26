@@ -44,6 +44,8 @@ struct MainWindow: View {
                         LedgerView()
                     case .dashboard:
                         DashboardView()
+                    case .goals:
+                        GoalsView()
                     }
                 }
             }
@@ -67,6 +69,9 @@ struct MainWindow: View {
         }
         .overlay {
             if model.resume != nil { ResumeView() }
+        }
+        .overlay {
+            if model.goals.form != nil { GoalFormView() }
         }
         .overlay {
             if let picker = model.importPicker { ImportPickerView(picker: picker) }
@@ -391,6 +396,9 @@ struct StatusBar: View {
             return "\(rows.isEmpty ? 0 : model.ledger.cursor + 1)/\(rows.count)"
         case .dashboard:
             return DashboardText.range(model.dashboard.range)
+        case .goals:
+            let goals = model.goals
+            return "\(goals.rowCount == 0 ? 0 : goals.rowCursor + 1)/\(goals.rowCount)"
         case .sessions: return "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
         }
     }
@@ -459,6 +467,18 @@ struct StatusBar: View {
                 ("history.ledger", "ledger"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "dashboard")) \($0.1)" }.joined(separator: " · ")
+        case .normal where model.goals.form != nil: "type the title and the goal · ⌘↩ create · ⎋ cancel"
+        case .normal where model.goals.draft != nil: "edit GOAL.md · ⎋ or ⌘S save as a new version"
+        case .normal where model.view == .goals:
+            [
+                ("goal.open", model.goals.focus == .links ? "go there" : "open"),
+                ("goal.focus", model.goals.focus == .links ? "goals" : "what is on it"),
+                ("goal.new", "new"),
+                ("goal.doc", model.goals.pane == .doc ? "overview" : "GOAL.md"),
+                ("goal.edit", "edit"),
+                ("goal.archive", "archive"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "goals")) \($0.1)" }.joined(separator: " · ") + " · / filter"
         case .normal where model.view == .ledger:
             [
                 ("ledger.summarize", "write again"),

@@ -21,6 +21,7 @@ public enum DefaultKeys {
         ("x", "session.close"), ("m", "session.pin"), ("''", "session.back"),
         ("'1", "pin.jump 1"), ("'2", "pin.jump 2"), ("'3", "pin.jump 3"), ("'4", "pin.jump 4"), ("'5", "pin.jump 5"),
         ("'6", "pin.jump 6"), ("'7", "pin.jump 7"), ("'8", "pin.jump 8"), ("'9", "pin.jump 9"),
+        ("gG", "view.goals"), ("'g", "goal.jump"),
         ("gh", "view.history"), ("gr", "view.repos"), ("gw", "view.watch"), ("gM", "merge.queue"), ("gH", "host.open"),
         (
             "@",
@@ -120,6 +121,11 @@ public enum DefaultKeys {
         "dashboard": [
             ("D", "history.dashboard"), ("T", "history.timeline"), ("L", "history.ledger"), ("R", "history.reopen"),
             ("<CR>", "history.reopen"), ("r", "dashboard.range"),
+        ],
+        // Goals (gG): j k move through the goals, ⇥ to what belongs to the one under the cursor, ↩ opens.
+        "goals": [
+            ("n", "goal.new"), ("E", "goal.doc"), ("e", "goal.edit"), ("a", "goal.archive"), ("x", "goal.detach"),
+            ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"),
         ],
         // The call log has no key of its own (:log); inside it, its filters.
         "log": [

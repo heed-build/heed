@@ -80,7 +80,12 @@ final class KeyRouter {
     /// True when the app used the key; false sends it on to the focused view (the terminal, a text field).
     private func route(_ stroke: KeyStroke) -> Bool {
         guard let model else { return false }
-        if model.textInputActive, stroke != .escape { return false }
+        // ⌘↩ and ⌘S are the dialog's or the editor's: create, save.
+        if model.textInputActive, stroke != .escape, stroke != KeyStroke("CR", .command),
+           stroke != KeyStroke("s", .command)
+        {
+            return false
+        }
         return model.handle(stroke)
     }
 }

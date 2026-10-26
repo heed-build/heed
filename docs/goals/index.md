@@ -1,0 +1,79 @@
+---
+description: "Long-running work: goals that sessions, chats and PRs belong to, each with a GOAL.md every agent on it reads first."
+---
+
+# Goals
+
+A goal is work that outlives one session: a feature, a migration, a cleanup. Sessions, chats and their PRs belong to
+it, and its `GOAL.md` says what the goal is, what it is not, when it is done, what is still open and what was decided.
+`gG` (or `:goals`) opens Goals.
+
+![Goals: the goals on the left, the one under the cursor on the right](../images/shots/goals/goals.png)
+
+## The list
+
+Each goal shows its score ring, how many sessions and chats are on it, and its `GOAL.md` version. The ring shows `–`
+until something has scored the goal. Active goals come first, then done ones, then archived ones; `/` filters them.
+
+| Key | |
+|---|---|
+| `j` `k` | Move through the goals |
+| `⇥` | Move to what is on the goal, and back |
+| `↩` | What is on the goal; on a session or chat, go there |
+| `n` | New goal: a title and what it is |
+| `E` | The goal's `GOAL.md` and its versions; again, the overview |
+| `e` | Edit `GOAL.md` in place |
+| `a` | Archive the goal; on an archived one, bring it back |
+| `x` | Take the session or chat under the cursor off the goal |
+
+Everything here also takes the mouse: a click picks a goal, a double-click opens it, and a right-click offers what
+the keys do.
+
+## The overview
+
+![A goal's overview](../images/shots/goals/overview.png)
+
+The goal's title and statement, then its numbers: criteria met (from **Done when**), the sessions and chats on it,
+and how many of their PRs merged. **On this goal** lists them newest first, closed ones too; **PRs** lists their PRs
+with where each stands; **Last time** is the newest ledger summary of one of its sessions, so you see where the work
+was left.
+
+## GOAL.md
+
+![GOAL.md and its versions](../images/shots/goals/doc.png)
+
+`GOAL.md` is a plain file in `~/Library/Application Support/Heed/goals/<goal>/`, next to `links.json` (what is on the
+goal). Its sections are **Goal**, **Not the goal**, **Done when** (`- [x] criterion (evidence: …)`), **Open
+questions** and **Decisions** (`- decision (source: …)`); sections of your own are kept as you wrote them.
+
+`e` edits it in place; `⎋` or `⌘S` saves it. Every save is a new version, listed on the right with what changed. A
+click on **restore** (or `:goal.restore 2`) makes an older version current again, as a new version, so nothing is lost.
+
+## Putting work on a goal
+
+- On a session or chat: right-click › **Put on a goal…**, or `:goal.attach` and the goal (`⇥` completes). A session
+  is on one goal at a time; attaching it to another moves it.
+- **New goal from this session…** (right-click, or `:goal.new` in Sessions) starts the dialog with the session's title
+  and prompt, and puts the session on the new goal.
+- `:goal.detach`, or **Take off** in the inspector, takes it off.
+
+![New goal from a session](../images/shots/goals/new.png)
+
+A session on a goal carries the goal's name on its row, and the inspector shows the goal between the worktree and the
+links. `'g` jumps from a session to its goal.
+
+![A session's goal on its row](../images/shots/goals/session-chip.png)
+
+![The goal in the inspector](../images/shots/goals/inspector.png)
+
+## Agents read the goal
+
+When a session or chat on a goal starts or resumes, its agent is told which goal the work belongs to, to read the
+goal's `GOAL.md` first and to keep to its **Not the goal** list (claude through its system prompt, codex through its
+developer instructions). Turn it off with `tell_agents = false` under `[goals]` in config.toml, or in Settings ›
+General › Goals.
+
+```toml
+[goals]
+tell_agents = true
+```

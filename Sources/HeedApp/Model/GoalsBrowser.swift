@@ -15,12 +15,14 @@ final class GoalsBrowser {
         case overview, doc, board, reviewers
         /// Goals › Unassigned: heed's attach decisions, asks and suggested goals (`AttachBrowser`).
         case unassigned
+        /// Who the goal needs (`PersonaBrowser`).
+        case personas
     }
 
     /// Where j and k move: the goals list, what belongs to the goal under the cursor, or (in Reviewers) its reviewers
     /// and the objections of the one under the cursor.
     enum Focus: String {
-        case goals, links, reviewers, objections
+        case goals, links, reviewers, objections, personas
     }
 
     /// The spawn-a-reviewer panel: what the next reviewer is.
@@ -51,6 +53,10 @@ final class GoalsBrowser {
 
     /// Attachment: decisions, asks, suggestions and rules (Unassigned).
     let attach = AttachBrowser()
+    /// Personas: who the goal needs, their files and spawns.
+    let personas = PersonaBrowser()
+    /// The open sessions' and chats' ids and the running reviewers', for personas' coverage (set by the app).
+    @ObservationIgnored var liveTargets: () -> Set<String> = { [] }
     private(set) var focus = Focus.goals
     private(set) var linkCursor = 0
     /// The selected goal's versions, newest first.
@@ -116,6 +122,9 @@ final class GoalsBrowser {
         loadVersions()
         let decisions = GoalFixtures.attachDecisions()
         loadFixtureAttach(decisions)
+        let personaRecords = PersonaFixtures.records()
+        let personaFiles = PersonaFixtures.files()
+        personas.loadFixture(records: personaRecords, files: personaFiles)
         if let ops = try? GoalOps.inMemory() {
             self.ops = ops
             Task {
@@ -123,6 +132,7 @@ final class GoalsBrowser {
                 try? await ops.adopt(decisions: decisions)
                 try? await ops.setRules(GoalFixtures.attachRules)
                 try? await ops.adopt(quality: records)
+                try? await ops.adopt(personas: personaFiles, records: personaRecords)
             }
         }
     }
@@ -136,6 +146,7 @@ final class GoalsBrowser {
         apply(snapshot)
         loadVersions()
         await reloadAttach()
+        await personas.reload(ops)
     }
 
     // MARK: Quality
@@ -236,6 +247,7 @@ final class GoalsBrowser {
 
     func setCursor(_ index: Int) {
         if pane == .unassigned { return attach.setCursor(index) }
+        if focus == .personas { return personas.setCursor(index, count: personaRows.count) }
         if pane == .board {
             boardRow = min(max(index, 0), max(cards.count - 1, 0))
             return
@@ -263,6 +275,8 @@ final class GoalsBrowser {
         boardRow = 0
         reviewerCursor = 0
         objectionCursor = 0
+        personas.setCursor(0, count: 1)
+        personas.draft = nil
         draft = nil
         loadVersions()
     }
@@ -317,6 +331,7 @@ final class GoalsBrowser {
         case .overview: "goals"
         case .unassigned: "unassigned"
         case .reviewers: "goalreviewers"
+        case .personas: "goalpersonas"
         }
     }
 
@@ -328,6 +343,7 @@ final class GoalsBrowser {
         case .links: links.count
         case .reviewers: reviewers.count
         case .objections: objections.count
+        case .personas: personaRows.count
         }
     }
 
@@ -339,6 +355,7 @@ final class GoalsBrowser {
         case .links: linkCursor
         case .reviewers: min(reviewerCursor, max(reviewers.count - 1, 0))
         case .objections: min(objectionCursor, max(objections.count - 1, 0))
+        case .personas: min(personas.cursor, max(personaRows.count - 1, 0))
         }
     }
 
@@ -349,8 +366,12 @@ final class GoalsBrowser {
             switch focus {
             case .goals, .links: focus = reviewers.isEmpty ? .goals : .reviewers
             case .reviewers: focus = objections.isEmpty ? .goals : .objections
-            case .objections: focus = .goals
+            case .objections, .personas: focus = .goals
             }
+            return
+        }
+        if pane == .personas {
+            focus = focus == .personas || personaRows.isEmpty ? .goals : .personas
             return
         }
         focus = focus == .goals && !links.isEmpty ? .links : .goals
@@ -361,6 +382,7 @@ final class GoalsBrowser {
         case .links: focus = links.isEmpty ? .goals : .links
         case .reviewers: focus = reviewers.isEmpty ? .goals : .reviewers
         case .objections: focus = objections.isEmpty ? .goals : .objections
+        case .personas: focus = personaRows.isEmpty ? .goals : .personas
         case .goals: focus = .goals
         }
     }
@@ -419,10 +441,43 @@ final class GoalsBrowser {
         leftPane()
     }
 
-    /// Focus on reviewers or objections only holds while Reviewers shows.
+    /// `goal.personas`: the Personas pane, or back to the overview.
+    func togglePersonas() {
+        pane = pane == .personas ? .overview : .personas
+        draft = nil
+        personas.draft = nil
+        if pane == .personas, !personaRows.isEmpty, focus != .goals { focus = .personas }
+        leftPane()
+    }
+
+    /// Focus on reviewers or objections only holds while Reviewers shows, on personas while Personas does.
     private func leftPane() {
         if pane != .reviewers, focus == .reviewers || focus == .objections { focus = .goals }
-        if pane == .reviewers, focus == .links { focus = .goals }
+        if pane != .personas, focus == .personas { focus = .goals }
+        if pane == .reviewers || pane == .personas, focus == .links { focus = .goals }
+        if pane != .personas { personas.draft = nil }
+    }
+
+    // MARK: Personas
+
+    /// The selected goal's personas, gaps first, with their coverage.
+    var personaRows: [PersonaRow] {
+        guard let goal = selected, let board = personas.boards[goal.id] else { return [] }
+        return board.rows(
+            files: personas.files[goal.id] ?? [:], items: items, evidence: evidence, links: snapshot.links(of: goal.id),
+            reviewers: selectedQuality?.reviewers ?? [], live: liveTargets()
+        )
+    }
+
+    var selectedPersona: PersonaRow? {
+        let rows = personaRows
+        return rows.isEmpty ? nil : rows[min(personas.cursor, rows.count - 1)]
+    }
+
+    /// Puts the cursor on a persona of the selected goal.
+    func point(persona id: String) {
+        guard let index = personaRows.firstIndex(where: { $0.id == id }) else { return }
+        personas.setCursor(index, count: personaRows.count)
     }
 
     func setSearch(_ text: String) {
@@ -445,6 +500,7 @@ final class GoalsBrowser {
             do { result = try await .success(operation(ops)) } catch { result = .failure(error) }
             if let snapshot = try? await ops.snapshot() { apply(snapshot) }
             await reloadAttach()
+            await personas.reload(ops)
             if let fresh = try? await ops.qualities(table: table), fresh != qualities {
                 qualities = fresh
                 clampQualityCursors()

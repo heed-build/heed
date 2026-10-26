@@ -12,6 +12,8 @@ public enum ReviewTrigger: Hashable, Sendable, Codable {
     case manual
     /// An agent asked (`heed goal review request`): like a change, within the day's budget.
     case asked(String)
+    /// A persona the goal needs now that nobody with its view has looked: spawned as a reviewer on its own.
+    case personaGap(String)
 
     public var text: String {
         switch self {
@@ -22,6 +24,7 @@ public enum ReviewTrigger: Hashable, Sendable, Codable {
         case .nightly: "nightly"
         case .manual: "you asked"
         case let .asked(who): "\(who) asked"
+        case let .personaGap(name): "a gap: nobody has looked as \(name)"
         }
     }
 
@@ -191,10 +194,17 @@ public enum ReviewRun {
         known: [Objection]
     ) -> String {
         var lines: [String] = []
-        lines
-            .append("You are the \(config.kind.title.lowercased()) for the goal \"\(goalTitle)\". \(config.kind.brief)")
+        if let persona = config.persona {
+            // A persona reviews as itself: who it is comes first, the instructions are its brief.
+            lines.append("You review the goal \"\(goalTitle)\" as \(persona), the expert described below. Look at the "
+                + "work as that expert would: what it gets wrong, misses or should ask.")
+        } else {
+            lines.append(
+                "You are the \(config.kind.title.lowercased()) for the goal \"\(goalTitle)\". \(config.kind.brief)"
+            )
+        }
         if let instructions = config.instructions, !instructions.isEmpty {
-            lines += ["", "Instructions:", instructions]
+            lines += ["", config.persona == nil ? "Instructions:" : "Who you are:", instructions]
         }
         lines += [
             "",

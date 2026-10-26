@@ -269,7 +269,7 @@ extension AppModel {
     // MARK: Model calls
 
     /// Whether `goal` may make one more model call today; counts it when it may.
-    private func spendGoalCall(_ goal: String) -> Bool {
+    func spendGoalCall(_ goal: String) -> Bool {
         guard !isFixture, tutor == nil, config.llm.enabled else { return false }
         let runs = goals.modelRuns[goal] ?? []
         guard GoalBudget.allows(runs: runs, now: Date()) else { return false }

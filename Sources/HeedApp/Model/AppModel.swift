@@ -380,6 +380,7 @@ final class AppModel {
             self?.applyGoalPointers()
             self?.observeTutorNow()
         }
+        goals.liveTargets = { [weak self] in self?.personaLiveTargets ?? [] }
         goals.paneChanged = { [weak self] in
             self?.updateScope()
             self?.observeTutorNow()
@@ -2079,6 +2080,7 @@ final class AppModel {
         }
         if goals.form != nil || goals.draft != nil, answerGoalText(stroke) { return true }
         if goals.spawnTyping, answerSpawnText(stroke) { return true }
+        if goals.personas.draft != nil, answerPersonaText(stroke) { return true }
         if filtering {
             typeFilter(stroke)
             return true
@@ -2318,6 +2320,14 @@ final class AppModel {
         case "goal.attach.undo": undoGoalAttach()
         case "goal.attach.find": findGoalNow()
         case "goal.reviewers": toggleGoalReviewers()
+        case "goal.personas": toggleGoalPersonas()
+        case "persona.session": spawnPersona(.session)
+        case "persona.chat": spawnPersona(.chat)
+        case "persona.reviewer": spawnPersona(.reviewer)
+        case "persona.edit": editPersona()
+        case "persona.derive": derivePersonas(asked: true)
+        case "persona.share": sharePersona()
+        case "persona.use": usePersona(command.arguments)
         case "goal.bar": pinGoalBar(command.arguments)
         case "goal.reopen": reopenGoal()
         case "review.recheck": recheckReviewers(command.arguments)
@@ -4420,13 +4430,14 @@ final class AppModel {
         }
         // A goal in Attention: to the goal, its reviewers when they wait.
         if view == .attention, commandTarget == nil, let item = attentionSelected?.item, item.kind == .goal,
-           !item.reasons.isDisjoint(with: [.goalDone, .goalBudget, .goalReviewBlocked, .goalSpawn]),
+           !item.reasons.isDisjoint(with: [.goalDone, .goalBudget, .goalReviewBlocked, .goalSpawn, .goalPersonaGap]),
            let goal = GoalAttention.goal(of: item)
         {
             view = .goals
             goals.point(to: goal)
             if item.reasons.contains(.goalBudget), goals.pane != .reviewers { goals.toggleReviewers() }
             if item.reasons.contains(.goalSpawn), goals.pane != .board { toggleGoalBoard() }
+            if item.reasons.contains(.goalPersonaGap), goals.pane != .personas { goals.togglePersonas() }
             return
         }
         if view == .attention, let item = attentionSelected?.item, item.kind == .goal {
@@ -4670,6 +4681,7 @@ final class AppModel {
         endTimedOutRuns()
         endTimedOutReviews()
         checkGoalQuality()
+        checkGoalPersonas()
         // Held because you were working in the session: try again, now that time has passed.
         for ref in pendingDelivery {
             deliver(ref, explicit: false)
@@ -6508,7 +6520,9 @@ final class AppModel {
                     try await HostSetup.install(on: host, files: hostFiles)
                 }
                 let trusted = await trustChatsRoot(for: plan)
-                let changes = try await StartWork.execute(plan, settings: settings, hosts: hosts)
+                // A persona's session or chat goes on its goal first, so it launches told about the goal.
+                let plan = await preparePersonaLaunch(plan)
+                let changes = try await StartWork.execute(plan, settings: self.settings, hosts: hosts)
                 for case let .layoutChanged(_, layout) in changes {
                     for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
                         TerminalSurfaces.shared.autostartPanes.insert(pane.id)
@@ -6524,6 +6538,7 @@ final class AppModel {
                 }) {
                     select(sessionID: session.id)
                     goalItemStarted(session)
+                    personaStarted(session)
                 }
                 // A session starts with its agent pane taking your keys.
                 if let tab = currentTab, let agent = tab.tree.panes.first(where: { $0.role == .agent }) {

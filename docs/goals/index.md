@@ -30,6 +30,7 @@ bars ([Quality bars](quality.md)). It shows `–` until there is something to co
 | `w` | Ask a model to sharpen the goal; what it suggests waits in `GOAL.md` |
 | `R` | The goal's reviewers and quality bars ([Reviewers](reviewers.md)); again, the overview |
 | `r` | Re-check: every reviewer the goal needs looks again |
+| `P` | Who the goal needs ([Personas](personas.md)); again, the overview |
 
 Everything here also takes the mouse: a click picks a goal, a double-click opens it, and a right-click offers what
 the keys do.

@@ -35,6 +35,8 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case goalReviewBlocked
     /// An agent asked to spawn work on a goal's items past the goal's cap (`heed goal item spawn`): y starts it.
     case goalSpawn
+    /// A goal needs an expert nobody has looked as yet, and heed did not spawn one on its own: P shows who.
+    case goalPersonaGap
     /// One of your open PRs (or one a session tracks), whether or not anything about it wants you: My PRs lists it.
     case yourPR
     /// An open issue in a repo whose issues you watch (`[repos.x] issues = "all"`): the Issues filter lists it.
@@ -68,6 +70,7 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         case .goalBudget: "reviewers wait"
         case .goalReviewBlocked: "reviewers blocked"
         case .goalSpawn: "spawns wait"
+        case .goalPersonaGap: "persona gap"
         case .yourPR: "your PR"
         case .watching: "watching"
         case .subscribed: "subscribed"
@@ -186,6 +189,8 @@ public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
             "An agent asked heed to start work on the goal's items, past the goal's spawn cap: y starts it, n drops it."
         case .goal where reasons.contains(.goalReviewBlocked):
             "The goal's reviewers have nowhere to run: its repo is not cloned on this Mac."
+        case .goal where reasons.contains(.goalPersonaGap):
+            "The goal needs an expert nobody has looked as yet: ↩ shows who and why, S, C or N puts one to work."
         case .goal: "Changes to the goal's GOAL.md the work suggests: ↩ shows them."
         default: "No summary yet."
         }

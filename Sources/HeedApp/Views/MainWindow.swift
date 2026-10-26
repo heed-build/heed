@@ -470,6 +470,14 @@ struct StatusBar: View {
         case .normal where model.goals.form != nil: "type the title and the goal · ⌘↩ create · ⎋ cancel"
         case .normal where model.goals.draft != nil: "edit GOAL.md · ⎋ or ⌘S save as a new version"
         case .normal where model.goals.spawnTyping: "type the reviewer's instructions · ⌘↩ spawn · ⎋ cancel"
+        case .normal where model.goals.personas.draft != nil: "edit the persona's file · ⎋ or ⌘S save"
+        case .normal where model.view == .goals && model.goals.pane == .personas:
+            [
+                ("goal.focus", model.goals.focus == .personas ? "goals" : "personas"),
+                ("persona.session", "session"), ("persona.chat", "chat"), ("persona.reviewer", "reviewer"),
+                ("persona.edit", "edit"), ("persona.derive", "work out again"), ("goal.personas", "overview"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "goalpersonas")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .goals && model.goals.pane == .reviewers:
             [
                 ("goal.focus", model.goals.focus == .objections ? "goals" : "next"),

@@ -211,6 +211,7 @@ public enum ContextMenus {
             item("Edit GOAL.md", "goal.edit"),
             item(reviewersShown ? "Back to the overview" : "Reviewers and quality bars", "goal.reviewers"),
             item("Re-check every reviewer", "review.recheck"),
+            item("Who it needs", "goal.personas"),
         ])
         menu.section([item(archived ? "Bring back" : "Archive", "goal.archive")]
             + (done ? [item("Not done yet", "goal.reopen")] : []))
@@ -230,6 +231,26 @@ public enum ContextMenus {
             MenuItem("Ask it why", CommandInvocation(name: "review.why", target: target)),
         ])
         menu.section([MenuItem("Take it off the goal", CommandInvocation(name: "reviewer.remove", target: target))])
+        return menu.entries
+    }
+
+    /// A persona in the goal's Personas pane: `<goal>/persona:<id>`.
+    public static func persona(goal: String, id: String, name: String, editing: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: "\(goal)/persona:\(id)")
+        func item(_ title: String, _ name: String) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target))
+        }
+        var menu = Menu(header: name)
+        menu.section([
+            item("Spawn as a session…", "persona.session"),
+            item("Spawn as a chat…", "persona.chat"),
+            item("Spawn as a reviewer", "persona.reviewer"),
+        ])
+        menu.section([
+            item(editing ? "Save its file" : "Edit its file", "persona.edit"),
+            item("Share to the library", "persona.share"),
+        ])
+        menu.section([MenuItem("Work out who is needed now", CommandInvocation(name: "persona.derive"))])
         return menu.entries
     }
 

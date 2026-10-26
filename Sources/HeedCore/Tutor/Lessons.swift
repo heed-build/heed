@@ -427,6 +427,14 @@ public extension Tutor {
                     + "{review.why} asks the reviewer in a chat."
             ) { start, now, _ in now.goalAccepted > start.goalAccepted },
             TutorStep(
+                "Who should be in the room",
+                say: "heed works out which experts the goal needs from its board: what is planned, what reviewers "
+                    + "object to, what is unanswered. {goal.personas} shows them, gaps first.",
+                keys: ["{goal.personas}"], target: "goalPersonas",
+                doneLine: "Each persona with why now and how much of its work it has looked at. {persona.session}, "
+                    + "{persona.chat} or {persona.reviewer} puts one to work; its file is yours to edit."
+            ) { _, now, _ in now.goalPane == "personas" },
+            TutorStep(
                 "Where new work goes",
                 say: "heed puts new sessions and chats on goals itself, and asks only when it is unsure. "
                     + "{goal.unassigned} opens Unassigned: what it decided lately, and why.",

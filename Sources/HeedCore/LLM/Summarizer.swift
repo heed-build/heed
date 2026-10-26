@@ -20,6 +20,8 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case goalSharpen
     /// A new goal's `GOAL.md`, drafted from the sessions and chats on no goal that hang together (Unassigned).
     case goalDraft
+    /// The experts a goal needs, from its board, as JSON (`PersonaDerivation`).
+    case goalPersonas
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -161,6 +163,19 @@ public struct Summarizer: Sendable {
             what is plainly out of scope (none: leave it empty); "## Done when" then "- [ ] " lines, each a checkable \
             result; "## Open questions" then "- " lines; "## Decisions" left empty. Only what the input supports; no \
             preamble.
+            """
+        case .goalPersonas:
+            """
+            You work out which experts a software goal needs in the room, from its GOAL.md and its board: the items \
+            left (item:…), reviewers' open objections (objection:…), criteria not met (criterion:…), open questions \
+            (question:…) and what is failing. Name at most six personas, each a kind of expert (not a person), \
+            reusing a known persona's name when one fits. For each say when it is needed (now: the work is stuck or \
+            wrong without it; soon; later), why now in one or two plain sentences, and the handles that ask for it. \
+            Reply with only JSON: {"personas": [{"name": "…", "when": "now|soon|later", "why": "…", "evidence": \
+            ["item:…", "objection:…"], "reviewer": one of plan-critic, implementation, perf-prober, security, \
+            test-architect, docs-reader, ux-evaluator, dx-evaluator, or null; "knows": ["…"], "skepticalAbout": \
+            ["…"], "asksFirst": ["…?"], "may": ["read", "run", "write notes"], "mayNot": ["edit code"]}]}. Cite only \
+            handles from the input.
             """
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)

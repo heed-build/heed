@@ -25,6 +25,7 @@ struct GoalsView: View {
                         case .doc: GoalDocPane(goal: goal).shotRegion(.goalsDoc)
                         case .board: GoalBoardPane(goal: goal).shotRegion(.goalsBoard)
                         case .reviewers: GoalReviewersPane(goal: goal)
+                        case .personas: GoalPersonasPane(goal: goal)
                         }
                     } else {
                         EmptyState(
@@ -235,6 +236,10 @@ struct GoalHeader: View {
                 )
                 KeyHint("goal.edit", scope: "goals", label: "edit", color: Theme.fg2)
                 KeyHint("goal.reviewers", scope: "goals", label: "reviewers", color: Theme.fg2)
+                KeyHint(
+                    "goal.personas", scope: "goals", label: model.goals.pane == .personas ? "overview" : "personas",
+                    color: Theme.fg2
+                )
                 KeyHint(
                     "goal.archive", scope: "goals", label: goal.status == .archived ? "bring back" : "archive",
                     color: Theme.fg2

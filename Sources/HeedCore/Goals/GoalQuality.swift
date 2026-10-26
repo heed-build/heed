@@ -14,10 +14,12 @@ public struct ReviewerConfig: Hashable, Sendable, Codable, Identifiable {
     public var tier: ModelTier?
     /// Taken off the goal: kept for its history, never run again.
     public var removed: Bool
+    /// The persona it is (its name), when one was spawned as a reviewer: its instructions are the persona's brief.
+    public var persona: String?
 
     public init(
         id: String, kind: ReviewerKind, instructions: String? = nil, policy: ReviewPolicy = .onChange,
-        agent: String? = nil, tier: ModelTier? = nil, removed: Bool = false
+        agent: String? = nil, tier: ModelTier? = nil, removed: Bool = false, persona: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -26,10 +28,12 @@ public struct ReviewerConfig: Hashable, Sendable, Codable, Identifiable {
         self.agent = agent
         self.tier = tier
         self.removed = removed
+        self.persona = persona
     }
 
     public var title: String {
-        kind == .custom ? (instructions.map { "Custom: " + String($0.prefix(30)) } ?? kind.title) : kind.title
+        if let persona { return persona }
+        return kind == .custom ? (instructions.map { "Custom: " + String($0.prefix(30)) } ?? kind.title) : kind.title
     }
 }
 
@@ -71,6 +75,10 @@ public enum QualityEntry: Hashable, Sendable, Codable {
     case action(ObjectionAction)
     /// heed marked the goal done (or you undid that).
     case done(DoneMark)
+    /// Who the goal needs, worked out from its board (`PersonaBoard` folds these; the quality fold skips them).
+    case personas(PersonaDerivation)
+    /// A persona put to work as a reviewer, a chat or a session.
+    case personaSpawn(PersonaSpawn)
 
     /// The `kind` column.
     public var kind: String {
@@ -82,6 +90,8 @@ public enum QualityEntry: Hashable, Sendable, Codable {
         case .review: "review"
         case .action: "action"
         case .done: "done"
+        case .personas: "personas"
+        case .personaSpawn: "persona-spawn"
         }
     }
 }
@@ -328,6 +338,8 @@ public struct GoalQuality: Hashable, Sendable {
             case let .done(mark):
                 doneMark = mark
                 doneAt = record.at
+            case .personas, .personaSpawn:
+                continue
             }
         }
         let profile = profiles.last

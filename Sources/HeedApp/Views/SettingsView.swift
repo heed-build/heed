@@ -1379,6 +1379,30 @@ private struct GoalsSettingsGroup: View {
             }
         }
         .disabled(!attach.enabled)
+        Field(
+            label: "Reviewers run on their own",
+            detail: "When a goal's work changes (a PR opened, updated or merged, a new GOAL.md version) and nightly, "
+                + "for the lenses the goal requires; quiet once at their bar until something new. Off: only when you "
+                + "press re-check."
+        ) {
+            Toggle("", isOn: Binding(
+                get: { model.config.goals.autoReview },
+                set: { model.setConfig(["goals", "auto_review"], .bool($0)) }
+            )).labelsHidden()
+        }
+        Field(
+            label: "Reviewer runs per day",
+            detail: "Per goal. Past it, heed asks in Attention; a re-check you press is never held back. Bars per "
+                + "lens are in config.toml under [goals.bars], models per reviewer kind under [goals.reviewers]."
+        ) {
+            Stepper(value: Binding(
+                get: { model.config.goals.reviewerRunsPerDay },
+                set: { model.setConfig(["goals", "reviewer_runs_per_day"], .integer($0)) }
+            ), in: 0 ... 100) {
+                Text("\(model.config.goals.reviewerRunsPerDay)").font(Theme.mono(12.5))
+            }
+            .frame(width: 160)
+        }
     }
 
     private func threshold(

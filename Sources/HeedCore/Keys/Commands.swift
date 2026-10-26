@@ -133,6 +133,11 @@ public enum Commands {
             "Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview)",
             .views
         ),
+        .init(
+            "goal.reviewers",
+            "Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview)",
+            .views
+        ),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -274,6 +279,24 @@ public enum Commands {
             .selection
         ),
         .init("goal.attach.find", "look for the session's goal now: rules, signals, the model when unsure", .selection),
+        .init(
+            "goal.bar", "pin a quality bar for the goal: a lens and 0–10, off to drop the lens, auto for the profile's",
+            .selection, arguments: "<lens> <bar|off|auto>"
+        ),
+        .init("goal.reopen", "not done yet: undo heed marking the goal done (held until something new)", .selection),
+        .init(
+            "review.recheck",
+            "re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs)",
+            .selection, arguments: "[reviewer]"
+        ),
+        .init("review.accept", "accept the risk of the objection under the cursor (again: open it)", .selection),
+        .init("review.fix", "start a session to fix the objection under the cursor: Start work, filled in", .selection),
+        .init("review.why", "ask the reviewer why: a chat seeded with its review", .selection),
+        .init(
+            "reviewer.spawn", "spawn a reviewer on the goal, as the spawn panel says (or of the kind given)",
+            .selection, arguments: "[kind]"
+        ),
+        .init("reviewer.remove", "take the reviewer under the cursor off the goal (its history stays)", .selection),
         .init("ledger.summarize", "write the ledger summary of this work now", .selection),
         .init(
             "ledger.edit", "edit the ledger entry's summary (no text: the command line opens with it)", .selection,

@@ -283,6 +283,11 @@ public enum MenuBar {
                     ("Take off the goal", "goal.detach"), ("Board", "goal.board"),
                     ("Sharpen the goal…", "goal.sharpen"), ("Plan its items now", "goal.plan"),
                     ("Unassigned", "goal.unassigned"), ("Undo heed's last attachment", "goal.attach.undo"),
+                    ("Reviewers and quality bars", "goal.reviewers"),
+                    ("Re-check", "review.recheck"), ("Accept the risk", "review.accept"),
+                    ("Start a session to fix it", "review.fix"), ("Ask the reviewer why", "review.why"),
+                    ("Spawn a reviewer", "reviewer.spawn"), ("Take the reviewer off", "reviewer.remove"),
+                    ("Pin a quality bar…", "goal.bar"), ("Not done yet", "goal.reopen"),
                 ], in: ["goals"]),
                 scopedInvocations("On a goal's board", [
                     ("Add an item…", "goal.item.add"), ("Move the card left", "goal.item.move left"),

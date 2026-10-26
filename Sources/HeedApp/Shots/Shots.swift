@@ -446,6 +446,15 @@ enum Shots {
         Shot(id: "goals/suggestion", keys: "gGUj", crop: .goalsUnassigned, cropPadding: 0),
         // heed's ask in Attention, answered with one key.
         Shot(id: "goals/attach-ask", keys: "gm/z-order<CR>", crop: .attentionDetail),
+        // Reviewers (R): the implementation reviewer under the cursor, its objections and why its score is what it is.
+        Shot(id: "goals/reviewers", keys: "gGjR<Tab>j"),
+        Shot(id: "goals/reviewer-detail", keys: "gGjR<Tab>j<Tab>", crop: .goalReviewerDetail, cropPadding: 8),
+        Shot(id: "goals/how-happy", keys: "gGj", crop: .goalHappy, cropPadding: 8),
+        Shot(id: "goals/quality-bars", keys: "gGjR", crop: .goalBars, cropPadding: 8),
+        Shot(id: "goals/spawn", keys: "gGjR", crop: .goalSpawn, cropPadding: 8, prepare: { model in
+            model.goals.spawn.kind = .security
+            model.goals.spawn.policy = .nightly
+        }),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

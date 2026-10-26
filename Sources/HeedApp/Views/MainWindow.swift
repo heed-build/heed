@@ -469,6 +469,18 @@ struct StatusBar: View {
             .map { "\(model.keyText(for: $0.0, in: "dashboard")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.goals.form != nil: "type the title and the goal · ⌘↩ create · ⎋ cancel"
         case .normal where model.goals.draft != nil: "edit GOAL.md · ⎋ or ⌘S save as a new version"
+        case .normal where model.goals.spawnTyping: "type the reviewer's instructions · ⌘↩ spawn · ⎋ cancel"
+        case .normal where model.view == .goals && model.goals.pane == .reviewers:
+            [
+                ("goal.focus", model.goals.focus == .objections ? "goals" : "next"),
+                ("review.recheck", "re-check"),
+                ("review.accept", "accept risk"),
+                ("review.fix", "fix"),
+                ("review.why", "why"),
+                ("reviewer.spawn", "spawn"),
+                ("goal.reviewers", "overview"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "goalreviewers")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .goals && model.goals.pane == .board:
             [
                 ("goal.item.move right", "move"), ("goal.item.add", "add"), ("goal.item.work", "work here"),

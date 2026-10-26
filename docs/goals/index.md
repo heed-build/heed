@@ -12,8 +12,9 @@ it, and its `GOAL.md` says what the goal is, what it is not, when it is done, wh
 
 ## The list
 
-Each goal shows its score ring, how many sessions and chats are on it, and its `GOAL.md` version. The ring shows `–`
-until something has scored the goal. Active goals come first, then done ones, then archived ones; `/` filters them.
+Each goal shows its score ring, how many sessions and chats are on it, and its `GOAL.md` version. The ring is the
+goal's confidence: how many of its done-when criteria are met and how close its reviewers are to the goal's quality
+bars ([Quality bars](quality.md)). It shows `–` until there is something to count. Active goals come first, then done ones, then archived ones; `/` filters them.
 
 | Key | |
 |---|---|
@@ -27,6 +28,8 @@ until something has scored the goal. Active goals come first, then done ones, th
 | `x` | Take the session or chat under the cursor off the goal |
 | `B` | The goal as a board; again, the overview ([Items and the board](items.md)) |
 | `w` | Ask a model to sharpen the goal; what it suggests waits in `GOAL.md` |
+| `R` | The goal's reviewers and quality bars ([Reviewers](reviewers.md)); again, the overview |
+| `r` | Re-check: every reviewer the goal needs looks again |
 
 Everything here also takes the mouse: a click picks a goal, a double-click opens it, and a right-click offers what
 the keys do.
@@ -35,12 +38,13 @@ the keys do.
 
 ![A goal's overview](../images/shots/goals/overview.png)
 
-The goal's title and statement, then its numbers: items done, criteria met (from **Done when**), the sessions and
+The goal's title and statement, then its numbers: its confidence, items done, criteria met (from **Done when**), the sessions and
 chats on it, and how many of their PRs merged. **Implementation state** is the goal's items by stage (see
 [Items and the board](items.md)). **On this goal** lists its sessions and chats newest first, closed ones too;
 **Resulting PRs** lists their PRs with where each stands; **Needs you** lists the changes to `GOAL.md` waiting for
 you, the open questions and the goal's sessions that wait on you; **Last time** is the newest ledger summary of one of
-its sessions, so you see where the work was left.
+its sessions, so you see where the work was left. **How happy are they** lists its reviewers with their scores and which
+way each moved; a click opens it in [Reviewers](reviewers.md).
 
 ## GOAL.md
 

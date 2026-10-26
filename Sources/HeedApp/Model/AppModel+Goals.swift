@@ -78,7 +78,8 @@ extension AppModel {
         guard goals.rows.indices.contains(index) else { return [] }
         let goal = goals.rows[index]
         return ContextMenus.goal(
-            id: goal.id, title: goal.title, archived: goal.status == .archived, docShown: goals.pane == .doc
+            id: goal.id, title: goal.title, archived: goal.status == .archived, docShown: goals.pane == .doc,
+            reviewersShown: goals.pane == .reviewers, done: goal.status == .done
         )
     }
 

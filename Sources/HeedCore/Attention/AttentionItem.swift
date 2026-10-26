@@ -27,6 +27,12 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case goalProposals
     /// heed is unsure which goal a new session or chat belongs to and asks, one key (y n m i).
     case goalAttach
+    /// heed marked a goal done: every criterion has evidence and every required lens is at its bar (undo is a key).
+    case goalDone
+    /// A goal's reviewers are due but its day's reviewer budget is spent: run them anyway, or wait for tomorrow.
+    case goalBudget
+    /// A goal's reviewers have nowhere to run: the work is in a repo with no clone on this Mac.
+    case goalReviewBlocked
     /// One of your open PRs (or one a session tracks), whether or not anything about it wants you: My PRs lists it.
     case yourPR
     /// An open issue in a repo whose issues you watch (`[repos.x] issues = "all"`): the Issues filter lists it.
@@ -56,6 +62,9 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         case .agentLimited: "rate limited"
         case .goalProposals: "goal proposals"
         case .goalAttach: "which goal?"
+        case .goalDone: "goal done"
+        case .goalBudget: "reviewers wait"
+        case .goalReviewBlocked: "reviewers blocked"
         case .yourPR: "your PR"
         case .watching: "watching"
         case .subscribed: "subscribed"
@@ -166,6 +175,12 @@ public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
         switch kind {
         case .agent: "An agent waiting on you."
         case .goal where reasons.contains(.goalAttach): "heed is unsure which goal this belongs to."
+        case .goal where reasons.contains(.goalDone):
+            "heed marked the goal done: every criterion has evidence and every lens is at its bar. :goal.reopen undoes it."
+        case .goal where reasons.contains(.goalBudget):
+            "Reviewers were due but the goal's reviewer runs for today are spent: ↩ shows them, r runs them anyway."
+        case .goal where reasons.contains(.goalReviewBlocked):
+            "The goal's reviewers have nowhere to run: its repo is not cloned on this Mac."
         case .goal: "Changes to the goal's GOAL.md the work suggests: ↩ shows them."
         default: "No summary yet."
         }

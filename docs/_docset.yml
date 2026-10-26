@@ -97,6 +97,8 @@ toc:
       - file: index.md
       - file: items.md
       - file: attach.md
+      - file: quality.md
+      - file: reviewers.md
   - folder: keyboard
     children:
       - file: index.md

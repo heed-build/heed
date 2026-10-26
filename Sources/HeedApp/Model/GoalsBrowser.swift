@@ -106,6 +106,7 @@ final class GoalsBrowser {
         for index in snapshot.goals.indices {
             snapshot.goals[index].score = qualities[snapshot.goals[index].id]?.confidence?.value
         }
+        GoalQualityFixtures.share(qualities, into: &snapshot)
         apply(snapshot)
         fixtureVersions = GoalFixtures.versions(fixtures)
         loadVersions()
@@ -257,8 +258,8 @@ final class GoalsBrowser {
     /// The selected goal's changes to GOAL.md waiting for you, oldest first.
     var proposals: [GoalEdit] { selected.map { snapshot.proposals(of: $0.id) } ?? [] }
 
-    /// The lenses the goal needs. Until goals have quality profiles, every one.
-    var requiredLenses: Set<Stage> { Stage.lenses }
+    /// The matrix's lens columns the goal needs, from its quality profile (every one until a profile is decided).
+    var requiredLenses: Set<Stage> { ReviewEvidence.requiredStages(selectedQuality) }
 
     var columns: [Board.Column: [GoalItem]] { Board.columns(items, evidence: evidence) }
 
@@ -430,6 +431,8 @@ final class GoalsBrowser {
             if let fresh = try? await ops.qualities(table: table), fresh != qualities {
                 qualities = fresh
                 clampQualityCursors()
+                // The tutor and Attention follow the scores too.
+                changed()
             }
             if let goal = selected?.id, let versions = try? await ops.versions(of: goal) {
                 fixtureVersions[goal] = versions

@@ -17,6 +17,50 @@ public enum GoalQualityFixtures {
         })
     }
 
+    /// The reviews in the fixture goals' shared model, as `GoalOps` would have put them: each reviewer's evidence on
+    /// the items it looked at, and an item for each open HIGH objection.
+    public static func share(_ qualities: [String: GoalQuality], into snapshot: inout GoalSnapshot) {
+        for goal in snapshot.goals {
+            guard let quality = qualities[goal.id] else { continue }
+            var items = snapshot.items(of: goal.id)
+            for (reviewer, objection) in ReviewEvidence.newItems(quality, items: items) {
+                let taken = Set(items.map(\.slug))
+                let item = GoalItem(
+                    id: "\(goal.id)/\(GoalSlug.make(objection.text, taken: taken))", goal: goal.id,
+                    title: GoalDoc.oneLine(objection.text), source: .reviewer, links: [GoalItem.Link(
+                        .review,
+                        reviewer.id
+                    )],
+                    reason: "\(reviewer.config.title): HIGH " + ReviewEvidence.marker(
+                        reviewer: reviewer.id,
+                        objection: objection.id
+                    ),
+                    createdAt: objection.firstSeen
+                )
+                items.append(item)
+                snapshot.items.append(item)
+                if let lens = reviewer.config.kind.lens, let stage = ReviewEvidence.stage(lens) {
+                    snapshot.evidence.append(GoalEvidence(
+                        goal: goal.id, item: item.id, kind: stage.evidence, state: .issue, at: objection.lastSeen,
+                        source: reviewer.config.kind.title.lowercased(), text: objection.evidence ?? "HIGH objection",
+                        ref: "review:\(reviewer.id)"
+                    ))
+                }
+            }
+            for reviewer in quality.live {
+                guard let at = reviewer.lastReviewAt else { continue }
+                let bar = reviewer.config.kind.lens.flatMap { lens in quality.lenses.first { $0.lens == lens }?.bar }
+                snapshot.evidence += ReviewEvidence.of(
+                    reviewer: reviewer,
+                    bar: bar,
+                    goal: goal.id,
+                    items: items,
+                    at: at
+                )
+            }
+        }
+    }
+
     private static func profile(
         _: String, _ profile: GoalProfile, version: Int, pins: [GoalLens: Double] = [:], changes: [BarChange] = []
     ) -> QualityEntry {

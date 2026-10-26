@@ -579,25 +579,90 @@ struct GoalQualityOpsTests {
         #expect(try await !ops.quality(of: goal.id).shouldMarkDone)
     }
 
-    @Test func highObjectionsAreThereForTheItems() async throws {
+    @Test func highObjectionsBecomeItemsOnceAndFixedOnesMoveThemOn() async throws {
         let (ops, _) = try ops()
         let goal = try await make(ops)
         try await ops.setProfile(goal: goal.id, GoalProfile(stakes: .spike), now: t0.addingTimeInterval(2))
+        func review(_ run: String, _ raised: [ReviewReport.Raised], at seconds: Double) async throws {
+            try await ops.reviewEnded(
+                ReviewResult(
+                    run: run, reviewer: "implementation", basis: ReviewBasis(goalVersion: 2, heads: []),
+                    report: ReviewReport(summary: "", objections: raised)
+                ),
+                goal: goal.id, now: t0.addingTimeInterval(seconds)
+            )
+        }
+        try await review(
+            "r1",
+            [.init(severity: .high, text: "Matched by title"), .init(severity: .low, text: "Format")],
+            at: 20
+        )
+        var snapshot = try await ops.snapshot()
+        var items = snapshot.items(of: goal.id)
+        #expect(items.map(\.title) == ["Matched by title"])
+        #expect(items.first?.source == .reviewer)
+        #expect(items.first?.linked(.review) == ["implementation"])
+        let item = try #require(items.first)
+        #expect(snapshot.evidence(of: goal.id)
+            .contains { $0.item == item.id && $0.kind == .codeReview && $0.state == .issue })
+        // The goal-level code review, with its score.
+        let level = snapshot.evidence(of: goal.id).first { $0.item == nil && $0.kind == .codeReview }
+        #expect(level?.score == 6.5)
+        #expect(level?.state == .issue)
+
+        // Raised again: no second item.
+        try await review("r2", [.init(severity: .high, text: "Matched by title")], at: 30)
+        snapshot = try await ops.snapshot()
+        items = snapshot.items(of: goal.id)
+        #expect(items.count == 1)
+
+        // Fixed: its item gets done evidence, and the review is done at the bar.
+        try await review("r3", [], at: 40)
+        snapshot = try await ops.snapshot()
+        let evidence = snapshot.evidence(of: goal.id)
+        #expect(evidence.contains { $0.item == item.id && $0.state == .done && $0.text == "fixed" })
+        #expect(evidence.filter { $0.item == nil && $0.kind == .codeReview }.max { $0.at < $1.at }?.state == .done)
+    }
+
+    @Test func aReviewOfAPRGoesOnTheItemsOfThatPR() async throws {
+        let (ops, _) = try ops()
+        let goal = try await make(ops)
+        try await ops.setProfile(goal: goal.id, GoalProfile(stakes: .spike), now: t0.addingTimeInterval(2))
+        let item = try await ops.addItem(
+            goal: goal.id, title: "Index by heading", source: .you, links: [GoalItem.Link(.pr, "acme/search#3")],
+            now: t0.addingTimeInterval(3)
+        )
         try await ops.reviewEnded(
             ReviewResult(
-                run: "r1",
-                reviewer: "implementation",
-                basis: ReviewBasis(goalVersion: 2, heads: []),
-                report:
-                ReviewReport(summary: "", objections: [
-                    .init(severity: .high, text: "Matched by title"), .init(severity: .low, text: "Format"),
-                ])
+                run: "r1", reviewer: "plan-critic", basis: ReviewBasis(goalVersion: 2, heads: ["acme/search#3@abc"]),
+                report: ReviewReport(summary: "", objections: [.init(severity: .med, text: "No rollback plan")])
             ),
             goal: goal.id, now: t0.addingTimeInterval(20)
         )
-        let high = try await ops.highObjections(goal: goal.id)
-        #expect(high.map(\.objection.text) == ["Matched by title"])
-        #expect(high.map(\.reviewer) == ["implementation"])
+        let evidence = try await ops.snapshot().evidence(of: goal.id).filter { $0.kind == .planReview }
+        #expect(evidence.map(\.item) == [item.id])
+        #expect(evidence.first?.state == .done)
+        #expect(evidence.first?.score == 8.5)
+        #expect(evidence.first?.text == "Plan critic 8.5 (bar 5)")
+    }
+
+    @Test func lensesWithoutAColumnLeaveNoEvidenceAndTheMatrixFollowsTheProfile() {
+        let security = ReviewerState(
+            config: ReviewerConfig(id: "security", kind: .security), objections: [],
+            score: GoalScore(value: 9, basis: ""), history: [9], lastReview: ReviewResult(
+                run: "r", reviewer: "security", basis: ReviewBasis(goalVersion: 1, heads: []),
+                report: ReviewReport(summary: "", objections: [])
+            ), summary: ""
+        )
+        #expect(ReviewEvidence.of(reviewer: security, bar: 8, goal: "g", items: [], at: t0).isEmpty)
+        #expect(ReviewEvidence.requiredStages(nil) == Stage.lenses)
+        let spike = GoalQuality.fold(
+            [QualityRecord(goal: "g", at: t0, entry: .profile(ProfileDecision(
+                profile: GoalProfile(stakes: .spike), bars: [:], changes: [], note: "", goalVersion: 1
+            )))],
+            doc: nil
+        )
+        #expect(ReviewEvidence.requiredStages(spike) == [.planReview, .codeReview])
     }
 
     @Test func spawningTheSameKindTwiceGetsANumber() async throws {
@@ -766,13 +831,24 @@ struct ReviewPlaceTests {
         #expect(place == .target(ReviewTarget(record: clone, branch: "spike-b", repo: repo)))
     }
 
+    @Test func aSessionOnAHostWithNoCloneThereFallsBackToThisMac() {
+        var remote = session("r1", tracks: [ref])
+        remote.host = "devbox"
+        let place = ReviewRun.place(
+            pulls: [.init(ref: ref, headBranch: "fix-a", open: true)], sessions: [remote], worktrees: [],
+            repos: [clone], branches: []
+        )
+        // This Mac's clone, and no tab: the session is on another machine.
+        #expect(place == .target(ReviewTarget(record: clone, branch: "fix-a", repo: repo, host: nil)))
+    }
+
     @Test func noCloneOnThisMacIsANoteNotARun() {
         let remote = RepoRecord(repo: repo, path: "/srv/docs-toolkit", location: .host("devbox"))
         #expect(ReviewRun.place(
             pulls: [.init(ref: ref, headBranch: "fix-a", open: true)], sessions: [], worktrees: [], repos: [remote],
             branches: []
         ) == .noClone(repo))
-        #expect(ReviewRun.place(pulls: [], sessions: [], worktrees: [], repos: [], branches: [(repo, "b")])
+        #expect(ReviewRun.place(pulls: [], sessions: [], worktrees: [], repos: [remote], branches: [(repo, "b")])
             == .noClone(repo))
         #expect(ReviewRun.place(pulls: [], sessions: [], worktrees: [], repos: [clone], branches: []) == .nothing)
     }

@@ -296,7 +296,10 @@ public extension ReviewRun {
                 for: pull.ref, headBranch: head, owned: owned, all: worktrees.filter { $0.location == location }
             )
             let here = repos.filter { $0.location == location }
-            guard let found = base.map(record(of:)) ?? Runs.clone(for: pull.ref, in: here, at: location) else {
+            // The session's machine first; else this Mac's clone, headless.
+            guard let found = base.map(record(of:)) ?? Runs.clone(for: pull.ref, in: here, at: location)
+                ?? Runs.clone(for: pull.ref, in: repos.filter(\.location.isLocal), at: .local)
+            else {
                 missing = missing ?? pull.ref.repo
                 continue
             }

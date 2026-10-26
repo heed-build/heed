@@ -96,7 +96,12 @@ are the same objection, a rewording close enough in its words is too, and what i
 objection a re-check no longer raises is **fixed** (an accepted one too); one raised again after being fixed is **open**
 again; one whose risk you accepted stays accepted while it is raised.
 
-High objections go to the goal's items once items exist; until then they stay on the reviewer.
+Reviews go into the goal's [items and board](items.md) as evidence: the plan critic fills the **plan rev** column,
+the implementation reviewer **code rev**, the performance prober **perf** and the DX evaluator **DX**, with its score,
+on the items linked to the PR it looked at (or the goal as a whole). A review at its bar is done there, one with a
+high objection open an issue. Each open **high** objection becomes an item of its own (source: reviewer) on the board;
+once a re-check finds it fixed, or you accept its risk, that item gets done evidence and moves on. Columns for lenses
+the goal does not require show n/a.
 
 ## What you can do
 

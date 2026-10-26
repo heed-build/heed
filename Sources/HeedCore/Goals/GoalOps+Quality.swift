@@ -138,10 +138,12 @@ public extension GoalOps {
         goal id: String, reviewer: String, objection: String, _ state: Objection.State, now: Date,
         table: GoalBarTable = .defaults
     ) throws -> GoalQuality {
-        try record(
+        let quality = try record(
             [.action(ObjectionAction(reviewer: reviewer, objection: objection, state: state))],
             goal: id, at: now, table: table
         )
+        try share(quality, reviewer: nil, goal: id, now: now)
+        return quality
     }
 
     /// A reviewer run started: it counts on the day's budget.
@@ -155,7 +157,49 @@ public extension GoalOps {
     func reviewEnded(_ result: ReviewResult, goal id: String, now: Date, table: GoalBarTable = .defaults)
         throws -> GoalQuality
     {
-        try record([.review(result)], goal: id, at: now, table: table)
+        let quality = try record([.review(result)], goal: id, at: now, table: table)
+        try share(quality, reviewer: result.report == nil ? nil : result.reviewer, goal: id, now: now)
+        return quality
+    }
+
+    /// The review in the goal's shared model (`ReviewEvidence`): the reviewer's evidence on the items it looked at,
+    /// an item (source reviewer) for each new open HIGH objection, and done evidence on the items of objections that
+    /// were fixed or whose risk you accepted.
+    private func share(_ quality: GoalQuality, reviewer id: String?, goal: String, now: Date) throws {
+        var items = try store.items().filter { $0.goal == goal }
+        if let id, let reviewer = quality.reviewer(id) {
+            let bar = reviewer.config.kind.lens.flatMap { lens in quality.lenses.first { $0.lens == lens }?.bar }
+            for evidence in ReviewEvidence.of(reviewer: reviewer, bar: bar, goal: goal, items: items, at: now) {
+                try addEvidence(evidence)
+            }
+        }
+        for (reviewer, objection) in ReviewEvidence.newItems(quality, items: items) {
+            let item = try addItem(
+                goal: goal, title: objection.text, source: .reviewer, links: [GoalItem.Link(.review, reviewer.id)],
+                reason: "\(reviewer.config.title): HIGH " + ReviewEvidence.marker(
+                    reviewer: reviewer.id,
+                    objection: objection.id
+                ),
+                now: now
+            )
+            items.append(item)
+            if let lens = reviewer.config.kind.lens, let stage = ReviewEvidence.stage(lens) {
+                try addEvidence(GoalEvidence(
+                    goal: goal, item: item.id, kind: stage.evidence, state: .issue, at: now,
+                    source: reviewer.config.kind.title.lowercased(), text: objection.evidence ?? "HIGH objection",
+                    ref: "review:\(reviewer.id)"
+                ))
+            }
+        }
+        for (item, objection) in ReviewEvidence.settled(quality, items: items) {
+            let reviewer = item.linked(.review).first.flatMap { quality.reviewer($0) }
+            let kind = reviewer?.config.kind.lens.flatMap(ReviewEvidence.stage)?.evidence ?? .codeReview
+            try addEvidence(GoalEvidence(
+                goal: goal, item: item.id, kind: kind, state: .done, at: now,
+                source: reviewer?.config.kind.title.lowercased() ?? "reviewer", text: objection.state.text,
+                ref: reviewer.map { "review:\($0.id)" }
+            ))
+        }
     }
 
     /// Marks the goal done, or undoes that (back to active, and held until what made it done changes).
@@ -166,16 +210,18 @@ public extension GoalOps {
     }
 
     /// The HIGH objections still open on a goal, for its items: what the items part turns into work.
-    func highObjections(goal id: String, table: GoalBarTable = .defaults) throws
-        -> [(reviewer: String, objection: Objection)]
-    {
-        try quality(of: id, table: table).highOpen
-    }
 
     /// Lays down fixture records.
     func adopt(quality records: [QualityRecord]) throws {
         for record in records {
             try store.addQuality(record)
+        }
+        // Their reviews in the shared model, as a review ending puts them there.
+        for goal in Set(records.map(\.goal)).sorted() {
+            let quality = try quality(of: goal)
+            for reviewer in quality.live where reviewer.lastReviewAt != nil {
+                try share(quality, reviewer: reviewer.id, goal: goal, now: reviewer.lastReviewAt ?? Date())
+            }
         }
         for goal in Set(records.map(\.goal)) {
             guard var current = try store.goal(goal) else { continue }

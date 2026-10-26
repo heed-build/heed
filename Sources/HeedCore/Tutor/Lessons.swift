@@ -410,6 +410,7 @@ public extension Tutor {
                 keys: ["{goal.item.move right}"], target: "goalsBoard",
                 doneLine: "{goal.item.work} starts work on a card's item, Start work filled in from it."
             ) { start, now, _ in now.goalMoves > start.goalMoves },
+            TutorStep(
                 "Reviewers",
                 say: "Not every goal needs a 10: heed reads the goal and sets a bar per lens (code review, tests, "
                     + "docs…). Reviewers are agents that look at the work in a worktree of their own and score how "

@@ -364,11 +364,4 @@ public struct GoalQuality: Hashable, Sendable {
         if let mark = doneMark { return !mark.done && mark.basis != doneBasis }
         return true
     }
-
-    /// The HIGH objections still open, for the goal's items (the items part reads these).
-    public var highOpen: [(reviewer: String, objection: Objection)] {
-        live.flatMap { state in
-            state.open.filter { $0.severity == .high }.map { (state.id, $0) }
-        }
-    }
 }

@@ -24,6 +24,7 @@ struct GoalsView: View {
                         case .overview, .unassigned: GoalOverviewPane(goal: goal).shotRegion(.goalsOverview)
                         case .doc: GoalDocPane(goal: goal).shotRegion(.goalsDoc)
                         case .board: GoalBoardPane(goal: goal).shotRegion(.goalsBoard)
+                        case .reviewers: GoalReviewersPane(goal: goal)
                         }
                     } else {
                         EmptyState(
@@ -90,6 +91,7 @@ private struct GoalList: View {
             FlowLayout(spacing: 14, lineSpacing: 6) {
                 KeyHint("goal.focus", scope: "goals", label: "what is on it")
                 KeyHint("goal.doc", scope: "goals", label: "GOAL.md")
+                KeyHint("goal.reviewers", scope: "goals", label: "reviewers")
                 KeyHint("goal.archive", scope: "goals", label: "archive")
                 KeyHint("session.filter", label: "filter")
             }
@@ -171,6 +173,7 @@ private struct GoalOverviewPane: View {
                         OnTheGoal(rows: overview.rows)
                     }
                     VStack(alignment: .leading, spacing: 16) {
+                        HowHappy(goal: goal).shotRegion(.goalHappy)
                         Panel(title: "Resulting PRs", note: overview.pulls.isEmpty ? "" : "\(overview.pulls.count)") {
                             if overview.pulls.isEmpty {
                                 Quiet("None yet: PRs the goal's sessions open show here.")
@@ -231,6 +234,7 @@ struct GoalHeader: View {
                     color: Theme.fg2
                 )
                 KeyHint("goal.edit", scope: "goals", label: "edit", color: Theme.fg2)
+                KeyHint("goal.reviewers", scope: "goals", label: "reviewers", color: Theme.fg2)
                 KeyHint(
                     "goal.archive", scope: "goals", label: goal.status == .archived ? "bring back" : "archive",
                     color: Theme.fg2

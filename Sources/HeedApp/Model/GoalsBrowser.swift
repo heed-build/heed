@@ -12,14 +12,26 @@ final class GoalsBrowser {
     /// What the right of the view shows. Later parts add theirs (board, reviewers, personas, evaluations, unassigned)
     /// as cases here, each a pane of its own.
     enum Pane: String {
-        case overview, doc, board
+        case overview, doc, board, reviewers
         /// Goals › Unassigned: heed's attach decisions, asks and suggested goals (`AttachBrowser`).
         case unassigned
     }
 
-    /// Where j and k move: the goals list, or what belongs to the goal under the cursor.
-    enum Focus {
-        case goals, links
+    /// Where j and k move: the goals list, what belongs to the goal under the cursor, or (in Reviewers) its reviewers
+    /// and the objections of the one under the cursor.
+    enum Focus: String {
+        case goals, links, reviewers, objections
+    }
+
+    /// The spawn-a-reviewer panel: what the next reviewer is.
+    struct Spawn: Equatable {
+        var kind = ReviewerKind.implementation
+        var instructions = ""
+        var policy = ReviewPolicy.onChange
+        /// nil: `[goals] reviewer_agent`, else the goal's sessions' agent.
+        var agent: String?
+        /// nil: `[goals.reviewers]` for the kind.
+        var tier: ModelTier?
     }
 
     /// The new goal dialog: a title and what the goal is; a session it is made from goes on it.
@@ -57,6 +69,23 @@ final class GoalsBrowser {
     @ObservationIgnored var startingItem: GoalItem?
     /// Each goal's model calls today (planner, proposer, sharpener), for `GoalBudget`.
     @ObservationIgnored var modelRuns: [String: [Date]] = [:]
+    /// Each goal's quality (profile, bars, reviewers, confidence), by goal id.
+    private(set) var qualities: [String: GoalQuality] = [:]
+    private(set) var reviewerCursor = 0
+    private(set) var objectionCursor = 0
+    var spawn = Spawn()
+    /// The custom reviewer's instructions are being typed.
+    var spawnTyping = false
+    /// Reviewers due but held back by the day's budget, by goal: an Attention ask.
+    private(set) var waiting: [String: [String]] = [:]
+    /// What the goals' PRs and versions were at the last look, to tell what changed (`ReviewTrigger.from`).
+    @ObservationIgnored var seenPulls: [String: [String: (head: String?, state: String)]] = [:]
+    @ObservationIgnored var seenVersions: [String: Int] = [:]
+    @ObservationIgnored var lastNightly: Date?
+    /// Goals whose profile a model is deciding now.
+    @ObservationIgnored var deciding: Set<String> = []
+    /// `[goals.bars]`, from config.
+    @ObservationIgnored var table = GoalBarTable.defaults
     /// The store did not open: Goals keeps nothing.
     private(set) var unavailable = false
     @ObservationIgnored private(set) var ops: GoalOps?
@@ -70,7 +99,14 @@ final class GoalsBrowser {
     init(fixture: Bool) {
         guard fixture else { return }
         let fixtures = GoalFixtures.all()
-        apply(GoalFixtures.snapshot(fixtures))
+        let records = GoalQualityFixtures.all()
+        let qualities = GoalQualityFixtures.qualities(records, goals: fixtures)
+        self.qualities = qualities
+        var snapshot = GoalFixtures.snapshot(fixtures)
+        for index in snapshot.goals.indices {
+            snapshot.goals[index].score = qualities[snapshot.goals[index].id]?.confidence?.value
+        }
+        apply(snapshot)
         fixtureVersions = GoalFixtures.versions(fixtures)
         loadVersions()
         let decisions = GoalFixtures.attachDecisions()
@@ -81,6 +117,7 @@ final class GoalsBrowser {
                 try? await ops.adopt(fixtures)
                 try? await ops.adopt(decisions: decisions)
                 try? await ops.setRules(GoalFixtures.attachRules)
+                try? await ops.adopt(quality: records)
             }
         }
     }
@@ -90,9 +127,67 @@ final class GoalsBrowser {
         self.ops = ops
         unavailable = ops == nil
         guard let ops, let snapshot = try? await ops.snapshot() else { return }
+        if let fresh = try? await ops.qualities(table: table) { qualities = fresh }
         apply(snapshot)
         loadVersions()
         await reloadAttach()
+    }
+
+    // MARK: Quality
+
+    var selectedQuality: GoalQuality? { selected.flatMap { qualities[$0.id] } }
+
+    /// The selected goal's live reviewers, in the order they were spawned.
+    var reviewers: [ReviewerState] { selectedQuality?.live ?? [] }
+
+    var selectedReviewer: ReviewerState? {
+        let reviewers = reviewers
+        return reviewers.indices.contains(reviewerCursor) ? reviewers[reviewerCursor] : reviewers.first
+    }
+
+    /// The objections of the reviewer under the cursor, open first.
+    var objections: [Objection] { selectedReviewer?.ordered ?? [] }
+
+    var selectedObjection: Objection? {
+        let objections = objections
+        guard !objections.isEmpty else { return nil }
+        return objections[min(objectionCursor, objections.count - 1)]
+    }
+
+    func setWaiting(_ goal: String, _ reviewers: [String]) {
+        let fresh = reviewers.isEmpty ? nil : reviewers
+        if waiting[goal] != fresh { waiting[goal] = fresh }
+    }
+
+    /// Puts the cursor on a reviewer of the selected goal.
+    func point(reviewer id: String) {
+        guard let index = reviewers.firstIndex(where: { $0.id == id }) else { return }
+        reviewerCursor = index
+        objectionCursor = 0
+    }
+
+    func setObjectionCursor(_ index: Int) {
+        let count = objections.count
+        guard count > 0 else { return }
+        objectionCursor = min(max(index, 0), count - 1)
+    }
+
+    /// Reads every goal's quality again (after an operation, or a reviewer run ended).
+    func reloadQualities() {
+        guard let ops else { return }
+        let table = table
+        Task {
+            guard let fresh = try? await ops.qualities(table: table), fresh != qualities else { return }
+            qualities = fresh
+            clampQualityCursors()
+        }
+    }
+
+    private func clampQualityCursors() {
+        reviewerCursor = min(reviewerCursor, max(reviewers.count - 1, 0))
+        objectionCursor = min(objectionCursor, max(objections.count - 1, 0))
+        if focus == .objections, objections.isEmpty { focus = reviewers.isEmpty ? .goals : .reviewers }
+        if focus == .reviewers, reviewers.isEmpty { focus = .goals }
     }
 
     var files: GoalFiles { ops?.files ?? .fixture }
@@ -120,6 +215,15 @@ final class GoalsBrowser {
             boardRow = min(max(index, 0), max(cards.count - 1, 0))
             return
         }
+        if focus == .reviewers {
+            let count = reviewers.count
+            guard count > 0 else { return }
+            let clamped = min(max(index, 0), count - 1)
+            if clamped != reviewerCursor { objectionCursor = 0 }
+            reviewerCursor = clamped
+            return
+        }
+        if focus == .objections { return setObjectionCursor(index) }
         if focus == .links {
             let count = links.count
             guard count > 0 else { return }
@@ -132,17 +236,10 @@ final class GoalsBrowser {
         cursor = clamped
         linkCursor = 0
         boardRow = 0
+        reviewerCursor = 0
+        objectionCursor = 0
         draft = nil
         loadVersions()
-    }
-
-    var rowCount: Int {
-        pane == .unassigned ? attach.rows.count : pane == .board ? cards.count : focus == .links ? links.count : rows
-            .count
-    }
-
-    var rowCursor: Int {
-        pane == .unassigned ? attach.cursor : pane == .board ? boardRow : focus == .links ? linkCursor : cursor
     }
 
     // MARK: Items
@@ -194,16 +291,53 @@ final class GoalsBrowser {
         case .doc: "goaldoc"
         case .overview: "goals"
         case .unassigned: "unassigned"
+        case .reviewers: "goalreviewers"
         }
     }
 
-    /// `goal.focus`: between the list and what is on the goal.
+    var rowCount: Int {
+        if pane == .unassigned { return attach.rows.count }
+        guard pane != .board else { return cards.count }
+        return switch focus {
+        case .goals: rows.count
+        case .links: links.count
+        case .reviewers: reviewers.count
+        case .objections: objections.count
+        }
+    }
+
+    var rowCursor: Int {
+        if pane == .unassigned { return attach.cursor }
+        guard pane != .board else { return boardRow }
+        return switch focus {
+        case .goals: cursor
+        case .links: linkCursor
+        case .reviewers: min(reviewerCursor, max(reviewers.count - 1, 0))
+        case .objections: min(objectionCursor, max(objections.count - 1, 0))
+        }
+    }
+
+    /// `goal.focus`: between the list and what is on the goal; in Reviewers, the list, the reviewers and the
+    /// objections of the one under the cursor, in turn.
     func toggleFocus() {
+        if pane == .reviewers {
+            switch focus {
+            case .goals, .links: focus = reviewers.isEmpty ? .goals : .reviewers
+            case .reviewers: focus = objections.isEmpty ? .goals : .objections
+            case .objections: focus = .goals
+            }
+            return
+        }
         focus = focus == .goals && !links.isEmpty ? .links : .goals
     }
 
     func setFocus(_ next: Focus) {
-        focus = next == .links && links.isEmpty ? .goals : next
+        switch next {
+        case .links: focus = links.isEmpty ? .goals : .links
+        case .reviewers: focus = reviewers.isEmpty ? .goals : .reviewers
+        case .objections: focus = objections.isEmpty ? .goals : .objections
+        case .goals: focus = .goals
+        }
     }
 
     /// Puts the cursor on a goal (`id`) or on a session or chat on it (`kind:target`).
@@ -237,6 +371,7 @@ final class GoalsBrowser {
     func togglePane() {
         pane = pane == .overview ? .doc : .overview
         if pane == .overview { draft = nil }
+        leftPane()
     }
 
     /// `B`: the board, or back to the overview.
@@ -246,7 +381,24 @@ final class GoalsBrowser {
         if pane == .board { boardRow = min(boardRow, max(cards.count - 1, 0)) }
     }
 
-    func show(_ next: Pane) { pane = next }
+    func show(_ next: Pane) {
+        pane = next
+        leftPane()
+    }
+
+    /// `goal.reviewers`: the Reviewers pane, or back to the overview.
+    func toggleReviewers() {
+        pane = pane == .reviewers ? .overview : .reviewers
+        draft = nil
+        if pane == .reviewers, !reviewers.isEmpty, focus != .goals { focus = .reviewers }
+        leftPane()
+    }
+
+    /// Focus on reviewers or objections only holds while Reviewers shows.
+    private func leftPane() {
+        if pane != .reviewers, focus == .reviewers || focus == .objections { focus = .goals }
+        if pane == .reviewers, focus == .links { focus = .goals }
+    }
 
     func setSearch(_ text: String) {
         guard text != search else { return }
@@ -268,6 +420,10 @@ final class GoalsBrowser {
             do { result = try await .success(operation(ops)) } catch { result = .failure(error) }
             if let snapshot = try? await ops.snapshot() { apply(snapshot) }
             await reloadAttach()
+            if let fresh = try? await ops.qualities(table: table), fresh != qualities {
+                qualities = fresh
+                clampQualityCursors()
+            }
             if let goal = selected?.id, let versions = try? await ops.versions(of: goal) {
                 fixtureVersions[goal] = versions
                 if selected?.id == goal { self.versions = versions }

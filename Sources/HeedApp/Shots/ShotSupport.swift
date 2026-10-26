@@ -28,6 +28,7 @@ enum ShotRegion: String, CaseIterable {
     case goalsList, goalsOverview, goalsDoc, goalVersions, goalForm, sessionGoal, inspectorGoal
     case goalsBoard, goalMatrix, goalProposals
     case goalsUnassigned, goalAsk
+    case goalReviewers, goalReviewerList, goalReviewerDetail, goalSpawn, goalBars, goalHappy
 }
 
 struct ShotRegionKey: PreferenceKey {

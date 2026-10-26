@@ -103,9 +103,10 @@ public enum Runs {
         "\(root)/heed/\(repo.name)/\(goal.slug)-\(prBranch.replacingOccurrences(of: "/", with: "-"))"
     }
 
-    /// A branch a run made: `heed/get-it-green/...` or `heed/get-it-merged/...`.
+    /// A branch a run made: `heed/get-it-green/...`, `heed/get-it-merged/...`, or a goal reviewer's `heed/review/...`.
     public static func isRunBranch(_ name: String) -> Bool {
         name.hasPrefix(prefix + RunGoal.green.slug + "/") || name.hasPrefix(prefix + RunGoal.merged.slug + "/")
+            || ReviewRun.isReviewBranch(name)
     }
 
     /// The PR branch a run branch is for.

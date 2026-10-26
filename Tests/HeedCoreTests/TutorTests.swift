@@ -59,7 +59,7 @@ struct TutorTests {
             "panes", "sidebar", "needsYou", "dialog", "viewTabs", "statusBar", "list", "reader", "pipeline",
             "worktreeTable", "confirm", "historyList", "diffBody", "pilotDetail", "attentionFilters", "logList",
             "logUsage", "goalsList", "goalsOverview", "goalsDoc", "sessionGoal", "goalProposals", "goalsBoard",
-            "goalsUnassigned",
+            "goalsUnassigned", "goalReviewers", "goalReviewerDetail",
         ]
         for lesson in [Tutor.tour] + Tutor.viewLessons {
             for step in lesson.steps {

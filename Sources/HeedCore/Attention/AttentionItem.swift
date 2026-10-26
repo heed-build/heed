@@ -27,6 +27,10 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case goalProposals
     /// heed is unsure which goal a new session or chat belongs to and asks, one key (y n m i).
     case goalAttach
+    /// heed marked a goal done: every criterion has evidence and every required lens is at its bar (undo is a key).
+    case goalDone
+    /// A goal's reviewers are due but its day's reviewer budget is spent: run them anyway, or wait for tomorrow.
+    case goalBudget
     /// One of your open PRs (or one a session tracks), whether or not anything about it wants you: My PRs lists it.
     case yourPR
     /// An open issue in a repo whose issues you watch (`[repos.x] issues = "all"`): the Issues filter lists it.
@@ -56,6 +60,8 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         case .agentLimited: "rate limited"
         case .goalProposals: "goal proposals"
         case .goalAttach: "which goal?"
+        case .goalDone: "goal done"
+        case .goalBudget: "reviewers wait"
         case .yourPR: "your PR"
         case .watching: "watching"
         case .subscribed: "subscribed"

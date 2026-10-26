@@ -130,7 +130,12 @@ extension AppModel {
                 onGitHub: entry.repos.contains { !$0.hasPrefix("local/") }
             )
         case .goals:
-            return goals.focus == .goals ? goalMenu(index) : goalLinkMenu(index)
+            switch goals.focus {
+            case .goals: return goalMenu(index)
+            case .links: return goalLinkMenu(index)
+            case .reviewers: return reviewerMenu(index)
+            case .objections: return objectionMenu(index)
+            }
         case .sessions:
             return []
         }

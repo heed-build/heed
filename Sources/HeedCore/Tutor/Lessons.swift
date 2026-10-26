@@ -410,6 +410,21 @@ public extension Tutor {
                 keys: ["{goal.item.move right}"], target: "goalsBoard",
                 doneLine: "{goal.item.work} starts work on a card's item, Start work filled in from it."
             ) { start, now, _ in now.goalMoves > start.goalMoves },
+                "Reviewers",
+                say: "Not every goal needs a 10: heed reads the goal and sets a bar per lens (code review, tests, "
+                    + "docs…). Reviewers are agents that look at the work in a worktree of their own and score how "
+                    + "happy they are. {goal.reviewers} shows them.",
+                keys: ["{goal.reviewers}"], target: "goalReviewers",
+                doneLine: "Each reviewer's score, its trend, and on the right the goal's bars against their scores."
+            ) { _, now, _ in now.goalPane == "reviewers" },
+            TutorStep(
+                "Accept a risk",
+                say: "{goal.focus} moves to the reviewers, j to the implementation reviewer, {goal.focus} again to its "
+                    + "objections. {review.accept} on one accepts the risk: it stops counting fully against the score.",
+                keys: ["{goal.focus}", "j", "{goal.focus}", "{review.accept}"], target: "goalReviewerDetail",
+                doneLine: "Its score moved, with why underneath. {review.fix} starts a session to fix one instead, "
+                    + "{review.why} asks the reviewer in a chat."
+            ) { start, now, _ in now.goalAccepted > start.goalAccepted },
             TutorStep(
                 "Where new work goes",
                 say: "heed puts new sessions and chats on goals itself, and asks only when it is unsure. "

@@ -476,6 +476,17 @@ final class AppModel {
                 endRun(id)
             }
         }
+        for (id, live) in liveReviews {
+            guard let text = TerminalSurfaces.shared.visibleText(paneID: live.paneID), live.worked,
+                  runStates[live.paneID] == .working, QuietTurn.applies(to: live.agent),
+                  quietTurns.isQuiet(
+                      pane: live.paneID, text: text, lastHook: lastHookAt[live.paneID], now: now,
+                      after: QuietTurn.runAfter
+                  )
+            else { continue }
+            runStates[live.paneID] = .done
+            endReviewRun(id)
+        }
         // A session left working without its end hook (cursor, codex): done (guessed) once quiet.
         var quiet: [DomainChange] = []
         for session in sessions where QuietTurn.applies(to: session.agent) && session.state.state == .working {
@@ -965,6 +976,24 @@ final class AppModel {
         if let pane = message.pane, retiredPanes.contains(pane) { return }
         if let pane = message.pane { lastHookAt[pane] = message.sentAt }
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
+        // A reviewer's hooks: its turn over ends it, as a run's does.
+        if let pane = message.pane, reviewPanes.contains(pane) {
+            guard let id = liveReviews.first(where: { $0.value.paneID == pane })?.key else { return }
+            if case let .taskExit(code) = message.kind,
+               code != 0 { return endReviewRun(id, failure: "it did not start") }
+            let reported: AgentState? = switch message.kind {
+            case let .state(state, _): state
+            case .guess: .done
+            case .atPrompt: .idle
+            default: nil
+            }
+            if let state = reported {
+                runStates[pane] = state
+                if state == .working { liveReviews[id]?.worked = true }
+                if let live = liveReviews[id], Runs.ended(state, worked: live.worked) { endReviewRun(id) }
+            }
+            return
+        }
         // A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it;
         // asking or blocked shows the session in Needs you (through `sessionPilot`).
         if let pane = message.pane, runPanes.contains(pane) {
@@ -1499,6 +1528,26 @@ final class AppModel {
     }
 
     private(set) var liveRuns: [String: LiveRun] = [:]
+    /// A goal reviewer's run working now: its tab, pane and worktree (`startReviewRun`). In memory only.
+    struct LiveReview: Equatable {
+        let runID: String
+        let goal: String
+        let reviewer: String
+        let sessionID: String
+        let tabID: String
+        let paneID: String
+        let agent: String
+        let record: RepoRecord
+        let worktree: String
+        let branch: String
+        let basis: ReviewBasis
+        let startedAt: Date
+        var worked = false
+    }
+
+    private(set) var liveReviews: [String: LiveReview] = [:]
+    /// Every pane a reviewer run used since launch: its late hooks are nobody's news.
+    private var reviewPanes: Set<String> = []
     /// Each live run's last screen line (`Runs.lastLine`), read with the agents' screens.
     private(set) var runLastLines: [String: String] = [:]
     /// Each run pane's own state, from its hooks; never the session's.
@@ -2026,6 +2075,7 @@ final class AppModel {
             return true
         }
         if goals.form != nil || goals.draft != nil, answerGoalText(stroke) { return true }
+        if goals.spawnTyping, answerSpawnText(stroke) { return true }
         if filtering {
             typeFilter(stroke)
             return true
@@ -2264,6 +2314,15 @@ final class AppModel {
         case "goal.ask.ignore": answerGoalIgnore()
         case "goal.attach.undo": undoGoalAttach()
         case "goal.attach.find": findGoalNow()
+        case "goal.reviewers": toggleGoalReviewers()
+        case "goal.bar": pinGoalBar(command.arguments)
+        case "goal.reopen": reopenGoal()
+        case "review.recheck": recheckReviewers(command.arguments)
+        case "review.accept": acceptRisk()
+        case "review.fix": fixObjection()
+        case "review.why": askReviewerWhy()
+        case "reviewer.spawn": spawnReviewer(command.arguments)
+        case "reviewer.remove": removeReviewer()
         case "history.dashboard": view = view == .dashboard ? .history : .dashboard
         case "dashboard.range": dashboard.cycleRange(command.arguments.first)
         case "history.ledger": view = view == .ledger ? .history : .ledger
@@ -4354,6 +4413,16 @@ final class AppModel {
         if view == .attention, commandTarget == nil, attentionSelected?.item.kind == .agent {
             return attentionGoToSession()
         }
+        // A goal in Attention: to the goal, its reviewers when they wait.
+        if view == .attention, commandTarget == nil, let item = attentionSelected?.item, item.kind == .goal,
+           !item.reasons.isDisjoint(with: [.goalDone, .goalBudget, .goalReviewBlocked]),
+           let goal = GoalAttention.goal(of: item)
+        {
+            view = .goals
+            goals.point(to: goal)
+            if item.reasons.contains(.goalBudget), goals.pane != .reviewers { goals.toggleReviewers() }
+            return
+        }
         if view == .attention, let item = attentionSelected?.item, item.kind == .goal {
             return openGoalProposals(item.id)
         }
@@ -4593,6 +4662,8 @@ final class AppModel {
     private func refreshWatchedDetails() async {
         resumeExpiredPauses()
         endTimedOutRuns()
+        endTimedOutReviews()
+        checkGoalQuality()
         // Held because you were working in the session: try again, now that time has passed.
         for ref in pendingDelivery {
             deliver(ref, explicit: false)
@@ -5156,6 +5227,110 @@ final class AppModel {
             logPilot(live.ref, .helperDone, "\(run.goal.rawValue) run: \(run.outcome?.text ?? "ended")")
             // The next round, if one waited for this run.
             if pendingDelivery.contains(live.ref) { deliver(live.ref, explicit: false) }
+        }
+    }
+
+    // MARK: Reviewer runs
+
+    /// Starts a goal reviewer: a worktree of its own on `heed/review/<goal>-<reviewer>` at `branch` (the PR's head, or
+    /// a
+    /// session's branch), and a tab in `session` running `agentName` there with the agent's limits
+    /// (`ReviewRun.restrictions`). Nothing takes your focus. Returns nil when it started, else why it could not.
+    func startReviewRun(
+        runID: String, goal: String, reviewer: String, session sessionID: String, record: RepoRecord, branch: String,
+        repo: Repo, agentName: String, model: String?, basis: ReviewBasis, prompt: (String) -> String
+    ) async -> String? {
+        guard let session = sessions.first(where: { $0.id == sessionID }) else { return "its session is gone" }
+        guard let agent = settings.agent(agentName) else { return "no agent \(agentName)" }
+        let root = Runs.worktreeRoot(local: settings.worktreeRoot, host: session.host, hosts: config.hosts)
+        let runBranch = ReviewRun.branch(goal: goal, reviewer: reviewer)
+        let worktree: String
+        do {
+            worktree = try await Git.addRunWorktree(
+                record, path: ReviewRun.worktreePath(root: root, repo: repo, goal: goal, reviewer: reviewer),
+                branch: branch, runBranch: runBranch
+            )
+        } catch {
+            return "could not make its worktree: \(error)"
+        }
+        guard var layout = layouts[session.id] else {
+            await Git.removeWorktree(record, path: worktree, branch: runBranch)
+            return "its session is gone"
+        }
+        let files: IntegrationFiles? = if let host = session.host {
+            if case let .connected(info) = hostStatus(host), let home = info.home {
+                hostIntegration(home: home).integration
+            } else {
+                nil
+            }
+        } else {
+            integration
+        }
+        if agent.name == "cursor", record.location.isLocal, let heed = files?.heedBinary {
+            try? AgentIntegration.installCursorHooks(worktree: worktree, heed: heed)
+        }
+        let agentSession = UUID().uuidString.lowercased()
+        let command = agent.launchCommand(
+            prompt: prompt(worktree),
+            extraArguments: ReviewRun.restrictions(agent: agent.name)
+                +
+                (files
+                    .map { AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: $0) } ?? []),
+            environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:],
+            model: model
+        )
+        let title = "review: " + (ReviewerKind(rawValue: reviewer.split(separator: "-").first.map(String.init) ?? "")
+            .map { $0.short.lowercased() } ?? reviewer)
+        let pane = PaneSpec(
+            role: .helper, title: title, directory: worktree,
+            command: WorktreeSetup.paneCommand(setup: [], then: command, report: true), location: session.location
+        )
+        let tab = PaneTab(title: title, tree: .leaf(pane))
+        layout.tabs.append(tab)
+        commit(.layoutChanged(session: session.id, layout))
+        liveReviews[runID] = LiveReview(
+            runID: runID, goal: goal, reviewer: reviewer, sessionID: session.id, tabID: tab.id, paneID: pane.id,
+            agent: agent.name, record: record, worktree: worktree, branch: runBranch, basis: basis, startedAt: Date()
+        )
+        runStates[pane.id] = .working
+        reviewPanes.insert(pane.id)
+        TerminalSurfaces.shared.autostartPanes.insert(pane.id)
+        TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
+        return nil
+    }
+
+    /// Ends a reviewer run: its review read from its worktree, its tab closed, its worktree and branch removed, and
+    /// the review recorded on its goal (`finishReview`). `failure` forces one (stopped, timed out).
+    func endReviewRun(_ id: String, failure forced: String? = nil) {
+        guard let live = liveReviews.removeValue(forKey: id) else { return }
+        quietTurns.forget(pane: live.paneID)
+        lastHookAt[live.paneID] = nil
+        TerminalSurfaces.shared.close(paneID: live.paneID)
+        runStates[live.paneID] = nil
+        if var layout = layouts[live.sessionID], let index = layout.tabs.firstIndex(where: { $0.id == live.tabID }) {
+            layout.removeTab(at: index)
+            commit(.layoutChanged(session: live.sessionID, layout))
+        }
+        Task {
+            let data: Data? = if forced == nil {
+                try? await ProcessRunner.output(
+                    on: live.record.location, "cat", [ReviewRun.reportPath(worktree: live.worktree)],
+                    caller: "goals.review"
+                ).data(using: .utf8)
+            } else {
+                nil
+            }
+            await Git.removeWorktree(live.record, path: live.worktree, branch: live.branch)
+            let read = ReviewRun.read(data)
+            await finishReview(live, report: read.report, failure: forced ?? read.failure)
+        }
+    }
+
+    /// Reviewer runs still working after `ReviewRun.timeout` are stopped.
+    private func endTimedOutReviews() {
+        let now = Date()
+        for (id, live) in liveReviews where now.timeIntervalSince(live.startedAt) >= ReviewRun.timeout {
+            endReviewRun(id, failure: "timed out")
         }
     }
 
@@ -6534,6 +6709,7 @@ final class AppModel {
         guard !terminating else { return }
         // A run's agent exited: the run is over.
         if let id = liveRuns.first(where: { $0.value.paneID == paneID })?.key { return endRun(id) }
+        if let id = liveReviews.first(where: { $0.value.paneID == paneID })?.key { return endReviewRun(id) }
         exitedPanes.insert(paneID)
         guard exitedPanes.count == 1 else { return }
         Task { @MainActor in
@@ -6582,6 +6758,9 @@ final class AppModel {
             // A run's tab closed by you: the run is stopped, and cleaned up like any other.
             for pane in panes {
                 if let id = liveRuns.first(where: { $0.value.paneID == pane.id })?.key { endRun(id, outcome: .stopped) }
+                if let id = liveReviews.first(where: { $0.value.paneID == pane.id })?.key {
+                    endReviewRun(id, failure: "you stopped it")
+                }
             }
             for pane in panes {
                 TerminalSurfaces.shared.close(paneID: pane.id)
@@ -7195,12 +7374,13 @@ final class AppModel {
         state.logFailed = callLog.query.failedOnly
         state.goals = goals.snapshot.goals.count
         state.goalPane = goals.pane.rawValue
-        state.goalFocus = goals.focus == .links ? "links" : "goals"
+        state.goalFocus = goals.focus.rawValue
         state.goalItems = goals.items.count
         state.goalProposals = goals.proposals.count
         state.goalMoves = goals.moves
         state.goalSelected = goals.selected?.id ?? ""
         state.goalAsks = goals.attach.asks.count
+        state.goalAccepted = goals.reviewers.reduce(0) { $0 + $1.objections.count { $0.state == .acceptedRisk } }
         return state
     }
 

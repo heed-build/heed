@@ -204,9 +204,22 @@ public struct GoalSettings: Equatable, Sendable {
     public var tellAgents = true
     /// `attach`, `attach_auto`, `attach_ask`, `attach_model`: how heed finds new work's goal.
     public var attach = AttachSettings()
+    /// Reviewer runs a goal may start on its own in a day; past it, heed asks in Attention. A re-check you press is
+    /// never held back, but counts.
+    public var reviewerRunsPerDay = 6
+    /// `[goals.bars]`: the lenses each stakes and flag requires, and their bars (`GoalBarTable`).
+    public var bars = GoalBarTable.defaults
+    /// `[goals.reviewers]`: the model each reviewer kind runs on, `best` or `cheap`.
+    public var reviewerTiers: [ReviewerKind: ModelTier] = [:]
+    /// The agent reviewers run as; empty: the agent of the goal's session the run's tab opens in.
+    public var reviewerAgent = ""
+    /// Reviewers run on their own when the work changes; off: only when you press re-check.
+    public var autoReview = true
 
     public init(tellAgents: Bool = true, attach: AttachSettings = AttachSettings()) {
         self.tellAgents = tellAgents
         self.attach = attach
     }
+
+    public func tier(for kind: ReviewerKind) -> ModelTier { reviewerTiers[kind] ?? kind.defaultTier }
 }

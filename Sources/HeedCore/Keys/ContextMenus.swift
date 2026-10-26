@@ -197,7 +197,9 @@ public enum ContextMenus {
     }
 
     /// A goal in the Goals list.
-    public static func goal(id: String, title: String, archived: Bool, docShown: Bool) -> [MenuEntry] {
+    public static func goal(
+        id: String, title: String, archived: Bool, docShown: Bool, reviewersShown: Bool = false, done: Bool = false
+    ) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: id)
         func item(_ title: String, _ name: String) -> MenuItem {
             MenuItem(title, CommandInvocation(name: name, target: target))
@@ -207,9 +209,43 @@ public enum ContextMenus {
             item("What belongs to it", "goal.open"),
             item(docShown ? "Back to the overview" : "GOAL.md and versions", "goal.doc"),
             item("Edit GOAL.md", "goal.edit"),
+            item(reviewersShown ? "Back to the overview" : "Reviewers and quality bars", "goal.reviewers"),
+            item("Re-check every reviewer", "review.recheck"),
         ])
-        menu.section([item(archived ? "Bring back" : "Archive", "goal.archive")])
+        menu.section([item(archived ? "Bring back" : "Archive", "goal.archive")]
+            + (done ? [item("Not done yet", "goal.reopen")] : []))
         menu.section([MenuItem("New goal…", CommandInvocation(name: "goal.new"))])
+        return menu.entries
+    }
+
+    /// A reviewer in the goal's Reviewers pane.
+    public static func reviewer(goal: String, id: String, title: String, running: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: "\(goal)/\(id)")
+        var menu = Menu(header: title)
+        menu.section([
+            MenuItem(
+                running ? "Running now" : "Re-check now",
+                CommandInvocation(name: "review.recheck", arguments: [id]), enabled: !running
+            ),
+            MenuItem("Ask it why", CommandInvocation(name: "review.why", target: target)),
+        ])
+        menu.section([MenuItem("Take it off the goal", CommandInvocation(name: "reviewer.remove", target: target))])
+        return menu.entries
+    }
+
+    /// An objection in a reviewer's detail.
+    public static func objection(goal: String, reviewer: String, id: String, text: String, accepted: Bool)
+        -> [MenuEntry]
+    {
+        let target = CommandTarget.row(view: "goals", id: "\(goal)/\(reviewer)/\(id)")
+        var menu = Menu(header: String(text.prefix(60)))
+        menu.section([
+            MenuItem(
+                accepted ? "Open it again" : "Accept the risk", CommandInvocation(name: "review.accept", target: target)
+            ),
+            MenuItem("Start a session to fix it", CommandInvocation(name: "review.fix", target: target)),
+            MenuItem("Ask the reviewer why", CommandInvocation(name: "review.why", target: target)),
+        ])
         return menu.entries
     }
 

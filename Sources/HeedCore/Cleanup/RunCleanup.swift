@@ -39,7 +39,9 @@ public enum RunCleanup {
                 0
             }
             let verdict = Runs.leftoverVerdict(
-                ownedByLiveRun: live.contains(branch), dirty: dirty, unpushedCommits: unpushed
+                // A reviewer never edits: what is in its worktree is only the review it wrote.
+                ownedByLiveRun: live.contains(branch), dirty: dirty && !ReviewRun.isReviewBranch(branch),
+                unpushedCommits: unpushed
             )
             if verdict.remove {
                 if let worktree {

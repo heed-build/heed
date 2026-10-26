@@ -20,7 +20,7 @@ extension AppModel {
         return AttentionFeed.items(
             github: state, sessions: sessions, details: attention.details, pilotDriving: pilotDriving,
             readyToMerge: readyToMergeRefs, goals: GoalNotice.of(goals.snapshot)
-        ) + GoalAttachAsks.items(goals.attach.asks, titles: titles).map(\.item)
+        ) + GoalAttachAsks.items(goals.attach.asks, titles: titles).map(\.item) + goalAttentionItems
     }
 
     var attentionEntries: [AttentionEntry] {

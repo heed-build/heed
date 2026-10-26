@@ -132,6 +132,10 @@ public enum DefaultKeys {
             ("<S-Tab>", ""),
         ]),
         // A goal's GOAL.md (E): y n on the first change waiting, c rewords it, u takes back heed's last, w sharpens.
+        // A goal's Reviewers (R): A accepts a risk, s starts a session to fix, c asks why, N spawns a reviewer.
+        "goalreviewers": goalsWith([
+            ("A", "review.accept"), ("s", "review.fix"), ("c", "review.why"), ("N", "reviewer.spawn"),
+        ]),
         "goaldoc": goalsWith([
             ("y", "goal.proposal.accept"), ("n", "goal.proposal.reject"), ("c", "goal.proposal.edit"),
             ("u", "goal.undo"), ("w", "goal.sharpen"),
@@ -192,7 +196,8 @@ public enum DefaultKeys {
     static let goals: [(String, String)] = [
         ("n", "goal.new"), ("E", "goal.doc"), ("e", "goal.edit"), ("a", "goal.archive"), ("x", "goal.detach"),
         ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"), ("B", "goal.board"),
-        ("w", "goal.sharpen"), ("U", "goal.unassigned"), ("u", "goal.attach.undo"),
+        ("w", "goal.sharpen"), ("U", "goal.unassigned"), ("u", "goal.attach.undo"), ("R", "goal.reviewers"),
+        ("r", "review.recheck"),
     ]
 
     /// Goals' keys with `overrides` laid over (an empty command drops the key).

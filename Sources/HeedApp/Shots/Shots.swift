@@ -434,6 +434,10 @@ enum Shots {
             model.perform(CommandInvocation(name: "goal.new", target: .session("s5")))
             model.goals.form?.statement = "Every editor rule passes the 0.17 spec tests, and the suite runs on each PR."
         }),
+        // The goal's items by stage, filled by evidence; its board; the changes to GOAL.md the work suggests.
+        Shot(id: "goals/matrix", keys: "gGj", crop: .goalMatrix, cropPadding: 8),
+        Shot(id: "goals/board", keys: "gGjB"),
+        Shot(id: "goals/proposals", keys: "gGjE", crop: .goalProposals, cropPadding: 8),
         Shot(id: "goals/session-chip", keys: "", crop: .sidebar, cropPadding: 0),
         Shot(id: "goals/inspector", keys: "", crop: .inspectorGoal, cropPadding: 8),
     ]

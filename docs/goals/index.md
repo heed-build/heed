@@ -25,6 +25,8 @@ until something has scored the goal. Active goals come first, then done ones, th
 | `e` | Edit `GOAL.md` in place |
 | `a` | Archive the goal; on an archived one, bring it back |
 | `x` | Take the session or chat under the cursor off the goal |
+| `B` | The goal as a board; again, the overview ([Items and the board](items.md)) |
+| `w` | Ask a model to sharpen the goal; what it suggests waits in `GOAL.md` |
 
 Everything here also takes the mouse: a click picks a goal, a double-click opens it, and a right-click offers what
 the keys do.
@@ -33,10 +35,12 @@ the keys do.
 
 ![A goal's overview](../images/shots/goals/overview.png)
 
-The goal's title and statement, then its numbers: criteria met (from **Done when**), the sessions and chats on it,
-and how many of their PRs merged. **On this goal** lists them newest first, closed ones too; **PRs** lists their PRs
-with where each stands; **Last time** is the newest ledger summary of one of its sessions, so you see where the work
-was left.
+The goal's title and statement, then its numbers: items done, criteria met (from **Done when**), the sessions and
+chats on it, and how many of their PRs merged. **Implementation state** is the goal's items by stage (see
+[Items and the board](items.md)). **On this goal** lists its sessions and chats newest first, closed ones too;
+**Resulting PRs** lists their PRs with where each stands; **Needs you** lists the changes to `GOAL.md` waiting for
+you, the open questions and the goal's sessions that wait on you; **Last time** is the newest ledger summary of one of
+its sessions, so you see where the work was left.
 
 ## GOAL.md
 
@@ -46,8 +50,10 @@ was left.
 goal). Its sections are **Goal**, **Not the goal**, **Done when** (`- [x] criterion (evidence: …)`), **Open
 questions** and **Decisions** (`- decision (source: …)`); sections of your own are kept as you wrote them.
 
-`e` edits it in place; `⎋` or `⌘S` saves it. Every save is a new version, listed on the right with what changed. A
-click on **restore** (or `:goal.restore 2`) makes an older version current again, as a new version, so nothing is lost.
+`e` edits it in place; `⎋` or `⌘S` saves it. Every save is a new version, listed on the right with what changed and
+the lines it took out and put in. A click on **restore** (or `:goal.restore 2`) makes an older version current again,
+as a new version, so nothing is lost. The work writes into `GOAL.md` too; see
+[What the work suggests](items.md#what-the-work-suggests).
 
 ## Putting work on a goal
 

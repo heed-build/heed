@@ -50,12 +50,19 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
     case noTitle
     case unknownGoal(String)
     case unknownVersion(String, Int)
+    case unknownItem(String)
+    case unknownEdit(Int64)
+    /// The edit is not in the state the operation needs (accepting one already applied).
+    case editNot(GoalEdit.State, Int64)
 
     public var description: String {
         switch self {
         case .noTitle: "a goal needs a title"
         case let .unknownGoal(id): "no goal \(id)"
         case let .unknownVersion(id, number): "\(id) has no version \(number)"
+        case let .unknownItem(id): "no item \(id)"
+        case let .unknownEdit(id): "no edit \(id)"
+        case let .editNot(state, id): "edit \(id) is not \(state.rawValue)"
         }
     }
 }
@@ -196,6 +203,201 @@ public actor GoalOps {
         }
     }
 
+    // MARK: Items
+
+    /// A new item on a goal; its id is the goal's slug and one made from the title, unique in the goal.
+    @discardableResult
+    public func addItem(
+        goal: String, title: String, kind: GoalItem.Kind = .work, source: GoalItem.Source, parent: String? = nil,
+        links: [GoalItem.Link] = [], confidence: Double? = nil, reason: String? = nil, now: Date
+    ) throws -> GoalItem {
+        let title = GoalDoc.oneLine(title)
+        guard !title.isEmpty else { throw GoalOpError.noTitle }
+        guard try store.goal(goal) != nil else { throw GoalOpError.unknownGoal(goal) }
+        if let parent, try store.item(parent) == nil { throw GoalOpError.unknownItem(parent) }
+        let taken = try Set(store.items().filter { $0.goal == goal }.map(\.slug))
+        let item = GoalItem(
+            id: "\(goal)/\(GoalSlug.make(title, taken: taken))", goal: goal, title: title, kind: kind, source: source,
+            parent: parent, links: links, confidence: confidence, reason: reason, createdAt: now
+        )
+        try store.save(item)
+        return item
+    }
+
+    private func item(_ id: String) throws -> GoalItem {
+        guard let item = try store.item(id) else { throw GoalOpError.unknownItem(id) }
+        return item
+    }
+
+    /// Puts an item's card in a column by hand; it stays there until newer evidence about it moves it.
+    @discardableResult
+    public func move(item id: String, to column: Board.Column, now: Date) throws -> GoalItem {
+        var item = try item(id)
+        item.placement = GoalItem.Placement(column, at: now)
+        try store.save(item)
+        return item
+    }
+
+    /// Done by hand: the card in Done.
+    @discardableResult
+    public func done(item id: String, now: Date) throws -> GoalItem {
+        try move(item: id, to: .done, now: now)
+    }
+
+    /// Splits an item into smaller ones, each with it as their parent; the new items.
+    @discardableResult
+    public func split(
+        item id: String, into titles: [String], source: GoalItem.Source = .you, now: Date
+    ) throws -> [GoalItem] {
+        let parent = try item(id)
+        return try titles.map { title in
+            try addItem(
+                goal: parent.goal, title: title, kind: parent.kind, source: source, parent: parent.id,
+                reason: "split from \(parent.title)", now: now
+            )
+        }
+    }
+
+    /// Adds a link to an item (a session working on it, its branch, its PR); a link it has already is kept once.
+    @discardableResult
+    public func link(item id: String, _ link: GoalItem.Link) throws -> GoalItem {
+        var item = try item(id)
+        guard !item.links.contains(link) else { return item }
+        item.links.append(link)
+        try store.save(item)
+        return item
+    }
+
+    // MARK: Evidence
+
+    /// Records evidence about a goal or one of its items; nil when it says what the newest of its kind already says.
+    /// Reviewers, evaluations and the GitHub mirror add theirs here too.
+    @discardableResult
+    public func addEvidence(_ evidence: GoalEvidence) throws -> GoalEvidence? {
+        guard try store.goal(evidence.goal) != nil else { throw GoalOpError.unknownGoal(evidence.goal) }
+        if let id = evidence.item, try store.item(id) == nil { throw GoalOpError.unknownItem(id) }
+        let latest = try store.evidence()
+            .filter { $0.goal == evidence.goal && $0.item == evidence.item && $0.kind == evidence.kind }
+            .max { Stages.newer($1, than: $0) }
+        if let latest, latest.same(as: evidence) { return nil }
+        var stored = evidence
+        stored.id = try store.add(evidence)
+        return stored
+    }
+
+    /// A PR on a goal's work: its item (found by the PR, or made for it, source `pr`) gets the PR linked and the
+    /// evidence that is new. One step, so two scans at once cannot make the item twice. The item's id.
+    @discardableResult
+    public func recordPull(_ finding: GoalPulls.Finding, evidence: [GoalEvidence], now: Date) throws -> String? {
+        guard let goal = evidence.first?.goal ?? finding.evidence.first?.goal else { return nil }
+        let ref = finding.ref.description
+        var id = finding.item
+        if id == nil {
+            id = try store.items().first { $0.goal == goal && $0.linked(.pr).contains(ref) }?.id
+        }
+        if id == nil {
+            id = try addItem(
+                goal: goal, title: finding.title, source: .pr,
+                links: [GoalItem.Link(.pr, ref)] + (finding.session.map { [GoalItem.Link(.session, $0)] } ?? []),
+                reason: "a PR on the goal's work", now: now
+            ).id
+        }
+        guard let id else { return nil }
+        try link(item: id, GoalItem.Link(.pr, ref))
+        for var entry in evidence {
+            entry.item = id
+            try addEvidence(entry)
+        }
+        return id
+    }
+
+    // MARK: GOAL.md edits
+
+    /// An edit the work suggests. Record edits apply at once, as a new version by heed (undo takes them back out);
+    /// scope edits wait for you, and one waiting already with the same change is not asked twice. Kind is decided
+    /// by `GoalEdits.classify`: an edit can be made to wait, never to skip waiting.
+    @discardableResult
+    public func propose(_ edit: GoalEdit, now: Date) throws -> GoalEdit {
+        guard try store.goal(edit.goal) != nil else { throw GoalOpError.unknownGoal(edit.goal) }
+        var edit = edit
+        edit.id = nil
+        edit.kind = edit.kind == .record && GoalEdits.classify(edit) == .record ? .record : .scope
+        edit.state = .proposed
+        edit.version = nil
+        let doc = try GoalDoc.parse(text(of: edit.goal))
+        guard GoalEdits.apply(edit, to: doc) != nil else {
+            edit.state = .moot
+            edit.id = try store.save(edit)
+            return edit
+        }
+        if edit.kind == .scope {
+            if let waiting = try store.edits().first(where: {
+                $0.goal == edit.goal && $0.state == .proposed && $0.section == edit.section && $0.op == edit.op
+                    && GoalEdits.same($0.text, edit.text) && $0.target.map(GoalEdits.key) == edit.target
+                    .map(GoalEdits.key)
+            }) { return waiting }
+            edit.id = try store.save(edit)
+            return edit
+        }
+        edit.id = try store.save(edit)
+        return try applyEdit(edit, now: now)
+    }
+
+    /// Yes to a waiting edit, with its text changed first when `text` is given.
+    @discardableResult
+    public func accept(edit id: Int64, text: String? = nil, now: Date) throws -> GoalEdit {
+        var edit = try waiting(id)
+        if let text = text.map(GoalDoc.oneLine), !text.isEmpty { edit.text = text }
+        return try applyEdit(edit, now: now)
+    }
+
+    /// No to a waiting edit.
+    @discardableResult
+    public func reject(edit id: Int64, now _: Date) throws -> GoalEdit {
+        var edit = try waiting(id)
+        edit.state = .rejected
+        try store.save(edit)
+        return edit
+    }
+
+    /// Takes an applied edit back out of GOAL.md, as a new version.
+    @discardableResult
+    public func undo(edit id: Int64, now: Date) throws -> GoalEdit {
+        guard var edit = try store.edit(id) else { throw GoalOpError.unknownEdit(id) }
+        guard edit.state == .applied else { throw GoalOpError.editNot(.applied, id) }
+        let doc = try GoalDoc.parse(text(of: edit.goal))
+        if let reverted = GoalEdits.revert(edit, in: doc) {
+            try save(goal: edit.goal, doc: reverted, note: "undid " + GoalEdits.note(edit), author: .heed, now: now)
+        }
+        edit.state = .undone
+        try store.save(edit)
+        return edit
+    }
+
+    private func waiting(_ id: Int64) throws -> GoalEdit {
+        guard let edit = try store.edit(id) else { throw GoalOpError.unknownEdit(id) }
+        guard edit.state == .proposed else { throw GoalOpError.editNot(.proposed, id) }
+        return edit
+    }
+
+    private func applyEdit(_ edit: GoalEdit, now: Date) throws -> GoalEdit {
+        var edit = edit
+        let doc = try GoalDoc.parse(text(of: edit.goal))
+        if let changed = GoalEdits.apply(edit, to: doc),
+           let version = try save(
+               goal: edit.goal, doc: changed, note: GoalEdits.note(edit),
+               author: edit.kind == .record ? .heed : .you, now: now
+           )
+        {
+            edit.state = .applied
+            edit.version = version.number
+        } else {
+            edit.state = .moot
+        }
+        try store.save(edit)
+        return edit
+    }
+
     // MARK: Fixtures
 
     /// Lays down `GoalFixtures`: goals with every version, and their links.
@@ -217,6 +419,15 @@ public actor GoalOps {
             for link in fixture.links {
                 try store.link(link)
             }
+            for item in fixture.items {
+                try store.save(item)
+            }
+            for entry in fixture.evidence {
+                _ = try store.add(entry)
+            }
+            for edit in fixture.edits {
+                try store.save(edit)
+            }
         }
     }
 }
@@ -226,10 +437,19 @@ public struct GoalFixture: Sendable {
     public var goal: HeedGoal
     public var versions: [GoalVersion]
     public var links: [GoalLink]
+    public var items: [GoalItem]
+    public var evidence: [GoalEvidence]
+    public var edits: [GoalEdit]
 
-    public init(goal: HeedGoal, versions: [GoalVersion], links: [GoalLink]) {
+    public init(
+        goal: HeedGoal, versions: [GoalVersion], links: [GoalLink], items: [GoalItem] = [],
+        evidence: [GoalEvidence] = [], edits: [GoalEdit] = []
+    ) {
         self.goal = goal
         self.versions = versions
         self.links = links
+        self.items = items
+        self.evidence = evidence
+        self.edits = edits
     }
 }

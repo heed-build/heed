@@ -62,6 +62,7 @@ public enum MenuBar {
         "row.prev": "moving the cursor: the mouse clicks rows and scrolls",
         "row.first": "moving the cursor: the mouse clicks rows and scrolls",
         "row.last": "moving the cursor: the mouse clicks rows and scrolls",
+        "goal.item.column": "moving the board's cursor: the mouse clicks a card in any column",
         "row.halfpage.down": "moving the cursor: the mouse clicks rows and scrolls",
         "row.halfpage.up": "moving the cursor: the mouse clicks rows and scrolls",
         "group.next": "moving the cursor: the mouse clicks rows and scrolls",
@@ -153,6 +154,12 @@ public enum MenuBar {
         func scoped(_ title: String, _ items: [(String, String)], in scopes: Set<String>) -> MenuEntry {
             let here = scopes.contains(facts.scope) || scopes.contains(facts.view)
             return .submenu(title, items.map { MenuItem($0.0, CommandInvocation(name: $0.1), enabled: here) })
+        }
+
+        /// `scoped`, for commands with arguments (`goal.item.move left`).
+        func scopedInvocations(_ title: String, _ items: [(String, String)], in scopes: Set<String>) -> MenuEntry {
+            let here = scopes.contains(facts.scope)
+            return .submenu(title, items.map { MenuItem($0.0, CommandInvocation(parsing: $0.1), enabled: here) })
         }
 
         func file() -> Menu {
@@ -272,8 +279,19 @@ public enum MenuBar {
                     ("New goal…", "goal.new"), ("GOAL.md and versions", "goal.doc"), ("Edit GOAL.md", "goal.edit"),
                     ("Restore a version…", "goal.restore"), ("Archive or bring back", "goal.archive"),
                     ("Open", "goal.open"), ("Goals or what is on one", "goal.focus"),
-                    ("Take off the goal", "goal.detach"),
+                    ("Take off the goal", "goal.detach"), ("Board", "goal.board"),
+                    ("Sharpen the goal…", "goal.sharpen"), ("Plan its items now", "goal.plan"),
                 ], in: ["goals"]),
+                scopedInvocations("On a goal's board", [
+                    ("Add an item…", "goal.item.add"), ("Move the card left", "goal.item.move left"),
+                    ("Move the card right", "goal.item.move right"), ("Start work on it…", "goal.item.work"),
+                    ("Open what it is", "goal.item.open"), ("Done", "goal.item.done"), ("Split it…", "goal.item.split"),
+                ], in: ["goalboard"]),
+                scoped("In GOAL.md", [
+                    ("Accept the first change", "goal.proposal.accept"),
+                    ("Say no to the first change", "goal.proposal.reject"),
+                    ("Reword the first change…", "goal.proposal.edit"), ("Undo heed's last change", "goal.undo"),
+                ], in: ["goaldoc"]),
                 scoped("In the call log", [
                     ("Next kind", "log.kind"), ("Only failed", "log.failed"), ("Only slow", "log.slow"),
                     ("Only GitHub writes", "log.writes"), ("Only this caller", "log.caller"),

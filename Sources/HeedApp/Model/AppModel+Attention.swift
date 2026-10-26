@@ -18,7 +18,7 @@ extension AppModel {
         if isFixture { state.inbox += Fixtures.attentionInbox }
         return AttentionFeed.items(
             github: state, sessions: sessions, details: attention.details, pilotDriving: pilotDriving,
-            readyToMerge: readyToMergeRefs
+            readyToMerge: readyToMergeRefs, goals: GoalNotice.of(goals.snapshot)
         )
     }
 
@@ -312,7 +312,7 @@ extension AppModel {
 
     /// Writes the item's summary with the cheap model, unless there is one for this update (or one on the way).
     func summarize(_ item: AttentionItem) {
-        guard !isFixture, config.llm.enabled, item.kind != .agent, !attention.summarizing.contains(item.id),
+        guard !isFixture, config.llm.enabled, item.onGitHub, !attention.summarizing.contains(item.id),
               attention.summary(for: item) == nil
         else { return }
         attention.summarizing.insert(item.id)

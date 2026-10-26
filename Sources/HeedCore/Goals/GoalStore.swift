@@ -219,9 +219,12 @@ public final class GoalStore {
         )
     }
 
-    /// The goals, their links and current docs, in one hop.
+    /// The goals, their links and current docs, their items, evidence and edits, in one hop.
     public func snapshot() throws -> GoalSnapshot {
-        try GoalSnapshot(goals: goals(), links: links(), docs: currentTexts().mapValues { GoalDoc.parse($0) })
+        try GoalSnapshot(
+            goals: goals(), links: links(), docs: currentTexts().mapValues { GoalDoc.parse($0) }, items: items(),
+            evidence: evidence(), edits: edits()
+        )
     }
 
     // MARK: Links
@@ -255,5 +258,120 @@ public final class GoalStore {
         let existing = try links().first { $0.kind == kind && $0.target == target }
         try database.run("DELETE FROM goal_links WHERE kind = ? AND target = ?", [.text(kind.rawValue), .text(target)])
         return existing
+    }
+
+    // MARK: Items
+
+    private static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        encoder.dateEncodingStrategy = .secondsSince1970
+        return encoder
+    }()
+
+    private static let decoder: JSONDecoder = {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .secondsSince1970
+        return decoder
+    }()
+
+    private static func json(_ value: some Encodable) throws -> SQLiteValue {
+        try .text(String(decoding: encoder.encode(value), as: UTF8.self))
+    }
+
+    private static func decode<T: Decodable>(_ type: T.Type, _ value: SQLiteValue) -> T? {
+        value.text.flatMap { try? decoder.decode(type, from: Data($0.utf8)) }
+    }
+
+    /// Every goal's items, oldest first.
+    public func items() throws -> [GoalItem] {
+        try database.query("SELECT data, issue_number FROM goal_items ORDER BY created_at, id") { row in
+            guard var item = Self.decode(GoalItem.self, row[0]) else { return nil }
+            item.issueNumber = row[1].int ?? item.issueNumber
+            return item
+        }.compactMap(\.self)
+    }
+
+    public func item(_ id: String) throws -> GoalItem? {
+        try database.query("SELECT data, issue_number FROM goal_items WHERE id = ?", [.text(id)]) { row in
+            Self.decode(GoalItem.self, row[0]).map { item in
+                var item = item
+                item.issueNumber = row[1].int ?? item.issueNumber
+                return item
+            }
+        }.first ?? nil
+    }
+
+    /// Adds or replaces an item.
+    public func save(_ item: GoalItem) throws {
+        try database.run("""
+        INSERT OR REPLACE INTO goal_items (id, goal, created_at, issue_number, data) VALUES (?, ?, ?, ?, ?)
+        """, [
+            .text(item.id), .text(item.goal), SQLiteValue(item.createdAt), SQLiteValue(item.issueNumber),
+            Self.json(item),
+        ])
+    }
+
+    // MARK: Evidence
+
+    /// Every goal's evidence, oldest first.
+    public func evidence() throws -> [GoalEvidence] {
+        try database.query("SELECT id, data FROM goal_evidence ORDER BY at, id") { row in
+            Self.decode(GoalEvidence.self, row[1]).map { entry in
+                var entry = entry
+                entry.id = row[0].int64
+                return entry
+            }
+        }.compactMap(\.self)
+    }
+
+    /// Stores the evidence; the row's id.
+    public func add(_ evidence: GoalEvidence) throws -> Int64 {
+        var entry = evidence
+        entry.id = nil
+        try database.run(
+            "INSERT INTO goal_evidence (goal, item, at, kind, data) VALUES (?, ?, ?, ?, ?)",
+            [
+                .text(entry.goal), SQLiteValue(entry.item), SQLiteValue(entry.at), .text(entry.kind.rawValue),
+                Self.json(entry),
+            ]
+        )
+        return database.lastInsertRowID
+    }
+
+    // MARK: Edits
+
+    /// Every goal's edits, oldest first.
+    public func edits() throws -> [GoalEdit] {
+        try database.query("SELECT id, data FROM goal_edits ORDER BY at, id") { row in
+            Self.decode(GoalEdit.self, row[1]).map { edit in
+                var edit = edit
+                edit.id = row[0].int64
+                return edit
+            }
+        }.compactMap(\.self)
+    }
+
+    public func edit(_ id: Int64) throws -> GoalEdit? {
+        try edits().first { $0.id == id }
+    }
+
+    /// Stores a new edit (no id) or updates one; its id.
+    @discardableResult
+    public func save(_ edit: GoalEdit) throws -> Int64 {
+        var stored = edit
+        stored.id = nil
+        if let id = edit.id {
+            try database.run(
+                "UPDATE goal_edits SET state = ?, data = ? WHERE id = ?",
+                [.text(edit.state.rawValue), Self.json(stored), SQLiteValue(id)]
+            )
+            return id
+        }
+        try database.run(
+            "INSERT INTO goal_edits (goal, at, state, data) VALUES (?, ?, ?, ?)",
+            [.text(edit.goal), SQLiteValue(edit.at), .text(edit.state.rawValue), Self.json(stored)]
+        )
+        return database.lastInsertRowID
     }
 }

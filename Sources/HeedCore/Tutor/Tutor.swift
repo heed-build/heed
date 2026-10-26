@@ -71,6 +71,11 @@ public struct TutorState: Equatable, Sendable {
     public var goals = 0
     public var goalPane = "overview"
     public var goalFocus = "goals"
+    /// The goal under the cursor: its items, its GOAL.md changes waiting, and cards moved by hand so far.
+    public var goalItems = 0
+    public var goalProposals = 0
+    public var goalMoves = 0
+    public var goalSelected = ""
 
     public init() {}
 }

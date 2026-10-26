@@ -469,6 +469,19 @@ struct StatusBar: View {
             .map { "\(model.keyText(for: $0.0, in: "dashboard")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.goals.form != nil: "type the title and the goal · ⌘↩ create · ⎋ cancel"
         case .normal where model.goals.draft != nil: "edit GOAL.md · ⎋ or ⌘S save as a new version"
+        case .normal where model.view == .goals && model.goals.pane == .board:
+            [
+                ("goal.item.move right", "move"), ("goal.item.add", "add"), ("goal.item.work", "work here"),
+                ("goal.item.open", "open"), ("goal.board", "overview"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "goalboard")) \($0.1)" }.joined(separator: " · ")
+            + " · h l column · j k card"
+        case .normal where model.view == .goals && model.goals.pane == .doc && !model.goals.proposals.isEmpty:
+            [
+                ("goal.proposal.accept", "accept"), ("goal.proposal.reject", "no"), ("goal.proposal.edit", "reword"),
+                ("goal.edit", "edit"), ("goal.doc", "overview"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "goaldoc")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .goals:
             [
                 ("goal.open", model.goals.focus == .links ? "go there" : "open"),

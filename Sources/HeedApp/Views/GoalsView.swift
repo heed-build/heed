@@ -21,6 +21,7 @@ struct GoalsView: View {
                         switch goals.pane {
                         case .overview: GoalOverviewPane(goal: goal).shotRegion(.goalsOverview)
                         case .doc: GoalDocPane(goal: goal).shotRegion(.goalsDoc)
+                        case .board: GoalBoardPane(goal: goal).shotRegion(.goalsBoard)
                         }
                     } else {
                         EmptyState(
@@ -138,11 +139,15 @@ private struct GoalOverviewPane: View {
     var body: some View {
         let overview = model.goalOverview(goal)
         let doc = model.goals.snapshot.docs[goal.id]
+        let goals = model.goals
+        let work = goals.items.filter { $0.kind == .work }
+        let done = goals.columns[.done]?.count { $0.kind == .work } ?? 0
         ListScroll {
             VStack(alignment: .leading, spacing: 18) {
                 GoalHeader(goal: goal, statement: doc?.goal ?? "")
                 HStack(spacing: 12) {
                     StatTile(value: goal.score.map { String(format: "%.1f", $0) } ?? "–", label: "confidence")
+                    StatTile(value: work.isEmpty ? "–" : "\(done)/\(work.count)", label: "items done")
                     StatTile(
                         value: overview.criteriaTotal == 0 ? "–" : "\(overview.criteriaMet)/\(overview.criteriaTotal)",
                         label: "criteria met"
@@ -154,9 +159,12 @@ private struct GoalOverviewPane: View {
                     )
                 }
                 HStack(alignment: .top, spacing: 16) {
-                    OnTheGoal(rows: overview.rows)
                     VStack(alignment: .leading, spacing: 16) {
-                        Panel(title: "PRs", note: overview.pulls.isEmpty ? "" : "\(overview.pulls.count)") {
+                        GoalMatrix(goal: goal).shotRegion(.goalMatrix)
+                        OnTheGoal(rows: overview.rows)
+                    }
+                    VStack(alignment: .leading, spacing: 16) {
+                        Panel(title: "Resulting PRs", note: overview.pulls.isEmpty ? "" : "\(overview.pulls.count)") {
                             if overview.pulls.isEmpty {
                                 Quiet("None yet: PRs the goal's sessions open show here.")
                             }
@@ -171,14 +179,7 @@ private struct GoalOverviewPane: View {
                                 .clickRuns(CommandInvocation(name: "overlay.item", target: .pull(pull.ref)))
                             }
                         }
-                        if let questions = doc?.openQuestions, !questions.isEmpty {
-                            Panel(title: "Open questions", note: "\(questions.count)") {
-                                ForEach(questions, id: \.self) { question in
-                                    Text("· " + question).font(Theme.ui(12.5)).foregroundStyle(Theme.fg)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                        }
+                        NeedsYou(goal: goal, rows: overview.rows, questions: doc?.openQuestions ?? [])
                         Panel(title: "Last time", note: overview.lastTime.map { Clock.relative($0.at) } ?? "") {
                             if let last = overview.lastTime {
                                 Text(last.title).font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
@@ -200,7 +201,7 @@ private struct GoalOverviewPane: View {
 }
 
 /// The goal's title, version and statement, and the goal's keys.
-private struct GoalHeader: View {
+struct GoalHeader: View {
     @Environment(AppModel.self) private var model
     let goal: HeedGoal
     let statement: String
@@ -217,6 +218,10 @@ private struct GoalHeader: View {
                 KeyHint(
                     "goal.doc", scope: "goals",
                     label: model.goals.pane == .doc ? "overview" : "GOAL.md", color: Theme.fg2
+                )
+                KeyHint(
+                    "goal.board", scope: "goals", label: model.goals.pane == .board ? "overview" : "board",
+                    color: Theme.fg2
                 )
                 KeyHint("goal.edit", scope: "goals", label: "edit", color: Theme.fg2)
                 KeyHint(
@@ -281,7 +286,7 @@ private struct OnTheGoal: View {
 }
 
 /// A state in words: merged, open, closed, done, archived.
-private struct PullWord: View {
+struct PullWord: View {
     let state: String
 
     var body: some View {
@@ -295,7 +300,7 @@ private struct PullWord: View {
     }
 }
 
-private struct Quiet: View {
+struct Quiet: View {
     let text: String
 
     init(_ text: String) { self.text = text }
@@ -344,7 +349,11 @@ private struct GoalDocPane: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
-            GoalVersions(goal: goal).frame(width: 320).shotRegion(.goalVersions)
+            VStack(alignment: .leading, spacing: 16) {
+                GoalProposals(goal: goal).shotRegion(.goalProposals)
+                GoalVersions(goal: goal).shotRegion(.goalVersions)
+            }
+            .frame(width: 360)
         }
         .padding(20)
     }
@@ -437,18 +446,26 @@ private struct GoalVersions: View {
     var body: some View {
         Panel(title: "Versions", note: "\(model.goals.versions.count)") {
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(model.goals.versions) { version in
+                ForEach(Array(model.goals.versions.enumerated()), id: \.element.id) { index, version in
+                    let versions = model.goals.versions
+                    let previous = versions.indices.contains(index + 1) ? versions[index + 1].text : nil
+                    let undo = model.goals.snapshot.edits.first {
+                        $0.goal == goal.id && $0.version == version.number && $0.state == .applied && $0.kind == .record
+                    }
                     HStack(spacing: 8) {
                         Text("v\(version.number)").font(Theme.mono(11.5))
                             .foregroundStyle(version.number == goal.version ? Theme.block : Theme.fg3)
                         Text(Clock.relative(version.at)).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
                         Text(version.note).font(Theme.ui(12)).foregroundStyle(Theme.fg).lineLimit(1)
                         Spacer(minLength: 6)
-                        if version.number != goal.version {
+                        if version.number == goal.version, undo != nil {
+                            KeyHint("goal.undo", scope: "goaldoc", label: "undo")
+                        } else if version.number != goal.version {
                             Text("restore").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                                 .clickRuns(CommandInvocation(name: "goal.restore", arguments: ["\(version.number)"]))
                         }
                     }
+                    VersionDiff(lines: GoalVersionDiff.of(old: previous, new: version.text))
                 }
             }
         }

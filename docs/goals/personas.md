@@ -76,8 +76,9 @@ the goal gets the library's file instead of a new draft.
 | `N` | A reviewer: read-only, in a worktree of its own, through the same machinery as the other [reviewers](reviewers.md) |
 
 The agent picker beside the keys chooses the agent for all three; the model picker applies to the reviewer (sessions
-and chats start on the agent's own model). A session or chat started from here goes on the goal and counts as the
-persona's. A reviewer spawned from a persona shows under its name in Reviewers, scores like any other, and is told to
+and chats start on the agent's own model). A session or chat started from here goes on the goal before its agent
+starts, so it launches told about the goal (its `GOAL.md` pointer and heed's skills) like any session on one, and it
+counts as the persona's. A reviewer spawned from a persona shows under its name in Reviewers, scores like any other, and is told to
 review as that expert.
 
 Everything also takes the mouse: a click picks a persona, and a right-click offers what the keys do.

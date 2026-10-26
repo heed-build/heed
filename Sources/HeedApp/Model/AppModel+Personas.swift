@@ -141,16 +141,46 @@ extension AppModel {
         }
     }
 
-    /// After Start work: a session or chat started as a persona is recorded as the persona's, and goes on the goal.
+    /// Before Start work launches a persona's session or chat: it goes on the goal first (as `heed goal item spawn`
+    /// does), and the goal pointers and plugin are applied, so its agent launches told about the goal like any session
+    /// on one. Any other plan is returned as it is.
+    func preparePersonaLaunch(_ plan: StartWorkPlan) async -> StartWorkPlan {
+        guard let starting = goals.personas.starting, let agent = plan.agent, plan.prompt.contains(starting.marker),
+              (starting.mode == .chat) == (plan.chat != nil)
+        else { return plan }
+        let link = GoalLink(
+            goal: starting.goal, kind: plan.chat == nil ? .session : .chat, target: plan.sessionID, origin: .manual,
+            reason: "spawned as \(starting.persona)", at: Clock.now
+        )
+        let attached: Bool = await withCheckedContinuation { continuation in
+            goals.run { ops in
+                try await ops.attach(link)
+                return true
+            } done: {
+                continuation.resume(returning: (try? $0.get()) == true)
+            }
+        }
+        guard attached else { return plan }
+        applyGoalPointers()
+        var told = plan
+        told.signOff = settings.signOffArguments(
+            agent: agent, repo: plan.repos.first?.repo, session: plan.sessionID, host: plan.location.hostName
+        )
+        return told
+    }
+
+    /// After Start work: a session or chat started as a persona is recorded as the persona's (and is on the goal,
+    /// from `preparePersonaLaunch`; attached again here in case that could not).
     func personaStarted(_ session: Session) {
         guard let starting = goals.personas.starting else { return }
         goals.personas.starting = nil
         guard session.prompt.contains(starting.marker), (starting.mode == .chat) == session.isChat else { return }
         let now = Clock.now
+        let attached = goals.bySession[session.id]?.id == starting.goal
         let link = GoalLink(goal: starting.goal, kind: GoalLink.kind(of: session), target: session.id, at: now)
         let spawn = PersonaSpawn(persona: starting.persona, mode: starting.mode, target: session.id)
         goals.run { ops in
-            try await ops.attach(link)
+            if !attached { try await ops.attach(link) }
             try await ops.personaSpawned(spawn, goal: starting.goal, now: now)
         }
     }

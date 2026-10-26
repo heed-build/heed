@@ -6520,7 +6520,9 @@ final class AppModel {
                     try await HostSetup.install(on: host, files: hostFiles)
                 }
                 let trusted = await trustChatsRoot(for: plan)
-                let changes = try await StartWork.execute(plan, settings: settings, hosts: hosts)
+                // A persona's session or chat goes on its goal first, so it launches told about the goal.
+                let plan = await preparePersonaLaunch(plan)
+                let changes = try await StartWork.execute(plan, settings: self.settings, hosts: hosts)
                 for case let .layoutChanged(_, layout) in changes {
                     for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
                         TerminalSurfaces.shared.autostartPanes.insert(pane.id)

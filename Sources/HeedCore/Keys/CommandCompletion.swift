@@ -35,6 +35,10 @@ public struct CompletionContext: Sendable {
     /// What the timeline's repo and where filters can narrow to: repo names, `local` and hosts.
     public var timelineRepos: [String] = []
     public var timelinePlaces: [String] = []
+    /// Goals that are not archived, by slug, with their titles (`goal.attach`).
+    public var goals: [(id: String, title: String)] = []
+    /// The selected goal's GOAL.md versions, newest first, with what changed (`goal.restore`).
+    public var goalVersions: [(number: Int, note: String)] = []
 
     public init() {}
 }
@@ -117,6 +121,8 @@ public enum CommandCompletions {
         case "timeline.kind": TimelineItem.Kind.allCases.map { ($0.rawValue, "") } + [("all", "every kind")]
         case "timeline.repo": context.timelineRepos.map { ($0, "") } + [("all", "every repo")]
         case "timeline.where": context.timelinePlaces.map { ($0, "") } + [("all", "everywhere")]
+        case "goal.attach": context.goals.map { ($0.id, $0.title) }
+        case "goal.restore": context.goalVersions.map { ("\($0.number)", $0.note) }
         case "wt": [("sweep", "→ :cleanup.sweep")]
         default: []
         }

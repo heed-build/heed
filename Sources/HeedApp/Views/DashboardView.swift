@@ -82,7 +82,7 @@ enum DashboardText {
 }
 
 /// A headline number with what it counts.
-private struct StatTile: View {
+struct StatTile: View {
     let value: String
     let label: String
 
@@ -99,7 +99,7 @@ private struct StatTile: View {
 }
 
 /// A panel with a title and what it shows.
-private struct Panel<Content: View>: View {
+struct Panel<Content: View>: View {
     let title: String
     let note: String
     /// What a click on the note runs: the range's note cycles the range, as r does.

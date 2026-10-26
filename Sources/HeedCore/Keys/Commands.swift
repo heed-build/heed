@@ -72,6 +72,7 @@ public enum Commands {
             arguments: "[agent]"
         ),
         .init("view.history", "history", .move),
+        .init("goal.jump", "go to the session's goal; in Goals, to the goal of the session under the cursor", .move),
         // Panes & tabs
         .init("pane.left", "focus pane left", .panes),
         .init("pane.right", "focus pane right", .panes),
@@ -103,7 +104,7 @@ public enum Commands {
             "view",
             "switch view",
             .views,
-            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|log>"
+            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|goals|log>"
         ),
         .init("view.sessions", "sessions", .views),
         .init(
@@ -124,6 +125,8 @@ public enum Commands {
         .init("view.timeline", "History's timeline: sessions, worktrees, PRs and questions, by day", .views),
         .init("view.dashboard", "History's dashboard: what the work amounted to over a range", .views),
         .init("view.ledger", "History's ledger: a summary of each piece of work, kept after its worktree", .views),
+        .init("view.goals", "goals: long-running work, what belongs to each goal, and its GOAL.md", .views),
+        .init("goal.doc", "Goals: the goal's GOAL.md and its versions (again: the overview)", .views),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -204,6 +207,23 @@ public enum Commands {
         .init(
             "dashboard.range", "dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w)",
             .selection, arguments: "[days]"
+        ),
+        .init(
+            "goal.new", "new goal: a title and what it is (on a session: from its prompt, and the session on it)",
+            .selection, arguments: "[title]"
+        ),
+        .init(
+            "goal.attach", "put the session or chat on a goal (no goal: the command line opens to pick one)",
+            .selection, arguments: "<goal>"
+        ),
+        .init("goal.detach", "take the session or chat off its goal", .selection),
+        .init("goal.archive", "archive the goal (again: bring it back)", .selection),
+        .init("goal.open", "Goals: what belongs to the goal; on a session or chat, go to it", .selection),
+        .init("goal.focus", "Goals: between the goals and what belongs to the goal", .selection),
+        .init("goal.edit", "edit the goal's GOAL.md in place; each save is a new version", .selection),
+        .init(
+            "goal.restore", "make one of the goal's GOAL.md versions current again (as a new version)", .selection,
+            arguments: "<version>"
         ),
         .init("ledger.summarize", "write the ledger summary of this work now", .selection),
         .init(

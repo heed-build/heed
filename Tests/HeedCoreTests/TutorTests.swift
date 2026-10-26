@@ -33,8 +33,8 @@ struct TutorTests {
         #expect(Tutor.tour.steps.count == 9)
         #expect(Tutor.tour.steps.first?.title == "Two modes")
         #expect(Tutor.viewLessons.map(\.id) == [
-            "sessions", "start-work", "attention", "inbox", "issues", "prs", "watch", "repos", "history", "log",
-            "agents", "hosts",
+            "sessions", "start-work", "attention", "inbox", "issues", "prs", "watch", "repos", "history", "goals",
+            "log", "agents", "hosts",
             "diff",
         ])
         for lesson in Tutor.viewLessons {
@@ -58,7 +58,7 @@ struct TutorTests {
         let regions: Set<String> = [
             "panes", "sidebar", "needsYou", "dialog", "viewTabs", "statusBar", "list", "reader", "pipeline",
             "worktreeTable", "confirm", "historyList", "diffBody", "pilotDetail", "attentionFilters", "logList",
-            "logUsage",
+            "logUsage", "goalsList", "goalsOverview", "goalsDoc", "sessionGoal",
         ]
         for lesson in [Tutor.tour] + Tutor.viewLessons {
             for step in lesson.steps {

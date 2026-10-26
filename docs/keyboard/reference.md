@@ -44,6 +44,7 @@ This page is generated from the code (`mise run shots`).
 | `chat.promote` |  | turn this chat into work: pick a repo, heed makes a worktree and hands the agent the chat |
 | `agent.switch` `[agent]` | `gA` | hand the session to another agent: stop its agent, start that one on a handoff prompt |
 | `view.history` | `gh` | history |
+| `goal.jump` | `'g` | go to the session's goal; in Goals, to the goal of the session under the cursor |
 
 ## Panes & tabs
 
@@ -76,7 +77,7 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|log>` |  | switch view |
+| `view` `<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|goals|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: everything that wants you, one feed, with why (a filter: tagged, reviews, mine, ...) |
 | `view.inbox` |  | inbox |
@@ -88,6 +89,8 @@ This page is generated from the code (`mise run shots`).
 | `view.timeline` |  | History's timeline: sessions, worktrees, PRs and questions, by day |
 | `view.dashboard` |  | History's dashboard: what the work amounted to over a range |
 | `view.ledger` |  | History's ledger: a summary of each piece of work, kept after its worktree |
+| `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
+| `goal.doc` | `E` (goals) | Goals: the goal's GOAL.md and its versions (again: the overview) |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
@@ -156,6 +159,14 @@ This page is generated from the code (`mise run shots`).
 | `timeline.where` `[local|host]` | `w` (timeline) | timeline: everywhere, this Mac, or a host |
 | `timeline.gone` | `D` (timeline) | timeline: show or hide removed worktrees |
 | `dashboard.range` `[days]` | `r` (dashboard) | dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w) |
+| `goal.new` `[title]` | `n` (goals) | new goal: a title and what it is (on a session: from its prompt, and the session on it) |
+| `goal.attach` `<goal>` |  | put the session or chat on a goal (no goal: the command line opens to pick one) |
+| `goal.detach` | `x` (goals) | take the session or chat off its goal |
+| `goal.archive` | `a` (goals) | archive the goal (again: bring it back) |
+| `goal.open` | `<CR>` (goals) | Goals: what belongs to the goal; on a session or chat, go to it |
+| `goal.focus` | `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
+| `goal.edit` | `e` (goals) | edit the goal's GOAL.md in place; each save is a new version |
+| `goal.restore` `<version>` |  | make one of the goal's GOAL.md versions current again (as a new version) |
 | `ledger.summarize` | `S` (ledger) | write the ledger summary of this work now |
 | `ledger.edit` `[text]` | `E` (ledger) | edit the ledger entry's summary (no text: the command line opens with it) |
 | `log.kind` `[all|kind]` | `t` (log) | call log: all, or one kind (shell, github, llm, decide) |

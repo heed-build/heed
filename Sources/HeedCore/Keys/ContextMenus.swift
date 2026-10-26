@@ -104,6 +104,8 @@ public enum ContextMenus {
         public var chat = false
         /// A chat in a scratch folder heed made here: deleting it removes the folder.
         public var scratch = false
+        /// The title of the goal it is on, if any.
+        public var goal: String?
 
         public init(id: String, title: String) {
             self.id = id
@@ -169,12 +171,55 @@ public enum ContextMenus {
         ])
         if facts.chat { menu.section([item("Promote to work…", "chat.promote")]) }
         menu.submenu("Hand off to…", handoffItems(facts.handoffAgents, target: target))
+        menu.section(goalItems(facts, target: target))
         menu.section(repo ? [
             item("Close, keep worktree", "session.close"),
             item("Delete with worktrees…", "session.delete"),
         ] : [
             item("Close", "session.close"),
             facts.scratch ? item("Delete with its scratch folder…", "session.delete") : nil,
+        ])
+        return menu.entries
+    }
+
+    /// A session's goal: go to it, move it, take it off; or put it on one, or start one from it.
+    static func goalItems(_ facts: SessionFacts, target: CommandTarget) -> [MenuItem] {
+        func item(_ title: String, _ name: String) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target))
+        }
+        guard let goal = facts.goal else {
+            return [item("Put on a goal…", "goal.attach"), item("New goal from this session…", "goal.new")]
+        }
+        return [
+            item("Go to its goal, \(goal)", "goal.jump"), item("Move to another goal…", "goal.attach"),
+            item("Take off \(goal)", "goal.detach"),
+        ]
+    }
+
+    /// A goal in the Goals list.
+    public static func goal(id: String, title: String, archived: Bool, docShown: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: id)
+        func item(_ title: String, _ name: String) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, target: target))
+        }
+        var menu = Menu(header: title)
+        menu.section([
+            item("What belongs to it", "goal.open"),
+            item(docShown ? "Back to the overview" : "GOAL.md and versions", "goal.doc"),
+            item("Edit GOAL.md", "goal.edit"),
+        ])
+        menu.section([item(archived ? "Bring back" : "Archive", "goal.archive")])
+        menu.section([MenuItem("New goal…", CommandInvocation(name: "goal.new"))])
+        return menu.entries
+    }
+
+    /// A session or chat on a goal, in the goal's overview.
+    public static func goalLink(key: String, title: String, goal: String) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: key)
+        var menu = Menu(header: title)
+        menu.section([
+            MenuItem("Go to it", CommandInvocation(name: "goal.open", target: target)),
+            MenuItem("Take off \(goal)", CommandInvocation(name: "goal.detach", target: target)),
         ])
         return menu.entries
     }

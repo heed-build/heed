@@ -74,15 +74,41 @@ struct ContextMenuTests {
         let menu = ContextMenus.session(facts)
         #expect(menu.first == .header("Fix it"))
         #expect(commands(menu) == [
-            "session.agent", "overlay.diff", "session.pin", "session.park", "work.again", "session.close",
-            "session.delete",
+            "session.agent", "overlay.diff", "session.pin", "session.park", "work.again", "goal.attach", "goal.new",
+            "session.close", "session.delete",
         ])
         #expect(item("session.agent", in: menu)?.title == "Type into its agent")
         // Every item acts on the session clicked.
         #expect(items(menu).allSatisfy { $0.command.target == .session("s") })
         // Sections are apart, with no separator at either end or twice.
-        #expect(menu.count { $0 == .separator } == 2)
+        #expect(menu.count { $0 == .separator } == 3)
         #expect(menu.last != .separator)
+    }
+
+    @Test func aSessionOnAGoalOffersToGoThereMoveOrTakeItOff() {
+        var facts = ContextMenus.SessionFacts(id: "s", title: "Fix it")
+        facts.goal = "Anchors survive"
+        let menu = ContextMenus.session(facts)
+        let goal = items(menu).filter { $0.command.name.hasPrefix("goal.") }
+        #expect(goal.map(\.command.name) == ["goal.jump", "goal.attach", "goal.detach"])
+        #expect(goal.map(\.title) == [
+            "Go to its goal, Anchors survive",
+            "Move to another goal…",
+            "Take off Anchors survive",
+        ])
+        #expect(goal.allSatisfy { $0.command.target == .session("s") })
+    }
+
+    @Test func goalMenusActOnTheRowClicked() {
+        let menu = ContextMenus.goal(id: "g", title: "G", archived: true, docShown: false)
+        #expect(menu.first == .header("G"))
+        #expect(item("goal.archive", in: menu)?.title == "Bring back")
+        #expect(item("goal.doc", in: menu)?.title == "GOAL.md and versions")
+        #expect(item("goal.open", in: menu)?.command.target == .row(view: "goals", id: "g"))
+        #expect(item("goal.new", in: menu)?.command.target == nil)
+        let link = ContextMenus.goalLink(key: "session:s1", title: "Fix it", goal: "G")
+        #expect(items(link).map(\.command.name) == ["goal.open", "goal.detach"])
+        #expect(items(link).allSatisfy { $0.command.target == .row(view: "goals", id: "session:s1") })
     }
 
     @Test func aSessionsPilotItemsFollowWhereItsPRsStand() {

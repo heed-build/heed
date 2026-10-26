@@ -23,6 +23,7 @@ extension AppModel {
         facts.handoffAgents = handoffAgents(for: session)
         facts.chat = session.isChat
         facts.scratch = session.chat?.kind == .scratch && session.location.isLocal
+        facts.goal = goals.bySession[id]?.title
         return facts
     }
 
@@ -128,6 +129,8 @@ extension AppModel {
                 id: entry.id, title: entry.title, reopenable: history.contains { $0.id == entry.id },
                 onGitHub: entry.repos.contains { !$0.hasPrefix("local/") }
             )
+        case .goals:
+            return goals.focus == .goals ? goalMenu(index) : goalLinkMenu(index)
         case .sessions:
             return []
         }

@@ -259,6 +259,7 @@ private struct GeneralSettings: View {
                 .frame(width: 220)
             }
             LedgerSettingsGroup()
+            GoalsSettingsGroup()
             GroupLabel(title: "Outside the window")
             Field(
                 label: "Menu bar item",
@@ -1315,6 +1316,25 @@ private struct CallLogSettings: View {
                 Text("\(value) day\(value == 1 ? "" : "s")").font(Theme.mono(12.5))
             }
             .frame(width: 160)
+        }
+    }
+}
+
+/// `[goals]`: what goals do on their own.
+private struct GoalsSettingsGroup: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        GroupLabel(title: "Goals")
+        Field(
+            label: "Tell agents their goal",
+            detail: "Sessions and chats on a goal start and resume told which goal, to read its GOAL.md first and to "
+                + "keep to its Not the goal list (claude, codex)."
+        ) {
+            Toggle("", isOn: Binding(
+                get: { model.config.goals.tellAgents },
+                set: { model.setConfig(["goals", "tell_agents"], .bool($0)) }
+            )).labelsHidden()
         }
     }
 }

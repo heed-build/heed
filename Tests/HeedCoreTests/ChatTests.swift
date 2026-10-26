@@ -135,6 +135,8 @@ struct ChatTests {
             "work.again",
             "chat.promote",
             "agent.switch",
+            "goal.attach",
+            "goal.new",
             "session.close",
         ])
         let close = ContextMenus.session(facts).compactMap { if case let .item(item) = $0 { item } else { nil } }.last

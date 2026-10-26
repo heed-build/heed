@@ -4,7 +4,7 @@ import Observation
 
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
-    case sessions, attention, watch, inbox, issues, prs, repos, history, log
+    case sessions, attention, goals, watch, inbox, issues, prs, repos, history, log
     /// History as a timeline (`history.timeline`): under History's tab, not one of its own.
     case timeline
     /// History's ledger (`history.ledger`): under History's tab too.
@@ -28,6 +28,7 @@ enum AppView: String, CaseIterable, Identifiable {
         switch self {
         case .sessions: "Sessions"
         case .attention: "Attention"
+        case .goals: "Goals"
         case .inbox: "Inbox"
         case .issues: "Issues"
         case .prs: "PRs"
@@ -190,6 +191,7 @@ final class AppModel {
             if filters[.log] != oldValue[.log] { callLog.setSearch(filters[.log] ?? "") }
             if filters[.timeline] != oldValue[.timeline] { timeline.setSearch(filters[.timeline] ?? "") }
             if filters[.ledger] != oldValue[.ledger] { ledger.setSearch(filters[.ledger] ?? "") }
+            if filters[.goals] != oldValue[.goals] { goals.setSearch(filters[.goals] ?? "") }
         }
     }
 
@@ -258,6 +260,8 @@ final class AppModel {
     let ledger: LedgerBrowser
     /// History's dashboard: the range's numbers.
     let dashboard: DashboardBrowser
+    /// Goals: the goals, what is on each, and the cursor.
+    let goals: GoalsBrowser
 
     /// The `:log` view's rows and filters.
     let callLog: CallLogBrowser
@@ -344,6 +348,7 @@ final class AppModel {
         timeline = TimelineBrowser(fixture: isFixture)
         ledger = LedgerBrowser(fixture: isFixture)
         dashboard = DashboardBrowser(fixture: isFixture)
+        goals = GoalsBrowser(fixture: isFixture)
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
@@ -367,6 +372,11 @@ final class AppModel {
             }
         }
         replace(with: domain)
+        goals.changed = { [weak self] in
+            self?.applyGoalPointers()
+            self?.observeTutorNow()
+        }
+        applyGoalPointers()
         if isFixture { adoptFixtureRuns() } else { interruptRuns() }
         timeline.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
         dashboard.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
@@ -408,6 +418,8 @@ final class AppModel {
         dashboard.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         startLedger(log: log)
         if !isFixture { await attention.open(beside: file) }
+        // Before resume is offered: sessions on a goal resume told so.
+        if !isFixture { await startGoals(beside: file) }
         await receiveSpooled()
         await offerResume(domain: cached)
         startAwayTracking()
@@ -600,6 +612,8 @@ final class AppModel {
         case .attention: [.inbox, .issues, .pulls]
         // Sessions show their PRs' state; Repos and History their PR numbers.
         case .sessions, .prs, .watch, .repos, .history: [.pulls]
+        // Goals show their sessions' PRs, merged or not.
+        case .goals: [.pulls]
         case .log, .timeline, .ledger, .dashboard: []
         }
     }
@@ -811,6 +825,7 @@ final class AppModel {
         let pilotChanged = decoded.pilot != config.pilot
         config = decoded
         settings = decoded.work
+        applyGoalPointers()
         applyRoutes()
         if !isFixture {
             TerminalSurfaces.shared.persist = ZmxHealth.decide(decoded.work.persist, health: zmxHealth)
@@ -1811,6 +1826,9 @@ final class AppModel {
         case .dashboard:
             guard let row = dashboard.selected else { return nil }
             return TitleContext(lead: "dashboard", main: row.place, detail: row.title)
+        case .goals:
+            guard let goal = goals.selected else { return nil }
+            return TitleContext(lead: "goal", main: goal.title, tags: ["v\(goal.version)"])
         case .ledger:
             guard let entry = ledger.selected else { return nil }
             return TitleContext(
@@ -1899,6 +1917,7 @@ final class AppModel {
         case .timeline: timeline.rows.indices.map { HintTarget.row(.timeline, $0) }
         case .ledger: ledger.rows.indices.map { HintTarget.row(.ledger, $0) }
         case .dashboard: dashboard.board.recent.indices.map { HintTarget.row(.dashboard, $0) }
+        case .goals: (0 ..< goals.rowCount).map { HintTarget.row(.goals, $0) }
         }
         return zip(HintLabels.generate(count: targets.count), targets).map { ($0, $1) }
     }
@@ -1999,6 +2018,7 @@ final class AppModel {
             handleResume(stroke)
             return true
         }
+        if goals.form != nil || goals.draft != nil, answerGoalText(stroke) { return true }
         if filtering {
             typeFilter(stroke)
             return true
@@ -2205,6 +2225,17 @@ final class AppModel {
         case "view.timeline": view = .timeline
         case "view.ledger": view = .ledger
         case "view.dashboard": view = .dashboard
+        case "view.goals": view = .goals
+        case "goal.doc": toggleGoalDoc()
+        case "goal.jump": jumpToGoal()
+        case "goal.new": newGoal(command.arguments, from: command.target)
+        case "goal.attach": attachGoal(command.arguments)
+        case "goal.detach": detachGoal()
+        case "goal.archive": archiveGoal()
+        case "goal.open": openGoalRow()
+        case "goal.focus": goals.toggleFocus()
+        case "goal.edit": editGoal()
+        case "goal.restore": restoreGoal(command.arguments)
         case "history.dashboard": view = view == .dashboard ? .history : .dashboard
         case "dashboard.range": dashboard.cycleRange(command.arguments.first)
         case "history.ledger": view = view == .ledger ? .history : .ledger
@@ -2402,6 +2433,7 @@ final class AppModel {
     /// acts on the row clicked.
     func moveCursor(_ list: AppView, to id: String) {
         guard list == view else { return }
+        if list == .goals { return goals.point(to: id) }
         let ids: [String] = switch list {
         case .repos: worktreeRows.map(\.id)
         case .history: historyRows.map(\.id)
@@ -2409,7 +2441,7 @@ final class AppModel {
         case .timeline: timeline.rows.map(\.id)
         case .ledger: ledger.rows.map(\.id)
         case .dashboard: dashboard.board.recent.map(\.id)
-        case .sessions: []
+        case .sessions, .goals: []
         default: itemIDs(list)
         }
         if let index = ids.firstIndex(of: id) { setRow(index) }
@@ -2486,6 +2518,8 @@ final class AppModel {
         let choices = timeline.choices
         context.timelineRepos = choices.repos.map { String($0.split(separator: "/").last ?? "") }
         context.timelinePlaces = choices.places
+        context.goals = goals.snapshot.ordered.filter { $0.status != .archived }.map { ($0.id, $0.title) }
+        context.goalVersions = goals.versions.map { ($0.number, $0.note) }
         if let session = currentSession {
             context.pulls = session.trackedPRs.map(\.url)
             context.issues = issues(of: session).map(\.url)
@@ -2512,6 +2546,7 @@ final class AppModel {
         case .timeline: setRow(timeline.cursor + delta)
         case .ledger: setRow(ledger.cursor + delta)
         case .dashboard: setRow(dashboard.cursor + delta)
+        case .goals: setRow(goals.rowCursor + delta)
         case .attention, .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
@@ -2535,6 +2570,8 @@ final class AppModel {
         case .timeline: (timeline.rows.map { Calendar.current.startOfDay(for: $0.at).description }, timeline.cursor)
         case .ledger: (ledger.rows.map { Calendar.current.startOfDay(for: $0.updatedAt).description }, ledger.cursor)
         case .dashboard: (dashboard.board.recent.map(\.place), dashboard.cursor)
+        // Active, done and archived goals are groups.
+        case .goals: goals.focus == .goals ? (goals.rows.map(\.status.rawValue), goals.cursor) : ([], 0)
         }
     }
 
@@ -2566,6 +2603,8 @@ final class AppModel {
             ledger.setCursor(index)
         } else if view == .dashboard {
             dashboard.setCursor(index)
+        } else if view == .goals {
+            goals.setCursor(index)
         } else if view == .repos {
             let count = worktreeRows.count
             guard count > 0 else { return }
@@ -2581,6 +2620,13 @@ final class AppModel {
         let clamped = min(max(index, 0), count - 1)
         if clamped != cursor { previousSessionID = currentSession?.id }
         cursor = clamped
+    }
+
+    /// What sessions on a goal are told at launch and resume (`[goals] tell_agents`), kept in the work settings every
+    /// launch reads.
+    func applyGoalPointers() {
+        let pointers = config.goals.tellAgents ? GoalPointer.bySession(goals.snapshot, files: goals.files) : [:]
+        if settings.goalPointers != pointers { settings.goalPointers = pointers }
     }
 
     func select(sessionID: String) {
@@ -3095,6 +3141,9 @@ final class AppModel {
                 ledger.setCursor(index)
             case .dashboard:
                 dashboard.setCursor(index)
+            case .goals:
+                goals.setCursor(index)
+                if thenInsert { openGoalRow() }
             default:
                 itemCursor[view] = index
                 if thenInsert { openReader() }
@@ -4113,6 +4162,9 @@ final class AppModel {
                 let parts = slug.split(separator: "/", maxSplits: 1)
                 return parts.count == 2 ? Repo(org: String(parts[0]), name: String(parts[1])) : nil
             } ?? []
+        case .goals:
+            guard let link = goals.selectedLink else { return [] }
+            return (sessions + history.map(\.session)).first { $0.id == link.target }?.repos ?? []
         case .log: return []
         }
     }
@@ -6033,6 +6085,7 @@ final class AppModel {
         case .timeline: timeline.setCursor(0)
         case .ledger: ledger.setCursor(0)
         case .dashboard: dashboard.setCursor(0)
+        case .goals: goals.setCursor(0)
         case .repos: repoCursor = 0
         case .attention, .inbox, .issues, .prs, .watch: itemCursor[view] = 0
         }
@@ -6047,6 +6100,7 @@ final class AppModel {
         case .timeline: timeline.rows.count
         case .ledger: ledger.rows.count
         case .dashboard: dashboard.board.recent.count
+        case .goals: goals.rows.count
         case .repos: worktreeRows.count
         case .attention, .inbox, .issues, .prs, .watch: itemIDs(view).count
         }
@@ -6139,7 +6193,7 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
-        case .log, .timeline, .ledger, .dashboard:
+        case .log, .timeline, .ledger, .dashboard, .goals:
             return nil
         case .attention:
             let ids = Set(actionIDs(.attention))
@@ -6350,7 +6404,7 @@ final class AppModel {
             extraArguments: files.map {
                 AgentIntegration.launchArguments(
                     agent: agent, sessionID: agentSession, files: $0,
-                    signOff: settings.signOffArguments(agent: agent, repo: session.repos.first)
+                    signOff: settings.signOffArguments(agent: agent, repo: session.repos.first, session: session.id)
                 )
             } ?? [],
             environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
@@ -7052,6 +7106,9 @@ final class AppModel {
         case .dashboard:
             state.cursor = dashboard.cursor
             state.rows = dashboard.board.recent.count
+        case .goals:
+            state.cursor = goals.rowCursor
+            state.rows = goals.rowCount
         case .attention, .inbox, .issues, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count
@@ -7104,7 +7161,15 @@ final class AppModel {
         state.watching = tracked.count { pilot(for: $0).watching }
         state.logKind = callLog.query.kind?.rawValue ?? ""
         state.logFailed = callLog.query.failedOnly
+        state.goals = goals.snapshot.goals.count
+        state.goalPane = goals.pane.rawValue
+        state.goalFocus = goals.focus == .links ? "links" : "goals"
         return state
+    }
+
+    /// Something changed without a key (an operation that finished off the main actor): did that do the tutor's step?
+    func observeTutorNow() {
+        if tutor != nil { observeTutor(nil) }
     }
 
     /// A command's key as text for hints: as bound, else `:command` (what still runs it).

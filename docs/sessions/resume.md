@@ -16,6 +16,10 @@ under `[sessions]`:
 
 ![The resume dialog: sessions that were open, which can resume, and which agent sessions are gone](../images/shots/sessions/resume.png)
 
+In the dialog, `space` (or a click on its row) ticks or unticks a session, `↩` or **Resume N sessions** resumes the
+ticked ones, and `⎋` or **Start empty** leaves them all closed. A click beside the dialog does nothing, so it never
+starts empty by accident.
+
 Resuming uses each agent's own resume (`claude --resume <id>`, `codex resume <id>`, …) with the session id Heed kept.
 If the agent no longer has that session, Heed says so and starts the agent fresh with the original prompt.
 

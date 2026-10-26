@@ -49,15 +49,21 @@ first screen for the tour, or `:tutor` any time.
   terminal with tabs and splits. Agents report their state through hooks (working, idle, blocked, asking, done), so
   heed knows who needs you, and `ga` jumps there.
 - **Start work in one line.** Press `o`, describe the task: heed picks the repo, makes a worktree named after it and
-  starts the agent with your prompt. Sessions resume where you left them after a restart.
+  starts the agent with your prompt; on macOS 26 with Apple Intelligence, Apple's on-device model sharpens the repo
+  and branch guesses, on this Mac. Sessions resume where you left them after a restart.
+- **Goals.** Work that outlives a session gets a goal (`gG`) with a `GOAL.md`; new work finds its goal on its own,
+  and reviewers score it against bars that fit it. See [Goals](#goals).
 - **Get it green.** heed watches the PRs your sessions open. Review comments, failing checks (with the failed log) and
   merge conflicts become items for the agent that wrote the code, sent once it is idle. Or hand conflicts and
   comments to GitHub's Copilot coding agent and spare your agent's tokens.
 - **Get it merged.** Turn merging on per PR, repo or org. Each repo gets a merge queue: GitHub's auto-merge, or heed
   merging itself once your rules hold (green, reviewed after the last push, quiet, gate checks, no hold label, an
-  optional self-review).
+  optional self-review). With merging off, PRs that could merge say **Ready to merge** and `zM` merges one now. The
+  setup wizard (`M` in Repos) proposes a repo's settings from its last 30 merged PRs and its CI failures.
 - **Keyboard first.** NORMAL, INSERT, VISUAL, COMMAND and HINT modes, counts, relative numbers, `:` commands, and every
-  feature a named command you can rebind. The tutor teaches it by doing, on a pretend world.
+  feature a named command you can rebind. The tutor teaches it by doing, on a pretend world. The mouse works too:
+  every command is in the menu bar and the right-click menus with its key beside it, key hints are buttons, tabs drag
+  and panes resize.
 - **Worktrees that tidy up.** Create, list and remove worktrees across repos; cleanup removes only what has been quiet
   for days, never dirty or unpushed work, and saves each one's commits and changes as a git ref first, so History can
   reopen it.
@@ -81,6 +87,26 @@ first screen for the tour, or `:tutor` any time.
     <td align="center"><sub>Get it merged: the rules, and the repo's merge queue</sub></td>
   </tr>
 </table>
+
+## Goals
+
+A goal is work that outlives one session: a feature, a migration, a cleanup. Its sessions, chats and PRs belong to it,
+and its `GOAL.md` says what it is, what it is not, when it is done, what is open and what was decided. `gG` opens Goals.
+
+- **It finds its work.** New sessions and chats go on their goal by themselves when heed is sure, from free signals
+  (worktree, branch, PRs, files, the prompt) and a cheap model call when unsure; otherwise heed asks once, with one
+  key. Corrections become rules in `attach.rules`.
+- **Items on a board.** heed breaks the goal into items and moves them on evidence: a session on one, a review, a PR,
+  a merge. Edits that record what happened apply to `GOAL.md` as versions you can undo; edits that change the goal
+  wait for you.
+- **Quality bars.** Each goal gets the bars it needs (a spike is not a public API), reviewers that never edit your
+  code score the work against them within a daily budget, and stranger walks time a first run in a fresh clone. When
+  every criterion and bar is met, heed marks the goal done.
+- **Personas.** Who the goal needs now, from its board, and one key to start a session, chat or reviewer as them.
+- **Agents keep it.** claude and codex on a goal read `GOAL.md` first and keep it with `heed goal`, taught by heed's
+  `heed-goal` skill (loaded with `--plugin-dir`, nothing installed); `heed goal item spawn` starts work on an item.
+- **Colleagues follow along.** Mirror a goal (`M`) to a tracker repo as a meta issue with a sub-issue per item;
+  their changes come back as questions for you.
 
 heed keeps a record of each session (its timeline, outcome and summary, in SQLite); the agents own their transcripts.
 It is macOS only and not sandboxed: it has to spawn shells, git and agents.
@@ -121,6 +147,9 @@ Headless checks: `HEED_SNAPSHOT=out.png build/Heed.app/Contents/MacOS/Heed` rend
   the session; a Claude permission prompt also gets Allow.
 
 The brand pack (icon, logo, menu bar template, social preview, org avatars) lives in `design/brand/`.
+
+Other apps and scripts drive Heed through `control.sock`: `heed start`, `send`, `show`, `sessions` and `watch` (see
+[the CLI reference](https://heed.build/reference/cli/)).
 
 ## Start work from anywhere
 

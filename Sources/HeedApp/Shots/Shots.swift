@@ -121,6 +121,8 @@ enum Shots {
             prepare: withChats
         ),
         Shot(id: "landing/history", chrome: false, keys: "ghL"),
+        // A goal's overview: its numbers, its items by stage, what is on it, its reviewers and where it waits on you.
+        Shot(id: "landing/goals", chrome: false, keys: "gGj"),
     ]
 
     /// The docs' home page.

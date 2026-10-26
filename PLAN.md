@@ -86,6 +86,30 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
     filtered and Inbox, Issues and PRs left out of the tab bar but reachable with `:` (#127); the rules editor in
     Settings › Attention with a preview (#128); Attention notifications, the Decider's suggested weights and what you
     do kept as labels (#129))*
+17. Docs that render themselves. *(done: History's detail says what heed keeps (#133); a title bar that shows a PR
+    number or host whole or not at all (#134); deterministic shots from invented fixture orgs (#135), the sweep on the
+    pinned clock and text independent of render order (#147); `LLMRunner` takes its queue place when a call is made
+    (#146))*
+18. Outside heed and on this Mac. *(done: the control socket, `control.sock`, with `heed start`, `send`, `show`,
+    `sessions` and `watch` (#137); Local decisions: an opt-in, local-only recorder of what a pane showed at each
+    reported state, `[local] record_screens` (#138); Start work's smart guesses from Apple's on-device model, and its
+    outcomes kept to learn from, `[start_work] smart_guesses` (#139))*
+19. The pilot, seen and set up. *(done: merge mode on every PR, **Ready to merge**, `zM` merge now and force merge with
+    `--admin`, `merge_now` and `force_merge`, and merging misconfigured named ahead of time (#141); the repo setup
+    wizard, `M` in Repos, proposing get it merged and get it green from a repo's last 30 merged PRs and its CI (#142))*
+20. The mouse. *(done: `↩` types into the agent, Start work with clicks and Start and Cancel buttons (#140); a menu bar
+    with every command under File, Session, View, PR, Go, Window and Help (#143); Settings for config-only keys, tutor
+    steps and empty states with a next step (#144); key hints are buttons (#145); the diff overlay with clicks and
+    drag-select (#148); tabs drag and dividers resize (#149); the resume dialog starts all ticked (#150) and takes the
+    mouse (#151))*
+21. Goals. *(done: goals with a `GOAL.md` and its versions, sessions and chats on them, `gG`, agents told to read it
+    (#152); items, evidence, stages, the board and edits to `GOAL.md` from the work, records applying themselves and
+    scope changes waiting (#153); new work finding its goal from signals and a cheap model, asks in Attention,
+    Unassigned, suggested goals and `attach.rules` learnt from corrections (#154); profiles and quality bars per goal,
+    reviewers within a daily budget, scores with their basis, done on its own (#155); UX and DX stranger walks in a
+    fresh clone with a friction log (#156); `heed goal` over the control socket and the `heed-goal` skill through
+    `--plugin-dir`, `item spawn` (#157); personas (#158); the GitHub mirror, a meta issue and a sub-issue per item in
+    a tracker repo, colleagues' changes coming back as asks (#159))*
 
 ## Open questions
 

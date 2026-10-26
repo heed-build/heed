@@ -28,6 +28,10 @@ Build a native macOS app, a **command center for agentic coding**. It hosts codi
 - **Agent state**, set by hooks, each with its own glyph shape (not only color):
   - working (spinner ring), idle (hollow circle), blocked (amber diamond, waiting on permission), asking (violet circle with ?, interviewing the user), done (green check), limited (dashed ring, rate limited), exited (hollow square, agent ended but shell lives).
   - States guessed from terminal output rather than reported by the agent get a small dotted ring, so the user trusts them less.
+- Since built: **Goal**, work that outlives one session. Sessions, chats and their PRs belong to it, and its `GOAL.md`
+  (versioned) says what it is, what it is not and when it is done; agents read it first and keep it with `heed goal`.
+  New work finds its goal on its own, items move across a board on evidence, reviewers score the work against
+  quality bars that fit the goal, and a goal can be mirrored to GitHub. `gG` opens Goals; see `docs/goals/`.
 
 ## Modes and keys (board: `Modes`, the `?` overlay)
 

@@ -127,11 +127,32 @@ public struct GoalSnapshot: Hashable, Sendable {
     public var links: [GoalLink]
     /// Each goal's current `GOAL.md`, parsed, by goal id.
     public var docs: [String: GoalDoc]
+    /// Every goal's items, oldest first.
+    public var items: [GoalItem]
+    /// Every goal's evidence, oldest first.
+    public var evidence: [GoalEvidence]
+    /// Every goal's GOAL.md edits (proposed, applied, said no to), oldest first.
+    public var edits: [GoalEdit]
 
-    public init(goals: [HeedGoal] = [], links: [GoalLink] = [], docs: [String: GoalDoc] = [:]) {
+    public init(
+        goals: [HeedGoal] = [], links: [GoalLink] = [], docs: [String: GoalDoc] = [:], items: [GoalItem] = [],
+        evidence: [GoalEvidence] = [], edits: [GoalEdit] = []
+    ) {
         self.goals = goals
         self.links = links
         self.docs = docs
+        self.items = items
+        self.evidence = evidence
+        self.edits = edits
+    }
+
+    public func items(of goal: String) -> [GoalItem] { items.filter { $0.goal == goal } }
+    public func evidence(of goal: String) -> [GoalEvidence] { evidence.filter { $0.goal == goal } }
+    public func item(_ id: String) -> GoalItem? { items.first { $0.id == id } }
+
+    /// A goal's scope edits waiting for you, oldest first.
+    public func proposals(of goal: String) -> [GoalEdit] {
+        edits.filter { $0.goal == goal && $0.state == .proposed }
     }
 
     public static let empty = GoalSnapshot()

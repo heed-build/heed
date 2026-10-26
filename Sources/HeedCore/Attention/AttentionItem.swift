@@ -23,6 +23,8 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case agentBlocked
     case agentAsking
     case agentLimited
+    /// A goal's GOAL.md has scope edits waiting for you (one item per goal, however many).
+    case goalProposals
     /// One of your open PRs (or one a session tracks), whether or not anything about it wants you: My PRs lists it.
     case yourPR
     /// An open issue in a repo whose issues you watch (`[repos.x] issues = "all"`): the Issues filter lists it.
@@ -50,6 +52,7 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         case .agentBlocked: "agent blocked"
         case .agentAsking: "agent asking"
         case .agentLimited: "rate limited"
+        case .goalProposals: "goal proposals"
         case .yourPR: "your PR"
         case .watching: "watching"
         case .subscribed: "subscribed"
@@ -83,8 +86,11 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
 /// make one item.
 public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
     public enum Kind: String, Hashable, Sendable, Codable {
-        case pr, issue, ci, release, discussion, agent, other
+        case pr, issue, ci, release, discussion, agent, goal, other
     }
+
+    /// A GitHub thread, rather than one of heed's own (an agent, a goal).
+    public var onGitHub: Bool { kind != .agent && kind != .goal }
 
     /// `org/name#12` for an issue or PR (lowercased), `agent:<session>`, or `<kind>:<notification id>`.
     public var id: String

@@ -358,7 +358,7 @@ public extension Tutor {
                 doneLine: "Back in Sessions. {history.again} starts the same prompt fresh instead."
             ) { start, now, _ in now.sessions > start.sessions },
         ]),
-        TutorLesson(id: "goals", title: "Goals", minutes: 3, world: .mondayMorning, steps: [
+        TutorLesson(id: "goals", title: "Goals", minutes: 4, world: .mondayMorning, steps: [
             TutorStep(
                 "Goals",
                 say: "A goal is long-running work: sessions, chats and PRs belong to it, and its GOAL.md says what it "
@@ -385,6 +385,31 @@ public extension Tutor {
                 keys: ["{goal.doc}"], target: "goalsDoc",
                 doneLine: "{goal.doc} again is the overview."
             ) { _, now, _ in now.goalPane == "doc" },
+            TutorStep(
+                "The work suggests",
+                say: "What sessions and chats on a goal find is written into its GOAL.md: decisions go in on their own, "
+                    + "changes to what the goal is wait beside it. {goal.focus} back to the goals, {row.next} to the "
+                    + "next one, and {goal.proposal.accept} accepts its first change ({goal.proposal.reject} says no).",
+                keys: ["{goal.focus}", "{row.next}", "{goal.proposal.accept}"], target: "goalProposals",
+                doneLine: "Accepted as a new version: the versions list shows what it changed."
+            ) { _, now, seen in
+                now.goalPane == "doc"
+                    && seen.contains { $0.goalSelected == now.goalSelected && $0.goalProposals > now.goalProposals }
+            },
+            TutorStep(
+                "Its board",
+                say: "{goal.board} shows the goal's items as a board. Cards move on their own as evidence arrives: a "
+                    + "session working, a PR opened, a merge.",
+                keys: ["{goal.board}"], target: "goalsBoard",
+                doneLine: "h l move between columns, j k between cards; ↩ opens what a card is."
+            ) { _, now, _ in now.goalPane == "board" && now.goalItems > 0 },
+            TutorStep(
+                "Move a card",
+                say: "{goal.item.move right} moves the card under the cursor a column right ({goal.item.move left}: "
+                    + "left), or drag it. It stays there until new evidence about it moves it on.",
+                keys: ["{goal.item.move right}"], target: "goalsBoard",
+                doneLine: "{goal.item.work} starts work on a card's item, Start work filled in from it."
+            ) { start, now, _ in now.goalMoves > start.goalMoves },
             TutorStep(
                 "One of your own",
                 say: "{goal.new} opens a new goal; :goal.new with a title makes one at once. Make one.",

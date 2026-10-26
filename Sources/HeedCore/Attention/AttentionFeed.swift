@@ -11,7 +11,7 @@ public enum AttentionFeed {
     /// - `readyToMerge`: PRs that meet every merge requirement while get it merged is off for them (`MergeCandidate`).
     public static func items(
         github: GitHubState, sessions: [Session], details: [String: ThreadDetail] = [:],
-        pilotDriving: Set<PullRef> = [], readyToMerge: Set<PullRef> = []
+        pilotDriving: Set<PullRef> = [], readyToMerge: Set<PullRef> = [], goals: [GoalNotice] = []
     ) -> [AttentionItem] {
         var byID: [String: AttentionItem] = [:]
         func add(_ item: AttentionItem) {
@@ -51,6 +51,13 @@ public enum AttentionFeed {
                 id: "agent:\(session.id)", kind: .agent, repo: session.repos.first, number: nil, title: session.title,
                 url: nil, reasons: [reason], updatedAt: session.lastActivity, agentState: session.state.state,
                 session: session.id
+            ))
+        }
+        for notice in goals {
+            add(AttentionItem(
+                id: "goal:\(notice.goal)", kind: .goal, repo: nil, number: nil,
+                title: "\(notice.title): \(notice.proposals) proposal\(notice.proposals == 1 ? "" : "s")", url: nil,
+                reasons: [.goalProposals], updatedAt: notice.at
             ))
         }
 

@@ -19,7 +19,7 @@ public enum AttentionText {
     /// The prompt Start work opens with, from items: one issue's whole text when it is the only one and known,
     /// otherwise a list of what to look into.
     public static func workPrompt(_ items: [AttentionItem], issues: [Issue], instructions: String = "") -> String {
-        let threads = items.filter { $0.kind != .agent }
+        let threads = items.filter(\.onGitHub)
         guard !threads.isEmpty else { return "" }
         let known = threads.compactMap { item in
             issues.first { item.kind == .issue && AttentionItem.threadID($0.repo, $0.number) == item.id }

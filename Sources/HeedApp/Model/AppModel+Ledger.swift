@@ -126,6 +126,7 @@ extension AppModel {
             )
         }
         ledger.upsert(entry)
+        learnFromLedger(entry)
     }
 
     /// Git's view of the session's work in its first repo: its worktree when it is still there, else its branch,

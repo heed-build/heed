@@ -12,6 +12,12 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case thread
     /// A reply to a GitHub thread, drafted for you to read before anything is posted.
     case reply
+    /// A goal broken into items, one `- ` line each (`GoalPlanner`).
+    case goalPlan
+    /// Changes to a goal's GOAL.md the work suggests, as JSON (`GoalEditProposer`).
+    case goalEdits
+    /// A sharper GOAL.md, as the same JSON edits, every one of them waiting for you (`w`).
+    case goalSharpen
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -27,10 +33,14 @@ public struct SummaryInputs: Hashable, Sendable {
     /// heed's timeline for it, oldest first, one event per line.
     public var timeline: [String]
     public var lastMessage: String?
+    /// A goal's GOAL.md, for the goal kinds.
+    public var goal: String?
+    /// What is known already (a goal's items), one per line.
+    public var known: [String]
 
     public init(
         title: String, repo: String? = nil, branch: String? = nil, git: String? = nil, pullRequest: String? = nil,
-        timeline: [String] = [], lastMessage: String? = nil
+        timeline: [String] = [], lastMessage: String? = nil, goal: String? = nil, known: [String] = []
     ) {
         self.title = title
         self.repo = repo
@@ -39,6 +49,8 @@ public struct SummaryInputs: Hashable, Sendable {
         self.pullRequest = pullRequest
         self.timeline = timeline
         self.lastMessage = lastMessage
+        self.goal = goal
+        self.known = known
     }
 
     public static let limit = 6000
@@ -60,6 +72,8 @@ public struct SummaryInputs: Hashable, Sendable {
         section("Pull request", pullRequest)
         section("Timeline", timeline.joined(separator: "\n"))
         section("The agent's last message", lastMessage)
+        section("GOAL.md", goal)
+        section("Already known", known.map { "- " + $0 }.joined(separator: "\n"))
         return parts.joined(separator: "\n")
     }
 }
@@ -110,6 +124,32 @@ public struct Summarizer: Sendable {
             description and latest comments. Answer what was asked of them, briefly and politely, in their voice; \
             where you do not know a fact, leave a [placeholder] for them to fill in. Only the reply's text, in \
             GitHub Markdown, no preamble.
+            """
+        case .goalPlan:
+            """
+            You break a software goal into the pieces of work that reach it, from its GOAL.md. Answer with one "- " \
+            line per piece, at most eight, each a short imperative title of at most eight words, in the order they \
+            would be done. Leave out what the Not the goal section excludes and what is already known. Only the \
+            lines; no preamble.
+            """
+        case .goalEdits:
+            """
+            You keep a goal's GOAL.md honest as the work teaches. From the GOAL.md and what a piece of work on it \
+            found (its summary, decisions, follow-ups, last message), suggest only changes the work clearly supports: \
+            a decision taken, an open question answered or raised, a done-when criterion met (with the evidence), a \
+            new criterion or non-goal the work showed. Reply with only JSON: {"edits": [{"section": one of goal, \
+            notTheGoal, doneWhen, openQuestions, decisions; "op": one of add, remove, replace, check; "text": the \
+            line; "target": the existing line a remove, replace or check is about, or null; "evidence": what showed \
+            it, or null; "reason": one short sentence}]}. No edits: {"edits": []}.
+            """
+        case .goalSharpen:
+            """
+            You sharpen a software goal's GOAL.md so a stranger could tell when it is done. Suggest at most five \
+            changes: a goal statement with a measurable outcome, done-when criteria that can be checked, non-goals \
+            that keep the work small, questions that block it. Reply with only JSON: {"edits": [{"section": one of \
+            goal, notTheGoal, doneWhen, openQuestions, decisions; "op": one of add, remove, replace; "text": the \
+            line; "target": the existing line a remove or replace is about, or null; "evidence": null; "reason": one \
+            short sentence}]}.
             """
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -123,10 +123,19 @@ public enum DefaultKeys {
             ("<CR>", "history.reopen"), ("r", "dashboard.range"),
         ],
         // Goals (gG): j k move through the goals, ⇥ to what belongs to the one under the cursor, ↩ opens.
-        "goals": [
-            ("n", "goal.new"), ("E", "goal.doc"), ("e", "goal.edit"), ("a", "goal.archive"), ("x", "goal.detach"),
-            ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"),
-        ],
+        "goals": goals,
+        // A goal's board (B): h l columns, j k cards, H L move the card, n adds one, o starts work on it.
+        "goalboard": goalsWith([
+            ("n", "goal.item.add"), ("H", "goal.item.move left"), ("L", "goal.item.move right"),
+            ("h", "goal.item.column -1"), ("l", "goal.item.column 1"), ("o", "goal.item.work"),
+            ("<CR>", "goal.item.open"), ("D", "goal.item.done"), ("s", "goal.item.split"), ("x", ""), ("<Tab>", ""),
+            ("<S-Tab>", ""),
+        ]),
+        // A goal's GOAL.md (E): y n on the first change waiting, c rewords it, u takes back heed's last, w sharpens.
+        "goaldoc": goalsWith([
+            ("y", "goal.proposal.accept"), ("n", "goal.proposal.reject"), ("c", "goal.proposal.edit"),
+            ("u", "goal.undo"), ("w", "goal.sharpen"),
+        ]),
         // The call log has no key of its own (:log); inside it, its filters.
         "log": [
             ("t", "log.kind"), ("x", "log.failed"), ("s", "log.slow"), ("w", "log.writes"), ("c", "log.caller"),
@@ -172,6 +181,19 @@ public enum DefaultKeys {
 
     /// Views whose own bindings work in VISUAL too, ahead of VISUAL's: in the diff, `a`, `A` and `y` act on the
     /// selected lines.
+    /// The keys of Goals' list and overview; the board and GOAL.md keep them, with their own laid over.
+    static let goals: [(String, String)] = [
+        ("n", "goal.new"), ("E", "goal.doc"), ("e", "goal.edit"), ("a", "goal.archive"), ("x", "goal.detach"),
+        ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"), ("B", "goal.board"),
+        ("w", "goal.sharpen"),
+    ]
+
+    /// Goals' keys with `overrides` laid over (an empty command drops the key).
+    static func goalsWith(_ overrides: [(String, String)]) -> [(String, String)] {
+        let replaced = Set(overrides.map(\.0))
+        return goals.filter { !replaced.contains($0.0) } + overrides.filter { !$0.1.isEmpty }
+    }
+
     public static let visualScopes: Set<String> = ["diff"]
 
     public static func table(for mode: Mode) -> [(String, String)] {

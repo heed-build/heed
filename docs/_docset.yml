@@ -95,6 +95,7 @@ toc:
   - folder: goals
     children:
       - file: index.md
+      - file: items.md
   - folder: keyboard
     children:
       - file: index.md

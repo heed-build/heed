@@ -280,9 +280,9 @@ final class AppModel {
     private var pendingDelivery: Set<PullRef> = []
 
     /// Scoped key bindings follow what has focus: the diff, the PR overlay or reader, else the view.
-    private func updateScope() {
+    func updateScope() {
         engine.scope = overlay == .diff ? "diff" : issueReader != nil ? "issue"
-            : (overlay == .pr || reader != nil) ? "pr" : view.rawValue
+            : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope : view.rawValue
     }
 
     // Diff overlay
@@ -376,6 +376,7 @@ final class AppModel {
             self?.applyGoalPointers()
             self?.observeTutorNow()
         }
+        goals.paneChanged = { [weak self] in self?.updateScope() }
         applyGoalPointers()
         if isFixture { adoptFixtureRuns() } else { interruptRuns() }
         timeline.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
@@ -1209,6 +1210,7 @@ final class AppModel {
         if !replacingDomain, historyChanged || githubChanged || detailsChanged || sessionsChanged {
             noticeLedger(before: before, after: after)
         }
+        if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
     }
 
     func commit(_ change: DomainChange) { commit([change]) }
@@ -2236,6 +2238,20 @@ final class AppModel {
         case "goal.focus": goals.toggleFocus()
         case "goal.edit": editGoal()
         case "goal.restore": restoreGoal(command.arguments)
+        case "goal.board": toggleGoalBoard()
+        case "goal.item.add": addGoalItem(command.arguments)
+        case "goal.item.done": goalItemDone()
+        case "goal.item.move": moveGoalItem(command.arguments.first)
+        case "goal.item.column": goals.moveColumn(Int(command.arguments.first ?? "") ?? 1)
+        case "goal.item.split": splitGoalItem(command.arguments)
+        case "goal.item.work": workOnGoalItem()
+        case "goal.item.open": openGoalItem()
+        case "goal.plan": planGoal(asked: true)
+        case "goal.proposal.accept": answerProposal(.accept, command.arguments)
+        case "goal.proposal.reject": answerProposal(.reject, command.arguments)
+        case "goal.proposal.edit": answerProposal(.edit, command.arguments)
+        case "goal.undo": undoGoalEdit()
+        case "goal.sharpen": sharpenGoal()
         case "history.dashboard": view = view == .dashboard ? .history : .dashboard
         case "dashboard.range": dashboard.cycleRange(command.arguments.first)
         case "history.ledger": view = view == .ledger ? .history : .ledger
@@ -2427,7 +2443,7 @@ final class AppModel {
     }
 
     /// What the command being performed acts on, when a right-click menu named it (see `CommandTarget`).
-    private var commandTarget: CommandTarget?
+    private(set) var commandTarget: CommandTarget?
 
     /// The cursor onto a row named by id, in the view you are in: a list that changed while a menu was open still
     /// acts on the row clicked.
@@ -4326,6 +4342,9 @@ final class AppModel {
         if view == .attention, commandTarget == nil, attentionSelected?.item.kind == .agent {
             return attentionGoToSession()
         }
+        if view == .attention, let item = attentionSelected?.item, item.kind == .goal {
+            return openGoalProposals(item.id)
+        }
         if let id = commandTarget?.runID, let run = runs.first(where: { $0.id == id }) {
             open(run: run)
         } else if let ref = pullUnderCursor {
@@ -6126,7 +6145,7 @@ final class AppModel {
         startWork = nil
     }
 
-    private func openStartWork(
+    func openStartWork(
         prompt: String, fromCursor: Bool = true, chat: Bool = false, promotion: Promotion? = nil
     ) {
         startWorkError = nil
@@ -6308,6 +6327,7 @@ final class AppModel {
                     if case .sessionUpserted = $0 { true } else { false }
                 }) {
                     select(sessionID: session.id)
+                    goalItemStarted(session)
                 }
                 // A session starts with its agent pane taking your keys.
                 if let tab = currentTab, let agent = tab.tree.panes.first(where: { $0.role == .agent }) {
@@ -7164,6 +7184,10 @@ final class AppModel {
         state.goals = goals.snapshot.goals.count
         state.goalPane = goals.pane.rawValue
         state.goalFocus = goals.focus == .links ? "links" : "goals"
+        state.goalItems = goals.items.count
+        state.goalProposals = goals.proposals.count
+        state.goalMoves = goals.moves
+        state.goalSelected = goals.selected?.id ?? ""
         return state
     }
 

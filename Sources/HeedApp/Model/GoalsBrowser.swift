@@ -12,7 +12,7 @@ final class GoalsBrowser {
     /// What the right of the view shows. Later parts add theirs (board, reviewers, personas, evaluations, unassigned)
     /// as cases here, each a pane of its own.
     enum Pane: String {
-        case overview, doc
+        case overview, doc, board
     }
 
     /// Where j and k move: the goals list, or what belongs to the goal under the cursor.
@@ -31,7 +31,10 @@ final class GoalsBrowser {
     /// The goals the list shows, in order, narrowed by `/`.
     private(set) var rows: [HeedGoal] = []
     private(set) var cursor = 0
-    private(set) var pane = Pane.overview
+    private(set) var pane = Pane.overview {
+        didSet { if pane != oldValue { paneChanged() } }
+    }
+
     private(set) var focus = Focus.goals
     private(set) var linkCursor = 0
     /// The selected goal's versions, newest first.
@@ -41,6 +44,15 @@ final class GoalsBrowser {
     /// GOAL.md as it is being edited, while it is.
     var draft: String?
     var form: Form?
+    /// The board's cursor: a column, and a card in it.
+    private(set) var boardColumn = Board.Column.toExplore
+    private(set) var boardRow = 0
+    /// Cards moved by hand since launch (the tutor watches it).
+    private(set) var moves = 0
+    /// Start work opened from an item: the session it starts goes on the goal, on that item.
+    @ObservationIgnored var startingItem: GoalItem?
+    /// Each goal's model calls today (planner, proposer, sharpener), for `GoalBudget`.
+    @ObservationIgnored var modelRuns: [String: [Date]] = [:]
     /// The store did not open: Goals keeps nothing.
     private(set) var unavailable = false
     @ObservationIgnored private(set) var ops: GoalOps?
@@ -48,6 +60,8 @@ final class GoalsBrowser {
     @ObservationIgnored private var fixtureVersions: [String: [GoalVersion]] = [:]
     /// Called after the goals changed (the agents' goal pointers follow).
     @ObservationIgnored var changed: () -> Void = {}
+    /// Called when another pane shows (the key scope follows).
+    @ObservationIgnored var paneChanged: () -> Void = {}
 
     init(fixture: Bool) {
         guard fixture else { return }
@@ -90,6 +104,10 @@ final class GoalsBrowser {
     // MARK: Moving
 
     func setCursor(_ index: Int) {
+        if pane == .board {
+            boardRow = min(max(index, 0), max(cards.count - 1, 0))
+            return
+        }
         if focus == .links {
             let count = links.count
             guard count > 0 else { return }
@@ -101,12 +119,64 @@ final class GoalsBrowser {
         guard clamped != cursor else { return }
         cursor = clamped
         linkCursor = 0
+        boardRow = 0
         draft = nil
         loadVersions()
     }
 
-    var rowCount: Int { focus == .links ? links.count : rows.count }
-    var rowCursor: Int { focus == .links ? linkCursor : cursor }
+    var rowCount: Int { pane == .board ? cards.count : focus == .links ? links.count : rows.count }
+    var rowCursor: Int { pane == .board ? boardRow : focus == .links ? linkCursor : cursor }
+
+    // MARK: Items
+
+    /// The selected goal's items, oldest first.
+    var items: [GoalItem] { selected.map { snapshot.items(of: $0.id) } ?? [] }
+    var evidence: [GoalEvidence] { selected.map { snapshot.evidence(of: $0.id) } ?? [] }
+    /// The selected goal's changes to GOAL.md waiting for you, oldest first.
+    var proposals: [GoalEdit] { selected.map { snapshot.proposals(of: $0.id) } ?? [] }
+
+    /// The lenses the goal needs. Until goals have quality profiles, every one.
+    var requiredLenses: Set<Stage> { Stage.lenses }
+
+    var columns: [Board.Column: [GoalItem]] { Board.columns(items, evidence: evidence) }
+
+    /// The cards in the column under the cursor.
+    var cards: [GoalItem] { columns[boardColumn] ?? [] }
+
+    /// The card under the board's cursor.
+    var selectedCard: GoalItem? {
+        let cards = cards
+        return cards.indices.contains(boardRow) ? cards[boardRow] : nil
+    }
+
+    /// The board's cursor on another column (`h`/`l`), on its nearest card.
+    func moveColumn(_ delta: Int) {
+        guard let next = boardColumn.step(delta) else { return }
+        boardColumn = next
+        boardRow = min(boardRow, max(cards.count - 1, 0))
+    }
+
+    /// The board's cursor on a card (a click).
+    func pointBoard(column: Board.Column, row: Int) {
+        boardColumn = column
+        boardRow = min(max(row, 0), max(cards.count - 1, 0))
+    }
+
+    /// After a card moved: the cursor follows it.
+    func follow(_ item: String, to column: Board.Column) {
+        boardColumn = column
+        boardRow = cards.firstIndex { $0.id == item } ?? 0
+        moves += 1
+    }
+
+    /// The key scope: the board and GOAL.md have keys of their own.
+    var scope: String {
+        switch pane {
+        case .board: "goalboard"
+        case .doc: "goaldoc"
+        case .overview: "goals"
+        }
+    }
 
     /// `goal.focus`: between the list and what is on the goal.
     func toggleFocus() {
@@ -119,6 +189,19 @@ final class GoalsBrowser {
 
     /// Puts the cursor on a goal (`id`) or on a session or chat on it (`kind:target`).
     func point(to id: String) {
+        if let item = snapshot.item(id) {
+            point(to: item.goal)
+            if pane == .board {
+                let column = Board.column(item, evidence: snapshot.evidence)
+                boardColumn = column
+                boardRow = cards.firstIndex { $0.id == id } ?? 0
+            }
+            return
+        }
+        if id.hasPrefix("edit:") {
+            if let edit = snapshot.edits.first(where: { id == "edit:\($0.id ?? -1)" }) { point(to: edit.goal) }
+            return
+        }
         if let index = rows.firstIndex(where: { $0.id == id }) {
             focus = .goals
             setCursor(index)
@@ -135,6 +218,13 @@ final class GoalsBrowser {
     func togglePane() {
         pane = pane == .doc ? .overview : .doc
         if pane == .overview { draft = nil }
+    }
+
+    /// `B`: the board, or back to the overview.
+    func toggleBoard() {
+        pane = pane == .board ? .overview : .board
+        draft = nil
+        if pane == .board { boardRow = min(boardRow, max(cards.count - 1, 0)) }
     }
 
     func show(_ next: Pane) { pane = next }
@@ -206,6 +296,7 @@ final class GoalsBrowser {
             loadVersions()
         }
         linkCursor = min(linkCursor, max(links.count - 1, 0))
+        boardRow = min(boardRow, max(cards.count - 1, 0))
         if focus == .links, links.isEmpty { focus = .goals }
     }
 }

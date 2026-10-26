@@ -226,6 +226,7 @@ public struct AttentionRules: Hashable, Sendable {
         "comment": [.comment],
         "subscribed": [.subscribed],
         "watching": [.watching],
+        "proposals": [.goalProposals],
     ]
 
     static let notYet: [String: String] = [
@@ -388,7 +389,7 @@ public struct AttentionRules: Hashable, Sendable {
             var kinds: Set<AttentionItem.Kind> = []
             for name in text.lowercased().split(separator: "|") {
                 guard let kind = AttentionItem.Kind(rawValue: String(name)) else {
-                    return .failure("kind \(name): expected pr, issue, ci, release, discussion or agent")
+                    return .failure("kind \(name): expected pr, issue, ci, release, discussion, agent or goal")
                 }
                 kinds.insert(kind)
             }

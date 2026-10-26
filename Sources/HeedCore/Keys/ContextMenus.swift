@@ -224,6 +224,38 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// An item's card on a goal's board, or its row in the overview's matrix.
+    public static func goalItem(id: String, title: String, column: Board.Column, question: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: id)
+        func item(_ title: String, _ command: String) -> MenuItem {
+            let parsed = CommandInvocation(parsing: command)
+            return MenuItem(title, CommandInvocation(name: parsed.name, arguments: parsed.arguments, target: target))
+        }
+        var menu = Menu(header: title)
+        menu.section([
+            item(question ? "Answer it in GOAL.md" : "Open what it is", "goal.item.open"),
+            item("Start work on it…", "goal.item.work"),
+        ])
+        menu.submenu("Move to", Board.Column.allCases.filter { $0 != column }.map { other in
+            item(other.title, "goal.item.move \(other.word)")
+        })
+        menu.section([item("Done", "goal.item.done"), item("Split it…", "goal.item.split")])
+        menu.section([MenuItem("Add an item…", CommandInvocation(name: "goal.item.add"))])
+        return menu.entries
+    }
+
+    /// A change to GOAL.md waiting for you.
+    public static func goalProposal(id: Int64, line: String) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: "edit:\(id)")
+        var menu = Menu(header: line)
+        menu.section([
+            MenuItem("Accept", CommandInvocation(name: "goal.proposal.accept", target: target)),
+            MenuItem("Reword, then accept…", CommandInvocation(name: "goal.proposal.edit", target: target)),
+            MenuItem("No", CommandInvocation(name: "goal.proposal.reject", target: target)),
+        ])
+        return menu.entries
+    }
+
     public static func pull(_ facts: PullFacts) -> [MenuEntry] {
         let ref = facts.ref
         let target = CommandTarget.pull(ref)

@@ -186,6 +186,7 @@ private struct KindMark: View {
         case .release: "RL"
         case .discussion: "DI"
         case .agent: "AG"
+        case .goal: "GO"
         case .other: "··"
         }
     }
@@ -195,7 +196,7 @@ private struct KindMark: View {
         case .pr: Theme.busy
         case .issue: Theme.done
         case .ci: Theme.err
-        case .agent: Theme.ask
+        case .agent, .goal: Theme.ask
         default: Theme.fg2
         }
     }
@@ -314,8 +315,12 @@ private struct AttentionDetail: View {
                     } else if model.attention.summarizing.contains(item.id) {
                         Text("summarizing…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     } else {
-                        Text(item.kind == .agent ? "An agent waiting on you." : "No summary yet.")
-                            .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                        Text(
+                            item.kind == .agent ? "An agent waiting on you."
+                                : item.kind == .goal ? "Changes to the goal's GOAL.md the work suggests: ↩ shows them."
+                                : "No summary yet."
+                        )
+                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
                 }
                 if let digest = detail?.digest, !digest.isEmpty {

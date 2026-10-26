@@ -154,6 +154,7 @@ extension AppModel {
                 view = .goals
                 goals.point(to: goal.id)
                 say("goal \(goal.title) made" + (session.map { ", \($0.title) on it" } ?? ""))
+                planGoal(goal: goal.id)
             case let .failure(error): say("no goal made: \(error)")
             }
         }
@@ -224,11 +225,14 @@ extension AppModel {
         guard let draft = goals.draft, let goal = goals.selected else { return endGoalEditing() }
         endGoalEditing()
         let now = Clock.now
+        let before = goals.snapshot.docs[goal.id]
         goals.run { ops in
             try await ops.save(goal: goal.id, text: draft, now: now)
         } done: { [weak self] result in
             switch result {
-            case let .success(version): self?.say(version.map { "GOAL.md saved as v\($0.number)" } ?? "no change")
+            case let .success(version):
+                self?.say(version.map { "GOAL.md saved as v\($0.number)" } ?? "no change")
+                self?.replanIfScopeChanged(goal.id, before: before)
             case let .failure(error): self?.say("not saved: \(error)")
             }
         }

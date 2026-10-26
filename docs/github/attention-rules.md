@@ -62,12 +62,13 @@ case-insensitively.
 | `review` | A review was requested; `requested:me` of you yourself, `requested:team` of one of your teams |
 | `assigned`, `ci`, `mine`, `changes`, `threads`, `mergeable`, `comment`, `subscribed`, `watching` | The reason it is there: assigned to you, CI failed, your PR, changes requested, unresolved threads, ready to merge (with merging off), ... |
 | `agent blocked\|asking\|limited` | An agent in one of those states; `agent` alone, any agent |
+| `proposals` | A goal with changes to its `GOAL.md` waiting for you ([Goals](../goals/items.md#in-attention)) |
 | `author maria`, `author me` | Who opened it |
 | `author bot`, `author bot:dependabot`, `author human` | Opened by a bot (that one), or by a person |
 | `label "blocker"` | A label |
 | `repo acme/*-archive` | The repo |
 | `branch:main` | The branch a CI failure is on |
-| `kind pr\|issue\|ci\|release\|discussion\|agent` | What it is |
+| `kind pr\|issue\|ci\|release\|discussion\|agent\|goal` | What it is |
 | `draft`, `ready` | A draft PR, or one ready for review |
 | `size >500`, `size <50` | Lines changed |
 | `age >7d`, `age <2h` | Time since its last update (`m`, `h`, `d`) |

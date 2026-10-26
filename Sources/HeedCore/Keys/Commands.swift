@@ -127,6 +127,7 @@ public enum Commands {
         .init("view.ledger", "History's ledger: a summary of each piece of work, kept after its worktree", .views),
         .init("view.goals", "goals: long-running work, what belongs to each goal, and its GOAL.md", .views),
         .init("goal.doc", "Goals: the goal's GOAL.md and its versions (again: the overview)", .views),
+        .init("goal.board", "Goals: the goal as a board, its items by column (again: the overview)", .views),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -225,6 +226,36 @@ public enum Commands {
             "goal.restore", "make one of the goal's GOAL.md versions current again (as a new version)", .selection,
             arguments: "<version>"
         ),
+        .init(
+            "goal.item.add", "Goals: add an item to the goal (on the board: in the column under the cursor)",
+            .selection, arguments: "[title]"
+        ),
+        .init("goal.item.done", "Goals: the item under the cursor is done (its card to Done)", .selection),
+        .init(
+            "goal.item.move", "Goals: move the card under the cursor a column left or right, or to a column by name",
+            .selection, arguments: "<left|right|explore|planned|working|verify|done>"
+        ),
+        .init("goal.item.column", "Goals board: the cursor a column left or right", .selection, arguments: "<-1|1>"),
+        .init(
+            "goal.item.split", "Goals: split the item into smaller ones (titles separated by ;)", .selection,
+            arguments: "<titles>"
+        ),
+        .init("goal.item.work", "Goals: start work on the item, Start work filled in from it", .selection),
+        .init(
+            "goal.item.open",
+            "Goals: open what the card is (its session, chat or PR); a question: GOAL.md",
+            .selection
+        ),
+        .init("goal.plan", "Goals: ask the planner for the goal's items now", .selection),
+        .init("goal.proposal.accept", "GOAL.md: yes to the first change waiting (or the one clicked)", .selection),
+        .init("goal.proposal.reject", "GOAL.md: no to the first change waiting (or the one clicked)", .selection),
+        .init(
+            "goal.proposal.edit",
+            "GOAL.md: reword the first change waiting, then accept it (no text: the command line)",
+            .selection, arguments: "[text]"
+        ),
+        .init("goal.undo", "GOAL.md: take back the last change heed made on its own", .selection),
+        .init("goal.sharpen", "GOAL.md: ask a model to sharpen the goal; what it suggests waits for you", .selection),
         .init("ledger.summarize", "write the ledger summary of this work now", .selection),
         .init(
             "ledger.edit", "edit the ledger entry's summary (no text: the command line opens with it)", .selection,

@@ -142,6 +142,11 @@ public enum DefaultKeys {
             ("S", "persona.session"), ("C", "persona.chat"), ("N", "persona.reviewer"), ("e", "persona.edit"),
             ("D", "persona.derive"), ("L", "persona.share"), ("x", ""),
         ]),
+        // A goal's Evaluations (X): s starts a session to fix the friction, a accepts it, r walks again, h l pick the
+        // lens.
+        "goalevals": goalsWith([
+            ("s", "eval.fix"), ("a", "eval.accept"), ("r", "eval.rewalk"), ("h", "eval.lens -1"), ("l", "eval.lens 1"),
+        ]),
         "goaldoc": goalsWith([
             ("y", "goal.proposal.accept"), ("n", "goal.proposal.reject"), ("c", "goal.proposal.edit"),
             ("u", "goal.undo"), ("w", "goal.sharpen"),
@@ -203,7 +208,7 @@ public enum DefaultKeys {
         ("n", "goal.new"), ("E", "goal.doc"), ("e", "goal.edit"), ("a", "goal.archive"), ("x", "goal.detach"),
         ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"), ("B", "goal.board"),
         ("w", "goal.sharpen"), ("U", "goal.unassigned"), ("u", "goal.attach.undo"), ("R", "goal.reviewers"),
-        ("r", "review.recheck"), ("P", "goal.personas"),
+        ("r", "review.recheck"), ("P", "goal.personas"), ("X", "goal.evaluations"),
     ]
 
     /// Goals' keys with `overrides` laid over (an empty command drops the key).

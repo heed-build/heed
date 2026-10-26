@@ -478,6 +478,16 @@ struct StatusBar: View {
                 ("persona.edit", "edit"), ("persona.derive", "work out again"), ("goal.personas", "overview"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "goalpersonas")) \($0.1)" }.joined(separator: " · ")
+        case .normal where model.view == .goals && model.goals.pane == .evaluations:
+            [
+                ("goal.focus", model.goals.focus == .friction ? "goals" : "friction"),
+                ("eval.fix", "fix"),
+                ("eval.accept", "accept"),
+                ("eval.rewalk", "walk again"),
+                ("eval.lens 1", "next lens"),
+                ("goal.evaluations", "overview"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "goalevals")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .goals && model.goals.pane == .reviewers:
             [
                 ("goal.focus", model.goals.focus == .objections ? "goals" : "next"),

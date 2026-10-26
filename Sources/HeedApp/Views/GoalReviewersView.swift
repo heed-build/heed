@@ -121,7 +121,7 @@ struct ReviewerRow: View {
         } else if let at = reviewer.lastReviewAt {
             parts.append("looked " + Clock.relative(at))
         } else {
-            parts.append(reviewer.config.kind.isEvaluator ? "not run yet · stranger walks come later" : "not run yet")
+            parts.append(reviewer.config.walk != nil ? "not walked yet" : "not run yet")
         }
         if !required { parts.append("lens not required") }
         return parts.joined(separator: " · ")

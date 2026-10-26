@@ -14,9 +14,15 @@ public enum ReviewTrigger: Hashable, Sendable, Codable {
     case asked(String)
     /// A persona the goal needs now that nobody with its view has looked: spawned as a reviewer on its own.
     case personaGap(String)
+    /// A file in an evaluator's area changed (`EvaluationLens.touches`): the path.
+    case areaChanged(String)
+    /// A PR fixing one of an evaluator's findings merged: a re-walk.
+    case fixMerged(String)
 
     public var text: String {
         switch self {
+        case let .areaChanged(path): "after \(path) changed"
+        case let .fixMerged(ref): "after the fix in \(ref) merged"
         case let .prOpened(ref): "after \(ref) opened"
         case let .prUpdated(ref): "after \(ref) changed"
         case let .prMerged(ref): "after \(ref) merged"

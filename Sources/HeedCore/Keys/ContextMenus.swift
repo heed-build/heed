@@ -212,6 +212,7 @@ public enum ContextMenus {
             item(reviewersShown ? "Back to the overview" : "Reviewers and quality bars", "goal.reviewers"),
             item("Re-check every reviewer", "review.recheck"),
             item("Who it needs", "goal.personas"),
+            item("Evaluations: stranger walks", "goal.evaluations"),
         ])
         menu.section([item(archived ? "Bring back" : "Archive", "goal.archive")]
             + (done ? [item("Not done yet", "goal.reopen")] : []))
@@ -266,6 +267,35 @@ public enum ContextMenus {
             ),
             MenuItem("Start a session to fix it", CommandInvocation(name: "review.fix", target: target)),
             MenuItem("Ask the reviewer why", CommandInvocation(name: "review.why", target: target)),
+        ])
+        return menu.entries
+    }
+
+    /// A lens in a goal's Evaluations: walk it now.
+    public static func evaluation(goal _: String, lens: String, title: String, walking: Bool) -> [MenuEntry] {
+        var menu = Menu(header: title)
+        menu.section([
+            MenuItem(
+                walking ? "Walking now" : "Walk now, in a fresh clone",
+                CommandInvocation(name: "eval.rewalk", arguments: [lens]), enabled: !walking
+            ),
+        ])
+        return menu.entries
+    }
+
+    /// A friction entry in an evaluation's log.
+    public static func friction(goal: String, reviewer: String, id: String, text: String, accepted: Bool, fixed: Bool)
+        -> [MenuEntry]
+    {
+        let target = CommandTarget.row(view: "goals", id: "\(goal)/\(reviewer)/\(id)")
+        var menu = Menu(header: String(text.prefix(60)))
+        menu.section([
+            MenuItem("Start a session to fix it", CommandInvocation(name: "eval.fix", target: target)),
+            MenuItem(
+                accepted ? "Open it again" : "Accept it", CommandInvocation(name: "eval.accept", target: target),
+                enabled: !fixed
+            ),
+            MenuItem("Walk again after the fix", CommandInvocation(name: "eval.rewalk", target: target)),
         ])
         return menu.entries
     }

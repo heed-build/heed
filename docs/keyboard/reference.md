@@ -90,11 +90,12 @@ This page is generated from the code (`mise run shots`).
 | `view.dashboard` |  | History's dashboard: what the work amounted to over a range |
 | `view.ledger` |  | History's ledger: a summary of each piece of work, kept after its worktree |
 | `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
-| `goal.doc` | `E` (goalboard), `E` (goaldoc), `E` (goalpersonas), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
-| `goal.board` | `B` (goalboard), `B` (goaldoc), `B` (goalpersonas), `B` (goalreviewers), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
-| `goal.unassigned` | `U` (goalboard), `U` (goaldoc), `U` (goalpersonas), `U` (goalreviewers), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
-| `goal.reviewers` | `R` (goalboard), `R` (goaldoc), `R` (goalpersonas), `R` (goalreviewers), `R` (goals), `R` (unassigned) | Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview) |
-| `goal.personas` | `P` (goalboard), `P` (goaldoc), `P` (goalpersonas), `P` (goalreviewers), `P` (goals), `P` (unassigned) | Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview) |
+| `goal.doc` | `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalpersonas), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
+| `goal.board` | `B` (goalboard), `B` (goaldoc), `B` (goalevals), `B` (goalpersonas), `B` (goalreviewers), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
+| `goal.unassigned` | `U` (goalboard), `U` (goaldoc), `U` (goalevals), `U` (goalpersonas), `U` (goalreviewers), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
+| `goal.reviewers` | `R` (goalboard), `R` (goaldoc), `R` (goalevals), `R` (goalpersonas), `R` (goalreviewers), `R` (goals), `R` (unassigned) | Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview) |
+| `goal.personas` | `P` (goalboard), `P` (goaldoc), `P` (goalevals), `P` (goalpersonas), `P` (goalreviewers), `P` (goals), `P` (unassigned) | Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview) |
+| `goal.evaluations` | `X` (goalboard), `X` (goaldoc), `X` (goalevals), `X` (goalpersonas), `X` (goalreviewers), `X` (goals), `X` (unassigned) | Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview) |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
@@ -163,13 +164,13 @@ This page is generated from the code (`mise run shots`).
 | `timeline.where` `[local|host]` | `w` (timeline) | timeline: everywhere, this Mac, or a host |
 | `timeline.gone` | `D` (timeline) | timeline: show or hide removed worktrees |
 | `dashboard.range` `[days]` | `r` (dashboard) | dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w) |
-| `goal.new` `[title]` | `n` (goalpersonas), `n` (goalreviewers), `n` (goals) | new goal: a title and what it is (on a session: from its prompt, and the session on it) |
+| `goal.new` `[title]` | `n` (goalevals), `n` (goalpersonas), `n` (goalreviewers), `n` (goals) | new goal: a title and what it is (on a session: from its prompt, and the session on it) |
 | `goal.attach` `<goal>` |  | put the session or chat on a goal (no goal: the command line opens to pick one) |
-| `goal.detach` | `x` (goaldoc), `x` (goalreviewers), `x` (goals) | take the session or chat off its goal |
+| `goal.detach` | `x` (goaldoc), `x` (goalevals), `x` (goalreviewers), `x` (goals) | take the session or chat off its goal |
 | `goal.archive` | `a` (goalboard), `a` (goaldoc), `a` (goalpersonas), `a` (goalreviewers), `a` (goals), `a` (unassigned) | archive the goal (again: bring it back) |
-| `goal.open` | `<CR>` (goaldoc), `<CR>` (goalpersonas), `<CR>` (goalreviewers), `<CR>` (goals), `<CR>` (unassigned) | Goals: what belongs to the goal; on a session or chat, go to it |
-| `goal.focus` | `<Tab>` (goaldoc), `<S-Tab>` (goaldoc), `<Tab>` (goalpersonas), `<S-Tab>` (goalpersonas), `<Tab>` (goalreviewers), `<S-Tab>` (goalreviewers), `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
-| `goal.edit` | `e` (goalboard), `e` (goaldoc), `e` (goalreviewers), `e` (goals), `e` (unassigned) | edit the goal's GOAL.md in place; each save is a new version |
+| `goal.open` | `<CR>` (goaldoc), `<CR>` (goalevals), `<CR>` (goalpersonas), `<CR>` (goalreviewers), `<CR>` (goals), `<CR>` (unassigned) | Goals: what belongs to the goal; on a session or chat, go to it |
+| `goal.focus` | `<Tab>` (goaldoc), `<S-Tab>` (goaldoc), `<Tab>` (goalevals), `<S-Tab>` (goalevals), `<Tab>` (goalpersonas), `<S-Tab>` (goalpersonas), `<Tab>` (goalreviewers), `<S-Tab>` (goalreviewers), `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
+| `goal.edit` | `e` (goalboard), `e` (goaldoc), `e` (goalevals), `e` (goalreviewers), `e` (goals), `e` (unassigned) | edit the goal's GOAL.md in place; each save is a new version |
 | `goal.restore` `<version>` |  | make one of the goal's GOAL.md versions current again (as a new version) |
 | `goal.item.add` `[title]` | `n` (goalboard) | Goals: add an item to the goal (on the board: in the column under the cursor) |
 | `goal.item.done` | `D` (goalboard) | Goals: the item under the cursor is done (its card to Done) |
@@ -183,12 +184,12 @@ This page is generated from the code (`mise run shots`).
 | `goal.proposal.reject` | `n` (goaldoc) | GOAL.md: no to the first change waiting (or the one clicked) |
 | `goal.proposal.edit` `[text]` | `c` (goaldoc) | GOAL.md: reword the first change waiting, then accept it (no text: the command line) |
 | `goal.undo` | `u` (goaldoc) | GOAL.md: take back the last change heed made on its own |
-| `goal.sharpen` | `w` (goalboard), `w` (goaldoc), `w` (goalpersonas), `w` (goalreviewers), `w` (goals), `w` (unassigned) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
+| `goal.sharpen` | `w` (goalboard), `w` (goaldoc), `w` (goalevals), `w` (goalpersonas), `w` (goalreviewers), `w` (goals), `w` (unassigned) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
 | `goal.ask.yes` | `y` (attention), `y` (unassigned) | yes: on the goal heed proposed (on a suggested goal: make it) |
 | `goal.ask.no` | `n` (attention), `n` (unassigned) | no: not on that goal, and heed learns it (on a suggested goal: drop it) |
 | `goal.ask.move` `<goal>` | `m` (attention), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
 | `goal.ask.ignore` | `i` (attention), `i` (unassigned) | leave things like this on no goal, and heed learns to (an ignore rule) |
-| `goal.attach.undo` | `u` (goalboard), `u` (goalpersonas), `u` (goalreviewers), `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
+| `goal.attach.undo` | `u` (goalboard), `u` (goalevals), `u` (goalpersonas), `u` (goalreviewers), `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
 | `goal.attach.find` |  | look for the session's goal now: rules, signals, the model when unsure |
 | `goal.bar` `<lens> <bar|off|auto>` |  | pin a quality bar for the goal: a lens and 0–10, off to drop the lens, auto for the profile's |
 | `goal.reopen` |  | not done yet: undo heed marking the goal done (held until something new) |
@@ -205,6 +206,10 @@ This page is generated from the code (`mise run shots`).
 | `persona.derive` | `D` (goalpersonas) | work out again who the goal needs, now (one of the goal's model calls) |
 | `persona.share` | `L` (goalpersonas) | copy the persona's file to the shared library, for other goals |
 | `persona.use` `<persona>` |  | put a persona from the shared library on the goal (a copy) |
+| `eval.fix` | `s` (goalevals) | start a session to fix the friction under the cursor: Start work, filled in |
+| `eval.accept` | `a` (goalevals) | accept the friction under the cursor (again: open it) |
+| `eval.rewalk` `[lens]` | `r` (goalevals) | walk again now, in a fresh clone: the lens picked (after a fix, to see whether it helped) |
+| `eval.lens` `<1|-1|lens>` | `h` (goalevals), `l` (goalevals) | Evaluations: pick a lens, the next (1), the one before (-1) or one by name |
 | `ledger.summarize` | `S` (ledger) | write the ledger summary of this work now |
 | `ledger.edit` `[text]` | `E` (ledger) | edit the ledger entry's summary (no text: the command line opens with it) |
 | `log.kind` `[all|kind]` | `t` (log) | call log: all, or one kind (shell, github, llm, decide) |

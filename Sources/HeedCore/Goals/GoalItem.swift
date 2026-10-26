@@ -105,6 +105,8 @@ public struct GoalEvidence: Hashable, Sendable, Codable, Identifiable {
         case perf
         /// A developer-experience walk (first run, API, docs).
         case dx
+        /// A user-experience walk (the screens, accessibility): no matrix column of its own.
+        case ux
         /// A PR for it: opened, updated, its checks.
         case pr
         /// Its PR merged.
@@ -350,7 +352,7 @@ public enum Board {
         if let last = mine.last {
             switch last.kind {
             case .pr, .merged: return .pr
-            case .codeReview, .planReview, .dx: return .review
+            case .codeReview, .planReview, .dx, .ux: return .review
             case .perf: return .bench
             default: break
             }

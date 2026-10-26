@@ -6,7 +6,7 @@ public enum GoalQualityFixtures {
     public static func all(now: Date = Clock.now) -> [QualityRecord] {
         let base = now.timeIntervalSince1970.rounded(.down)
         func ago(_ hours: Double) -> Date { Date(timeIntervalSince1970: base - hours * 3600) }
-        return anchors(ago) + diagrams(ago) + nav(ago)
+        return anchors(ago) + diagrams(ago) + nav(ago) + evaluations(ago)
     }
 
     /// Each goal's quality, folded with its newest GOAL.md.
@@ -39,10 +39,10 @@ public enum GoalQualityFixtures {
                 )
                 items.append(item)
                 snapshot.items.append(item)
-                if let lens = reviewer.config.kind.lens, let stage = ReviewEvidence.stage(lens) {
+                if let kind = EvaluationEvidence.kind(reviewer) {
                     snapshot.evidence.append(GoalEvidence(
-                        goal: goal.id, item: item.id, kind: stage.evidence, state: .issue, at: objection.lastSeen,
-                        source: reviewer.config.kind.title.lowercased(), text: objection.evidence ?? "HIGH objection",
+                        goal: goal.id, item: item.id, kind: kind, state: .issue, at: objection.lastSeen,
+                        source: EvaluationEvidence.source(reviewer), text: objection.evidence ?? "HIGH objection",
                         ref: "review:\(reviewer.id)"
                     ))
                 }
@@ -50,13 +50,9 @@ public enum GoalQualityFixtures {
             for reviewer in quality.live {
                 guard let at = reviewer.lastReviewAt else { continue }
                 let bar = reviewer.config.kind.lens.flatMap { lens in quality.lenses.first { $0.lens == lens }?.bar }
-                snapshot.evidence += ReviewEvidence.of(
-                    reviewer: reviewer,
-                    bar: bar,
-                    goal: goal.id,
-                    items: items,
-                    at: at
-                )
+                snapshot.evidence += reviewer.config.walk == nil
+                    ? ReviewEvidence.of(reviewer: reviewer, bar: bar, goal: goal.id, items: items, at: at)
+                    : EvaluationEvidence.of(evaluator: reviewer, bar: bar, goal: goal.id, items: items, at: at)
             }
         }
     }

@@ -31,6 +31,7 @@ bars ([Quality bars](quality.md)). It shows `–` until there is something to co
 | `R` | The goal's reviewers and quality bars ([Reviewers](reviewers.md)); again, the overview |
 | `r` | Re-check: every reviewer the goal needs looks again |
 | `P` | Who the goal needs ([Personas](personas.md)); again, the overview |
+| `X` | Stranger walks of the goal, their friction logs and scores ([Evaluations](evaluations.md)); again, the overview |
 
 Everything here also takes the mouse: a click picks a goal, a double-click opens it, and a right-click offers what
 the keys do.

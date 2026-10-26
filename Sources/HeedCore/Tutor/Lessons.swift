@@ -427,6 +427,22 @@ public extension Tutor {
                     + "{review.why} asks the reviewer in a chat."
             ) { start, now, _ in now.goalAccepted > start.goalAccepted },
             TutorStep(
+                "Stranger walks",
+                say: "Evaluators walk the goal as a stranger would: a fresh clone, the README only, every step timed, "
+                    + "and a friction log of where they got stuck. {goal.evaluations} shows them.",
+                keys: ["{goal.evaluations}"], target: "goalEvaluations",
+                doneLine: "The DX evaluator's walk on the left; on the right the same walk through other lenses "
+                    + "({eval.lens 1} picks the next)."
+            ) { _, now, _ in now.goalPane == "evaluations" },
+            TutorStep(
+                "Accept friction",
+                say: "{goal.focus} moves to the friction log. {eval.accept} on an entry accepts it: it then costs the "
+                    + "score a quarter of what it did.",
+                keys: ["{goal.focus}", "{eval.accept}"], target: "goalFriction",
+                doneLine: "{eval.fix} starts a session to fix one instead; once the fix merges heed walks again, "
+                    + "and {eval.rewalk} walks again now."
+            ) { start, now, _ in now.goalAccepted > start.goalAccepted },
+            TutorStep(
                 "Who should be in the room",
                 say: "heed works out which experts the goal needs from its board: what is planned, what reviewers "
                     + "object to, what is unanswered. {goal.personas} shows them, gaps first.",

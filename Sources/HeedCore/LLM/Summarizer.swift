@@ -22,6 +22,8 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case goalDraft
     /// The experts a goal needs, from its board, as JSON (`PersonaDerivation`).
     case goalPersonas
+    /// The steps a stranger walks for a goal, one `- ` line each (`WalkDrafter`).
+    case walkDraft
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -176,6 +178,14 @@ public struct Summarizer: Sendable {
             test-architect, docs-reader, ux-evaluator, dx-evaluator, or null; "knows": ["…"], "skepticalAbout": \
             ["…"], "asksFirst": ["…?"], "may": ["read", "run", "write notes"], "mayNot": ["edit code"]}]}. Cite only \
             handles from the input.
+            """
+        case .walkDraft:
+            """
+            You plan the walk a stranger takes through a software project to judge how it is to use, from the \
+            project's goal (its GOAL.md). The stranger has a fresh clone and the README, nothing else. Answer with \
+            one "- " line per step, four to seven of them, each a short imperative of at most eight words, in the \
+            order a newcomer would take them: from reading the README to having done what the goal is about, with one \
+            step that makes a mistake on purpose and one that recovers from it. Only the lines; no preamble.
             """
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)

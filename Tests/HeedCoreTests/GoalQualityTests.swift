@@ -518,8 +518,10 @@ struct GoalQualityOpsTests {
         #expect(second?.goalVersion == 3)
         #expect(second?.note.contains("code review now 8 (was 6)") == true)
         quality = try await ops.quality(of: goal.id)
+        // A public API's walks too: its first run, its API and config, and its docs (evaluations).
         #expect(quality.reviewers.map(\.id) == [
             "plan-critic", "implementation", "test-architect", "security", "docs-reader", "dx-evaluator",
+            "dx-evaluator-api", "docs-walk",
         ])
         #expect(quality.profiles.count == 2)
         // The same profile for the same version again changes nothing.

@@ -289,6 +289,7 @@ public enum MenuBar {
                     ("Spawn a reviewer", "reviewer.spawn"), ("Take the reviewer off", "reviewer.remove"),
                     ("Pin a quality bar…", "goal.bar"), ("Not done yet", "goal.reopen"),
                     ("Personas", "goal.personas"),
+                    ("Evaluations", "goal.evaluations"),
                 ], in: ["goals"]),
                 scoped("In Personas", [
                     ("Spawn as a session…", "persona.session"), ("Spawn as a chat…", "persona.chat"),
@@ -296,6 +297,10 @@ public enum MenuBar {
                     ("Share to the library", "persona.share"), ("Use one from the library…", "persona.use"),
                     ("Work out who is needed now", "persona.derive"),
                 ], in: ["goalpersonas"]),
+                scopedInvocations("In Evaluations", [
+                    ("Start a session to fix it", "eval.fix"), ("Accept the friction", "eval.accept"),
+                    ("Walk again", "eval.rewalk"), ("Next lens", "eval.lens 1"), ("Lens before", "eval.lens -1"),
+                ], in: ["goalevals"]),
                 scopedInvocations("On a goal's board", [
                     ("Add an item…", "goal.item.add"), ("Move the card left", "goal.item.move left"),
                     ("Move the card right", "goal.item.move right"), ("Start work on it…", "goal.item.work"),

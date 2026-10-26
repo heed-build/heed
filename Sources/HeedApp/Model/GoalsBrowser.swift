@@ -154,6 +154,13 @@ final class GoalsBrowser {
         return objections[min(objectionCursor, objections.count - 1)]
     }
 
+    /// Goals whose reviewers have nowhere to run, and why: an Attention note.
+    private(set) var blocked: [String: String] = [:]
+
+    func setBlocked(_ goal: String, _ why: String?) {
+        if blocked[goal] != why { blocked[goal] = why }
+    }
+
     func setWaiting(_ goal: String, _ reviewers: [String]) {
         let fresh = reviewers.isEmpty ? nil : reviewers
         if waiting[goal] != fresh { waiting[goal] = fresh }

@@ -333,36 +333,21 @@ extension AppModel {
         }
     }
 
-    /// Where a reviewer runs: the goal's open PR (its head branch, in a clone of its repo), else the branch of a
-    /// worktree a session on the goal owns; hosted in a tab of the goal's session that tracks the PR, else its newest
-    /// open one.
-    private func reviewTarget(_ goal: HeedGoal) -> (session: Session, record: RepoRecord, branch: String, repo: Repo)? {
-        let links = goals.snapshot.links(of: goal.id)
-        let open = links.filter { $0.kind == .session }
-            .sorted { $0.at > $1.at }
-            .compactMap { link in sessions.first { $0.id == link.target } }
-        guard !open.isEmpty else { return nil }
-        for pull in goalPulls(goal) where pull.state == "open" {
-            guard let head = github.pull(pull.ref)?.headBranch else { continue }
-            let host = open.first { $0.trackedPRs.contains(pull.ref) } ?? open[0]
-            let base = Runs.baseWorktree(
-                for: pull.ref, headBranch: head, owned: worktrees.filter { host.owns($0) }, all: worktrees
-            )
-            let record = base.map { main in
-                repos.first { $0.repo == main.repo && $0.location == main.location }
-                    ?? RepoRecord(repo: main.repo, path: main.path, location: main.location)
-            } ?? Runs.clone(for: pull.ref, in: repos, at: host.location)
-            if let record { return (host, record, head, pull.ref.repo) }
+    /// Where a goal's reviewer runs (`ReviewRun.place`): its open PR's head, else a branch its work is on, from a
+    /// clone on this Mac; in a tab of an open session on the goal when there is one, else headless.
+    private func reviewPlace(_ goal: HeedGoal) -> ReviewPlace {
+        let links = goals.snapshot.links(of: goal.id).sorted { $0.at > $1.at }
+        let open = links.filter { $0.kind == .session }.compactMap { link in sessions.first { $0.id == link.target } }
+        let pulls = goalPulls(goal).map { pull in
+            ReviewRun.Pull(ref: pull.ref, headBranch: github.pull(pull.ref)?.headBranch, open: pull.state == "open")
         }
-        for session in open {
-            guard let worktree = worktrees.first(where: { session.owns($0) && $0.branch != nil }),
-                  let branch = worktree.branch
-            else { continue }
-            let record = repos.first { $0.repo == worktree.repo && $0.location == worktree.location }
-                ?? RepoRecord(repo: worktree.repo, path: worktree.path, location: worktree.location)
-            return (session, record, branch, worktree.repo)
+        let branches: [(repo: Repo, branch: String)] = links.compactMap { link in
+            guard let entry = ledger.entries[link.target], let slug = entry.repos.first else { return nil }
+            let parts = slug.split(separator: "/")
+            guard parts.count == 2 else { return nil }
+            return (Repo(org: String(parts[0]), name: String(parts[1])), entry.branch)
         }
-        return nil
+        return ReviewRun.place(pulls: pulls, sessions: open, worktrees: worktrees, repos: repos, branches: branches)
     }
 
     private func launchReviewer(
@@ -370,16 +355,28 @@ extension AppModel {
     ) {
         let runID = UUID().uuidString.lowercased()
         let table = config.goals.bars
-        guard let target = reviewTarget(goal) else {
-            let result = ReviewResult(
-                run: runID, reviewer: state.id, basis: basis, report: nil,
-                failure: "no open session on the goal with a PR or a branch to look at"
-            )
-            goals.run { ops in try await ops.reviewEnded(result, goal: goal.id, now: Clock.now, table: table) }
+        let target: ReviewTarget
+        switch reviewPlace(goal) {
+        case let .target(found):
+            target = found
+            goals.setBlocked(goal.id, nil)
+        case let .noClone(repo):
+            goals.setBlocked(goal.id, "\(repo.slug) is not cloned on this Mac")
+            return
+        case .nothing:
+            // Nothing to look at yet: the next PR or branch on the goal is a trigger of its own.
             return
         }
+        let host = target.host.flatMap { id in sessions.first { $0.id == id } }
+        let newest = goals.snapshot.links(of: goal.id).sorted { $0.at > $1.at }
+            .lazy
+            .compactMap { link in
+                self.sessions.first { $0.id == link.target } ?? self.history.first { $0.id == link.target }?
+                    .session
+            }
+            .first
         let agentName = state.config.agent
-            ?? (config.goals.reviewerAgent.isEmpty ? target.session.agent : config.goals.reviewerAgent)
+            ?? (config.goals.reviewerAgent.isEmpty ? (host ?? newest)?.agent ?? "claude" : config.goals.reviewerAgent)
         let tier = state.config.tier ?? config.goals.tier(for: state.config.kind)
         let model: String? = tier == .best ? nil
             : config.llm.model(for: agentName) ?? llmStatuses.first { $0.name == agentName }?.detectedModel
@@ -388,18 +385,27 @@ extension AppModel {
         let changed = [trigger.text]
         let reviewer = state.config
         let known = state.objections
+        let prompt: (String) -> String = { worktree in
+            ReviewRun.prompt(
+                config: reviewer, goalTitle: goal.title, doc: doc, bar: bar, changed: changed, worktree: worktree,
+                known: known
+            )
+        }
         let start = ReviewRunStart(
             id: runID, reviewer: state.id, trigger: trigger, basis: basis, agent: agentName, model: model
         )
         goals.run { ops in try await ops.runStarted(start, goal: goal.id, now: Clock.now, table: table) }
         Task {
-            let failure = await startReviewRun(
-                runID: runID, goal: goal.id, reviewer: state.id, session: target.session.id, record: target.record,
-                branch: target.branch, repo: target.repo, agentName: agentName, model: model, basis: basis
-            ) { worktree in
-                ReviewRun.prompt(
-                    config: reviewer, goalTitle: goal.title, doc: doc, bar: bar, changed: changed, worktree: worktree,
-                    known: known
+            let failure: String? = if let host {
+                await startReviewRun(
+                    runID: runID, goal: goal.id, reviewer: state.id, session: host.id, record: target.record,
+                    branch: target.branch, repo: target.repo, agentName: agentName, model: model, basis: basis,
+                    prompt: prompt
+                )
+            } else {
+                await runHeadlessReview(
+                    runID: runID, goal: goal.id, reviewer: state.id, target: target, agentName: agentName,
+                    model: model, basis: basis, prompt: prompt
                 )
             }
             if let failure {
@@ -409,9 +415,62 @@ extension AppModel {
         }
     }
 
+    /// A reviewer with no session to show it: its worktree from the clone, its agent headless there
+    /// (`ReviewRun.headless`), its review read, its worktree removed. Nil when it ran (the review is recorded), else
+    /// why it could not start.
+    private func runHeadlessReview(
+        runID: String, goal: String, reviewer: String, target: ReviewTarget, agentName: String, model: String?,
+        basis: ReviewBasis, prompt: (String) -> String
+    ) async -> String? {
+        guard let agent = settings.agent(agentName) else { return "no agent \(agentName)" }
+        guard target.record.location.isLocal else { return "\(target.repo.slug) is not cloned on this Mac" }
+        let root = Runs.worktreeRoot(local: settings.worktreeRoot, host: nil, hosts: config.hosts)
+        let runBranch = ReviewRun.branch(goal: goal, reviewer: reviewer)
+        let worktree: String
+        do {
+            worktree = try await Git.addRunWorktree(
+                target.record, path: ReviewRun.worktreePath(
+                    root: root,
+                    repo: target.repo,
+                    goal: goal,
+                    reviewer: reviewer
+                ),
+                branch: target.branch, runBranch: runBranch
+            )
+        } catch {
+            return "could not make its worktree: \(error)"
+        }
+        guard let words = ReviewRun.headless(
+            agent: agent.name, command: agent.command, prompt: prompt(worktree), model: model, worktree: worktree
+        ) else {
+            await Git.removeWorktree(target.record, path: worktree, branch: runBranch)
+            return "\(agent.name) runs only in a tab: open a session on the goal, or set [goals] reviewer_agent"
+        }
+        try? FileManager.default.createDirectory(atPath: worktree + "/.heed", withIntermediateDirectories: true)
+        let (path, pathVariable) = await ToolLocator.shared.executable(words[0])
+        let result = try? await ProcessRunner.run(
+            path ?? words[0], Array(words.dropFirst()), in: worktree, environment: ["PATH": pathVariable],
+            timeout: .seconds(Int64(ReviewRun.timeout)), caller: "goals.review"
+        )
+        let file = FileManager.default.contents(atPath: ReviewRun.reportPath(worktree: worktree))
+        let last = (try? String(contentsOfFile: ReviewRun.lastMessagePath(worktree: worktree), encoding: .utf8))
+            ?? result?.stdout
+        await Git.removeWorktree(target.record, path: worktree, branch: runBranch)
+        let read = ReviewRun.read(file: file, lastMessage: last)
+        let failure = result == nil ? "it did not finish in \(Int(ReviewRun.timeout / 60)) minutes" : read.failure
+        await finishReview(
+            goal: goal, reviewer: reviewer, runID: runID, basis: basis, report: read.report,
+            failure: read.report == nil ? failure : nil
+        )
+        return nil
+    }
+
     /// A reviewer run ended: its objections matched to the ones before (by id and words, then a cheap model for
     /// what is left), recorded, and the goal checked for done.
-    func finishReview(_ live: LiveReview, report: ReviewReport?, failure: String?) async {
+    func finishReview(
+        goal: String, reviewer: String, runID: String, basis: ReviewBasis, report: ReviewReport?, failure: String?
+    ) async {
+        let live = (goal: goal, reviewer: reviewer, runID: runID, basis: basis)
         let known = goals.qualities[live.goal]?.reviewer(live.reviewer)?.objections ?? []
         var pairs: [Int: String] = [:]
         if let report {
@@ -521,7 +580,8 @@ extension AppModel {
     /// Goals' Attention items: goals heed marked done, and reviewers waiting for budget.
     var goalAttentionItems: [AttentionItem] {
         GoalAttention.items(
-            goals: goals.snapshot.goals, qualities: goals.qualities, waiting: goals.waiting, now: Clock.now
+            goals: goals.snapshot.goals, qualities: goals.qualities, waiting: goals.waiting, blocked: goals.blocked,
+            now: Clock.now
         )
     }
 }

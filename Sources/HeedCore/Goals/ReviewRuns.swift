@@ -150,8 +150,11 @@ public enum ReviewRun {
 
     /// The arguments that keep an agent from changing the work, where its CLI has them (both checked against the
     /// installed CLIs' `--help`):
-    /// - claude: `--disallowedTools` for its edit tools and for git commit and push through Bash. Bash itself stays,
-    ///   for tests and benchmarks and to write the review; the disposable worktree catches anything else.
+    /// - claude: its read tools and Bash allowed, `--disallowedTools` for its edit tools and for git commit and push
+    ///   through Bash (a deny wins over the allow), and `--permission-mode dontAsk`: nobody is there to answer, so
+    ///   anything else is refused rather than asked. Bash stays, for tests and benchmarks and to write the review;
+    ///   the disposable worktree catches what a shell could still change. The mode also ends the variadic tool lists,
+    ///   so the prompt after them stays the prompt.
     /// - codex: `--sandbox workspace-write`, which keeps writes inside the worktree and has no network, so it cannot
     ///   push. Not `read-only`: that would keep it from writing its review.
     /// - others: none; the disposable worktree (removed when the run ends, never pushed) is the guard.
@@ -159,6 +162,11 @@ public enum ReviewRun {
         switch agent {
         case "claude":
             [
+                "--allowedTools",
+                "Bash",
+                "Read",
+                "Grep",
+                "Glob",
                 "--disallowedTools",
                 "Edit",
                 "Write",
@@ -166,6 +174,8 @@ public enum ReviewRun {
                 "MultiEdit",
                 "Bash(git push:*)",
                 "Bash(git commit:*)",
+                "--permission-mode",
+                "dontAsk",
             ]
         case "codex": ["--sandbox", "workspace-write"]
         default: []
@@ -206,7 +216,7 @@ public enum ReviewRun {
                 + "sentence or two\", \"objections\": [{\"severity\": \"high|med|low\", \"text\": \"one sentence\", "
                 + "\"evidence\": \"what shows it\", \"file\": \"path\"}], \"ran\": [\"commands you ran\"], "
                 + "\"files\": <how many files you read>}. high: it must change before the goal is done; med: it "
-                + "should; low: worth knowing."
+                + "should; low: worth knowing. End your reply with the same JSON."
         )
         return lines.joined(separator: "\n")
     }
@@ -216,5 +226,137 @@ public enum ReviewRun {
         guard let data else { return (nil, "it wrote no review") }
         guard let report = ReviewReport.parse(data) else { return (nil, "its review.json is not a review") }
         return (report, nil)
+    }
+}
+
+/// Where a reviewer runs: a clone to start its worktree from, the branch, and the session whose tab shows it (nil:
+/// it runs headless, with no session needed).
+public struct ReviewTarget: Hashable, Sendable {
+    public var record: RepoRecord
+    public var branch: String
+    public var repo: Repo
+    public var host: String?
+
+    public init(record: RepoRecord, branch: String, repo: Repo, host: String? = nil) {
+        self.record = record
+        self.branch = branch
+        self.repo = repo
+        self.host = host
+    }
+}
+
+public enum ReviewPlace: Hashable, Sendable {
+    case target(ReviewTarget)
+    /// The work is in this repo, but there is no clone of it on this Mac to start from: an Attention note.
+    case noClone(Repo)
+    /// Nothing to look at yet: no PR and no branch.
+    case nothing
+}
+
+public extension ReviewRun {
+    /// A PR of the goal, as the place picks from.
+    struct Pull: Hashable, Sendable {
+        public var ref: PullRef
+        public var headBranch: String?
+        public var open: Bool
+
+        public init(ref: PullRef, headBranch: String?, open: Bool) {
+            self.ref = ref
+            self.headBranch = headBranch
+            self.open = open
+        }
+    }
+
+    /// Where a goal's reviewer runs, with or without a session open:
+    /// 1. the goal's open PR, at its head branch, from the worktree a run would start beside or the repo's clone on
+    ///    this Mac (the session's machine when one on the goal is open);
+    /// 2. a branch of a worktree an open session on the goal owns;
+    /// 3. a branch the goal's work was on (its sessions' ledger entries, closed ones too), from this Mac's clone.
+    /// An open session on the goal in the same place hosts it in a tab; otherwise it runs headless. `noClone` when
+    /// the work is somewhere this Mac has no clone of.
+    static func place(
+        pulls: [Pull], sessions: [Session], worktrees: [Worktree], repos: [RepoRecord],
+        branches: [(repo: Repo, branch: String)]
+    ) -> ReviewPlace {
+        func record(of worktree: Worktree) -> RepoRecord {
+            repos.first { $0.repo == worktree.repo && $0.location == worktree.location }
+                ?? RepoRecord(repo: worktree.repo, path: worktree.path, location: worktree.location)
+        }
+        func host(for record: RepoRecord, preferring session: Session?) -> String? {
+            let candidates = (session.map { [$0] } ?? []) + sessions
+            return candidates.first { $0.location == record.location }?.id
+        }
+        var missing: Repo?
+        for pull in pulls where pull.open {
+            guard let head = pull.headBranch else { continue }
+            let session = sessions.first { $0.trackedPRs.contains(pull.ref) } ?? sessions.first
+            let location = session?.location ?? .local
+            let owned = session.map { session in worktrees.filter { session.owns($0) } } ?? []
+            let base = Runs.baseWorktree(
+                for: pull.ref, headBranch: head, owned: owned, all: worktrees.filter { $0.location == location }
+            )
+            let here = repos.filter { $0.location == location }
+            guard let found = base.map(record(of:)) ?? Runs.clone(for: pull.ref, in: here, at: location) else {
+                missing = missing ?? pull.ref.repo
+                continue
+            }
+            return .target(ReviewTarget(
+                record: found, branch: head, repo: pull.ref.repo, host: host(for: found, preferring: session)
+            ))
+        }
+        for session in sessions {
+            guard let worktree = worktrees.first(where: { session.owns($0) && $0.branch != nil }),
+                  let branch = worktree.branch
+            else { continue }
+            return .target(ReviewTarget(
+                record: record(of: worktree),
+                branch: branch,
+                repo: worktree.repo,
+                host: session.id
+            ))
+        }
+        for (repo, branch) in branches where !branch.isEmpty {
+            guard let found = repos.first(where: { $0.repo == repo && $0.location.isLocal }) else {
+                missing = missing ?? repo
+                continue
+            }
+            return .target(ReviewTarget(record: found, branch: branch, repo: repo))
+        }
+        return missing.map(ReviewPlace.noClone) ?? .nothing
+    }
+
+    /// Where a headless run's last message goes.
+    static func lastMessagePath(worktree: String) -> String { "\(worktree)/.heed/last-message.txt" }
+
+    /// The command line of a headless reviewer (no tab, no session): claude `-p` with its tools limited and no one
+    /// to ask (`dontAsk`), codex `exec` in its sandbox with its last message to a file. Nil for agents with no such
+    /// mode: they need a session's tab. The first word is the executable, then the command's own fixed arguments.
+    static func headless(agent: String, command: String, prompt: String, model: String?, worktree: String)
+        -> [String]?
+    {
+        let command = command.split(separator: " ").map(String.init)
+        switch agent {
+        case "claude":
+            return command + ["-p", prompt] + restrictions(agent: agent) + (model.map { ["--model", $0] } ?? [])
+        case "codex":
+            return command + ["exec"] + restrictions(agent: agent) + [
+                "-C",
+                worktree,
+                "-o",
+                lastMessagePath(worktree: worktree),
+            ]
+                + (model.map { ["-m", $0] } ?? []) + [prompt]
+        default:
+            return nil
+        }
+    }
+
+    /// The review a run left: its `review.json`, else the JSON in its last message (headless runs end with it).
+    static func read(file: Data?, lastMessage: String?) -> (report: ReviewReport?, failure: String?) {
+        if let file, let report = ReviewReport.parse(file) { return (report, nil) }
+        if let lastMessage, let json = LLMDialect.jsonObject(in: lastMessage), let report = ReviewReport.parse(json) {
+            return (report, nil)
+        }
+        return read(file)
     }
 }

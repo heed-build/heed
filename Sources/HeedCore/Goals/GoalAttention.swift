@@ -5,9 +5,10 @@ public enum GoalAttention {
     /// How long a goal heed marked done stays in Attention.
     public static let doneFor: TimeInterval = 3 * 24 * 3600
 
-    /// `waiting`: goal id → reviewers due but over budget.
+    /// `waiting`: goal id → reviewers due but over budget; `blocked`: goal id → why its reviewers cannot run.
     public static func items(
-        goals: [HeedGoal], qualities: [String: GoalQuality], waiting: [String: [String]], now: Date
+        goals: [HeedGoal], qualities: [String: GoalQuality], waiting: [String: [String]],
+        blocked: [String: String] = [:], now: Date
     ) -> [AttentionItem] {
         var items: [AttentionItem] = []
         for goal in goals where goal.status != .archived {
@@ -27,6 +28,13 @@ public enum GoalAttention {
                     id: "goal:\(goal.id):budget", kind: .goal, repo: nil, number: nil,
                     title: "\(goal.title): \(names.joined(separator: ", ")) wait for tomorrow's reviewer budget",
                     url: nil, reasons: [.goalBudget], updatedAt: quality?.runs.last ?? now
+                ))
+            }
+            if goal.status == .active, let why = blocked[goal.id] {
+                items.append(AttentionItem(
+                    id: "goal:\(goal.id):blocked", kind: .goal, repo: nil, number: nil,
+                    title: "\(goal.title): reviewers cannot run, \(why)", url: nil, reasons: [.goalReviewBlocked],
+                    updatedAt: quality?.runs.last ?? goal.updatedAt
                 ))
             }
         }

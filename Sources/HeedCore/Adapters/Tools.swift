@@ -290,7 +290,7 @@ public actor ToolLocator {
     }
 
     /// The executable to run for a bare command name, and the PATH to run it with.
-    func executable(_ name: String) async -> (path: String?, pathVariable: String) {
+    public func executable(_ name: String) async -> (path: String?, pathVariable: String) {
         let report = await report()
         let path = report.tool(name)?.path ?? ToolDetection.find(name, in: report.searchPath)
         return (path, report.pathVariable)

@@ -58,13 +58,16 @@ docs-reader = "cheap"
 
 ## How a reviewer runs
 
-A reviewer runs as a background run, like get it green: a tab in one of the goal's sessions (the one that tracks the
-PR, else the newest open one), in a worktree of its own on `heed/review/<goal>-<reviewer>` at the PR's head (or, with
-no PR, a session's branch). The worktree and branch are removed when it ends; the cleanup sweep removes any left
-behind. A run still going after 30 minutes is stopped.
+A reviewer needs no session of yours. It gets a worktree of its own on `heed/review/<goal>-<reviewer>`, started from
+your clone of the repo on this Mac: at the head of the goal's open PR, else at a branch the goal's work is on (an open
+session's, or a closed one's from the ledger). When a session on the goal is open, the reviewer runs in a tab there,
+like get it green, so you can watch it; otherwise it runs headless (claude `-p`, codex `exec`). The worktree and branch
+are removed when it ends; the cleanup sweep removes any left behind. A run still going after 30 minutes is stopped.
+When the work is in a repo with no clone on this Mac, Attention says so (`reviewers blocked`) instead.
 
 It is told the goal (its `GOAL.md`), its bar, what changed since its last review and the objections it raised before,
-and writes its review to `.heed/review.json` in its worktree:
+and writes its review to `.heed/review.json` in its worktree, ending its reply with the same JSON (a headless run's
+reply is read when the file is missing):
 
 ```json
 {
@@ -77,13 +80,14 @@ and writes its review to `.heed/review.json` in its worktree:
 
 Reviewers never edit your code or push:
 
-- claude runs with `--disallowedTools Edit Write NotebookEdit MultiEdit "Bash(git push:*)" "Bash(git commit:*)"`;
-  it writes its review through the shell.
+- claude runs with `--allowedTools Bash Read Grep Glob`, `--disallowedTools Edit Write NotebookEdit MultiEdit
+  "Bash(git push:*)" "Bash(git commit:*)"` and `--permission-mode dontAsk`: nobody is there to answer, so anything
+  else is refused, not asked. It writes its review through the shell.
 - codex runs with `--sandbox workspace-write`: writes stay inside its worktree and it has no network, so it cannot
   push. (Not `read-only`, which would keep it from writing its review.)
 - Other agents have no such switch; the worktree of their own, removed when they end and never pushed, is the guard.
-
-An agent that stops to ask for a permission ends its run without a review; the reviewer says so.
+  They have no headless mode heed knows either, so they review only in a session's tab; set `reviewer_agent` to
+  claude or codex for goals with no session open.
 
 ## Objections across re-checks
 

@@ -442,8 +442,9 @@ struct ReviewPlannerTests {
 struct ReviewRunTests {
     @Test func agentsAreKeptFromChangingTheWork() {
         let claude = ReviewRun.restrictions(agent: "claude")
-        #expect(claude.first == "--disallowedTools")
-        #expect(Set(claude).isSuperset(of: ["Edit", "Write", "NotebookEdit", "Bash(git push:*)"]))
+        #expect(Set(claude).isSuperset(of: ["--disallowedTools", "Edit", "Write", "NotebookEdit", "Bash(git push:*)"]))
+        // A non-variadic flag last, so a prompt after the tool lists is not read as a tool.
+        #expect(Array(claude.suffix(2)) == ["--permission-mode", "dontAsk"])
         #expect(ReviewRun.restrictions(agent: "codex") == ["--sandbox", "workspace-write"])
         #expect(ReviewRun.restrictions(agent: "cursor").isEmpty)
     }
@@ -722,5 +723,99 @@ struct GoalAttentionTests {
         #expect(items.map(\.reasons) == [[.goalDone], [.goalBudget]])
         #expect(items[1].title.contains("implementation"))
         #expect(GoalAttention.goal(of: items[1]) == "busy-one")
+    }
+}
+
+struct ReviewPlaceTests {
+    private let repo = Repo(org: "acme", name: "docs-toolkit")
+    private var ref: PullRef { PullRef(repo: repo, number: 12) }
+    private var clone: RepoRecord { RepoRecord(repo: repo, path: "/code/docs-toolkit") }
+
+    private func session(_ id: String, tracks: [PullRef] = [], branch: String = "fix-a") -> Session {
+        Session(
+            id: id, title: id, repos: [repo], branch: branch, agent: "codex", state: ObservedState(.idle),
+            trackedPRs: tracks
+        )
+    }
+
+    @Test func aPRRunsFromTheLocalCloneWithNoSessionOpen() {
+        let place = ReviewRun.place(
+            pulls: [.init(ref: ref, headBranch: "fix-a", open: true)], sessions: [], worktrees: [], repos: [clone],
+            branches: []
+        )
+        #expect(place == .target(ReviewTarget(record: clone, branch: "fix-a", repo: repo, host: nil)))
+    }
+
+    @Test func anOpenSessionOnTheGoalHostsItInATab() {
+        let worktree = Worktree(repo: repo, path: "/wt/fix-a", branch: "fix-a", head: "abc", isMain: false)
+        let place = ReviewRun.place(
+            pulls: [.init(ref: ref, headBranch: "fix-a", open: true)],
+            sessions: [session("other"), session("s1", tracks: [ref])], worktrees: [worktree], repos: [clone],
+            branches: []
+        )
+        guard case let .target(target) = place else { return #expect(Bool(false)) }
+        #expect(target.host == "s1")
+        #expect(target.branch == "fix-a")
+    }
+
+    @Test func closedOrMergedPRsAndHeadlessBranchesFallBackToTheGoalsBranches() {
+        let place = ReviewRun.place(
+            pulls: [.init(ref: ref, headBranch: "old", open: false)], sessions: [], worktrees: [], repos: [clone],
+            branches: [(repo, ""), (repo, "spike-b")]
+        )
+        #expect(place == .target(ReviewTarget(record: clone, branch: "spike-b", repo: repo)))
+    }
+
+    @Test func noCloneOnThisMacIsANoteNotARun() {
+        let remote = RepoRecord(repo: repo, path: "/srv/docs-toolkit", location: .host("devbox"))
+        #expect(ReviewRun.place(
+            pulls: [.init(ref: ref, headBranch: "fix-a", open: true)], sessions: [], worktrees: [], repos: [remote],
+            branches: []
+        ) == .noClone(repo))
+        #expect(ReviewRun.place(pulls: [], sessions: [], worktrees: [], repos: [], branches: [(repo, "b")])
+            == .noClone(repo))
+        #expect(ReviewRun.place(pulls: [], sessions: [], worktrees: [], repos: [clone], branches: []) == .nothing)
+    }
+
+    @Test func headlessCommandsLimitTheAgentAndEndWithItsReview() {
+        let claude = ReviewRun.headless(
+            agent: "claude", command: "claude --verbose", prompt: "P", model: "haiku", worktree: "/wt/r"
+        )
+        #expect(claude?.prefix(4) == ["claude", "--verbose", "-p", "P"])
+        #expect(claude?.contains("dontAsk") == true)
+        #expect(claude?.suffix(2) == ["--model", "haiku"])
+        let codex = ReviewRun.headless(agent: "codex", command: "codex", prompt: "P", model: nil, worktree: "/wt/r")
+        #expect(codex == [
+            "codex",
+            "exec",
+            "--sandbox",
+            "workspace-write",
+            "-C",
+            "/wt/r",
+            "-o",
+            "/wt/r/.heed/last-message.txt",
+            "P",
+        ])
+        #expect(ReviewRun.headless(agent: "cursor", command: "cursor-agent", prompt: "P", model: nil, worktree: "/w")
+            == nil)
+    }
+
+    @Test func theReviewIsTheFileElseTheLastMessage() {
+        let file = Data(#"{"summary": "from the file", "objections": []}"#.utf8)
+        #expect(ReviewRun.read(file: file, lastMessage: "x").report?.summary == "from the file")
+        let last = "All done.\n```json\n{\"summary\": \"from the reply\", \"objections\": []}\n```"
+        #expect(ReviewRun.read(file: nil, lastMessage: last).report?.summary == "from the reply")
+        #expect(ReviewRun.read(file: Data("broken".utf8), lastMessage: nil)
+            .failure == "its review.json is not a review")
+        #expect(ReviewRun.read(file: nil, lastMessage: "no json here").failure == "it wrote no review")
+    }
+
+    @Test func aBlockedGoalIsANote() {
+        let goal = HeedGoal(id: "g", title: "G", createdAt: t0)
+        let items = GoalAttention.items(
+            goals: [goal], qualities: [:], waiting: [:], blocked: ["g": "acme/x is not cloned on this Mac"], now: t0
+        )
+        #expect(items.map(\.reasons) == [[.goalReviewBlocked]])
+        #expect(items.first?.title.contains("not cloned") == true)
     }
 }

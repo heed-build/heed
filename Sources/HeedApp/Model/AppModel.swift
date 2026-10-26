@@ -5322,7 +5322,10 @@ final class AppModel {
             }
             await Git.removeWorktree(live.record, path: live.worktree, branch: live.branch)
             let read = ReviewRun.read(data)
-            await finishReview(live, report: read.report, failure: forced ?? read.failure)
+            await finishReview(
+                goal: live.goal, reviewer: live.reviewer, runID: live.runID, basis: live.basis, report: read.report,
+                failure: forced ?? read.failure
+            )
         }
     }
 

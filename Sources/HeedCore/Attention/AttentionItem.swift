@@ -31,6 +31,8 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case goalDone
     /// A goal's reviewers are due but its day's reviewer budget is spent: run them anyway, or wait for tomorrow.
     case goalBudget
+    /// A goal's reviewers have nowhere to run: the work is in a repo with no clone on this Mac.
+    case goalReviewBlocked
     /// One of your open PRs (or one a session tracks), whether or not anything about it wants you: My PRs lists it.
     case yourPR
     /// An open issue in a repo whose issues you watch (`[repos.x] issues = "all"`): the Issues filter lists it.
@@ -62,6 +64,7 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         case .goalAttach: "which goal?"
         case .goalDone: "goal done"
         case .goalBudget: "reviewers wait"
+        case .goalReviewBlocked: "reviewers blocked"
         case .yourPR: "your PR"
         case .watching: "watching"
         case .subscribed: "subscribed"

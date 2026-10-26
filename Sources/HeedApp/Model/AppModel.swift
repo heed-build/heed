@@ -158,7 +158,10 @@ final class AppModel {
             directory: URL(fileURLWithPath: "/Users/you/Library/Application Support/Heed"),
             heedBinary: "/Applications/Heed.app/Contents/Helpers/heed"
         )
-        : IntegrationFiles.default(heedBinary: Helper.path ?? "true")
+        : IntegrationFiles.default(
+            heedBinary: Helper.path ?? "true",
+            version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
+        )
     /// The latest hook events per session, newest first: shown in the inspector, not persisted (agents own history).
     private(set) var events: [String: [AgentEvent]] = [:]
     /// The subagents running in each session, by session id: in memory only, gone with the agent process. Every
@@ -2714,6 +2717,8 @@ final class AppModel {
     func applyGoalPointers() {
         let pointers = config.goals.tellAgents ? GoalPointer.bySession(goals.snapshot, files: goals.files) : [:]
         if settings.goalPointers != pointers { settings.goalPointers = pointers }
+        let plugin = config.goals.tellAgents ? integration.plugin : nil
+        if settings.goalPlugin != plugin { settings.goalPlugin = plugin }
     }
 
     func select(sessionID: String) {
@@ -4415,12 +4420,13 @@ final class AppModel {
         }
         // A goal in Attention: to the goal, its reviewers when they wait.
         if view == .attention, commandTarget == nil, let item = attentionSelected?.item, item.kind == .goal,
-           !item.reasons.isDisjoint(with: [.goalDone, .goalBudget, .goalReviewBlocked]),
+           !item.reasons.isDisjoint(with: [.goalDone, .goalBudget, .goalReviewBlocked, .goalSpawn]),
            let goal = GoalAttention.goal(of: item)
         {
             view = .goals
             goals.point(to: goal)
             if item.reasons.contains(.goalBudget), goals.pane != .reviewers { goals.toggleReviewers() }
+            if item.reasons.contains(.goalSpawn), goals.pane != .board { toggleGoalBoard() }
             return
         }
         if view == .attention, let item = attentionSelected?.item, item.kind == .goal {
@@ -6614,7 +6620,9 @@ final class AppModel {
             extraArguments: files.map {
                 AgentIntegration.launchArguments(
                     agent: agent, sessionID: agentSession, files: $0,
-                    signOff: settings.signOffArguments(agent: agent, repo: session.repos.first, session: session.id)
+                    signOff: settings.signOffArguments(
+                        agent: agent, repo: session.repos.first, session: session.id, host: session.host
+                    )
                 )
             } ?? [],
             environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]

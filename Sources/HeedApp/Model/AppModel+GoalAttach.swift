@@ -161,6 +161,7 @@ extension AppModel {
 
     /// `goal.ask.yes`: on the goal heed proposed; on a suggestion, the goal is made.
     func answerGoalYes() {
+        if let goal = heldSpawnGoal { return startHeldSpawns(goal) }
         switch attachTarget {
         case let .decision(decision): answerGoal(decision, .yes)
         case let .suggestion(suggestion): createSuggestedGoal(suggestion)
@@ -170,6 +171,7 @@ extension AppModel {
 
     /// `goal.ask.no`: not on that goal (heed learns); on a suggestion, it goes away.
     func answerGoalNo() {
+        if let goal = heldSpawnGoal { return dropHeldSpawns(goal) }
         switch attachTarget {
         case let .decision(decision): answerGoal(decision, .no)
         case let .suggestion(suggestion):

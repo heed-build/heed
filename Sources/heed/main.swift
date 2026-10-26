@@ -9,6 +9,33 @@ import HeedCore
 let environment = ProcessInfo.processInfo.environment
 let arguments = Array(CommandLine.arguments.dropFirst())
 
+// `heed goal …`: the goal this pane's session is on, over the control socket. The app runs every change through
+// GoalOps; this process only parses and prints. Exit codes in `GoalExit`.
+if arguments.first == "goal" {
+    if GoalCommandLine.wantsHelp(arguments) {
+        print(GoalCommandLine.usage)
+        exit(0)
+    }
+    let request: ControlRequest
+    do {
+        request = try GoalCommandLine.request(arguments, environment: environment)
+    } catch {
+        FileHandle.standardError.write(Data("\(error)\n".utf8))
+        exit(GoalExit.usage.rawValue)
+    }
+    let reply: ControlReply
+    do {
+        reply = try ControlClient().call(request)
+    } catch {
+        FileHandle.standardError.write(Data("heed goal: \(error)\n".utf8))
+        exit(GoalExit.unreachable.rawValue)
+    }
+    let result = GoalCommandLine.finish(reply, json: request.goal?.json == true)
+    if let out = result.out { print(out) }
+    if let err = result.err { FileHandle.standardError.write(Data((err + "\n").utf8)) }
+    exit(result.code)
+}
+
 // `heed sessions|watch|start|send|show`: the control socket, from a terminal or a script. Not a hook: no time limit.
 if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
     do {
@@ -31,7 +58,7 @@ if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
             while true {
                 try FileHandle.standardOutput.write(ControlCoding.line(client.next()))
             }
-        case .start, .send, .show:
+        case .start, .send, .show, .goal:
             print(reply.session ?? "")
         }
         exit(0)

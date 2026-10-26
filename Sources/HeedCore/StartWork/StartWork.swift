@@ -32,13 +32,18 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     /// What sessions on a goal are told (`GoalPointer`), by session id; empty unless `[goals] tell_agents`. Not
     /// config: the app sets it from the goals it holds.
     public var goalPointers: [String: String] = [:]
+    /// heed's plugin folder (`HeedPlugin`), for claude sessions on a goal; nil unless `[goals] tell_agents`. Not
+    /// config: the app sets it.
+    public var goalPlugin: String?
 
-    /// The launch arguments carrying what `agent` is told: the sign-off when it applies in `repo`, and `session`'s
-    /// goal pointer when it has one.
-    public func signOffArguments(agent: AgentProfile, repo: Repo?, session: String? = nil) -> [String] {
-        let pointer = session.flatMap { goalPointers[$0] }
-        return AgentInstructions.arguments(
-            agent: agent.name, [signOff.applies(to: repo) ? SignOff.instruction : nil, pointer].compactMap(\.self)
+    /// The launch arguments carrying what `agent` is told: the sign-off when it applies in `repo`, and, when
+    /// `session` is on a goal, the goal (`GoalLaunch`). `host`: where the session runs; heed's plugin is on this Mac.
+    public func signOffArguments(agent: AgentProfile, repo: Repo?, session: String? = nil, host: String? = nil)
+        -> [String]
+    {
+        GoalLaunch.arguments(
+            agent: agent.name, signOff: signOff.applies(to: repo) ? SignOff.instruction : nil,
+            pointer: session.flatMap { goalPointers[$0] }, plugin: host == nil ? goalPlugin : nil
         )
     }
 
@@ -643,7 +648,9 @@ public enum Reopen {
         // Reopening is explicit, so the only question is whether the agent can still resume its session.
         var command: ShellCommand?
         if let agent = settings.agent(session.agent) {
-            let signOff = settings.signOffArguments(agent: agent, repo: session.repos.first, session: session.id)
+            let signOff = settings.signOffArguments(
+                agent: agent, repo: session.repos.first, session: session.id, host: session.host
+            )
             let hooks = { (resuming: Bool) in
                 integration.map {
                     AgentIntegration.launchArguments(

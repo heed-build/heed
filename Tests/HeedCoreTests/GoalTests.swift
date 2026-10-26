@@ -315,7 +315,9 @@ struct GoalPointerTests {
         #expect(settings.signOffArguments(agent: claude, repo: nil, session: "s1")
             == ["--append-system-prompt", SignOff.instruction + " POINTER"])
         #expect(settings.signOffArguments(agent: codex, repo: nil, session: "s1")
-            == ["-c", "developer_instructions=" + TOMLValue.quote(SignOff.instruction + " POINTER")])
+            == ["-c", "developer_instructions=" + TOMLValue.quote(
+                SignOff.instruction + " POINTER " + GoalGuidance.instructions
+            )])
         #expect(AgentInstructions.arguments(agent: "gemini", ["x"]).isEmpty)
     }
 

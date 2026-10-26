@@ -38,8 +38,9 @@ work anywhere while Heed runs:
 | `heed start [--agent <name>] [--dir <path>] [--arg <word>]... [--focus] "<prompt>"` | Starts an agent on the prompt in `path` (here by default): as work in that worktree when Heed knows it, else as a chat in the folder, with each `--arg` added to its command line (an editor's MCP config, say). It starts off screen; `--focus` brings Heed forward on it. A worktree that already has a session is refused with that session's id |
 | `heed send <session> "<text>"` | Types the text into the session's agent and presses Return, only while the agent is idle or done and you have not just typed there; otherwise it says why and sends nothing |
 | `heed show [--focus] <session>` | Shows the session in Heed's window; `--focus` also brings Heed forward |
+| `heed goal <command>` | The goal the calling session is on: read it, record decisions, questions and items, check criteria with evidence, propose scope changes, spawn work. See [Agents keep the goal](../goals/cli.md) |
 
-Each line on the socket is one JSON object. A request has a `method` (`sessions`, `watch`, `start`, `send`, `show`), an
-`id` its reply echoes, and the fields the command takes (`directory`, `agent`, `prompt`, `arguments`, `session`, `text`, `focus`). A
-reply has `ok`, and `error`, `session` or `sessions`. After answering `watch`, Heed sends `{"event":"sessions",…}` each
+Each line on the socket is one JSON object. A request has a `method` (`sessions`, `watch`, `start`, `send`, `show`, `goal`), an
+`id` its reply echoes, and the fields the command takes (`directory`, `agent`, `prompt`, `arguments`, `session`, `text`, `focus`, `goal`). A
+reply has `ok`, and `error`, `session`, `sessions` or `goal`. After answering `watch`, Heed sends `{"event":"sessions",…}` each
 time a session's state, title or group changes.

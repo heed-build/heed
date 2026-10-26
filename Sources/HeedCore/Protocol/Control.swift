@@ -24,9 +24,11 @@ public enum HeedControl {
 ///   words for the agent's command line, such as an editor's MCP config), `focus`.
 /// - `send`: `session`, `text`. Typed into the agent's pane with Return, only while it is idle or done.
 /// - `show`: `session`, `focus`. Heed shows the session; it comes to the front only with `focus`.
+/// - `goal`: `goal` (a `heed goal` command), `session` (the calling pane's session, when there is one). Answered with
+///   `goal` in the reply.
 public struct ControlRequest: Codable, Equatable, Sendable {
     public enum Method: String, Codable, Sendable {
-        case sessions, watch, start, send, show
+        case sessions, watch, start, send, show, goal
     }
 
     public var id: Int?
@@ -38,10 +40,12 @@ public struct ControlRequest: Codable, Equatable, Sendable {
     public var arguments: [String]?
     public var text: String?
     public var focus: Bool?
+    public var goal: GoalCommand?
 
     public init(
         id: Int? = nil, method: Method, session: String? = nil, directory: String? = nil, agent: String? = nil,
-        prompt: String? = nil, arguments: [String]? = nil, text: String? = nil, focus: Bool? = nil
+        prompt: String? = nil, arguments: [String]? = nil, text: String? = nil, focus: Bool? = nil,
+        goal: GoalCommand? = nil
     ) {
         self.id = id
         self.method = method
@@ -52,6 +56,7 @@ public struct ControlRequest: Codable, Equatable, Sendable {
         self.arguments = arguments
         self.text = text
         self.focus = focus
+        self.goal = goal
     }
 }
 
@@ -116,10 +121,12 @@ public struct ControlReply: Codable, Equatable, Sendable {
     /// `sessions` and `watch`, and every `sessions` event.
     public var sessions: [ControlSession]?
     public var event: String?
+    /// `goal`: what the command did (its exit code, its words, what changed).
+    public var goal: GoalReply?
 
     public init(
         id: Int? = nil, ok: Bool = true, error: String? = nil, session: String? = nil,
-        sessions: [ControlSession]? = nil, event: String? = nil
+        sessions: [ControlSession]? = nil, event: String? = nil, goal: GoalReply? = nil
     ) {
         self.id = id
         self.ok = ok
@@ -127,6 +134,7 @@ public struct ControlReply: Codable, Equatable, Sendable {
         self.session = session
         self.sessions = sessions
         self.event = event
+        self.goal = goal
     }
 
     public static func failure(_ message: String, id: Int? = nil) -> ControlReply {
@@ -398,12 +406,13 @@ public enum ControlCommandLine {
            heed start [--agent <name>] [--dir <path>] [--arg <word>]... [--focus] "<prompt>"
            heed send <session> "<text>"                   (only while its agent is idle or done)
            heed show [--focus] <session>
+           heed goal <command>                            (the goal this session is on: heed goal --help)
     Talks to the app over \(HeedControl.defaultSocketPath()) (or $\(HeedControl.socketVariable)).
     """
 
     /// The request a command line makes; `directory` is where `start` runs when `--dir` is not given.
     public static func parse(_ arguments: [String], directory: String) throws -> ControlRequest {
-        guard let verb = arguments.first, let method = ControlRequest.Method(rawValue: verb) else {
+        guard let verb = arguments.first, let method = ControlRequest.Method(rawValue: verb), method != .goal else {
             throw HookCommandLine.UsageError(description: usage)
         }
         var request = ControlRequest(method: method)
@@ -437,6 +446,8 @@ public enum ControlCommandLine {
         case .show:
             guard words.count == 1 else { throw HookCommandLine.UsageError(description: usage) }
             request.session = words[0]
+        case .goal:
+            throw HookCommandLine.UsageError(description: GoalCommandLine.usage)
         }
         return request
     }

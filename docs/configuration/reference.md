@@ -260,7 +260,9 @@ keep_days = 30
 
 [goals]
 # Sessions and chats on a goal are told so when they start or resume (claude, codex): which goal, and to read its
-# GOAL.md first and keep to its Not the goal list. false: agents are not told.
+# GOAL.md first and keep to its Not the goal list. Claude gets heed's plugin (--plugin-dir) with the heed-goal
+# skill, codex the same guidance in its instructions: keep the goal with the heed goal command. false: agents are
+# not told.
 tell_agents = true
 # New sessions and chats find their goal on their own: from free signals (worktree and branch family, files, PRs,
 # the prompt against GOAL.md, repo, recency), and a cheap model call when those are unsure. At attach_auto or
@@ -277,6 +279,10 @@ auto_review = true
 reviewer_runs_per_day = 6
 # The agent reviewers run as. Empty: the agent of the goal's session the run's tab opens in.
 reviewer_agent = ""
+# heed goal item spawn: sessions (or background runs) an agent may start on a goal's items, at once and per day.
+# Past either, heed asks in Attention (y starts them, n drops them).
+spawn_concurrent = 2
+spawn_per_day = 6
 
 [goals.bars]
 # The lenses each kind of goal requires and the bar (0-10) each must reach before heed calls the goal done. A

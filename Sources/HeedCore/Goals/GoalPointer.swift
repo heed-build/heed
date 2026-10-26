@@ -1,8 +1,7 @@
 import Foundation
 
 /// What an agent working on a goal is told at launch and resume (`[goals] tell_agents`): which goal the work belongs
-/// to and where its `GOAL.md` is. Only the words live here; `AgentInstructions` carries them on the command line, so a
-/// later way of carrying them (a plugin with a skill, `claude --plugin-dir`) replaces that part and keeps these.
+/// to and where its `GOAL.md` is. Only the words live here; `GoalLaunch` decides how they travel.
 public enum GoalPointer {
     /// One or two plain sentences. No quotes, backticks, dollars or backslashes, so it reads the same in every shell
     /// and in TOML.
@@ -37,6 +36,27 @@ public enum AgentInstructions {
         case "claude": ["--append-system-prompt", text]
         case "codex": ["-c", "developer_instructions=" + TOMLValue.quote(text)]
         default: []
+        }
+    }
+}
+
+/// How an agent on a goal is told so at launch and resume. Claude loads heed's plugin (`--plugin-dir`), whose
+/// `heed-goal` skill says how to keep the goal and finds it with `heed goal show`, so it needs no pointer text. Codex
+/// takes no per-session plugin (plugins are installed), so it gets the pointer and the same guidance as instructions
+/// (`GoalGuidance.instructions`). Without the plugin (a host, which does not have it) claude gets the pointer.
+public enum GoalLaunch {
+    public static func arguments(agent: String, signOff: String?, pointer: String?, plugin: String?) -> [String] {
+        guard let pointer else { return AgentInstructions.arguments(agent: agent, [signOff].compactMap(\.self)) }
+        switch agent {
+        case "claude" where plugin != nil:
+            return ["--plugin-dir", plugin ?? ""]
+                + AgentInstructions.arguments(agent: agent, [signOff].compactMap(\.self))
+        case "codex":
+            return AgentInstructions.arguments(
+                agent: agent, [signOff, pointer, GoalGuidance.instructions].compactMap(\.self)
+            )
+        default:
+            return AgentInstructions.arguments(agent: agent, [signOff, pointer].compactMap(\.self))
         }
     }
 }

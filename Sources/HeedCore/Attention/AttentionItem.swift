@@ -33,6 +33,8 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case goalBudget
     /// A goal's reviewers have nowhere to run: the work is in a repo with no clone on this Mac.
     case goalReviewBlocked
+    /// An agent asked to spawn work on a goal's items past the goal's cap (`heed goal item spawn`): y starts it.
+    case goalSpawn
     /// One of your open PRs (or one a session tracks), whether or not anything about it wants you: My PRs lists it.
     case yourPR
     /// An open issue in a repo whose issues you watch (`[repos.x] issues = "all"`): the Issues filter lists it.
@@ -65,6 +67,7 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         case .goalDone: "goal done"
         case .goalBudget: "reviewers wait"
         case .goalReviewBlocked: "reviewers blocked"
+        case .goalSpawn: "spawns wait"
         case .yourPR: "your PR"
         case .watching: "watching"
         case .subscribed: "subscribed"
@@ -179,6 +182,8 @@ public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
             "heed marked the goal done: every criterion has evidence and every lens is at its bar. :goal.reopen undoes it."
         case .goal where reasons.contains(.goalBudget):
             "Reviewers were due but the goal's reviewer runs for today are spent: ↩ shows them, r runs them anyway."
+        case .goal where reasons.contains(.goalSpawn):
+            "An agent asked heed to start work on the goal's items, past the goal's spawn cap: y starts it, n drops it."
         case .goal where reasons.contains(.goalReviewBlocked):
             "The goal's reviewers have nowhere to run: its repo is not cloned on this Mac."
         case .goal: "Changes to the goal's GOAL.md the work suggests: ↩ shows them."

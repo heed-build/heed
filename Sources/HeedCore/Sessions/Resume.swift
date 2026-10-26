@@ -68,7 +68,9 @@ public enum Resume {
         domain.sessions.compactMap { session -> ResumeCandidate? in
             guard !session.parked, let agent = settings.agent(session.agent) else { return nil }
             let panes = domain.layouts[session.id]?.tabs.flatMap(\.tree.panes).count ?? 0
-            let signOff = settings.signOffArguments(agent: agent, repo: session.repos.first, session: session.id)
+            let signOff = settings.signOffArguments(
+                agent: agent, repo: session.repos.first, session: session.id, host: session.host
+            )
             let extra = integration.map {
                 AgentIntegration.launchArguments(
                     agent: agent, sessionID: session.id, files: $0, resuming: true, signOff: signOff

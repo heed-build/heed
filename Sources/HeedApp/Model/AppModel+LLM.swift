@@ -54,11 +54,19 @@ extension AppModel {
         return try await llm.run(request)
     }
 
-    /// A Decider over heed's model calls, for `caller` (`attention.rank`): what plans 6 and 7 ask questions with.
-    func decider(caller: String, priority: LLMRequest.Priority = .background) -> LLMDecider {
-        LLMDecider(caller: caller, priority: priority) { [weak self] request in
-            guard let self else { throw LLMError.disabled }
-            return try await runLLM(request)
+    /// The Decider `[decisions] decider` chooses (`choice` instead: Settings' test of one not saved yet), for `caller`
+    /// (`attention.rank`): Apple's on-device model, heed's model calls, or none.
+    func decider(
+        caller: String, priority: LLMRequest.Priority = .background, choice: DecisionSettings.Choice? = nil
+    ) -> any Decider {
+        switch choice ?? config.decisions.effective {
+        case .off: OffDecider()
+        case .local: localDecider(caller: caller)
+        case .model:
+            LLMDecider(caller: caller, priority: priority) { [weak self] request in
+                guard let self else { throw LLMError.disabled }
+                return try await runLLM(request)
+            }
         }
     }
 

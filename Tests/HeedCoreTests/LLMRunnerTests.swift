@@ -129,6 +129,36 @@ struct LLMRunnerTests {
         #expect(fakes[0].calls == ["q0", "q3"] && fakes[1].calls == ["q1"])
     }
 
+    @Test func oneAgentChosenTakesEveryCall() async throws {
+        let fakes = try [FakeCLI(), FakeCLI()]
+        var settings = LLMSettings()
+        settings.agent = "cursor"
+        let runner = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings)
+        for index in 0 ..< 3 {
+            #expect(try await runner.run(ask("q\(index)")).agent == "cursor")
+        }
+        #expect(fakes[0].calls.isEmpty && fakes[1].calls == ["q0", "q1", "q2"])
+        // Its test of another agent still goes to that one.
+        #expect(try await runner.run(ask("t", agent: "claude")).agent == "claude")
+    }
+
+    @Test func autoTakesTurnsAndAChosenAgentDownFailsTheCall() async throws {
+        let fakes = try [FakeCLI(), FakeCLI()]
+        var settings = LLMSettings()
+        settings.agent = "auto"
+        let both = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings)
+        #expect(try await [both.run(ask("a")).agent, both.run(ask("b")).agent] == ["claude", "cursor"])
+        try fakes[1].set("login", "out")
+        settings.agent = "cursor"
+        let one = runner([fakes[0].agent("claude"), fakes[1].agent("cursor")], settings: settings)
+        await #expect(throws: LLMError.noAgent(reasons: ["cursor: not logged in"])) { try await one.run(ask("c")) }
+        settings.agent = "gemini"
+        let missing = runner([fakes[0].agent("claude")], settings: settings)
+        await #expect(throws: LLMError.noAgent(reasons: ["gemini: no such agent"])) {
+            try await missing.run(ask("d"))
+        }
+    }
+
     @Test func anAgentTurnedOffIsNeverPicked() async throws {
         let fakes = try [FakeCLI(), FakeCLI()]
         var settings = LLMSettings()

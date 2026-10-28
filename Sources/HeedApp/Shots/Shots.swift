@@ -504,6 +504,28 @@ enum Shots {
             prepare: { $0.settingsScope = .repo(Fixtures.longNamedRepo) }
         ),
         Shot(id: "configuration/settings-hosts", subject: .settings(.hosts), size: CGSize(width: 1000, height: 820)),
+        // Settings › Inference & decisions as a first launch finds it: nothing chosen, the one-click setup on top.
+        Shot(
+            id: "configuration/inference-not-configured", subject: .settings(.inference),
+            size: CGSize(width: 1100, height: 1060)
+        ),
+        // The same once set up: claude for model calls, the on-device model for decisions, both tested.
+        Shot(
+            id: "configuration/inference-configured", subject: .settings(.inference),
+            size: CGSize(width: 1100, height: 1000),
+            prepare: { model in
+                model.applyConfig(source: "[llm]\nagent = \"claude\"\n[decisions]\ndecider = \"local\"\n")
+                model.llmTests["claude"] = LLMTest(
+                    answer: "Hello there!", model: "claude-haiku", seconds: 2.4, cost: 0.00031
+                )
+                model.decisionTest = DecisionTest(answer: "done (confidence 90%)", seconds: 0.6)
+            }
+        ),
+        // The title bar's reminder while model calls and decisions are not set up.
+        Shot(
+            id: "configuration/inference-reminder", crop: .titleBar,
+            prepare: { $0.inferenceReminderInShots = true }
+        ),
         Shot(
             id: "configuration/attention-rules", subject: .settings(.attention), size: CGSize(
                 width: 1180,

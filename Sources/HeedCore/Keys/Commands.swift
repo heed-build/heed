@@ -194,9 +194,16 @@ public enum Commands {
         .init("app.quit", "quit Heed", .views),
         .init(
             "settings.open",
-            "open Settings, on a section (general, agents, colors, cleanup, pilot, attention, keys, hosts)",
+            "open Settings, on a section (general, agents, inference, colors, cleanup, pilot, attention, keys, hosts)",
             .views,
             arguments: "[section]"
+        ),
+        .init(
+            "inference.setup", "set up heed's model calls and decisions (Settings › Inference & decisions)", .views
+        ),
+        .init(
+            "inference.hide", "hide the title bar's model call setup reminder until the next launch (always: for good)",
+            .views, arguments: "[always]"
         ),
         .init("app.activate", "bring Heed's window to the front, as the global shortcut does", .views),
         .init("welcome", "show the getting-started checks again", .views),

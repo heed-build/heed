@@ -420,9 +420,13 @@ public actor LLMRunner {
         return nil
     }
 
+    /// The one agent a call may go to: the request's own (Settings' Test), else `[llm] agent` when it names one.
+    private func only(_ request: LLMRequest) -> String? { request.agent ?? settings.only }
+
     /// The candidates in round-robin order: starting after the agent picked last.
     private func rotation(_ request: LLMRequest) -> [AgentProfile] {
-        let callable = agents.filter { LLMDialect.of($0) != nil && (request.agent == nil || $0.name == request.agent) }
+        let only = only(request)
+        let callable = agents.filter { LLMDialect.of($0) != nil && (only == nil || $0.name == only) }
         guard let last = lastPicked, let index = callable.firstIndex(where: { $0.name == last }) else {
             return callable
         }
@@ -433,8 +437,9 @@ public actor LLMRunner {
         var reasons: [String] = []
         var budgetOnly = true
         var ranAny = false
-        if request.agent != nil, !agents.contains(where: { $0.name == request.agent }) {
-            reasons.append("\(request.agent!): no such agent")
+        if let only = only(request), !agents.contains(where: { $0.name == only }) {
+            reasons.append("\(only): no such agent")
+            budgetOnly = false
         }
         for agent in rotation(request) {
             if let skip = await skipReason(agent, priority: request.priority) {

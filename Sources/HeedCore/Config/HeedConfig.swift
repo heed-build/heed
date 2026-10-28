@@ -44,6 +44,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var log = CallRetention()
     /// `[llm]`, and `llm` / `llm_model` in `[agents.<name>]`: heed's own model calls.
     public var llm = LLMSettings()
+    /// `[decisions]`: who answers heed's typed questions (Settings › Inference & decisions).
+    public var decisions = DecisionSettings()
     /// `[local]`: what heed keeps on this Mac to learn local decisions from (screen snapshots). Off by default.
     public var local = LocalSettings()
     /// `[start_work]`: whether the on-device model helps Start work guess.
@@ -102,6 +104,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.usage == rhs.usage,
             lhs.log == rhs.log,
             lhs.llm == rhs.llm,
+            lhs.decisions == rhs.decisions,
             lhs.local == rhs.local,
             lhs.startWork == rhs.startWork,
             lhs.goals == rhs.goals,
@@ -691,6 +694,19 @@ public enum ConfigLoader {
                 ))
             }
         }
+        if let name = string(["llm", "agent"]) {
+            let trimmed = name.trimmingCharacters(in: .whitespaces)
+            config.llm.agent = trimmed.isEmpty ? nil : trimmed
+        }
+        if let flag = bool(["llm", "setup_reminder"]) { config.llm.setupReminder = flag }
+        // [decisions]
+        if let text = string(["decisions", "decider"]), !text.trimmingCharacters(in: .whitespaces).isEmpty {
+            if let choice = DecisionSettings.Choice(rawValue: text.trimmingCharacters(in: .whitespaces).lowercased()) {
+                config.decisions.decider = choice
+            } else {
+                problems.append(ConfigProblem(path: "decisions.decider", message: "expected local, model or off"))
+            }
+        }
         // [local]
         if let flag = bool(["local", "record_screens"]) { config.local.recordScreens = flag }
         if let days = integer(["local", "keep_days"], range: 1 ... 365) { config.local.keepDays = days }
@@ -1025,6 +1041,17 @@ public enum ConfigLoader {
     # (counted where a cost is known: reported by the agent, or estimated from [usage.prices]). 0: no cap.
     daily_calls = 100
     daily_dollars = 1.0
+    # Which agent takes the calls: "auto" (every usable one, taking turns) or one name ("claude"). Unset: not chosen
+    # yet; calls take turns, and the title bar reminds you to set it up (Settings › Inference & decisions).
+    # agent = "auto"
+    # false: no reminder on launch while model calls or decisions are not set up, or their last test failed.
+    setup_reminder = true
+
+    [decisions]
+    # Who answers heed's typed questions (Attention's suggested weights, goal items, quality profiles): "local"
+    # (Apple's on-device model, free and on this Mac only, macOS 26 with Apple Intelligence), "model" (a model call
+    # through [llm]) or "off". Unset: a model call, and the title bar reminds you to choose.
+    # decider = "local"
 
     [local]
     # Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,

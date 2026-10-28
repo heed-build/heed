@@ -278,6 +278,18 @@ public extension GoalOps {
         }
     }
 
+    /// Lays a running fixture over the run it continues: the run as it is now, the rows after approval, the evidence
+    /// its workers left.
+    func adopt(running world: SwarmFixtures.RunningWorld) throws {
+        try store.save(world.swarm)
+        for row in world.steering {
+            _ = try store.add(row)
+        }
+        for entry in world.evidence {
+            _ = try addEvidence(entry)
+        }
+    }
+
     // MARK: Inside
 
     internal func existing(_ id: String) throws -> GoalSwarm {

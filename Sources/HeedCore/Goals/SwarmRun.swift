@@ -296,6 +296,12 @@ public enum SwarmScheduler {
         public var task: String
         public var base: String
         public var stackedOn: String?
+
+        public init(task: String, base: String, stackedOn: String? = nil) {
+            self.task = task
+            self.base = base
+            self.stackedOn = stackedOn
+        }
     }
 
     public struct Schedule: Hashable, Sendable {

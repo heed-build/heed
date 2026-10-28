@@ -149,10 +149,12 @@ public enum DefaultKeys {
         ]),
         // A goal's swarm (S): e edits the task, a adds one, J K move it, x drops it, r asks the lead to re-plan, c
         // answers its question, A approves, n says no to a change waiting, d the version's whole diff, u restores it.
+        // Once it runs: p pauses or resumes the task, t hands it to another agent, s opens its worker's tab.
         "goalplan": goalsWith([
             ("e", "swarm.task.edit"), ("a", "swarm.task.add"), ("J", "swarm.task.move 1"), ("K", "swarm.task.move -1"),
             ("x", "swarm.task.drop"), ("r", "swarm.replan"), ("c", "swarm.answer"), ("A", "swarm.approve"),
-            ("n", "swarm.reject"), ("d", "swarm.diff"), ("u", "swarm.restore"),
+            ("n", "swarm.reject"), ("d", "swarm.diff"), ("u", "swarm.restore"), ("p", "swarm.task.pause"),
+            ("t", "swarm.task.swap"), ("s", "swarm.task.open"),
         ]),
         "goaldoc": goalsWith([
             ("y", "goal.proposal.accept"), ("n", "goal.proposal.reject"), ("c", "goal.proposal.edit"),

@@ -43,7 +43,10 @@ private func pull(
     failed: Int = 0, pending: Int = 0, repo: String = "acme/site"
 ) -> PullRequest {
     PullRequest(
-        ref: PullRef(repo: Repo(org: String(repo.split(separator: "/")[0]), name: String(repo.split(separator: "/")[1])), number: number), title: "PR \(number)", url: "", state: state,
+        ref: PullRef(
+            repo: Repo(org: String(repo.split(separator: "/")[0]), name: String(repo.split(separator: "/")[1])),
+            number: number
+        ), title: "PR \(number)", url: "", state: state,
         isDraft: draft, headBranch: branch, review: nil,
         checks: CheckSummary(passed: passed, failed: failed, pending: pending), unresolvedThreads: 0, updatedAt: now
     )
@@ -277,6 +280,9 @@ struct SwarmStatusTests {
         #expect(limits.raised(.hours).dollars == 40)
         #expect(limits.raised(.dollars).dollars == 60)
         #expect(SwarmSettings.Limits(hours: 1, dollars: 3).raised(.hours).hours == 2)
+        // A zero limit still gets something.
+        #expect(SwarmSettings.Limits(hours: 0, dollars: 0).raised(.hours).hours == 1)
+        #expect(SwarmSettings.Limits(hours: 0, dollars: 0).raised(.dollars).dollars == 5)
         #expect(SwarmSettings.Limits(hours: 1, dollars: 3).raised(.dollars).dollars == 8)
         #expect(SwarmSettings.Limits(hours: 3, dollars: 30).raised(.hours).hours == 5)
         #expect(SwarmSettings.Limits(hours: 3, dollars: 33).raised(.dollars).dollars == 53)
@@ -321,8 +327,11 @@ struct SwarmFactsTests {
         #expect(SwarmFacts.pullFacts(branches: ["b"], refs: [], repos: [], pulls: [pull(2, branch: "b", passed: 0)])
             == .open(number: 2, branch: "b", checks: .running))
         #expect(SwarmFacts.pullFacts(
-            branches: ["b"], refs: [], repos: [], pulls: [pull(2, branch: "b", state: .merged), pull(5, branch: "b",
-                                                                                                    state: .closed)]
+            branches: ["b"], refs: [], repos: [], pulls: [pull(2, branch: "b", state: .merged), pull(
+                5,
+                branch: "b",
+                state: .closed
+            )]
         ) == .merged(number: 2))
     }
 
@@ -479,10 +488,10 @@ struct SwarmRunOpsTests {
          {"id": "b", "title": "B", "phase": "Build", "owner": "claude", "after": ["a"]}]
         """, goal: goal.id), now: now)
         try await ops.approvePlan(swarm: started.id, now: now)
-        return (ops, try await ops.board(of: started.id).swarm)
+        return try await (ops, ops.board(of: started.id).swarm)
     }
 
-    private func worker(_ run: GoalSwarm, task: String, id: String) -> SwarmWorker {
+    private func worker(_: GoalSwarm, task: String, id: String) -> SwarmWorker {
         SwarmWorker(
             id: id, task: "faster-builds/\(task)", owner: GoalItem.Owner(agent: "claude"), host: "lead",
             repo: "acme/site", branch: "swarm/faster-builds/\(task)", base: "main", worktree: "/wt/\(task)",
@@ -492,8 +501,12 @@ struct SwarmRunOpsTests {
 
     @Test func workersAreRecordedOnTheRunTheirItemAndTheLog() async throws {
         let (ops, run) = try await world()
-        try await ops.startWorker(swarm: run.id, worker(run, task: "a", id: "w1"), text: "1.1 A: claude from main",
-                                  now: now)
+        try await ops.startWorker(
+            swarm: run.id,
+            worker(run, task: "a", id: "w1"),
+            text: "1.1 A: claude from main",
+            now: now
+        )
         try await ops.advanceSwarm(run.id, to: .running, now: now)
         var board = try await ops.board(of: run.id)
         #expect(board.swarm.status == .running)
@@ -501,7 +514,7 @@ struct SwarmRunOpsTests {
         #expect(board.swarm.liveWorkers.map(\.id) == ["w1"])
         let item = try #require(try await ops.snapshot().item("faster-builds/a"))
         #expect(item.linked(.branch) == ["swarm/faster-builds/a"])
-        #expect(Board.column(item, evidence: try await ops.snapshot().evidence) == .working)
+        #expect(try await Board.column(item, evidence: ops.snapshot().evidence) == .working)
         let ended = try await ops.endWorker(swarm: run.id, worker: "w1", outcome: .turnOver, cost: 1.25, now: now + 60)
         #expect(ended?.outcome == .turnOver)
         #expect(try await ops.endWorker(swarm: run.id, worker: "w1", outcome: .stopped, cost: nil, now: now) == nil)
@@ -574,8 +587,13 @@ struct SwarmRunOpsTests {
         try await ops.setLead(swarm: swarm.id, session: "lead", now: now)
         let worker = GoalCaller(session: "lead", title: "Lead", worker: "faster-builds/a")
         func send(_ command: GoalCommand) async -> GoalReply? {
-            if case let .reply(reply) = await GoalControl.run(command, caller: worker, ops: ops, files: .fixture,
-                                                                now: now) { return reply }
+            if case let .reply(reply) = await GoalControl.run(
+                command,
+                caller: worker,
+                ops: ops,
+                files: .fixture,
+                now: now
+            ) { return reply }
             return nil
         }
         let checked = await send(GoalCommand(.criterionCheck, subject: "1", evidence: "swift build", item: "a"))

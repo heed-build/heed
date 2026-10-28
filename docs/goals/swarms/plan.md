@@ -30,6 +30,7 @@ agents.
 | `n` | Say no to the change waiting for you |
 | `d` | The version under the cursor's whole diff; again, its first lines |
 | `u` | Restore the version under the cursor, as a new version |
+| `p` `t` `s` | Once it runs: pause the task, hand it to another agent, its worker's tab ([Running](running.md)) |
 
 Everything takes the mouse too: a click puts the cursor on a task, a double-click edits it, a right-click offers what
 the keys do; a click on a question's choice answers with it.
@@ -52,7 +53,8 @@ idle and you have not typed there, heed also tells it there is something to read
 
 `A` approves the plan. Its tasks become the goal's items, with source `swarm` and the plan's owner, phase, estimate,
 after and done when; items already on the goal that the lead took into the plan keep their history and gain those
-fields. They show on the board and in the overview's matrix like any other item. Nothing runs yet.
+fields. They show on the board and in the overview's matrix like any other item, and workers start on the ready ones
+([Running](running.md)).
 
 ![An approved plan](../../images/shots/goals/swarm-approved.png)
 

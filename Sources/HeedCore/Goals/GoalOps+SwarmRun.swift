@@ -25,7 +25,16 @@ public extension GoalOps {
             )
         case .planning, .done, .stopped: (.start, status.rawValue, nil)
         }
-        return try setStatus(id, to: status, actor: .heed, kind: kind, text: text, reason: reason, limit: limit, now: now)
+        return try setStatus(
+            id,
+            to: status,
+            actor: .heed,
+            kind: kind,
+            text: text,
+            reason: reason,
+            limit: limit,
+            now: now
+        )
     }
 
     /// You pause the run: nothing more starts; workers at work finish their turn.

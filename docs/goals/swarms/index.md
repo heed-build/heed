@@ -1,5 +1,5 @@
 ---
-description: "Swarms: a goal worked by several agents at once. A lead agent drafts a plan, you change and approve it, and nothing runs before you do."
+description: "Swarms: a goal worked by several agents at once. A lead agent drafts a plan, you change and approve it, and workers run its tasks side by side."
 ---
 
 # Swarms
@@ -14,8 +14,8 @@ normal goal, and a follow-up swarm is the next run on the same goal. Old runs st
 steering.
 
 :::{note}
-This is the first part of swarms: describing, planning and approving. Nothing runs yet: approving a plan puts its
-tasks on the goal's board, and workers starting on them comes in a later heed.
+Swarms come in parts. This heed plans, approves and runs: workers start on ready tasks and open their pull requests
+([Running](running.md)). Merge order, answering workers' questions and the map come later.
 :::
 
 ## Starting one
@@ -54,9 +54,11 @@ other.
 ## On the goal's page
 
 The goal's overview shows its swarm: its state and plan version, the tasks and estimate, what waits for you, and past
-runs. `S` opens the swarm's plan ([The plan](plan.md)); `S` again goes back. The goal's row in the list says `swarm
-planning` or `swarm approved` while one is going.
+runs; once it runs, its progress (tasks done of all) and its agents at work against the cap. `S` opens the swarm's
+plan ([The plan](plan.md)); `S` again goes back. The goal's row in the list says `swarm planning`, `swarm approved`,
+`swarm running` and so on while one is going.
 
 ![A goal's swarm on its overview](../../images/shots/goals/swarm-goal-page.png)
 
-`:swarm.stop` ends the goal's swarm: nothing more starts, and its plan and steering stay readable.
+`:swarm.stop` ends the goal's swarm: nothing more starts, its workers' tabs close (their worktrees stay), and its plan
+and steering stay readable.

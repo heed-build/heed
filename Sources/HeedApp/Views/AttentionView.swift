@@ -369,6 +369,13 @@ private struct AttentionDetail: View {
                 }
                 section("Do something") {
                     VStack(alignment: .leading, spacing: 7) {
+                        if item.reasons.contains(.swarmAsk) {
+                            HStack(spacing: 14) {
+                                action("goal.ask.yes", "raise the limit, go on", item: item.id)
+                                action("goal.ask.no", "keep it paused", item: item.id)
+                                action("open.reader", "its plan", item: item.id)
+                            }
+                        }
                         if item.reasons.contains(.readyToMerge) {
                             HStack(spacing: 14) {
                                 action("pilot.merge.now", "merge now", item: item.id)

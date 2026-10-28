@@ -242,7 +242,12 @@ public enum ContextMenus {
     }
 
     /// A task in a swarm's plan: `task:<item id>`.
-    public static func swarmTask(id: String, title: String, first: Bool, last: Bool, active: Bool) -> [MenuEntry] {
+    /// `running`: the run has started work, so the task can be paused, swapped to another agent (`agents`, but its
+    /// own) and its worker's tab opened (`working`).
+    public static func swarmTask(
+        id: String, title: String, first: Bool, last: Bool, active: Bool, running: Bool = false,
+        paused: Bool = false, working: Bool = false, owner: String? = nil, agents: [String] = []
+    ) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: "task:\(id)")
         func item(_ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true) -> MenuItem {
             MenuItem(
@@ -252,6 +257,16 @@ public enum ContextMenus {
             )
         }
         var menu = Menu(header: title)
+        if running {
+            menu.section([
+                item("Its worker's tab", "swarm.task.open", enabled: working),
+                item(paused ? "Resume it" : "Pause it", "swarm.task.pause"),
+            ])
+            let others = agents.filter { $0 != owner }
+            if !others.isEmpty {
+                menu.section(others.map { item("Hand it to \($0)", "swarm.task.swap", [$0]) })
+            }
+        }
         menu.section([item("Edit…", "swarm.task.edit"), item("Add a task after it…", "swarm.task.add")])
         menu.section([
             item("Move up", "swarm.task.move", ["-1"], enabled: !first),

@@ -2,8 +2,8 @@ import Foundation
 import HeedCore
 
 /// Swarms: a goal in swarm mode. The new swarm form, the lead's session (Start work's machinery, on the goal with
-/// origin swarm), and every act in the plan pane, each through `GoalOps` and each a steering row. In this stage
-/// nothing else runs: no worker starts before a later heed.
+/// origin swarm), and every act in the plan pane, each through `GoalOps` and each a steering row. Workers on the
+/// approved plan start in `AppModel+SwarmRun`.
 extension AppModel {
     // MARK: Moving
 
@@ -230,15 +230,18 @@ extension AppModel {
         }
     }
 
-    /// `swarm.approve`: the change waiting for you, else the plan. Its tasks become the goal's items; nothing runs.
+    /// `swarm.approve`: the change waiting for you, else the plan. Its tasks become the goal's items, and workers
+    /// start on the ones that are ready.
     func approvePlan() {
         guard let board = needSwarm() else { return }
         let id = board.swarm.id
         let now = Clock.now
         planOp {
             try await $0.approvePlan(swarm: id, now: now)
-        } said: { version in
-            "approved plan v\(version.number): \(version.tasks.count) tasks on the board; workers start in a later heed"
+        } said: { [weak self] version in
+            self?.tickSwarms()
+            return "approved plan v\(version.number): \(version.tasks.count) tasks on the board; workers start as "
+                + "their tasks are ready"
         }
     }
 
@@ -299,6 +302,8 @@ extension AppModel {
         guard let board = needSwarm() else { return }
         guard let task = goals.selectedTask else { return say("no task here") }
         let number = SwarmPlan.numbers(board.tasks)[task.id] ?? ""
+        // Its worker stops with it; its worktree and branch stay.
+        if let live = liveWorker(on: task.id) { endWorker(live.id, .stopped, then: {}) }
         changePlan(
             board, SwarmPlan.drop(goals.planTasks, id: task.id), kind: .drop, text: "dropped \(number) \(task.title)",
             follow: nil
@@ -365,16 +370,23 @@ extension AppModel {
         }
     }
 
-    /// `swarm.stop`: the goal's swarm ends; its plan and steering stay readable, the goal carries on.
+    /// `swarm.stop`: the goal's swarm ends; its workers' tabs close (their worktrees and branches stay until you
+    /// clean them up), its plan and steering stay readable, the goal carries on.
     func stopSwarm() {
         guard let goal = goals.selected else { return say("no goal here") }
         guard let swarm = goals.snapshot.activeSwarm(of: goal.id)
         else { return say("\(goal.title) has no swarm going") }
-        let now = Clock.now
-        planOp {
-            try await $0.stopSwarm(swarm.id, now: now)
-        } said: { _ in
-            "swarm \(swarm.number) on \(goal.title) stopped: its plan and steering stay here"
+        let workers = liveWorkers.values.count { $0.swarm == swarm.id }
+        stopSwarmWorkers(swarm) { [weak self] result in
+            switch result {
+            case .success:
+                self?.say(
+                    "swarm \(swarm.number) on \(goal.title) stopped"
+                        + (workers == 0 ? "" : ", \(workers) worker\(workers == 1 ? "" : "s") with it (worktrees kept)")
+                        + ": its plan and steering stay here"
+                )
+            case let .failure(error): self?.say("\(error)")
+            }
         }
     }
 
@@ -498,9 +510,12 @@ extension AppModel {
         let tasks = goals.planTasks
         guard tasks.indices.contains(index), let board = goals.board else { return [] }
         let task = tasks[index]
+        let state = swarmSchedule(board)?.states[task.id]?.state
         return ContextMenus.swarmTask(
             id: task.id, title: task.title, first: index == 0, last: index == tasks.count - 1,
-            active: board.swarm.status.active
+            active: board.swarm.status.active, running: board.swarm.approved != nil,
+            paused: state == .paused || state == .stalled, working: liveWorker(on: task.id) != nil,
+            owner: task.owner?.agent, agents: swarmAgents
         )
     }
 

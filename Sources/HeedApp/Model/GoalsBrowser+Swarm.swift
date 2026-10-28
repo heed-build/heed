@@ -179,4 +179,36 @@ extension GoalsBrowser {
         if focus == .tasks, planTasks.isEmpty { focus = .goals }
         if focus == .versions, (board?.versions ?? []).isEmpty { focus = .goals }
     }
+
+    /// The fake world's anchors run once its workers are going, laid over the approved one: at once for what is drawn,
+    /// and into the in-memory store once the fake world is in it.
+    func loadRunningFixture(_ variant: SwarmFixtures.Running) -> SwarmFixtures.RunningWorld {
+        let world = SwarmFixtures.running(variant)
+        var fresh = snapshot
+        fresh.swarms = fresh.swarms.filter { $0.id != world.swarm.id } + [world.swarm]
+        fresh.evidence += world.evidence
+        apply(fresh)
+        fixturePulls = world.pulls
+        if var board = boards[world.swarm.id] {
+            var next = (board.steering.compactMap(\.id).max() ?? 0) + 1
+            for var row in world.steering {
+                row.id = next
+                next += 1
+                board.steering.append(row)
+            }
+            board.swarm = world.swarm
+            boards[world.swarm.id] = board
+        }
+        selectBoard()
+        if let ops {
+            let load = fixtureLoad
+            Task {
+                await load?.value
+                try? await ops.adopt(running: world)
+                if let snapshot = try? await ops.snapshot() { apply(snapshot) }
+                await reloadBoard()
+            }
+        }
+        return world
+    }
 }

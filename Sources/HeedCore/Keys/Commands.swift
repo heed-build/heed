@@ -349,9 +349,25 @@ public enum Commands {
             "swarm.stop", "stop the goal's swarm: nothing more starts, its plan and steering stay readable", .selection
         ),
         .init(
+            "swarm.pause",
+            "pause the goal's swarm (again: resume): nothing more starts, workers at work finish their turn",
+            .selection
+        ),
+        .init(
             "swarm.approve", "approve the swarm's plan (or the change waiting for you): its tasks become items",
             .selection
         ),
+        .init(
+            "swarm.task.pause",
+            "pause the swarm task under the cursor (again: resume): its worker stops, its worktree stays",
+            .selection
+        ),
+        .init(
+            "swarm.task.swap",
+            "hand the swarm task under the cursor to another agent; a working worker hands over its worktree",
+            .selection, arguments: "<agent[:model]>"
+        ),
+        .init("swarm.task.open", "the swarm task under the cursor's worker: its tab", .selection),
         .init(
             "swarm.reject",
             "no to the plan change waiting for you; the lead hears why",

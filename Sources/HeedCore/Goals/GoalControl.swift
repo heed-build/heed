@@ -395,7 +395,14 @@ public enum GoalControl {
                 now: now
             ))
         case .criterionCheck where command.item != nil:
-            return try await .reply(checkTask(command, goal: goal, caller: caller, snapshot: snapshot, ops: ops, now: now))
+            return try await .reply(checkTask(
+                command,
+                goal: goal,
+                caller: caller,
+                snapshot: snapshot,
+                ops: ops,
+                now: now
+            ))
         case .criterionCheck:
             let doc = try await GoalDoc.parse(ops.text(of: goal.id))
             let subject = command.subject ?? ""

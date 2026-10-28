@@ -56,6 +56,131 @@ public enum SwarmFixtures {
         }
     }
 
+    /// The anchors goal's run once its workers are going: as shots and previews load it over the approved one.
+    public enum Running: Sendable {
+        /// Two workers at work, both stacked on 1.1's open PR; 1.2 merged and done.
+        case running
+        /// The same, paused at its 4 h limit, asking you for more.
+        case pausedAtLimit
+    }
+
+    /// What a running fixture lays over the approved run: the run as it is now, the steering rows that came after
+    /// approval (no ids yet), the evidence its workers left, and the PRs they opened.
+    public struct RunningWorld: Sendable {
+        public var swarm: GoalSwarm
+        public var steering: [SwarmSteer]
+        public var evidence: [GoalEvidence]
+        public var pulls: [PullRequest]
+    }
+
+    /// The live workers' agents, by task, as their hooks would say.
+    public static let workerStates: [String: AgentState] = ["\(anchors)/validator-speed": .asking]
+
+    public static func running(_ variant: Running, now: Date = Clock.now) -> RunningWorld {
+        let base = now.timeIntervalSince1970.rounded(.down)
+        func ago(_ hours: Double) -> Date { Date(timeIntervalSince1970: base - hours * 3600) }
+        let goal = anchors
+        var swarm = approved(ago).swarm
+        let toolkit = "acme/docs-toolkit"
+        func branch(_ slug: String) -> String { SwarmWork.branch(goal: goal, slug: slug) }
+        func worker(
+            _ slug: String, _ owner: GoalItem.Owner, from base: String, stackedOn: String? = nil, started: Double,
+            ended: Double? = nil, cost: Double? = nil
+        ) -> SwarmWorker {
+            SwarmWorker(
+                id: "fixture-\(slug)", task: "\(goal)/\(slug)", owner: owner, host: "s2", repo: toolkit,
+                branch: branch(slug), base: base, stackedOn: stackedOn.map { "\(goal)/\($0)" },
+                worktree: "/Users/you/code/wt/heed/docs-toolkit/swarm-\(goal)-\(slug)", startedAt: ago(started),
+                endedAt: ended.map(ago), outcome: ended == nil ? nil : .turnOver, costUSD: cost
+            )
+        }
+        let claude = GoalItem.Owner(agent: "claude")
+        swarm.status = variant == .running ? .running : .paused
+        swarm.held = variant == .running ? nil : .hours
+        swarm.runningAt = ago(variant == .running ? 3.2 : 4.05)
+        swarm.workers = [
+            worker("heading-ids", claude, from: "main", started: 3.2, ended: 2.6, cost: 2.4),
+            worker(
+                "assembly-redirects",
+                GoalItem.Owner(agent: "codex"),
+                from: "main",
+                started: 3.2,
+                ended: 2.2,
+                cost: 1.9
+            ),
+            worker(
+                "validator-speed", GoalItem.Owner(agent: "claude", model: "opus"), from: branch("heading-ids"),
+                stackedOn: "heading-ids", started: 0.87
+            ),
+            worker("sample-site", claude, from: branch("heading-ids"), stackedOn: "heading-ids", started: 0.3),
+        ]
+        let id = swarm.id
+        func work(_ hours: Double, _ slug: String, _ text: String) -> SwarmSteer {
+            SwarmSteer(
+                swarm: id, goal: goal, at: ago(hours), actor: .heed, kind: .work, text: text,
+                ref: "task:\(goal)/\(slug)"
+            )
+        }
+        let stacked = "stacked on 1.1's PR"
+        var steering = [
+            steer(id, goal, ago(3.2), .heed, .start, "Running: workers start on plan v3"),
+            work(3.2, "heading-ids", "1.1 Anchor ids from heading text: claude from main"),
+            work(3.2, "assembly-redirects", "1.2 Redirects for moved assemblies: codex from main"),
+            work(2.6, "heading-ids", "claude on heading-ids ended: its turn is over"),
+            work(2.2, "assembly-redirects", "codex on assembly-redirects ended: its turn is over"),
+            work(0.87, "validator-speed", "2.2 Validator speed on a 10k-page site: claude · opus \(stacked)"),
+            work(0.3, "sample-site", "2.1 Sample site with moved pages: claude \(stacked)"),
+        ]
+        if variant == .pausedAtLimit {
+            steering.append(steer(
+                id, goal, ago(0.05), .heed, .limit, "Paused at its 4 h limit",
+                reason: "nothing more starts until you raise it"
+            ))
+        }
+        func entry(
+            _ slug: String, _ kind: GoalEvidence.Kind, _ text: String, state: GoalEvidence.State = .done,
+            source: String, ref: String? = nil, hours: Double
+        ) -> GoalEvidence {
+            GoalEvidence(
+                goal: goal, item: "\(goal)/\(slug)", kind: kind, state: state, at: ago(hours), source: source,
+                text: text, ref: ref
+            )
+        }
+        let evidence = [
+            entry("heading-ids", .pr, "#412 open · CI ok", source: "#412", ref: "\(toolkit)#412", hours: 2.6),
+            entry(
+                "heading-ids", .criterion, "two headings with the same text get distinct ids",
+                source: "swarm worker on heading-ids", ref: "swift test --filter HeadingIds", hours: 2.6
+            ),
+            entry(
+                "assembly-redirects", .criterion, "a moved assembly keeps its inbound anchors",
+                source: "swarm worker on assembly-redirects", ref: "the sample's assembly links resolve", hours: 2.2
+            ),
+            entry("assembly-redirects", .pr, "#409 merged", source: "#409", ref: "\(toolkit)#409", hours: 1),
+            entry("assembly-redirects", .merged, "#409 merged", source: "#409", ref: "\(toolkit)#409", hours: 1),
+            entry(
+                "validator-speed", .built, "claude · opus works on it in \(branch("validator-speed"))",
+                state: .inProgress, source: "swarm 1", hours: 0.87
+            ),
+            entry(
+                "sample-site", .built, "claude works on it in \(branch("sample-site"))", state: .inProgress,
+                source: "swarm 1", hours: 0.3
+            ),
+        ]
+        func pull(_ number: Int, _ slug: String, _ title: String, _ state: PullRequest.State) -> PullRequest {
+            PullRequest(
+                ref: PullRef(repo: Repo(org: "acme", name: "docs-toolkit"), number: number), title: title,
+                url: "https://github.com/\(toolkit)/pull/\(number)", state: state, isDraft: false,
+                headBranch: branch(slug), review: nil, checks: CheckSummary(passed: 6), unresolvedThreads: 0,
+                updatedAt: ago(1)
+            )
+        }
+        return RunningWorld(swarm: swarm, steering: steering, evidence: evidence, pulls: [
+            pull(412, "heading-ids", "Anchor ids from heading text", .open),
+            pull(409, "assembly-redirects", "Redirects for moved assemblies", .merged),
+        ])
+    }
+
     private static func steer(
         _ swarm: String, _ goal: String, _ at: Date, _ actor: SwarmSteer.Actor, _ kind: SwarmSteer.Kind,
         _ text: String, reason: String? = nil, state: SwarmSteer.State = .applied, about: Int64? = nil,

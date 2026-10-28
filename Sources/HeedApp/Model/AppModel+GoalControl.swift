@@ -6,9 +6,18 @@ import HeedCore
 extension AppModel {
     func controlGoal(_ request: ControlRequest) async -> ControlReply {
         guard let command = request.goal else { return .failure("goal needs a command") }
-        let caller = request.session.flatMap { id in
+        var asked = request.session.flatMap { id in
             sessions.first { $0.id == id } ?? history.first { $0.id == id }?.session
         }.map(GoalCaller.init)
+        // A swarm worker's tab is a pane of the lead's session: the caller is the worker, on its task.
+        if let pane = request.pane, let live = liveWorkers.values.first(where: { $0.paneID == pane }) {
+            let record = goals.snapshot.swarms.first { $0.id == live.swarm }?.workers.first { $0.id == live.id }
+            asked = GoalCaller(
+                session: live.sessionID, title: "swarm worker on \(SwarmPlan.short(live.task))",
+                repo: record?.repo ?? asked?.repo, worker: live.task
+            )
+        }
+        let caller = asked
         let files = goals.files
         let table = goals.table
         let outcome: GoalControl.Outcome = await withCheckedContinuation { continuation in

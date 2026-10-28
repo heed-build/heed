@@ -49,7 +49,7 @@ let package = Package(
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
         // Local typed decisions (Apache-2.0): runs Laya checkpoints with MLX, and trains their head on your
         // corrections. Its MLX shaders build into mlx-swift_Cmlx.bundle, which scripts/bundle.sh copies into the app.
-        .package(url: "https://github.com/heed-build/hunch", branch: "feature/head-training"),
+        .package(url: "https://github.com/heed-build/hunch", from: "0.2.1"),
     ],
     targets: targets
 )

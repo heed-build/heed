@@ -1,5 +1,5 @@
 {
-  "originHash" : "edfabf95e6b183cbc8edb28f4008dbc82a29d79f0e58b0ba81341809221e3531",
+  "originHash" : "91ad826b400bb20c6121f958ed95bb464f52a806699297df67e97c18d2299612",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/heed-build/hunch",
       "state" : {
-        "branch" : "feature/head-training",
-        "revision" : "6ef523c2bd9596cf2d3b7c062685015e0ae0267d"
+        "revision" : "b7ccb35d6deaee5cd7ca2048cce3e7fd513315df",
+        "version" : "0.2.1"
       }
     },
     {

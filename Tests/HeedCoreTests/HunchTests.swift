@@ -546,6 +546,9 @@ struct HunchSetupTests {
         #expect(evaluate(.hunch, hunch: .noModel).decisions == .failing(
             "Hunch has no model yet: download one below. Until then decisions go to a model call."
         ))
+        // Without a model, decisions still go somewhere: nothing is listed as going without.
+        #expect(evaluate(.hunch, hunch: .noModel).degraded.isEmpty)
+        #expect(!evaluate(.local, hunch: .noModel).degraded.isEmpty, "the on-device model is not on this Mac")
         #expect(evaluate(.hunch, hunch: .downloading(0.42)).decisions == .configured(
             "Hunch's model is downloading 42%. Until then decisions go to a model call."
         ))

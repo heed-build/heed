@@ -112,10 +112,14 @@ public struct InferenceSetup: Equatable, Sendable {
         case .notConfigured: statuses.map { $0.contains { $0.usable && llm.isEnabled($0.name) } } ?? true
         case .failing, .off: false
         }
+        // Hunch without a model still answers through where its questions go meanwhile.
+        let routedOn = chosen == .hunch
+            && HunchRouting.overflow(localReady: local.ready, modelCalls: inferenceWorks) != .none
         let decisionsWork = switch decisions {
         case .configured: true
         case .notConfigured: inferenceWorks
-        case .failing, .off: false
+        case .failing: routedOn
+        case .off: false
         }
         return InferenceSetup(
             inference: inference, decisions: decisions, suggestedAgent: agent, suggestedDecider: decider,

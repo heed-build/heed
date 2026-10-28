@@ -15,15 +15,17 @@ struct OrgRepoSettings: View {
         let shown = selected ?? firstOverridden(groups) ?? groups.first.map { OverrideScope.org($0.org) }
         VStack(alignment: .leading, spacing: 14) {
             Text("Orgs & repos").font(Theme.ui(17, weight: .semibold))
-            Text("Orgs and repos can override the defaults: color, issues, and every Pilot setting. A repo takes its "
-                + "org's values unless it sets its own. Marked ones override something.")
+            Text("Orgs and repos can override the defaults: color, issues, goal trackers, and every Pilot setting. A "
+                + "repo takes its org's values unless it sets its own. Marked ones override something.")
                 .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .top, spacing: 0) {
-                list(groups, shown: shown).frame(width: 250)
+                list(groups, shown: shown).frame(width: Self.listWidth)
                 Theme.line.frame(width: 1)
                 if let scope = shown {
-                    ScopeDetail(scope: scope).padding(.leading, 18).frame(maxWidth: .infinity, alignment: .leading)
+                    // Takes what the list leaves, never more: rows fold to one column when it is narrow.
+                    ScopeDetail(scope: scope).padding(.leading, 18)
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 } else {
                     Text("Repos appear here once the repo scan finds them.").foregroundStyle(Theme.fg3).padding(18)
                 }
@@ -33,6 +35,9 @@ struct OrgRepoSettings: View {
         .onAppear(perform: takeRequestedScope)
         .onChange(of: model.settingsScope) { takeRequestedScope() }
     }
+
+    /// Wide enough for most repo names; longer ones are cut in the middle, the full name on hover.
+    static let listWidth: CGFloat = 210
 
     private func takeRequestedScope() {
         guard let scope = model.settingsScope else { return }
@@ -108,10 +113,13 @@ struct OrgRepoSettings: View {
             switch scope {
             case let .org(name):
                 OrgTile(org: name, color: Palette.shared.color(for: Repo(org: name, name: "")), size: 14)
-                Text(name).font(Theme.ui(12.5, weight: .semibold))
+                Text(name).font(Theme.ui(12.5, weight: .semibold)).lineLimit(1).truncationMode(.middle)
             case let .repo(repo):
                 Text(repo.name).font(Theme.mono(12)).foregroundStyle(cloned ? Theme.fg : Theme.fg3)
-                if !cloned { Text("not cloned").font(Theme.ui(10.5)).foregroundStyle(Theme.fg3) }
+                    .lineLimit(1).truncationMode(.middle)
+                if !cloned {
+                    Text("not cloned").font(Theme.ui(10.5)).foregroundStyle(Theme.fg3).fixedSize()
+                }
             }
             Spacer(minLength: 4)
             if overrides > 0 {
@@ -124,6 +132,7 @@ struct OrgRepoSettings: View {
         .padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: 5).fill(isSelected ? Theme.bg3 : .clear))
         .contentShape(Rectangle())
+        .help(scope.title)
         .onTapGesture { selected = scope }
     }
 }
@@ -138,8 +147,10 @@ private struct ScopeDetail: View {
         let set = Overrides.setKeys(at: scope, in: config)
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text(scope.title).font(Theme.mono(15, weight: .semibold))
+                Text(scope.title).font(Theme.mono(15, weight: .semibold)).lineLimit(1).truncationMode(.middle)
+                    .help(scope.title)
                 Text(summary(set: set)).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             let keys = Overrides.keys(for: scope)
             ForEach(Array(keys.enumerated()), id: \.element.id) { index, key in
@@ -186,37 +197,55 @@ private struct OverrideRow: View {
     var body: some View {
         let (value, source) = Overrides.effective(key, at: scope, in: model.config)
         let own = Overrides.value(key, at: scope, in: model.config) != nil
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(key.label).font(Theme.ui(13)).foregroundStyle(own ? Theme.fg : Theme.fg2)
-                    Text(source.rawValue)
-                        .font(Theme.mono(10.5))
-                        .foregroundStyle(own ? Theme.block : Theme.fg3)
-                        .padding(.horizontal, 5)
-                        .background(RoundedRectangle(cornerRadius: 4)
-                            .fill(own ? Theme.block.opacity(0.16) : Theme.chip))
+        // Label beside the control when the pane is wide enough; else the control under the label, as wide as the
+        // pane allows. Nothing is ever wider than the pane.
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 12) {
+                label(source: source, own: own).frame(width: 240, alignment: .leading)
+                editor(value)
+                Spacer(minLength: 0)
+                reset(own: own)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .top, spacing: 12) {
+                    label(source: source, own: own).frame(maxWidth: .infinity, alignment: .leading)
+                    reset(own: own)
                 }
-                Text(key.detail).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
-                    .fixedSize(horizontal: false, vertical: true)
+                editor(value)
             }
-            .frame(width: 240, alignment: .leading)
-            editor(value)
-            Spacer(minLength: 0)
-            Button {
-                model.unsetConfig(scope.path + [key.id])
-            } label: {
-                Image(systemName: "arrow.uturn.backward").font(.system(size: 11))
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(own ? Theme.fg2 : Theme.fg3.opacity(0.3))
-            .disabled(!own)
-            .help(own ? "Use the inherited value" : "Not overridden here")
         }
         .padding(.vertical, 4)
         .overlay(alignment: .leading) {
             if own { Theme.block.frame(width: 2).offset(x: -10) }
         }
+    }
+
+    private func label(source: OverrideSource, own: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text(key.label).font(Theme.ui(13)).foregroundStyle(own ? Theme.fg : Theme.fg2)
+                Text(source.rawValue)
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(own ? Theme.block : Theme.fg3)
+                    .padding(.horizontal, 5)
+                    .background(RoundedRectangle(cornerRadius: 4)
+                        .fill(own ? Theme.block.opacity(0.16) : Theme.chip))
+            }
+            Text(key.detail).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func reset(own: Bool) -> some View {
+        Button {
+            model.unsetConfig(scope.path + [key.id])
+        } label: {
+            Image(systemName: "arrow.uturn.backward").font(.system(size: 11))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(own ? Theme.fg2 : Theme.fg3.opacity(0.3))
+        .disabled(!own)
+        .help(own ? "Use the inherited value" : "Not overridden here")
     }
 
     private var path: [String] { scope.path + [key.id] }
@@ -256,6 +285,8 @@ private struct OverrideRow: View {
             }
         case .list, .text:
             OverrideTextField(path: path, value: value, list: key.kind == .list)
+        case .repoSlug:
+            OverrideTextField(path: path, value: value, list: false, placeholder: "org/name", emptyInherits: true)
         case .instructions:
             InstructionsField(path: path, value: { if case let .text(text) = value { text } else { "" } }(), width: 300)
         case .color:
@@ -283,7 +314,7 @@ private struct SetupProposalLine: View {
     var body: some View {
         HStack(spacing: 10) {
             Text("detected: \(proposal.commands.joined(separator: " && "))")
-                .font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+                .font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).lineLimit(2).truncationMode(.middle)
                 .help(proposal.lines.joined(separator: "\n"))
             Button("Approve") { model.setConfig(
                 ["repos", repo.slug, "setup"],
@@ -292,7 +323,6 @@ private struct SetupProposalLine: View {
             Button("Never") { model.setConfig(["repos", repo.slug, "setup"], .array([])) }
         }
         .font(Theme.ui(12))
-        .padding(.leading, 252)
     }
 }
 
@@ -302,6 +332,9 @@ private struct OverrideTextField: View {
     let path: [String]
     let value: OverrideValue
     let list: Bool
+    var placeholder: String?
+    /// Emptied, the override is removed (the value inherits) rather than set to "".
+    var emptyInherits = false
     @State private var text = ""
     @FocusState private var focused: Bool
 
@@ -314,10 +347,10 @@ private struct OverrideTextField: View {
     }
 
     var body: some View {
-        TextField(list ? "comma separated" : "", text: $text)
+        TextField(placeholder ?? (list ? "comma separated" : ""), text: $text)
             .textFieldStyle(.roundedBorder)
             .font(Theme.mono(12))
-            .frame(width: 220)
+            .frame(minWidth: 120, idealWidth: 220, maxWidth: 220)
             .focused($focused)
             .onAppear { text = shown }
             .onChange(of: shown) { if !focused { text = shown } }
@@ -331,6 +364,9 @@ private struct OverrideTextField: View {
             let values = text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
             model.setConfig(path, .array(values.map { .string($0) }))
+        } else if emptyInherits, text.trimmingCharacters(in: .whitespaces).isEmpty {
+            model.unsetConfig(path)
+            text = shown
         } else {
             model.setConfig(path, .string(text))
         }

@@ -2392,6 +2392,7 @@ final class AppModel {
         case "swarm.start": startSwarmOnGoal()
         case "swarm.stop": stopSwarm()
         case "swarm.approve": approvePlan()
+        case "swarm.accept": acceptPlanChange()
         case "swarm.reject": rejectPlanChange(command.arguments)
         case "swarm.task.edit": editPlanTask()
         case "swarm.task.add": addPlanTask(command.arguments)
@@ -2399,6 +2400,7 @@ final class AppModel {
         case "swarm.task.drop": dropPlanTask()
         case "swarm.replan": replanSwarm(command.arguments)
         case "swarm.answer": answerLead(command.arguments)
+        case "swarm.answer.option": answerLeadOption(command.arguments.first)
         case "swarm.diff": togglePlanDiff()
         case "swarm.restore": restorePlan(command.arguments)
         case "swarm.pause": toggleSwarmPause()
@@ -7537,6 +7539,12 @@ final class AppModel {
     /// The same, for a view's own panel: that view's bindings (`[keys.inbox]`) first, as they shadow NORMAL's there.
     func keyText(for command: String, in scope: String) -> String {
         engine.scopedKeymaps[scope]?.keys(for: command).first.map(KeyCapText.of) ?? keyText(for: command)
+    }
+
+    /// Whether `command` has a key of `scope`'s own: a hint for it shows only where its key works (Goals' `a` archives
+    /// on the list, adds on the board).
+    func binds(_ command: String, in scope: String) -> Bool {
+        engine.scopedKeymaps[scope]?.keys(for: command).isEmpty == false
     }
 
     /// The key for a command as you have it bound, the one that works here first (see `KeyLabels`): `Iw` lives in

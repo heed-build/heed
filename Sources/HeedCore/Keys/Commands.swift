@@ -357,6 +357,7 @@ public enum Commands {
             "swarm.approve", "approve the swarm's plan (or the change waiting for you): its tasks become items",
             .selection
         ),
+        .init("swarm.accept", "yes to the plan change waiting for you: it becomes the approved plan", .selection),
         .init(
             "swarm.task.pause",
             "pause the swarm task under the cursor (again: resume): its worker stops, its worktree stays",
@@ -390,6 +391,10 @@ public enum Commands {
         .init(
             "swarm.answer", "answer the lead's first open question (or the one clicked)", .selection,
             arguments: "[answer]"
+        ),
+        .init(
+            "swarm.answer.option", "answer the lead's first open question with its option n (1 is the first)",
+            .selection, arguments: "<n>"
         ),
         .init(
             "swarm.diff",

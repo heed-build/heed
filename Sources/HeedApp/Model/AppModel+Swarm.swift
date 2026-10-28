@@ -245,6 +245,13 @@ extension AppModel {
         }
     }
 
+    /// `swarm.accept`: yes to the change waiting for you, as `y` takes one in GOAL.md. `swarm.approve` takes it too.
+    func acceptPlanChange() {
+        guard let board = needSwarm() else { return }
+        guard board.pending != nil else { return say("no change waits for you") }
+        approvePlan()
+    }
+
     /// `swarm.reject`: no to the change waiting for you (with words: why).
     func rejectPlanChange(_ words: [String]) {
         guard let board = needSwarm() else { return }
@@ -345,6 +352,18 @@ extension AppModel {
             "answered the lead"
         }
         nudgeLead(board, "The owner answered your question: \(text)")
+    }
+
+    /// `swarm.answer.option <n>`: the lead's first open question answered with its option n, as clicking it does.
+    func answerLeadOption(_ word: String?) {
+        guard let board = needSwarm() else { return }
+        guard let question = board.openQuestions.first else { return say("the lead asks nothing open") }
+        let options = question.row.options
+        guard let number = Int(word ?? ""), options.indices.contains(number - 1) else {
+            return say(options.isEmpty ? "the question has no options: \(keyText(for: "swarm.answer", in: "goalplan")) "
+                + "types an answer" : "the question has \(options.count) option\(options.count == 1 ? "" : "s")")
+        }
+        answerLead([options[number - 1]], question: question.id)
     }
 
     /// `swarm.diff`: the version under the cursor's whole diff, or its first lines.

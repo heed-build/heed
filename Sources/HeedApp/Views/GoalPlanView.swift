@@ -133,7 +133,7 @@ private struct PlanOutline: View {
                 Theme.line.frame(height: 1)
                 FlowLayout(spacing: 14, lineSpacing: 6) {
                     if swarm.approved != nil, swarm.status != .planning {
-                        // Running: what acts on the work, the plan's edits through e and the menus.
+                        // Running: what acts on the work; the plan's other edits are in the menus and on keys.
                         KeyHint("swarm.task.pause", scope: "goalplan", label: "pause task")
                         KeyHint("swarm.task.swap", scope: "goalplan", label: "swap agent")
                         KeyHint("swarm.task.open", scope: "goalplan", label: "its worker")
@@ -144,7 +144,7 @@ private struct PlanOutline: View {
                             label: swarm.status == .paused ? "resume swarm" : "pause swarm"
                         )
                         if board.pending != nil {
-                            KeyHint("swarm.approve", scope: "goalplan", label: "approve the change", color: Theme.fg)
+                            KeyHint("swarm.accept", scope: "goalplan", label: "take the change", color: Theme.fg)
                         }
                     } else {
                         KeyHint("swarm.task.edit", scope: "goalplan", label: "edit task")
@@ -152,12 +152,14 @@ private struct PlanOutline: View {
                         KeyHint("swarm.task.move", ["1"], key: "J K", scope: "goalplan", label: "move")
                         KeyHint("swarm.task.drop", scope: "goalplan", label: "drop")
                         KeyHint("swarm.replan", scope: "goalplan", label: "re-plan with feedback")
-                        KeyHint(
-                            "swarm.approve", scope: "goalplan",
-                            label: board.pending != nil ? "approve the change" : swarm.isApproved ? "approved"
-                                : "approve",
-                            color: swarm.isApproved && board.pending == nil ? Theme.fg3 : Theme.fg
-                        )
+                        if board.pending != nil {
+                            KeyHint("swarm.accept", scope: "goalplan", label: "take the change", color: Theme.fg)
+                        } else {
+                            KeyHint(
+                                "swarm.approve", scope: "goalplan", label: swarm.isApproved ? "approved" : "approve",
+                                color: swarm.isApproved ? Theme.fg3 : Theme.fg
+                            )
+                        }
                     }
                 }
                 .padding(.horizontal, 18)
@@ -377,8 +379,11 @@ private struct LeadQuestions: View {
                             .fixedSize(horizontal: false, vertical: true)
                     } else if board.swarm.status.active {
                         FlowLayout(spacing: 6, lineSpacing: 6) {
-                            ForEach(question.row.options, id: \.self) { option in
-                                Text(option).font(Theme.ui(11.5)).foregroundStyle(Theme.fg2)
+                            // The first open question's options carry the digit that picks them.
+                            let first = question.id == board.openQuestions.first?.id
+                            ForEach(Array(question.row.options.enumerated()), id: \.element) { number, option in
+                                Text(first && number < 9 ? "\(number + 1) \(option)" : option).font(Theme.ui(11.5))
+                                    .foregroundStyle(Theme.fg2)
                                     .padding(.horizontal, 7).padding(.vertical, 2)
                                     .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
                                     .clickable()
@@ -395,13 +400,22 @@ private struct LeadQuestions: View {
                 }
             }
             if open > 0 {
-                KeyHint("swarm.answer", scope: "goalplan", label: "answer the first")
+                HStack(spacing: 14) {
+                    if let first = board.openQuestions.first, !first.row.options.isEmpty {
+                        KeyHint(
+                            "swarm.answer.option", ["1"], key: first.row.options.count == 1 ? "1"
+                                : "1…\(min(first.row.options.count, 9))",
+                            scope: "goalplan", label: "pick an option"
+                        )
+                    }
+                    KeyHint("swarm.answer", scope: "goalplan", label: "type an answer")
+                }
             }
         }
     }
 }
 
-/// A structural change of the lead's after approval: what it changes, A takes it, n says no.
+/// A structural change of the lead's after approval: what it changes, y takes it, n says no (as in GOAL.md).
 private struct PendingChange: View {
     let board: SwarmBoard
     let pending: SwarmSteer
@@ -412,7 +426,7 @@ private struct PendingChange: View {
                 .fixedSize(horizontal: false, vertical: true)
             PlanDiffLines(lines: SwarmPlan.lines(old: board.tasks, new: pending.tasks ?? []), limit: 8)
             HStack(spacing: 14) {
-                KeyHint("swarm.approve", scope: "goalplan", label: "approve", color: Theme.fg)
+                KeyHint("swarm.accept", scope: "goalplan", label: "yes", color: Theme.fg)
                 KeyHint("swarm.reject", scope: "goalplan", label: "say no")
             }
         }

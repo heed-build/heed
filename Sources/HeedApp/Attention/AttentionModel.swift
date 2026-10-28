@@ -27,6 +27,8 @@ final class AttentionModel {
 
     /// Rules Settings opens on instead of the saved ones (screenshots show an edit in progress).
     var ruleDraftSeed: [String]?
+    /// A rule Settings' editor opens with, half built (screenshots show the editor at work).
+    var ruleFormSeed: AttentionRuleForm?
 
     var filter: AttentionFilter = .needsMe
     var sort: AttentionSort = .recent

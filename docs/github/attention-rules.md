@@ -23,14 +23,35 @@ rules = [
 ]
 ```
 
-Settings › Attention (`:settings.open attention`) edits them as a list (reorder, add, remove) and as text, side by
-side. Before you save, it shows what the edited rules would have changed over the items of the last 30 days, and how
-many items each rule matched.
+Settings › Attention (`:settings.open attention`) lists the rules in order, each in plain words ("Mute items opened
+by the bot dependabot.") with the line it is in `config.toml` and how many items of the last 30 days it decided. Move
+a rule up or down (the first match wins), change it, or remove it (Undo brings it back). Before you save, it shows
+what the edited rules would have changed over the items of the last 30 days.
 
-![Settings › Attention: the rules as a list and as text, and what the edit would change](../images/shots/configuration/attention-rules.png)
+![Settings › Attention: the rules in plain words, a rule being added, and what the edit would change](../images/shots/configuration/attention-rules.png)
 
-A line is what to match, then what to do. A line that does not parse is reported with its number (in the status bar,
-and next to the line in the editor) and left out; the other rules still apply.
+### Building a rule
+
+**Add a rule** builds one from choices, so a rule heed cannot read never gets into the list:
+
+- **When**: add conditions from the menu (why it is there, repo, opened by, label, team, agent state, what it is,
+  draft or ready, lines changed, last update, whose turn, CI branch). Each is a kind and a value; a value is typed
+  only where it has to be (a repo, a label, a login, a branch), and the arrow next to it offers the ones heed has
+  seen. No conditions means every item, and says so.
+- **Then**: a weight (boost 1-3, keep, lower, mute) and two switches, pin and notify. Mute takes no other action.
+
+A value is checked as you type, with the reason under it: a repo is `org/name` (or a glob with `*`), no spaces or
+quotes, no empty choice around `|`. Conditions that can never hold together (`draft` and ready, more than 500 and
+fewer than 100 lines) are refused, and so is a rule that repeats another or matches exactly the items another
+already decides. **Add rule** stays off until the rule is fine. Under it, the rule in plain words and how many of the
+last 30 days' items it matches, in amber when that is most of them.
+
+![The rule editor: a repo without its org, caught before the rule can be added](../images/shots/configuration/attention-rule-editor.png)
+
+The file stays the source: the editor writes rules in the syntax below, and a line you have not changed is saved
+exactly as it was written, spacing and `# comments` kept. A line the editor cannot build, or one that does not parse,
+is shown as written with **Edit in config.toml**; it is never dropped. A line that does not parse is also reported in
+the status bar with its number and left out; the other rules still apply.
 
 ## Actions
 

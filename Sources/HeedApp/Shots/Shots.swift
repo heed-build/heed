@@ -498,12 +498,26 @@ enum Shots {
         Shot(
             id: "configuration/attention-rules", subject: .settings(.attention), size: CGSize(
                 width: 1180,
-                height: 1160
+                height: 1480
             ),
             prepare: { model in
                 model.attention.ruleDraftSeed = Fixtures.attentionRules.map {
                     $0.hasPrefix("ci ") ? "ci ignore" : $0
-                } + ["mention team:? lower", "assigend boost 1"]
+                } + ["mention team:? lower", "# the rest", "assigend boost 1"]
+                model.attention.ruleFormSeed = AttentionRuleForm(
+                    clauses: [.reason(.review), .repo("acme/guides")], weight: .lower, notify: false
+                )
+            }
+        ),
+        // The editor at work: a repo typed without its org is caught before the rule can be added.
+        Shot(
+            id: "configuration/attention-rule-editor", subject: .settings(.attention),
+            size: CGSize(width: 1180, height: 1120),
+            prepare: { model in
+                model.attention.ruleDraftSeed = ["mention user:me boost 3", "author bot:dependabot ignore"]
+                model.attention.ruleFormSeed = AttentionRuleForm(
+                    clauses: [.reason(.ci), .repo("guides"), .branch("main|release/*")], weight: .boost2, notify: true
+                )
             }
         ),
     ]

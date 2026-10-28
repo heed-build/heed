@@ -82,8 +82,12 @@ extension AppModel {
     /// notification. What was there before heed's first sync is not news.
     func noteAttention() {
         let settings = config.notifications
-        let entries = settings.enabled && settings.attention
-            ? attentionEntries.compactMap { Notices.attention($0, now: Clock.now) } : []
+        let all = settings.enabled ? attentionEntries : []
+        // A swarm's question notifies as an agent asking does; the rest only as your rules say.
+        let entries = all.compactMap { entry in
+            Notices.swarmQuestion(entry, now: Clock.now)
+                ?? (settings.attention ? Notices.attention(entry, now: Clock.now) : nil)
+        }
         Notifier.shared.sync(
             .attention, entries, settings: settings, seen: !attention.notified, timing: Notices.attentionTiming
         )
@@ -294,6 +298,7 @@ extension AppModel {
     /// The cursor moved in Attention: after a moment on the row, its details and summary are fetched (each once per
     /// update of the thread).
     func attentionSelectionChanged() {
+        updateScope()
         guard view == .attention, !isFixture, let item = attentionSelected?.item else { return }
         Task {
             try? await Task.sleep(for: .milliseconds(500))

@@ -74,9 +74,19 @@ public enum GoalGuidance {
             "heed goal plan propose --file plan.json --note TEXT"
         ),
         Rule(
-            "Ask the owner what you cannot decide from the goal and the code, with the choices you see; do not guess "
-                + "scope.",
-            "heed goal ask QUESTION --option A --option B"
+            "Ask the owner what you cannot decide from the goal and the code, with the choices you see and what each "
+                + "would change; do not guess scope. The command waits up to 9 minutes for the answer and prints it (give it "
+                + "your shell's longest timeout; exit 6: wait again with --id N).",
+            "heed goal ask QUESTION --option A --effect TEXT --option B --effect TEXT"
+        ),
+        Rule(
+            "Workers' scope questions come to you: heed types them into your pane with their number. Answer within "
+                + "the plan; a change that adds, drops or splits tasks is a plan proposal, which waits for the owner.",
+            "heed swarm answer N TEXT"
+        ),
+        Rule(
+            "Tell the team what they all need to know, or one task what it needs.",
+            "heed swarm send @all TEXT, heed swarm send 2.1 TEXT"
         ),
         Rule(
             "When the owner answers or asks you to re-plan, read it and propose the next version. Before approval "
@@ -114,8 +124,21 @@ public enum GoalGuidance {
             "heed goal criterion check N --item ID --evidence TEXT"
         ),
         Rule(
-            "Ask what you cannot decide from the goal and the code, with the choices you see.",
-            "heed goal ask QUESTION --option A --option B"
+            "Before asking, try another way once. Then ask what you cannot decide from the goal and the code, with "
+                + "the choices you see and what each would change. heed decides who answers (the task yours waits "
+                + "for, the lead for scope, heed's controller for reversible choices, the owner for the goal, limits, "
+                + "deleting data, merging to main, more agents or time); the command waits up to 9 minutes and prints "
+                + "the answer, so give it your shell's longest timeout. Exit 6: no answer yet; wait again with "
+                + "--id N, or carry on with what does not depend on it.",
+            "heed goal ask QUESTION --option A --effect TEXT --option B --effect TEXT [--to 1.2|lead]"
+        ),
+        Rule(
+            "A question heed types into your pane from another task is yours to answer if you know; else leave it.",
+            "heed swarm answer N TEXT"
+        ),
+        Rule(
+            "Every few minutes, say what you are doing in a line; tell another task what it needs from you.",
+            "heed swarm note TEXT, heed swarm send 2.1 TEXT"
         ),
         Rule("Never merge, never push to the base branch, and never change the plan or the goal yourself."),
     ]
@@ -218,7 +241,8 @@ public enum HeedPlugin {
             "",
             "0 done or proposed, 1 refused (nothing changed, the message says why), 2 wrong usage, 3 heed not "
                 + "reachable, 4 this session is on no goal (`heed goal attach <goal>` or `--goal <id>`), 5 held for "
-                + "the owner in heed's Attention (a spawn over the goal's cap).",
+                + "the owner in heed's Attention (a spawn over the goal's cap), 6 `heed goal ask` waited and no "
+                + "answer came (the question stays open: `heed goal ask --id N` waits again).",
             "",
         ]
         return lines.joined(separator: "\n")

@@ -16,17 +16,28 @@ struct GoalPlanPane: View {
                 ListScroll {
                     VStack(alignment: .leading, spacing: 16) {
                         if let draft = goals.planDraft { PlanEditor(draft: draft).shotRegion(.swarmEditor) }
-                        if board.swarm.held != nil { LimitAsk(swarm: board.swarm).shotRegion(.swarmLimit) }
-                        if board.swarm.approved != nil, board.swarm.status != .planning {
-                            MergeOrder(board: board).shotRegion(.swarmOrder)
+                        if goals.focus == .steering {
+                            // The log has the keyboard: the whole history, by who decided.
+                            SteeringLog(board: board, full: true).shotRegion(.swarmSteering)
+                        } else {
+                            if board.swarm.held != nil { LimitAsk(swarm: board.swarm).shotRegion(.swarmLimit) }
+                            // The task under the cursor's agent-to-agent log, first: it is about where you are.
+                            if goals.focus == .tasks, let task = goals.selectedTask,
+                               !SwarmMessages.log(of: task.id, board.steering).isEmpty
+                            {
+                                AgentLog(board: board, task: task).shotRegion(.swarmAgentLog)
+                            }
+                            if board.swarm.approved != nil, board.swarm.status != .planning {
+                                MergeOrder(board: board).shotRegion(.swarmOrder)
+                            }
+                            SwarmQuestions(board: board).shotRegion(.swarmQuestions)
+                            if let pending = board.pending { PendingChange(board: board, pending: pending) }
+                            PlanVersions(board: board).shotRegion(.swarmVersions)
+                            SteeringLog(board: board, full: false).shotRegion(.swarmSteering)
                         }
-                        LeadQuestions(board: board).shotRegion(.swarmQuestions)
-                        if let pending = board.pending { PendingChange(board: board, pending: pending) }
-                        PlanVersions(board: board).shotRegion(.swarmVersions)
-                        SteeringLog(board: board).shotRegion(.swarmSteering)
                     }
                 }
-                .frame(width: 360)
+                .frame(width: goals.focus == .steering ? 460 : 360)
                 .frame(maxHeight: .infinity, alignment: .top)
             }
             .frame(maxHeight: .infinity, alignment: .top)
@@ -401,62 +412,195 @@ private struct LimitAsk: View {
 // MARK: The right column
 
 /// What the lead asks, and your answers: c answers the first open one; a click on a choice answers with it.
-private struct LeadQuestions: View {
+private struct SwarmQuestions: View {
     @Environment(AppModel.self) private var model
     let board: SwarmBoard
 
     var body: some View {
         let open = board.openQuestions.count
         let questions = board.questions
+        let first = board.openQuestions.first?.id
         Panel(
-            title: open == 0 ? "The lead's questions" : "The lead asks \(open) thing\(open == 1 ? "" : "s")",
+            title: open == 0 ? "Questions" : "\(open) question\(open == 1 ? "" : "s") open",
             note: questions.isEmpty ? "" : "\(questions.count - open) answered"
         ) {
             if questions.isEmpty {
-                Quiet("None yet. What the lead cannot decide from the goal and the code, it asks here.")
+                Quiet(
+                    "None yet. What the lead or a worker cannot decide from the goal and the code, it asks: who may "
+                        + "answer is by what it is about, and what is yours waits in Needs you."
+                )
             }
-            ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("\(index + 1). \(question.row.text)").font(Theme.ui(12.5))
-                        .foregroundStyle(question.answer == nil ? Theme.fg : Theme.fg2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if let answer = question.answer {
-                        Text("→ \(answer.text)").font(Theme.ui(12)).foregroundStyle(Theme.done)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else if board.swarm.status.active {
-                        FlowLayout(spacing: 6, lineSpacing: 6) {
-                            // The first open question's options carry the digit that picks them.
-                            let first = question.id == board.openQuestions.first?.id
-                            ForEach(Array(question.row.options.enumerated()), id: \.element) { number, option in
-                                Text(first && number < 9 ? "\(number + 1) \(option)" : option).font(Theme.ui(11.5))
-                                    .foregroundStyle(Theme.fg2)
-                                    .padding(.horizontal, 7).padding(.vertical, 2)
-                                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
-                                    .clickable()
-                                    .onTapGesture { model.answerLead([option], question: question.id) }
-                                    .help("Answer: \(option)")
-                            }
-                            Text("or type").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
-                                .clickable()
-                                .onTapGesture {
-                                    model.answerLead([], question: question.id)
-                                }
-                        }
-                    }
-                }
+            ForEach(Array(questions.enumerated()), id: \.element.id) { _, question in
+                SwarmQuestionView(board: board, question: question, keyed: question.id == first)
             }
-            if open > 0 {
-                HStack(spacing: 14) {
+            if open > 0, board.swarm.status.active {
+                FlowLayout(spacing: 14, lineSpacing: 6) {
                     if let first = board.openQuestions.first, !first.row.options.isEmpty {
                         KeyHint(
                             "swarm.answer.option", ["1"], key: first.row.options.count == 1 ? "1"
                                 : "1…\(min(first.row.options.count, 9))",
-                            scope: "goalplan", label: "pick an option"
+                            scope: "goalplan", label: "pick"
                         )
                     }
                     KeyHint("swarm.answer", scope: "goalplan", label: "type an answer")
+                    KeyHint("swarm.controller", scope: "goalplan", label: "ask the controller")
                 }
             }
+        }
+    }
+}
+
+/// One question: who asked, what it is about, its options with what each would change, and its answer with who gave
+/// it (an overruled answer struck through), or whom it waits for and the controller's suggestion.
+struct SwarmQuestionView: View {
+    @Environment(AppModel.self) private var model
+    let board: SwarmBoard
+    let question: SwarmSteering.Question
+    /// Its options carry the digit that picks them.
+    var keyed = false
+    var large = false
+
+    var body: some View {
+        let numbers = SwarmPlan.numbers(board.tasks)
+        let row = question.row
+        let view = SwarmAnswerView(question, rows: board.steering, numbers: numbers)
+        let asker = row.from.flatMap(SwarmAddress.init(raw:))?
+            .label(numbers) ?? (row.actor == .lead ? "the lead" : "an agent")
+        let category = row.category.flatMap(SwarmAuthority.Category.init(rawValue:))
+        let overruled = SwarmSteering.overruled(board.steering)
+        let previous = board.steering.filter { answer in
+            answer.about == question.id && (answer.kind == .answer || answer.kind == .overrule)
+                && answer.id != question.answer?.id && answer.id.map { overruled.contains($0) } == true
+        }
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(asker).font(Theme.mono(10.5)).foregroundStyle(Theme.ask)
+                if let category { Text(category.title).font(Theme.ui(11)).foregroundStyle(Theme.fg3).lineLimit(1) }
+                Spacer(minLength: 4)
+                Text(Clock.relative(row.at)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+            }
+            Text(row.text).font(Theme.ui(large ? 14 : 12.5))
+                .foregroundStyle(question.answer == nil ? Theme.fg : Theme.fg2)
+                .fixedSize(horizontal: false, vertical: true)
+            if let answer = question.answer {
+                ForEach(previous, id: \.id) { old in
+                    Text("\(old.text) · \(by(old, numbers))").font(Theme.ui(12)).strikethrough()
+                        .foregroundStyle(Theme.fg3)
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("→ \(answer.text)").font(Theme.ui(12)).foregroundStyle(Theme.done)
+                    Text(answer.kind == .overrule ? "you, overruling" : view.by ?? "")
+                        .font(Theme.mono(10.5)).foregroundStyle(answer.actor == .controller ? Theme.ask : Theme.fg3)
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            } else {
+                if !row.options.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(row.options.enumerated()), id: \.offset) { number, option in
+                            let effect = row.effects.flatMap { $0.indices.contains(number) ? $0[number] : nil } ?? ""
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(keyed && number < 9 ? "\(number + 1)" : "·").font(Theme.mono(11))
+                                    .foregroundStyle(Theme.fg2).frame(minWidth: 12)
+                                    .padding(.horizontal, 4).padding(.vertical, 1)
+                                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(option).font(Theme.ui(12.5)).foregroundStyle(Theme.fg)
+                                    if !effect.isEmpty {
+                                        Text(effect).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                }
+                            }
+                            .clickable()
+                            .onTapGesture { model.answerSwarm([option], question: question.id) }
+                            .help("Answer: \(option)")
+                        }
+                    }
+                }
+                if let suggestion = SwarmSteering.suggestion(question, rows: board.steering) {
+                    Text("The controller suggests \(suggestion.text)" + (suggestion.reason.map { " (\($0))" } ?? ""))
+                        .font(Theme.ui(12)).foregroundStyle(Theme.ask)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Text("waits for \(view.waitsFor ?? "an answer")").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+            }
+        }
+    }
+
+    private func by(_ row: SwarmSteer, _ numbers: [String: String]) -> String {
+        switch row.actor {
+        case .controller: "the controller, overruled"
+        case .you: "you, overruled"
+        default: (row.from.flatMap(SwarmAddress.init(raw:))?.label(numbers) ?? row.actor.rawValue) + ", overruled"
+        }
+    }
+}
+
+/// One task's agent-to-agent log (deck p10): what was said to it and by it, its questions and their answers, its
+/// progress notes.
+private struct AgentLog: View {
+    let board: SwarmBoard
+    let task: SwarmTask
+
+    var body: some View {
+        let numbers = SwarmPlan.numbers(board.tasks)
+        let rows = SwarmMessages.log(of: task.id, board.steering)
+        Panel(title: "Agent to agent · \(numbers[task.id] ?? "") \(task.title)", note: "\(rows.count)") {
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(Array(rows.suffix(12).enumerated()), id: \.offset) { _, row in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(Ages.short(row.at)).font(Theme.mono(10)).foregroundStyle(Theme.fg3)
+                            .frame(width: 30, alignment: .leading)
+                        Text(route(row, numbers)).font(Theme.mono(10.5)).foregroundStyle(color(row))
+                            .frame(width: 112, alignment: .leading).lineLimit(2)
+                        Text(text(row)).font(Theme.ui(12)).foregroundStyle(row.kind == .question ? Theme.ask : Theme.fg)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            KeyHint("swarm.send", [SwarmPlan.short(task.id)], scope: "goalplan", label: "message it")
+        }
+    }
+
+    private func name(_ raw: String?, _ numbers: [String: String]) -> String {
+        guard let address = raw.flatMap(SwarmAddress.init(raw:)) else { return "?" }
+        if case let .task(id) = address { return numbers[id] ?? SwarmPlan.short(id) }
+        return address == .all ? "@all" : address.label(numbers).replacingOccurrences(of: "the ", with: "")
+    }
+
+    private func route(_ row: SwarmSteer, _ numbers: [String: String]) -> String {
+        let from = name(
+            row.from ?? (row.actor == .controller ? "controller" : row.actor == .you ? "you" : nil),
+            numbers
+        )
+        switch row.kind {
+        case .note: return "\(from) · note"
+        case .escalate: return "heed"
+        case .question: return row.to.map { "\(from) → \(name($0, numbers))" } ?? "\(from) asks"
+        case .answer, .overrule, .suggest:
+            let asker = board.steering.first { $0.id == row.about }?.from
+            return "\(from) → \(name(asker, numbers))"
+        default: return row.to.map { "\(from) → \(name($0, numbers))" } ?? from
+        }
+    }
+
+    private func text(_ row: SwarmSteer) -> String {
+        switch row.kind {
+        case .question: "? \(row.text)"
+        case .overrule: "\(row.text)" + (row.reason.map { " (\($0))" } ?? "")
+        case .suggest: "suggests \(row.text)"
+        case .escalate: "a question went \(row.text)" + (row.reason.map { ": \($0)" } ?? "")
+        default: row.text
+        }
+    }
+
+    private func color(_ row: SwarmSteer) -> Color {
+        switch row.actor {
+        case .you: Theme.fg
+        case .lead: Theme.block
+        case .controller: Theme.ask
+        case .agent: Theme.busy
+        case .heed: Theme.fg3
         }
     }
 }
@@ -590,27 +734,99 @@ struct PlanDiffLines: View {
 
 /// Who decided what, newest first.
 private struct SteeringLog: View {
+    @Environment(AppModel.self) private var model
     let board: SwarmBoard
+    /// The whole history, the keyboard on it; else its newest rows under the rest.
+    let full: Bool
 
     var body: some View {
-        let rows = Array(board.steering.reversed())
-        Panel(title: "Steering log", note: "\(rows.count)") {
-            VStack(alignment: .leading, spacing: 7) {
-                ForEach(Array(rows.prefix(10).enumerated()), id: \.offset) { _, row in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(row.actor.rawValue).font(Theme.mono(10)).foregroundStyle(actorColor(row.actor))
-                            .frame(width: 34, alignment: .leading)
-                        Text(SwarmSteering.line(row)).font(Theme.ui(12)).foregroundStyle(Theme.fg)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 4)
-                        Text(Clock.relative(row.at)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+        let goals = model.goals
+        let rows = goals.shownSteering
+        let overruled = SwarmSteering.overruled(board.steering)
+        let shown = full ? rows : Array(rows.prefix(8))
+        let who = goals.logActor.map { AppModel.actorTitle($0) } ?? "everyone"
+        Panel(title: "Steering log", note: "\(who) · \(rows.count)") {
+            if full {
+                FlowLayout(spacing: 6, lineSpacing: 6) {
+                    ForEach([nil] + SwarmSteer.Actor.allCases, id: \.self) { actor in
+                        let on = goals.logActor == actor
+                        Text(actor.map { AppModel.actorTitle($0) } ?? "everyone").font(Theme.ui(11.5))
+                            .foregroundStyle(on ? Theme.fg : Theme.fg3)
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 4).fill(on ? Theme.selected : .clear))
+                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+                            .clickRuns(CommandInvocation(name: "swarm.log.who", arguments: [actor?.rawValue ?? "all"]))
                     }
                 }
-                if rows.count > 10 {
-                    Text("\(rows.count - 10) older").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+            }
+            if rows.isEmpty { Quiet("Nothing yet from \(who).") }
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Array(shown.enumerated()), id: \.offset) { index, row in
+                    let isCursor = full && index == goals.steeringCursor && goals.focus == .steering
+                    let state = SwarmSteering.state(row, overruled: overruled)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(actorLabel(row)).font(Theme.mono(10)).foregroundStyle(actorColor(row.actor))
+                            .frame(width: 62, alignment: .leading)
+                        Text(SwarmSteering.line(row)).font(Theme.ui(12))
+                            .strikethrough(state == .overruled && row.kind != .overrule)
+                            .foregroundStyle(state == .overruled && row.kind != .overrule ? Theme.fg3 : Theme.fg)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 4)
+                        if state == .overruled {
+                            Text(row.kind == .overrule ? "overrules" : "overruled").font(Theme.mono(10))
+                                .foregroundStyle(Theme.block)
+                        } else if row.actor == .controller, row.kind == .answer {
+                            Text("by controller").font(Theme.mono(10)).foregroundStyle(Theme.ask)
+                        }
+                        Text(Clock.relative(row.at)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                    }
+                    .padding(.vertical, 3).padding(.horizontal, 4)
+                    .background(isCursor ? Theme.bg3 : .clear)
+                    .overlay(alignment: .leading) { if isCursor { Theme.block.frame(width: 2) } }
+                    .hint(full && goals.focus == .steering ? model.hintLabel(for: .row(.goals, index)) : nil)
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.clickSteer(index) }
+                    .rightClickMenu {
+                        guard model.clicksReachLists else { return false }
+                        model.clickSteer(index)
+                        return true
+                    } _: { model.steeringMenu(index) }
+                }
+                if !full, rows.count > shown.count {
+                    Text("\(rows.count - shown.count) older").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                }
+            }
+            FlowLayout(spacing: 14, lineSpacing: 6) {
+                KeyHint("swarm.log.who", scope: "goalplan", label: "who")
+                if full {
+                    KeyHint("swarm.log.jump", scope: "goalplan", label: "question ⇄ answer")
+                    if let row = goals.selectedSteer, let question = question(of: row), question.answer != nil,
+                       question.answer?.actor != .you, board.swarm.status.active
+                    {
+                        KeyHint(
+                            "swarm.answer.option", ["1"],
+                            key: question.row.options.isEmpty ? nil : "1…\(min(question.row.options.count, 9))",
+                            scope: "goalplan", label: "overrule", color: Theme.fg
+                        )
+                    }
+                } else {
+                    KeyHint("goal.focus", scope: "goalplan", label: "the whole log")
                 }
             }
         }
+    }
+
+    /// The actor, and for an agent which: `agent 2.1`, `agent` for a session on the goal.
+    private func actorLabel(_ row: SwarmSteer) -> String {
+        guard row.actor == .agent, case let .task(id)? = row.from.flatMap(SwarmAddress.init(raw:)) else {
+            return row.actor.rawValue
+        }
+        return "agent " + (SwarmPlan.numbers(board.tasks)[id] ?? SwarmPlan.short(id))
+    }
+
+    private func question(of row: SwarmSteer) -> SwarmSteering.Question? {
+        let id = row.kind == .question ? row.id : row.about
+        return id.flatMap { id in board.questions.first { $0.id == id } }
     }
 
     private func actorColor(_ actor: SwarmSteer.Actor) -> Color {
@@ -663,7 +879,7 @@ private struct PlanEditor: View {
         case .edit: "Edit the task"
         case .add: "Add a task"
         case .replan: "Re-plan: what should change"
-        case .answer: "Answer the lead"
+        case .answer: "Answer the question"
         case .reject: "Why not (optional)"
         }
     }

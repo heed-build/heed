@@ -155,8 +155,8 @@ public enum DefaultKeys {
             ("s", "eval.fix"), ("A", "eval.accept"), ("r", "eval.rewalk"), ("h", "eval.lens -1"), ("l", "eval.lens 1"),
         ]),
         // A goal's swarm (S): e edits the task, a adds one, J K move it, x drops it, r asks the lead to re-plan, A
-        // approves the plan, y n answer a change waiting (as in GOAL.md), 1…9 pick that option of the lead's first open
-        // question and i types an answer, d the version's whole diff, u restores it. c stays free: ask the controller.
+        // approves the plan, y n answer a change waiting (as in GOAL.md), 1…9 pick that option of the question under
+        // the cursor (else the first open one) and i types an answer, d the version's whole diff, u restores it.
         "goalplan": paneWith([
             ("e", "swarm.task.edit"), ("a", "swarm.task.add"), ("J", "swarm.task.move 1"), ("K", "swarm.task.move -1"),
             ("x", "swarm.task.drop"), ("r", "swarm.replan"), ("A", "swarm.approve"), ("y", "swarm.accept"),
@@ -166,6 +166,10 @@ public enum DefaultKeys {
             // Landing: m shows the plan in merge order (again: by phase), b moves the task's stacked PR to its new
             // base once the PR it stacks on merged (heed does it on its own; b is for after gh refused).
             ("m", "swarm.order"), ("b", "swarm.land"),
+            // Steering: c hands the question under the cursor to the controller, w shows the log by who decided, q
+            // jumps between a question and its answer. 1…9 and i on an answered question answer it again: an
+            // overrule.
+            ("c", "swarm.controller"), ("w", "swarm.log.who"), ("q", "swarm.log.jump"),
         ] + (1 ... 9).map { ("\($0)", "swarm.answer.option \($0)") }),
         // Goals › Unassigned (U): y n m i answer heed's asks (y on a suggested goal makes it), u undoes.
         "unassigned": paneWith([
@@ -177,13 +181,13 @@ public enum DefaultKeys {
             ("t", "log.kind"), ("x", "log.failed"), ("s", "log.slow"), ("w", "log.writes"), ("c", "log.caller"),
             ("a", "log.agent"), ("y", "log.copy"),
         ],
-        "attention": [
-            ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "attention.done"),
-            ("Z", "attention.snooze"), ("M", "attention.mute"), ("R", "attention.reply"), ("gS", "attention.session"),
-            ("t", "attention.filter"), ("T", "attention.sort"), ("r", "github.sync"),
-            // heed's goal asks, one key each; on other items m pins as before.
-            ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
-        ],
+        "attention": attention,
+        // Attention with a swarm's question under the cursor: 1…9 pick an option, i types an answer, c asks the
+        // controller, A makes your next answer the answer to similar questions too; y takes the controller's
+        // suggestion (n types another). Everything else is Attention's.
+        "swarmask": laid([
+            ("i", "swarm.answer"), ("c", "swarm.controller"), ("A", "swarm.similar"),
+        ] + (1 ... 9).map { ("\($0)", "swarm.answer.option \($0)") }, over: attention),
         "inbox": [
             ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "items.read"),
             ("t", "items.filter"), ("r", "github.sync"),
@@ -215,6 +219,14 @@ public enum DefaultKeys {
             ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("C", "pilot.copilot"),
             ("x", "feedback.dismiss"), ("S", "feedback.session"), ("<Esc>", "overlay.close"), ("r", "github.sync"),
         ],
+    ]
+
+    /// Attention's own keys. heed's goal asks have one key each; on other items m pins as before.
+    static let attention: [(String, String)] = [
+        ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "attention.done"),
+        ("Z", "attention.snooze"), ("M", "attention.mute"), ("R", "attention.reply"), ("gS", "attention.session"),
+        ("t", "attention.filter"), ("T", "attention.sort"), ("r", "github.sync"),
+        ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
     ]
 
     /// Views whose own bindings work in VISUAL too, ahead of VISUAL's: in the diff, `a`, `A` and `y` act on the

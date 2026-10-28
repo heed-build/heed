@@ -75,6 +75,10 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
     case badPlan([String])
     case unknownQuestion(Int64)
     case noTask(String)
+    /// The question is not this agent's to answer (it is at another step of its ladder): whose it is.
+    case notYours(Int64, String)
+    /// A message names nobody heed knows: the word.
+    case unknownAddress(String)
 
     public var description: String {
         switch self {
@@ -93,6 +97,9 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
         case let .badPlan(problems): "the plan was not taken: " + problems.joined(separator: "; ")
         case let .unknownQuestion(id): "no open question \(id)"
         case let .noTask(id): "no task \(id) in the plan"
+        case let .notYours(id, whose): "question \(id) is not yours to answer: it waits for \(whose)"
+        case let .unknownAddress(word):
+            "no one called \(word): a task's number (2.1) or id, lead, or @all (heed goal plan show lists the tasks)"
         }
     }
 }

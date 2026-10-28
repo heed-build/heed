@@ -192,7 +192,7 @@ extension AppModel {
 
     /// Tells the lead, in its pane, that there is something to read: only when it is idle and you have not typed
     /// there (`Delivery`). Otherwise it reads it in `heed goal plan show` when it next looks.
-    private func nudgeLead(_ board: SwarmBoard, _ text: String) {
+    func nudgeLead(_ board: SwarmBoard, _ text: String) {
         guard let id = board.swarm.lead, let session = sessions.first(where: { $0.id == id }),
               let layout = layouts[id], let (_, paneID) = agentPane(in: layout),
               TerminalSurfaces.shared.hasTerminal(paneID: paneID),
@@ -339,40 +339,6 @@ extension AppModel {
         nudgeLead(board, "The owner asks you to re-plan: \(feedback)")
     }
 
-    /// `swarm.answer [text]`: an answer to the lead's first open question (or the one clicked).
-    func answerLead(_ words: [String], question: Int64? = nil) {
-        guard let board = needSwarm() else { return }
-        guard let asked = question ?? board.openQuestions.first?.id ?? board.questions.last?.id else {
-            return say("the lead has asked nothing")
-        }
-        guard !words.isEmpty else {
-            var draft = PlanDraft(kind: .answer(asked))
-            draft.text = board.questions.first { $0.id == asked }?.answer?.text ?? ""
-            return beginPlanDraft(draft)
-        }
-        let id = board.swarm.id
-        let text = words.joined(separator: " ")
-        let now = Clock.now
-        planOp {
-            try await $0.answer(swarm: id, question: asked, text: text, now: now)
-        } said: { _ in
-            "answered the lead"
-        }
-        nudgeLead(board, "The owner answered your question: \(text)")
-    }
-
-    /// `swarm.answer.option <n>`: the lead's first open question answered with its option n, as clicking it does.
-    func answerLeadOption(_ word: String?) {
-        guard let board = needSwarm() else { return }
-        guard let question = board.openQuestions.first else { return say("the lead asks nothing open") }
-        let options = question.row.options
-        guard let number = Int(word ?? ""), options.indices.contains(number - 1) else {
-            return say(options.isEmpty ? "the question has no options: \(keyText(for: "swarm.answer", in: "goalplan")) "
-                + "types an answer" : "the question has \(options.count) option\(options.count == 1 ? "" : "s")")
-        }
-        answerLead([options[number - 1]], question: question.id)
-    }
-
     /// `swarm.diff`: the version under the cursor's whole diff, or its first lines.
     func togglePlanDiff() {
         guard view == .goals, goals.board != nil else { return say("no swarm here") }
@@ -436,6 +402,9 @@ extension AppModel {
 
     // MARK: Typing
 
+    /// The answer editor in the plan pane, for the question it names.
+    func beginPlanAnswer(_ draft: PlanDraft) { beginPlanDraft(draft) }
+
     private func beginPlanDraft(_ draft: PlanDraft) {
         if goals.pane != .plan { goals.togglePlan() }
         goals.planDraft = draft
@@ -464,7 +433,7 @@ extension AppModel {
         case let .answer(question):
             guard !words.isEmpty else { return say("type the answer") }
             cancelPlanDraft()
-            answerLead([words], question: question)
+            answerSwarm([words], question: question)
         case .reject:
             cancelPlanDraft()
             reject(board, why: words)

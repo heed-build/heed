@@ -682,7 +682,7 @@ struct SwarmControlTests {
         let prompt = SwarmLead.prompt(goal: "Faster builds", doc: "~/goals/g/GOAL.md", swarm: swarm)
         #expect(prompt.hasPrefix("You lead swarm 2 on the goal Faster builds. Its GOAL.md is ~/goals/g/GOAL.md."))
         #expect(prompt.contains("a team of codex ×2"))
-        #expect(prompt.contains("Run: heed goal ask QUESTION --option A --option B."))
+        #expect(prompt.contains("Run: heed goal ask QUESTION --option A --effect TEXT --option B --effect TEXT."))
         for rule in GoalGuidance.leadRules {
             for bad in ["\"", "`", "$", "\\"] {
                 #expect(!rule.text.contains(bad) && !(rule.command ?? "").contains(bad))

@@ -256,7 +256,7 @@ struct ScopedKeyTests {
         #expect(try command("a", "goalboard") == "goal.item.add")
         #expect(try command("a", "goalplan") == "swarm.task.add")
         #expect(try command("r", "goalpersonas") == "persona.derive")
-        #expect(try command("c", "goalplan") == nil)
+        #expect(try command("c", "goalplan") == "swarm.controller")
         #expect(try command("i", "goalplan") == "swarm.answer")
         // Landing: m the merge order, b a stacked PR's new base; o stays starting work.
         #expect(try command("m", "goalplan") == "swarm.order")

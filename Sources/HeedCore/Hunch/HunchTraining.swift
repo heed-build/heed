@@ -40,12 +40,15 @@ public enum HunchFamily: String, Codable, CaseIterable, Sendable {
     case attach
     /// Screen snapshots with the state an agent's hooks reported: whether it is waiting for you.
     case screens
+    /// Your overrules of the swarm controller's answers: the option you picked instead.
+    case swarm
 
     public var title: String {
         switch self {
         case .attention: "Attention"
         case .attach: "Goal attach"
         case .screens: "Agent waiting"
+        case .swarm: "Swarm answers"
         }
     }
 }
@@ -187,6 +190,36 @@ public enum HunchTrainingSet {
                 answer: answer, weight: 1, at: snapshot.at
             )
         }
+    }
+
+    // MARK: Swarms
+
+    /// Your overrules of answers the controller gave (picked, or a repeat it found): the question as the controller
+    /// read it, with the option you picked. An overrule that is none of the options teaches nothing (the controller
+    /// can only pick one). The newest overrule of a question wins.
+    public static func swarm(_ rows: [SwarmSteer]) -> [HunchExample] {
+        let byID = Dictionary(
+            rows.compactMap { row in row.id.map { ($0, row) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        var newest: [String: HunchExample] = [:]
+        for row in rows where row.kind == .overrule {
+            guard let about = row.about, let question = byID[about], question.kind == .question,
+                  let ref = row.ref, ref.hasPrefix("steer:"), let old = Int64(ref.dropFirst(6)),
+                  byID[old]?.actor == .controller, let asked = SwarmController.question(question),
+                  let option = question.options.first(where: {
+                      SwarmRepeat.normalised($0) == SwarmRepeat.normalised(row.text)
+                  })
+            else { continue }
+            let example = HunchExample(
+                id: "swarm:\(question.swarm)#\(about)", family: .swarm,
+                state: trimmed(SwarmController.state(question), keepEnd: false), question: asked, answer: option,
+                weight: 1, at: row.at
+            )
+            if let other = newest[example.id], other.at > example.at { continue }
+            newest[example.id] = example
+        }
+        return Array(newest.values)
     }
 
     // MARK: Keeping it

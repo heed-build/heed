@@ -37,7 +37,8 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case goalSpawn
     /// A goal needs an expert nobody has looked as yet, and heed did not spawn one on its own: P shows who.
     case goalPersonaGap
-    /// A goal's swarm reached a limit (its hours or dollars) and paused: y gives it more, n keeps it paused.
+    /// A goal's swarm asks you: an agent's question that is yours to answer (1…9, i, c, A), a limit it reached and
+    /// paused at (y gives it more, n keeps it paused), or PRs heed could not move to their new base (y, n).
     case swarmAsk
     /// A colleague closed or reopened a goal's sub-issue on GitHub against what heed has: does the item follow?
     case goalMirror
@@ -197,6 +198,12 @@ public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
             "The goal's reviewers have nowhere to run: its repo is not cloned on this Mac."
         case .goal where reasons.contains(.goalPersonaGap):
             "The goal needs an expert nobody has looked as yet: ↩ shows who and why, S, C or N puts one to work."
+        case .goal where reasons.contains(.swarmAsk) && id.contains(":ask:"):
+            "An agent of the goal's swarm asks you: 1…9 pick an option, i types an answer, c asks the controller, A "
+                + "first makes your answer the answer to similar questions too."
+        case .goal where reasons.contains(.swarmAsk) && id.hasSuffix(":retarget"):
+            "heed could not move a stacked PR to its new base after the PR it stacked on merged: y tries again, n "
+                + "leaves it where it is."
         case .goal where reasons.contains(.swarmAsk):
             "The goal's swarm reached a limit and paused: nothing more starts. y raises the limit by half and goes on, "
                 + "n keeps it paused."

@@ -313,6 +313,9 @@ private struct AttentionDetail: View {
                 {
                     AskCard(decision: ask, isCursor: true, scope: "attention").shotRegion(.goalAsk)
                 }
+                if let (board, question) = model.swarmQuestion(for: item) {
+                    SwarmAskCard(board: board, question: question, item: item.id).shotRegion(.swarmAsk)
+                }
                 section("Summary") {
                     if let summary = model.attention.summary(for: item) {
                         Text(summary).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
@@ -369,7 +372,15 @@ private struct AttentionDetail: View {
                 }
                 section("Do something") {
                     VStack(alignment: .leading, spacing: 7) {
-                        if item.reasons.contains(.swarmAsk) {
+                        if GoalAttention.isRetarget(item) {
+                            HStack(spacing: 14) {
+                                action("goal.ask.yes", "try again", item: item.id)
+                                action("goal.ask.no", "leave it", item: item.id)
+                                action("open.reader", "its plan", item: item.id)
+                            }
+                        } else if GoalAttention.question(of: item) != nil {
+                            action("open.reader", "its plan", item: item.id)
+                        } else if item.reasons.contains(.swarmAsk) {
                             HStack(spacing: 14) {
                                 action("goal.ask.yes", "raise the limit, go on", item: item.id)
                                 action("goal.ask.no", "keep it paused", item: item.id)
@@ -427,5 +438,47 @@ private struct AttentionDetail: View {
             Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
             if let detail { Text(detail).font(Theme.ui(12, weight: .semibold)).lineLimit(1) }
         }
+    }
+}
+
+/// A swarm's question in Needs you: who asks and about what, each choice with what it would change, the controller's
+/// suggestion; a key for each choice, one to type, one to ask the controller, one to answer similar questions alike.
+private struct SwarmAskCard: View {
+    @Environment(AppModel.self) private var model
+    let board: SwarmBoard
+    let question: SwarmSteering.Question
+    let item: String
+
+    var body: some View {
+        let armed = model.similarArmed == "\(board.swarm.id)#\(question.id)"
+        let suggestion = SwarmSteering.suggestion(question, rows: board.steering)
+        let target = CommandTarget.row(view: "attention", id: item)
+        VStack(alignment: .leading, spacing: 12) {
+            SwarmQuestionView(board: board, question: question, keyed: true, large: true)
+            FlowLayout(spacing: 14, lineSpacing: 6) {
+                if !question.row.options.isEmpty {
+                    KeyHint(
+                        "swarm.answer.option", ["1"], target: target,
+                        key: question.row.options.count == 1 ? "1" : "1…\(min(question.row.options.count, 9))",
+                        scope: "swarmask", label: "pick", color: Theme.fg
+                    )
+                }
+                if suggestion != nil {
+                    KeyHint("goal.ask.yes", target: target, scope: "swarmask", label: "take the suggestion")
+                }
+                KeyHint("swarm.answer", target: target, scope: "swarmask", label: "type an answer")
+                if suggestion == nil {
+                    KeyHint("swarm.controller", target: target, scope: "swarmask", label: "ask the controller")
+                }
+                KeyHint(
+                    "swarm.similar", target: target, scope: "swarmask",
+                    label: armed ? "same for similar: on" : "same for similar",
+                    color: armed ? Theme.block : Theme.fg3
+                )
+            }
+        }
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.ask.opacity(0.5)))
     }
 }

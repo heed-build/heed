@@ -50,12 +50,17 @@ public struct GoalReply: Codable, Equatable, Sendable {
     public var view: GoalView?
     /// `plan show`, and what `plan propose` and `ask` leave the plan as.
     public var plan: SwarmPlanView?
+    /// `ask`: the question's number, and where it stands (its answer once there is one).
+    public var question: Int64?
+    public var answer: SwarmAnswerView?
 
     public init(
         _ outcome: String, exit: GoalExit = .ok, message: String, goal: String? = nil, item: String? = nil,
         edit: Int64? = nil, version: Int? = nil, session: String? = nil, goals: [GoalRow]? = nil,
-        view: GoalView? = nil, plan: SwarmPlanView? = nil
+        view: GoalView? = nil, plan: SwarmPlanView? = nil, question: Int64? = nil, answer: SwarmAnswerView? = nil
     ) {
+        self.question = question
+        self.answer = answer
         self.outcome = outcome
         self.exit = exit
         self.message = message
@@ -450,7 +455,7 @@ public enum GoalControl {
             ))
         case .reviewRequest:
             return .app(.review(goal: goal.id, kind: command.subject ?? ""), goal: goal)
-        case .planShow, .planPropose, .planApprove, .ask:
+        case .planShow, .planPropose, .planApprove, .ask, .swarmSend, .swarmNote, .swarmAnswer:
             return try await .reply(SwarmControl.run(command, goal: goal, caller: caller, ops: ops, now: now))
         }
     }

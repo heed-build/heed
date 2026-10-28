@@ -14,6 +14,8 @@ public struct GoalCommand: Codable, Equatable, Sendable {
         case reviewRequest = "review request"
         case planPropose = "plan propose", planShow = "plan show", planApprove = "plan approve"
         case ask
+        /// `heed swarm send|note|answer`.
+        case swarmSend = "swarm send", swarmNote = "swarm note", swarmAnswer = "swarm answer"
     }
 
     public var verb: Verb
@@ -40,13 +42,26 @@ public struct GoalCommand: Codable, Equatable, Sendable {
     public var options: [String]?
     /// Sent by a background run (its goal from `HEED_GOAL`), not from a pane or a terminal.
     public var fromRun: Bool?
+    /// `ask --effect`: what each option would change, in the order of `options` (empty where none was given).
+    public var effects: [String]?
+    /// `ask --to`: whom the question is for (`lead`, `you`, a task); `swarm send`: whom the message is for.
+    public var to: String?
+    /// `ask --timeout <minutes>` (`--no-wait`: 0): how long the CLI waits for the answer. The app ignores it.
+    public var timeout: Double?
+    /// `ask --id <n>`: a question asked before, read again (the CLI's own polls set it too).
+    public var question: Int64?
 
     public init(
         _ verb: Verb, goal: String? = nil, json: Bool = false, subject: String? = nil, text: String? = nil,
         parent: String? = nil, bySubagent: String? = nil, evidence: String? = nil, agent: String? = nil,
         item: String? = nil, background: Bool = false, note: String? = nil, file: String? = nil,
-        options: [String]? = nil
+        options: [String]? = nil, effects: [String]? = nil, to: String? = nil, timeout: Double? = nil,
+        question: Int64? = nil
     ) {
+        self.effects = effects
+        self.to = to
+        self.timeout = timeout
+        self.question = question
         self.verb = verb
         self.goal = goal
         self.json = json
@@ -83,6 +98,8 @@ public enum GoalExit: Int32, Codable, Sendable {
     case noGoal = 4
     /// Held for you: over the goal's spawn cap, asked in Attention.
     case waiting = 5
+    /// `ask` waited its timeout and no answer came: the question stays open (`heed goal ask --id <n>` waits again).
+    case timedOut = 6
 }
 
 /// `heed goal …` from a terminal or an agent's shell.
@@ -122,12 +139,20 @@ public enum GoalCommandLine {
                                              doneWhen; scope for GOAL.md changes): before approval it is the draft,
                                              after it small changes apply and structural ones wait
       plan approve                           approve the plan (the owner, from a terminal; never an agent)
-      ask <question> [--option <a> --option <b>]
-                                             a question for the owner, shown in the plan pane; the answer shows in
-                                             plan show
+      ask <question> [--option <a> [--effect <what a changes>]]... [--to lead|you|<task>]
+          [--timeout <minutes>|--no-wait]
+                                             a question, and wait for its answer (printed on stdout). heed decides
+                                             who may answer: the lead (scope), a peer (--to <task>, or the task
+                                             yours waits for), heed's controller (reversible choices, repeats of
+                                             the owner's answers), the owner (the goal, limits, deleting data,
+                                             merging to main, more agents or time). Waits 9 minutes by default (give
+                                             your shell tool its longest timeout), then exits 6
+      ask --id <n> [--timeout <minutes>]     wait again for the answer to question n
+    heed swarm send|note|answer (heed swarm --help): messages to other agents, progress notes, answers
 
-    Item ids are <goal>/<slug> or just <slug>. Exit codes: 0 done or proposed, 1 refused, 2 usage, 3 Heed not
-    reachable, 4 no goal (attach first or pass --goal), 5 held for you in Attention.
+    Item ids are <goal>/<slug> or just <slug>. Exit codes: 0 done, proposed or answered, 1 refused, 2 usage, 3
+    Heed not reachable, 4 no goal (attach first or pass --goal), 5 held for you in Attention, 6 no answer before
+    the timeout (the question stays open).
     """
 
     /// The goal of a run with no session (a spawned background run), when `--goal` is not given.
@@ -135,7 +160,7 @@ public enum GoalCommandLine {
 
     /// `heed goal`, `heed goal --help`, `heed goal help`: the usage, on stdout, exit 0.
     public static func wantsHelp(_ arguments: [String]) -> Bool {
-        let words = arguments.first == "goal" ? Array(arguments.dropFirst()) : arguments
+        let words = arguments.first == "goal" || arguments.first == "swarm" ? Array(arguments.dropFirst()) : arguments
         return words.isEmpty || words.contains { $0 == "-h" || $0 == "--help" } || words.first == "help"
     }
 
@@ -145,7 +170,7 @@ public enum GoalCommandLine {
         _ arguments: [String], environment: [String: String], read: (String) throws -> String = readFile
     ) throws -> ControlRequest {
         let session = environment[HeedEnvironment.sessionID].flatMap { $0.isEmpty ? nil : $0 }
-        var command = try parse(arguments)
+        var command = try arguments.first == "swarm" ? SwarmCommandLine.parse(arguments) : parse(arguments)
         // A background run has no session: heed tells it its goal instead.
         if session == nil, let goal = environment[goalVariable], !goal.isEmpty {
             if command.goal == nil { command.goal = goal }
@@ -196,15 +221,27 @@ public enum GoalCommandLine {
         var rest = ArraySlice(arguments.first == "goal" ? Array(arguments.dropFirst()) : arguments)
         let valued: Set = [
             "--goal", "--parent", "--by-subagent", "--evidence", "--agent", "--item", "--note", "--file", "--option",
+            "--effect", "--to", "--timeout", "--id",
         ]
         var choices: [String] = []
+        var effects: [String] = []
+        var noWait = false
         while let word = rest.popFirst() {
             switch word {
             case "--json": json = true
+            case "--no-wait":
+                noWait = true
+                options["--no-wait"] = ""
             case "--option":
                 guard let value = rest.popFirst(), !value.isEmpty else { throw usageError("--option needs a value") }
                 choices.append(value)
+                effects.append("")
                 options["--option"] = value
+            case "--effect":
+                guard let value = rest.popFirst(), !value.isEmpty else { throw usageError("--effect needs a value") }
+                guard !choices.isEmpty else { throw usageError("--effect says what the --option before it changes") }
+                effects[choices.count - 1] = value
+                options["--effect"] = value
             case "--background": background = true
             case "-h", "--help", "help": throw usageError(nil)
             case _ where valued.contains(word):
@@ -215,7 +252,16 @@ public enum GoalCommandLine {
                 guard valued.contains(parts[0]), parts.count == 2, !parts[1].isEmpty else {
                     throw usageError("unknown option \(parts[0])")
                 }
-                if parts[0] == "--option" { choices.append(parts[1]) }
+                if parts[0] == "--option" {
+                    choices.append(parts[1])
+                    effects.append("")
+                }
+                if parts[0] == "--effect" {
+                    guard !choices.isEmpty else {
+                        throw usageError("--effect says what the --option before it changes")
+                    }
+                    effects[choices.count - 1] = parts[1]
+                }
                 options[parts[0]] = parts[1]
             case _ where word.hasPrefix("--"):
                 throw usageError("unknown option \(word)")
@@ -244,7 +290,8 @@ public enum GoalCommandLine {
             verb, goal: options["--goal"], json: json, parent: options["--parent"],
             bySubagent: options["--by-subagent"], evidence: options["--evidence"], agent: options["--agent"],
             item: options["--item"], background: background, note: options["--note"], file: options["--file"],
-            options: choices.isEmpty ? nil : choices
+            options: choices.isEmpty ? nil : choices,
+            effects: effects.contains(where: { !$0.isEmpty }) ? effects : nil, to: options["--to"]
         )
         // Which options each command takes: anything else is a mistake worth saying, not ignoring.
         let allowed: Set<String> = switch verb {
@@ -254,7 +301,7 @@ public enum GoalCommandLine {
         case .itemSpawn: ["--agent"]
         case .linkPR: ["--item"]
         case .planPropose: ["--note", "--file"]
-        case .ask: ["--option"]
+        case .ask: ["--option", "--effect", "--to", "--timeout", "--id", "--no-wait"]
         default: []
         }
         for option in options.keys where option != "--goal" && !allowed.contains(option) {
@@ -274,8 +321,35 @@ public enum GoalCommandLine {
                 throw usageError("plan propose needs --file: a JSON file, or - to read it on stdin")
             }
         case .ask:
+            if let timeout = options["--timeout"] {
+                guard let minutes = Double(timeout), minutes >= 0, minutes.isFinite else {
+                    throw usageError("--timeout takes minutes (0: do not wait)")
+                }
+                command.timeout = minutes
+            }
+            if noWait {
+                guard command.timeout == nil else { throw usageError("--no-wait or --timeout, not both") }
+                command.timeout = 0
+            }
+            guard let to = command.to else {
+                if let id = options["--id"] {
+                    guard let number = Int64(id), number > 0 else { throw usageError("--id takes a question's number") }
+                    guard args.isEmpty, choices.isEmpty else {
+                        throw usageError("ask --id waits for question \(id)'s answer: no new words or options")
+                    }
+                    command.question = number
+                    return command
+                }
+                guard let text = joined(args[...]) else { throw usageError("ask needs a question") }
+                command.text = text
+                return command
+            }
+            guard options["--id"] == nil else { throw usageError("--to is for a new question, not --id") }
+            guard !to.trimmingCharacters(in: .whitespaces).isEmpty else { throw usageError("--to needs whom") }
             guard let text = joined(args[...]) else { throw usageError("ask needs a question") }
             command.text = text
+        case .swarmSend, .swarmNote, .swarmAnswer:
+            throw usageError("\(verb.rawValue) is heed \(verb.rawValue): heed swarm --help")
         case .attach:
             guard args.count <= 1 else { throw usageError("attach takes one goal") }
             command.subject = args.first

@@ -526,6 +526,18 @@ enum Shots {
         Shot(id: "goals/swarm-goal-done", keys: "gGj", crop: .goalSwarm, cropPadding: 8, prepare: {
             $0.loadRunningSwarmFixture(.done)
         }),
+        // Steering: the running anchors swarm's questions in Needs you (one with the controller's suggestion), its
+        // steering log with the controller's answer you overruled, and one task's agent-to-agent log.
+        Shot(id: "goals/swarm-needs-you", keys: "gm/asks:<CR>", prepare: { $0.loadSteeringFixture() }),
+        Shot(id: "goals/swarm-ask", keys: "gm/cached timings<CR>", crop: .swarmAsk, cropPadding: 8, prepare: {
+            $0.loadSteeringFixture()
+        }),
+        Shot(id: "goals/swarm-steering", keys: "gGjS<Tab><Tab>jjjjj", crop: .swarmSteering, cropPadding: 8, prepare: {
+            $0.loadSteeringFixture()
+        }),
+        Shot(id: "goals/swarm-agent-log", keys: "gGjSjj", crop: .swarmAgentLog, cropPadding: 8, prepare: {
+            $0.loadSteeringFixture()
+        }),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

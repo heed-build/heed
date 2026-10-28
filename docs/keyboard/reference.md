@@ -163,7 +163,7 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (watch) | toggle row |
+| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch) | toggle row |
 | `history.reopen` | `R` (dashboard), `<CR>` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger), `R` (timeline), `<CR>` (timeline) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` | `t` (history) | cycle the outcome filter |
@@ -193,9 +193,9 @@ This page is generated from the code (`mise run shots`).
 | `goal.proposal.edit` `[text]` | `c` (goaldoc) | GOAL.md: reword the first change waiting, then accept it (no text: the command line) |
 | `goal.undo` | `u` (goaldoc) | GOAL.md: take back the last change heed made on its own |
 | `goal.sharpen` | `w` (goaldoc), `w` (goals) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
-| `goal.ask.yes` | `y` (attention), `y` (unassigned) | yes: on the goal heed proposed (on a suggested goal: make it) |
-| `goal.ask.no` | `n` (attention), `n` (unassigned) | no: not on that goal, and heed learns it (on a suggested goal: drop it) |
-| `goal.ask.move` `<goal>` | `m` (attention), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
+| `goal.ask.yes` | `y` (attention), `y` (swarmask), `y` (unassigned) | yes: on the goal heed proposed (on a suggested goal: make it) |
+| `goal.ask.no` | `n` (attention), `n` (swarmask), `n` (unassigned) | no: not on that goal, and heed learns it (on a suggested goal: drop it) |
+| `goal.ask.move` `<goal>` | `m` (attention), `m` (swarmask), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
 | `goal.ask.ignore` | `i` (attention), `i` (unassigned) | leave things like this on no goal, and heed learns to (an ignore rule) |
 | `goal.attach.undo` | `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
 | `goal.attach.find` |  | look for the session's goal now: rules, signals, the model when unsure |
@@ -224,8 +224,14 @@ This page is generated from the code (`mise run shots`).
 | `swarm.task.move` `<1|-1>` | `J` (goalplan), `K` (goalplan) | move the plan's task down (1) or up (-1); past its phase, into the next |
 | `swarm.task.drop` | `x` (goalplan) | drop the plan's task under the cursor; nothing waits for it any more |
 | `swarm.replan` `[feedback]` | `r` (goalplan) | ask the swarm's lead to re-plan, with your feedback |
-| `swarm.answer` `[answer]` | `i` (goalplan) | answer the lead's first open question (or the one clicked) |
-| `swarm.answer.option` `<n>` | `1` (goalplan), `2` (goalplan), `3` (goalplan), `4` (goalplan), `5` (goalplan), `6` (goalplan), `7` (goalplan), `8` (goalplan), `9` (goalplan) | answer the lead's first open question with its option n (1 is the first) |
+| `swarm.answer` `[answer]` | `i` (goalplan), `i` (swarmask) | answer the swarm question under the cursor (Needs you, the plan's log), else the first open one; on one someone else answered, an overrule |
+| `swarm.answer.option` `<n>` | `1` (goalplan), `2` (goalplan), `3` (goalplan), `4` (goalplan), `5` (goalplan), `6` (goalplan), `7` (goalplan), `8` (goalplan), `9` (goalplan), `1` (swarmask), `2` (swarmask), `3` (swarmask), `4` (swarmask), `5` (swarmask), `6` (swarmask), `7` (swarmask), `8` (swarmask), `9` (swarmask) | answer the swarm question under the cursor (else the first open one) with its option n (1 is the first) |
+| `swarm.controller` | `c` (goalplan), `c` (swarmask) | hand the swarm question under the cursor to heed's controller: it answers what is within its authority and suggests an answer for what is yours |
+| `swarm.similar` | `A` (swarmask) | make your next answer to the swarm question under the cursor the answer to similar questions too |
+| `swarm.overrule` `[answer]` |  | answer again the swarm question under the cursor that someone else answered |
+| `swarm.log.who` `[actor]` | `w` (goalplan) | the steering log by who decided: everyone, you, the controller, the lead, agents, heed |
+| `swarm.log.jump` | `q` (goalplan) | from a steering row to the question it is about, from a question to its answer; elsewhere to the log |
+| `swarm.send` `<to> <text>` |  | a message to a swarm agent (a task's number, lead, or @all), typed in once it is idle |
 | `swarm.diff` | `d` (goalplan) | the plan version under the cursor's whole diff against the one before (again: short) |
 | `swarm.restore` `[version]` | `u` (goalplan) | make a plan version current again, as a new version |
 | `review.recheck` `[reviewer]` | `r` (goaldoc), `r` (goalreviewers), `r` (goals) | re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs) |
@@ -254,18 +260,18 @@ This page is generated from the code (`mise run shots`).
 | `log.caller` | `c` (log) | call log: only the caller of the call under the cursor, or every caller |
 | `log.agent` | `a` (log) | call log: only the agent of the call under the cursor, or every agent |
 | `log.copy` | `y` (log) | copy the command of the call under the cursor |
-| `github.sync` | `r` (attention), `r` (inbox), `r` (issues), `r` (pr), `r` (prs), `r` (watch) | sync GitHub now |
-| `items.start` | `s` (attention), `s` (inbox), `s` (issue), `s` (issues) | start one session from the picked items |
-| `items.add` | `a` (attention), `a` (inbox), `a` (issue), `a` (issues) | add the picked items to the current session |
+| `github.sync` | `r` (attention), `r` (inbox), `r` (issues), `r` (pr), `r` (prs), `r` (swarmask), `r` (watch) | sync GitHub now |
+| `items.start` | `s` (attention), `s` (inbox), `s` (issue), `s` (issues), `s` (swarmask) | start one session from the picked items |
+| `items.add` | `a` (attention), `a` (inbox), `a` (issue), `a` (issues), `a` (swarmask) | add the picked items to the current session |
 | `items.read` | `x` (inbox) | mark read |
 | `items.filter` | `t` (inbox), `t` (issues) | cycle the filter chips |
-| `attention.done` | `x` (attention) | done: mark the thread read on GitHub; it comes back when something new happens |
-| `attention.snooze` `[duration]` | `Z` (attention) | snooze: out of the feed until later (3h, or 30m, 2d, tomorrow) |
-| `attention.mute` | `M` (attention) | mute the thread on GitHub (no more notifications about it); listed under Muted |
-| `attention.reply` | `R` (attention) | draft a reply with the model; you read it before anything is posted |
-| `attention.session` | `gS` (attention) | go to the item's session |
-| `attention.filter` `[filter]` | `t` (attention) | next Attention filter, or the one named |
-| `attention.sort` | `T` (attention) | Attention: recent first, or weight then recent |
+| `attention.done` | `x` (attention), `x` (swarmask) | done: mark the thread read on GitHub; it comes back when something new happens |
+| `attention.snooze` `[duration]` | `Z` (attention), `Z` (swarmask) | snooze: out of the feed until later (3h, or 30m, 2d, tomorrow) |
+| `attention.mute` | `M` (attention), `M` (swarmask) | mute the thread on GitHub (no more notifications about it); listed under Muted |
+| `attention.reply` | `R` (attention), `R` (swarmask) | draft a reply with the model; you read it before anything is posted |
+| `attention.session` | `gS` (attention), `gS` (swarmask) | go to the item's session |
+| `attention.filter` `[filter]` | `t` (attention), `t` (swarmask) | next Attention filter, or the one named |
+| `attention.sort` | `T` (attention), `T` (swarmask) | Attention: recent first, or weight then recent |
 | `issues.repo.next` | `<Tab>` (issues) | next repo in the Issues repo column |
 | `issues.repo.prev` | `<S-Tab>` (issues) | previous repo in the Issues repo column |
 | `issues.repo` `[name]` |  | show one repo's issues (no name: every repo) |

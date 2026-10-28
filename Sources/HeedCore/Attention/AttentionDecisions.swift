@@ -20,6 +20,18 @@ public extension Notices {
         )
     }
 
+    /// An entry for a swarm's question that waits for you (an agent asking, as a session asking does): whatever the
+    /// rules say, unless you muted, snoozed or set it aside.
+    static func swarmQuestion(_ entry: AttentionEntry, now: Date) -> Entry? {
+        let item = entry.item
+        guard entry.live, GoalAttention.question(of: item) != nil, !entry.muted, !entry.mark.hides(item, now: now)
+        else { return nil }
+        return Entry(
+            id: attentionPrefix + item.id, title: item.title, agent: "", state: .asking,
+            reason: "a swarm asks you", kind: .attention, session: attentionPrefix + item.id
+        )
+    }
+
     /// Attention entries are facts GitHub already settled: no grace, no reminder. They still gather into one
     /// notification when several come in one sync.
     static let attentionTiming = Timing(grace: 0, reminder: nil)

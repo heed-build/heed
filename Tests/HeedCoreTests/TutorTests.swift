@@ -59,7 +59,8 @@ struct TutorTests {
             "panes", "sidebar", "needsYou", "dialog", "viewTabs", "statusBar", "list", "reader", "pipeline",
             "worktreeTable", "confirm", "historyList", "diffBody", "pilotDetail", "attentionFilters", "logList",
             "logUsage", "goalsList", "goalsOverview", "goalsDoc", "sessionGoal", "goalProposals", "goalsBoard",
-            "goalsUnassigned", "goalReviewers", "goalReviewerDetail", "goalPersonas", "swarmPlan", "goalEvaluations",
+            "goalsUnassigned", "goalReviewers", "goalReviewerDetail", "goalPersonas", "swarmPlan", "swarmSteering",
+            "goalEvaluations",
             "goalFriction",
         ]
         for lesson in [Tutor.tour] + Tutor.viewLessons {

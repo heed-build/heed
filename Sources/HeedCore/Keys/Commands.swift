@@ -398,12 +398,41 @@ public enum Commands {
             "swarm.replan", "ask the swarm's lead to re-plan, with your feedback", .selection, arguments: "[feedback]"
         ),
         .init(
-            "swarm.answer", "answer the lead's first open question (or the one clicked)", .selection,
-            arguments: "[answer]"
+            "swarm.answer",
+            "answer the swarm question under the cursor (Needs you, the plan's log), else the first open one; on one "
+                + "someone else answered, an overrule", .selection, arguments: "[answer]"
         ),
         .init(
-            "swarm.answer.option", "answer the lead's first open question with its option n (1 is the first)",
+            "swarm.answer.option",
+            "answer the swarm question under the cursor (else the first open one) with its option n (1 is the first)",
             .selection, arguments: "<n>"
+        ),
+        .init(
+            "swarm.controller",
+            "hand the swarm question under the cursor to heed's controller: it answers what is within its authority "
+                + "and suggests an answer for what is yours", .selection
+        ),
+        .init(
+            "swarm.similar",
+            "make your next answer to the swarm question under the cursor the answer to similar questions too",
+            .selection
+        ),
+        .init(
+            "swarm.overrule", "answer again the swarm question under the cursor that someone else answered",
+            .selection, arguments: "[answer]"
+        ),
+        .init(
+            "swarm.log.who", "the steering log by who decided: everyone, you, the controller, the lead, agents, heed",
+            .selection, arguments: "[actor]"
+        ),
+        .init(
+            "swarm.log.jump",
+            "from a steering row to the question it is about, from a question to its answer; elsewhere to the log",
+            .selection
+        ),
+        .init(
+            "swarm.send", "a message to a swarm agent (a task's number, lead, or @all), typed in once it is idle",
+            .selection, arguments: "<to> <text>"
         ),
         .init(
             "swarm.diff",

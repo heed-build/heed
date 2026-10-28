@@ -283,6 +283,28 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// A row of a swarm's steering log (`steer:<row id>`) about a question: answer it (`options`, or typed), overrule
+    /// an answer someone else gave, hand it to the controller, or go to its question or answer.
+    public static func steeringRow(
+        id: Int64 = 0, question: Bool, options: [String], answered: Bool, byYou: Bool, active: Bool
+    ) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: "steer:\(id)")
+        func item(_ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true) -> MenuItem {
+            MenuItem(title, CommandInvocation(name: name, arguments: arguments, target: target), enabled: enabled)
+        }
+        var menu = Menu(header: question ? (answered ? "Answered question" : "Open question") : "Steering row")
+        if question, active {
+            let verb = answered && !byYou ? "Overrule with" : "Answer"
+            menu.section(options.prefix(9).map { item("\(verb) \($0)", "swarm.answer", [$0]) })
+            menu.section([
+                item(answered && !byYou ? "Overrule…" : "Type an answer…", "swarm.answer"),
+                item("Ask the controller", "swarm.controller", enabled: !answered),
+            ])
+        }
+        menu.section([item(question ? "Its question or answer" : "What it is about", "swarm.log.jump")])
+        return menu.entries
+    }
+
     /// A version in a swarm's plan: `planv:<n>`.
     public static func swarmVersion(number: Int, current: Bool, active: Bool) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: "planv:\(number)")

@@ -476,6 +476,15 @@ public extension Tutor {
                     + "what a task waits for merges first."
             ) { _, now, _ in now.goalPane == "plan" },
             TutorStep(
+                "Who decided what",
+                say: "Every answer, pause, swap and plan change is a row in the swarm's steering log, kept for good, "
+                    + "and an overrule is a row of its own. {swarm.log.who} shows the whole log, by who decided.",
+                keys: ["{swarm.log.who}"], target: "swarmSteering",
+                doneLine: "{swarm.log.who} again shows only yours, then the controller's, the lead's, the agents' and "
+                    + "heed's. {swarm.log.jump} goes between a question and its answer; on an answer someone else "
+                    + "gave, a digit or {swarm.answer} overrules it. Questions that are yours wait in Needs you."
+            ) { _, now, _ in now.goalPane == "plan" && now.goalFocus == "steering" },
+            TutorStep(
                 "One of your own",
                 say: "{goal.new} opens a new goal; :goal.new with a title makes one at once. Make one.",
                 keys: [":goal.new Faster search↩"], target: "goalsList",

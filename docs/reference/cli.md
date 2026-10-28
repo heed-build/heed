@@ -39,6 +39,7 @@ work anywhere while Heed runs:
 | `heed send <session> "<text>"` | Types the text into the session's agent and presses Return, only while the agent is idle or done and you have not just typed there; otherwise it says why and sends nothing |
 | `heed show [--focus] <session>` | Shows the session in Heed's window; `--focus` also brings Heed forward |
 | `heed goal <command>` | The goal the calling session is on: read it, record decisions, questions and items, check criteria with evidence, propose scope changes, spawn work. See [Agents keep the goal](../goals/cli.md) |
+| `heed swarm send\|note\|answer` | A swarm's agents: messages to a task, the lead or `@all`, progress notes, answers to questions heed handed them (method `goal` too). See [Steering](../goals/swarms/steering.md) |
 
 Each line on the socket is one JSON object. A request has a `method` (`sessions`, `watch`, `start`, `send`, `show`, `goal`), an
 `id` its reply echoes, and the fields the command takes (`directory`, `agent`, `prompt`, `arguments`, `session`, `text`, `focus`, `goal`). A

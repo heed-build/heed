@@ -294,6 +294,23 @@ public struct SwarmSteer: Hashable, Sendable, Codable, Identifiable {
         case land
         /// A stacked PR moved to a new base after the PR it stacked on merged (or could not be moved: why).
         case retarget
+        /// A message from you or an agent to an agent (`heed swarm send`): to a task's worker, the lead, or @all.
+        case message
+        /// An agent's progress note (`heed swarm note`): what it is doing, in a line.
+        case note
+        /// The ladder moved a question on (heed): to a peer, the lead, the controller or you, and why.
+        case escalate
+        /// The controller's suggested answer to a question that is yours to answer: you take it or answer otherwise.
+        case suggest
+        /// You answered a question someone else had answered (the controller, the lead, a peer): the new answer, which
+        /// is retyped to the agent. It points at the question (`about`) and at the answer it overrules (`ref`).
+        case overrule
+        /// "Same answer for similar questions" (`A` in Needs you): the controller answers questions like this one with
+        /// `answer` from now on, in this goal's swarms.
+        case rule
+        /// heed handed something to an agent (`about`: the message, question or answer; `ref`: to whom): typed into
+        /// its pane, or read by its waiting `heed goal ask` or its `plan show`.
+        case deliver
     }
 
     public enum State: String, Hashable, Sendable, Codable, CaseIterable {
@@ -301,7 +318,8 @@ public struct SwarmSteer: Hashable, Sendable, Codable, Identifiable {
         case applied
         /// Waiting: a question not answered, a structural change not approved.
         case pending
-        /// A later row overruled it.
+        /// An overrule: this row overrules the answer its `ref` names (rows are never changed, so the answer it
+        /// overrules reads as overruled from this row on: `SwarmSteering.overruled`).
         case overruled
     }
 
@@ -326,12 +344,37 @@ public struct SwarmSteer: Hashable, Sendable, Codable, Identifiable {
     public var options: [String]
     /// A plan change waiting for you: the tasks it would make the plan.
     public var tasks: [SwarmTask]?
+    /// Who wrote it, when that is not plain from `actor`: an agent's address (`lead`, `task:<id>`, `session:<id>`).
+    public var from: String?
+    /// Whom it is for: `you`, `lead`, `task:<id>`, `all` (a message, a question asked of someone).
+    public var to: String?
+    /// A question's choices: what each would change, in the order of `options` (empty where the asker said nothing).
+    public var effects: [String]?
+    /// A question's category (`SwarmAuthority.Category`), and the ladder it climbs (`SwarmAuthority.Answerer`s).
+    public var category: String?
+    public var ladder: [String]?
+    /// A question's step on the ladder when asked, or the step an escalation moved it to.
+    public var step: String?
+    /// A message to @all: the addresses it went to (the lead and the tasks at work then).
+    public var targets: [String]?
+    /// A repeat rule's answer.
+    public var answer: String?
 
     public init(
         id: Int64? = nil, swarm: String, goal: String, at: Date, actor: Actor, kind: Kind, text: String,
         reason: String? = nil, state: State = .applied, about: Int64? = nil, version: Int? = nil, ref: String? = nil,
-        options: [String] = [], tasks: [SwarmTask]? = nil
+        options: [String] = [], tasks: [SwarmTask]? = nil, from: String? = nil, to: String? = nil,
+        effects: [String]? = nil, category: String? = nil, ladder: [String]? = nil, step: String? = nil,
+        targets: [String]? = nil, answer: String? = nil
     ) {
+        self.from = from
+        self.to = to
+        self.effects = effects
+        self.category = category
+        self.ladder = ladder
+        self.step = step
+        self.targets = targets
+        self.answer = answer
         self.id = id
         self.swarm = swarm
         self.goal = goal

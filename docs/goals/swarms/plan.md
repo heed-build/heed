@@ -18,15 +18,18 @@ agents.
 
 | Key | |
 |---|---|
-| `⇥` | The goals, the tasks, the versions, in turn |
-| `j` `k` | Move through the tasks or the versions |
+| `⇥` | The goals, the tasks, the versions, the steering log, in turn |
+| `j` `k` | Move through the tasks, the versions or the steering log |
 | `e` | Edit the task under the cursor: title, phase, owner (`agent` or `agent:model`), estimate, after, done when |
 | `a` | Add a task after the one under the cursor, in its phase |
 | `J` `K` | Move the task down or up; past the edge of its phase it joins the next |
 | `x` | Drop the task; nothing waits for it any more |
 | `r` | Re-plan: tell the lead what should change |
-| `1`…`9` | Answer the lead's first open question with that choice |
-| `i` | Answer the lead's first open question in words |
+| `1`…`9` | Answer the question under the cursor in the steering log (else the first open one) with that choice; on an answer someone else gave, an overrule |
+| `i` | The same, in words |
+| `c` | Hand that question to heed's controller ([Steering](steering.md)) |
+| `w` | The steering log by who decided: everyone, you, the controller, the lead, agents, heed |
+| `q` | Between a question and its answer in the steering log |
 | `A` | Approve the plan |
 | `y` | Yes to the change waiting for you, as in `GOAL.md` |
 | `n` | Say no to the change waiting for you |
@@ -43,14 +46,16 @@ Every change you make is a new plan version, and a row in the steering log sayin
 saves and ⎋ leaves; `after` takes task numbers (`1.2, 2.1`) or ids, and a plan where tasks wait for each other in a
 circle is refused with the circle named.
 
-## The lead's questions
+## Questions
 
 ![What the lead asks](../../images/shots/goals/swarm-questions.png)
 
-What the lead cannot decide from the goal and the code, it asks, with the choices it sees. The first open question's
-choices are numbered: `1` answers with the first, `2` the second, and a click on any choice answers with it; `i`, or
-**or type**, answers in words. In this pane a digit picks a choice rather than starting a count. The lead reads answers with `heed goal plan show`; when its pane is
-idle and you have not typed there, heed also tells it there is something to read.
+What the lead or a worker cannot decide from the goal and the code, it asks, with the choices it sees and what each
+would change. Each question says who asks, what it is about, and its answer with who gave it, or whom it waits for.
+The first open question's choices are numbered: `1` answers with the first, `2` the second, and a click on any choice
+answers with it; `i` answers in words. In this pane a digit picks a choice rather than starting a count. Who may answer
+which question, the ladder it climbs and Needs you are in [Steering](steering.md); the asker's waiting
+`heed goal ask` prints your answer.
 
 ## Approving
 

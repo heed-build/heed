@@ -66,10 +66,13 @@ public enum SwarmFixtures {
         case landing
         /// Done: 1.1 merged, its two children moved to main and merged after it.
         case done
+        /// Running, with its steering: questions, answers, an overrule, messages and notes (`steering(now:)`).
+        case steering
     }
 
     /// What a running fixture lays over the approved run: the run as it is now, the steering rows that came after
-    /// approval (no ids yet), the evidence its workers left, and the PRs they opened.
+    /// approval (no ids yet; `about` and `steer:` refs below zero count back into `steering`, 1-based, until
+    /// `SwarmFixtures.number` gives them ids), the evidence its workers left, and the PRs they opened.
     public struct RunningWorld: Sendable {
         public var swarm: GoalSwarm
         public var steering: [SwarmSteer]
@@ -104,9 +107,10 @@ public enum SwarmFixtures {
             )
         }
         let claude = GoalItem.Owner(agent: "claude")
-        swarm.status = variant == .running ? .running : .paused
-        swarm.held = variant == .running ? nil : .hours
-        swarm.runningAt = ago(variant == .running ? 3.2 : 4.05)
+        let paused = variant == .pausedAtLimit
+        swarm.status = paused ? .paused : .running
+        swarm.held = paused ? .hours : nil
+        swarm.runningAt = ago(paused ? 4.05 : 3.2)
         swarm.workers = [
             worker("heading-ids", claude, from: "main", started: 3.2, ended: 2.6, cost: 2.4),
             worker(
@@ -140,6 +144,18 @@ public enum SwarmFixtures {
             work(0.87, "validator-speed", "2.2 Validator speed on a 10k-page site: claude · opus \(stacked)"),
             work(0.3, "sample-site", "2.1 Sample site with moved pages: claude \(stacked)"),
         ]
+        if variant == .steering {
+            // Its back references count from the start of the world's rows, not of its own.
+            let before = Int64(steering.count)
+            steering += Self.steering(now: now).map { row in
+                var row = row
+                if let about = row.about, about < 0 { row.about = about - before }
+                if let ref = row.ref, ref.hasPrefix("steer:"), let value = Int64(ref.dropFirst(6)), value < 0 {
+                    row.ref = "steer:\(value - before)"
+                }
+                return row
+            }
+        }
         if variant == .pausedAtLimit {
             steering.append(steer(
                 id, goal, ago(0.05), .heed, .limit, "Paused at its 4 h limit",

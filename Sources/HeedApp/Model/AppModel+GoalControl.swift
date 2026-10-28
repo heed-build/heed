@@ -29,7 +29,10 @@ extension AppModel {
         }
         switch outcome {
         case let .reply(reply):
-            if reply.exit == .ok, reply.outcome != "read" { flash = "goal: \(reply.message)" }
+            // A waiting `heed goal ask` reads its question every few seconds: that is no news.
+            let polling = command.verb == .ask && command.question != nil
+            if reply.exit == .ok, reply.outcome != "read", !polling { flash = "goal: \(reply.message)" }
+            if reply.exit == .ok { steeringCommandDone(command, reply: reply) }
             return ControlReply(goal: reply)
         case let .app(.spawn(spawn), goal):
             return await ControlReply(goal: requestSpawn(spawn, goal: goal))

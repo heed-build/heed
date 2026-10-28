@@ -210,8 +210,12 @@ This page is generated from the code (`mise run shots`).
 | `swarm.new` `[title]` |  | new swarm: a goal, where it works, its lead and team, its limits; the lead drafts a plan for you to approve |
 | `swarm.start` |  | swarm this goal: a lead drafts a plan for its work (the form first) |
 | `swarm.stop` |  | stop the goal's swarm: nothing more starts, its plan and steering stay readable |
+| `swarm.pause` |  | pause the goal's swarm (again: resume): nothing more starts, workers at work finish their turn |
 | `swarm.approve` | `A` (goalplan) | approve the swarm's plan (or the change waiting for you): its tasks become items |
 | `swarm.accept` | `y` (goalplan) | yes to the plan change waiting for you: it becomes the approved plan |
+| `swarm.task.pause` | `p` (goalplan) | pause the swarm task under the cursor (again: resume): its worker stops, its worktree stays |
+| `swarm.task.swap` `<agent[:model]>` | `t` (goalplan) | hand the swarm task under the cursor to another agent; a working worker hands over its worktree |
+| `swarm.task.open` | `s` (goalplan) | the swarm task under the cursor's worker: its tab |
 | `swarm.reject` `[why]` | `n` (goalplan) | no to the plan change waiting for you; the lead hears why |
 | `swarm.task.edit` | `e` (goalplan) | edit the plan's task under the cursor: a new plan version |
 | `swarm.task.add` `[title]` | `a` (goalplan) | add a task after the one under the cursor, in its phase: a new plan version |

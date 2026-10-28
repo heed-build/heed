@@ -66,6 +66,6 @@ summary_sign_off = true        # or under [orgs.<name>] and [repos."org/name"]
 ```
 
 claude gets it as `--append-system-prompt`, codex as `developer_instructions` (`-c`); other agents are not asked.
-Settings › Pilot › Extra instructions has the switch, and Orgs & repos the per-org and per-repo ones.
+Settings › Pilot › Extra instructions has the switch, and Orgs & repos › Instructions the per-org and per-repo ones.
 
 ![An abandoned spike in full: its follow-up, and the agent time an estimate](../images/shots/history/ledger-detail.png)

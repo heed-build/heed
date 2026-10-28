@@ -67,6 +67,8 @@ struct CommandCompletionTests {
         #expect(CommandCompletions.candidates("host.filter d", context).map(\.label) == ["devbox"])
         #expect(CommandCompletions.candidates("agent co", context).map(\.line) == ["agent codex"])
         #expect(CommandCompletions.candidates("settings.open k", context).map(\.label) == ["keys"])
+        // Orgs & repos opens on a tab.
+        #expect(CommandCompletions.candidates("settings.open colors m", context).map(\.label) == ["colors merged"])
         #expect(CommandCompletions.candidates("pilot.pause ", context).map(\.label).contains("forever"))
         #expect(CommandCompletions.candidates("merge.run ", context).map(\.label) == ["acme/api", "all"])
         #expect(CommandCompletions.candidates("issues.repo ", context).map(\.label) == ["api"])

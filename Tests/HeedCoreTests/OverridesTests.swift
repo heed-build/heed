@@ -102,4 +102,65 @@ struct OverridesTests {
         #expect(removed.goals.mirror.tracker(for: "beta/site") == "beta/roadmap")
         #expect(Overrides.effective(tracker, at: site, in: removed) == (.text("beta/roadmap"), .org))
     }
+
+    /// The page's tabs: every key on exactly one, in the page's order, and none so long it is a scroll again.
+    @Test func everyKeyIsOnOneShortTab() {
+        let grouped = Overrides.groups.flatMap(\.keys)
+        #expect(grouped.count == Set(grouped).count)
+        #expect(Set(grouped) == Set(Overrides.keys.map(\.id)))
+        let repo = OverrideScope.repo(Repo(org: "acme", name: "docs"))
+        let config = HeedConfig.default
+        let perTab = OverrideTab.allCases.map { Overrides.keys(for: repo, on: $0, in: config).map(\.id) }
+        // Tab by tab, the keys are the page's order cut in pieces.
+        #expect(perTab.flatMap(\.self) == Overrides.keys(for: repo).map(\.id))
+        #expect(perTab.allSatisfy { !$0.isEmpty && $0.count <= 9 })
+        #expect(Overrides.keys(for: repo, on: .general, in: config).map(\.id)
+            == ["color", "issues", "setup", "goals_tracker", "goals_mirror", "watch"])
+        #expect(Overrides.keys(for: repo, on: .reviews, in: config).map(\.id)
+            == ["reviewers", "trusted_reviewers", "self_review", "copilot_comments", "copilot_conflicts"])
+        // An org has no admin merge, so its merged tab is one shorter.
+        #expect(Overrides.keys(for: .org("acme"), on: .merged, in: config).count
+            == Overrides.keys(for: repo, on: .merged, in: config).count - 1)
+        #expect(Overrides.tab(of: "admin_merge") == .merged)
+        #expect(Overrides.tab(of: "merge_agent") == .green)
+        #expect(Overrides.tab(of: "tasks") == .general)
+        #expect(OverrideTab.named("Merge") == .merged)
+        #expect(OverrideTab.named("prompts") == .instructions)
+        #expect(OverrideTab.named("pilot") == nil)
+        #expect(Set(OverrideTab.allCases.map(\.shortTitle)).count == OverrideTab.allCases.count)
+    }
+
+    /// Each tab says how many overrides it holds, and Only overridden shows just those rows.
+    @Test func tabsCountTheirOverridesAndFilterToThem() throws {
+        let source = """
+        [orgs.acme]
+        color = "teal"
+        reviewers = ["copilot"]
+
+        [repos."acme/docs"]
+        green = "auto"
+        merge_agent = "codex"
+        quiet_minutes = 15
+        issues = "all"
+
+        [repos."acme/docs".tasks]
+        test = "make test"
+        """
+        let config = try #require(ConfigLoader.decode(source).config)
+        let docs = OverrideScope.repo(Repo(org: "acme", name: "docs"))
+
+        let counts = Overrides.overrideCounts(at: docs, in: config)
+        #expect(counts == [.general: 2, .green: 2, .merged: 1, .reviews: 0, .instructions: 0])
+        #expect(counts.values.reduce(0, +) == Overrides.setKeys(at: docs, in: config).count)
+        // The org's own, not what its repos set.
+        #expect(Overrides.overrideCounts(at: .org("acme"), in: config)
+            == [.general: 1, .green: 0, .merged: 0, .reviews: 1, .instructions: 0])
+
+        #expect(Overrides.keys(for: docs, on: .green, in: config, onlyOverridden: true).map(\.id)
+            == ["green", "merge_agent"])
+        #expect(Overrides.keys(for: docs, on: .general, in: config, onlyOverridden: true).map(\.id) == ["issues"])
+        // Inherited from the org is not overridden here.
+        #expect(Overrides.keys(for: docs, on: .reviews, in: config, onlyOverridden: true).isEmpty)
+        #expect(Overrides.keys(for: docs, on: .reviews, in: config).count == 5)
+    }
 }

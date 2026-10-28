@@ -130,7 +130,7 @@ This page is generated from the code (`mise run shots`).
 | `update.check` |  | look for a new version of heed now (also :update) |
 | `tools.detect` |  | find git and gh again (login shell PATH, usual places, [tools]) |
 | `app.quit` |  | quit Heed |
-| `settings.open` `[section]` | `<D-,>` | open Settings, on a section (general, agents, inference, colors, cleanup, pilot, attention, keys, hosts) |
+| `settings.open` `[section] [tab]` | `<D-,>` | open Settings, on a section (general, agents, inference, colors, cleanup, pilot, attention, keys, hosts); orgs takes a tab (general, green, merged, reviews, instructions) |
 | `inference.setup` |  | set up heed's model calls and decisions (Settings › Inference & decisions) |
 | `inference.hide` `[always]` |  | hide the title bar's model call setup reminder until the next launch (always: for good) |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |

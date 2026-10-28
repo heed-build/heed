@@ -31,6 +31,53 @@ public enum OverrideScope: Hashable, Sendable {
     }
 }
 
+/// The tabs Settings › Orgs & repos splits an org's or repo's settings into, so no one tab is a long scroll: the
+/// org-wide basics, then the Pilot's settings by what they drive, then the text heed adds to its prompts.
+public enum OverrideTab: String, CaseIterable, Sendable, Identifiable {
+    /// Color, issues, new worktrees' setup, goal trackers, watching (and a repo's tasks).
+    case general
+    /// Get it green and the agents and models its runs and merge-conflict runs use.
+    case green
+    /// Get it merged, what heed waits for before it merges, and merging by hand.
+    case merged
+    /// Who reviews, whose review counts, self-review, and what Copilot is asked.
+    case reviews
+    /// Extra instructions for heed's prompts, and signing off with a summary.
+    case instructions
+
+    public var id: String { rawValue }
+
+    public var title: String {
+        switch self {
+        case .general: "General"
+        case .green: "Get it green"
+        case .merged: "Get it merged"
+        case .reviews: "Reviews"
+        case .instructions: "Instructions"
+        }
+    }
+
+    /// The title in a narrow window.
+    public var shortTitle: String {
+        switch self {
+        case .general: "General"
+        case .green: "Green"
+        case .merged: "Merged"
+        case .reviews: "Reviews"
+        case .instructions: "Prompts"
+        }
+    }
+
+    /// `:settings.open orgs <tab>`: its name, or a short one.
+    public static func named(_ name: String) -> OverrideTab? {
+        let short: [String: OverrideTab] = [
+            "general": .general, "green": .green, "merged": .merged, "merge": .merged, "reviews": .reviews,
+            "reviewers": .reviews, "review": .reviews, "instructions": .instructions, "prompts": .instructions,
+        ]
+        return short[name.lowercased()]
+    }
+}
+
 /// Where a value comes from: heed's default (or `[pilot]`), the org, the repo.
 public enum OverrideSource: String, Sendable {
     case `default`, org, repo
@@ -387,23 +434,48 @@ public enum Overrides {
         )
     }
 
-    /// The groups the page lists keys under, in order.
-    public static let groups: [(title: String, keys: [String])] = [
-        ("General", ["color", "issues"]),
-        ("New worktrees", ["setup"]),
-        ("Goals", ["goals_tracker", "goals_mirror"]),
-        ("Watching", ["watch"]),
-        ("Get it green", ["green", "max_rounds", "run_in", "agent", "model", "merge_agent", "merge_model"]),
-        ("Get it merged", [
-            "merge", "merge_method", "update_branches", "quiet_minutes", "trusted_reviewers", "gate_checks",
-            "hold_labels", "self_review", "admin_merge", "merge_now", "force_merge",
-        ]),
-        ("Copilot and reviewers", ["copilot_conflicts", "copilot_comments", "reviewers"]),
-        ("Extra instructions", [
+    /// The groups the page lists keys under, in order, and the tab each is on.
+    public static let groups: [(title: String, tab: OverrideTab, keys: [String])] = [
+        ("General", .general, ["color", "issues"]),
+        ("New worktrees", .general, ["setup"]),
+        ("Goals", .general, ["goals_tracker", "goals_mirror"]),
+        ("Watching", .general, ["watch"]),
+        ("Get it green", .green, ["green", "max_rounds", "run_in", "agent", "model"]),
+        ("Merge conflicts", .green, ["merge_agent", "merge_model"]),
+        ("Get it merged", .merged, ["merge", "merge_method", "update_branches", "admin_merge"]),
+        ("Before heed merges", .merged, ["quiet_minutes", "gate_checks", "hold_labels"]),
+        ("Merging by hand", .merged, ["merge_now", "force_merge"]),
+        ("Reviewers", .reviews, ["reviewers", "trusted_reviewers", "self_review"]),
+        ("Copilot", .reviews, ["copilot_comments", "copilot_conflicts"]),
+        ("Extra instructions", .instructions, [
             "green_instructions", "review_instructions", "start_instructions", "summary_instructions",
             "summary_sign_off",
         ]),
     ]
+
+    /// The tab a key is on; a repo's tasks (`tasks`, edited in the file) show on General.
+    public static func tab(of id: String) -> OverrideTab {
+        groups.first { $0.keys.contains(id) }?.tab ?? .general
+    }
+
+    /// The keys a tab shows at a scope, in page order; with `onlyOverridden`, only those set at exactly this scope.
+    public static func keys(
+        for scope: OverrideScope, on tab: OverrideTab, in config: HeedConfig, onlyOverridden: Bool = false
+    ) -> [OverrideKey] {
+        keys(for: scope).filter { key in
+            Self.tab(of: key.id) == tab && (!onlyOverridden || key.read(config, scope) != nil)
+        }
+    }
+
+    /// How many overrides each tab holds at a scope (its own, as the list's `● n` counts them); every tab is there,
+    /// at 0 when it holds none. They add up to `setKeys(at:in:).count`.
+    public static func overrideCounts(at scope: OverrideScope, in config: HeedConfig) -> [OverrideTab: Int] {
+        var counts = Dictionary(uniqueKeysWithValues: OverrideTab.allCases.map { ($0, 0) })
+        for id in setKeys(at: scope, in: config) {
+            counts[tab(of: id), default: 0] += 1
+        }
+        return counts
+    }
 
     /// The keys that apply at a scope (an org has no `admin_merge`), in group order.
     public static func keys(for scope: OverrideScope) -> [OverrideKey] {

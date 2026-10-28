@@ -42,7 +42,7 @@ In Repos (`gr`), a repo with a proposal waiting shows it under the table. `S` (`
 ![S: approve, edit or never](../images/shots/worktrees/setup-review.png)
 
 Approving writes the commands to `config.toml`; never writes an empty list. Set them by hand there, or in Settings ›
-Orgs & repos, per repo or for a whole org:
+Orgs & repos › General, per repo or for a whole org:
 
 ```toml
 [repos."acme/docs-toolkit"]
@@ -57,7 +57,7 @@ setup = []          # no setup, and no proposals, for the org's repos that do no
 | `:setup.review` | The repo's detected setup: approve, edit or never (`S` in Repos) |
 | `:setup.approve` | Approve the detected setup |
 | `:setup.never` | No setup for the repo, and no more proposals |
-| `:setup.edit` | Settings › Orgs & repos, on the repo |
+| `:setup.edit` | Settings › Orgs & repos, on the repo's General tab |
 
 ## Files from the main checkout
 

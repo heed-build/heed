@@ -8,7 +8,7 @@ struct OrgRepoSettings: View {
     @Environment(AppModel.self) private var model
     @State private var selected: OverrideScope?
     @State private var query = ""
-    @State private var onlyOverridden = false
+    private var onlyOverridden: Bool { model.orgRepoOnlyOverridden }
 
     var body: some View {
         let groups = groups()
@@ -95,7 +95,10 @@ struct OrgRepoSettings: View {
     private func list(_ groups: [Group], shown: OverrideScope?) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             TextField("Filter", text: $query).textFieldStyle(.roundedBorder).font(Theme.ui(12))
-            Toggle("Only overridden", isOn: $onlyOverridden).font(Theme.ui(12)).padding(.vertical, 6)
+            Toggle("Only overridden", isOn: Bindable(model).orgRepoOnlyOverridden).font(Theme.ui(12)).padding(
+                .vertical,
+                6
+            )
             ForEach(groups, id: \.org) { group in
                 row(.org(group.org), indent: 0, cloned: true, shown: shown)
                 ForEach(group.repos, id: \.slug) { repo in
@@ -152,7 +155,14 @@ private struct ScopeDetail: View {
                 Text(summary(set: set)).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            let keys = Overrides.keys(for: scope)
+            OverrideTabStrip(counts: Overrides.overrideCounts(at: scope, in: config))
+            let tab = model.orgRepoTab
+            let keys = Overrides.keys(for: scope, on: tab, in: config, onlyOverridden: model.orgRepoOnlyOverridden)
+            // Only Only overridden empties a tab; a repo's tasks count as an override on theirs, so they are not
+            // "nothing".
+            if keys.isEmpty, (Overrides.overrideCounts(at: scope, in: config)[tab] ?? 0) == 0 {
+                Text("Nothing on \(tab.title) is overridden here.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            }
             ForEach(Array(keys.enumerated()), id: \.element.id) { index, key in
                 if index == 0 || keys[index - 1].group != key.group {
                     VStack(alignment: .leading, spacing: 6) {
@@ -166,7 +176,9 @@ private struct ScopeDetail: View {
                     SetupProposalLine(repo: repo, proposal: proposal)
                 }
             }
-            if case let .repo(repo) = scope, let tasks = config.repos[repo.slug]?.tasks, !tasks.isEmpty {
+            if tab == Overrides.tab(of: "tasks"), case let .repo(repo) = scope,
+               let tasks = config.repos[repo.slug]?.tasks, !tasks.isEmpty
+            {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Tasks").font(Theme.ui(13)).foregroundStyle(Theme.fg2)
                     ForEach(tasks, id: \.0) { name, command in
@@ -186,6 +198,55 @@ private struct ScopeDetail: View {
         }
         let fromOrg = Overrides.setKeys(at: .org(repo.org), in: model.config).count
         return own + (fromOrg > 0 ? " · \(fromOrg) inherited from \(repo.org)" : "")
+    }
+}
+
+/// The form's tabs, as the title bar draws its views: each with the overrides it holds at this org or repo (`● 2`,
+/// as the list marks them), ⌘1–⌘5 to turn to one. Under Only overridden a tab with none is dimmed. The tab is the
+/// same for every org and repo, and kept between launches. A narrow window gets the short names, and at its narrowest
+/// they take two lines, so no tab is ever cut off.
+private struct OverrideTabStrip: View {
+    @Environment(AppModel.self) private var model
+    let counts: [OverrideTab: Int]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                strip(OverrideTab.allCases, short: false)
+                strip(OverrideTab.allCases, short: true)
+                VStack(alignment: .leading, spacing: 4) {
+                    strip(Array(OverrideTab.allCases.prefix(3)), short: true)
+                    strip(Array(OverrideTab.allCases.dropFirst(3)), short: true)
+                }
+            }
+            Theme.line.frame(height: 1)
+        }
+    }
+
+    private func strip(_ tabs: [OverrideTab], short: Bool) -> some View {
+        HStack(spacing: 4) {
+            ForEach(tabs) { tab in
+                let index = OverrideTab.allCases.firstIndex(of: tab) ?? 0
+                // A hairline between tabs: separate without boxing them in.
+                if tab != tabs.first { Theme.line.frame(width: 1, height: 14) }
+                let count = counts[tab] ?? 0
+                Button {
+                    model.orgRepoTab = tab
+                } label: {
+                    TabLabel(
+                        title: short ? tab.shortTitle : tab.title,
+                        active: model.orgRepoTab == tab,
+                        count: count > 0 ? "● \(count)" : nil,
+                        dimmed: model.orgRepoOnlyOverridden && count == 0
+                    )
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                .help(
+                    "\(tab.title): \(count == 0 ? "no" : "\(count)") override\(count == 1 ? "" : "s") here (⌘\(index + 1))"
+                )
+            }
+        }
     }
 }
 

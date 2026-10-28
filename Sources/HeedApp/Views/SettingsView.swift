@@ -982,7 +982,12 @@ private struct PilotSettingsView: View {
                     ? "No org or repo overrides these."
                     : "\(orgs) org\(orgs == 1 ? "" : "s") and \(repos) repo\(repos == 1 ? "" : "s") override these.")
                     .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                Button("Orgs & repos") { model.settingsSection = .colors }.buttonStyle(.link).font(Theme.ui(12))
+                // On the first of the Pilot's tabs.
+                Button("Orgs & repos") {
+                    model.orgRepoTab = .green
+                    model.settingsSection = .colors
+                }
+                .buttonStyle(.link).font(Theme.ui(12))
             }
         }
     }
@@ -1425,6 +1430,15 @@ private struct GoalsSettingsGroup: View {
         }
         Field(label: "Label for heed's issues", detail: "Put on the issues heed makes; empty: none.") {
             ConfigTextField(path: ["goals", "mirror_label"], value: mirror.label).frame(width: 220)
+        }
+        HStack(spacing: 6) {
+            Text("Orgs and repos set their own tracker and mirroring.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            // On the tab the goal tracker is on.
+            Button("Orgs & repos") {
+                model.orgRepoTab = Overrides.tab(of: "goals_tracker")
+                model.settingsSection = .colors
+            }
+            .buttonStyle(.link).font(Theme.ui(12))
         }
     }
 

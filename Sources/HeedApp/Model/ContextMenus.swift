@@ -137,6 +137,8 @@ extension AppModel {
             case .objections: return objectionMenu(index)
             case .personas: return personaMenu(index)
             case .friction: return frictionMenu(index)
+            case .tasks: return planTaskMenu(index)
+            case .versions: return planVersionMenu(index)
             }
         case .sessions:
             return []

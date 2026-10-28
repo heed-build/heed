@@ -42,6 +42,20 @@ public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
         }
     }
 
+    /// Who works on a swarm task: an agent, and the model it runs on (nil: the agent's own default).
+    public struct Owner: Hashable, Sendable, Codable {
+        public var agent: String
+        public var model: String?
+
+        public init(agent: String, model: String? = nil) {
+            self.agent = agent
+            self.model = model?.isEmpty == true ? nil : model
+        }
+
+        /// `claude`, `claude · opus`.
+        public var label: String { model.map { "\(agent) · \($0)" } ?? agent }
+    }
+
     /// `<goal>/<slug>`: unique across goals, stable, never reused within its goal.
     public var id: String
     public var goal: String
@@ -60,11 +74,22 @@ public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
     public var createdAt: Date
     /// The sub-issue it mirrors to on GitHub, once it does.
     public var issueNumber: Int?
+    /// A swarm task's owner: the agent (and model) that works on it.
+    public var owner: Owner?
+    /// The items it waits for (ids): a swarm task starts once these are done, and stacks on their PRs.
+    public var after: [String]
+    /// How long it should take, in minutes, as the swarm's lead estimated it.
+    public var estimate: Int?
+    /// How we will know it is done: checks its evidence must show.
+    public var doneWhen: [String]
+    /// The plan's phase it is in (`Survey`, `Core change`), for the outline.
+    public var phase: String?
 
     public init(
         id: String, goal: String, title: String, kind: Kind = .work, source: Source, parent: String? = nil,
         links: [Link] = [], placement: Placement? = nil, confidence: Double? = nil, reason: String? = nil,
-        createdAt: Date, issueNumber: Int? = nil
+        createdAt: Date, issueNumber: Int? = nil, owner: Owner? = nil, after: [String] = [], estimate: Int? = nil,
+        doneWhen: [String] = [], phase: String? = nil
     ) {
         self.id = id
         self.goal = goal
@@ -78,6 +103,38 @@ public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
         self.reason = reason
         self.createdAt = createdAt
         self.issueNumber = issueNumber
+        self.owner = owner
+        self.after = after
+        self.estimate = estimate
+        self.doneWhen = doneWhen
+        self.phase = phase
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, goal, title, kind, source, parent, links, placement, confidence, reason, createdAt, issueNumber
+        case owner, after, estimate, doneWhen, phase
+    }
+
+    /// Rows written before swarms decode unchanged: the swarm fields are absent there, and empty here.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        goal = try values.decode(String.self, forKey: .goal)
+        title = try values.decode(String.self, forKey: .title)
+        kind = try values.decode(Kind.self, forKey: .kind)
+        source = try values.decode(Source.self, forKey: .source)
+        parent = try values.decodeIfPresent(String.self, forKey: .parent)
+        links = try values.decode([Link].self, forKey: .links)
+        placement = try values.decodeIfPresent(Placement.self, forKey: .placement)
+        confidence = try values.decodeIfPresent(Double.self, forKey: .confidence)
+        reason = try values.decodeIfPresent(String.self, forKey: .reason)
+        createdAt = try values.decode(Date.self, forKey: .createdAt)
+        issueNumber = try values.decodeIfPresent(Int.self, forKey: .issueNumber)
+        owner = try values.decodeIfPresent(Owner.self, forKey: .owner)
+        after = try values.decodeIfPresent([String].self, forKey: .after) ?? []
+        estimate = try values.decodeIfPresent(Int.self, forKey: .estimate)
+        doneWhen = try values.decodeIfPresent([String].self, forKey: .doneWhen) ?? []
+        phase = try values.decodeIfPresent(String.self, forKey: .phase)
     }
 
     public func linked(_ kind: Link.Kind) -> [String] { links.filter { $0.kind == kind }.map(\.target) }

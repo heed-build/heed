@@ -148,6 +148,12 @@ public enum Commands {
             "Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview)",
             .views
         ),
+        .init(
+            "goal.swarm",
+            "Goals: the goal's swarm: its plan by phase, the lead's questions, versions and steering (again: the "
+                + "overview)",
+            .views
+        ),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -333,6 +339,50 @@ public enum Commands {
         .init("goal.mirror.yes", "a colleague's change on GitHub: yes, the item follows it", .selection),
         .init("goal.mirror.no", "a colleague's change on GitHub: no, heed puts the sub-issue back", .selection),
         .init("goal.reopen", "not done yet: undo heed marking the goal done (held until something new)", .selection),
+        .init(
+            "swarm.new",
+            "new swarm: a goal, where it works, its lead and team, its limits; the lead drafts a plan for you to approve",
+            .selection, arguments: "[title]"
+        ),
+        .init("swarm.start", "swarm this goal: a lead drafts a plan for its work (the form first)", .selection),
+        .init(
+            "swarm.stop", "stop the goal's swarm: nothing more starts, its plan and steering stay readable", .selection
+        ),
+        .init(
+            "swarm.approve", "approve the swarm's plan (or the change waiting for you): its tasks become items",
+            .selection
+        ),
+        .init(
+            "swarm.reject",
+            "no to the plan change waiting for you; the lead hears why",
+            .selection,
+            arguments: "[why]"
+        ),
+        .init("swarm.task.edit", "edit the plan's task under the cursor: a new plan version", .selection),
+        .init(
+            "swarm.task.add", "add a task after the one under the cursor, in its phase: a new plan version", .selection,
+            arguments: "[title]"
+        ),
+        .init(
+            "swarm.task.move", "move the plan's task down (1) or up (-1); past its phase, into the next", .selection,
+            arguments: "<1|-1>"
+        ),
+        .init("swarm.task.drop", "drop the plan's task under the cursor; nothing waits for it any more", .selection),
+        .init(
+            "swarm.replan", "ask the swarm's lead to re-plan, with your feedback", .selection, arguments: "[feedback]"
+        ),
+        .init(
+            "swarm.answer", "answer the lead's first open question (or the one clicked)", .selection,
+            arguments: "[answer]"
+        ),
+        .init(
+            "swarm.diff",
+            "the plan version under the cursor's whole diff against the one before (again: short)",
+            .selection
+        ),
+        .init(
+            "swarm.restore", "make a plan version current again, as a new version", .selection, arguments: "[version]"
+        ),
         .init(
             "review.recheck",
             "re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs)",

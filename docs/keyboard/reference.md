@@ -90,12 +90,13 @@ This page is generated from the code (`mise run shots`).
 | `view.dashboard` |  | History's dashboard: what the work amounted to over a range |
 | `view.ledger` |  | History's ledger: a summary of each piece of work, kept after its worktree |
 | `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
-| `goal.doc` | `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalpersonas), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
-| `goal.board` | `B` (goalboard), `B` (goaldoc), `B` (goalevals), `B` (goalpersonas), `B` (goalreviewers), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
-| `goal.unassigned` | `U` (goalboard), `U` (goaldoc), `U` (goalevals), `U` (goalpersonas), `U` (goalreviewers), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
-| `goal.reviewers` | `R` (goalboard), `R` (goaldoc), `R` (goalevals), `R` (goalpersonas), `R` (goalreviewers), `R` (goals), `R` (unassigned) | Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview) |
-| `goal.personas` | `P` (goalboard), `P` (goaldoc), `P` (goalevals), `P` (goalpersonas), `P` (goalreviewers), `P` (goals), `P` (unassigned) | Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview) |
-| `goal.evaluations` | `X` (goalboard), `X` (goaldoc), `X` (goalevals), `X` (goalpersonas), `X` (goalreviewers), `X` (goals), `X` (unassigned) | Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview) |
+| `goal.doc` | `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalpersonas), `E` (goalplan), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
+| `goal.board` | `B` (goalboard), `B` (goaldoc), `B` (goalevals), `B` (goalpersonas), `B` (goalplan), `B` (goalreviewers), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
+| `goal.unassigned` | `U` (goalboard), `U` (goaldoc), `U` (goalevals), `U` (goalpersonas), `U` (goalplan), `U` (goalreviewers), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
+| `goal.reviewers` | `R` (goalboard), `R` (goaldoc), `R` (goalevals), `R` (goalpersonas), `R` (goalplan), `R` (goalreviewers), `R` (goals), `R` (unassigned) | Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview) |
+| `goal.personas` | `P` (goalboard), `P` (goaldoc), `P` (goalevals), `P` (goalpersonas), `P` (goalplan), `P` (goalreviewers), `P` (goals), `P` (unassigned) | Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview) |
+| `goal.evaluations` | `X` (goalboard), `X` (goaldoc), `X` (goalevals), `X` (goalpersonas), `X` (goalplan), `X` (goalreviewers), `X` (goals), `X` (unassigned) | Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview) |
+| `goal.swarm` | `S` (goalboard), `S` (goaldoc), `S` (goalevals), `S` (goalplan), `S` (goalreviewers), `S` (goals), `S` (unassigned) | Goals: the goal's swarm: its plan by phase, the lead's questions, versions and steering (again: the overview) |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
@@ -175,8 +176,8 @@ This page is generated from the code (`mise run shots`).
 | `goal.attach` `<goal>` |  | put the session or chat on a goal (no goal: the command line opens to pick one) |
 | `goal.detach` | `x` (goaldoc), `x` (goalevals), `x` (goalreviewers), `x` (goals) | take the session or chat off its goal |
 | `goal.archive` | `a` (goalboard), `a` (goaldoc), `a` (goalpersonas), `a` (goalreviewers), `a` (goals), `a` (unassigned) | archive the goal (again: bring it back) |
-| `goal.open` | `<CR>` (goaldoc), `<CR>` (goalevals), `<CR>` (goalpersonas), `<CR>` (goalreviewers), `<CR>` (goals), `<CR>` (unassigned) | Goals: what belongs to the goal; on a session or chat, go to it |
-| `goal.focus` | `<Tab>` (goaldoc), `<S-Tab>` (goaldoc), `<Tab>` (goalevals), `<S-Tab>` (goalevals), `<Tab>` (goalpersonas), `<S-Tab>` (goalpersonas), `<Tab>` (goalreviewers), `<S-Tab>` (goalreviewers), `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
+| `goal.open` | `<CR>` (goaldoc), `<CR>` (goalevals), `<CR>` (goalpersonas), `<CR>` (goalplan), `<CR>` (goalreviewers), `<CR>` (goals), `<CR>` (unassigned) | Goals: what belongs to the goal; on a session or chat, go to it |
+| `goal.focus` | `<Tab>` (goaldoc), `<S-Tab>` (goaldoc), `<Tab>` (goalevals), `<S-Tab>` (goalevals), `<Tab>` (goalpersonas), `<S-Tab>` (goalpersonas), `<Tab>` (goalplan), `<S-Tab>` (goalplan), `<Tab>` (goalreviewers), `<S-Tab>` (goalreviewers), `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
 | `goal.edit` | `e` (goalboard), `e` (goaldoc), `e` (goalevals), `e` (goalreviewers), `e` (goals), `e` (unassigned) | edit the goal's GOAL.md in place; each save is a new version |
 | `goal.restore` `<version>` |  | make one of the goal's GOAL.md versions current again (as a new version) |
 | `goal.item.add` `[title]` | `n` (goalboard) | Goals: add an item to the goal (on the board: in the column under the cursor) |
@@ -191,7 +192,7 @@ This page is generated from the code (`mise run shots`).
 | `goal.proposal.reject` | `n` (goaldoc) | GOAL.md: no to the first change waiting (or the one clicked) |
 | `goal.proposal.edit` `[text]` | `c` (goaldoc) | GOAL.md: reword the first change waiting, then accept it (no text: the command line) |
 | `goal.undo` | `u` (goaldoc) | GOAL.md: take back the last change heed made on its own |
-| `goal.sharpen` | `w` (goalboard), `w` (goaldoc), `w` (goalevals), `w` (goalpersonas), `w` (goalreviewers), `w` (goals), `w` (unassigned) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
+| `goal.sharpen` | `w` (goalboard), `w` (goaldoc), `w` (goalevals), `w` (goalpersonas), `w` (goalplan), `w` (goalreviewers), `w` (goals), `w` (unassigned) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
 | `goal.ask.yes` | `y` (attention), `y` (unassigned) | yes: on the goal heed proposed (on a suggested goal: make it) |
 | `goal.ask.no` | `n` (attention), `n` (unassigned) | no: not on that goal, and heed learns it (on a suggested goal: drop it) |
 | `goal.ask.move` `<goal>` | `m` (attention), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
@@ -199,13 +200,26 @@ This page is generated from the code (`mise run shots`).
 | `goal.attach.undo` | `u` (goalboard), `u` (goalevals), `u` (goalpersonas), `u` (goalreviewers), `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
 | `goal.attach.find` |  | look for the session's goal now: rules, signals, the model when unsure |
 | `goal.bar` `<lens> <bar|off|auto>` |  | pin a quality bar for the goal: a lens and 0–10, off to drop the lens, auto for the profile's |
-| `goal.mirror` | `M` (goalboard), `M` (goaldoc), `M` (goalevals), `M` (goalpersonas), `M` (goalreviewers), `M` (goals), `M` (unassigned) | mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop |
+| `goal.mirror` | `M` (goalboard), `M` (goaldoc), `M` (goalevals), `M` (goalpersonas), `M` (goalplan), `M` (goalreviewers), `M` (goals), `M` (unassigned) | mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop |
 | `goal.tracker` `[org/name|none]` |  | the repo the goal mirrors to on GitHub, checked read-only first (none: no tracker) |
 | `goal.mirror.sync` |  | sync the goal's GitHub issues now and read them back |
 | `goal.mirror.open` |  | open the goal's meta issue on GitHub (on a card: its sub-issue) |
-| `goal.mirror.yes` | `Y` (goalboard), `Y` (goaldoc), `Y` (goalevals), `Y` (goalpersonas), `Y` (goalreviewers), `Y` (goals), `Y` (unassigned) | a colleague's change on GitHub: yes, the item follows it |
+| `goal.mirror.yes` | `Y` (goalboard), `Y` (goaldoc), `Y` (goalevals), `Y` (goalpersonas), `Y` (goalplan), `Y` (goalreviewers), `Y` (goals), `Y` (unassigned) | a colleague's change on GitHub: yes, the item follows it |
 | `goal.mirror.no` | `K` (goalboard), `K` (goaldoc), `K` (goalevals), `K` (goalpersonas), `K` (goalreviewers), `K` (goals), `K` (unassigned) | a colleague's change on GitHub: no, heed puts the sub-issue back |
 | `goal.reopen` |  | not done yet: undo heed marking the goal done (held until something new) |
+| `swarm.new` `[title]` |  | new swarm: a goal, where it works, its lead and team, its limits; the lead drafts a plan for you to approve |
+| `swarm.start` |  | swarm this goal: a lead drafts a plan for its work (the form first) |
+| `swarm.stop` |  | stop the goal's swarm: nothing more starts, its plan and steering stay readable |
+| `swarm.approve` | `A` (goalplan) | approve the swarm's plan (or the change waiting for you): its tasks become items |
+| `swarm.reject` `[why]` | `n` (goalplan) | no to the plan change waiting for you; the lead hears why |
+| `swarm.task.edit` | `e` (goalplan) | edit the plan's task under the cursor: a new plan version |
+| `swarm.task.add` `[title]` | `a` (goalplan) | add a task after the one under the cursor, in its phase: a new plan version |
+| `swarm.task.move` `<1|-1>` | `J` (goalplan), `K` (goalplan) | move the plan's task down (1) or up (-1); past its phase, into the next |
+| `swarm.task.drop` | `x` (goalplan) | drop the plan's task under the cursor; nothing waits for it any more |
+| `swarm.replan` `[feedback]` | `r` (goalplan) | ask the swarm's lead to re-plan, with your feedback |
+| `swarm.answer` `[answer]` | `c` (goalplan) | answer the lead's first open question (or the one clicked) |
+| `swarm.diff` | `d` (goalplan) | the plan version under the cursor's whole diff against the one before (again: short) |
+| `swarm.restore` `[version]` | `u` (goalplan) | make a plan version current again, as a new version |
 | `review.recheck` `[reviewer]` | `r` (goalboard), `r` (goaldoc), `r` (goalpersonas), `r` (goalreviewers), `r` (goals), `r` (unassigned) | re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs) |
 | `review.accept` | `A` (goalreviewers) | accept the risk of the objection under the cursor (again: open it) |
 | `review.fix` | `s` (goalreviewers) | start a session to fix the objection under the cursor: Start work, filled in |

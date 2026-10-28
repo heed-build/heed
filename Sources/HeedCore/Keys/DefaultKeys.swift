@@ -147,6 +147,13 @@ public enum DefaultKeys {
         "goalevals": goalsWith([
             ("s", "eval.fix"), ("a", "eval.accept"), ("r", "eval.rewalk"), ("h", "eval.lens -1"), ("l", "eval.lens 1"),
         ]),
+        // A goal's swarm (S): e edits the task, a adds one, J K move it, x drops it, r asks the lead to re-plan, c
+        // answers its question, A approves, n says no to a change waiting, d the version's whole diff, u restores it.
+        "goalplan": goalsWith([
+            ("e", "swarm.task.edit"), ("a", "swarm.task.add"), ("J", "swarm.task.move 1"), ("K", "swarm.task.move -1"),
+            ("x", "swarm.task.drop"), ("r", "swarm.replan"), ("c", "swarm.answer"), ("A", "swarm.approve"),
+            ("n", "swarm.reject"), ("d", "swarm.diff"), ("u", "swarm.restore"),
+        ]),
         "goaldoc": goalsWith([
             ("y", "goal.proposal.accept"), ("n", "goal.proposal.reject"), ("c", "goal.proposal.edit"),
             ("u", "goal.undo"), ("w", "goal.sharpen"),
@@ -211,6 +218,8 @@ public enum DefaultKeys {
         ("r", "review.recheck"), ("P", "goal.personas"), ("X", "goal.evaluations"),
         // The GitHub mirror: M turns it on or off; Y and K answer a colleague's change (yes / keep heed's).
         ("M", "goal.mirror"), ("Y", "goal.mirror.yes"), ("K", "goal.mirror.no"),
+        // The goal's swarm: its plan, questions, versions and steering.
+        ("S", "goal.swarm"),
     ]
 
     /// Goals' keys with `overrides` laid over (an empty command drops the key).

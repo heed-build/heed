@@ -110,6 +110,10 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
     fresh clone with a friction log (#156); `heed goal` over the control socket and the `heed-goal` skill through
     `--plugin-dir`, `item spawn` (#157); personas (#158); the GitHub mirror, a meta issue and a sub-issue per item in
     a tracker repo, colleagues' changes coming back as asks (#159))*
+22. Swarms: a goal in swarm mode. *(S1, describe, plan, approve: swarm runs on a goal with plan versions and an
+    append-only steering log in `goals.sqlite`, a lead session that drafts with `heed goal plan propose` and asks with
+    `heed goal ask`, the plan pane (`S`) with edits, versions, diffs, restore and approval, `PLAN.md` next to `GOAL.md`.
+    Nothing runs yet: workers (S2), merge order (S3), steering and the controller (S4), watching (S5) come next)*
 
 ## Open questions
 

@@ -27,6 +27,7 @@ struct GoalsView: View {
                         case .reviewers: GoalReviewersPane(goal: goal)
                         case .personas: GoalPersonasPane(goal: goal)
                         case .evaluations: GoalEvaluationsPane(goal: goal)
+                        case .plan: GoalPlanPane(goal: goal)
                         }
                     } else {
                         EmptyState(
@@ -71,6 +72,7 @@ private struct GoalList: View {
                     ForEach(Array(goals.rows.enumerated()), id: \.element.id) { index, goal in
                         GoalRow(
                             goal: goal, links: goals.snapshot.links(of: goal.id),
+                            swarm: goals.snapshot.activeSwarm(of: goal.id),
                             isCursor: index == goals.cursor,
                             focused: goals.focus == .goals && goals.pane != .unassigned
                         )
@@ -107,6 +109,7 @@ private struct GoalList: View {
 private struct GoalRow: View {
     let goal: HeedGoal
     let links: [GoalLink]
+    let swarm: GoalSwarm?
     let isCursor: Bool
     let focused: Bool
 
@@ -136,6 +139,9 @@ private struct GoalRow: View {
         if goal.status != .active { parts.append(goal.status.rawValue) }
         parts.append(sessions == 1 ? "1 session" : "\(sessions) sessions")
         if chats > 0 { parts.append(chats == 1 ? "1 chat" : "\(chats) chats") }
+        if let swarm {
+            parts.append("swarm \(swarm.status == .planning && swarm.isApproved ? "approved" : swarm.status.rawValue)")
+        }
         parts.append("v\(goal.version)")
         return parts.joined(separator: " · ")
     }
@@ -176,6 +182,7 @@ private struct GoalOverviewPane: View {
                     }
                     VStack(alignment: .leading, spacing: 16) {
                         HowHappy(goal: goal).shotRegion(.goalHappy)
+                        GoalSwarmPanel(goal: goal).shotRegion(.goalSwarm)
                         GoalMirrorPanel(goal: goal).shotRegion(.goalMirror)
                         Panel(title: "Resulting PRs", note: overview.pulls.isEmpty ? "" : "\(overview.pulls.count)") {
                             if overview.pulls.isEmpty {
@@ -241,6 +248,10 @@ struct GoalHeader: View {
                 KeyHint("goal.evaluations", scope: "goals", label: "evaluations", color: Theme.fg2)
                 KeyHint(
                     "goal.personas", scope: "goals", label: model.goals.pane == .personas ? "overview" : "personas",
+                    color: Theme.fg2
+                )
+                KeyHint(
+                    "goal.swarm", scope: "goals", label: model.goals.pane == .plan ? "overview" : "swarm",
                     color: Theme.fg2
                 )
                 KeyHint(
@@ -576,9 +587,18 @@ struct GoalFormView: View {
                     + "first. Mirroring publishes, so it is off unless ticked.")
                     .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 18) {
+                    let swarm = form?.swarm == true
+                    HStack(spacing: 6) {
+                        Image(systemName: swarm ? "checkmark.square.fill" : "square")
+                            .foregroundStyle(swarm ? Theme.block : Theme.fg3)
+                        Text("start as a swarm").font(Theme.ui(12.5))
+                    }
+                    .clickable()
+                    .onTapGesture { model.goals.form?.swarm.toggle() }
+                    .help("A lead agent drafts a plan for the goal and a team works on it once you approve")
                     Spacer()
                     KeyHint(keys: "<Esc>", label: "cancel")
-                    KeyHint(keys: "<D-CR>", label: "create", color: Theme.fg)
+                    KeyHint(keys: "<D-CR>", label: form?.swarm == true ? "on to the swarm" : "create", color: Theme.fg)
                 }
             }
             .padding(22)

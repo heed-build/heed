@@ -296,7 +296,20 @@ public enum MenuBar {
                     ("Mirror to GitHub, or stop", "goal.mirror"), ("Tracker repo…", "goal.tracker"),
                     ("Sync its GitHub issues now", "goal.mirror.sync"), ("Open it on GitHub", "goal.mirror.open"),
                     ("Yes to a change on GitHub", "goal.mirror.yes"), ("No to a change on GitHub", "goal.mirror.no"),
+                    ("Swarm and its plan", "goal.swarm"), ("New swarm…", "swarm.new"), (
+                        "Swarm this goal…",
+                        "swarm.start"
+                    ),
+                    ("Stop the swarm", "swarm.stop"),
                 ], in: ["goals"]),
+                scopedInvocations("In a swarm's plan", [
+                    ("Approve the plan", "swarm.approve"), ("No to the change waiting", "swarm.reject"),
+                    ("Edit the task…", "swarm.task.edit"), ("Add a task…", "swarm.task.add"),
+                    ("Move the task down", "swarm.task.move 1"), ("Move the task up", "swarm.task.move -1"),
+                    ("Drop the task", "swarm.task.drop"), ("Re-plan with feedback…", "swarm.replan"),
+                    ("Answer the lead…", "swarm.answer"), ("The version's whole diff", "swarm.diff"),
+                    ("Restore the version", "swarm.restore"),
+                ], in: ["goalplan"]),
                 scoped("In Personas", [
                     ("Spawn as a session…", "persona.session"), ("Spawn as a chat…", "persona.chat"),
                     ("Spawn as a reviewer", "persona.reviewer"), ("Edit its file", "persona.edit"),

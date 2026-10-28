@@ -468,6 +468,25 @@ enum Shots {
         Shot(id: "goals/walk", keys: "gGjX", crop: .goalEvaluator, cropPadding: 8),
         Shot(id: "goals/friction", keys: "gGjX<Tab>", crop: .goalFriction, cropPadding: 8),
         Shot(id: "goals/lenses", keys: "gGjX", crop: .goalLenses, cropPadding: 8),
+        // Swarms (S): the diagrams goal's lead drafted v2 and asks two things; the anchors goal's plan is approved.
+        Shot(id: "goals/swarm-new", crop: .swarmForm, cropPadding: 24, prepare: { model in
+            model.perform(CommandInvocation(name: "swarm.new"))
+            model.goals.swarmForm?.title = "Diagram export to SVG"
+            model.goals.swarmForm?.statement = "Every diagram type exports to SVG that matches the canvas, with "
+                + "fonts embedded."
+            model.goals.swarmForm?.repos = ["globex/markgraph"]
+            model.goals.swarmForm?.lead = GoalItem.Owner(agent: "claude", model: "opus")
+            model.goals.swarmForm?.workers = [
+                SwarmSettings.Worker(agent: "claude", count: 2), SwarmSettings.Worker(agent: "codex"),
+            ]
+            model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
+        }),
+        Shot(id: "goals/swarm-plan", keys: "gGS"),
+        Shot(id: "goals/swarm-questions", keys: "gGS", crop: .swarmQuestions, cropPadding: 8),
+        Shot(id: "goals/swarm-approved", keys: "gGjS"),
+        Shot(id: "goals/swarm-diff", keys: "gGjS<Tab>j", crop: .swarmVersions, cropPadding: 8),
+        Shot(id: "goals/swarm-edit", keys: "gGSje", crop: .swarmEditor, cropPadding: 8),
+        Shot(id: "goals/swarm-goal-page", keys: "gG", crop: .goalSwarm, cropPadding: 8),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

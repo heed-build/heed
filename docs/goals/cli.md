@@ -55,6 +55,9 @@ records.
 | `list` | Every goal: id, status, criteria met, items, score, title; `*` marks the session's |
 | `show` | `GOAL.md`, the items with their stages and columns, the quality bars and scores, what waits for you |
 
+A swarm's lead keeps the plan with `plan show`, `plan propose --file <path|->` and `ask <question> --option …`;
+`plan approve` is yours, from a terminal outside heed ([The lead and heed goal](swarms/lead.md)).
+
 A spawned session works in a new worktree of the asking session's repos (or of the newest session on the goal) and
 starts off screen. A background run is the agent without a pane (`claude -p`, `codex exec`) in a worktree of its own on
 `heed/spawn/<goal>/<item>`, kept when it ends so the work can be opened, pushed or thrown away; it may edit files there,

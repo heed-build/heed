@@ -10,7 +10,8 @@ import Foundation
 /// attach decisions): a key, the goal, a time, the columns their queries need and a JSON body, so those parts add
 /// readers and writers, and a migration only when they need a column. Issue refs for the GitHub mirror have their
 /// columns already: `goals.tracker_repo`/`tracker_issue` (the meta issue) and `goal_items.issue_number` (sub-issues);
-/// migration 2 adds `goal_mirrors`, the mirror's own state per goal.
+/// migration 2 adds `goal_mirrors`, the mirror's own state per goal; migration 3 swarm runs, their plan versions and
+/// their steering log.
 public final class GoalStore {
     let database: SQLiteDatabase
 
@@ -111,6 +112,49 @@ public final class GoalStore {
             goal TEXT PRIMARY KEY REFERENCES goals (id),
             data TEXT NOT NULL
         );
+        """),
+        // Swarm runs on a goal (`GoalSwarm`), their plan versions (`SwarmPlanVersion`, the tasks as JSON in `items`)
+        // and their steering log (`SwarmSteer`). Plan versions and steering rows are only ever added: an overrule, an
+        // answer or a restore is a new row, and the triggers refuse anything else.
+        SQLiteMigration(sql: """
+        CREATE TABLE goal_swarms (
+            id TEXT PRIMARY KEY,
+            goal TEXT NOT NULL REFERENCES goals (id),
+            status TEXT NOT NULL,
+            started_at REAL NOT NULL,
+            ended_at REAL,
+            data TEXT NOT NULL
+        );
+        CREATE INDEX goal_swarms_goal ON goal_swarms (goal);
+        CREATE TABLE goal_plans (
+            swarm TEXT NOT NULL REFERENCES goal_swarms (id),
+            goal TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            at REAL NOT NULL,
+            author TEXT NOT NULL,
+            note TEXT NOT NULL,
+            items TEXT NOT NULL,
+            PRIMARY KEY (swarm, version)
+        );
+        CREATE TABLE goal_steering (
+            id INTEGER PRIMARY KEY,
+            swarm TEXT NOT NULL REFERENCES goal_swarms (id),
+            goal TEXT NOT NULL,
+            at REAL NOT NULL,
+            actor TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            state TEXT NOT NULL,
+            data TEXT NOT NULL
+        );
+        CREATE INDEX goal_steering_swarm ON goal_steering (swarm, id);
+        CREATE TRIGGER goal_plans_kept BEFORE UPDATE ON goal_plans
+        BEGIN SELECT RAISE(ABORT, 'plan versions are only added'); END;
+        CREATE TRIGGER goal_plans_never_deleted BEFORE DELETE ON goal_plans
+        BEGIN SELECT RAISE(ABORT, 'plan versions are only added'); END;
+        CREATE TRIGGER goal_steering_kept BEFORE UPDATE ON goal_steering
+        BEGIN SELECT RAISE(ABORT, 'steering rows are only added'); END;
+        CREATE TRIGGER goal_steering_never_deleted BEFORE DELETE ON goal_steering
+        BEGIN SELECT RAISE(ABORT, 'steering rows are only added'); END;
         """),
     ]
 
@@ -231,7 +275,7 @@ public final class GoalStore {
     public func snapshot() throws -> GoalSnapshot {
         try GoalSnapshot(
             goals: goals(), links: links(), docs: currentTexts().mapValues { GoalDoc.parse($0) }, items: items(),
-            evidence: evidence(), edits: edits()
+            evidence: evidence(), edits: edits(), swarms: swarms()
         )
     }
 

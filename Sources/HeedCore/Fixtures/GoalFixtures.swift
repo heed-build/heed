@@ -94,7 +94,10 @@ public enum GoalFixtures {
         ], links: [
             GoalLink(goal: id, kind: .session, target: "s1", at: ago(5 * 24)),
             GoalLink(goal: id, kind: .session, target: "s2", at: ago(3 * 24)),
-        ], items: anchorItems(id, ago), evidence: anchorEvidence(id, ago), edits: anchorEdits(id, ago))
+        ], items: SwarmFixtures.planned(anchorItems(id, ago)), evidence: anchorEvidence(id, ago), edits: anchorEdits(
+            id,
+            ago
+        ))
     }
 
     /// The anchors goal's work: planned, found in its sessions, raised in a chat and by a reviewer.

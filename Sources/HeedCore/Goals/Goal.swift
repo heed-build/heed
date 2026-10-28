@@ -57,7 +57,8 @@ public struct GoalLink: Hashable, Sendable, Codable {
 
     /// How the link was made: by you, by heed on its own (sure enough), or by heed after asking you.
     public enum Origin: String, Hashable, Sendable, Codable, CaseIterable {
-        case manual, auto, asked
+        /// `swarm`: a session or run a swarm started (its lead, its workers), never asked about.
+        case manual, auto, asked, swarm
     }
 
     public var goal: String
@@ -133,10 +134,12 @@ public struct GoalSnapshot: Hashable, Sendable {
     public var evidence: [GoalEvidence]
     /// Every goal's GOAL.md edits (proposed, applied, said no to), oldest first.
     public var edits: [GoalEdit]
+    /// Every goal's swarm runs, oldest first.
+    public var swarms: [GoalSwarm]
 
     public init(
         goals: [HeedGoal] = [], links: [GoalLink] = [], docs: [String: GoalDoc] = [:], items: [GoalItem] = [],
-        evidence: [GoalEvidence] = [], edits: [GoalEdit] = []
+        evidence: [GoalEvidence] = [], edits: [GoalEdit] = [], swarms: [GoalSwarm] = []
     ) {
         self.goals = goals
         self.links = links
@@ -144,7 +147,16 @@ public struct GoalSnapshot: Hashable, Sendable {
         self.items = items
         self.evidence = evidence
         self.edits = edits
+        self.swarms = swarms
     }
+
+    /// A goal's swarm runs, newest first.
+    public func swarms(of goal: String) -> [GoalSwarm] {
+        swarms.filter { $0.goal == goal }.sorted { $0.number > $1.number }
+    }
+
+    /// The goal's swarm that is still going, if one is.
+    public func activeSwarm(of goal: String) -> GoalSwarm? { swarms(of: goal).first { $0.status.active } }
 
     public func items(of goal: String) -> [GoalItem] { items.filter { $0.goal == goal } }
     public func evidence(of goal: String) -> [GoalEvidence] { evidence.filter { $0.goal == goal } }

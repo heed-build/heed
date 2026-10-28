@@ -103,6 +103,11 @@ toc:
       - file: cli.md
       - file: personas.md
       - file: github.md
+      - folder: swarms
+        children:
+          - file: index.md
+          - file: plan.md
+          - file: lead.md
   - folder: keyboard
     children:
       - file: index.md

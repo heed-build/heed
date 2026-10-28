@@ -28,6 +28,14 @@ public struct GoalFiles: Hashable, Sendable {
     public func folder(_ goal: String) -> URL { root.appendingPathComponent(goal, isDirectory: true) }
     public func doc(_ goal: String) -> URL { folder(goal).appendingPathComponent("GOAL.md") }
     public func links(_ goal: String) -> URL { folder(goal).appendingPathComponent("links.json") }
+    /// The current swarm plan, next to `GOAL.md`.
+    public func plan(_ goal: String) -> URL { folder(goal).appendingPathComponent("PLAN.md") }
+
+    func write(plan text: String, goal: String) throws {
+        guard writes else { return }
+        try FileManager.default.createDirectory(at: folder(goal), withIntermediateDirectories: true)
+        try text.write(to: plan(goal), atomically: true, encoding: .utf8)
+    }
 
     func write(doc text: String, goal: String) throws {
         guard writes else { return }
@@ -54,6 +62,19 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
     case unknownEdit(Int64)
     /// The edit is not in the state the operation needs (accepting one already applied).
     case editNot(GoalEdit.State, Int64)
+    /// The goal has a swarm going already: one at a time.
+    case swarmActive(String)
+    /// The goal has no swarm going.
+    case noSwarm(String)
+    case unknownSwarm(String)
+    /// The swarm has ended: its plan and steering are read-only.
+    case swarmEnded(String)
+    case noPlan(String)
+    case unknownPlanVersion(String, Int)
+    /// What is wrong with a plan.
+    case badPlan([String])
+    case unknownQuestion(Int64)
+    case noTask(String)
 
     public var description: String {
         switch self {
@@ -63,6 +84,15 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
         case let .unknownItem(id): "no item \(id)"
         case let .unknownEdit(id): "no edit \(id)"
         case let .editNot(state, id): "edit \(id) is not \(state.rawValue)"
+        case let .swarmActive(goal): "\(goal) has a swarm going already: stop it first (:swarm.stop)"
+        case let .noSwarm(goal): "\(goal) has no swarm going: start one in heed (S on the goal, then :swarm.start)"
+        case let .unknownSwarm(id): "no swarm \(id)"
+        case let .swarmEnded(id): "\(id) has ended: its plan stays readable, a new swarm makes a new plan"
+        case let .noPlan(id): "\(id) has no plan yet: the lead proposes one with heed goal plan propose"
+        case let .unknownPlanVersion(id, number): "\(id) has no plan v\(number)"
+        case let .badPlan(problems): "the plan was not taken: " + problems.joined(separator: "; ")
+        case let .unknownQuestion(id): "no open question \(id)"
+        case let .noTask(id): "no task \(id) in the plan"
         }
     }
 }

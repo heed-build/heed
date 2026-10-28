@@ -214,6 +214,7 @@ public enum ContextMenus {
             item("Re-check every reviewer", "review.recheck"),
             item("Who it needs", "goal.personas"),
             item("Evaluations: stranger walks", "goal.evaluations"),
+            item("Swarm and its plan", "goal.swarm"),
         ])
         menu.section([
             item(mirrored ? "Stop mirroring to GitHub" : "Mirror to GitHub", "goal.mirror"),
@@ -237,6 +238,42 @@ public enum ContextMenus {
             MenuItem("Ask it why", CommandInvocation(name: "review.why", target: target)),
         ])
         menu.section([MenuItem("Take it off the goal", CommandInvocation(name: "reviewer.remove", target: target))])
+        return menu.entries
+    }
+
+    /// A task in a swarm's plan: `task:<item id>`.
+    public static func swarmTask(id: String, title: String, first: Bool, last: Bool, active: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: "task:\(id)")
+        func item(_ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true) -> MenuItem {
+            MenuItem(
+                title,
+                CommandInvocation(name: name, arguments: arguments, target: target),
+                enabled: enabled && active
+            )
+        }
+        var menu = Menu(header: title)
+        menu.section([item("Edit…", "swarm.task.edit"), item("Add a task after it…", "swarm.task.add")])
+        menu.section([
+            item("Move up", "swarm.task.move", ["-1"], enabled: !first),
+            item("Move down", "swarm.task.move", ["1"], enabled: !last),
+        ])
+        menu.section([item("Drop it", "swarm.task.drop")])
+        menu.section([item("Approve the plan", "swarm.approve")])
+        return menu.entries
+    }
+
+    /// A version in a swarm's plan: `planv:<n>`.
+    public static func swarmVersion(number: Int, current: Bool, active: Bool) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: "planv:\(number)")
+        var menu = Menu(header: "Plan v\(number)")
+        menu.section([
+            MenuItem("Whole diff", CommandInvocation(name: "swarm.diff", target: target)),
+            MenuItem(
+                current ? "The plan now" : "Restore it", CommandInvocation(
+                    name: "swarm.restore", arguments: ["\(number)"], target: target
+                ), enabled: active && !current
+            ),
+        ])
         return menu.entries
     }
 

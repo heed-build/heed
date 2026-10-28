@@ -12,6 +12,8 @@ public struct GoalCommand: Codable, Equatable, Sendable {
         case propose
         case linkPR = "link pr"
         case reviewRequest = "review request"
+        case planPropose = "plan propose", planShow = "plan show", planApprove = "plan approve"
+        case ask
     }
 
     public var verb: Verb
@@ -30,11 +32,20 @@ public struct GoalCommand: Codable, Equatable, Sendable {
     public var agent: String?
     public var item: String?
     public var background: Bool
+    /// `plan propose --note`: what the proposal changes, in a line.
+    public var note: String?
+    /// `plan propose --file`: where the plan's JSON is (`-`: stdin). The CLI reads it into `text`.
+    public var file: String?
+    /// `ask --option`: the choices, in order.
+    public var options: [String]?
+    /// Sent by a background run (its goal from `HEED_GOAL`), not from a pane or a terminal.
+    public var fromRun: Bool?
 
     public init(
         _ verb: Verb, goal: String? = nil, json: Bool = false, subject: String? = nil, text: String? = nil,
         parent: String? = nil, bySubagent: String? = nil, evidence: String? = nil, agent: String? = nil,
-        item: String? = nil, background: Bool = false
+        item: String? = nil, background: Bool = false, note: String? = nil, file: String? = nil,
+        options: [String]? = nil
     ) {
         self.verb = verb
         self.goal = goal
@@ -47,6 +58,9 @@ public struct GoalCommand: Codable, Equatable, Sendable {
         self.agent = agent
         self.item = item
         self.background = background
+        self.note = note
+        self.file = file
+        self.options = options
     }
 
     /// Record-kind commands apply at once (each a new version or item, undoable in the Goals view); scope-kind commands
@@ -100,6 +114,16 @@ public enum GoalCommandLine {
       item spawn <id> [--agent <name>] [--background]
                                              start a session on the item, on this goal (capped per goal per day)
       review request <kind>                  ask the goal's reviewer of that kind for a re-check
+    Swarm (the goal's swarm run; its lead drafts the plan, the owner approves it)
+      plan show                              the plan: tasks by phase, questions and answers, feedback to act on
+      plan propose --file <path|-> [--note <text>]
+                                             a plan as JSON (tasks with id, title, phase, owner, estimate, after,
+                                             doneWhen; scope for GOAL.md changes): before approval it is the draft,
+                                             after it small changes apply and structural ones wait
+      plan approve                           approve the plan (the owner, from a terminal; never an agent)
+      ask <question> [--option <a> --option <b>]
+                                             a question for the owner, shown in the plan pane; the answer shows in
+                                             plan show
 
     Item ids are <goal>/<slug> or just <slug>. Exit codes: 0 done or proposed, 1 refused, 2 usage, 3 Heed not
     reachable, 4 no goal (attach first or pass --goal), 5 held for you in Attention.
@@ -114,15 +138,34 @@ public enum GoalCommandLine {
         return words.isEmpty || words.contains { $0 == "-h" || $0 == "--help" } || words.first == "help"
     }
 
-    /// The control request `arguments` make, from the pane in `environment` (its `HEED_SESSION_ID`).
-    public static func request(_ arguments: [String], environment: [String: String]) throws -> ControlRequest {
+    /// The control request `arguments` make, from the pane in `environment` (its `HEED_SESSION_ID`). `read` reads
+    /// `--file` (`-` is stdin) for `plan propose`.
+    public static func request(
+        _ arguments: [String], environment: [String: String], read: (String) throws -> String = readFile
+    ) throws -> ControlRequest {
         let session = environment[HeedEnvironment.sessionID].flatMap { $0.isEmpty ? nil : $0 }
         var command = try parse(arguments)
         // A background run has no session: heed tells it its goal instead.
-        if command.goal == nil, session == nil, let goal = environment[goalVariable], !goal.isEmpty {
-            command.goal = goal
+        if session == nil, let goal = environment[goalVariable], !goal.isEmpty {
+            if command.goal == nil { command.goal = goal }
+            command.fromRun = true
+        }
+        if let file = command.file {
+            do {
+                command.text = try read(file)
+            } catch {
+                throw usageError(
+                    "could not read \(file == "-" ? "the plan on stdin" : file): \(error.localizedDescription)"
+                )
+            }
         }
         return ControlRequest(method: .goal, session: session, goal: command)
+    }
+
+    /// A file's text, or stdin's for `-`.
+    public static func readFile(_ path: String) throws -> String {
+        if path == "-" { return String(decoding: FileHandle.standardInput.readDataToEndOfFile(), as: UTF8.self) }
+        return try String(contentsOfFile: (path as NSString).expandingTildeInPath, encoding: .utf8)
     }
 
     /// What the CLI prints and how it exits, from heed's reply.
@@ -149,10 +192,17 @@ public enum GoalCommandLine {
         var json = false
         var background = false
         var rest = ArraySlice(arguments.first == "goal" ? Array(arguments.dropFirst()) : arguments)
-        let valued: Set = ["--goal", "--parent", "--by-subagent", "--evidence", "--agent", "--item"]
+        let valued: Set = [
+            "--goal", "--parent", "--by-subagent", "--evidence", "--agent", "--item", "--note", "--file", "--option",
+        ]
+        var choices: [String] = []
         while let word = rest.popFirst() {
             switch word {
             case "--json": json = true
+            case "--option":
+                guard let value = rest.popFirst(), !value.isEmpty else { throw usageError("--option needs a value") }
+                choices.append(value)
+                options["--option"] = value
             case "--background": background = true
             case "-h", "--help", "help": throw usageError(nil)
             case _ where valued.contains(word):
@@ -163,6 +213,7 @@ public enum GoalCommandLine {
                 guard valued.contains(parts[0]), parts.count == 2, !parts[1].isEmpty else {
                     throw usageError("unknown option \(parts[0])")
                 }
+                if parts[0] == "--option" { choices.append(parts[1]) }
                 options[parts[0]] = parts[1]
             case _ where word.hasPrefix("--"):
                 throw usageError("unknown option \(word)")
@@ -177,7 +228,8 @@ public enum GoalCommandLine {
         case "show": verb = .show
         case "attach": verb = .attach
         case "propose": verb = .propose
-        case "item", "decision", "question", "criterion", "link", "review":
+        case "ask": verb = .ask
+        case "item", "decision", "question", "criterion", "link", "review", "plan":
             guard let second = args.first else { throw usageError("\(first) needs a command") }
             args.removeFirst()
             guard let found = GoalCommand.Verb(rawValue: "\(first) \(second)") else {
@@ -189,7 +241,8 @@ public enum GoalCommandLine {
         var command = GoalCommand(
             verb, goal: options["--goal"], json: json, parent: options["--parent"],
             bySubagent: options["--by-subagent"], evidence: options["--evidence"], agent: options["--agent"],
-            item: options["--item"], background: background
+            item: options["--item"], background: background, note: options["--note"], file: options["--file"],
+            options: choices.isEmpty ? nil : choices
         )
         // Which options each command takes: anything else is a mistake worth saying, not ignoring.
         let allowed: Set<String> = switch verb {
@@ -197,6 +250,8 @@ public enum GoalCommandLine {
         case .itemDone, .criterionCheck, .decisionAdd: ["--evidence"]
         case .itemSpawn: ["--agent"]
         case .linkPR: ["--item"]
+        case .planPropose: ["--note", "--file"]
+        case .ask: ["--option"]
         default: []
         }
         for option in options.keys where option != "--goal" && !allowed.contains(option) {
@@ -208,8 +263,16 @@ public enum GoalCommandLine {
             return text.isEmpty ? nil : text
         }
         switch verb {
-        case .list, .show:
+        case .list, .show, .planShow, .planApprove:
             guard args.isEmpty else { throw usageError("\(verb.rawValue) takes no words") }
+        case .planPropose:
+            guard args.isEmpty else { throw usageError("plan propose takes the plan with --file <path|->, not words") }
+            guard command.file != nil else {
+                throw usageError("plan propose needs --file: a JSON file, or - to read it on stdin")
+            }
+        case .ask:
+            guard let text = joined(args[...]) else { throw usageError("ask needs a question") }
+            command.text = text
         case .attach:
             guard args.count <= 1 else { throw usageError("attach takes one goal") }
             command.subject = args.first

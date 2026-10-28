@@ -465,6 +465,14 @@ public extension Tutor {
                 doneLine: "On its goal. A no, a move or an undo ({goal.attach.undo}) becomes a line in attach.rules."
             ) { start, now, _ in now.goalAsks < start.goalAsks },
             TutorStep(
+                "A swarm on the goal",
+                say: "A swarm works a goal with several agents at once: a lead agent drafts a plan, you change it and "
+                    + "approve it, and nothing runs before you do. {goal.swarm} shows this goal's swarm.",
+                keys: ["{goal.swarm}"], target: "swarmPlan",
+                doneLine: "Its plan by phase, who does each task and what it waits for; on the right the lead's "
+                    + "questions, every version and who decided what. {swarm.replan} asks the lead to re-plan."
+            ) { _, now, _ in now.goalPane == "plan" },
+            TutorStep(
                 "One of your own",
                 say: "{goal.new} opens a new goal; :goal.new with a title makes one at once. Make one.",
                 keys: [":goal.new Faster search↩"], target: "goalsList",

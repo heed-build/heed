@@ -117,6 +117,14 @@ final class AppModel {
     var llmStatuses: [LLMAgentStatus] = []
     /// Settings' Test per agent: running, or how the last one ended.
     var llmTests: [String: LLMTest] = [:]
+    /// Settings › Inference & decisions (AppModel+Inference): whether Apple's on-device model can run here, the last
+    /// tests (kept between launches), the decision test running, and the title bar reminder hidden for this launch.
+    var localModel = LocalModel.unsupported
+    var setupTests = SetupTests() { didSet { saveSetupTests() } }
+    var decisionTest: DecisionTest?
+    var inferenceReminderHidden = false
+    /// Screenshots show the setup reminder only where a shot asks for it.
+    var inferenceReminderInShots = false
     /// Settings › Agents › Local decisions: what the screen snapshots kept amount to; nil until read
     /// (AppModel+ScreenSnapshots).
     var screenCounts: ScreenSnapshotCounts?
@@ -371,6 +379,7 @@ final class AppModel {
             tailscalePath = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
             issueInfo = Fixtures.issueInfo
             llmStatuses = Self.fixtureLLMStatuses
+            localModel = .available
             for (id, live) in Fixtures.subagents {
                 setSubagents(Subagents(live), of: id)
             }
@@ -390,6 +399,7 @@ final class AppModel {
         timeline.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
         dashboard.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
         updateScope()
+        if !isFixture { loadInferenceSetup() }
         tutorRecord = tutorProgress
         // The tutor runs in its own window and model; the reminder here follows what it saves.
         NotificationCenter.default
@@ -2402,6 +2412,8 @@ final class AppModel {
                 flash = "updates are off in this build: release builds check GitHub once a day"
             }
         case "tutor.hide": hideTutorReminder(all: command.arguments.first == "all")
+        case "inference.setup": openInferenceSetup()
+        case "inference.hide": hideInferenceReminder(always: command.arguments.first == "always")
         case "tutor.back", "tutor.skip", "tutor.exit":
             guard tutor != nil else {
                 flash = "the tutor is not running (:tutor starts it)"

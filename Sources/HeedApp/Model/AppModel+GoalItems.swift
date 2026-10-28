@@ -278,7 +278,7 @@ extension AppModel {
     }
 
     private var goalDecider: (any Decider)? {
-        config.llm.enabled && !isFixture ? decider(caller: "goals.items") : nil
+        decisionsOn && !isFixture ? decider(caller: "goals.items") : nil
     }
 
     /// `goal.plan` and new goals: the planner's items for the goal, those it does not have yet added as planned.

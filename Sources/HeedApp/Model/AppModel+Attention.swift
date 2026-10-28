@@ -343,7 +343,7 @@ extension AppModel {
 
     /// For an item no rule matched, the Decider suggests a weight: shown next to it, never acted on.
     func suggestWeight(_ item: AttentionItem) {
-        guard !isFixture, config.llm.enabled, attentionEntries.first(where: { $0.id == item.id })?.outcome.rule == nil
+        guard !isFixture, decisionsOn, attentionEntries.first(where: { $0.id == item.id })?.outcome.rule == nil
         else { return }
         if let known = attention.suggestions[item.id], known.updatedAt >= item.updatedAt { return }
         attention.suggestions[item.id] = (item.updatedAt, nil)

@@ -62,11 +62,17 @@ public enum DeciderError: Error, Equatable, Sendable, CustomStringConvertible {
     case noQuestions
     /// The answer was JSON, but not answers to the questions asked.
     case badAnswer(String)
+    /// `[decisions] decider = "off"`.
+    case off
+    /// The decider chosen cannot run here (Apple's on-device model on a Mac without it); why.
+    case unavailable(String)
 
     public var description: String {
         switch self {
         case .noQuestions: "nothing to decide"
         case let .badAnswer(why): "not an answer to the questions: \(why)"
+        case .off: "decisions are off ([decisions] decider = \"off\")"
+        case let .unavailable(why): "the local decider cannot run: \(why)"
         }
     }
 }

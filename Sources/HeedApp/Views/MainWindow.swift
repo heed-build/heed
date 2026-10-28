@@ -181,6 +181,7 @@ struct TitleBar: View {
             if !compact { Text("next attention").foregroundStyle(Theme.fg3).fixedSize() }
         }
         if let reminder = model.tutorReminder { TutorReminderView(reminder: reminder, compact: compact) }
+        if let text = model.inferenceReminder { InferenceReminderView(text: text, compact: compact) }
     }
 
     /// Unread inbox items; PRs that need you.

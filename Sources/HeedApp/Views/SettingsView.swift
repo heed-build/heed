@@ -21,11 +21,13 @@ struct SettingsView: View {
                 "cleanup": .cleanup,
                 "worktrees": .cleanup, "keys": .keys, "modes": .keys, "pilot": .pilot, "attention": .attention,
                 "rules": .attention, "hosts": .hosts, "ssh": .hosts,
+                "inference": .inference, "decisions": .inference, "llm": .inference,
             ]
             return short[key]
         }
 
-        case general = "General", agents = "Agents", colors = "Orgs & repos", hosts = "Hosts"
+        case general = "General", agents = "Agents", inference = "Inference & decisions"
+        case colors = "Orgs & repos", hosts = "Hosts"
         case cleanup = "Worktrees & cleanup", pilot = "Pilot", attention = "Attention", keys = "Keys & modes"
 
         var id: String { rawValue }
@@ -79,6 +81,7 @@ struct SettingsView: View {
                     switch section {
                     case .general: GeneralSettings()
                     case .agents: AgentSettings()
+                    case .inference: InferenceSettings()
                     case .colors: OrgRepoSettings()
                     case .hosts: HostSettings()
                     case .cleanup: CleanupSettings()

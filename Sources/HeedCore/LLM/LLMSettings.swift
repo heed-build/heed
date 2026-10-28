@@ -17,6 +17,21 @@ public struct LLMSettings: Equatable, Sendable {
     public var dailyDollars = 1.0
     /// Per agent (`[agents.<name>] llm = false`, `llm_model = "..."`): absent means on, with the detected cheap model.
     public var agents: [String: Agent] = [:]
+    /// `agent`: which agent takes the calls. `auto`: every usable one, taking turns; a name: that one alone. nil: not
+    /// chosen yet (Settings › Inference & decisions), which takes turns like `auto` and reminds you to choose.
+    public var agent: String?
+    /// `setup_reminder`: the title bar reminds you on launch while model calls or decisions are not set up.
+    public var setupReminder = true
+
+    /// `[llm] agent` when it names one agent: the only one calls go to.
+    public var only: String? {
+        guard let agent = agent?.trimmingCharacters(in: .whitespaces), !agent.isEmpty, agent != Self.auto else {
+            return nil
+        }
+        return agent
+    }
+
+    public static let auto = "auto"
 
     public struct Agent: Equatable, Sendable {
         /// nil: on (the default).

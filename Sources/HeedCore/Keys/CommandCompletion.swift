@@ -46,7 +46,7 @@ public struct CompletionContext: Sendable {
 public enum CommandCompletions {
     /// `:settings.open <section>`.
     public static let settingsSections = [
-        "general", "agents", "colors", "cleanup", "pilot", "attention", "keys", "hosts",
+        "general", "agents", "inference", "colors", "cleanup", "pilot", "attention", "keys", "hosts",
     ]
 
     /// `:pilot.pause <duration>`, the durations offered (any `<n>m|h|d` works).
@@ -116,6 +116,7 @@ public enum CommandCompletions {
         case "issue.remove": context.issues.map { ($0, "") }
         case "tutor": ([Tutor.tour] + Tutor.viewLessons).map { ($0.id, $0.title) }
         case "tutor.hide": [("all", "every lesson's reminder")]
+        case "inference.hide": [("always", "never remind me ([llm] setup_reminder = false)")]
         case "log.kind": CallKind.all.map { ($0.rawValue, "") }
         case "dashboard.range": [("7", "a week"), ("28", "four weeks"), ("84", "twelve weeks")]
         case "timeline.kind": TimelineItem.Kind.allCases.map { ($0.rawValue, "") } + [("all", "every kind")]

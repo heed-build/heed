@@ -445,6 +445,8 @@ public enum MenuBar {
                 item("Hide the tutor reminder", "tutor.hide"),
                 .separator,
                 item("Getting started checks", "welcome"),
+                item("Set up model calls & decisions", "inference.setup"),
+                item("Hide the setup reminder", "inference.hide"),
             ])
         }
     }

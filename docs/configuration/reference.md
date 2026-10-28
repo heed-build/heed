@@ -249,6 +249,17 @@ backoff_minutes = 10
 # (counted where a cost is known: reported by the agent, or estimated from [usage.prices]). 0: no cap.
 daily_calls = 100
 daily_dollars = 1.0
+# Which agent takes the calls: "auto" (every usable one, taking turns) or one name ("claude"). Unset: not chosen
+# yet; calls take turns, and the title bar reminds you to set it up (Settings › Inference & decisions).
+# agent = "auto"
+# false: no reminder on launch while model calls or decisions are not set up, or their last test failed.
+setup_reminder = true
+
+[decisions]
+# Who answers heed's typed questions (Attention's suggested weights, goal items, quality profiles): "local"
+# (Apple's on-device model, free and on this Mac only, macOS 26 with Apple Intelligence), "model" (a model call
+# through [llm]) or "off". Unset: a model call, and the title bar reminds you to choose.
+# decider = "local"
 
 [local]
 # Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,

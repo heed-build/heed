@@ -7,8 +7,8 @@ description: How Heed makes its own short model calls through the agent CLIs you
 
 Some of what Heed does needs a model for a moment: a summary, or a typed answer to a question about a session. Heed
 makes those calls itself, headless, through the agent CLIs you already use and are logged in to. There is no API key
-to set up and nothing to configure: every built-in agent that is installed and logged in takes part, each with a cheap
-model, and they take turns.
+to set up: every built-in agent that is installed and logged in takes part, each with a cheap model, and they take
+turns, or the one you choose in [Settings › Inference & decisions](../configuration/inference.md) takes them all.
 
 | Agent | Login check (free) | Cheap model | Structured answers |
 |---|---|---|---|
@@ -50,7 +50,8 @@ works as before.
 
 ## Which agent takes a call
 
-The usable agents take turns. An agent is skipped while:
+With `[llm] agent = "claude"`, that agent takes every call alone, and a call it cannot take fails. Otherwise
+(`"auto"`, or not set) the usable agents take turns. An agent is skipped while:
 
 - it is turned off (`[agents.<name>] llm = false`),
 - it is rate limited in one of your sessions, until its limit resets when that is known,

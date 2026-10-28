@@ -216,6 +216,8 @@ This page is generated from the code (`mise run shots`).
 | `swarm.task.pause` | `p` (goalplan) | pause the swarm task under the cursor (again: resume): its worker stops, its worktree stays |
 | `swarm.task.swap` `<agent[:model]>` | `t` (goalplan) | hand the swarm task under the cursor to another agent; a working worker hands over its worktree |
 | `swarm.task.open` | `s` (goalplan) | the swarm task under the cursor's worker: its tab |
+| `swarm.land` | `b` (goalplan) | move the task under the cursor's stacked PR to where the PR it stacks on merged (again after gh refused) |
+| `swarm.order` | `m` (goalplan) | the swarm's plan in merge order (what each task waits for merges first), or by phase again |
 | `swarm.reject` `[why]` | `n` (goalplan) | no to the plan change waiting for you; the lead hears why |
 | `swarm.task.edit` | `e` (goalplan) | edit the plan's task under the cursor: a new plan version |
 | `swarm.task.add` `[title]` | `a` (goalplan) | add a task after the one under the cursor, in its phase: a new plan version |

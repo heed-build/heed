@@ -614,7 +614,8 @@ extension AppModel {
     var goalAttentionItems: [AttentionItem] {
         GoalAttention.items(
             goals: goals.snapshot.goals, qualities: goals.qualities, waiting: goals.waiting, blocked: goals.blocked,
-            spawns: goals.heldSpawns, swarms: goals.snapshot.swarms, now: Clock.now
+            spawns: goals.heldSpawns, swarms: goals.snapshot.swarms,
+            boards: steeringBoards.values.sorted { $0.swarm.id < $1.swarm.id }, now: Clock.now
         )
     }
 }

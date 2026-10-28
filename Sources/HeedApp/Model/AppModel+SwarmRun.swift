@@ -246,7 +246,14 @@ extension AppModel {
         guard let state = reported else { return }
         runStates[pane] = state
         if state == .working { liveWorkers[id]?.worked = true }
-        if let live = liveWorkers[id], Runs.ended(state, worked: live.worked) { endWorker(id, .turnOver) }
+        if let live = liveWorkers[id], Runs.ended(state, worked: live.worked) {
+            // Something waits for it (a message, a peer's question, an answer): its turn goes on once it is handed.
+            if workerHasMail(live) {
+                Task { await tickSteering() }
+                return
+            }
+            endWorker(id, .turnOver)
+        }
     }
 
     /// Workers whose end hook never comes (cursor, codex): over once they worked and went quiet.
@@ -260,6 +267,7 @@ extension AppModel {
                   )
             else { continue }
             runStates[live.paneID] = .done
+            if workerHasMail(live) { continue }
             endWorker(id, .turnOver)
         }
     }
@@ -382,9 +390,11 @@ extension AppModel {
         }
     }
 
-    /// The Attention item's goal, when it is a swarm's ask.
+    /// The Attention item's goal, when it is a swarm's limit ask.
     var swarmAskGoal: String? {
-        guard view == .attention, let item = attentionSelected?.item, item.reasons.contains(.swarmAsk) else {
+        guard view == .attention, let item = attentionSelected?.item, item.reasons.contains(.swarmAsk),
+              item.id.hasSuffix(":swarm")
+        else {
             return nil
         }
         return GoalAttention.goal(of: item)

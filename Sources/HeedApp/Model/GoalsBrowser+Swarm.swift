@@ -107,14 +107,41 @@ extension GoalsBrowser {
         versionCursor = next
     }
 
-    /// ⇥ in the plan pane: the goals, the tasks, the versions, in turn (past what is empty).
+    /// The steering log as the plan pane lists it: newest first, only `logActor`'s rows when one is picked.
+    var shownSteering: [SwarmSteer] {
+        let rows = (board?.steering ?? []).reversed()
+        guard let logActor else { return Array(rows) }
+        return rows.filter { $0.actor == logActor }
+    }
+
+    var selectedSteer: SwarmSteer? {
+        let rows = shownSteering
+        return focus == .steering && rows.indices.contains(steeringCursor) ? rows[steeringCursor] : nil
+    }
+
+    func setSteeringCursor(_ index: Int) {
+        let count = shownSteering.count
+        guard count > 0 else { return }
+        steeringCursor = min(max(index, 0), count - 1)
+    }
+
+    /// The cursor on a steering row by id, showing everyone's rows when the filter hides it.
+    func pointSteer(_ id: Int64) {
+        if !shownSteering.contains(where: { $0.id == id }) { logActor = nil }
+        guard let index = shownSteering.firstIndex(where: { $0.id == id }) else { return }
+        focus = .steering
+        steeringCursor = index
+    }
+
+    /// ⇥ in the plan pane: the goals, the tasks, the versions, the steering log, in turn (past what is empty).
     func togglePlanFocus() {
-        let order: [Focus] = [.goals, .tasks, .versions]
+        let order: [Focus] = [.goals, .tasks, .versions, .steering]
         let start = order.firstIndex(of: focus) ?? 0
         for step in 1 ... order.count {
             let next = order[(start + step) % order.count]
             switch next {
-            case .tasks where planTasks.isEmpty, .versions where (board?.versions ?? []).isEmpty: continue
+            case .tasks where planTasks.isEmpty, .versions where (board?.versions ?? []).isEmpty,
+                 .steering where shownSteering.isEmpty: continue
             default:
                 focus = next
                 return
@@ -139,6 +166,10 @@ extension GoalsBrowser {
                 focus = .tasks
                 taskCursor = index
             }
+            return true
+        }
+        if id.hasPrefix("steer:"), let row = Int64(id.dropFirst(6)) {
+            pointSteer(row)
             return true
         }
         if id.hasPrefix("planv:"), let number = Int(id.dropFirst(6)) {
@@ -169,6 +200,7 @@ extension GoalsBrowser {
             if changedRun {
                 taskCursor = 0
                 versionCursor = 0
+                steeringCursor = 0
                 fullDiff = false
                 planDraft = nil
             }
@@ -199,24 +231,26 @@ extension GoalsBrowser {
         versionCursor = min(versionCursor, max((board?.versions.count ?? 0) - 1, 0))
         if focus == .tasks, planTasks.isEmpty { focus = .goals }
         if focus == .versions, (board?.versions ?? []).isEmpty { focus = .goals }
+        steeringCursor = min(steeringCursor, max(shownSteering.count - 1, 0))
+        if focus == .steering, shownSteering.isEmpty { focus = .goals }
     }
 
     /// The fake world's anchors run once its workers are going, laid over the approved one: at once for what is drawn,
     /// and into the in-memory store once the fake world is in it.
     func loadRunningFixture(_ variant: SwarmFixtures.Running) -> SwarmFixtures.RunningWorld {
-        let world = SwarmFixtures.running(variant)
+        var world = SwarmFixtures.running(variant)
         var fresh = snapshot
         fresh.swarms = fresh.swarms.filter { $0.id != world.swarm.id } + [world.swarm]
         fresh.evidence += world.evidence
         apply(fresh)
         fixturePulls = world.pulls
         if var board = boards[world.swarm.id] {
-            var next = (board.steering.compactMap(\.id).max() ?? 0) + 1
-            for var row in world.steering {
-                row.id = next
-                next += 1
-                board.steering.append(row)
-            }
+            // Ids as the store will give them; the rows' references back into the world resolved with them.
+            world.steering = SwarmFixtures.number(
+                world.steering,
+                from: (board.steering.compactMap(\.id).max() ?? 0) + 1
+            )
+            board.steering += world.steering
             board.swarm = world.swarm
             boards[world.swarm.id] = board
         }

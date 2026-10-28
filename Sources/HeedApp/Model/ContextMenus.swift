@@ -139,6 +139,7 @@ extension AppModel {
             case .friction: return frictionMenu(index)
             case .tasks: return planTaskMenu(index)
             case .versions: return planVersionMenu(index)
+            case .steering: return steeringMenu(index)
             }
         case .sessions:
             return []

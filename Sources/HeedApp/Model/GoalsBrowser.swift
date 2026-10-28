@@ -29,8 +29,8 @@ final class GoalsBrowser {
         case goals, links, reviewers, objections, personas
         /// The friction log of the evaluation under the lens picker.
         case friction
-        /// The swarm plan's tasks, and its versions.
-        case tasks, versions
+        /// The swarm plan's tasks, its versions, and its steering log.
+        case tasks, versions, steering
     }
 
     /// The spawn-a-reviewer panel: what the next reviewer is.
@@ -66,6 +66,9 @@ final class GoalsBrowser {
     /// The plan's outline in merge order instead of by phase (`swarm.order`).
     var byMergeOrder = false
     var versionCursor = 0
+    /// The steering log's cursor (newest first), and whose rows it shows (`swarm.log.who`; nil: everyone's).
+    var steeringCursor = 0
+    var logActor: SwarmSteer.Actor?
     /// The version under the cursor shows its whole diff.
     var fullDiff = false
     /// Each run's board, by swarm id, as last read (fixtures start from it, shots read it at once).
@@ -381,6 +384,7 @@ final class GoalsBrowser {
         if pane == .unassigned { return attach.setCursor(index) }
         if focus == .tasks { return setTaskCursor(index) }
         if focus == .versions { return setVersionCursor(index) }
+        if focus == .steering { return setSteeringCursor(index) }
         if focus == .personas { return personas.setCursor(index, count: personaRows.count) }
         if pane == .board {
             boardRow = min(max(index, 0), max(cards.count - 1, 0))
@@ -492,6 +496,7 @@ final class GoalsBrowser {
         case .friction: friction.count
         case .tasks: planTasks.count
         case .versions: board?.versions.count ?? 0
+        case .steering: shownSteering.count
         }
     }
 
@@ -507,6 +512,7 @@ final class GoalsBrowser {
         case .friction: min(frictionCursor, max(friction.count - 1, 0))
         case .tasks: taskCursor
         case .versions: versionCursor
+        case .steering: steeringCursor
         }
     }
 
@@ -518,7 +524,7 @@ final class GoalsBrowser {
             switch focus {
             case .goals, .links: focus = reviewers.isEmpty ? .goals : .reviewers
             case .reviewers: focus = objections.isEmpty ? .goals : .objections
-            case .objections, .personas, .friction, .tasks, .versions: focus = .goals
+            case .objections, .personas, .friction, .tasks, .versions, .steering: focus = .goals
             }
             return
         }
@@ -542,6 +548,7 @@ final class GoalsBrowser {
         case .friction: focus = friction.isEmpty ? .goals : .friction
         case .tasks: focus = planTasks.isEmpty ? .goals : .tasks
         case .versions: focus = (board?.versions ?? []).isEmpty ? .goals : .versions
+        case .steering: focus = shownSteering.isEmpty ? .goals : .steering
         case .goals: focus = .goals
         }
     }
@@ -615,7 +622,7 @@ final class GoalsBrowser {
         if pane != .reviewers, focus == .reviewers || focus == .objections { focus = .goals }
         if pane != .personas, focus == .personas { focus = .goals }
         if pane != .evaluations, focus == .friction { focus = .goals }
-        if pane != .plan, focus == .tasks || focus == .versions { focus = .goals }
+        if pane != .plan, focus == .tasks || focus == .versions || focus == .steering { focus = .goals }
         if pane != .plan { planDraft = nil }
         if pane == .reviewers || pane == .personas || pane == .evaluations || pane == .plan, focus == .links {
             focus = .goals

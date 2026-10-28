@@ -201,7 +201,8 @@ public extension GoalOps {
         let swarm = try existing(id)
         return try store.add(SwarmSteer(
             swarm: id, goal: swarm.goal, at: now, actor: .heed, kind: .retarget,
-            text: "Could not move #\(retarget.pr) to \(retarget.to)", reason: error, ref: "task:\(retarget.task)"
+            text: "Could not move #\(retarget.pr) to \(retarget.to)", reason: error, state: .pending,
+            ref: "task:\(retarget.task)"
         ))
     }
 

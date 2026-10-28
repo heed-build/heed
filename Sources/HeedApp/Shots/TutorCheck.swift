@@ -43,6 +43,7 @@ enum TutorCheck {
             "U",
             "y",
             "S",
+            "w",
             ":goal.new Faster search<CR>",
         ],
         "hosts": [

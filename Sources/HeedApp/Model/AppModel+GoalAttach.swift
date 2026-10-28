@@ -168,6 +168,8 @@ extension AppModel {
     /// `goal.ask.yes`: on the goal heed proposed; on a suggestion, the goal is made.
     func answerGoalYes() {
         if let goal = heldSpawnGoal { return startHeldSpawns(goal) }
+        if attentionQuestion != nil { return takeSuggestion() }
+        if let board = retargetAsk { return answerRetarget(board, yes: true) }
         if let goal = swarmAskGoal { return answerSwarmAsk(goal, yes: true) }
         switch attachTarget {
         case let .decision(decision): answerGoal(decision, .yes)
@@ -179,6 +181,8 @@ extension AppModel {
     /// `goal.ask.no`: not on that goal (heed learns); on a suggestion, it goes away.
     func answerGoalNo() {
         if let goal = heldSpawnGoal { return dropHeldSpawns(goal) }
+        if attentionQuestion != nil { return answerSwarm([]) }
+        if let board = retargetAsk { return answerRetarget(board, yes: false) }
         if let goal = swarmAskGoal { return answerSwarmAsk(goal, yes: false) }
         switch attachTarget {
         case let .decision(decision): answerGoal(decision, .no)

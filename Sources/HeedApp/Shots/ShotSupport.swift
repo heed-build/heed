@@ -34,6 +34,7 @@ enum ShotRegion: String, CaseIterable {
     case goalMirror
     case goalSwarm, swarmPlan, swarmOutline, swarmEditor, swarmQuestions, swarmVersions, swarmSteering, swarmDiff
     case swarmForm, swarmLimit, swarmTask, swarmOrder, swarmHeld
+    case swarmAgentLog, swarmAsk
 }
 
 struct ShotRegionKey: PreferenceKey {

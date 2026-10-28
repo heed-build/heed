@@ -16,7 +16,9 @@ steering.
 :::{note}
 Swarms come in parts. This heed plans, approves, runs and lands: workers start on ready tasks and open their pull
 requests ([Running](running.md)), and the PRs merge in a merge order, stacked ones moved on as their parents merge
-([Landing](landing.md)). Answering workers' questions and the map come later.
+([Landing](landing.md)), and you steer it: agents' questions go to whoever may answer them, heed's controller answers
+what is within its authority, and what is yours waits in Needs you ([Steering](steering.md)). The map and the
+end-of-build summary come later.
 :::
 
 ## Starting one

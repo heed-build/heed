@@ -56,7 +56,9 @@ records.
 | `show` | `GOAL.md`, the items with their stages and columns, the quality bars and scores, what waits for you |
 
 A swarm's lead keeps the plan with `plan show`, `plan propose --file <path|->` and `ask <question> --option …`;
-`plan approve` is yours, from a terminal outside heed ([The lead and heed goal](swarms/lead.md)).
+`plan approve` is yours, from a terminal outside heed ([The lead and heed goal](swarms/lead.md)). `ask` waits for its
+answer and prints it (exit 6 when none came before its timeout); `heed swarm send`, `note` and `answer` carry
+messages, progress notes and answers between a swarm's agents ([Steering](swarms/steering.md)).
 
 A spawned session works in a new worktree of the asking session's repos (or of the newest session on the goal) and
 starts off screen. A background run is the agent without a pane (`claude -p`, `codex exec`) in a worktree of its own on
@@ -76,17 +78,19 @@ spawn_per_day = 6
 ## For agents and scripts
 
 Every command takes `--json` and then prints one JSON object, also when it fails: `outcome` (`applied`, `proposed`,
-`moot`, `added`, `moved`, `attached`, `linked`, `started`, `held`, `read`, `refused`), `exit`, `message`, and what it
-is about (`goal`, `item`, `edit`, `version`, `session`, and `goals` for `list`, `view` for `show`).
+`moot`, `added`, `moved`, `attached`, `linked`, `started`, `held`, `read`, `refused`, and for a swarm `asked`,
+`answered`, `timeout`, `sent`, `noted`), `exit`, `message`, and what it is about (`goal`, `item`, `edit`, `version`,
+`session`, and `goals` for `list`, `view` for `show`, `question` and `answer` for `ask`).
 
 | Exit | |
 |---|---|
-| 0 | Done, or proposed |
+| 0 | Done, proposed, or answered |
 | 1 | Refused: no such goal, item, column or reviewer; nothing changed |
 | 2 | Wrong usage; the usage is printed |
 | 3 | Heed is not running, or not reachable from here |
 | 4 | No goal: the session is on none and no `--goal` was given |
 | 5 | Held for you in Attention (a spawn past the cap, a review past the budget) |
+| 6 | `ask` waited and no answer came; the question stays open (`ask --id <n>` waits again) |
 
 `heed goal --help` prints all of it. The command talks to Heed over the [control socket](../reference/cli.md#the-control-socket)
 (method `goal`); it never opens the goals database itself. A background run has no session, so heed sets `HEED_GOAL`

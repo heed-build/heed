@@ -110,7 +110,8 @@ extension AppModel {
     }
 
     /// Gathers the training set from what heed recorded: Attention's labels and decide rows, goal attach decisions
-    /// you answered, and labelled screen snapshots. Read off the main actor; nothing is asked of you.
+    /// you answered, labelled screen snapshots, and your overrules of the swarm controller. Read off the main actor;
+    /// nothing is asked of you.
     func harvestHunchExamples() async {
         guard !isFixture, hunchLearns else { return }
         var filter = CallFilter()
@@ -122,9 +123,11 @@ extension AppModel {
         let attach = await (try? goals.ops?.decisions(limit: 5000)) ?? []
         let titles = Dictionary(goals.snapshot.goals.map { ($0.id, $0.title) }) { first, _ in first }
         let screens = await (try? eventLog?.screenSnapshots(limit: 20000)) ?? []
+        let steering = await (try? goals.ops?.steering(goal: nil)) ?? []
         let examples = await Task.detached(priority: .utility) {
             HunchTrainingSet.attention(labels: labels, decisions: decided)
                 + HunchTrainingSet.attach(attach, goalTitles: titles) + HunchTrainingSet.screens(screens)
+                + HunchTrainingSet.swarm(steering)
         }.value
         await hunch.keep(examples)
     }

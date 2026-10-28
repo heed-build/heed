@@ -9,11 +9,12 @@ import HeedCore
 let environment = ProcessInfo.processInfo.environment
 let arguments = Array(CommandLine.arguments.dropFirst())
 
-// `heed goal …`: the goal this pane's session is on, over the control socket. The app runs every change through
-// GoalOps; this process only parses and prints. Exit codes in `GoalExit`.
-if arguments.first == "goal" {
+// `heed goal …` and `heed swarm …`: the goal this pane's session is on, over the control socket. The app runs every
+// change through GoalOps; this process only parses and prints (and, for `ask`, waits for the answer). Exit codes in
+// `GoalExit`.
+if arguments.first == "goal" || arguments.first == "swarm" {
     if GoalCommandLine.wantsHelp(arguments) {
-        print(GoalCommandLine.usage)
+        print(arguments.first == "swarm" ? SwarmCommandLine.usage : GoalCommandLine.usage)
         exit(0)
     }
     let request: ControlRequest
@@ -23,13 +24,18 @@ if arguments.first == "goal" {
         FileHandle.standardError.write(Data("\(error)\n".utf8))
         exit(GoalExit.usage.rawValue)
     }
-    let reply: ControlReply
+    var reply: ControlReply
     do {
         reply = try ControlClient().call(request)
     } catch {
-        FileHandle.standardError.write(Data("heed goal: \(error)\n".utf8))
+        FileHandle.standardError.write(Data("heed \(arguments[0]): \(error)\n".utf8))
         exit(GoalExit.unreachable.rawValue)
     }
+    // `ask` waits for its answer: a new connection per read, so a heed that restarts meanwhile is found again.
+    reply = GoalAskWait.wait(
+        first: reply, request: request, call: { try ControlClient().call($0) },
+        sleep: { Thread.sleep(forTimeInterval: $0) }, clock: { Date() }
+    )
     let result = GoalCommandLine.finish(reply, json: request.goal?.json == true)
     if let out = result.out { print(out) }
     if let err = result.err { FileHandle.standardError.write(Data((err + "\n").utf8)) }

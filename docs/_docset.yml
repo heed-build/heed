@@ -109,6 +109,7 @@ toc:
           - file: plan.md
           - file: running.md
           - file: landing.md
+          - file: steering.md
           - file: lead.md
   - folder: keyboard
     children:

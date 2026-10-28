@@ -102,4 +102,18 @@ extension GoalStore {
             }
         }.compactMap(\.self)
     }
+
+    /// Every steering row of a goal's swarm runs (or of every goal), oldest first: what repeats and Hunch read.
+    func steering(goal: String?) throws -> [SwarmSteer] {
+        let (sql, values): (String, [SQLiteValue]) = goal.map {
+            ("SELECT id, data FROM goal_steering WHERE goal = ? ORDER BY id", [.text($0)])
+        } ?? ("SELECT id, data FROM goal_steering ORDER BY id", [])
+        return try database.query(sql, values) { row in
+            Self.decoded(SwarmSteer.self, row[1]).map { steer in
+                var steer = steer
+                steer.id = row[0].int64
+                return steer
+            }
+        }.compactMap(\.self)
+    }
 }

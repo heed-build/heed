@@ -414,14 +414,35 @@ public enum SwarmSteering {
         public var id: Int64 { row.id ?? 0 }
     }
 
-    /// Every question, oldest first, with the newest answer to it.
+    /// Every question, oldest first, with the answer that stands: the newest answer or overrule of it.
     public static func questions(_ rows: [SwarmSteer]) -> [Question] {
         rows.filter { $0.kind == .question }.map { question in
             Question(
                 row: question,
-                answer: rows.last { $0.kind == .answer && $0.about == question.id && question.id != nil }
+                answer: rows.last {
+                    ($0.kind == .answer || $0.kind == .overrule) && $0.about == question.id && question.id != nil
+                }
             )
         }
+    }
+
+    /// The answers you overruled: each overrule names the answer it overrules (`ref` `steer:<id>`).
+    public static func overruled(_ rows: [SwarmSteer]) -> Set<Int64> {
+        Set(rows.filter { $0.kind == .overrule }.compactMap { row in
+            row.ref.flatMap { $0.hasPrefix("steer:") ? Int64($0.dropFirst(6)) : nil }
+        })
+    }
+
+    /// A row's state as the log shows it: what it was written as, or overruled once a later row overrules it.
+    public static func state(_ row: SwarmSteer, overruled: Set<Int64>) -> SwarmSteer.State {
+        guard let id = row.id, overruled.contains(id) else { return row.state }
+        return .overruled
+    }
+
+    /// The controller's newest suggestion for a question, unless an answer came after it.
+    public static func suggestion(_ question: Question, rows: [SwarmSteer]) -> SwarmSteer? {
+        guard question.answer == nil, let id = question.row.id else { return nil }
+        return rows.last { $0.kind == .suggest && $0.about == id }
     }
 
     /// A row that proposed a plan: a version it made, or tasks waiting for you (not a GOAL.md change it carried).
@@ -454,6 +475,11 @@ public enum SwarmSteering {
         case .approve: "Approved \(row.text)"
         case .reject: "Said no: \(row.text)"
         case .restore: "Restored \(row.text)"
+        case .message: "To \(row.to.flatMap(SwarmAddress.init(raw:))?.label() ?? "an agent"): \(row.text)"
+        case .note: "Note: \(row.text)"
+        case .suggest: "Suggests: \(row.text)"
+        case .overrule: "Overruled: \(row.text)"
+        case .rule: "Same answer for similar questions: \(row.answer ?? "") (\(row.text))"
         default: row.text
         }
         // A run's start says its settings already; its reason (your say) is in the plan's header.

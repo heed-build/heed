@@ -10,10 +10,13 @@ public enum GoalAttention {
     public static func items(
         goals: [HeedGoal], qualities: [String: GoalQuality], waiting: [String: [String]],
         blocked: [String: String] = [:], spawns: [String: [GoalHeldSpawn]] = [:], swarms: [GoalSwarm] = [],
-        now: Date
+        boards: [SwarmBoard] = [], now: Date
     ) -> [AttentionItem] {
         var items: [AttentionItem] = []
         for goal in goals where goal.status != .archived {
+            for board in boards where board.swarm.goal == goal.id && board.swarm.status.active {
+                items += swarmItems(board, goal: goal)
+            }
             if let swarm = swarms.last(where: { $0.goal == goal.id && $0.status == .paused }), let limit = swarm.held {
                 let more = swarm.settings.limits.raised(limit)
                 let offer = limit == .hours ? "\(String(format: "%g", more.hours)) h"
@@ -60,6 +63,51 @@ public enum GoalAttention {
             }
         }
         return items
+    }
+
+    /// A swarm's questions that wait for you (each its own item, so `1…9` answer the one under the cursor), and the
+    /// PRs heed could not move to their new base (one item per swarm).
+    static func swarmItems(_ board: SwarmBoard, goal: HeedGoal) -> [AttentionItem] {
+        var items: [AttentionItem] = []
+        let numbers = SwarmPlan.numbers(board.tasks)
+        for question in board.openQuestions {
+            let position = SwarmLadder.position(question.row, rows: board.steering)
+            guard position.step == .you, let id = question.row.id else { continue }
+            let asker = question.row.from.flatMap(SwarmAddress.init(raw:))?.label(numbers)
+                ?? (question.row.actor == .lead ? "the lead" : "an agent")
+            items.append(AttentionItem(
+                id: "goal:\(goal.id):ask:\(id)", kind: .goal, repo: nil, number: nil,
+                title: "\(goal.title): \(asker) asks: \(question.row.text)", url: nil, reasons: [.swarmAsk],
+                updatedAt: position.since
+            ))
+        }
+        let failures = SwarmSteering.retargetFailures(board.steering)
+        if let last = failures.last {
+            let what = failures.count == 1 ? last.text.replacingOccurrences(
+                of: "Could not move",
+                with: "could not move"
+            )
+                : "\(failures.count) PRs could not move to their new base"
+            items.append(AttentionItem(
+                id: "goal:\(goal.id):retarget", kind: .goal, repo: nil, number: nil,
+                title: "\(goal.title): swarm \(board.swarm.number) \(what) (y: try again, n: leave it)", url: nil,
+                reasons: [.swarmAsk], updatedAt: last.at
+            ))
+        }
+        return items
+    }
+
+    /// The swarm question an Attention item is (`goal:<goal>:ask:<row>`).
+    public static func question(of item: AttentionItem) -> (goal: String, question: Int64)? {
+        guard item.kind == .goal, item.reasons.contains(.swarmAsk) else { return nil }
+        let parts = item.id.split(separator: ":")
+        guard parts.count == 4, parts[0] == "goal", parts[2] == "ask", let id = Int64(parts[3]) else { return nil }
+        return (String(parts[1]), id)
+    }
+
+    /// Whether an Attention item is a swarm's PRs heed could not move.
+    public static func isRetarget(_ item: AttentionItem) -> Bool {
+        item.kind == .goal && item.id.hasPrefix("goal:") && item.id.hasSuffix(":retarget")
     }
 
     /// The goal an Attention item is about.

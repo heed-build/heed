@@ -142,41 +142,7 @@ public extension GoalOps {
         return SwarmProposal(outcome: .applied, size: size, version: version.number, steer: steer, scope: scope)
     }
 
-    /// A question for you from the lead (or a worker), with its choices: it shows in the plan pane until answered.
-    @discardableResult
-    func ask(
-        swarm id: String, question: String, options: [String] = [], actor: SwarmSteer.Actor = .lead,
-        ref: String? = nil, now: Date
-    ) throws -> SwarmSteer {
-        let swarm = try active(id)
-        let text = GoalDoc.oneLine(question)
-        guard !text.isEmpty else { throw GoalOpError.noTitle }
-        if let open = try SwarmSteering.questions(store.steering(of: id))
-            .first(where: { $0.answer == nil && GoalEdits.same($0.row.text, text) })
-        {
-            return open.row
-        }
-        return try store.add(SwarmSteer(
-            swarm: id, goal: swarm.goal, at: now, actor: actor, kind: .question, text: text, state: .pending,
-            ref: ref, options: options.map(GoalDoc.oneLine).filter { !$0.isEmpty }
-        ))
-    }
-
     // MARK: You
-
-    /// Your answer to a question.
-    @discardableResult
-    func answer(swarm id: String, question: Int64, text: String, now: Date) throws -> SwarmSteer {
-        let swarm = try active(id)
-        let answer = GoalDoc.oneLine(text)
-        guard !answer.isEmpty else { throw GoalOpError.noTitle }
-        guard let asked = try SwarmSteering.questions(store.steering(of: id)).first(where: { $0.id == question })
-        else { throw GoalOpError.unknownQuestion(question) }
-        return try store.add(SwarmSteer(
-            swarm: id, goal: swarm.goal, at: now, actor: .you, kind: .answer, text: answer,
-            reason: asked.answer == nil ? nil : "changed the answer", about: question
-        ))
-    }
 
     /// Re-plan: your feedback for the lead, which answers with a new proposal.
     @discardableResult

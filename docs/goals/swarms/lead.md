@@ -1,5 +1,5 @@
 ---
-description: "How a swarm's lead keeps the plan with heed goal: plan show, plan propose, ask, and the plan's JSON."
+description: "How a swarm's lead keeps the plan with heed goal: plan show, plan propose, ask, heed swarm, and the plan's JSON."
 ---
 
 # The lead and heed goal
@@ -12,7 +12,9 @@ same rules in their first prompt.
 |---|---|
 | `heed goal plan show` | The plan: tasks by phase with their ids, the questions and their answers, your re-plan feedback, a change waiting for you or one you said no to |
 | `heed goal plan propose --file <path\|-> [--note <text>]` | A plan as JSON; `-` reads it on stdin |
-| `heed goal ask <question> [--option <a> --option <b>]` | A question for you, shown in the plan pane |
+| `heed goal ask <question> [--option <a> [--effect <text>]]… [--to lead\|you\|<task>]` | A question, and wait for its answer (9 minutes by default; exit 6 when none came). Who may answer is by what it is about ([Steering](steering.md)) |
+| `heed swarm answer <n> <text>` | Answer a worker's scope question heed typed into the lead's pane |
+| `heed swarm send <to> <text>` | A message to a task, or `@all` |
 | `heed goal plan approve` | Approves the plan: only from a terminal outside heed, never from a pane or a background run |
 
 Before you approve a plan, every proposal is the new draft. After, a small change applies and a structural one waits

@@ -296,7 +296,8 @@ final class AppModel {
     /// Unassigned pane has its own: y n m i answer there).
     func updateScope() {
         engine.scope = overlay == .diff ? "diff" : issueReader != nil ? "issue"
-            : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope : view.rawValue
+            : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope
+            : view == .attention && attentionQuestion != nil ? "swarmask" : view.rawValue
     }
 
     // Diff overlay
@@ -452,6 +453,7 @@ final class AppModel {
         startAwayTracking()
         startGitHubSync()
         startScreenReading()
+        startSteering()
         startHunch()
         await refreshRepos()
         if !isFixture { _ = await cleanUpRunLeftovers() }
@@ -1605,6 +1607,19 @@ final class AppModel {
     var swarmPulls: [String: SwarmPull] = [:]
     /// Retargets `gh` refused, by PR, and when: tried again after a while, or at once by `swarm.land`.
     var landFailures: [String: Date] = [:]
+    /// Each active swarm's board as the steering loop last read it (`AppModel+SwarmSteering`): what Needs you lists
+    /// of its questions, and what a worker whose turn ends may still be handed.
+    var steeringBoards: [String: SwarmBoard] = [:]
+    /// When each question's `heed goal ask` last read it: while it waits, it reads its own answer.
+    @ObservationIgnored var askPolls: [Int64: Date] = [:]
+    /// Questions the controller is deciding now.
+    @ObservationIgnored var controllerBusy: Set<Int64> = []
+    /// When heed last typed something into each pane: one hand-over at a time.
+    @ObservationIgnored var handedAt: [String: Date] = [:]
+    @ObservationIgnored var steeringTicking = false
+    @ObservationIgnored var steeringTask: Task<Void, Never>?
+    /// `swarm.similar`: the question (`<swarm>#<row>`) whose next answer also becomes a repeat rule.
+    var similarArmed: String?
     /// Every pane a reviewer run used since launch: its late hooks are nobody's news.
     private var reviewPanes: Set<String> = []
     /// Each live run's last screen line (`Runs.lastLine`), read with the agents' screens.
@@ -2404,8 +2419,14 @@ final class AppModel {
         case "swarm.task.move": movePlanTask(command.arguments.first)
         case "swarm.task.drop": dropPlanTask()
         case "swarm.replan": replanSwarm(command.arguments)
-        case "swarm.answer": answerLead(command.arguments)
-        case "swarm.answer.option": answerLeadOption(command.arguments.first)
+        case "swarm.answer": answerSwarm(command.arguments)
+        case "swarm.answer.option": answerSwarmOption(command.arguments.first)
+        case "swarm.controller": askController()
+        case "swarm.similar": armSimilar()
+        case "swarm.overrule": overruleSwarm(command.arguments)
+        case "swarm.log.who": cycleLogActor(command.arguments.first)
+        case "swarm.log.jump": jumpSteering()
+        case "swarm.send": sendSwarmMessage(command.arguments)
         case "swarm.diff": togglePlanDiff()
         case "swarm.restore": restorePlan(command.arguments)
         case "swarm.pause": toggleSwarmPause()

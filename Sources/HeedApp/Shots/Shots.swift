@@ -493,7 +493,16 @@ enum Shots {
         }),
         // Tall enough for the whole General page, down to the call log's retention and the tools.
         Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 900, height: 2280)),
-        Shot(id: "configuration/orgs-repos", subject: .settings(.colors), size: CGSize(width: 1180, height: 1400)),
+        // Orgs & repos at the Settings window's default width and at its minimum width, tall enough for the whole page
+        // (the window scrolls it): nothing may be clipped at the side.
+        Shot(
+            id: "configuration/orgs-repos", subject: .settings(.colors), size: CGSize(width: 1000, height: 2560),
+            prepare: { $0.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit")) }
+        ),
+        Shot(
+            id: "configuration/orgs-repos-min", subject: .settings(.colors), size: CGSize(width: 780, height: 3160),
+            prepare: { $0.settingsScope = .repo(Fixtures.longNamedRepo) }
+        ),
         Shot(id: "configuration/settings-hosts", subject: .settings(.hosts), size: CGSize(width: 1000, height: 820)),
         Shot(
             id: "configuration/attention-rules", subject: .settings(.attention), size: CGSize(

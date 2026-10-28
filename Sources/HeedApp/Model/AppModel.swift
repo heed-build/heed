@@ -362,6 +362,8 @@ final class AppModel {
             attention.adoptFixtures()
             config.hosts = Fixtures.hosts
             config.pilot = Fixtures.pilotRules
+            config.repos = Fixtures.repoConfigs
+            config.goals.mirror = Fixtures.goalMirror
             config.local.recordScreens = true
             screenCounts = Fixtures.screenCounts(now: Clock.now)
             startOutcomeCount = 214

@@ -69,11 +69,17 @@ public extension GoalOps {
         return swarm
     }
 
-    /// Stops the run: it stays readable with its plans and steering; the goal carries on.
+    /// Stops the run: it stays readable with its plans and steering; the goal carries on. Workers at work end as
+    /// stopped.
     @discardableResult
     func stopSwarm(_ id: String, reason: String? = nil, now: Date) throws -> GoalSwarm {
+        // Its workers stop with it (the app closes their tabs; their worktrees and branches stay).
+        for worker in try active(id).liveWorkers {
+            try endWorker(swarm: id, worker: worker.id, outcome: .stopped, cost: nil, now: now)
+        }
         var swarm = try active(id)
         swarm.status = .stopped
+        swarm.held = nil
         swarm.endedAt = now
         try store.save(swarm)
         _ = try store.add(SwarmSteer(
@@ -274,12 +280,12 @@ public extension GoalOps {
 
     // MARK: Inside
 
-    private func existing(_ id: String) throws -> GoalSwarm {
+    internal func existing(_ id: String) throws -> GoalSwarm {
         guard let swarm = try store.swarm(id) else { throw GoalOpError.unknownSwarm(id) }
         return swarm
     }
 
-    private func active(_ id: String) throws -> GoalSwarm {
+    internal func active(_ id: String) throws -> GoalSwarm {
         let swarm = try existing(id)
         guard swarm.status.active else { throw GoalOpError.swarmEnded(id) }
         return swarm

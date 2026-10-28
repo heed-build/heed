@@ -115,7 +115,7 @@ public enum SwarmControl {
         guard let swarm = try await ops.activeSwarm(of: goal.id) else {
             return .refused(GoalOpError.noSwarm(goal.id).description, goal: goal.id)
         }
-        let actor: SwarmSteer.Actor = caller?.session == swarm.lead && caller != nil ? .lead : .agent
+        let actor: SwarmSteer.Actor = caller?.session == swarm.lead && caller != nil && caller?.worker == nil ? .lead : .agent
         switch command.verb {
         case .planShow:
             let view = try await SwarmPlanView(ops.board(of: swarm.id))

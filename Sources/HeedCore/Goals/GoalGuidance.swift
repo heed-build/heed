@@ -95,6 +95,31 @@ public enum GoalGuidance {
         ),
     ]
 
+    /// What a swarm's worker does: its one task, from the base heed chose, until its PR is open; it reports through
+    /// heed goal and never merges. Plain words, as `rules`.
+    public static let workerRules: [Rule] = [
+        Rule(
+            "When heed starts this session as a swarm worker, its first prompt names your task, how we will know it "
+                + "is done, what it comes after, your branch and the base branch heed chose. Work only on that task.",
+            "heed goal plan show"
+        ),
+        Rule(
+            "Open your pull request against the base branch the prompt names. When your task stacks on another "
+                + "task's open pull request, that base is its branch, not the default branch.",
+            "gh pr create --base BASE --head BRANCH"
+        ),
+        Rule("Link your pull request to your task's item.", "heed goal link pr URL --item ID"),
+        Rule(
+            "Check each line of your task's done-when only with evidence.",
+            "heed goal criterion check N --item ID --evidence TEXT"
+        ),
+        Rule(
+            "Ask what you cannot decide from the goal and the code, with the choices you see.",
+            "heed goal ask QUESTION --option A --option B"
+        ),
+        Rule("Never merge, never push to the base branch, and never change the plan or the goal yourself."),
+    ]
+
     /// The rules as one paragraph of plain sentences, for agents that take instructions rather than a plugin.
     public static var instructions: String {
         "Keep the goal with the heed goal command (heed goal --help lists it; exit 4 means this session is on no "
@@ -169,6 +194,18 @@ public enum HeedPlugin {
             "",
         ]
         for rule in GoalGuidance.leadRules {
+            lines.append("- " + rule.text + (rule.command.map { " `\($0)`" } ?? ""))
+        }
+        lines += [
+            "",
+            "## Working on a swarm task",
+            "",
+            "A swarm's workers each take one task of the approved plan, in a worktree of their own, and stop once "
+                + "their pull request is open. When heed starts this session as a worker it says so in the first "
+                + "prompt; these rules are then yours.",
+            "",
+        ]
+        for rule in GoalGuidance.workerRules {
             lines.append("- " + rule.text + (rule.command.map { " `\($0)`" } ?? ""))
         }
         lines += [

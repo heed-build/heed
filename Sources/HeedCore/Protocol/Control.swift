@@ -24,8 +24,8 @@ public enum HeedControl {
 ///   words for the agent's command line, such as an editor's MCP config), `focus`.
 /// - `send`: `session`, `text`. Typed into the agent's pane with Return, only while it is idle or done.
 /// - `show`: `session`, `focus`. Heed shows the session; it comes to the front only with `focus`.
-/// - `goal`: `goal` (a `heed goal` command), `session` (the calling pane's session, when there is one). Answered with
-///   `goal` in the reply.
+/// - `goal`: `goal` (a `heed goal` command), `session` (the calling pane's session, when there is one) and `pane`.
+///   Answered with `goal` in the reply.
 public struct ControlRequest: Codable, Equatable, Sendable {
     public enum Method: String, Codable, Sendable {
         case sessions, watch, start, send, show, goal
@@ -41,12 +41,15 @@ public struct ControlRequest: Codable, Equatable, Sendable {
     public var text: String?
     public var focus: Bool?
     public var goal: GoalCommand?
+    /// The calling pane (`HEED_PANE_ID`), for `goal`: a swarm worker's tab is a pane of the lead's session.
+    public var pane: String?
 
     public init(
         id: Int? = nil, method: Method, session: String? = nil, directory: String? = nil, agent: String? = nil,
         prompt: String? = nil, arguments: [String]? = nil, text: String? = nil, focus: Bool? = nil,
-        goal: GoalCommand? = nil
+        goal: GoalCommand? = nil, pane: String? = nil
     ) {
+        self.pane = pane
         self.id = id
         self.method = method
         self.session = session

@@ -8,12 +8,16 @@ public struct GoalCaller: Codable, Equatable, Sendable {
     public var isChat: Bool
     /// `org/name` of its first repo, for `link pr #n`.
     public var repo: String?
+    /// A swarm worker's task (its item id), when the command came from a worker's tab: the session is then the one
+    /// hosting the tab (the lead's), and the caller is the worker, not the lead.
+    public var worker: String?
 
-    public init(session: String, title: String, isChat: Bool = false, repo: String? = nil) {
+    public init(session: String, title: String, isChat: Bool = false, repo: String? = nil, worker: String? = nil) {
         self.session = session
         self.title = title
         self.isChat = isChat
         self.repo = repo
+        self.worker = worker
     }
 
     public init(_ session: Session) {
@@ -270,7 +274,8 @@ public enum GoalControl {
     }
 
     static func evidenceSource(_ caller: GoalCaller?) -> String {
-        caller.map { "session \($0.session)" } ?? "heed goal"
+        if let task = caller?.worker { return "swarm worker on \(SwarmPlan.short(task))" }
+        return caller.map { "session \($0.session)" } ?? "heed goal"
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
@@ -389,6 +394,8 @@ public enum GoalControl {
                 ops: ops,
                 now: now
             ))
+        case .criterionCheck where command.item != nil:
+            return try await .reply(checkTask(command, goal: goal, caller: caller, snapshot: snapshot, ops: ops, now: now))
         case .criterionCheck:
             let doc = try await GoalDoc.parse(ops.text(of: goal.id))
             let subject = command.subject ?? ""
@@ -520,6 +527,40 @@ public enum GoalControl {
         reply.outcome = "applied"
         reply.message = "answered: \(question) → \(GoalDoc.oneLine(answer)) (a decision in GOAL.md; undo in Heed)"
         return reply
+    }
+
+    /// `criterion check <n|text> --item <id> --evidence <text>`: a line of a swarm task's done-when met, as evidence on
+    /// its item. A task is done once every line has some.
+    static func checkTask(
+        _ command: GoalCommand, goal: HeedGoal, caller: GoalCaller?, snapshot: GoalSnapshot, ops: GoalOps, now: Date
+    ) async throws -> GoalReply {
+        let item = try item(command.item ?? "", goal: goal.id, snapshot: snapshot)
+        let subject = command.subject ?? ""
+        let line: String? = if let number = Int(subject), item.doneWhen.indices.contains(number - 1) {
+            item.doneWhen[number - 1]
+        } else {
+            item.doneWhen.first { GoalEdits.same($0, subject) }
+        }
+        guard let line else {
+            let list = item.doneWhen.enumerated().map { "\($0.offset + 1). \($0.element)" }
+            return .refused(
+                "no done-when \(subject) on \(item.id)" + (list.isEmpty ? ": it has none" : ":\n" + list
+                    .joined(separator: "\n")),
+                goal: goal.id
+            )
+        }
+        try await ops.addEvidence(GoalEvidence(
+            goal: goal.id, item: item.id, kind: .criterion, state: .done, at: now, source: evidenceSource(caller),
+            text: line, ref: GoalDoc.oneLine(command.evidence ?? "")
+        ))
+        let met = try await ops.snapshot().evidence(of: goal.id).filter {
+            $0.item == item.id && $0.kind == .criterion && $0.state == .done
+        }
+        let count = item.doneWhen.count { line in met.contains { GoalEdits.same($0.text, line) } }
+        return GoalReply(
+            "applied", message: "\(item.id): \(line) (\(count) of \(item.doneWhen.count) done-when met)", goal: goal.id,
+            item: item.id
+        )
     }
 
     static func show(

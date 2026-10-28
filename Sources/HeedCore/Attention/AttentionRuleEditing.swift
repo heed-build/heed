@@ -56,10 +56,17 @@ public struct AttentionRulePreview: Hashable, Sendable {
     }
 }
 
-/// The rules as Settings edits them: lines that can be added, removed, moved and changed, as a list or as text,
-/// before they are saved to config.toml.
+/// The rules as Settings edits them: lines that can be added, removed (and brought back), moved and changed, before
+/// they are saved to config.toml. A line nobody touched is saved exactly as it was read.
 public struct AttentionRuleDraft: Hashable, Sendable {
     public private(set) var lines: [String]
+    /// The line removed last and where it was, for undo.
+    public private(set) var removed: Removed?
+
+    public struct Removed: Hashable, Sendable {
+        public var index: Int
+        public var line: String
+    }
 
     public init(lines: [String]) {
         self.lines = lines
@@ -90,7 +97,14 @@ public struct AttentionRuleDraft: Hashable, Sendable {
 
     public mutating func remove(at index: Int) {
         guard lines.indices.contains(index) else { return }
-        lines.remove(at: index)
+        removed = Removed(index: index, line: lines.remove(at: index))
+    }
+
+    /// Puts the line removed last back where it was.
+    public mutating func undoRemove() {
+        guard let removed else { return }
+        lines.insert(removed.line, at: min(removed.index, lines.count))
+        self.removed = nil
     }
 
     /// Moves a line up (`-1`) or down (`1`); order is what decides, first match wins.
@@ -108,5 +122,29 @@ public struct AttentionRuleDraft: Hashable, Sendable {
     /// The lines as written to config.toml: blank lines dropped, each trimmed.
     public var saved: [String] {
         lines.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
+
+    /// What the editor makes of each line, in order.
+    public var readings: [AttentionRuleForm.Reading] { lines.map(AttentionRuleForm.read) }
+
+    /// Why `form` cannot go in as a new rule (`replacing` nil) or in place of line `replacing` (0-based): another rule
+    /// already matches exactly the same items, so one of the two would never decide anything. Nil when it can.
+    public func conflict(_ form: AttentionRuleForm, replacing: Int? = nil) -> String? {
+        guard let rule = form.rule else { return nil }
+        let conditions = AttentionRuleForm.conditionSet(rule)
+        let position = replacing ?? lines.count
+        for (index, line) in lines.enumerated() where index != replacing {
+            guard case let .success(other?) = AttentionRules.parse(line, line: index + 1) else { continue }
+            let number = index + 1
+            if AttentionRuleForm.same(other, rule) { return "Rule \(number) already does this." }
+            let otherConditions = AttentionRuleForm.conditionSet(other)
+            if otherConditions == conditions {
+                return "Rule \(number) matches exactly these items: the first one decides, so change that one instead."
+            }
+            if otherConditions.isEmpty, index < position {
+                return "Rule \(number) matches everything before this one could: move this one above it."
+            }
+        }
+        return nil
     }
 }

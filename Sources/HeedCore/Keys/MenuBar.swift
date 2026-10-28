@@ -28,6 +28,9 @@ public enum MenuBar {
         public var inspectorShown = true
         /// The tutor is running (its steps can be gone back, skipped or left).
         public var tutor = false
+        /// Hunch: a checkpoint is downloading; the configured one is downloaded.
+        public var hunchDownloading = false
+        public var hunchReady = false
 
         public init() {}
     }
@@ -447,6 +450,12 @@ public enum MenuBar {
                 item("Getting started checks", "welcome"),
                 item("Set up model calls & decisions", "inference.setup"),
                 item("Hide the setup reminder", "inference.hide"),
+                .separator,
+                item("Download Hunch's model", "hunch.download", enabled: !facts.hunchReady),
+                item("Stop Hunch's download", "hunch.cancel", enabled: facts.hunchDownloading),
+                item("Retrain Hunch from my corrections", "hunch.retrain", enabled: facts.hunchReady),
+                item("Reset Hunch to its checkpoint's head", "hunch.reset", enabled: facts.hunchReady),
+                item("Delete Hunch's model", "hunch.delete", enabled: facts.hunchReady || facts.hunchDownloading),
             ])
         }
     }

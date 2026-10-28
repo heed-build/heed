@@ -367,13 +367,14 @@ extension AppModel {
         }
     }
 
-    /// What you did with items, beside the Decider's rows: what a later local model learns from.
+    /// What you did with items, beside the Decider's rows, with the item as the Decider sees it: what Hunch learns
+    /// from (`[hunch] learn`).
     private func recordLabel(_ label: AttentionLabel, _ entries: [AttentionEntry]) {
         guard !isFixture else { return }
         for entry in entries {
             CallLog.record(label.call(
                 for: entry.item, rule: entry.outcome.rule, suggestion: attention.suggestions[entry.id]?.level,
-                at: Clock.now
+                at: Clock.now, state: AttentionDecide.state(for: entry.item, detail: detail(of: entry.item))
             ))
         }
     }

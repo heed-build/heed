@@ -273,6 +273,8 @@ final class AppModel {
     let dashboard: DashboardBrowser
     /// Goals: the goals, what is on each, and the cursor.
     let goals: GoalsBrowser
+    /// Hunch: its checkpoints, the training set and runs (AppModel+Hunch).
+    let hunch: HunchModel
 
     /// The `:log` view's rows and filters.
     let callLog: CallLogBrowser
@@ -361,6 +363,7 @@ final class AppModel {
         ledger = LedgerBrowser(fixture: isFixture)
         dashboard = DashboardBrowser(fixture: isFixture)
         goals = GoalsBrowser(fixture: isFixture)
+        hunch = HunchModel(fixture: isFixture)
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
@@ -446,6 +449,7 @@ final class AppModel {
         startAwayTracking()
         startGitHubSync()
         startScreenReading()
+        startHunch()
         await refreshRepos()
         if !isFixture { _ = await cleanUpRunLeftovers() }
         startSweepSchedule()
@@ -858,6 +862,7 @@ final class AppModel {
         let pilotChanged = decoded.pilot != config.pilot
         config = decoded
         settings = decoded.work
+        hunch.checkpointID = decoded.hunch.effectiveCheckpoint
         applyGoalPointers()
         applyRoutes()
         if !isFixture {
@@ -2416,6 +2421,11 @@ final class AppModel {
         case "tutor.hide": hideTutorReminder(all: command.arguments.first == "all")
         case "inference.setup": openInferenceSetup()
         case "inference.hide": hideInferenceReminder(always: command.arguments.first == "always")
+        case "hunch.download": downloadHunch(command.arguments.first)
+        case "hunch.cancel": cancelHunchDownload(command.arguments.first)
+        case "hunch.delete": deleteHunchModel(command.arguments.first)
+        case "hunch.retrain": retrainHunch()
+        case "hunch.reset": resetHunch()
         case "tutor.back", "tutor.skip", "tutor.exit":
             guard tutor != nil else {
                 flash = "the tutor is not running (:tutor starts it)"

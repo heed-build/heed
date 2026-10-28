@@ -126,6 +126,7 @@ toc:
       - file: index.md
       - file: settings.md
       - file: inference.md
+      - file: local-learning.md
       - file: reference.md
       - file: tools.md
       - file: updates.md

@@ -13,7 +13,9 @@ var targets: [Target] = [
     // Fixtures: files in the shapes older builds wrote (a domain.json), for migration tests.
     .testTarget(name: "HeedCoreTests", dependencies: ["HeedCore"], resources: [.copy("Fixtures")]),
 ]
-var appDependencies: [Target.Dependency] = ["HeedCore", .product(name: "Sparkle", package: "Sparkle")]
+var appDependencies: [Target.Dependency] = [
+    "HeedCore", .product(name: "Sparkle", package: "Sparkle"), .product(name: "Hunch", package: "hunch"),
+]
 if hasGhostty {
     targets += [
         .binaryTarget(name: "GhosttyKit", path: "Vendor/GhosttyKit.xcframework"),
@@ -42,7 +44,12 @@ let package = Package(
         .executable(name: "HeedApp", targets: ["HeedApp"]),
         .executable(name: "heed", targets: ["heed"]),
     ],
-    // The updater (MIT): checks heed's appcast, verifies each download's EdDSA signature, installs and relaunches.
-    dependencies: [.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")],
+    dependencies: [
+        // The updater (MIT): checks heed's appcast, verifies each download's EdDSA signature, installs and relaunches.
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
+        // Local typed decisions (Apache-2.0): runs Laya checkpoints with MLX, and trains their head on your
+        // corrections. Its MLX shaders build into mlx-swift_Cmlx.bundle, which scripts/bundle.sh copies into the app.
+        .package(url: "https://github.com/heed-build/hunch", branch: "feature/head-training"),
+    ],
     targets: targets
 )

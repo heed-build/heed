@@ -20,7 +20,7 @@ extension AppModel {
     var inferenceSetup: InferenceSetup {
         InferenceSetup.evaluate(
             llm: config.llm, decisions: config.decisions, statuses: llmStatuses.isEmpty ? nil : llmStatuses,
-            local: localModel, tests: setupTests
+            local: localModel, tests: setupTests, hunch: hunch.status
         )
     }
 
@@ -43,6 +43,7 @@ extension AppModel {
         guard !isFixture else { return }
         localModel = LocalModels.availability
         Task { await refreshLLMStatuses() }
+        Task { await hunch.refresh() }
     }
 
     /// `inference.hide [always]`, or the reminder's ×: hidden until the next launch; `always` turns it off in
@@ -144,6 +145,7 @@ extension AppModel {
     var decisionsOn: Bool {
         switch config.decisions.effective {
         case .local: localModel.ready
+        case .hunch: hunch.status.modelReady || localModel.ready || config.llm.enabled
         case .model: config.llm.enabled
         case .off: false
         }

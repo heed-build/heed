@@ -49,14 +49,17 @@ public enum AttentionDecide {
     }
 }
 
-/// What you did with an item, kept beside the Decider's `decide` rows (same kind, same subject), so a later model can
-/// learn from what you did with what it was asked about.
+/// What you did with an item, kept beside the Decider's `decide` rows (same kind, same subject), so a local model can
+/// learn from what you did with what it was asked about (`HunchTrainingSet.attention`). The row carries the item as
+/// the Decider would be shown it, so an item no one asked about still teaches something.
 public enum AttentionLabel: String, Sendable {
     case done, snooze, mute, boost
 
     /// The call-log row for it: `decide`, command `label`, the item as `subject`.
     public func call(
-        for item: AttentionItem, rule: AttentionRule?, suggestion: String?, at: Date, caller: String = "attention.label"
+        for item: AttentionItem, rule: AttentionRule?, suggestion: String?, at: Date,
+        caller: String = "attention.label",
+        state: String? = nil
     ) -> LoggedCall {
         var detail = [
             "subject": item.id,
@@ -66,6 +69,7 @@ public enum AttentionLabel: String, Sendable {
         ]
         if let rule { detail["rule"] = "\(rule.line): \(rule.text)" }
         if let suggestion { detail["suggested"] = suggestion }
+        if let state = LoggedCall.truncated(state) { detail["state"] = state }
         return LoggedCall(
             at: at, kind: .decide, caller: caller, command: "label", duration: 0, operation: "label \(rawValue)",
             detail: detail

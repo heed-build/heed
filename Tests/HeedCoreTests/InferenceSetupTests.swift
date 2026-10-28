@@ -176,7 +176,7 @@ struct InferenceSetupTests {
         #expect(empty?.llm.agent == nil)
 
         let (_, bad) = ConfigLoader.decode("[decisions]\ndecider = \"oracle\"\n")
-        #expect(bad.map(\.description) == ["decisions.decider: expected local, model or off"])
+        #expect(bad.map(\.description) == ["decisions.decider: expected local, hunch, model or off"])
         #expect(HeedConfig.default.llm.agent == nil && HeedConfig.default.decisions.decider == nil)
         #expect(HeedConfig.default.llm.setupReminder)
     }

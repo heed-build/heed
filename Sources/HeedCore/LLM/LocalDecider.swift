@@ -5,6 +5,9 @@ public struct DecisionSettings: Equatable, Sendable {
     public enum Choice: String, CaseIterable, Sendable {
         /// Apple's on-device model: free, private, on this Mac only.
         case local
+        /// Hunch, running a Laya checkpoint on this Mac, for the questions it is good at (`HunchRouting`); the rest
+        /// go to Apple's on-device model or a model call.
+        case hunch
         /// A model call through `[llm]`.
         case model
         /// No decisions: what asks one goes without.

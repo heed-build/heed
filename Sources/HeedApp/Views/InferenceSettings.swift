@@ -13,14 +13,15 @@ struct InferenceSettings: View {
             Text("Inference & decisions").font(Theme.ui(17, weight: .semibold))
             Text(
                 "heed makes short model calls of its own (summaries, drafted replies, goal plans) through an agent CLI "
-                    + "you are logged in to, and asks typed questions (decisions) of Apple's on-device model or a model "
-                    + "call. No API keys: your logins are used as they are."
+                    + "you are logged in to, and asks typed questions (decisions) of Apple's on-device model, Hunch or a "
+                    + "model call. No API keys: your logins are used as they are."
             )
             .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             .fixedSize(horizontal: false, vertical: true)
             SetupStatusCard(setup: setup)
             InferenceGroup(setup: setup)
             DecisionsGroup(setup: setup)
+            HunchGroup()
             GroupLabel(title: "Reminder")
             Field(
                 label: "Remind me on launch",
@@ -39,6 +40,7 @@ struct InferenceSettings: View {
             guard !model.isFixture else { return }
             model.localModel = LocalModels.availability
             Task { await model.refreshLLMStatuses() }
+            Task { await model.hunch.refresh() }
         }
     }
 }
@@ -52,6 +54,7 @@ private struct SetupStatusCard: View {
         VStack(alignment: .leading, spacing: 10) {
             line("Model calls", setup.inference)
             line("Decisions", setup.decisions)
+            hunchLine(setup.hunch)
             if !setup.degraded.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Until then, these go without:").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
@@ -69,6 +72,18 @@ private struct SetupStatusCard: View {
                         .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                 }
             }
+            // Set up never downloads: the model is offered here, with its size, for you to start.
+            if setup.hunch == .noModel, let checkpoint = model.hunch.checkpoint {
+                HStack(spacing: 12) {
+                    Button("Download \(checkpoint.title) for Hunch (\(HunchCatalogue.size(checkpoint.totalSize)))") {
+                        model.perform(CommandInvocation(name: "hunch.download", arguments: [checkpoint.id]))
+                    }
+                    Text("Decisions on this Mac that learn from you. Weights \(checkpoint.license); nothing downloads "
+                        + "until you press it.")
+                        .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -79,9 +94,51 @@ private struct SetupStatusCard: View {
     private var suggestion: String {
         var parts: [String] = []
         if let agent = setup.suggestedAgent { parts.append(agent) }
-        parts.append(setup.suggestedDecider == .local ? "on-device decisions" : setup.suggestedDecider == .model
-            ? "decisions by model call" : "decisions off")
+        let decisions = switch setup.suggestedDecider {
+        case .local: "on-device decisions"
+        case .hunch: "decisions by Hunch"
+        case .model: "decisions by model call"
+        case .off: "decisions off"
+        }
+        parts.append(decisions)
         return "Set up: " + parts.joined(separator: ", ")
+    }
+
+    /// Hunch's own line: no model, downloading, ready, learning.
+    private func hunchLine(_ status: HunchStatus) -> some View {
+        let color: Color = switch status {
+        case .ready: Theme.done
+        case .learning, .downloading: Theme.block
+        case .noModel, .stopped: Theme.fg3
+        case .unavailable: Theme.fg3
+        }
+        let detail: String = switch status {
+        case let .unavailable(why): why
+        case .noModel: "No model downloaded. Download one below to decide on this Mac and learn from your corrections."
+        case let .downloading(fraction):
+            "Downloading \(model.hunch.checkpoint?.title ?? "its model")\(Self.percent(fraction))."
+        case let .stopped(fraction, reason):
+            "The download stopped\(Self.percent(fraction))\(reason.map { ": \($0)" } ?? ""). Resume picks it up."
+        case .ready:
+            "\(model.hunch.checkpoint?.title ?? "Its model") on this Mac"
+                + (model.hunch.record.head == nil ? ", the checkpoint's own head." : ", with a head trained on your "
+                    + "corrections.")
+        case let .learning(fraction): "Learning from your corrections\(Self.percent(fraction)), in the background."
+        }
+        return HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("Hunch").font(Theme.ui(13)).foregroundStyle(Theme.fg2).frame(width: 110, alignment: .leading)
+            HStack(spacing: 6) {
+                Circle().fill(color).frame(width: 7, height: 7)
+                Text(status.label).font(Theme.mono(12)).foregroundStyle(color)
+            }
+            .frame(width: 130, alignment: .leading)
+            Text(detail).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private static func percent(_ fraction: Double?) -> String {
+        fraction.map { " (\(Int(($0 * 100).rounded(.down)))%)" } ?? ""
     }
 
     private func line(_ title: String, _ state: SetupState) -> some View {
@@ -220,8 +277,9 @@ private struct DecisionsGroup: View {
         GroupLabel(title: "Decisions")
         Field(
             label: "Decider",
-            detail: "On-device: Apple's model, free, on this Mac only. \(model.localModel.description) Model call: "
-                + "through Inference above. Off: what asks goes without."
+            detail: "On-device: Apple's model, free, on this Mac only. \(model.localModel.description) Hunch: a Laya "
+                + "checkpoint on this Mac that learns from your corrections (below). Model call: through Inference "
+                + "above. Off: what asks goes without."
         ) {
             Picker("", selection: Binding(
                 get: { decisions.decider },
@@ -229,12 +287,13 @@ private struct DecisionsGroup: View {
             )) {
                 if decisions.decider == nil { Text("Not chosen").tag(DecisionSettings.Choice?.none) }
                 Text("On-device").tag(DecisionSettings.Choice?.some(.local))
+                Text("Hunch").tag(DecisionSettings.Choice?.some(.hunch))
                 Text("Model call").tag(DecisionSettings.Choice?.some(.model))
                 Text("Off").tag(DecisionSettings.Choice?.some(.off))
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: decisions.decider == nil ? 400 : 300)
+            .frame(width: decisions.decider == nil ? 480 : 380)
         }
         let attach = model.config.goals.attach
         Field(

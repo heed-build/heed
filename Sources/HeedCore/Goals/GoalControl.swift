@@ -44,11 +44,13 @@ public struct GoalReply: Codable, Equatable, Sendable {
     public var goals: [GoalRow]?
     /// `show`.
     public var view: GoalView?
+    /// `plan show`, and what `plan propose` and `ask` leave the plan as.
+    public var plan: SwarmPlanView?
 
     public init(
         _ outcome: String, exit: GoalExit = .ok, message: String, goal: String? = nil, item: String? = nil,
         edit: Int64? = nil, version: Int? = nil, session: String? = nil, goals: [GoalRow]? = nil,
-        view: GoalView? = nil
+        view: GoalView? = nil, plan: SwarmPlanView? = nil
     ) {
         self.outcome = outcome
         self.exit = exit
@@ -60,6 +62,7 @@ public struct GoalReply: Codable, Equatable, Sendable {
         self.session = session
         self.goals = goals
         self.view = view
+        self.plan = plan
     }
 
     public static func refused(_ message: String, goal: String? = nil) -> GoalReply {
@@ -76,6 +79,7 @@ public struct GoalReply: Codable, Equatable, Sendable {
         }
         if let goals { return GoalRow.table(goals) }
         if let view { return view.text }
+        if let plan, outcome == "read" { return plan.text }
         return message
     }
 }
@@ -432,6 +436,8 @@ public enum GoalControl {
             ))
         case .reviewRequest:
             return .app(.review(goal: goal.id, kind: command.subject ?? ""), goal: goal)
+        case .planShow, .planPropose, .planApprove, .ask:
+            return try await .reply(SwarmControl.run(command, goal: goal, caller: caller, ops: ops, now: now))
         }
     }
 

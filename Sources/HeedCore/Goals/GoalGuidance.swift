@@ -58,6 +58,43 @@ public enum GoalGuidance {
         ),
     ]
 
+    /// What a swarm's lead does: draft the plan from GOAL.md, ask what it cannot decide, re-plan on feedback, and never
+    /// touch the goal or the limits. Plain words, as `rules`.
+    public static let leadRules: [Rule] = [
+        Rule(
+            "When this session leads a swarm, read the goal and the swarm first: its team, limits and whatever plan, "
+                + "questions and feedback there already are.",
+            "heed goal show, heed goal plan show"
+        ),
+        Rule(
+            "Draft the plan as tasks the team can work on in parallel, each in its own worktree. Give every task an "
+                + "id, a title, a phase, an owner from the team (agent, or agent:model), an estimate (15m, 1h 30m), "
+                + "the ids it waits for (after) and how we will know it is done (doneWhen, checks evidence can show). "
+                + "Take in open items already on the goal by using their ids.",
+            "heed goal plan propose --file plan.json --note TEXT"
+        ),
+        Rule(
+            "Ask the owner what you cannot decide from the goal and the code, with the choices you see; do not guess "
+                + "scope.",
+            "heed goal ask QUESTION --option A --option B"
+        ),
+        Rule(
+            "When the owner answers or asks you to re-plan, read it and propose the next version. Before approval "
+                + "every proposal is the draft; after it, reordering, owners, phases and estimates apply, while "
+                + "adding, dropping or renaming tasks, what they wait for and when they are done wait for the owner.",
+            "heed goal plan show"
+        ),
+        Rule(
+            "Never change the goal or the swarm's limits, and never approve your own plan. When the plan needs the "
+                + "goal to change (a new criterion, a new non-goal), put it under scope in the plan: it becomes a "
+                + "proposal the owner decides."
+        ),
+        Rule(
+            "Do not start the work yourself: workers start on the approved plan, and nothing runs before the owner "
+                + "approves it."
+        ),
+    ]
+
     /// The rules as one paragraph of plain sentences, for agents that take instructions rather than a plugin.
     public static var instructions: String {
         "Keep the goal with the heed goal command (heed goal --help lists it; exit 4 means this session is on no "
@@ -124,6 +161,22 @@ public enum HeedPlugin {
         }
         lines += [
             "",
+            "## Leading a swarm",
+            "",
+            "A goal can have a swarm run: a lead agent drafts a plan, the owner approves it, and a team of agents works "
+                + "on it in parallel. When heed starts this session as a swarm's lead it says so in the first prompt; "
+                + "these rules are then yours.",
+            "",
+        ]
+        for rule in GoalGuidance.leadRules {
+            lines.append("- " + rule.text + (rule.command.map { " `\($0)`" } ?? ""))
+        }
+        lines += [
+            "",
+            "The plan's JSON: `{\"note\": \"…\", \"tasks\": [{\"id\": \"profile\", \"title\": \"…\", "
+                + "\"phase\": \"Spike\", \"owner\": \"claude\", \"estimate\": \"15m\", \"after\": [], "
+                + "\"doneWhen\": [\"…\"]}], \"scope\": [{\"section\": \"not-the-goal\", \"text\": \"…\"}]}`.",
+            "",
             "## Exit codes",
             "",
             "0 done or proposed, 1 refused (nothing changed, the message says why), 2 wrong usage, 3 heed not "
@@ -154,5 +207,30 @@ public enum HeedPlugin {
                 try content.write(to: url, atomically: true, encoding: .utf8)
             }
         }
+    }
+}
+
+/// The first prompt of a swarm's lead session: who it is, what to read, what to do and what never to do.
+public enum SwarmLead {
+    public static func prompt(goal title: String, doc path: String, swarm: GoalSwarm) -> String {
+        let settings = swarm.settings
+        let workers = settings.workers.isEmpty ? settings.lead.label : settings.workers.map(\.label)
+            .joined(separator: ", ")
+        var lines = [
+            "You lead swarm \(swarm.number) on the goal \(title). Its GOAL.md is \(path).",
+            "",
+            "Draft the plan: the tasks that reach the goal, for a team of \(workers), within \(settings.limits.line). "
+                + "Each task works in its own worktree; there is no file ownership, overlaps are sorted out at merge.",
+            "",
+        ]
+        lines += GoalGuidance.leadRules.map { rule in
+            "- " + rule.text + (rule.command.map { " Run: \($0)." } ?? "")
+        }
+        lines += [
+            "",
+            "Once the plan is proposed and your questions are asked, stop and wait: the owner reads it in heed and "
+                + "answers, asks for a re-plan or approves.",
+        ]
+        return lines.joined(separator: "\n")
     }
 }

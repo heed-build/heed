@@ -72,6 +72,7 @@ struct MainWindow: View {
         }
         .overlay {
             if model.goals.form != nil { GoalFormView() }
+            if model.goals.swarmForm != nil { SwarmFormView() }
         }
         .overlay {
             if let picker = model.importPicker { ImportPickerView(picker: picker) }
@@ -452,6 +453,17 @@ struct StatusBar: View {
             ]
             .map { "\(model.keyText(for: $0.0, in: "dashboard")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.goals.form != nil: "type the title and the goal · ⌘↩ create · ⎋ cancel"
+        case .normal where model.goals.swarmForm != nil:
+            "the goal, where, the team, your say and limits · ⌘↩ ask the lead for a plan · ⎋ cancel"
+        case .normal where model.goals.planDraft != nil: "type it · ⌘↩ save · ⎋ cancel"
+        case .normal where model.view == .goals && model.goals.pane == .plan:
+            [
+                ("goal.focus", model.goals.focus == .versions ? "goals" : "next"), ("swarm.task.edit", "edit"),
+                ("swarm.task.add", "add"), ("swarm.task.drop", "drop"), ("swarm.replan", "re-plan"),
+                ("swarm.answer", "answer"), ("swarm.approve", "approve"), ("swarm.diff", "diff"),
+                ("goal.swarm", "overview"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "goalplan")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.goals.draft != nil: "edit GOAL.md · ⎋ or ⌘S save as a new version"
         case .normal where model.goals.spawnTyping: "type the reviewer's instructions · ⌘↩ spawn · ⎋ cancel"
         case .normal where model.goals.personas.draft != nil: "edit the persona's file · ⎋ or ⌘S save"

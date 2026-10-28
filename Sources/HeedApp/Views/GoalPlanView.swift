@@ -1,0 +1,766 @@
+import HeedCore
+import SwiftUI
+
+/// A goal's swarm (`goal.swarm`, `S`): on the left the plan's outline by phase (task, owner, estimate, what it waits
+/// for, when it is done); on the right what the lead asks, a change waiting for you, the plan's versions with what
+/// each changed, and the steering log. Every act here is a new version or a steering row.
+struct GoalPlanPane: View {
+    @Environment(AppModel.self) private var model
+    let goal: HeedGoal
+
+    var body: some View {
+        let goals = model.goals
+        if let board = goals.board, board.swarm.goal == goal.id {
+            HStack(alignment: .top, spacing: 16) {
+                PlanOutline(board: board).shotRegion(.swarmOutline)
+                ListScroll {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if let draft = goals.planDraft { PlanEditor(draft: draft).shotRegion(.swarmEditor) }
+                        LeadQuestions(board: board).shotRegion(.swarmQuestions)
+                        if let pending = board.pending { PendingChange(board: board, pending: pending) }
+                        PlanVersions(board: board).shotRegion(.swarmVersions)
+                        SteeringLog(board: board).shotRegion(.swarmSteering)
+                    }
+                }
+                .frame(width: 360)
+                .frame(maxHeight: .infinity, alignment: .top)
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+            .padding(20)
+            .shotRegion(.swarmPlan)
+        } else {
+            EmptyState(
+                title: "No swarm on this goal",
+                detail: "A swarm is a burst of parallel work on the goal: a lead agent drafts a plan, you read and "
+                    + "change it, and nothing runs before you approve it.",
+                actions: [EmptyState.Action("Swarm this goal", "swarm.start")]
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+// MARK: The outline
+
+private struct PlanOutline: View {
+    @Environment(AppModel.self) private var model
+    let board: SwarmBoard
+
+    var body: some View {
+        let goals = model.goals
+        let swarm = board.swarm
+        let tasks = goals.planTasks
+        let numbers = SwarmPlan.numbers(tasks)
+        let estimate = SwarmPlan.estimate(tasks)
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 10) {
+                    Text(swarm.plan == 0 ? "Plan" : "Plan · \(swarm.isApproved ? "" : "draft ")v\(swarm.plan)")
+                        .font(Theme.ui(16, weight: .semibold))
+                    if swarm.plan > 0 { PlanBadge(swarm: swarm, board: board) }
+                    Spacer(minLength: 12)
+                    Text(planNumbers(tasks.count, estimate, swarm))
+                        .font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                }
+                Text(
+                    "Swarm \(swarm.number) · lead \(swarm.settings.lead.label) · \(swarm.settings.limits.line) · "
+                        + swarm.settings.autonomy.title.lowercased()
+                )
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+            if tasks.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(swarm.status.active ? "The lead is drafting the plan" : "This swarm ended without a plan")
+                        .font(Theme.ui(14, weight: .medium))
+                    Quiet(
+                        swarm.lead == nil
+                            ? "Its tasks show here as the lead proposes them, with who does each, how long it should "
+                            + "take, what it waits for and how we will know it is done."
+                            : "Its tasks show here as the lead proposes them. The lead's session is on the goal: "
+                            + "↩ on it under the overview goes there."
+                    )
+                }
+                .padding(18)
+            } else {
+                ListScroll {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(SwarmPlan.phases(tasks).enumerated()), id: \.offset) { index, phase in
+                            HStack(spacing: 6) {
+                                SectionHeader(title: "\(index + 1) · \(phase.name)")
+                                Spacer(minLength: 6)
+                                let minutes = SwarmPlan.estimate(phase.tasks)
+                                if minutes > 0 {
+                                    Text(SwarmEstimate.text(minutes)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                                }
+                            }
+                            .padding(.horizontal, 18)
+                            .padding(.top, 14)
+                            .padding(.bottom, 6)
+                            ForEach(phase.tasks) { task in
+                                let row = tasks.firstIndex { $0.id == task.id } ?? 0
+                                TaskRow(
+                                    task: task, number: numbers[task.id] ?? "", numbers: numbers,
+                                    isCursor: row == goals.taskCursor, focused: goals.focus == .tasks
+                                )
+                                .hint(goals.focus == .tasks ? model.hintLabel(for: .row(.goals, row)) : nil)
+                                .contentShape(Rectangle())
+                                .onTapGesture { model.clickPlanTask(row) }
+                                .simultaneousGesture(TapGesture(count: 2)
+                                    .onEnded { model.clickPlanTask(row, edit: true) })
+                                .rightClickMenu {
+                                    guard model.clicksReachLists else { return false }
+                                    model.clickPlanTask(row)
+                                    return true
+                                } _: { model.planTaskMenu(row) }
+                            }
+                        }
+                    }
+                    .padding(.bottom, 12)
+                }
+            }
+            Spacer(minLength: 0)
+            if swarm.status.active {
+                Theme.line.frame(height: 1)
+                FlowLayout(spacing: 14, lineSpacing: 6) {
+                    KeyHint("swarm.task.edit", scope: "goalplan", label: "edit task")
+                    KeyHint("swarm.task.add", scope: "goalplan", label: "add")
+                    KeyHint("swarm.task.move", ["1"], key: "J K", scope: "goalplan", label: "move")
+                    KeyHint("swarm.task.drop", scope: "goalplan", label: "drop")
+                    KeyHint("swarm.replan", scope: "goalplan", label: "re-plan with feedback")
+                    KeyHint(
+                        "swarm.approve", scope: "goalplan",
+                        label: board.pending != nil ? "approve the change" : swarm.isApproved ? "approved" : "approve",
+                        color: swarm.isApproved && board.pending == nil ? Theme.fg3 : Theme.fg
+                    )
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+    }
+
+    private func planNumbers(_ count: Int, _ minutes: Int, _ swarm: GoalSwarm) -> String {
+        let agents = swarm.settings.workers.reduce(0) { $0 + $1.count }
+        return [
+            "\(count) task\(count == 1 ? "" : "s")",
+            minutes > 0 ? "est \(SwarmEstimate.text(minutes))" : nil,
+            agents > 0 ? "\(agents) agent\(agents == 1 ? "" : "s")" : nil,
+        ]
+        .compactMap(\.self).joined(separator: " · ")
+    }
+}
+
+/// `from lead`, `approved`, `stopped`.
+private struct PlanBadge: View {
+    let swarm: GoalSwarm
+    let board: SwarmBoard
+
+    var body: some View {
+        let author = board.version(swarm.plan)?.author
+        let (text, color): (String, Color) = if !swarm.status.active {
+            (swarm.status.rawValue, Theme.fg3)
+        } else if swarm.isApproved {
+            ("approved", Theme.done)
+        } else {
+            (author == .lead ? "from lead" : author == .restore ? "restored" : "edited by you", Theme.block)
+        }
+        Text(text).font(Theme.mono(10.5)).foregroundStyle(color)
+            .padding(.horizontal, 6).padding(.vertical, 1)
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(color.opacity(0.6)))
+    }
+}
+
+private struct TaskRow: View {
+    let task: SwarmTask
+    let number: String
+    let numbers: [String: String]
+    let isCursor: Bool
+    let focused: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(number).font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).frame(width: 28, alignment: .leading)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(task.title).font(Theme.ui(13, weight: .semibold)).foregroundStyle(Theme.fg).lineLimit(1)
+                if !task.after.isEmpty {
+                    Text("after " + task.after.map { numbers[$0] ?? SwarmPlan.short($0) }.joined(separator: " "))
+                        .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                }
+                ForEach(task.doneWhen, id: \.self) { check in
+                    Text("done when: \(check)").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 8)
+            if let owner = task.owner {
+                Text(owner.label).font(Theme.mono(10.5)).foregroundStyle(Theme.fg2)
+                    .padding(.horizontal, 6).padding(.vertical, 1)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+            }
+            Text(task.estimate.map(SwarmEstimate.text) ?? "–").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                .frame(width: 48, alignment: .trailing)
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isCursor ? (focused ? Theme.bg3 : Theme.bg2) : .clear)
+        .overlay(alignment: .leading) { if isCursor, focused { Theme.block.frame(width: 2) } }
+    }
+}
+
+// MARK: The right column
+
+/// What the lead asks, and your answers: c answers the first open one; a click on a choice answers with it.
+private struct LeadQuestions: View {
+    @Environment(AppModel.self) private var model
+    let board: SwarmBoard
+
+    var body: some View {
+        let open = board.openQuestions.count
+        let questions = board.questions
+        Panel(
+            title: open == 0 ? "The lead's questions" : "The lead asks \(open) thing\(open == 1 ? "" : "s")",
+            note: questions.isEmpty ? "" : "\(questions.count - open) answered"
+        ) {
+            if questions.isEmpty {
+                Quiet("None yet. What the lead cannot decide from the goal and the code, it asks here.")
+            }
+            ForEach(Array(questions.enumerated()), id: \.element.id) { index, question in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(index + 1). \(question.row.text)").font(Theme.ui(12.5))
+                        .foregroundStyle(question.answer == nil ? Theme.fg : Theme.fg2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let answer = question.answer {
+                        Text("→ \(answer.text)").font(Theme.ui(12)).foregroundStyle(Theme.done)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else if board.swarm.status.active {
+                        FlowLayout(spacing: 6, lineSpacing: 6) {
+                            ForEach(question.row.options, id: \.self) { option in
+                                Text(option).font(Theme.ui(11.5)).foregroundStyle(Theme.fg2)
+                                    .padding(.horizontal, 7).padding(.vertical, 2)
+                                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+                                    .clickable()
+                                    .onTapGesture { model.answerLead([option], question: question.id) }
+                                    .help("Answer: \(option)")
+                            }
+                            Text("or type").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                                .clickable()
+                                .onTapGesture {
+                                    model.answerLead([], question: question.id)
+                                }
+                        }
+                    }
+                }
+            }
+            if open > 0 {
+                KeyHint("swarm.answer", scope: "goalplan", label: "answer the first")
+            }
+        }
+    }
+}
+
+/// A structural change of the lead's after approval: what it changes, A takes it, n says no.
+private struct PendingChange: View {
+    let board: SwarmBoard
+    let pending: SwarmSteer
+
+    var body: some View {
+        Panel(title: "The lead proposes a change", note: "waits for you") {
+            Text(pending.text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg)
+                .fixedSize(horizontal: false, vertical: true)
+            PlanDiffLines(lines: SwarmPlan.lines(old: board.tasks, new: pending.tasks ?? []), limit: 8)
+            HStack(spacing: 14) {
+                KeyHint("swarm.approve", scope: "goalplan", label: "approve", color: Theme.fg)
+                KeyHint("swarm.reject", scope: "goalplan", label: "say no")
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.block.opacity(0.5)))
+    }
+}
+
+/// Every version, newest first, who made it and why; the one under the cursor shows what it changed.
+private struct PlanVersions: View {
+    @Environment(AppModel.self) private var model
+    let board: SwarmBoard
+
+    var body: some View {
+        let goals = model.goals
+        let versions = board.versions
+        Panel(title: "Versions", note: "\(versions.count)") {
+            if versions.isEmpty { Quiet("The lead's first proposal is v1. Every change after is a new version.") }
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(versions.enumerated()), id: \.element.id) { index, version in
+                    let isCursor = index == goals.versionCursor
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Text("v\(version.number)").font(Theme.mono(11.5))
+                                .foregroundStyle(version.number == board.swarm.plan ? Theme.block : Theme.fg3)
+                            Text(version.author.rawValue).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                            Text(version.note).font(Theme.ui(12)).foregroundStyle(Theme.fg).lineLimit(1)
+                            Spacer(minLength: 6)
+                            if board.swarm.approved == version.number {
+                                Text("approved").font(Theme.mono(10.5)).foregroundStyle(Theme.done)
+                            }
+                            Text(Clock.relative(version.at)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                        }
+                        if isCursor {
+                            let previous = versions.indices.contains(index + 1) ? versions[index + 1] : nil
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(previous.map { "v\($0.number) → v\(version.number)" } ?? "the first version")
+                                    .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                                PlanDiffLines(
+                                    lines: SwarmPlan.lines(old: previous?.tasks ?? [], new: version.tasks),
+                                    limit: goals.fullDiff ? nil : 6
+                                )
+                                .shotRegion(.swarmDiff)
+                                HStack(spacing: 14) {
+                                    KeyHint("swarm.diff", scope: "goalplan", label: goals.fullDiff ? "short" : "diff")
+                                    if version.number != board.swarm.plan, board.swarm.status.active {
+                                        KeyHint(
+                                            "swarm.restore", ["\(version.number)"], scope: "goalplan",
+                                            label: "restore v\(version.number)"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(6)
+                    .background(isCursor && goals.focus == .versions ? Theme.bg3 : .clear)
+                    .overlay(alignment: .leading) {
+                        if isCursor, goals.focus == .versions { Theme.block.frame(width: 2) }
+                    }
+                    .hint(goals.focus == .versions ? model.hintLabel(for: .row(.goals, index)) : nil)
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.clickPlanVersion(index) }
+                    .rightClickMenu {
+                        guard model.clicksReachLists else { return false }
+                        model.clickPlanVersion(index)
+                        return true
+                    } _: { model.planVersionMenu(index) }
+                }
+            }
+        }
+    }
+}
+
+/// A plan diff's lines: red out, green in, the task they are about in plain.
+struct PlanDiffLines: View {
+    let lines: [SwarmPlan.DiffLine]
+    var limit: Int?
+
+    var body: some View {
+        let shown = limit.map { Array(lines.prefix($0)) } ?? lines
+        VStack(alignment: .leading, spacing: 2) {
+            if lines.isEmpty { Text("no change").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3) }
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, line in
+                Text("\(line.mark.glyph) \(line.text)")
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(color(line.mark))
+                    .lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 4)
+                    .background(background(line.mark))
+            }
+            if shown.count < lines.count {
+                Text("+\(lines.count - shown.count) more").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+            }
+        }
+    }
+
+    private func color(_ mark: SwarmPlan.DiffLine.Mark) -> Color {
+        switch mark {
+        case .added: Theme.done
+        case .removed: Theme.err
+        case .moved: Theme.busy
+        case .context: Theme.fg2
+        }
+    }
+
+    private func background(_ mark: SwarmPlan.DiffLine.Mark) -> Color {
+        switch mark {
+        case .added: Theme.done.opacity(0.08)
+        case .removed: Theme.err.opacity(0.08)
+        default: .clear
+        }
+    }
+}
+
+/// Who decided what, newest first.
+private struct SteeringLog: View {
+    let board: SwarmBoard
+
+    var body: some View {
+        let rows = Array(board.steering.reversed())
+        Panel(title: "Steering log", note: "\(rows.count)") {
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(Array(rows.prefix(10).enumerated()), id: \.offset) { _, row in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(row.actor.rawValue).font(Theme.mono(10)).foregroundStyle(actorColor(row.actor))
+                            .frame(width: 34, alignment: .leading)
+                        Text(SwarmSteering.line(row)).font(Theme.ui(12)).foregroundStyle(Theme.fg)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 4)
+                        Text(Clock.relative(row.at)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                    }
+                }
+                if rows.count > 10 {
+                    Text("\(rows.count - 10) older").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                }
+            }
+        }
+    }
+
+    private func actorColor(_ actor: SwarmSteer.Actor) -> Color {
+        switch actor {
+        case .you: Theme.fg
+        case .lead: Theme.block
+        case .controller: Theme.ask
+        case .agent: Theme.busy
+        case .heed: Theme.fg3
+        }
+    }
+}
+
+/// The editor for a task's fields, feedback for the lead, an answer, or why not: ⌘↩ saves, ⎋ leaves.
+private struct PlanEditor: View {
+    @Environment(AppModel.self) private var model
+    let draft: PlanDraft
+
+    var body: some View {
+        Panel(title: title, note: "") {
+            if draft.isTask {
+                field("Title", \.fields.title)
+                HStack(spacing: 8) {
+                    field("Phase", \.fields.phase)
+                    field("Owner (agent:model)", \.fields.owner)
+                    field("Estimate", \.fields.estimate).frame(width: 80)
+                }
+                field("After (1.2, 2.1)", \.fields.after)
+                field("Done when (one per line)", \.fields.doneWhen, lines: 3)
+            } else {
+                if case let .answer(id) = draft.kind,
+                   let question = model.goals.board?.questions.first(where: { $0.id == id })
+                {
+                    Text(question.row.text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                field(placeholder, \.text, lines: 3)
+            }
+            HStack(spacing: 18) {
+                Spacer()
+                KeyHint(keys: "<Esc>", label: "cancel")
+                KeyHint(keys: "<D-CR>", label: "save", color: Theme.fg)
+            }
+        }
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.block.opacity(0.6)))
+    }
+
+    private var title: String {
+        switch draft.kind {
+        case .edit: "Edit the task"
+        case .add: "Add a task"
+        case .replan: "Re-plan: what should change"
+        case .answer: "Answer the lead"
+        case .reject: "Why not (optional)"
+        }
+    }
+
+    private var placeholder: String {
+        switch draft.kind {
+        case .replan: "Tell the lead what to change"
+        case .answer: "Your answer"
+        default: "Why not"
+        }
+    }
+
+    @ViewBuilder
+    private func field(_ label: String, _ path: WritableKeyPath<PlanDraft, String>, lines: Int = 1) -> some View {
+        let binding = Binding(
+            get: { model.goals.planDraft?[keyPath: path] ?? "" },
+            set: { model.goals.planDraft?[keyPath: path] = $0 }
+        )
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(Theme.ui(10.5)).foregroundStyle(Theme.fg3)
+            Group {
+                if ShotMode.active {
+                    Text(binding.wrappedValue).frame(maxWidth: .infinity, alignment: .topLeading)
+                        .frame(minHeight: CGFloat(lines) * 16, alignment: .topLeading)
+                } else if lines > 1 {
+                    TextField(label, text: binding, axis: .vertical).lineLimit(lines ... 8).textFieldStyle(.plain)
+                } else {
+                    TextField(label, text: binding).textFieldStyle(.plain)
+                }
+            }
+            .font(Theme.ui(12.5))
+            .padding(6)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+        }
+    }
+}
+
+// MARK: On the goal's page
+
+/// The goal's swarm on its overview: the active run (state, plan, questions waiting) and the past ones.
+struct GoalSwarmPanel: View {
+    @Environment(AppModel.self) private var model
+    let goal: HeedGoal
+
+    var body: some View {
+        let runs = model.goals.snapshot.swarms(of: goal.id)
+        let active = runs.first { $0.status.active }
+        let board = model.goals.board.flatMap { $0.swarm.goal == goal.id ? $0 : nil }
+        Panel(title: "Swarm", note: active.map { "swarm \($0.number)" } ?? (runs.isEmpty ? "" : "\(runs.count) past")) {
+            if let active {
+                HStack(spacing: 8) {
+                    Text(active.stateLine).font(Theme.ui(13, weight: .medium))
+                    Spacer(minLength: 6)
+                    KeyHint("goal.swarm", scope: "goals", label: "plan", color: Theme.fg2)
+                }
+                if let board, board.swarm.id == active.id {
+                    let tasks = board.tasks
+                    let minutes = SwarmPlan.estimate(tasks)
+                    Text(
+                        tasks.isEmpty ? "the lead is drafting the plan"
+                            : "\(tasks.count) tasks in \(SwarmPlan.phases(tasks).count) phases"
+                            + (minutes > 0 ? " · est \(SwarmEstimate.text(minutes))" : "")
+                    )
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                    let open = board.openQuestions.count
+                    if open > 0 || board.pending != nil {
+                        Text(
+                            [
+                                open > 0 ? "the lead asks \(open) thing\(open == 1 ? "" : "s")" : nil,
+                                board.pending != nil ? "a plan change waits" : nil,
+                            ].compactMap(\.self)
+                                .joined(separator: " · ")
+                        )
+                        .font(Theme.ui(12)).foregroundStyle(Theme.block)
+                        .clickRuns(CommandInvocation(name: "goal.swarm"))
+                    }
+                }
+                Text("lead \(active.settings.lead.label) · \(active.settings.limits.line)")
+                    .font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+            } else {
+                Quiet("No swarm going. A swarm plans the goal's work with a lead agent and runs it in parallel.")
+                KeyHint("swarm.start", label: "swarm this goal", color: Theme.fg2)
+            }
+            ForEach(runs.filter { !$0.status.active }) { run in
+                HStack(spacing: 8) {
+                    Text("swarm \(run.number)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                    Text(run.stateLine).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                    Spacer(minLength: 6)
+                    Text(Clock.relative(run.endedAt ?? run.startedAt)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                }
+            }
+        }
+    }
+}
+
+// MARK: New swarm
+
+/// The new swarm form: the goal, where it works, the lead and team, how much say you want, the limits. ⌘↩ starts the
+/// lead on a plan; ⎋ leaves.
+struct SwarmFormView: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let form = model.goals.swarmForm ?? SwarmForm()
+        ZStack {
+            Color.black.opacity(0.45)
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(form.goal == nil ? "New swarm" : "Swarm this goal").font(Theme.ui(16, weight: .semibold))
+                    Text("Describe it. The lead plans it. You read the plan: nothing runs before you approve it.")
+                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                }
+                SectionHeader(title: "Goal")
+                if form.goal == nil {
+                    textField("What the goal is called", \.title, font: Theme.ui(14))
+                    textField("What done looks like", \.statement, lines: 3)
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(form.title).font(Theme.ui(14, weight: .medium))
+                        if !form.statement.isEmpty {
+                            Text(form.statement).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).lineLimit(3)
+                        }
+                    }
+                }
+                SectionHeader(title: "Where")
+                FlowLayout(spacing: 6, lineSpacing: 6) {
+                    ForEach(model.swarmRepoChoices.prefix(10), id: \.self) { slug in
+                        let picked = form.repos.contains(slug)
+                        Text((picked ? "" : "+ ") + slug).font(Theme.mono(11))
+                            .foregroundStyle(picked ? Theme.fg : Theme.fg3)
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 4).fill(picked ? Theme.chip : .clear))
+                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+                            .clickable()
+                            .onTapGesture { toggleRepo(slug) }
+                    }
+                    if model.swarmRepoChoices.isEmpty {
+                        Text("no repos on this Mac yet: Repos (gr) adds them").font(Theme.ui(12))
+                            .foregroundStyle(Theme.fg3)
+                    }
+                }
+                SectionHeader(title: "Team")
+                HStack(spacing: 8) {
+                    Text("lead").font(Theme.ui(12)).foregroundStyle(Theme.fg3).frame(width: 52, alignment: .leading)
+                    agentChip(form.lead.agent) { next in model.goals.swarmForm?.lead.agent = next }
+                    modelField(
+                        get: { model.goals.swarmForm?.lead.model ?? "" },
+                        set: { model.goals.swarmForm?.lead.model = $0.isEmpty ? nil : $0 }
+                    )
+                }
+                ForEach(Array(form.workers.enumerated()), id: \.offset) { index, worker in
+                    HStack(spacing: 8) {
+                        Text(index == 0 ? "workers" : "").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                            .frame(width: 52, alignment: .leading)
+                        agentChip(worker.agent) { next in model.goals.swarmForm?.workers[index].agent = next }
+                        modelField(
+                            get: { model.goals.swarmForm?.workers[index].model ?? "" },
+                            set: { model.goals.swarmForm?.workers[index].model = $0.isEmpty ? nil : $0 }
+                        )
+                        Stepper(text: "×\(worker.count)") { delta in
+                            guard let count = model.goals.swarmForm?.workers[index].count else { return }
+                            model.goals.swarmForm?.workers[index].count = min(max(count + delta, 1), 9)
+                        }
+                        Text("remove").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).clickable()
+                            .onTapGesture { model.goals.swarmForm?.workers.remove(at: index) }
+                    }
+                }
+                Text("+ add workers").font(Theme.ui(12)).foregroundStyle(Theme.fg2).clickable()
+                    .onTapGesture {
+                        model.goals.swarmForm?.workers
+                            .append(SwarmSettings.Worker(agent: model.swarmAgents.first ?? "claude"))
+                    }
+                SectionHeader(title: "How much say you want")
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(SwarmSettings.Autonomy.allCases, id: \.self) { autonomy in
+                        HStack(spacing: 8) {
+                            Circle().fill(form.autonomy == autonomy ? Theme.block : Theme.line).frame(
+                                width: 8,
+                                height: 8
+                            )
+                            Text(autonomy.title).font(Theme.ui(12.5))
+                                .foregroundStyle(form.autonomy == autonomy ? Theme.fg : Theme.fg2)
+                        }
+                        .clickable()
+                        .onTapGesture { model.goals.swarmForm?.autonomy = autonomy }
+                    }
+                }
+                SectionHeader(title: "Limits")
+                HStack(spacing: 16) {
+                    Stepper(text: "max \(form.limits.agents) agents") { delta in
+                        guard let value = model.goals.swarmForm?.limits.agents else { return }
+                        model.goals.swarmForm?.limits.agents = min(max(value + delta, 1), 20)
+                    }
+                    Stepper(text: "\(String(format: "%g", form.limits.hours)) h") { delta in
+                        guard let value = model.goals.swarmForm?.limits.hours else { return }
+                        model.goals.swarmForm?.limits.hours = min(max(value + Double(delta), 1), 48)
+                    }
+                    Stepper(text: "$\(String(format: "%g", form.limits.dollars))") { delta in
+                        guard let value = model.goals.swarmForm?.limits.dollars else { return }
+                        model.goals.swarmForm?.limits.dollars = min(max(value + Double(delta) * 10, 10), 1000)
+                    }
+                }
+                Text("Reaching a limit pauses new work and asks you. The lead never changes the goal or the limits.")
+                    .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 18) {
+                    Spacer()
+                    KeyHint(keys: "<Esc>", label: "cancel")
+                    KeyHint(keys: "<D-CR>", label: "ask the lead for a plan", color: Theme.fg)
+                }
+            }
+            .padding(22)
+            .frame(width: 600)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.line))
+            .shotRegion(.swarmForm)
+        }
+    }
+
+    private func toggleRepo(_ slug: String) {
+        guard var form = model.goals.swarmForm else { return }
+        if let index = form.repos.firstIndex(of: slug) { form.repos.remove(at: index) } else { form.repos.append(slug) }
+        model.goals.swarmForm = form
+    }
+
+    /// An agent; a click picks the next one.
+    private func agentChip(_ agent: String, set: @escaping (String) -> Void) -> some View {
+        Text(agent + " ▾").font(Theme.mono(11.5)).foregroundStyle(Theme.fg)
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+            .clickable()
+            .onTapGesture {
+                let agents = model.swarmAgents
+                guard !agents.isEmpty else { return }
+                let index = agents.firstIndex(of: agent) ?? -1
+                set(agents[(index + 1) % agents.count])
+            }
+            .help("Click for the next agent")
+    }
+
+    private func modelField(get: @escaping () -> String, set: @escaping (String) -> Void) -> some View {
+        Group {
+            if ShotMode.active {
+                Text(get().isEmpty ? "default model" : get()).foregroundStyle(get().isEmpty ? Theme.fg3 : Theme.fg)
+                    .frame(width: 130, alignment: .leading)
+            } else {
+                TextField("default model", text: Binding(get: get, set: set)).textFieldStyle(.plain).frame(width: 130)
+            }
+        }
+        .font(Theme.mono(11.5))
+        .padding(.horizontal, 6).padding(.vertical, 3)
+        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg))
+        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
+    }
+
+    private func textField(
+        _ placeholder: String, _ path: WritableKeyPath<SwarmForm, String>, lines: Int = 1, font: Font = Theme.ui(13)
+    ) -> some View {
+        let binding = Binding(
+            get: { model.goals.swarmForm?[keyPath: path] ?? "" },
+            set: { model.goals.swarmForm?[keyPath: path] = $0 }
+        )
+        return Group {
+            if ShotMode.active {
+                Text(binding.wrappedValue.isEmpty ? placeholder : binding.wrappedValue)
+                    .foregroundStyle(binding.wrappedValue.isEmpty ? Theme.fg3 : Theme.fg)
+                    .frame(maxWidth: .infinity, minHeight: CGFloat(lines) * 17, alignment: .topLeading)
+            } else if lines > 1 {
+                TextField(placeholder, text: binding, axis: .vertical).lineLimit(lines ... 6).textFieldStyle(.plain)
+            } else {
+                TextField(placeholder, text: binding).textFieldStyle(.plain)
+            }
+        }
+        .font(font)
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+    }
+}
+
+/// `− value +`: clicks step the value.
+private struct Stepper: View {
+    let text: String
+    let step: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("−").font(Theme.mono(12)).foregroundStyle(Theme.fg2).clickable().onTapGesture { step(-1) }
+            Text(text).font(Theme.mono(11.5)).foregroundStyle(Theme.fg)
+            Text("+").font(Theme.mono(12)).foregroundStyle(Theme.fg2).clickable().onTapGesture { step(1) }
+        }
+        .padding(.horizontal, 7).padding(.vertical, 2)
+        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+    }
+}

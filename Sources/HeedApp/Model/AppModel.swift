@@ -2097,6 +2097,7 @@ final class AppModel {
             return true
         }
         if goals.form != nil || goals.draft != nil, answerGoalText(stroke) { return true }
+        if goals.swarmForm != nil || goals.planDraft != nil, answerSwarmText(stroke) { return true }
         if goals.spawnTyping, answerSpawnText(stroke) { return true }
         if goals.personas.draft != nil, answerPersonaText(stroke) { return true }
         if filtering {
@@ -2354,6 +2355,20 @@ final class AppModel {
         case "goal.mirror.open": openGoalOnGitHub()
         case "goal.mirror.yes": answerMirrorAsk(yes: true)
         case "goal.mirror.no": answerMirrorAsk(yes: false)
+        case "goal.swarm": toggleGoalPlan()
+        case "swarm.new": newSwarm(command.arguments, from: command.target)
+        case "swarm.start": startSwarmOnGoal()
+        case "swarm.stop": stopSwarm()
+        case "swarm.approve": approvePlan()
+        case "swarm.reject": rejectPlanChange(command.arguments)
+        case "swarm.task.edit": editPlanTask()
+        case "swarm.task.add": addPlanTask(command.arguments)
+        case "swarm.task.move": movePlanTask(command.arguments.first)
+        case "swarm.task.drop": dropPlanTask()
+        case "swarm.replan": replanSwarm(command.arguments)
+        case "swarm.answer": answerLead(command.arguments)
+        case "swarm.diff": togglePlanDiff()
+        case "swarm.restore": restorePlan(command.arguments)
         case "review.recheck": recheckReviewers(command.arguments)
         case "review.accept": acceptRisk()
         case "review.fix": fixObjection()

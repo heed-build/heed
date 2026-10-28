@@ -135,6 +135,13 @@ extension AppModel {
         guard !form.title.trimmingCharacters(in: .whitespaces).isEmpty else { return say("a goal needs a title") }
         goals.form = nil
         textInputActive = false
+        // Started as a swarm: the swarm form takes over with what was typed; the goal is made when it starts.
+        if form.swarm {
+            newSwarm([], from: form.session.map { .session($0) })
+            goals.swarmForm?.title = form.title
+            goals.swarmForm?.statement = form.statement
+            return
+        }
         createGoal(form)
     }
 

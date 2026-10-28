@@ -19,6 +19,8 @@ final class GoalsBrowser {
         case personas
         /// Stranger walks: an evaluator's walk, its friction log, and the lens picker.
         case evaluations
+        /// The goal's swarm: its plan by phase, the lead's questions, the versions and the steering log.
+        case plan
     }
 
     /// Where j and k move: the goals list, what belongs to the goal under the cursor, or (in Reviewers) its reviewers
@@ -27,6 +29,8 @@ final class GoalsBrowser {
         case goals, links, reviewers, objections, personas
         /// The friction log of the evaluation under the lens picker.
         case friction
+        /// The swarm plan's tasks, and its versions.
+        case tasks, versions
     }
 
     /// The spawn-a-reviewer panel: what the next reviewer is.
@@ -49,7 +53,21 @@ final class GoalsBrowser {
         var tracker = ""
         /// It mirrors from the start (the org's or repo's `goals_mirror`, else `[goals] mirror`).
         var mirror = false
+        /// Start it as a swarm: ⌘↩ goes on to the new swarm form instead of making the goal now.
+        var swarm = false
     }
+
+    /// The new swarm form, and the plan pane's typing and cursors (`GoalsBrowser+Swarm`).
+    var swarmForm: SwarmForm?
+    var planDraft: PlanDraft?
+    /// The selected goal's swarm with its plan versions and steering: the active one, else its last.
+    var board: SwarmBoard?
+    var taskCursor = 0
+    var versionCursor = 0
+    /// The version under the cursor shows its whole diff.
+    var fullDiff = false
+    /// Each run's board, by swarm id, as last read (fixtures start from it, shots read it at once).
+    @ObservationIgnored var boards: [String: SwarmBoard] = [:]
 
     private(set) var snapshot = GoalSnapshot.empty
     /// The goals the list shows, in order, narrowed by `/`.
@@ -65,7 +83,8 @@ final class GoalsBrowser {
     let personas = PersonaBrowser()
     /// The open sessions' and chats' ids and the running reviewers', for personas' coverage (set by the app).
     @ObservationIgnored var liveTargets: () -> Set<String> = { [] }
-    private(set) var focus = Focus.goals
+    /// Set here and in `GoalsBrowser+Swarm`.
+    var focus = Focus.goals
     private(set) var linkCursor = 0
     /// The selected goal's versions, newest first.
     private(set) var versions: [GoalVersion] = []
@@ -135,7 +154,9 @@ final class GoalsBrowser {
         let records = GoalQualityFixtures.all()
         let qualities = GoalQualityFixtures.qualities(records, goals: fixtures)
         self.qualities = qualities
+        let swarms = SwarmFixtures.all()
         var snapshot = GoalFixtures.snapshot(fixtures)
+        snapshot.swarms = swarms.map(\.swarm).sorted { ($0.startedAt, $0.id) < ($1.startedAt, $1.id) }
         for index in snapshot.goals.indices {
             snapshot.goals[index].score = qualities[snapshot.goals[index].id]?.confidence?.value
         }
@@ -148,6 +169,8 @@ final class GoalsBrowser {
         let personaRecords = PersonaFixtures.records()
         let personaFiles = PersonaFixtures.files()
         personas.loadFixture(records: personaRecords, files: personaFiles)
+        boards = SwarmFixtures.boards(swarms)
+        selectBoard()
         if let ops = try? GoalOps.inMemory() {
             self.ops = ops
             Task {
@@ -159,6 +182,7 @@ final class GoalsBrowser {
                 for (goal, state) in mirrors {
                     try? await ops.save(mirror: state, goal: goal)
                 }
+                try? await ops.adopt(swarms: swarms)
             }
         }
     }
@@ -174,6 +198,7 @@ final class GoalsBrowser {
         if let fresh = try? await ops.mirrors() { mirrors = fresh }
         await reloadAttach()
         await personas.reload(ops)
+        await reloadBoard()
     }
 
     // MARK: Mirror
@@ -348,6 +373,8 @@ final class GoalsBrowser {
 
     func setCursor(_ index: Int) {
         if pane == .unassigned { return attach.setCursor(index) }
+        if focus == .tasks { return setTaskCursor(index) }
+        if focus == .versions { return setVersionCursor(index) }
         if focus == .personas { return personas.setCursor(index, count: personaRows.count) }
         if pane == .board {
             boardRow = min(max(index, 0), max(cards.count - 1, 0))
@@ -387,6 +414,7 @@ final class GoalsBrowser {
         frictionCursor = 0
         draft = nil
         loadVersions()
+        selectBoard()
         if pane == .evaluations { defaultLens() }
     }
 
@@ -442,6 +470,7 @@ final class GoalsBrowser {
         case .reviewers: "goalreviewers"
         case .personas: "goalpersonas"
         case .evaluations: "goalevals"
+        case .plan: "goalplan"
         }
     }
 
@@ -455,6 +484,8 @@ final class GoalsBrowser {
         case .objections: objections.count
         case .personas: personaRows.count
         case .friction: friction.count
+        case .tasks: planTasks.count
+        case .versions: board?.versions.count ?? 0
         }
     }
 
@@ -468,17 +499,20 @@ final class GoalsBrowser {
         case .objections: min(objectionCursor, max(objections.count - 1, 0))
         case .personas: min(personas.cursor, max(personaRows.count - 1, 0))
         case .friction: min(frictionCursor, max(friction.count - 1, 0))
+        case .tasks: taskCursor
+        case .versions: versionCursor
         }
     }
 
     /// `goal.focus`: between the list and what is on the goal; in Reviewers, the list, the reviewers and the
     /// objections of the one under the cursor, in turn.
     func toggleFocus() {
+        if pane == .plan { return togglePlanFocus() }
         if pane == .reviewers {
             switch focus {
             case .goals, .links: focus = reviewers.isEmpty ? .goals : .reviewers
             case .reviewers: focus = objections.isEmpty ? .goals : .objections
-            case .objections, .personas, .friction: focus = .goals
+            case .objections, .personas, .friction, .tasks, .versions: focus = .goals
             }
             return
         }
@@ -500,12 +534,15 @@ final class GoalsBrowser {
         case .objections: focus = objections.isEmpty ? .goals : .objections
         case .personas: focus = personaRows.isEmpty ? .goals : .personas
         case .friction: focus = friction.isEmpty ? .goals : .friction
+        case .tasks: focus = planTasks.isEmpty ? .goals : .tasks
+        case .versions: focus = (board?.versions ?? []).isEmpty ? .goals : .versions
         case .goals: focus = .goals
         }
     }
 
     /// Puts the cursor on a goal (`id`) or on a session or chat on it (`kind:target`).
     func point(to id: String) {
+        if pointPlan(to: id) { return }
         if let item = snapshot.item(id) {
             point(to: item.goal)
             if pane == .board {
@@ -572,7 +609,11 @@ final class GoalsBrowser {
         if pane != .reviewers, focus == .reviewers || focus == .objections { focus = .goals }
         if pane != .personas, focus == .personas { focus = .goals }
         if pane != .evaluations, focus == .friction { focus = .goals }
-        if pane == .reviewers || pane == .personas || pane == .evaluations, focus == .links { focus = .goals }
+        if pane != .plan, focus == .tasks || focus == .versions { focus = .goals }
+        if pane != .plan { planDraft = nil }
+        if pane == .reviewers || pane == .personas || pane == .evaluations || pane == .plan, focus == .links {
+            focus = .goals
+        }
         if pane != .personas { personas.draft = nil }
     }
 
@@ -629,6 +670,7 @@ final class GoalsBrowser {
                 fixtureVersions[goal] = versions
                 if selected?.id == goal { self.versions = versions }
             }
+            await reloadBoard()
             done(result)
         }
     }
@@ -675,5 +717,6 @@ final class GoalsBrowser {
         linkCursor = min(linkCursor, max(links.count - 1, 0))
         boardRow = min(boardRow, max(cards.count - 1, 0))
         if focus == .links, links.isEmpty { focus = .goals }
+        selectBoard()
     }
 }

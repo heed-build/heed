@@ -284,6 +284,11 @@ extension AppModel {
     /// `goal.plan` and new goals: the planner's items for the goal, those it does not have yet added as planned.
     func planGoal(asked: Bool = false, goal id: String? = nil) {
         guard let goal = id.flatMap(goals.snapshot.goal) ?? goals.selected else { return say("no goal here") }
+        // While a swarm runs on the goal, its lead plans instead; the planner is back when the swarm ends.
+        if let swarm = goals.snapshot.activeSwarm(of: goal.id) {
+            if asked { say("swarm \(swarm.number)'s lead plans \(goal.title) now: S shows its plan") }
+            return
+        }
         guard spendGoalCall(goal.id) else {
             if asked { say(isFixture || tutor != nil ? "fixture: no model calls" : "no model call: [llm] is off, or "
                     + "\(goal.title) used today's \(GoalBudget.daily)") }

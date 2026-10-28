@@ -416,6 +416,7 @@ private struct LinkCard: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
             .font(Theme.mono(11))
+            if let swarm = model.swarmPulls[ref.description] { SwarmPullLine(pull: swarm) }
             PilotGreenLine(ref: ref)
             PilotPlanLine(ref: ref)
             PilotMergeLine(ref: ref)

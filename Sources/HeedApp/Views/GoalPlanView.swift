@@ -17,6 +17,9 @@ struct GoalPlanPane: View {
                     VStack(alignment: .leading, spacing: 16) {
                         if let draft = goals.planDraft { PlanEditor(draft: draft).shotRegion(.swarmEditor) }
                         if board.swarm.held != nil { LimitAsk(swarm: board.swarm).shotRegion(.swarmLimit) }
+                        if board.swarm.approved != nil, board.swarm.status != .planning {
+                            MergeOrder(board: board).shotRegion(.swarmOrder)
+                        }
                         LeadQuestions(board: board).shotRegion(.swarmQuestions)
                         if let pending = board.pending { PendingChange(board: board, pending: pending) }
                         PlanVersions(board: board).shotRegion(.swarmVersions)
@@ -54,6 +57,10 @@ private struct PlanOutline: View {
         let numbers = SwarmPlan.numbers(tasks)
         let estimate = SwarmPlan.estimate(tasks)
         let schedule = model.swarmSchedule(board)
+        let shown = goals.shownTasks
+        // Once it runs, each task's place in the merge order.
+        let landing = swarm.approved != nil && swarm.status != .planning
+            ? Dictionary(model.landingRows(board).map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first }) : [:]
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
@@ -92,36 +99,41 @@ private struct PlanOutline: View {
             } else {
                 ListScroll {
                     VStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(SwarmPlan.phases(tasks).enumerated()), id: \.offset) { index, phase in
+                        if goals.byMergeOrder {
                             HStack(spacing: 6) {
-                                SectionHeader(title: "\(index + 1) · \(phase.name)")
+                                SectionHeader(title: "Merge order · what a task waits for merges first")
                                 Spacer(minLength: 6)
-                                let minutes = SwarmPlan.estimate(phase.tasks)
-                                if minutes > 0 {
-                                    Text(SwarmEstimate.text(minutes)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
-                                }
+                                KeyHint("swarm.order", scope: "goalplan", label: "by phase", color: Theme.fg3)
                             }
                             .padding(.horizontal, 18)
                             .padding(.top, 14)
                             .padding(.bottom, 6)
-                            ForEach(phase.tasks) { task in
-                                let row = tasks.firstIndex { $0.id == task.id } ?? 0
-                                TaskRow(
-                                    task: task, number: numbers[task.id] ?? "", numbers: numbers,
-                                    isCursor: row == goals.taskCursor, focused: goals.focus == .tasks,
-                                    status: schedule?.states[task.id], worker: swarm.lastWorker(on: task.id)
+                            ForEach(Array(shown.enumerated()), id: \.element.id) { row, task in
+                                taskRow(
+                                    task, row: row, numbers: numbers, schedule: schedule, swarm: swarm,
+                                    landing: landing[task.id]
                                 )
-                                .shotRegion(task.slug == "validator-speed" ? .swarmTask : nil)
-                                .hint(goals.focus == .tasks ? model.hintLabel(for: .row(.goals, row)) : nil)
-                                .contentShape(Rectangle())
-                                .onTapGesture { model.clickPlanTask(row) }
-                                .simultaneousGesture(TapGesture(count: 2)
-                                    .onEnded { model.clickPlanTask(row, edit: true) })
-                                .rightClickMenu {
-                                    guard model.clicksReachLists else { return false }
-                                    model.clickPlanTask(row)
-                                    return true
-                                } _: { model.planTaskMenu(row) }
+                            }
+                        } else {
+                            ForEach(Array(SwarmPlan.phases(tasks).enumerated()), id: \.offset) { index, phase in
+                                HStack(spacing: 6) {
+                                    SectionHeader(title: "\(index + 1) · \(phase.name)")
+                                    Spacer(minLength: 6)
+                                    let minutes = SwarmPlan.estimate(phase.tasks)
+                                    if minutes > 0 {
+                                        Text(SwarmEstimate.text(minutes)).font(Theme.mono(10.5))
+                                            .foregroundStyle(Theme.fg3)
+                                    }
+                                }
+                                .padding(.horizontal, 18)
+                                .padding(.top, 14)
+                                .padding(.bottom, 6)
+                                ForEach(phase.tasks) { task in
+                                    taskRow(
+                                        task, row: tasks.firstIndex { $0.id == task.id } ?? 0, numbers: numbers,
+                                        schedule: schedule, swarm: swarm, landing: landing[task.id]
+                                    )
+                                }
                             }
                         }
                     }
@@ -134,6 +146,9 @@ private struct PlanOutline: View {
                 FlowLayout(spacing: 14, lineSpacing: 6) {
                     if swarm.approved != nil, swarm.status != .planning {
                         // Running: what acts on the work; the plan's other edits are in the menus and on keys.
+                        KeyHint(
+                            "swarm.order", scope: "goalplan", label: goals.byMergeOrder ? "by phase" : "merge order"
+                        )
                         KeyHint("swarm.task.pause", scope: "goalplan", label: "pause task")
                         KeyHint("swarm.task.swap", scope: "goalplan", label: "swap agent")
                         KeyHint("swarm.task.open", scope: "goalplan", label: "its worker")
@@ -172,6 +187,30 @@ private struct PlanOutline: View {
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
     }
 
+    /// A task's row, at `row` of the tasks shown: click, double-click, right-click and hints as everywhere.
+    private func taskRow(
+        _ task: SwarmTask, row: Int, numbers: [String: String], schedule: SwarmScheduler.Schedule?, swarm: GoalSwarm,
+        landing: SwarmLanding.Row?
+    ) -> some View {
+        let goals = model.goals
+        return TaskRow(
+            task: task, number: numbers[task.id] ?? "", numbers: numbers,
+            isCursor: row == goals.taskCursor, focused: goals.focus == .tasks,
+            status: schedule?.states[task.id], worker: swarm.lastWorker(on: task.id), landing: landing
+        )
+        .shotRegion(task.slug == "validator-speed" ? .swarmTask : task.slug == "sample-site" ? .swarmHeld : nil)
+        .hint(goals.focus == .tasks ? model.hintLabel(for: .row(.goals, row)) : nil)
+        .contentShape(Rectangle())
+        .onTapGesture { model.clickPlanTask(row) }
+        .simultaneousGesture(TapGesture(count: 2)
+            .onEnded { model.clickPlanTask(row, edit: true) })
+        .rightClickMenu {
+            guard model.clicksReachLists else { return false }
+            model.clickPlanTask(row)
+            return true
+        } _: { model.planTaskMenu(row) }
+    }
+
     private func planNumbers(_ count: Int, _ minutes: Int, _ swarm: GoalSwarm) -> String {
         let agents = swarm.settings.workers.reduce(0) { $0 + $1.count }
         return [
@@ -191,7 +230,7 @@ private struct PlanBadge: View {
     var body: some View {
         let author = board.version(swarm.plan)?.author
         let (text, color): (String, Color) = if !swarm.status.active {
-            (swarm.status.rawValue, Theme.fg3)
+            (swarm.status.rawValue, swarm.status == .done ? Theme.done : Theme.fg3)
         } else if swarm.isApproved, swarm.status != .planning {
             (
                 swarm.status.rawValue,
@@ -218,6 +257,8 @@ private struct TaskRow: View {
     /// Where it stands in a running swarm, and its newest worker.
     var status: SwarmTaskStatus?
     var worker: SwarmWorker?
+    /// Its place in the merge order, once the swarm runs.
+    var landing: SwarmLanding.Row?
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -227,7 +268,8 @@ private struct TaskRow: View {
                 if let status {
                     TaskState(status: status, task: task, worker: worker, numbers: numbers)
                 }
-                if !task.after.isEmpty {
+                if let landing { LandingLine(row: landing) }
+                if landing == nil, !task.after.isEmpty {
                     Text("after " + task.after.map { numbers[$0] ?? SwarmPlan.short($0) }.joined(separator: " "))
                         .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
                 }
@@ -314,13 +356,17 @@ private struct RunLine: View {
         let progress = SwarmProgress(swarm: swarm, tasks: tasks, states: schedule.states)
         let usage = model.swarmUsage(swarm)
         let limits = swarm.settings.limits
+        let merged = tasks.count { [.merged, .done].contains(schedule.states[$0.id]?.state) }
+        let landed: String? = swarm.status == .done ? "landed: every task merged in merge order"
+            : swarm.status == .landing ? "landing: \(merged) of \(tasks.count) merged" : nil
         Text(
             [
+                landed,
                 progress.tasksLine,
                 "agents \(progress.agentsLine)",
                 "\(SwarmEstimate.text(Int(usage.elapsed / 60))) of \(String(format: "%g", limits.hours)) h",
                 "\(AgentUsage.dollars(usage.dollars)) of $\(String(format: "%g", limits.dollars))",
-            ].joined(separator: " · ")
+            ].compactMap(\.self).joined(separator: " · ")
         )
         .font(Theme.mono(11)).foregroundStyle(Theme.fg2).lineLimit(1)
     }
@@ -687,6 +733,17 @@ struct GoalSwarmPanel: View {
                             .foregroundStyle(Theme.fg2)
                         Text("agents \(progress.agentsLine)").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
                     }
+                    if active.status == .landing {
+                        let rows = model.landingRows(board)
+                        let held = rows.filter { $0.state == .held }
+                        Text(
+                            "landing: \(rows.count { $0.state == .merged }) of \(rows.count) merged in merge order"
+                                + (held.isEmpty ? "" : " · " + held.compactMap { $0.pr.map { "#\($0)" } }
+                                    .joined(separator: " ") + " held")
+                        )
+                        .font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                        .clickRuns(CommandInvocation(name: "swarm.order"))
+                    }
                     if let limit = active.held {
                         Text("paused at \(limit.text(active.settings.limits)): Needs you asks")
                             .font(Theme.ui(12)).foregroundStyle(Theme.block)
@@ -717,13 +774,20 @@ struct GoalSwarmPanel: View {
                 Text("lead \(active.settings.lead.label) · \(active.settings.limits.line)")
                     .font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
             } else {
-                Quiet("No swarm going. A swarm plans the goal's work with a lead agent and runs it in parallel.")
-                KeyHint("swarm.start", label: "swarm this goal", color: Theme.fg2)
+                if let last = runs.first, last.status == .done {
+                    Text("Swarm \(last.number) landed: every task merged, in merge order. The goal stays open until "
+                        + "its own done rule holds.")
+                        .font(Theme.ui(12.5)).foregroundStyle(Theme.done).fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Quiet("No swarm going. A swarm plans the goal's work with a lead agent and runs it in parallel.")
+                }
+                KeyHint("swarm.start", label: runs.isEmpty ? "swarm this goal" : "a follow-up swarm", color: Theme.fg2)
             }
             ForEach(runs.filter { !$0.status.active }) { run in
                 HStack(spacing: 8) {
                     Text("swarm \(run.number)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
-                    Text(run.stateLine).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                    Text(run.status == .done ? "done · landed in merge order" : run.stateLine).font(Theme.ui(12))
+                        .foregroundStyle(run.status == .done ? Theme.done : Theme.fg2).lineLimit(1)
                     Spacer(minLength: 6)
                     Text(Clock.relative(run.endedAt ?? run.startedAt)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
                 }
@@ -929,5 +993,108 @@ private struct Stepper: View {
         }
         .padding(.horizontal, 7).padding(.vertical, 2)
         .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+    }
+}
+
+// MARK: Landing
+
+/// A task's place in the merge order under its title: `2/4 · after #412`, why it is held, the base its PR goes against
+/// when it stacks.
+private struct LandingLine: View {
+    let row: SwarmLanding.Row
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(row.label).font(Theme.mono(10.5)).foregroundStyle(row.slot.isolated ? Theme.fg3 : Theme.fg2)
+                .help(row.slot.isolated ? "Nothing waits for it and it waits for nothing: it merges in any order"
+                    : "Its place in the merge order: what it waits for merges first")
+            if row.state == .held {
+                Text("held").font(Theme.mono(10.5)).foregroundStyle(Theme.block)
+                    .padding(.horizontal, 5).padding(.vertical, 0.5)
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.block.opacity(0.6)))
+                    .help(row.hold ?? "")
+            }
+            if row.state != .merged, let base = row.base, row.stackedOn != nil {
+                Text("→ \(base)").font(Theme.mono(10.5)).foregroundStyle(Theme.ask).lineLimit(1)
+                    .truncationMode(.middle)
+                    .help("Its PR goes against \(base): it moves to where that PR merges once it merged")
+            }
+        }
+    }
+}
+
+/// The run's merge order: every task in turn with its PR, what it waits for (only real constraints: `any order` when
+/// nothing does), and why a PR is held. heed holds a PR while what it waits for is unmerged; merging itself follows
+/// each PR's get it merged setting.
+private struct MergeOrder: View {
+    @Environment(AppModel.self) private var model
+    let board: SwarmBoard
+
+    var body: some View {
+        let rows = model.landingRows(board)
+        let merged = rows.count { $0.state == .merged }
+        Panel(title: "Merge order", note: "\(merged) of \(rows.count) merged") {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(rows) { row in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("\(row.slot.position)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
+                            .frame(width: 14, alignment: .trailing)
+                        Text(row.pr.map { "#\($0)" } ?? row.number).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+                            .frame(width: 40, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(row.title).font(Theme.ui(12.5)).foregroundStyle(Theme.fg).lineLimit(1)
+                            Text(detail(row)).font(Theme.ui(11.5))
+                                .foregroundStyle(row.state == .held ? Theme.block : Theme.fg3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 4)
+                        Text(row.state.rawValue).font(Theme.mono(10.5)).foregroundStyle(color(row.state))
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.clickPlanTaskID(row.id) }
+                }
+            }
+            Text(
+                "A PR merges after what its task waits for; one stacked on another moves to where that one merged. "
+                    + "Each PR merges by its own get it merged setting: heed never merges to main on its own."
+            )
+            .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+            FlowLayout(spacing: 14, lineSpacing: 6) {
+                KeyHint(
+                    "swarm.order",
+                    scope: "goalplan",
+                    label: model.goals.byMergeOrder ? "by phase" : "outline in this order"
+                )
+                if board.swarm.status.active {
+                    KeyHint("swarm.land", scope: "goalplan", label: "move a stacked PR on")
+                }
+                KeyHint("merge.queue", key: "gM", label: "merge queue")
+            }
+        }
+    }
+
+    private func detail(_ row: SwarmLanding.Row) -> String {
+        if let hold = row.hold, row.state == .held { return "held: \(hold)" }
+        let constraint = row.slot.isolated ? "any order"
+            : row.slot.after.isEmpty ? "waits for nothing · \(row.slot.before.count) wait\(row.slot.before.count == 1 ? "s" : "") for it"
+            : String(row.label.split(separator: "·", maxSplits: 1).last ?? "").trimmingCharacters(in: .whitespaces)
+        switch row.state {
+        case .noPR: return constraint + " · no PR yet"
+        case .merged: return constraint + " · merged"
+        case .closed: return constraint + " · closed without merging"
+        case .open, .held:
+            return constraint + (row.stackedOn != nil ? " · stacked, against \(row.base ?? "its parent")" : "")
+                + " · may merge"
+        }
+    }
+
+    private func color(_ state: SwarmLanding.Row.State) -> Color {
+        switch state {
+        case .noPR: Theme.fg3
+        case .open: Theme.ask
+        case .held: Theme.block
+        case .merged: Theme.done
+        case .closed: Theme.err
+        }
     }
 }

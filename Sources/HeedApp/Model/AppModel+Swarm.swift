@@ -282,7 +282,8 @@ extension AppModel {
     func addPlanTask(_ words: [String]) {
         guard let board = needSwarm() else { return }
         let tasks = goals.planTasks
-        var draft = PlanDraft(kind: .add(after: tasks.isEmpty ? -1 : goals.taskCursor))
+        let at = goals.selectedTask.flatMap { task in tasks.firstIndex { $0.id == task.id } } ?? tasks.count - 1
+        var draft = PlanDraft(kind: .add(after: tasks.isEmpty ? -1 : at))
         draft.fields.phase = goals.selectedTask?.phase ?? tasks.last?.phase ?? "Plan"
         draft.fields.owner = board.swarm.settings.team.first ?? ""
         guard words.isEmpty else {
@@ -297,6 +298,12 @@ extension AppModel {
         guard let board = needSwarm() else { return }
         let delta = Int(word ?? "") ?? 1
         guard let task = goals.selectedTask else { return say("no task here") }
+        if goals.byMergeOrder {
+            return say(
+                "the merge order follows what each task waits for: \(keyText(for: "swarm.order", in: "goalplan")) "
+                    + "shows the plan by phase, where tasks move"
+            )
+        }
         guard let moved = SwarmPlan.move(goals.planTasks, at: goals.taskCursor, by: delta < 0 ? -1 : 1) else {
             return say("\(task.title) is as far \(delta < 0 ? "up" : "down") as it goes")
         }
@@ -420,9 +427,7 @@ extension AppModel {
             guard let self else { return }
             switch result {
             case let .success(version):
-                if let follow, let index = goals.planTasks.firstIndex(where: { $0.id == follow }) {
-                    goals.setTaskCursor(index)
-                }
+                if let follow { goals.pointTask(follow) }
                 say(version.map { "plan v\($0.number): \(text)" } ?? "no change")
             case let .failure(error): say("\(error)")
             }
@@ -518,6 +523,12 @@ extension AppModel {
         if edit { editPlanTask() }
     }
 
+    /// A click on a task in the merge order: the cursor on it in the outline.
+    func clickPlanTaskID(_ id: String) {
+        guard let index = goals.shownTasks.firstIndex(where: { $0.id == id }) else { return }
+        clickPlanTask(index)
+    }
+
     func clickPlanVersion(_ index: Int) {
         guard clicksReachLists, view == .goals else { return }
         clickedOutsideTerminal()
@@ -526,7 +537,7 @@ extension AppModel {
     }
 
     func planTaskMenu(_ index: Int) -> [MenuEntry] {
-        let tasks = goals.planTasks
+        let tasks = goals.shownTasks
         guard tasks.indices.contains(index), let board = goals.board else { return [] }
         let task = tasks[index]
         let state = swarmSchedule(board)?.states[task.id]?.state
@@ -534,7 +545,8 @@ extension AppModel {
             id: task.id, title: task.title, first: index == 0, last: index == tasks.count - 1,
             active: board.swarm.status.active, running: board.swarm.approved != nil,
             paused: state == .paused || state == .stalled, working: liveWorker(on: task.id) != nil,
-            owner: task.owner?.agent, agents: swarmAgents
+            owner: task.owner?.agent, agents: swarmAgents,
+            stacked: board.swarm.lastWorker(on: task.id)?.stackedOn != nil
         )
     }
 

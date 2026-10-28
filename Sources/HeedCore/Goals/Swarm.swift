@@ -290,8 +290,10 @@ public struct SwarmSteer: Hashable, Sendable, Codable, Identifiable {
         case stop
         /// A worker started on a task (heed: which agent, from which base) or ended.
         case work
-        /// Every task has its PR: the run lands.
+        /// Every task has its PR: the run lands; every task merged: it is done.
         case land
+        /// A stacked PR moved to a new base after the PR it stacked on merged (or could not be moved: why).
+        case retarget
     }
 
     public enum State: String, Hashable, Sendable, Codable, CaseIterable {

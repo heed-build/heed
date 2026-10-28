@@ -59,9 +59,30 @@ extension GoalsBrowser {
     /// The current plan's tasks, in outline order.
     var planTasks: [SwarmTask] { SwarmPlan.grouped(board?.tasks ?? []) }
 
-    var selectedTask: SwarmTask? {
+    /// The tasks as the outline shows them, which the cursor moves over: by phase, or in merge order
+    /// (`swarm.order`).
+    var shownTasks: [SwarmTask] {
         let tasks = planTasks
+        guard byMergeOrder else { return tasks }
+        let byID = Dictionary(tasks.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return SwarmLanding.order(tasks).compactMap { byID[$0] }
+    }
+
+    var selectedTask: SwarmTask? {
+        let tasks = shownTasks
         return tasks.indices.contains(taskCursor) ? tasks[taskCursor] : nil
+    }
+
+    /// `swarm.order`: by phase or in merge order, the cursor staying on its task.
+    func toggleOrder() {
+        let id = selectedTask?.id
+        byMergeOrder.toggle()
+        if let id, let index = shownTasks.firstIndex(where: { $0.id == id }) { taskCursor = index }
+    }
+
+    /// The cursor on a task by id, wherever the outline shows it.
+    func pointTask(_ id: String) {
+        if let index = shownTasks.firstIndex(where: { $0.id == id }) { setTaskCursor(index) }
     }
 
     var selectedPlanVersion: SwarmPlanVersion? {
@@ -114,7 +135,7 @@ extension GoalsBrowser {
         if id.hasPrefix("task:") {
             let task = String(id.dropFirst(5))
             if let goal = task.split(separator: "/").first.map(String.init), selected?.id != goal { point(to: goal) }
-            if let index = planTasks.firstIndex(where: { $0.id == task }) {
+            if let index = shownTasks.firstIndex(where: { $0.id == task }) {
                 focus = .tasks
                 taskCursor = index
             }

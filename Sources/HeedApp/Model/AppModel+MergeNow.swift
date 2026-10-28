@@ -13,7 +13,9 @@ extension AppModel {
 
     /// Ready to merge while get it merged is off for it: what the row, the card and Attention offer to merge now.
     func readyToMerge(_ ref: PullRef) -> Bool {
-        guard pilot(for: ref).merge == .off, github.pull(ref)?.state ?? .open == .open else { return false }
+        guard pilot(for: ref).merge == .off, github.pull(ref)?.state ?? .open == .open,
+              swarmPulls[ref.description]?.hold == nil
+        else { return false }
         return mergeCandidate(for: ref)?.isCandidate ?? false
     }
 
@@ -40,6 +42,8 @@ extension AppModel {
     /// `zM`: merge the PR now. Asks first when `merge_now` (or, past what GitHub enforces, `force_merge`) says so.
     func mergeNow() {
         guard let ref = pilotTargets.first else { return flash = noOpenPR }
+        // A swarm PR merges after what it waits for: dependencies first, never a child before its parent.
+        if let hold = swarmHold(ref) { return flash = hold }
         guard let detail = pullDetails[ref.description] else {
             fetchDetail(ref)
             return flash = "#\(ref.number): fetching its detail first, then \(keyText(for: "pilot.merge.now")) again"

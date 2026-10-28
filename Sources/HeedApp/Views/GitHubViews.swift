@@ -376,6 +376,7 @@ struct PullRequestsView: View {
                             index: index,
                             cursor: cursor,
                             session: model.sessions.first { $0.trackedPRs.contains(rows[index].ref) },
+                            swarm: model.swarmPulls[rows[index].ref.description],
                             pilot: model.pilotStatus(for: rows[index].ref),
                             green: model.pilot(for: rows[index].ref).green,
                             merge: model.pilot(for: rows[index].ref).merge,
@@ -395,6 +396,8 @@ private struct PullRow: View {
     let index: Int
     let cursor: Int
     let session: Session?
+    /// Its swarm's merge order, when a swarm opened it.
+    var swarm: SwarmPull?
     let pilot: PilotStatus
     let green: AutoFeed
     var merge: MergeMode = .off
@@ -415,7 +418,11 @@ private struct PullRow: View {
                 Text(pull.title).font(Theme.ui(13)).lineLimit(1)
                 HStack(spacing: 5) {
                     if let session { StateGlyph(state: session.state.state, size: 10) }
-                    Text(pull.headBranch).font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                    if let swarm {
+                        SwarmPullLine(pull: swarm)
+                    } else {
+                        Text(pull.headBranch).font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                    }
                     if pull.isDraft { Text("draft").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3) }
                 }
             }

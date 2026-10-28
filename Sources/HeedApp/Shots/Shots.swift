@@ -502,6 +502,30 @@ enum Shots {
         Shot(id: "goals/swarm-limit-ask", keys: "gm/limit<CR>", crop: .attentionDetail, prepare: {
             $0.loadRunningSwarmFixture(.pausedAtLimit)
         }),
+        // Landing: every task has its PR; the merge order on the right, the two PRs stacked on #412 held after it.
+        Shot(id: "goals/swarm-landing", keys: "gGjS", prepare: { $0.loadRunningSwarmFixture(.landing) }),
+        Shot(id: "goals/swarm-order", keys: "gGjS", crop: .swarmOrder, cropPadding: 8, prepare: {
+            $0.loadRunningSwarmFixture(.landing)
+        }),
+        Shot(id: "goals/swarm-held", keys: "gGjS", crop: .swarmHeld, cropPadding: 8, prepare: {
+            $0.loadRunningSwarmFixture(.landing)
+        }),
+        // m: the outline itself in merge order.
+        Shot(id: "goals/swarm-merge-order", keys: "gGjSm", crop: .swarmOutline, cropPadding: 8, prepare: {
+            $0.loadRunningSwarmFixture(.landing)
+        }),
+        // The repo's merge queue takes the swarm's PRs in its order, the held ones held.
+        Shot(
+            id: "goals/swarm-merge-queue",
+            keys: typed(":merge.queue docs-toolkit") + "<CR>",
+            crop: .pilotDetail,
+            prepare: { $0.loadRunningSwarmFixture(.landing) }
+        ),
+        // Done: every task merged, the stacked PRs moved to main first; the goal page says the goal stays open.
+        Shot(id: "goals/swarm-done", keys: "gGjS", prepare: { $0.loadRunningSwarmFixture(.done) }),
+        Shot(id: "goals/swarm-goal-done", keys: "gGj", crop: .goalSwarm, cropPadding: 8, prepare: {
+            $0.loadRunningSwarmFixture(.done)
+        }),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

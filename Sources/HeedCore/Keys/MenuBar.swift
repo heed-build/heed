@@ -312,6 +312,7 @@ public enum MenuBar {
                     ("The version's whole diff", "swarm.diff"),
                     ("Restore the version", "swarm.restore"), ("Pause or resume the task", "swarm.task.pause"),
                     ("Hand the task to another agent…", "swarm.task.swap"), ("The task's worker", "swarm.task.open"),
+                    ("The plan in merge order", "swarm.order"), ("Move the task's stacked PR on", "swarm.land"),
                 ], in: ["goalplan"]),
                 scoped("In Personas", [
                     ("Spawn as a session…", "persona.session"), ("Spawn as a chat…", "persona.chat"),

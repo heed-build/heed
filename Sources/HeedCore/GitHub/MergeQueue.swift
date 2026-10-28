@@ -12,11 +12,15 @@ public enum MergeQueue {
         public let mode: MergeMode
         public let selfReview: SelfReview?
         public let now: Date
+        /// Why it may not merge yet whatever its rules say: a swarm PR whose blockers have not merged
+        /// (`SwarmLanding.hold`).
+        public let held: String?
 
         public init(
             ref: PullRef, detail: PullDetail, settings: PilotSettings, paused: Bool, mode: MergeMode = .auto,
-            selfReview: SelfReview? = nil, now: Date = Date()
+            selfReview: SelfReview? = nil, now: Date = Date(), held: String? = nil
         ) {
+            self.held = held
             self.ref = ref
             self.detail = detail
             self.settings = settings
@@ -58,13 +62,26 @@ public enum MergeQueue {
         return methods.first { allowed.contains($0) }
     }
 
-    /// Oldest first, as they were opened; merged and closed PRs have left the queue.
-    public static func plan(_ entries: [Entry]) -> [Step] {
-        entries.filter { $0.detail.state != "MERGED" && $0.detail.state != "CLOSED" }
-            .sorted { $0.ref.number < $1.ref.number }.map { Step(
-                ref: $0.ref,
-                action: action(for: $0)
-            ) }
+    /// Oldest first, as they were opened; merged and closed PRs have left the queue. With `order` (a swarm's merge
+    /// order), the PRs it names take the places those PRs have among the rest, in its order: unrelated PRs keep
+    /// theirs.
+    public static func plan(_ entries: [Entry], order: [PullRef]? = nil) -> [Step] {
+        let open = entries.filter { $0.detail.state != "MERGED" && $0.detail.state != "CLOSED" }
+        return sorted(open.map(\.ref), order: order).compactMap { ref in
+            open.first { $0.ref == ref }.map { Step(ref: ref, action: action(for: $0)) }
+        }
+    }
+
+    /// `refs` by PR number, then the ones in `order` rearranged among the places they hold, in its order.
+    public static func sorted(_ refs: [PullRef], order: [PullRef]?) -> [PullRef] {
+        var sorted = refs.sorted { $0.number < $1.number }
+        guard let order, !order.isEmpty else { return sorted }
+        let ordered = order.filter { sorted.contains($0) }
+        let places = sorted.indices.filter { ordered.contains(sorted[$0]) }
+        for (place, ref) in zip(places, ordered) {
+            sorted[place] = ref
+        }
+        return sorted
     }
 
     public static func action(for entry: Entry) -> Action {
@@ -73,6 +90,10 @@ public enum MergeQueue {
         if entry.paused { return .hold("paused") }
         if detail.state == "MERGED" || detail.state == "CLOSED" {
             return .hold(detail.state == "MERGED" ? "merged" : "closed")
+        }
+        // Before any rule: GitHub's auto-merge would merge it the moment its own requirements are met.
+        if let held = entry.held {
+            return detail.autoMergeEnabled == true ? .disableAutoMerge(reason: held) : .hold(held)
         }
         if entry.mode == .heed { return heedAction(entry) }
         if detail.repoAllowsAutoMerge == false {

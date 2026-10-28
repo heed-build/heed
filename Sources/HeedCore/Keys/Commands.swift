@@ -370,6 +370,15 @@ public enum Commands {
         ),
         .init("swarm.task.open", "the swarm task under the cursor's worker: its tab", .selection),
         .init(
+            "swarm.land",
+            "move the task under the cursor's stacked PR to where the PR it stacks on merged (again after gh refused)",
+            .selection
+        ),
+        .init(
+            "swarm.order", "the swarm's plan in merge order (what each task waits for merges first), or by phase again",
+            .selection
+        ),
+        .init(
             "swarm.reject",
             "no to the plan change waiting for you; the lead hears why",
             .selection,

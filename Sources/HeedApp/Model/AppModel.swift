@@ -1600,6 +1600,11 @@ final class AppModel {
     var startingWorkers: Set<String> = []
     /// A swarm tick is going: the next waits for it.
     var swarmTicking = false
+    /// Each active swarm's PRs, by `PullRef.description`: their place in the merge order and what holds them
+    /// (`AppModel+SwarmLanding`), for every row a PR shows on.
+    var swarmPulls: [String: SwarmPull] = [:]
+    /// Retargets `gh` refused, by PR, and when: tried again after a while, or at once by `swarm.land`.
+    var landFailures: [String: Date] = [:]
     /// Every pane a reviewer run used since launch: its late hooks are nobody's news.
     private var reviewPanes: Set<String> = []
     /// Each live run's last screen line (`Runs.lastLine`), read with the agents' screens.
@@ -2407,6 +2412,8 @@ final class AppModel {
         case "swarm.task.pause": toggleTaskPause()
         case "swarm.task.swap": swapTaskAgent(command.arguments.first)
         case "swarm.task.open": openTaskWorker()
+        case "swarm.land": landTask()
+        case "swarm.order": toggleMergeOrder()
         case "review.recheck": recheckReviewers(command.arguments)
         case "review.accept": acceptRisk()
         case "review.fix": fixObjection()
@@ -5635,7 +5642,8 @@ final class AppModel {
             }
             return
         }
-        if pilotSettings(for: ref).runIn == .session {
+        // A swarm PR's session is the lead's: its feedback goes to a run of its own, never typed to the lead.
+        if pilotSettings(for: ref).runIn == .session, swarmPulls[ref.description] == nil {
             deliverInSession(ref, prompt: prompt, explicit: explicit, session: session)
             return
         }
@@ -5850,7 +5858,8 @@ final class AppModel {
         MergeQueue.Entry(
             ref: ref, detail: detail, settings: pilotSettings(for: ref),
             paused: feedback[ref.description]?.isPaused(Clock.now) == true, mode: pilot(for: ref).merge,
-            selfReview: feedback[ref.description]?.selfReview, now: Clock.now
+            selfReview: feedback[ref.description]?.selfReview, now: Clock.now,
+            held: swarmPulls[ref.description]?.hold
         )
     }
 
@@ -5960,7 +5969,8 @@ final class AppModel {
                     details[ref] = detail
                 }
             }
-            let steps = MergeQueue.plan(details.map { mergeEntry($0.key, $0.value) })
+            // A swarm's PRs in its merge order, in the places they hold among the rest.
+            let steps = MergeQueue.plan(details.map { mergeEntry($0.key, $0.value) }, order: swarmMergeOrder)
             var lines: [MergeRun.Line] = []
             var events: [PilotEvent] = []
             func record(_ ref: PullRef, _ kind: PilotEvent.Kind?, _ action: String, _ detail: String, ok: Bool = true) {

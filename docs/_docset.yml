@@ -108,6 +108,7 @@ toc:
           - file: index.md
           - file: plan.md
           - file: running.md
+          - file: landing.md
           - file: lead.md
   - folder: keyboard
     children:

@@ -367,6 +367,8 @@ private struct FeedbackRow: View {
                 case let .note(path, line, _):
                     Text("you · \(path):\(line)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
                         .lineLimit(1).truncationMode(.head)
+                case let .rebase(onto, parent, _):
+                    Text("rebase · onto \(onto) after #\(parent)").font(Theme.mono(11.5)).foregroundStyle(Theme.ask)
                 }
                 Text(item.text).font(Theme.ui(13)).foregroundStyle(item.status == .resolved ? Theme.fg3 : Theme.fg)
                     .lineLimit(3)

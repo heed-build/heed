@@ -8,10 +8,7 @@ import HeedCore
 extension AppModel {
     // MARK: Reading
 
-    /// What the schedule reads beyond the run: the PRs gh knows (and a fixture's), the live workers' states.
-    private var swarmPulls: [PullRequest] { github.pulls + goals.fixturePulls }
-
-    private func workerStates() -> [String: AgentState] {
+    func swarmWorkerStates() -> [String: AgentState] {
         var states: [String: AgentState] = [:]
         for (id, live) in liveWorkers {
             if let state = runStates[live.paneID] { states[id] = state }
@@ -31,11 +28,7 @@ extension AppModel {
         let tasks = runTasks(board)
         guard !tasks.isEmpty else { return nil }
         let swarm = board.swarm
-        let facts = SwarmFacts.build(
-            swarm: swarm, tasks: tasks, items: goals.snapshot.items(of: swarm.goal),
-            evidence: goals.snapshot.evidence(of: swarm.goal), steering: board.steering, pulls: swarmPulls,
-            states: workerStates()
-        )
+        let facts = swarmFacts(board, tasks: tasks)
         return SwarmScheduler.schedule(
             swarm, tasks: tasks, facts: facts, usage: swarmUsage(swarm), defaultBranch: defaultBranch(of: swarm),
             now: Clock.now
@@ -56,7 +49,7 @@ extension AppModel {
     }
 
     /// The default branch of the swarm's first repo on this Mac.
-    private func defaultBranch(of swarm: GoalSwarm) -> String {
+    func defaultBranch(of swarm: GoalSwarm) -> String {
         swarmRecord(swarm, at: .local)?.defaultBranch ?? "main"
     }
 
@@ -88,14 +81,20 @@ extension AppModel {
     }
 
     private func tick(_ board: SwarmBoard) async {
+        await landSwarm(board)
         guard let schedule = swarmSchedule(board) else { return }
         let swarm = board.swarm
         if let next = SwarmScheduler.status(swarm, schedule: schedule, tasks: runTasks(board)) {
             let limit = next == .paused ? schedule.limit : nil
             _ = await goalOp { try await $0.advanceSwarm(swarm.id, to: next, limit: limit, now: Clock.now) }
+            let title = goals.snapshot.goal(swarm.goal)?.title ?? swarm.goal
             if next == .paused, let limit {
-                let title = goals.snapshot.goal(swarm.goal)?.title ?? swarm.goal
                 say("swarm \(swarm.number) on \(title) paused at \(limit.text(swarm.settings.limits)): Needs you asks")
+                return
+            }
+            if next == .done {
+                refreshSwarmPulls()
+                say("swarm \(swarm.number) on \(title) is done: every task merged, in merge order")
                 return
             }
         }
@@ -105,7 +104,7 @@ extension AppModel {
     }
 
     /// A `GoalOps` call awaited, its snapshot applied.
-    private func goalOp<T: Sendable>(_ operation: @escaping @Sendable (GoalOps) async throws -> T) async -> T? {
+    func goalOp<T: Sendable>(_ operation: @escaping @Sendable (GoalOps) async throws -> T) async -> T? {
         await withCheckedContinuation { continuation in
             goals.run(operation) { continuation.resume(returning: try? $0.get()) }
         }
@@ -231,6 +230,12 @@ extension AppModel {
         if case let .usage(report) = message.kind {
             liveWorkers[id]?.usage = (liveWorkers[id]?.usage ?? AgentUsage()).applying(report)
             return
+        }
+        // Its PR: tracked by the session its tab is in, so the pilot drives it.
+        if case let .prAdd(url) = message.kind, let live = liveWorkers[id], let ref = PullRef(url: url),
+           let swarm = goals.snapshot.swarms.first(where: { $0.id == live.swarm })
+        {
+            return trackSwarmPull(ref, swarm: swarm, task: live.task)
         }
         let reported: AgentState? = switch message.kind {
         case let .state(state, _): state
@@ -480,5 +485,6 @@ extension AppModel {
             )
             runStates[pane] = SwarmFixtures.workerStates[worker.task] ?? .working
         }
+        if variant == .landing || variant == .done { loadLandingFixture(fixture) }
     }
 }

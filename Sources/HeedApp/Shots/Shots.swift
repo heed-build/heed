@@ -493,15 +493,38 @@ enum Shots {
         }),
         // Tall enough for the whole General page, down to the call log's retention and the tools.
         Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 900, height: 2280)),
-        // Orgs & repos at the Settings window's default width and at its minimum width, tall enough for the whole page
-        // (the window scrolls it): nothing may be clipped at the side.
+        // Orgs & repos at the Settings window's default width, a shot per tab, and at its minimum width on the longest
+        // tab: tall enough for the whole page (the window scrolls it), and nothing may be clipped at the side.
         Shot(
-            id: "configuration/orgs-repos", subject: .settings(.colors), size: CGSize(width: 1000, height: 2560),
+            id: "configuration/orgs-repos", subject: .settings(.colors), size: CGSize(width: 1000, height: 960),
             prepare: { $0.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit")) }
         ),
+    ] + OverrideTab.allCases.dropFirst().map { tab in
         Shot(
-            id: "configuration/orgs-repos-min", subject: .settings(.colors), size: CGSize(width: 780, height: 3160),
-            prepare: { $0.settingsScope = .repo(Fixtures.longNamedRepo) }
+            id: "configuration/orgs-repos-\(tab.rawValue)", subject: .settings(.colors),
+            size: CGSize(width: 1000, height: 960),
+            prepare: { model in
+                model.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit"))
+                model.orgRepoTab = tab
+            }
+        )
+    } + [
+        // Only overridden: the list and each tab keep what is overridden, and the tabs with nothing are dimmed.
+        Shot(
+            id: "configuration/orgs-repos-only-overridden", subject: .settings(.colors),
+            size: CGSize(width: 1000, height: 960),
+            prepare: { model in
+                model.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit"))
+                model.orgRepoTab = .merged
+                model.orgRepoOnlyOverridden = true
+            }
+        ),
+        Shot(
+            id: "configuration/orgs-repos-min", subject: .settings(.colors), size: CGSize(width: 780, height: 1100),
+            prepare: { model in
+                model.settingsScope = .repo(Fixtures.longNamedRepo)
+                model.orgRepoTab = .merged
+            }
         ),
         Shot(id: "configuration/settings-hosts", subject: .settings(.hosts), size: CGSize(width: 1000, height: 820)),
         // Settings › Inference & decisions as a first launch finds it: nothing chosen, the one-click setup on top.

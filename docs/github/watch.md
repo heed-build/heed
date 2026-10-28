@@ -307,7 +307,7 @@ the PRs view's **Watch** column, and by the PR number in Repos.
 
 The settings live in `[pilot]` (the pilot is what does the watching and the merging). `[pilot]` sets the
 defaults; an org or a repo overrides any of them. Settings ▸ Pilot edits the defaults, and Settings ▸ Orgs & repos
-the overrides.
+the overrides, on its Get it green, Get it merged and Reviews tabs.
 
 ```toml
 [pilot]

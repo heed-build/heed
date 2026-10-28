@@ -194,9 +194,10 @@ public enum Commands {
         .init("app.quit", "quit Heed", .views),
         .init(
             "settings.open",
-            "open Settings, on a section (general, agents, inference, colors, cleanup, pilot, attention, keys, hosts)",
+            "open Settings, on a section (general, agents, inference, colors, cleanup, pilot, attention, keys, hosts); "
+                + "orgs takes a tab (general, green, merged, reviews, instructions)",
             .views,
-            arguments: "[section]"
+            arguments: "[section] [tab]"
         ),
         .init(
             "inference.setup", "set up heed's model calls and decisions (Settings › Inference & decisions)", .views

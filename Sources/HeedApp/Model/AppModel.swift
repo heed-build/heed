@@ -2538,6 +2538,14 @@ final class AppModel {
                         "no Settings section \(name) (\(CommandCompletions.settingsSections.joined(separator: ", ")))"
                     return
                 }
+                // `:settings.open orgs merged`: Orgs & repos on a tab.
+                if section == .colors, let name = command.arguments.dropFirst().first {
+                    guard let tab = OverrideTab.named(name) else {
+                        flash = "no Orgs & repos tab \(name) (\(OverrideTab.allCases.map(\.rawValue).joined(separator: ", ")))"
+                        return
+                    }
+                    orgRepoTab = tab
+                }
                 settingsSection = section
             }
             openSettings?()
@@ -2921,16 +2929,30 @@ final class AppModel {
         flash = "\(record.repo.name): no setup, and no more proposals"
     }
 
-    /// `setup.edit`: Settings › Orgs & repos on the repo, where its setup list is.
+    /// `setup.edit`: Settings › Orgs & repos on the repo, on the tab its setup list is on.
     private func editSetup(_ record: RepoRecord? = nil) {
         guard let record = record ?? setupTarget else { return flash = "no repo here" }
         settingsScope = .repo(record.repo)
+        orgRepoTab = Overrides.tab(of: "setup")
         settingsSection = .colors
         openSettings?()
     }
 
     /// The org or repo Settings › Orgs & repos shows next.
     var settingsScope: OverrideScope?
+
+    /// The tab Settings › Orgs & repos shows, the same whichever org or repo is selected. A UI preference kept between
+    /// launches in UserDefaults; shots neither read nor write it, fixtures do not write it.
+    var orgRepoTab: OverrideTab = ShotMode.active
+        ? .general
+        : UserDefaults.standard.string(forKey: "orgRepoTab").flatMap(OverrideTab.init(rawValue:)) ?? .general
+    {
+        didSet { if !isFixture { UserDefaults.standard.set(orgRepoTab.rawValue, forKey: "orgRepoTab") } }
+    }
+
+    /// Settings › Orgs & repos' Only overridden: the list keeps the orgs and repos that override something, and each
+    /// tab the rows overridden at the selected one.
+    var orgRepoOnlyOverridden = false
 
     /// What to trust before the first agent starts in a repo: Claude Code's folder trust for its main checkout, and
     /// mise's for a config that sets `[env]`. Asked once per repo, local repos only.

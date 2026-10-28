@@ -367,6 +367,37 @@ struct WorktreePath: View {
     }
 }
 
+/// One tab of a strip, as the title bar's views draw theirs: its name (bold when it is the one shown), a count in the
+/// block colour, and its key. Dimmed, the name is quiet: a tab with nothing to show under a filter.
+struct TabLabel: View {
+    let title: String
+    let active: Bool
+    var count: String?
+    var key: String?
+    var dimmed = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(title).foregroundStyle(dimmed ? Theme.fg3 : active ? Theme.fg : Theme.fg2)
+            if let count { Text(count).foregroundStyle(Theme.block) }
+            if let key {
+                Text(key)
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(Theme.fg3)
+                    .padding(.horizontal, 4)
+                    .background(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.keyCapBorder))
+            }
+        }
+        .font(Theme.ui(12.5, weight: active ? .semibold : .regular))
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.horizontal, key == nil ? 7 : 10)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(active ? Theme.selected : .clear))
+        .contentShape(Rectangle())
+    }
+}
+
 /// Section header: small caps, tracked.
 struct SectionHeader: View {
     let title: String

@@ -272,24 +272,7 @@ private struct ViewTab: View {
     let key: String?
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text(view.title).foregroundStyle(active ? Theme.fg : Theme.fg2)
-            if count > 0 { Text("\(count)").foregroundStyle(Theme.block) }
-            if let key {
-                Text(key)
-                    .font(Theme.mono(10.5))
-                    .foregroundStyle(Theme.fg3)
-                    .padding(.horizontal, 4)
-                    .background(RoundedRectangle(cornerRadius: 3).strokeBorder(Theme.keyCapBorder))
-            }
-        }
-        .font(Theme.ui(12.5, weight: active ? .semibold : .regular))
-        .lineLimit(1)
-        .fixedSize()
-        .padding(.horizontal, key == nil ? 7 : 10)
-        .padding(.vertical, 4)
-        .background(RoundedRectangle(cornerRadius: 6).fill(active ? Theme.selected : .clear))
-        .contentShape(Rectangle())
+        TabLabel(title: view.title, active: active, count: count > 0 ? "\(count)" : nil, key: key)
     }
 }
 

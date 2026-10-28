@@ -7500,6 +7500,12 @@ final class AppModel {
         engine.scopedKeymaps[scope]?.keys(for: command).first.map(KeyCapText.of) ?? keyText(for: command)
     }
 
+    /// Whether `command` has a key of `scope`'s own: a hint for it shows only where its key works (Goals' `a` archives
+    /// on the list, adds on the board).
+    func binds(_ command: String, in scope: String) -> Bool {
+        engine.scopedKeymaps[scope]?.keys(for: command).isEmpty == false
+    }
+
     /// The key for a command as you have it bound, the one that works here first (see `KeyLabels`): `Iw` lives in
     /// Sessions', `m` pins the selection in VISUAL, `pin.jump` reads `'1…'9`.
     func keyLabel(for command: String) -> String? { keyBinding(for: command)?.text }

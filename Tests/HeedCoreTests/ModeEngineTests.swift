@@ -207,6 +207,31 @@ struct ScopedKeyTests {
         }
     }
 
+    @Test func goalActionsStayOnTheGoal() throws {
+        // a archive, x detach, e edit, n new, w sharpen, u undo, r re-check act on the goal: only on the list, the
+        // overview and GOAL.md. A pane binds the key to its own row's meaning or leaves it unbound.
+        let built = Keymaps.build()
+        let onTheGoal: Set = ["goals", "goaldoc"]
+        let actions = Set(DefaultKeys.goalActions.map(\.1))
+        // A pane may bind an action to its own row where it means just that there (Reviewers re-checks its reviewers,
+        // Unassigned takes back its last attach).
+        let ownMeaning: Set = ["goalreviewers review.recheck", "unassigned goal.attach.undo"]
+        for scope in DefaultKeys.goalScopes where !onTheGoal.contains(scope) {
+            let keymap = try #require(built.scoped[scope], "\(scope)")
+            for command in ["goal.archive", "goal.detach"] {
+                #expect(keymap.keys(for: command).isEmpty, "\(scope) binds \(command)")
+            }
+            for command in actions where !ownMeaning.contains("\(scope) \(command)") {
+                #expect(keymap.keys(for: command).isEmpty, "\(scope) inherits \(command)")
+            }
+        }
+        for scope in onTheGoal {
+            let keymap = try #require(built.scoped[scope])
+            #expect(try keymap.lookup(KeyNotation.parse("a")) == .command("goal.archive"), "\(scope)")
+            #expect(try keymap.lookup(KeyNotation.parse("x")) == .command("goal.detach"), "\(scope)")
+        }
+    }
+
     @Test func goalLowercaseKeysMeanTheSameAcrossPanes() throws {
         let built = Keymaps.build()
         func command(_ key: String, _ scope: String) throws -> String? {

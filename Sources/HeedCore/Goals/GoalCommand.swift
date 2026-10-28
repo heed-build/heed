@@ -104,8 +104,9 @@ public enum GoalCommandLine {
       decision add <text>                    a decision taken, into GOAL.md
       question add <text>                    an open question, as a card in To explore
       question answer <id|question> <text>   the answer becomes a decision; the question closes
-      criterion check <n|text> --evidence <text>
-                                             a Done when criterion met; evidence is required
+      criterion check <n|text> --evidence <text> [--item <id>]
+                                             a Done when criterion met; evidence is required. With --item, a line
+                                             of a swarm task's done-when instead of GOAL.md's
       link pr <url|org/repo#n|#n> [--item <id>]
                                              a PR on the goal (and on an item)
     Scope (waits for you as a proposal, like edits in the Goals view)
@@ -159,7 +160,8 @@ public enum GoalCommandLine {
                 )
             }
         }
-        return ControlRequest(method: .goal, session: session, goal: command)
+        let pane = environment[HeedEnvironment.pane].flatMap { $0.isEmpty ? nil : $0 }
+        return ControlRequest(method: .goal, session: session, goal: command, pane: session == nil ? nil : pane)
     }
 
     /// A file's text, or stdin's for `-`.
@@ -247,7 +249,8 @@ public enum GoalCommandLine {
         // Which options each command takes: anything else is a mistake worth saying, not ignoring.
         let allowed: Set<String> = switch verb {
         case .itemAdd: ["--parent", "--by-subagent"]
-        case .itemDone, .criterionCheck, .decisionAdd: ["--evidence"]
+        case .itemDone, .decisionAdd: ["--evidence"]
+        case .criterionCheck: ["--evidence", "--item"]
         case .itemSpawn: ["--agent"]
         case .linkPR: ["--item"]
         case .planPropose: ["--note", "--file"]

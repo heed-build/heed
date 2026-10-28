@@ -487,6 +487,21 @@ enum Shots {
         Shot(id: "goals/swarm-diff", keys: "gGjS<Tab>j", crop: .swarmVersions, cropPadding: 8),
         Shot(id: "goals/swarm-edit", keys: "gGSje", crop: .swarmEditor, cropPadding: 8),
         Shot(id: "goals/swarm-goal-page", keys: "gG", crop: .goalSwarm, cropPadding: 8),
+        // The anchors swarm running: 1.2 merged and done, 1.1's PR green, two workers stacked on it, one asking.
+        Shot(id: "goals/swarm-running", keys: "gGjS", prepare: { $0.loadRunningSwarmFixture(.running) }),
+        Shot(id: "goals/swarm-stacked", keys: "gGjS", crop: .swarmTask, cropPadding: 8, prepare: {
+            $0.loadRunningSwarmFixture(.running)
+        }),
+        Shot(id: "goals/swarm-goal-running", keys: "gGj", crop: .goalSwarm, cropPadding: 8, prepare: {
+            $0.loadRunningSwarmFixture(.running)
+        }),
+        // The same swarm at its 4 h limit: paused, the plan pane says so, and Needs you asks for more.
+        Shot(id: "goals/swarm-limit", keys: "gGjS", crop: .swarmLimit, cropPadding: 8, prepare: {
+            $0.loadRunningSwarmFixture(.pausedAtLimit)
+        }),
+        Shot(id: "goals/swarm-limit-ask", keys: "gm/limit<CR>", crop: .attentionDetail, prepare: {
+            $0.loadRunningSwarmFixture(.pausedAtLimit)
+        }),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

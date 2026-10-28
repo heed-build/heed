@@ -68,6 +68,10 @@ final class GoalsBrowser {
     var fullDiff = false
     /// Each run's board, by swarm id, as last read (fixtures start from it, shots read it at once).
     @ObservationIgnored var boards: [String: SwarmBoard] = [:]
+    /// The fake world's PRs a running swarm opened (`loadRunningFixture`); empty for real.
+    var fixturePulls: [PullRequest] = []
+    /// The fake world laid into the in-memory store; what is laid over it waits for this.
+    @ObservationIgnored var fixtureLoad: Task<Void, Never>?
 
     private(set) var snapshot = GoalSnapshot.empty
     /// The goals the list shows, in order, narrowed by `/`.
@@ -173,7 +177,7 @@ final class GoalsBrowser {
         selectBoard()
         if let ops = try? GoalOps.inMemory() {
             self.ops = ops
-            Task {
+            fixtureLoad = Task {
                 try? await ops.adopt(fixtures)
                 try? await ops.adopt(decisions: decisions)
                 try? await ops.setRules(GoalFixtures.attachRules)
@@ -689,7 +693,7 @@ final class GoalsBrowser {
         }
     }
 
-    private func apply(_ fresh: GoalSnapshot) {
+    func apply(_ fresh: GoalSnapshot) {
         guard fresh != snapshot else { return }
         snapshot = fresh
         var map: [String: HeedGoal] = [:]

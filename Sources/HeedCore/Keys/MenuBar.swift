@@ -300,7 +300,7 @@ public enum MenuBar {
                         "Swarm this goal…",
                         "swarm.start"
                     ),
-                    ("Stop the swarm", "swarm.stop"),
+                    ("Pause or resume the swarm", "swarm.pause"), ("Stop the swarm", "swarm.stop"),
                 ], in: ["goals"]),
                 scopedInvocations("In a swarm's plan", [
                     ("Approve the plan", "swarm.approve"), ("Yes to the change waiting", "swarm.accept"),
@@ -310,7 +310,8 @@ public enum MenuBar {
                     ("Drop the task", "swarm.task.drop"), ("Re-plan with feedback…", "swarm.replan"),
                     ("Answer the lead…", "swarm.answer"), ("Answer with the first option", "swarm.answer.option 1"),
                     ("The version's whole diff", "swarm.diff"),
-                    ("Restore the version", "swarm.restore"),
+                    ("Restore the version", "swarm.restore"), ("Pause or resume the task", "swarm.task.pause"),
+                    ("Hand the task to another agent…", "swarm.task.swap"), ("The task's worker", "swarm.task.open"),
                 ], in: ["goalplan"]),
                 scoped("In Personas", [
                     ("Spawn as a session…", "persona.session"), ("Spawn as a chat…", "persona.chat"),

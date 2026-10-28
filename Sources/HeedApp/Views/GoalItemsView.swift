@@ -286,6 +286,7 @@ private struct BoardCard: View {
         case .review: Theme.ask
         case .bench: Theme.err
         case .swarm: Theme.block
+        case .dropped: Theme.fg3
         case .item: Theme.fg2
         }
     }

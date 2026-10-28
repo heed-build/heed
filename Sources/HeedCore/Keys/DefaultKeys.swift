@@ -161,6 +161,8 @@ public enum DefaultKeys {
             ("e", "swarm.task.edit"), ("a", "swarm.task.add"), ("J", "swarm.task.move 1"), ("K", "swarm.task.move -1"),
             ("x", "swarm.task.drop"), ("r", "swarm.replan"), ("A", "swarm.approve"), ("y", "swarm.accept"),
             ("n", "swarm.reject"), ("i", "swarm.answer"), ("d", "swarm.diff"), ("u", "swarm.restore"),
+            // Once it runs: p pauses or resumes the task, t hands it to another agent, s goes to its worker's tab.
+            ("p", "swarm.task.pause"), ("t", "swarm.task.swap"), ("s", "swarm.task.open"),
         ] + (1 ... 9).map { ("\($0)", "swarm.answer.option \($0)") }),
         // Goals › Unassigned (U): y n m i answer heed's asks (y on a suggested goal makes it), u undoes.
         "unassigned": paneWith([

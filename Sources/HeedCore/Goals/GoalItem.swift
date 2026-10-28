@@ -398,13 +398,15 @@ public enum Board {
 
     /// The badge a card wears: what the item mostly is right now.
     public enum Badge: String, Hashable, Sendable, CaseIterable {
-        case question, session, chat, pr, review, bench, swarm, item
+        case question, session, chat, pr, review, bench, swarm, dropped, item
 
         public var title: String { self == .pr ? "PR" : rawValue.uppercased() }
     }
 
     public static func badge(_ item: GoalItem, evidence: [GoalEvidence]) -> Badge {
         if item.kind == .question { return .question }
+        // Dropped from its swarm's approved plan: it stays where its evidence puts it, marked (`SwarmDropped`).
+        if SwarmDropped.isDropped(item) { return .dropped }
         let mine = evidence.filter { $0.item == item.id }.sorted { Stages.newer($1, than: $0) }
         if let last = mine.last {
             switch last.kind {

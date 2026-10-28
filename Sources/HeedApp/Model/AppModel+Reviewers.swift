@@ -608,11 +608,13 @@ extension AppModel {
         }
     }
 
-    /// Goals' Attention items: goals heed marked done, reviewers waiting for budget, spawns waiting past the cap.
+    /// Goals' Attention items: goals heed marked done, reviewers waiting for budget, spawns waiting past the cap,
+    /// swarms
+    /// paused at a limit.
     var goalAttentionItems: [AttentionItem] {
         GoalAttention.items(
             goals: goals.snapshot.goals, qualities: goals.qualities, waiting: goals.waiting, blocked: goals.blocked,
-            spawns: goals.heldSpawns, now: Clock.now
+            spawns: goals.heldSpawns, swarms: goals.snapshot.swarms, now: Clock.now
         )
     }
 }

@@ -443,7 +443,10 @@ final class AppModel {
         startLedger(log: log)
         if !isFixture { await attention.open(beside: file) }
         // Before resume is offered: sessions on a goal resume told so.
-        if !isFixture { await startGoals(beside: file) }
+        if !isFixture {
+            await startGoals(beside: file)
+            interruptSwarmWorkers()
+        }
         await receiveSpooled()
         await offerResume(domain: cached)
         startAwayTracking()
@@ -475,8 +478,8 @@ final class AppModel {
     /// words asked stays until the agent moves on.
     private static let fromScreen = "from the screen"
     /// Turns that went quiet without their end hook (cursor), and when each pane's hooks last spoke.
-    private var quietTurns = QuietTurn()
-    private var lastHookAt: [String: Date] = [:]
+    var quietTurns = QuietTurn()
+    var lastHookAt: [String: Date] = [:]
 
     private func readScreens() async {
         // Each live run's last line, for the sidebar and the PR card; set only when it changed.
@@ -507,6 +510,7 @@ final class AppModel {
             runStates[live.paneID] = .done
             endReviewRun(id)
         }
+        readWorkerScreens(now: now)
         // A session left working without its end hook (cursor, codex): done (guessed) once quiet.
         var quiet: [DomainChange] = []
         for session in sessions where QuietTurn.applies(to: session.agent) && session.state.state == .working {
@@ -1016,6 +1020,8 @@ final class AppModel {
             }
             return
         }
+        // A swarm worker's hooks: its own state and usage, as a run's.
+        if let pane = message.pane, workerPanes.contains(pane) { return receiveWorker(message, pane: pane) }
         // A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it;
         // asking or blocked shows the session in Needs you (through `sessionPilot`).
         if let pane = message.pane, runPanes.contains(pane) {
@@ -1266,6 +1272,7 @@ final class AppModel {
             noticeLedger(before: before, after: after)
         }
         if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
+        if !replacingDomain, githubChanged { tickSwarms() }
         if !replacingDomain, sessionsChanged { noticeGoalAttach(before: before, after: after) }
     }
 
@@ -1568,12 +1575,37 @@ final class AppModel {
     }
 
     private(set) var liveReviews: [String: LiveReview] = [:]
+    /// A swarm worker at work now: its tab, pane and worktree (`startWorker`). In memory only: the run keeps its record
+    /// (`GoalSwarm.workers`), and its worktree stays when it ends.
+    struct LiveWorker: Equatable {
+        let id: String
+        let swarm: String
+        let goal: String
+        let task: String
+        let sessionID: String
+        let tabID: String
+        let paneID: String
+        let agent: String
+        let worktree: String
+        let startedAt: Date
+        var worked = false
+        /// What its agent used so far, from its hooks.
+        var usage: AgentUsage?
+    }
+
+    var liveWorkers: [String: LiveWorker] = [:]
+    /// Every pane a worker used since launch: its late hooks are nobody's news.
+    var workerPanes: Set<String> = []
+    /// Tasks whose worker is being started (async), so one is not started twice.
+    var startingWorkers: Set<String> = []
+    /// A swarm tick is going: the next waits for it.
+    var swarmTicking = false
     /// Every pane a reviewer run used since launch: its late hooks are nobody's news.
     private var reviewPanes: Set<String> = []
     /// Each live run's last screen line (`Runs.lastLine`), read with the agents' screens.
     private(set) var runLastLines: [String: String] = [:]
     /// Each run pane's own state, from its hooks; never the session's.
-    private(set) var runStates: [String: AgentState] = [:]
+    var runStates: [String: AgentState] = [:]
     /// PRs whose run is being started (async), so one is not started twice.
     private var startingRuns: Set<String> = []
     /// Every run, newest first (the domain's).
@@ -2371,6 +2403,10 @@ final class AppModel {
         case "swarm.answer.option": answerLeadOption(command.arguments.first)
         case "swarm.diff": togglePlanDiff()
         case "swarm.restore": restorePlan(command.arguments)
+        case "swarm.pause": toggleSwarmPause()
+        case "swarm.task.pause": toggleTaskPause()
+        case "swarm.task.swap": swapTaskAgent(command.arguments.first)
+        case "swarm.task.open": openTaskWorker()
         case "review.recheck": recheckReviewers(command.arguments)
         case "review.accept": acceptRisk()
         case "review.fix": fixObjection()
@@ -4506,7 +4542,7 @@ final class AppModel {
         // A goal in Attention: to the goal, its reviewers when they wait.
         if view == .attention, commandTarget == nil, let item = attentionSelected?.item, item.kind == .goal,
            !item.reasons.isDisjoint(with: [
-               .goalDone, .goalBudget, .goalReviewBlocked, .goalSpawn, .goalPersonaGap, .goalMirror,
+               .goalDone, .goalBudget, .goalReviewBlocked, .goalSpawn, .goalPersonaGap, .goalMirror, .swarmAsk,
            ]),
            let goal = GoalAttention.goal(of: item)
         {
@@ -4515,6 +4551,7 @@ final class AppModel {
             if item.reasons.contains(.goalBudget), goals.pane != .reviewers { goals.toggleReviewers() }
             if item.reasons.contains(.goalSpawn), goals.pane != .board { toggleGoalBoard() }
             if item.reasons.contains(.goalPersonaGap), goals.pane != .personas { goals.togglePersonas() }
+            if item.reasons.contains(.swarmAsk), goals.pane != .plan { goals.togglePlan() }
             return
         }
         if view == .attention, let item = attentionSelected?.item, item.kind == .goal {
@@ -4757,6 +4794,7 @@ final class AppModel {
         resumeExpiredPauses()
         endTimedOutRuns()
         endTimedOutReviews()
+        tickSwarms()
         checkGoalQuality()
         checkGoalPersonas()
         // Held because you were working in the session: try again, now that time has passed.
@@ -6797,6 +6835,7 @@ final class AppModel {
     /// Takes a pane out of a session's layout (and its tab, when it was the tab's last). A session left with no
     /// terminal at all asks what to do with it.
     private func removePane(_ paneID: String, in sessionID: String) {
+        if let id = liveWorkers.first(where: { $0.value.paneID == paneID })?.key { endWorker(id, .stopped) }
         guard var layout = layouts[sessionID], layout.removePane(paneID) else { return }
         commit(.layoutChanged(session: sessionID, layout))
         TerminalSurfaces.shared.close(paneID: paneID)
@@ -6813,6 +6852,7 @@ final class AppModel {
         // A run's agent exited: the run is over.
         if let id = liveRuns.first(where: { $0.value.paneID == paneID })?.key { return endRun(id) }
         if let id = liveReviews.first(where: { $0.value.paneID == paneID })?.key { return endReviewRun(id) }
+        if let id = liveWorkers.first(where: { $0.value.paneID == paneID })?.key { return endWorker(id, .turnOver) }
         exitedPanes.insert(paneID)
         guard exitedPanes.count == 1 else { return }
         Task { @MainActor in
@@ -6864,6 +6904,7 @@ final class AppModel {
                 if let id = liveReviews.first(where: { $0.value.paneID == pane.id })?.key {
                     endReviewRun(id, failure: "you stopped it")
                 }
+                if let id = liveWorkers.first(where: { $0.value.paneID == pane.id })?.key { endWorker(id, .stopped) }
             }
             for pane in panes {
                 TerminalSurfaces.shared.close(paneID: pane.id)

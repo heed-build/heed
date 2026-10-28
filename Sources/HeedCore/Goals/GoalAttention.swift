@@ -9,10 +9,22 @@ public enum GoalAttention {
     /// `spawns`: goal id → spawns held past the goal's cap, with why.
     public static func items(
         goals: [HeedGoal], qualities: [String: GoalQuality], waiting: [String: [String]],
-        blocked: [String: String] = [:], spawns: [String: [GoalHeldSpawn]] = [:], now: Date
+        blocked: [String: String] = [:], spawns: [String: [GoalHeldSpawn]] = [:], swarms: [GoalSwarm] = [],
+        now: Date
     ) -> [AttentionItem] {
         var items: [AttentionItem] = []
         for goal in goals where goal.status != .archived {
+            if let swarm = swarms.last(where: { $0.goal == goal.id && $0.status == .paused }), let limit = swarm.held {
+                let more = swarm.settings.limits.raised(limit)
+                let offer = limit == .hours ? "\(String(format: "%g", more.hours)) h"
+                    : "$\(String(format: "%g", more.dollars))"
+                items.append(AttentionItem(
+                    id: "goal:\(goal.id):swarm", kind: .goal, repo: nil, number: nil,
+                    title: "\(goal.title): swarm \(swarm.number) paused at \(limit.text(swarm.settings.limits)) "
+                        + "(y: raise it to \(offer), n: keep it paused)",
+                    url: nil, reasons: [.swarmAsk], updatedAt: swarm.workers.last?.startedAt ?? swarm.startedAt
+                ))
+            }
             let quality = qualities[goal.id]
             if goal.status == .done, quality?.doneMark?.done == true, let at = quality?.doneAt,
                now.timeIntervalSince(at) < doneFor

@@ -16,6 +16,7 @@ struct GoalPlanPane: View {
                 ListScroll {
                     VStack(alignment: .leading, spacing: 16) {
                         if let draft = goals.planDraft { PlanEditor(draft: draft).shotRegion(.swarmEditor) }
+                        if board.swarm.held != nil { LimitAsk(swarm: board.swarm).shotRegion(.swarmLimit) }
                         LeadQuestions(board: board).shotRegion(.swarmQuestions)
                         if let pending = board.pending { PendingChange(board: board, pending: pending) }
                         PlanVersions(board: board).shotRegion(.swarmVersions)
@@ -52,6 +53,7 @@ private struct PlanOutline: View {
         let tasks = goals.planTasks
         let numbers = SwarmPlan.numbers(tasks)
         let estimate = SwarmPlan.estimate(tasks)
+        let schedule = model.swarmSchedule(board)
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
@@ -67,6 +69,9 @@ private struct PlanOutline: View {
                         + swarm.settings.autonomy.title.lowercased()
                 )
                 .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
+                if let schedule, swarm.approved != nil {
+                    RunLine(swarm: swarm, tasks: model.runTasks(board), schedule: schedule)
+                }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
@@ -103,8 +108,10 @@ private struct PlanOutline: View {
                                 let row = tasks.firstIndex { $0.id == task.id } ?? 0
                                 TaskRow(
                                     task: task, number: numbers[task.id] ?? "", numbers: numbers,
-                                    isCursor: row == goals.taskCursor, focused: goals.focus == .tasks
+                                    isCursor: row == goals.taskCursor, focused: goals.focus == .tasks,
+                                    status: schedule?.states[task.id], worker: swarm.lastWorker(on: task.id)
                                 )
+                                .shotRegion(task.slug == "validator-speed" ? .swarmTask : nil)
                                 .hint(goals.focus == .tasks ? model.hintLabel(for: .row(.goals, row)) : nil)
                                 .contentShape(Rectangle())
                                 .onTapGesture { model.clickPlanTask(row) }
@@ -125,18 +132,34 @@ private struct PlanOutline: View {
             if swarm.status.active {
                 Theme.line.frame(height: 1)
                 FlowLayout(spacing: 14, lineSpacing: 6) {
-                    KeyHint("swarm.task.edit", scope: "goalplan", label: "edit task")
-                    KeyHint("swarm.task.add", scope: "goalplan", label: "add")
-                    KeyHint("swarm.task.move", ["1"], key: "J K", scope: "goalplan", label: "move")
-                    KeyHint("swarm.task.drop", scope: "goalplan", label: "drop")
-                    KeyHint("swarm.replan", scope: "goalplan", label: "re-plan with feedback")
-                    if board.pending != nil {
-                        KeyHint("swarm.accept", scope: "goalplan", label: "take the change", color: Theme.fg)
-                    } else {
+                    if swarm.approved != nil, swarm.status != .planning {
+                        // Running: what acts on the work; the plan's other edits are in the menus and on keys.
+                        KeyHint("swarm.task.pause", scope: "goalplan", label: "pause task")
+                        KeyHint("swarm.task.swap", scope: "goalplan", label: "swap agent")
+                        KeyHint("swarm.task.open", scope: "goalplan", label: "its worker")
+                        KeyHint("swarm.task.edit", scope: "goalplan", label: "edit task")
+                        KeyHint("swarm.replan", scope: "goalplan", label: "re-plan")
                         KeyHint(
-                            "swarm.approve", scope: "goalplan", label: swarm.isApproved ? "approved" : "approve",
-                            color: swarm.isApproved ? Theme.fg3 : Theme.fg
+                            "swarm.pause", scope: "goalplan",
+                            label: swarm.status == .paused ? "resume swarm" : "pause swarm"
                         )
+                        if board.pending != nil {
+                            KeyHint("swarm.accept", scope: "goalplan", label: "take the change", color: Theme.fg)
+                        }
+                    } else {
+                        KeyHint("swarm.task.edit", scope: "goalplan", label: "edit task")
+                        KeyHint("swarm.task.add", scope: "goalplan", label: "add")
+                        KeyHint("swarm.task.move", ["1"], key: "J K", scope: "goalplan", label: "move")
+                        KeyHint("swarm.task.drop", scope: "goalplan", label: "drop")
+                        KeyHint("swarm.replan", scope: "goalplan", label: "re-plan with feedback")
+                        if board.pending != nil {
+                            KeyHint("swarm.accept", scope: "goalplan", label: "take the change", color: Theme.fg)
+                        } else {
+                            KeyHint(
+                                "swarm.approve", scope: "goalplan", label: swarm.isApproved ? "approved" : "approve",
+                                color: swarm.isApproved ? Theme.fg3 : Theme.fg
+                            )
+                        }
                     }
                 }
                 .padding(.horizontal, 18)
@@ -169,6 +192,12 @@ private struct PlanBadge: View {
         let author = board.version(swarm.plan)?.author
         let (text, color): (String, Color) = if !swarm.status.active {
             (swarm.status.rawValue, Theme.fg3)
+        } else if swarm.isApproved, swarm.status != .planning {
+            (
+                swarm.status.rawValue,
+                swarm.status == .paused ? Theme.block : swarm.status == .landing ? Theme.done
+                    : Theme.busy
+            )
         } else if swarm.isApproved {
             ("approved", Theme.done)
         } else {
@@ -186,12 +215,18 @@ private struct TaskRow: View {
     let numbers: [String: String]
     let isCursor: Bool
     let focused: Bool
+    /// Where it stands in a running swarm, and its newest worker.
+    var status: SwarmTaskStatus?
+    var worker: SwarmWorker?
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Text(number).font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).frame(width: 28, alignment: .leading)
             VStack(alignment: .leading, spacing: 3) {
                 Text(task.title).font(Theme.ui(13, weight: .semibold)).foregroundStyle(Theme.fg).lineLimit(1)
+                if let status {
+                    TaskState(status: status, task: task, worker: worker, numbers: numbers)
+                }
                 if !task.after.isEmpty {
                     Text("after " + task.after.map { numbers[$0] ?? SwarmPlan.short($0) }.joined(separator: " "))
                         .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
@@ -215,6 +250,105 @@ private struct TaskRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isCursor ? (focused ? Theme.bg3 : Theme.bg2) : .clear)
         .overlay(alignment: .leading) { if isCursor, focused { Theme.block.frame(width: 2) } }
+    }
+}
+
+/// A task's state in a running swarm: a chip, why, and for a working one its agent and time against its estimate.
+private struct TaskState: View {
+    let status: SwarmTaskStatus
+    let task: SwarmTask
+    let worker: SwarmWorker?
+    let numbers: [String: String]
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(Self.word(status.state)).font(Theme.mono(10.5)).foregroundStyle(Self.color(status.state))
+                .padding(.horizontal, 6).padding(.vertical, 1)
+                .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Self.color(status.state).opacity(0.6)))
+            if let reason = status.reason {
+                Text(reason).font(Theme.ui(11.5)).foregroundStyle(Theme.fg2).lineLimit(1)
+            }
+            if status.state == .working, let worker {
+                let minutes = Int(Clock.now.timeIntervalSince(worker.startedAt) / 60)
+                let over = task.estimate.map { minutes > $0 } ?? false
+                Text(SwarmEstimate
+                    .text(max(minutes, 1)) + (task.estimate.map { " of \(SwarmEstimate.text($0))" } ?? ""))
+                    .font(Theme.mono(10.5)).foregroundStyle(over ? Theme.block : Theme.fg3)
+            }
+            if let stacked = (status.state == .working || status.state == .ready) ? status.stackedOn : nil {
+                Text("stacked on \(numbers[stacked] ?? SwarmPlan.short(stacked))")
+                    .font(Theme.mono(10.5)).foregroundStyle(Theme.ask)
+                    .help("Its branch starts from \(status.base ?? "its blocker's branch"); its PR goes against it")
+            }
+        }
+    }
+
+    static func word(_ state: SwarmTaskStatus.State) -> String {
+        switch state {
+        case .pr: "PR"
+        default: state.rawValue
+        }
+    }
+
+    static func color(_ state: SwarmTaskStatus.State) -> Color {
+        switch state {
+        case .waiting: Theme.fg3
+        case .ready: Theme.fg2
+        case .working: Theme.busy
+        case .paused: Theme.block
+        case .stalled: Theme.err
+        case .pr: Theme.ask
+        case .green, .merged, .done: Theme.done
+        }
+    }
+}
+
+/// A running swarm's numbers under the plan's header: tasks done, agents at work, time and money against its limits.
+private struct RunLine: View {
+    @Environment(AppModel.self) private var model
+    let swarm: GoalSwarm
+    let tasks: [SwarmTask]
+    let schedule: SwarmScheduler.Schedule
+
+    var body: some View {
+        let progress = SwarmProgress(swarm: swarm, tasks: tasks, states: schedule.states)
+        let usage = model.swarmUsage(swarm)
+        let limits = swarm.settings.limits
+        Text(
+            [
+                progress.tasksLine,
+                "agents \(progress.agentsLine)",
+                "\(SwarmEstimate.text(Int(usage.elapsed / 60))) of \(String(format: "%g", limits.hours)) h",
+                "\(AgentUsage.dollars(usage.dollars)) of $\(String(format: "%g", limits.dollars))",
+            ].joined(separator: " · ")
+        )
+        .font(Theme.mono(11)).foregroundStyle(Theme.fg2).lineLimit(1)
+    }
+}
+
+/// The swarm stopped at a limit: what it reached, and the say you have (here, and in Needs you).
+private struct LimitAsk: View {
+    let swarm: GoalSwarm
+
+    var body: some View {
+        if let limit = swarm.held {
+            let more = swarm.settings.limits.raised(limit)
+            Panel(title: "Paused at \(limit.text(swarm.settings.limits))", note: "waits for you") {
+                Text(
+                    "Nothing more starts; workers at work finish their turn. More time or money is yours to give: "
+                        + "Needs you asks too."
+                )
+                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg)
+                .fixedSize(horizontal: false, vertical: true)
+                KeyHint(
+                    "swarm.pause", scope: "goalplan",
+                    label: "raise it to " + (limit == .hours ? "\(String(format: "%g", more.hours)) h"
+                        : "$\(String(format: "%g", more.dollars))") + " and go on",
+                    color: Theme.fg
+                )
+            }
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.block.opacity(0.5)))
+        }
     }
 }
 
@@ -540,7 +674,25 @@ struct GoalSwarmPanel: View {
                     Spacer(minLength: 6)
                     KeyHint("goal.swarm", scope: "goals", label: "plan", color: Theme.fg2)
                 }
-                if let board, board.swarm.id == active.id {
+                if let board, board.swarm.id == active.id, let schedule = model.swarmSchedule(board),
+                   active.status != .planning
+                {
+                    let progress = SwarmProgress(
+                        swarm: board.swarm,
+                        tasks: model.runTasks(board),
+                        states: schedule.states
+                    )
+                    HStack(spacing: 14) {
+                        Text("progress \(progress.done) of \(progress.total)").font(Theme.ui(12))
+                            .foregroundStyle(Theme.fg2)
+                        Text("agents \(progress.agentsLine)").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                    }
+                    if let limit = active.held {
+                        Text("paused at \(limit.text(active.settings.limits)): Needs you asks")
+                            .font(Theme.ui(12)).foregroundStyle(Theme.block)
+                            .clickRuns(CommandInvocation(name: "goal.swarm"))
+                    }
+                } else if let board, board.swarm.id == active.id {
                     let tasks = board.tasks
                     let minutes = SwarmPlan.estimate(tasks)
                     Text(

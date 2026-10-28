@@ -105,6 +105,7 @@ public enum CommandCompletions {
         case "agent": context.agents.map { ($0, "start work with \($0)") }
         case "agent.switch": Handoff.candidates(agents: context.agents, current: context.currentAgent)
             .map { ($0, "hand the session to \($0)") }
+        case "swarm.task.swap": context.agents.map { ($0, "hand the task to \($0)") }
         case "settings.open": settingsSections.map { ($0, "") }
             + OverrideTab.allCases.map { ("colors \($0.rawValue)", "Orgs & repos › \($0.title)") }
         case "pilot.pause": pauseDurations.map { ($0.0, $0.1) }

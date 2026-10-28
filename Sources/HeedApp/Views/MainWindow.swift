@@ -456,6 +456,14 @@ struct StatusBar: View {
         case .normal where model.goals.swarmForm != nil:
             "the goal, where, the team, your say and limits · ⌘↩ ask the lead for a plan · ⎋ cancel"
         case .normal where model.goals.planDraft != nil: "type it · ⌘↩ save · ⎋ cancel"
+        case .normal where model.view == .goals && model.goals.pane == .plan
+            && (model.goals.board.map { $0.swarm.approved != nil && $0.swarm.status != .planning } ?? false):
+            [
+                ("goal.focus", model.goals.focus == .versions ? "goals" : "next"), ("swarm.task.pause", "pause"),
+                ("swarm.task.swap", "swap"), ("swarm.task.open", "worker"), ("swarm.task.edit", "edit"),
+                ("swarm.replan", "re-plan"), ("swarm.diff", "diff"), ("goal.swarm", "overview"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "goalplan")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .goals && model.goals.pane == .plan:
             [
                 ("goal.focus", model.goals.focus == .versions ? "goals" : "next"), ("swarm.task.edit", "edit"),

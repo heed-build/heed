@@ -107,6 +107,7 @@ toc:
         children:
           - file: index.md
           - file: plan.md
+          - file: running.md
           - file: lead.md
   - folder: keyboard
     children:

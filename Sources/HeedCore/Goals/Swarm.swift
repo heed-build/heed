@@ -29,10 +29,17 @@ public struct GoalSwarm: Hashable, Sendable, Codable, Identifiable {
     public var lead: String?
     public var startedAt: Date
     public var endedAt: Date?
+    /// When its first worker started: its hours count from here.
+    public var runningAt: Date?
+    /// Every worker that ran on it, oldest first: who, on which task, from which base, how it ended, what it cost.
+    public var workers: [SwarmWorker]
+    /// The limit it stopped at, while it waits for you to raise it (paused by heed, not by you).
+    public var held: SwarmLimit?
 
     public init(
         id: String, goal: String, number: Int, status: Status = .planning, settings: SwarmSettings, plan: Int = 0,
-        approved: Int? = nil, lead: String? = nil, startedAt: Date, endedAt: Date? = nil
+        approved: Int? = nil, lead: String? = nil, startedAt: Date, endedAt: Date? = nil, runningAt: Date? = nil,
+        workers: [SwarmWorker] = [], held: SwarmLimit? = nil
     ) {
         self.id = id
         self.goal = goal
@@ -44,6 +51,46 @@ public struct GoalSwarm: Hashable, Sendable, Codable, Identifiable {
         self.lead = lead
         self.startedAt = startedAt
         self.endedAt = endedAt
+        self.runningAt = runningAt
+        self.workers = workers
+        self.held = held
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, goal, number, status, settings, plan, approved, lead, startedAt, endedAt, runningAt, workers, held
+    }
+
+    /// Runs stored before workers decode unchanged: no workers, never running.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        goal = try values.decode(String.self, forKey: .goal)
+        number = try values.decode(Int.self, forKey: .number)
+        status = try values.decode(Status.self, forKey: .status)
+        settings = try values.decode(SwarmSettings.self, forKey: .settings)
+        plan = try values.decode(Int.self, forKey: .plan)
+        approved = try values.decodeIfPresent(Int.self, forKey: .approved)
+        lead = try values.decodeIfPresent(String.self, forKey: .lead)
+        startedAt = try values.decode(Date.self, forKey: .startedAt)
+        endedAt = try values.decodeIfPresent(Date.self, forKey: .endedAt)
+        runningAt = try values.decodeIfPresent(Date.self, forKey: .runningAt)
+        workers = try values.decodeIfPresent([SwarmWorker].self, forKey: .workers) ?? []
+        held = try values.decodeIfPresent(SwarmLimit.self, forKey: .held)
+    }
+
+    /// Its workers at work now (recorded as started, not ended).
+    public var liveWorkers: [SwarmWorker] { workers.filter(\.isLive) }
+
+    /// The newest worker on a task.
+    public func lastWorker(on task: String) -> SwarmWorker? { workers.last { $0.task == task } }
+
+    /// Whether workers may start: approved and planning, running or landing.
+    public var startsWorkers: Bool {
+        switch status {
+        case .planning: approved != nil
+        case .running, .landing: true
+        case .paused, .done, .stopped: false
+        }
     }
 
     /// The plan you approved is the current one.
@@ -108,6 +155,17 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
         /// `4 agents · 4 h · $40`.
         public var line: String {
             "\(agents) agent\(agents == 1 ? "" : "s") · \(String(format: "%g", hours)) h · $\(String(format: "%g", dollars))"
+        }
+
+        /// The limits with `limit` raised by half again (at least an hour, at least $5), rounded up: what saying yes
+        /// to a swarm stopped at a limit gives it.
+        public func raised(_ limit: SwarmLimit) -> Limits {
+            var next = self
+            switch limit {
+            case .hours: next.hours = hours + max(1, (hours / 2).rounded(.up))
+            case .dollars: next.dollars = dollars + max(5, (dollars / 2 / 5).rounded(.up) * 5)
+            }
+            return next
         }
     }
 
@@ -222,9 +280,18 @@ public struct SwarmSteer: Hashable, Sendable, Codable, Identifiable {
         /// No to a plan change that waited for you.
         case reject
         case restore
-        case pause, swap, limit
+        /// A task (ref `task:<id>`) or the whole run paused, and resumed.
+        case pause, resume
+        /// A task's agent swapped for another.
+        case swap
+        /// A limit reached (heed), raised or kept (you).
+        case limit
         /// The run stopped.
         case stop
+        /// A worker started on a task (heed: which agent, from which base) or ended.
+        case work
+        /// Every task has its PR: the run lands.
+        case land
     }
 
     public enum State: String, Hashable, Sendable, Codable, CaseIterable {

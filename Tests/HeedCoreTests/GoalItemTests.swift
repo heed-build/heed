@@ -122,7 +122,11 @@ struct BoardTests {
         #expect(Board.badge(item("a"), evidence: [evidence("a", .codeReview)]) == .review)
         #expect(Board.badge(item("a"), evidence: [evidence("a", .merged)]) == .pr)
         #expect(Board.badge(item("a", links: [GoalItem.Link(.pr, "acme/x#1")]), evidence: []) == .pr)
-        #expect(Board.badge(item("a", source: .swarm), evidence: []) == .swarm)
+        var planned = item("a", source: .swarm)
+        planned.phase = "Build"
+        #expect(Board.badge(planned, evidence: []) == .swarm)
+        // A swarm item with no phase was dropped from its plan.
+        #expect(Board.badge(item("a", source: .swarm), evidence: []) == .dropped)
         #expect(Board.badge(item("a", links: [GoalItem.Link(.session, "s1")]), evidence: []) == .session)
         #expect(Board.badge(item("a", source: .chat), evidence: []) == .chat)
         #expect(Board.badge(item("a", source: .you), evidence: []) == .item)

@@ -8,6 +8,8 @@ The sidebar lists every open session, grouped so that whatever needs you is near
 
 ![The sidebar: pinned sessions, then those needing you, stalled, working, watching and parked](../images/shots/sessions/sidebar.png)
 
+Under the header, **new session** and **new chat** run what `o` and `gc` do; each shows its key as you have it bound.
+
 | Group | Holds |
 |---|---|
 | **Pinned** | Sessions you pinned with `m`, in the order you pinned them. `'1` to `'9` jump to them. |

@@ -33,6 +33,23 @@ public enum Clicks {
     }
 }
 
+/// The Sessions sidebar's two quiet buttons under its header, so starting something is found without knowing the
+/// keys: each runs its command as its key does (`o`, `gc` unless rebound) and shows that key as bound.
+public enum SidebarStarts {
+    public struct Start: Equatable, Sendable {
+        public let command: String
+        /// `new session`, as the hint reads at full width.
+        public let label: String
+        /// `session`, when the sidebar is too narrow for the full label.
+        public let short: String
+    }
+
+    public static let all: [Start] = [
+        Start(command: "work.start", label: "new session", short: "session"),
+        Start(command: "chat.new", label: "new chat", short: "chat"),
+    ]
+}
+
 public extension ModeEngine {
     /// What `keys` run in NORMAL, with nothing pending: the view's own binding first (`scope`), then NORMAL's. A
     /// double-click on a list row runs what ↩ runs there.

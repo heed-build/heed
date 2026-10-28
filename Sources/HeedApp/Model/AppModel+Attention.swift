@@ -333,12 +333,22 @@ extension AppModel {
     /// Settings' try before you save: what `rules` would change, against the rules in use, over the items of the last
     /// 30 days (live and remembered).
     func attentionPreview(_ rules: AttentionRules) -> AttentionRulePreview {
+        AttentionRulePreview.of(
+            saved: config.attention.parsedRules, edited: rules, items: attentionRuleItems, viewer: github.viewer,
+            now: Clock.now
+        )
+    }
+
+    /// The items rules are tried against: the live ones and those remembered from the last 30 days.
+    var attentionRuleItems: [AttentionItem] {
         let live = attentionItems
         let ids = Set(live.map(\.id))
-        let items = live + attention.stored.map(\.item).filter { !ids.contains($0.id) }
-        return AttentionRulePreview.of(
-            saved: config.attention.parsedRules, edited: rules, items: items, viewer: github.viewer, now: Clock.now
-        )
+        return live + attention.stored.map(\.item).filter { !ids.contains($0.id) }
+    }
+
+    /// What Settings' rule editor offers to pick: the repos heed knows, and what the items of the last 30 days had.
+    var attentionRuleSuggestions: AttentionRuleSuggestions {
+        AttentionRuleSuggestions.from(items: attentionRuleItems, repos: repos.map(\.repo))
     }
 
     /// For an item no rule matched, the Decider suggests a weight: shown next to it, never acted on.

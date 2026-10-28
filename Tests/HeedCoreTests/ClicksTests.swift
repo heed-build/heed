@@ -1,3 +1,4 @@
+import Foundation
 @testable import HeedCore
 import Testing
 
@@ -100,5 +101,44 @@ struct ClicksTests {
             "j k move · / filter · R reopen", "j k move · / filter", "j k move",
         ])
         #expect(HintLine.shortenings("y or ↩ confirm") == ["y or ↩ confirm"])
+    }
+}
+
+/// The sidebar's new session and new chat buttons: key hints for real commands, their caps from the keymap as bound.
+struct SidebarStartsTests {
+    private func cap(_ command: String, _ built: (keymaps: [Mode: Keymap], scoped: [String: Keymap])) -> String? {
+        KeyLabels.label(for: command, keymaps: built.keymaps, scoped: built.scoped, scope: "sessions")?.text
+    }
+
+    @Test func theyRunStartWorkAndANewChat() {
+        #expect(SidebarStarts.all.map(\.command) == ["work.start", "chat.new"])
+        #expect(SidebarStarts.all.map(\.label) == ["new session", "new chat"])
+        for start in SidebarStarts.all {
+            #expect(Commands.spec(start.command) != nil, "\(start.command)")
+            #expect(start.label.hasSuffix(start.short), "\(start.short) shortens \(start.label)")
+        }
+    }
+
+    @Test func theirCapsAreTheKeysAsBound() {
+        let defaults = Keymaps.build()
+        #expect(SidebarStarts.all.map { cap($0.command, (defaults.keymaps, defaults.scoped)) } == ["o", "gc"])
+        let rebound = Keymaps.build(overrides: [.normal: [
+            ("o", ""), ("gc", ""), ("<C-n>", "work.start"), ("gy", "chat.new"),
+        ]])
+        #expect(rebound.problems.isEmpty)
+        #expect(cap("work.start", (rebound.keymaps, rebound.scoped)) == "⌃n")
+        #expect(cap("chat.new", (rebound.keymaps, rebound.scoped)) == "gy")
+    }
+
+    /// The app target cannot be linked here, so this reads the sidebar's source: it draws every start as a key hint,
+    /// which runs the command through `AppModel.clickHint` as the key would.
+    @Test func theSidebarDrawsThemAsKeyHints() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let source = try String(
+            contentsOf: root.appendingPathComponent("Sources/HeedApp/Views/Sidebar.swift"), encoding: .utf8
+        )
+        #expect(source.contains("ForEach(SidebarStarts.all, id: \\.command) { start in"))
+        #expect(source.contains("KeyHint(start.command, label: label(start))"))
     }
 }

@@ -18,7 +18,7 @@ here, and the other way round. Key bindings live only in the file.
 | **Hosts** | Every [host](../hosts/index.md) in `[hosts.<name>]` with its ssh destination, transport, tailnet machine, user, repo roots, worktree root and colour, read-only; **Add or check hosts** opens `gH`, and each host is edited in `config.toml` |
 | **Worktrees & cleanup** | Where worktrees go, the repo roots, offering to trust repos for agents, Start work's [smart guesses](../start-work/repos.md#smart-guesses), the cleanup rules, and how long [saved work](../worktrees/removing.md#saved-first) is kept |
 | **Pilot** | The defaults every PR starts from: watching, get it green, get it merged and their rules, [merge now and force merge](../github/watch.md#ready-to-merge-and-merge-now), extra instructions for heed's prompts (summaries too), and whether agents sign off with a summary |
-| **Attention** | The [rules](../github/attention-rules.md) as a list and as text, what an edit would change over the last 30 days before you save it, the weights, Attention notifications and quiet hours |
+| **Attention** | The [rules](../github/attention-rules.md) in plain words, an editor that builds a rule from choices, what an edit would change over the last 30 days before you save it, the weights, Attention notifications and quiet hours |
 | **Keys & modes** | The INSERT escape chord, the two [global shortcuts](../outside-the-window/global-shortcuts.md) (typed or recorded, checked before they are written), and every binding as it stands, read-only: bindings are edited in `config.toml` |
 
 ## Orgs & repos

@@ -21,8 +21,8 @@ struct InferenceSettings: View {
             SetupStatusCard(setup: setup)
             InferenceGroup(setup: setup)
             DecisionsGroup(setup: setup)
-            SetupGroupLabel(title: "Reminder")
-            SetupRow(
+            GroupLabel(title: "Reminder")
+            Field(
                 label: "Remind me on launch",
                 detail: "While model calls or decisions are not set up, or their last test failed, the title bar says "
                     + "so until you set them up or hide it (:inference.hide; always: for good)."
@@ -117,8 +117,8 @@ private struct InferenceGroup: View {
     var body: some View {
         let llm = model.config.llm
         let statuses = model.llmStatuses
-        SetupGroupLabel(title: "Inference")
-        SetupRow(
+        GroupLabel(title: "Inference")
+        Field(
             label: "Model calls",
             detail: "Off: heed makes no model calls at all, and decisions by model call go without."
         ) {
@@ -127,7 +127,7 @@ private struct InferenceGroup: View {
                 .labelsHidden()
         }
         Group {
-            SetupRow(
+            Field(
                 label: "Agent",
                 detail: "Taking turns: every agent you are logged in to, round-robin. One agent: that one alone. "
                     + "Each with a cheap model."
@@ -148,7 +148,7 @@ private struct InferenceGroup: View {
                 .labelsHidden()
                 .frame(width: 300)
             }
-            SetupRow(label: "Detected", detail: "Installed and logged in, as heed runs them (without your shell).") {
+            Field(label: "Detected", detail: "Installed and logged in, as heed runs them (without your shell).") {
                 HStack(spacing: 12) {
                     ForEach(statuses) { status in
                         Text(status.name).font(Theme.mono(12))
@@ -161,16 +161,16 @@ private struct InferenceGroup: View {
             }
             if let only = llm.only {
                 let detected = statuses.first { $0.name == only }?.detectedModel
-                SetupRow(
+                Field(
                     label: "Model",
                     detail: "Empty: \(detected.map { "\($0), detected" } ?? "the agent's own default"). "
                         + "[agents.\(only)] llm_model."
                 ) {
-                    SetupTextField(path: ["agents", only, "llm_model"], value: llm.model(for: only) ?? "")
+                    ConfigTextField(path: ["agents", only, "llm_model"], value: llm.model(for: only) ?? "")
                         .frame(width: 260)
                 }
             }
-            SetupRow(
+            Field(
                 label: "Daily budget",
                 detail: "Per agent per day: background calls stop until tomorrow at this many calls or dollars (where a "
                     + "cost is known). Calls you ask for still run. 0: no cap."
@@ -185,7 +185,7 @@ private struct InferenceGroup: View {
                     SetupDollarsField(value: llm.dailyDollars)
                 }
             }
-            SetupRow(label: "Test", detail: testDetail) {
+            Field(label: "Test", detail: testDetail) {
                 InferenceTestResult(agent: testAgent, last: model.setupTests.inference)
             }
         }
@@ -217,8 +217,8 @@ private struct DecisionsGroup: View {
 
     var body: some View {
         let decisions = model.config.decisions
-        SetupGroupLabel(title: "Decisions")
-        SetupRow(
+        GroupLabel(title: "Decisions")
+        Field(
             label: "Decider",
             detail: "On-device: Apple's model, free, on this Mac only. \(model.localModel.description) Model call: "
                 + "through Inference above. Off: what asks goes without."
@@ -237,17 +237,17 @@ private struct DecisionsGroup: View {
             .frame(width: decisions.decider == nil ? 400 : 300)
         }
         let attach = model.config.goals.attach
-        SetupRow(
+        Field(
             label: "Attach on its own at",
             detail: "Finding new work's goal: at this confidence or more heed attaches, with undo (u). The same as "
                 + "General › Goals."
         ) {
             threshold("attach_auto", attach.auto, range: max(attach.ask, 0.05) ... 1)
         }
-        SetupRow(label: "Ask from", detail: "From here up to the line above heed asks; below, it leaves the work.") {
+        Field(label: "Ask from", detail: "From here up to the line above heed asks; below, it leaves the work.") {
             threshold("attach_ask", attach.ask, range: 0 ... attach.auto)
         }
-        SetupRow(label: "Test", detail: "One decision: where a piece of finished work stands. It shows in :log.") {
+        Field(label: "Test", detail: "One decision: where a piece of finished work stands. It shows in :log.") {
             DecisionTestResult(last: model.setupTests.decisions)
         }
         .disabled(decisions.effective == .off)
@@ -329,65 +329,6 @@ private struct SetupLastTest: View {
             .font(Theme.ui(12))
             .foregroundStyle(test.ok ? Theme.fg2 : Theme.err)
             .fixedSize(horizontal: false, vertical: true)
-    }
-}
-
-/// A group on the page: its name over a rule.
-private struct SetupGroupLabel: View {
-    let title: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            SectionHeader(title: title)
-            Theme.line.frame(height: 1)
-        }
-        .padding(.top, 10)
-    }
-}
-
-/// A labelled row, as on the other pages.
-private struct SetupRow<Content: View>: View {
-    let label: String
-    var detail: String?
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            Text(label).font(Theme.ui(13)).foregroundStyle(Theme.fg2).frame(width: 170, alignment: .leading)
-                .padding(.top, 4)
-            VStack(alignment: .leading, spacing: 4) {
-                content
-                if let detail {
-                    Text(detail).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-    }
-}
-
-/// A text field written to config.toml on return or when it loses focus.
-private struct SetupTextField: View {
-    @Environment(AppModel.self) private var model
-    let path: [String]
-    let value: String
-    @State private var text = ""
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        TextField("", text: $text)
-            .textFieldStyle(.roundedBorder)
-            .font(Theme.mono(12.5))
-            .focused($focused)
-            .onAppear { text = value }
-            .onChange(of: value) { if !focused { text = value } }
-            .onSubmit(save)
-            .onChange(of: focused) { if !focused { save() } }
-    }
-
-    private func save() {
-        guard text != value else { return }
-        model.setConfig(path, .string(text))
     }
 }
 

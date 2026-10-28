@@ -109,7 +109,7 @@ struct SettingsView: View {
 }
 
 /// A group of settings on a page: its name over a rule.
-private struct GroupLabel: View {
+struct GroupLabel: View {
     let title: String
 
     var body: some View {
@@ -122,7 +122,7 @@ private struct GroupLabel: View {
 }
 
 /// A labelled row.
-private struct Field<Content: View>: View {
+struct Field<Content: View>: View {
     let label: String
     var detail: String?
     @ViewBuilder let content: Content
@@ -147,7 +147,7 @@ private struct Field<Content: View>: View {
 }
 
 /// A text field that writes to config.toml when you press return or leave it.
-private struct ConfigTextField: View {
+struct ConfigTextField: View {
     @Environment(AppModel.self) private var model
     let path: [String]
     let value: String
@@ -1510,178 +1510,6 @@ private struct LedgerSettingsGroup: View {
                     .font(Theme.ui(12))
                 }
             }
-        }
-    }
-}
-
-/// Settings › Attention: the rules as a list and as text side by side, what an edit would have changed over the last
-/// 30 days before it is saved, and quiet hours. Nothing is written until Save.
-private struct AttentionRuleSettings: View {
-    @Environment(AppModel.self) private var model
-    @State private var draft = AttentionRuleDraft(lines: [])
-    @State private var text = ""
-    @State private var newRule = ""
-    @State private var loaded = false
-
-    var body: some View {
-        let saved = model.config.attention.rules
-        let preview = model.attentionPreview(draft.rules)
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Attention").font(Theme.ui(17, weight: .semibold))
-            Text(
-                "What matters in Attention, one rule a line: what to match, then boost 1-3, lower, ignore, pin or notify. "
-                    + "The first rule that matches an item decides. Ignored items stay under Muted for 30 days."
-            )
-            .font(Theme.ui(12)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
-            GroupLabel(title: "Rules")
-            HStack(alignment: .top, spacing: 18) {
-                VStack(alignment: .leading, spacing: 6) {
-                    SectionHeader(title: "As a list")
-                    ForEach(Array(draft.lines.enumerated()), id: \.offset) { index, line in
-                        row(index, line, matches: preview.matches[index + 1] ?? 0)
-                    }
-                    HStack {
-                        TextField("mention team:acme/docs-eng boost 2", text: $newRule)
-                            .textFieldStyle(.roundedBorder).font(Theme.mono(12))
-                            .onSubmit(add)
-                        Button("Add", action: add).disabled(newRule.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                VStack(alignment: .leading, spacing: 6) {
-                    SectionHeader(title: "As text")
-                    TextEditor(text: $text)
-                        .font(Theme.mono(12))
-                        .scrollContentBackground(.hidden)
-                        .padding(6)
-                        .frame(minHeight: 220)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
-                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
-                        .onChange(of: text) { if draft.text != text { draft.text = text } }
-                    Text("Both edit the same rules. # starts a comment.")
-                        .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            GroupLabel(title: "Try before you save")
-            VStack(alignment: .leading, spacing: 8) {
-                if draft.saved == saved {
-                    Text("These are the rules in use. Edit them to see what would change over the last 30 days.")
-                        .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                } else if preview.changed == 0 {
-                    Text("Would have changed none of the \(preview.items) items of the last 30 days.")
-                        .font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-                } else {
-                    Text("Would have changed \(preview.changed) of the \(preview.items) items of the last 30 days:")
-                        .font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-                    FlowLayout(spacing: 6) {
-                        ForEach(preview.moves, id: \.self) { move in
-                            ReasonTag(
-                                text: "\(move.from.rawValue) → \(move.to.rawValue): \(move.count)",
-                                tint: move.to < move.from ? Theme.block : Theme.busy
-                            )
-                        }
-                    }
-                }
-                HStack(spacing: 10) {
-                    Button("Save to config.toml") {
-                        model.setConfig(
-                            ["attention", "rules"], .array(draft.saved.map { .string($0) }), multiline: true
-                        )
-                    }
-                    .disabled(draft.saved == saved)
-                    Button("Revert") { load(saved) }.disabled(draft.saved == saved)
-                    if !draft.rules.problems.isEmpty {
-                        Text("Lines with problems are left out when saved rules are read.")
-                            .font(Theme.ui(11.5)).foregroundStyle(Theme.err)
-                    }
-                }
-            }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
-            GroupLabel(title: "Weights")
-            VStack(alignment: .leading, spacing: 5) {
-                weight("boost 3", "top of the feed when sorted by weight; notifies")
-                weight("boost 1-2", "higher when sorted by weight")
-                weight("lower", "dimmed, lower, never notifies")
-                weight("ignore", "out of the feed, under Muted for 30 days")
-                weight("pin", "always at the top")
-            }
-            GroupLabel(title: "Notifications")
-            Field(
-                label: "Notify",
-                detail: "Items a rule says to notify about (notify, or boost 3); several from one sync come as one."
-            ) {
-                Toggle("", isOn: Binding(
-                    get: { model.config.notifications.attention },
-                    set: { model.setConfig(["notifications", "attention"], .bool($0)) }
-                )).labelsHidden()
-            }
-            Field(label: "Quiet hours", detail: "Local time, 24-hour (\"22:00-07:00\"); empty for none.") {
-                ConfigTextField(path: ["attention", "quiet"], value: model.config.attention.quiet?.description ?? "")
-                    .frame(width: 160)
-            }
-        }
-        .onAppear { if !loaded { load(model.attention.ruleDraftSeed ?? saved) } }
-        .onChange(of: saved) { _, new in if draft.saved == new || !loaded { load(new) } }
-    }
-
-    private func load(_ lines: [String]) {
-        draft = AttentionRuleDraft(lines: lines)
-        text = draft.text
-        loaded = true
-    }
-
-    private func change(_ body: (inout AttentionRuleDraft) -> Void) {
-        body(&draft)
-        text = draft.text
-    }
-
-    private func add() {
-        change { $0.add(newRule) }
-        newRule = ""
-    }
-
-    private func row(_ index: Int, _ line: String, matches: Int) -> some View {
-        let rule = draft.rules.rules.first { $0.line == index + 1 }
-        let problem = draft.problem(line: index + 1)
-        return VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 8) {
-                Text("\(index + 1)").font(Theme.mono(11)).foregroundStyle(Theme.fg3).frame(
-                    width: 18,
-                    alignment: .trailing
-                )
-                Text(rule?.match ?? line).font(Theme.mono(12)).lineLimit(1)
-                    .foregroundStyle(problem == nil ? Theme.fg : Theme.err)
-                Spacer(minLength: 6)
-                if let rule {
-                    ReasonTag(
-                        text: rule.action.text, tint: rule.action.ignore ? Theme.err : rule.action.lower ? Theme.busy
-                            : Theme.block, filled: true
-                    )
-                    Text("\(matches) / 30d").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
-                        .frame(width: 58, alignment: .trailing)
-                }
-                Button { change { $0.move(index, by: -1) } } label: { Image(systemName: "chevron.up") }
-                    .buttonStyle(.borderless).disabled(index == 0)
-                Button { change { $0.move(index, by: 1) } } label: { Image(systemName: "chevron.down") }
-                    .buttonStyle(.borderless).disabled(index == draft.lines.count - 1)
-                Button { change { $0.remove(at: index) } } label: { Image(systemName: "xmark") }
-                    .buttonStyle(.borderless)
-            }
-            if let problem {
-                Text(problem).font(Theme.ui(11)).foregroundStyle(Theme.err).padding(.leading, 26)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg2))
-    }
-
-    private func weight(_ action: String, _ meaning: String) -> some View {
-        HStack(spacing: 10) {
-            Text(action).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).frame(width: 80, alignment: .leading)
-            Text(meaning).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
     }
 }

@@ -21,6 +21,14 @@ public enum OverrideScope: Hashable, Sendable {
     }
 
     public var isOrg: Bool { if case .org = self { true } else { false } }
+
+    /// The key `GoalMirrorSettings` keeps its per-org and per-repo values under: the org, or `org/name`.
+    var goalKey: String {
+        switch self {
+        case let .org(name): name
+        case let .repo(repo): repo.slug
+        }
+    }
 }
 
 /// Where a value comes from: heed's default (or `[pilot]`), the org, the repo.
@@ -68,6 +76,8 @@ public struct OverrideKey: Identifiable, Sendable {
         case agent
         /// Free text over several lines: instructions added to a prompt.
         case instructions
+        /// A GitHub repo as `org/name`; emptied, the override is removed and the value inherits.
+        case repoSlug
     }
 
     /// The key in config.toml.
@@ -119,6 +129,21 @@ public enum Overrides {
                 }
             },
             fallback: { _ in .list([]) }
+        ),
+        OverrideKey(
+            id: "goals_tracker", label: "Goal tracker",
+            detail: "Where a new goal from work here mirrors on GitHub, as org/name (any repo you can triage). "
+                + "The default is General › Goals' tracker.",
+            kind: .repoSlug, repoOnly: false,
+            read: { config, scope in config.goals.mirror.trackers[scope.goalKey].map(OverrideValue.text) },
+            fallback: { .text($0.goals.mirror.tracker) }
+        ),
+        OverrideKey(
+            id: "goals_mirror", label: "Mirror new goals",
+            detail: "New goals from work here mirror from the start; off, M on a goal turns it on.",
+            kind: .bool, repoOnly: false,
+            read: { config, scope in config.goals.mirror.mirrors[scope.goalKey].map(OverrideValue.bool) },
+            fallback: { .bool($0.goals.mirror.on) }
         ),
         pilot(
             "watch",
@@ -366,6 +391,7 @@ public enum Overrides {
     public static let groups: [(title: String, keys: [String])] = [
         ("General", ["color", "issues"]),
         ("New worktrees", ["setup"]),
+        ("Goals", ["goals_tracker", "goals_mirror"]),
         ("Watching", ["watch"]),
         ("Get it green", ["green", "max_rounds", "run_in", "agent", "model", "merge_agent", "merge_model"]),
         ("Get it merged", [
@@ -412,10 +438,12 @@ public enum Overrides {
 
     /// Orgs and repos named in config.toml, whether or not they are cloned here.
     public static func configuredScopes(in config: HeedConfig) -> [OverrideScope] {
+        // The goal mirror's tables hold orgs and repos in one: a repo is the key with a slash.
+        let goals = Set(config.goals.mirror.trackers.keys).union(config.goals.mirror.mirrors.keys)
         let orgs = Set(config.orgColors.keys).union(config.issues.orgs.keys).union(config.pilot.orgs.keys)
-            .union(config.work.setup.orgs.keys)
+            .union(config.work.setup.orgs.keys).union(goals.filter { !$0.contains("/") })
         let repos = Set(config.repos.keys).union(config.issues.repos.keys).union(config.pilot.repos.keys)
-            .union(config.work.setup.repos.keys)
+            .union(config.work.setup.repos.keys).union(goals.filter { $0.contains("/") })
         return orgs.sorted().map(OverrideScope.org) + repos.sorted().compactMap { slug in
             let parts = slug.split(separator: "/")
             return parts.count == 2 ? .repo(Repo(org: String(parts[0]), name: String(parts[1]))) : nil

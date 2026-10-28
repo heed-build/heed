@@ -24,6 +24,21 @@ public enum Fixtures {
         )
     }()
 
+    /// A repo only config.toml names (not cloned), with a name too long for Settings › Orgs & repos' list.
+    public static let longNamedRepo = Repo(org: "acme", name: "handbook-translations-release-notes-archive")
+
+    /// `[repos."org/name"]` tables the fake world's config.toml has beyond the overrides above.
+    public static let repoConfigs: [String: HeedConfig.RepoConfig] = [
+        longNamedRepo.slug: HeedConfig.RepoConfig(color: nil, issues: nil, tasks: []),
+    ]
+
+    /// Goal trackers: acme's goals mirror to acme/planning, docs-toolkit's to a tracker of its own.
+    public static let goalMirror: GoalMirrorSettings = {
+        var mirror = GoalMirrorSettings()
+        mirror.trackers = ["acme": "acme/planning", "acme/docs-toolkit": "acme/docs-planning"]
+        return mirror
+    }()
+
     /// What the issue links of the fake world fetched: their titles and states.
     public static let issueInfo: [IssueRef: IssueInfo] = [
         IssueRef(repo: docsWebsite, number: 88): IssueInfo(

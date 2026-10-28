@@ -28,6 +28,8 @@ struct Sidebar: View {
                     pointerText: "New to heed?"
                 )
             } else {
+                // The empty state offers both already, larger; with sessions, a quiet row under the header.
+                starts
                 sessionList(list)
             }
             Theme.line.frame(height: 1)
@@ -43,6 +45,29 @@ struct Sidebar: View {
         .frame(width: width)
         .background(Theme.bg2)
         .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
+    }
+
+    /// `o new session  gc new chat`: key hints, so a click runs what the key runs and the caps follow your keymap.
+    /// Narrower than both labels, the short ones (`session`, `chat`), then the keys alone.
+    private var starts: some View {
+        ViewThatFits(in: .horizontal) {
+            startRow { $0.label }
+            startRow { $0.short }
+            startRow { _ in "" }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func startRow(_ label: @escaping (SidebarStarts.Start) -> String) -> some View {
+        HStack(spacing: 16) {
+            ForEach(SidebarStarts.all, id: \.command) { start in
+                KeyHint(start.command, label: label(start))
+            }
+            Spacer(minLength: 0)
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func sessionList(_ list: SessionList) -> some View {

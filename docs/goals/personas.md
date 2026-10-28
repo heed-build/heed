@@ -40,7 +40,7 @@ objections, criteria and open questions asked for each. Evidence it names that i
 again when the board changes in a way that matters: an item added or done, an objection raised or fixed, a criterion
 met, a question answered, something failing. A burst of changes is one ask: heed waits until the board has been still
 for two minutes, and asks at most every fifteen. Each ask is one of the goal's model calls for the day, shared with the
-planner and the proposer. `D` asks now.
+planner and the proposer. `r` asks now.
 
 ## The persona's file
 
@@ -63,7 +63,7 @@ Lists are comma separated; questions end at their `?`. A value may go on over in
 its key. Anything else in the file is kept as notes and passed on with the rest. `e` edits it in place; `e` again, `⎋`
 or `⌘S` saves it. A file that changes the name moves to the new name's file.
 
-`L` copies the persona into the shared library, `~/Library/Application Support/Heed/personas/`, and
+`p` copies (publishes) the persona into the shared library, `~/Library/Application Support/Heed/personas/`, and
 `:persona.use <name>` copies one from the library onto another goal. When the model names a persona the library has,
 the goal gets the library's file instead of a new draft.
 
@@ -71,8 +71,8 @@ the goal gets the library's file instead of a new draft.
 
 | Key | Spawns the persona under the cursor as |
 |---|---|
-| `S` | A session: Start work, filled in with the persona, the goal and the evidence |
-| `C` | A chat, seeded the same way |
+| `s` | A session: Start work, filled in with the persona, the goal and the evidence |
+| `c` | A chat, seeded the same way |
 | `N` | A reviewer: read-only, in a worktree of its own, through the same machinery as the other [reviewers](reviewers.md) |
 
 The agent picker beside the keys chooses the agent for all three; the model picker applies to the reviewer (sessions

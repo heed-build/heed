@@ -460,7 +460,8 @@ struct StatusBar: View {
             [
                 ("goal.focus", model.goals.focus == .versions ? "goals" : "next"), ("swarm.task.edit", "edit"),
                 ("swarm.task.add", "add"), ("swarm.task.drop", "drop"), ("swarm.replan", "re-plan"),
-                ("swarm.answer", "answer"), ("swarm.approve", "approve"), ("swarm.diff", "diff"),
+                model.goals.board?.pending != nil ? ("swarm.accept", "yes") : ("swarm.approve", "approve"),
+                ("swarm.answer", "answer"), ("swarm.diff", "diff"),
                 ("goal.swarm", "overview"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "goalplan")) \($0.1)" }.joined(separator: " · ")

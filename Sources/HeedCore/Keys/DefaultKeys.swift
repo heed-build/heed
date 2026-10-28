@@ -124,44 +124,48 @@ public enum DefaultKeys {
         ],
         // Goals (gG): j k move through the goals, ⇥ to what belongs to the one under the cursor, ↩ opens.
         "goals": goals,
-        // A goal's board (B): h l columns, j k cards, H L move the card, n adds one, o starts work on it.
-        "goalboard": goalsWith([
-            ("n", "goal.item.add"), ("H", "goal.item.move left"), ("L", "goal.item.move right"),
-            ("h", "goal.item.column -1"), ("l", "goal.item.column 1"), ("o", "goal.item.work"),
-            ("<CR>", "goal.item.open"), ("D", "goal.item.done"), ("s", "goal.item.split"), ("x", ""), ("<Tab>", ""),
-            ("<S-Tab>", ""),
+        // A goal's board (B): h l columns, j k cards, H L move the card, a adds one (n as well: it is new there),
+        // s or o starts work on it, D is done, - splits it.
+        "goalboard": paneWith([
+            ("a", "goal.item.add"), ("n", "goal.item.add"), ("H", "goal.item.move left"),
+            ("L", "goal.item.move right"), ("h", "goal.item.column -1"), ("l", "goal.item.column 1"),
+            ("s", "goal.item.work"), ("o", "goal.item.work"), ("<CR>", "goal.item.open"), ("D", "goal.item.done"),
+            ("-", "goal.item.split"), ("<Tab>", ""), ("<S-Tab>", ""),
         ]),
         // A goal's GOAL.md (E): y n on the first change waiting, c rewords it, u takes back heed's last, w sharpens.
-        // A goal's Reviewers (R): A accepts a risk, s starts a session to fix, c asks why, N spawns a reviewer.
-        "goalreviewers": goalsWith([
-            ("A", "review.accept"), ("s", "review.fix"), ("c", "review.why"), ("N", "reviewer.spawn"),
-        ]),
-        // A goal's Personas (P): S spawns the persona as a session, C as a chat, N as a reviewer; e edits its file,
-        // D works the list out again, L shares the persona to the library.
-        "goalpersonas": goalsWith([
-            ("S", "persona.session"), ("C", "persona.chat"), ("N", "persona.reviewer"), ("e", "persona.edit"),
-            ("D", "persona.derive"), ("L", "persona.share"), ("x", ""),
-        ]),
-        // A goal's Evaluations (X): s starts a session to fix the friction, a accepts it, r walks again, h l pick the
-        // lens.
-        "goalevals": goalsWith([
-            ("s", "eval.fix"), ("a", "eval.accept"), ("r", "eval.rewalk"), ("h", "eval.lens -1"), ("l", "eval.lens 1"),
-        ]),
-        // A goal's swarm (S): e edits the task, a adds one, J K move it, x drops it, r asks the lead to re-plan, c
-        // answers its question, A approves, n says no to a change waiting, d the version's whole diff, u restores it.
-        "goalplan": goalsWith([
-            ("e", "swarm.task.edit"), ("a", "swarm.task.add"), ("J", "swarm.task.move 1"), ("K", "swarm.task.move -1"),
-            ("x", "swarm.task.drop"), ("r", "swarm.replan"), ("c", "swarm.answer"), ("A", "swarm.approve"),
-            ("n", "swarm.reject"), ("d", "swarm.diff"), ("u", "swarm.restore"),
-        ]),
         "goaldoc": goalsWith([
             ("y", "goal.proposal.accept"), ("n", "goal.proposal.reject"), ("c", "goal.proposal.edit"),
             ("u", "goal.undo"), ("w", "goal.sharpen"),
         ]),
+        // A goal's Reviewers (R): A accepts a risk, s starts a session to fix, c asks why, N spawns a reviewer, r has
+        // them all look again.
+        "goalreviewers": paneWith([
+            ("A", "review.accept"), ("s", "review.fix"), ("c", "review.why"), ("N", "reviewer.spawn"),
+            ("r", "review.recheck"),
+        ]),
+        // A goal's Personas (P): s spawns the persona as a session, c as a chat, N as a reviewer; e edits its file,
+        // r works the list out again, p shares (publishes) the persona to the library.
+        "goalpersonas": paneWith([
+            ("s", "persona.session"), ("c", "persona.chat"), ("N", "persona.reviewer"), ("e", "persona.edit"),
+            ("r", "persona.derive"), ("p", "persona.share"),
+        ]),
+        // A goal's Evaluations (X): s starts a session to fix the friction, A accepts it (as a risk in Reviewers), r
+        // walks again, h l pick the lens.
+        "goalevals": paneWith([
+            ("s", "eval.fix"), ("A", "eval.accept"), ("r", "eval.rewalk"), ("h", "eval.lens -1"), ("l", "eval.lens 1"),
+        ]),
+        // A goal's swarm (S): e edits the task, a adds one, J K move it, x drops it, r asks the lead to re-plan, A
+        // approves the plan, y n answer a change waiting (as in GOAL.md), 1…9 pick that option of the lead's first open
+        // question and i types an answer, d the version's whole diff, u restores it. c stays free: ask the controller.
+        "goalplan": paneWith([
+            ("e", "swarm.task.edit"), ("a", "swarm.task.add"), ("J", "swarm.task.move 1"), ("K", "swarm.task.move -1"),
+            ("x", "swarm.task.drop"), ("r", "swarm.replan"), ("A", "swarm.approve"), ("y", "swarm.accept"),
+            ("n", "swarm.reject"), ("i", "swarm.answer"), ("d", "swarm.diff"), ("u", "swarm.restore"),
+        ] + (1 ... 9).map { ("\($0)", "swarm.answer.option \($0)") }),
         // Goals › Unassigned (U): y n m i answer heed's asks (y on a suggested goal makes it), u undoes.
-        "unassigned": goalsWith([
+        "unassigned": paneWith([
             ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
-            ("u", "goal.attach.undo"), ("x", ""), ("<Tab>", ""), ("<S-Tab>", ""),
+            ("u", "goal.attach.undo"), ("<Tab>", ""), ("<S-Tab>", ""),
         ]),
         // The call log has no key of its own (:log); inside it, its filters.
         "log": [
@@ -210,22 +214,50 @@ public enum DefaultKeys {
 
     /// Views whose own bindings work in VISUAL too, ahead of VISUAL's: in the diff, `a`, `A` and `y` act on the
     /// selected lines.
-    /// The keys of Goals' list and overview; the board and GOAL.md keep them, with their own laid over.
-    static let goals: [(String, String)] = [
-        ("n", "goal.new"), ("E", "goal.doc"), ("e", "goal.edit"), ("a", "goal.archive"), ("x", "goal.detach"),
-        ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"), ("B", "goal.board"),
-        ("w", "goal.sharpen"), ("U", "goal.unassigned"), ("u", "goal.attach.undo"), ("R", "goal.reviewers"),
-        ("r", "review.recheck"), ("P", "goal.personas"), ("X", "goal.evaluations"),
-        // The GitHub mirror: M turns it on or off; Y and K answer a colleague's change (yes / keep heed's).
-        ("M", "goal.mirror"), ("Y", "goal.mirror.yes"), ("K", "goal.mirror.no"),
-        // The goal's swarm: its plan, questions, versions and steering.
-        ("S", "goal.swarm"),
+    /// The keys of Goals' list and overview: what acts on the goal, and what every view of Goals shares.
+    static let goals: [(String, String)] = goalActions + goalShared
+
+    /// Lowercase actions on the goal itself. They apply only where the goal is what you are on: the list, the overview
+    /// and GOAL.md. Every other pane binds the key to its own row's meaning or leaves it unbound, so a key never falls
+    /// through to the goal (`a` in Reviewers does not archive it).
+    public static let goalActions: [(String, String)] = [
+        ("n", "goal.new"), ("e", "goal.edit"), ("a", "goal.archive"), ("x", "goal.detach"), ("w", "goal.sharpen"),
+        ("u", "goal.attach.undo"), ("r", "review.recheck"),
     ]
 
-    /// Goals' keys with `overrides` laid over (an empty command drops the key).
+    /// What every view of Goals shares: ↩ and ⇥, the GitHub mirror (M turns it on or off; Y and K answer a colleague's
+    /// change: yes / keep heed's), and the capitals that switch the goal's pane.
+    static let goalShared: [(String, String)] = [
+        ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"),
+        ("M", "goal.mirror"), ("Y", "goal.mirror.yes"), ("K", "goal.mirror.no"),
+    ] + goalPanes
+
+    /// Every view of Goals, by key scope: the list and overview, and each pane of a goal.
+    public static let goalScopes = [
+        "goals", "goalboard", "goaldoc", "goalreviewers", "goalpersonas", "goalevals", "goalplan", "unassigned",
+    ]
+
+    /// The capitals that switch a goal's pane. They work the same in every view of Goals, and no pane may bind one of
+    /// them to an action of its own: `S` opens the swarm from Personas as from anywhere else.
+    public static let goalPanes: [(String, String)] = [
+        ("E", "goal.doc"), ("B", "goal.board"), ("R", "goal.reviewers"), ("P", "goal.personas"),
+        ("X", "goal.evaluations"), ("U", "goal.unassigned"), ("S", "goal.swarm"),
+    ]
+
+    /// Goals' list keys with `overrides` laid over (an empty command drops the key): GOAL.md, where the goal is the
+    /// thing under the cursor.
     static func goalsWith(_ overrides: [(String, String)]) -> [(String, String)] {
+        laid(overrides, over: goals)
+    }
+
+    /// A goal's pane: what every view of Goals shares, with the pane's own keys laid over. No goal action comes along.
+    static func paneWith(_ overrides: [(String, String)]) -> [(String, String)] {
+        laid(overrides, over: goalShared)
+    }
+
+    private static func laid(_ overrides: [(String, String)], over base: [(String, String)]) -> [(String, String)] {
         let replaced = Set(overrides.map(\.0))
-        return goals.filter { !replaced.contains($0.0) } + overrides.filter { !$0.1.isEmpty }
+        return base.filter { !replaced.contains($0.0) } + overrides.filter { !$0.1.isEmpty }
     }
 
     public static let visualScopes: Set<String> = ["diff"]

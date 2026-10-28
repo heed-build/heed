@@ -57,12 +57,14 @@ private struct GoalList: View {
 
     var body: some View {
         let goals = model.goals
+        // The keys of the pane that is open: a goal's action shows only where its key acts on the goal.
+        let scope = goals.scope
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 SectionHeader(title: "Goals · \(goals.snapshot.goals.count)")
                 Spacer(minLength: 8)
                 FilterPill(view: .goals)
-                KeyHint("goal.new", scope: "goals", label: "new")
+                if model.binds("goal.new", in: scope) { KeyHint("goal.new", scope: scope, label: "new") }
             }
             .padding(.horizontal, 18)
             .frame(height: 44)
@@ -93,10 +95,12 @@ private struct GoalList: View {
             UnassignedRow()
             Theme.line.frame(height: 1)
             FlowLayout(spacing: 14, lineSpacing: 6) {
-                KeyHint("goal.focus", scope: "goals", label: "what is on it")
-                KeyHint("goal.doc", scope: "goals", label: "GOAL.md")
-                KeyHint("goal.reviewers", scope: "goals", label: "reviewers")
-                KeyHint("goal.archive", scope: "goals", label: "archive")
+                if model.binds("goal.focus", in: scope) {
+                    KeyHint("goal.focus", scope: scope, label: "what is on it")
+                }
+                KeyHint("goal.doc", scope: scope, label: "GOAL.md")
+                KeyHint("goal.reviewers", scope: scope, label: "reviewers")
+                if model.binds("goal.archive", in: scope) { KeyHint("goal.archive", scope: scope, label: "archive") }
                 KeyHint("session.filter", label: "filter")
             }
             .padding(.horizontal, 18)
@@ -227,6 +231,7 @@ struct GoalHeader: View {
     let statement: String
 
     var body: some View {
+        let scope = model.goals.scope
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
                 Text(goal.title).font(Theme.ui(18, weight: .semibold)).lineLimit(1)
@@ -236,28 +241,32 @@ struct GoalHeader: View {
                 if goal.status != .active { PullWord(state: goal.status.rawValue) }
                 Spacer(minLength: 12)
                 KeyHint(
-                    "goal.doc", scope: "goals",
+                    "goal.doc", scope: scope,
                     label: model.goals.pane == .doc ? "overview" : "GOAL.md", color: Theme.fg2
                 )
                 KeyHint(
-                    "goal.board", scope: "goals", label: model.goals.pane == .board ? "overview" : "board",
+                    "goal.board", scope: scope, label: model.goals.pane == .board ? "overview" : "board",
                     color: Theme.fg2
                 )
-                KeyHint("goal.edit", scope: "goals", label: "edit", color: Theme.fg2)
-                KeyHint("goal.reviewers", scope: "goals", label: "reviewers", color: Theme.fg2)
-                KeyHint("goal.evaluations", scope: "goals", label: "evaluations", color: Theme.fg2)
+                if model.binds("goal.edit", in: scope) {
+                    KeyHint("goal.edit", scope: scope, label: "edit", color: Theme.fg2)
+                }
+                KeyHint("goal.reviewers", scope: scope, label: "reviewers", color: Theme.fg2)
+                KeyHint("goal.evaluations", scope: scope, label: "evaluations", color: Theme.fg2)
                 KeyHint(
-                    "goal.personas", scope: "goals", label: model.goals.pane == .personas ? "overview" : "personas",
-                    color: Theme.fg2
-                )
-                KeyHint(
-                    "goal.swarm", scope: "goals", label: model.goals.pane == .plan ? "overview" : "swarm",
+                    "goal.personas", scope: scope, label: model.goals.pane == .personas ? "overview" : "personas",
                     color: Theme.fg2
                 )
                 KeyHint(
-                    "goal.archive", scope: "goals", label: goal.status == .archived ? "bring back" : "archive",
+                    "goal.swarm", scope: scope, label: model.goals.pane == .plan ? "overview" : "swarm",
                     color: Theme.fg2
                 )
+                if model.binds("goal.archive", in: scope) {
+                    KeyHint(
+                        "goal.archive", scope: scope, label: goal.status == .archived ? "bring back" : "archive",
+                        color: Theme.fg2
+                    )
+                }
             }
             if !statement.isEmpty {
                 Text(statement).font(Theme.ui(13)).foregroundStyle(Theme.fg2)
@@ -362,8 +371,8 @@ private struct GoalDocPane: View {
                         Text("Cancel").font(Theme.ui(12)).foregroundStyle(Theme.fg2).clickable()
                             .onTapGesture { model.endGoalEditing() }
                     } else {
-                        KeyHint("goal.edit", scope: "goals", label: "edit", color: Theme.fg2)
-                        KeyHint("goal.doc", scope: "goals", label: "overview", color: Theme.fg2)
+                        KeyHint("goal.edit", scope: goals.scope, label: "edit", color: Theme.fg2)
+                        KeyHint("goal.doc", scope: goals.scope, label: "overview", color: Theme.fg2)
                     }
                 }
                 if goals.draft != nil {

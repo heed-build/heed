@@ -1,8 +1,8 @@
 /// Turns key strokes into commands, one mode at a time. Pure state: no UI, no AppKit, so all of key routing except the
 /// last hop into the terminal is unit-tested.
 ///
-/// - NORMAL and VISUAL: digits build a count (`3j`), keys build a sequence until it is bound (`gg`, `<C-w>v`) or
-///   cannot be (`gq` clears and reports itself unbound). `<Esc>` clears what is pending.
+/// - NORMAL and VISUAL: digits build a count (`3j`) unless the view binds them, keys build a sequence until it is
+///   bound (`gg`, `<C-w>v`) or cannot be (`gq` clears and reports itself unbound). `<Esc>` clears what is pending.
 /// - INSERT: every key goes to the terminal except single-key bindings (the escape chord, `<D-/>`).
 /// - COMMAND and HINT: keys feed the command line or the hint field, except their own bindings (`<Esc>`, `<CR>`).
 ///
@@ -92,8 +92,12 @@ public struct ModeEngine: Sendable {
             reset()
             return .cleared
         }
-        // Digits are counts, as in vim; `0` only continues one, so it stays free to bind.
-        if pending.isEmpty, stroke.modifiers.isEmpty, let digit = Int(stroke.key), digit > 0 || count != nil {
+        // Digits are counts, as in vim; `0` only continues one, so it stays free to bind. A view that binds a digit
+        // itself (the swarm's plan: `1` picks the lead's first option) has it, unless a count is already being typed.
+        let scopedDigit = count == nil && pending.isEmpty && scopedKeymap.map { $0.lookup([stroke]) != .none } == true
+        if pending.isEmpty, stroke.modifiers.isEmpty, let digit = Int(stroke.key), digit > 0 || count != nil,
+           !scopedDigit
+        {
             count = min((count ?? 0) * 10 + digit, 9999)
             return .pending
         }

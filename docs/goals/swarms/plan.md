@@ -25,8 +25,10 @@ agents.
 | `J` `K` | Move the task down or up; past the edge of its phase it joins the next |
 | `x` | Drop the task; nothing waits for it any more |
 | `r` | Re-plan: tell the lead what should change |
-| `c` | Answer the lead's first open question |
-| `A` | Approve the plan, or the change waiting for you |
+| `1`…`9` | Answer the lead's first open question with that choice |
+| `i` | Answer the lead's first open question in words |
+| `A` | Approve the plan |
+| `y` | Yes to the change waiting for you, as in `GOAL.md` |
 | `n` | Say no to the change waiting for you |
 | `d` | The version under the cursor's whole diff; again, its first lines |
 | `u` | Restore the version under the cursor, as a new version |
@@ -44,8 +46,9 @@ circle is refused with the circle named.
 
 ![What the lead asks](../../images/shots/goals/swarm-questions.png)
 
-What the lead cannot decide from the goal and the code, it asks, with the choices it sees. A click on a choice answers
-with it; `c`, or **or type**, answers in words. The lead reads answers with `heed goal plan show`; when its pane is
+What the lead cannot decide from the goal and the code, it asks, with the choices it sees. The first open question's
+choices are numbered: `1` answers with the first, `2` the second, and a click on any choice answers with it; `i`, or
+**or type**, answers in words. In this pane a digit picks a choice rather than starting a count. The lead reads answers with `heed goal plan show`; when its pane is
 idle and you have not typed there, heed also tells it there is something to read.
 
 ## Approving
@@ -60,7 +63,8 @@ After approval the default is to ask only when the plan changes. A change from t
 
 - **Small** applies by itself and the plan stays approved: tasks reordered, another owner, phase or estimate.
 - **Structural** waits for you: a task added, dropped or renamed, what a task waits for, or when it is done. It shows
-  as **The lead proposes a change** with its diff; `A` approves it, `n` says no (the lead hears why).
+  as **The lead proposes a change** with its diff; `y` takes it, `n` says no (the lead hears why), as with a
+  change to `GOAL.md`. `A` takes it too.
 
 Run to the end applies every change. A plan never changes the goal: what the goal would need goes to `GOAL.md` as a
 proposal.

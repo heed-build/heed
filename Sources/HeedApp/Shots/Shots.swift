@@ -549,6 +549,31 @@ enum Shots {
             id: "configuration/inference-reminder", crop: .titleBar,
             prepare: { $0.inferenceReminderInShots = true }
         ),
+        // Hunch in each of its states: chosen with no model, downloading, ready with a trained head, learning.
+        Shot(
+            id: "configuration/hunch-no-model", subject: .settings(.inference), size: CGSize(width: 1100, height: 2000),
+            prepare: { HunchShots.prepare($0, .noModel) }
+        ),
+        Shot(
+            id: "configuration/hunch-downloading", subject: .settings(.inference),
+            size: CGSize(width: 1100, height: 2000), prepare: { HunchShots.prepare($0, .downloading) }
+        ),
+        Shot(
+            id: "configuration/hunch-ready", subject: .settings(.inference), size: CGSize(width: 1100, height: 2000),
+            prepare: { HunchShots.prepare($0, .ready) }
+        ),
+        Shot(
+            id: "configuration/hunch-learning", subject: .settings(.inference), size: CGSize(width: 1100, height: 2000),
+            prepare: { HunchShots.prepare($0, .learning) }
+        ),
+        // The title bar's reminder while Hunch is chosen and its model is downloading.
+        Shot(
+            id: "configuration/hunch-reminder", crop: .titleBar,
+            prepare: { model in
+                HunchShots.prepare(model, .downloading)
+                model.inferenceReminderInShots = true
+            }
+        ),
         Shot(
             id: "configuration/attention-rules", subject: .settings(.attention), size: CGSize(
                 width: 1180,

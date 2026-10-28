@@ -72,6 +72,10 @@ public struct InferenceSetup: Equatable, Sendable {
     public var suggestedDecider: DecisionSettings.Choice
     /// What does not happen as things stand, for the status at the top of the pane.
     public var degraded: [String]
+    /// Where Hunch stands, for the status and the reminder.
+    public var hunch: HunchStatus = .unavailable("not checked")
+    /// `[decisions] decider`, nil when not chosen.
+    public var chosenDecider: DecisionSettings.Choice?
 
     /// What needs a model call.
     public static let inferenceFeatures = [
@@ -89,29 +93,38 @@ public struct InferenceSetup: Equatable, Sendable {
     ]
 
     /// `statuses`: what detection found, nil before it ran (then a chosen agent is taken to work).
+    /// `hunch`: where Hunch stands on this Mac.
     public static func evaluate(
         llm: LLMSettings, decisions: DecisionSettings, statuses: [LLMAgentStatus]?, local: LocalModel,
-        tests: SetupTests
+        tests: SetupTests, hunch: HunchStatus = .unavailable("not checked")
     ) -> InferenceSetup {
         let agent = suggestedAgent(statuses ?? [])
-        let decider = suggestedDecider(local: local, agent: agent)
+        // Hunch chosen stays chosen: Set up never trades it for another decider while its model is missing or
+        // downloading.
+        let decider = decisions.decider == .hunch ? .hunch : suggestedDecider(local: local, agent: agent, hunch: hunch)
         let inference = inferenceState(llm: llm, statuses: statuses, suggested: agent, test: tests.inference)
+        let chosen = decisions.decider
         let decisions = decisionState(
-            decisions, inference: inference, local: local, suggested: decider, test: tests.decisions
+            decisions, inference: inference, local: local, suggested: decider, test: tests.decisions, hunch: hunch
         )
         let inferenceWorks = switch inference {
         case .configured: true
         case .notConfigured: statuses.map { $0.contains { $0.usable && llm.isEnabled($0.name) } } ?? true
         case .failing, .off: false
         }
+        // Hunch without a model still answers through where its questions go meanwhile.
+        let routedOn = chosen == .hunch
+            && HunchRouting.overflow(localReady: local.ready, modelCalls: inferenceWorks) != .none
         let decisionsWork = switch decisions {
         case .configured: true
         case .notConfigured: inferenceWorks
-        case .failing, .off: false
+        case .failing: routedOn
+        case .off: false
         }
         return InferenceSetup(
             inference: inference, decisions: decisions, suggestedAgent: agent, suggestedDecider: decider,
-            degraded: (inferenceWorks ? [] : inferenceFeatures) + (decisionsWork ? [] : decisionFeatures)
+            degraded: (inferenceWorks ? [] : inferenceFeatures) + (decisionsWork ? [] : decisionFeatures),
+            hunch: hunch, chosenDecider: chosen
         )
     }
 
@@ -121,9 +134,13 @@ public struct InferenceSetup: Equatable, Sendable {
         statuses.first { $0.login == .loggedIn }?.name ?? statuses.first { $0.login == .unknown }?.name
     }
 
-    /// Apple's on-device model when this Mac has it (free, private), else a model call when there is an agent for it,
-    /// else off.
-    public static func suggestedDecider(local: LocalModel, agent: String?) -> DecisionSettings.Choice {
+    /// Hunch once its model is downloaded (you downloaded it to use it), else Apple's on-device model when this Mac
+    /// has it (free, private), else a model call when there is an agent for it, else off. Set up never downloads a
+    /// model: the pane offers that as its own button, with its size.
+    public static func suggestedDecider(
+        local: LocalModel, agent: String?, hunch: HunchStatus = .unavailable("not checked")
+    ) -> DecisionSettings.Choice {
+        if hunch.modelReady { return .hunch }
         if local.ready { return .local }
         return agent == nil ? .off : .model
     }
@@ -159,7 +176,7 @@ public struct InferenceSetup: Equatable, Sendable {
 
     static func decisionState(
         _ decisions: DecisionSettings, inference: SetupState, local: LocalModel, suggested: DecisionSettings.Choice,
-        test: SetupTest?
+        test: SetupTest?, hunch: HunchStatus = .unavailable("not checked")
     ) -> SetupState {
         guard let chosen = decisions.decider else {
             return .notConfigured("Not chosen yet: decisions go to a model call. Suggested: \(name(suggested)).")
@@ -171,6 +188,30 @@ public struct InferenceSetup: Equatable, Sendable {
         case .off: return .off("Decisions are off ([decisions] decider = \"off\").")
         case .local:
             return local.ready ? .configured("Apple's on-device model, on this Mac.") : .failing(local.description)
+        case .hunch:
+            let rest = switch HunchRouting.overflow(localReady: local.ready, modelCalls: inferenceWorks(inference)) {
+            case .local: "Apple's on-device model"
+            case .model: "a model call"
+            case .hunch, .none: "nothing (they go unanswered)"
+            }
+            switch hunch {
+            case let .unavailable(why): return .failing(why)
+            case .noModel:
+                return .failing("Hunch has no model yet: download one below. Until then decisions go to \(rest).")
+            case let .downloading(fraction):
+                return .configured(
+                    "Hunch's model is downloading\(HunchStatus.percent(fraction)). Until then decisions go to \(rest)."
+                )
+            case let .stopped(fraction, reason):
+                return .failing(
+                    "Hunch's download stopped\(HunchStatus.percent(fraction))\(reason.map { " (\($0))" } ?? ""): "
+                        + "Download resumes it. Until then decisions go to \(rest)."
+                )
+            case .ready:
+                return .configured("Hunch on this Mac; choices among many options go to \(rest).")
+            case .learning:
+                return .configured("Hunch on this Mac, learning from your corrections now; many options go to \(rest).")
+            }
         case .model:
             switch inference {
             case .off: return .failing("A model call, but model calls are off.")
@@ -180,10 +221,18 @@ public struct InferenceSetup: Equatable, Sendable {
         }
     }
 
+    static func inferenceWorks(_ inference: SetupState) -> Bool {
+        switch inference {
+        case .configured, .notConfigured: true
+        case .failing, .off: false
+        }
+    }
+
     /// How the pane and the docs name a decider.
     public static func name(_ choice: DecisionSettings.Choice) -> String {
         switch choice {
         case .local: "Apple's on-device model"
+        case .hunch: "Hunch"
         case .model: "a model call"
         case .off: "off"
         }
@@ -191,11 +240,29 @@ public struct InferenceSetup: Equatable, Sendable {
 
     public var needsAttention: Bool { inference.needsAttention || decisions.needsAttention }
 
+    /// Decisions are Hunch's.
+    var hunchChosen: Bool { chosenDecider == .hunch }
+
+    /// The reminder's words for Hunch while it needs you.
+    var hunchReminder: String? {
+        switch hunch {
+        case .noModel: "Hunch has no model"
+        case let .downloading(fraction): "Hunch downloading" + HunchStatus.percent(fraction)
+        case .stopped: "Hunch's download stopped"
+        case .unavailable: "Hunch unavailable"
+        case .ready, .learning: nil
+        }
+    }
+
     /// The title bar's reminder, or nil: only while something needs attention, `[llm] setup_reminder` is on and it was
     /// not hidden in this launch.
     public func reminder(enabled: Bool, hiddenThisLaunch: Bool) -> String? {
-        guard enabled, !hiddenThisLaunch, needsAttention else { return nil }
+        guard enabled, !hiddenThisLaunch else { return nil }
+        // A download in progress is news, not a problem: it shows while it runs.
+        if hunchChosen, case .downloading = hunch, !inference.needsAttention { return hunchReminder }
+        guard needsAttention else { return nil }
         if case .failing = inference { return "Model calls failing" }
+        if hunchChosen, let hunch = hunchReminder { return hunch }
         if case .failing = decisions { return "Decisions failing" }
         return "Set up model calls"
     }

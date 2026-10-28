@@ -133,6 +133,11 @@ This page is generated from the code (`mise run shots`).
 | `settings.open` `[section] [tab]` | `<D-,>` | open Settings, on a section (general, agents, inference, colors, cleanup, pilot, attention, keys, hosts); orgs takes a tab (general, green, merged, reviews, instructions) |
 | `inference.setup` |  | set up heed's model calls and decisions (Settings › Inference & decisions) |
 | `inference.hide` `[always]` |  | hide the title bar's model call setup reminder until the next launch (always: for good) |
+| `hunch.download` `[checkpoint]` |  | download (or resume) Hunch's model, english by default; says its size and license first |
+| `hunch.cancel` `[checkpoint]` |  | stop Hunch's model download; hunch.download resumes it |
+| `hunch.delete` `[checkpoint]` |  | delete Hunch's downloaded model and the head trained on it |
+| `hunch.retrain` |  | train Hunch on your corrections now, in the background |
+| `hunch.reset` |  | put Hunch back on its checkpoint's own head (the training set stays) |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
 | `history.timeline` | `T` (dashboard), `T` (history), `T` (ledger), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |

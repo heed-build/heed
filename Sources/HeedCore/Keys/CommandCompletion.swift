@@ -118,6 +118,8 @@ public enum CommandCompletions {
         case "tutor": ([Tutor.tour] + Tutor.viewLessons).map { ($0.id, $0.title) }
         case "tutor.hide": [("all", "every lesson's reminder")]
         case "inference.hide": [("always", "never remind me ([llm] setup_reminder = false)")]
+        case "hunch.download", "hunch.cancel", "hunch.delete":
+            HunchCatalogue.details.map { ($0.id, "\($0.details.title), \($0.details.languages)") }
         case "log.kind": CallKind.all.map { ($0.rawValue, "") }
         case "dashboard.range": [("7", "a week"), ("28", "four weeks"), ("84", "twelve weeks")]
         case "timeline.kind": TimelineItem.Kind.allCases.map { ($0.rawValue, "") } + [("all", "every kind")]

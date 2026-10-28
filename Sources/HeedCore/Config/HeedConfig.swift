@@ -46,6 +46,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var llm = LLMSettings()
     /// `[decisions]`: who answers heed's typed questions (Settings › Inference & decisions).
     public var decisions = DecisionSettings()
+    /// `[hunch]`: Hunch's checkpoint, and whether it learns from your corrections.
+    public var hunch = HunchSettings()
     /// `[local]`: what heed keeps on this Mac to learn local decisions from (screen snapshots). Off by default.
     public var local = LocalSettings()
     /// `[start_work]`: whether the on-device model helps Start work guess.
@@ -105,6 +107,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.log == rhs.log,
             lhs.llm == rhs.llm,
             lhs.decisions == rhs.decisions,
+            lhs.hunch == rhs.hunch,
             lhs.local == rhs.local,
             lhs.startWork == rhs.startWork,
             lhs.goals == rhs.goals,
@@ -704,9 +707,25 @@ public enum ConfigLoader {
             if let choice = DecisionSettings.Choice(rawValue: text.trimmingCharacters(in: .whitespaces).lowercased()) {
                 config.decisions.decider = choice
             } else {
-                problems.append(ConfigProblem(path: "decisions.decider", message: "expected local, model or off"))
+                problems.append(ConfigProblem(
+                    path: "decisions.decider",
+                    message: "expected local, hunch, model or off"
+                ))
             }
         }
+        // [hunch]
+        if let name = string(["hunch", "checkpoint"]) {
+            let trimmed = name.trimmingCharacters(in: .whitespaces).lowercased()
+            if trimmed.isEmpty {
+                config.hunch.checkpoint = nil
+            } else if HunchCatalogue.details.contains(where: { $0.id == trimmed }) {
+                config.hunch.checkpoint = trimmed
+            } else {
+                let names = HunchCatalogue.details.map(\.id).joined(separator: " or ")
+                problems.append(ConfigProblem(path: "hunch.checkpoint", message: "expected \(names)"))
+            }
+        }
+        if let flag = bool(["hunch", "learn"]) { config.hunch.learn = flag }
         // [local]
         if let flag = bool(["local", "record_screens"]) { config.local.recordScreens = flag }
         if let days = integer(["local", "keep_days"], range: 1 ... 365) { config.local.keepDays = days }
@@ -1049,9 +1068,18 @@ public enum ConfigLoader {
 
     [decisions]
     # Who answers heed's typed questions (Attention's suggested weights, goal items, quality profiles): "local"
-    # (Apple's on-device model, free and on this Mac only, macOS 26 with Apple Intelligence), "model" (a model call
-    # through [llm]) or "off". Unset: a model call, and the title bar reminds you to choose.
+    # (Apple's on-device model, free and on this Mac only, macOS 26 with Apple Intelligence), "hunch" (a Laya
+    # checkpoint on this Mac, see [hunch]), "model" (a model call through [llm]) or "off". Unset: a model call, and the
+    # title bar reminds you to choose.
     # decider = "local"
+
+    [hunch]
+    # The Laya checkpoint Hunch runs, downloaded from Settings › Inference & decisions: "english" (the default) or
+    # "multilingual".
+    # checkpoint = "english"
+    # Learn from your corrections (Attention actions, goal attach answers, labelled screen snapshots): a head trained
+    # on this Mac, adopted only when it does no worse on examples it never saw. Unset: on once a model is downloaded.
+    # learn = true
 
     [local]
     # Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,

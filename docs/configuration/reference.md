@@ -257,9 +257,18 @@ setup_reminder = true
 
 [decisions]
 # Who answers heed's typed questions (Attention's suggested weights, goal items, quality profiles): "local"
-# (Apple's on-device model, free and on this Mac only, macOS 26 with Apple Intelligence), "model" (a model call
-# through [llm]) or "off". Unset: a model call, and the title bar reminds you to choose.
+# (Apple's on-device model, free and on this Mac only, macOS 26 with Apple Intelligence), "hunch" (a Laya
+# checkpoint on this Mac, see [hunch]), "model" (a model call through [llm]) or "off". Unset: a model call, and the
+# title bar reminds you to choose.
 # decider = "local"
+
+[hunch]
+# The Laya checkpoint Hunch runs, downloaded from Settings › Inference & decisions: "english" (the default) or
+# "multilingual".
+# checkpoint = "english"
+# Learn from your corrections (Attention actions, goal attach answers, labelled screen snapshots): a head trained
+# on this Mac, adopted only when it does no worse on examples it never saw. Unset: on once a model is downloaded.
+# learn = true
 
 [local]
 # Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,

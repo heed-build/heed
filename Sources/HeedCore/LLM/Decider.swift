@@ -2,7 +2,7 @@ import Foundation
 
 /// A typed question about a state (a session, a PR), in the shapes a small local model can answer too: pick one of
 /// some options, place it on an ordered scale, or say how likely something is true.
-public enum Question: Hashable, Sendable {
+public enum Question: Hashable, Sendable, Codable {
     /// One of `options`.
     case choice(instructions: String, options: [String])
     /// One of `levels`, ordered from lowest to highest.

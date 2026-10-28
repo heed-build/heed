@@ -6,7 +6,8 @@ description: Choose which agent takes Heed's own model calls and what answers it
 # Inference & decisions
 
 Heed makes short [model calls](../agents/model-calls.md) of its own (summaries, drafted replies, goal plans) through
-an agent CLI you are logged in to, and asks typed questions, *decisions*, of Apple's on-device model or a model call.
+an agent CLI you are logged in to, and asks typed questions, *decisions*, of Apple's on-device model, of
+[Hunch](#hunch) (a small model on this Mac that learns from your corrections) or of a model call.
 **Settings › Inference & decisions** sets up both, and tests them. `:inference.setup` opens it, as does
 `:settings.open inference` and **Help › Set up model calls & decisions**.
 
@@ -20,7 +21,7 @@ The top of the pane says, for model calls and for decisions, one of:
 |---|---|
 | **configured** | Chosen, and nothing says it does not work. |
 | **not configured** | Not chosen yet. Model calls still take turns over every agent you are logged in to, and decisions go to a model call, as before. |
-| **failing** | Chosen, and it cannot work: the agent is not installed or not logged in, the on-device model is not available on this Mac, decisions by model call while model calls are off or failing, or the last test of it failed. |
+| **failing** | Chosen, and it cannot work: the agent is not installed or not logged in, the on-device model is not available on this Mac, Hunch has no model (or its download stopped), decisions by model call while model calls are off or failing, or the last test of it failed. |
 | **off** | Turned off on purpose. |
 
 Below the two states, the pane lists what goes without while they do not work: History's ledger summaries,
@@ -34,8 +35,12 @@ While either one is not set up, **Set up** writes the suggestion for both and te
 
 - **Model calls**: the first agent that is installed and logged in, in the order claude, codex, cursor, pi, opencode,
   gemini (Heed checks with each one's free login check), else one installed without a login check (gemini).
-- **Decisions**: Apple's on-device model when this Mac has it (macOS 26 with Apple Intelligence on and its model
-  downloaded): free, and nothing leaves the Mac. Otherwise a model call when there is an agent for it, else off.
+- **Decisions**: Hunch once its model is downloaded; else Apple's on-device model when this Mac has it (macOS 26 with
+  Apple Intelligence on and its model downloaded): free, and nothing leaves the Mac. Otherwise a model call when there
+  is an agent for it, else off.
+
+Set up never downloads anything. When Hunch has no model, the card offers **Download Laya English for Hunch
+(807 MiB)** as a button of its own, with its size and license, for you to press.
 
 ![Set up: claude for model calls, the on-device model for decisions, both tested](../images/shots/configuration/inference-configured.png)
 
@@ -52,8 +57,8 @@ While either one is not set up, **Set up** writes the suggestion for both and te
 
 ## Decisions
 
-- **Decider**: *On-device* (Apple's model), *Model call* (through Inference above) or *Off* (what asks goes
-  without). The on-device model picks an option and says how sure it is (low, medium, high); Heed turns that into
+- **Decider**: *On-device* (Apple's model), *Hunch* (below), *Model call* (through Inference above) or *Off* (what
+  asks goes without). The on-device model picks an option and says how sure it is (low, medium, high); Heed turns that into
   probabilities, and every decision writes a `decide` row in `:log` as a model call's does.
 - **Attach on its own at** and **Ask from**: the thresholds [finding new work's goal](../goals/attach.md) acts on, the
   same as in General › Goals.
@@ -61,11 +66,56 @@ While either one is not set up, **Set up** writes the suggestion for both and te
 
 The last test of each is kept between launches: a failed one says so in the pane, and in the reminder.
 
+## Hunch
+
+[Hunch](https://github.com/heed-build/hunch) answers typed questions on this Mac with a small
+[Laya](https://github.com/NandhaKishorM/laya) checkpoint: one pass of an encoder, tens of milliseconds, no network. It
+needs a Mac with Apple silicon. Choosing it (`decider = "hunch"`) does not make it answer everything:
+
+| Question | Who answers |
+|---|---|
+| A statement that is true or not, a scale of up to 6 levels, a choice of up to 5 short options (Attention's suggested weights) | Hunch |
+| A choice among more or longer options (a goal's items, reviewers' objections) | Apple's on-device model when this Mac has it, else a model call, else nothing |
+
+A Laya checkpoint shares a small budget (192 tokens on the English one) between a question and its options, so with
+many options each is cut to a few words, and its confidence for 11 or more options cannot be trusted. Picking one of
+many names is a generative model's job. Until Hunch's model is downloaded, its questions go where the rest go. Each
+part writes its own `decide` row in `:log`; Hunch's say `hunch` and the checkpoint (and head) they used.
+
+### The model
+
+The pane lists the checkpoints Hunch supports, each pinned to a revision with every file's size and sha256:
+
+| Checkpoint | Size | Encoder | Weights | Source |
+|---|---|---|---|---|
+| Laya English (recommended) | 807 MiB | ModernBERT-large | Apache-2.0 | [`convaiinnovations/laya`](https://huggingface.co/convaiinnovations/laya) |
+| Laya multilingual | 647 MiB | mmBERT-base | Apache-2.0 | [`convaiinnovations/laya-multilingual`](https://huggingface.co/convaiinnovations/laya-multilingual) |
+
+Nothing downloads until you press **Download** (or run `:hunch.download`). It downloads from the origin into
+`~/Library/Application Support/Heed/models/`, with progress; **Stop** (`:hunch.cancel`) keeps what arrived, and
+**Resume** picks it up where it stopped, also after a quit. Each file is checked against its sha256 once complete; a
+file that does not match is fetched once more, then the download stops. Only when every file matched does the folder
+become the model. **Delete** (`:hunch.delete`) removes it and the head trained on it, after you confirm. **On disk**
+says what the models folder holds.
+
+![Hunch chosen, its model not downloaded yet](../images/shots/configuration/hunch-no-model.png)
+
+![Downloading: progress, Stop, and the size left](../images/shots/configuration/hunch-downloading.png)
+
+Hunch learns from your corrections: see [Local learning](local-learning.md).
+
+![Ready, with a head trained on your corrections](../images/shots/configuration/hunch-ready.png)
+
 ## The reminder on launch
 
 While model calls or decisions are not set up, or the last test of what is chosen failed, the title bar says so:
 
 ![The title bar's reminder](../images/shots/configuration/inference-reminder.png)
+
+With Hunch chosen it says where Hunch is instead: *Hunch has no model*, *Hunch downloading 42%*, *Hunch's download
+stopped*. Once the model is ready (or learning) it has nothing to say.
+
+![The reminder while Hunch's model downloads](../images/shots/configuration/hunch-reminder.png)
 
 Click it to open the pane. × (or `:inference.hide`) hides it until the next launch; right-click it for **Don't remind
 me**, or run `:inference.hide always`, to turn it off for good (`setup_reminder = false`, also **Remind me on launch**
@@ -82,5 +132,11 @@ daily_calls = 100
 daily_dollars = 1.0
 
 [decisions]
-decider = "local"       # "local" (Apple's on-device model), "model" or "off"
+decider = "hunch"       # "local" (Apple's on-device model), "hunch", "model" or "off"
+
+[hunch]
+checkpoint = "english"  # or "multilingual"
+learn = true            # unset: on once a model is downloaded
 ```
+
+The menu bar's **Help** menu has the Hunch commands too: download, stop the download, retrain, reset, delete.

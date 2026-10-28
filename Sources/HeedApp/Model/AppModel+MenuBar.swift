@@ -17,6 +17,8 @@ extension AppModel {
         facts.sidebarShown = !sidebarCollapsed
         facts.inspectorShown = inspectorVisible
         facts.tutor = tutor != nil
+        facts.hunchDownloading = !hunch.downloading.isEmpty
+        facts.hunchReady = hunch.status.modelReady
         return facts
     }
 

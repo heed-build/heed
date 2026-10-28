@@ -206,6 +206,24 @@ public enum Commands {
             "inference.hide", "hide the title bar's model call setup reminder until the next launch (always: for good)",
             .views, arguments: "[always]"
         ),
+        .init(
+            "hunch.download", "download (or resume) Hunch's model, english by default; says its size and license first",
+            .views, arguments: "[checkpoint]"
+        ),
+        .init(
+            "hunch.cancel",
+            "stop Hunch's model download; hunch.download resumes it",
+            .views,
+            arguments: "[checkpoint]"
+        ),
+        .init(
+            "hunch.delete",
+            "delete Hunch's downloaded model and the head trained on it",
+            .views,
+            arguments: "[checkpoint]"
+        ),
+        .init("hunch.retrain", "train Hunch on your corrections now, in the background", .views),
+        .init("hunch.reset", "put Hunch back on its checkpoint's own head (the training set stays)", .views),
         .init("app.activate", "bring Heed's window to the front, as the global shortcut does", .views),
         .init("welcome", "show the getting-started checks again", .views),
         // Modes

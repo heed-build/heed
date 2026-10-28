@@ -1,8 +1,9 @@
 name: setup
 description: >-
-  Everything a heed build needs on a hosted macOS runner: the mise tools, Xcode for the SDK and Metal, the Swift
-  toolchain the package asks for (hosted runners lag behind Xcode releases, so it comes from swift.org), and
-  GhosttyKit built from the pinned Ghostty commit. The toolchain and GhosttyKit are cached.
+  Everything a heed build needs on a hosted macOS runner: the mise tools, Xcode for the SDK and its Metal toolchain (MLX
+  and GhosttyKit compile Metal shaders), the Swift toolchain the package asks for (hosted runners lag behind Xcode
+  releases, so it comes from swift.org), and GhosttyKit built from the pinned Ghostty commit. The toolchain and
+  GhosttyKit are cached.
 
 inputs:
   swift:
@@ -47,6 +48,12 @@ runs:
     - name: Show the toolchain
       shell: bash
       run: swift --version
+
+    # MLX (through Hunch) compiles its Metal shaders while heed builds, and GhosttyKit needs them too. The runner's Xcode
+    # does not always carry the Metal toolchain, and a cached GhosttyKit skips the step below that installs it.
+    - name: Install the Metal toolchain
+      shell: bash
+      run: xcrun --find metal >/dev/null 2>&1 || xcodebuild -downloadComponent MetalToolchain
 
     - name: Read the Ghostty pin
       id: ghostty

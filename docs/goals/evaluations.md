@@ -84,7 +84,7 @@ API and config, the docs walk) fill the matrix's **DX** column, UX walks are evi
 | Key | |
 |---|---|
 | `s` | Start a session to fix it: Start work, filled in with the entry, the step and the goal |
-| `a` | Accept it: it costs a quarter of its weight; again, open it |
+| `A` | Accept it: it costs a quarter of its weight; again, open it (as `A` accepts a risk in Reviewers) |
 | `r` | Walk again now, in a fresh clone (after a fix, to see whether it helped) |
 | `h` `l` | The lens before, the next lens |
 

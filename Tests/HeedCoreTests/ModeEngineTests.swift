@@ -187,6 +187,63 @@ struct ScopedKeyTests {
         #expect(DefaultKeys.normal.contains { $0 == ("m", "session.pin") })
     }
 
+    @Test func goalPaneCapitalsAreTheSameInEveryGoalsView() throws {
+        // E B R P X U S switch a goal's pane from every view of Goals, and no pane binds one to an action of its own.
+        let built = Keymaps.build()
+        #expect(DefaultKeys.goalPanes.map(\.0) == ["E", "B", "R", "P", "X", "U", "S"])
+        for scope in DefaultKeys.goalScopes {
+            let keymap = try #require(built.scoped[scope], "\(scope)")
+            let table = try #require(DefaultKeys.scoped[scope], "\(scope)")
+            for (key, command) in DefaultKeys.goalPanes {
+                #expect(try keymap.lookup(KeyNotation.parse(key)) == .command(command), "\(key) in \(scope)")
+                for (bound, other) in table where bound == key {
+                    #expect(other == command, "\(key) in \(scope) is \(other)")
+                }
+            }
+        }
+        // Every view that has Goals' keys is one of Goals' scopes, so a new pane cannot slip past the rule.
+        for (scope, table) in DefaultKeys.scoped where table.contains(where: { $0 == ("B", "goal.board") }) {
+            #expect(DefaultKeys.goalScopes.contains(scope), "\(scope)")
+        }
+    }
+
+    @Test func goalLowercaseKeysMeanTheSameAcrossPanes() throws {
+        let built = Keymaps.build()
+        func command(_ key: String, _ scope: String) throws -> String? {
+            guard case let .command(line) = try built.scoped[scope]?.lookup(KeyNotation.parse(key)) else { return nil }
+            return line
+        }
+        // s starts a session on the thing under the cursor, c a chat about it.
+        #expect(try command("s", "goalboard") == "goal.item.work")
+        #expect(try command("s", "goalreviewers") == "review.fix")
+        #expect(try command("s", "goalevals") == "eval.fix")
+        #expect(try command("s", "goalpersonas") == "persona.session")
+        #expect(try command("c", "goalreviewers") == "review.why")
+        #expect(try command("c", "goalpersonas") == "persona.chat")
+        // y n answer the change waiting; A accepts or approves; a adds; r does it again; c is free in the plan.
+        for scope in ["goaldoc", "goalplan"] {
+            #expect(try command("y", scope)?.hasSuffix("accept") == true, "y in \(scope)")
+            #expect(try command("n", scope)?.hasSuffix("reject") == true, "n in \(scope)")
+        }
+        #expect(try command("A", "goalreviewers") == "review.accept")
+        #expect(try command("A", "goalevals") == "eval.accept")
+        #expect(try command("A", "goalplan") == "swarm.approve")
+        #expect(try command("a", "goalboard") == "goal.item.add")
+        #expect(try command("a", "goalplan") == "swarm.task.add")
+        #expect(try command("r", "goalpersonas") == "persona.derive")
+        #expect(try command("c", "goalplan") == nil)
+        #expect(try command("i", "goalplan") == "swarm.answer")
+    }
+
+    @Test func aViewThatBindsADigitHasItUnlessACountIsBeingTyped() {
+        var engine = engine()
+        engine.scope = "goalplan"
+        #expect(press(&engine, "2") == [.run(CommandInvocation(name: "swarm.answer.option", arguments: ["2"]))])
+        // Elsewhere a digit is a count, as in vim.
+        engine.scope = "goals"
+        #expect(press(&engine, "2j") == [.pending, .run(CommandInvocation(name: "row.next", count: 2))])
+    }
+
     @Test func commandsOutliveTheirKeys() {
         // Unbinding a key keeps its command: : runs it, and config can bind it again.
         for name in ["repo.add", "cleanup.rules"] {

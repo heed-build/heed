@@ -12,7 +12,7 @@ from ticking a box.
 
 | Source | What | How |
 |---|---|---|
-| You | An item or a question, by hand | `n` on the board, or `:goal.item.add <title>`; a title ending in `?` is a question |
+| You | An item or a question, by hand | `a` (or `n`) on the board, or `:goal.item.add <title>`; a title ending in `?` is a question |
 | Planner | `GOAL.md` broken into planned items | On a new goal, and on each version that changes the goal, what it is not or when it is done; `:goal.plan` asks now |
 | Sessions | A follow-up in the ledger entry of a session on the goal | When the entry is written; matched against the items the goal has, and kept with how sure heed is that it is new |
 | Chats | A question in a chat on the goal | When the chat closes: the question lands in **To explore** |
@@ -43,11 +43,11 @@ question a decision answered). Cards wear what they mostly are: session, chat, P
 | `h` `l` | The column left or right |
 | `j` `k` | The card above or below |
 | `H` `L` | Move the card a column left or right |
-| `n` | Add an item, in the column under the cursor |
-| `o` | Work here: Start work filled in from the item; the session goes on the goal, on that item |
+| `a` `n` | Add an item, in the column under the cursor |
+| `s` `o` | Work here: Start work filled in from the item; the session goes on the goal, on that item |
 | `↩` | Open what the card is: its PR, its session or chat; a question opens `GOAL.md` |
 | `D` | Done |
-| `s` | Split it into smaller items (`:goal.item.split a; b`) |
+| `-` | Split it into smaller items (`:goal.item.split a; b`) |
 
 A card moved by hand, by key or by dragging it to another column, stays there until newer evidence about it arrives;
 then the evidence decides again. Right-click a card for the same actions, and **Move to** any column.

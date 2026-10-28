@@ -163,6 +163,9 @@ public enum DefaultKeys {
             ("n", "swarm.reject"), ("i", "swarm.answer"), ("d", "swarm.diff"), ("u", "swarm.restore"),
             // Once it runs: p pauses or resumes the task, t hands it to another agent, s goes to its worker's tab.
             ("p", "swarm.task.pause"), ("t", "swarm.task.swap"), ("s", "swarm.task.open"),
+            // Landing: m shows the plan in merge order (again: by phase), b moves the task's stacked PR to its new
+            // base once the PR it stacks on merged (heed does it on its own; b is for after gh refused).
+            ("m", "swarm.order"), ("b", "swarm.land"),
         ] + (1 ... 9).map { ("\($0)", "swarm.answer.option \($0)") }),
         // Goals › Unassigned (U): y n m i answer heed's asks (y on a suggested goal makes it), u undoes.
         "unassigned": paneWith([

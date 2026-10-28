@@ -14,8 +14,9 @@ normal goal, and a follow-up swarm is the next run on the same goal. Old runs st
 steering.
 
 :::{note}
-Swarms come in parts. This heed plans, approves and runs: workers start on ready tasks and open their pull requests
-([Running](running.md)). Merge order, answering workers' questions and the map come later.
+Swarms come in parts. This heed plans, approves, runs and lands: workers start on ready tasks and open their pull
+requests ([Running](running.md)), and the PRs merge in a merge order, stacked ones moved on as their parents merge
+([Landing](landing.md)). Answering workers' questions and the map come later.
 :::
 
 ## Starting one

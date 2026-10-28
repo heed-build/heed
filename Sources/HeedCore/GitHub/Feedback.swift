@@ -167,6 +167,9 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
         case conflict(base: String, behind: Bool)
         /// Your note on a hunk in the diff overlay (`a`), at a line of the new side.
         case note(path: String, line: Int, repo: Repo?)
+        /// A swarm's stacked PR moved to `onto` after the PR it stacked on (`parent`) merged: its branch is rebased
+        /// onto it past `past` (the parent's last commit), which a squash merge needs.
+        case rebase(onto: String, parent: Int, past: String)
     }
 
     /// The pipeline: New → Queued → Sent → Addressed (the agent pushed) → Resolved (thread resolved, check passing).
@@ -244,6 +247,11 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
             return "\(path):\(line) (you): \(text)" + quoted
         case let .check(name):
             return "check \(name) failed: \(short)" + (logPath.map { " (the failed log is in \($0))" } ?? "")
+        case let .rebase(onto, parent, past):
+            return "#\(parent), which this PR stacked on, merged into \(onto), so this PR now goes against \(onto): "
+                + "rebase it onto origin/\(onto) without #\(parent)'s commits (git fetch origin && git rebase --onto "
+                + "origin/\(onto) \(past)), resolve any conflicts, run the tests and git push --force-with-lease to "
+                + "this PR's branch only, never to \(onto)"
         case let .conflict(base, behind):
             return behind
                 ? "the branch is behind \(base), which the repo requires to be current: rebase on \(base) and push"
@@ -416,6 +424,8 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             // Gone once GitHub says it merges cleanly and is current; unknown keeps it.
             case .conflict: detail.mergeable == "MERGEABLE" && detail.mergeState != "BEHIND"
                 && detail.mergeState != "DIRTY"
+            // Once the agent pushed a new head and it merges cleanly.
+            case .rebase: item.sentAtSHA.map { $0 != detail.headSHA } == true && detail.mergeable == "MERGEABLE"
             }
             if gone, item.status != .resolved {
                 item.status = .resolved

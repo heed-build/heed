@@ -63,6 +63,8 @@ final class GoalsBrowser {
     /// The selected goal's swarm with its plan versions and steering: the active one, else its last.
     var board: SwarmBoard?
     var taskCursor = 0
+    /// The plan's outline in merge order instead of by phase (`swarm.order`).
+    var byMergeOrder = false
     var versionCursor = 0
     /// The version under the cursor shows its whole diff.
     var fullDiff = false

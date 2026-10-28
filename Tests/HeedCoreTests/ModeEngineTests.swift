@@ -258,6 +258,9 @@ struct ScopedKeyTests {
         #expect(try command("r", "goalpersonas") == "persona.derive")
         #expect(try command("c", "goalplan") == nil)
         #expect(try command("i", "goalplan") == "swarm.answer")
+        // Landing: m the merge order, b a stacked PR's new base; o stays starting work.
+        #expect(try command("m", "goalplan") == "swarm.order")
+        #expect(try command("b", "goalplan") == "swarm.land")
     }
 
     @Test func aViewThatBindsADigitHasItUnlessACountIsBeingTyped() {

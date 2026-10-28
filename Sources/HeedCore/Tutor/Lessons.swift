@@ -472,7 +472,8 @@ public extension Tutor {
                 keys: ["{goal.swarm}"], target: "swarmPlan",
                 doneLine: "Its plan by phase, who does each task and what it waits for; on the right the lead's "
                     + "questions, every version and who decided what. {swarm.replan} asks the lead to re-plan; once "
-                    + "it runs, {swarm.task.pause} pauses a task."
+                    + "it runs, {swarm.task.pause} pauses a task, and {swarm.order} shows the plan in merge order: "
+                    + "what a task waits for merges first."
             ) { _, now, _ in now.goalPane == "plan" },
             TutorStep(
                 "One of your own",

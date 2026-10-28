@@ -196,7 +196,7 @@ public actor GoalMirrorSync {
                     continue
                 }
                 repo = tracker
-                let writes = try await GoalMirrorPlan.writes(specs(goal: id, table: table), state: state)
+                let writes = try await GoalMirrorPlan.writes(specs(goal: id, table: table, state: state), state: state)
                 guard let write = writes.first else {
                     try await update(id) {
                         $0.pending = 0
@@ -231,14 +231,24 @@ public actor GoalMirrorSync {
         return await (try? ops.mirror(of: id)) ?? .off
     }
 
-    private func specs(goal id: String, table: GoalBarTable) async throws -> [MirrorSpec] {
+    private func specs(goal id: String, table: GoalBarTable, state: GoalMirrorState) async throws -> [MirrorSpec] {
         let snapshot = try await ops.snapshot()
         guard let goal = snapshot.goal(id) else { throw GoalOpError.unknownGoal(id) }
         let doc = snapshot.docs[id] ?? GoalDoc(title: goal.title)
         let quality = try await ops.quality(of: id, table: table)
         let required = ReviewEvidence.requiredStages(quality)
+        // The swarm going (or the last one, once it landed): its approved plan is the merge order.
+        let run = snapshot.activeSwarm(of: id)
+            ?? snapshot.swarms(of: id).first.flatMap { $0.status == .done ? $0 : nil }
+        var swarm: GoalMirrorRender.Swarm?
+        if let run, let approved = run.approved, let board = try? await ops.board(of: run.id),
+           let version = board.version(approved)
+        {
+            swarm = GoalMirrorRender.Swarm(run: run, tasks: SwarmPlan.grouped(version.tasks))
+        }
         return GoalMirrorRender.specs(
-            goal: goal, doc: doc, snapshot: snapshot, lenses: quality.lenses, requiredLenses: required
+            goal: goal, doc: doc, snapshot: snapshot, lenses: quality.lenses, requiredLenses: required,
+            issues: state.items.mapValues(\.number), swarm: swarm
         )
     }
 

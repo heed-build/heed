@@ -138,6 +138,7 @@ struct WatchView: View {
 }
 
 private struct PilotRowView: View {
+    @Environment(AppModel.self) private var model
     let row: AppModel.PilotRow
     let index: Int
     let cursor: Int
@@ -169,6 +170,7 @@ private struct PilotRowView: View {
                     }
                 }
                 .font(Theme.mono(11))
+                if let swarm = model.swarmPulls[row.ref.description] { SwarmPullLine(pull: swarm) }
                 // Stalled says why, and the way out.
                 if case let .stalled(rounds) = row.status {
                     HStack(spacing: 6) {
@@ -461,7 +463,8 @@ struct MergeQueueView: View {
     let repo: String
 
     var body: some View {
-        let refs = (model.mergeQueues[repo] ?? []).sorted { $0.number < $1.number }
+        // A swarm's PRs in its merge order, in the places they hold among the rest (as a run takes them).
+        let refs = MergeQueue.sorted(model.mergeQueues[repo] ?? [], order: model.swarmMergeOrder)
         let runs = model.mergeRuns[repo] ?? []
         ListScroll {
             VStack(alignment: .leading, spacing: 16) {
@@ -486,8 +489,11 @@ struct MergeQueueView: View {
                                 .frame(width: 56, alignment: .leading)
                             PilotMark(status: model.pilotStatus(for: ref)).frame(width: 110, alignment: .leading)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(model.github.pull(ref)?.title ?? "#\(ref.number)").font(Theme.ui(12.5))
+                                Text(model.github.pull(ref)?.title ?? model.pullDetails[ref.description]?
+                                    .title ?? "#\(ref.number)")
+                                    .font(Theme.ui(12.5))
                                     .lineLimit(1)
+                                if let swarm = model.swarmPulls[ref.description] { SwarmPullLine(pull: swarm) }
                                 Text(model.mergePlan(ref).map(Self.describe) ?? "not fetched yet")
                                     .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(2)
                             }
@@ -564,5 +570,21 @@ struct MergeQueueView: View {
         let seconds = date.timeIntervalSince(Clock.now)
         if abs(seconds) < 60 { return "now" }
         return seconds > 0 ? "in \(PilotDuration.text(seconds))" : "\(PilotDuration.text(-seconds)) ago"
+    }
+}
+
+/// A swarm PR's place in its swarm's merge order, on every row it shows on: `swarm 1 · 2/4 · after #412`, and held
+/// while what it waits for is unmerged.
+struct SwarmPullLine: View {
+    let pull: SwarmPull
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text("swarm \(pull.number) · \(pull.label)").foregroundStyle(Theme.fg2)
+            if pull.hold != nil { Text("held").foregroundStyle(Theme.block) }
+        }
+        .font(Theme.mono(11))
+        .lineLimit(1)
+        .help(pull.hold.map { "Held: \($0)" } ?? "Its place in the swarm's merge order")
     }
 }

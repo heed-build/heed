@@ -62,6 +62,10 @@ public enum SwarmFixtures {
         case running
         /// The same, paused at its 4 h limit, asking you for more.
         case pausedAtLimit
+        /// Landing: every task has its PR; 1.1's is green and first to merge, the two stacked on it held after it.
+        case landing
+        /// Done: 1.1 merged, its two children moved to main and merged after it.
+        case done
     }
 
     /// What a running fixture lays over the approved run: the run as it is now, the steering rows that came after
@@ -71,12 +75,17 @@ public enum SwarmFixtures {
         public var steering: [SwarmSteer]
         public var evidence: [GoalEvidence]
         public var pulls: [PullRequest]
+        /// The pilot's details for its PRs, as if fetched.
+        public var details: [PullDetail] = []
+        /// Feedback on its PRs (a rebase after a retarget), by `PullRef.description`.
+        public var feedback: [String: [FeedbackItem]] = [:]
     }
 
     /// The live workers' agents, by task, as their hooks would say.
     public static let workerStates: [String: AgentState] = ["\(anchors)/validator-speed": .asking]
 
     public static func running(_ variant: Running, now: Date = Clock.now) -> RunningWorld {
+        if variant == .landing || variant == .done { return landed(variant, now: now) }
         let base = now.timeIntervalSince1970.rounded(.down)
         func ago(_ hours: Double) -> Date { Date(timeIntervalSince1970: base - hours * 3600) }
         let goal = anchors
@@ -181,7 +190,7 @@ public enum SwarmFixtures {
         ])
     }
 
-    private static func steer(
+    static func steer(
         _ swarm: String, _ goal: String, _ at: Date, _ actor: SwarmSteer.Actor, _ kind: SwarmSteer.Kind,
         _ text: String, reason: String? = nil, state: SwarmSteer.State = .applied, about: Int64? = nil,
         version: Int? = nil, options: [String] = []
@@ -272,7 +281,7 @@ public enum SwarmFixtures {
     }
 
     /// Approved: three versions, a question answered, your move, the plan approved; its tasks the goal's own items.
-    private static func approved(_ ago: (Double) -> Date) -> SwarmFixture {
+    static func approved(_ ago: (Double) -> Date) -> SwarmFixture {
         let goal = anchors
         let id = "\(goal)/swarm-1"
         func task(

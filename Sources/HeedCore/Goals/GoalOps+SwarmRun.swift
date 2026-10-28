@@ -18,12 +18,17 @@ public extension GoalOps {
             (.start, "Running again: a task has no PR any more", nil)
         case .running: (.start, "Running: workers start on plan v\(swarm.approved ?? swarm.plan)", nil)
         case .landing: (.land, "Landing: every task has its PR", nil)
+        case .done:
+            (
+                .land, "Done: every task merged, in merge order",
+                "the swarm ends; the goal stays open until its own done rule holds"
+            )
         case .paused:
             (
                 .limit, "Paused at \((limit ?? .hours).text(swarm.settings.limits))",
                 "nothing more starts until you raise it"
             )
-        case .planning, .done, .stopped: (.start, status.rawValue, nil)
+        case .planning, .stopped: (.start, status.rawValue, nil)
         }
         return try setStatus(
             id,
@@ -165,6 +170,41 @@ public extension GoalOps {
         return worker
     }
 
+    // MARK: Landing
+
+    /// A stacked PR went to a new base (`gh pr edit --base`, or GitHub moved it): its newest worker's record says so
+    /// (`base`, `stackedOn`) and a row by heed says from where to where and why. The run may have ended meanwhile: the
+    /// record follows the PR anyway.
+    @discardableResult
+    func retargeted(swarm id: String, _ retarget: SwarmLanding.Retarget, now: Date) throws -> GoalSwarm {
+        var swarm = try existing(id)
+        guard let index = swarm.workers.lastIndex(where: { $0.task == retarget.task }) else {
+            throw GoalOpError.unknownItem(retarget.task)
+        }
+        swarm.workers[index].base = retarget.to
+        swarm.workers[index].stackedOn = retarget.stackedOn
+        try store.save(swarm)
+        _ = try store.add(SwarmSteer(
+            swarm: id, goal: swarm.goal, at: now, actor: .heed, kind: .retarget,
+            text: retarget.text + " (was \(retarget.from))",
+            reason: retarget.edit ? "its branch is rebased there by a get it green run" : "GitHub had moved it already",
+            ref: "task:\(retarget.task)"
+        ))
+        return swarm
+    }
+
+    /// A retarget `gh` refused: a row by heed with why, so the plan pane shows it until `swarm.land` gets it through.
+    @discardableResult
+    func retargetFailed(swarm id: String, _ retarget: SwarmLanding.Retarget, error: String, now: Date) throws
+        -> SwarmSteer
+    {
+        let swarm = try existing(id)
+        return try store.add(SwarmSteer(
+            swarm: id, goal: swarm.goal, at: now, actor: .heed, kind: .retarget,
+            text: "Could not move #\(retarget.pr) to \(retarget.to)", reason: error, ref: "task:\(retarget.task)"
+        ))
+    }
+
     /// At launch: workers still recorded as working were cut off when heed quit.
     func interruptWorkers(now: Date) throws {
         for swarm in try store.swarms() where swarm.workers.contains(where: \.isLive) {
@@ -183,6 +223,7 @@ public extension GoalOps {
         var swarm = try active(id)
         swarm.status = status
         if status == .running, swarm.runningAt == nil { swarm.runningAt = now }
+        if !status.active { swarm.endedAt = now }
         swarm.held = status == .paused ? limit : nil
         try store.save(swarm)
         _ = try store.add(SwarmSteer(

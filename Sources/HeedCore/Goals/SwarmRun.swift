@@ -119,11 +119,18 @@ public struct SwarmTaskFacts: Hashable, Sendable {
     /// Its done-when lines with evidence, of `criteriaTotal`.
     public var criteriaMet: Int
     public var criteriaTotal: Int
+    /// Its PR, when heed knows it.
+    public var ref: PullRef?
+    /// The pilot's verdict on its open PR, once its detail is fetched: what "green" means (else checks passing).
+    public var verdict: GreenVerdict?
 
     public init(
         pr: PR = .none, worker: SwarmWorker? = nil, workerState: AgentState? = nil,
-        stalled: SwarmWorker.Outcome? = nil, paused: Bool = false, criteriaMet: Int = 0, criteriaTotal: Int = 0
+        stalled: SwarmWorker.Outcome? = nil, paused: Bool = false, criteriaMet: Int = 0, criteriaTotal: Int = 0,
+        ref: PullRef? = nil, verdict: GreenVerdict? = nil
     ) {
+        self.ref = ref
+        self.verdict = verdict
         self.pr = pr
         self.worker = worker
         self.workerState = workerState
@@ -142,6 +149,12 @@ public struct SwarmTaskFacts: Hashable, Sendable {
     }
 
     public var merged: Bool { if case .merged = pr { true } else { false } }
+
+    /// Its open PR is green: the pilot's verdict when it has one, else its checks pass.
+    public var green: Bool {
+        guard case let .open(_, _, checks) = pr else { return false }
+        return verdict?.isGreen ?? (checks == .passing)
+    }
 }
 
 /// Where a task stands in a running swarm, as the plan pane shows it, with a few words of why.
@@ -186,10 +199,11 @@ public struct SwarmTaskStatus: Hashable, Sendable {
 /// The facts the scheduler reads, from what heed has: the goal's items and evidence, the run's workers and steering,
 /// the PRs gh knows, and the live workers' states.
 public enum SwarmFacts {
-    /// Facts for every task of `tasks` and every item they wait for. `states`: live worker id → its agent's state.
+    /// Facts for every task of `tasks` and every item they wait for. `states`: live worker id → its agent's state;
+    /// `details`: the pilot's PR details by `PullRef.description`, for its green verdict.
     public static func build(
         swarm: GoalSwarm, tasks: [SwarmTask], items: [GoalItem], evidence: [GoalEvidence], steering: [SwarmSteer],
-        pulls: [PullRequest], states: [String: AgentState] = [:]
+        pulls: [PullRequest], states: [String: AgentState] = [:], details: [String: PullDetail] = [:]
     ) -> [String: SwarmTaskFacts] {
         let paused = SwarmSteering.pausedTasks(steering)
         let resumed = SwarmSteering.resumedAt(steering)
@@ -209,11 +223,14 @@ public enum SwarmFacts {
             }
             let branch = item.map { SwarmWork.branch(goal: $0.goal, slug: $0.slug) }
                 ?? SwarmWork.branch(goal: swarm.goal, slug: SwarmPlan.short(id))
-            var pr = pullFacts(
+            let pull = pull(
                 branches: Set([branch] + swarm.workers.filter { $0.task == id }.map(\.branch)
                     + (item?.linked(.branch) ?? [])),
                 refs: Set(item?.linked(.pr) ?? []), repos: Set(swarm.settings.repos), pulls: pulls
             )
+            var pr = pull.map(prFacts) ?? .none
+            let detail = pull.flatMap { details[$0.ref.description] }
+            let verdict = pull?.state == .open && detail?.state == "OPEN" ? detail.map(GreenVerdict.of) : nil
             // An item merged before the swarm (or by hand) with no PR heed knows: its evidence says so.
             if case .none = pr, mine.contains(where: { $0.kind == .merged && $0.state == .done }) {
                 pr = .merged(number: 0)
@@ -227,7 +244,8 @@ public enum SwarmFacts {
             }
             facts[id] = SwarmTaskFacts(
                 pr: pr, worker: live, workerState: live.flatMap { states[$0.id] }, stalled: stalled,
-                paused: paused.contains(id), criteriaMet: met, criteriaTotal: doneWhen.count
+                paused: paused.contains(id), criteriaMet: met, criteriaTotal: doneWhen.count, ref: pull?.ref,
+                verdict: verdict
             )
         }
         return facts
@@ -238,14 +256,21 @@ public enum SwarmFacts {
     static func pullFacts(
         branches: Set<String>, refs: Set<String>, repos: Set<String>, pulls: [PullRequest]
     ) -> SwarmTaskFacts.PR {
+        pull(branches: branches, refs: refs, repos: repos, pulls: pulls).map(prFacts) ?? .none
+    }
+
+    static func pull(
+        branches: Set<String>, refs: Set<String>, repos: Set<String>, pulls: [PullRequest]
+    ) -> PullRequest? {
         let mine = pulls.filter { pull in
             refs.contains(pull.ref.description)
                 || branches.contains(pull.headBranch) && (repos.isEmpty || repos.contains(pull.ref.repo.slug))
         }
         let rank: (PullRequest) -> Int = { $0.state == .open ? 0 : $0.state == .merged ? 1 : 2 }
-        guard let pull = mine.min(by: { (rank($0), -$0.ref.number) < (rank($1), -$1.ref.number) }) else {
-            return .none
-        }
+        return mine.min(by: { (rank($0), -$0.ref.number) < (rank($1), -$1.ref.number) })
+    }
+
+    static func prFacts(_ pull: PullRequest) -> SwarmTaskFacts.PR {
         switch pull.state {
         case .merged: return .merged(number: pull.ref.number)
         case .closed: return .closed(number: pull.ref.number)
@@ -352,6 +377,7 @@ public enum SwarmScheduler {
         now: Date
     ) -> Schedule {
         let numbers = SwarmPlan.numbers(tasks)
+        let prs = SwarmLanding.prs(facts)
         let limits = swarm.settings.limits
         let limit: SwarmLimit? = if !swarm.startsWorkers {
             nil
@@ -378,9 +404,17 @@ public enum SwarmScheduler {
                 )
                 continue
             case let .open(number, _, checks):
-                states[task.id] = checks == .passing ? SwarmTaskStatus(.green, "#\(number) green")
-                    : SwarmTaskStatus(.pr, "#\(number) " + (checks == .draft ? "draft" : checks == .failing
-                            ? "CI failing" : "CI running"))
+                let blocker = verdictBlocker(fact)
+                var status = fact.green ? SwarmTaskStatus(.green, "#\(number) green")
+                    : SwarmTaskStatus(.pr, "#\(number) " + (blocker ?? (checks == .draft ? "draft"
+                            : checks == .failing ? "CI failing" : "CI running")))
+                // Green or not, a PR whose blockers have not merged waits for them.
+                if SwarmLanding.hold(task, facts: facts, prs: prs, numbers: numbers) != nil {
+                    let names = task.after.filter { !(facts[$0]?.merged ?? false || facts[$0]?.done ?? false) }
+                        .map { SwarmLanding.name($0, prs: prs, numbers: numbers) }
+                    status.reason = (status.reason ?? "") + " · merges after \(names.joined(separator: " "))"
+                }
+                states[task.id] = status
                 continue
             case .closed, .none: break
             }
@@ -435,9 +469,12 @@ public enum SwarmScheduler {
 
     /// The run's next status from its schedule, if it changes: a limit reached pauses it (until you raise the limit);
     /// approved and planning, it runs once a worker starts; it lands once every task has its PR (or is done), and runs
-    /// again if one loses it. Paused by you, it stays paused; stopped and done never change here.
+    /// again if one loses it; it is done once every task merged (`SwarmLanding.landed`: holds keep the merges in
+    /// order). Paused by you, it stays paused; stopped and done never change here. Done ends the run, not the goal.
     public static func status(_ swarm: GoalSwarm, schedule: Schedule, tasks: [SwarmTask]) -> GoalSwarm.Status? {
         guard swarm.startsWorkers else { return nil }
+        let merged = !tasks.isEmpty && tasks.allSatisfy { [.merged, .done].contains(schedule.states[$0.id]?.state) }
+        if merged, swarm.status == .running || swarm.status == .landing { return .done }
         if schedule.limit != nil { return .paused }
         let landed = !tasks.isEmpty && tasks.allSatisfy { schedule.states[$0.id]?.state.landed == true }
         switch swarm.status {
@@ -448,6 +485,12 @@ public enum SwarmScheduler {
         case .landing: return landed ? nil : .running
         case .paused, .done, .stopped: return nil
         }
+    }
+
+    /// What holds an open PR back by the pilot's verdict (`conflicts with main`), when it has one and it is not green.
+    static func verdictBlocker(_ fact: SwarmTaskFacts) -> String? {
+        guard let verdict = fact.verdict, !verdict.isGreen, let blocker = verdict.blocker else { return nil }
+        return blocker.detail
     }
 }
 

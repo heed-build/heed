@@ -219,10 +219,22 @@ public enum GoalMirrorRender {
     public static let footer = "Maintained by heed: this follows the goal and is written over. Comment instead, and "
         + "heed proposes what you say for the goal."
 
+    /// A swarm on the goal, for the meta issue's section: the run and its approved plan's tasks.
+    public struct Swarm: Hashable, Sendable {
+        public var run: GoalSwarm
+        public var tasks: [SwarmTask]
+
+        public init(run: GoalSwarm, tasks: [SwarmTask]) {
+            self.run = run
+            self.tasks = tasks
+        }
+    }
+
     /// The meta issue: the goal, what it is not, when it is done (with the evidence for each criterion met), the
-    /// decisions and open questions, the quality bars with today's scores, and the PRs in any repo.
+    /// decisions and open questions, the quality bars with today's scores, the swarm's merge order and state (lines
+    /// from `SwarmLanding.mirrorSection`), and the PRs in any repo.
     public static func meta(
-        goal: HeedGoal, doc: GoalDoc, lenses: [GoalScore.Lens], pulls: [String]
+        goal: HeedGoal, doc: GoalDoc, lenses: [GoalScore.Lens], pulls: [String], swarm: [String] = []
     ) -> MirrorSpec {
         var out: [String] = []
         out += ["## Goal", "", doc.goal.isEmpty ? "_Not written yet._" : doc.goal, ""]
@@ -252,6 +264,7 @@ public enum GoalMirrorRender {
             }
             out.append("")
         }
+        out += swarm
         if !pulls.isEmpty {
             out += ["## Pull requests", ""] + pulls.map { "- \($0)" } + [""]
         }
@@ -265,9 +278,11 @@ public enum GoalMirrorRender {
         )
     }
 
-    /// An item's sub-issue: what it is, where it stands, its PRs. Open until the item is Done.
+    /// An item's sub-issue: what it is, where it stands, what it comes after (`after`, from
+    /// `SwarmLanding.mirrorAfter`), its PRs. Open until the item is Done.
     public static func item(
-        _ item: GoalItem, goal: HeedGoal, column: Board.Column, marks: [Stage: StageMark], evidence: [GoalEvidence]
+        _ item: GoalItem, goal: HeedGoal, column: Board.Column, marks: [Stage: StageMark], evidence: [GoalEvidence],
+        after: String? = nil
     ) -> MirrorSpec {
         var out: [String] = []
         out.append(item.kind == .question ? "A question on the goal **\(goal.title)**." :
@@ -278,6 +293,7 @@ public enum GoalMirrorRender {
             return "\(stage.title) \(mark.glyph)"
         }
         out.append("Stage: **\(column.title)** · " + stages.joined(separator: " · "))
+        if let after { out += ["", after] }
         let pulls = item.linked(.pr)
         if !pulls.isEmpty {
             out += ["", "Pull requests:"] + pulls.map { "- \($0)" }
@@ -306,9 +322,11 @@ public enum GoalMirrorRender {
         return "moved to Done"
     }
 
-    /// Every spec for a goal: its meta issue and one per item, oldest item first.
+    /// Every spec for a goal: its meta issue and one per item, oldest item first. `issues`: item → its sub-issue
+    /// number, for "after #n"; `swarm`: the swarm whose merge order the meta issue shows.
     public static func specs(
-        goal: HeedGoal, doc: GoalDoc, snapshot: GoalSnapshot, lenses: [GoalScore.Lens], requiredLenses: Set<Stage>
+        goal: HeedGoal, doc: GoalDoc, snapshot: GoalSnapshot, lenses: [GoalScore.Lens], requiredLenses: Set<Stage>,
+        issues: [String: Int] = [:], swarm: Swarm? = nil
     ) -> [MirrorSpec] {
         let items = snapshot.items(of: goal.id).sorted { ($0.createdAt, $0.id) < ($1.createdAt, $1.id) }
         let evidence = snapshot.evidence(of: goal.id)
@@ -318,10 +336,16 @@ public enum GoalMirrorRender {
         {
             pulls.append(ref)
         }
-        return [meta(goal: goal, doc: doc, lenses: lenses, pulls: pulls)] + items.map { item in
+        let section = swarm.map { swarm in
+            SwarmLanding.mirrorSection(
+                swarm.run, tasks: swarm.tasks, items: items, evidence: evidence, issues: issues
+            )
+        } ?? []
+        return [meta(goal: goal, doc: doc, lenses: lenses, pulls: pulls, swarm: section)] + items.map { item in
             self.item(
                 item, goal: goal, column: Board.column(item, evidence: evidence),
-                marks: Stages.of(item, evidence: evidence, requiredLenses: requiredLenses), evidence: evidence
+                marks: Stages.of(item, evidence: evidence, requiredLenses: requiredLenses), evidence: evidence,
+                after: SwarmLanding.mirrorAfter(item, items: items, issues: issues)
             )
         }
     }

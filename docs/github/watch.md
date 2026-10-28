@@ -95,6 +95,10 @@ queue goes through its PRs, oldest first:
 | fell behind its base | brings it up to date (`update_branches`) |
 | fails a green rule | holds it, and turns auto-merge off if it was on: GitHub might merge what the rule catches |
 | is paused | holds it |
+| is a swarm's PR whose task waits for one not merged yet | holds it, and turns auto-merge off if it was on |
+
+A swarm's PRs go through in its merge order instead, in the places they hold among the others
+([Landing](../goals/swarms/landing.md)).
 
 GitHub does the merging, so the repo has to allow auto-merge (Settings ▸ General ▸ Allow auto-merge); the queue says so
 when it does not. Only PRs your sessions track are merged.

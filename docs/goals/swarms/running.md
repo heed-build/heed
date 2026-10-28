@@ -26,7 +26,8 @@ has its pull request open. Then it starts:
 
 A task stacks as soon as its blocker's PR is open, failing checks or not. Its worker's first prompt names the base
 twice: where its branch was made from, and that `gh pr create --base` takes that branch, not the default branch.
-Retargeting a stacked PR once its parent merges comes with merge order, in a later heed.
+Once its parent merges, a stacked PR moves to where the parent merged and is rebased there
+([Landing](landing.md)).
 
 Ready tasks start in plan order while the swarm is under its limits:
 
@@ -48,7 +49,7 @@ The swarm's limits replace the goal's spawn caps while it runs.
 | `paused` | You paused it |
 | `stalled` | Its worker ended without a PR, or its PR closed unmerged: it waits for you (resume it, or hand it to another agent) |
 | `PR` | Its PR is open: a draft, checks running or failing |
-| `green` | Its PR is open and its checks pass |
+| `green` | Its PR is open and green: the pilot's verdict once heed has its detail, else its checks pass ([Landing](landing.md)) |
 | `merged` | Its PR merged; its done-when has no evidence yet |
 | `done` | Every line of its done-when has evidence, and nothing of it is still open; with no done-when, its PR merged |
 

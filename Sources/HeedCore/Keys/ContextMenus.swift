@@ -243,10 +243,12 @@ public enum ContextMenus {
 
     /// A task in a swarm's plan: `task:<item id>`.
     /// `running`: the run has started work, so the task can be paused, swapped to another agent (`agents`, but its
-    /// own) and its worker's tab opened (`working`).
+    /// own) and its worker's tab opened (`working`), and the plan seen in merge order; a PR stacked on another
+    /// (`stacked`) can be moved on once that one merged.
     public static func swarmTask(
         id: String, title: String, first: Bool, last: Bool, active: Bool, running: Bool = false,
-        paused: Bool = false, working: Bool = false, owner: String? = nil, agents: [String] = []
+        paused: Bool = false, working: Bool = false, owner: String? = nil, agents: [String] = [],
+        stacked: Bool = false
     ) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: "task:\(id)")
         func item(_ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true) -> MenuItem {
@@ -266,6 +268,10 @@ public enum ContextMenus {
             if !others.isEmpty {
                 menu.section(others.map { item("Hand it to \($0)", "swarm.task.swap", [$0]) })
             }
+            menu.section([
+                item("The plan in merge order", "swarm.order"),
+                item("Move its PR on (its parent merged)", "swarm.land", enabled: stacked),
+            ])
         }
         menu.section([item("Edit…", "swarm.task.edit"), item("Add a task after it…", "swarm.task.add")])
         menu.section([

@@ -243,7 +243,10 @@ struct SwarmStatusTests {
         #expect(status(unapproved, [.ready, .ready], starts: 2) == nil)
         #expect(status(swarm(), [.pr, .working]) == nil)
         #expect(status(swarm(), [.pr, .green]) == .landing)
-        #expect(status(swarm(), [.merged, .done]) == .landing)
+        // Every task merged: done (S3), from running or landing; the goal's own done rule is not touched.
+        #expect(status(swarm(), [.merged, .done]) == .done)
+        #expect(status(swarm(status: .landing), [.merged, .merged]) == .done)
+        #expect(status(swarm(status: .landing), [.merged, .green]) == nil)
         #expect(status(swarm(status: .landing), [.pr, .green]) == nil)
         #expect(status(swarm(status: .landing), [.pr, .stalled]) == .running)
     }

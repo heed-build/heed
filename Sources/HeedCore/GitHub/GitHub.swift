@@ -571,6 +571,12 @@ public enum GitHub {
         try await pr(["merge", "\(ref.number)", "--disable-auto", "-R", ref.repo.slug], caller: caller)
     }
 
+    /// `gh pr edit --base`: a stacked PR goes against a new base once the PR it stacked on merged. Only the base
+    /// changes; nothing is pushed.
+    public static func retarget(_ ref: PullRef, base: String, caller: String) async throws {
+        try await pr(["edit", "\(ref.number)", "--base", base, "-R", ref.repo.slug], caller: caller)
+    }
+
     /// `gh pr update-branch`: merges the base into a PR that fell behind.
     public static func updateBranch(_ ref: PullRef, caller: String) async throws {
         try await pr(["update-branch", "\(ref.number)", "-R", ref.repo.slug], caller: caller)

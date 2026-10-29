@@ -8,17 +8,25 @@
 #
 # A release's build (its CFBundleVersion, what Sparkle compares) comes from the appcast it shipped with; releases from
 # before heed updated itself have none, and nobody updates from them through Sparkle, so they are left out.
+#
+# HEED_NOTES_FILE, when set, holds this release's notes (the release workflow trims the draft's to what was built, and
+# finds the draft by id, as its tag can be renamed while a release builds).
 set -euo pipefail
 tag="${1:?usage: scripts/release-notes.sh <tag> <build> [earlier]}"
 build="${2:?build}"
 earlier="${3:-20}"
+this_tag="$tag"
 repo="${GITHUB_REPOSITORY:-heed-build/heed}"
 [[ "$build" =~ ^[0-9]+$ ]] || { echo "release-notes: build must be a number, got $build" >&2; exit 1; }
 
 # One release's notes, as GitHub renders them.
 section() {
     local tag="$1" build="$2" body
-    body="$(gh release view "$tag" -R "$repo" --json body -q .body 2>/dev/null || true)"
+    if [ "$tag" = "$this_tag" ] && [ -n "${HEED_NOTES_FILE:-}" ] && [ -f "$HEED_NOTES_FILE" ]; then
+        body="$(cat "$HEED_NOTES_FILE")"
+    else
+        body="$(gh release view "$tag" -R "$repo" --json body -q .body 2>/dev/null || true)"
+    fi
     [ -n "$body" ] || body="Heed ${tag#v}."
     printf '<div class="release" data-sparkle-version="%s">\n<h2>Heed %s</h2>\n' "$build" "${tag#v}"
     gh api markdown -f text="$body" -f mode=gfm -f context="$repo"

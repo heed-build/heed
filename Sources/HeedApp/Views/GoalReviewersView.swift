@@ -495,7 +495,21 @@ struct QualityBars: View {
                 Text("Not done: " + quality.done.missing.joined(separator: ", "))
                     .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
             }
-            KeyHint("goal.bar", scope: "goalreviewers", label: "pin a bar", color: Theme.fg2)
+            // Whose bars these are: the goal's first steps wait for you to say they are right, or change one.
+            let lenses = Dictionary(uniqueKeysWithValues: quality.lenses.map { ($0.lens, $0.bar) })
+            let mine = quality.profiles.last { $0.source == .you }
+            let confirmed = !quality.pins.isEmpty || mine?.bars == lenses
+            Text(confirmed ? "Yours: confirmed or pinned by you."
+                : mine == nil ? "Set by heed from GOAL.md: are they right for this goal?"
+                : "Changed since you confirmed them.")
+                .font(Theme.ui(11.5)).foregroundStyle(confirmed ? Theme.fg3 : Theme.block)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 14) {
+                if !confirmed {
+                    KeyHint("goal.bars.accept", scope: "goalreviewers", label: "these bars are right", color: Theme.fg)
+                }
+                KeyHint("goal.bar", scope: "goalreviewers", label: "pin a bar", color: Theme.fg2)
+            }
         }
     }
 }

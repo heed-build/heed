@@ -54,6 +54,47 @@ struct GoalGuideTests {
         #expect(GoalGuide.of(input).steps.first { $0.step == .mirror }?.state == .todo)
     }
 
+    @Test func theBarsWaitForYouNotForTheModel() async throws {
+        func decision(_ stakes: GoalProfile.Stakes, _ source: ProfileDecision.Source) -> QualityRecord {
+            let profile = GoalProfile(stakes: stakes)
+            return QualityRecord(goal: "g", at: t0, entry: .profile(ProfileDecision(
+                profile: profile, bars: profile.bars(), changes: [], note: "", goalVersion: 1, source: source
+            )))
+        }
+        func state(_ records: [QualityRecord]) -> GoalGuide.State {
+            GoalGuide.state(of: .bars, .init(doc: sharpDoc, quality: GoalQuality.fold(records, doc: sharpDoc)))
+        }
+        // heed worked the profile out: the step waits for you to look.
+        #expect(state([decision(.product, .model)]) == .waiting(
+            "heed set \(GoalProfile(stakes: .product).bars().count) bars from GOAL.md: confirm or change them",
+            command: "goal.reviewers"
+        ))
+        // You said they are right.
+        let mine = decision(.product, .you)
+        #expect(state([decision(.product, .model), mine]).isDone)
+        // The model moved them after you confirmed: look again.
+        var later = decision(.publicAPI, .model)
+        later.at = t0 + 60
+        #expect(state([mine, later]) == .waiting(
+            "the bars changed since you confirmed them",
+            command: "goal.reviewers"
+        ))
+        // A pin is you changing them.
+        #expect(state([decision(.product, .model), QualityRecord(goal: "g", at: t0 + 1, entry: .pins([.docs: 5]))])
+            .isDone)
+
+        // The operation records the bars as they stand, as yours.
+        let ops = try GoalOps.inMemory()
+        let goal = try await ops.create(title: "Faster search", statement: sharpDoc.goal, now: t0)
+        try await ops.setProfile(goal: goal.id, GoalProfile(stakes: .product), now: t0)
+        let records = try await ops.qualities()[goal.id]
+        #expect(records?.profile?.source == .model)
+        let confirmed = try await ops.confirmBars(goal: goal.id, now: t0 + 1)
+        #expect(confirmed.source == .you && confirmed.profile == GoalProfile(stakes: .product))
+        let after = try #require(try await ops.qualities()[goal.id])
+        #expect(GoalGuide.state(of: .bars, .init(doc: sharpDoc, quality: after)).isDone)
+    }
+
     @Test func aSwarmStartsTheWork() {
         let swarm = GoalSwarm(id: "g/swarm-1", goal: "g", number: 1, settings: SwarmSettings(repos: []), startedAt: t0)
         let state = GoalGuide.state(of: .start, .init(doc: sharpDoc, swarms: [swarm]))

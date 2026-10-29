@@ -118,8 +118,9 @@ struct GoalGuideCard: View {
                     HStack(spacing: 16) {
                         if case let .waiting(_, command) = next.state {
                             KeyHint(
-                                command, key: model.goalKeyText(command), label: "answer them", color: Theme.fg,
-                                font: Theme.ui(13)
+                                command, key: model.goalKeyText(command),
+                                label: command == next.step.command ? next.step.action : "answer them",
+                                color: Theme.fg, font: Theme.ui(13)
                             )
                         } else {
                             KeyHint(

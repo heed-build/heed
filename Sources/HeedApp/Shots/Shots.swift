@@ -515,7 +515,11 @@ enum Shots {
         Shot(id: "goals/swarm-approved", keys: "gGjS"),
         Shot(id: "goals/swarm-diff", keys: "gGjS<Tab>j", crop: .swarmVersions, cropPadding: 8),
         Shot(id: "goals/swarm-edit", keys: "gGSje", crop: .swarmEditor, cropPadding: 8),
-        Shot(id: "goals/swarm-goal-page", keys: "gG", crop: .goalSwarm, cropPadding: 8),
+        // Taller: the goal's next-steps card pushes the swarm panel below the fold of a 900-point window.
+        Shot(
+            id: "goals/swarm-goal-page", size: CGSize(width: 1440, height: 1300), keys: "gG", crop: .goalSwarm,
+            cropPadding: 8
+        ),
         // The anchors swarm running: 1.2 merged and done, 1.1's PR green, two workers stacked on it, one asking.
         Shot(id: "goals/swarm-running", keys: "gGjS", prepare: { $0.loadRunningSwarmFixture(.running) }),
         Shot(id: "goals/swarm-stacked", keys: "gGjS", crop: .swarmTask, cropPadding: 8, prepare: {

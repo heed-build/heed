@@ -21,8 +21,9 @@ Beside it are all the first steps, each ticked off by what is true of the goal, 
 2. **Say when it is done** (`e` edits `GOAL.md`). Done once **Done when** has a line. These lines are what evidence
    checks off and what the confidence ring counts.
 3. **Add the work** (`:goal.item.add`, or `:goal.plan` to ask the planner). Done once the goal has an item.
-4. **Choose the quality bars** (`R`). Done once heed has worked out the goal's profile and its bars, or you pinned one
-   with `:goal.bar`.
+4. **Choose the quality bars** (`R`). heed works out bars from `GOAL.md`, but the step waits for you: done once you
+   said they are right (`y` in Reviewers) or pinned one (`:goal.bar`). If heed moves them after that, it asks you to
+   look again.
 5. **Mirror it to GitHub** (`M`), optional: it is listed but never the next step.
 6. **Start the work** (`B`, then `s` on an item, or `:swarm.start`). Done once a session, chat or run is on the goal,
    or it has a swarm.

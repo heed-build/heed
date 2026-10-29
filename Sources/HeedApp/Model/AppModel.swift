@@ -2449,6 +2449,7 @@ final class AppModel {
         case "persona.share": sharePersona()
         case "persona.use": usePersona(command.arguments)
         case "goal.bar": pinGoalBar(command.arguments)
+        case "goal.bars.accept": confirmGoalBars()
         case "goal.reopen": reopenGoal()
         case "goal.mirror": toggleGoalMirror()
         case "goal.tracker": setGoalTracker(command.arguments)

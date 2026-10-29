@@ -574,10 +574,27 @@ struct GoalItemOpsTests {
         #expect(accepted.state == .applied && accepted.text == "Hosted search services")
         #expect(try await GoalDoc.parse(ops.text(of: goal.id)).notTheGoal == ["Hosted search services"])
         #expect(try await ops.versions(of: goal.id).first?.author == .you)
-        await #expect(throws: try GoalOpError.editNot(.proposed, #require(scope.id))) {
-            try await ops.accept(edit: #require(scope.id), now: now)
-        }
+        // A second key before the store answered goes to the next change waiting, not the same one.
+        let proposals = try await ops.snapshot().proposals(of: goal.id)
+        #expect(proposals.count == 2)
+        #expect(GoalEdits.next(proposals, answering: []) == proposals[0])
+        #expect(try GoalEdits.next(proposals, answering: [#require(proposals[0].id)]) == proposals[1])
+        #expect(GoalEdits.next(proposals, answering: Set(proposals.compactMap(\.id))) == nil)
+        // Yes twice (a key pressed twice) applies it once: the same edit back, no new version.
+        let versions = try await ops.versions(of: goal.id).count
+        let again = try await ops.accept(edit: #require(scope.id), now: now + 6)
+        #expect(again == accepted)
+        #expect(try await ops.versions(of: goal.id).count == versions)
+        #expect(try await GoalDoc.parse(ops.text(of: goal.id)).notTheGoal == ["Hosted search services"])
         #expect(try await ops.reject(edit: #require(waiting.id), now: now + 7).state == .rejected)
+        #expect(try await ops.reject(edit: #require(waiting.id), now: now + 7).state == .rejected)
+        // Yes after no, or no after yes, is refused: nothing changes.
+        await #expect(throws: try GoalOpError.editNot(.proposed, #require(waiting.id))) {
+            try await ops.accept(edit: #require(waiting.id), now: now)
+        }
+        await #expect(throws: try GoalOpError.editNot(.proposed, #require(scope.id))) {
+            try await ops.reject(edit: #require(scope.id), now: now)
+        }
 
         let undone = try await ops.undo(edit: #require(decided.id), now: now + 8)
         #expect(undone.state == .undone)

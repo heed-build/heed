@@ -265,6 +265,22 @@ extension AppModel {
         }
     }
 
+    /// `goal.bars.accept` (`y` in Reviewers): the goal's bars as they stand are right, recorded as yours.
+    func confirmGoalBars() {
+        guard let goal = goals.selected else { return say("no goal here") }
+        let now = Clock.now
+        let table = config.goals.bars
+        goals.run { ops in
+            try await ops.confirmBars(goal: goal.id, now: now, table: table)
+        } done: { [weak self] result in
+            switch result {
+            case let .success(decision):
+                self?.say("\(goal.title): \(decision.bars.count) bars confirmed (\(decision.profile.text))")
+            case let .failure(error): self?.say("\(error)")
+            }
+        }
+    }
+
     /// `goal.reopen`: undo heed marking the goal done; it stays open until what made it done changes.
     func reopenGoal() {
         let id = (view == .goals ? goals.selected?.id : nil) ?? attentionSelected

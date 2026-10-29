@@ -109,6 +109,8 @@ final class GoalsBrowser {
     private(set) var versions: [GoalVersion] = []
     /// Each session's or chat's goal, by session id.
     private(set) var bySession: [String: HeedGoal] = [:]
+    /// GOAL.md changes answered (yes or no) whose answer has not come back from the store yet.
+    @ObservationIgnored var answering: Set<Int64> = []
     /// GOAL.md as it is being edited, while it is.
     var draft: String?
     var form: Form?

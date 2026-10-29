@@ -145,7 +145,7 @@ public enum GoalStep: String, CaseIterable, Hashable, Sendable, Codable {
             + "Without them nothing can say the goal is done."
         case .work: "Items are the pieces of work: the board moves them as sessions, PRs and merges show up."
         case .bars: "Not every goal needs a 10. Bars per lens (code review, tests, docs…) say how good is good "
-            + "enough, and reviewers score against them."
+            + "enough, and reviewers score against them. Look at them, then say they are right or change one."
         case .mirror: "Optional: colleagues follow the goal on GitHub, a meta issue and a sub-issue per item."
         case .start: "Start a session on an item, put one you have on the goal, or let a swarm plan and work it."
         }
@@ -278,13 +278,23 @@ public struct GoalGuide: Hashable, Sendable {
             let work = input.items.count { $0.kind == .work }
             return work > 0 ? .done("\(work) item\(work == 1 ? "" : "s") on the board") : .todo
         case .bars:
+            // Yours only: heed working the profile out sets bars, but the step waits for you to look at them.
             guard let quality = input.quality else { return .todo }
             if !quality.pins.isEmpty {
                 return .done("bars pinned for " + quality.pins.keys.sorted().map(\.title).joined(separator: ", "))
             }
-            if let profile = quality.profile {
-                let lenses = quality.lenses.count
-                return .done("\(profile.profile.text): \(lenses) lens\(lenses == 1 ? "" : "es") with a bar")
+            let now = Dictionary(uniqueKeysWithValues: quality.lenses.map { ($0.lens, $0.bar) })
+            if let mine = quality.profiles.last(where: { $0.source == .you }) {
+                if mine.bars == now {
+                    return .done("you confirmed \(now.count) bar\(now.count == 1 ? "" : "s")")
+                }
+                return .waiting("the bars changed since you confirmed them", command: "goal.reviewers")
+            }
+            if quality.profile != nil {
+                return .waiting(
+                    "heed set \(now.count) bar\(now.count == 1 ? "" : "s") from GOAL.md: confirm or change them",
+                    command: "goal.reviewers"
+                )
             }
             return .todo
         case .mirror:

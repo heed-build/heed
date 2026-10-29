@@ -499,7 +499,9 @@ public extension Tutor {
                 say: "{goal.new} opens a new goal; :goal.new with a title makes one at once. Make one.",
                 keys: [":goal.new Faster search↩"], target: "goalsList",
                 doneLine: "It opens on its overview, with a card that says what to do first."
-            ) { start, now, _ in now.goals > start.goals },
+            ) { start, now, _ in
+                now.goals > start.goals && now.goalPane == "overview" && now.goalNextStep == "sharpen"
+            },
             TutorStep(
                 "Sharpen it first",
                 say: "The card shows the next step, why it matters and its key, and ticks steps off from what is true "
@@ -524,8 +526,9 @@ public extension Tutor {
                 say: "{goal.doc} goes back to the overview. The tabs above every pane switch between them by click "
                     + "or key.",
                 keys: ["{goal.doc}"], target: "goalGuide",
-                doneLine: "Sharpen and Done when are ticked off; next is adding the work, then the quality bars and "
-                    + "starting it. What is left, criteria and bars, sits under the card and in the goal's row."
+                doneLine: "Sharpen and Done when are ticked off; next is adding the work, then the quality bars ("
+                    + "{goal.reviewers}, and {goal.bars.accept} there once they are right) and starting it. What is "
+                    + "left, criteria and bars, sits under the card and in the goal's row."
             ) { _, now, _ in now.goalPane == "overview" && now.goalNextStep == "work" },
         ]),
         TutorLesson(id: "log", title: "Call log", minutes: 2, world: .mondayMorning, steps: [

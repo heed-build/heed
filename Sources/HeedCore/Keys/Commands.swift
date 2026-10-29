@@ -349,6 +349,11 @@ public enum Commands {
             .selection, arguments: "<lens> <bar|off|auto>"
         ),
         .init(
+            "goal.bars.accept",
+            "Reviewers: these quality bars are right for the goal (recorded as yours; the first steps tick off on it)",
+            .selection
+        ),
+        .init(
             "goal.mirror",
             "mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop",
             .selection

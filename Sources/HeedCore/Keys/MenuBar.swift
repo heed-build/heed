@@ -295,7 +295,10 @@ public enum MenuBar {
                     ("Re-check", "review.recheck"), ("Accept the risk", "review.accept"),
                     ("Start a session to fix it", "review.fix"), ("Ask the reviewer why", "review.why"),
                     ("Spawn a reviewer", "reviewer.spawn"), ("Take the reviewer off", "reviewer.remove"),
-                    ("Pin a quality bar…", "goal.bar"), ("Not done yet", "goal.reopen"),
+                    ("Pin a quality bar…", "goal.bar"), ("These bars are right", "goal.bars.accept"), (
+                        "Not done yet",
+                        "goal.reopen"
+                    ),
                     ("Personas", "goal.personas"),
                     ("Evaluations", "goal.evaluations"),
                     ("Mirror to GitHub, or stop", "goal.mirror"), ("Tracker repo…", "goal.tracker"),

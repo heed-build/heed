@@ -79,6 +79,8 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
     case notYours(Int64, String)
     /// A message names nobody heed knows: the word.
     case unknownAddress(String)
+    /// An item source cannot be added or changed like that: why.
+    case source(String)
 
     public var description: String {
         switch self {
@@ -98,6 +100,7 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
         case let .unknownQuestion(id): "no open question \(id)"
         case let .noTask(id): "no task \(id) in the plan"
         case let .notYours(id, whose): "question \(id) is not yours to answer: it waits for \(whose)"
+        case let .source(why): why
         case let .unknownAddress(word):
             "no one called \(word): a task's number (2.1) or id, lead, or @all (heed goal plan show lists the tasks)"
         }

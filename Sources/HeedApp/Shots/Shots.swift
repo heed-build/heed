@@ -456,6 +456,15 @@ enum Shots {
         Shot(id: "goals/how-happy", keys: "gGj", crop: .goalHappy, cropPadding: 8),
         // The goal mirrored to GitHub: its tracker, meta issue, last sync and a colleague's change waiting.
         Shot(id: "goals/mirror", keys: "gGj", crop: .goalMirror, cropPadding: 8),
+        // Item sources: a goal reviewing an invented repo's open PRs, one item per PR, each done once you reviewed it;
+        // the board they make; and a goal heed read as a set of issues, its proposed source waiting for y.
+        Shot(id: "goals/sources", keys: "gGk", crop: .goalSources, cropPadding: 8, prepare: {
+            $0.loadSourcesFixture()
+        }),
+        Shot(id: "goals/source-board", keys: "gGkB", prepare: { $0.loadSourcesFixture() }),
+        Shot(id: "goals/source-proposal", keys: "gGkk", crop: .goalSources, cropPadding: 8, prepare: {
+            $0.loadSourcesFixture()
+        }),
         Shot(id: "goals/quality-bars", keys: "gGjR", crop: .goalBars, cropPadding: 8),
         Shot(id: "goals/spawn", keys: "gGjR", crop: .goalSpawn, cropPadding: 8, prepare: { model in
             model.goals.spawn.kind = .security

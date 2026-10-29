@@ -355,6 +355,29 @@ public enum Commands {
         .init("goal.mirror.open", "open the goal's meta issue on GitHub (on a card: its sub-issue)", .selection),
         .init("goal.mirror.yes", "a colleague's change on GitHub: yes, the item follows it", .selection),
         .init("goal.mirror.no", "a colleague's change on GitHub: no, heed puts the sub-issue back", .selection),
+        .init(
+            "goal.source.add",
+            "a GitHub query the goal's items come from, one item per PR or issue (prs org/repo, issues org/repo, "
+                + "label <name>, reviews, milestone <title> org/repo, or a search)",
+            .selection, arguments: "<query>"
+        ),
+        .init(
+            "goal.source.remove",
+            "take a source off the goal (its items stay, marked)",
+            .selection,
+            arguments: "[id]"
+        ),
+        .init(
+            "goal.source.edit", "change a source's query (its items stay; the next sync follows the new one)",
+            .selection, arguments: "<id> <query>"
+        ),
+        .init(
+            "goal.source.rule", "what done means for a source's items: merged, closed, reviewed (by you) or green",
+            .selection, arguments: "<id> <rule>"
+        ),
+        .init("goal.source.accept", "yes to the source heed proposes for the goal", .selection),
+        .init("goal.source.dismiss", "no to the source heed proposes (not proposed again)", .selection),
+        .init("goal.source.sync", "sync the goal's sources with GitHub now", .selection),
         .init("goal.reopen", "not done yet: undo heed marking the goal done (held until something new)", .selection),
         .init(
             "swarm.new",

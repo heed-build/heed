@@ -44,6 +44,12 @@ public enum GoalGuidance {
         ),
         Rule("Link the PRs you open to the goal and their item.", "heed goal link pr URL --item ID"),
         Rule(
+            "When the goal is a set of pull requests or issues on GitHub (review every open PR in a repo, close every "
+                + "issue with a label), add the query as a source instead of an item per PR: heed keeps one item per "
+                + "match and knows when each is done (rules: merged, closed, reviewed, green).",
+            "heed goal source add prs ORG/REPO --rule reviewed, heed goal source list"
+        ),
+        Rule(
             "Spawn a session on an item only when it is separate work that can run beside yours; heed caps spawns per "
                 + "goal and asks the owner past the cap.",
             "heed goal item spawn ID"

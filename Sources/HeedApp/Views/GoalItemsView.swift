@@ -250,7 +250,11 @@ private struct BoardCard: View {
 
     var body: some View {
         let badge = Board.badge(item, evidence: evidence)
-        let latest = evidence.filter { $0.item == item.id }.max { Stages.newer($1, than: $0) }
+        // An item a source found says what its PR or issue shows, unless its rule is met: "not reviewed yet" is
+        // what every card in Planned would say.
+        let latest = evidence.filter { entry in
+            entry.item == item.id && (item.sourced == nil || entry.kind != .criterion || entry.state == .done)
+        }.max { Stages.newer($1, than: $0) }
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text(badge.title)
@@ -266,6 +270,11 @@ private struct BoardCard: View {
             }
             Text(item.title).font(Theme.ui(12.5, weight: .semibold)).foregroundStyle(Theme.fg)
                 .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+            if let sourced = item.sourced {
+                Text(([sourced.number] + (sourced.author.map { ["@\($0)"] } ?? [])
+                        + (sourced.left == nil ? [] : ["left its source"])).joined(separator: " · "))
+                    .font(Theme.mono(10.5)).foregroundStyle(Theme.fg2).lineLimit(1)
+            }
             Text(latest?.text ?? item.reason ?? "")
                 .font(Theme.mono(10.5)).foregroundStyle(latest?.state == .issue ? Theme.err : Theme.fg3)
                 .lineLimit(2)
@@ -286,7 +295,8 @@ private struct BoardCard: View {
         case .review: Theme.ask
         case .bench: Theme.err
         case .swarm: Theme.block
-        case .dropped: Theme.fg3
+        case .dropped, .left: Theme.fg3
+        case .issue: Theme.ask
         case .item: Theme.fg2
         }
     }

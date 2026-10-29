@@ -187,6 +187,10 @@ private struct GoalOverviewPane: View {
                         OnTheGoal(rows: overview.rows)
                     }
                     VStack(alignment: .leading, spacing: 16) {
+                        // A goal fed by sources (or with one proposed) shows them first: they are its work.
+                        let sourced = !goals.snapshot.sources(of: goal.id).sources.isEmpty
+                            || goals.snapshot.sources(of: goal.id).proposal != nil
+                        if sourced { GoalSourcesPanel(goal: goal).shotRegion(.goalSources) }
                         HowHappy(goal: goal).shotRegion(.goalHappy)
                         GoalSwarmPanel(goal: goal).shotRegion(.goalSwarm)
                         GoalMirrorPanel(goal: goal).shotRegion(.goalMirror)
@@ -216,6 +220,8 @@ private struct GoalOverviewPane: View {
                                     + "the goal's sessions.")
                             }
                         }
+                        // Not fed by sources: where to add one, last.
+                        if !sourced { GoalSourcesPanel(goal: goal).shotRegion(.goalSources) }
                     }
                     .frame(width: 340)
                 }

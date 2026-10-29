@@ -394,6 +394,7 @@ final class AppModel {
         goals.changed = { [weak self] in
             self?.applyGoalPointers()
             self?.observeTutorNow()
+            self?.detectGoalSources()
         }
         goals.liveTargets = { [weak self] in self?.personaLiveTargets ?? [] }
         goals.paneChanged = { [weak self] in
@@ -702,6 +703,7 @@ final class AppModel {
             await refreshIssueInfo()
             await attentionSynced()
             syncGoalMirrors()
+            syncGoalSources()
         } catch {
             var offline = previous
             offline.status = .offline("\(error)")
@@ -2454,6 +2456,13 @@ final class AppModel {
         case "goal.mirror.open": openGoalOnGitHub()
         case "goal.mirror.yes": answerMirrorAsk(yes: true)
         case "goal.mirror.no": answerMirrorAsk(yes: false)
+        case "goal.source.add": addGoalSource(command.arguments)
+        case "goal.source.remove": removeGoalSource(command.arguments)
+        case "goal.source.edit": editGoalSource(command.arguments)
+        case "goal.source.rule": setGoalSourceRule(command.arguments)
+        case "goal.source.accept": acceptGoalSource()
+        case "goal.source.dismiss": dismissGoalSource()
+        case "goal.source.sync": syncGoalSourcesNow()
         case "goal.swarm": toggleGoalPlan()
         case "swarm.new": newSwarm(command.arguments, from: command.target)
         case "swarm.start": startSwarmOnGoal()
@@ -6569,10 +6578,11 @@ final class AppModel {
     }
 
     func openStartWork(
-        prompt: String, fromCursor: Bool = true, chat: Bool = false, promotion: Promotion? = nil
+        prompt: String, fromCursor: Bool = true, chat: Bool = false, promotion: Promotion? = nil,
+        context given: StartContext? = nil
     ) {
         startWorkError = nil
-        let context = fromCursor ? startContext : nil
+        let context = given ?? (fromCursor ? startContext : nil)
         if view == .history { view = .sessions }
         var form = StartWorkForm(
             repos: repos, lastWorked: StartWork.lastWorked(sessions: sessions, closed: history), context: context,

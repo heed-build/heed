@@ -7,7 +7,8 @@ import Foundation
 public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
     /// Who put it on the goal.
     public enum Source: String, Hashable, Sendable, Codable, CaseIterable {
-        case you, planner, session, pr, reviewer, chat, swarm, subagent
+        /// `github`: a PR or issue a source of the goal found (`ItemSource`).
+        case you, planner, session, pr, reviewer, chat, swarm, subagent, github
     }
 
     /// Work to do, or a question to answer (a question sits in To explore until a decision answers it).
@@ -18,11 +19,11 @@ public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
     /// Something the item is about: a session or chat working on it, its branch, its PR, a review, a run.
     public struct Link: Hashable, Sendable, Codable {
         public enum Kind: String, Hashable, Sendable, Codable, CaseIterable {
-            case session, chat, branch, pr, review, run
+            case session, chat, branch, pr, review, run, issue
         }
 
         public var kind: Kind
-        /// A session or chat id, a branch name, `org/repo#n` for a PR, a review's or a run's id.
+        /// A session or chat id, a branch name, `org/repo#n` for a PR or an issue, a review's or a run's id.
         public var target: String
 
         public init(_ kind: Kind, _ target: String) {
@@ -56,6 +57,42 @@ public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
         public var label: String { model.map { "\(agent) · \($0)" } ?? agent }
     }
 
+    /// A PR or issue a source of the goal found: which source, which one, and whether it still matches.
+    public struct Sourced: Hashable, Sendable, Codable {
+        public enum Kind: String, Hashable, Sendable, Codable {
+            case pr, issue
+        }
+
+        /// The source's id (`s1`).
+        public var source: String
+        /// `org/repo#n`.
+        public var ref: String
+        public var kind: Kind
+        public var url: String
+        public var author: String?
+        /// The source's rule, kept here so the board can tell when it is done.
+        public var rule: ItemSource.Rule
+        /// When it stopped matching the source while still open (a label taken off, a review request withdrawn): it
+        /// stays on the goal, marked. Nil while it matches, and for one that closed.
+        public var left: Date?
+
+        public init(
+            source: String, ref: String, kind: Kind, url: String, author: String? = nil,
+            rule: ItemSource.Rule, left: Date? = nil
+        ) {
+            self.source = source
+            self.ref = ref
+            self.kind = kind
+            self.url = url
+            self.author = author
+            self.rule = rule
+            self.left = left
+        }
+
+        /// `#12`.
+        public var number: String { ref.split(separator: "#").last.map { "#\($0)" } ?? ref }
+    }
+
     /// `<goal>/<slug>`: unique across goals, stable, never reused within its goal.
     public var id: String
     public var goal: String
@@ -84,12 +121,14 @@ public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
     public var doneWhen: [String]
     /// The plan's phase it is in (`Survey`, `Core change`), for the outline.
     public var phase: String?
+    /// The PR or issue a source of the goal found it as.
+    public var sourced: Sourced?
 
     public init(
         id: String, goal: String, title: String, kind: Kind = .work, source: Source, parent: String? = nil,
         links: [Link] = [], placement: Placement? = nil, confidence: Double? = nil, reason: String? = nil,
         createdAt: Date, issueNumber: Int? = nil, owner: Owner? = nil, after: [String] = [], estimate: Int? = nil,
-        doneWhen: [String] = [], phase: String? = nil
+        doneWhen: [String] = [], phase: String? = nil, sourced: Sourced? = nil
     ) {
         self.id = id
         self.goal = goal
@@ -108,11 +147,12 @@ public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
         self.estimate = estimate
         self.doneWhen = doneWhen
         self.phase = phase
+        self.sourced = sourced
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, goal, title, kind, source, parent, links, placement, confidence, reason, createdAt, issueNumber
-        case owner, after, estimate, doneWhen, phase
+        case owner, after, estimate, doneWhen, phase, sourced
     }
 
     /// Rows written before swarms decode unchanged: the swarm fields are absent there, and empty here.
@@ -135,6 +175,7 @@ public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
         estimate = try values.decodeIfPresent(Int.self, forKey: .estimate)
         doneWhen = try values.decodeIfPresent([String].self, forKey: .doneWhen) ?? []
         phase = try values.decodeIfPresent(String.self, forKey: .phase)
+        sourced = try values.decodeIfPresent(Sourced.self, forKey: .sourced)
     }
 
     public func linked(_ kind: Link.Kind) -> [String] { links.filter { $0.kind == kind }.map(\.target) }
@@ -172,8 +213,10 @@ public struct GoalEvidence: Hashable, Sendable, Codable, Identifiable {
         case decision
         /// A question raised.
         case question
-        /// A done-when criterion met.
+        /// A done-when criterion met (for an item a source found: its source's rule met, or no longer).
         case criterion
+        /// An issue it is about: open, or closed.
+        case issue
     }
 
     /// How it came out: done (passed, met, merged), still going, or a problem (failing checks, a high objection).
@@ -376,6 +419,7 @@ public enum Board {
     static func derived(_ item: GoalItem, evidence mine: [GoalEvidence]) -> Column {
         let marks = Stages.of(item, evidence: mine)
         if marks[.merged] == .done { return .done }
+        if let sourced = item.sourced { return sourcedColumn(item, sourced, marks: marks, evidence: mine) }
         if item.kind == .question {
             return mine.contains { $0.kind == .decision && $0.state == .done } ? .done : .toExplore
         }
@@ -385,6 +429,19 @@ public enum Board {
         if marks[.built] != .notYet || !item.linked(.session).isEmpty { return .working }
         if marks[.plan] != .notYet || item.source == .you || item.source == .reviewer { return .planned }
         return .toExplore
+    }
+
+    /// An item a source found: Done once its source's rule is met (the newest `criterion` evidence says so), Working
+    /// while a session works on it, Verify for a PR that waits to land (any rule but reviewed), else Planned: a PR
+    /// waiting for your review is work to do, not work to check.
+    static func sourcedColumn(
+        _ item: GoalItem, _ sourced: GoalItem.Sourced, marks: [Stage: StageMark], evidence mine: [GoalEvidence]
+    ) -> Column {
+        let rule = mine.filter { $0.kind == .criterion }.max { Stages.newer($1, than: $0) }
+        if rule?.state == .done { return .done }
+        if !item.linked(.session).isEmpty || !item.linked(.chat).isEmpty { return .working }
+        if sourced.kind == .pr, sourced.rule != .reviewed, marks[.pr] != .notYet { return .verify }
+        return .planned
     }
 
     /// The items in each column, in the order they were added.
@@ -398,7 +455,8 @@ public enum Board {
 
     /// The badge a card wears: what the item mostly is right now.
     public enum Badge: String, Hashable, Sendable, CaseIterable {
-        case question, session, chat, pr, review, bench, swarm, dropped, item
+        /// `left`: a PR or issue that stopped matching its source while still open.
+        case question, session, chat, pr, review, bench, swarm, dropped, left, issue, item
 
         public var title: String { self == .pr ? "PR" : rawValue.uppercased() }
     }
@@ -407,6 +465,8 @@ public enum Board {
         if item.kind == .question { return .question }
         // Dropped from its swarm's approved plan: it stays where its evidence puts it, marked (`SwarmDropped`).
         if SwarmDropped.isDropped(item) { return .dropped }
+        if item.sourced?.left != nil { return .left }
+        if item.sourced?.kind == .issue { return .issue }
         let mine = evidence.filter { $0.item == item.id }.sorted { Stages.newer($1, than: $0) }
         if let last = mine.last {
             switch last.kind {
@@ -439,8 +499,19 @@ public enum BoardDrag {
 
 public extension GoalItem {
     /// What Start work opens with for this item: the item, its goal, and where the goal is written down.
+    /// A PR a source found starts a review of it; an issue, work on it.
     func workPrompt(goal: String, doc path: String) -> String {
+        let tail = "This is one item of the goal \(goal); its GOAL.md is \(path)."
+        if let sourced, let ref = PullRef(slug: sourced.ref) {
+            if sourced.kind == .pr {
+                let by = sourced.author.map { " by @\($0)" } ?? ""
+                return "Review PR \(ref) “\(title)”\(by): \(sourced.url)\n\n"
+                    + "Check it out with `gh pr checkout \(ref.number) --repo \(ref.repo.slug)`, read the change, and "
+                    + "leave your review on GitHub: approve, request changes or comment.\n\n\(tail)"
+            }
+            return "\(title)\n\nIssue \(sourced.ref): \(sourced.url)\n\n\(tail)"
+        }
         let what = kind == .question ? "Find out: \(title)" : title
-        return "\(what)\n\nThis is one item of the goal \(goal); its GOAL.md is \(path)."
+        return "\(what)\n\n\(tail)"
     }
 }

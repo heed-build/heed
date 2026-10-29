@@ -53,12 +53,16 @@ public struct GoalReply: Codable, Equatable, Sendable {
     /// `ask`: the question's number, and where it stands (its answer once there is one).
     public var question: Int64?
     public var answer: SwarmAnswerView?
+    /// `source list`, and the source `source add` added.
+    public var sources: [SourceRow]?
 
     public init(
         _ outcome: String, exit: GoalExit = .ok, message: String, goal: String? = nil, item: String? = nil,
         edit: Int64? = nil, version: Int? = nil, session: String? = nil, goals: [GoalRow]? = nil,
-        view: GoalView? = nil, plan: SwarmPlanView? = nil, question: Int64? = nil, answer: SwarmAnswerView? = nil
+        view: GoalView? = nil, plan: SwarmPlanView? = nil, question: Int64? = nil, answer: SwarmAnswerView? = nil,
+        sources: [SourceRow]? = nil
     ) {
+        self.sources = sources
         self.question = question
         self.answer = answer
         self.outcome = outcome
@@ -89,7 +93,41 @@ public struct GoalReply: Codable, Equatable, Sendable {
         if let goals { return GoalRow.table(goals) }
         if let view { return view.text }
         if let plan, outcome == "read" { return plan.text }
+        if let sources, outcome == "read" { return SourceRow.table(sources) }
         return message
+    }
+}
+
+/// A source in `heed goal source list`.
+public struct SourceRow: Codable, Equatable, Sendable {
+    public var id: String
+    public var label: String
+    public var query: String
+    public var rule: String
+    public var origin: String
+    public var done: Int
+    public var total: Int
+    public var left: Int
+
+    public init(_ source: ItemSource, progress: SourceProgress) {
+        id = source.id
+        label = source.label
+        query = source.query
+        rule = source.what == .issues ? ItemSource.Rule.closed.rawValue : source.rule.rawValue
+        origin = source.origin.rawValue
+        done = progress.done
+        total = progress.total
+        left = progress.left
+    }
+
+    public static func table(_ rows: [SourceRow]) -> String {
+        guard !rows.isEmpty else { return "no sources: heed goal source add <query> (heed goal --help)" }
+        return rows.map { row in
+            [
+                row.id, row.label, "done when \(row.rule)", "\(row.done)/\(row.total) done"
+                    + (row.left > 0 ? ", \(row.left) left" : ""), row.query,
+            ].joined(separator: "\t")
+        }.joined(separator: "\n")
     }
 }
 
@@ -455,8 +493,51 @@ public enum GoalControl {
             ))
         case .reviewRequest:
             return .app(.review(goal: goal.id, kind: command.subject ?? ""), goal: goal)
+        case .sourceAdd, .sourceList, .sourceRemove:
+            return try await .reply(sources(command, goal: goal, caller: caller, ops: ops, now: now))
         case .planShow, .planPropose, .planApprove, .ask, .swarmSend, .swarmNote, .swarmAnswer, .swarmSummary:
             return try await .reply(SwarmControl.run(command, goal: goal, caller: caller, ops: ops, now: now))
+        }
+    }
+
+    /// `source add|list|remove`: the goal's item sources.
+    static func sources(
+        _ command: GoalCommand, goal: HeedGoal, caller: GoalCaller?, ops: GoalOps, now: Date
+    ) async throws -> GoalReply {
+        func rows() async throws -> [SourceRow] {
+            let snapshot = try await ops.snapshot()
+            return snapshot.sources(of: goal.id).sources.map { source in
+                SourceRow(source, progress: SourceProgress.of(
+                    source, items: snapshot.items(of: goal.id), evidence: snapshot.evidence(of: goal.id)
+                ))
+            }
+        }
+        switch command.verb {
+        case .sourceAdd:
+            let parsed: ItemSourceQuery.Parsed
+            do {
+                parsed = try ItemSourceQuery.parse(command.text ?? "", repo: caller?.repo)
+            } catch {
+                return .refused("\(error)", goal: goal.id)
+            }
+            let rule = command.rule.flatMap(ItemSource.Rule.init(rawValue:)) ?? parsed.rule
+            let added = try await ops.addSource(goal: goal.id, ItemSource(
+                query: parsed.query, label: parsed.label, rule: rule, origin: caller == nil ? .you : .agent,
+                addedAt: now
+            ), now: now)
+            return GoalReply(
+                "added",
+                message: "added \(added.id): \(added.label), each done when \(added.what == .issues ? "closed" : added.rule.phrase); heed fills its items on its next GitHub sync",
+                goal: goal.id, sources: [SourceRow(added, progress: SourceProgress(done: 0, total: 0, left: 0))]
+            )
+        case .sourceRemove:
+            let removed = try await ops.removeSource(goal: goal.id, id: command.subject ?? "", now: now)
+            return GoalReply(
+                "removed", message: "took \(removed.id) off: \(removed.label) (its items stay on the goal)",
+                goal: goal.id
+            )
+        default:
+            return try await GoalReply("read", message: SourceRow.table(rows()), goal: goal.id, sources: rows())
         }
     }
 

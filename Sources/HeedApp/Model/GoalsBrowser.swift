@@ -164,6 +164,9 @@ final class GoalsBrowser {
     @ObservationIgnored var mirrorSync: GoalMirrorSync?
     /// When each mirrored goal was last read back.
     @ObservationIgnored var lastMirrorPoll: [String: Date] = [:]
+    /// Goals whose item sources are syncing now, and goals heed is reading for a source to propose.
+    @ObservationIgnored var syncingSources: Set<String> = []
+    @ObservationIgnored var detectingSources: Set<String> = []
 
     init(fixture: Bool) {
         guard fixture else { return }

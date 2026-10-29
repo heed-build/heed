@@ -11,7 +11,7 @@ import Foundation
 /// readers and writers, and a migration only when they need a column. Issue refs for the GitHub mirror have their
 /// columns already: `goals.tracker_repo`/`tracker_issue` (the meta issue) and `goal_items.issue_number` (sub-issues);
 /// migration 2 adds `goal_mirrors`, the mirror's own state per goal; migration 3 swarm runs, their plan versions and
-/// their steering log.
+/// their steering log; migration 4 `goal_sources`, each goal's item sources.
 public final class GoalStore {
     let database: SQLiteDatabase
 
@@ -156,6 +156,14 @@ public final class GoalStore {
         CREATE TRIGGER goal_steering_never_deleted BEFORE DELETE ON goal_steering
         BEGIN SELECT RAISE(ABORT, 'steering rows are only added'); END;
         """),
+        // A goal's item sources (`GoalSourceState`): the GitHub queries its items come from, heed's proposal, the last
+        // sync.
+        SQLiteMigration(sql: """
+        CREATE TABLE goal_sources (
+            goal TEXT PRIMARY KEY REFERENCES goals (id),
+            data TEXT NOT NULL
+        );
+        """),
     ]
 
     /// How many migrations the file has had (tests).
@@ -275,7 +283,23 @@ public final class GoalStore {
     public func snapshot() throws -> GoalSnapshot {
         try GoalSnapshot(
             goals: goals(), links: links(), docs: currentTexts().mapValues { GoalDoc.parse($0) }, items: items(),
-            evidence: evidence(), edits: edits(), swarms: swarms()
+            evidence: evidence(), edits: edits(), swarms: swarms(), sources: sources()
+        )
+    }
+
+    // MARK: Sources
+
+    /// Each goal's item sources, by goal id; goals with none are left out.
+    public func sources() throws -> [String: GoalSourceState] {
+        let rows = try database.query("SELECT goal, data FROM goal_sources") { row in
+            (row[0].text ?? "", Self.decode(GoalSourceState.self, row[1]))
+        }
+        return Dictionary(rows.compactMap { goal, state in state.map { (goal, $0) } }) { _, last in last }
+    }
+
+    public func save(sources state: GoalSourceState, goal: String) throws {
+        try database.run(
+            "INSERT OR REPLACE INTO goal_sources (goal, data) VALUES (?, ?)", [.text(goal), Self.json(state)]
         )
     }
 

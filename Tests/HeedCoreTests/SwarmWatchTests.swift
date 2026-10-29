@@ -402,6 +402,107 @@ struct SwarmMapTests {
         #expect(state(.ready) == .waiting)
         #expect(SwarmMap.state(nil, worker: nil, stuck: false) == .waiting)
     }
+
+    private func steer(
+        _ kind: SwarmSteer.Kind, id: Int64, actor: SwarmSteer.Actor = .agent, about: Int64? = nil,
+        ref: String? = nil, from: String? = nil, to: String? = nil, targets: [String]? = nil, ladder: [String]? = nil
+    ) -> SwarmSteer {
+        SwarmSteer(
+            id: id, swarm: "g/swarm-1", goal: "g", at: now, actor: actor, kind: kind, text: "t",
+            state: kind == .question ? .pending : .applied, about: about, ref: ref, options: ["a", "b"], from: from,
+            to: to, ladder: ladder, step: ladder?.first, targets: targets
+        )
+    }
+
+    @Test func whatHeedHasNotHandedOverYetAndQuestionsForYouAreInFlight() {
+        let rows = [
+            // The lead to two workers, typed into one of them so far.
+            steer(.message, id: 1, actor: .lead, from: "lead", targets: ["task:g/consumers", "task:g/tests"]),
+            steer(.deliver, id: 2, actor: .heed, about: 1, ref: "task:g/consumers"),
+            // A peer question, on its way to the peer.
+            steer(.question, id: 3, from: "task:g/validator", to: "task:g/generator", ladder: ["peer", "you"]),
+            // A question for you.
+            steer(.question, id: 4, from: "task:g/tests", ladder: ["you"]),
+            // A question answered and the answer handed over: nothing in flight.
+            steer(.question, id: 5, from: "task:g/survey", ladder: ["you"]),
+            steer(.answer, id: 6, actor: .you, about: 5, from: "you"),
+            steer(.deliver, id: 7, actor: .heed, about: 6, ref: "task:g/survey"),
+        ]
+        let messages = SwarmMap.inFlight(rows)
+        #expect(messages == [
+            SwarmMap.Message(from: .lead, to: .task("g/tests"), kind: .message),
+            SwarmMap.Message(from: .task("g/validator"), to: .task("g/generator"), kind: .question),
+            SwarmMap.Message(from: .task("g/tests"), to: .you, kind: .question),
+        ])
+    }
+
+    @Test func aDotSitsOnThePathInTheGapBesideTheCardItGoesTo() throws {
+        let metrics = SwarmMap.Metrics()
+        let layout = SwarmMap.layout(goal: "G", lead: "claude", tasks: tasks, states: [:])
+        let flights = SwarmMap.flights([
+            SwarmMap.Message(from: .lead, to: .task("g/tests"), kind: .message),
+            SwarmMap.Message(from: .task("g/validator"), to: .task("g/generator"), kind: .question),
+            SwarmMap.Message(from: .task("g/tests"), to: .you, kind: .question),
+            SwarmMap.Message(from: .heed, to: .task("g/tests"), kind: .answer),
+            // Nowhere on the map: dropped.
+            SwarmMap.Message(from: .task("g/gone"), to: .lead, kind: .message),
+        ], in: layout)
+        #expect(flights.map { "\($0.from)>\($0.to) \($0.kind) \($0.count)" } == [
+            "lead>g/tests answer 2", "g/validator>g/generator question 1", "g/tests>lead question 1",
+        ])
+        let lead = try #require(layout.node("lead"))
+        let tests = try #require(layout.node("g/tests"))
+        // Rightwards: the dot in the gap before the card it goes to, on the curve.
+        let out = flights[0]
+        #expect(abs(out.dot.x - (tests.frame.x - metrics.columnGap / 2)) < 0.01)
+        #expect(out.curve.start == SwarmMap.Point(x: lead.frame.maxX, y: lead.frame.midY))
+        #expect(out.curve.end == SwarmMap.Point(x: tests.frame.x, y: tests.frame.midY))
+        // Leftwards on the same path: the dot in the gap after the goal.
+        let back = flights[2]
+        #expect(back.curve == out.curve)
+        #expect(abs(back.dot.x - (lead.frame.maxX + metrics.columnGap / 2)) < 0.01)
+        // One column: an arc through the gap on its left, the dot halfway between the two cards.
+        let generator = try #require(layout.node("g/generator"))
+        let validator = try #require(layout.node("g/validator"))
+        let peer = flights[1]
+        #expect(peer.dot.x < generator.frame.x && peer.dot.x > generator.frame.x - metrics.columnGap)
+        #expect(abs(peer.dot.y - (generator.frame.midY + validator.frame.midY) / 2) < 0.01)
+        // The same messages land the same.
+        #expect(flights == SwarmMap.flights([
+            SwarmMap.Message(from: .lead, to: .task("g/tests"), kind: .message),
+            SwarmMap.Message(from: .task("g/validator"), to: .task("g/generator"), kind: .question),
+            SwarmMap.Message(from: .task("g/tests"), to: .you, kind: .question),
+            SwarmMap.Message(from: .heed, to: .task("g/tests"), kind: .answer),
+        ], in: layout))
+    }
+
+    @Test func dotsThatWouldOverlapBecomeOneThatCountsThem() {
+        // Generator and validator both ask you, two columns away: their dots land almost on one another in the gap
+        // after the goal. The lead's message to survey sits elsewhere.
+        let layout = SwarmMap.layout(goal: "G", lead: "claude", tasks: tasks, states: [:])
+        let flights = SwarmMap.flights([
+            SwarmMap.Message(from: .task("g/generator"), to: .you, kind: .question),
+            SwarmMap.Message(from: .task("g/validator"), to: .you, kind: .question),
+            SwarmMap.Message(from: .lead, to: .task("g/survey"), kind: .message),
+        ], in: layout)
+        #expect(flights.map { "\($0.from)>\($0.to) \($0.kind) \($0.count)" } == [
+            "g/generator>lead question 2", "lead>g/survey message 1",
+        ])
+    }
+
+    @Test func aMessageBetweenCardsAnEdgeJoinsTravelsOnThatEdge() throws {
+        let layout = SwarmMap.layout(goal: "G", lead: "claude", tasks: tasks, states: [:])
+        let edge = try #require(layout.edges.first { $0.from == "g/generator" && $0.to == "g/tests" })
+        let flight = try #require(SwarmMap.flights(
+            [SwarmMap.Message(from: .task("g/tests"), to: .task("g/generator"), kind: .message)], in: layout
+        ).first)
+        #expect(flight.curve.start == SwarmMap.Point(x: edge.start.x, y: edge.start.y))
+        #expect(flight.curve.end == SwarmMap.Point(x: edge.end.x, y: edge.end.y))
+        // Halfway along an edge is halfway between its ends.
+        let middle = flight.curve.point(at: 0.5)
+        #expect(abs(middle.x - (edge.start.x + edge.end.x) / 2) < 0.001)
+        #expect(abs(middle.y - (edge.start.y + edge.end.y) / 2) < 0.001)
+    }
 }
 
 // MARK: Since you last looked

@@ -40,10 +40,11 @@ struct GoalMapPane: View {
                 }
                 ListScroll {
                     VStack(alignment: .leading, spacing: 16) {
+                        // As the deck has it: the numbers, what needs you, the keys; then what changed.
                         MapFacts(board: board)
-                        SinceYouLooked(board: board)
                         NeedsYouQueue(board: board, scope: "goalmap", limit: 1)
                         MapKeys()
+                        SinceYouLooked(board: board)
                     }
                 }
                 .frame(width: 300)
@@ -77,7 +78,10 @@ private struct SwarmGraph: View {
                 color: edge.settled ? Theme.done.opacity(0.45) : Theme.fg3.opacity(0.7), dashed: edge.from == "lead"
             )
         }
+        let flights = model.mapFlights(layout)
         ZStack(alignment: .topLeading) {
+            // Under the cards: the paths of what is in flight; over them, its dots (always in a gap between cards).
+            if !flights.isEmpty { FlightPaths(flights: flights, size: layout.size) }
             ForEach(Array(layout.columns.enumerated()), id: \.offset) { index, name in
                 Text("\(index + 1) · \(name)".uppercased()).font(Theme.mono(9.5)).foregroundStyle(Theme.fg3)
                     .frame(width: metrics.cardWidth, alignment: .center)
@@ -103,8 +107,101 @@ private struct SwarmGraph: View {
                         }
                 }
             )
+            if !flights.isEmpty { FlightDots(flights: flights, size: layout.size) }
         }
         .frame(width: layout.width, height: layout.height, alignment: .topLeading)
+    }
+}
+
+private extension SwarmMap.Layout {
+    var size: CGSize { CGSize(width: width, height: height) }
+}
+
+private extension SwarmMap.Flight {
+    var color: Color {
+        switch kind {
+        case .question: Theme.ask
+        case .answer: Theme.done
+        case .message: Theme.busy
+        }
+    }
+
+    /// `msg`, `ask ×2`.
+    var label: String {
+        let word = switch kind {
+        case .question: "ask"
+        case .answer: "answer"
+        case .message: "msg"
+        }
+        return count > 1 ? "\(word) ×\(count)" : word
+    }
+}
+
+private extension CGPoint {
+    init(_ point: SwarmMap.Point) { self.init(x: point.x, y: point.y) }
+}
+
+/// The dotted path of each message in flight, under the cards and the edges.
+private struct FlightPaths: View {
+    let flights: [SwarmMap.Flight]
+    let size: CGSize
+
+    var body: some View {
+        Canvas { context, _ in
+            for flight in flights {
+                var path = Path()
+                path.move(to: CGPoint(flight.curve.start))
+                path.addCurve(
+                    to: CGPoint(flight.curve.end), control1: CGPoint(flight.curve.control1),
+                    control2: CGPoint(flight.curve.control2)
+                )
+                context.stroke(
+                    path, with: .color(flight.color.opacity(0.55)),
+                    style: StrokeStyle(lineWidth: 1.2, lineCap: .round, dash: [1, 3])
+                )
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .allowsHitTesting(false)
+    }
+}
+
+/// A dot for each message in flight, with what it is. Live it pulses gently; shots draw it at rest, so two renders of
+/// the same shot are the same picture.
+private struct FlightDots: View {
+    let flights: [SwarmMap.Flight]
+    let size: CGSize
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1 / 20, paused: ShotMode.active)) { context in
+            let phase = ShotMode.active ? 0
+                : (sin(context.date.timeIntervalSinceReferenceDate * .pi / 0.9) + 1) / 2
+            Canvas { canvas, _ in
+                for flight in flights {
+                    let center = CGPoint(flight.dot)
+                    let halo = 6 + 3 * phase
+                    canvas.fill(
+                        Path(ellipseIn: CGRect(
+                            x: center.x - halo,
+                            y: center.y - halo,
+                            width: halo * 2,
+                            height: halo * 2
+                        )),
+                        with: .color(flight.color.opacity(0.22 - 0.12 * phase))
+                    )
+                    canvas.fill(
+                        Path(ellipseIn: CGRect(x: center.x - 3.5, y: center.y - 3.5, width: 7, height: 7)),
+                        with: .color(flight.color)
+                    )
+                    canvas.draw(
+                        Text(flight.label).font(Theme.mono(8.5)).foregroundColor(flight.color),
+                        at: CGPoint(x: center.x, y: center.y - 11), anchor: .bottom
+                    )
+                }
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .allowsHitTesting(false)
     }
 }
 

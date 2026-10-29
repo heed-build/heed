@@ -409,6 +409,23 @@ struct StatusBar: View {
             .map { "\(model.keyText(for: $0.0)) \($0.1)" }.joined(separator: " · ")
     }
 
+    /// Goals' hints, from the open pane's own bindings (`GoalHints`): a key shows only where it does what it says.
+    private var goalHints: String {
+        let goals = model.goals
+        let board = goals.board
+        let context = GoalHints.Context(
+            focus: goals.focus.rawValue, proposals: !goals.proposals.isEmpty,
+            running: board.map { $0.swarm.approved != nil && $0.swarm.status != .planning } ?? false,
+            pendingChange: board?.pending != nil,
+            done: goals.pane == .agents && board.flatMap(model.summaryShown) != nil
+        )
+        let scope = goals.scope
+        let (hints, tail) = GoalHints.hints(scope: scope, context)
+        let line = hints.map { "\($0.key ?? model.keyText(for: $0.command, in: scope)) \($0.label)" }
+            .joined(separator: " · ")
+        return tail.isEmpty ? line : line + " · " + tail
+    }
+
     private var hints: String {
         switch model.mode {
         case let .normal where model.confirmation.map { !$0.alternatives.isEmpty } == true:
@@ -456,83 +473,10 @@ struct StatusBar: View {
         case .normal where model.goals.swarmForm != nil:
             "the goal, where, the team, your say and limits · ⌘↩ ask the lead for a plan · ⎋ cancel"
         case .normal where model.goals.planDraft != nil: "type it · ⌘↩ save · ⎋ cancel"
-        case .normal where model.view == .goals && model.goals.pane == .plan
-            && (model.goals.board.map { $0.swarm.approved != nil && $0.swarm.status != .planning } ?? false):
-            [
-                ("goal.focus", model.goals.focus == .versions ? "goals" : "next"), ("swarm.task.pause", "pause"),
-                ("swarm.task.swap", "swap"), ("swarm.task.open", "worker"), ("swarm.task.edit", "edit"),
-                ("swarm.replan", "re-plan"), ("swarm.diff", "diff"), ("goal.swarm", "overview"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "goalplan")) \($0.1)" }.joined(separator: " · ")
-        case .normal where model.view == .goals && model.goals.pane == .plan:
-            [
-                ("goal.focus", model.goals.focus == .versions ? "goals" : "next"), ("swarm.task.edit", "edit"),
-                ("swarm.task.add", "add"), ("swarm.task.drop", "drop"), ("swarm.replan", "re-plan"),
-                model.goals.board?.pending != nil ? ("swarm.accept", "yes") : ("swarm.approve", "approve"),
-                ("swarm.answer", "answer"), ("swarm.diff", "diff"),
-                ("goal.swarm", "overview"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "goalplan")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.goals.draft != nil: "edit GOAL.md · ⎋ or ⌘S save as a new version"
         case .normal where model.goals.spawnTyping: "type the reviewer's instructions · ⌘↩ spawn · ⎋ cancel"
         case .normal where model.goals.personas.draft != nil: "edit the persona's file · ⎋ or ⌘S save"
-        case .normal where model.view == .goals && model.goals.pane == .personas:
-            [
-                ("goal.focus", model.goals.focus == .personas ? "goals" : "personas"),
-                ("persona.session", "session"), ("persona.chat", "chat"), ("persona.reviewer", "reviewer"),
-                ("persona.edit", "edit"), ("persona.derive", "work out again"), ("goal.personas", "overview"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "goalpersonas")) \($0.1)" }.joined(separator: " · ")
-        case .normal where model.view == .goals && model.goals.pane == .evaluations:
-            [
-                ("goal.focus", model.goals.focus == .friction ? "goals" : "friction"),
-                ("eval.fix", "fix"),
-                ("eval.accept", "accept"),
-                ("eval.rewalk", "walk again"),
-                ("eval.lens 1", "next lens"),
-                ("goal.evaluations", "overview"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "goalevals")) \($0.1)" }.joined(separator: " · ")
-        case .normal where model.view == .goals && model.goals.pane == .reviewers:
-            [
-                ("goal.focus", model.goals.focus == .objections ? "goals" : "next"),
-                ("review.recheck", "re-check"),
-                ("review.accept", "accept risk"),
-                ("review.fix", "fix"),
-                ("review.why", "why"),
-                ("reviewer.spawn", "spawn"),
-                ("goal.reviewers", "overview"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "goalreviewers")) \($0.1)" }.joined(separator: " · ")
-        case .normal where model.view == .goals && model.goals.pane == .board:
-            [
-                ("goal.item.move right", "move"), ("goal.item.add", "add"), ("goal.item.work", "work here"),
-                ("goal.item.open", "open"), ("goal.board", "overview"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "goalboard")) \($0.1)" }.joined(separator: " · ")
-            + " · h l column · j k card"
-        case .normal where model.view == .goals && model.goals.pane == .doc && !model.goals.proposals.isEmpty:
-            [
-                ("goal.proposal.accept", "accept"), ("goal.proposal.reject", "no"), ("goal.proposal.edit", "reword"),
-                ("goal.edit", "edit"), ("goal.doc", "overview"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "goaldoc")) \($0.1)" }.joined(separator: " · ")
-        case .normal where model.view == .goals && model.goals.pane == .unassigned:
-            [
-                ("goal.ask.yes", "yes"), ("goal.ask.no", "no"), ("goal.ask.move", "move"),
-                ("goal.ask.ignore", "ignore like this"), ("goal.attach.undo", "undo last"), ("goal.unassigned", "back"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "unassigned")) \($0.1)" }.joined(separator: " · ")
-        case .normal where model.view == .goals:
-            [
-                ("goal.open", model.goals.focus == .links ? "go there" : "open"),
-                ("goal.focus", model.goals.focus == .links ? "goals" : "what is on it"),
-                ("goal.new", "new"),
-                ("goal.doc", model.goals.pane == .doc ? "overview" : "GOAL.md"),
-                ("goal.edit", "edit"),
-                ("goal.archive", "archive"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "goals")) \($0.1)" }.joined(separator: " · ") + " · / filter"
+        case .normal where model.view == .goals: goalHints
         case .normal where model.view == .ledger:
             [
                 ("ledger.summarize", "write again"),

@@ -123,6 +123,12 @@ limits.
 each task a card coloured by its state (done, working, asking, blocked, stuck, waiting), and an edge for every task it
 waits for. A task that waits for nothing hangs off the goal. The plan is drawn whole, scaled to fit.
 
+A dot on a dotted path is something on its way: a message, an answer or a question heed has not handed to its agent
+yet (it hands things over only when the agent is idle and you are not typing to it, see
+[Steering](steering.md)), and each question that waits for you, on its way to the goal and its lead. The dot sits next
+to the card it goes to and says what it is (`msg`, `ask`, `answer`, with a count when several go the same way). The
+goal's card stands for the lead, you, the controller and heed alike. While the window is open the dot pulses gently.
+
 ![The map](../../images/shots/goals/swarm-map.png)
 
 | Key | Does |
@@ -134,7 +140,9 @@ waits for. A task that waits for nothing hangs off the goal. The plan is drawn w
 | `t` | Hand its task to another agent |
 | `e` | Edit the task, in the plan |
 
-On the right: the swarm's numbers, what changed since you last looked, the first question that is yours, and the keys.
+On the right: the swarm's numbers, the first question that is yours, the keys, and what changed since you last looked.
+The status bar lists the map's own keys; a goal's list keys (`a` archive, `n` new) are not offered there, as they do
+not work there.
 
 ## Since you last looked
 

@@ -76,6 +76,13 @@ extension AppModel {
         )
     }
 
+    /// What is on its way between the map's cards: messages, answers and questions heed has not handed over yet, and
+    /// the questions that wait for you (`SwarmMap.inFlight`).
+    func mapFlights(_ layout: SwarmMap.Layout) -> [SwarmMap.Flight] {
+        guard let board = goals.board else { return [] }
+        return SwarmMap.flights(SwarmMap.inFlight(board.steering), in: layout)
+    }
+
     /// `swarm.task.edit` from any pane of the swarm: in the agents pane or the map, the plan opens on the task first.
     func editPlanTaskFromAnyPane() {
         if view == .goals, goals.pane == .agents || goals.pane == .map, let task = goals.selectedTask {

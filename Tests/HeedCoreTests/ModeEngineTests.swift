@@ -233,6 +233,48 @@ struct ScopedKeyTests {
         }
     }
 
+    @Test func goalStatusBarHintsAreBoundInTheirPane() throws {
+        // Every hint the status bar shows in a Goals pane is a key of that pane: the map does not offer `a archive`.
+        // A new Goals scope without hints of its own gets the list's, which it does not bind, and fails here.
+        let built = Keymaps.build()
+        let focuses = [
+            "goals",
+            "links",
+            "reviewers",
+            "objections",
+            "personas",
+            "friction",
+            "tasks",
+            "versions",
+            "steering",
+            "agents",
+        ]
+        var contexts: [GoalHints.Context] = []
+        for focus in focuses {
+            for flags in 0 ..< 16 {
+                contexts.append(GoalHints.Context(
+                    focus: focus, proposals: flags & 1 != 0, running: flags & 2 != 0, pendingChange: flags & 4 != 0,
+                    done: flags & 8 != 0
+                ))
+            }
+        }
+        for scope in DefaultKeys.goalScopes {
+            let keymap = try #require(built.scoped[scope], "\(scope)")
+            for context in contexts {
+                let hints = GoalHints.hints(scope: scope, context).hints
+                #expect(!hints.isEmpty, "\(scope) has no hints")
+                for hint in hints {
+                    #expect(!keymap.keys(for: hint.command).isEmpty, "\(scope) shows \(hint.command), not bound there")
+                }
+            }
+        }
+        // The goal's own actions show only where the goal is what you are on.
+        for scope in ["goalmap", "goalagents", "goalplan", "goalboard"] {
+            let commands = GoalHints.hints(scope: scope, GoalHints.Context()).hints.map(\.command)
+            #expect(!commands.contains("goal.archive") && !commands.contains("goal.new"), "\(scope)")
+        }
+    }
+
     @Test func goalLowercaseKeysMeanTheSameAcrossPanes() throws {
         let built = Keymaps.build()
         func command(_ key: String, _ scope: String) throws -> String? {

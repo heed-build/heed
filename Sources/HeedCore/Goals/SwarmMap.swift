@@ -72,7 +72,8 @@ public enum SwarmMap {
 
     public struct Metrics: Hashable, Sendable {
         public var cardWidth: Double = 196
-        public var cardHeight: Double = 58
+        /// Room for a title on two lines and the owner and state under it.
+        public var cardHeight: Double = 68
         public var columnGap: Double = 44
         public var rowGap: Double = 18
         public var header: Double = 28
@@ -164,5 +165,194 @@ public enum SwarmMap {
         guard !cards.isEmpty else { return current.id }
         let row = current.row + dy
         return cards[min(max(row, 0), cards.count - 1)].id
+    }
+}
+
+// MARK: Messages in flight
+
+public extension SwarmMap {
+    struct Point: Hashable, Sendable {
+        public var x: Double
+        public var y: Double
+
+        public init(x: Double, y: Double) {
+            self.x = x
+            self.y = y
+        }
+    }
+
+    /// A cubic curve: the shape `GraphCanvas` draws an edge with (controls `bend` along x from each end), so a message
+    /// between two cards an edge joins travels on that edge.
+    struct Curve: Hashable, Sendable {
+        public var start: Point
+        public var control1: Point
+        public var control2: Point
+        public var end: Point
+
+        /// From `start` (a card's right edge) to `end` (another's left edge), bending as an edge does.
+        public static func edge(from start: Point, to end: Point) -> Curve {
+            let bend = max((end.x - start.x) / 2, 12)
+            return Curve(
+                start: start, control1: Point(x: start.x + bend, y: start.y),
+                control2: Point(x: end.x - bend, y: end.y), end: end
+            )
+        }
+
+        public func point(at t: Double) -> Point {
+            let u = 1 - t
+            let a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t
+            return Point(
+                x: a * start.x + b * control1.x + c * control2.x + d * end.x,
+                y: a * start.y + b * control1.y + c * control2.y + d * end.y
+            )
+        }
+
+        /// Where along the curve x is `x`: the curves here only move rightwards, so a bisection finds it.
+        func t(atX x: Double) -> Double {
+            var low = 0.0, high = 1.0
+            for _ in 0 ..< 40 {
+                let mid = (low + high) / 2
+                if point(at: mid).x < x { low = mid } else { high = mid }
+            }
+            return (low + high) / 2
+        }
+    }
+
+    /// Something on its way from one agent to another (or to you), as the steering log has it.
+    struct Message: Hashable, Sendable {
+        public enum Kind: String, Hashable, Sendable {
+            case message, question, answer
+        }
+
+        public var from: SwarmAddress
+        public var to: SwarmAddress
+        public var kind: Kind
+
+        public init(from: SwarmAddress, to: SwarmAddress, kind: Kind) {
+            self.from = from
+            self.to = to
+            self.kind = kind
+        }
+    }
+
+    /// A dot on the map: what is in flight between two cards, drawn on the path between them, at the gap next to
+    /// the card it goes to (so it never hides under a card, and its side says which way it goes).
+    struct Flight: Hashable, Sendable {
+        /// Node ids (`lead` or a task's id).
+        public var from: String
+        public var to: String
+        /// A question if any of them is one, else an answer, else a message.
+        public var kind: Message.Kind
+        /// How many are on their way along this path, this way.
+        public var count: Int
+        public var curve: Curve
+        public var dot: Point
+    }
+
+    /// What is on its way now: everything heed still has to hand to an agent (`SwarmDelivery.pending`, whatever the
+    /// time: an answer in its grace period is on its way too), and the questions that wait for you, toward the goal
+    /// and its lead. No clock: the same rows give the same dots.
+    static func inFlight(_ rows: [SwarmSteer]) -> [Message] {
+        var messages: [Message] = []
+        for item in SwarmDelivery.pending(rows, now: .distantFuture) {
+            guard let from = item.row.from.flatMap(SwarmAddress.init(raw:)) ?? actorAddress(item.row.actor) else {
+                continue
+            }
+            let kind: Message.Kind = switch item.row.kind {
+            case .question: .question
+            case .answer, .overrule: .answer
+            default: .message
+            }
+            messages.append(Message(from: from, to: item.to, kind: kind))
+        }
+        for question in SwarmSteering.questions(rows) where question.answer == nil
+            && SwarmLadder.position(question.row, rows: rows).step == .you
+        {
+            guard let from = question.row.from.flatMap(SwarmAddress.init(raw:)) else { continue }
+            messages.append(Message(from: from, to: .you, kind: .question))
+        }
+        return messages
+    }
+
+    private static func actorAddress(_ actor: SwarmSteer.Actor) -> SwarmAddress? {
+        switch actor {
+        case .you: .you
+        case .lead: .lead
+        case .controller: .controller
+        case .heed: .heed
+        case .agent: nil
+        }
+    }
+
+    /// The card an address is drawn at: a task's own card; the lead, you, the controller and heed share the goal's.
+    static func node(of address: SwarmAddress, in layout: Layout) -> Node? {
+        switch address {
+        case .lead, .you, .controller, .heed: layout.node("lead")
+        case let .task(id): layout.node(id)
+        case .all, .session: nil
+        }
+    }
+
+    /// The dots for `messages`: one per pair of cards and direction, in a stable order.
+    static func flights(_ messages: [Message], in layout: Layout, metrics: Metrics = Metrics()) -> [Flight] {
+        var order: [String] = []
+        var grouped: [String: (from: Node, to: Node, kinds: [Message.Kind])] = [:]
+        for message in messages {
+            guard let from = node(of: message.from, in: layout), let to = node(of: message.to, in: layout),
+                  from.id != to.id
+            else { continue }
+            let key = "\(from.id)>\(to.id)"
+            if grouped[key] == nil {
+                order.append(key)
+                grouped[key] = (from, to, [])
+            }
+            grouped[key]?.kinds.append(message.kind)
+        }
+        func strongest(_ kinds: [Message.Kind]) -> Message.Kind {
+            kinds.contains(.question) ? .question : kinds.contains(.answer) ? .answer : .message
+        }
+        var flights: [Flight] = []
+        var kinds: [[Message.Kind]] = []
+        for key in order {
+            guard let group = grouped[key] else { continue }
+            let (curve, dot) = path(from: group.from, to: group.to, metrics: metrics)
+            // Dots that would sit on one another (two workers asking you) become one, counting both.
+            if let near = flights.firstIndex(where: {
+                $0.to == group.to.id && abs($0.dot.x - dot.x) < metrics.rowGap && abs($0.dot.y - dot.y) < metrics.rowGap
+            }) {
+                kinds[near] += group.kinds
+                flights[near].count = kinds[near].count
+                flights[near].kind = strongest(kinds[near])
+                continue
+            }
+            kinds.append(group.kinds)
+            flights.append(Flight(
+                from: group.from.id, to: group.to.id, kind: strongest(group.kinds), count: group.kinds.count,
+                curve: curve, dot: dot
+            ))
+        }
+        return flights
+    }
+
+    /// The path between two cards and where its dot sits. Cards in different columns: the edge's curve from the left
+    /// card's right edge to the right card's left edge, the dot in the column gap next to the card it goes to. Cards in
+    /// one column: an arc through the gap to their left, the dot at its middle.
+    static func path(from: Node, to: Node, metrics: Metrics) -> (Curve, Point) {
+        if from.column == to.column {
+            let x = from.frame.x
+            let bulge = metrics.columnGap * 0.6
+            let curve = Curve(
+                start: Point(x: x, y: from.frame.midY), control1: Point(x: x - bulge, y: from.frame.midY),
+                control2: Point(x: x - bulge, y: to.frame.midY), end: Point(x: x, y: to.frame.midY)
+            )
+            return (curve, curve.point(at: 0.5))
+        }
+        let (left, right) = from.column < to.column ? (from, to) : (to, from)
+        let curve = Curve.edge(
+            from: Point(x: left.frame.maxX, y: left.frame.midY), to: Point(x: right.frame.x, y: right.frame.midY)
+        )
+        // The gap beside the card it goes to: before it when it is on the right, after it when on the left.
+        let gap = to.column > from.column ? to.frame.x - metrics.columnGap / 2 : to.frame.maxX + metrics.columnGap / 2
+        return (curve, curve.point(at: curve.t(atX: gap)))
     }
 }

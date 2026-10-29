@@ -4,6 +4,11 @@ name: release
 # version release-drafter worked out (or the one given), attaches the app to the draft, checks it is there, and only
 # then publishes the draft, which creates the tag on the commit that was built. A published release always has its
 # files.
+#
+# The draft is held by its id, not its tag: release-drafter keeps editing the draft while a release builds (a pull
+# request that merges mid-run can rename it, v0.24.1 to v0.25.0, and adds its line to the notes). The run keeps the
+# version it built and publishes only the notes of pull requests in the built commit (scripts/notes-for-build.sh);
+# anything dropped goes to a fresh draft.
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +22,8 @@ on:
 
 permissions:
   contents: write
+  # To ask release-drafter for a fresh draft when pull requests merged during the run.
+  actions: write
 
 concurrency:
   group: release
@@ -70,8 +77,11 @@ jobs:
             echo "$tag is already released." >&2
             exit 1
           fi
+          echo "id=$(jq -r .id <<<"$draft")" >>"$GITHUB_OUTPUT"
           echo "tag=$tag" >>"$GITHUB_OUTPUT"
           echo "version=${tag#v}" >>"$GITHUB_OUTPUT"
+          # This release's notes: the draft's, less pull requests that are not in the commit being built.
+          jq -r '.body // ""' <<<"$draft" | scripts/notes-for-build.sh "$GITHUB_SHA" >"$RUNNER_TEMP/notes.md"
 
       - uses: ./.github/actions/setup
 
@@ -166,6 +176,7 @@ jobs:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
           VERSION: ${{ steps.draft.outputs.version }}
           TAG: ${{ steps.draft.outputs.tag }}
+          HEED_NOTES_FILE: ${{ runner.temp }}/notes.md
         run: |
           source packaging/sparkle/sparkle.lock
           tools="$RUNNER_TEMP/sparkle"
@@ -213,22 +224,45 @@ jobs:
           name: Heed-${{ steps.draft.outputs.version }}-dry-run
           path: dist/*
 
+      # By the draft's id: its tag may have been renamed since the run began.
       - name: Attach to the draft
         if: ${{ !inputs.dry_run }}
-        run: gh release upload "${{ steps.draft.outputs.tag }}" dist/* --clobber
+        env:
+          ID: ${{ steps.draft.outputs.id }}
+        run: |
+          for file in dist/*; do
+            name="$(basename "$file")"
+            old="$(gh api "repos/$GITHUB_REPOSITORY/releases/$ID/assets" --paginate \
+              --jq ".[] | select(.name == \"$name\") | .id")"
+            [ -z "$old" ] || gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$old" >/dev/null
+            curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/octet-stream" \
+              --data-binary @"$file" \
+              "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$ID/assets?name=$name" >/dev/null
+          done
 
       - name: Check the draft has every file
         if: ${{ !inputs.dry_run }}
+        env:
+          ID: ${{ steps.draft.outputs.id }}
         run: |
-          names="$(gh release view "${{ steps.draft.outputs.tag }}" --json assets --jq '[.assets[].name] | sort | join(" ")')"
+          names="$(gh api "repos/$GITHUB_REPOSITORY/releases/$ID/assets" --paginate --jq '.[].name' | LC_ALL=C sort | tr '\n' ' ' | sed 's/ $//')"
           wanted="Heed-arm64.dmg Heed-arm64.dmg.sha256 Heed-arm64.zip Heed-arm64.zip.sha256"
           if [ "$SPARKLE" = "true" ] && [ "$NOTARIZE" = "true" ]; then wanted="$wanted appcast.xml"; fi
           wanted="$(tr ' ' '\n' <<<"$wanted" | LC_ALL=C sort | tr '\n' ' ' | sed 's/ $//')"
           [ "$names" = "$wanted" ] || { echo "draft has: $names" >&2; exit 1; }
 
+      # The version that was built, the notes of what is in it, on the commit that was built; whatever release-drafter
+      # did to the draft meanwhile. Pull requests left out get a fresh draft.
       - name: Publish
         if: ${{ !inputs.dry_run }}
-        run: gh release edit "${{ steps.draft.outputs.tag }}" --draft=false --latest --target "$GITHUB_SHA"
+        env:
+          ID: ${{ steps.draft.outputs.id }}
+          TAG: ${{ steps.draft.outputs.tag }}
+        run: |
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$ID" -f tag_name="$TAG" -f name="$TAG" \
+            -f target_commitish="$GITHUB_SHA" -F body=@"$RUNNER_TEMP/notes.md" -F draft=false -f make_latest=true >/dev/null
+          ahead="$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...main" --jq .ahead_by)"
+          if [ "$ahead" != 0 ]; then gh workflow run release-drafter.yml --ref main; fi
 
       # Only notarized releases go to Homebrew: casks are quarantined, and an ad-hoc signed app would not open.
       - name: Update the Homebrew tap

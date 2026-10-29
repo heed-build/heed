@@ -46,8 +46,9 @@ heed keeps two kinds of activity for every worker, in its event log next to ever
   its telling line with numbers, hashes and quotes evened out, so the same error twice has the same digest. The tool's
   whole input and output are never kept. At most one call every two seconds is kept (a failure always is); the ones
   in between are counted on the next one.
-- **File changes**, from the worker's worktree: `git status` and `git diff --stat` once a minute while it works, and a
-  row only when something changed (files, lines, or a new commit).
+- **File changes**, from the worker's worktree: `git status` and `git diff --stat` once a minute while it works (every
+  three minutes for a worker on a host, over its shared ssh connection, and only while it answers), and a row only
+  when something changed (files, lines, or a new commit).
 
 Activity is kept 14 days and at most 4 MB of it; the oldest goes first. Measured on a fixture of one busy worker-hour
 (every hook payload of the hour, and a worktree read a minute):

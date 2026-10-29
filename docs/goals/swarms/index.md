@@ -35,12 +35,15 @@ There are three ways in:
 | Field | What it is |
 |---|---|
 | Goal | A title and what done looks like (for a new goal; an existing one keeps its `GOAL.md`) |
-| Where | The repos on this Mac it works in; the lead starts in the first |
+| Where | This Mac or one of your hosts, then the repos there it works in; the lead starts in the first ([On a host](running.md#on-a-host)) |
 | Team | The lead's agent and model, and the workers: agents, their models and how many of each |
 | How much say you want | Approve the plan, then check in per phase; ask only when the plan changes (the default); or run to the end |
 | Limits | Agents at once, hours, dollars. Reaching one pauses new work and asks you |
 
-A click on an agent picks the next one; the model field is free text (empty: the agent's default). ⌘↩ makes the goal
+![The new swarm form running on @devbox](../../images/shots/goals/swarm-new-host.png)
+
+A click on a place runs the swarm there (`:swarm.host devbox`); the line under it says how its agents will run, or
+why they cannot (a host that does not answer, or has no zmx). A click on an agent picks the next one; the model field is free text (empty: the agent's default). ⌘↩ makes the goal
 if it is new, starts the swarm, and starts its lead; ⎋ leaves.
 
 ## The lead

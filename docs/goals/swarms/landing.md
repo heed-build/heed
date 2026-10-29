@@ -86,6 +86,13 @@ lead's.
 If `gh` refuses the move, a steering row says why and heed tries again after ten minutes; `b` in the plan pane
 (`:swarm.land`) on the task tries at once, or says why there is nothing to move (`#415 goes against main already`).
 
+## Where it runs
+
+Landing is GitHub's business, so it runs on this Mac whatever machine the workers are on: heed reads the PRs and moves
+a stacked one with `gh` here, against the branch its worker pushed to GitHub. Nothing about it needs the worktree. The
+rebase after a parent merges is a get it green run, which runs where the lead's session does (on this Mac or its
+host), in a clone of the repo there.
+
 ## Two open blockers
 
 A task that waits for two tasks whose PRs are both open does not start: it waits until one merges, then stacks on the

@@ -380,6 +380,15 @@ public enum Commands {
             "hand the swarm task under the cursor to another agent; a working worker hands over its worktree",
             .selection, arguments: "<agent[:model]>"
         ),
+        .init(
+            "swarm.task.host",
+            "where the swarm task under the cursor runs: a host, local for this Mac, or - for where the swarm runs",
+            .selection, arguments: "<host|local|->"
+        ),
+        .init(
+            "swarm.host", "where the new swarm runs, in its form: a host, or local for this Mac", .selection,
+            arguments: "<host|local>"
+        ),
         .init("swarm.task.open", "the swarm task under the cursor's worker: its tab", .selection),
         .init(
             "swarm.land",

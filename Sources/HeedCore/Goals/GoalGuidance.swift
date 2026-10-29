@@ -70,7 +70,9 @@ public enum GoalGuidance {
             "Draft the plan as tasks the team can work on in parallel, each in its own worktree. Give every task an "
                 + "id, a title, a phase, an owner from the team (agent, or agent:model), an estimate (15m, 1h 30m), "
                 + "the ids it waits for (after) and how we will know it is done (doneWhen, checks evidence can show). "
-                + "Take in open items already on the goal by using their ids.",
+                + "Take in open items already on the goal by using their ids. A task runs where the swarm does unless "
+                + "the owner asked for another machine: then give it a host (a host's name, or local for the owner's "
+                + "Mac).",
             "heed goal plan propose --file plan.json --note TEXT"
         ),
         Rule(
@@ -247,7 +249,8 @@ public enum HeedPlugin {
             "",
             "The plan's JSON: `{\"note\": \"…\", \"tasks\": [{\"id\": \"profile\", \"title\": \"…\", "
                 + "\"phase\": \"Spike\", \"owner\": \"claude\", \"estimate\": \"15m\", \"after\": [], "
-                + "\"doneWhen\": [\"…\"]}], \"scope\": [{\"section\": \"not-the-goal\", \"text\": \"…\"}]}`.",
+                +
+                "\"doneWhen\": [\"…\"], \"host\": \"devbox\"}], \"scope\": [{\"section\": \"not-the-goal\", \"text\": \"…\"}]}`.",
             "",
             "## Exit codes",
             "",

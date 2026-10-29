@@ -76,11 +76,47 @@ extension AppModel {
     /// The agents a picker cycles through.
     var swarmAgents: [String] { settings.agents.map(\.name) }
 
-    /// The repos the form offers: this Mac's, picked first.
+    /// The repos the form offers: the ones where it runs (this Mac's, or its host's), picked first.
     var swarmRepoChoices: [String] {
-        let local = repos.filter(\.location.isLocal).map(\.repo.slug)
+        let location = goals.swarmForm?.location ?? .local
+        let there = repos.filter { $0.location == location }.map(\.repo.slug)
         let picked = goals.swarmForm?.repos ?? []
-        return picked + local.filter { !picked.contains($0) }.sorted()
+        return picked + there.filter { !picked.contains($0) }.sorted()
+    }
+
+    /// The places the form offers: this Mac, then config's hosts.
+    var swarmPlaces: [Location] { [.local] + config.hosts.keys.sorted().map(Location.host) }
+
+    /// `swarm.host <host|local>`: where the new swarm runs, in its form (its Where chips). Repos picked that are not
+    /// there are let go: the lead and workers start in clones where they run.
+    func setSwarmHost(_ word: String?) {
+        guard var form = goals.swarmForm else { return say("swarm.host is the new swarm form's: :swarm.new opens it") }
+        guard let word, !word.isEmpty else { return say("where: local, or one of your hosts") }
+        switch SwarmPlace.parse(word, hosts: Array(config.hosts.keys)) {
+        case let .failure(problem): return say(problem.text)
+        case let .success(found):
+            form.host = found == SwarmPlace.local ? nil : found
+        }
+        let location = form.location
+        let gone = form.repos.filter { slug in !repos.contains { $0.repo.slug == slug && $0.location == location } }
+        form.repos.removeAll { gone.contains($0) }
+        goals.swarmForm = form
+        if !gone.isEmpty {
+            say("\(gone.joined(separator: ", ")) not on \(SwarmPlace.label(location)): pick its repos there")
+        }
+    }
+
+    /// The line under the form's Where: how its agents will run there.
+    func swarmPlaceLine(_ location: Location) -> (text: String, problem: Bool) {
+        guard let host = location.hostName else { return ("the lead and its workers run on this Mac", false) }
+        if !isFixture, let problem = SwarmPlace.problem(location, hosts: config.hosts, statuses: hostStatuses) {
+            return (problem, true)
+        }
+        guard case let .connected(info) = hostStatus(host)
+        else { return ("@\(host) does not answer: gH shows why", true) }
+        return info.zmxPath == nil
+            ? ("will run on @\(host), not persistent: no zmx there (gH says how)", true)
+            : ("will run on @\(host) in zmx: worktrees under \(config.hosts[host]?.worktreeRoot ?? "~/code/wt")", false)
     }
 
     /// The form's ⌘↩: the goal (made first when new), the run, then its lead.
@@ -91,6 +127,11 @@ extension AppModel {
            .isEmpty { return say("a swarm's goal needs a title") }
         guard !form.repos.isEmpty || isFixture || tutor != nil else {
             return say("pick a repo for the lead to start in")
+        }
+        if !isFixture, tutor == nil,
+           let problem = SwarmPlace.problem(form.location, hosts: config.hosts, statuses: hostStatuses)
+        {
+            return say("the swarm cannot run there: \(problem)")
         }
         goals.swarmForm = nil
         textInputActive = false
@@ -132,13 +173,24 @@ extension AppModel {
         guard let agent = self.settings.agent(settings.lead.agent) else {
             return say("no agent \(settings.lead.agent): the swarm waits for a lead (:swarm.stop ends it)")
         }
+        let location = settings.location
         let records = settings.repos.compactMap { slug in
-            repos.first { $0.repo.slug == slug && $0.location.isLocal }
+            repos.first { $0.repo.slug == slug && $0.location == location }
         }
         guard let first = records.first else {
-            return say("none of the swarm's repos is on this Mac: no lead started")
+            return say("none of the swarm's repos is on \(SwarmPlace.label(location)): no lead started")
         }
-        let doc = Paths.tilde(goals.files.doc(goal.id).path)
+        // On a host: its hook files go there first, and the lead is launched with their paths there.
+        var hostFiles: [String: String] = [:]
+        var files = integration
+        if let host = location.hostName {
+            guard let onHost = hostAgentFiles(host) else {
+                return say("@\(host) does not answer: no lead started (gH shows why; :swarm.stop ends the swarm)")
+            }
+            hostFiles = onHost.files
+            files = onHost.integration
+        }
+        let doc = SwarmPlace.doc(Paths.tilde(goals.files.doc(goal.id).path), at: settings.location)
         var plan = StartWorkPlan(
             prompt: SwarmLead.prompt(
                 goal: goal.title, doc: doc, swarm: swarm,
@@ -148,7 +200,7 @@ extension AppModel {
                 for: "swarm \(swarm.number) lead \(goal.title)",
                 prefixes: self.settings.prefixes
             ),
-            agent: agent, integration: integration
+            agent: agent, integration: files
         )
         plan.model = settings.lead.model
         let id = plan.sessionID
@@ -166,9 +218,12 @@ extension AppModel {
             }
             guard attached else { return say("the lead could not go on \(goal.title)") }
             applyGoalPointers()
-            plan.signOff = self.settings.signOffArguments(agent: agent, repo: first.repo, session: id)
+            plan.signOff = self.settings.signOffArguments(
+                agent: agent, repo: first.repo, session: id, host: location.hostName
+            )
             let changes: [DomainChange]
             do {
+                if let host = location.hostName { try await HostSetup.install(on: host, files: hostFiles) }
                 changes = try await StartWork.execute(plan, settings: self.settings, hosts: config.hosts)
             } catch {
                 goals.run { ops in try await ops.detach(kind: .session, target: id) }
@@ -185,11 +240,13 @@ extension AppModel {
                 }
             }
             commit(changes)
+            if location.hostName != nil { startHostEvents() }
             for pane in panes {
                 TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
             }
             goals.run { ops in try await ops.setLead(swarm: swarm.id, session: session.id, now: Clock.now) }
-            say("\(settings.lead.label) leads swarm \(swarm.number) on \(goal.title): its plan shows here")
+            say("\(settings.lead.label) leads swarm \(swarm.number) on \(goal.title)"
+                + (location.hostName.map { " on @\($0)" } ?? "") + ": its plan shows here")
         }
     }
 
@@ -312,6 +369,37 @@ extension AppModel {
         }
         let number = SwarmPlan.numbers(moved)[task.id] ?? ""
         changePlan(board, moved, kind: .move, text: "moved \(task.title) to \(number)", follow: task.id)
+    }
+
+    /// `swarm.task.host <host|local|->`: where the task under the cursor runs, a small plan change. A worker at work
+    /// keeps on where it is; the task's next worker starts at the new place.
+    func setTaskHost(_ word: String?) {
+        guard let board = needSwarm() else { return }
+        guard let task = goals.selectedTask else { return say("no task here") }
+        guard let word, !word.isEmpty else { return openCommandLine("swarm.task.host ") }
+        let host: String?
+        switch SwarmPlace.parse(word, hosts: Array(config.hosts.keys)) {
+        case let .failure(problem): return say(problem.text)
+        case let .success(found): host = found
+        }
+        guard host != task.host else {
+            return say("\(task.title) runs \(Self.placeWords(host, swarm: board.swarm.settings)) already")
+        }
+        var tasks = goals.planTasks
+        guard let index = tasks.firstIndex(where: { $0.id == task.id }) else { return }
+        tasks[index].host = host
+        let place = Self.placeWords(host, swarm: board.swarm.settings)
+        changePlan(
+            board, tasks, kind: .edit, text: "\(task.title) runs \(place)"
+                + (liveWorker(on: task.id) == nil ? "" : " (its worker at work stays where it is)"),
+            follow: task.id
+        )
+    }
+
+    /// `on @devbox`, `on this Mac`, `where the swarm runs (on @devbox)`.
+    static func placeWords(_ host: String?, swarm settings: SwarmSettings) -> String {
+        guard let host else { return "where the swarm runs (\(SwarmPlace.label(settings.location)))" }
+        return "on " + (host == SwarmPlace.local ? "this Mac" : "@\(host)")
     }
 
     /// `swarm.task.drop`: the task under the cursor out of the plan (nothing waits for it any more).
@@ -443,7 +531,7 @@ extension AppModel {
         case let .edit(taskID):
             var tasks = goals.planTasks
             guard let index = tasks.firstIndex(where: { $0.id == taskID }) else { return cancelPlanDraft() }
-            switch draft.fields.task(id: taskID, in: tasks) {
+            switch draft.fields.task(id: taskID, in: tasks, hosts: Array(config.hosts.keys)) {
             case let .failure(error): return say(error.text)
             case let .success(task):
                 cancelPlanDraft()
@@ -454,7 +542,7 @@ extension AppModel {
             var tasks = goals.planTasks
             let taken = Set(tasks.map(\.slug) + goals.items.map(\.slug))
             let id = "\(goal.id)/\(GoalSlug.make(draft.fields.title, taken: taken))"
-            switch draft.fields.task(id: id, in: tasks) {
+            switch draft.fields.task(id: id, in: tasks, hosts: Array(config.hosts.keys)) {
             case let .failure(error): return say(error.text)
             case let .success(task):
                 cancelPlanDraft()
@@ -518,7 +606,8 @@ extension AppModel {
             active: board.swarm.status.active, running: board.swarm.approved != nil,
             paused: state == .paused || state == .stalled, working: liveWorker(on: task.id) != nil,
             owner: task.owner?.agent, agents: swarmAgents,
-            stacked: board.swarm.lastWorker(on: task.id)?.stackedOn != nil
+            stacked: board.swarm.lastWorker(on: task.id)?.stackedOn != nil, hosts: config.hosts.keys.sorted(),
+            host: task.host
         )
     }
 

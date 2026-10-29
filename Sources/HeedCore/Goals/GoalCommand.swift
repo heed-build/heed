@@ -141,7 +141,7 @@ public enum GoalCommandLine {
       plan show                              the plan: tasks by phase, questions and answers, feedback to act on
       plan propose --file <path|-> [--note <text>]
                                              a plan as JSON (tasks with id, title, phase, owner, estimate, after,
-                                             doneWhen; scope for GOAL.md changes): before approval it is the draft,
+                                             doneWhen, host; scope for GOAL.md changes): before approval the draft,
                                              after it small changes apply and structural ones wait
       plan approve                           approve the plan (the owner, from a terminal; never an agent)
       ask <question> [--option <a> [--effect <what a changes>]]... [--to lead|you|<task>]

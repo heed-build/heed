@@ -20,7 +20,7 @@ agents.
 |---|---|
 | `⇥` | The goals, the tasks, the versions, the steering log, in turn |
 | `j` `k` | Move through the tasks, the versions or the steering log |
-| `e` | Edit the task under the cursor: title, phase, owner (`agent` or `agent:model`), estimate, after, done when |
+| `e` | Edit the task under the cursor: title, phase, owner (`agent` or `agent:model`), host, estimate, after, done when |
 | `a` | Add a task after the one under the cursor, in its phase |
 | `J` `K` | Move the task down or up; past the edge of its phase it joins the next |
 | `x` | Drop the task; nothing waits for it any more |
@@ -68,7 +68,7 @@ fields. They show on the board and in the overview's matrix like any other item,
 
 After approval the default is to ask only when the plan changes. A change from the lead is small or structural:
 
-- **Small** applies by itself and the plan stays approved: tasks reordered, another owner, phase or estimate.
+- **Small** applies by itself and the plan stays approved: tasks reordered, another owner, host, phase or estimate.
 - **Structural** waits for you: a task added, dropped or renamed, what a task waits for, or when it is done. It shows
   as **The lead proposes a change** with its diff; `y` takes it, `n` says no (the lead hears why), as with a
   change to `GOAL.md`. `A` takes it too.

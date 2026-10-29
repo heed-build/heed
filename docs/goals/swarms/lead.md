@@ -30,7 +30,8 @@ for you ([Approving](plan.md#approving)). `--json` on any of them answers as JSO
     {"id": "offsets", "title": "Arrowhead offsets per zoom level", "phase": "Measure", "owner": "claude",
      "estimate": "20m", "doneWhen": ["a table of offsets from 50% to 400% zoom"]},
     {"id": "snap", "title": "Snap arrowheads to the lifeline", "phase": "Fix", "owner": "codex:o4",
-     "estimate": "45m", "after": ["offsets"], "doneWhen": ["arrowheads meet the lifeline at every zoom"]}
+     "estimate": "45m", "after": ["offsets"], "doneWhen": ["arrowheads meet the lifeline at every zoom"],
+     "host": "devbox"}
   ],
   "scope": [{"section": "not-the-goal", "text": "new diagram types"}]
 }
@@ -42,6 +43,8 @@ for you ([Approving](plan.md#approving)). `--json` on any of them answers as JSO
 - `owner` is an agent, `agent:model`, or `{"agent": …, "model": …}`.
 - `estimate` is minutes, or `15m`, `1h 30m`, `1.5h`.
 - `doneWhen` is one check or a list: what evidence must show for the task to be done.
+- `host` is where its worker runs when not where the swarm does: a host's name (`devbox`), or `local` for your Mac
+  ([On a host](running.md#on-a-host)). A host you do not have stalls the task when it would start, saying so.
 - `scope` lists changes the goal would need (sections `goal`, `not-the-goal`, `done-when`, `question`, `decision`):
   each becomes a `GOAL.md` proposal that waits for you, never an edit.
 

@@ -74,7 +74,13 @@ public enum SwarmFixtures {
         /// Done, with what its end-of-build summary is made of: a stuck episode, questions and who answered them,
         /// and the lead's own summary (`summaryRows(now:)`).
         case summary
+        /// The watched world with 2.1's worker on @devbox: its worktree there, its agent in zmx.
+        case remote
     }
+
+    /// The host the remote world's worker runs on, and its task.
+    public static let remoteHost = "devbox"
+    public static let remoteTask = "\(anchors)/sample-site"
 
     /// What a running fixture lays over the approved run: the run as it is now, the steering rows that came after
     /// approval (no ids yet; `about` and `steer:` refs below zero count back into `steering`, 1-based, until
@@ -95,6 +101,14 @@ public enum SwarmFixtures {
 
     public static func running(_ variant: Running, now: Date = Clock.now) -> RunningWorld {
         if variant == .landing || variant == .done || variant == .summary { return landed(variant, now: now) }
+        if variant == .remote {
+            var world = running(.watch, now: now)
+            if let index = world.swarm.workers.lastIndex(where: { $0.task == remoteTask }) {
+                world.swarm.workers[index].machine = remoteHost
+                world.swarm.workers[index].worktree = "/home/you/code/wt/heed/docs-toolkit/swarm-\(anchors)-sample-site"
+            }
+            return world
+        }
         let base = now.timeIntervalSince1970.rounded(.down)
         func ago(_ hours: Double) -> Date { Date(timeIntervalSince1970: base - hours * 3600) }
         let goal = anchors

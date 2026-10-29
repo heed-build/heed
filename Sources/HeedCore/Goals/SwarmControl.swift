@@ -12,6 +12,8 @@ public struct SwarmPlanView: Codable, Equatable, Sendable {
         public var estimate: String?
         public var after: [String]
         public var doneWhen: [String]
+        /// Where its worker runs when not where the swarm does: a host, or `local`.
+        public var host: String?
     }
 
     public struct Question: Codable, Equatable, Sendable {
@@ -31,6 +33,8 @@ public struct SwarmPlanView: Codable, Equatable, Sendable {
     public var autonomy: String
     public var team: [String]
     public var limits: String
+    /// The host the swarm runs on; nil on the owner's Mac.
+    public var host: String?
     public var tasks: [Task]
     public var questions: [Question]
     /// Re-plan feedback since the lead's last proposal.
@@ -52,11 +56,12 @@ public struct SwarmPlanView: Codable, Equatable, Sendable {
         autonomy = swarm.settings.autonomy.rawValue
         team = swarm.settings.workers.isEmpty ? [swarm.settings.lead.label] : swarm.settings.workers.map(\.label)
         limits = swarm.settings.limits.line
+        host = swarm.settings.host
         self.tasks = tasks.map { task in
             Task(
                 number: numbers[task.id] ?? "", id: task.id, title: task.title, phase: task.phase,
                 owner: task.owner?.label, estimate: task.estimate.map(SwarmEstimate.text),
-                after: task.after, doneWhen: task.doneWhen
+                after: task.after, doneWhen: task.doneWhen, host: task.host
             )
         }
         questions = board.questions.map { question in
@@ -77,7 +82,7 @@ public struct SwarmPlanView: Codable, Equatable, Sendable {
 
     public var text: String {
         var lines = ["\(swarm): \(status), plan v\(version)" + (approved.map { ", approved v\($0)" } ?? "")
-            + " · team \(team.joined(separator: ", ")) · limits \(limits)"]
+            + " · team \(team.joined(separator: ", ")) · limits \(limits)" + (host.map { " · on @\($0)" } ?? "")]
         if tasks.isEmpty {
             lines.append("No plan yet: heed goal plan propose --file plan.json (heed goal --help says the shape).")
         }
@@ -90,6 +95,7 @@ public struct SwarmPlanView: Codable, Equatable, Sendable {
             var head = "  \(task.number) \(task.title)  [\(task.id)]"
             let details = [
                 task.owner,
+                task.host.map { $0 == SwarmPlace.local ? "on this Mac" : "on @\($0)" },
                 task.estimate,
                 task.after.isEmpty ? nil : "after " + task.after.joined(separator: ", "),
             ]

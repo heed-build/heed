@@ -3,7 +3,7 @@ description: >-
   Everything a heed build needs on a hosted macOS runner: the mise tools, Xcode for the SDK and its Metal toolchain (MLX
   and GhosttyKit compile Metal shaders), the Swift toolchain the package asks for (hosted runners lag behind Xcode
   releases, so it comes from swift.org), and GhosttyKit built from the pinned Ghostty commit. The toolchain and
-  GhosttyKit are cached.
+  GhosttyKit are cached, and SwiftPM's .build is restored from the newest build of main (which ci saves).
 
 inputs:
   swift:

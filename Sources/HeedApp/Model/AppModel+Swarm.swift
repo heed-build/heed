@@ -88,22 +88,159 @@ extension AppModel {
     var swarmPlaces: [Location] { [.local] + config.hosts.keys.sorted().map(Location.host) }
 
     /// `swarm.host <host|local>`: where the new swarm runs, in its form (its Where chips). Repos picked that are not
-    /// there are let go: the lead and workers start in clones where they run.
+    /// there yet stay picked: heed clones them there when the swarm starts. A host it cannot read shows under Where.
     func setSwarmHost(_ word: String?) {
         guard var form = goals.swarmForm else { return say("swarm.host is the new swarm form's: :swarm.new opens it") }
-        guard let word, !word.isEmpty else { return say("where: local, or one of your hosts") }
+        guard let word, !word.isEmpty else {
+            form.hostProblem = "where: local, or one of your hosts"
+            goals.swarmForm = form
+            return
+        }
         switch SwarmPlace.parse(word, hosts: Array(config.hosts.keys)) {
-        case let .failure(problem): return say(problem.text)
+        case let .failure(problem): form.hostProblem = problem.text
         case let .success(found):
             form.host = found == SwarmPlace.local ? nil : found
+            form.hostProblem = nil
+            form.cloneNote = nil
         }
-        let location = form.location
-        let gone = form.repos.filter { slug in !repos.contains { $0.repo.slug == slug && $0.location == location } }
-        form.repos.removeAll { gone.contains($0) }
         goals.swarmForm = form
-        if !gone.isEmpty {
-            say("\(gone.joined(separator: ", ")) not on \(SwarmPlace.label(location)): pick its repos there")
+        checkSwarmRepoEntry()
+    }
+
+    // MARK: The repo field
+
+    /// The repos checked out where the form runs.
+    func swarmReposHere(_ location: Location) -> [String] {
+        repos.filter { $0.location == location }.map(\.repo.slug)
+    }
+
+    /// Repos heed has seen anywhere (this Mac, hosts, PRs and issues it follows): known to exist, nothing to ask.
+    var knownRepoSlugs: [String] {
+        var slugs: [String] = []
+        var seen = Set<String>()
+        let all = repos.map(\.repo.slug) + github.pulls.map(\.ref.repo.slug) + github.issues.map(\.repo.slug)
+        for slug in all where !slug.hasPrefix("local/") && seen.insert(slug.lowercased()).inserted {
+            slugs.append(slug)
         }
+        return slugs
+    }
+
+    /// Where a repo the swarm needs is cloned when it is not there yet: the first repo root there.
+    func cloneRoot(_ location: Location) -> String {
+        guard let host = location.hostName else { return settings.repoRoots.first ?? "~/code" }
+        return (config.hosts[host]?.repoRoots ?? HostConfig.defaultRepoRoots).first ?? "~/code"
+    }
+
+    /// The note on what is typed in the swarm form's repo field; nil when nothing is.
+    func swarmEntryNote(_ form: SwarmForm) -> FieldNote? {
+        guard let parsed = RepoEntry.parse(form.repoEntry) else { return nil }
+        switch parsed {
+        case let .failure(note): return note
+        case let .success(entry):
+            if let slug = RepoEntry.picked(
+                entry, here: swarmReposHere(form.location), known: knownRepoSlugs, lookups: repoLookups
+            ), form.repos.contains(where: { $0.lowercased() == slug.lowercased() }) {
+                return FieldNote(RepoEntry.field, "\(slug) is picked already", tone: .fine)
+            }
+            return RepoEntry.note(
+                entry, place: SwarmPlace.label(form.location), local: form.location.isLocal,
+                here: swarmReposHere(form.location), known: knownRepoSlugs, lookups: repoLookups,
+                clonesInto: cloneRoot(form.location)
+            )
+        }
+    }
+
+    /// The picked repos that are not where the swarm runs: heed clones them there on ⌘↩.
+    func swarmReposToClone(_ form: SwarmForm) -> [String] {
+        let here = swarmReposHere(form.location)
+        return form.repos.filter { RepoEntry.match(RepoEntry.repo($0), in: here) == nil }
+    }
+
+    /// Every note on the swarm form, by field: the title, the repos (what is typed, what is missing, a clone), Where.
+    func swarmFormNotes(_ form: SwarmForm) -> [FieldNote] {
+        let place = isFixture || tutor != nil ? nil
+            : SwarmPlace.problem(form.location, hosts: config.hosts, statuses: hostStatuses)
+        var notes = FormChecks.swarm(
+            newGoal: form.goal == nil, title: form.title, repos: form.repos,
+            needsRepo: tutor == nil, entry: swarmEntryNote(form), place: place ?? form.hostProblem
+        )
+        if let clone = form.cloneNote {
+            notes.append(clone)
+        } else if form.repoEntry.trimmingCharacters(in: .whitespaces).isEmpty {
+            let missing = swarmReposToClone(form)
+            if !missing.isEmpty {
+                notes.append(FieldNote(
+                    RepoEntry.field,
+                    "\(missing.joined(separator: ", ")) not on \(SwarmPlace.label(form.location)) yet: heed clones "
+                        +
+                        "\(missing.count == 1 ? "it" : "them") into \(cloneRoot(form.location)) when the swarm starts",
+                    tone: .fine
+                ))
+            }
+        }
+        return notes
+    }
+
+    /// Typing in the repo field: the format at once, then (once typing pauses) whether GitHub has it or the path holds
+    /// a checkout.
+    func setSwarmRepoEntry(_ text: String) {
+        guard goals.swarmForm != nil, goals.swarmForm?.repoEntry != text else { return }
+        goals.swarmForm?.repoEntry = text
+        goals.swarmForm?.cloneNote = nil
+        checkSwarmRepoEntry()
+    }
+
+    private func checkSwarmRepoEntry() {
+        repoLookupTask?.cancel()
+        guard let form = goals.swarmForm, case let .success(parsed)? = RepoEntry.parse(form.repoEntry),
+              RepoEntry.needsLookup(
+                  parsed, here: swarmReposHere(form.location), known: knownRepoSlugs, lookups: repoLookups
+              )
+        else { return }
+        if case .path = parsed, !form.location.isLocal { return }
+        // The fake world asks nothing: a slug it does not know is taken to exist, a path to be missing.
+        if isFixture || tutor != nil {
+            switch parsed {
+            case let .slug(repo): repoLookups[parsed.key] = .found(repo)
+            case .path: repoLookups[parsed.key] = .missing
+            }
+            return
+        }
+        repoLookupTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(450))
+            guard !Task.isCancelled else { return }
+            self?.repoLookups[parsed.key] = .checking
+            let answer: RepoEntry.Lookup = switch parsed {
+            case let .slug(repo): await GitHub.lookUpRepo(repo, caller: "swarm.repo")
+            case let .path(path):
+                await Git.record(at: Paths.expand(path)).map { .found($0.repo) } ?? .missing
+            }
+            guard let self else { return }
+            repoLookups[parsed.key] = answer
+            // A checkout at a path joins Repos, so it is picked as any repo here is.
+            if case let .path(path) = parsed, case .found = answer,
+               let record = await Git.record(at: Paths.expand(path)),
+               !repos.contains(where: { $0.id == record.id })
+            {
+                commit(.repoUpserted(record))
+            }
+        }
+    }
+
+    /// ↩ in the repo field: what is typed joins the picked repos once it is fine (else its note says why).
+    @discardableResult
+    func addSwarmRepoEntry() -> Bool {
+        guard var form = goals.swarmForm, case let .success(parsed)? = RepoEntry.parse(form.repoEntry),
+              swarmEntryNote(form)?.tone == .fine,
+              let slug = RepoEntry.picked(
+                  parsed, here: swarmReposHere(form.location), known: knownRepoSlugs, lookups: repoLookups
+              )
+        else { return false }
+        if !form.repos.contains(where: { $0.lowercased() == slug.lowercased() }) { form.repos.append(slug) }
+        form.repoEntry = ""
+        form.cloneNote = nil
+        goals.swarmForm = form
+        return true
     }
 
     /// The line under the form's Where: how its agents will run there.
@@ -119,20 +256,15 @@ extension AppModel {
             : ("will run on @\(host) in zmx: worktrees under \(config.hosts[host]?.worktreeRoot ?? "~/code/wt")", false)
     }
 
-    /// The form's ⌘↩: the goal (made first when new), the run, then its lead.
+    /// The form's ⌘↩: a typed repo added, what is wrong shown under its field (never in the status bar), the picked
+    /// repos that are not where it runs cloned there, then the goal (made first when new), the run and its lead.
     func submitSwarmForm() {
-        guard let form = goals.swarmForm else { return }
-        if form.goal == nil,
-           form.title.trimmingCharacters(in: .whitespacesAndNewlines)
-           .isEmpty { return say("a swarm's goal needs a title") }
-        guard !form.repos.isEmpty || isFixture || tutor != nil else {
-            return say("pick a repo for the lead to start in")
-        }
-        if !isFixture, tutor == nil,
-           let problem = SwarmPlace.problem(form.location, hosts: config.hosts, statuses: hostStatuses)
-        {
-            return say("the swarm cannot run there: \(problem)")
-        }
+        guard goals.swarmForm != nil, goals.swarmForm?.cloneNote?.tone != .checking else { return }
+        addSwarmRepoEntry()
+        goals.swarmForm?.tried = true
+        guard let form = goals.swarmForm, swarmFormNotes(form).blocking == nil else { return }
+        let missing = swarmReposToClone(form)
+        if !missing.isEmpty, !isFixture, tutor == nil { return cloneSwarmRepos(missing, at: form.location) }
         goals.swarmForm = nil
         textInputActive = false
         let session = form.session.flatMap { id in sessions.first { $0.id == id } }
@@ -159,6 +291,50 @@ extension AppModel {
                 startLead(swarm)
             case let .failure(error): say("no swarm started: \(error)")
             }
+        }
+    }
+
+    /// Clones the repos the swarm needs where it runs (`gh repo clone` into the first repo root there), each joining
+    /// Repos, then submits the form again. Progress and failure show under the repos.
+    private func cloneSwarmRepos(_ slugs: [String], at location: Location) {
+        let root = cloneRoot(location)
+        goals.swarmForm?.cloneNote = FieldNote(
+            RepoEntry.field, "cloning \(slugs.joined(separator: ", ")) into \(root) on \(SwarmPlace.label(location))…",
+            tone: .checking
+        )
+        Task { [weak self] in
+            for slug in slugs {
+                let repo = RepoEntry.repo(slug)
+                let path = location.isLocal ? Paths.expand(root) + "/\(repo.name)" : "\(root)/\(repo.name)"
+                let problem: String?
+                do {
+                    let result = try await ProcessRunner.run(
+                        on: location, "gh", RepoEntry.cloneArguments(
+                            repo,
+                            into: location.isLocal ? Paths.expand(root)
+                                : root
+                        ), timeout: .seconds(900), caller: "swarm.clone"
+                    )
+                    problem = result.succeeded ? nil : GitHub.explain(result)
+                } catch {
+                    problem = "\(error)"
+                }
+                guard let self, goals.swarmForm != nil else { return }
+                if let problem {
+                    goals.swarmForm?.cloneNote = FieldNote(RepoEntry.field, "could not clone \(slug): \(problem)")
+                    return
+                }
+                guard let record = await Git.record(at: path, on: location) else {
+                    goals.swarmForm?.cloneNote = FieldNote(
+                        RepoEntry.field, "cloned \(slug), but found no checkout at \(path)"
+                    )
+                    return
+                }
+                commit(.repoUpserted(record))
+            }
+            guard let self, goals.swarmForm != nil else { return }
+            goals.swarmForm?.cloneNote = nil
+            submitSwarmForm()
         }
     }
 
@@ -513,16 +689,40 @@ extension AppModel {
         savePlanDraft(draft)
     }
 
+    /// What is wrong with the plan pane's editor, by field: a task's fields as `SwarmTaskForm` reads them, or empty
+    /// feedback or an answer. Shown under the field; ⌘↩ waits while any blocks.
+    func planDraftNotes(_ draft: PlanDraft) -> [FieldNote] {
+        switch draft.kind {
+        case .replan: FormChecks.steering(draft.text, answer: false)
+        case .answer: FormChecks.steering(draft.text, answer: true)
+        case .reject: []
+        case let .edit(id): taskNotes(draft.fields, id: id)
+        case .add: taskNotes(draft.fields, id: "")
+        }
+    }
+
+    private func taskNotes(_ fields: SwarmTaskForm, id: String) -> [FieldNote] {
+        guard case let .failure(problem) = fields.task(id: id, in: goals.planTasks, hosts: Array(config.hosts.keys))
+        else { return [] }
+        var note = problem.note
+        // An empty title is missing rather than wrong: it shows once ⌘↩ was tried.
+        note.untilTried = problem.field == "title"
+        return [note]
+    }
+
     private func savePlanDraft(_ draft: PlanDraft) {
         guard let board = planSwarm, let goal = goals.selected else { return cancelPlanDraft() }
+        // What is wrong shows under its field in the editor, not in the status bar.
+        guard planDraftNotes(draft).blocking == nil else {
+            goals.planDraft?.tried = true
+            return
+        }
         let words = draft.text.trimmingCharacters(in: .whitespacesAndNewlines)
         switch draft.kind {
         case .replan:
-            guard !words.isEmpty else { return say("say what the lead should change") }
             cancelPlanDraft()
             replanSwarm([words])
         case let .answer(question):
-            guard !words.isEmpty else { return say("type the answer") }
             cancelPlanDraft()
             answerSwarm([words], question: question)
         case .reject:
@@ -532,7 +732,7 @@ extension AppModel {
             var tasks = goals.planTasks
             guard let index = tasks.firstIndex(where: { $0.id == taskID }) else { return cancelPlanDraft() }
             switch draft.fields.task(id: taskID, in: tasks, hosts: Array(config.hosts.keys)) {
-            case let .failure(error): return say(error.text)
+            case .failure: return
             case let .success(task):
                 cancelPlanDraft()
                 tasks[index] = task
@@ -543,7 +743,7 @@ extension AppModel {
             let taken = Set(tasks.map(\.slug) + goals.items.map(\.slug))
             let id = "\(goal.id)/\(GoalSlug.make(draft.fields.title, taken: taken))"
             switch draft.fields.task(id: id, in: tasks, hosts: Array(config.hosts.keys)) {
-            case let .failure(error): return say(error.text)
+            case .failure: return
             case let .success(task):
                 cancelPlanDraft()
                 tasks.insert(task, at: min(after + 1, tasks.count))

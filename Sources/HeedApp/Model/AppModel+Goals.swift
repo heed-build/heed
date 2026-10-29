@@ -132,7 +132,11 @@ extension AppModel {
     /// The dialog's ⌘↩ or Create.
     func submitGoalForm() {
         guard let form = goals.form else { return }
-        guard !form.title.trimmingCharacters(in: .whitespaces).isEmpty else { return say("a goal needs a title") }
+        // What is wrong shows under its field, not in the status bar.
+        guard form.notes.blocking == nil else {
+            goals.form?.tried = true
+            return
+        }
         goals.form = nil
         textInputActive = false
         // Started as a swarm: the swarm form takes over with what was typed; the goal is made when it starts.

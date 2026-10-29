@@ -62,6 +62,11 @@ final class GoalsBrowser {
         var mirror = false
         /// Start it as a swarm: ⌘↩ goes on to the new swarm form instead of making the goal now.
         var swarm = false
+        /// ⌘↩ was pressed: what is missing shows under its field from now on.
+        var tried = false
+
+        /// What is wrong with it, by field (`FormChecks.goal`).
+        var notes: [FieldNote] { FormChecks.goal(title: title, tracker: tracker) }
     }
 
     /// The new swarm form, and the plan pane's typing and cursors (`GoalsBrowser+Swarm`).

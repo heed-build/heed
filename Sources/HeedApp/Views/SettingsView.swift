@@ -1644,7 +1644,7 @@ private struct DollarsField: View {
                 .onChange(of: value) { if !focused { text = Self.text(value) } }
                 .onSubmit(save)
                 .onChange(of: focused) { if !focused { save() } }
-            if let problem { Text(problem).font(Theme.ui(11.5)).foregroundStyle(Theme.err) }
+            FieldNoteView(note: problem.map { FieldNote("value", $0) })
         }
     }
 
@@ -1730,7 +1730,7 @@ private struct ShortcutField: View {
                     .font(Theme.ui(12))
                     .disabled(value.isEmpty)
             }
-            if let problem { Text(problem).font(Theme.ui(11.5)).foregroundStyle(Theme.err) }
+            FieldNoteView(note: problem.map { FieldNote("value", $0) })
         }
         .onDisappear(perform: stop)
     }

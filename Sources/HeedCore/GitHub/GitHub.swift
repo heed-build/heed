@@ -523,7 +523,7 @@ public enum GitHub {
     /// The gh to run: `gh`, found as every tool is; tests point it at a stand-in.
     @TaskLocal static var executable = "gh"
 
-    static func explain(_ result: ProcessResult) -> String {
+    public static func explain(_ result: ProcessResult) -> String {
         let text = (result.stderr.isEmpty ? result.stdout : result.stderr)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if text.contains("gh auth login") || text
@@ -633,6 +633,30 @@ public enum GitHub {
     /// `gh pr comment`.
     public static func comment(_ ref: PullRef, body: String, caller: String) async throws {
         try await pr(["comment", "\(ref.number)", "--body", body, "-R", ref.repo.slug], caller: caller)
+    }
+
+    /// Whether GitHub has `repo` (read only, `gh repo view`): found as GitHub spells it, missing, or why it could not
+    /// be asked.
+    public static func lookUpRepo(_ repo: Repo, caller: String) async -> RepoEntry.Lookup {
+        do {
+            let result = try await gh(
+                ["repo", "view", repo.slug, "--json", "nameWithOwner", "-q", ".nameWithOwner"],
+                operation: "repo view", timeout: .seconds(20), caller: caller
+            )
+            return lookup(result)
+        } catch let error as ProcessError {
+            return lookup(error.result)
+        } catch {
+            return .failed("\(error)")
+        }
+    }
+
+    static func lookup(_ result: ProcessResult?) -> RepoEntry.Lookup {
+        guard let result else { return .failed("gh did not answer") }
+        if result.succeeded, let found = RepoEntry.parseView(result.stdout) { return .found(found) }
+        let text = (result.stderr + result.stdout).lowercased()
+        if text.contains("could not resolve to a repository") || text.contains("not found") { return .missing }
+        return .failed(explain(result))
     }
 
     private static func pr(_ arguments: [String], caller: String) async throws {

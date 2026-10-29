@@ -864,16 +864,17 @@ private struct PlanEditor: View {
     let draft: PlanDraft
 
     var body: some View {
+        let notes = model.planDraftNotes(draft)
         Panel(title: title, note: "") {
             if draft.isTask {
-                field("Title", \.fields.title)
-                HStack(spacing: 8) {
+                field("Title", \.fields.title, note: "title", notes)
+                HStack(alignment: .top, spacing: 8) {
                     field("Phase", \.fields.phase)
                     field("Owner (agent:model)", \.fields.owner)
-                    field("Host (empty: the swarm's)", \.fields.host)
-                    field("Estimate", \.fields.estimate).frame(width: 80)
+                    field("Host (empty: the swarm's)", \.fields.host, note: "host", notes)
+                    field("Estimate", \.fields.estimate, note: "estimate", notes).frame(width: 80)
                 }
-                field("After (1.2, 2.1)", \.fields.after)
+                field("After (1.2, 2.1)", \.fields.after, note: "after", notes)
                 field("Done when (one per line)", \.fields.doneWhen, lines: 3)
             } else {
                 if case let .answer(id) = draft.kind,
@@ -882,12 +883,12 @@ private struct PlanEditor: View {
                     Text(question.row.text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                field(placeholder, \.text, lines: 3)
+                field(placeholder, \.text, lines: 3, note: "text", notes)
             }
             HStack(spacing: 18) {
                 Spacer()
                 KeyHint(keys: "<Esc>", label: "cancel")
-                KeyHint(keys: "<D-CR>", label: "save", color: Theme.fg)
+                ConfirmHint(keys: "<D-CR>", label: "save", blocking: notes.blocking)
             }
         }
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.block.opacity(0.6)))
@@ -911,8 +912,12 @@ private struct PlanEditor: View {
         }
     }
 
+    /// A field, with its note under it (`note`: the field's name in `notes`).
     @ViewBuilder
-    private func field(_ label: String, _ path: WritableKeyPath<PlanDraft, String>, lines: Int = 1) -> some View {
+    private func field(
+        _ label: String, _ path: WritableKeyPath<PlanDraft, String>, lines: Int = 1, note: String? = nil,
+        _ notes: [FieldNote] = []
+    ) -> some View {
         let binding = Binding(
             get: { model.goals.planDraft?[keyPath: path] ?? "" },
             set: { model.goals.planDraft?[keyPath: path] = $0 }
@@ -933,6 +938,7 @@ private struct PlanEditor: View {
             .padding(6)
             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+            if let note { FieldNoteView(note: notes.note(for: note, tried: draft.tried)) }
         }
     }
 }
@@ -1082,6 +1088,7 @@ struct SwarmFormView: View {
 
     var body: some View {
         let form = model.goals.swarmForm ?? SwarmForm()
+        let notes = model.swarmFormNotes(form)
         ZStack {
             Color.black.opacity(0.45)
             VStack(alignment: .leading, spacing: 14) {
@@ -1093,6 +1100,7 @@ struct SwarmFormView: View {
                 SectionHeader(title: "Goal")
                 if form.goal == nil {
                     textField("What the goal is called", \.title, font: Theme.ui(14))
+                    FieldNoteView(note: notes.note(for: "title", tried: form.tried))
                     textField("What done looks like", \.statement, lines: 3)
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
@@ -1103,6 +1111,7 @@ struct SwarmFormView: View {
                     }
                 }
                 SectionHeader(title: "Where")
+                let whereNote = notes.note(for: "where")
                 if model.swarmPlaces.count > 1 {
                     let line = model.swarmPlaceLine(form.location)
                     HStack(spacing: 6) {
@@ -1110,8 +1119,11 @@ struct SwarmFormView: View {
                             placeChip(place, picked: place == form.location)
                         }
                     }
-                    Text(line.text).font(Theme.ui(11.5)).foregroundStyle(line.problem ? Theme.block : Theme.fg3)
+                    if whereNote == nil {
+                        Text(line.text).font(Theme.ui(11.5)).foregroundStyle(line.problem ? Theme.block : Theme.fg3)
+                    }
                 }
+                FieldNoteView(note: whereNote)
                 FlowLayout(spacing: 6, lineSpacing: 6) {
                     ForEach(model.swarmRepoChoices.prefix(10), id: \.self) { slug in
                         let picked = form.repos.contains(slug)
@@ -1124,11 +1136,14 @@ struct SwarmFormView: View {
                             .onTapGesture { toggleRepo(slug) }
                     }
                     if model.swarmRepoChoices.isEmpty {
-                        Text(form.host.map { "no repos found on @\($0) yet: gH checks where they are" }
-                            ?? "no repos on this Mac yet: Repos (gr) adds them").font(Theme.ui(12))
+                        Text(form.host.map { "no repos found on @\($0) yet: type one below, or gH checks where "
+                                + "they are"
+                        } ?? "no repos on this Mac yet: type one below").font(Theme.ui(12))
                             .foregroundStyle(Theme.fg3)
                     }
                 }
+                repoEntryField(form)
+                FieldNoteView(note: notes.note(for: RepoEntry.field, tried: form.tried))
                 SectionHeader(title: "Team")
                 HStack(spacing: 8) {
                     Text("lead").font(Theme.ui(12)).foregroundStyle(Theme.fg3).frame(width: 52, alignment: .leading)
@@ -1211,7 +1226,7 @@ struct SwarmFormView: View {
                 HStack(spacing: 18) {
                     Spacer()
                     KeyHint(keys: "<Esc>", label: "cancel")
-                    KeyHint(keys: "<D-CR>", label: "ask the lead for a plan", color: Theme.fg)
+                    ConfirmHint(keys: "<D-CR>", label: "ask the lead for a plan", blocking: notes.blocking)
                 }
             }
             .padding(22)
@@ -1242,8 +1257,35 @@ struct SwarmFormView: View {
     private func toggleRepo(_ slug: String) {
         guard var form = model.goals.swarmForm else { return }
         if let index = form.repos.firstIndex(of: slug) { form.repos.remove(at: index) } else { form.repos.append(slug) }
+        form.cloneNote = nil
         model.goals.swarmForm = form
     }
+
+    /// Any repo, typed: `owner/name`, a GitHub URL or a path on this Mac, checked as you type; ↩ adds it.
+    private func repoEntryField(_ form: SwarmForm) -> some View {
+        Group {
+            if ShotMode.active {
+                Text(form.repoEntry.isEmpty ? Self.repoPlaceholder : form.repoEntry)
+                    .foregroundStyle(form.repoEntry.isEmpty ? Theme.fg3 : Theme.fg)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                TextField(Self.repoPlaceholder, text: Binding(
+                    get: { model.goals.swarmForm?.repoEntry ?? "" },
+                    set: { model.setSwarmRepoEntry($0) }
+                ))
+                .textFieldStyle(.plain)
+                .onSubmit { model.addSwarmRepoEntry() }
+            }
+        }
+        .font(Theme.mono(12))
+        .padding(.horizontal, 8).padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+        .help("Any repo: owner/name or a GitHub URL (checked on GitHub, cloned where the swarm runs), or a path to a "
+            + "checkout on this Mac. ↩ adds it.")
+    }
+
+    private static let repoPlaceholder = "+ any repo: owner/name, a GitHub URL or a path · ↩ adds it"
 
     /// An agent; a click picks the next one.
     private func agentChip(_ agent: String, set: @escaping (String) -> Void) -> some View {

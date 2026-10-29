@@ -30,11 +30,11 @@ public struct SwarmTaskForm: Hashable, Sendable {
     /// which the host must be one of (nil: any).
     public func task(id: String, in tasks: [SwarmTask], hosts: [String]? = nil) -> Result<SwarmTask, Problem> {
         let title = GoalDoc.oneLine(title)
-        guard !title.isEmpty else { return .failure(Problem("a task needs a title")) }
+        guard !title.isEmpty else { return .failure(Problem("a task needs a title", field: "title")) }
         var minutes: Int?
         if !estimate.trimmingCharacters(in: .whitespaces).isEmpty {
             guard let read = SwarmEstimate.minutes(estimate) else {
-                return .failure(Problem("no estimate in \(estimate): 15m, 1h 30m"))
+                return .failure(Problem("no estimate in \(estimate): 15m, 1h 30m", field: "estimate"))
             }
             minutes = read
         }
@@ -42,9 +42,9 @@ public struct SwarmTaskForm: Hashable, Sendable {
         var waits: [String] = []
         for word in after.split(whereSeparator: { $0 == "," || $0 == " " }).map(String.init) where !word.isEmpty {
             guard let found = byNumber[word] ?? tasks.first(where: { $0.id == word || $0.slug == word })?.id else {
-                return .failure(Problem("no task \(word) to wait for (a number like 1.2, or an id)"))
+                return .failure(Problem("no task \(word) to wait for (a number like 1.2, or an id)", field: "after"))
             }
-            guard found != id else { return .failure(Problem("a task cannot wait for itself")) }
+            guard found != id else { return .failure(Problem("a task cannot wait for itself", field: "after")) }
             if !waits.contains(found) { waits.append(found) }
         }
         let parts = owner.split(separator: ":").map { $0.trimmingCharacters(in: .whitespaces) }
@@ -56,7 +56,7 @@ public struct SwarmTaskForm: Hashable, Sendable {
         let place: String?
         switch SwarmPlace.parse(host, hosts: hosts) {
         case let .success(found): place = found
-        case let .failure(problem): return .failure(Problem(problem.text))
+        case let .failure(problem): return .failure(Problem(problem.text, field: "host"))
         }
         return .success(SwarmTask(
             id: id, title: title, phase: phase.isEmpty ? "Plan" : phase, owner: who, estimate: minutes, after: waits,
@@ -65,8 +65,15 @@ public struct SwarmTaskForm: Hashable, Sendable {
         ))
     }
 
+    /// What is wrong, and the field it is about (`title`, `estimate`, `after`, `host`), so the editor shows it there.
     public struct Problem: Error, Equatable, Sendable {
         public var text: String
-        public init(_ text: String) { self.text = text }
+        public var field: String
+        public init(_ text: String, field: String) {
+            self.text = text
+            self.field = field
+        }
+
+        public var note: FieldNote { FieldNote(field, text) }
     }
 }

@@ -494,6 +494,24 @@ enum Shots {
             model.goals.swarmForm?.workers = [SwarmSettings.Worker(agent: "claude", count: 3)]
             model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
         }),
+        // What is wrong shows under its field: ⌘↩ pressed with no title and no repo, ⌘↩ greyed with the reason.
+        Shot(id: "goals/swarm-new-errors", crop: .swarmForm, cropPadding: 24, prepare: { model in
+            model.perform(CommandInvocation(name: "swarm.new"))
+            model.goals.swarmForm?.title = ""
+            model.goals.swarmForm?.statement = "Reports render in under a second on the big fixtures."
+            model.goals.swarmForm?.repos = []
+            model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
+            model.submitSwarmForm()
+        }),
+        // Any repo, typed: one heed has not seen is checked on GitHub, and cloned where the swarm runs on ⌘↩.
+        Shot(id: "goals/swarm-new-repo", crop: .swarmForm, cropPadding: 24, prepare: { model in
+            model.perform(CommandInvocation(name: "swarm.new"))
+            model.goals.swarmForm?.title = "Faster report rendering"
+            model.goals.swarmForm?.statement = "Reports render in under a second on the big fixtures."
+            model.goals.swarmForm?.repos = ["globex/markgraph"]
+            model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
+            model.setSwarmRepoEntry("globex/report-engine")
+        }),
         Shot(id: "goals/swarm-plan", keys: "gGS"),
         Shot(id: "goals/swarm-questions", keys: "gGS", crop: .swarmQuestions, cropPadding: 8),
         Shot(id: "goals/swarm-approved", keys: "gGjS"),

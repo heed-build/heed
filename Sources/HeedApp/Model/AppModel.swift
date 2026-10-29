@@ -351,6 +351,11 @@ final class AppModel {
     /// Why the last start failed, shown in the dialog (the standalone panel has no status bar).
     private(set) var startWorkError: String?
     private(set) var startingWork = false
+    /// What heed found out about repos typed into a form (`RepoEntry`): GitHub's answer for a slug, or what is
+    /// checked out at a path. Kept for the run, so typing a repo again asks nothing.
+    var repoLookups: [String: RepoEntry.Lookup] = [:]
+    /// The check of what is typed in the swarm form's repo field, waiting for typing to pause.
+    @ObservationIgnored var repoLookupTask: Task<Void, Never>?
     /// Bumped when the focused terminal should take keyboard focus (entering INSERT, moving panes).
     private(set) var terminalFocusRequest = 0
     /// A text field owns the keyboard; the key router lets keys through to it.

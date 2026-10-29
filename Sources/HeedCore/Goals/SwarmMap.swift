@@ -72,7 +72,8 @@ public enum SwarmMap {
 
     public struct Metrics: Hashable, Sendable {
         public var cardWidth: Double = 196
-        public var cardHeight: Double = 58
+        /// Room for a title on two lines and the owner and state under it.
+        public var cardHeight: Double = 68
         public var columnGap: Double = 44
         public var rowGap: Double = 18
         public var header: Double = 28

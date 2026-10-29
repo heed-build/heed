@@ -274,18 +274,21 @@ private struct AgentDetail: View {
         let worker = board.swarm.lastWorker(on: task.id)
         let blocks = model.runTasks(board).filter { $0.after.contains(task.id) }.compactMap { numbers[$0.id] }
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(["task \(numbers[task.id] ?? "")", worker?.owner.label, worker?.branch].compactMap(\.self)
-                        .joined(separator: " · "))
-                        .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3).lineLimit(1)
-                    Text(task.title).font(Theme.ui(16, weight: .semibold)).lineLimit(1)
-                }
-                Spacer(minLength: 8)
+            // The title has the width to itself (two lines before it cuts); the keys go on a row of their own under it.
+            let meta = ["task \(numbers[task.id] ?? "")", worker?.owner.label, worker?.branch].compactMap(\.self)
+                .joined(separator: " · ")
+            VStack(alignment: .leading, spacing: 3) {
+                Text(meta).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.middle)
+                    .help(meta)
+                Text(task.title).font(Theme.ui(16, weight: .semibold)).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true).help(task.title)
                 if facts.live {
-                    KeyHint("swarm.task.open", scope: "goalagents", label: "its tab", color: Theme.fg2)
-                    KeyHint("swarm.task.pause", scope: "goalagents", label: "pause", color: Theme.fg2)
-                    KeyHint("swarm.task.swap", scope: "goalagents", label: "swap", color: Theme.fg2)
+                    HStack(spacing: 12) {
+                        KeyHint("swarm.task.open", scope: "goalagents", label: "its tab", color: Theme.fg2)
+                        KeyHint("swarm.task.pause", scope: "goalagents", label: "pause", color: Theme.fg2)
+                        KeyHint("swarm.task.swap", scope: "goalagents", label: "swap", color: Theme.fg2)
+                    }
+                    .padding(.top, 4)
                 }
             }
             HStack(alignment: .top, spacing: 10) {

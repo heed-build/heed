@@ -219,7 +219,8 @@ private struct MapCard: View {
                     Text("GOAL · LEAD").font(Theme.mono(9)).foregroundStyle(Theme.block)
                 }
                 Text((node.number.isEmpty ? "" : node.number + " ") + node.title)
-                    .font(Theme.ui(11.5, weight: .semibold)).foregroundStyle(Theme.fg).lineLimit(lead ? 2 : 1)
+                    .font(Theme.ui(11.5, weight: .semibold)).foregroundStyle(Theme.fg).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 if !lead {
                     Text(node.detail).font(Theme.mono(9.5)).foregroundStyle(color).lineLimit(1)
                 }
@@ -228,6 +229,7 @@ private struct MapCard: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
+        .frame(maxHeight: .infinity)
         .background(RoundedRectangle(cornerRadius: 6).fill(isCursor ? Theme.bg3 : Theme.bg))
         .overlay(
             RoundedRectangle(cornerRadius: 6)
@@ -236,6 +238,8 @@ private struct MapCard: View {
                     lineWidth: isCursor ? 1.5 : 1
                 )
         )
+        // The whole title on hover, for one too long even for two lines.
+        .help((node.number.isEmpty ? "" : node.number + " ") + node.title)
     }
 
     static func color(_ state: SwarmMap.State) -> Color {

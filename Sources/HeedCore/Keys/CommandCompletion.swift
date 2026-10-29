@@ -25,6 +25,8 @@ public struct CompletionContext: Sendable {
     public var agents: [String] = []
     /// The current session's agent, which `agent.switch` does not offer.
     public var currentAgent: String?
+    /// Each agent's models and efforts, which `agent.switch` offers after the agent.
+    public var catalogs: [String: AgentModelCatalog] = [:]
     /// Repos with a merge queue (`owner/name`).
     public var mergeRepos: [String] = []
     /// Repos with issues, by name.
@@ -85,7 +87,14 @@ public enum CommandCompletions {
         }
         let name = String(line[..<space])
         let typed = String(line[line.index(after: space)...])
-        let words = arguments(for: name, context)
+        let words = name == "agent.switch"
+            ? Handoff.completions(
+                typed,
+                agents: context.agents,
+                current: context.currentAgent,
+                catalogs: context.catalogs
+            )
+            : arguments(for: name, context)
         let key = typed.lowercased()
         let starting = words.filter { $0.value.lowercased().hasPrefix(key) }
         let containing = words.filter { !$0.value.lowercased().hasPrefix(key) && $0.value.lowercased().contains(key) }

@@ -216,8 +216,10 @@ public struct StartWorkPlan: Hashable, Sendable {
     public var signOff: [String] = []
     /// More words for the agent's command line, from whoever asked for the session (an editor's MCP config).
     public var arguments: [String] = []
-    /// The model the agent runs on (its `modelFlag`); nil: the agent's own default.
+    /// The model the agent runs on (its `modelFlag`); nil: the agent's configured one, else its own default.
     public var model: String?
+    /// Its reasoning effort (its `effortFlag`); nil: the agent's configured one, else its own default.
+    public var effort: String?
 
     public init(
         prompt: String, repos: [RepoRecord], name: String, base: String? = nil, agent: AgentProfile?,
@@ -258,7 +260,7 @@ public struct StartWorkPlan: Hashable, Sendable {
         let text = promotion.map { Handoff.promotion($0, task: prompt, branch: name, instructions: instructions) }
             ?? prompt
         return agent.launchCommand(
-            prompt: text, planFirst: planFirst, extraArguments: extra, environment: env, model: model
+            prompt: text, planFirst: planFirst, extraArguments: extra, environment: env, model: model, effort: effort
         )
     }
 

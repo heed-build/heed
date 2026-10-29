@@ -87,9 +87,13 @@ public struct PilotSettings: Hashable, Sendable {
     public var agent: String?
     /// Its model (`--model`); nil: the agent's own default.
     public var model: String?
-    /// The agent and model a get it merged run (merge conflicts with the base) uses; nil: `agent` and `model`.
+    /// Its reasoning effort (`AgentProfile.effortFlag`); nil: the agent's own default.
+    public var effort: String?
+    /// The agent, model and effort a get it merged run (merge conflicts with the base) uses; nil: `agent`, `model` and
+    /// `effort`.
     public var mergeAgent: String?
     public var mergeModel: String?
+    public var mergeEffort: String?
     /// A run still working after this long is stopped.
     public var runTimeout: TimeInterval = 1800
     /// Background runs, or the session's agent.
@@ -126,13 +130,13 @@ public struct PilotSettings: Hashable, Sendable {
 }
 
 public extension PilotSettings {
-    /// The agent (nil: the session's) and model (nil: that agent's default) a run for this goal uses. A get it merged
-    /// run takes `merge_agent` and `merge_model` when set; a merge agent of its own does not inherit `model`, which
-    /// may name another agent's model.
-    func runAgent(for goal: RunGoal) -> (agent: String?, model: String?) {
-        guard goal == .merged else { return (agent, model) }
-        if let mergeAgent { return (mergeAgent, mergeModel) }
-        return (agent, mergeModel ?? model)
+    /// The agent (nil: the session's), model and effort (nil: that agent's default) a run for this goal uses. A get it
+    /// merged run takes `merge_agent`, `merge_model` and `merge_effort` when set; a merge agent of its own does not
+    /// inherit `model` or `effort`, which may be another agent's.
+    func runAgent(for goal: RunGoal) -> (agent: String?, model: String?, effort: String?) {
+        guard goal == .merged else { return (agent, model, effort) }
+        if let mergeAgent { return (mergeAgent, mergeModel, mergeEffort) }
+        return (agent, mergeModel ?? model, mergeEffort ?? effort)
     }
 }
 
@@ -158,8 +162,10 @@ public struct PilotOverrides: Hashable, Sendable {
     public var forceMerge: ForceMerge?
     public var agent: String?
     public var model: String?
+    public var effort: String?
     public var mergeAgent: String?
     public var mergeModel: String?
+    public var mergeEffort: String?
     public var runIn: RunIn?
     /// Empty is a value too: a repo can clear what its org adds.
     public var greenInstructions: String?
@@ -192,6 +198,7 @@ public struct PilotOverrides: Hashable, Sendable {
             && greenInstructions == nil && reviewInstructions == nil && startInstructions == nil && runIn == nil
             && summaryInstructions == nil && summarySignOff == nil
             && mergeAgent == nil && mergeModel == nil && mergeNow == nil && forceMerge == nil
+            && effort == nil && mergeEffort == nil
     }
 }
 
@@ -233,9 +240,11 @@ public struct PilotRules: Hashable, Sendable {
         settings.forceMerge = repoLevel.forceMerge ?? orgLevel.forceMerge ?? defaults.forceMerge
         settings.agent = repoLevel.agent ?? orgLevel.agent ?? defaults.agent
         settings.model = repoLevel.model ?? orgLevel.model ?? defaults.model
+        settings.effort = repoLevel.effort ?? orgLevel.effort ?? defaults.effort
         settings.runIn = repoLevel.runIn ?? orgLevel.runIn ?? defaults.runIn
         settings.mergeAgent = repoLevel.mergeAgent ?? orgLevel.mergeAgent ?? defaults.mergeAgent
         settings.mergeModel = repoLevel.mergeModel ?? orgLevel.mergeModel ?? defaults.mergeModel
+        settings.mergeEffort = repoLevel.mergeEffort ?? orgLevel.mergeEffort ?? defaults.mergeEffort
         settings.greenInstructions = repoLevel.greenInstructions ?? orgLevel.greenInstructions
             ?? defaults.greenInstructions
         settings.reviewInstructions = repoLevel.reviewInstructions ?? orgLevel.reviewInstructions

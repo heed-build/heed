@@ -41,4 +41,40 @@ public enum Handoff {
     public static func candidates(agents: [String], current: String?) -> [String] {
         agents.filter { $0 != current }
     }
+
+    /// The model and effort `agent.switch <agent> [model] [effort]` names; `-` (or nothing) is the agent's default.
+    public struct Choice: Equatable, Sendable {
+        public var model: String?
+        public var effort: String?
+
+        public init(model: String? = nil, effort: String? = nil) {
+            self.model = Self.word(model)
+            self.effort = Self.word(effort)?.lowercased()
+        }
+
+        private static func word(_ text: String?) -> String? {
+            guard let text = text?.trimmingCharacters(in: .whitespaces), !text.isEmpty, text != "-" else { return nil }
+            return text
+        }
+    }
+
+    /// What `:agent.switch ` offers as you type: the other agents; after an agent and a space, its models (`-` for its
+    /// default); after a model and a space, its efforts. Each value is the whole argument typed so far.
+    public static func completions(
+        _ typed: String, agents: [String], current: String?, catalogs: [String: AgentModelCatalog]
+    ) -> [(value: String, summary: String)] {
+        let words = typed.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
+        guard words.count > 1, let catalog = catalogs[words[0]] else {
+            return candidates(agents: agents, current: current).map { ($0, "hand the session to \($0)") }
+        }
+        let agent = words[0]
+        if words.count == 2 {
+            guard catalog.takesModel else { return [] }
+            return [("\(agent) -", "its default model")]
+                + catalog.models.map { ("\(agent) \($0.id)", $0.label == $0.id ? "" : $0.label) }
+        }
+        guard words.count == 3 else { return [] }
+        let model = words[1] == "-" ? nil : words[1]
+        return catalog.efforts(for: model).map { ("\(agent) \(words[1]) \($0)", "effort") }
+    }
 }

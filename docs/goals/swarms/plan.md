@@ -20,7 +20,7 @@ agents.
 |---|---|
 | `⇥` | The goals, the tasks, the versions, the steering log, in turn |
 | `j` `k` | Move through the tasks, the versions or the steering log |
-| `e` | Edit the task under the cursor: title, phase, owner (`agent` or `agent:model`), host, estimate, after, done when |
+| `e` | Edit the task under the cursor: title, phase, host, estimate, the owner (an agent, its model and effort, picked from [lists](../../agents/models.md) with Custom… for any other id), after, done when |
 | `a` | Add a task after the one under the cursor, in its phase |
 | `J` `K` | Move the task down or up; past the edge of its phase it joins the next |
 | `x` | Drop the task; nothing waits for it any more |

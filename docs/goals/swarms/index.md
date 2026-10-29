@@ -44,7 +44,9 @@ There are three ways in:
 ![The new swarm form running on @devbox](../../images/shots/goals/swarm-new-host.png)
 
 A click on a place runs the swarm there (`:swarm.host devbox`); the line under it says how its agents will run, or
-why they cannot (a host that does not answer, or has no zmx). A click on an agent picks the next one; the model field is free text (empty: the agent's default). ⌘↩ makes the goal
+why they cannot (a host that does not answer, or has no zmx). A click on an agent picks the next one; beside it, its model and effort are picked from lists (the agent's
+[known models](../../agents/models.md), its default, or Custom… for any other id). A worker's model and effort go
+to every task the lead gives that agent without naming a model of its own. ⌘↩ makes the goal
 if it is new, starts the swarm, and starts its lead; ⎋ leaves.
 
 ## The lead

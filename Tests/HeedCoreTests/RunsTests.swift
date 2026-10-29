@@ -95,16 +95,16 @@ struct RunsTests {
         #expect(problems.isEmpty)
         let pilot = config?.pilot ?? PilotRules()
         let defaults = pilot.resolve(Repo(org: "o", name: "other"))
-        #expect(defaults.runAgent(for: .green) == ("codex", "gpt-5-codex"))
-        #expect(defaults.runAgent(for: .merged) == ("codex", "gpt-5-mini"))
-        #expect(pilot.resolve(Repo(org: "o", name: "r")).runAgent(for: .merged) == ("claude", "haiku"))
+        #expect(defaults.runAgent(for: .green) == ("codex", "gpt-5-codex", nil))
+        #expect(defaults.runAgent(for: .merged) == ("codex", "gpt-5-mini", nil))
+        #expect(pilot.resolve(Repo(org: "o", name: "r")).runAgent(for: .merged) == ("claude", "haiku", nil))
         // A conflict agent of its own does not take the default model, which belongs to another agent.
         let own = PilotSettings()
         var withAgent = own
         withAgent.model = "gpt-5-codex"
         withAgent.mergeAgent = "claude"
-        #expect(withAgent.runAgent(for: .merged) == ("claude", nil))
-        #expect(own.runAgent(for: .merged) == (nil, nil))
+        #expect(withAgent.runAgent(for: .merged) == ("claude", nil, nil))
+        #expect(own.runAgent(for: .merged) == (nil, nil, nil))
     }
 
     @Test func runInDefaultsToBackgroundAndIsOverridable() {

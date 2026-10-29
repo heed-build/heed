@@ -229,10 +229,12 @@ By default get it green never types into your session's agent. Each round (heed 
 
 - **Where:** a worktree of its own (`<worktree_root>/heed/<repo>/get-it-green-<branch>`) on a branch of its own,
   `heed/get-it-green/<branch>`, tracking the pull request's. Conflicts with the base get `heed/get-it-merged/…`.
-- **Which agent:** the one `[pilot] agent` names, on `[pilot] model` (both per org and repo too), or the session's
-  agent when unset. You can spend the tokens of an agent you don't use for real work.
-- **Conflicts:** a get it merged run (conflicts with the base) takes `merge_agent` and `merge_model` when set. Merging
-  is usually simple work, so a cheaper agent or model often does it; unset, it uses the run agent and model.
+- **Which agent:** the one `[pilot] agent` names, on `[pilot] model` and `effort` (all per org and repo too), or the
+  session's agent when unset. You can spend the tokens of an agent you don't use for real work. Settings picks the
+  model and effort from the agent's [list](../agents/models.md), or a custom id.
+- **Conflicts:** a get it merged run (conflicts with the base) takes `merge_agent`, `merge_model` and `merge_effort`
+  when set. Merging is usually simple work, so a cheaper agent or model often does it; unset, it uses the run agent,
+  model and effort.
 - **What it's told:** to fix what is listed, commit, and push to the pull request with `git push origin
   HEAD:<branch>`.
 - **The tab:** appended next to the session's own, named **get it green** (or **get it merged**). It never takes your
@@ -319,10 +321,12 @@ watch = true         # read-only, so on
 green = "ask"        # off, ask or auto
 max_rounds = 3       # prompts without a new approval before it stops
 agent = ""           # runs' agent (codex, claude, ...); empty: the session's
-model = ""           # their model (haiku, gpt-5-codex, ...); empty: the agent's default
+model = ""           # their model (haiku, gpt-6-luna, ...); empty: the agent's default
+effort = ""          # their reasoning effort (low, high, ...); empty: the agent's default
 run_in = "background" # background (a run of its own) or session (the session's agent, once idle)
 merge_agent = ""     # background runs for merge conflicts; empty: agent
 merge_model = ""     # their model; empty: model (with a merge_agent of its own, that agent's default)
+merge_effort = ""    # their effort; empty: effort (with a merge_agent of its own, that agent's default)
 run_timeout = "30m"  # a run still working after this long is stopped
 pause = "1h"         # what zp pauses for
 merge = "off"        # off, auto or heed

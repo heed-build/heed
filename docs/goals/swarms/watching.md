@@ -41,7 +41,8 @@ has the same under **A swarm's agents**.
 
 heed keeps two kinds of activity for every worker, in its event log next to everything else it records:
 
-- **Tool calls**, from the agent's `PostToolUse` hook: the tool, its most telling argument cut to 80 characters
+- **Tool calls**, from the agent's `PostToolUse` hook (and, for Claude Code, `PostToolUseFailure` for a call that
+  failed; one you stopped with Esc is not counted as a failure): the tool, its most telling argument cut to 80 characters
   (`Bash(dotnet build)`, `Edit(src/Links/LinkPass.cs)`), and whether it failed. A failure keeps a digest of its error:
   its telling line with numbers, hashes and quotes evened out, so the same error twice has the same digest. The tool's
   whole input and output are never kept. At most one call every two seconds is kept (a failure always is); the ones
@@ -144,5 +145,4 @@ new happens); without them, heed's own list of what happened is the text.
 
 - heed has no screen label of its own for "stuck"; the screen signal is heed's screen guess (a permission or question
   prompt on a pane whose hooks say working).
-- Codex and other agents report failures only as far as their tool output says so; a failure Claude Code reports
-  only through its `PostToolUseFailure` hook is read when that hook comes, but heed does not ask Claude Code for it.
+- Codex and other agents report failures only as far as their tool output says so.

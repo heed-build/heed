@@ -13,6 +13,18 @@ struct SwarmPull: Hashable {
     var label: String
     /// Why it may not merge yet (`SwarmLanding.hold`); nil when the swarm does not hold it.
     var hold: String?
+    /// The swarm's get it merged setting, which its PRs follow (`SwarmSettings.Merge`).
+    var merge: SwarmSettings.Merge = .repo
+}
+
+/// A task's worker taken back to its PR: who, the PR, the items it gets, the few words that say what, and what to do
+/// once it started (mark the items sent).
+struct WorkerReturn {
+    var owner: GoalItem.Owner
+    var ref: PullRef
+    var items: [FeedbackItem]
+    var what: String
+    var started: @MainActor () -> Void
 }
 
 /// Landing swarms (`SwarmLanding`): the merge order on every row a swarm PR shows on and in the merge queue, a PR held
@@ -44,24 +56,39 @@ extension AppModel {
         swarmPulls.values.sorted { ($0.swarm, $0.position) < ($1.swarm, $1.position) }.map(\.ref)
     }
 
-    /// The swarm PRs again, from the boards last read: on each tick, and when the fake world lays a run down.
+    /// The swarm PRs again, from the boards last read: on each tick, and when the fake world lays a run down. A done
+    /// run's PRs keep their place until they merged or closed (`SwarmLanding.labelled`).
     func refreshSwarmPulls() {
         var next: [String: SwarmPull] = [:]
-        for swarm in goals.snapshot.swarms where swarm.status.active && swarm.approved != nil {
+        for swarm in goals.snapshot.swarms where swarm.status != .stopped && swarm.approved != nil {
             guard var board = goals.boards[swarm.id] else { continue }
             board.swarm = swarm
             let tasks = runTasks(board)
             guard !tasks.isEmpty else { continue }
             let facts = swarmFacts(board, tasks: tasks)
-            for row in SwarmLanding.rows(tasks, swarm: swarm, facts: facts) {
+            let rows = SwarmLanding.labelled(
+                SwarmLanding.rows(tasks, swarm: swarm, facts: facts), status: swarm.status
+            ) { row in
+                facts[row.slot.task]?.ref.map(isOpen) ?? false
+            }
+            for row in rows {
                 guard let ref = facts[row.slot.task]?.ref else { continue }
                 next[ref.description] = SwarmPull(
                     ref: ref, swarm: swarm.id, number: swarm.number, goal: swarm.goal, task: row.slot.task,
-                    position: row.slot.position, label: row.label, hold: row.hold
+                    position: row.slot.position, label: row.label, hold: row.hold, merge: swarm.settings.merge
                 )
             }
         }
         if next != swarmPulls { swarmPulls = next }
+    }
+
+    /// Done runs' boards, read once: their PRs keep their merge-order labels until they merged or closed.
+    func loadDoneSwarmBoards() async {
+        guard let ops = goals.ops else { return }
+        for swarm in goals.snapshot.swarms where swarm.status == .done && goals.boards[swarm.id] == nil {
+            if let board = try? await ops.board(of: swarm.id) { goals.boards[swarm.id] = board }
+        }
+        refreshSwarmPulls()
     }
 
     // MARK: Ticking
@@ -143,6 +170,58 @@ extension AppModel {
         commit(.feedbackChanged(pipeline))
         fetchDetail(ref)
         deliver(ref, explicit: false)
+    }
+
+    // MARK: Back to the worker
+
+    /// Where a swarm PR's conflict or rebase goes (`SwarmHandback.route`): its task's last worker, unless that worker
+    /// is at work, its agent is not set up or is rate limited, its worktree is gone, or the swarm is not running.
+    func handbackRoute(_ pull: SwarmPull) -> SwarmHandback.Route {
+        guard let swarm = goals.snapshot.swarms.first(where: { $0.id == pull.swarm }) else {
+            return .pilot("its swarm is gone")
+        }
+        let worktree = swarm.lastWorker(on: pull.task)?.worktree ?? ""
+        return SwarmHandback.route(
+            task: pull.task, swarm: swarm, agents: Set(settings.agents.map(\.name)),
+            limited: swarmUsage(swarm).limited,
+            worktreeExists: !worktree.isEmpty && FileManager.default.fileExists(atPath: worktree), now: Clock.now
+        )
+    }
+
+    /// The task's worker starts again in its worktree, its agent and model, on a prompt that says what the PR needs
+    /// now; the items count as sent to it once it started, and a `handback` row says so.
+    func returnToWorker(
+        _ ref: PullRef, pull: SwarmPull, worker: SwarmWorker, items: [FeedbackItem], session: String
+    ) {
+        guard !startingWorkers.contains(pull.task) else { return }
+        guard let board = goals.boards[pull.swarm] else {
+            return noteHandbackToPilot(pull, items: items, why: "its swarm's board is not read yet")
+        }
+        let back = WorkerReturn(
+            owner: worker.owner, ref: ref, items: items, what: SwarmHandback.what(items, pr: ref.number)
+        ) { [weak self] in
+            guard let self, var pipeline = feedback[ref.description],
+                  var host = sessions.first(where: { $0.id == session })
+            else { return }
+            markSent(ref, pipeline: &pipeline, session: &host, to: "\(worker.owner.label) (its swarm worker)")
+            logPilot(ref, .sent, "back to swarm \(pull.number)'s worker on its task: \(worker.owner.label)")
+        }
+        let start = SwarmScheduler.Start(task: pull.task, base: worker.base, stackedOn: worker.stackedOn)
+        startingWorkers.insert(pull.task)
+        Task {
+            await startWorker(board, start, back: back)
+            startingWorkers.remove(pull.task)
+        }
+    }
+
+    /// The worker could not take it: a get it merged run does, and a `handback` row says why.
+    func noteHandbackToPilot(_ pull: SwarmPull, items: [FeedbackItem], why: String) {
+        let what = SwarmHandback.what(SwarmHandback.needs(items), pr: pull.ref.number)
+        let now = Clock.now
+        goals.run { try await $0.handback(
+            swarm: pull.swarm, task: pull.task, what: what, to: nil, reason: why, now: now
+        ) } done: { _ in }
+        logPilot(pull.ref, .updated, "not back to its swarm worker: \(why)")
     }
 
     // MARK: You

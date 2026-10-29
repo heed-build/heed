@@ -26,6 +26,9 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case walkDraft
     /// "Since you last looked" on a swarm: what changed, from heed's facts (`SwarmDigest`).
     case swarmDigest
+    /// A short answer to a swarm agent's question that has no options, drafted for you to take or not
+    /// (`SwarmController.draft`).
+    case swarmAnswer
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -194,6 +197,14 @@ public struct Summarizer: Sendable {
             You tell a developer coming back to a swarm of coding agents what changed since they last looked, from \
             heed's list of what happened. Say what moved, what got stuck or was decided, and what waits on them, in \
             at most three short sentences of plain prose. Only facts from the input; no preamble, no lists.
+            """
+        case .swarmAnswer:
+            """
+            A coding agent working on a developer's code asks a question about a reversible implementation choice \
+            (naming, a default, a test strategy). Suggest the answer the developer would most likely give, from the \
+            question and the goal's GOAL.md: one or two short sentences the agent can act on, in the developer's \
+            voice. The developer reads it before it is sent. If the input does not support an answer, reply NONE. \
+            Only the answer; no preamble.
             """
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)

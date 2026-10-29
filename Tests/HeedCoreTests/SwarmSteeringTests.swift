@@ -870,3 +870,57 @@ struct SwarmSteeringKeyTests {
         }
     }
 }
+
+struct SwarmControllerDraftTests {
+    private func open(_ text: String) -> SwarmSteer {
+        SwarmSteer(
+            id: 1, swarm: "g/swarm-1", goal: "g", at: now, actor: .agent, kind: .question, text: text,
+            state: .pending, from: "task:g/b"
+        )
+    }
+
+    @Test func aQuestionWithNoOptionsGetsADraftOnlyForAReversibleChoice() async {
+        let decider = FakeDecider { _ in nil }
+        let draft: SwarmController.Draft = { _ in "  \"Call it TileCache.\"  " }
+        let row = open("What should the cache type be called?")
+        #expect(await SwarmController.decide(
+            row,
+            category: .implementation,
+            history: [],
+            decider: decider,
+            draft: draft
+        ) == .draft("Call it TileCache."))
+        // Asked by you it is still only a draft, never an answer.
+        #expect(await SwarmController.decide(
+            row, category: .implementation, history: [], decider: decider, mode: .askedByYou, draft: draft
+        ) == .draft("Call it TileCache."))
+        // Not a reversible choice: no draft, whoever asks.
+        #expect(await SwarmController.decide(
+            row, category: .scope, history: [], decider: decider, mode: .askedByYou, draft: draft
+        ) == .decline("the question has no options to pick from"))
+        #expect(await SwarmController.decide(row, category: .deleteData, history: [], decider: decider, draft: draft)
+            == .decline("deleting data is not the controller's to answer"))
+        // A draft that has nothing to say is a decline.
+        #expect(await SwarmController.decide(
+            row, category: .implementation, history: [], decider: decider, draft: { _ in "NONE." }
+        ) == .decline("the question has no options to pick from"))
+        #expect(decider.asked.isEmpty)
+    }
+
+    @Test func theDraftIsCleanedUp() {
+        #expect(SwarmController.draftAnswer("Answer: Use the default.") == "Use the default.")
+        #expect(SwarmController.draftAnswer("“Keep it local.”") == "Keep it local.")
+        #expect(SwarmController.draftAnswer("Keep it.\n\nAdd a test.") == "Keep it. Add a test.")
+        #expect(SwarmController.draftAnswer("none") == nil)
+        #expect(SwarmController.draftAnswer("   ") == nil)
+        let long = SwarmController.draftAnswer(String(repeating: "a", count: 400))
+        #expect(long?.count == SwarmController.draftLimit)
+        #expect(long?.hasSuffix("…") == true)
+    }
+
+    @Test func theDraftReadsTheQuestionAndTheGoal() {
+        let inputs = SwarmController.draftInputs(open("What should it be called?"), goal: "# Tiles")
+        #expect(inputs.prompt.contains("Question: What should it be called?"))
+        #expect(inputs.prompt.contains("# Tiles"))
+    }
+}

@@ -87,25 +87,28 @@ jobs:
 
       - uses: ./.github/actions/setup
 
-      # ci already ran lint, the tests, a release build and the tutor on this commit; a release waits for that run
-      # (merging and releasing right away is fine) instead of testing again. A dry run of a branch ci never saw
-      # tests here.
+      # ci already ran lint, the tests, a release build and the tutor on this commit (its test and build jobs); a
+      # release waits for both (merging and releasing right away is fine) instead of testing again. A dry run of a
+      # branch ci never saw tests here.
       - name: ci passed on this commit
         id: ci
         run: |
           deadline=$((SECONDS + 3600))
-          while :; do
-            run="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?check_name=build" \
+          state() {
+            gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?check_name=$1" \
               --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last // empty
-                    | "\(.status) \(.conclusion // "")"')"
-            case "$run" in
-              "completed success") echo "ci passed on $GITHUB_SHA"; exit 0 ;;
-              completed*) echo "ci did not pass on $GITHUB_SHA: $run" >&2; exit 1 ;;
-              "")
-                if [ "${{ inputs.dry_run }}" = "true" ]; then echo "tested=no" >>"$GITHUB_OUTPUT"; exit 0; fi
-                echo "No ci run on $GITHUB_SHA yet" ;;
-              *) echo "ci on $GITHUB_SHA: $run" ;;
+                    | "\(.status) \(.conclusion // "")"'
+          }
+          while :; do
+            test="$(state test)"; build="$(state build)"
+            if [ -z "$test" ] && [ -z "$build" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+              echo "tested=no" >>"$GITHUB_OUTPUT"; exit 0
+            fi
+            case "$test|$build" in
+              "completed success|completed success") echo "ci passed on $GITHUB_SHA"; exit 0 ;;
+              "completed "[!s]*|*"|completed "[!s]*) echo "ci did not pass on $GITHUB_SHA: test $test, build $build" >&2; exit 1 ;;
             esac
+            echo "ci on $GITHUB_SHA: test ${test:-not started}, build ${build:-not started}"
             [ "$SECONDS" -lt "$deadline" ] || { echo "Gave up waiting for ci on $GITHUB_SHA" >&2; exit 1; }
             sleep 30
           done

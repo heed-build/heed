@@ -13,15 +13,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Lint, the tests, a release build, and the tutor played with the real keys: what `mise run lint test bundle
-  # tutor-check` does locally.
-  build:
+  # Two jobs side by side, each on its own runner and its own .build cache: what `mise run lint test` and
+  # `mise run bundle tutor-check` do locally. A release waits for both on its commit.
+  test:
     runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
 
       - uses: ./.github/actions/setup
+        with:
+          cache: test
 
       - name: Lint
         run: mise run lint
@@ -32,6 +34,25 @@ jobs:
 
       - name: Test
         run: mise run test
+
+      # main's .build, for the next run to build on (see the setup action); pull requests only read it.
+      - name: Save .build
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: .build
+          key: ${{ env.SWIFTPM_CACHE_KEY }}
+
+  # A release build and the tutor played with the real keys on it.
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/setup
+        with:
+          cache: build
 
       - name: Release build
         run: mise run bundle
@@ -51,7 +72,6 @@ jobs:
       - name: Tutor check
         run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
 
-      # main's .build, for the next run to build on (see the setup action); pull requests only read it.
       - name: Save .build
         if: github.ref == 'refs/heads/main'
         uses: actions/cache/save@v4

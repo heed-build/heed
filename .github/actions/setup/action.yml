@@ -12,6 +12,9 @@ inputs:
   xcode:
     description: Xcode on the runner, for the macOS SDK and the Metal toolchain
     default: "26.6"
+  cache:
+    description: Which .build cache, one per ci job (test builds debug, build builds release)
+    default: build
 
 runs:
   using: composite
@@ -79,7 +82,7 @@ runs:
     - name: Name the build cache
       shell: bash
       run: |
-        base="swiftpm-${{ runner.arch }}-swift-${{ inputs.swift }}-xcode-${{ inputs.xcode }}"
+        base="swiftpm-${{ inputs.cache }}-${{ runner.arch }}-swift-${{ inputs.swift }}-xcode-${{ inputs.xcode }}"
         echo "SWIFTPM_CACHE_BASE=$base" >>"$GITHUB_ENV"
         echo "SWIFTPM_CACHE_KEY=$base-${{ hashFiles('Package.resolved') }}-${{ github.sha }}" >>"$GITHUB_ENV"
         echo "SWIFTPM_CACHE_DEPS=$base-${{ hashFiles('Package.resolved') }}-" >>"$GITHUB_ENV"

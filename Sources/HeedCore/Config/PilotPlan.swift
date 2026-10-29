@@ -27,6 +27,8 @@ public enum PilotPlan {
         public let agent: String?
         /// Nil: the agent's own default (always nil for a round typed into the session).
         public let model: String?
+        /// Nil: the agent's own default, as for `model`.
+        public var effort: String?
         public let timeout: TimeInterval
         /// Non-empty lines of `green_instructions`.
         public let instructions: Int
@@ -62,7 +64,8 @@ public enum PilotPlan {
         }
         let chosen = settings.runAgent(for: goal)
         return .background(Round(
-            goal: goal, agent: chosen.agent ?? sessionAgent, model: chosen.model, timeout: settings.runTimeout,
+            goal: goal, agent: chosen.agent ?? sessionAgent, model: chosen.model, effort: chosen.effort,
+            timeout: settings.runTimeout,
             instructions: instructions
         ))
     }
@@ -76,9 +79,10 @@ public enum PilotPlan {
         count == 0 ? nil : "\(count) instruction\(count == 1 ? "" : "s")"
     }
 
-    /// `codex gpt-5`, `claude`, `the session's agent`.
+    /// `codex gpt-5`, `claude opus (high)`, `claude`, `the session's agent`.
     static func agentText(_ round: Round) -> String {
-        [round.agent ?? "the session's agent", round.model].compactMap(\.self).joined(separator: " ")
+        [round.agent ?? "the session's agent", round.model, round.effort.map { "(\($0))" }].compactMap(\.self)
+            .joined(separator: " ")
     }
 
     /// The PR card's line: `background run · codex gpt-5 · 30m · 1 instruction`, `typed into the session's claude`,
@@ -183,8 +187,16 @@ public enum PilotPlan {
     public static func keys(for step: Step) -> [String] {
         switch step {
         case let .background(round):
-            (round.goal == .merged ? ["run_in", "merge_agent", "merge_model", "agent", "model"]
-                : ["run_in", "agent", "model"]) + ["run_timeout", "green_instructions"]
+            (round.goal == .merged ? [
+                "run_in",
+                "merge_agent",
+                "merge_model",
+                "merge_effort",
+                "agent",
+                "model",
+                "effort",
+            ]
+                : ["run_in", "agent", "model", "effort"]) + ["run_timeout", "green_instructions"]
         case .session: ["run_in", "green_instructions"]
         case .copilot: ["copilot_conflicts"]
         case .paused: ["watch"]
@@ -274,7 +286,8 @@ public enum PilotPlan {
         let instructions = instructionsText(instructionCount(settings.greenInstructions))
         let greenRound = Round(
             goal: .green, agent: settings.runAgent(for: .green).agent ?? sessionAgent,
-            model: settings.runAgent(for: .green).model, timeout: settings.runTimeout,
+            model: settings.runAgent(for: .green).model, effort: settings.runAgent(for: .green).effort,
+            timeout: settings.runTimeout,
             instructions: instructionCount(settings.greenInstructions)
         )
         if settings.runIn == .session {
@@ -294,7 +307,7 @@ public enum PilotPlan {
                     "\(PilotDuration.text(settings.runTimeout)) at most",
                     instructions.map { "\($0) added" },
                 ].compactMap(\.self).joined(separator: ", "),
-                tone: .busy, origin: origin(["run_in", "agent", "model", "run_timeout", "green_instructions"])
+                tone: .busy, origin: origin(["run_in", "agent", "model", "effort", "run_timeout", "green_instructions"])
             ))
         }
 
@@ -305,8 +318,9 @@ public enum PilotPlan {
         } else {
             (agentText(Round(
                 goal: .merged, agent: settings.runAgent(for: .merged).agent ?? sessionAgent,
-                model: settings.runAgent(for: .merged).model, timeout: settings.runTimeout, instructions: 0
-            )), ["merge_agent", "merge_model"])
+                model: settings.runAgent(for: .merged).model, effort: settings.runAgent(for: .merged).effort,
+                timeout: settings.runTimeout, instructions: 0
+            )), ["merge_agent", "merge_model", "merge_effort"])
         }
         let conflicted = if case .conflicted = status { true } else { false }
         rows.append(Row(

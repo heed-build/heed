@@ -5,10 +5,11 @@ import Foundation
 ///
 /// Like the app it has two modes: editing (INSERT: keys type into the prompt or the worktree name) and moving
 /// (NORMAL: `j k` or `⇥` between fields, `h l` within one, `space` toggles). `⌃n ⌃p` cycle guesses in both,
-/// `<D-CR>` starts, `<Esc>` stops editing and then cancels.
+/// `<D-CR>` starts, `<Esc>` stops editing and then cancels. The model and effort fields step through the agent's
+/// catalogue with `h l`; Custom… is typed (`i`). They are skipped when the agent has nothing to pick.
 public struct StartWorkForm: Sendable {
     public enum Field: Int, CaseIterable, Sendable {
-        case prompt, repo, worktree, agent, options
+        case prompt, repo, worktree, agent, model, effort, options
     }
 
     public enum Option: Int, CaseIterable, Sendable {
@@ -55,6 +56,15 @@ public struct StartWorkForm: Sendable {
     /// Agents to choose from; nil is "none, shell only".
     public let agents: [AgentProfile?]
     public private(set) var agentIndex = 0
+    /// The model picked; nil: the agent's default. With `customModel`, what is typed.
+    public private(set) var model: String?
+    /// Custom… is picked: the model is typed in.
+    public private(set) var customModel = false
+    /// The effort picked; nil: the agent's default.
+    public private(set) var effort: String?
+    /// What each agent offers (`AgentModels`, with what its CLI lists); the app fills it in. An agent missing here
+    /// gets its seed.
+    public var catalogs: [String: AgentModelCatalog] = [:]
     public private(set) var optionCursor = 0
     public private(set) var autostart = true
     public private(set) var planFirst = false
@@ -163,8 +173,55 @@ public struct StartWorkForm: Sendable {
     @discardableResult
     public mutating func choose(agent name: String) -> Bool {
         guard let index = agents.firstIndex(where: { $0?.name == name.lowercased() }) else { return false }
-        agentIndex = index
+        setAgent(index)
         return true
+    }
+
+    /// Another agent: its own defaults for model and effort, whatever the last one had picked.
+    private mutating func setAgent(_ index: Int) {
+        guard index != agentIndex else { return }
+        agentIndex = index
+        model = nil
+        effort = nil
+        customModel = false
+    }
+
+    /// The models and efforts the agent offers; nil for none (a shell).
+    public var catalog: AgentModelCatalog? {
+        agent.map { catalogs[$0.name] ?? AgentModels.catalog(for: $0) }
+    }
+
+    /// The fields `j k` and `⇥` stop at: model and effort only when there is something to pick.
+    public var fields: [Field] {
+        Field.allCases.filter { field in
+            switch field {
+            case .model: catalog?.takesModel == true
+            case .effort: !(catalog.map { ModelPicker.efforts($0, model: model, current: effort) } ?? []).isEmpty
+            default: true
+            }
+        }
+    }
+
+    /// The model picker's tag: the default, a model's id, or Custom….
+    public var modelSelection: String {
+        guard let catalog else { return ModelPicker.defaultTag }
+        return customModel ? ModelPicker.customTag : ModelPicker.selection(model, in: catalog)
+    }
+
+    /// A click on a model in the menu (or Custom…).
+    public mutating func pickModel(_ tag: String) {
+        guard let catalog else { return }
+        focus(field: .model)
+        customModel = tag == ModelPicker.customTag
+        model = customModel ? nil : ModelPicker.value(picking: tag, current: model, in: catalog)
+        effort = ModelPicker.effort(effort, after: model, in: catalog)
+        editing = customModel
+    }
+
+    /// A click on an effort in the menu.
+    public mutating func pickEffort(_ tag: String) {
+        focus(field: .effort)
+        effort = tag == ModelPicker.defaultTag ? nil : tag
     }
 
     /// Start work from a repo (`o` on a Repos row): that repo, chosen, whatever the prompt suggests later.
@@ -195,6 +252,8 @@ public struct StartWorkForm: Sendable {
             plan.autostart = autostart && agent != nil
             plan.planFirst = planFirst
             plan.shellSplit = shellSplit
+            plan.model = pickedModel
+            plan.effort = effort
             plan.signOff = signOffArguments(nil)
             return plan
         }
@@ -206,6 +265,8 @@ public struct StartWorkForm: Sendable {
         plan.autostart = autostart && agent != nil
         plan.planFirst = planFirst
         plan.shellSplit = shellSplit
+        plan.model = pickedModel
+        plan.effort = effort
         plan.promotion = promotion
         plan.instructions = instructions[records.first?.repo.slug ?? ""] ?? ""
         plan.signOff = signOffArguments(records.first?.repo)
@@ -222,7 +283,20 @@ public struct StartWorkForm: Sendable {
         return SignOff.arguments(agent: agent.name)
     }
 
+    /// The model the agent starts on: what is picked, a typed custom id trimmed; nil for the default.
+    private var pickedModel: String? {
+        guard agent != nil, let model = model?.trimmingCharacters(in: .whitespaces), !model.isEmpty else { return nil }
+        return model
+    }
+
+    /// Why the typed custom model cannot be used; nil when it can (or none is being typed).
+    public var modelProblem: String? {
+        guard customModel, agent != nil else { return nil }
+        return ModelPicker.problem(custom: model ?? "")
+    }
+
     public var canStart: Bool {
+        if modelProblem != nil { return false }
         if let chat { return chat.kind == .scratch ? !name.isEmpty : !folderPath(chat).isEmpty }
         return !selectedRepos.isEmpty && !name.isEmpty
     }
@@ -234,6 +308,7 @@ public struct StartWorkForm: Sendable {
 
     /// Why ⌘↩ does not start.
     private var cannotStart: String {
+        if let modelProblem { return "\(modelProblem), or pick a model" }
         if let chat { return chat.kind == .scratch ? "name the chat's folder first" : "type the folder's path first" }
         return selectedRepos.isEmpty ? "pick a repo first" : "name the worktree first"
     }
@@ -265,7 +340,7 @@ public struct StartWorkForm: Sendable {
             return .handled
         }
         let folder = field == .worktree && chat?.kind == .folder
-        var text = field == .prompt ? prompt : folder ? chat?.path ?? "" : name
+        var text = field == .prompt ? prompt : field == .model ? model ?? "" : folder ? chat?.path ?? "" : name
         switch stroke {
         case KeyStroke("BS"):
             if !text.isEmpty { text.removeLast() }
@@ -274,7 +349,8 @@ public struct StartWorkForm: Sendable {
         case KeyStroke("u", .control):
             text = ""
         case KeyStroke("Space"):
-            text += " "
+            // A model id has no spaces.
+            if field != .model { text += " " }
         case KeyStroke("CR"):
             guard field == .prompt else {
                 editing = false
@@ -287,6 +363,8 @@ public struct StartWorkForm: Sendable {
         }
         if field == .prompt {
             setPrompt(text)
+        } else if field == .model {
+            model = text
         } else if folder {
             chat?.path = text
         } else {
@@ -310,7 +388,11 @@ public struct StartWorkForm: Sendable {
         case KeyStroke("l"), KeyStroke("Right"):
             moveWithin(by: 1)
         case KeyStroke("i"), KeyStroke("a"), KeyStroke("CR"):
-            if field == .prompt || field == .worktree { editing = true } else { toggle() }
+            if field == .prompt || field == .worktree || (field == .model && customModel) {
+                editing = true
+            } else {
+                toggle()
+            }
         case KeyStroke("Space"):
             toggle()
         case KeyStroke("/") where field == .repo:
@@ -356,7 +438,7 @@ public struct StartWorkForm: Sendable {
         error = nil
         if field != .repo { repoSearch = nil }
         self.field = field
-        editing = edit && (field == .prompt || field == .worktree)
+        editing = edit && (field == .prompt || field == .worktree || (field == .model && customModel))
     }
 
     /// A click on a chip in the repo field (a guess, the search chip or the chat chip): as space there.
@@ -378,7 +460,7 @@ public struct StartWorkForm: Sendable {
     public mutating func pickAgent(at index: Int) {
         guard agents.indices.contains(index) else { return }
         focus(field: .agent)
-        agentIndex = index
+        setAgent(index)
     }
 
     /// A click on a chip in a chat's Folder field (scratch, folder, this Mac, a host): as space there.
@@ -399,7 +481,9 @@ public struct StartWorkForm: Sendable {
 
     /// Paste goes into whatever is being edited.
     public mutating func paste(_ text: String) {
-        if field == .worktree, chat?.kind == .folder {
+        if field == .model, customModel {
+            model = (model ?? "") + text.filter { !$0.isWhitespace }
+        } else if field == .worktree, chat?.kind == .folder {
             chat?.path += text.trimmingCharacters(in: .newlines)
         } else if field == .worktree {
             name = Self.branchSafe(name + text)
@@ -414,8 +498,9 @@ public struct StartWorkForm: Sendable {
     // MARK: Editing state
 
     private mutating func move(by delta: Int) {
-        let count = Field.allCases.count
-        field = Field(rawValue: ((field.rawValue + delta) % count + count) % count)!
+        let stops = fields
+        let current = stops.firstIndex(of: field) ?? 0
+        field = stops[((current + delta) % stops.count + stops.count) % stops.count]
         editing = field == .prompt
     }
 
@@ -429,7 +514,18 @@ public struct StartWorkForm: Sendable {
             let next = min(max((chat?.cursor ?? 0) + delta, 0), last)
             chat?.cursor = next
         case .agent:
-            agentIndex = ((agentIndex + delta) % agents.count + agents.count) % agents.count
+            setAgent(((agentIndex + delta) % agents.count + agents.count) % agents.count)
+        case .model:
+            guard let catalog else { break }
+            let tags = ModelPicker.models(catalog).map(\.tag)
+            let current = tags.firstIndex(of: modelSelection) ?? 0
+            let tag = tags[((current + delta) % tags.count + tags.count) % tags.count]
+            customModel = tag == ModelPicker.customTag
+            model = customModel ? nil : ModelPicker.value(picking: tag, current: model, in: catalog)
+            effort = ModelPicker.effort(effort, after: model, in: catalog)
+        case .effort:
+            guard let catalog else { break }
+            effort = ModelPicker.stepEffort(effort, by: delta, in: catalog, model: model)
         case .options:
             optionCursor = min(max(optionCursor + delta, 0), options.count - 1)
         default:

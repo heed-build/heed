@@ -126,16 +126,19 @@ public enum LLMDialect: String, Sendable, CaseIterable {
     /// which providers have credentials).
     public func cheapModel(listing: String, login: String = "") -> String? {
         switch self {
-        case .claude, .gemini: return fixedModel
-        case .codex: return Self.codexModel(listing)
-        case .opencode: return Self.opencodeModel(listing, providers: login)
-        case .pi: return Self.cheapest(Self.piModels(listing))
-        case .cursor:
-            let ids = listing.split(whereSeparator: \.isNewline).compactMap { line in
-                Self.plain(String(line)).split(whereSeparator: { $0 == " " || $0 == "\t" }).first.map(String.init)
-            }.filter { $0.contains("-") }
-            return Self.cheapest(ids)
+        case .claude, .gemini: fixedModel
+        case .codex: Self.codexModel(listing)
+        case .opencode: Self.opencodeModel(listing, providers: login)
+        case .pi: Self.cheapest(Self.piModels(listing))
+        case .cursor: Self.cheapest(Self.cursorModels(listing))
         }
+    }
+
+    /// `cursor-agent models`: the first word of each line that looks like an id.
+    static func cursorModels(_ listing: String) -> [String] {
+        listing.split(whereSeparator: \.isNewline).compactMap { line in
+            plain(String(line)).split(whereSeparator: { $0 == " " || $0 == "\t" }).first.map(String.init)
+        }.filter { $0.contains("-") }
     }
 
     /// Words in a model id that mark a small, cheap one, best first.

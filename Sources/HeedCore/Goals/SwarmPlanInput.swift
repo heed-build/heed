@@ -160,8 +160,12 @@ public struct SwarmPlanInput: Hashable, Sendable {
             return GoalItem.Owner(agent: agent, model: parts.count > 1 ? parts[1] : nil)
         }
         if let object = value as? [String: Any], let agent = object["agent"] as? String, !agent.isEmpty {
-            return GoalItem.Owner(agent: agent, model: object["model"] as? String)
+            return GoalItem.Owner(
+                agent: agent, model: object["model"] as? String, effort: (object["effort"] as? String)?.lowercased()
+            )
         }
-        throw ParseError(description: "task \(index + 1): owner is an agent name, agent:model, or {agent, model}")
+        throw ParseError(
+            description: "task \(index + 1): owner is an agent name, agent:model, or {agent, model, effort}"
+        )
     }
 }

@@ -203,6 +203,7 @@ extension AppModel {
             agent: agent, integration: files
         )
         plan.model = settings.lead.model
+        plan.effort = settings.lead.effort
         let id = plan.sessionID
         let now = Clock.now
         let link = GoalLink(

@@ -105,6 +105,8 @@ public struct LLMAgentStatus: Equatable, Sendable, Identifiable {
     public var login: Login
     /// The cheap model heed picked; nil: the agent's own default.
     public var detectedModel: String?
+    /// The models the CLI listed itself (`AgentModels.listed`), for the model pickers; empty when it lists none.
+    public var listedModels: [AgentModel] = []
     /// Checked when.
     public var checkedAt: Date
 
@@ -286,14 +288,18 @@ public actor LLMRunner {
             loginOutput = result?.stdout ?? ""
         }
         var model = dialect.fixedModel
+        var listed: [AgentModel] = []
         if login != .loggedOut, let listing = dialect.modelListing {
             let output = listing == dialect.loginCheck ? loginOutput : await run(listing)?.stdout ?? ""
             model = dialect.cheapModel(listing: output, login: loginOutput)
+            listed = AgentModels.listed(dialect, listing: output, login: loginOutput)
         }
-        return LLMAgentStatus(
+        var status = LLMAgentStatus(
             name: agent.name, command: agent.command, path: path, login: login, detectedModel: model,
             checkedAt: checked
         )
+        status.listedModels = listed
+        return status
     }
 
     // MARK: Calls

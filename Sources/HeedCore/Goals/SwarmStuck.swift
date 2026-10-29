@@ -71,18 +71,53 @@ public enum SwarmStuck {
         }
     }
 
-    /// What heed's screen reading says of the worker's pane, where it says anything (Hunch's label, else the screen
+    /// What heed's screen reading says of the worker's pane, where it says anything (Hunch's reading, else the screen
     /// guess).
     public enum Screen: String, Hashable, Sendable {
         case waiting, stuck
     }
 
-    /// The screen's label where heed has one: a label read from the pane (Hunch's, when one says waiting or stuck)
-    /// first, else the screen guess: a pane whose hooks say working but whose screen waits on a prompt is waiting.
-    public static func screen(label: String? = nil, guessed: AgentState?, reported: AgentState?) -> Screen? {
-        if let label = label.flatMap(Screen.init(rawValue:)) { return label }
-        guard reported == .working, let guessed, guessed == .asking || guessed == .blocked else { return nil }
-        return .waiting
+    /// Who read the screen: Hunch (`HunchScreen`), or heed's own guess (`ScreenGuess`).
+    public enum ScreenSource: String, Hashable, Sendable {
+        case hunch, guess
+
+        /// `Hunch`, `heed's guess`: how the panes name it.
+        public var title: String {
+            switch self {
+            case .hunch: "Hunch"
+            case .guess: "heed's guess"
+            }
+        }
+    }
+
+    /// A screen's label and who gave it.
+    public struct ScreenRead: Hashable, Sendable {
+        public var screen: Screen
+        public var source: ScreenSource
+
+        public init(_ screen: Screen, by source: ScreenSource) {
+            self.screen = screen
+            self.source = source
+        }
+    }
+
+    /// The screen's label where heed has one, only while the hooks say the worker is working (a hook that says it
+    /// asks or waits already says so). Hunch's reading, when there is one sure enough (`HunchScreen.Reading.counts`),
+    /// decides: waiting and stuck are labels, working and done are none. Without one, the screen guess: a pane whose
+    /// screen waits on a prompt is waiting.
+    public static func screen(
+        hunch: HunchScreen.Reading? = nil, guessed: AgentState?, reported: AgentState?
+    ) -> ScreenRead? {
+        guard reported == .working else { return nil }
+        if let hunch, hunch.counts {
+            switch hunch.state {
+            case .waiting: return ScreenRead(.waiting, by: .hunch)
+            case .stuck: return ScreenRead(.stuck, by: .hunch)
+            case .working, .done: return nil
+            }
+        }
+        guard let guessed, guessed == .asking || guessed == .blocked else { return nil }
+        return ScreenRead(.waiting, by: .guess)
     }
 
     /// What heed knows of one worker now.
@@ -95,14 +130,14 @@ public enum SwarmStuck {
         public var lastActivity: Date?
         /// The error digests of its tool calls, oldest first, nil for a call that went fine.
         public var recentErrors: [String?]
-        public var screen: Screen?
+        public var screen: ScreenRead?
         /// Since when a question of its own waits on a peer, the lead or the controller; or on you.
         public var waitingOnOthers: Date?
         public var waitingOnYou: Date?
 
         public init(
             now: Date, startedAt: Date, estimate: Int? = nil, lastActivity: Date? = nil, recentErrors: [String?] = [],
-            screen: Screen? = nil, waitingOnOthers: Date? = nil, waitingOnYou: Date? = nil
+            screen: ScreenRead? = nil, waitingOnOthers: Date? = nil, waitingOnYou: Date? = nil
         ) {
             self.now = now
             self.startedAt = startedAt
@@ -121,8 +156,8 @@ public enum SwarmStuck {
         case noProgress(minutes: Int)
         /// The same error, this many times in a row.
         case sameError(String, count: Int)
-        /// heed's screen reading says so.
-        case screen(Screen)
+        /// heed's screen reading says so: Hunch's, or heed's guess.
+        case screen(Screen, by: ScreenSource)
         /// Over its estimate: time on the task as a ratio of it.
         case overEstimate(ratio: Double)
         /// Its question waits on a peer, the lead or the controller, this long.
@@ -143,7 +178,7 @@ public enum SwarmStuck {
             switch self {
             case let .noProgress(minutes): "no tool call or file change for \(minutes) min"
             case let .sameError(digest, count): "the same error \(count)×: \(digest)"
-            case let .screen(label): "its screen reads \(label.rawValue)"
+            case let .screen(label, source): "its screen reads \(label.rawValue) (\(source.title))"
             case let .overEstimate(ratio): "\(Int((ratio * 100).rounded()))% of its estimate"
             case let .waitingOnOthers(minutes): "waiting on an answer for \(minutes) min"
             case let .waitingOnYou(minutes): "waiting on you for \(minutes) min"
@@ -154,7 +189,7 @@ public enum SwarmStuck {
         public var word: String {
             switch self {
             case .noProgress, .sameError: "stuck"
-            case let .screen(label): label.rawValue
+            case let .screen(label, _): label.rawValue
             case .overEstimate: "over estimate"
             case .waitingOnOthers: "waiting"
             case .waitingOnYou: "waiting on you"
@@ -188,7 +223,7 @@ public enum SwarmStuck {
         if !waiting {
             let quiet = minutes(since: observation.lastActivity ?? observation.startedAt)
             if settings.noProgress > 0, quiet >= settings.noProgress { reasons.append(.noProgress(minutes: quiet)) }
-            if let screen = observation.screen { reasons.append(.screen(screen)) }
+            if let read = observation.screen { reasons.append(.screen(read.screen, by: read.source)) }
         }
         if let since = observation.waitingOnYou { reasons.append(.waitingOnYou(minutes: minutes(since: since))) }
         if let since = observation.waitingOnOthers {

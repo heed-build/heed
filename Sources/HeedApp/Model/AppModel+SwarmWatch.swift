@@ -214,8 +214,8 @@ extension AppModel {
 
     // MARK: Stuck
 
-    /// A task's stuck signal now: its live worker's activity, errors, screen and the questions it waits on. Nil
-    /// without a live worker.
+    /// A task's stuck signal now: its live worker's activity, errors, screen (Hunch's reading of it when Hunch reads
+    /// screens, else heed's guess) and the questions it waits on. Nil without a live worker.
     func stuckSignal(_ task: String, board: SwarmBoard, now: Date = Clock.now) -> SwarmStuck.Signal? {
         guard let live = liveWorker(on: task) else { return nil }
         let plan = runTasks(board).first { $0.id == task }
@@ -240,7 +240,10 @@ extension AppModel {
             SwarmStuck.Observation(
                 now: now, startedAt: live.startedAt, estimate: plan?.estimate, lastActivity: facts.last,
                 recentErrors: Array(facts.errors.suffix(12)),
-                screen: SwarmStuck.screen(guessed: guessed, reported: reported), waitingOnOthers: others,
+                screen: SwarmStuck.screen(
+                    hunch: hunchReading(pane: live.paneID), guessed: guessed, reported: reported
+                ),
+                waitingOnOthers: others,
                 waitingOnYou: you
             ),
             settings: board.swarm.settings.stuck

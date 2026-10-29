@@ -161,7 +161,8 @@ struct FileActivityTests {
 
 struct SwarmStuckTests {
     private func observe(
-        at: Double, last: Double? = nil, errors: [String?] = [], estimate: Int? = nil, screen: SwarmStuck.Screen? = nil,
+        at: Double, last: Double? = nil, errors: [String?] = [], estimate: Int? = nil,
+        screen: SwarmStuck.ScreenRead? = nil,
         others: Double? = nil, you: Double? = nil
     ) -> SwarmStuck.Observation {
         SwarmStuck.Observation(
@@ -201,15 +202,20 @@ struct SwarmStuckTests {
         let waiting = try #require(SwarmStuck.signal(observe(at: 30, last: 5, others: 20)))
         #expect(waiting.reasons == [.waitingOnOthers(minutes: 10)])
         #expect(!waiting.strong)
-        let you = try #require(SwarmStuck.signal(observe(at: 30, last: 5, screen: .stuck, you: 10)))
+        let you = try #require(SwarmStuck.signal(observe(at: 30, last: 5, screen: .init(.stuck, by: .hunch), you: 10)))
         #expect(you.reasons == [.waitingOnYou(minutes: 20)])
         // The same error still counts while it waits.
         #expect(SwarmStuck.signal(observe(at: 30, last: 5, errors: ["e", "e", "e"], others: 20))?.strong == true)
     }
 
-    @Test func theScreenReadingWaitingOrStuckIsAStrongSignal() {
-        #expect(SwarmStuck.signal(observe(at: 1, last: 1, screen: .waiting))?.main == .screen(.waiting))
-        #expect(SwarmStuck.signal(observe(at: 1, last: 1, screen: .stuck))?.main.word == "stuck")
+    @Test func theScreenReadingWaitingOrStuckIsAStrongSignalNamingWhoReadIt() throws {
+        let waiting = try #require(SwarmStuck.signal(observe(at: 1, last: 1, screen: .init(.waiting, by: .guess))))
+        #expect(waiting.main == .screen(.waiting, by: .guess))
+        #expect(waiting.strong)
+        #expect(waiting.main.text == "its screen reads waiting (heed's guess)")
+        let stuck = try #require(SwarmStuck.signal(observe(at: 1, last: 1, screen: .init(.stuck, by: .hunch))))
+        #expect(stuck.main.word == "stuck")
+        #expect(stuck.main.text == "its screen reads stuck (Hunch)")
     }
 
     @Test func settingsChangeTheThresholdsAndZeroTurnsOneOff() {
@@ -836,13 +842,37 @@ struct SwarmStuckSettingTests {
 }
 
 struct SwarmStuckScreenTests {
-    @Test func aLabelWinsElseAPromptOnAWorkingPaneIsWaiting() {
-        #expect(SwarmStuck.screen(label: "stuck", guessed: nil, reported: .working) == .stuck)
-        #expect(SwarmStuck.screen(label: "fine", guessed: .asking, reported: .working) == .waiting)
-        #expect(SwarmStuck.screen(guessed: .blocked, reported: .working) == .waiting)
+    private func reading(_ state: HunchScreen.State, _ confidence: Double = 0.9) -> HunchScreen.Reading {
+        HunchScreen.Reading(state: state, confidence: confidence, at: now)
+    }
+
+    @Test func withoutHunchAPromptOnAWorkingPaneIsWaitingByTheGuess() {
+        #expect(SwarmStuck.screen(guessed: .blocked, reported: .working) == .init(.waiting, by: .guess))
+        #expect(SwarmStuck.screen(guessed: .asking, reported: .working) == .init(.waiting, by: .guess))
         #expect(SwarmStuck.screen(guessed: .asking, reported: .asking) == nil)
         #expect(SwarmStuck.screen(guessed: .working, reported: .working) == nil)
         #expect(SwarmStuck.screen(guessed: nil, reported: .working) == nil)
+    }
+
+    @Test func hunchsReadingDecidesOverTheGuess() {
+        #expect(SwarmStuck.screen(hunch: reading(.stuck), guessed: nil, reported: .working)
+            == .init(.stuck, by: .hunch))
+        #expect(SwarmStuck.screen(hunch: reading(.waiting), guessed: nil, reported: .working)
+            == .init(.waiting, by: .hunch))
+        // Hunch reads working or done: no label, even where the guess saw a prompt.
+        #expect(SwarmStuck.screen(hunch: reading(.working), guessed: .asking, reported: .working) == nil)
+        #expect(SwarmStuck.screen(hunch: reading(.done), guessed: .blocked, reported: .working) == nil)
+        // Only while the hooks say working.
+        #expect(SwarmStuck.screen(hunch: reading(.stuck), guessed: nil, reported: .asking) == nil)
+        #expect(SwarmStuck.screen(hunch: reading(.stuck), guessed: nil, reported: nil) == nil)
+    }
+
+    @Test func anUnsureReadingLeavesItToTheGuess() {
+        #expect(SwarmStuck.screen(hunch: reading(.stuck, 0.49), guessed: .asking, reported: .working)
+            == .init(.waiting, by: .guess))
+        #expect(SwarmStuck.screen(hunch: reading(.working, 0.49), guessed: nil, reported: .working) == nil)
+        #expect(SwarmStuck.screen(hunch: reading(.stuck, 0.5), guessed: .asking, reported: .working)
+            == .init(.stuck, by: .hunch))
     }
 }
 

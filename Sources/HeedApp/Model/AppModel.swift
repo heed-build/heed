@@ -480,6 +480,8 @@ final class AppModel {
     /// The reason on screen guesses. Only these leave when the screen no longer shows them: a question the turn's last
     /// words asked stays until the agent moves on.
     private static let fromScreen = "from the screen"
+    /// The reason on states Hunch read from the screen (`HunchScreen.sessionState`).
+    private static let fromHunch = "from the screen (Hunch)"
     /// Turns that went quiet without their end hook (cursor), and when each pane's hooks last spoke.
     var quietTurns = QuietTurn()
     var lastHookAt: [String: Date] = [:]
@@ -514,6 +516,7 @@ final class AppModel {
             endReviewRun(id)
         }
         readWorkerScreens(now: now)
+        readWorkerPanesWithHunch(now: now)
         // A session left working without its end hook (cursor, codex): done (guessed) once quiet.
         var quiet: [DomainChange] = []
         for session in sessions where QuietTurn.applies(to: session.agent) && session.state.state == .working {
@@ -530,6 +533,7 @@ final class AppModel {
         commit(quiet)
         sampleWorkingScreens(now: now)
         var work: [(String, String, ScreenGuess.Patterns, Set<AgentState>)] = []
+        var panes: [String: String] = [:]
         for session in sessions {
             guard let agent = settings.agent(session.agent) else { continue }
             let reported = ScreenGuess.reported(by: agent.name)
@@ -537,23 +541,36 @@ final class AppModel {
                   let text = TerminalSurfaces.shared.visibleText(paneID: paneID)
             else { continue }
             work.append((session.id, text, ScreenGuess.patterns(for: agent), reported))
+            panes[session.id] = paneID
+            readWithHunch(pane: paneID, text: text, subject: session.id, now: now)
         }
         guard !work.isEmpty else { return }
         let guesses = await Task.detached(priority: .utility) {
-            work.map { id, text, patterns, reported -> (String, AgentState?) in
+            work.map { id, text, patterns, reported -> (String, AgentState?, Set<AgentState>) in
                 // Only states the agent cannot report are guessed, so such a guess may replace a reported state.
                 let state = ScreenGuess.guess(text, patterns: patterns)
-                return (id, state.flatMap { reported.contains($0) ? nil : $0 })
+                return (id, state.flatMap { reported.contains($0) ? nil : $0 }, reported)
             }
         }.value
         var changes: [DomainChange] = []
-        for (id, guess) in guesses {
+        for (id, patternGuess, reported) in guesses {
             guard var session = sessions.first(where: { $0.id == id }) else { continue }
+            // Where the patterns see nothing, Hunch's reading of the pane (when it reads screens) may.
+            let reading = panes[id].flatMap(hunchReading(pane:)).flatMap { $0.counts ? $0 : nil }
+            let hunchGuess = patternGuess == nil
+                ? reading.flatMap { HunchScreen.sessionState($0, reported: reported) } : nil
+            let guess = patternGuess ?? hunchGuess
+            // A done Hunch read stays until Hunch reads the agent moving again.
+            let moving = reading.map { $0.state == .working || $0.state == .stuck } ?? false
             let next: ObservedState
             if let guess {
-                next = ObservedState(guess, source: .guessed, reason: Self.fromScreen)
-            } else if session.state.source == .guessed, session.state.reason == Self.fromScreen,
+                next = ObservedState(
+                    guess, source: .guessed, reason: hunchGuess != nil ? Self.fromHunch : Self.fromScreen
+                )
+            } else if session.state.source == .guessed,
+                      session.state.reason == Self.fromScreen || session.state.reason == Self.fromHunch,
                       [.blocked, .asking, .limited].contains(session.state.state)
+                      || (session.state.state == .done && session.state.reason == Self.fromHunch && moving)
             {
                 // The prompt left the screen: the agent is past it.
                 next = ObservedState(.working, source: .guessed, reason: Self.fromScreen)
@@ -564,7 +581,7 @@ final class AppModel {
             let previous = session.state
             session.state = next
             if next.state == .exited { setSubagents(nil, of: id) }
-            session.activity = "\(next.state.rawValue) · guessed"
+            session.activity = "\(next.state.rawValue) · " + (next.reason == Self.fromHunch ? "Hunch" : "guessed")
             changes.append(.sessionUpserted(session))
             recordScreen(of: session, from: previous)
         }
@@ -1626,6 +1643,12 @@ final class AppModel {
     var workerActivity: [String: [SwarmActivityLine]] = [:]
     /// Each live task's stuck signal, as the watch loop last read it.
     var stuckSignals: [String: SwarmStuck.Signal] = [:]
+    /// Hunch's newest reading of each agent pane, by pane id (`AppModel+HunchScreen`): what the stuck signal and the
+    /// screen guess read while Hunch is the decider with a model downloaded.
+    var screenReadings: [String: HunchScreen.Reading] = [:]
+    @ObservationIgnored var screenThrottle = HunchScreen.Throttle()
+    /// Panes Hunch is reading now.
+    @ObservationIgnored var screenReadsInFlight: Set<String> = []
     /// "Since you last looked" per swarm: the text by digest key (a model's, or heed's facts).
     var swarmDigestText: [String: String] = [:]
     /// When you last opened each swarm (its agents, map or plan pane), by swarm id; kept across launches.
@@ -2536,6 +2559,7 @@ final class AppModel {
         case "hunch.delete": deleteHunchModel(command.arguments.first)
         case "hunch.retrain": retrainHunch()
         case "hunch.reset": resetHunch()
+        case "hunch.screen": readScreenWithHunchNow()
         case "tutor.back", "tutor.skip", "tutor.exit":
             guard tutor != nil else {
                 flash = "the tutor is not running (:tutor starts it)"

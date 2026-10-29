@@ -38,7 +38,7 @@ public enum HunchFamily: String, Codable, CaseIterable, Sendable {
     case attention
     /// Your answers to a goal's attach proposals, and your moves and undos: whether a thing belongs to a goal.
     case attach
-    /// Screen snapshots with the state an agent's hooks reported: whether it is waiting for you.
+    /// Screen snapshots with the state an agent's hooks reported: working, waiting for you, or done.
     case screens
     /// Your overrules of the swarm controller's answers: the option you picked instead.
     case swarm
@@ -47,7 +47,7 @@ public enum HunchFamily: String, Codable, CaseIterable, Sendable {
         switch self {
         case .attention: "Attention"
         case .attach: "Goal attach"
-        case .screens: "Agent waiting"
+        case .screens: "Agent screens"
         case .swarm: "Swarm answers"
         }
     }
@@ -71,11 +71,6 @@ public enum HunchTrainingSet {
     public static func attachQuestion(goal: String) -> Question {
         .noul(instructions: "This work belongs to the goal \"\(goal)\".")
     }
-
-    /// Whether an agent's screen waits for you.
-    public static let waitingQuestion = Question.noul(
-        instructions: "The last lines ask the user to answer a question or approve something before the agent goes on."
-    )
 
     // MARK: Attention
 
@@ -167,27 +162,16 @@ public enum HunchTrainingSet {
 
     // MARK: Screens
 
-    /// Labelled snapshots: asking or blocked (the hooks said it waits for you) is true, working is false. Done, idle,
-    /// limited and exited say nothing about a question on screen, and guessed states are not labels.
+    /// Labelled snapshots as `HunchScreen.question`: what the hooks reported (`HunchScreen.label`) is the right
+    /// option. Idle, limited and exited are none of its options, and guessed states are not labels.
     public static func screens(_ snapshots: [ScreenSnapshot]) -> [HunchExample] {
         snapshots.compactMap { snapshot in
-            guard snapshot.source.labelled, !snapshot.text.isEmpty else { return nil }
-            let answer: String
-            switch snapshot.state {
-            case .asking, .blocked: answer = "true"
-            case .working: answer = "false"
-            case .idle, .done, .limited, .exited: return nil
-            }
+            guard snapshot.source.labelled, !snapshot.text.isEmpty, let label = HunchScreen.label(snapshot.state)
+            else { return nil }
             let id = "screen:\(snapshot.session ?? snapshot.agent):\(Int(snapshot.at.timeIntervalSince1970 * 1000))"
             return HunchExample(
-                id: id, family: .screens,
-                state: trimmed(
-                    snapshot.text.split(separator: "\n", omittingEmptySubsequences: false).suffix(screenLines)
-                        .joined(separator: "\n"),
-                    keepEnd: true
-                ),
-                question: waitingQuestion,
-                answer: answer, weight: 1, at: snapshot.at
+                id: id, family: .screens, state: HunchScreen.tail(snapshot.text), question: HunchScreen.question,
+                answer: label.option, weight: 1, at: snapshot.at
             )
         }
     }

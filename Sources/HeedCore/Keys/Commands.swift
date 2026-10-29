@@ -242,6 +242,11 @@ public enum Commands {
         ),
         .init("hunch.retrain", "train Hunch on your corrections now, in the background", .views),
         .init("hunch.reset", "put Hunch back on its checkpoint's own head (the training set stays)", .views),
+        .init(
+            "hunch.screen",
+            "have Hunch read the agent pane under the cursor now: working, waiting for input, stuck or done",
+            .views
+        ),
         .init("app.activate", "bring Heed's window to the front, as the global shortcut does", .views),
         .init("welcome", "show the getting-started checks again", .views),
         // Modes

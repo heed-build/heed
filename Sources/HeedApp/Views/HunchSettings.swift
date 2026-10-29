@@ -39,13 +39,48 @@ struct HunchGroup: View {
                 .fixedSize(horizontal: false, vertical: true)
             }
             Field(label: "Questions", detail: "Which decisions Hunch takes, and where the rest go.") {
-                Text(HunchRouting.summary(localReady: model.localModel.ready, modelCalls: model.config.llm.enabled))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(HunchRouting.summary(
+                        localReady: model.localModel.ready, modelCalls: model.config.llm.enabled
+                    ))
                     .font(Theme.ui(12))
                     .foregroundStyle(Theme.fg2)
                     .fixedSize(horizontal: false, vertical: true)
+                    ScreenReadingLine()
+                }
             }
             HunchLearningGroup()
         }
+    }
+}
+
+/// Agent screens: what Hunch reads of agents' panes, whether it does now, and its newest reading.
+private struct ScreenReadingLine: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(
+                "Agent screens: Hunch reads the last \(HunchScreen.lines) lines of a swarm worker's pane, and of "
+                    + "agents whose hooks miss a state, as working, waiting for input, stuck or done: at most once a "
+                    + "minute per pane, only when its screen changed. The agents pane's stuck signal says whether "
+                    + "Hunch or heed's guess read it."
+            )
+            .font(Theme.ui(12))
+            .foregroundStyle(Theme.fg2)
+            .fixedSize(horizontal: false, vertical: true)
+            Text(status).font(Theme.mono(11.5)).foregroundStyle(model.hunchReadsScreens ? Theme.done : Theme.fg3)
+        }
+    }
+
+    private var status: String {
+        guard model.hunchReadsScreens else {
+            return model.config.decisions.decider == .hunch
+                ? "off until a model is downloaded: heed's guess reads screens"
+                : "off: Hunch is not the decider, heed's guess reads screens"
+        }
+        guard let reading = model.latestScreenReading else { return "on · nothing read yet" }
+        return "on · last read \(Clock.relative(reading.at)): \(reading.line)"
     }
 }
 

@@ -293,6 +293,7 @@ extension AppModel {
     private func closeWorker(_ id: String) -> (LiveWorker, Double?)? {
         guard let live = liveWorkers.removeValue(forKey: id) else { return nil }
         quietTurns.forget(pane: live.paneID)
+        forgetHunchReading(pane: live.paneID)
         lastHookAt[live.paneID] = nil
         TerminalSurfaces.shared.close(paneID: live.paneID)
         runStates[live.paneID] = nil

@@ -39,6 +39,9 @@ enum HunchShots {
                 note: "next run after 20 new examples (6 so far)"
             )
             model.decisionTest = DecisionTest(answer: "done (confidence 93%)", seconds: 0.04)
+            model.screenReadings["fixture-pane"] = HunchScreen.Reading(
+                state: .waiting, confidence: 0.87, at: now.addingTimeInterval(-120)
+            )
         case .learning:
             hunch.show(
                 downloads: ["english": .ready], counts: counts.merging([.attention: 118]) { $1 }, heldOut: 68,

@@ -7,7 +7,7 @@ description: The opt-in recorder that keeps what an agent's pane showed at each 
 
 Heed can keep a short record of what an agent's pane showed whenever its hooks said what it was doing. These snapshots
 are examples for [Hunch](../configuration/local-learning.md), the local model that learns to tell from the screen alone
-when an agent is waiting on you. That matters most for agents with no hook for it (gemini, a plain shell). The hooks provide the labels, so you
+whether an agent is working, waiting on you or done. That matters most for agents with no hook for it (gemini, a plain shell). The hooks provide the labels, so you
 label nothing yourself.
 
 Recording is **off by default**. Turn it on in **Settings › Agents › Local decisions**, or in `config.toml`:

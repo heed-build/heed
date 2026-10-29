@@ -3,8 +3,10 @@ import Foundation
 /// The controller: heed's deciders (Settings › Inference & decisions: Hunch for small choices, the rest routed as
 /// everywhere) answering a swarm's question within its authority. A repeat of a question you answered comes first (an
 /// exact one needs no decider; a near one is a yes/no statement for it); then, if the question is the controller's,
-/// it picks one of the asker's options. A question with no options, or one that is yours, it does not answer: on its
-/// own it passes it to you, and when you ask it (`c`) about one of yours it only suggests.
+/// it picks one of the asker's options. A question that is yours it does not answer: on its own it passes it to you,
+/// and when you ask it (`c`) about one of yours it only suggests. A question with no options it never answers either:
+/// for a reversible choice it drafts an answer in a few words (`draft`), a suggestion that goes to you with the
+/// question and is only ever applied by you (`y`).
 ///
 /// Every decider call writes its own `decide` row (`LLMDecider`, `HunchDecider`); the caller writes the steering row.
 public enum SwarmController {
@@ -24,6 +26,9 @@ public enum SwarmController {
         case repeatOf(SwarmRepeat.Answered, answer: String, similar: Bool)
         /// The question is yours: what it would pick, for you to take or not.
         case suggest(String, reason: String)
+        /// The question has no options: an answer it drafted, in its own words, for you to take or not. Never applied
+        /// on its own, whoever asked it.
+        case draft(String)
         /// It does not answer: why (the question goes to you).
         case decline(String)
     }
@@ -52,11 +57,15 @@ public enum SwarmController {
         return lines.joined(separator: "\n")
     }
 
-    /// The controller's answer to `row`. `history`: your answers and rules (`SwarmRepeat.answered`). Never throws: a
-    /// decider that fails or is off is a decline, and the question goes to you.
+    /// Writes an answer to a question with no options, in a few words; nil when it has none.
+    public typealias Draft = @Sendable (SwarmSteer) async -> String?
+
+    /// The controller's answer to `row`. `history`: your answers and rules (`SwarmRepeat.answered`). `draft`: writes a
+    /// free-text answer for a question with no options (nil: such a question is declined). Never throws: a decider
+    /// that fails or is off is a decline, and the question goes to you.
     public static func decide(
         _ row: SwarmSteer, category: SwarmAuthority.Category, history: [SwarmRepeat.Answered], decider: any Decider,
-        mode: Mode = .onItsOwn
+        mode: Mode = .onItsOwn, draft: Draft? = nil
     ) async -> Outcome {
         let state = state(row)
         let subject = "swarm-question:\(row.swarm)#\(row.id ?? 0)"
@@ -92,7 +101,13 @@ public enum SwarmController {
         guard mayAnswer || mode == .askedByYou else {
             return .decline("\(category.title) is not the controller's to answer")
         }
-        guard let question = question(row) else { return .decline("the question has no options to pick from") }
+        guard let question = question(row) else {
+            // Nothing to pick from: a reversible choice gets a drafted answer, which only you apply.
+            guard category.controllerMay, let draft, let text = await draft(row).flatMap(draftAnswer) else {
+                return .decline("the question has no options to pick from")
+            }
+            return .draft(text)
+        }
         let answers: [String: Answer]
         do {
             answers = try await decider.decide(subject: subject, state: state, questions: ["answer": question])
@@ -105,5 +120,35 @@ public enum SwarmController {
         let percent = Int(((answers["answer"]?.probabilities[choice] ?? 0) * 100).rounded())
         let reason = "\(percent)% for it"
         return mayAnswer ? .answer(choice, reason: reason) : .suggest(choice, reason: reason)
+    }
+
+    // MARK: Drafting
+
+    /// What the drafting model reads: the question and who asks, then the goal's GOAL.md.
+    public static func draftInputs(_ row: SwarmSteer, goal doc: String?) -> SummaryInputs {
+        SummaryInputs(title: "A question from a swarm agent", lastMessage: state(row), goal: doc)
+    }
+
+    /// The longest drafted answer kept.
+    public static let draftLimit = 240
+
+    /// The model's reply as an answer: trimmed, unquoted, one paragraph, cut to `draftLimit`; nil for an empty reply or
+    /// one that says it cannot answer (`NONE`).
+    public static func draftAnswer(_ raw: String) -> String? {
+        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        for prefix in ["Answer:", "answer:", "Suggested answer:"] where text.hasPrefix(prefix) {
+            text = String(text.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces)
+        }
+        if text.count >= 2, let first = text.first, let last = text.last, "\"'`“".contains(first),
+           "\"'`”".contains(last)
+        {
+            text = String(text.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
+        }
+        text = text.split(whereSeparator: \.isNewline).map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }.joined(separator: " ")
+        guard !text.isEmpty, text.trimmingCharacters(in: .punctuationCharacters).uppercased() != "NONE" else {
+            return nil
+        }
+        return text.count > draftLimit ? String(text.prefix(draftLimit - 1)) + "…" : text
     }
 }

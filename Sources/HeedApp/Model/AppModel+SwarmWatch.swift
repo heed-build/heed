@@ -462,6 +462,7 @@ extension AppModel {
         form.limits = settings.limits
         form.autonomy = settings.autonomy
         form.stuck = settings.stuck
+        form.merge = settings.merge
         if let followUps = last.summary?.followUps, !followUps.isEmpty {
             form.statement = "Follow-ups from swarm \(last.number): " + followUps.joined(separator: "; ")
         }
@@ -488,6 +489,37 @@ extension AppModel {
             case let .failure(error): self?.say("\(error)")
             }
         }
+    }
+
+    /// `swarm.merge <off|auto|heed|repo>`: get it merged for the goal's swarm's PRs. Its PRs still merge in merge
+    /// order, a held child after its parent, and a PR's own choice (`zm`) still wins.
+    func setSwarmMerge(_ word: String?) {
+        guard let swarm = goals.activeSwarm else { return say("no swarm going here") }
+        let repo = swarmRepoMerge(swarm)
+        guard let word else {
+            say("swarm \(swarm.number): \(swarm.settings.merge.line(repo: repo))")
+            return openCommandLine("swarm.merge ")
+        }
+        guard let merge = SwarmSettings.Merge.named(word) else {
+            return say("swarm.merge takes off, auto, heed or repo")
+        }
+        let now = Clock.now
+        goals.run { try await $0.setMerge(swarm: swarm.id, merge, now: now) } done: { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case let .success(run):
+                refreshSwarmPulls()
+                say("swarm \(run.number): \(run.settings.merge.line(repo: repo)), in merge order")
+            case let .failure(error): say("\(error)")
+            }
+        }
+    }
+
+    /// What get it merged is for the swarm's first repo by its `[pilot]` settings: what `repo` follows.
+    func swarmRepoMerge(_ swarm: GoalSwarm) -> MergeMode {
+        let parts = swarm.settings.repos.first?.split(separator: "/", maxSplits: 1).map(String.init) ?? []
+        guard parts.count == 2 else { return config.pilot.defaults.merge }
+        return config.pilot.resolve(Repo(org: parts[0], name: parts[1])).merge
     }
 
     /// The goal's repeat rules, newest first, as the plan pane lists them.

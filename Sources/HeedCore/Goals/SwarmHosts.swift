@@ -14,6 +14,24 @@ public enum SwarmPlace {
         return host == local ? .local : .host(host)
     }
 
+    /// Where a task's next worker runs: where its last one did when it carries on in that worker's worktree (a task
+    /// handed to another agent, or taken back to its PR for a conflict or a rebase), else where the task says now.
+    public static func location(
+        of task: SwarmTask?, swarm settings: SwarmSettings, previous: SwarmWorker?, carriesOn: Bool
+    ) -> Location {
+        if carriesOn, let previous { return previous.location }
+        return location(of: task, swarm: settings)
+    }
+
+    /// Whether a worker's kept worktree can take its task back: on this Mac, it is there (`exists`); on a host, the
+    /// host answers (`problem` nil); whether it is still there is looked at over ssh before the worker starts.
+    public static func keptWorktree(
+        _ worker: SwarmWorker, exists: (String) -> Bool, problem: (Location) -> String?
+    ) -> Bool {
+        guard !worker.worktree.isEmpty else { return false }
+        return worker.location.isLocal ? exists(worker.worktree) : problem(worker.location) == nil
+    }
+
     /// A place as typed (in the plan pane, `:swarm.task.host`, the lead's JSON): what a task's `host` holds. `local`,
     /// `mac`, `this mac` or `here` is this Mac; `@devbox` or `devbox` a host; empty, `-` or `swarm` is where the swarm
     /// runs (nil). With `hosts` (config's), a host it does not have is refused, saying which it has.

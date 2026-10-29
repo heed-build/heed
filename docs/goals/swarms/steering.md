@@ -33,9 +33,15 @@ for, else one that waits for it, as long as its worker is at work. `--to lead` a
 straight away.
 
 **The controller** is heed's deciders, as set up in Settings › Inference & decisions: Hunch for small choices, the rest
-routed on as everywhere else ([Inference & decisions](../../configuration/inference.md)). It only ever picks one of the
-asker's options, so a question without options passes it by. Each decision writes a `decide` row in the call log and a
-steering row marked **by controller**.
+routed on as everywhere else ([Inference & decisions](../../configuration/inference.md)). It only ever answers with
+one of the asker's options. Each decision writes a `decide` row in the call log and a steering row marked
+**by controller**.
+
+**A question without options** is never answered by the controller. For a reversible implementation choice (or
+reassigning an idle agent) it drafts an answer in a sentence or two, with a cheap model call that reads the question and
+the goal's `GOAL.md`, and the question goes on to you with it: Needs you shows it as the controller's suggestion, and
+`y` takes it. It is never sent on its own. Any other question without options goes to you as it is; so does one when
+model calls are off or the model has nothing to say.
 
 **Repeats.** A question you answered before (the same words once normalised, and the same options) that is not always
 yours is answered at once by the controller with your answer, marked as a repeat. A question that is only like one you
@@ -49,7 +55,7 @@ A question starts at the first step its category allows and moves on when that s
 |---|---|
 | A peer | 8 minutes (the swarm's "waiting on a peer" setting, [Watching](watching.md#when-a-worker-is-stuck)) |
 | The lead | 10 minutes |
-| The controller | Its answer, a decline (not its question, no options, the decider off or failing), or 3 minutes |
+| The controller | Its answer, a drafted suggestion (no options), a decline (not its question, the decider off or failing), or 3 minutes |
 | You | Never: it waits in Needs you |
 
 Before asking, an agent is told to try another way once. Each move is a row by heed (`to the controller`, `to you`) with
@@ -92,7 +98,7 @@ the asker said), and the controller's suggestion if you asked for one.
 | `1` … `9` | Answer with that option |
 | `i` | Type an answer (`:swarm.answer <text>`) |
 | `c` | Hand it to the controller: it answers what is within its authority; on a question that is always yours it only suggests |
-| `y` | Take the controller's suggestion |
+| `y` | Take the controller's suggestion (its pick, or the answer it drafted for a question without options) |
 | `n` | Not the suggestion: type another answer |
 | `A` | Your next answer to it also answers similar questions (a repeat rule); `A` again: only this one |
 
@@ -155,6 +161,5 @@ From heed, `:swarm.send <to> <text>` sends one from you.
 
 ## Not yet
 
-- Conflicts after a parent's merge go to a get it merged run, not back to the task's own worker.
 - A question that waits on you is reminded once ([Watching](watching.md#when-a-worker-is-stuck)); it is not answered
   for you.

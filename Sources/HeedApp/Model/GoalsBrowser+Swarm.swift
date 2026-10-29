@@ -18,6 +18,8 @@ struct SwarmForm: Equatable {
     var autonomy = SwarmSettings.Autonomy.planChanges
     /// When a worker counts as stuck.
     var stuck = SwarmStuck.Settings.defaults
+    /// Get it merged for its PRs.
+    var merge = SwarmSettings.Merge.repo
     /// Where it runs: a host, or nil for this Mac (`swarm.host`).
     var host: String?
 
@@ -25,7 +27,8 @@ struct SwarmForm: Equatable {
 
     var settings: SwarmSettings {
         SwarmSettings(
-            repos: repos, lead: lead, workers: workers, limits: limits, autonomy: autonomy, stuck: stuck, host: host
+            repos: repos, lead: lead, workers: workers, limits: limits, autonomy: autonomy, stuck: stuck,
+            merge: merge, host: host
         )
     }
 }

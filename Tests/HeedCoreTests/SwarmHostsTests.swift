@@ -548,3 +548,41 @@ struct HostCallTests {
         #expect(process.terminationStatus == 2)
     }
 }
+
+/// A task's conflict or rebase going back to its own worker (`SwarmHandback`), when that worker ran on a host.
+struct SwarmHostHandbackTests {
+    private func worker(machine: String?, worktree: String = "/home/you/code/wt/x") -> SwarmWorker {
+        SwarmWorker(
+            id: "w", task: "g/a", owner: GoalItem.Owner(agent: "claude"), host: "s1", repo: "acme/docs-toolkit",
+            branch: "swarm/g/a", base: "main", worktree: worktree, startedAt: Date(timeIntervalSince1970: 0),
+            machine: machine
+        )
+    }
+
+    @Test func aWorkerTakenBackCarriesOnWhereItRan() {
+        let task = SwarmTask(id: "g/a", title: "A", phase: "P")
+        var moved = task
+        moved.host = SwarmPlace.local
+        let onHost = worker(machine: "devbox")
+        let settings = SwarmSettings()
+        #expect(SwarmPlace.location(of: moved, swarm: settings, previous: onHost, carriesOn: true) == .host("devbox"))
+        // A fresh start goes where the task says now.
+        #expect(SwarmPlace.location(of: moved, swarm: settings, previous: onHost, carriesOn: false) == .local)
+        #expect(SwarmPlace.location(of: task, swarm: SwarmSettings(host: "lab"), previous: nil, carriesOn: true)
+            == .host("lab"))
+    }
+
+    @Test func aKeptWorktreeOnAHostCountsWhileTheHostAnswers() {
+        let never: (String) -> Bool = { _ in
+            Issue.record("this Mac's disk was looked at for a host's worktree")
+            return false
+        }
+        #expect(SwarmPlace.keptWorktree(worker(machine: "devbox"), exists: never, problem: { _ in nil }))
+        #expect(!SwarmPlace.keptWorktree(worker(machine: "devbox"), exists: never, problem: { _ in "offline" }))
+        #expect(SwarmPlace.keptWorktree(worker(machine: nil), exists: { $0 == "/home/you/code/wt/x" }, problem: { _ in
+            "unused"
+        }))
+        #expect(!SwarmPlace.keptWorktree(worker(machine: nil), exists: { _ in false }, problem: { _ in nil }))
+        #expect(!SwarmPlace.keptWorktree(worker(machine: "devbox", worktree: ""), exists: never, problem: { _ in nil }))
+    }
+}

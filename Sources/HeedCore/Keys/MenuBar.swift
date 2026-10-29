@@ -319,7 +319,7 @@ public enum MenuBar {
                     ("The task's worker", "swarm.task.open"),
                     ("The plan in merge order", "swarm.order"), ("Move the task's stacked PR on", "swarm.land"),
                     ("Follow-up swarm…", "swarm.followup"), ("Delete a repeat rule…", "swarm.rule.delete"),
-                    ("When a worker is stuck…", "swarm.stuck"),
+                    ("When a worker is stuck…", "swarm.stuck"), ("Get it merged for its PRs…", "swarm.merge"),
                 ], in: ["goalplan"]),
                 scopedInvocations("A swarm's agents", [
                     ("The worker's tab", "swarm.task.open"), ("Pause or resume its task", "swarm.task.pause"),

@@ -112,7 +112,8 @@ extension AppModel {
             category: category,
             history: history,
             decider: decider,
-            mode: mode
+            mode: mode,
+            draft: answerDraft(goal: board.swarm.goal, mode: mode)
         )
         let now = Clock.now
         switch outcome {
@@ -139,6 +140,21 @@ extension AppModel {
             }
             say("the controller suggests \(option) (\(reason)): \(category.title) is yours, "
                 + "\(keyText(for: "goal.ask.yes", in: "swarmask")) takes it")
+        case let .draft(text):
+            // Free text is only ever a suggestion: on its own the question still goes to you, with it.
+            _ = await goalOp {
+                try await $0.suggest(
+                    swarm: swarm, question: id, option: text,
+                    reason: "drafted, the question has no options: yours to take", now: now
+                )
+            }
+            if mode == .onItsOwn {
+                _ = await goalOp { try await $0.escalate(
+                    swarm: swarm, question: id, to: .you,
+                    why: "no options to pick from: the controller drafted an answer for you to take or not", now: now
+                ) }
+            }
+            say("the controller suggests: \(text) (\(keyText(for: "goal.ask.yes", in: "swarmask")) takes it)")
         case let .decline(why):
             if mode == .onItsOwn {
                 _ = await goalOp { try await $0.escalate(swarm: swarm, question: id, to: .you, why: why, now: now) }
@@ -147,6 +163,22 @@ extension AppModel {
             }
         }
         await refreshSteering(board.swarm.id)
+    }
+
+    /// Writes a free-text answer to a question with no options (`SummaryKind.swarmAnswer`, a cheap model call), from
+    /// the question and the goal's GOAL.md; nil with model calls off.
+    private func answerDraft(goal: String, mode: SwarmController.Mode) -> SwarmController.Draft? {
+        guard config.llm.enabled else { return nil }
+        let summarizer = summarizer
+        let doc = goals.files.doc(goal)
+        let priority: LLMRequest.Priority = mode == .askedByYou ? .interactive : .background
+        return { row in
+            let text = try? String(contentsOf: doc, encoding: .utf8)
+            return try? await summarizer.summarize(
+                kind: .swarmAnswer, inputs: SwarmController.draftInputs(row, goal: text),
+                caller: SwarmController.caller, priority: priority
+            )
+        }
     }
 
     /// Hands over what waits for agents: one thing per pane, into an idle agent you are not typing to. True when it

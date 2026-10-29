@@ -484,6 +484,12 @@ public enum Commands {
             .selection, arguments: "<estimate|errors|quiet|peer|you> <value>"
         ),
         .init(
+            "swarm.merge",
+            "get it merged for the goal's swarm's PRs: off, auto, heed, or repo (each PR's repo says; the default). "
+                + "In merge order either way",
+            .selection, arguments: "<off|auto|heed|repo>"
+        ),
+        .init(
             "swarm.rule.delete", "delete one of the goal's repeat rules: the controller stops answering with it",
             .selection, arguments: "[rule number]"
         ),

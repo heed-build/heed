@@ -383,10 +383,15 @@ public enum AgentIntegration {
         String(directory.map { $0.isASCII && ($0.isLetter || $0.isNumber) ? $0 : "-" })
     }
 
-    /// Hook events Heed listens to, and the matcher for each.
+    /// Hook events Heed listens to, and the matcher for each. `PostToolUseFailure` (a tool call that failed: its
+    /// `error`, and `is_interrupt` when you stopped it) is in Claude Code since 2.1.0, before `StopFailure` (2.1.78),
+    /// so it asks nothing more of the installed version than the list already does.
     static let claudeEvents: [(event: String, matcher: String?)] = [
         ("SessionStart", nil), ("UserPromptSubmit", nil), ("PreToolUse", "*"), ("PostToolUse", "*"),
-        ("PermissionRequest", "*"), ("Notification", nil), ("Stop", nil), ("StopFailure", nil), ("SessionEnd", nil),
+        ("PostToolUseFailure", "*"), ("PermissionRequest", "*"), ("Notification", nil), ("Stop", nil), (
+            "StopFailure",
+            nil
+        ), ("SessionEnd", nil),
         ("SubagentStart", nil), ("SubagentStop", nil),
     ]
 
@@ -431,7 +436,11 @@ public enum AgentIntegration {
         case "PostToolUse":
             return [.state(.working, reason: tool)] + created(input) + toolCall(input)
         case "PostToolUseFailure":
-            return toolCall(input)
+            // You stopped the call: not the agent failing, so it does not count toward being stuck.
+            guard input["is_interrupt"] as? Bool == true else { return toolCall(input) }
+            var stopped = input
+            stopped["error"] = nil
+            return toolCall(stopped)
         case "PermissionRequest":
             return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
         case "Notification":

@@ -81,7 +81,7 @@ extension SwarmFixtures {
             row(1.1, .land, "Landing: every task has its PR"),
         ]
         if done {
-            let why = "its branch is rebased there by a get it green run"
+            let why = "its branch is rebased there by its worker (else a get it merged run)"
             let from = branch("heading-ids")
             steering += [
                 row(
@@ -96,6 +96,14 @@ extension SwarmFixtures {
                     .retarget,
                     "#415 now goes against main: #412 merged (was \(from))",
                     reason: why,
+                    task: "validator-speed"
+                ),
+                row(
+                    0.88, .handback, "#416 rebases onto main (#412 merged): back to its worker, claude",
+                    task: "sample-site"
+                ),
+                row(
+                    0.88, .handback, "#415 rebases onto main (#412 merged): back to its worker, claude · opus",
                     task: "validator-speed"
                 ),
                 row(

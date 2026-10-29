@@ -39,6 +39,7 @@ There are three ways in:
 | Team | The lead's agent and model, and the workers: agents, their models and how many of each |
 | How much say you want | Approve the plan, then check in per phase; ask only when the plan changes (the default); or run to the end |
 | Limits | Agents at once, hours, dollars. Reaching one pauses new work and asks you |
+| Get it merged | For the swarm's PRs: as each PR's repo says (the default), `off`, `auto` or `heed` ([Landing](landing.md#get-it-merged)) |
 
 ![The new swarm form running on @devbox](../../images/shots/goals/swarm-new-host.png)
 

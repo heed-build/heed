@@ -12,7 +12,8 @@ import Foundation
 ///
 /// A task's `id` names it in `after`; an id of an item already on the goal takes that item into the plan. Without an id
 /// a task keeps the id of the current plan's task with the same title, or gets one made from its title. `owner` is an
-/// agent (`claude`), `agent:model`, or `{"agent": …, "model": …}`; `estimate` minutes or `15m`, `1h 30m`; `host` where
+/// agent (`claude`), `agent:model`, or `{"agent": …, "model": …, "effort": …}`; `estimate` minutes or `15m`, `1h 30m`;
+/// `host` where
 /// its worker runs when not where the swarm does (a host's name, or `local` for the owner's Mac).
 public struct SwarmPlanInput: Hashable, Sendable {
     public struct Scope: Hashable, Sendable {

@@ -346,7 +346,7 @@ extension AppModel {
         let at = goals.selectedTask.flatMap { task in tasks.firstIndex { $0.id == task.id } } ?? tasks.count - 1
         var draft = PlanDraft(kind: .add(after: tasks.isEmpty ? -1 : at))
         draft.fields.phase = goals.selectedTask?.phase ?? tasks.last?.phase ?? "Plan"
-        draft.fields.owner = board.swarm.settings.team.first ?? ""
+        draft.fields.agent = board.swarm.settings.team.first ?? ""
         guard words.isEmpty else {
             draft.fields.title = words.joined(separator: " ")
             return savePlanDraft(draft)

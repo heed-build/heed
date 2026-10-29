@@ -869,10 +869,10 @@ private struct PlanEditor: View {
                 field("Title", \.fields.title)
                 HStack(spacing: 8) {
                     field("Phase", \.fields.phase)
-                    field("Owner (agent:model)", \.fields.owner)
                     field("Host (empty: the swarm's)", \.fields.host)
                     field("Estimate", \.fields.estimate).frame(width: 80)
                 }
+                owner
                 field("After (1.2, 2.1)", \.fields.after)
                 field("Done when (one per line)", \.fields.doneWhen, lines: 3)
             } else {
@@ -891,6 +891,54 @@ private struct PlanEditor: View {
             }
         }
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.block.opacity(0.6)))
+    }
+
+    /// The owner: an agent from a menu (or none), then its model and effort, picked like the swarm form's.
+    private var owner: some View {
+        let fields = draft.fields
+        let agentText = fields.agent.isEmpty ? "no owner" : fields.agent
+        let label = Text(agentText + " ▾").font(Theme.mono(11.5)).foregroundStyle(Theme.fg)
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("Owner").font(Theme.ui(10.5)).foregroundStyle(Theme.fg3)
+            HStack(spacing: 6) {
+                if ShotMode.active {
+                    label
+                } else {
+                    Menu {
+                        Button("no owner") { setOwner(agent: "") }
+                        ForEach(model.settings.agents.map(\.name), id: \.self) { name in
+                            Button(name) { setOwner(agent: name) }
+                        }
+                    } label: { label }
+                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                }
+                if !fields.agent.isEmpty {
+                    let catalog = model.modelCatalog(fields.agent)
+                    ModelChips(
+                        catalog: catalog, model: fields.model.isEmpty ? nil : fields.model,
+                        effort: fields.effort.isEmpty ? nil : fields.effort,
+                        setModel: { next in
+                            let effort = model.goals.planDraft?.fields.effort ?? ""
+                            model.goals.planDraft?.fields.model = next ?? ""
+                            model.goals.planDraft?.fields.effort = ModelPicker.effort(
+                                effort.isEmpty ? nil : effort, after: next, in: catalog
+                            ) ?? ""
+                        },
+                        setEffort: { model.goals.planDraft?.fields.effort = $0 ?? "" }
+                    )
+                }
+            }
+        }
+    }
+
+    /// Another agent: its own default model and effort.
+    private func setOwner(agent: String) {
+        guard model.goals.planDraft?.fields.agent != agent else { return }
+        model.goals.planDraft?.fields.agent = agent
+        model.goals.planDraft?.fields.model = ""
+        model.goals.planDraft?.fields.effort = ""
     }
 
     private var title: String {

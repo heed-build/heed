@@ -1,8 +1,9 @@
 import Foundation
 
-/// The fake world's item sources: a goal to review every open PR in an invented repo, its PRs as items (two reviewed,
-/// one merged, one being reviewed in a session, two waiting, one that left the source), and a goal heed read as a set
-/// of issues, with the source it proposes waiting for a yes. Nothing here was ever on GitHub.
+/// The fake world's item sources: a goal to review every open PR in an invented repo, its PRs as items (one
+/// reviewed, one asked for again after your review, one merged, one being reviewed in a session, two waiting, one that
+/// left the source), and a goal heed read as a set of issues, with the source it proposes waiting for a yes. Nothing
+/// here was ever on GitHub.
 public enum ItemSourceFixtures {
     public static let repo = "acme/widgets"
     public static let reviewGoal = "review-open-prs-in-acme-widgets"
@@ -51,6 +52,8 @@ public enum ItemSourceFixtures {
         var failing = false
         var session: String?
         var left = false
+        /// Reviewed, and your review asked for again since.
+        var again = false
         var hours: Double
     }
 
@@ -62,7 +65,14 @@ public enum ItemSourceFixtures {
             review: .approved,
             hours: 4.8
         ),
-        Pull(number: 421, title: "Drop the legacy YAML loader", author: "omar", review: .changesRequested, hours: 4.8),
+        Pull(
+            number: 421,
+            title: "Drop the legacy YAML loader",
+            author: "omar",
+            review: .changesRequested,
+            again: true,
+            hours: 4.8
+        ),
         Pull(number: 423, title: "Bump the markdown parser to 4.2", author: "lin", state: .merged, hours: 4.8),
         Pull(
             number: 425, title: "Retry uploads with backoff", author: "devi", session: "s-review-425", hours: 4.8
@@ -115,7 +125,7 @@ public enum ItemSourceFixtures {
                     failed: pull.failing ? 1 : 0,
                     failedNames: pull.failing ? ["e2e"] : []
                 ),
-                review: pull.review
+                review: pull.review, reviewRequested: pull.again
             )
             evidence += ItemSourceSync.evidence(
                 match, rule: source.rule, goal: id, item: item.id, source: source, now: ago(pull.hours - 0.5)

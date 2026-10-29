@@ -188,6 +188,28 @@ struct ItemSourceSyncTests {
         #expect(other.items.allSatisfy { Board.column($0, evidence: other.evidence) == .verify })
     }
 
+    @Test func aReviewAskedForAgainReopensTheItem() async throws {
+        let ops = try await synced([pull(1, review: .approved)])
+        var snapshot = try await ops.snapshot()
+        #expect(snapshot.items.first.map { Board.column($0, evidence: snapshot.evidence) } == .done)
+        var asked = pull(1, review: .approved)
+        asked.reviewRequested = true
+        try await ops.applySources(
+            goal: "review-prs", results: ["s1": SourceResult(matches: [asked])], error: nil, now: now + 60
+        )
+        snapshot = try await ops.snapshot()
+        let item = try #require(snapshot.items.first)
+        #expect(Board.column(item, evidence: snapshot.evidence) == .planned)
+        #expect(snapshot.evidence.contains { $0.kind == .criterion && $0.text == "#1 review re-requested" })
+        #expect(snapshot.evidence.contains { $0.kind == .codeReview && $0.text == "#1 review re-requested" })
+        // Reviewed again: done again.
+        try await ops.applySources(goal: "review-prs", results: ["s1": SourceResult(
+            matches: [pull(1, review: .commented)]
+        )], error: nil, now: now + 120)
+        snapshot = try await ops.snapshot()
+        #expect(snapshot.items.first.map { Board.column($0, evidence: snapshot.evidence) } == .done)
+    }
+
     @Test func greenAndIssueRules() {
         #expect(ItemSourceSync.met(.green, pull(1, green: true)) == "green")
         #expect(ItemSourceSync.met(.green, pull(1)) == nil)
@@ -352,8 +374,9 @@ struct GitHubSourcesTests {
         #!/bin/sh
         printf '%s\\n' "$@" -- >> '\(args.path)'
         case "$*" in
-          *issueOrPullRequest*) echo '{"data":{"r0":{"issueOrPullRequest":{"__typename":"PullRequest","number":7,"title":"Old","url":"https://github.com/acme/widgets/pull/7","state":"MERGED","isDraft":false,"repository":{"nameWithOwner":"acme/widgets"},"author":{"login":"lin"},"viewerLatestReview":null,"commits":{"nodes":[]}}},"r1":{"issueOrPullRequest":null}}}' ;;
-          *) echo '{"data":{"rateLimit":{"cost":1,"remaining":4990},"search":{"issueCount":2,"nodes":[{"__typename":"PullRequest","number":12,"title":"Cache templates","url":"https://github.com/acme/widgets/pull/12","state":"OPEN","isDraft":false,"repository":{"nameWithOwner":"acme/widgets"},"author":{"login":"tess"},"viewerLatestReview":{"state":"APPROVED"},"commits":{"nodes":[{"commit":{"statusCheckRollup":{"contexts":{"nodes":[{"__typename":"CheckRun","name":"ci","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"2026-10-26T10:00:00Z"}]}}}}]}},{"__typename":"Issue","number":13,"title":"Flaky test","url":"https://github.com/acme/widgets/issues/13","state":"OPEN","repository":{"nameWithOwner":"acme/widgets"},"author":{"login":"omar"}}]}}}' ;;
+          *issueOrPullRequest*) echo '{"data":{"viewer":{"login":"me"},"r0":{"issueOrPullRequest":{"__typename":"PullRequest","number":7,"title":"Old","url":"https://github.com/acme/widgets/pull/7","state":"MERGED","isDraft":false,"repository":{"nameWithOwner":"acme/widgets"},"author":{"login":"lin"},"viewerLatestReview":{"state":"COMMENTED"},"reviewRequests":{"nodes":[{"requestedReviewer":{"__typename":"User","login":"sam"}}]},"commits":{"nodes":[]}}},"r1":{"issueOrPullRequest":null}}}' ;;
+          *after=c1*) echo '{"data":{"viewer":{"login":"me"},"search":{"issueCount":2,"pageInfo":{"hasNextPage":false,"endCursor":"c2"},"nodes":[{"__typename":"Issue","number":13,"title":"Flaky test","url":"https://github.com/acme/widgets/issues/13","state":"OPEN","repository":{"nameWithOwner":"acme/widgets"},"author":{"login":"omar"}}]}}}' ;;
+          *) echo '{"data":{"rateLimit":{"cost":1,"remaining":4990},"viewer":{"login":"me"},"search":{"issueCount":2,"pageInfo":{"hasNextPage":true,"endCursor":"c1"},"nodes":[{"__typename":"PullRequest","number":12,"title":"Cache templates","url":"https://github.com/acme/widgets/pull/12","state":"OPEN","isDraft":false,"repository":{"nameWithOwner":"acme/widgets"},"author":{"login":"tess"},"viewerLatestReview":{"state":"APPROVED"},"reviewRequests":{"nodes":[{"requestedReviewer":{"__typename":"Team"}},{"requestedReviewer":{"__typename":"User","login":"me"}}]},"commits":{"nodes":[{"commit":{"statusCheckRollup":{"contexts":{"nodes":[{"__typename":"CheckRun","name":"ci","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"2026-10-26T10:00:00Z"}]}}}}]}}]}}}' ;;
         esac
         """.write(to: script, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
@@ -375,15 +398,20 @@ struct GitHubSourcesTests {
         }
         #expect(found.total == 2 && found.matches.map(\.ref) == ["acme/widgets#12", "acme/widgets#13"])
         let pr = try #require(found.matches.first)
+        // Approved, then asked again: the ask that is open now counts. Someone else's request does not.
+        #expect(pr.reReview && ItemSourceSync.met(.reviewed, pr) == nil)
+        #expect(looked.first?.reviewRequested == false && looked.first?.review == .commented)
         #expect(pr.kind == .pr && pr.author == "tess" && pr.review == .approved && pr.green && pr.state == .open)
         #expect(found.matches[1].kind == .issue && found.matches[1].author == "omar")
         #expect(looked.map(\.ref) == ["acme/widgets#7"] && looked.first?.state == .merged)
         await log.flush()
         let calls = try await log.store.calls(CallFilter())
-        #expect(calls.count == 2 && calls
+        #expect(calls.count == 3 && calls
             .allSatisfy { $0.kind == .github && $0.caller == "goals.sources" && !$0.write })
         let sent = try String(contentsOf: gh.args, encoding: .utf8)
         #expect(sent.contains("q=is:open repo:acme/widgets"))
+        // The second page asks after the first one's cursor.
+        #expect(sent.contains("after=c1"))
     }
 
     @Test func aSyncRunSearchesEachSourceAndLooksUpWhatLeft() async throws {
@@ -508,13 +536,13 @@ struct GoalSourceCommandTests {
         let snapshot = GoalFixtures.snapshot(fixtures)
         let goal = ItemSourceFixtures.reviewGoal
         let columns = Board.columns(snapshot.items(of: goal), evidence: snapshot.evidence(of: goal))
-        #expect(columns[.done]?.count == 3 && columns[.working]?.count == 1 && columns[.planned]?.count == 3)
+        #expect(columns[.done]?.count == 2 && columns[.working]?.count == 1 && columns[.planned]?.count == 4)
         let states = ItemSourceFixtures.states(now: now)
         #expect(states[ItemSourceFixtures.issuesGoal]?.proposal?.source.query
             == "is:issue is:open label:flaky repo:acme/widgets")
         let progress = SourceProgress.of(
             states[goal]!.sources[0], items: snapshot.items(of: goal), evidence: snapshot.evidence(of: goal)
         )
-        #expect(progress == SourceProgress(done: 3, total: 6, left: 1))
+        #expect(progress == SourceProgress(done: 2, total: 6, left: 1))
     }
 }

@@ -31,11 +31,16 @@ public struct SourceMatch: Hashable, Sendable {
     /// A PR's checks on its newest commit; nil for an issue.
     public var checks: CheckSummary?
     public var review: Review?
+    /// A review of yours is asked for now: after a review of yours, someone asked again (GitHub drops your request
+    /// when you review).
+    public var reviewRequested: Bool
 
     public init(
         ref: String, kind: GoalItem.Sourced.Kind, title: String, url: String, author: String? = nil,
-        state: State = .open, isDraft: Bool = false, checks: CheckSummary? = nil, review: Review? = nil
+        state: State = .open, isDraft: Bool = false, checks: CheckSummary? = nil, review: Review? = nil,
+        reviewRequested: Bool = false
     ) {
+        self.reviewRequested = reviewRequested
         self.ref = ref
         self.kind = kind
         self.title = title
@@ -49,6 +54,9 @@ public struct SourceMatch: Hashable, Sendable {
 
     /// `#12`.
     public var number: String { ref.split(separator: "#").last.map { "#\($0)" } ?? ref }
+
+    /// Reviewed by you, and your review asked for again since.
+    public var reReview: Bool { review != nil && reviewRequested }
 
     /// Every check passing (none failing or running, at least one passed).
     public var green: Bool {
@@ -246,10 +254,12 @@ public enum ItemSourceSync {
                 }
             }
             if let review = match.review {
-                found.append(entry(
-                    .codeReview, review == .changesRequested ? .issue : .done, "\(source) \(review.words) by you",
-                    from: "you"
-                ))
+                found.append(match.reReview
+                    ? entry(.codeReview, .inProgress, "\(source) review re-requested", from: "you")
+                    : entry(
+                        .codeReview, review == .changesRequested ? .issue : .done, "\(source) \(review.words) by you",
+                        from: "you"
+                    ))
             }
         case .issue:
             found.append(entry(
@@ -258,9 +268,10 @@ public enum ItemSourceSync {
             ))
         }
         let met = met(rule, match)
+        let waiting = rule == .reviewed && match.reReview ? "\(match.number) review re-requested"
+            : "\(match.number) not \(match.kind == .issue ? "closed" : rule.phrase) yet"
         found.append(entry(
-            .criterion, met == nil ? .inProgress : .done, met.map { "\(match.number) \($0)" }
-                ?? "\(match.number) not \(match.kind == .issue ? "closed" : rule.phrase) yet",
+            .criterion, met == nil ? .inProgress : .done, met.map { "\(match.number) \($0)" } ?? waiting,
             from: source.label
         ))
         return found
@@ -276,7 +287,8 @@ public enum ItemSourceSync {
             guard match.kind == .pr else { return nil }
             switch rule {
             case .merged, .closed: return nil
-            case .reviewed: return match.review.map { "reviewed by you (\($0.words))" }
+            // Asked again after you reviewed: "review all PRs" means the ask that is open now.
+            case .reviewed: return match.reReview ? nil : match.review.map { "reviewed by you (\($0.words))" }
             case .green: return match.green ? "green" : nil
             }
         }

@@ -30,11 +30,14 @@ public enum GoalHints {
         public var pendingChange: Bool
         /// The swarm is done: the agents pane shows its summary.
         public var done: Bool
+        /// heed proposes an item source for the goal (`y` takes it on the list and the overview).
+        public var sourceProposal: Bool
 
         public init(
             focus: String = "goals", proposals: Bool = false, running: Bool = false, pendingChange: Bool = false,
-            done: Bool = false
+            done: Bool = false, sourceProposal: Bool = false
         ) {
+            self.sourceProposal = sourceProposal
             self.focus = focus
             self.proposals = proposals
             self.running = running
@@ -117,7 +120,9 @@ public enum GoalHints {
         default:
             // The list and the overview, and GOAL.md with nothing waiting: the goal is what you are on. In GOAL.md `n`
             // says no to a change, so it offers no new goal.
-            ([
+            // A proposed source comes first where y takes it: not in GOAL.md, where y answers its changes.
+            ((context.sourceProposal && scope != "goaldoc" ? [Hint("goal.source.accept", "add the proposed source")]
+                    : []) + [
                 Hint("goal.open", context.focus == "links" ? "go there" : "open"),
                 Hint("goal.focus", context.focus == "links" ? "goals" : "what is on it"),
             ] + (scope == "goaldoc" ? [] : [Hint("goal.new", "new")]) + [

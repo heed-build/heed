@@ -9,6 +9,7 @@ public extension GoalOps {
         try store.sources()[goal] ?? .empty
     }
 
+    @discardableResult
     private func updateSources(goal: String, _ change: (inout GoalSourceState) throws -> Void) throws
         -> GoalSourceState
     {

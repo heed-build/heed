@@ -46,6 +46,7 @@ enum TutorCheck {
             "w",
             "T",
             ":goal.new Faster search<CR>",
+            ":goal.source.add prs acme/docs-toolkit<CR>",
         ],
         "hosts": [
             "gH<Esc>",

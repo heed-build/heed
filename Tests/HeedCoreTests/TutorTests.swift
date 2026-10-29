@@ -63,6 +63,7 @@ struct TutorTests {
             "swarmMap",
             "goalEvaluations",
             "goalFriction",
+            "goalSources",
         ]
         for lesson in [Tutor.tour] + Tutor.viewLessons {
             for step in lesson.steps {

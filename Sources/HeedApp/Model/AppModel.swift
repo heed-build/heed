@@ -7631,6 +7631,7 @@ final class AppModel {
         state.goalMoves = goals.moves
         state.goalSelected = goals.selected?.id ?? ""
         state.goalAsks = goals.attach.asks.count
+        state.goalSources = goals.snapshot.sources.values.reduce(0) { $0 + $1.sources.count }
         state.goalAccepted = goals.reviewers.reduce(0) { $0 + $1.objections.count { $0.state == .acceptedRisk } }
         return state
     }

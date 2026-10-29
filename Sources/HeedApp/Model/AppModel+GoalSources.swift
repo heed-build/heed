@@ -35,6 +35,8 @@ extension AppModel {
             guard let self else { return }
             switch result {
             case let .success(source):
+                // The overview is where a goal's sources show.
+                if view == .goals, goals.pane != .overview, goals.selected?.id == goal.id { goals.show(.overview) }
                 say("\(source.id): \(source.label), each done when \(Self.ruleText(source))")
                 syncGoalSources(only: goal.id, force: true)
             case let .failure(error): say("no source added: \(error)")

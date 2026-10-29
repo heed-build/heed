@@ -3,14 +3,15 @@ import Foundation
 /// What item sources ask of GitHub: a search, and PRs or issues by number. `GitHubSources` runs gh; tests use an
 /// in-memory one.
 public protocol SourceGitHub: Sendable {
-    /// The first page (100) of what `query` finds, and how many GitHub says there are.
+    /// What `query` finds, page by page up to `GitHubSources.cap`, and how many GitHub says there are.
     func search(_ query: String) async throws -> (matches: [SourceMatch], total: Int)
     /// The PRs or issues `refs` (`org/repo#n`) name, as they are now; one GitHub cannot find is left out.
     func lookup(_ refs: [String]) async throws -> [SourceMatch]
 }
 
-/// Item sources through gh's GraphQL: one search a source, and the items that stopped matching looked up 50 at a
-/// time. Each call is a `github` row in the call log (caller `goals.sources`), with its rate-limit cost.
+/// Item sources through gh's GraphQL: a search a source (100 a page, at most `cap`), and the items that stopped
+/// matching looked up 50 at a time. Each call is a `github` row in the call log (caller `goals.sources`), with its
+/// rate-limit cost.
 public struct GitHubSources: SourceGitHub {
     public var caller: String
 
@@ -22,14 +23,19 @@ public struct GitHubSources: SourceGitHub {
     __typename
     ... on PullRequest { number title url state isDraft repository { nameWithOwner } author { login }
       viewerLatestReview { state }
+      reviewRequests(first: 50) { nodes { requestedReviewer { __typename ... on User { login } } } }
       commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 100) { nodes {
         __typename ... on CheckRun { name status conclusion startedAt } ... on StatusContext { context state }
       } } } } } } }
     ... on Issue { number title url state repository { nameWithOwner } author { login } }
     """
 
+    /// The most a source follows: GitHub's search stops at 1000 results anyway.
+    public static let cap = 1000
+
     static let searchQuery = """
-    query($q: String!) { search(query: $q, type: ISSUE, first: 100) { issueCount nodes { \(fields) } } }
+    query($q: String!, $after: String) { viewer { login } search(query: $q, type: ISSUE, first: 100, after: $after) {
+      issueCount pageInfo { hasNextPage endCursor } nodes { \(fields) } } }
     """
 
     /// One aliased lookup per ref (`r0`…).
@@ -37,14 +43,25 @@ public struct GitHubSources: SourceGitHub {
         let parts = refs.enumerated().map { index, ref in
             "r\(index): repository(owner: \"\(ref.repo.org)\", name: \"\(ref.repo.name)\") { issueOrPullRequest(number: \(ref.number)) { \(fields) } }"
         }
-        return "query { \(parts.joined(separator: "\n")) }"
+        return "query { viewer { login }\n\(parts.joined(separator: "\n")) }"
     }
 
     public func search(_ query: String) async throws -> (matches: [SourceMatch], total: Int) {
-        let data = try await GitHub.graphql(
-            Self.searchQuery, operation: "sourceSearch", variables: ["q": query], caller: caller
-        )
-        return try Self.parseSearch(data)
+        var matches: [SourceMatch] = []
+        var total = 0
+        var after: String?
+        repeat {
+            let data = try await GitHub.graphql(
+                Self.searchQuery, operation: "sourceSearch",
+                variables: ["q": query].merging(after.map { ["after": $0] } ?? [:]) { first, _ in first },
+                caller: caller
+            )
+            let page = try Self.parseSearch(data)
+            matches += page.matches
+            total = page.total
+            after = page.next
+        } while after != nil && matches.count < Self.cap
+        return (Array(matches.prefix(Self.cap)), max(total, matches.count))
     }
 
     public func lookup(_ refs: [String]) async throws -> [SourceMatch] {
@@ -64,28 +81,39 @@ public struct GitHubSources: SourceGitHub {
 
     // MARK: Parsing
 
-    static func parseSearch(_ data: Data) throws -> (matches: [SourceMatch], total: Int) {
+    /// A page of a search: its matches, how many there are in all, and the cursor of the next page, if any.
+    static func parseSearch(_ data: Data) throws -> (matches: [SourceMatch], total: Int, next: String?) {
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         guard let search = (json?["data"] as? [String: Any])?["search"] as? [String: Any] else {
             let message = ((json?["errors"] as? [[String: Any]])?.first?["message"] as? String)
                 ?? "GitHub did not answer the search"
             throw GitHub.Failure(description: message)
         }
+        let viewer = viewer(json)
         let nodes = search["nodes"] as? [[String: Any]] ?? []
-        let matches = nodes.compactMap(match)
-        return (matches, search["issueCount"] as? Int ?? matches.count)
+        let matches = nodes.compactMap { match($0, viewer: viewer) }
+        let page = search["pageInfo"] as? [String: Any]
+        let next = page?["hasNextPage"] as? Bool == true ? page?["endCursor"] as? String : nil
+        return (matches, search["issueCount"] as? Int ?? matches.count, next)
+    }
+
+    static func viewer(_ json: [String: Any]?) -> String? {
+        ((json?["data"] as? [String: Any])?["viewer"] as? [String: Any])?["login"] as? String
     }
 
     static func parseLookup(_ data: Data, count: Int) -> [SourceMatch] {
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         let root = json?["data"] as? [String: Any] ?? [:]
+        let viewer = viewer(json)
         return (0 ..< count).compactMap { index in
-            ((root["r\(index)"] as? [String: Any])?["issueOrPullRequest"] as? [String: Any]).flatMap(match)
+            ((root["r\(index)"] as? [String: Any])?["issueOrPullRequest"] as? [String: Any])
+                .flatMap { match($0, viewer: viewer) }
         }
     }
 
-    /// A PR or issue node; nil for anything else a search can find.
-    static func match(_ node: [String: Any]) -> SourceMatch? {
+    /// A PR or issue node; nil for anything else a search can find. `viewer` (your login) tells a review request of
+    /// yours from others'.
+    static func match(_ node: [String: Any], viewer: String? = nil) -> SourceMatch? {
         guard let number = node["number"] as? Int,
               let repo = GitHub.repo((node["repository"] as? [String: Any])?["nameWithOwner"] as? String)
         else { return nil }
@@ -110,11 +138,16 @@ public struct GitHubSources: SourceGitHub {
         case "COMMENTED": .commented
         default: nil
         }
+        let requests = ((node["reviewRequests"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
+        let requested = viewer.map { login in
+            requests.contains { ($0["requestedReviewer"] as? [String: Any])?["login"] as? String == login }
+        } ?? false
         return SourceMatch(
             ref: ref, kind: .pr, title: title,
             url: node["url"] as? String ?? PullRef(repo: repo, number: number).url, author: author,
             state: state == "MERGED" ? .merged : state == "CLOSED" ? .closed : .open,
-            isDraft: node["isDraft"] as? Bool ?? false, checks: GitHub.checkSummary(contexts), review: review
+            isDraft: node["isDraft"] as? Bool ?? false, checks: GitHub.checkSummary(contexts), review: review,
+            reviewRequested: requested
         )
     }
 }

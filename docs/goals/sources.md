@@ -41,7 +41,9 @@ Each source has a **rule** for what done means for its items:
 | `reviewed` | you reviewed it: approved, requested changes or commented | it closed |
 | `green` | every check on its newest commit passes | it closed |
 
-Whatever the rule, a PR that merged or closed has nothing left to do: its card goes to Done too, and counts. Right-click
+Whatever the rule, a PR that merged or closed has nothing left to do: its card goes to Done too, and counts. Under
+`reviewed`, a review asked of you again after you reviewed reopens the item: "review all PRs" means the ask that is
+open now, so its card goes back to Planned with **review re-requested**, and to Done once you review again. Right-click
 a source in the overview for **Done when**, or `:goal.source.rule s1 reviewed`.
 
 ![PRs a source found, on the board](../images/shots/goals/source-board.png)
@@ -62,9 +64,9 @@ runs each source's search and compares what it finds with the goal's items:
   still open (a label taken off, a review request withdrawn), it is marked as having left its source and no longer
   counts. Nothing is ever deleted; an item that matches again loses the mark.
 
-Each search is one GraphQL call (and one more for the items that stopped matching), a `github` row in `:log` with its
-rate-limit cost (caller `goals.sources`). heed follows the first 100 matches of a search, and the overview says when
-there are more. A search that fails leaves its items as they are, and the overview says why.
+Each search is a GraphQL call per 100 matches (and one more for the items that stopped matching), a `github` row in
+`:log` with its rate-limit cost (caller `goals.sources`). heed follows up to 1000 matches of a search (where GitHub's
+search stops), and the overview says when there are more. A search that fails leaves its items as they are, and the overview says why.
 
 ## heed proposes one
 
@@ -72,7 +74,8 @@ there are more. A search that fails leaves its items as they are, and the overvi
 
 When a goal reads like a set over GitHub (its title or its goal statement says "review all open PRs in acme/web",
 "close every issue labelled flaky"), heed proposes the source on the goal's overview: `y` adds it, **no**
-(`:goal.source.dismiss`) says not to propose it again. A cheap decision (`[decisions]`, when they are on) says what
+(`:goal.source.dismiss`) says not to propose it again. While a proposal waits, the status bar offers `y` on the goal's list and
+overview. A cheap decision (`[decisions]`, when they are on) says what
 kind of set it is; the words say which repo, label or milestone. With decisions off, or when the call fails, the words
 alone decide. heed reads each `GOAL.md` version once, and never proposes for a goal that has a source.
 

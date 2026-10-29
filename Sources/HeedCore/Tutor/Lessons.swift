@@ -500,6 +500,15 @@ public extension Tutor {
                 keys: [":goal.new Faster search↩"], target: "goalsList",
                 doneLine: "On a session, right-click › Put on a goal, or :goal.attach, puts it on one."
             ) { start, now, _ in now.goals > start.goals },
+            TutorStep(
+                "Items from GitHub",
+                say: "Some goals are a set on GitHub: review every open PR in a repo, close every issue with a label. "
+                    + "A source keeps one item per PR or issue a query finds, each done by its rule. Add one to the "
+                    + "new goal.",
+                keys: [":goal.source.add prs acme/docs-toolkit↩"], target: "goalSources",
+                doneLine: "Its line is in the goal's Done when. When a goal reads like a set, heed proposes the "
+                    + "source itself: {goal.source.accept} takes it."
+            ) { start, now, _ in now.goalSources > start.goalSources },
         ]),
         TutorLesson(id: "log", title: "Call log", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(

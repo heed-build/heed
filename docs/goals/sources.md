@@ -13,8 +13,13 @@ moves each one along the board as it is reviewed, merged or closed.
 
 ## Adding a source
 
-`:goal.source.add <query>` on a goal (in Goals, on the list or the overview) adds one. The query is a few words or any
-GitHub search:
+`:goal.source.add <query>` on a goal (in Goals, on the list or the overview) adds one; with no query (or **add a
+source** in the overview's Sources) it opens the source dialog, which says under the query what it will search, or
+what is wrong with it, as you type, and lets you pick when each item is done. The query is a few words or any GitHub
+search:
+
+![The source dialog](../images/shots/goals/source-form.png)
+
 
 | Words | What heed searches | Done when, unless you say |
 |---|---|---|
@@ -72,10 +77,13 @@ search stops), and the overview says when there are more. A search that fails le
 
 ![heed's proposal on a goal that reads like a set](../images/shots/goals/source-proposal.png)
 
+![The proposal in a new goal's first steps](../images/shots/goals/source-guided.png)
+
 When a goal reads like a set over GitHub (its title or its goal statement says "review all open PRs in acme/web",
 "close every issue labelled flaky"), heed proposes the source on the goal's overview: `y` adds it, **no**
 (`:goal.source.dismiss`) says not to propose it again. While a proposal waits, the status bar offers `y` on the goal's list and
-overview. A cheap decision (`[decisions]`, when they are on) says what
+overview. On a new goal it is part of the first steps: **Add the work** shows the proposal and `y`,
+and adding a source (proposed or your own) ticks the step off, before its first sync has filled the board. A cheap decision (`[decisions]`, when they are on) says what
 kind of set it is; the words say which repo, label or milestone. With decisions off, or when the call fails, the words
 alone decide. heed reads each `GOAL.md` version once, and never proposes for a goal that has a source.
 
@@ -101,10 +109,10 @@ Sources an agent adds say so in the overview. See [heed goal](cli.md#sources).
 
 | Command | Key | What it does |
 |---|---|---|
-| `goal.source.add <query>` | | Add a source (no query: the command line, with the goal's repo) |
+| `goal.source.add [query]` | | Add a source (no query: the source dialog) |
 | `goal.source.accept` | `y` | Yes to heed's proposal |
 | `goal.source.dismiss` | | No to heed's proposal: not proposed again |
 | `goal.source.rule <id> <rule>` | | What done means for the source's items |
-| `goal.source.edit <id> <query>` | | A new query; the items it found stay |
+| `goal.source.edit <id> [query]` | | A new query (none: the dialog, filled in); the items it found stay |
 | `goal.source.remove [id]` | | Take it off: its items stay, the open ones marked; its Done when line goes unless met |
 | `goal.source.sync` | | Sync the goal's sources now |

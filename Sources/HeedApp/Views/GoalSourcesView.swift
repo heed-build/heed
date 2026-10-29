@@ -102,3 +102,73 @@ private struct ProposedSource: View {
         .rightClickMenu { model.clicksReachLists } _: { ContextMenus.goalSourceProposal(label: source.label) }
     }
 }
+
+/// The source dialog: a query, checked as it is typed (what it will search, or what is wrong), and when each item is
+/// done. ↩ or ⌘↩ adds it (or changes the one being edited); ⎋ leaves it.
+struct SourceFormView: View {
+    @Environment(AppModel.self) private var model
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        let form = model.goals.sourceForm
+        let notes = form?.notes ?? []
+        let tried = form?.tried == true
+        let parsed = form.flatMap { try? ItemSourceQuery.parse($0.query, repo: $0.repo) }
+        let what = parsed.map { ItemSourceQuery.what($0.query) } ?? .pulls
+        let rule = form?.rule ?? parsed?.rule ?? .merged
+        ZStack {
+            Color.black.opacity(0.45)
+            VStack(alignment: .leading, spacing: 12) {
+                Text(form?.editing == nil ? "New source" : "Change \(form?.editing ?? "")")
+                    .font(Theme.ui(16, weight: .semibold))
+                Text("One item per PR or issue the query finds, kept in step on heed's GitHub sync.")
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                SectionHeader(title: "Query")
+                Group {
+                    if ShotMode.active {
+                        Text(form?.query ?? "").frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        TextField("prs org/repo, issues, label <name>, reviews, or a search", text: query)
+                            .textFieldStyle(.plain)
+                    }
+                }
+                .font(Theme.mono(12.5))
+                .padding(8)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+                .focused($focused)
+                FieldNoteView(note: notes.note(for: "query", tried: tried))
+                SectionHeader(title: "Done when")
+                HStack(spacing: 8) {
+                    ForEach(what == .issues ? [ItemSource.Rule.closed] : ItemSource.Rule.allCases, id: \.self) { each in
+                        let picked = (what == .issues ? .closed : rule) == each
+                        Text(each.phrase).font(Theme.ui(12.5))
+                            .foregroundStyle(picked ? Theme.bg : Theme.fg2)
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(RoundedRectangle(cornerRadius: 5).fill(picked ? Theme.block : Theme.bg3))
+                            .clickable()
+                            .onTapGesture { model.goals.sourceForm?.rule = each }
+                    }
+                }
+                FieldNoteView(note: notes.note(for: "rule", tried: tried))
+                HStack(spacing: 18) {
+                    Spacer()
+                    KeyHint(keys: "<Esc>", label: "cancel")
+                    ConfirmHint(
+                        keys: "<D-CR>", label: form?.editing == nil ? "add" : "change", blocking: notes.blocking
+                    )
+                }
+            }
+            .padding(22)
+            .frame(width: 520)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.line))
+            .shotRegion(.sourceForm)
+        }
+        .onAppear { focused = true }
+    }
+
+    private var query: Binding<String> {
+        Binding(get: { model.goals.sourceForm?.query ?? "" }, set: { model.goals.sourceForm?.query = $0 })
+    }
+}

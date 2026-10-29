@@ -864,16 +864,18 @@ private struct PlanEditor: View {
     let draft: PlanDraft
 
     var body: some View {
+        let notes = model.planDraftNotes(draft)
         Panel(title: title, note: "") {
             if draft.isTask {
-                field("Title", \.fields.title)
-                HStack(spacing: 8) {
+                field("Title", \.fields.title, note: "title", notes)
+                HStack(alignment: .top, spacing: 8) {
                     field("Phase", \.fields.phase)
-                    field("Owner (agent:model)", \.fields.owner)
-                    field("Host (empty: the swarm's)", \.fields.host)
-                    field("Estimate", \.fields.estimate).frame(width: 80)
+                    field("Host (empty: the swarm's)", \.fields.host, note: "host", notes)
+                    field("Estimate", \.fields.estimate, note: "estimate", notes).frame(width: 80)
                 }
-                field("After (1.2, 2.1)", \.fields.after)
+                owner
+                FieldNoteView(note: notes.note(for: "owner", tried: draft.tried))
+                field("After (1.2, 2.1)", \.fields.after, note: "after", notes)
                 field("Done when (one per line)", \.fields.doneWhen, lines: 3)
             } else {
                 if case let .answer(id) = draft.kind,
@@ -882,15 +884,63 @@ private struct PlanEditor: View {
                     Text(question.row.text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                field(placeholder, \.text, lines: 3)
+                field(placeholder, \.text, lines: 3, note: "text", notes)
             }
             HStack(spacing: 18) {
                 Spacer()
                 KeyHint(keys: "<Esc>", label: "cancel")
-                KeyHint(keys: "<D-CR>", label: "save", color: Theme.fg)
+                ConfirmHint(keys: "<D-CR>", label: "save", blocking: notes.blocking)
             }
         }
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.block.opacity(0.6)))
+    }
+
+    /// The owner: an agent from a menu (or none), then its model and effort, picked like the swarm form's.
+    private var owner: some View {
+        let fields = draft.fields
+        let agentText = fields.agent.isEmpty ? "no owner" : fields.agent
+        let label = Text(agentText + " ▾").font(Theme.mono(11.5)).foregroundStyle(Theme.fg)
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("Owner").font(Theme.ui(10.5)).foregroundStyle(Theme.fg3)
+            HStack(spacing: 6) {
+                if ShotMode.active {
+                    label
+                } else {
+                    Menu {
+                        Button("no owner") { setOwner(agent: "") }
+                        ForEach(model.settings.agents.map(\.name), id: \.self) { name in
+                            Button(name) { setOwner(agent: name) }
+                        }
+                    } label: { label }
+                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                }
+                if !fields.agent.isEmpty {
+                    let catalog = model.modelCatalog(fields.agent)
+                    ModelChips(
+                        catalog: catalog, model: fields.model.isEmpty ? nil : fields.model,
+                        effort: fields.effort.isEmpty ? nil : fields.effort,
+                        setModel: { next in
+                            let effort = model.goals.planDraft?.fields.effort ?? ""
+                            model.goals.planDraft?.fields.model = next ?? ""
+                            model.goals.planDraft?.fields.effort = ModelPicker.effort(
+                                effort.isEmpty ? nil : effort, after: next, in: catalog
+                            ) ?? ""
+                        },
+                        setEffort: { model.goals.planDraft?.fields.effort = $0 ?? "" }
+                    )
+                }
+            }
+        }
+    }
+
+    /// Another agent: its own default model and effort.
+    private func setOwner(agent: String) {
+        guard model.goals.planDraft?.fields.agent != agent else { return }
+        model.goals.planDraft?.fields.agent = agent
+        model.goals.planDraft?.fields.model = ""
+        model.goals.planDraft?.fields.effort = ""
     }
 
     private var title: String {
@@ -911,8 +961,12 @@ private struct PlanEditor: View {
         }
     }
 
+    /// A field, with its note under it (`note`: the field's name in `notes`).
     @ViewBuilder
-    private func field(_ label: String, _ path: WritableKeyPath<PlanDraft, String>, lines: Int = 1) -> some View {
+    private func field(
+        _ label: String, _ path: WritableKeyPath<PlanDraft, String>, lines: Int = 1, note: String? = nil,
+        _ notes: [FieldNote] = []
+    ) -> some View {
         let binding = Binding(
             get: { model.goals.planDraft?[keyPath: path] ?? "" },
             set: { model.goals.planDraft?[keyPath: path] = $0 }
@@ -933,6 +987,7 @@ private struct PlanEditor: View {
             .padding(6)
             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+            if let note { FieldNoteView(note: notes.note(for: note, tried: draft.tried)) }
         }
     }
 }
@@ -1082,6 +1137,7 @@ struct SwarmFormView: View {
 
     var body: some View {
         let form = model.goals.swarmForm ?? SwarmForm()
+        let notes = model.swarmFormNotes(form)
         ZStack {
             Color.black.opacity(0.45)
             VStack(alignment: .leading, spacing: 14) {
@@ -1093,6 +1149,7 @@ struct SwarmFormView: View {
                 SectionHeader(title: "Goal")
                 if form.goal == nil {
                     textField("What the goal is called", \.title, font: Theme.ui(14))
+                    FieldNoteView(note: notes.note(for: "title", tried: form.tried))
                     textField("What done looks like", \.statement, lines: 3)
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
@@ -1103,6 +1160,7 @@ struct SwarmFormView: View {
                     }
                 }
                 SectionHeader(title: "Where")
+                let whereNote = notes.note(for: "where")
                 if model.swarmPlaces.count > 1 {
                     let line = model.swarmPlaceLine(form.location)
                     HStack(spacing: 6) {
@@ -1110,8 +1168,11 @@ struct SwarmFormView: View {
                             placeChip(place, picked: place == form.location)
                         }
                     }
-                    Text(line.text).font(Theme.ui(11.5)).foregroundStyle(line.problem ? Theme.block : Theme.fg3)
+                    if whereNote == nil {
+                        Text(line.text).font(Theme.ui(11.5)).foregroundStyle(line.problem ? Theme.block : Theme.fg3)
+                    }
                 }
+                FieldNoteView(note: whereNote)
                 FlowLayout(spacing: 6, lineSpacing: 6) {
                     ForEach(model.swarmRepoChoices.prefix(10), id: \.self) { slug in
                         let picked = form.repos.contains(slug)
@@ -1124,28 +1185,51 @@ struct SwarmFormView: View {
                             .onTapGesture { toggleRepo(slug) }
                     }
                     if model.swarmRepoChoices.isEmpty {
-                        Text(form.host.map { "no repos found on @\($0) yet: gH checks where they are" }
-                            ?? "no repos on this Mac yet: Repos (gr) adds them").font(Theme.ui(12))
+                        Text(form.host.map { "no repos found on @\($0) yet: type one below, or gH checks where "
+                                + "they are"
+                        } ?? "no repos on this Mac yet: type one below").font(Theme.ui(12))
                             .foregroundStyle(Theme.fg3)
                     }
                 }
+                repoEntryField(form)
+                FieldNoteView(note: notes.note(for: RepoEntry.field, tried: form.tried))
                 SectionHeader(title: "Team")
                 HStack(spacing: 8) {
                     Text("lead").font(Theme.ui(12)).foregroundStyle(Theme.fg3).frame(width: 52, alignment: .leading)
-                    agentChip(form.lead.agent) { next in model.goals.swarmForm?.lead.agent = next }
-                    modelField(
-                        get: { model.goals.swarmForm?.lead.model ?? "" },
-                        set: { model.goals.swarmForm?.lead.model = $0.isEmpty ? nil : $0 }
+                    agentChip(form.lead.agent) { next in model.goals.swarmForm?.lead = GoalItem.Owner(agent: next) }
+                    let leadCatalog = model.modelCatalog(form.lead.agent)
+                    ModelChips(
+                        catalog: leadCatalog, model: form.lead.model, effort: form.lead.effort,
+                        setModel: { next in
+                            guard let lead = model.goals.swarmForm?.lead else { return }
+                            model.goals.swarmForm?.lead = GoalItem.Owner(
+                                agent: lead.agent, model: next,
+                                effort: ModelPicker.effort(lead.effort, after: next, in: leadCatalog)
+                            )
+                        },
+                        setEffort: { model.goals.swarmForm?.lead.effort = $0 }
                     )
                 }
                 ForEach(Array(form.workers.enumerated()), id: \.offset) { index, worker in
                     HStack(spacing: 8) {
                         Text(index == 0 ? "workers" : "").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                             .frame(width: 52, alignment: .leading)
-                        agentChip(worker.agent) { next in model.goals.swarmForm?.workers[index].agent = next }
-                        modelField(
-                            get: { model.goals.swarmForm?.workers[index].model ?? "" },
-                            set: { model.goals.swarmForm?.workers[index].model = $0.isEmpty ? nil : $0 }
+                        agentChip(worker.agent) { next in
+                            guard let count = model.goals.swarmForm?.workers[index].count else { return }
+                            model.goals.swarmForm?.workers[index] = SwarmSettings.Worker(agent: next, count: count)
+                        }
+                        let catalog = model.modelCatalog(worker.agent)
+                        ModelChips(
+                            catalog: catalog, model: worker.model, effort: worker.effort,
+                            setModel: { next in
+                                guard let worker = model.goals.swarmForm?.workers[index] else { return }
+                                model.goals.swarmForm?.workers[index] = SwarmSettings.Worker(
+                                    agent: worker.agent, model: next,
+                                    effort: ModelPicker.effort(worker.effort, after: next, in: catalog),
+                                    count: worker.count
+                                )
+                            },
+                            setEffort: { model.goals.swarmForm?.workers[index].effort = $0 }
                         )
                         Stepper(text: "×\(worker.count)") { delta in
                             guard let count = model.goals.swarmForm?.workers[index].count else { return }
@@ -1211,7 +1295,7 @@ struct SwarmFormView: View {
                 HStack(spacing: 18) {
                     Spacer()
                     KeyHint(keys: "<Esc>", label: "cancel")
-                    KeyHint(keys: "<D-CR>", label: "ask the lead for a plan", color: Theme.fg)
+                    ConfirmHint(keys: "<D-CR>", label: "ask the lead for a plan", blocking: notes.blocking)
                 }
             }
             .padding(22)
@@ -1242,8 +1326,35 @@ struct SwarmFormView: View {
     private func toggleRepo(_ slug: String) {
         guard var form = model.goals.swarmForm else { return }
         if let index = form.repos.firstIndex(of: slug) { form.repos.remove(at: index) } else { form.repos.append(slug) }
+        form.cloneNote = nil
         model.goals.swarmForm = form
     }
+
+    /// Any repo, typed: `owner/name`, a GitHub URL or a path on this Mac, checked as you type; ↩ adds it.
+    private func repoEntryField(_ form: SwarmForm) -> some View {
+        Group {
+            if ShotMode.active {
+                Text(form.repoEntry.isEmpty ? Self.repoPlaceholder : form.repoEntry)
+                    .foregroundStyle(form.repoEntry.isEmpty ? Theme.fg3 : Theme.fg)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                TextField(Self.repoPlaceholder, text: Binding(
+                    get: { model.goals.swarmForm?.repoEntry ?? "" },
+                    set: { model.setSwarmRepoEntry($0) }
+                ))
+                .textFieldStyle(.plain)
+                .onSubmit { model.addSwarmRepoEntry() }
+            }
+        }
+        .font(Theme.mono(12))
+        .padding(.horizontal, 8).padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+        .help("Any repo: owner/name or a GitHub URL (checked on GitHub, cloned where the swarm runs), or a path to a "
+            + "checkout on this Mac. ↩ adds it.")
+    }
+
+    private static let repoPlaceholder = "+ any repo: owner/name, a GitHub URL or a path · ↩ adds it"
 
     /// An agent; a click picks the next one.
     private func agentChip(_ agent: String, set: @escaping (String) -> Void) -> some View {
@@ -1258,21 +1369,6 @@ struct SwarmFormView: View {
                 set(agents[(index + 1) % agents.count])
             }
             .help("Click for the next agent")
-    }
-
-    private func modelField(get: @escaping () -> String, set: @escaping (String) -> Void) -> some View {
-        Group {
-            if ShotMode.active {
-                Text(get().isEmpty ? "default model" : get()).foregroundStyle(get().isEmpty ? Theme.fg3 : Theme.fg)
-                    .frame(width: 130, alignment: .leading)
-            } else {
-                TextField("default model", text: Binding(get: get, set: set)).textFieldStyle(.plain).frame(width: 130)
-            }
-        }
-        .font(Theme.mono(11.5))
-        .padding(.horizontal, 6).padding(.vertical, 3)
-        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg))
-        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
     }
 
     private func textField(

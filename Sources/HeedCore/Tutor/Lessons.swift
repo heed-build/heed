@@ -498,17 +498,47 @@ public extension Tutor {
                 "One of your own",
                 say: "{goal.new} opens a new goal; :goal.new with a title makes one at once. Make one.",
                 keys: [":goal.new Faster search↩"], target: "goalsList",
-                doneLine: "On a session, right-click › Put on a goal, or :goal.attach, puts it on one."
-            ) { start, now, _ in now.goals > start.goals },
+                doneLine: "It opens on its overview, with a card that says what to do first."
+            ) { start, now, _ in
+                now.goals > start.goals && now.goalPane == "overview" && now.goalNextStep == "sharpen"
+            },
+            TutorStep(
+                "Sharpen it first",
+                say: "The card shows the next step, why it matters and its key, and ticks steps off from what is true "
+                    + "of the goal, not from clicks. First: {goal.sharpen} asks a model what the goal is and is not.",
+                keys: ["{goal.sharpen}"], target: "goalGuide",
+                doneLine: "Its suggestions wait in GOAL.md; nothing changes until you say yes."
+            ) { _, now, _ in now.goalPane == "doc" && now.goalProposals > 0 },
+            TutorStep(
+                "Take what fits",
+                say: "{goal.proposal.accept} takes the first suggestion, {goal.proposal.reject} says no. Answer each "
+                    + "of them.",
+                keys: [
+                    "{goal.proposal.accept}",
+                    "{goal.proposal.accept}",
+                    "{goal.proposal.accept}",
+                    "{goal.proposal.accept}",
+                ], target: "goalProposals",
+                doneLine: "Sharpened, and it says when it is done: a done-when line came with the suggestions."
+            ) { start, now, _ in start.goalProposals > 0 && now.goalProposals == 0 },
+            TutorStep(
+                "What is next",
+                say: "{goal.doc} goes back to the overview. The tabs above every pane switch between them by click "
+                    + "or key.",
+                keys: ["{goal.doc}"], target: "goalGuide",
+                doneLine: "Sharpen and Done when are ticked off; next is adding the work, then the quality bars ("
+                    + "{goal.reviewers}, and {goal.bars.accept} there once they are right) and starting it. What is "
+                    + "left, criteria and bars, sits under the card and in the goal's row."
+            ) { _, now, _ in now.goalPane == "overview" && now.goalNextStep == "work" },
             TutorStep(
                 "Items from GitHub",
                 say: "Some goals are a set on GitHub: review every open PR in a repo, close every issue with a label. "
-                    + "A source keeps one item per PR or issue a query finds, each done by its rule. Add one to the "
-                    + "new goal.",
+                    + "A source adds the work for you: one item per PR or issue a query finds, each done by its rule. "
+                    + "Add one.",
                 keys: [":goal.source.add prs acme/docs-toolkit↩"], target: "goalSources",
-                doneLine: "Its line is in the goal's Done when. When a goal reads like a set, heed proposes the "
-                    + "source itself: {goal.source.accept} takes it."
-            ) { start, now, _ in now.goalSources > start.goalSources },
+                doneLine: "Add the work is ticked off, and the source's line is in Done when. When a goal reads like "
+                    + "a set, heed proposes the source itself: {goal.source.accept} takes it."
+            ) { start, now, _ in now.goalSources > start.goalSources && now.goalNextStep != "work" },
         ]),
         TutorLesson(id: "log", title: "Call log", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(

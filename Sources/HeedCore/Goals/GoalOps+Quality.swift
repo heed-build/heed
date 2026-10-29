@@ -97,6 +97,25 @@ public extension GoalOps {
         return decision
     }
 
+    /// You looked at the goal's bars and they are right: the profile as it stands (heed's, or internal work until a
+    /// model has looked) recorded again as yours, with the bars it gives now. The guided first steps tick off on this,
+    /// never on heed working the profile out alone.
+    @discardableResult
+    func confirmBars(goal id: String, now: Date, table: GoalBarTable = .defaults) throws -> ProfileDecision {
+        guard let goal = try store.goal(id) else { throw GoalOpError.unknownGoal(id) }
+        let before = try quality(of: id, table: table)
+        let profile = before.profile?.profile ?? .unknown
+        let bars = GoalQuality.bars(profile: before.profile, pins: before.pins, table: table)
+        let decision = ProfileDecision(
+            profile: profile, bars: bars, changes: [], note: "\(profile.text): bars confirmed",
+            goalVersion: goal.version, source: .you
+        )
+        var entries: [QualityEntry] = [.profile(decision)]
+        entries += Self.spawns(profile: profile, bars: bars, reviewers: before.reviewers).map(QualityEntry.reviewer)
+        try record(entries, goal: id, at: now, table: table)
+        return decision
+    }
+
     /// Your bars for the goal: lens → bar, 0 takes the lens off; replaces the pins before.
     @discardableResult
     func pin(goal id: String, _ pins: [GoalLens: Double], now: Date, table: GoalBarTable = .defaults) throws

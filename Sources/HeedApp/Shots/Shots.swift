@@ -204,8 +204,13 @@ enum Shots {
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),
         Shot(id: "start-work/repos", keys: "o" + prompt + "<Esc>j", crop: .dialog),
         Shot(id: "start-work/repo-search", keys: "o" + prompt + "<Esc>j/mar", crop: .dialog),
+        // Any repo, typed into the search: one heed has not seen is checked on GitHub, then cloned on ⌘↩.
+        Shot(id: "start-work/any-repo", keys: "o" + prompt + "<Esc>j/globex/report-engine", crop: .dialog),
+        Shot(id: "start-work/any-repo-picked", keys: "o" + prompt + "<Esc>j/globex/report-engine<CR>", crop: .dialog),
         Shot(id: "start-work/branch-name", keys: "o" + prompt + "<Esc>jj", crop: .dialog),
-        Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjj", crop: .dialog),
+        Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjjjj", crop: .dialog),
+        // The model field: h l step through the agent's models (Opus, two steps in), then its efforts (high).
+        Shot(id: "start-work/model", keys: "o" + prompt + "<Esc>jjjjlljlll", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
         Shot(id: "start-work/from-github-picked", keys: ":issues<CR><Space>j<Space>", highlight: [.list, .pickedPanel]),
         Shot(id: "start-work/from-github-dialog", keys: ":issues<CR><Space>j<Space>s", crop: .dialog),
@@ -225,6 +230,27 @@ enum Shots {
             id: "agents/model-calls", subject: .settings(.agents), size: CGSize(width: 1000, height: 820),
             prepare: { model in
                 model.llmTests["claude"] = LLMTest(answer: "Hello!", model: "claude-haiku", seconds: 2.9, cost: 0.00026)
+            }
+        ),
+        // Settings › Agents: claude's own model and effort for its sessions, picked from its list.
+        Shot(
+            id: "agents/model-pickers", subject: .settings(.agents), size: CGSize(width: 1000, height: 1900),
+            prepare: { model in
+                model.applyConfig(source: "[agents.claude]\nmodel = \"opus\"\neffort = \"high\"\n")
+            }
+        ),
+        // Settings › Pilot: background runs on codex with a listed model and effort; conflicts on a custom id.
+        Shot(
+            id: "agents/model-custom", subject: .settings(.pilot), size: CGSize(width: 1000, height: 1950),
+            prepare: { model in
+                model.applyConfig(source: """
+                [pilot]
+                agent = "codex"
+                model = "gpt-6-luna"
+                effort = "high"
+                merge_agent = "claude"
+                merge_model = "team-proxy-small"
+                """)
             }
         ),
         // Settings › Agents › Local decisions: screen snapshots on, with the fake world's invented counts.
@@ -440,6 +466,22 @@ enum Shots {
         }),
         // The goal's items by stage, filled by evidence; its board; the changes to GOAL.md the work suggests.
         Shot(id: "goals/matrix", keys: "gGj", crop: .goalMatrix, cropPadding: 8),
+        // The pane switcher above every pane of a goal, and how far the goal is.
+        Shot(id: "goals/pane-tabs", keys: "gGjB", crop: .goalPaneBar, cropPadding: 0),
+        Shot(id: "goals/progress", keys: "gGj", crop: .goalLeft, cropPadding: 8),
+        // A new goal: its overview with the next-steps card, its GOAL.md looking unfinished, and sharpened.
+        Shot(id: "goals/guided", keys: "gG:goal.new<Space>Faster<Space>search<CR>"),
+        Shot(
+            id: "goals/guided-card",
+            keys: "gG:goal.new<Space>Faster<Space>search<CR>",
+            crop: .goalGuide,
+            cropPadding: 8
+        ),
+        Shot(id: "goals/doc-unfinished", keys: "gG:goal.new<Space>Faster<Space>search<CR>", then: ["E"]),
+        Shot(
+            id: "goals/guided-sharpened", keys: "gG:goal.new<Space>Faster<Space>search<CR>",
+            then: ["w", "y", "y", "y", "y", "E"], crop: .goalGuide, cropPadding: 8
+        ),
         Shot(id: "goals/board", keys: "gGjB"),
         Shot(id: "goals/proposals", keys: "gGjE", crop: .goalProposals, cropPadding: 8),
         Shot(id: "goals/session-chip", keys: "", crop: .sidebar, cropPadding: 0),
@@ -465,6 +507,17 @@ enum Shots {
         Shot(id: "goals/source-proposal", keys: "gGkk", crop: .goalSources, cropPadding: 8, prepare: {
             $0.loadSourcesFixture()
         }),
+        // The proposal in the guided card's Add the work, and the source dialog checking its query as it is typed.
+        Shot(id: "goals/source-guided", keys: "gGkk", crop: .goalGuide, cropPadding: 8, prepare: {
+            $0.loadSourcesFixture()
+        }),
+        Shot(id: "goals/source-form", keys: "gGk", crop: .sourceForm, cropPadding: 24, prepare: { model in
+            model.loadSourcesFixture()
+            model.perform(CommandInvocation(name: "view.goals"))
+            model.perform(CommandInvocation(name: "row.prev"))
+            model.perform(CommandInvocation(name: "goal.source.add"))
+            model.goals.sourceForm?.query = "reviews acme/widgets"
+        }),
         Shot(id: "goals/quality-bars", keys: "gGjR", crop: .goalBars, cropPadding: 8),
         Shot(id: "goals/spawn", keys: "gGjR", crop: .goalSpawn, cropPadding: 8, prepare: { model in
             model.goals.spawn.kind = .security
@@ -486,9 +539,10 @@ enum Shots {
             model.goals.swarmForm?.statement = "Every diagram type exports to SVG that matches the canvas, with "
                 + "fonts embedded."
             model.goals.swarmForm?.repos = ["globex/markgraph"]
-            model.goals.swarmForm?.lead = GoalItem.Owner(agent: "claude", model: "opus")
+            model.goals.swarmForm?.lead = GoalItem.Owner(agent: "claude", model: "opus", effort: "high")
             model.goals.swarmForm?.workers = [
-                SwarmSettings.Worker(agent: "claude", count: 2), SwarmSettings.Worker(agent: "codex"),
+                SwarmSettings.Worker(agent: "claude", count: 2),
+                SwarmSettings.Worker(agent: "codex", model: "gpt-6-luna", effort: "medium"),
             ]
             model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
         }),
@@ -503,12 +557,34 @@ enum Shots {
             model.goals.swarmForm?.workers = [SwarmSettings.Worker(agent: "claude", count: 3)]
             model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
         }),
+        // What is wrong shows under its field: ⌘↩ pressed with no title and no repo, ⌘↩ greyed with the reason.
+        Shot(id: "goals/swarm-new-errors", crop: .swarmForm, cropPadding: 24, prepare: { model in
+            model.perform(CommandInvocation(name: "swarm.new"))
+            model.goals.swarmForm?.title = ""
+            model.goals.swarmForm?.statement = "Reports render in under a second on the big fixtures."
+            model.goals.swarmForm?.repos = []
+            model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
+            model.submitSwarmForm()
+        }),
+        // Any repo, typed: one heed has not seen is checked on GitHub, and cloned where the swarm runs on ⌘↩.
+        Shot(id: "goals/swarm-new-repo", crop: .swarmForm, cropPadding: 24, prepare: { model in
+            model.perform(CommandInvocation(name: "swarm.new"))
+            model.goals.swarmForm?.title = "Faster report rendering"
+            model.goals.swarmForm?.statement = "Reports render in under a second on the big fixtures."
+            model.goals.swarmForm?.repos = ["globex/markgraph"]
+            model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
+            model.setSwarmRepoEntry("globex/report-engine")
+        }),
         Shot(id: "goals/swarm-plan", keys: "gGS"),
         Shot(id: "goals/swarm-questions", keys: "gGS", crop: .swarmQuestions, cropPadding: 8),
         Shot(id: "goals/swarm-approved", keys: "gGjS"),
         Shot(id: "goals/swarm-diff", keys: "gGjS<Tab>j", crop: .swarmVersions, cropPadding: 8),
         Shot(id: "goals/swarm-edit", keys: "gGSje", crop: .swarmEditor, cropPadding: 8),
-        Shot(id: "goals/swarm-goal-page", keys: "gG", crop: .goalSwarm, cropPadding: 8),
+        // Taller: the goal's next-steps card pushes the swarm panel below the fold of a 900-point window.
+        Shot(
+            id: "goals/swarm-goal-page", size: CGSize(width: 1440, height: 1300), keys: "gG", crop: .goalSwarm,
+            cropPadding: 8
+        ),
         // The anchors swarm running: 1.2 merged and done, 1.1's PR green, two workers stacked on it, one asking.
         Shot(id: "goals/swarm-running", keys: "gGjS", prepare: { $0.loadRunningSwarmFixture(.running) }),
         Shot(id: "goals/swarm-stacked", keys: "gGjS", crop: .swarmTask, cropPadding: 8, prepare: {

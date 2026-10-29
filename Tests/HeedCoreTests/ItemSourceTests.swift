@@ -546,3 +546,43 @@ struct GoalSourceCommandTests {
         #expect(progress == SourceProgress(done: 2, total: 6, left: 1))
     }
 }
+
+struct GoalSourceGuideTests {
+    private var doc: GoalDoc {
+        var doc = GoalDoc.new(
+            title: "Close flaky issues",
+            statement: "Close every issue labelled flaky in acme/web now."
+        )
+        doc.notTheGoal = ["A new test runner"]
+        doc.doneWhen = [GoalDoc.Criterion("The nightly run passes three nights in a row")]
+        return doc
+    }
+
+    @Test func aProposedSourceWaitsInAddTheWorkAndTakingItTicksIt() {
+        let proposal = SourceProposal(source: source(id: ""), because: "close every issue", by: .words)
+        var input = GoalGuide.Input(doc: doc, sources: GoalSourceState(proposal: proposal))
+        let waiting = GoalGuide.of(input)
+        #expect(waiting.next?.step == .work)
+        #expect(waiting.next?.state == .waiting(
+            "heed proposes items from open PRs in acme/widgets, one per match", command: "goal.source.accept"
+        ))
+        #expect(waiting.next?.command == "goal.source.accept")
+        input.sources = GoalSourceState(sources: [source()])
+        let taken = GoalGuide.of(input)
+        #expect(taken.steps.first { $0.step == .work }?.state == .done("items come from open PRs in acme/widgets"))
+        #expect(taken.next?.step != .work)
+        #expect(GoalGuide.of(GoalGuide.Input(doc: doc)).next?.state == .todo)
+    }
+
+    @Test func theDialogChecksTheQueryAsItIsTyped() {
+        #expect(FormChecks.source(query: "", repo: nil, rule: nil).note(for: "query", tried: false) == nil)
+        #expect(FormChecks.source(query: "", repo: nil, rule: nil).blocking != nil)
+        let bad = FormChecks.source(query: "prs", repo: nil, rule: nil)
+        #expect(bad.note(for: "query")?.tone == .problem && bad.blocking != nil)
+        let fine = FormChecks.source(query: "prs", repo: "acme/web", rule: .reviewed)
+        #expect(fine.note(for: "query") == FieldNote("query", "searches is:pr is:open repo:acme/web", tone: .fine))
+        #expect(fine.blocking == nil)
+        let wrongRule = FormChecks.source(query: "issues acme/web", repo: nil, rule: .reviewed)
+        #expect(wrongRule.note(for: "rule")?.tone == .problem)
+    }
+}

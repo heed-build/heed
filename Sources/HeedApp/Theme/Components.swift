@@ -212,6 +212,63 @@ private struct Clickable: ViewModifier {
     }
 }
 
+/// A form's note on one field, drawn under that field: what is wrong (red), what is being checked, or that it is fine.
+/// Every form shows its validation this way, never in the status bar (`FieldNote`, `FormChecks`).
+struct FieldNoteView: View {
+    let note: FieldNote?
+
+    var body: some View {
+        if let note {
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Image(systemName: icon(note.tone)).font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(color(note.tone))
+                Text(note.text).font(Theme.ui(11.5))
+                    .foregroundStyle(note.tone == .problem ? Theme.err : Theme.fg3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func icon(_ tone: FieldNote.Tone) -> String {
+        switch tone {
+        case .problem: "exclamationmark.circle.fill"
+        case .checking: "ellipsis.circle"
+        case .fine: "checkmark.circle"
+        }
+    }
+
+    private func color(_ tone: FieldNote.Tone) -> Color {
+        switch tone {
+        case .problem: Theme.err
+        case .checking: Theme.fg3
+        case .fine: Theme.done
+        }
+    }
+}
+
+/// A form's confirm hint (`⌘↩ create`), greyed while a field note blocks it, with the reason on hover. A click still
+/// presses the keys, so what is missing shows under its field.
+struct ConfirmHint: View {
+    @Environment(AppModel.self) private var model
+    let keys: String
+    let label: String
+    let blocking: FieldNote?
+
+    var body: some View {
+        let strokes = (try? KeyNotation.parse(keys)) ?? []
+        HStack(spacing: 6) {
+            KeyCap(text: KeyCapText.of(strokes))
+            HintText(text: label, color: blocking == nil ? Theme.fg : Theme.fg3)
+        }
+        .opacity(blocking == nil ? 1 : 0.5)
+        .clickable()
+        .onTapGesture { model.press(strokes) }
+        .help(blocking.map { "Not yet: \($0.text)" } ?? "Press \(KeyCapText.of(strokes))")
+        .accessibilityAddTraits(.isButton)
+    }
+}
+
 /// A key hint's words.
 struct HintText: View {
     let text: String

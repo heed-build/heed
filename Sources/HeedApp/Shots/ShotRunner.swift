@@ -27,6 +27,8 @@ struct Shot {
     var size = CGSize(width: 1440, height: 900)
     /// Keys typed into the fake world first, in vim notation.
     var keys = ""
+    /// More keys, each typed once what the ones before started has finished (a goal made, then sharpened).
+    var then: [String] = []
     /// Crop to this region (with padding) instead of the whole frame.
     var crop: ShotRegion?
     var cropPadding: CGFloat = 16
@@ -98,6 +100,12 @@ enum ShotRunner {
         }
         // Let whatever the keys started (tasks on the main actor) finish.
         try? await Task.sleep(for: .milliseconds(150))
+        for keys in shot.then {
+            for stroke in (try? KeyNotation.parse(keys)) ?? [] {
+                _ = model.handle(stroke)
+            }
+            try? await Task.sleep(for: .milliseconds(150))
+        }
 
         // Settings is all native controls, which ImageRenderer cannot draw: render it through AppKit instead, in a
         // window that is never shown.

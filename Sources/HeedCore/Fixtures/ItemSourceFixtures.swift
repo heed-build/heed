@@ -92,10 +92,13 @@ public enum ItemSourceFixtures {
     }
 
     private static var issuesDoc: GoalDoc {
-        GoalDoc.new(
+        var doc = GoalDoc.new(
             title: "Close every flaky test issue",
             statement: "Fix or close every issue labelled flaky in acme/widgets, so the nightly run is green again."
         )
+        doc.notTheGoal = ["Rewriting the test runner"]
+        doc.doneWhen = [GoalDoc.Criterion("The nightly run passes three nights in a row")]
+        return doc
     }
 
     private static func review(_ ago: (Double) -> Date) -> GoalFixture {

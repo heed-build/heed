@@ -698,11 +698,11 @@ struct SwarmTaskFormTests {
 
     @Test func aTaskReadsBackFromItsFields() throws {
         let task = SwarmTask(
-            id: "g/b", title: "B", phase: "Two", owner: GoalItem.Owner(agent: "codex", model: "o4"), estimate: 90,
-            after: ["g/a"], doneWhen: ["x", "y"]
+            id: "g/b", title: "B", phase: "Two", owner: GoalItem.Owner(agent: "codex", model: "o4", effort: "high"),
+            estimate: 90, after: ["g/a"], doneWhen: ["x", "y"]
         )
         let form = SwarmTaskForm(task, in: tasks)
-        #expect(form.owner == "codex:o4")
+        #expect(form.agent == "codex" && form.model == "o4" && form.effort == "high")
         #expect(form.estimate == "1h 30m")
         #expect(form.after == "1.1")
         #expect(form.doneWhen == "x\ny")
@@ -711,19 +711,41 @@ struct SwarmTaskFormTests {
 
     @Test func badFieldsSayWhy() {
         var form = SwarmTaskForm()
-        #expect(form.task(id: "g/c", in: tasks) == .failure(.init("a task needs a title")))
+        #expect(form.task(id: "g/c", in: tasks) == .failure(.init("a task needs a title", field: "title")))
         form.title = "C"
         form.estimate = "soon"
-        #expect(form.task(id: "g/c", in: tasks) == .failure(.init("no estimate in soon: 15m, 1h 30m")))
+        #expect(form.task(id: "g/c", in: tasks) == .failure(.init(
+            "no estimate in soon: 15m, 1h 30m",
+            field: "estimate"
+        )))
         form.estimate = ""
         form.after = "9.9"
-        #expect(form
-            .task(id: "g/c", in: tasks) == .failure(.init("no task 9.9 to wait for (a number like 1.2, or an id)")))
+        #expect(form.task(id: "g/c", in: tasks) == .failure(.init(
+            "no task 9.9 to wait for (a number like 1.2, or an id)", field: "after"
+        )))
         form.after = "1.1, b, 1.1"
         let task = try? form.task(id: "g/c", in: tasks).get()
         #expect(task?.after == ["g/a", "g/b"])
         #expect(task?.phase == "Plan")
         form.after = "1.1"
-        #expect(form.task(id: "g/a", in: tasks) == .failure(.init("a task cannot wait for itself")))
+        #expect(form.task(id: "g/a", in: tasks) == .failure(.init("a task cannot wait for itself", field: "after")))
+    }
+
+    @Test func theOwnerIsAnAgentWithAModelAndEffortOrNone() throws {
+        var form = SwarmTaskForm()
+        form.title = "C"
+        form.model = "ignored without an agent"
+        #expect(try form.task(id: "g/c", in: tasks).get().owner == nil)
+        form.agent = "claude"
+        form.model = "two words"
+        #expect(form.task(id: "g/c", in: tasks) == .failure(.init(
+            "the owner's model: a model id has no spaces",
+            field: "owner"
+        )))
+        form.model = ""
+        form.effort = "High"
+        #expect(try form.task(id: "g/c", in: tasks).get().owner == GoalItem.Owner(agent: "claude", effort: "high"))
+        form.model = "my-proxy-model"
+        #expect(try form.task(id: "g/c", in: tasks).get().owner?.model == "my-proxy-model")
     }
 }

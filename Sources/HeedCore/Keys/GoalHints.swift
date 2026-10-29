@@ -99,7 +99,8 @@ public enum GoalHints {
             ([
                 Hint("goal.focus", context.focus == "objections" ? "goals" : "next"),
                 Hint("review.recheck", "re-check"), Hint("review.accept", "accept risk"), Hint("review.fix", "fix"),
-                Hint("review.why", "why"), Hint("reviewer.spawn", "spawn"), Hint("goal.reviewers", "overview"),
+                Hint("review.why", "why"), Hint("reviewer.spawn", "spawn"), Hint("goal.bars.accept", "bars are right"),
+                Hint("goal.reviewers", "overview"),
             ], "")
         case "goalboard":
             ([

@@ -35,7 +35,7 @@ There are three ways in:
 | Field | What it is |
 |---|---|
 | Goal | A title and what done looks like (for a new goal; an existing one keeps its `GOAL.md`) |
-| Where | This Mac or one of your hosts, then the repos there it works in; the lead starts in the first ([On a host](running.md#on-a-host)) |
+| Where | This Mac or one of your hosts, then the repos it works in: picked from the ones there, or any repo typed (below); the lead starts in the first ([On a host](running.md#on-a-host)) |
 | Team | The lead's agent and model, and the workers: agents, their models and how many of each |
 | How much say you want | Approve the plan, then check in per phase; ask only when the plan changes (the default); or run to the end |
 | Limits | Agents at once, hours, dollars. Reaching one pauses new work and asks you |
@@ -44,8 +44,35 @@ There are three ways in:
 ![The new swarm form running on @devbox](../../images/shots/goals/swarm-new-host.png)
 
 A click on a place runs the swarm there (`:swarm.host devbox`); the line under it says how its agents will run, or
-why they cannot (a host that does not answer, or has no zmx). A click on an agent picks the next one; the model field is free text (empty: the agent's default). ⌘↩ makes the goal
+why they cannot (a host that does not answer, or has no zmx). A click on an agent picks the next one; beside it, its model and effort are picked from lists (the agent's
+[known models](../../agents/models.md), its default, or Custom… for any other id). A worker's model and effort go
+to every task the lead gives that agent without naming a model of its own. ⌘↩ makes the goal
 if it is new, starts the swarm, and starts its lead; ⎋ leaves.
+
+### Any repo
+
+The repo chips are the repos heed knows where the swarm runs, but the field under them takes any repo:
+
+- `owner/name`, or its GitHub URL (`https://github.com/owner/name`, `git@github.com:owner/name.git`). The format is
+  checked as you type; a repo heed has not seen (not on this Mac, a host, or in the PRs and issues it follows) is then
+  looked up on GitHub with a read-only `gh repo view`.
+- A path to a checkout on this Mac (`~/src/name`): it joins Repos.
+
+↩ adds it to the picked repos once the line under the field says it is fine (⌘↩ adds it too). A picked repo that is
+not where the swarm runs yet is cloned there with `gh repo clone` when you press ⌘↩, into the first repo root:
+`[worktrees] repo_roots` on this Mac (`~/Projects` by default), a host's own `repo_roots` there. The form stays open
+while it clones, and says so under the repos, or why the clone failed.
+
+![Any repo, typed into the swarm form](../../images/shots/goals/swarm-new-repo.png)
+
+### What is missing
+
+What stops the form shows under the field it is about, not in the status bar: a title for a new goal, a repo for the
+lead to start in, a typed repo that is misspelled, missing on GitHub or still being checked, or a place the swarm
+cannot run. Until it is fixed, ⌘↩ is greyed and its tooltip says why; pressing it shows what is missing under each
+field. The new goal dialog and the plan pane's editor work the same way.
+
+![The swarm form with what is missing under its fields](../../images/shots/goals/swarm-new-errors.png)
 
 ## The lead
 

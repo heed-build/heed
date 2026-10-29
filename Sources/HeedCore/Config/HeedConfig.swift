@@ -341,8 +341,10 @@ public enum ConfigLoader {
             }
             overrides.agent = string(base + ["agent"]).flatMap { $0.isEmpty ? nil : $0.lowercased() }
             overrides.model = string(base + ["model"]).flatMap { $0.isEmpty ? nil : $0 }
+            overrides.effort = string(base + ["effort"]).flatMap { $0.isEmpty ? nil : $0.lowercased() }
             overrides.mergeAgent = string(base + ["merge_agent"]).flatMap { $0.isEmpty ? nil : $0.lowercased() }
             overrides.mergeModel = string(base + ["merge_model"]).flatMap { $0.isEmpty ? nil : $0 }
+            overrides.mergeEffort = string(base + ["merge_effort"]).flatMap { $0.isEmpty ? nil : $0.lowercased() }
             if let text = string(base + ["run_in"]) {
                 if let runIn = RunIn.named(text) {
                     overrides.runIn = runIn
@@ -379,9 +381,11 @@ public enum ConfigLoader {
         if let command = pilotDefaults.selfReview { config.pilot.defaults.selfReview = command.isEmpty ? nil : command }
         config.pilot.defaults.agent = pilotDefaults.agent
         config.pilot.defaults.model = pilotDefaults.model
+        config.pilot.defaults.effort = pilotDefaults.effort
         if let runIn = pilotDefaults.runIn { config.pilot.defaults.runIn = runIn }
         config.pilot.defaults.mergeAgent = pilotDefaults.mergeAgent
         config.pilot.defaults.mergeModel = pilotDefaults.mergeModel
+        config.pilot.defaults.mergeEffort = pilotDefaults.mergeEffort
         config.pilot.defaults.greenInstructions = pilotDefaults.greenInstructions ?? ""
         config.pilot.defaults.reviewInstructions = pilotDefaults.reviewInstructions ?? ""
         config.pilot.defaults.startInstructions = pilotDefaults.startInstructions ?? ""
@@ -470,6 +474,13 @@ public enum ConfigLoader {
                 }
                 if let plan = string(["agents", name, "plan"]) { agent.planArguments = plan.isEmpty ? nil : plan }
                 if let flag = string(["agents", name, "model_flag"]) { agent.modelFlag = flag.isEmpty ? nil : flag }
+                if let flag = string(["agents", name, "effort_flag"]) { agent.effortFlag = flag.isEmpty ? nil : flag }
+                if let model = string(["agents", name, "model"]) {
+                    agent.model = model.trimmingCharacters(in: .whitespaces).isEmpty ? nil : model
+                }
+                if let effort = string(["agents", name, "effort"]) {
+                    agent.effort = effort.trimmingCharacters(in: .whitespaces).isEmpty ? nil : effort.lowercased()
+                }
                 if let resume = string(["agents", name, "resume"]) {
                     agent.resumeArguments = resume.isEmpty ? nil : resume
                 }
@@ -897,14 +908,16 @@ public enum ConfigLoader {
     # heed/get-it-green/<branch>, all removed when it is done) or session (the session's own agent, once it is idle and
     # you have not typed in it for five minutes). Also per org and per repo.
     run_in = "background"
-    # Which agent and model background runs use; empty: the session's agent and that agent's default model. Also per
-    # org and per repo.
+    # Which agent, model and reasoning effort background runs use; empty: the session's agent and that agent's
+    # defaults. Also per org and per repo.
     agent = ""
     model = ""
+    effort = ""
     # Merge conflicts with the base are usually simple: background runs for them can use a cheaper agent and model.
-    # Empty: agent and model above. Also per org and per repo.
+    # Empty: agent, model and effort above. Also per org and per repo.
     merge_agent = ""
     merge_model = ""
+    merge_effort = ""
     # A run still working after this long is stopped.
     run_timeout = "30m"
     # How long zp pauses a PR: 30m, 1h, 4h, 1d, or forever.
@@ -1156,12 +1169,16 @@ public enum ConfigLoader {
 
     # Agents. Built-ins (claude, codex, cursor, pi, opencode, gemini) can be overridden field by field; any other name
     # is a custom agent. Fields: command, prompt (argument | stdin | paste | file), plan, resume ("{id}" is the
-    # agent's session id), and [agents.<name>.profiles] of name = command line. For heed's own model calls ([llm]):
+    # agent's session id), and [agents.<name>.profiles] of name = command line. model and effort are what its sessions
+    # start on when nothing picks one (empty: the agent's own default); model_flag and effort_flag are how it takes them
+    # ("--effort", or with {level}: "-c model_reasoning_effort={level}"). For heed's own model calls ([llm]):
     # llm = false leaves an agent out, and llm_model picks its model (empty: a cheap one heed detects, haiku for claude).
     [agents.claude]
     command = "claude"
     plan = "--permission-mode plan"
     resume = "--resume {id}"
+    # model = "opus"
+    # effort = "high"
     # llm = true
     # llm_model = "haiku"
 

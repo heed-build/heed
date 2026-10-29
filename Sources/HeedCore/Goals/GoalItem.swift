@@ -43,18 +43,21 @@ public struct GoalItem: Hashable, Sendable, Codable, Identifiable {
         }
     }
 
-    /// Who works on a swarm task: an agent, and the model it runs on (nil: the agent's own default).
+    /// Who works on a swarm task: an agent, and the model and reasoning effort it runs on (nil: the agent's own
+    /// default).
     public struct Owner: Hashable, Sendable, Codable {
         public var agent: String
         public var model: String?
+        public var effort: String?
 
-        public init(agent: String, model: String? = nil) {
+        public init(agent: String, model: String? = nil, effort: String? = nil) {
             self.agent = agent
             self.model = model?.isEmpty == true ? nil : model
+            self.effort = effort?.isEmpty == true ? nil : effort
         }
 
-        /// `claude`, `claude · opus`.
-        public var label: String { model.map { "\(agent) · \($0)" } ?? agent }
+        /// `claude`, `claude · opus`, `claude · opus · high`.
+        public var label: String { ([agent, model, effort].compactMap(\.self)).joined(separator: " · ") }
     }
 
     /// A PR or issue a source of the goal found: which source, which one, and whether it still matches.

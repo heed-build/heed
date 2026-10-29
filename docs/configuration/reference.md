@@ -86,14 +86,16 @@ max_rounds = 3
 # heed/get-it-green/<branch>, all removed when it is done) or session (the session's own agent, once it is idle and
 # you have not typed in it for five minutes). Also per org and per repo.
 run_in = "background"
-# Which agent and model background runs use; empty: the session's agent and that agent's default model. Also per
-# org and per repo.
+# Which agent, model and reasoning effort background runs use; empty: the session's agent and that agent's
+# defaults. Also per org and per repo.
 agent = ""
 model = ""
+effort = ""
 # Merge conflicts with the base are usually simple: background runs for them can use a cheaper agent and model.
-# Empty: agent and model above. Also per org and per repo.
+# Empty: agent, model and effort above. Also per org and per repo.
 merge_agent = ""
 merge_model = ""
+merge_effort = ""
 # A run still working after this long is stopped.
 run_timeout = "30m"
 # How long zp pauses a PR: 30m, 1h, 4h, 1d, or forever.
@@ -345,12 +347,16 @@ path = []
 
 # Agents. Built-ins (claude, codex, cursor, pi, opencode, gemini) can be overridden field by field; any other name
 # is a custom agent. Fields: command, prompt (argument | stdin | paste | file), plan, resume ("{id}" is the
-# agent's session id), and [agents.<name>.profiles] of name = command line. For heed's own model calls ([llm]):
+# agent's session id), and [agents.<name>.profiles] of name = command line. model and effort are what its sessions
+# start on when nothing picks one (empty: the agent's own default); model_flag and effort_flag are how it takes them
+# ("--effort", or with {level}: "-c model_reasoning_effort={level}"). For heed's own model calls ([llm]):
 # llm = false leaves an agent out, and llm_model picks its model (empty: a cheap one heed detects, haiku for claude).
 [agents.claude]
 command = "claude"
 plan = "--permission-mode plan"
 resume = "--resume {id}"
+# model = "opus"
+# effort = "high"
 # llm = true
 # llm_model = "haiku"
 

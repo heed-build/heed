@@ -220,11 +220,13 @@ private struct InferenceGroup: View {
                 let detected = statuses.first { $0.name == only }?.detectedModel
                 Field(
                     label: "Model",
-                    detail: "Empty: \(detected.map { "\($0), detected" } ?? "the agent's own default"). "
+                    detail: "Default: \(detected.map { "\($0), detected" } ?? "the agent's own default"). "
                         + "[agents.\(only)] llm_model."
                 ) {
-                    ConfigTextField(path: ["agents", only, "llm_model"], value: llm.model(for: only) ?? "")
-                        .frame(width: 260)
+                    ConfigModelPicker(
+                        agent: only, modelPath: ["agents", only, "llm_model"], modelValue: llm.model(for: only),
+                        defaultLabel: detected.map { "detected (\($0))" }
+                    )
                 }
             }
             Field(
@@ -412,7 +414,7 @@ private struct SetupDollarsField: View {
                 .onSubmit(save)
                 .onChange(of: focused) { if !focused { save() } }
             Text("a day").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-            if let problem { Text(problem).font(Theme.ui(11.5)).foregroundStyle(Theme.err) }
+            FieldNoteView(note: problem.map { FieldNote("value", $0) })
         }
     }
 

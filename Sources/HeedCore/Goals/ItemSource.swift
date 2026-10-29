@@ -299,3 +299,26 @@ public enum ItemSourceQuery {
     /// A qualifier's value, in quotes when it has a space.
     static func quoted(_ value: String) -> String { value.contains(" ") ? "\"\(value)\"" : value }
 }
+
+public extension FormChecks {
+    /// The source dialog (`goal.source.add`, `goal.source.edit`): a query heed can read, and a rule that fits what it
+    /// finds. Fine: what it will search, so you see it before ⌘↩.
+    static func source(query: String, repo: String?, rule: ItemSource.Rule?) -> [FieldNote] {
+        let typed = query.trimmingCharacters(in: .whitespaces)
+        guard !typed.isEmpty else {
+            return [FieldNote("query", "a source needs a query: \(ItemSourceQuery.usage)", untilTried: true)]
+        }
+        let parsed: ItemSourceQuery.Parsed
+        do {
+            parsed = try ItemSourceQuery.parse(typed, repo: repo)
+        } catch {
+            return [FieldNote("query", "\(error)")]
+        }
+        var notes = [FieldNote("query", "searches \(parsed.query)", tone: .fine)]
+        let what = ItemSourceQuery.what(parsed.query)
+        if let rule, !rule.fits(what) {
+            notes.append(FieldNote("rule", "issues are done when closed: \(rule.phrase) is a rule for PRs"))
+        }
+        return notes
+    }
+}

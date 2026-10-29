@@ -388,17 +388,20 @@ public actor GoalOps {
         return try applyEdit(edit, now: now)
     }
 
-    /// Yes to a waiting edit, with its text changed first when `text` is given.
+    /// Yes to a waiting edit, with its text changed first when `text` is given. Yes to one already said yes to (a key
+    /// pressed twice) returns it as it is: an edit is applied once, never twice.
     @discardableResult
     public func accept(edit id: Int64, text: String? = nil, now: Date) throws -> GoalEdit {
+        if let done = try store.edit(id), done.state == .applied || done.state == .moot { return done }
         var edit = try waiting(id)
         if let text = text.map(GoalDoc.oneLine), !text.isEmpty { edit.text = text }
         return try applyEdit(edit, now: now)
     }
 
-    /// No to a waiting edit.
+    /// No to a waiting edit; no again to one already said no to returns it as it is.
     @discardableResult
     public func reject(edit id: Int64, now _: Date) throws -> GoalEdit {
+        if let done = try store.edit(id), done.state == .rejected { return done }
         var edit = try waiting(id)
         edit.state = .rejected
         try store.save(edit)

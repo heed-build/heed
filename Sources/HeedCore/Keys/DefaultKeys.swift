@@ -138,10 +138,10 @@ public enum DefaultKeys {
             ("u", "goal.undo"), ("w", "goal.sharpen"),
         ]),
         // A goal's Reviewers (R): A accepts a risk, s starts a session to fix, c asks why, N spawns a reviewer, r has
-        // them all look again.
+        // them all look again, y says the goal's bars are right.
         "goalreviewers": paneWith([
             ("A", "review.accept"), ("s", "review.fix"), ("c", "review.why"), ("N", "reviewer.spawn"),
-            ("r", "review.recheck"),
+            ("r", "review.recheck"), ("y", "goal.bars.accept"),
         ]),
         // A goal's Personas (P): s spawns the persona as a session, c as a chat, N as a reviewer; e edits its file,
         // r works the list out again, p shares (publishes) the persona to the library.

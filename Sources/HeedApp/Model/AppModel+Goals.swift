@@ -28,6 +28,39 @@ extension AppModel {
         endGoalEditing()
     }
 
+    /// `goal.overview`: the goal's overview, from whichever of its panes shows.
+    func showGoalOverview() {
+        view = .goals
+        endGoalEditing()
+        goals.show(.overview)
+    }
+
+    /// A command's key where the goal is what you are on (the list and the overview), else `:command`: the next-steps
+    /// card never shows a key that means something else there (`a` adds on the board, archives here).
+    func goalKeyText(_ command: String) -> String {
+        binds(command, in: "goals") ? keyText(for: command, in: "goals") : ":\(command)"
+    }
+
+    /// A tab of Goals' pane strip clicked: its pane, as its key opens it from the overview.
+    func showGoalPane(_ tab: GoalPaneTabs.Tab) {
+        guard clicksReachLists, goals.pane.rawValue != tab.pane else { return }
+        clickedOutsideTerminal()
+        showGoalOverview()
+        if tab.command != "goal.overview" { perform(CommandInvocation(name: tab.command)) }
+    }
+
+    /// `goal.guide`: the goal's next-steps card hidden, or shown again.
+    func toggleGoalGuide() {
+        guard let goal = goals.selected else { return say("no goal here") }
+        view = .goals
+        if goals.toggleGuide(goal) {
+            goals.show(.overview)
+            say("next steps for \(goal.title) show again")
+        } else {
+            say("next steps hidden; they come back if a step goes back, and :goal.guide shows them now")
+        }
+    }
+
     /// `'g`: from a session to its goal, the session under the cursor there; in Goals, from a session back to the goal.
     func jumpToGoal() {
         if view == .goals {
@@ -132,7 +165,11 @@ extension AppModel {
     /// The dialog's ⌘↩ or Create.
     func submitGoalForm() {
         guard let form = goals.form else { return }
-        guard !form.title.trimmingCharacters(in: .whitespaces).isEmpty else { return say("a goal needs a title") }
+        // What is wrong shows under its field, not in the status bar.
+        guard form.notes.blocking == nil else {
+            goals.form?.tried = true
+            return
+        }
         goals.form = nil
         textInputActive = false
         // Started as a swarm: the swarm form takes over with what was typed; the goal is made when it starts.
@@ -167,6 +204,8 @@ extension AppModel {
             case let .success(goal):
                 view = .goals
                 goals.point(to: goal.id)
+                // A new goal lands on its overview, where the next-steps card says what to do first.
+                goals.show(.overview)
                 say("goal \(goal.title) made" + (session.map { ", \($0.title) on it" } ?? ""))
                 planGoal(goal: goal.id)
                 mirrorNewGoal(goal, tracker: form.tracker, on: form.mirror)
@@ -280,6 +319,14 @@ extension AppModel {
 
     /// Keys while the new goal dialog or the GOAL.md editor has the keyboard: the text field takes the rest.
     func answerGoalText(_ stroke: KeyStroke) -> Bool {
+        if goals.sourceForm != nil {
+            switch stroke {
+            case .escape: cancelSourceForm()
+            case KeyStroke("CR", .command), KeyStroke("CR"): submitSourceForm()
+            default: return false
+            }
+            return true
+        }
         if goals.form != nil {
             switch stroke {
             case .escape: cancelGoalForm()

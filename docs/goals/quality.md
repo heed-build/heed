@@ -54,6 +54,13 @@ public-api = "plan 7, code 8, tests 7.5, docs 7, dx 8, security 7"
 When a new version changes the profile, the bars change with it at once, raised or lowered, and the Quality bars panel
 says what moved and why (`v4: DX first run now 8 (was –)`). heed spawns a reviewer for each lens that now needs one.
 
+### Saying the bars are right
+
+The bars heed works out are a suggestion until you have looked: the Quality bars panel in Reviewers says whether they
+are heed's or yours. `y` there (`:goal.bars.accept`) says they are right for this goal and records them as yours; a
+pin does the same. A goal's first steps wait for this, and if heed moves the bars afterwards (a new `GOAL.md` version
+changed the profile) they ask you to look again.
+
 ### Pinning a bar
 
 `:goal.bar <lens> <bar>` pins a bar for this goal only, over whatever the profile says; `:goal.bar perf off` drops a

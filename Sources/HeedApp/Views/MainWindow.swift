@@ -72,6 +72,7 @@ struct MainWindow: View {
         }
         .overlay {
             if model.goals.form != nil { GoalFormView() }
+            if model.goals.sourceForm != nil { SourceFormView() }
             if model.goals.swarmForm != nil { SwarmFormView() }
         }
         .overlay {
@@ -472,7 +473,8 @@ struct StatusBar: View {
             .map { "\(model.keyText(for: $0.0, in: "dashboard")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.goals.form != nil: "type the title and the goal · ⌘↩ create · ⎋ cancel"
         case .normal where model.goals.swarmForm != nil:
-            "the goal, where, the team, your say and limits · ⌘↩ ask the lead for a plan · ⎋ cancel"
+            "the goal, where (↩ adds a typed repo), the team, your say and limits · ⌘↩ ask the lead for a plan · "
+                + "⎋ cancel"
         case .normal where model.goals.planDraft != nil: "type it · ⌘↩ save · ⎋ cancel"
         case .normal where model.goals.draft != nil: "edit GOAL.md · ⎋ or ⌘S save as a new version"
         case .normal where model.goals.spawnTyping: "type the reviewer's instructions · ⌘↩ spawn · ⎋ cancel"

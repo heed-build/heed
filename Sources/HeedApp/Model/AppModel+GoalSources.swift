@@ -15,11 +15,13 @@ extension AppModel {
     // MARK: Commands
 
     /// `goal.source.add <query>`: a source on the goal, its Done when line with it, and a sync. No query: the
-    /// command line, with the goal's repo filled in.
-    func addGoalSource(_ words: [String]) {
-        guard let goal = sourceSubject else { return say("no goal here") }
+    /// source dialog, the query checked as it is typed.
+    func addGoalSource(_ words: [String], rule chosen: ItemSource.Rule? = nil) {
+        guard let goal = sourceSubject ?? goals.sourceForm.flatMap({ goals.snapshot.goal($0.goal) }) else {
+            return say("no goal here")
+        }
         let text = words.joined(separator: " ").trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return openCommandLine("goal.source.add prs " + (goalRepo(goal) ?? "")) }
+        guard !text.isEmpty else { return openSourceForm(goal, editing: nil) }
         let parsed: ItemSourceQuery.Parsed
         do {
             parsed = try ItemSourceQuery.parse(text, repo: goalRepo(goal))
@@ -29,7 +31,7 @@ extension AppModel {
         let now = Clock.now
         goals.run { ops in
             try await ops.addSource(goal: goal.id, ItemSource(
-                query: parsed.query, label: parsed.label, rule: parsed.rule, addedAt: now
+                query: parsed.query, label: parsed.label, rule: chosen ?? parsed.rule, addedAt: now
             ), now: now)
         } done: { [weak self] result in
             guard let self else { return }
@@ -59,14 +61,13 @@ extension AppModel {
     }
 
     /// `goal.source.edit <id> <query>`: a new query for the source; its items stay.
-    func editGoalSource(_ words: [String]) {
-        guard let goal = sourceSubject else { return say("no goal here") }
+    func editGoalSource(_ words: [String], rule chosen: ItemSource.Rule? = nil) {
+        guard let goal = sourceSubject ?? goals.sourceForm.flatMap({ goals.snapshot.goal($0.goal) }) else {
+            return say("no goal here")
+        }
         guard let id = sourceID(words.first, goal: goal, command: "goal.source.edit") else { return }
         let text = words.dropFirst().joined(separator: " ")
-        guard !text.isEmpty else {
-            let query = goals.snapshot.sources(of: goal.id).source(id)?.query ?? ""
-            return openCommandLine("goal.source.edit \(id) \(query)")
-        }
+        guard !text.isEmpty else { return openSourceForm(goal, editing: id) }
         let parsed: ItemSourceQuery.Parsed
         do {
             parsed = try ItemSourceQuery.parse(text, repo: goalRepo(goal))
@@ -75,7 +76,13 @@ extension AppModel {
         }
         let now = Clock.now
         goals.run { ops in
-            try await ops.editSource(goal: goal.id, id: id, query: parsed.query, label: parsed.label, now: now)
+            var source = try await ops.editSource(
+                goal: goal.id, id: id, query: parsed.query, label: parsed.label, now: now
+            )
+            if let chosen, chosen != source.rule {
+                source = try await ops.setSourceRule(goal: goal.id, id: id, chosen, now: now)
+            }
+            return source
         } done: { [weak self] result in
             switch result {
             case let .success(source):
@@ -164,6 +171,38 @@ extension AppModel {
             openCommandLine("\(command) ")
         }
         return nil
+    }
+
+    // MARK: The dialog
+
+    /// The source dialog for a new source on `goal`, or for changing `editing`'s query and rule.
+    func openSourceForm(_ goal: HeedGoal, editing: String?) {
+        let existing = editing.flatMap { goals.snapshot.sources(of: goal.id).source($0) }
+        goals.sourceForm = GoalsBrowser.SourceForm(
+            goal: goal.id, editing: editing, query: existing?.query ?? "", rule: existing?.rule, repo: goalRepo(goal)
+        )
+        textInputActive = true
+    }
+
+    /// The dialog's ⌘↩: what is wrong shows under its field; else the source is added or changed.
+    func submitSourceForm() {
+        guard let form = goals.sourceForm else { return }
+        guard form.notes.blocking == nil else {
+            goals.sourceForm?.tried = true
+            return
+        }
+        goals.sourceForm = nil
+        textInputActive = false
+        if let id = form.editing {
+            editGoalSource([id, form.query], rule: form.rule)
+        } else {
+            addGoalSource([form.query], rule: form.rule)
+        }
+    }
+
+    func cancelSourceForm() {
+        goals.sourceForm = nil
+        textInputActive = false
     }
 
     static func ruleText(_ source: ItemSource) -> String {

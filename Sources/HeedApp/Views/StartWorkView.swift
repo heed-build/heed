@@ -62,6 +62,11 @@ struct StartWorkView: View {
                 section("Worktree", .worktree, form) { worktreeField(form) }
             }
             section("Agent", .agent, form) { agentField(form) }
+            if form.fields.contains(.model) || form.fields.contains(.effort) {
+                section("Model", form.fields.contains(.model) ? .model : .effort, form, also: .effort) {
+                    modelField(form)
+                }
+            }
             section("Options", .options, form) { optionsField(form) }
             commandPreview(form)
             actions(form)
@@ -100,10 +105,12 @@ struct StartWorkView: View {
     }
 
     private func section(
-        _ title: String, _ field: StartWorkForm.Field, _ form: StartWorkForm, @ViewBuilder content: () -> some View
+        _ title: String, _ field: StartWorkForm.Field, _ form: StartWorkForm, also: StartWorkForm.Field? = nil,
+        @ViewBuilder content: () -> some View
     ) -> some View {
-        HStack(alignment: .top, spacing: 0) {
-            SectionHeader(title: title, tint: form.field == field ? Theme.fg : Theme.fg3)
+        let active = form.field == field || (also != nil && form.field == also)
+        return HStack(alignment: .top, spacing: 0) {
+            SectionHeader(title: title, tint: active ? Theme.fg : Theme.fg3)
                 .frame(width: 96, alignment: .leading)
                 .padding(.top, 6)
             VStack(alignment: .leading, spacing: 8) { content() }
@@ -111,7 +118,7 @@ struct StartWorkView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
-        .background(form.field == field ? Theme.bg3.opacity(0.5) : .clear)
+        .background(active ? Theme.bg3.opacity(0.5) : .clear)
         .overlay(alignment: .top) { Theme.line.frame(height: 1) }
         // A click on the section, not on one of its chips: that field has focus.
         .contentShape(Rectangle())
@@ -133,6 +140,14 @@ struct StartWorkView: View {
                     )
                     .onTapGesture { model.clickStartWork { $0.pickRepo(at: index) } }
                 }
+                // Typed repos that are not on this Mac yet: cloned when the work starts; a click drops one.
+                ForEach(form.typedRepos, id: \.self) { slug in
+                    choice("+ " + slug, detail: "clones", selected: false, secondary: true, focused: false)
+                        .onTapGesture { model.clickStartWork { $0.dropTyped(slug) } }
+                        .help(
+                            "Not on this Mac yet: cloned into \(form.cloneRoot) when the work starts. Click to drop it."
+                        )
+                }
                 if form.repoSearch == nil, !form.guesses.isEmpty {
                     choice(
                         "other repo…", detail: "/", selected: false,
@@ -149,7 +164,8 @@ struct StartWorkView: View {
                     .onTapGesture { model.clickStartWork { $0.pickRepo(at: $0.chatChipIndex) } }
                 }
             }
-            if let search = form.repoSearch { repoSearch(search) }
+            if let search = form.repoSearch { repoSearch(search, note: form.searchNote) }
+            FieldNoteView(note: form.cloneNote)
             if form.chat != nil {
                 Text("A chat: the agent works in a folder, with no repo, worktree or branch.")
                     .foregroundStyle(Theme.fg3)
@@ -165,7 +181,7 @@ struct StartWorkView: View {
     }
 
     /// Any repo by name: what is typed, then the best matches (most recently worked in first), the cursor on one.
-    private func repoSearch(_ search: Typeahead<RepoRecord>) -> some View {
+    private func repoSearch(_ search: Typeahead<RepoRecord>, note: FieldNote?) -> some View {
         let matches = search.matches
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
@@ -193,7 +209,12 @@ struct StartWorkView: View {
                 Text("\(matches.count - 8) more: keep typing").font(Theme.ui(11)).foregroundStyle(Theme.fg3)
                     .padding(.horizontal, 10).padding(.vertical, 5)
             }
-            Text("⌃n ⌃p move · ↩ add · ⎋ close").font(Theme.ui(11)).foregroundStyle(Theme.fg3)
+            // Nothing heed knows matches: what is typed is read as any repo (owner/name, a GitHub URL, a path).
+            if note != nil {
+                FieldNoteView(note: note).padding(.horizontal, 10).padding(.vertical, 5)
+            }
+            Text("⌃n ⌃p move · ↩ add · any repo: owner/name, a GitHub URL or a path · ⎋ close").font(Theme.ui(11))
+                .foregroundStyle(Theme.fg3)
                 .padding(.horizontal, 10).padding(.vertical, 6)
         }
         .frame(maxWidth: 460, alignment: .leading)
@@ -293,6 +314,81 @@ struct StartWorkView: View {
                 )
                 .onTapGesture { model.clickStartWork { $0.pickAgent(at: index) } }
             }
+        }
+    }
+
+    /// The agent's model and effort: chips that `h l` step through (a click opens the list), and the custom id typed
+    /// in once Custom… is picked.
+    @ViewBuilder private func modelField(_ form: StartWorkForm) -> some View {
+        if let catalog = form.catalog {
+            let efforts = ModelPicker.efforts(catalog, model: form.model, current: form.effort)
+            VStack(alignment: .leading, spacing: 6) {
+                FlowLayout {
+                    if catalog.takesModel {
+                        let option = ModelPicker.models(catalog).first { $0.tag == form.modelSelection }
+                        menu(ModelPicker.models(catalog).map { ($0.tag, ModelMenuPicker.text($0)) }) { tag in
+                            model.clickStartWork { $0.pickModel(tag) }
+                        } label: {
+                            choice(
+                                modelLabel(option, form), detail: option?.detail, selected: false,
+                                focused: form.field == .model && !form.editing
+                            )
+                        }
+                    }
+                    if form.customModel {
+                        Text((form.model ?? "") + (form.field == .model && form.editing ? "▌" : ""))
+                            .font(Theme.mono(12.5))
+                            .foregroundStyle(Theme.fg)
+                            .frame(minWidth: 160, alignment: .leading)
+                            .padding(.horizontal, 10).padding(.vertical, 7)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
+                            .overlay(RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(form.field == .model && form.editing ? Theme.fg2 : Theme.line))
+                            .overlay(alignment: .leading) {
+                                if (form.model ?? "").isEmpty, !(form.field == .model && form.editing) {
+                                    Text("model id").font(Theme.mono(12.5)).foregroundStyle(Theme.fg3).padding(
+                                        .leading,
+                                        10
+                                    )
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { model.clickStartWork { $0.focus(field: .model, edit: true) } }
+                    }
+                    if !efforts.isEmpty {
+                        let picked = efforts.first { $0.tag == (form.effort ?? ModelPicker.defaultTag) }
+                        menu(efforts.map { ($0.tag, $0.label) }) { tag in
+                            model.clickStartWork { $0.pickEffort(tag) }
+                        } label: {
+                            choice(
+                                "effort: " + (picked?.label ?? form.effort ?? ""), selected: false,
+                                focused: form.field == .effort
+                            )
+                        }
+                    }
+                }
+                if let problem = form.modelProblem, form.field == .model {
+                    Text(problem).font(Theme.ui(11.5)).foregroundStyle(Theme.block)
+                }
+            }
+        }
+    }
+
+    private func modelLabel(_ option: ModelPicker.Option?, _ form: StartWorkForm) -> String {
+        option?.label ?? form.model ?? "agent's default"
+    }
+
+    /// A chip that opens a menu of `items` (tag, title) on a click; the chip alone in shots.
+    @ViewBuilder private func menu(
+        _ items: [(String, String)], pick: @escaping (String) -> Void, @ViewBuilder label: () -> some View
+    ) -> some View {
+        if ShotMode.active {
+            label()
+        } else {
+            Menu {
+                ForEach(items, id: \.0) { item in Button(item.1) { pick(item.0) } }
+            } label: { label() }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         }
     }
 

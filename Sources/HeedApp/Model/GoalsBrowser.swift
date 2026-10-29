@@ -62,6 +62,26 @@ final class GoalsBrowser {
         var mirror = false
         /// Start it as a swarm: ⌘↩ goes on to the new swarm form instead of making the goal now.
         var swarm = false
+        /// ⌘↩ was pressed: what is missing shows under its field from now on.
+        var tried = false
+
+        /// What is wrong with it, by field (`FormChecks.goal`).
+        var notes: [FieldNote] { FormChecks.goal(title: title, tracker: tracker) }
+    }
+
+    /// The source dialog: a query (checked as it is typed) and its done rule, for a new source or one being changed.
+    struct SourceForm: Equatable {
+        var goal: String
+        /// The source being changed; nil for a new one.
+        var editing: String?
+        var query = ""
+        /// nil: the rule the query suggests.
+        var rule: ItemSource.Rule?
+        /// The goal's sessions' repo, for words that name none.
+        var repo: String?
+        var tried = false
+
+        var notes: [FieldNote] { FormChecks.source(query: query, repo: repo, rule: rule) }
     }
 
     /// The new swarm form, and the plan pane's typing and cursors (`GoalsBrowser+Swarm`).
@@ -109,6 +129,8 @@ final class GoalsBrowser {
     private(set) var versions: [GoalVersion] = []
     /// Each session's or chat's goal, by session id.
     private(set) var bySession: [String: HeedGoal] = [:]
+    /// GOAL.md changes answered (yes or no) whose answer has not come back from the store yet.
+    @ObservationIgnored var answering: Set<Int64> = []
     /// GOAL.md as it is being edited, while it is.
     var draft: String?
     var form: Form?
@@ -156,6 +178,13 @@ final class GoalsBrowser {
     @ObservationIgnored var changed: () -> Void = {}
     /// Called when another pane shows (the key scope follows).
     @ObservationIgnored var paneChanged: () -> Void = {}
+    /// Goals whose next-steps card was hidden (`goal.guide`), with the steps done then: it shows again when one of them
+    /// is no longer done. Kept in UserDefaults, except in the fake world.
+    var hiddenGuides: [String: Set<GoalStep>] = [:] {
+        didSet { if !isFixture, hiddenGuides != oldValue { Self.saveHiddenGuides(hiddenGuides) } }
+    }
+
+    @ObservationIgnored private(set) var isFixture = false
     /// Each goal's GitHub mirror, by goal id (`goal_mirrors`).
     private(set) var mirrors: [String: GoalMirrorState] = [:]
     /// The last read-only check of each tracker repo, by repo.
@@ -164,12 +193,18 @@ final class GoalsBrowser {
     @ObservationIgnored var mirrorSync: GoalMirrorSync?
     /// When each mirrored goal was last read back.
     @ObservationIgnored var lastMirrorPoll: [String: Date] = [:]
+    /// The source dialog (`goal.source.add`, `goal.source.edit` with no query), while open.
+    var sourceForm: SourceForm?
     /// Goals whose item sources are syncing now, and goals heed is reading for a source to propose.
     @ObservationIgnored var syncingSources: Set<String> = []
     @ObservationIgnored var detectingSources: Set<String> = []
 
     init(fixture: Bool) {
-        guard fixture else { return }
+        isFixture = fixture
+        guard fixture else {
+            hiddenGuides = Self.loadHiddenGuides()
+            return
+        }
         let fixtures = GoalMirrorFixtures.apply(to: GoalFixtures.all())
         let mirrors = GoalMirrorFixtures.states(fixtures)
         self.mirrors = mirrors
@@ -620,6 +655,7 @@ final class GoalsBrowser {
 
     func show(_ next: Pane) {
         pane = next
+        if next != .doc { draft = nil }
         leftPane()
     }
 
@@ -691,7 +727,10 @@ final class GoalsBrowser {
         done: @escaping @MainActor (Result<T, Error>) -> Void = { _ in }
     ) {
         guard let ops else { return done(.failure(GoalOpError.unknownGoal("goals.sqlite did not open"))) }
+        let load = fixtureLoad
         Task {
+            // In the fake world, the fixtures are laid in first: an operation sees them all, every time.
+            await load?.value
             let result: Result<T, Error>
             do { result = try await .success(operation(ops)) } catch { result = .failure(error) }
             if let snapshot = try? await ops.snapshot() { apply(snapshot) }

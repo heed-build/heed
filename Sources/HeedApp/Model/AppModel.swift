@@ -2463,6 +2463,7 @@ final class AppModel {
         case "swarm.followup": followUpSwarm()
         case "swarm.summary": rewriteSwarmSummary()
         case "swarm.stuck": setStuckSettings(command.arguments)
+        case "swarm.merge": setSwarmMerge(command.arguments.first)
         case "swarm.rule.delete": deleteRepeatRule(command.arguments.first)
         case "review.recheck": recheckReviewers(command.arguments)
         case "review.accept": acceptRisk()
@@ -4890,7 +4891,12 @@ final class AppModel {
         var title: String { pull?.title ?? session?.title ?? "#\(ref.number)" }
     }
 
-    func pilotSettings(for ref: PullRef) -> PilotSettings { config.pilot.resolve(ref.repo) }
+    /// A PR's pilot settings: its repo's, with get it merged as its swarm says when it is a swarm's PR.
+    func pilotSettings(for ref: PullRef) -> PilotSettings {
+        var settings = config.pilot.resolve(ref.repo)
+        if let merge = swarmPulls[ref.description]?.merge { settings.merge = merge.mode(repo: settings.merge) }
+        return settings
+    }
 
     /// What applies to a PR now: a choice made on it by hand, else its org or repo settings, else `[pilot]`.
     func pilot(for ref: PullRef) -> PullFeedback.Effective {
@@ -5704,6 +5710,20 @@ final class AppModel {
             logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: a run is working on it")
             return
         }
+        // A swarm PR's conflict or rebase goes back to its task's own worker, when that worker can take it.
+        if let pull = swarmPulls[ref.description], !SwarmHandback.needs(pipeline.items).isEmpty {
+            switch handbackRoute(pull) {
+            case let .worker(worker):
+                return returnToWorker(ref, pull: pull, worker: worker, items: pipeline.queued, session: session.id)
+            case let .wait(why):
+                pendingDelivery.insert(ref)
+                if explicit { flash = "#\(ref.number) waits: \(why)" }
+                logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(why)")
+                return
+            case let .pilot(why):
+                noteHandbackToPilot(pull, items: pipeline.queued, why: why)
+            }
+        }
         startingRuns.insert(ref.description)
         let items = pipeline.queued.count
         let sessionID = session.id
@@ -5742,7 +5762,7 @@ final class AppModel {
 
     /// Whether a PR is open, merged or closed, as last seen; nil before heed has seen it.
     /// Open, or not known yet (heed has not seen it): a PR the pilot can still act on.
-    private func isOpen(_ ref: PullRef) -> Bool { pullState(ref).map { $0 == .open } ?? true }
+    func isOpen(_ ref: PullRef) -> Bool { pullState(ref).map { $0 == .open } ?? true }
 
     private func pullState(_ ref: PullRef) -> PullRequest.State? {
         if let state = github.pull(ref)?.state { return state }
@@ -5750,7 +5770,7 @@ final class AppModel {
     }
 
     /// The queued items went out: the pipeline counts a round, the session and the pilot log say where to.
-    private func markSent(_ ref: PullRef, pipeline: inout PullFeedback, session: inout Session, to target: String) {
+    func markSent(_ ref: PullRef, pipeline: inout PullFeedback, session: inout Session, to target: String) {
         pendingDelivery.remove(ref)
         let count = pipeline.queued.count
         pipeline.markSent(at: pullDetails[ref.description]?.headSHA)

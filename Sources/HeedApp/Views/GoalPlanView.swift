@@ -88,6 +88,12 @@ private struct PlanOutline: View {
                         + swarm.settings.autonomy.title.lowercased()
                 )
                 .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
+                Text(
+                    "Get it merged: " + swarm.settings.merge.line(repo: model.swarmRepoMerge(swarm))
+                        .replacingOccurrences(of: "merge ", with: "", options: .anchored)
+                        + " · in merge order, a stacked PR after its parent"
+                )
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
                 if let schedule, swarm.approved != nil {
                     RunLine(swarm: swarm, tasks: model.runTasks(board), schedule: schedule)
                 }
@@ -1166,6 +1172,22 @@ struct SwarmFormView: View {
                 }
                 Text("Reaching a limit pauses new work and asks you. The lead never changes the goal or the limits.")
                     .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+                SectionHeader(title: "Get it merged")
+                HStack(spacing: 6) {
+                    ForEach(SwarmSettings.Merge.allCases, id: \.self) { merge in
+                        let picked = form.merge == merge
+                        Text(merge == .repo ? "as the repo says" : merge.rawValue).font(Theme.mono(11))
+                            .foregroundStyle(picked ? Theme.fg : Theme.fg3)
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 4).fill(picked ? Theme.chip : .clear))
+                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+                            .clickable()
+                            .onTapGesture { model.goals.swarmForm?.merge = merge }
+                    }
+                }
+                Text("Its PRs merge in merge order either way; nothing reaches the default branch unless this or the "
+                    + "repo turns get it merged on.")
+                    .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 18) {
                     Spacer()
                     KeyHint(keys: "<Esc>", label: "cancel")
@@ -1317,7 +1339,7 @@ private struct MergeOrder: View {
             }
             Text(
                 "A PR merges after what its task waits for; one stacked on another moves to where that one merged. "
-                    + "Each PR merges by its own get it merged setting: heed never merges to main on its own."
+                    + "Each PR merges by the get it merged in the header: heed never merges to main on its own."
             )
             .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
             FlowLayout(spacing: 14, lineSpacing: 6) {

@@ -174,6 +174,35 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
         }
     }
 
+    /// Get it merged for the swarm's PRs: what the repo says (the default), or a mode of the swarm's own. Either way
+    /// its PRs merge in merge order, a held child waits for its parent, and a PR's own choice (`zm`) wins over it.
+    public enum Merge: String, Hashable, Sendable, Codable, CaseIterable {
+        case repo, off, auto, heed
+
+        /// The mode a swarm PR gets, from what its repo's `[pilot]` settings say.
+        public func mode(repo: MergeMode) -> MergeMode {
+            switch self {
+            case .repo: repo
+            case .off: .off
+            case .auto: .auto
+            case .heed: .heed
+            }
+        }
+
+        /// The word `:swarm.merge` takes: `off`, `auto`, `heed`, or `repo` (also `follow`, `default`) for the repo's.
+        public static func named(_ word: String) -> Merge? {
+            switch word.lowercased() {
+            case "repo", "follow", "default": .repo
+            default: Merge(rawValue: word.lowercased())
+            }
+        }
+
+        /// `merge as the repo says (off)`, `merge auto`.
+        public func line(repo: MergeMode) -> String {
+            self == .repo ? "merge as the repo says (\(repo.configName))" : "merge \(rawValue)"
+        }
+    }
+
     /// `org/name` of the repos the swarm works in; the lead starts in the first.
     public var repos: [String]
     public var lead: GoalItem.Owner
@@ -182,11 +211,15 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
     public var autonomy: Autonomy
     /// When a worker counts as stuck, and how long a question may wait on a peer or on you.
     public var stuck: SwarmStuck.Settings
+    /// Get it merged for its PRs.
+    public var merge: Merge
 
     public init(
         repos: [String] = [], lead: GoalItem.Owner = GoalItem.Owner(agent: "claude"), workers: [Worker] = [],
-        limits: Limits = Limits(), autonomy: Autonomy = .planChanges, stuck: SwarmStuck.Settings = .defaults
+        limits: Limits = Limits(), autonomy: Autonomy = .planChanges, stuck: SwarmStuck.Settings = .defaults,
+        merge: Merge = .repo
     ) {
+        self.merge = merge
         self.repos = repos
         self.lead = lead
         self.workers = workers
@@ -196,10 +229,10 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case repos, lead, workers, limits, autonomy, stuck
+        case repos, lead, workers, limits, autonomy, stuck, merge
     }
 
-    /// Settings stored before stuck detection read with its defaults.
+    /// Settings stored before stuck detection (or the merge setting) read with their defaults.
     public init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
         repos = try values.decode([String].self, forKey: .repos)
@@ -208,6 +241,7 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
         limits = try values.decode(Limits.self, forKey: .limits)
         autonomy = try values.decode(Autonomy.self, forKey: .autonomy)
         stuck = try values.decodeIfPresent(SwarmStuck.Settings.self, forKey: .stuck) ?? .defaults
+        merge = try values.decodeIfPresent(Merge.self, forKey: .merge) ?? .repo
     }
 
     /// The agents the lead may assign tasks to: the workers' agents, or the lead's when there are none.
@@ -342,6 +376,9 @@ public struct SwarmSteer: Hashable, Sendable, Codable, Identifiable {
         case summary
         /// You deleted a repeat rule (`about`): the controller no longer answers with it.
         case unrule
+        /// A PR's merge conflict or rebase went back to the task's own worker (heed, `ref` its task), or to a get it
+        /// merged run because that worker could not take it (`reason` says why).
+        case handback
     }
 
     public enum State: String, Hashable, Sendable, Codable, CaseIterable {

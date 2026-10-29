@@ -95,3 +95,14 @@ runs:
         restore-keys: |
           ${{ env.SWIFTPM_CACHE_DEPS }}
           ${{ env.SWIFTPM_CACHE_BASE }}-
+
+    # A build description names the tools by absolute path, and the Metal compiler lives under a cryptex mount whose
+    # name differs per runner; a restored description fails with "unable to spawn .../Metal.xctoolchain/usr/bin/metal".
+    # Dropping the descriptions makes the build plan again with this runner's tools; build.db and the compiled
+    # products stay, so the build is still incremental.
+    - name: Forget the restored build descriptions
+      shell: bash
+      run: |
+        data=.build/out/Intermediates.noindex/XCBuildData
+        [ -d "$data" ] || exit 0
+        rm -rf "$data"/*.xcbuilddata "$data/prior-build-descriptions.txt"

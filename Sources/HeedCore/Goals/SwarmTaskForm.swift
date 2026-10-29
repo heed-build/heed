@@ -1,12 +1,16 @@
 import Foundation
 
 /// A plan task as you type it in the plan pane: its fields as text, read back into a task (`after` as plan numbers
-/// like `1.2` or ids, done-when one check per line, the owner as `agent` or `agent:model`, the host as a host's name,
-/// `local`, or empty for where the swarm runs).
+/// like `1.2` or ids, done-when one check per line, the host as a host's name, `local`, or empty for where the swarm
+/// runs). The owner is picked: an agent (empty: none), its model and effort (empty: the agent's default).
 public struct SwarmTaskForm: Hashable, Sendable {
     public var title = ""
     public var phase = ""
-    public var owner = ""
+    /// The owner's agent; empty: no owner.
+    public var agent = ""
+    /// Its model (a known one or a custom id) and effort; empty: the agent's default.
+    public var model = ""
+    public var effort = ""
     public var estimate = ""
     public var after = ""
     public var doneWhen = ""
@@ -19,7 +23,9 @@ public struct SwarmTaskForm: Hashable, Sendable {
         let numbers = SwarmPlan.numbers(tasks)
         title = task.title
         phase = task.phase
-        owner = task.owner.map { owner in owner.model.map { "\(owner.agent):\($0)" } ?? owner.agent } ?? ""
+        agent = task.owner?.agent ?? ""
+        model = task.owner?.model ?? ""
+        effort = task.owner?.effort ?? ""
         estimate = task.estimate.map(SwarmEstimate.text) ?? ""
         after = task.after.map { numbers[$0] ?? SwarmPlan.short($0) }.joined(separator: ", ")
         doneWhen = task.doneWhen.joined(separator: "\n")
@@ -47,11 +53,14 @@ public struct SwarmTaskForm: Hashable, Sendable {
             guard found != id else { return .failure(Problem("a task cannot wait for itself", field: "after")) }
             if !waits.contains(found) { waits.append(found) }
         }
-        let parts = owner.split(separator: ":").map { $0.trimmingCharacters(in: .whitespaces) }
-        let who = parts.first.flatMap { $0.isEmpty ? nil : GoalItem.Owner(
-            agent: $0,
-            model: parts.count > 1 ? parts[1] : nil
-        ) }
+        let agent = agent.trimmingCharacters(in: .whitespaces)
+        let model = model.trimmingCharacters(in: .whitespaces)
+        if !agent.isEmpty, !model.isEmpty, let problem = ModelPicker.problem(custom: model) {
+            return .failure(Problem("the owner's model: \(problem)", field: "owner"))
+        }
+        let who = agent.isEmpty ? nil : GoalItem.Owner(
+            agent: agent, model: model, effort: effort.trimmingCharacters(in: .whitespaces).lowercased()
+        )
         let phase = GoalDoc.oneLine(phase)
         let place: String?
         switch SwarmPlace.parse(host, hosts: hosts) {

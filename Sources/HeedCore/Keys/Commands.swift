@@ -69,7 +69,7 @@ public enum Commands {
         .init(
             "agent.switch", "hand the session to another agent: stop its agent, start that one on a handoff prompt",
             .move,
-            arguments: "[agent]"
+            arguments: "[agent] [model] [effort]"
         ),
         .init("view.history", "history", .move),
         .init("goal.jump", "go to the session's goal; in Goals, to the goal of the session under the cursor", .move),

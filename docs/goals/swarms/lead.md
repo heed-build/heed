@@ -40,7 +40,7 @@ for you ([Approving](plan.md#approving)). `--json` on any of them answers as JSO
 - `id` names a task in `after`. An id of an item already on the goal takes that item into the plan. Without an id a
   task keeps the id of the current plan's task with the same title, or gets one from its title.
 - `phase` is the phase it is in; without one, the phase of the task before it.
-- `owner` is an agent, `agent:model`, or `{"agent": …, "model": …}`.
+- `owner` is an agent, `agent:model`, or `{"agent": …, "model": …, "effort": …}`.
 - `estimate` is minutes, or `15m`, `1h 30m`, `1.5h`.
 - `doneWhen` is one check or a list: what evidence must show for the task to be done.
 - `host` is where its worker runs when not where the swarm does: a host's name (`devbox`), or `local` for your Mac

@@ -121,6 +121,10 @@ public struct OverrideKey: Identifiable, Sendable {
         case color
         /// One of the configured agents (the app lists them); empty: the session's.
         case agent
+        /// A model of the agent the key `agent` names (`ModelPicker`); empty: that agent's default.
+        case model(agent: String)
+        /// A reasoning effort of that agent with the model `model` names; empty: the agent's default.
+        case effort(agent: String, model: String)
         /// Free text over several lines: instructions added to a prompt.
         case instructions
         /// A GitHub repo as `org/name`; emptied, the override is removed and the value inherits.
@@ -239,10 +243,18 @@ public enum Overrides {
         pilot(
             "model",
             "Run model",
-            "Its model (haiku, gpt-5-codex…); empty: the agent's default.",
-            .text,
+            "Its model; the agent's default when unset.",
+            .model(agent: "agent"),
             { $0.model.map(OverrideValue.text) },
             { .text($0.model ?? "") }
+        ),
+        pilot(
+            "effort",
+            "Run effort",
+            "Its reasoning effort, for agents that take one; the agent's default when unset.",
+            .effort(agent: "agent", model: "model"),
+            { $0.effort.map(OverrideValue.text) },
+            { .text($0.effort ?? "") }
         ),
         pilot(
             "merge_agent",
@@ -255,10 +267,18 @@ public enum Overrides {
         pilot(
             "merge_model",
             "Conflict model",
-            "Its model; empty: the run model (with a conflict agent, its default).",
-            .text,
+            "Its model; unset: the run model (with a conflict agent, its default).",
+            .model(agent: "merge_agent"),
             { $0.mergeModel.map(OverrideValue.text) },
             { .text($0.mergeModel ?? "") }
+        ),
+        pilot(
+            "merge_effort",
+            "Conflict effort",
+            "Its effort; unset: the run effort (with a conflict agent, its default).",
+            .effort(agent: "merge_agent", model: "merge_model"),
+            { $0.mergeEffort.map(OverrideValue.text) },
+            { .text($0.mergeEffort ?? "") }
         ),
         pilot(
             "merge",
@@ -440,8 +460,8 @@ public enum Overrides {
         ("New worktrees", .general, ["setup"]),
         ("Goals", .general, ["goals_tracker", "goals_mirror"]),
         ("Watching", .general, ["watch"]),
-        ("Get it green", .green, ["green", "max_rounds", "run_in", "agent", "model"]),
-        ("Merge conflicts", .green, ["merge_agent", "merge_model"]),
+        ("Get it green", .green, ["green", "max_rounds", "run_in", "agent", "model", "effort"]),
+        ("Merge conflicts", .green, ["merge_agent", "merge_model", "merge_effort"]),
         ("Get it merged", .merged, ["merge", "merge_method", "update_branches", "admin_merge"]),
         ("Before heed merges", .merged, ["quiet_minutes", "gate_checks", "hold_labels"]),
         ("Merging by hand", .merged, ["merge_now", "force_merge"]),
@@ -499,6 +519,30 @@ public enum Overrides {
         }
         if case let .repo(repo) = scope, let org = key.read(config, .org(repo.org)) { return (org, .org) }
         return (key.fallback(config), .default)
+    }
+
+    /// The text a key holds at a scope (its effective value), or nil when that is empty.
+    static func text(_ id: String, at scope: OverrideScope, in config: HeedConfig) -> String? {
+        guard let key = keys.first(where: { $0.id == id }),
+              case let .text(text) = effective(key, at: scope, in: config).value, !text.isEmpty
+        else { return nil }
+        return text
+    }
+
+    /// The agent a model or effort key at a scope picks for: what `agent` (a conflict key: `merge_agent`, else the
+    /// run agent) says there, else the default agent, standing in for "the session's".
+    public static func pickerAgent(_ agentKey: String, at scope: OverrideScope, in config: HeedConfig) -> String {
+        text(agentKey, at: scope, in: config)
+            ?? (agentKey == "merge_agent" ? text("agent", at: scope, in: config) : nil)
+            ?? config.work.defaultAgent
+    }
+
+    /// The model an effort key at a scope picks for, as `pickerAgent`: a conflict effort falls back to the run model
+    /// when the conflict agent is the run agent's.
+    public static func pickerModel(_ modelKey: String, at scope: OverrideScope, in config: HeedConfig) -> String? {
+        if let own = text(modelKey, at: scope, in: config) { return own }
+        guard modelKey == "merge_model", text("merge_agent", at: scope, in: config) == nil else { return nil }
+        return text("model", at: scope, in: config)
     }
 
     /// The keys set at a scope (its own overrides), plus the repo's tasks.

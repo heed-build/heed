@@ -157,6 +157,7 @@ struct PilotPlanTests {
         run_in: background (default)
         agent: codex (org acme)
         model: big-model (repo)
+        effort: none (default)
         run_timeout: 30m (default)
         green_instructions: Run the linter first. (org acme)
         """)

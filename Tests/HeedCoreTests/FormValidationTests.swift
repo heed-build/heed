@@ -67,6 +67,10 @@ struct FormValidationTests {
         #expect(field { $0.after = "9.9" } == "after")
         #expect(field { $0.after = "g/a" } == "after")
         #expect(field { $0.host = "gpu" } == "host")
+        #expect(field {
+            $0.agent = "claude"
+            $0.model = "has spaces"
+        } == "owner")
         #expect(field { _ in } == nil)
     }
 
@@ -327,7 +331,8 @@ struct FormValidationTests {
             ]),
             ("Sources/HeedApp/Views/GoalPlanView.swift", "private struct PlanEditor", [
                 "note: \"title\", notes", "note: \"host\", notes", "note: \"estimate\", notes",
-                "note: \"after\", notes", "note: \"text\", notes", "FieldNoteView(note: notes.note(for: note",
+                "note: \"after\", notes", "note: \"text\", notes", "notes.note(for: \"owner\"",
+                "FieldNoteView(note: notes.note(for: note",
             ]),
         ]
         // Start work's repo search says what a typed repo is, and the clone, under the repo field.

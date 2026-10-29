@@ -138,8 +138,9 @@ extension AppModel {
         defer { startingWorkers.remove(task.id) }
         let numbers = SwarmPlan.numbers(tasks)
         let number = numbers[task.id] ?? ""
-        let owner = back?.owner ?? task.owner
-            ?? GoalItem.Owner(agent: swarm.settings.team.first ?? swarm.settings.lead.agent)
+        let owner = swarm.settings.resolved(
+            back?.owner ?? task.owner ?? GoalItem.Owner(agent: swarm.settings.team.first ?? swarm.settings.lead.agent)
+        )
         let branch = SwarmWork.branch(of: task, goal: goal.id)
         let now = Clock.now
         func fail(_ reason: String) async {
@@ -230,7 +231,8 @@ extension AppModel {
             prompt: prompt,
             extraArguments: told
                 + AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: files),
-            environment: AgentIntegration.launchEnvironment(agent: agent, files: files), model: owner.model
+            environment: AgentIntegration.launchEnvironment(agent: agent, files: files), model: owner.model,
+            effort: owner.effort
         )
         let title = SwarmWork.title(number: number)
         let pane = PaneSpec(

@@ -870,10 +870,11 @@ private struct PlanEditor: View {
                 field("Title", \.fields.title, note: "title", notes)
                 HStack(alignment: .top, spacing: 8) {
                     field("Phase", \.fields.phase)
-                    field("Owner (agent:model)", \.fields.owner)
                     field("Host (empty: the swarm's)", \.fields.host, note: "host", notes)
                     field("Estimate", \.fields.estimate, note: "estimate", notes).frame(width: 80)
                 }
+                owner
+                FieldNoteView(note: notes.note(for: "owner", tried: draft.tried))
                 field("After (1.2, 2.1)", \.fields.after, note: "after", notes)
                 field("Done when (one per line)", \.fields.doneWhen, lines: 3)
             } else {
@@ -892,6 +893,54 @@ private struct PlanEditor: View {
             }
         }
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.block.opacity(0.6)))
+    }
+
+    /// The owner: an agent from a menu (or none), then its model and effort, picked like the swarm form's.
+    private var owner: some View {
+        let fields = draft.fields
+        let agentText = fields.agent.isEmpty ? "no owner" : fields.agent
+        let label = Text(agentText + " ▾").font(Theme.mono(11.5)).foregroundStyle(Theme.fg)
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("Owner").font(Theme.ui(10.5)).foregroundStyle(Theme.fg3)
+            HStack(spacing: 6) {
+                if ShotMode.active {
+                    label
+                } else {
+                    Menu {
+                        Button("no owner") { setOwner(agent: "") }
+                        ForEach(model.settings.agents.map(\.name), id: \.self) { name in
+                            Button(name) { setOwner(agent: name) }
+                        }
+                    } label: { label }
+                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                }
+                if !fields.agent.isEmpty {
+                    let catalog = model.modelCatalog(fields.agent)
+                    ModelChips(
+                        catalog: catalog, model: fields.model.isEmpty ? nil : fields.model,
+                        effort: fields.effort.isEmpty ? nil : fields.effort,
+                        setModel: { next in
+                            let effort = model.goals.planDraft?.fields.effort ?? ""
+                            model.goals.planDraft?.fields.model = next ?? ""
+                            model.goals.planDraft?.fields.effort = ModelPicker.effort(
+                                effort.isEmpty ? nil : effort, after: next, in: catalog
+                            ) ?? ""
+                        },
+                        setEffort: { model.goals.planDraft?.fields.effort = $0 ?? "" }
+                    )
+                }
+            }
+        }
+    }
+
+    /// Another agent: its own default model and effort.
+    private func setOwner(agent: String) {
+        guard model.goals.planDraft?.fields.agent != agent else { return }
+        model.goals.planDraft?.fields.agent = agent
+        model.goals.planDraft?.fields.model = ""
+        model.goals.planDraft?.fields.effort = ""
     }
 
     private var title: String {
@@ -1147,20 +1196,40 @@ struct SwarmFormView: View {
                 SectionHeader(title: "Team")
                 HStack(spacing: 8) {
                     Text("lead").font(Theme.ui(12)).foregroundStyle(Theme.fg3).frame(width: 52, alignment: .leading)
-                    agentChip(form.lead.agent) { next in model.goals.swarmForm?.lead.agent = next }
-                    modelField(
-                        get: { model.goals.swarmForm?.lead.model ?? "" },
-                        set: { model.goals.swarmForm?.lead.model = $0.isEmpty ? nil : $0 }
+                    agentChip(form.lead.agent) { next in model.goals.swarmForm?.lead = GoalItem.Owner(agent: next) }
+                    let leadCatalog = model.modelCatalog(form.lead.agent)
+                    ModelChips(
+                        catalog: leadCatalog, model: form.lead.model, effort: form.lead.effort,
+                        setModel: { next in
+                            guard let lead = model.goals.swarmForm?.lead else { return }
+                            model.goals.swarmForm?.lead = GoalItem.Owner(
+                                agent: lead.agent, model: next,
+                                effort: ModelPicker.effort(lead.effort, after: next, in: leadCatalog)
+                            )
+                        },
+                        setEffort: { model.goals.swarmForm?.lead.effort = $0 }
                     )
                 }
                 ForEach(Array(form.workers.enumerated()), id: \.offset) { index, worker in
                     HStack(spacing: 8) {
                         Text(index == 0 ? "workers" : "").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                             .frame(width: 52, alignment: .leading)
-                        agentChip(worker.agent) { next in model.goals.swarmForm?.workers[index].agent = next }
-                        modelField(
-                            get: { model.goals.swarmForm?.workers[index].model ?? "" },
-                            set: { model.goals.swarmForm?.workers[index].model = $0.isEmpty ? nil : $0 }
+                        agentChip(worker.agent) { next in
+                            guard let count = model.goals.swarmForm?.workers[index].count else { return }
+                            model.goals.swarmForm?.workers[index] = SwarmSettings.Worker(agent: next, count: count)
+                        }
+                        let catalog = model.modelCatalog(worker.agent)
+                        ModelChips(
+                            catalog: catalog, model: worker.model, effort: worker.effort,
+                            setModel: { next in
+                                guard let worker = model.goals.swarmForm?.workers[index] else { return }
+                                model.goals.swarmForm?.workers[index] = SwarmSettings.Worker(
+                                    agent: worker.agent, model: next,
+                                    effort: ModelPicker.effort(worker.effort, after: next, in: catalog),
+                                    count: worker.count
+                                )
+                            },
+                            setEffort: { model.goals.swarmForm?.workers[index].effort = $0 }
                         )
                         Stepper(text: "×\(worker.count)") { delta in
                             guard let count = model.goals.swarmForm?.workers[index].count else { return }
@@ -1300,21 +1369,6 @@ struct SwarmFormView: View {
                 set(agents[(index + 1) % agents.count])
             }
             .help("Click for the next agent")
-    }
-
-    private func modelField(get: @escaping () -> String, set: @escaping (String) -> Void) -> some View {
-        Group {
-            if ShotMode.active {
-                Text(get().isEmpty ? "default model" : get()).foregroundStyle(get().isEmpty ? Theme.fg3 : Theme.fg)
-                    .frame(width: 130, alignment: .leading)
-            } else {
-                TextField("default model", text: Binding(get: get, set: set)).textFieldStyle(.plain).frame(width: 130)
-            }
-        }
-        .font(Theme.mono(11.5))
-        .padding(.horizontal, 6).padding(.vertical, 3)
-        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg))
-        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
     }
 
     private func textField(

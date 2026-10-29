@@ -220,11 +220,13 @@ private struct InferenceGroup: View {
                 let detected = statuses.first { $0.name == only }?.detectedModel
                 Field(
                     label: "Model",
-                    detail: "Empty: \(detected.map { "\($0), detected" } ?? "the agent's own default"). "
+                    detail: "Default: \(detected.map { "\($0), detected" } ?? "the agent's own default"). "
                         + "[agents.\(only)] llm_model."
                 ) {
-                    ConfigTextField(path: ["agents", only, "llm_model"], value: llm.model(for: only) ?? "")
-                        .frame(width: 260)
+                    ConfigModelPicker(
+                        agent: only, modelPath: ["agents", only, "llm_model"], modelValue: llm.model(for: only),
+                        defaultLabel: detected.map { "detected (\($0))" }
+                    )
                 }
             }
             Field(

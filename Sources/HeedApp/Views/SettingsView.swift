@@ -430,6 +430,21 @@ private struct AgentSettings: View {
                     .labelsHidden()
                     .frame(width: 300)
                 }
+                if agent.modelFlag != nil || agent.effortFlag != nil {
+                    Field(
+                        label: "Model",
+                        detail: "What its sessions start on when nothing else picks one (Start work, a swarm, a "
+                            + "handoff); the agent's own default when unset."
+                            + (agent.effortFlag == nil ? "" : " Effort is its reasoning effort.")
+                    ) {
+                        ConfigModelPicker(
+                            agent: agent.name, modelPath: ["agents", agent.name, "model"], modelValue: agent.model,
+                            effortPath: agent.effortFlag == nil ? nil : ["agents", agent.name, "effort"],
+                            effortValue: agent.effort, defaultLabel: "\(agent.name)'s own default",
+                            effortDefaultLabel: "its own default"
+                        )
+                    }
+                }
                 Field(label: "Plan first", detail: "Arguments added when Start work's “Plan first” is on.") {
                     ConfigTextField(path: ["agents", agent.name, "plan"], value: agent.planArguments ?? "")
                 }
@@ -506,10 +521,13 @@ private struct ModelCallSettings: View {
             }
             Field(
                 label: "Model",
-                detail: "Empty: \(status?.detectedModel.map { "\($0), detected" } ?? "the agent's own default")."
+                detail: "Default: \(status?.detectedModel.map { "\($0), detected" } ?? "the agent's own default")."
             ) {
-                ConfigTextField(path: ["agents", agent.name, "llm_model"], value: settings.model(for: agent.name) ?? "")
-                    .frame(width: 260)
+                ConfigModelPicker(
+                    agent: agent.name, modelPath: ["agents", agent.name, "llm_model"],
+                    modelValue: settings.model(for: agent.name),
+                    defaultLabel: status?.detectedModel.map { "detected (\($0))" }
+                )
             }
             Field(label: "Test", detail: "One tiny call to this agent alone; it shows in :log.") {
                 TestResult(agent: agent.name)
@@ -784,9 +802,14 @@ private struct PilotSettingsView: View {
             }
             Field(
                 label: "Run model",
-                detail: "Its model (haiku, gpt-5-codex, openai/gpt-5…); the agent's default when empty."
+                detail: "Its model and reasoning effort; the agent's defaults when unset. Custom… takes any id the "
+                    + "agent knows."
             ) {
-                ConfigTextField(path: ["pilot", "model"], value: pilot.defaults.model ?? "")
+                ConfigModelPicker(
+                    agent: pilot.defaults.agent ?? model.settings.defaultAgent, modelPath: ["pilot", "model"],
+                    modelValue: pilot.defaults.model, effortPath: ["pilot", "effort"],
+                    effortValue: pilot.defaults.effort
+                )
             }
             Field(
                 label: "Conflict agent",
@@ -807,9 +830,17 @@ private struct PilotSettingsView: View {
             }
             Field(
                 label: "Conflict model",
-                detail: "Its model; the run model when empty (with a conflict agent of its own, that agent's default)."
+                detail: "Its model and effort; the run model's when unset (with a conflict agent of its own, that "
+                    + "agent's defaults)."
             ) {
-                ConfigTextField(path: ["pilot", "merge_model"], value: pilot.defaults.mergeModel ?? "")
+                let ownAgent = pilot.defaults.mergeAgent != nil
+                ConfigModelPicker(
+                    agent: pilot.defaults.mergeAgent ?? pilot.defaults.agent ?? model.settings.defaultAgent,
+                    modelPath: ["pilot", "merge_model"], modelValue: pilot.defaults.mergeModel,
+                    effortPath: ["pilot", "merge_effort"], effortValue: pilot.defaults.mergeEffort,
+                    defaultLabel: ownAgent ? nil : "the run model",
+                    effortDefaultLabel: ownAgent ? nil : "the run effort"
+                )
             }
             Field(label: "Run timeout", detail: "A run still working after this long is stopped.") {
                 DurationPicker(

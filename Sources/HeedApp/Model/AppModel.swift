@@ -2368,7 +2368,11 @@ final class AppModel {
         case "pr.track": trackPull(command.arguments.first)
         case "pr.untrack": untrackPull(command.arguments.first)
         case "select.pin": pinSelected()
-        case "agent.switch": switchAgent(to: command.arguments.first)
+        case "agent.switch":
+            switchAgent(
+                to: command.arguments.first, model: command.arguments.dropFirst().first,
+                effort: command.arguments.dropFirst(2).first
+            )
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "", chat: currentSession?.isChat == true)
         case "chat.promote": promoteChat()
         case "chat.new": openStartWork(prompt: command.arguments.joined(separator: " "), fromCursor: false, chat: true)
@@ -2801,6 +2805,7 @@ final class AppModel {
         context.hosts = Array(Set(config.hosts.keys).union(sessions.compactMap(\.host))).sorted()
         context.agents = settings.agents.map(\.name)
         context.currentAgent = currentSession?.agent
+        context.catalogs = settings.agents.reduce(into: [:]) { $0[$1.name] = modelCatalog($1.name) }
         context.mergeRepos = mergeQueues.keys.sorted()
         context.issueRepos = issueRepoCounts.map(\.repo.name)
         let choices = timeline.choices
@@ -5322,6 +5327,7 @@ final class AppModel {
         let chosen = pilotSettings(for: ref).runAgent(for: goal)
         let agentName = chosen.agent ?? session.agent
         let model = chosen.model
+        let effort = chosen.effort
         func fail(_ reason: String) -> String? {
             var run = PilotRun(
                 ref: ref, sessionID: sessionID, goal: goal, agent: agentName, model: model,
@@ -5388,7 +5394,7 @@ final class AppModel {
             ) }
                 ?? [],
             environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:],
-            model: model
+            model: model, effort: effort
         )
         let pane = PaneSpec(
             role: .helper, title: goal.rawValue, directory: worktree,
@@ -6584,6 +6590,7 @@ final class AppModel {
             settings: settings, prompt: prompt, integration: integration, hostIntegrations: hostIntegrations(),
             hosts: config.hosts.keys.sorted(), chat: chat, promotion: promotion
         )
+        form.catalogs = settings.agents.reduce(into: [:]) { $0[$1.name] = modelCatalog($1.name) }
         if promotion != nil {
             form.instructions = repos.reduce(into: [:]) { result, record in
                 let text = config.pilot.resolve(record.repo).startInstructions
@@ -6818,9 +6825,10 @@ final class AppModel {
     /// Agent panes replaced by a handoff: what their old agent still says on its way out is nobody's news.
     private var retiredPanes: Set<String> = []
 
-    /// `agent.switch <agent>`: hands the session to another agent, asking first while its own still runs. With no
-    /// agent named, the command line opens on `agent.switch ` and offers the others.
-    private func switchAgent(to name: String?) {
+    /// `agent.switch <agent> [model] [effort]`: hands the session to another agent (on that model and effort; `-` for
+    /// the agent's default model), asking first while its own still runs. With no agent named, the command line opens
+    /// on `agent.switch ` and offers the others.
+    private func switchAgent(to name: String?, model: String? = nil, effort: String? = nil) {
         guard let session = currentSession else { return flash = "no session to hand off" }
         guard let name, !name.isEmpty else {
             guard !Handoff.candidates(agents: settings.agents.map(\.name), current: session.agent).isEmpty else {
@@ -6832,10 +6840,13 @@ final class AppModel {
             return flash = "no agent \(name) (\(settings.agents.map(\.name).joined(separator: ", ")))"
         }
         guard agent.name != session.agent else { return flash = "\(session.agent) already has \(session.title)" }
+        let choice = Handoff.Choice(model: model, effort: effort)
         guard let layout = layouts[session.id], agentPane(in: layout) != nil else {
             return flash = "\(session.title) has no pane to start \(agent.name) in"
         }
-        guard session.agent != "shell", session.state.state != .exited else { return handOff(session.id, to: agent) }
+        guard session.agent != "shell", session.state.state != .exited else {
+            return handOff(session.id, to: agent, choice)
+        }
         ask(Confirmation(
             title: "Hand off to \(agent.name)?",
             lines: [
@@ -6844,7 +6855,7 @@ final class AppModel {
                     : "\(agent.name) starts in the same worktree, told the task and to read git for what is done",
             ],
             accept: "Hand off"
-        ) { [weak self] in self?.handOff(session.id, to: agent) })
+        ) { [weak self] in self?.handOff(session.id, to: agent, choice) })
     }
 
     /// Opens the command line with `text` typed, its completions listed.
@@ -6860,7 +6871,7 @@ final class AppModel {
     /// Replaces the session's agent pane, in the same place, with one running `agent` on a handoff prompt, launched as
     /// Start work launches it (heed's hooks, its own session id, cursor's hooks file). The old pane's terminal ends
     /// with it, its zmx session too, so the old agent is stopped rather than left running unseen.
-    private func handOff(_ id: String, to agent: AgentProfile) {
+    private func handOff(_ id: String, to agent: AgentProfile, _ choice: Handoff.Choice = Handoff.Choice()) {
         guard !isFixture, tutor == nil else { return flash = "fixture: no IO" }
         guard let session = sessions.first(where: { $0.id == id }), let layout = layouts[id],
               let (_, paneID) = agentPane(in: layout),
@@ -6896,7 +6907,8 @@ final class AppModel {
                     )
                 )
             } ?? [],
-            environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
+            environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:],
+            model: choice.model, effort: choice.effort
         )
         let fresh = PaneSpec(
             role: .agent, title: agent.name, directory: pane.directory, command: command, location: pane.location

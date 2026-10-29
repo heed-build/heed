@@ -311,6 +311,10 @@ private struct OverrideRow: View {
 
     private var path: [String] { scope.path + [key.id] }
 
+    private func text(_ value: OverrideValue) -> String? {
+        if case let .text(text) = value, !text.isEmpty { text } else { nil }
+    }
+
     @ViewBuilder private func editor(_ value: OverrideValue) -> some View {
         switch key.kind {
         case .bool:
@@ -339,6 +343,25 @@ private struct OverrideRow: View {
             }
             .labelsHidden()
             .frame(width: 160)
+        case let .model(agentKey):
+            let agent = Overrides.pickerAgent(agentKey, at: scope, in: model.config)
+            ModelMenuPicker(
+                catalog: model.modelCatalog(agent), value: text(value),
+                // The default is the override removed: the value inherits.
+                set: { $0.map { model.setConfig(path, .string($0)) } ?? model.unsetConfig(path) }
+            )
+        case let .effort(agentKey, modelKey):
+            let agent = Overrides.pickerAgent(agentKey, at: scope, in: model.config)
+            let catalog = model.modelCatalog(agent)
+            if ModelPicker.efforts(catalog, model: nil).isEmpty, text(value) == nil {
+                Text("\(agent) takes no effort").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            } else {
+                EffortMenuPicker(
+                    catalog: catalog, model: Overrides.pickerModel(modelKey, at: scope, in: model.config),
+                    value: text(value),
+                    set: { $0.map { model.setConfig(path, .string($0)) } ?? model.unsetConfig(path) }
+                )
+            }
         case let .integer(range):
             let current = if case let .integer(number) = value { number } else { range.lowerBound }
             Stepper(value: Binding(get: { current }, set: { model.setConfig(path, .integer($0)) }), in: range) {

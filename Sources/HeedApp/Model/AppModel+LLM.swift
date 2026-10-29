@@ -42,6 +42,14 @@ extension AppModel {
         }
     }
 
+    /// The models and efforts the pickers offer for `agent` (a configured agent's name): the seed, with what its CLI
+    /// listed when heed last detected it (`LLMAgentStatus.listedModels`) laid over it.
+    func modelCatalog(_ agent: String) -> AgentModelCatalog {
+        let listed = llmStatuses.first { $0.name == agent }?.listedModels ?? []
+        guard let profile = settings.agent(agent) else { return AgentModels.catalog(agent).merged(listed: listed) }
+        return AgentModels.catalog(for: profile, listed: listed)
+    }
+
     /// Detects again (`force`: even what was detected a moment ago).
     func refreshLLMStatuses(force: Bool = false) async {
         guard !isFixture else { return }

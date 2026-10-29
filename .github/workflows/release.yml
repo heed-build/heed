@@ -85,11 +85,9 @@ jobs:
           # This release's notes: the draft's, less pull requests that are not in the commit being built.
           jq -r '.body // ""' <<<"$draft" | scripts/notes-for-build.sh "$GITHUB_SHA" >"$RUNNER_TEMP/notes.md"
 
-      - uses: ./.github/actions/setup
-
       # ci already ran lint, the tests, a release build and the tutor on this commit (its test and build jobs); a
       # release waits for both (merging and releasing right away is fine) instead of testing again. A dry run of a
-      # branch ci never saw tests here.
+      # branch ci never saw tests here. It runs before the setup, so the setup restores the .build ci just saved.
       - name: ci passed on this commit
         id: ci
         run: |
@@ -112,6 +110,8 @@ jobs:
             [ "$SECONDS" -lt "$deadline" ] || { echo "Gave up waiting for ci on $GITHUB_SHA" >&2; exit 1; }
             sleep 30
           done
+
+      - uses: ./.github/actions/setup
 
       - name: Test
         if: steps.ci.outputs.tested == 'no'

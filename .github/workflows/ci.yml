@@ -51,6 +51,14 @@ jobs:
       - name: Tutor check
         run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
 
+      # main's .build, for the next run to build on (see the setup action); pull requests only read it.
+      - name: Save .build
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: .build
+          key: ${{ env.SWIFTPM_CACHE_KEY }}
+
   # The docs build as docs.yml publishes it, without publishing.
   docs:
     runs-on: ubuntu-latest

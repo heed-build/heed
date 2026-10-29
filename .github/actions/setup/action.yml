@@ -3,7 +3,7 @@ description: >-
   Everything a heed build needs on a hosted macOS runner: the mise tools, Xcode for the SDK and its Metal toolchain (MLX
   and GhosttyKit compile Metal shaders), the Swift toolchain the package asks for (hosted runners lag behind Xcode
   releases, so it comes from swift.org), and GhosttyKit built from the pinned Ghostty commit. The toolchain and
-  GhosttyKit are cached.
+  GhosttyKit are cached, and SwiftPM's .build is restored from the newest build of main (which ci saves).
 
 inputs:
   swift:
@@ -73,3 +73,22 @@ runs:
       run: |
         xcrun --find metal >/dev/null 2>&1 || xcodebuild -downloadComponent MetalToolchain
         mise run ghostty
+
+    # Incremental builds: .build from the newest build of main with the same toolchain, Xcode and dependencies (or,
+    # failing that, any of them). Only ci on main saves it, so pull requests and releases read it.
+    - name: Name the build cache
+      shell: bash
+      run: |
+        base="swiftpm-${{ runner.arch }}-swift-${{ inputs.swift }}-xcode-${{ inputs.xcode }}"
+        echo "SWIFTPM_CACHE_BASE=$base" >>"$GITHUB_ENV"
+        echo "SWIFTPM_CACHE_KEY=$base-${{ hashFiles('Package.resolved') }}-${{ github.sha }}" >>"$GITHUB_ENV"
+        echo "SWIFTPM_CACHE_DEPS=$base-${{ hashFiles('Package.resolved') }}-" >>"$GITHUB_ENV"
+
+    - name: Restore .build
+      uses: actions/cache/restore@v4
+      with:
+        path: .build
+        key: ${{ env.SWIFTPM_CACHE_KEY }}
+        restore-keys: |
+          ${{ env.SWIFTPM_CACHE_DEPS }}
+          ${{ env.SWIFTPM_CACHE_BASE }}-

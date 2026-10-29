@@ -198,33 +198,66 @@ extension AppModel {
               )
         else { return }
         if case .path = parsed, !form.location.isLocal { return }
-        // The fake world asks nothing: a slug it does not know is taken to exist, a path to be missing.
+        lookUpRepoEntry(parsed, caller: "swarm.repo") { _, _ in }
+    }
+
+    /// Asks once typing pauses what a typed repo is: GitHub for a slug (`gh repo view`, read only), the disk for a
+    /// path. The answer lands in `repoLookups`; a checkout found at a path joins Repos and is handed to `found`. The
+    /// fake world asks nothing: a slug it does not know is taken to exist, a path to be missing.
+    func lookUpRepoEntry(
+        _ parsed: RepoEntry.Parsed, caller: String, found: @escaping (RepoEntry.Lookup, RepoRecord?) -> Void
+    ) {
+        repoLookupTask?.cancel()
         if isFixture || tutor != nil {
-            switch parsed {
-            case let .slug(repo): repoLookups[parsed.key] = .found(repo)
-            case .path: repoLookups[parsed.key] = .missing
+            let answer: RepoEntry.Lookup = switch parsed {
+            case let .slug(repo): .found(repo)
+            case .path: .missing
             }
-            return
+            repoLookups[parsed.key] = answer
+            return found(answer, nil)
         }
         repoLookupTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(450))
+            // No answer yet reads as checking; nothing is stored until one comes, so a cancelled ask is asked again.
             guard !Task.isCancelled else { return }
-            self?.repoLookups[parsed.key] = .checking
-            let answer: RepoEntry.Lookup = switch parsed {
-            case let .slug(repo): await GitHub.lookUpRepo(repo, caller: "swarm.repo")
+            var record: RepoRecord?
+            let answer: RepoEntry.Lookup
+            switch parsed {
+            case let .slug(repo): answer = await GitHub.lookUpRepo(repo, caller: caller)
             case let .path(path):
-                await Git.record(at: Paths.expand(path)).map { .found($0.repo) } ?? .missing
+                record = await Git.record(at: Paths.expand(path))
+                answer = record.map { .found($0.repo) } ?? .missing
             }
             guard let self else { return }
             repoLookups[parsed.key] = answer
             // A checkout at a path joins Repos, so it is picked as any repo here is.
-            if case let .path(path) = parsed, case .found = answer,
-               let record = await Git.record(at: Paths.expand(path)),
-               !repos.contains(where: { $0.id == record.id })
-            {
-                commit(.repoUpserted(record))
-            }
+            if let record, !repos.contains(where: { $0.id == record.id }) { commit(.repoUpserted(record)) }
+            found(answer, record)
         }
+    }
+
+    /// Clones a repo where work runs (`gh repo clone` into the first repo root there) and reads its record, or says
+    /// why not.
+    func cloneRepo(_ slug: String, at location: Location, caller: String) async -> Result<RepoRecord, FieldNote> {
+        let root = cloneRoot(location)
+        let repo = RepoEntry.repo(slug)
+        let into = location.isLocal ? Paths.expand(root) : root
+        let path = "\(into)/\(repo.name)"
+        do {
+            let result = try await ProcessRunner.run(
+                on: location, "gh", RepoEntry.cloneArguments(repo, into: into), timeout: .seconds(900), caller: caller
+            )
+            guard result.succeeded else {
+                return .failure(FieldNote(RepoEntry.field, "could not clone \(slug): \(GitHub.explain(result))"))
+            }
+        } catch {
+            return .failure(FieldNote(RepoEntry.field, "could not clone \(slug): \(error)"))
+        }
+        guard let record = await Git.record(at: path, on: location) else {
+            return .failure(FieldNote(RepoEntry.field, "cloned \(slug), but found no checkout at \(path)"))
+        }
+        commit(.repoUpserted(record))
+        return .success(record)
     }
 
     /// ↩ in the repo field: what is typed joins the picked repos once it is fine (else its note says why).
@@ -304,33 +337,11 @@ extension AppModel {
         )
         Task { [weak self] in
             for slug in slugs {
-                let repo = RepoEntry.repo(slug)
-                let path = location.isLocal ? Paths.expand(root) + "/\(repo.name)" : "\(root)/\(repo.name)"
-                let problem: String?
-                do {
-                    let result = try await ProcessRunner.run(
-                        on: location, "gh", RepoEntry.cloneArguments(
-                            repo,
-                            into: location.isLocal ? Paths.expand(root)
-                                : root
-                        ), timeout: .seconds(900), caller: "swarm.clone"
-                    )
-                    problem = result.succeeded ? nil : GitHub.explain(result)
-                } catch {
-                    problem = "\(error)"
-                }
                 guard let self, goals.swarmForm != nil else { return }
-                if let problem {
-                    goals.swarmForm?.cloneNote = FieldNote(RepoEntry.field, "could not clone \(slug): \(problem)")
+                if case let .failure(note) = await cloneRepo(slug, at: location, caller: "swarm.clone") {
+                    goals.swarmForm?.cloneNote = note
                     return
                 }
-                guard let record = await Git.record(at: path, on: location) else {
-                    goals.swarmForm?.cloneNote = FieldNote(
-                        RepoEntry.field, "cloned \(slug), but found no checkout at \(path)"
-                    )
-                    return
-                }
-                commit(.repoUpserted(record))
             }
             guard let self, goals.swarmForm != nil else { return }
             goals.swarmForm?.cloneNote = nil

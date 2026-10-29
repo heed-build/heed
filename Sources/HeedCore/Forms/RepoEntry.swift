@@ -87,7 +87,7 @@ public enum RepoEntry {
     /// Mac (a path is only read there). `clonesInto`: where a repo that is not there yet is cloned.
     public static func note(
         _ parsed: Parsed, place: String, local: Bool, here: [String], known: [String], lookups: [String: Lookup],
-        clonesInto: String
+        clonesInto: String, starting: String = "the swarm starts"
     ) -> FieldNote {
         switch parsed {
         case let .path(path):
@@ -109,8 +109,8 @@ public enum RepoEntry {
             if let slug = match(repo, in: known) {
                 return FieldNote(
                     field,
-                    "\(slug): ↩ adds it; heed clones it into \(clone) on \(place) when the swarm "
-                        + "starts",
+                    "\(slug): ↩ adds it; heed clones it into \(clone) on \(place) when "
+                        + starting,
                     tone: .fine
                 )
             }
@@ -119,7 +119,7 @@ public enum RepoEntry {
                 return FieldNote(
                     field,
                     "\(found.slug) is on GitHub: ↩ adds it; heed clones it into \(clone) on "
-                        + "\(place) when the swarm starts",
+                        + "\(place) when \(starting)",
                     tone: .fine
                 )
             case .missing?:

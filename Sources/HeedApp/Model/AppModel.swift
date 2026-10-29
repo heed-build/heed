@@ -6590,6 +6590,8 @@ final class AppModel {
                 if !text.isEmpty { result[record.repo.slug] = text }
             }
         }
+        form.knownSlugs = knownRepoSlugs
+        form.cloneRoot = cloneRoot(.local)
         startWork = form
         prepareStartWorkSmarts()
         adviseStartWork()
@@ -6687,11 +6689,48 @@ final class AppModel {
         switch form.handle(stroke) {
         case .handled, .ignored:
             startWork = form
+            lookUpStartWorkEntry()
         case .cancel:
             startWork = nil
         case let .start(plan):
             startWork = form
+            let typed = form.typedRepos
+            guard typed.isEmpty || isFixture || tutor != nil else { return cloneStartWorkRepos(typed) }
             begin(plan)
+        }
+    }
+
+    /// A repo typed into Start work's search that heed does not know: asked of GitHub (or looked at on disk) once
+    /// typing pauses; the answer shows under the search.
+    private func lookUpStartWorkEntry() {
+        startWork?.entryLookups = repoLookups
+        guard let entry = startWork?.entryToLookUp else { return }
+        lookUpRepoEntry(entry, caller: "work.start") { [weak self] _, record in
+            guard let self, startWork != nil else { return }
+            startWork?.entryLookups = repoLookups
+            if let record { startWork?.adopt(record) }
+        }
+    }
+
+    /// The typed repos that are not on this Mac, cloned into the first repo root (shown under the repo field), then
+    /// the work starts in them.
+    private func cloneStartWorkRepos(_ slugs: [String]) {
+        startWork?.cloneNote = FieldNote(
+            RepoEntry.field, "cloning \(slugs.joined(separator: ", ")) into \(cloneRoot(.local))…", tone: .checking
+        )
+        Task { [weak self] in
+            for slug in slugs {
+                guard let self, startWork != nil else { return }
+                switch await cloneRepo(slug, at: .local, caller: "work.start") {
+                case let .failure(note):
+                    startWork?.cloneNote = note
+                    return
+                case let .success(record): startWork?.adopt(record)
+                }
+            }
+            guard let self, let form = startWork else { return }
+            startWork?.cloneNote = nil
+            begin(form.plan)
         }
     }
 

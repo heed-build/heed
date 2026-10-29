@@ -133,6 +133,14 @@ struct StartWorkView: View {
                     )
                     .onTapGesture { model.clickStartWork { $0.pickRepo(at: index) } }
                 }
+                // Typed repos that are not on this Mac yet: cloned when the work starts; a click drops one.
+                ForEach(form.typedRepos, id: \.self) { slug in
+                    choice("+ " + slug, detail: "clones", selected: false, secondary: true, focused: false)
+                        .onTapGesture { model.clickStartWork { $0.dropTyped(slug) } }
+                        .help(
+                            "Not on this Mac yet: cloned into \(form.cloneRoot) when the work starts. Click to drop it."
+                        )
+                }
                 if form.repoSearch == nil, !form.guesses.isEmpty {
                     choice(
                         "other repo…", detail: "/", selected: false,
@@ -149,7 +157,8 @@ struct StartWorkView: View {
                     .onTapGesture { model.clickStartWork { $0.pickRepo(at: $0.chatChipIndex) } }
                 }
             }
-            if let search = form.repoSearch { repoSearch(search) }
+            if let search = form.repoSearch { repoSearch(search, note: form.searchNote) }
+            FieldNoteView(note: form.cloneNote)
             if form.chat != nil {
                 Text("A chat: the agent works in a folder, with no repo, worktree or branch.")
                     .foregroundStyle(Theme.fg3)
@@ -165,7 +174,7 @@ struct StartWorkView: View {
     }
 
     /// Any repo by name: what is typed, then the best matches (most recently worked in first), the cursor on one.
-    private func repoSearch(_ search: Typeahead<RepoRecord>) -> some View {
+    private func repoSearch(_ search: Typeahead<RepoRecord>, note: FieldNote?) -> some View {
         let matches = search.matches
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
@@ -193,7 +202,12 @@ struct StartWorkView: View {
                 Text("\(matches.count - 8) more: keep typing").font(Theme.ui(11)).foregroundStyle(Theme.fg3)
                     .padding(.horizontal, 10).padding(.vertical, 5)
             }
-            Text("⌃n ⌃p move · ↩ add · ⎋ close").font(Theme.ui(11)).foregroundStyle(Theme.fg3)
+            // Nothing heed knows matches: what is typed is read as any repo (owner/name, a GitHub URL, a path).
+            if note != nil {
+                FieldNoteView(note: note).padding(.horizontal, 10).padding(.vertical, 5)
+            }
+            Text("⌃n ⌃p move · ↩ add · any repo: owner/name, a GitHub URL or a path · ⎋ close").font(Theme.ui(11))
+                .foregroundStyle(Theme.fg3)
                 .padding(.horizontal, 10).padding(.vertical, 6)
         }
         .frame(maxWidth: 460, alignment: .leading)

@@ -204,6 +204,9 @@ enum Shots {
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),
         Shot(id: "start-work/repos", keys: "o" + prompt + "<Esc>j", crop: .dialog),
         Shot(id: "start-work/repo-search", keys: "o" + prompt + "<Esc>j/mar", crop: .dialog),
+        // Any repo, typed into the search: one heed has not seen is checked on GitHub, then cloned on ⌘↩.
+        Shot(id: "start-work/any-repo", keys: "o" + prompt + "<Esc>j/globex/report-engine", crop: .dialog),
+        Shot(id: "start-work/any-repo-picked", keys: "o" + prompt + "<Esc>j/globex/report-engine<CR>", crop: .dialog),
         Shot(id: "start-work/branch-name", keys: "o" + prompt + "<Esc>jj", crop: .dialog),
         Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjj", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),

@@ -176,6 +176,71 @@ struct FormValidationTests {
         #expect(GitHub.lookup(nil) == .failed("gh did not answer"))
     }
 
+    // MARK: Start work's repo search takes any repo too
+
+    private static let records = ["docs-toolkit", "markgraph"].map {
+        RepoRecord(repo: Repo(org: "o", name: $0), path: "/code/\($0)", defaultBranch: "main")
+    }
+
+    private static func searching(_ text: String) -> StartWorkForm {
+        var form = StartWorkForm(repos: records, settings: .default)
+        form.pickRepo(at: form.repoChoices.count)
+        for char in text {
+            _ = form.handle(KeyStroke(String(char)))
+        }
+        return form
+    }
+
+    @Test func startWorksSearchReadsAnUnknownRepoAndClonesItOnStart() {
+        var form = Self.searching("acme/widgets")
+        #expect(form.repoSearch?.matches.isEmpty == true)
+        #expect(form.entryToLookUp == .slug(Repo(org: "acme", name: "widgets")))
+        #expect(form.searchNote?.tone == .checking)
+        // ↩ waits while it is checked.
+        _ = form.handle(KeyStroke("CR"))
+        #expect(form.typedRepos.isEmpty)
+        #expect(form.repoSearch != nil)
+        form.entryLookups["acme/widgets"] = .missing
+        #expect(form.searchNote == FieldNote("repos", "no repo acme/widgets on GitHub (or gh cannot see it)"))
+        form.entryLookups["acme/widgets"] = .found(Repo(org: "acme", name: "widgets"))
+        #expect(form.entryToLookUp == nil)
+        #expect(form.searchNote?.tone == .fine)
+        #expect(form.searchNote?.text.hasSuffix("when the work starts") == true)
+        _ = form.handle(KeyStroke("CR"))
+        #expect(form.repoSearch == nil)
+        #expect(form.typedRepos == ["acme/widgets"])
+        #expect(form.selectedRepos.contains("acme/widgets"))
+        #expect(form.plan.repos.isEmpty)
+        // Cloned: the record joins the form and the plan.
+        form.adopt(RepoRecord(repo: Repo(org: "acme", name: "widgets"), path: "/code/widgets"))
+        #expect(form.typedRepos.isEmpty)
+        #expect(form.plan.repos.map(\.repo.slug) == ["acme/widgets"])
+    }
+
+    @Test func startWorksSearchSaysWhatIsWrongWithATypedRepo() {
+        #expect(Self.searching("widgets!").searchNote?
+            .text == "widgets! is not owner/name, a GitHub URL or a path (~/code/x)")
+        // A repo heed knows is matched as before: no note, nothing to ask.
+        let known = Self.searching("o/markgraph")
+        #expect(known.searchNote == nil)
+        #expect(known.entryToLookUp == nil)
+        // Seen elsewhere (a PR, a host): no need to ask.
+        var seen = Self.searching("acme/widgets")
+        seen.knownSlugs = ["Acme/Widgets"]
+        #expect(seen.entryToLookUp == nil)
+        _ = seen.handle(KeyStroke("CR"))
+        #expect(seen.typedRepos == ["Acme/Widgets"])
+        // The clone's record, spelled as git reads it, takes the typed one's place.
+        var cloned = seen
+        cloned.adopt(RepoRecord(repo: Repo(org: "acme", name: "widgets"), path: "/code/widgets"))
+        #expect(cloned.typedRepos.isEmpty)
+        #expect(cloned.selectedRepos.contains("acme/widgets"))
+        seen.dropTyped("Acme/Widgets")
+        #expect(seen.typedRepos.isEmpty)
+        // A path is looked at on disk.
+        #expect(Self.searching("~/src/widgets").entryToLookUp == .path("~/src/widgets"))
+    }
+
     // MARK: The app's forms (read from source: the app target cannot be linked here)
 
     private static let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -203,6 +268,10 @@ struct FormValidationTests {
             ("Sources/HeedApp/Model/AppModel+Swarm.swift", "func addSwarmRepoEntry()", nil),
             ("Sources/HeedApp/Model/AppModel+Swarm.swift", "func setSwarmRepoEntry(", nil),
             ("Sources/HeedApp/Model/AppModel+Goals.swift", "func submitGoalForm()", "goals.form = nil"),
+            ("Sources/HeedApp/Model/AppModel.swift", "private func lookUpStartWorkEntry()", nil),
+            ("Sources/HeedApp/Model/AppModel.swift", "private func cloneStartWorkRepos(", nil),
+            ("Sources/HeedApp/Model/AppModel+Swarm.swift", "func lookUpRepoEntry(", nil),
+            ("Sources/HeedApp/Model/AppModel+Swarm.swift", "func cloneRepo(", nil),
         ]
         for check in checks {
             let text = try Self.source(check.file)
@@ -261,6 +330,12 @@ struct FormValidationTests {
                 "note: \"after\", notes", "note: \"text\", notes", "FieldNoteView(note: notes.note(for: note",
             ]),
         ]
+        // Start work's repo search says what a typed repo is, and the clone, under the repo field.
+        let startWork = try Self.source("Sources/HeedApp/Views/StartWorkView.swift")
+        #expect(startWork.contains("repoSearch(search, note: form.searchNote)"))
+        #expect(startWork.contains("FieldNoteView(note: note)"))
+        #expect(startWork.contains("FieldNoteView(note: form.cloneNote)"))
+        #expect(startWork.contains("ForEach(form.typedRepos"))
         for (file, view, fields) in views {
             let text = try Self.source(file)
             let start = try #require(text.range(of: view), "\(view) not found")

@@ -62,6 +62,15 @@ public struct StartWorkForm: Sendable {
     public private(set) var error: String?
     /// Picking any repo by name (the last chip in the repo field, or `/` there); nil when not searching.
     public private(set) var repoSearch: Typeahead<RepoRecord>?
+    /// What heed found out about repos typed into the search (`RepoEntry`), by `RepoEntry.Parsed.key`: the app asks
+    /// GitHub (or looks at the path) and fills it in.
+    public var entryLookups: [String: RepoEntry.Lookup] = [:]
+    /// Repos heed has seen anywhere (hosts, PRs, issues): known to exist, nothing to ask. The app fills it in.
+    public var knownSlugs: [String] = []
+    /// Where a typed repo that is not on this Mac is cloned when the work starts (the first repo root).
+    public var cloneRoot = "~/Projects"
+    /// Cloning the typed repos, or why that failed: shown under the repo field.
+    public var cloneNote: FieldNote?
     /// A chat instead of work in repos (the chat chip in the repo field, or `chat.new`); nil for work in worktrees.
     public private(set) var chat: ChatChoice?
     /// Hosts a chat can run on, besides this Mac.
@@ -107,7 +116,7 @@ public struct StartWorkForm: Sendable {
         return top + extra
     }
 
-    private let repos: [RepoRecord]
+    private var repos: [RepoRecord]
     /// When you last worked in each repo: recent ones rank higher.
     private let lastWorked: [String: Date]
     /// What the cursor was on when Start work opened.
@@ -184,6 +193,54 @@ public struct StartWorkForm: Sendable {
         selectedRepos.compactMap { id in repos.first { $0.id == id } }
     }
 
+    /// Repos typed into the search that are not on this Mac yet (`owner/name`): cloned into `cloneRoot` when the work
+    /// starts, then `adopt`ed.
+    public var typedRepos: [String] {
+        selectedRepos.filter { id in !repos.contains { $0.id == id } }
+    }
+
+    /// The slugs checked out on this Mac.
+    private var hereSlugs: [String] { repos.filter(\.location.isLocal).map(\.repo.slug) }
+
+    /// A repo heed did not know until now (a typed path, a clone): it joins the form's repos, selected when typed.
+    public mutating func adopt(_ record: RepoRecord) {
+        if !repos.contains(where: { $0.id == record.id }) { repos.append(record) }
+        if let index = selectedRepos.firstIndex(where: { $0.lowercased() == record.id.lowercased() }) {
+            selectedRepos[index] = record.id
+        }
+    }
+
+    /// What is typed in the repo search, read as a repo, when it matches none heed knows; nil otherwise.
+    public var searchEntry: RepoEntry.Parsed? {
+        guard let search = repoSearch, search.matches.isEmpty,
+              case let .success(parsed)? = RepoEntry.parse(search.query) else { return nil }
+        return parsed
+    }
+
+    /// The note under the repo search when what is typed matches no known repo: the format, then what GitHub (or the
+    /// path) says.
+    public var searchNote: FieldNote? {
+        guard let search = repoSearch, search.matches.isEmpty, let parsed = RepoEntry.parse(search.query) else {
+            return nil
+        }
+        switch parsed {
+        case let .failure(note): return note
+        case let .success(entry):
+            return RepoEntry.note(
+                entry, place: "this Mac", local: true, here: hereSlugs, known: knownSlugs, lookups: entryLookups,
+                clonesInto: cloneRoot, starting: "the work starts"
+            )
+        }
+    }
+
+    /// The typed entry the app should look up (GitHub, or the path), or nil when there is nothing to ask.
+    public var entryToLookUp: RepoEntry.Parsed? {
+        guard let entry = searchEntry,
+              RepoEntry.needsLookup(entry, here: hereSlugs, known: knownSlugs, lookups: entryLookups)
+        else { return nil }
+        return entry
+    }
+
     public var plan: StartWorkPlan {
         if let chat {
             let location = chat.host.map(Location.host) ?? .local
@@ -224,7 +281,7 @@ public struct StartWorkForm: Sendable {
 
     public var canStart: Bool {
         if let chat { return chat.kind == .scratch ? !name.isEmpty : !folderPath(chat).isEmpty }
-        return !selectedRepos.isEmpty && !name.isEmpty
+        return !selectedRepos.isEmpty && !name.isEmpty && cloneNote?.tone != .checking
     }
 
     private func folderPath(_ chat: ChatChoice) -> String {
@@ -235,6 +292,7 @@ public struct StartWorkForm: Sendable {
     /// Why ⌘↩ does not start.
     private var cannotStart: String {
         if let chat { return chat.kind == .scratch ? "name the chat's folder first" : "type the folder's path first" }
+        if cloneNote?.tone == .checking { return "wait for the clone" }
         return selectedRepos.isEmpty ? "pick a repo first" : "name the worktree first"
     }
 
@@ -328,6 +386,15 @@ public struct StartWorkForm: Sendable {
 
     private mutating func search(_ stroke: KeyStroke) -> Outcome {
         guard var typeahead = repoSearch else { return .ignored }
+        // ↩ on a typed repo heed does not know: added once its note says it is fine.
+        if stroke == KeyStroke("CR"), typeahead.matches.isEmpty, let entry = searchEntry {
+            if searchNote?.tone == .fine,
+               let slug = RepoEntry.picked(entry, here: hereSlugs, known: knownSlugs, lookups: entryLookups)
+            {
+                addTyped(slug)
+            }
+            return .handled
+        }
         switch typeahead.handle(stroke) {
         case .handled:
             repoSearch = typeahead
@@ -337,6 +404,23 @@ public struct StartWorkForm: Sendable {
             add(searched: record)
         }
         return .handled
+    }
+
+    /// A typed repo: the one on this Mac when it is here, else its slug, to clone on start.
+    private mutating func addTyped(_ slug: String) {
+        if let record = repos.first(where: { $0.location.isLocal && $0.repo.slug.lowercased() == slug.lowercased() }) {
+            return add(searched: record)
+        }
+        repoSearch = nil
+        reposTouched = true
+        cloneNote = nil
+        if !selectedRepos.contains(slug) { selectedRepos.append(slug) }
+    }
+
+    /// A click on a typed repo's chip: dropped.
+    public mutating func dropTyped(_ slug: String) {
+        selectedRepos.removeAll { $0 == slug }
+        cloneNote = nil
     }
 
     private mutating func add(searched record: RepoRecord) {

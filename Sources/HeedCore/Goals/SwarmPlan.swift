@@ -124,13 +124,14 @@ public enum SwarmPlan {
 
     /// What can change about a task.
     public enum Field: String, Hashable, Sendable, CaseIterable {
-        case title, phase, owner, estimate, after, doneWhen
+        case title, phase, owner, host, estimate, after, doneWhen
 
         public var title: String {
             switch self {
             case .title: "title"
             case .phase: "phase"
             case .owner: "owner"
+            case .host: "runs on"
             case .estimate: "estimate"
             case .after: "after"
             case .doneWhen: "done when"
@@ -175,6 +176,7 @@ public enum SwarmPlan {
         case .title: one.title != other.title
         case .phase: one.phase != other.phase
         case .owner: one.owner != other.owner
+        case .host: one.host != other.host
         case .estimate: one.estimate != other.estimate
         case .after: Set(one.after) != Set(other.after)
         case .doneWhen: one.doneWhen != other.doneWhen
@@ -207,7 +209,8 @@ public enum SwarmPlan {
         return result
     }
 
-    /// How big a plan change is. Small: reordering, another owner, estimate or phase; it applies by itself. Structural:
+    /// How big a plan change is. Small: reordering, another owner, host, estimate or phase; it applies by itself.
+    /// Structural:
     /// a task added, dropped or renamed, what it waits for, or when it is done; it waits for you. A plan never changes
     /// the goal: that is a GOAL.md scope proposal, made apart from the plan.
     public enum Size: String, Hashable, Sendable {
@@ -281,6 +284,7 @@ public enum SwarmPlan {
         case .title: task.title
         case .phase: task.phase
         case .owner: task.owner?.label ?? "anyone"
+        case .host: task.host.map { $0 == SwarmPlace.local ? "this Mac" : "@\($0)" } ?? "where the swarm runs"
         case .estimate: task.estimate.map(SwarmEstimate.text) ?? "none"
         case .after: task.after.isEmpty ? "nothing" : task.after.map { numbers[$0] ?? short($0) }
             .joined(separator: ", ")
@@ -334,7 +338,8 @@ public enum SwarmPlan {
             "",
             "Swarm \(swarm.number) · plan v\(version.number) · \(swarm.isApproved && swarm.plan == version.number ? "approved" : "draft")"
                 + " · \(version.tasks.count) task\(version.tasks.count == 1 ? "" : "s")"
-                + (estimate(version.tasks) > 0 ? " · est \(SwarmEstimate.text(estimate(version.tasks)))" : ""),
+                + (estimate(version.tasks) > 0 ? " · est \(SwarmEstimate.text(estimate(version.tasks)))" : "")
+                + (swarm.settings.host.map { " · on @\($0)" } ?? ""),
             "",
             "Written by heed from goals.sqlite; edits here are not read back. Change the plan in heed or with "
                 + "`heed goal plan propose`.",
@@ -345,6 +350,7 @@ public enum SwarmPlan {
                 var head = "- **\(numbers[task.id] ?? "") \(task.title)** (`\(task.slug)`)"
                 var details: [String] = []
                 if let owner = task.owner { details.append(owner.label) }
+                if let host = task.host { details.append(host == SwarmPlace.local ? "on this Mac" : "on @\(host)") }
                 if let estimate = task.estimate { details.append(SwarmEstimate.text(estimate)) }
                 if !task.after.isEmpty {
                     details.append("after " + task.after.map { numbers[$0] ?? short($0) }.joined(separator: ", "))

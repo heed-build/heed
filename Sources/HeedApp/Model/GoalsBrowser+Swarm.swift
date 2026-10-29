@@ -20,10 +20,15 @@ struct SwarmForm: Equatable {
     var stuck = SwarmStuck.Settings.defaults
     /// Get it merged for its PRs.
     var merge = SwarmSettings.Merge.repo
+    /// Where it runs: a host, or nil for this Mac (`swarm.host`).
+    var host: String?
+
+    var location: Location { host.map(Location.host) ?? .local }
 
     var settings: SwarmSettings {
         SwarmSettings(
-            repos: repos, lead: lead, workers: workers, limits: limits, autonomy: autonomy, stuck: stuck, merge: merge
+            repos: repos, lead: lead, workers: workers, limits: limits, autonomy: autonomy, stuck: stuck,
+            merge: merge, host: host
         )
     }
 }

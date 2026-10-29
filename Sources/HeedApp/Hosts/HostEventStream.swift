@@ -8,6 +8,8 @@ import HeedCore
 final class HostEventStream {
     let host: String
     private let onMessage: (HookMessage) -> Void
+    /// A `heed goal` or `heed swarm` from the host (`HostCall`), for heed to answer there.
+    private let onCall: (HostCall) -> Void
     private var process: Process?
     private var buffer = Data()
     private var stopped = false
@@ -17,9 +19,10 @@ final class HostEventStream {
         set { UserDefaults.standard.set(newValue, forKey: offsetKey) }
     }
 
-    init(host: String, onMessage: @escaping (HookMessage) -> Void) {
+    init(host: String, onMessage: @escaping (HookMessage) -> Void, onCall: @escaping (HostCall) -> Void = { _ in }) {
         self.host = host
         self.onMessage = onMessage
+        self.onCall = onCall
     }
 
     var isRunning: Bool { process?.isRunning == true }
@@ -93,7 +96,13 @@ final class HostEventStream {
             let line = buffer[buffer.startIndex ..< newline]
             buffer.removeSubrange(buffer.startIndex ... newline)
             offset += line.count + 1
-            for message in HostEvents.messages(fromLine: String(decoding: line, as: UTF8.self)) {
+            let text = String(decoding: line, as: UTF8.self)
+            if let call = HostCall(line: text) {
+                // One its `heed` gave up waiting for (heed was away) is not answered late.
+                if !call.isStale(now: Date()) { onCall(call) }
+                continue
+            }
+            for message in HostEvents.messages(fromLine: text) {
                 onMessage(message)
             }
         }

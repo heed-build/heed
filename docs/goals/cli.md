@@ -96,8 +96,20 @@ Every command takes `--json` and then prints one JSON object, also when it fails
 (method `goal`); it never opens the goals database itself. A background run has no session, so heed sets `HEED_GOAL`
 for it, which `heed goal` uses when there is no session and no `--goal`.
 
-`heed goal` runs on this Mac. A session on a host can read its goal's pointer, but its shell cannot reach Heed's
-control socket, so the commands are not available there yet.
+### On a host
+
+A host has no control socket to reach, so heed puts its own `heed` there, in `~/.heed/bin` next to the hook, and puts
+that folder first on the PATH of the agents it starts there. It is a few lines of POSIX sh: `heed goal …` and `heed
+swarm …` write one line to the host's event log (with the file `--file` names, read there, or stdin for `-`), heed
+reads it over the host's shared ssh connection and answers it as it answers the `heed goal` on this Mac, and the answer
+comes back as a file in `~/.heed/replies` that `heed` prints, exiting as `heed goal` would. A swarm's lead and workers
+on a host keep the plan, ask and send this way ([On a host](swarms/running.md#on-a-host)).
+
+| | |
+|---|---|
+| Who may call | heed's own panes there (they carry its session); a shell heed did not start is refused, so `plan approve` stays yours on this Mac |
+| How long it waits | A minute; `heed goal ask` as long as a question can wait |
+| When heed is away | `heed` gives up and exits 3; a call heed finds later than its caller waits is not answered |
 
 ## The heed-goal skill
 

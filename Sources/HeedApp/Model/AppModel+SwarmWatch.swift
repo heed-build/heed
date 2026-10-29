@@ -201,13 +201,17 @@ extension AppModel {
         }
     }
 
-    /// Each live worker's worktree, at most once a minute: what changed since the last look, a row when it did.
+    /// Each live worker's worktree, at most once a minute (every three on a host, over its shared ssh connection, and
+    /// only while it answers): what changed since the last look, a row when it did.
     private func pollWorkerFiles(now: Date) async {
         for (id, live) in liveWorkers where !live.worktree.isEmpty {
             let last = workerFiles[id]
-            guard FileActivityPolling.due(last: last?.at, now: now) else { continue }
+            guard FileActivityPolling.due(
+                last: last?.at, now: now, interval: FileActivityPolling.interval(for: live.location)
+            ) else { continue }
+            if let host = live.location.hostName, !hostStatus(host).isConnected { continue }
             workerFiles[id] = (now, last?.files)
-            guard let current = try? await Git.fileActivity(at: live.worktree) else { continue }
+            guard let current = try? await Git.fileActivity(at: live.worktree, on: live.location) else { continue }
             workerFiles[id] = (now, current)
             guard let change = FileActivity.change(from: last?.files, to: current) else { continue }
             appendActivity(SwarmActivityLine(at: now, kind: .files(change)), task: live.task)
@@ -596,9 +600,9 @@ extension AppModel {
 
     /// The fake world's watched swarm: the steering world with 2.2 stuck and the ladder heed climbed for it, every
     /// worker's activity, and what changed since you last looked (fixed text).
-    func loadWatchFixture() {
+    func loadWatchFixture(_ variant: SwarmFixtures.Running = .watch) {
         guard isFixture else { return }
-        loadRunningSwarmFixture(.watch)
+        loadRunningSwarmFixture(variant)
         steeringBoards = goals.boards.filter { $0.key == "\(SwarmFixtures.anchors)/swarm-1" }
         workerActivity = SwarmFixtures.activity(now: Clock.now)
         swarmLastLooked["\(SwarmFixtures.anchors)/swarm-1"] = SwarmFixtures.lastLooked(now: Clock.now)

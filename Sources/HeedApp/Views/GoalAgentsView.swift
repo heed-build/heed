@@ -182,7 +182,8 @@ private struct AgentList: View {
                                 model: model
                             ),
                             owner: board.swarm.lastWorker(on: task.id)?.owner.label ?? task.owner?.label ?? "",
-                            isCursor: index == goals.agentCursor, focused: goals.focus == .agents
+                            isCursor: index == goals.agentCursor, focused: goals.focus == .agents,
+                            host: model.workerHost(task.id, board: board)
                         )
                         .hint(goals.focus == .agents ? model.hintLabel(for: .row(.goals, index)) : nil)
                         .contentShape(Rectangle())
@@ -214,12 +215,15 @@ private struct AgentRow: View {
     let owner: String
     let isCursor: Bool
     let focused: Bool
+    /// The host it runs on, with its colour; nil on this Mac.
+    var host: (name: String, color: String?)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Text(task.title).font(Theme.ui(13, weight: .semibold)).lineLimit(1)
                 Spacer(minLength: 6)
+                if let host { HostChip(location: .host(host.name), color: host.color).fixedSize() }
                 Text(facts.word).font(Theme.mono(10)).foregroundStyle(facts.color)
                     .padding(.horizontal, 5).padding(.vertical, 1)
                     .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(facts.color.opacity(0.6)))
@@ -278,8 +282,14 @@ private struct AgentDetail: View {
             let meta = ["task \(numbers[task.id] ?? "")", worker?.owner.label, worker?.branch].compactMap(\.self)
                 .joined(separator: " · ")
             VStack(alignment: .leading, spacing: 3) {
-                Text(meta).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.middle)
-                    .help(meta)
+                HStack(spacing: 6) {
+                    Text(meta).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3).lineLimit(1)
+                        .truncationMode(.middle).help(meta)
+                    if let host = model.workerHost(task.id, board: board) {
+                        HostChip(location: .host(host.name), color: host.color).fixedSize()
+                            .help("Its agent and worktree are on @\(host.name): \(worker?.worktree ?? "")")
+                    }
+                }
                 Text(task.title).font(Theme.ui(16, weight: .semibold)).lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true).help(task.title)
                 if facts.live {

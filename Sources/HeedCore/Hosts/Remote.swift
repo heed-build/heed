@@ -71,7 +71,16 @@ public enum Remote {
     }
 }
 
+/// Runs one command on a host in place of ssh: what tests hand `ProcessRunner.$hostRunner` so nothing ever leaves this
+/// Mac. `input` is the file a real call would feed to the command's stdin (an upload).
+public typealias HostRunner = @Sendable (
+    _ host: String, _ executable: String, _ arguments: [String], _ input: URL?
+) async throws -> ProcessResult
+
 public extension ProcessRunner {
+    /// Set for a task (and the tasks it starts), every command `run(on:)` sends to a host goes here instead of ssh.
+    @TaskLocal static var hostRunner: HostRunner?
+
     /// `run`, on this Mac or on a host over ssh. `input` is fed to the command's stdin (an upload).
     static func run(
         on location: Location, _ executable: String, _ arguments: [String], timeout: Duration = .seconds(30),
@@ -80,6 +89,7 @@ public extension ProcessRunner {
         guard let host = location.hostName else {
             return try await run(executable, arguments, timeout: timeout, input: input, caller: caller)
         }
+        if let fake = hostRunner { return try await fake(host, executable, arguments, input) }
         try? FileManager.default.createDirectory(atPath: Remote.controlDirectory(), withIntermediateDirectories: true)
         // Logged as the command on the host, not as the ssh line around it.
         return try await logged(caller: caller, host: host, executable: executable, arguments: arguments) {

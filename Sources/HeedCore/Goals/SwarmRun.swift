@@ -63,12 +63,15 @@ public struct SwarmWorker: Hashable, Sendable, Codable, Identifiable {
     public var costUSD: Double?
     /// The tokens its agent used, input and output, as far as known.
     public var tokens: Int?
+    /// The host it ran on (its agent, its worktree), by its `[hosts.<name>]` name; nil on this Mac.
+    public var machine: String?
 
     public init(
         id: String, task: String, owner: GoalItem.Owner, host: String, repo: String, branch: String, base: String,
         stackedOn: String? = nil, worktree: String, startedAt: Date, endedAt: Date? = nil, outcome: Outcome? = nil,
-        costUSD: Double? = nil, tokens: Int? = nil
+        costUSD: Double? = nil, tokens: Int? = nil, machine: String? = nil
     ) {
+        self.machine = machine
         self.tokens = tokens
         self.id = id
         self.task = task
@@ -86,6 +89,9 @@ public struct SwarmWorker: Hashable, Sendable, Codable, Identifiable {
     }
 
     public var isLive: Bool { endedAt == nil }
+
+    /// Where it ran: this Mac, or its host.
+    public var location: Location { machine.map(Location.host) ?? .local }
 }
 
 /// What heed knows about one task (or an item a task waits for) right now: its PR, its worker, whether you paused it,

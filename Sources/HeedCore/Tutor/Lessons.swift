@@ -473,7 +473,8 @@ public extension Tutor {
                 doneLine: "Its plan by phase, who does each task and what it waits for; on the right the lead's "
                     + "questions, every version and who decided what. {swarm.replan} asks the lead to re-plan; once "
                     + "it runs, {swarm.task.pause} pauses a task, and {swarm.order} shows the plan in merge order: "
-                    + "what a task waits for merges first."
+                    + "what a task waits for merges first. The header says how its PRs merge: :swarm.merge auto, heed "
+                    + "or off sets that for the whole swarm."
             ) { _, now, _ in now.goalPane == "plan" },
             TutorStep(
                 "Who decided what",

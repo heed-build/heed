@@ -483,6 +483,17 @@ enum Shots {
             ]
             model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
         }),
+        // The same form running the swarm on @devbox: its repos there, its lead and workers in zmx.
+        Shot(id: "goals/swarm-new-host", crop: .swarmForm, cropPadding: 24, prepare: { model in
+            model.perform(CommandInvocation(name: "swarm.new"))
+            model.perform(CommandInvocation(name: "swarm.host", arguments: ["devbox"]))
+            model.goals.swarmForm?.title = "Anchors in the docs build"
+            model.goals.swarmForm?.statement = "Every anchor survives a page move, checked on the big docs build."
+            model.goals.swarmForm?.repos = ["acme/docs-toolkit"]
+            model.goals.swarmForm?.lead = GoalItem.Owner(agent: "claude", model: "opus")
+            model.goals.swarmForm?.workers = [SwarmSettings.Worker(agent: "claude", count: 3)]
+            model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
+        }),
         Shot(id: "goals/swarm-plan", keys: "gGS"),
         Shot(id: "goals/swarm-questions", keys: "gGS", crop: .swarmQuestions, cropPadding: 8),
         Shot(id: "goals/swarm-approved", keys: "gGjS"),
@@ -544,6 +555,8 @@ enum Shots {
         // controller answered), what changed since you last looked, the map, the steering log of that escalation,
         // and the done swarm's end-of-build summary.
         Shot(id: "goals/swarm-agents", keys: "gGjW", prepare: { $0.loadWatchFixture() }),
+        // 2.1's worker on @devbox (k from the stuck 2.2): the chip on its row and over its detail.
+        Shot(id: "goals/swarm-agents-remote", keys: "gGjWk", prepare: { $0.loadWatchFixture(.remote) }),
         Shot(id: "goals/swarm-stuck", keys: "gGjW", crop: .swarmAgent, cropPadding: 8, prepare: {
             $0.loadWatchFixture()
         }),

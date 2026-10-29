@@ -385,6 +385,15 @@ public enum Commands {
             "hand the swarm task under the cursor to another agent; a working worker hands over its worktree",
             .selection, arguments: "<agent[:model]>"
         ),
+        .init(
+            "swarm.task.host",
+            "where the swarm task under the cursor runs: a host, local for this Mac, or - for where the swarm runs",
+            .selection, arguments: "<host|local|->"
+        ),
+        .init(
+            "swarm.host", "where the new swarm runs, in its form: a host, or local for this Mac", .selection,
+            arguments: "<host|local>"
+        ),
         .init("swarm.task.open", "the swarm task under the cursor's worker: its tab", .selection),
         .init(
             "swarm.land",
@@ -478,6 +487,12 @@ public enum Commands {
             "swarm.stuck",
             "when the goal's swarm counts a worker as stuck: estimate (×), errors, quiet, peer and you (minutes)",
             .selection, arguments: "<estimate|errors|quiet|peer|you> <value>"
+        ),
+        .init(
+            "swarm.merge",
+            "get it merged for the goal's swarm's PRs: off, auto, heed, or repo (each PR's repo says; the default). "
+                + "In merge order either way",
+            .selection, arguments: "<off|auto|heed|repo>"
         ),
         .init(
             "swarm.rule.delete", "delete one of the goal's repeat rules: the controller stops answering with it",

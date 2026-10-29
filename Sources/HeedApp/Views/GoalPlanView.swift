@@ -88,6 +88,12 @@ private struct PlanOutline: View {
                         + swarm.settings.autonomy.title.lowercased()
                 )
                 .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
+                Text(
+                    "Get it merged: " + swarm.settings.merge.line(repo: model.swarmRepoMerge(swarm))
+                        .replacingOccurrences(of: "merge ", with: "", options: .anchored)
+                        + " · in merge order, a stacked PR after its parent"
+                )
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
                 if let schedule, swarm.approved != nil {
                     RunLine(swarm: swarm, tasks: model.runTasks(board), schedule: schedule)
                 }
@@ -205,10 +211,15 @@ private struct PlanOutline: View {
         landing: SwarmLanding.Row?
     ) -> some View {
         let goals = model.goals
+        // Where it runs: its live worker's place, else where its next one would start. Marked when that is a host,
+        // and as local when the swarm runs on one.
+        let place = model.liveWorker(on: task.id)?.location ?? SwarmPlace.location(of: task, swarm: swarm.settings)
+        let marked = !place.isLocal || swarm.settings.host != nil
         return TaskRow(
             task: task, number: numbers[task.id] ?? "", numbers: numbers,
             isCursor: row == goals.taskCursor, focused: goals.focus == .tasks,
-            status: schedule?.states[task.id], worker: swarm.lastWorker(on: task.id), landing: landing
+            status: schedule?.states[task.id], worker: swarm.lastWorker(on: task.id), landing: landing,
+            place: marked ? place : nil, placeColor: place.hostName.flatMap { model.config.hosts[$0]?.color }
         )
         .shotRegion(task.slug == "validator-speed" ? .swarmTask : task.slug == "sample-site" ? .swarmHeld : nil)
         .hint(goals.focus == .tasks ? model.hintLabel(for: .row(.goals, row)) : nil)
@@ -271,6 +282,9 @@ private struct TaskRow: View {
     var worker: SwarmWorker?
     /// Its place in the merge order, once the swarm runs.
     var landing: SwarmLanding.Row?
+    /// Where it runs, when that is worth a chip (a host; this Mac in a swarm on a host).
+    var place: Location?
+    var placeColor: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -291,6 +305,7 @@ private struct TaskRow: View {
                 }
             }
             Spacer(minLength: 8)
+            if let place { HostChip(location: place, color: placeColor).fixedSize() }
             if let owner = task.owner {
                 Text(owner.label).font(Theme.mono(10.5)).foregroundStyle(Theme.fg2)
                     .padding(.horizontal, 6).padding(.vertical, 1)
@@ -855,6 +870,7 @@ private struct PlanEditor: View {
                 HStack(spacing: 8) {
                     field("Phase", \.fields.phase)
                     field("Owner (agent:model)", \.fields.owner)
+                    field("Host (empty: the swarm's)", \.fields.host)
                     field("Estimate", \.fields.estimate).frame(width: 80)
                 }
                 field("After (1.2, 2.1)", \.fields.after)
@@ -1087,6 +1103,15 @@ struct SwarmFormView: View {
                     }
                 }
                 SectionHeader(title: "Where")
+                if model.swarmPlaces.count > 1 {
+                    let line = model.swarmPlaceLine(form.location)
+                    HStack(spacing: 6) {
+                        ForEach(model.swarmPlaces, id: \.self) { place in
+                            placeChip(place, picked: place == form.location)
+                        }
+                    }
+                    Text(line.text).font(Theme.ui(11.5)).foregroundStyle(line.problem ? Theme.block : Theme.fg3)
+                }
                 FlowLayout(spacing: 6, lineSpacing: 6) {
                     ForEach(model.swarmRepoChoices.prefix(10), id: \.self) { slug in
                         let picked = form.repos.contains(slug)
@@ -1099,7 +1124,8 @@ struct SwarmFormView: View {
                             .onTapGesture { toggleRepo(slug) }
                     }
                     if model.swarmRepoChoices.isEmpty {
-                        Text("no repos on this Mac yet: Repos (gr) adds them").font(Theme.ui(12))
+                        Text(form.host.map { "no repos found on @\($0) yet: gH checks where they are" }
+                            ?? "no repos on this Mac yet: Repos (gr) adds them").font(Theme.ui(12))
                             .foregroundStyle(Theme.fg3)
                     }
                 }
@@ -1166,6 +1192,22 @@ struct SwarmFormView: View {
                 }
                 Text("Reaching a limit pauses new work and asks you. The lead never changes the goal or the limits.")
                     .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+                SectionHeader(title: "Get it merged")
+                HStack(spacing: 6) {
+                    ForEach(SwarmSettings.Merge.allCases, id: \.self) { merge in
+                        let picked = form.merge == merge
+                        Text(merge == .repo ? "as the repo says" : merge.rawValue).font(Theme.mono(11))
+                            .foregroundStyle(picked ? Theme.fg : Theme.fg3)
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(RoundedRectangle(cornerRadius: 4).fill(picked ? Theme.chip : .clear))
+                            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+                            .clickable()
+                            .onTapGesture { model.goals.swarmForm?.merge = merge }
+                    }
+                }
+                Text("Its PRs merge in merge order either way; nothing reaches the default branch unless this or the "
+                    + "repo turns get it merged on.")
+                    .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 18) {
                     Spacer()
                     KeyHint(keys: "<Esc>", label: "cancel")
@@ -1178,6 +1220,23 @@ struct SwarmFormView: View {
             .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Theme.line))
             .shotRegion(.swarmForm)
         }
+    }
+
+    /// This Mac, or a host in its colour: a click runs the swarm there (`swarm.host`).
+    private func placeChip(_ place: Location, picked: Bool) -> some View {
+        let palette = place.hostName.map { HostPalette.color(for: $0, configured: model.config.hosts[$0]?.color) }
+        return Text(place.hostName.map { "@\($0)" } ?? "this Mac").font(Theme.mono(11))
+            .foregroundStyle(picked ? (palette?.foreground ?? Theme.fg) : Theme.fg3)
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 4).fill(picked ? (palette?.background ?? Theme.chip) : .clear))
+            .overlay(RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(picked ? (palette?.swatch.opacity(0.6) ?? Theme.line) : Theme.line))
+            .clickable()
+            .onTapGesture {
+                model.perform(CommandInvocation(name: "swarm.host", arguments: [place.hostName ?? SwarmPlace.local]))
+            }
+            .help(place.hostName
+                .map { "Run the lead and its workers on @\($0)" } ?? "Run the lead and its workers here")
     }
 
     private func toggleRepo(_ slug: String) {
@@ -1317,7 +1376,7 @@ private struct MergeOrder: View {
             }
             Text(
                 "A PR merges after what its task waits for; one stacked on another moves to where that one merged. "
-                    + "Each PR merges by its own get it merged setting: heed never merges to main on its own."
+                    + "Each PR merges by the get it merged in the header: heed never merges to main on its own."
             )
             .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
             FlowLayout(spacing: 14, lineSpacing: 6) {

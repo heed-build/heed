@@ -56,7 +56,15 @@ run = "HEED_SHOTS=\"$PWD/docs/images/shots\" HEED_DOCS=\"$PWD/docs\" build/Heed.
 [tasks.tutor-check]
 description = "Play every tutor lesson with the real keys on its fake world, and report steps that do not tick off"
 depends = ["bundle"]
-run = "HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed"
+# The summary line is the proof it ran: an app that exits early (another Heed running, a crash) prints none.
+run = """
+status=0
+out="$(HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed)" || status=$?
+printf '%s\n' "$out"
+[ "$status" = 0 ] || exit "$status"
+printf '%s\n' "$out" | grep -q '^tutor-check: [0-9][0-9]* problems*$' \
+  || { echo "tutor-check did not run: no summary line" >&2; exit 1; }
+"""
 
 [tasks.deploy]
 description = "Copy build/Heed.app to HEED_DEPLOY_DIR (set it in mise.local.toml)"

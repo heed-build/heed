@@ -218,6 +218,8 @@ This page is generated from the code (`mise run shots`).
 | `swarm.accept` | `y` (goalplan) | yes to the plan change waiting for you: it becomes the approved plan |
 | `swarm.task.pause` | `p` (goalagents), `p` (goalmap), `p` (goalplan) | pause the swarm task under the cursor (again: resume): its worker stops, its worktree stays |
 | `swarm.task.swap` `<agent[:model]>` | `t` (goalagents), `t` (goalmap), `t` (goalplan) | hand the swarm task under the cursor to another agent; a working worker hands over its worktree |
+| `swarm.task.host` `<host|local|->` |  | where the swarm task under the cursor runs: a host, local for this Mac, or - for where the swarm runs |
+| `swarm.host` `<host|local>` |  | where the new swarm runs, in its form: a host, or local for this Mac |
 | `swarm.task.open` | `s` (goalagents), `<CR>` (goalagents), `s` (goalmap), `<CR>` (goalmap), `s` (goalplan) | the swarm task under the cursor's worker: its tab |
 | `swarm.land` | `b` (goalplan) | move the task under the cursor's stacked PR to where the PR it stacks on merged (again after gh refused) |
 | `swarm.order` | `m` (goalplan) | the swarm's plan in merge order (what each task waits for merges first), or by phase again |
@@ -241,6 +243,7 @@ This page is generated from the code (`mise run shots`).
 | `swarm.followup` | `F` (goalagents), `F` (goaldoc), `F` (goalmap), `F` (goalplan), `F` (goals) | start a follow-up swarm on the goal: the last one's team and limits, its follow-ups for the lead (the form first) |
 | `swarm.summary` |  | the swarm's end-of-build summary: written again from its record, and the lead asked to write its part |
 | `swarm.stuck` `<estimate|errors|quiet|peer|you> <value>` |  | when the goal's swarm counts a worker as stuck: estimate (×), errors, quiet, peer and you (minutes) |
+| `swarm.merge` `<off|auto|heed|repo>` |  | get it merged for the goal's swarm's PRs: off, auto, heed, or repo (each PR's repo says; the default). In merge order either way |
 | `swarm.rule.delete` `[rule number]` |  | delete one of the goal's repeat rules: the controller stops answering with it |
 | `review.recheck` `[reviewer]` | `r` (goaldoc), `r` (goalreviewers), `r` (goals) | re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs) |
 | `review.accept` | `A` (goalreviewers) | accept the risk of the objection under the cursor (again: open it) |

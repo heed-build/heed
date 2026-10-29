@@ -187,7 +187,8 @@ public extension GoalOps {
         _ = try store.add(SwarmSteer(
             swarm: id, goal: swarm.goal, at: now, actor: .heed, kind: .retarget,
             text: retarget.text + " (was \(retarget.from))",
-            reason: retarget.edit ? "its branch is rebased there by a get it green run" : "GitHub had moved it already",
+            reason: retarget.edit ? "its branch is rebased there by its worker (else a get it merged run)"
+                : "GitHub had moved it already",
             ref: "task:\(retarget.task)"
         ))
         return swarm
@@ -204,6 +205,36 @@ public extension GoalOps {
             text: "Could not move #\(retarget.pr) to \(retarget.to)", reason: error, state: .pending,
             ref: "task:\(retarget.task)"
         ))
+    }
+
+    /// A PR's conflict or rebase handed on: back to the task's worker (`to`: its agent), or to a get it merged run
+    /// (`to` nil) because the worker could not take it, and why.
+    @discardableResult
+    func handback(swarm id: String, task: String, what: String, to worker: String?, reason: String?, now: Date) throws
+        -> SwarmSteer
+    {
+        let swarm = try existing(id)
+        let text = what + (worker.map { ": back to its worker, \($0)" } ?? ": to a get it merged run")
+        return try store.add(SwarmSteer(
+            swarm: id, goal: swarm.goal, at: now, actor: .heed, kind: .handback, text: text, reason: reason,
+            ref: "task:\(task)"
+        ))
+    }
+
+    /// Get it merged for the swarm's PRs, changed by you: a `limit` row says from what to what.
+    @discardableResult
+    func setMerge(swarm id: String, _ merge: SwarmSettings.Merge, now: Date) throws -> GoalSwarm {
+        var swarm = try active(id)
+        let before = swarm.settings.merge
+        guard before != merge else { return swarm }
+        swarm.settings.merge = merge
+        try store.save(swarm)
+        _ = try store.add(SwarmSteer(
+            swarm: id, goal: swarm.goal, at: now, actor: .you, kind: .limit,
+            text: "Get it merged: \(before.rawValue) → \(merge.rawValue)",
+            reason: merge == .repo ? "as each PR's repo says" : "for every PR of the swarm, in merge order"
+        ))
+        return swarm
     }
 
     /// At launch: workers still recorded as working were cut off when heed quit.

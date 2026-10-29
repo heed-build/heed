@@ -194,13 +194,17 @@ extension AppModel {
         }
     }
 
-    /// Each live worker's worktree, at most once a minute: what changed since the last look, a row when it did.
+    /// Each live worker's worktree, at most once a minute (every three on a host, over its shared ssh connection, and
+    /// only while it answers): what changed since the last look, a row when it did.
     private func pollWorkerFiles(now: Date) async {
         for (id, live) in liveWorkers where !live.worktree.isEmpty {
             let last = workerFiles[id]
-            guard FileActivityPolling.due(last: last?.at, now: now) else { continue }
+            guard FileActivityPolling.due(
+                last: last?.at, now: now, interval: FileActivityPolling.interval(for: live.location)
+            ) else { continue }
+            if let host = live.location.hostName, !hostStatus(host).isConnected { continue }
             workerFiles[id] = (now, last?.files)
-            guard let current = try? await Git.fileActivity(at: live.worktree) else { continue }
+            guard let current = try? await Git.fileActivity(at: live.worktree, on: live.location) else { continue }
             workerFiles[id] = (now, current)
             guard let change = FileActivity.change(from: last?.files, to: current) else { continue }
             appendActivity(SwarmActivityLine(at: now, kind: .files(change)), task: live.task)
@@ -461,6 +465,7 @@ extension AppModel {
         form.limits = settings.limits
         form.autonomy = settings.autonomy
         form.stuck = settings.stuck
+        form.merge = settings.merge
         if let followUps = last.summary?.followUps, !followUps.isEmpty {
             form.statement = "Follow-ups from swarm \(last.number): " + followUps.joined(separator: "; ")
         }
@@ -487,6 +492,37 @@ extension AppModel {
             case let .failure(error): self?.say("\(error)")
             }
         }
+    }
+
+    /// `swarm.merge <off|auto|heed|repo>`: get it merged for the goal's swarm's PRs. Its PRs still merge in merge
+    /// order, a held child after its parent, and a PR's own choice (`zm`) still wins.
+    func setSwarmMerge(_ word: String?) {
+        guard let swarm = goals.activeSwarm else { return say("no swarm going here") }
+        let repo = swarmRepoMerge(swarm)
+        guard let word else {
+            say("swarm \(swarm.number): \(swarm.settings.merge.line(repo: repo))")
+            return openCommandLine("swarm.merge ")
+        }
+        guard let merge = SwarmSettings.Merge.named(word) else {
+            return say("swarm.merge takes off, auto, heed or repo")
+        }
+        let now = Clock.now
+        goals.run { try await $0.setMerge(swarm: swarm.id, merge, now: now) } done: { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case let .success(run):
+                refreshSwarmPulls()
+                say("swarm \(run.number): \(run.settings.merge.line(repo: repo)), in merge order")
+            case let .failure(error): say("\(error)")
+            }
+        }
+    }
+
+    /// What get it merged is for the swarm's first repo by its `[pilot]` settings: what `repo` follows.
+    func swarmRepoMerge(_ swarm: GoalSwarm) -> MergeMode {
+        let parts = swarm.settings.repos.first?.split(separator: "/", maxSplits: 1).map(String.init) ?? []
+        guard parts.count == 2 else { return config.pilot.defaults.merge }
+        return config.pilot.resolve(Repo(org: parts[0], name: parts[1])).merge
     }
 
     /// The goal's repeat rules, newest first, as the plan pane lists them.
@@ -560,9 +596,9 @@ extension AppModel {
 
     /// The fake world's watched swarm: the steering world with 2.2 stuck and the ladder heed climbed for it, every
     /// worker's activity, and what changed since you last looked (fixed text).
-    func loadWatchFixture() {
+    func loadWatchFixture(_ variant: SwarmFixtures.Running = .watch) {
         guard isFixture else { return }
-        loadRunningSwarmFixture(.watch)
+        loadRunningSwarmFixture(variant)
         steeringBoards = goals.boards.filter { $0.key == "\(SwarmFixtures.anchors)/swarm-1" }
         workerActivity = SwarmFixtures.activity(now: Clock.now)
         swarmLastLooked["\(SwarmFixtures.anchors)/swarm-1"] = SwarmFixtures.lastLooked(now: Clock.now)

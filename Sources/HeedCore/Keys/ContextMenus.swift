@@ -248,7 +248,7 @@ public enum ContextMenus {
     public static func swarmTask(
         id: String, title: String, first: Bool, last: Bool, active: Bool, running: Bool = false,
         paused: Bool = false, working: Bool = false, owner: String? = nil, agents: [String] = [],
-        stacked: Bool = false
+        stacked: Bool = false, hosts: [String] = [], host: String? = nil
     ) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: "task:\(id)")
         func item(_ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true) -> MenuItem {
@@ -274,6 +274,12 @@ public enum ContextMenus {
             ])
         }
         menu.section([item("Edit…", "swarm.task.edit"), item("Add a task after it…", "swarm.task.add")])
+        // Where it runs: only when there is a host to pick.
+        if !hosts.isEmpty {
+            menu.section(hosts.filter { $0 != host }.map { item("Run it on @\($0)", "swarm.task.host", [$0]) }
+                + (host == SwarmPlace.local ? [] : [item("Run it on this Mac", "swarm.task.host", [SwarmPlace.local])])
+                + (host == nil ? [] : [item("Run it where the swarm runs", "swarm.task.host", ["-"])]))
+        }
         menu.section([
             item("Move up", "swarm.task.move", ["-1"], enabled: !first),
             item("Move down", "swarm.task.move", ["1"], enabled: !last),

@@ -12,7 +12,8 @@ import Foundation
 ///
 /// A task's `id` names it in `after`; an id of an item already on the goal takes that item into the plan. Without an id
 /// a task keeps the id of the current plan's task with the same title, or gets one made from its title. `owner` is an
-/// agent (`claude`), `agent:model`, or `{"agent": …, "model": …}`; `estimate` minutes or `15m`, `1h 30m`.
+/// agent (`claude`), `agent:model`, or `{"agent": …, "model": …}`; `estimate` minutes or `15m`, `1h 30m`; `host` where
+/// its worker runs when not where the swarm does (a host's name, or `local` for the owner's Mac).
 public struct SwarmPlanInput: Hashable, Sendable {
     public struct Scope: Hashable, Sendable {
         public var section: GoalEdit.Section
@@ -113,7 +114,8 @@ public struct SwarmPlanInput: Hashable, Sendable {
                 id: id, title: title, phase: phase, owner: owner(entry["owner"], index: index),
                 estimate: estimate, after: strings(entry["after"]),
                 doneWhen: strings(entry["doneWhen"] ?? entry["done_when"] ?? entry["done"]).map(GoalDoc.oneLine)
-                    .filter { !$0.isEmpty }
+                    .filter { !$0.isEmpty },
+                host: host(entry["host"], index: index)
             ))
         }
         // `after` may name tasks by what the lead wrote, their slug, or items already on the goal.
@@ -134,6 +136,18 @@ public struct SwarmPlanInput: Hashable, Sendable {
     static func strings(_ value: Any?) -> [String] {
         if let text = value as? String { return text.isEmpty ? [] : [text] }
         return (value as? [Any] ?? []).compactMap { $0 as? String }.filter { !$0.isEmpty }
+    }
+
+    /// A task's `host`: a host's name (`devbox`, `@devbox`), `local`, or nothing (where the swarm runs).
+    static func host(_ value: Any?, index: Int) throws -> String? {
+        if value == nil || value is NSNull { return nil }
+        guard let text = value as? String else {
+            throw ParseError(description: "task \(index + 1): host is a host's name, or local for the owner's Mac")
+        }
+        switch SwarmPlace.parse(text) {
+        case let .success(host): return host
+        case let .failure(problem): throw ParseError(description: "task \(index + 1): \(problem.text)")
+        }
     }
 
     static func owner(_ value: Any?, index: Int) throws -> GoalItem.Owner? {

@@ -7,8 +7,9 @@ description: "A swarm that lands: its PRs merge in a merge order, dependencies f
 Once every task has its pull request, a swarm is **landing**. Its PRs merge in a **merge order**: what a task waits
 for merges first, and otherwise the plan's order. heed shows that order everywhere the swarm's PRs are, holds a PR
 back while what it waits for is unmerged, moves a stacked PR on once the PR it stacks on merged, and ends the swarm
-once every task merged. The merging itself is the pilot's: each PR merges by its own
-[get it merged](../../github/watch.md) setting, and a swarm never merges anything to main on its own.
+once every task merged. The merging itself is the pilot's: each PR merges by its
+[get it merged](../../github/watch.md) setting (the swarm's, when you gave it one), and a swarm never merges anything
+to main on its own.
 
 ![A landing swarm: the merge order on the right, the two PRs stacked on #412 held after it](../../images/shots/goals/swarm-landing.png)
 
@@ -30,7 +31,8 @@ Tasks move up and down (`J` `K`) only by phase: the merge order follows what eac
 ![The outline in merge order](../../images/shots/goals/swarm-merge-order.png)
 
 The same label is on the swarm's PRs in Watch, in the PRs view, in the inspector and in the merge queue:
-`swarm 1 · 3/4 · after #412 held`.
+`swarm 1 · 3/4 · after #412 held`. A done swarm's PRs keep it until each has merged or closed as heed last saw it; a
+stopped swarm's lose it.
 
 ## Held
 
@@ -61,8 +63,16 @@ PR that is not green says what holds it (`#416 conflicts with main`), and a gree
 ![The merge queue in the swarm's order](../../images/shots/goals/swarm-merge-queue.png)
 
 The queue only holds PRs with get it merged on. heed tracks each swarm PR in the session its worker ran in (the
-lead's), so the pilot watches it by the repo's settings like any PR a session opened; get it merged is still yours to
-turn on (`zm`), or the repo's `[pilot]` settings turn it on.
+lead's), so the pilot watches it like any PR a session opened.
+
+## Get it merged
+
+A swarm's PRs follow its **get it merged** setting: as each PR's repo says (its `[pilot]` settings, the default), or
+`off`, `auto` or `heed` for every PR of the swarm. Set it in the swarm form or with `:swarm.merge off|auto|heed`
+(`:swarm.merge repo` goes back to the repo's); the plan's header says which applies
+(`Get it merged: as the repo says (off)`), and each change is a steering row. Whichever applies, the swarm's PRs merge
+in merge order and a held child waits for its parent. A PR's own choice (`zm` on it) still wins over the swarm's. With
+the default, and a repo whose get it merged is off, nothing of the swarm merges to main until you say so.
 
 ## When a parent merges
 
@@ -73,18 +83,42 @@ A stacked PR goes against its parent's branch. Once the parent merges, heed:
    deleted; then only heed's record changes.
 2. Records the new base on the task's worker and as a steering row by heed: `#415 now goes against main: #412 merged
    (was swarm/<goal>/heading-ids)`.
-3. Has its branch rebased there: a **rebase** item on the PR's get it green feedback, which a get it green run picks up
-   (queued when its get it green is auto; otherwise New, for you to send). A squash merge leaves the parent's commits
-   on the child as different commits, so the run rebases onto the new base past them
-   (`git rebase --onto origin/main <the parent's last commit>`), resolves any conflicts, runs the tests and pushes with
-   `--force-with-lease` to the PR's own branch only. Nothing is ever forced to main. Conflicts go to that run, as any
-   conflict does.
+3. Has its branch rebased there: a **rebase** item on the PR's get it green feedback (queued when its get it green is
+   auto; otherwise New, for you to send). A squash merge leaves the parent's commits on the child as different
+   commits, so it is rebased onto the new base past them (`git rebase --onto origin/main <the parent's last commit>`),
+   conflicts resolved, the tests run, and pushed with `--force-with-lease` to the PR's own branch only. Nothing is
+   ever forced to main.
 
-A PR's feedback for a swarm goes to a run of its own even when the repo's `run_in` is `session`: the session is the
-lead's.
+## Back to the task's worker
+
+A rebase after a parent merged, and a merge conflict on any swarm PR, go back to **the task's own worker**: the agent
+and model that did the task start again in the worktree it kept (`swarm/<goal>/<task>`), on a prompt that says what the
+PR needs now and that it pushes to its own branch only and never merges. Its tab opens in the lead's session, as when
+it first worked; the PR's feedback counts as sent to it. A steering row by heed says so:
+`#415 rebases onto main (#412 merged): back to its worker, codex · o4`.
+
+When that worker cannot take it, a get it merged run does, as for any PR, and the steering row says why:
+
+- the swarm is stopped, paused or done;
+- the worker's agent is not set up on this Mac, or is rate limited;
+- its worktree is gone (or the worker never started); for a worker on a host, its host does not answer, or heed looks
+  there over ssh before it starts and finds the worktree gone.
+
+A worker still at work on the task gets it once its turn ends.
+
+A PR's other feedback for a swarm (review threads, failing checks) goes to a run of its own even when the repo's
+`run_in` is `session`: the session is the lead's.
 
 If `gh` refuses the move, a steering row says why and heed tries again after ten minutes; `b` in the plan pane
 (`:swarm.land`) on the task tries at once, or says why there is nothing to move (`#415 goes against main already`).
+
+## Where it runs
+
+Landing is GitHub's business, so it runs on this Mac whatever machine the workers are on: heed reads the PRs and moves
+a stacked one with `gh` here, against the branch its worker pushed to GitHub. Nothing about it needs the worktree.
+The rebase after a parent merges, or a conflict, goes back to the task's worker where it ran: a worker on a host starts
+again there, in the worktree it kept on the host, even if the task has moved since. When a get it merged run takes it
+instead, that run works where the lead's session does (on this Mac or its host), in a clone of the repo there.
 
 ## Two open blockers
 
@@ -121,5 +155,6 @@ edits of heed's issues: written in the same batches, at the same rate, as every 
 | `b` | `swarm.land` | Move the task's stacked PR to where its parent merged, now |
 | `gM` | `merge.queue` | The repo's merge queue, in the swarm's order |
 | `zM` | `pilot.merge.now` | Merge now: refused for a held PR |
+| | `swarm.merge` | Get it merged for the swarm's PRs: `off`, `auto`, `heed` or `repo` |
 
 A right-click on a task offers both, and the hints in the Merge order panel are clickable.

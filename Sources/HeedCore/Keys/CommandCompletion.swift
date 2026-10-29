@@ -106,6 +106,12 @@ public enum CommandCompletions {
         case "agent.switch": Handoff.candidates(agents: context.agents, current: context.currentAgent)
             .map { ($0, "hand the session to \($0)") }
         case "swarm.task.swap": context.agents.map { ($0, "hand the task to \($0)") }
+        case "swarm.task.host": [("local", "this Mac"), ("-", "where the swarm runs")]
+            + context.hosts.map { ($0, "run it on @\($0)") }
+        case "swarm.host": [("local", "this Mac")] + context.hosts.map { ($0, "run it on @\($0)") }
+        case "swarm.merge": SwarmSettings.Merge.allCases.map { merge in
+                (merge.rawValue, merge == .repo ? "as each PR's repo says" : "get it merged \(merge.rawValue)")
+            }
         case "settings.open": settingsSections.map { ($0, "") }
             + OverrideTab.allCases.map { ("colors \($0.rawValue)", "Orgs & repos › \($0.title)") }
         case "pilot.pause": pauseDurations.map { ($0.0, $0.1) }

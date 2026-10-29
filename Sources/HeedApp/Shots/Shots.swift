@@ -466,6 +466,22 @@ enum Shots {
         }),
         // The goal's items by stage, filled by evidence; its board; the changes to GOAL.md the work suggests.
         Shot(id: "goals/matrix", keys: "gGj", crop: .goalMatrix, cropPadding: 8),
+        // The pane switcher above every pane of a goal, and how far the goal is.
+        Shot(id: "goals/pane-tabs", keys: "gGjB", crop: .goalPaneBar, cropPadding: 0),
+        Shot(id: "goals/progress", keys: "gGj", crop: .goalLeft, cropPadding: 8),
+        // A new goal: its overview with the next-steps card, its GOAL.md looking unfinished, and sharpened.
+        Shot(id: "goals/guided", keys: "gG:goal.new<Space>Faster<Space>search<CR>"),
+        Shot(
+            id: "goals/guided-card",
+            keys: "gG:goal.new<Space>Faster<Space>search<CR>",
+            crop: .goalGuide,
+            cropPadding: 8
+        ),
+        Shot(id: "goals/doc-unfinished", keys: "gG:goal.new<Space>Faster<Space>search<CR>", then: ["E"]),
+        Shot(
+            id: "goals/guided-sharpened", keys: "gG:goal.new<Space>Faster<Space>search<CR>",
+            then: ["w", "y", "y", "y", "y", "E"], crop: .goalGuide, cropPadding: 8
+        ),
         Shot(id: "goals/board", keys: "gGjB"),
         Shot(id: "goals/proposals", keys: "gGjE", crop: .goalProposals, cropPadding: 8),
         Shot(id: "goals/session-chip", keys: "", crop: .sidebar, cropPadding: 0),
@@ -544,7 +560,11 @@ enum Shots {
         Shot(id: "goals/swarm-approved", keys: "gGjS"),
         Shot(id: "goals/swarm-diff", keys: "gGjS<Tab>j", crop: .swarmVersions, cropPadding: 8),
         Shot(id: "goals/swarm-edit", keys: "gGSje", crop: .swarmEditor, cropPadding: 8),
-        Shot(id: "goals/swarm-goal-page", keys: "gG", crop: .goalSwarm, cropPadding: 8),
+        // Taller: the goal's next-steps card pushes the swarm panel below the fold of a 900-point window.
+        Shot(
+            id: "goals/swarm-goal-page", size: CGSize(width: 1440, height: 1300), keys: "gG", crop: .goalSwarm,
+            cropPadding: 8
+        ),
         // The anchors swarm running: 1.2 merged and done, 1.1's PR green, two workers stacked on it, one asking.
         Shot(id: "goals/swarm-running", keys: "gGjS", prepare: { $0.loadRunningSwarmFixture(.running) }),
         Shot(id: "goals/swarm-stacked", keys: "gGjS", crop: .swarmTask, cropPadding: 8, prepare: {

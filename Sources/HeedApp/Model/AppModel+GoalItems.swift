@@ -211,10 +211,15 @@ extension AppModel {
             words.removeFirst()
         }
         if case let .row("goals", key)? = commandTarget, key.hasPrefix("edit:") { named = Int64(key.dropFirst(5)) }
-        let waiting = goals.proposals
-        guard let edit = named.flatMap({ id in goals.snapshot.edits.first { $0.id == id } }) ?? waiting.first,
+        // A key pressed again before the last answer came back answers the next change, never the same one twice:
+        // the list moves on only once the store says the answer is in.
+        let next = GoalEdits.next(goals.proposals, answering: goals.answering)
+        guard let edit = named.flatMap({ id in goals.snapshot.edits.first { $0.id == id } }) ?? next,
               let id = edit.id
-        else { return say("no changes waiting for GOAL.md") }
+        else {
+            return say(goals.answering.isEmpty ? "no changes waiting for GOAL.md" : "still answering the last one")
+        }
+        guard !goals.answering.contains(id) else { return say("still answering that one") }
         let now = Clock.now
         let before = goals.snapshot.docs[edit.goal]
         switch answer {
@@ -222,10 +227,12 @@ extension AppModel {
             openCommandLine("goal.proposal.edit #\(id) \(edit.text)")
         case .accept, .edit:
             let text = words.isEmpty ? nil : words.joined(separator: " ")
+            goals.answering.insert(id)
             goals.run { ops in
                 try await ops.accept(edit: id, text: text, now: now)
             } done: { [weak self] result in
                 guard let self else { return }
+                goals.answering.remove(id)
                 switch result {
                 case let .success(done):
                     say(done.state == .applied ? "GOAL.md v\(done.version ?? 0): \(done.line)" : "nothing to change")
@@ -234,9 +241,11 @@ extension AppModel {
                 }
             }
         case .reject:
+            goals.answering.insert(id)
             goals.run { ops in
                 try await ops.reject(edit: id, now: now)
             } done: { [weak self] result in
+                self?.goals.answering.remove(id)
                 if case let .failure(error) = result { return self?.say("\(error)") ?? () }
                 self?.say("left out: \(edit.line)")
             }
@@ -333,21 +342,23 @@ extension AppModel {
         planGoal(goal: goal)
     }
 
-    /// `goal.sharpen` (`w`): a model suggests a sharper GOAL.md; every suggestion waits for you.
+    /// `goal.sharpen` (`w`): a model suggests a sharper GOAL.md; every suggestion waits for you. In the fake world
+    /// (shots, the tutor) `GoalSharpenFixture` answers instead, with no model call.
     func sharpenGoal() {
         guard let goal = goals.selected else { return say("no goal here") }
-        guard spendGoalCall(goal.id) else {
-            return say(isFixture || tutor != nil ? "fixture: no model calls" : "no model call: [llm] is off, or "
-                + "\(goal.title) used today's \(GoalBudget.daily)")
+        let fake = isFixture || tutor != nil
+        guard fake || spendGoalCall(goal.id) else {
+            return say("no model call: [llm] is off, or \(goal.title) used today's \(GoalBudget.daily)")
         }
         say("asking for a sharper \(goal.title)…")
         let summarizer = summarizer
         goals.run { ops in
             let text = try await ops.text(of: goal.id)
-            let answer = try await summarizer.summarize(
-                kind: .goalSharpen, inputs: SummaryInputs(title: goal.title, goal: text), caller: "goals.sharpen",
-                priority: .interactive
-            )
+            let answer = fake ? GoalSharpenFixture.answer(title: goal.title, doc: GoalDoc.parse(text))
+                : try await summarizer.summarize(
+                    kind: .goalSharpen, inputs: SummaryInputs(title: goal.title, goal: text), caller: "goals.sharpen",
+                    priority: .interactive
+                )
             var waiting = 0
             for edit in GoalEditProposer.edits(answer, goal: goal.id, from: "sharpen", now: Date(), scopeOnly: true) {
                 let proposed = try await ops.propose(edit, now: Date())

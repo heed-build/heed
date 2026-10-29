@@ -90,6 +90,7 @@ This page is generated from the code (`mise run shots`).
 | `view.dashboard` |  | History's dashboard: what the work amounted to over a range |
 | `view.ledger` |  | History's ledger: a summary of each piece of work, kept after its worktree |
 | `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
+| `goal.overview` |  | Goals: back to the goal's overview from any of its panes |
 | `goal.doc` | `E` (goalagents), `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalmap), `E` (goalpersonas), `E` (goalplan), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
 | `goal.board` | `B` (goalagents), `B` (goalboard), `B` (goaldoc), `B` (goalevals), `B` (goalmap), `B` (goalpersonas), `B` (goalplan), `B` (goalreviewers), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
 | `goal.unassigned` | `U` (goalagents), `U` (goalboard), `U` (goaldoc), `U` (goalevals), `U` (goalmap), `U` (goalpersonas), `U` (goalplan), `U` (goalreviewers), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
@@ -196,6 +197,7 @@ This page is generated from the code (`mise run shots`).
 | `goal.proposal.edit` `[text]` | `c` (goaldoc) | GOAL.md: reword the first change waiting, then accept it (no text: the command line) |
 | `goal.undo` | `u` (goaldoc) | GOAL.md: take back the last change heed made on its own |
 | `goal.sharpen` | `w` (goaldoc), `w` (goals) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
+| `goal.guide` |  | Goals: hide the goal's next-steps card (it comes back if a step it ticked off goes back), or show it again |
 | `goal.ask.yes` | `y` (attention), `y` (swarmask), `y` (unassigned) | yes: on the goal heed proposed (on a suggested goal: make it) |
 | `goal.ask.no` | `n` (attention), `n` (swarmask), `n` (unassigned) | no: not on that goal, and heed learns it (on a suggested goal: drop it) |
 | `goal.ask.move` `<goal>` | `m` (attention), `m` (swarmask), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
@@ -203,6 +205,7 @@ This page is generated from the code (`mise run shots`).
 | `goal.attach.undo` | `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
 | `goal.attach.find` |  | look for the session's goal now: rules, signals, the model when unsure |
 | `goal.bar` `<lens> <bar|off|auto>` |  | pin a quality bar for the goal: a lens and 0–10, off to drop the lens, auto for the profile's |
+| `goal.bars.accept` | `y` (goalreviewers) | Reviewers: these quality bars are right for the goal (recorded as yours; the first steps tick off on it) |
 | `goal.mirror` | `M` (goalagents), `M` (goalboard), `M` (goaldoc), `M` (goalevals), `M` (goalmap), `M` (goalpersonas), `M` (goalplan), `M` (goalreviewers), `M` (goals), `M` (unassigned) | mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop |
 | `goal.tracker` `[org/name|none]` |  | the repo the goal mirrors to on GitHub, checked read-only first (none: no tracker) |
 | `goal.mirror.sync` |  | sync the goal's GitHub issues now and read them back |

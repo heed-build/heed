@@ -101,6 +101,12 @@ public struct GoalEdit: Hashable, Sendable, Codable, Identifiable {
 }
 
 public enum GoalEdits {
+    /// The change a yes or no answers: the first waiting one whose answer is not on its way already (`answering`), so a
+    /// key pressed twice before the store answers takes the next change, never the same one twice.
+    public static func next(_ proposals: [GoalEdit], answering: Set<Int64>) -> GoalEdit? {
+        proposals.first { $0.id.map { !answering.contains($0) } ?? false }
+    }
+
     /// Record or scope, by what the edit does, never by what a model said it was: a decision taken, a question answered
     /// and a criterion met with evidence only record; a new criterion, a non-goal, a new question, a reworded goal or
     /// anything taken out of scope changes it.

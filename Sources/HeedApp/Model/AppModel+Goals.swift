@@ -28,6 +28,39 @@ extension AppModel {
         endGoalEditing()
     }
 
+    /// `goal.overview`: the goal's overview, from whichever of its panes shows.
+    func showGoalOverview() {
+        view = .goals
+        endGoalEditing()
+        goals.show(.overview)
+    }
+
+    /// A command's key where the goal is what you are on (the list and the overview), else `:command`: the next-steps
+    /// card never shows a key that means something else there (`a` adds on the board, archives here).
+    func goalKeyText(_ command: String) -> String {
+        binds(command, in: "goals") ? keyText(for: command, in: "goals") : ":\(command)"
+    }
+
+    /// A tab of Goals' pane strip clicked: its pane, as its key opens it from the overview.
+    func showGoalPane(_ tab: GoalPaneTabs.Tab) {
+        guard clicksReachLists, goals.pane.rawValue != tab.pane else { return }
+        clickedOutsideTerminal()
+        showGoalOverview()
+        if tab.command != "goal.overview" { perform(CommandInvocation(name: tab.command)) }
+    }
+
+    /// `goal.guide`: the goal's next-steps card hidden, or shown again.
+    func toggleGoalGuide() {
+        guard let goal = goals.selected else { return say("no goal here") }
+        view = .goals
+        if goals.toggleGuide(goal) {
+            goals.show(.overview)
+            say("next steps for \(goal.title) show again")
+        } else {
+            say("next steps hidden; they come back if a step goes back, and :goal.guide shows them now")
+        }
+    }
+
     /// `'g`: from a session to its goal, the session under the cursor there; in Goals, from a session back to the goal.
     func jumpToGoal() {
         if view == .goals {
@@ -171,6 +204,8 @@ extension AppModel {
             case let .success(goal):
                 view = .goals
                 goals.point(to: goal.id)
+                // A new goal lands on its overview, where the next-steps card says what to do first.
+                goals.show(.overview)
                 say("goal \(goal.title) made" + (session.map { ", \($0.title) on it" } ?? ""))
                 planGoal(goal: goal.id)
                 mirrorNewGoal(goal, tracker: form.tracker, on: form.mirror)

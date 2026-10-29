@@ -74,6 +74,8 @@ public struct TutorState: Equatable, Sendable {
     /// The goal under the cursor: its items, its GOAL.md changes waiting, and cards moved by hand so far.
     public var goalItems = 0
     public var goalProposals = 0
+    /// The selected goal's next step while its card shows (`GoalStep`'s raw value), else empty.
+    public var goalNextStep = ""
     public var goalMoves = 0
     public var goalSelected = ""
     /// heed's open goal asks (Unassigned, Attention).

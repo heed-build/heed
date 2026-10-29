@@ -82,6 +82,8 @@ public struct TutorState: Equatable, Sendable {
     public var goalAsks = 0
     /// The selected goal's objections whose risk you accepted.
     public var goalAccepted = 0
+    /// Item sources on all goals.
+    public var goalSources = 0
 
     public init() {}
 }

@@ -82,7 +82,7 @@ private struct GoalList: View {
                         GoalRow(
                             goal: goal, links: goals.snapshot.links(of: goal.id),
                             swarm: goals.snapshot.activeSwarm(of: goal.id), progress: goals.progress(of: goal),
-                            next: goals.shownGuide(of: goal)?.next?.step,
+                            next: goals.shownGuide(of: goal)?.next,
                             isCursor: index == goals.cursor,
                             focused: goals.focus == .goals && goals.pane != .unassigned
                         )
@@ -125,7 +125,7 @@ private struct GoalRow: View {
     let swarm: GoalSwarm?
     /// How far it is, and its next step while its card shows.
     let progress: GoalProgress
-    let next: GoalStep?
+    let next: GoalGuide.Step?
     let isCursor: Bool
     let focused: Bool
 
@@ -145,7 +145,8 @@ private struct GoalRow: View {
                     HStack(spacing: 6) {
                         Text("next").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                         KeyCap(text: model.goalKeyText(next.command))
-                        Text(next.title.lowercased()).font(Theme.ui(11.5)).foregroundStyle(Theme.block).lineLimit(1)
+                        Text(next.step.title.lowercased()).font(Theme.ui(11.5)).foregroundStyle(Theme.block)
+                            .lineLimit(1)
                     }
                     .padding(.top, 1)
                 }
@@ -211,6 +212,10 @@ private struct GoalOverviewPane: View {
                         OnTheGoal(rows: overview.rows)
                     }
                     VStack(alignment: .leading, spacing: 16) {
+                        // A goal fed by sources (or with one proposed) shows them first: they are its work.
+                        let sourced = !goals.snapshot.sources(of: goal.id).sources.isEmpty
+                            || goals.snapshot.sources(of: goal.id).proposal != nil
+                        if sourced { GoalSourcesPanel(goal: goal).shotRegion(.goalSources) }
                         HowHappy(goal: goal).shotRegion(.goalHappy)
                         GoalSwarmPanel(goal: goal).shotRegion(.goalSwarm)
                         GoalMirrorPanel(goal: goal).shotRegion(.goalMirror)
@@ -240,6 +245,8 @@ private struct GoalOverviewPane: View {
                                     + "the goal's sessions.")
                             }
                         }
+                        // Not fed by sources: where to add one, last.
+                        if !sourced { GoalSourcesPanel(goal: goal).shotRegion(.goalSources) }
                     }
                     .frame(width: 340)
                 }

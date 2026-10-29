@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import HeedCore
 
 /// Goals' items, evidence and GOAL.md edits: the board's and the proposals' commands, and the pipelines that feed them
@@ -151,7 +151,14 @@ extension AppModel {
             return say("no card here: B shows the board")
         }
         goals.startingItem = item
-        openStartWork(prompt: item.workPrompt(goal: goal.title, doc: Paths.tilde(goals.files.doc(goal.id).path)))
+        // A PR or issue a source found: Start work in its repo; a PR starts a review of it.
+        let context = item.sourced.flatMap { PullRef(slug: $0.ref) }.flatMap { ref in
+            repos.contains { $0.repo == ref.repo }
+                ? StartContext(repos: [ref.repo.slug], label: "\(ref.repo.name)#\(ref.number)") : nil
+        }
+        openStartWork(
+            prompt: item.workPrompt(goal: goal.title, doc: Paths.tilde(goals.files.doc(goal.id).path)), context: context
+        )
     }
 
     /// After Start work: the session started from an item goes on its goal and its item.
@@ -167,6 +174,11 @@ extension AppModel {
             item: item.id,
             at: now
         )
+        // A review of a PR a source found: the session tracks the PR, so its state shows there.
+        if let sourced = item.sourced, sourced.kind == .pr, let ref = PullRef(slug: sourced.ref), !session.isChat {
+            var tracked = session
+            if tracked.track(ref, because: "the goal item it reviews") { commit(.sessionUpserted(tracked)) }
+        }
         goals.run { ops in
             try await ops.attach(link)
             try await ops.link(item: item.id, GoalItem.Link(session.isChat ? .chat : .session, session.id))
@@ -189,6 +201,11 @@ extension AppModel {
         }
         if let pr = item.linked(.pr).last.flatMap(PullRef.init(slug:)) {
             return perform(CommandInvocation(name: "overlay.item", target: .pull(pr)))
+        }
+        if let sourced = item.sourced, sourced.kind == .issue, let url = URL(string: sourced.url) {
+            if isFixture { return say("fixture: would open \(sourced.url)") }
+            NSWorkspace.shared.open(url)
+            return
         }
         if let live {
             view = .sessions

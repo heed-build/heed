@@ -530,6 +530,15 @@ public extension Tutor {
                     + "{goal.reviewers}, and {goal.bars.accept} there once they are right) and starting it. What is "
                     + "left, criteria and bars, sits under the card and in the goal's row."
             ) { _, now, _ in now.goalPane == "overview" && now.goalNextStep == "work" },
+            TutorStep(
+                "Items from GitHub",
+                say: "Some goals are a set on GitHub: review every open PR in a repo, close every issue with a label. "
+                    + "A source adds the work for you: one item per PR or issue a query finds, each done by its rule. "
+                    + "Add one.",
+                keys: [":goal.source.add prs acme/docs-toolkit↩"], target: "goalSources",
+                doneLine: "Add the work is ticked off, and the source's line is in Done when. When a goal reads like "
+                    + "a set, heed proposes the source itself: {goal.source.accept} takes it."
+            ) { start, now, _ in now.goalSources > start.goalSources && now.goalNextStep != "work" },
         ]),
         TutorLesson(id: "log", title: "Call log", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(

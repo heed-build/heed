@@ -10,7 +10,7 @@ extension GoalsBrowser {
         GoalGuide.of(GoalGuide.Input(
             doc: snapshot.docs[goal.id], edits: snapshot.edits.filter { $0.goal == goal.id },
             items: snapshot.items(of: goal.id), links: snapshot.links(of: goal.id), quality: qualities[goal.id],
-            mirror: mirror(of: goal.id), swarms: snapshot.swarms(of: goal.id)
+            mirror: mirror(of: goal.id), swarms: snapshot.swarms(of: goal.id), sources: snapshot.sources(of: goal.id)
         ))
     }
 

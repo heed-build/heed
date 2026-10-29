@@ -319,6 +319,14 @@ extension AppModel {
 
     /// Keys while the new goal dialog or the GOAL.md editor has the keyboard: the text field takes the rest.
     func answerGoalText(_ stroke: KeyStroke) -> Bool {
+        if goals.sourceForm != nil {
+            switch stroke {
+            case .escape: cancelSourceForm()
+            case KeyStroke("CR", .command), KeyStroke("CR"): submitSourceForm()
+            default: return false
+            }
+            return true
+        }
         if goals.form != nil {
             switch stroke {
             case .escape: cancelGoalForm()

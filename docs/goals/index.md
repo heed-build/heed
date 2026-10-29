@@ -70,6 +70,7 @@ bars ([Quality bars](quality.md)). It shows `–` until there is something to co
 | `x` | Take the session or chat under the cursor off the goal |
 | `B` | The goal as a board; again, the overview ([Items and the board](items.md)) |
 | `w` | Ask a model to sharpen the goal; what it suggests waits in `GOAL.md` |
+| `y` | Yes to the item source heed proposes for the goal ([Item sources](sources.md)) |
 | `R` | The goal's reviewers and quality bars ([Reviewers](reviewers.md)); again, the overview |
 | `r` | Re-check: every reviewer the goal needs looks again |
 | `P` | Who the goal needs ([Personas](personas.md)); again, the overview |
@@ -108,7 +109,10 @@ done.
 you, the open questions and the goal's sessions that wait on you; **Last time** is the newest ledger summary of one of
 its sessions, so you see where the work was left. **How happy are they** lists its reviewers with their scores and which
 way each moved; a click opens it in [Reviewers](reviewers.md). **On GitHub** shows where the goal mirrors to, its
-meta issue and its last sync, and a colleague's change waiting for your answer ([GitHub mirror](github.md)).
+meta issue and its last sync, and a colleague's change waiting for your answer ([GitHub mirror](github.md)). **Sources**
+lists the GitHub queries the goal's items come from, each with its done rule and how many of its items are done, and
+the source heed proposes when the goal reads like a set over GitHub; a goal fed by sources shows them first
+([Item sources](sources.md)).
 
 ## GOAL.md
 

@@ -212,6 +212,13 @@ This page is generated from the code (`mise run shots`).
 | `goal.mirror.open` |  | open the goal's meta issue on GitHub (on a card: its sub-issue) |
 | `goal.mirror.yes` | `Y` (goalagents), `Y` (goalboard), `Y` (goaldoc), `Y` (goalevals), `Y` (goalmap), `Y` (goalpersonas), `Y` (goalplan), `Y` (goalreviewers), `Y` (goals), `Y` (unassigned) | a colleague's change on GitHub: yes, the item follows it |
 | `goal.mirror.no` | `K` (goalagents), `K` (goalboard), `K` (goaldoc), `K` (goalevals), `K` (goalmap), `K` (goalpersonas), `K` (goalreviewers), `K` (goals), `K` (unassigned) | a colleague's change on GitHub: no, heed puts the sub-issue back |
+| `goal.source.add` `[query]` |  | a GitHub query the goal's items come from, one item per PR or issue (prs org/repo, issues org/repo, label <name>, reviews, milestone <title> org/repo, or a search); none: the source dialog |
+| `goal.source.remove` `[id]` |  | take a source off the goal (its items stay, marked) |
+| `goal.source.edit` `<id> [query]` |  | change a source's query and rule (its items stay; none: the source dialog) |
+| `goal.source.rule` `<id> <rule>` |  | what done means for a source's items: merged, closed, reviewed (by you) or green |
+| `goal.source.accept` | `y` (goals) | yes to the source heed proposes for the goal |
+| `goal.source.dismiss` |  | no to the source heed proposes (not proposed again) |
+| `goal.source.sync` |  | sync the goal's sources with GitHub now |
 | `goal.reopen` |  | not done yet: undo heed marking the goal done (held until something new) |
 | `swarm.new` `[title]` |  | new swarm: a goal, where it works, its lead and team, its limits; the lead drafts a plan for you to approve |
 | `swarm.start` |  | swarm this goal: a lead drafts a plan for its work (the form first) |

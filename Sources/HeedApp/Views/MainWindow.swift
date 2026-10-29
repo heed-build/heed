@@ -72,6 +72,7 @@ struct MainWindow: View {
         }
         .overlay {
             if model.goals.form != nil { GoalFormView() }
+            if model.goals.sourceForm != nil { SourceFormView() }
             if model.goals.swarmForm != nil { SwarmFormView() }
         }
         .overlay {
@@ -417,7 +418,8 @@ struct StatusBar: View {
             focus: goals.focus.rawValue, proposals: !goals.proposals.isEmpty,
             running: board.map { $0.swarm.approved != nil && $0.swarm.status != .planning } ?? false,
             pendingChange: board?.pending != nil,
-            done: goals.pane == .agents && board.flatMap(model.summaryShown) != nil
+            done: goals.pane == .agents && board.flatMap(model.summaryShown) != nil,
+            sourceProposal: goals.sources.proposal != nil
         )
         let scope = goals.scope
         let (hints, tail) = GoalHints.hints(scope: scope, context)

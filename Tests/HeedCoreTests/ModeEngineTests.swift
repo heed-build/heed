@@ -251,10 +251,10 @@ struct ScopedKeyTests {
         ]
         var contexts: [GoalHints.Context] = []
         for focus in focuses {
-            for flags in 0 ..< 16 {
+            for flags in 0 ..< 32 {
                 contexts.append(GoalHints.Context(
                     focus: focus, proposals: flags & 1 != 0, running: flags & 2 != 0, pendingChange: flags & 4 != 0,
-                    done: flags & 8 != 0
+                    done: flags & 8 != 0, sourceProposal: flags & 16 != 0
                 ))
             }
         }
@@ -268,6 +268,12 @@ struct ScopedKeyTests {
                 }
             }
         }
+        // A proposed source shows y where y takes it, and not in GOAL.md, where y answers a change.
+        let proposed = GoalHints.Context(sourceProposal: true)
+        #expect(GoalHints.hints(scope: "goals", proposed).hints.first?.command == "goal.source.accept")
+        #expect(!GoalHints.hints(scope: "goaldoc", proposed).hints.map(\.command).contains("goal.source.accept"))
+        #expect(!GoalHints.hints(scope: "goals", GoalHints.Context()).hints.map(\.command)
+            .contains("goal.source.accept"))
         // The goal's own actions show only where the goal is what you are on.
         for scope in ["goalmap", "goalagents", "goalplan", "goalboard"] {
             let commands = GoalHints.hints(scope: scope, GoalHints.Context()).hints.map(\.command)

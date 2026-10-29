@@ -49,6 +49,7 @@ enum TutorCheck {
             "w",
             "yyyy",
             "E",
+            ":goal.source.add prs acme/docs-toolkit<CR>",
         ],
         "hosts": [
             "gH<Esc>",

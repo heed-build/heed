@@ -304,6 +304,10 @@ public enum MenuBar {
                     ("Mirror to GitHub, or stop", "goal.mirror"), ("Tracker repo…", "goal.tracker"),
                     ("Sync its GitHub issues now", "goal.mirror.sync"), ("Open it on GitHub", "goal.mirror.open"),
                     ("Yes to a change on GitHub", "goal.mirror.yes"), ("No to a change on GitHub", "goal.mirror.no"),
+                    ("Add an item source…", "goal.source.add"), ("Yes to the proposed source", "goal.source.accept"),
+                    ("No to the proposed source", "goal.source.dismiss"), ("Sync its sources now", "goal.source.sync"),
+                    ("Change a source's query…", "goal.source.edit"), ("A source's done rule…", "goal.source.rule"),
+                    ("Take a source off…", "goal.source.remove"),
                     ("Swarm and its plan", "goal.swarm"), ("New swarm…", "swarm.new"), (
                         "Swarm this goal…",
                         "swarm.start"

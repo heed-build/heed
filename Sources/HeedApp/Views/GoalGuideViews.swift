@@ -119,7 +119,8 @@ struct GoalGuideCard: View {
                         if case let .waiting(_, command) = next.state {
                             KeyHint(
                                 command, key: model.goalKeyText(command),
-                                label: command == next.step.command ? next.step.action : "answer them",
+                                label: command == next.step.command ? next.step.action
+                                    : command == "goal.source.accept" ? "add the source" : "answer them",
                                 color: Theme.fg, font: Theme.ui(13)
                             )
                         } else {
@@ -192,7 +193,7 @@ private struct GuideStepRow: View {
             }
             Spacer(minLength: 4)
             if !step.state.isDone {
-                KeyHint(step.step.command, key: model.goalKeyText(step.step.command), label: "")
+                KeyHint(step.command, key: model.goalKeyText(step.command), label: "")
             }
         }
         .help(step.step.why)

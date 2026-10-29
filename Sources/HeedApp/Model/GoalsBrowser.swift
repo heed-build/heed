@@ -69,6 +69,21 @@ final class GoalsBrowser {
         var notes: [FieldNote] { FormChecks.goal(title: title, tracker: tracker) }
     }
 
+    /// The source dialog: a query (checked as it is typed) and its done rule, for a new source or one being changed.
+    struct SourceForm: Equatable {
+        var goal: String
+        /// The source being changed; nil for a new one.
+        var editing: String?
+        var query = ""
+        /// nil: the rule the query suggests.
+        var rule: ItemSource.Rule?
+        /// The goal's sessions' repo, for words that name none.
+        var repo: String?
+        var tried = false
+
+        var notes: [FieldNote] { FormChecks.source(query: query, repo: repo, rule: rule) }
+    }
+
     /// The new swarm form, and the plan pane's typing and cursors (`GoalsBrowser+Swarm`).
     var swarmForm: SwarmForm?
     var planDraft: PlanDraft?
@@ -178,6 +193,11 @@ final class GoalsBrowser {
     @ObservationIgnored var mirrorSync: GoalMirrorSync?
     /// When each mirrored goal was last read back.
     @ObservationIgnored var lastMirrorPoll: [String: Date] = [:]
+    /// The source dialog (`goal.source.add`, `goal.source.edit` with no query), while open.
+    var sourceForm: SourceForm?
+    /// Goals whose item sources are syncing now, and goals heed is reading for a source to propose.
+    @ObservationIgnored var syncingSources: Set<String> = []
+    @ObservationIgnored var detectingSources: Set<String> = []
 
     init(fixture: Bool) {
         isFixture = fixture

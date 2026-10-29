@@ -136,11 +136,15 @@ public struct GoalSnapshot: Hashable, Sendable {
     public var edits: [GoalEdit]
     /// Every goal's swarm runs, oldest first.
     public var swarms: [GoalSwarm]
+    /// Each goal's item sources (`goal_sources`), by goal id.
+    public var sources: [String: GoalSourceState]
 
     public init(
         goals: [HeedGoal] = [], links: [GoalLink] = [], docs: [String: GoalDoc] = [:], items: [GoalItem] = [],
-        evidence: [GoalEvidence] = [], edits: [GoalEdit] = [], swarms: [GoalSwarm] = []
+        evidence: [GoalEvidence] = [], edits: [GoalEdit] = [], swarms: [GoalSwarm] = [],
+        sources: [String: GoalSourceState] = [:]
     ) {
+        self.sources = sources
         self.goals = goals
         self.links = links
         self.docs = docs
@@ -159,6 +163,8 @@ public struct GoalSnapshot: Hashable, Sendable {
     public func activeSwarm(of goal: String) -> GoalSwarm? { swarms(of: goal).first { $0.status.active } }
 
     public func items(of goal: String) -> [GoalItem] { items.filter { $0.goal == goal } }
+    /// A goal's item sources and heed's proposal.
+    public func sources(of goal: String) -> GoalSourceState { sources[goal] ?? .empty }
     public func evidence(of goal: String) -> [GoalEvidence] { evidence.filter { $0.goal == goal } }
     public func item(_ id: String) -> GoalItem? { items.first { $0.id == id } }
 

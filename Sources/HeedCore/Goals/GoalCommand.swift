@@ -11,6 +11,8 @@ public struct GoalCommand: Codable, Equatable, Sendable {
         case criterionCheck = "criterion check"
         case propose
         case linkPR = "link pr"
+        /// `heed goal source add|list|remove`: the GitHub queries the goal's items come from.
+        case sourceAdd = "source add", sourceList = "source list", sourceRemove = "source remove"
         case reviewRequest = "review request"
         case planPropose = "plan propose", planShow = "plan show", planApprove = "plan approve"
         case ask
@@ -55,6 +57,8 @@ public struct GoalCommand: Codable, Equatable, Sendable {
     /// `swarm summary --decision`, `--follow-up`: the lead's decisions and follow-ups.
     public var decisions: [String]?
     public var followUps: [String]?
+    /// `source add --rule`: what done means for each item (merged, closed, reviewed, green).
+    public var rule: String?
 
     public init(
         _ verb: Verb, goal: String? = nil, json: Bool = false, subject: String? = nil, text: String? = nil,
@@ -131,6 +135,13 @@ public enum GoalCommandLine {
                                              of a swarm task's done-when instead of GOAL.md's
       link pr <url|org/repo#n|#n> [--item <id>]
                                              a PR on the goal (and on an item)
+      source add <query> [--rule merged|closed|reviewed|green]
+                                             a GitHub query the goal's items come from, one item per PR or issue:
+                                             prs <org/repo>, issues <org/repo>, label <name> [org/repo], reviews
+                                             [org/repo], milestone <title> <org/repo>, or a search (is:pr is:open
+                                             repo:org/repo). --rule says when each item is done (issues: closed)
+      source list                            the goal's sources, their rules and how far along each is
+      source remove <id>                     take a source off (its items stay, marked as having left it)
     Scope (waits for you as a proposal, like edits in the Goals view)
       propose <section> <text>               section: goal, not-the-goal, done-when, question, decision
     Work
@@ -226,7 +237,7 @@ public enum GoalCommandLine {
         var rest = ArraySlice(arguments.first == "goal" ? Array(arguments.dropFirst()) : arguments)
         let valued: Set = [
             "--goal", "--parent", "--by-subagent", "--evidence", "--agent", "--item", "--note", "--file", "--option",
-            "--effect", "--to", "--timeout", "--id",
+            "--effect", "--to", "--timeout", "--id", "--rule",
         ]
         var choices: [String] = []
         var effects: [String] = []
@@ -282,7 +293,7 @@ public enum GoalCommandLine {
         case "attach": verb = .attach
         case "propose": verb = .propose
         case "ask": verb = .ask
-        case "item", "decision", "question", "criterion", "link", "review", "plan":
+        case "item", "decision", "question", "criterion", "link", "review", "plan", "source":
             guard let second = args.first else { throw usageError("\(first) needs a command") }
             args.removeFirst()
             guard let found = GoalCommand.Verb(rawValue: "\(first) \(second)") else {
@@ -298,6 +309,7 @@ public enum GoalCommandLine {
             options: choices.isEmpty ? nil : choices,
             effects: effects.contains(where: { !$0.isEmpty }) ? effects : nil, to: options["--to"]
         )
+        command.rule = options["--rule"]
         // Which options each command takes: anything else is a mistake worth saying, not ignoring.
         let allowed: Set<String> = switch verb {
         case .itemAdd: ["--parent", "--by-subagent"]
@@ -305,6 +317,7 @@ public enum GoalCommandLine {
         case .criterionCheck: ["--evidence", "--item"]
         case .itemSpawn: ["--agent"]
         case .linkPR: ["--item"]
+        case .sourceAdd: ["--rule"]
         case .planPropose: ["--note", "--file"]
         case .ask: ["--option", "--effect", "--to", "--timeout", "--id", "--no-wait"]
         default: []
@@ -318,7 +331,7 @@ public enum GoalCommandLine {
             return text.isEmpty ? nil : text
         }
         switch verb {
-        case .list, .show, .planShow, .planApprove:
+        case .list, .show, .planShow, .planApprove, .sourceList:
             guard args.isEmpty else { throw usageError("\(verb.rawValue) takes no words") }
         case .planPropose:
             guard args.isEmpty else { throw usageError("plan propose takes the plan with --file <path|->, not words") }
@@ -398,6 +411,17 @@ public enum GoalCommandLine {
             command.subject = pr
         case .reviewRequest:
             guard args.count == 1 else { throw usageError("review request takes one reviewer kind") }
+            command.subject = args[0]
+        case .sourceAdd:
+            guard let text = joined(args[...]) else { throw usageError("source add needs a query") }
+            if let rule = command.rule, ItemSource.Rule(rawValue: rule) == nil {
+                throw usageError(
+                    "no rule \(rule) (\(ItemSource.Rule.allCases.map(\.rawValue).joined(separator: ", ")))"
+                )
+            }
+            command.text = text
+        case .sourceRemove:
+            guard args.count == 1 else { throw usageError("source remove takes one source id (heed goal source list)") }
             command.subject = args[0]
         }
         return command

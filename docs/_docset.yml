@@ -97,6 +97,7 @@ toc:
     children:
       - file: index.md
       - file: items.md
+      - file: sources.md
       - file: attach.md
       - file: quality.md
       - file: reviewers.md

@@ -438,6 +438,44 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// One of a goal's item sources, in the overview's Sources: its done rule, its query, taking it off.
+    public static func goalSource(
+        id: String,
+        label: String,
+        query: String,
+        rule: ItemSource.Rule,
+        what: ItemSource.What
+    )
+        -> [MenuEntry]
+    {
+        var menu = Menu(header: label)
+        if what != .issues {
+            menu.submenu("Done when", ItemSource.Rule.allCases.map { other in
+                MenuItem(
+                    other.phrase, CommandInvocation(name: "goal.source.rule", arguments: [id, other.rawValue]),
+                    checked: other == rule
+                )
+            })
+        }
+        menu.section([
+            MenuItem("Change its query…", CommandInvocation(name: "goal.source.edit", arguments: [id] + [query])),
+            MenuItem("Sync now", CommandInvocation(name: "goal.source.sync")),
+        ])
+        menu.section([MenuItem("Take it off the goal", CommandInvocation(name: "goal.source.remove", arguments: [id]))])
+        menu.section([MenuItem("Add a source…", CommandInvocation(name: "goal.source.add"))])
+        return menu.entries
+    }
+
+    /// The source heed proposes for a goal.
+    public static func goalSourceProposal(label: String) -> [MenuEntry] {
+        var menu = Menu(header: label)
+        menu.section([
+            MenuItem("Yes: add it", CommandInvocation(name: "goal.source.accept")),
+            MenuItem("No: do not propose it again", CommandInvocation(name: "goal.source.dismiss")),
+        ])
+        return menu.entries
+    }
+
     /// A change to GOAL.md waiting for you.
     public static func goalProposal(id: Int64, line: String) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: "edit:\(id)")

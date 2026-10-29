@@ -143,7 +143,8 @@ public enum GoalStep: String, CaseIterable, Hashable, Sendable, Codable {
             + "each suggestion waits for your yes."
         case .doneWhen: "Done-when lines are what evidence checks off and what the confidence ring counts. "
             + "Without them nothing can say the goal is done."
-        case .work: "Items are the pieces of work: the board moves them as sessions, PRs and merges show up."
+        case .work: "Items are the pieces of work: the board moves them as sessions, PRs and merges show up. A "
+            + "goal that is a set on GitHub gets them from a source: one per PR or issue a query finds."
         case .bars: "Not every goal needs a 10. Bars per lens (code review, tests, docs…) say how good is good "
             + "enough, and reviewers score against them. Look at them, then say they are right or change one."
         case .mirror: "Optional: colleagues follow the goal on GitHub, a meta issue and a sub-issue per item."
@@ -206,6 +207,13 @@ public struct GoalGuide: Hashable, Sendable {
         public var step: GoalStep
         public var state: State
         public var id: GoalStep { step }
+
+        /// What its row offers: a proposed source's yes while one waits (it does the step), else the step's own
+        /// command.
+        public var command: String {
+            if case let .waiting(_, command) = state, command == "goal.source.accept" { return command }
+            return step.command
+        }
     }
 
     /// What the guide reads of a goal.
@@ -218,11 +226,15 @@ public struct GoalGuide: Hashable, Sendable {
         public var quality: GoalQuality?
         public var mirror: GoalMirrorState
         public var swarms: [GoalSwarm]
+        /// Its item sources, and the one heed proposes.
+        public var sources: GoalSourceState
 
         public init(
             doc: GoalDoc?, edits: [GoalEdit] = [], items: [GoalItem] = [], links: [GoalLink] = [],
-            quality: GoalQuality? = nil, mirror: GoalMirrorState = .off, swarms: [GoalSwarm] = []
+            quality: GoalQuality? = nil, mirror: GoalMirrorState = .off, swarms: [GoalSwarm] = [],
+            sources: GoalSourceState = .empty
         ) {
+            self.sources = sources
             self.doc = doc
             self.edits = edits
             self.items = items
@@ -276,7 +288,15 @@ public struct GoalGuide: Hashable, Sendable {
             return .todo
         case .work:
             let work = input.items.count { $0.kind == .work }
-            return work > 0 ? .done("\(work) item\(work == 1 ? "" : "s") on the board") : .todo
+            if work > 0 { return .done("\(work) item\(work == 1 ? "" : "s") on the board") }
+            // A source is the work, before its first sync has filled the board.
+            if let source = input.sources.sources.first { return .done("items come from \(source.label)") }
+            if let proposal = input.sources.proposal {
+                return .waiting(
+                    "heed proposes items from \(proposal.source.label), one per match", command: "goal.source.accept"
+                )
+            }
+            return .todo
         case .bars:
             // Yours only: heed working the profile out sets bars, but the step waits for you to look at them.
             guard let quality = input.quality else { return .todo }

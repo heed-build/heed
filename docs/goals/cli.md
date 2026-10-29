@@ -46,6 +46,16 @@ The section is `goal`, `not-the-goal`, `done-when` or `question` (an open questi
 applies or waits is decided by what it does, never by the command: `propose decision …` records, since a decision only
 records.
 
+## Sources
+
+A goal that is a set of PRs or issues on GitHub gets its items from a query ([Item sources](sources.md)):
+
+| Command | |
+|---|---|
+| `source add <query> [--rule merged\|closed\|reviewed\|green]` | A source: `prs <org/repo>`, `issues <org/repo>`, `label <name> [org/repo]`, `reviews [org/repo]`, `milestone <title> <org/repo>`, or a GitHub search. Words with no repo take the session's. `--rule` says when each item is done (issues: closed) |
+| `source list` | The goal's sources: id, what it finds, its rule, how many of its items are done |
+| `source remove <id>` | Take a source off; its items stay, marked as having left it |
+
 ## Work and reviews
 
 | Command | |

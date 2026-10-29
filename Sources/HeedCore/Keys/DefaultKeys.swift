@@ -254,11 +254,12 @@ public enum DefaultKeys {
     static let goals: [(String, String)] = goalActions + goalShared + [("F", "swarm.followup")]
 
     /// Lowercase actions on the goal itself. They apply only where the goal is what you are on: the list, the overview
-    /// and GOAL.md. Every other pane binds the key to its own row's meaning or leaves it unbound, so a key never falls
+    /// and GOAL.md (where `y` is the first GOAL.md change's yes instead; on the list and overview it is the proposed
+    /// source's). Every other pane binds the key to its own row's meaning or leaves it unbound, so a key never falls
     /// through to the goal (`a` in Reviewers does not archive it).
     public static let goalActions: [(String, String)] = [
         ("n", "goal.new"), ("e", "goal.edit"), ("a", "goal.archive"), ("x", "goal.detach"), ("w", "goal.sharpen"),
-        ("u", "goal.attach.undo"), ("r", "review.recheck"),
+        ("u", "goal.attach.undo"), ("r", "review.recheck"), ("y", "goal.source.accept"),
     ]
 
     /// What every view of Goals shares: ↩ and ⇥, the GitHub mirror (M turns it on or off; Y and K answer a colleague's

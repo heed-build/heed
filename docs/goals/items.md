@@ -17,6 +17,7 @@ from ticking a box.
 | Sessions | A follow-up in the ledger entry of a session on the goal | When the entry is written; matched against the items the goal has, and kept with how sure heed is that it is new |
 | Chats | A question in a chat on the goal | When the chat closes: the question lands in **To explore** |
 | PRs | A PR on a branch of the goal's sessions, or linked to an item | Automatic: it moves its item to **Verify**, and to **Done** once merged; a PR with no item gets one |
+| Sources | A PR or issue a GitHub query of the goal finds | On heed's GitHub sync: one item per match, done by the source's rule ([Item sources](sources.md)) |
 
 A title found in the work is compared with the goal's items first: much alike is the same item, nothing alike is a
 new one, and in between a cheap model call decides. Every item records where it came from and why.

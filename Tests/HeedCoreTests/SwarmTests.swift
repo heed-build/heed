@@ -303,7 +303,7 @@ struct SwarmStoreTests {
             """)
         }
         let store = try GoalStore(path: url.path)
-        #expect(try store.schemaVersion == 3)
+        #expect(try store.schemaVersion == GoalStore.schema.count)
         let item = try #require(try store.item("g/a"))
         #expect(item.title == "A")
         #expect(item.after.isEmpty && item.doneWhen.isEmpty)

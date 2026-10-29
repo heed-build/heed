@@ -32,7 +32,7 @@ enum ShotRegion: String, CaseIterable {
     case goalReviewers, goalReviewerList, goalReviewerDetail, goalSpawn, goalBars, goalHappy
     case goalPersonas, goalPersonaList, goalPersonaWhy, goalPersonaFile
     case goalEvaluations, goalEvaluator, goalFriction, goalLenses
-    case goalMirror
+    case goalMirror, goalSources, sourceForm
     case goalSwarm, swarmPlan, swarmOutline, swarmEditor, swarmQuestions, swarmVersions, swarmSteering, swarmDiff
     case swarmForm, swarmLimit, swarmTask, swarmOrder, swarmHeld
     case swarmAgentLog, swarmAsk

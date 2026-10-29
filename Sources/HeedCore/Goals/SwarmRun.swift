@@ -59,14 +59,17 @@ public struct SwarmWorker: Hashable, Sendable, Codable, Identifiable {
     public var startedAt: Date
     public var endedAt: Date?
     public var outcome: Outcome?
-    /// What its agent cost, reported or estimated, once known.
+    /// What its agent cost, reported or estimated, once known: kept up to date while it works, not only at its end.
     public var costUSD: Double?
+    /// The tokens its agent used, input and output, as far as known.
+    public var tokens: Int?
 
     public init(
         id: String, task: String, owner: GoalItem.Owner, host: String, repo: String, branch: String, base: String,
         stackedOn: String? = nil, worktree: String, startedAt: Date, endedAt: Date? = nil, outcome: Outcome? = nil,
-        costUSD: Double? = nil
+        costUSD: Double? = nil, tokens: Int? = nil
     ) {
+        self.tokens = tokens
         self.id = id
         self.task = task
         self.owner = owner

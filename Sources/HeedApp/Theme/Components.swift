@@ -464,3 +464,53 @@ struct ScoreRing: View {
         return score >= 7 ? Theme.done : score >= 5 ? Theme.block : Theme.err
     }
 }
+
+// MARK: Graph
+
+/// An edge of a `GraphCanvas`: from one card's right edge to another's left, as a smooth curve.
+struct GraphEdge: Hashable {
+    var from: CGPoint
+    var to: CGPoint
+    var color: Color
+    var dashed = false
+}
+
+/// Cards placed at fixed frames with curved edges between them, drawn on a Canvas under the cards. The layout is the
+/// caller's (a pure function in HeedCore), so the same graph always draws the same; the cards are ordinary views, so
+/// clicks, hints and menus work on them as anywhere.
+struct GraphCanvas<Node: Identifiable, Card: View>: View {
+    let size: CGSize
+    let edges: [GraphEdge]
+    let nodes: [Node]
+    let frame: (Node) -> CGRect
+    @ViewBuilder let card: (Node) -> Card
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            Canvas { context, _ in
+                for edge in edges {
+                    var path = Path()
+                    path.move(to: edge.from)
+                    let bend = max((edge.to.x - edge.from.x) / 2, 12)
+                    path.addCurve(
+                        to: edge.to,
+                        control1: CGPoint(x: edge.from.x + bend, y: edge.from.y),
+                        control2: CGPoint(x: edge.to.x - bend, y: edge.to.y)
+                    )
+                    context.stroke(
+                        path, with: .color(edge.color),
+                        style: StrokeStyle(lineWidth: 1.2, lineCap: .round, dash: edge.dashed ? [3, 3] : [])
+                    )
+                }
+            }
+            .frame(width: size.width, height: size.height)
+            ForEach(nodes) { node in
+                let rect = frame(node)
+                card(node)
+                    .frame(width: rect.width, height: rect.height)
+                    .offset(x: rect.minX, y: rect.minY)
+            }
+        }
+        .frame(width: size.width, height: size.height, alignment: .topLeading)
+    }
+}

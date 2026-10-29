@@ -28,6 +28,8 @@ struct GoalsView: View {
                         case .personas: GoalPersonasPane(goal: goal)
                         case .evaluations: GoalEvaluationsPane(goal: goal)
                         case .plan: GoalPlanPane(goal: goal)
+                        case .agents: GoalAgentsPane(goal: goal)
+                        case .map: GoalMapPane(goal: goal)
                         }
                     } else {
                         EmptyState(
@@ -261,6 +263,15 @@ struct GoalHeader: View {
                     "goal.swarm", scope: scope, label: model.goals.pane == .plan ? "overview" : "swarm",
                     color: Theme.fg2
                 )
+                if model.goals.snapshot.swarms(of: goal.id).first?.approved != nil {
+                    KeyHint(
+                        "goal.agents", scope: scope, label: model.goals.pane == .agents ? "overview" : "agents",
+                        color: Theme.fg2
+                    )
+                    KeyHint(
+                        "goal.map", scope: scope, label: model.goals.pane == .map ? "overview" : "map", color: Theme.fg2
+                    )
+                }
                 if model.binds("goal.archive", in: scope) {
                     KeyHint(
                         "goal.archive", scope: scope, label: goal.status == .archived ? "bring back" : "archive",

@@ -77,6 +77,20 @@ public enum Git {
         return parseStatus(output)
     }
 
+    /// What is uncommitted in a worktree and its commit (`FileActivity`): a swarm worker's progress, polled.
+    public static func fileActivity(at path: String, on location: Location = .local) async throws -> FileActivity {
+        async let status = ProcessRunner.output(
+            on: location, "git", ["-C", path, "status", "--porcelain"], timeout: .seconds(10), caller: "git.activity"
+        )
+        async let stat = ProcessRunner.output(
+            on: location, "git", ["-C", path, "diff", "--stat", "HEAD"], timeout: .seconds(10), caller: "git.activity"
+        )
+        let head = try? await ProcessRunner.output(
+            on: location, "git", ["-C", path, "rev-parse", "HEAD"], timeout: .seconds(5), caller: "git.activity"
+        )
+        return try await FileActivity.parse(status: status, diffStat: stat, head: head)
+    }
+
     // MARK: Changing
 
     /// Adds a worktree on a new branch `branch` from `origin/<base>` (fetched first, best effort, so the branch starts

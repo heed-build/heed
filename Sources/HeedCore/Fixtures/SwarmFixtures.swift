@@ -68,6 +68,12 @@ public enum SwarmFixtures {
         case done
         /// Running, with its steering: questions, answers, an overrule, messages and notes (`steering(now:)`).
         case steering
+        /// The steering world, watched: 2.2 is stuck on the same error, heed nudged it and asked on its behalf
+        /// (`watch(now:)`), and every worker has its activity (`activity(now:)`).
+        case watch
+        /// Done, with what its end-of-build summary is made of: a stuck episode, questions and who answered them,
+        /// and the lead's own summary (`summaryRows(now:)`).
+        case summary
     }
 
     /// What a running fixture lays over the approved run: the run as it is now, the steering rows that came after
@@ -88,7 +94,7 @@ public enum SwarmFixtures {
     public static let workerStates: [String: AgentState] = ["\(anchors)/validator-speed": .asking]
 
     public static func running(_ variant: Running, now: Date = Clock.now) -> RunningWorld {
-        if variant == .landing || variant == .done { return landed(variant, now: now) }
+        if variant == .landing || variant == .done || variant == .summary { return landed(variant, now: now) }
         let base = now.timeIntervalSince1970.rounded(.down)
         func ago(_ hours: Double) -> Date { Date(timeIntervalSince1970: base - hours * 3600) }
         let goal = anchors
@@ -144,7 +150,7 @@ public enum SwarmFixtures {
             work(0.87, "validator-speed", "2.2 Validator speed on a 10k-page site: claude · opus \(stacked)"),
             work(0.3, "sample-site", "2.1 Sample site with moved pages: claude \(stacked)"),
         ]
-        if variant == .steering {
+        if variant == .steering || variant == .watch {
             // Its back references count from the start of the world's rows, not of its own.
             let before = Int64(steering.count)
             steering += Self.steering(now: now).map { row in
@@ -155,6 +161,15 @@ public enum SwarmFixtures {
                 }
                 return row
             }
+        }
+        if variant == .watch {
+            let before = Int64(steering.count)
+            steering += Self.watch(now: now).map { row in
+                var row = row
+                if let about = row.about, about < 0 { row.about = about - before }
+                return row
+            }
+            steering = Self.byTime(steering)
         }
         if variant == .pausedAtLimit {
             steering.append(steer(

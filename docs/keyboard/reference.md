@@ -90,13 +90,15 @@ This page is generated from the code (`mise run shots`).
 | `view.dashboard` |  | History's dashboard: what the work amounted to over a range |
 | `view.ledger` |  | History's ledger: a summary of each piece of work, kept after its worktree |
 | `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
-| `goal.doc` | `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalpersonas), `E` (goalplan), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
-| `goal.board` | `B` (goalboard), `B` (goaldoc), `B` (goalevals), `B` (goalpersonas), `B` (goalplan), `B` (goalreviewers), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
-| `goal.unassigned` | `U` (goalboard), `U` (goaldoc), `U` (goalevals), `U` (goalpersonas), `U` (goalplan), `U` (goalreviewers), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
-| `goal.reviewers` | `R` (goalboard), `R` (goaldoc), `R` (goalevals), `R` (goalpersonas), `R` (goalplan), `R` (goalreviewers), `R` (goals), `R` (unassigned) | Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview) |
-| `goal.personas` | `P` (goalboard), `P` (goaldoc), `P` (goalevals), `P` (goalpersonas), `P` (goalplan), `P` (goalreviewers), `P` (goals), `P` (unassigned) | Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview) |
-| `goal.evaluations` | `X` (goalboard), `X` (goaldoc), `X` (goalevals), `X` (goalpersonas), `X` (goalplan), `X` (goalreviewers), `X` (goals), `X` (unassigned) | Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview) |
-| `goal.swarm` | `S` (goalboard), `S` (goaldoc), `S` (goalevals), `S` (goalpersonas), `S` (goalplan), `S` (goalreviewers), `S` (goals), `S` (unassigned) | Goals: the goal's swarm: its plan by phase, the lead's questions, versions and steering (again: the overview) |
+| `goal.doc` | `E` (goalagents), `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalmap), `E` (goalpersonas), `E` (goalplan), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
+| `goal.board` | `B` (goalagents), `B` (goalboard), `B` (goaldoc), `B` (goalevals), `B` (goalmap), `B` (goalpersonas), `B` (goalplan), `B` (goalreviewers), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
+| `goal.unassigned` | `U` (goalagents), `U` (goalboard), `U` (goaldoc), `U` (goalevals), `U` (goalmap), `U` (goalpersonas), `U` (goalplan), `U` (goalreviewers), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
+| `goal.reviewers` | `R` (goalagents), `R` (goalboard), `R` (goaldoc), `R` (goalevals), `R` (goalmap), `R` (goalpersonas), `R` (goalplan), `R` (goalreviewers), `R` (goals), `R` (unassigned) | Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview) |
+| `goal.personas` | `P` (goalagents), `P` (goalboard), `P` (goaldoc), `P` (goalevals), `P` (goalmap), `P` (goalpersonas), `P` (goalplan), `P` (goalreviewers), `P` (goals), `P` (unassigned) | Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview) |
+| `goal.evaluations` | `X` (goalagents), `X` (goalboard), `X` (goaldoc), `X` (goalevals), `X` (goalmap), `X` (goalpersonas), `X` (goalplan), `X` (goalreviewers), `X` (goals), `X` (unassigned) | Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview) |
+| `goal.swarm` | `S` (goalagents), `S` (goalboard), `S` (goaldoc), `S` (goalevals), `S` (goalmap), `S` (goalpersonas), `S` (goalplan), `S` (goalreviewers), `S` (goals), `S` (unassigned) | Goals: the goal's swarm: its plan by phase, the lead's questions, versions and steering (again: the overview) |
+| `goal.agents` | `W` (goalagents), `W` (goalboard), `W` (goaldoc), `W` (goalevals), `W` (goalmap), `W` (goalpersonas), `W` (goalplan), `W` (goalreviewers), `W` (goals), `W` (unassigned) | Goals: the swarm's agents: what each does and for how long, stuck or not, its notes and activity, and what needs you; once done, its summary (again: the overview) |
+| `goal.map` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (unassigned) | Goals: the swarm as a map: phases as columns, tasks as cards by state, dependencies as edges (again: the overview) |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
@@ -177,7 +179,7 @@ This page is generated from the code (`mise run shots`).
 | `goal.detach` | `x` (goaldoc), `x` (goals) | take the session or chat off its goal |
 | `goal.archive` | `a` (goaldoc), `a` (goals) | archive the goal (again: bring it back) |
 | `goal.open` | `<CR>` (goaldoc), `<CR>` (goalevals), `<CR>` (goalpersonas), `<CR>` (goalplan), `<CR>` (goalreviewers), `<CR>` (goals), `<CR>` (unassigned) | Goals: what belongs to the goal; on a session or chat, go to it |
-| `goal.focus` | `<Tab>` (goaldoc), `<S-Tab>` (goaldoc), `<Tab>` (goalevals), `<S-Tab>` (goalevals), `<Tab>` (goalpersonas), `<S-Tab>` (goalpersonas), `<Tab>` (goalplan), `<S-Tab>` (goalplan), `<Tab>` (goalreviewers), `<S-Tab>` (goalreviewers), `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
+| `goal.focus` | `<Tab>` (goalagents), `<S-Tab>` (goalagents), `<Tab>` (goaldoc), `<S-Tab>` (goaldoc), `<Tab>` (goalevals), `<S-Tab>` (goalevals), `<Tab>` (goalpersonas), `<S-Tab>` (goalpersonas), `<Tab>` (goalplan), `<S-Tab>` (goalplan), `<Tab>` (goalreviewers), `<S-Tab>` (goalreviewers), `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
 | `goal.edit` | `e` (goaldoc), `e` (goals) | edit the goal's GOAL.md in place; each save is a new version |
 | `goal.restore` `<version>` |  | make one of the goal's GOAL.md versions current again (as a new version) |
 | `goal.item.add` `[title]` | `a` (goalboard), `n` (goalboard) | Goals: add an item to the goal (on the board: in the column under the cursor) |
@@ -200,12 +202,12 @@ This page is generated from the code (`mise run shots`).
 | `goal.attach.undo` | `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
 | `goal.attach.find` |  | look for the session's goal now: rules, signals, the model when unsure |
 | `goal.bar` `<lens> <bar|off|auto>` |  | pin a quality bar for the goal: a lens and 0–10, off to drop the lens, auto for the profile's |
-| `goal.mirror` | `M` (goalboard), `M` (goaldoc), `M` (goalevals), `M` (goalpersonas), `M` (goalplan), `M` (goalreviewers), `M` (goals), `M` (unassigned) | mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop |
+| `goal.mirror` | `M` (goalagents), `M` (goalboard), `M` (goaldoc), `M` (goalevals), `M` (goalmap), `M` (goalpersonas), `M` (goalplan), `M` (goalreviewers), `M` (goals), `M` (unassigned) | mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop |
 | `goal.tracker` `[org/name|none]` |  | the repo the goal mirrors to on GitHub, checked read-only first (none: no tracker) |
 | `goal.mirror.sync` |  | sync the goal's GitHub issues now and read them back |
 | `goal.mirror.open` |  | open the goal's meta issue on GitHub (on a card: its sub-issue) |
-| `goal.mirror.yes` | `Y` (goalboard), `Y` (goaldoc), `Y` (goalevals), `Y` (goalpersonas), `Y` (goalplan), `Y` (goalreviewers), `Y` (goals), `Y` (unassigned) | a colleague's change on GitHub: yes, the item follows it |
-| `goal.mirror.no` | `K` (goalboard), `K` (goaldoc), `K` (goalevals), `K` (goalpersonas), `K` (goalreviewers), `K` (goals), `K` (unassigned) | a colleague's change on GitHub: no, heed puts the sub-issue back |
+| `goal.mirror.yes` | `Y` (goalagents), `Y` (goalboard), `Y` (goaldoc), `Y` (goalevals), `Y` (goalmap), `Y` (goalpersonas), `Y` (goalplan), `Y` (goalreviewers), `Y` (goals), `Y` (unassigned) | a colleague's change on GitHub: yes, the item follows it |
+| `goal.mirror.no` | `K` (goalagents), `K` (goalboard), `K` (goaldoc), `K` (goalevals), `K` (goalmap), `K` (goalpersonas), `K` (goalreviewers), `K` (goals), `K` (unassigned) | a colleague's change on GitHub: no, heed puts the sub-issue back |
 | `goal.reopen` |  | not done yet: undo heed marking the goal done (held until something new) |
 | `swarm.new` `[title]` |  | new swarm: a goal, where it works, its lead and team, its limits; the lead drafts a plan for you to approve |
 | `swarm.start` |  | swarm this goal: a lead drafts a plan for its work (the form first) |
@@ -213,20 +215,20 @@ This page is generated from the code (`mise run shots`).
 | `swarm.pause` |  | pause the goal's swarm (again: resume): nothing more starts, workers at work finish their turn |
 | `swarm.approve` | `A` (goalplan) | approve the swarm's plan (or the change waiting for you): its tasks become items |
 | `swarm.accept` | `y` (goalplan) | yes to the plan change waiting for you: it becomes the approved plan |
-| `swarm.task.pause` | `p` (goalplan) | pause the swarm task under the cursor (again: resume): its worker stops, its worktree stays |
-| `swarm.task.swap` `<agent[:model]>` | `t` (goalplan) | hand the swarm task under the cursor to another agent; a working worker hands over its worktree |
-| `swarm.task.open` | `s` (goalplan) | the swarm task under the cursor's worker: its tab |
+| `swarm.task.pause` | `p` (goalagents), `p` (goalmap), `p` (goalplan) | pause the swarm task under the cursor (again: resume): its worker stops, its worktree stays |
+| `swarm.task.swap` `<agent[:model]>` | `t` (goalagents), `t` (goalmap), `t` (goalplan) | hand the swarm task under the cursor to another agent; a working worker hands over its worktree |
+| `swarm.task.open` | `s` (goalagents), `<CR>` (goalagents), `s` (goalmap), `<CR>` (goalmap), `s` (goalplan) | the swarm task under the cursor's worker: its tab |
 | `swarm.land` | `b` (goalplan) | move the task under the cursor's stacked PR to where the PR it stacks on merged (again after gh refused) |
 | `swarm.order` | `m` (goalplan) | the swarm's plan in merge order (what each task waits for merges first), or by phase again |
 | `swarm.reject` `[why]` | `n` (goalplan) | no to the plan change waiting for you; the lead hears why |
-| `swarm.task.edit` | `e` (goalplan) | edit the plan's task under the cursor: a new plan version |
+| `swarm.task.edit` | `e` (goalmap), `e` (goalplan) | edit the plan's task under the cursor: a new plan version |
 | `swarm.task.add` `[title]` | `a` (goalplan) | add a task after the one under the cursor, in its phase: a new plan version |
 | `swarm.task.move` `<1|-1>` | `J` (goalplan), `K` (goalplan) | move the plan's task down (1) or up (-1); past its phase, into the next |
 | `swarm.task.drop` | `x` (goalplan) | drop the plan's task under the cursor; nothing waits for it any more |
 | `swarm.replan` `[feedback]` | `r` (goalplan) | ask the swarm's lead to re-plan, with your feedback |
-| `swarm.answer` `[answer]` | `i` (goalplan), `i` (swarmask) | answer the swarm question under the cursor (Needs you, the plan's log), else the first open one; on one someone else answered, an overrule |
-| `swarm.answer.option` `<n>` | `1` (goalplan), `2` (goalplan), `3` (goalplan), `4` (goalplan), `5` (goalplan), `6` (goalplan), `7` (goalplan), `8` (goalplan), `9` (goalplan), `1` (swarmask), `2` (swarmask), `3` (swarmask), `4` (swarmask), `5` (swarmask), `6` (swarmask), `7` (swarmask), `8` (swarmask), `9` (swarmask) | answer the swarm question under the cursor (else the first open one) with its option n (1 is the first) |
-| `swarm.controller` | `c` (goalplan), `c` (swarmask) | hand the swarm question under the cursor to heed's controller: it answers what is within its authority and suggests an answer for what is yours |
+| `swarm.answer` `[answer]` | `i` (goalagents), `i` (goalplan), `i` (swarmask) | answer the swarm question under the cursor (Needs you, the plan's log), else the first open one; on one someone else answered, an overrule |
+| `swarm.answer.option` `<n>` | `1` (goalagents), `2` (goalagents), `3` (goalagents), `4` (goalagents), `5` (goalagents), `6` (goalagents), `7` (goalagents), `8` (goalagents), `9` (goalagents), `1` (goalplan), `2` (goalplan), `3` (goalplan), `4` (goalplan), `5` (goalplan), `6` (goalplan), `7` (goalplan), `8` (goalplan), `9` (goalplan), `1` (swarmask), `2` (swarmask), `3` (swarmask), `4` (swarmask), `5` (swarmask), `6` (swarmask), `7` (swarmask), `8` (swarmask), `9` (swarmask) | answer the swarm question under the cursor (else the first open one) with its option n (1 is the first) |
+| `swarm.controller` | `c` (goalagents), `c` (goalplan), `c` (swarmask) | hand the swarm question under the cursor to heed's controller: it answers what is within its authority and suggests an answer for what is yours |
 | `swarm.similar` | `A` (swarmask) | make your next answer to the swarm question under the cursor the answer to similar questions too |
 | `swarm.overrule` `[answer]` |  | answer again the swarm question under the cursor that someone else answered |
 | `swarm.log.who` `[actor]` | `w` (goalplan) | the steering log by who decided: everyone, you, the controller, the lead, agents, heed |
@@ -234,6 +236,11 @@ This page is generated from the code (`mise run shots`).
 | `swarm.send` `<to> <text>` |  | a message to a swarm agent (a task's number, lead, or @all), typed in once it is idle |
 | `swarm.diff` | `d` (goalplan) | the plan version under the cursor's whole diff against the one before (again: short) |
 | `swarm.restore` `[version]` | `u` (goalplan) | make a plan version current again, as a new version |
+| `swarm.map.move` `<h|j|k|l>` | `h` (goalmap), `l` (goalmap), `j` (goalmap), `k` (goalmap), `<Left>` (goalmap), `<Right>` (goalmap), `<Down>` (goalmap), `<Up>` (goalmap) | the swarm map's cursor: h l between columns, j k between the cards of one |
+| `swarm.followup` | `F` (goalagents), `F` (goaldoc), `F` (goalmap), `F` (goalplan), `F` (goals) | start a follow-up swarm on the goal: the last one's team and limits, its follow-ups for the lead (the form first) |
+| `swarm.summary` |  | the swarm's end-of-build summary: written again from its record, and the lead asked to write its part |
+| `swarm.stuck` `<estimate|errors|quiet|peer|you> <value>` |  | when the goal's swarm counts a worker as stuck: estimate (×), errors, quiet, peer and you (minutes) |
+| `swarm.rule.delete` `[rule number]` |  | delete one of the goal's repeat rules: the controller stops answering with it |
 | `review.recheck` `[reviewer]` | `r` (goaldoc), `r` (goalreviewers), `r` (goals) | re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs) |
 | `review.accept` | `A` (goalreviewers) | accept the risk of the objection under the cursor (again: open it) |
 | `review.fix` | `s` (goalreviewers) | start a session to fix the objection under the cursor: Start work, filled in |

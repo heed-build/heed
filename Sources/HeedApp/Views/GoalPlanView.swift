@@ -32,6 +32,7 @@ struct GoalPlanPane: View {
                             }
                             SwarmQuestions(board: board).shotRegion(.swarmQuestions)
                             if let pending = board.pending { PendingChange(board: board, pending: pending) }
+                            RepeatRules(board: board).shotRegion(.swarmRules)
                             PlanVersions(board: board).shotRegion(.swarmVersions)
                             SteeringLog(board: board, full: false).shotRegion(.swarmSteering)
                         }
@@ -366,6 +367,7 @@ private struct RunLine: View {
     var body: some View {
         let progress = SwarmProgress(swarm: swarm, tasks: tasks, states: schedule.states)
         let usage = model.swarmUsage(swarm)
+        let tokens = model.swarmRollup(swarm).tokens
         let limits = swarm.settings.limits
         let merged = tasks.count { [.merged, .done].contains(schedule.states[$0.id]?.state) }
         let landed: String? = swarm.status == .done ? "landed: every task merged in merge order"
@@ -377,6 +379,7 @@ private struct RunLine: View {
                 "agents \(progress.agentsLine)",
                 "\(SwarmEstimate.text(Int(usage.elapsed / 60))) of \(String(format: "%g", limits.hours)) h",
                 "\(AgentUsage.dollars(usage.dollars)) of $\(String(format: "%g", limits.dollars))",
+                tokens > 0 ? SwarmUsageRollup.tokens(tokens) : nil,
             ].compactMap(\.self).joined(separator: " · ")
         )
         .font(Theme.mono(11)).foregroundStyle(Theme.fg2).lineLimit(1)
@@ -918,6 +921,36 @@ private struct PlanEditor: View {
     }
 }
 
+/// The goal's repeat rules ("same answer for similar questions"): the controller answers questions like these with
+/// your answer. A right click or `:swarm.rule.delete <n>` deletes one.
+private struct RepeatRules: View {
+    @Environment(AppModel.self) private var model
+    let board: SwarmBoard
+
+    var body: some View {
+        let rules = model.repeatRules(board)
+        if !rules.isEmpty {
+            Panel(title: "Repeat rules", note: "\(rules.count)") {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array(rules.enumerated()), id: \.offset) { index, rule in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text("\(index + 1)").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                            Text(rule.text).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(2)
+                            Spacer(minLength: 6)
+                            Text("→ \(rule.answer ?? "")").font(Theme.ui(12)).foregroundStyle(Theme.done).lineLimit(1)
+                        }
+                        .contentShape(Rectangle())
+                        .rightClickMenu { model.clicksReachLists } _: {
+                            model.repeatRuleMenu(rule.id ?? 0, question: rule.text)
+                        }
+                    }
+                    KeyHint("swarm.rule.delete", scope: "goalplan", label: "delete one")
+                }
+            }
+        }
+    }
+}
+
 // MARK: On the goal's page
 
 /// The goal's swarm on its overview: the active run (state, plan, questions waiting) and the past ones.
@@ -994,10 +1027,22 @@ struct GoalSwarmPanel: View {
                     Text("Swarm \(last.number) landed: every task merged, in merge order. The goal stays open until "
                         + "its own done rule holds.")
                         .font(Theme.ui(12.5)).foregroundStyle(Theme.done).fixedSize(horizontal: false, vertical: true)
+                    if let summary = last.summary {
+                        Text(summary.outcome).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !summary.followUps.isEmpty {
+                            Text("follow-ups: " + summary.followUps.joined(separator: " · ")).font(Theme.ui(12))
+                                .foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    KeyHint("goal.agents", scope: "goals", label: "its summary", color: Theme.fg2)
                 } else {
                     Quiet("No swarm going. A swarm plans the goal's work with a lead agent and runs it in parallel.")
                 }
-                KeyHint("swarm.start", label: runs.isEmpty ? "swarm this goal" : "a follow-up swarm", color: Theme.fg2)
+                KeyHint(
+                    runs.isEmpty ? "swarm.start" : "swarm.followup",
+                    label: runs.isEmpty ? "swarm this goal" : "a follow-up swarm", color: Theme.fg2
+                )
             }
             ForEach(runs.filter { !$0.status.active }) { run in
                 HStack(spacing: 8) {

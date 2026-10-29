@@ -74,6 +74,7 @@ public enum AgentIntegration {
         case "PreToolUse": return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })]
         case "PostToolUse":
             return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })] + created(input)
+                + toolCall(input)
         case "PermissionRequest": return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
         case "Stop":
             let lastWords = input["last_assistant_message"] as? String
@@ -428,7 +429,9 @@ public enum AgentIntegration {
             if tool == "ExitPlanMode" { return [.state(.asking, reason: "plan to approve")] }
             return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })]
         case "PostToolUse":
-            return [.state(.working, reason: tool)] + created(input)
+            return [.state(.working, reason: tool)] + created(input) + toolCall(input)
+        case "PostToolUseFailure":
+            return toolCall(input)
         case "PermissionRequest":
             return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
         case "Notification":
@@ -510,6 +513,11 @@ public enum AgentIntegration {
             tool: input["tool_name"] as? String, command: PullCreation.command(input["tool_input"]),
             output: PullCreation.text(input["tool_response"])
         ).map { .prAdd(url: $0) }
+    }
+
+    /// The tool call a `PostToolUse` hook reports, short (`ToolCall`).
+    static func toolCall(_ input: [String: Any]) -> [HookMessage.Kind] {
+        ToolCall.from(hook: input).map { [.toolCall($0)] } ?? []
     }
 
     /// `Bash(dotnet publish)`, `Edit(src/a.cs)`: the tool with its most telling argument.

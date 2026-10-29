@@ -82,8 +82,10 @@ public enum SwarmRepeat {
             uniquingKeysWith: { first, _ in first }
         )
         var seen: Set<Int64> = []
+        let deleted = Set(rows.filter { $0.kind == .unrule }.compactMap(\.about))
         for row in rows.reversed() {
             if row.kind == .rule, let id = row.id, let answer = row.answer {
+                guard !deleted.contains(id) else { continue }
                 found.append(Answered(
                     id: id, question: row.text, options: row.options, answer: answer, at: row.at, rule: true
                 ))
@@ -98,6 +100,12 @@ public enum SwarmRepeat {
             ))
         }
         return found
+    }
+
+    /// Your repeat rules standing (not deleted), newest first.
+    public static func rules(_ rows: [SwarmSteer]) -> [SwarmSteer] {
+        let deleted = Set(rows.filter { $0.kind == .unrule }.compactMap(\.about))
+        return rows.filter { $0.kind == .rule && $0.id.map { !deleted.contains($0) } ?? false }.reversed()
     }
 
     /// The answer `earlier` gives a question with `options`: its words, when the question has no options; else the

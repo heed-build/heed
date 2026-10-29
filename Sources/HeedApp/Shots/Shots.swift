@@ -123,6 +123,8 @@ enum Shots {
         Shot(id: "landing/history", chrome: false, keys: "ghL"),
         // A goal's overview: its numbers, its items by stage, what is on it, its reviewers and where it waits on you.
         Shot(id: "landing/goals", chrome: false, keys: "gGj"),
+        // A swarm's map: the goal and its lead, phases as columns, tasks by state, one of them stuck.
+        Shot(id: "landing/swarms", chrome: false, keys: "gGjTlj", prepare: { $0.loadWatchFixture() }),
     ]
 
     /// The docs' home page.
@@ -538,6 +540,21 @@ enum Shots {
         Shot(id: "goals/swarm-agent-log", keys: "gGjSjj", crop: .swarmAgentLog, cropPadding: 8, prepare: {
             $0.loadSteeringFixture()
         }),
+        // Watching: the agents pane with 2.2 stuck on the same build error (heed nudged it, then asked for it and the
+        // controller answered), what changed since you last looked, the map, the steering log of that escalation,
+        // and the done swarm's end-of-build summary.
+        Shot(id: "goals/swarm-agents", keys: "gGjW", prepare: { $0.loadWatchFixture() }),
+        Shot(id: "goals/swarm-stuck", keys: "gGjW", crop: .swarmAgent, cropPadding: 8, prepare: {
+            $0.loadWatchFixture()
+        }),
+        Shot(id: "goals/swarm-since", keys: "gGjW", crop: .swarmDigest, cropPadding: 8, prepare: {
+            $0.loadWatchFixture()
+        }),
+        Shot(id: "goals/swarm-map", keys: "gGjTlj", prepare: { $0.loadWatchFixture() }),
+        Shot(id: "goals/swarm-escalation", keys: "gGjS<Tab><Tab>", crop: .swarmSteering, cropPadding: 8, prepare: {
+            $0.loadWatchFixture()
+        }),
+        Shot(id: "goals/swarm-summary", keys: "gGjW", prepare: { $0.loadSummaryFixture() }),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

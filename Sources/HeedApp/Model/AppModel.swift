@@ -454,6 +454,7 @@ final class AppModel {
         startGitHubSync()
         startScreenReading()
         startSteering()
+        startSwarmWatch()
         startHunch()
         await refreshRepos()
         if !isFixture { _ = await cleanUpRunLeftovers() }
@@ -1139,7 +1140,7 @@ final class AppModel {
         case let .lastMessage(text):
             guard text != session.lastMessage else { return }
             session.lastMessage = text
-        case .subagent, .subagentState, .subagentsEnded:
+        case .subagent, .subagentState, .subagentsEnded, .toolCall:
             return
         }
         commit(.sessionUpserted(session))
@@ -1620,6 +1621,27 @@ final class AppModel {
     @ObservationIgnored var steeringTask: Task<Void, Never>?
     /// `swarm.similar`: the question (`<swarm>#<row>`) whose next answer also becomes a repeat rule.
     var similarArmed: String?
+    /// Each swarm task's recent activity (tool calls, file changes), newest last: what the agents pane lists and the
+    /// stuck signal reads (`AppModel+SwarmWatch`). Read from the event log, then kept up as hooks come in.
+    var workerActivity: [String: [SwarmActivityLine]] = [:]
+    /// Each live task's stuck signal, as the watch loop last read it.
+    var stuckSignals: [String: SwarmStuck.Signal] = [:]
+    /// "Since you last looked" per swarm: the text by digest key (a model's, or heed's facts).
+    var swarmDigestText: [String: String] = [:]
+    /// When you last opened each swarm (its agents, map or plan pane), by swarm id; kept across launches.
+    var swarmLastLooked: [String: Date] = [:]
+    /// The digest of each swarm as of when you opened it this time: what "since you last looked" shows until you leave.
+    var swarmDigests: [String: SwarmDigest] = [:]
+    @ObservationIgnored var activityThrottle = ActivityThrottle()
+    /// Each live worker's worktree as last read, and when.
+    @ObservationIgnored var workerFiles: [String: (at: Date, files: FileActivity?)] = [:]
+    /// What each live worker used as last written to its record.
+    @ObservationIgnored var persistedUse: [String: SwarmUsageRollup.Use] = [:]
+    @ObservationIgnored var watchTask: Task<Void, Never>?
+    @ObservationIgnored var watchTicking = false
+    @ObservationIgnored var activityPrunedAt: Date?
+    /// Swarms whose summary is being written now.
+    @ObservationIgnored var summarizing: Set<String> = []
     /// Every pane a reviewer run used since launch: its late hooks are nobody's news.
     private var reviewPanes: Set<String> = []
     /// Each live run's last screen line (`Runs.lastLine`), read with the agents' screens.
@@ -2414,7 +2436,7 @@ final class AppModel {
         case "swarm.approve": approvePlan()
         case "swarm.accept": acceptPlanChange()
         case "swarm.reject": rejectPlanChange(command.arguments)
-        case "swarm.task.edit": editPlanTask()
+        case "swarm.task.edit": editPlanTaskFromAnyPane()
         case "swarm.task.add": addPlanTask(command.arguments)
         case "swarm.task.move": movePlanTask(command.arguments.first)
         case "swarm.task.drop": dropPlanTask()
@@ -2435,6 +2457,13 @@ final class AppModel {
         case "swarm.task.open": openTaskWorker()
         case "swarm.land": landTask()
         case "swarm.order": toggleMergeOrder()
+        case "goal.agents": toggleGoalAgents()
+        case "goal.map": toggleGoalMap()
+        case "swarm.map.move": moveMap(command.arguments.first)
+        case "swarm.followup": followUpSwarm()
+        case "swarm.summary": rewriteSwarmSummary()
+        case "swarm.stuck": setStuckSettings(command.arguments)
+        case "swarm.rule.delete": deleteRepeatRule(command.arguments.first)
         case "review.recheck": recheckReviewers(command.arguments)
         case "review.accept": acceptRisk()
         case "review.fix": fixObjection()

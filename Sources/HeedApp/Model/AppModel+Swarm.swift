@@ -140,7 +140,10 @@ extension AppModel {
         }
         let doc = Paths.tilde(goals.files.doc(goal.id).path)
         var plan = StartWorkPlan(
-            prompt: SwarmLead.prompt(goal: goal.title, doc: doc, swarm: swarm), repos: [first],
+            prompt: SwarmLead.prompt(
+                goal: goal.title, doc: doc, swarm: swarm,
+                previous: goals.snapshot.swarms(of: goal.id).first { $0.id != swarm.id && $0.summary != nil }?.summary
+            ), repos: [first],
             name: StartWork.branchName(
                 for: "swarm \(swarm.number) lead \(goal.title)",
                 prefixes: self.settings.prefixes

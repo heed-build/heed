@@ -21,6 +21,11 @@ final class GoalsBrowser {
         case evaluations
         /// The goal's swarm: its plan by phase, the lead's questions, the versions and the steering log.
         case plan
+        /// The swarm's agents: what each is doing, for how long, whether it looks stuck, its notes and activity; Needs
+        /// you on the right. Once the swarm is done, its end-of-build summary.
+        case agents
+        /// The swarm as a graph: the goal on the left, phases as columns, tasks as cards, dependencies as edges.
+        case map
     }
 
     /// Where j and k move: the goals list, what belongs to the goal under the cursor, or (in Reviewers) its reviewers
@@ -31,6 +36,8 @@ final class GoalsBrowser {
         case friction
         /// The swarm plan's tasks, its versions, and its steering log.
         case tasks, versions, steering
+        /// The agents pane's workers.
+        case agents
     }
 
     /// The spawn-a-reviewer panel: what the next reviewer is.
@@ -63,6 +70,9 @@ final class GoalsBrowser {
     /// The selected goal's swarm with its plan versions and steering: the active one, else its last.
     var board: SwarmBoard?
     var taskCursor = 0
+    /// The agents pane's cursor, and the map's card (a task id, or `lead`).
+    var agentCursor = 0
+    var mapCursor: String?
     /// The plan's outline in merge order instead of by phase (`swarm.order`).
     var byMergeOrder = false
     var versionCursor = 0
@@ -385,6 +395,7 @@ final class GoalsBrowser {
         if focus == .tasks { return setTaskCursor(index) }
         if focus == .versions { return setVersionCursor(index) }
         if focus == .steering { return setSteeringCursor(index) }
+        if focus == .agents { return setAgentCursor(index) }
         if focus == .personas { return personas.setCursor(index, count: personaRows.count) }
         if pane == .board {
             boardRow = min(max(index, 0), max(cards.count - 1, 0))
@@ -481,6 +492,8 @@ final class GoalsBrowser {
         case .personas: "goalpersonas"
         case .evaluations: "goalevals"
         case .plan: "goalplan"
+        case .agents: "goalagents"
+        case .map: "goalmap"
         }
     }
 
@@ -497,6 +510,7 @@ final class GoalsBrowser {
         case .tasks: planTasks.count
         case .versions: board?.versions.count ?? 0
         case .steering: shownSteering.count
+        case .agents: agentTasks.count
         }
     }
 
@@ -513,6 +527,7 @@ final class GoalsBrowser {
         case .tasks: taskCursor
         case .versions: versionCursor
         case .steering: steeringCursor
+        case .agents: min(agentCursor, max(agentTasks.count - 1, 0))
         }
     }
 
@@ -520,11 +535,15 @@ final class GoalsBrowser {
     /// objections of the one under the cursor, in turn.
     func toggleFocus() {
         if pane == .plan { return togglePlanFocus() }
+        if pane == .agents {
+            focus = focus == .agents || agentTasks.isEmpty ? .goals : .agents
+            return
+        }
         if pane == .reviewers {
             switch focus {
             case .goals, .links: focus = reviewers.isEmpty ? .goals : .reviewers
             case .reviewers: focus = objections.isEmpty ? .goals : .objections
-            case .objections, .personas, .friction, .tasks, .versions, .steering: focus = .goals
+            case .objections, .personas, .friction, .tasks, .versions, .steering, .agents: focus = .goals
             }
             return
         }
@@ -549,6 +568,7 @@ final class GoalsBrowser {
         case .tasks: focus = planTasks.isEmpty ? .goals : .tasks
         case .versions: focus = (board?.versions ?? []).isEmpty ? .goals : .versions
         case .steering: focus = shownSteering.isEmpty ? .goals : .steering
+        case .agents: focus = agentTasks.isEmpty ? .goals : .agents
         case .goals: focus = .goals
         }
     }
@@ -623,6 +643,7 @@ final class GoalsBrowser {
         if pane != .personas, focus == .personas { focus = .goals }
         if pane != .evaluations, focus == .friction { focus = .goals }
         if pane != .plan, focus == .tasks || focus == .versions || focus == .steering { focus = .goals }
+        if pane != .agents, focus == .agents { focus = .goals }
         if pane != .plan { planDraft = nil }
         if pane == .reviewers || pane == .personas || pane == .evaluations || pane == .plan, focus == .links {
             focus = .goals

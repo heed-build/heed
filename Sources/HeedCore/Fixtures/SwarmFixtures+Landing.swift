@@ -3,11 +3,31 @@ import Foundation
 /// The anchors swarm landing, and landed: every task has its PR; the merge order is 1.1, 1.2, 2.1, 2.2; the two PRs
 /// stacked on 1.1's are held until it merges, then move to main. Invented, as every fixture is.
 extension SwarmFixtures {
+    /// Rows put in time order, their back references (`about` and `steer:` refs below zero, 1-based positions)
+    /// following them.
+    static func byTime(_ rows: [SwarmSteer]) -> [SwarmSteer] {
+        let order = rows.indices.sorted { rows[$0].at != rows[$1].at ? rows[$0].at < rows[$1].at : $0 < $1 }
+        var position: [Int: Int] = [:]
+        for (new, old) in order.enumerated() {
+            position[old] = new
+        }
+        return order.map { old in
+            var row = rows[old]
+            if let about = row.about, about < 0, let new = position[Int(-about) - 1] { row.about = -Int64(new + 1) }
+            if let ref = row.ref, ref.hasPrefix("steer:"), let value = Int64(ref.dropFirst(6)), value < 0,
+               let new = position[Int(-value) - 1]
+            {
+                row.ref = "steer:\(-(new + 1))"
+            }
+            return row
+        }
+    }
+
     static func landed(_ variant: Running, now: Date) -> RunningWorld {
         let base = now.timeIntervalSince1970.rounded(.down)
         func ago(_ hours: Double) -> Date { Date(timeIntervalSince1970: base - hours * 3600) }
         let goal = anchors
-        let done = variant == .done
+        let done = variant == .done || variant == .summary
         var swarm = approved(ago).swarm
         let toolkit = Repo(org: "acme", name: "docs-toolkit")
         func branch(_ slug: String) -> String { SwarmWork.branch(goal: goal, slug: slug) }
@@ -83,6 +103,15 @@ extension SwarmFixtures {
                     reason: "the swarm ends; the goal stays open until its own done rule holds"
                 ),
             ]
+        }
+        if variant == .summary {
+            let before = Int64(steering.count)
+            steering += Self.summaryRows(now: now).map { row in
+                var row = row
+                if let about = row.about, about < 0 { row.about = about - before }
+                return row
+            }
+            steering = Self.byTime(steering)
         }
         func entry(
             _ slug: String, _ kind: GoalEvidence.Kind, _ text: String, source: String, ref: String? = nil,

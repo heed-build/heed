@@ -75,10 +75,12 @@ public enum GoalAttention {
             guard position.step == .you, let id = question.row.id else { continue }
             let asker = question.row.from.flatMap(SwarmAddress.init(raw:))?.label(numbers)
                 ?? (question.row.actor == .lead ? "the lead" : "an agent")
+            // A reminder (`SwarmStuck.reminders`) brings it up again: its time moves to the reminder's.
+            let reminded = board.steering.last { $0.kind == .remind && $0.about == id }?.at
             items.append(AttentionItem(
                 id: "goal:\(goal.id):ask:\(id)", kind: .goal, repo: nil, number: nil,
                 title: "\(goal.title): \(asker) asks: \(question.row.text)", url: nil, reasons: [.swarmAsk],
-                updatedAt: position.since
+                updatedAt: max(position.since, reminded ?? position.since)
             ))
         }
         let failures = SwarmSteering.retargetFailures(board.steering)

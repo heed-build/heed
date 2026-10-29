@@ -485,6 +485,15 @@ public extension Tutor {
                     + "gave, a digit or {swarm.answer} overrules it. Questions that are yours wait in Needs you."
             ) { _, now, _ in now.goalPane == "plan" && now.goalFocus == "steering" },
             TutorStep(
+                "The swarm at a glance",
+                say: "{goal.map} draws the swarm as a map: the goal on the left, its phases as columns, each task a "
+                    + "card coloured by its state, and an edge for what it waits for.",
+                keys: ["{goal.map}"], target: "swarmMap",
+                doneLine: "h and l move between columns, j and k between cards. {goal.agents} shows what each agent "
+                    + "is doing, for how long against its estimate, and whether it looks stuck; once the swarm is "
+                    + "done, its end-of-build summary, where {swarm.followup} starts a follow-up."
+            ) { _, now, _ in now.goalPane == "map" },
+            TutorStep(
                 "One of your own",
                 say: "{goal.new} opens a new goal; :goal.new with a title makes one at once. Make one.",
                 keys: [":goal.new Faster search↩"], target: "goalsList",

@@ -196,6 +196,10 @@ public actor EventLog {
         );
         CREATE INDEX start_outcomes_at ON start_outcomes (at);
         """),
+        // A swarm worker's activity (tool calls, file changes) is read by what it is about (`task:<id>`).
+        SQLiteMigration(sql: """
+        CREATE INDEX events_subject ON events (subject, at) WHERE kind IN ('tool.call', 'file.change');
+        """),
     ]
 
     // MARK: Writing

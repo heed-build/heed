@@ -63,7 +63,9 @@ extension AppModel {
         let now = Clock.now
         var wrote = false
         for question in board.openQuestions {
-            switch SwarmLadder.due(question, rows: board.steering, now: now) {
+            // A peer has as long as the swarm says a question may wait on one.
+            let timeouts = SwarmLadder.Timeouts(peer: Double(board.swarm.settings.stuck.waitingOnPeer) * 60)
+            switch SwarmLadder.due(question, rows: board.steering, now: now, timeouts: timeouts) {
             case .none: continue
             case let .escalate(step, why):
                 let id = question.id
@@ -247,6 +249,9 @@ extension AppModel {
     func steeringQuestion(open: Bool = true) -> (board: SwarmBoard, question: SwarmSteering.Question)? {
         if let found = attentionQuestion { return found }
         guard view == .goals, let board = goals.board else { return nil }
+        if goals.pane == .agents || goals.pane == .map {
+            return waitingOnYou(board).first.map { (board, $0) }
+        }
         if goals.focus == .steering, let row = goals.selectedSteer {
             let id = row.kind == .question ? row.id : row.about
             if let id, let question = board.questions.first(where: { $0.id == id }) { return (board, question) }

@@ -281,7 +281,11 @@ public enum MenuBar {
                     ("Ledger: edit the summary", "ledger.edit"),
                 ], in: historyViews),
                 scoped("In Goals", [
-                    ("New goal…", "goal.new"), ("GOAL.md and versions", "goal.doc"), ("Edit GOAL.md", "goal.edit"),
+                    ("New goal…", "goal.new"), ("Overview", "goal.overview"), (
+                        "Next steps: hide or show",
+                        "goal.guide"
+                    ),
+                    ("GOAL.md and versions", "goal.doc"), ("Edit GOAL.md", "goal.edit"),
                     ("Restore a version…", "goal.restore"), ("Archive or bring back", "goal.archive"),
                     ("Open", "goal.open"), ("Goals or what is on one", "goal.focus"),
                     ("Take off the goal", "goal.detach"), ("Board", "goal.board"),

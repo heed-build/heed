@@ -126,6 +126,7 @@ public enum Commands {
         .init("view.dashboard", "History's dashboard: what the work amounted to over a range", .views),
         .init("view.ledger", "History's ledger: a summary of each piece of work, kept after its worktree", .views),
         .init("view.goals", "goals: long-running work, what belongs to each goal, and its GOAL.md", .views),
+        .init("goal.overview", "Goals: back to the goal's overview from any of its panes", .views),
         .init("goal.doc", "Goals: the goal's GOAL.md and its versions (again: the overview)", .views),
         .init("goal.board", "Goals: the goal as a board, its items by column (again: the overview)", .views),
         .init(
@@ -325,6 +326,11 @@ public enum Commands {
         ),
         .init("goal.undo", "GOAL.md: take back the last change heed made on its own", .selection),
         .init("goal.sharpen", "GOAL.md: ask a model to sharpen the goal; what it suggests waits for you", .selection),
+        .init(
+            "goal.guide",
+            "Goals: hide the goal's next-steps card (it comes back if a step it ticked off goes back), or show it again",
+            .selection
+        ),
         .init("goal.ask.yes", "yes: on the goal heed proposed (on a suggested goal: make it)", .selection),
         .init("goal.ask.no", "no: not on that goal, and heed learns it (on a suggested goal: drop it)", .selection),
         .init(

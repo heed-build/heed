@@ -156,6 +156,13 @@ final class GoalsBrowser {
     @ObservationIgnored var changed: () -> Void = {}
     /// Called when another pane shows (the key scope follows).
     @ObservationIgnored var paneChanged: () -> Void = {}
+    /// Goals whose next-steps card was hidden (`goal.guide`), with the steps done then: it shows again when one of them
+    /// is no longer done. Kept in UserDefaults, except in the fake world.
+    var hiddenGuides: [String: Set<GoalStep>] = [:] {
+        didSet { if !isFixture, hiddenGuides != oldValue { Self.saveHiddenGuides(hiddenGuides) } }
+    }
+
+    @ObservationIgnored private(set) var isFixture = false
     /// Each goal's GitHub mirror, by goal id (`goal_mirrors`).
     private(set) var mirrors: [String: GoalMirrorState] = [:]
     /// The last read-only check of each tracker repo, by repo.
@@ -166,7 +173,11 @@ final class GoalsBrowser {
     @ObservationIgnored var lastMirrorPoll: [String: Date] = [:]
 
     init(fixture: Bool) {
-        guard fixture else { return }
+        isFixture = fixture
+        guard fixture else {
+            hiddenGuides = Self.loadHiddenGuides()
+            return
+        }
         let fixtures = GoalMirrorFixtures.apply(to: GoalFixtures.all())
         let mirrors = GoalMirrorFixtures.states(fixtures)
         self.mirrors = mirrors
@@ -617,6 +628,7 @@ final class GoalsBrowser {
 
     func show(_ next: Pane) {
         pane = next
+        if next != .doc { draft = nil }
         leftPane()
     }
 
@@ -688,7 +700,10 @@ final class GoalsBrowser {
         done: @escaping @MainActor (Result<T, Error>) -> Void = { _ in }
     ) {
         guard let ops else { return done(.failure(GoalOpError.unknownGoal("goals.sqlite did not open"))) }
+        let load = fixtureLoad
         Task {
+            // In the fake world, the fixtures are laid in first: an operation sees them all, every time.
+            await load?.value
             let result: Result<T, Error>
             do { result = try await .success(operation(ops)) } catch { result = .failure(error) }
             if let snapshot = try? await ops.snapshot() { apply(snapshot) }

@@ -440,6 +440,22 @@ enum Shots {
         }),
         // The goal's items by stage, filled by evidence; its board; the changes to GOAL.md the work suggests.
         Shot(id: "goals/matrix", keys: "gGj", crop: .goalMatrix, cropPadding: 8),
+        // The pane switcher above every pane of a goal, and how far the goal is.
+        Shot(id: "goals/pane-tabs", keys: "gGjB", crop: .goalPaneBar, cropPadding: 0),
+        Shot(id: "goals/progress", keys: "gGj", crop: .goalLeft, cropPadding: 8),
+        // A new goal: its overview with the next-steps card, its GOAL.md looking unfinished, and sharpened.
+        Shot(id: "goals/guided", keys: "gG:goal.new<Space>Faster<Space>search<CR>"),
+        Shot(
+            id: "goals/guided-card",
+            keys: "gG:goal.new<Space>Faster<Space>search<CR>",
+            crop: .goalGuide,
+            cropPadding: 8
+        ),
+        Shot(id: "goals/doc-unfinished", keys: "gG:goal.new<Space>Faster<Space>search<CR>", then: ["E"]),
+        Shot(
+            id: "goals/guided-sharpened", keys: "gG:goal.new<Space>Faster<Space>search<CR>",
+            then: ["w", "y", "y", "y", "y", "E"], crop: .goalGuide, cropPadding: 8
+        ),
         Shot(id: "goals/board", keys: "gGjB"),
         Shot(id: "goals/proposals", keys: "gGjE", crop: .goalProposals, cropPadding: 8),
         Shot(id: "goals/session-chip", keys: "", crop: .sidebar, cropPadding: 0),

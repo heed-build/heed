@@ -46,6 +46,10 @@ enum TutorCheck {
             "w",
             "T",
             ":goal.new Faster search<CR>",
+            // `|` waits as a person would for what the keys before it started (the goal made, a change accepted).
+            "|w",
+            "y|y|y|y",
+            "E",
         ],
         "hosts": [
             "gH<Esc>",
@@ -70,11 +74,15 @@ enum TutorCheck {
                 if let target = step.target.flatMap(ShotRegion.init(rawValue:)) {
                     targetSeen = regions(model).contains(target)
                 }
-                for stroke in (try? KeyNotation.parse(index < script.count ? script[index] : "")) ?? [] {
-                    _ = model.handle(stroke)
-                    try? await Task.sleep(for: .milliseconds(20))
-                    if !targetSeen, let target = step.target.flatMap(ShotRegion.init(rawValue:)) {
-                        targetSeen = regions(model).contains(target)
+                let parts = (index < script.count ? script[index] : "").components(separatedBy: "|")
+                for (part, keys) in parts.enumerated() {
+                    if part > 0 { try? await Task.sleep(for: .milliseconds(300)) }
+                    for stroke in (try? KeyNotation.parse(keys)) ?? [] {
+                        _ = model.handle(stroke)
+                        try? await Task.sleep(for: .milliseconds(20))
+                        if !targetSeen, let target = step.target.flatMap(ShotRegion.init(rawValue:)) {
+                            targetSeen = regions(model).contains(target)
+                        }
                     }
                 }
                 // Some steps tick off when an operation off the main actor finishes (accepting a risk or friction

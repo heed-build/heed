@@ -2407,6 +2407,8 @@ final class AppModel {
         case "view.dashboard": view = .dashboard
         case "view.goals": view = .goals
         case "goal.doc": toggleGoalDoc()
+        case "goal.overview": showGoalOverview()
+        case "goal.guide": toggleGoalGuide()
         case "goal.jump": jumpToGoal()
         case "goal.new": newGoal(command.arguments, from: command.target)
         case "goal.attach": attachGoal(command.arguments)
@@ -7618,6 +7620,7 @@ final class AppModel {
         state.goalFocus = goals.focus.rawValue
         state.goalItems = goals.items.count
         state.goalProposals = goals.proposals.count
+        state.goalNextStep = goals.selected.flatMap { goals.shownGuide(of: $0)?.next?.step.rawValue } ?? ""
         state.goalMoves = goals.moves
         state.goalSelected = goals.selected?.id ?? ""
         state.goalAsks = goals.attach.asks.count

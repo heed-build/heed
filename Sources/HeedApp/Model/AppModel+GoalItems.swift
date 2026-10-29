@@ -333,21 +333,23 @@ extension AppModel {
         planGoal(goal: goal)
     }
 
-    /// `goal.sharpen` (`w`): a model suggests a sharper GOAL.md; every suggestion waits for you.
+    /// `goal.sharpen` (`w`): a model suggests a sharper GOAL.md; every suggestion waits for you. In the fake world
+    /// (shots, the tutor) `GoalSharpenFixture` answers instead, with no model call.
     func sharpenGoal() {
         guard let goal = goals.selected else { return say("no goal here") }
-        guard spendGoalCall(goal.id) else {
-            return say(isFixture || tutor != nil ? "fixture: no model calls" : "no model call: [llm] is off, or "
-                + "\(goal.title) used today's \(GoalBudget.daily)")
+        let fake = isFixture || tutor != nil
+        guard fake || spendGoalCall(goal.id) else {
+            return say("no model call: [llm] is off, or \(goal.title) used today's \(GoalBudget.daily)")
         }
         say("asking for a sharper \(goal.title)…")
         let summarizer = summarizer
         goals.run { ops in
             let text = try await ops.text(of: goal.id)
-            let answer = try await summarizer.summarize(
-                kind: .goalSharpen, inputs: SummaryInputs(title: goal.title, goal: text), caller: "goals.sharpen",
-                priority: .interactive
-            )
+            let answer = fake ? GoalSharpenFixture.answer(title: goal.title, doc: GoalDoc.parse(text))
+                : try await summarizer.summarize(
+                    kind: .goalSharpen, inputs: SummaryInputs(title: goal.title, goal: text), caller: "goals.sharpen",
+                    priority: .interactive
+                )
             var waiting = 0
             for edit in GoalEditProposer.edits(answer, goal: goal.id, from: "sharpen", now: Date(), scopeOnly: true) {
                 let proposed = try await ops.propose(edit, now: Date())

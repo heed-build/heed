@@ -16,33 +16,38 @@ struct GoalsView: View {
                     .frame(height: geometry.size.height)
                     .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
                     .shotRegion(.goalsList)
-                Group {
-                    if goals.pane == .unassigned {
-                        UnassignedPane()
-                    } else if let goal = goals.selected {
-                        switch goals.pane {
-                        case .overview, .unassigned: GoalOverviewPane(goal: goal).shotRegion(.goalsOverview)
-                        case .doc: GoalDocPane(goal: goal).shotRegion(.goalsDoc)
-                        case .board: GoalBoardPane(goal: goal).shotRegion(.goalsBoard)
-                        case .reviewers: GoalReviewersPane(goal: goal)
-                        case .personas: GoalPersonasPane(goal: goal)
-                        case .evaluations: GoalEvaluationsPane(goal: goal)
-                        case .plan: GoalPlanPane(goal: goal)
-                        case .agents: GoalAgentsPane(goal: goal)
-                        case .map: GoalMapPane(goal: goal)
+                VStack(spacing: 0) {
+                    if goals.pane == .unassigned || goals.selected != nil { GoalPaneBar().shotRegion(.goalPaneBar) }
+                    Group {
+                        if goals.pane == .unassigned {
+                            UnassignedPane()
+                        } else if let goal = goals.selected {
+                            switch goals.pane {
+                            case .overview, .unassigned: GoalOverviewPane(goal: goal).shotRegion(.goalsOverview)
+                            case .doc: GoalDocPane(goal: goal).shotRegion(.goalsDoc)
+                            case .board: GoalBoardPane(goal: goal).shotRegion(.goalsBoard)
+                            case .reviewers: GoalReviewersPane(goal: goal)
+                            case .personas: GoalPersonasPane(goal: goal)
+                            case .evaluations: GoalEvaluationsPane(goal: goal)
+                            case .plan: GoalPlanPane(goal: goal)
+                            case .agents: GoalAgentsPane(goal: goal)
+                            case .map: GoalMapPane(goal: goal)
+                            }
+                        } else {
+                            EmptyState(
+                                title: goals.snapshot.goals.isEmpty ? "No goals yet" : "Nothing matches",
+                                detail: goals.unavailable
+                                    ? "goals.sqlite could not be opened, so goals are not kept. The log says why."
+                                    : "A goal is long-running work that sessions, chats and PRs belong to, with a GOAL.md "
+                                    + "every agent on it reads first.",
+                                actions: [EmptyState.Action("New goal", "goal.new")],
+                                pointer: EmptyState.Action("Goals", "tutor", arguments: ["goals"]),
+                                pointerText: "New here? The tutor shows"
+                            )
                         }
-                    } else {
-                        EmptyState(
-                            title: goals.snapshot.goals.isEmpty ? "No goals yet" : "Nothing matches",
-                            detail: goals.unavailable
-                                ? "goals.sqlite could not be opened, so goals are not kept. The log says why."
-                                : "A goal is long-running work that sessions, chats and PRs belong to, with a GOAL.md "
-                                + "every agent on it reads first.",
-                            actions: [EmptyState.Action("New goal", "goal.new")],
-                            pointer: EmptyState.Action("Goals", "tutor", arguments: ["goals"]),
-                            pointerText: "New here? The tutor shows"
-                        )
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .clipped()
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: geometry.size.height, alignment: .top)
@@ -76,7 +81,8 @@ private struct GoalList: View {
                     ForEach(Array(goals.rows.enumerated()), id: \.element.id) { index, goal in
                         GoalRow(
                             goal: goal, links: goals.snapshot.links(of: goal.id),
-                            swarm: goals.snapshot.activeSwarm(of: goal.id),
+                            swarm: goals.snapshot.activeSwarm(of: goal.id), progress: goals.progress(of: goal),
+                            next: goals.shownGuide(of: goal)?.next?.step,
                             isCursor: index == goals.cursor,
                             focused: goals.focus == .goals && goals.pane != .unassigned
                         )
@@ -113,21 +119,36 @@ private struct GoalList: View {
 }
 
 private struct GoalRow: View {
+    @Environment(AppModel.self) private var model
     let goal: HeedGoal
     let links: [GoalLink]
     let swarm: GoalSwarm?
+    /// How far it is, and its next step while its card shows.
+    let progress: GoalProgress
+    let next: GoalStep?
     let isCursor: Bool
     let focused: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             ScoreRing(score: goal.score)
+                .help(goal.score == nil ? "No score yet" : progress.confidence?.basis ?? "")
             VStack(alignment: .leading, spacing: 3) {
                 Text(goal.title)
                     .font(Theme.ui(13, weight: .semibold))
                     .foregroundStyle(goal.status == .archived ? Theme.fg3 : Theme.fg)
                     .lineLimit(1)
                 Text(subline).font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                Text(progress.line).font(Theme.mono(11)).foregroundStyle(Theme.fg2).lineLimit(1)
+                if let next {
+                    // Not a button: the row's key acts on the goal under the cursor, which may be another.
+                    HStack(spacing: 6) {
+                        Text("next").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                        KeyCap(text: model.goalKeyText(next.command))
+                        Text(next.title.lowercased()).font(Theme.ui(11.5)).foregroundStyle(Theme.block).lineLimit(1)
+                    }
+                    .padding(.top, 1)
+                }
             }
             Spacer(minLength: 0)
         }
@@ -168,8 +189,10 @@ private struct GoalOverviewPane: View {
         ListScroll {
             VStack(alignment: .leading, spacing: 18) {
                 GoalHeader(goal: goal, statement: doc?.goal ?? "")
+                if let guide = goals.shownGuide(of: goal) { GoalGuideCard(guide: guide).shotRegion(.goalGuide) }
                 HStack(spacing: 12) {
                     StatTile(value: goal.score.map { String(format: "%.1f", $0) } ?? "–", label: "confidence")
+                        .help(goals.progress(of: goal).confidence?.basis ?? "No score yet")
                     StatTile(value: work.isEmpty ? "–" : "\(done)/\(work.count)", label: "items done")
                     StatTile(
                         value: overview.criteriaTotal == 0 ? "–" : "\(overview.criteriaMet)/\(overview.criteriaTotal)",
@@ -183,6 +206,7 @@ private struct GoalOverviewPane: View {
                 }
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 16) {
+                        GoalLeftPanel(goal: goal).shotRegion(.goalLeft)
                         GoalMatrix(goal: goal).shotRegion(.goalMatrix)
                         OnTheGoal(rows: overview.rows)
                     }
@@ -242,35 +266,11 @@ struct GoalHeader: View {
                     .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
                 if goal.status != .active { PullWord(state: goal.status.rawValue) }
                 Spacer(minLength: 12)
-                KeyHint(
-                    "goal.doc", scope: scope,
-                    label: model.goals.pane == .doc ? "overview" : "GOAL.md", color: Theme.fg2
-                )
-                KeyHint(
-                    "goal.board", scope: scope, label: model.goals.pane == .board ? "overview" : "board",
-                    color: Theme.fg2
-                )
+                if model.binds("goal.sharpen", in: scope) {
+                    KeyHint("goal.sharpen", scope: scope, label: "sharpen", color: Theme.fg2)
+                }
                 if model.binds("goal.edit", in: scope) {
                     KeyHint("goal.edit", scope: scope, label: "edit", color: Theme.fg2)
-                }
-                KeyHint("goal.reviewers", scope: scope, label: "reviewers", color: Theme.fg2)
-                KeyHint("goal.evaluations", scope: scope, label: "evaluations", color: Theme.fg2)
-                KeyHint(
-                    "goal.personas", scope: scope, label: model.goals.pane == .personas ? "overview" : "personas",
-                    color: Theme.fg2
-                )
-                KeyHint(
-                    "goal.swarm", scope: scope, label: model.goals.pane == .plan ? "overview" : "swarm",
-                    color: Theme.fg2
-                )
-                if model.goals.snapshot.swarms(of: goal.id).first?.approved != nil {
-                    KeyHint(
-                        "goal.agents", scope: scope, label: model.goals.pane == .agents ? "overview" : "agents",
-                        color: Theme.fg2
-                    )
-                    KeyHint(
-                        "goal.map", scope: scope, label: model.goals.pane == .map ? "overview" : "map", color: Theme.fg2
-                    )
                 }
                 if model.binds("goal.archive", in: scope) {
                     KeyHint(
@@ -414,16 +414,23 @@ private struct RenderedGoal: View {
     let doc: GoalDoc
 
     var body: some View {
+        let gaps = GoalDocGaps.of(doc)
         VStack(alignment: .leading, spacing: 16) {
             section("Goal") {
-                Text(doc.goal.isEmpty ? "Not written yet." : doc.goal)
-                    .font(Theme.ui(14)).foregroundStyle(doc.goal.isEmpty ? Theme.fg3 : Theme.fg)
-                    .fixedSize(horizontal: false, vertical: true)
+                if gaps.contains(.noStatement) {
+                    Unfinished(gap: .noStatement)
+                } else {
+                    Text(doc.goal).font(Theme.ui(14)).foregroundStyle(Theme.fg)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if gaps.contains(.thinStatement) { Unfinished(gap: .thinStatement) }
+                }
             }
-            section("Not the goal") { bullets(doc.notTheGoal) }
+            section("Not the goal") {
+                if gaps.contains(.noNotTheGoal) { Unfinished(gap: .noNotTheGoal) } else { bullets(doc.notTheGoal) }
+            }
             section("Done when") {
-                if doc.doneWhen.isEmpty { empty }
-                ForEach(Array(doc.doneWhen.enumerated()), id: \.offset) { _, criterion in
+                if gaps.contains(.noDoneWhen) { Unfinished(gap: .noDoneWhen) }
+                ForEach(Array(doc.doneWhen.enumerated()), id: \.offset) { index, criterion in
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Image(systemName: criterion.met ? "checkmark.square" : "square")
                             .foregroundStyle(criterion.met ? Theme.done : Theme.fg3)
@@ -432,6 +439,9 @@ private struct RenderedGoal: View {
                             Text(evidence).font(Theme.mono(11)).foregroundStyle(Theme.block)
                                 .padding(.horizontal, 6).padding(.vertical, 1)
                                 .background(RoundedRectangle(cornerRadius: 4).fill(Theme.block.opacity(0.12)))
+                        } else if !criterion.met, gaps.contains(.vagueCriterion(index)) {
+                            Text(GoalDocGaps.prompt(.vagueCriterion(index))).font(Theme.mono(11))
+                                .foregroundStyle(Theme.block).fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -468,6 +478,27 @@ private struct RenderedGoal: View {
         ForEach(items, id: \.self) { item in
             Text("· " + item).font(Theme.ui(13)).fixedSize(horizontal: false, vertical: true)
         }
+    }
+}
+
+/// Where a section of GOAL.md is missing or thin: the question it should answer, in a dashed box, so an unfinished
+/// goal looks unfinished; w asks a model to sharpen it, e edits it.
+private struct Unfinished: View {
+    let gap: GoalDocGaps.Gap
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(GoalDocGaps.prompt(gap)).font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            KeyHint("goal.sharpen", scope: "goaldoc", label: "sharpen")
+            KeyHint("goal.edit", scope: "goaldoc", label: "write it")
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.fg3.opacity(0.6), style: StrokeStyle(
+            lineWidth: 1, dash: [4, 3]
+        )))
     }
 }
 

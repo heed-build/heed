@@ -26,6 +26,9 @@ public struct PaneLaunch: Hashable, Sendable {
     public var shell: Shell
     /// The syntax `shell` reads.
     public var kind: PaneShell
+    /// A folder under `$HOME` put first on the command's PATH (`.heed/bin` on a host, for heed's `heed` there): set in
+    /// the line, after the login shell read its profile, which may set PATH afresh.
+    public var homePath: String?
 
     public init(command: ShellCommand, shell: Shell, kind: PaneShell) {
         self.command = command
@@ -59,7 +62,11 @@ public struct PaneLaunch: Hashable, Sendable {
         let unset = command.prompt == nil ? [] : [
             lineKind == .fish ? "set -e \(Self.promptVariable)" : "unset \(Self.promptVariable)",
         ]
-        return ([command.rendered(for: lineKind)] + unset + ["exec \(shellWord(for: lineKind)) -l"])
+        let path = homePath.map { folder in
+            lineKind == .fish ? "set -gx PATH \"$HOME/\(folder)\" $PATH" : "PATH=\"$HOME/\(folder):$PATH\"; export PATH"
+        }
+        return ([path].compactMap(\.self) + [command.rendered(for: lineKind)] + unset
+            + ["exec \(shellWord(for: lineKind)) -l"])
             .joined(separator: "\n")
     }
 

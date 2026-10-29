@@ -124,11 +124,44 @@ public enum GoalAskWait {
         first: ControlReply, request: ControlRequest, call: (ControlRequest) throws -> ControlReply,
         sleep: (TimeInterval) -> Void, clock: () -> Date
     ) -> ControlReply {
+        guard let poll = poll(first: first, request: request) else { return first }
+        let start = clock()
+        var last = first
+        while clock().timeIntervalSince(start) < poll.timeout {
+            sleep(min(interval, max(poll.timeout - clock().timeIntervalSince(start), 0)))
+            guard let reply = try? call(poll.request), let answer = reply.goal else { continue }
+            if answer.outcome != "asked" || answer.exit != .ok { return reply }
+            last = reply
+        }
+        return timedOut(last, question: poll.question, timeout: poll.timeout)
+    }
+
+    /// The same wait, for heed itself (a `heed goal ask` from a host, which heed answers for the host's `heed`).
+    public static func wait(
+        first: ControlReply, request: ControlRequest, call: @Sendable (ControlRequest) async -> ControlReply?,
+        sleep: @Sendable (TimeInterval) async -> Void, clock: @Sendable () -> Date
+    ) async -> ControlReply {
+        guard let poll = poll(first: first, request: request) else { return first }
+        let start = clock()
+        var last = first
+        while clock().timeIntervalSince(start) < poll.timeout {
+            await sleep(min(interval, max(poll.timeout - clock().timeIntervalSince(start), 0)))
+            guard let reply = await call(poll.request), let answer = reply.goal else { continue }
+            if answer.outcome != "asked" || answer.exit != .ok { return reply }
+            last = reply
+        }
+        return timedOut(last, question: poll.question, timeout: poll.timeout)
+    }
+
+    /// What reads the question again while it waits, and for how long: nil when `first` is not a question asked.
+    static func poll(first: ControlReply, request: ControlRequest)
+        -> (request: ControlRequest, timeout: TimeInterval, question: Int64)?
+    {
         guard var command = request.goal, command.verb == .ask, let goal = first.goal, goal.exit == .ok,
               goal.outcome == "asked", let question = goal.question
-        else { return first }
+        else { return nil }
         let timeout = (command.timeout.map { $0 * 60 }) ?? defaultTimeout
-        guard timeout > 0 else { return first }
+        guard timeout > 0 else { return nil }
         command.question = question
         command.text = nil
         command.options = nil
@@ -136,14 +169,10 @@ public enum GoalAskWait {
         command.to = nil
         var poll = request
         poll.goal = command
-        let start = clock()
-        var last = first
-        while clock().timeIntervalSince(start) < timeout {
-            sleep(min(interval, max(timeout - clock().timeIntervalSince(start), 0)))
-            guard let reply = try? call(poll), let answer = reply.goal else { continue }
-            if answer.outcome != "asked" || answer.exit != .ok { return reply }
-            last = reply
-        }
+        return (poll, timeout, question)
+    }
+
+    static func timedOut(_ last: ControlReply, question: Int64, timeout: TimeInterval) -> ControlReply {
         var timedOut = last
         let minutes = Int((timeout / 60).rounded())
         timedOut.goal = GoalReply(

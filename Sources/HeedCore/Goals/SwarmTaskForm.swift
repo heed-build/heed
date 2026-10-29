@@ -1,7 +1,8 @@
 import Foundation
 
 /// A plan task as you type it in the plan pane: its fields as text, read back into a task (`after` as plan numbers
-/// like `1.2` or ids, done-when one check per line, the owner as `agent` or `agent:model`).
+/// like `1.2` or ids, done-when one check per line, the owner as `agent` or `agent:model`, the host as a host's name,
+/// `local`, or empty for where the swarm runs).
 public struct SwarmTaskForm: Hashable, Sendable {
     public var title = ""
     public var phase = ""
@@ -9,6 +10,7 @@ public struct SwarmTaskForm: Hashable, Sendable {
     public var estimate = ""
     public var after = ""
     public var doneWhen = ""
+    public var host = ""
 
     public init() {}
 
@@ -21,10 +23,12 @@ public struct SwarmTaskForm: Hashable, Sendable {
         estimate = task.estimate.map(SwarmEstimate.text) ?? ""
         after = task.after.map { numbers[$0] ?? SwarmPlan.short($0) }.joined(separator: ", ")
         doneWhen = task.doneWhen.joined(separator: "\n")
+        host = task.host ?? ""
     }
 
-    /// The task the fields describe, with `id`, in a plan of `tasks`; or what is wrong, in words.
-    public func task(id: String, in tasks: [SwarmTask]) -> Result<SwarmTask, Problem> {
+    /// The task the fields describe, with `id`, in a plan of `tasks`; or what is wrong, in words. `hosts`: config's,
+    /// which the host must be one of (nil: any).
+    public func task(id: String, in tasks: [SwarmTask], hosts: [String]? = nil) -> Result<SwarmTask, Problem> {
         let title = GoalDoc.oneLine(title)
         guard !title.isEmpty else { return .failure(Problem("a task needs a title")) }
         var minutes: Int?
@@ -49,9 +53,15 @@ public struct SwarmTaskForm: Hashable, Sendable {
             model: parts.count > 1 ? parts[1] : nil
         ) }
         let phase = GoalDoc.oneLine(phase)
+        let place: String?
+        switch SwarmPlace.parse(host, hosts: hosts) {
+        case let .success(found): place = found
+        case let .failure(problem): return .failure(Problem(problem.text))
+        }
         return .success(SwarmTask(
             id: id, title: title, phase: phase.isEmpty ? "Plan" : phase, owner: who, estimate: minutes, after: waits,
-            doneWhen: doneWhen.components(separatedBy: "\n").map(GoalDoc.oneLine).filter { !$0.isEmpty }
+            doneWhen: doneWhen.components(separatedBy: "\n").map(GoalDoc.oneLine).filter { !$0.isEmpty },
+            host: place
         ))
     }
 

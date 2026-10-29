@@ -180,11 +180,16 @@ extension AppModel {
         guard let swarm = goals.snapshot.swarms.first(where: { $0.id == pull.swarm }) else {
             return .pilot("its swarm is gone")
         }
-        let worktree = swarm.lastWorker(on: pull.task)?.worktree ?? ""
+        // A worker on a host: its worktree is there if the host answers (looked at over ssh before it starts).
+        let kept = swarm.lastWorker(on: pull.task).map { worker in
+            !goneWorktrees.contains(worker.id) && SwarmPlace.keptWorktree(
+                worker, exists: { FileManager.default.fileExists(atPath: $0) },
+                problem: { SwarmPlace.problem($0, hosts: config.hosts, statuses: hostStatuses) }
+            )
+        } ?? false
         return SwarmHandback.route(
             task: pull.task, swarm: swarm, agents: Set(settings.agents.map(\.name)),
-            limited: swarmUsage(swarm).limited,
-            worktreeExists: !worktree.isEmpty && FileManager.default.fileExists(atPath: worktree), now: Clock.now
+            limited: swarmUsage(swarm).limited, worktreeExists: kept, now: Clock.now
         )
     }
 
@@ -209,6 +214,15 @@ extension AppModel {
         let start = SwarmScheduler.Start(task: pull.task, base: worker.base, stackedOn: worker.stackedOn)
         startingWorkers.insert(pull.task)
         Task {
+            // On a host: its kept worktree must still be there, or a get it merged run takes the PR after all.
+            if let host = worker.location.hostName,
+               await SwarmWorktree.existing(worker.worktree, on: worker.location) == nil
+            {
+                startingWorkers.remove(pull.task)
+                goneWorktrees.insert(worker.id)
+                noteHandbackToPilot(pull, items: items, why: "its worktree on @\(host) is gone")
+                return deliver(ref, explicit: false)
+            }
             await startWorker(board, start, back: back)
             startingWorkers.remove(pull.task)
         }

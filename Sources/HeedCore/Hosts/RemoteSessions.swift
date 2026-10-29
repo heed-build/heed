@@ -26,6 +26,72 @@ public enum HostSetup {
     printf '%s\t%s\t%s\t%s\t%s\n' "$(date +%s)" "${HEED_SESSION_ID:-}" "${HEED_PANE_ID:-}" "$args" "$payload" >>"$log"
     """#
 
+    /// `heed` on the host (`~/.heed/bin/heed`, first on the PATH of heed's panes there): `heed goal …` and `heed swarm
+    /// …` for the agents heed runs there, a lead or a worker of a swarm above all. There is no control socket to reach
+    /// on a host, so it goes the way hooks do: one line in the event log (through `heed-hook call`, with the file a
+    /// `--file` names, or stdin for `-`), which heed reads over ssh and answers like the `heed goal` on your Mac
+    /// (`HostCall`); the answer comes back as `~/.heed/replies/<id>` (exit code, stdout and stderr, base64), which this
+    /// waits for, prints and removes. `heed goal ask` waits as long as the question can; anything else a minute.
+    /// POSIX sh and coreutils, as the hook.
+    public static let heedScript = #"""
+    #!/bin/sh
+    # heed on this host: heed goal and heed swarm, answered by the heed app on your Mac through ~/.heed/events.log.
+    case "$1" in
+      goal|swarm) ;;
+      *) echo "heed on a host runs heed goal and heed swarm only" >&2; exit 2 ;;
+    esac
+    id="$(date +%s)-$$"
+    replies="$HOME/.heed/replies"
+    mkdir -p "$replies"
+    file=""
+    prev=""
+    for a in "$@"; do
+      [ "$prev" = "--file" ] && file="$a"
+      prev="$a"
+    done
+    input=""
+    if [ "$file" = "-" ]; then
+      input=$(base64 | tr -d '\n')
+    elif [ -n "$file" ]; then
+      [ -r "$file" ] || { echo "heed $1: cannot read $file" >&2; exit 2; }
+      input=$(base64 < "$file" | tr -d '\n')
+    fi
+    "$HOME/.heed/bin/heed-hook" call "$id" "$input" "$@" </dev/null
+    limit=${HEED_CALL_TIMEOUT:-60}
+    [ "$2" = ask ] && limit=${HEED_CALL_TIMEOUT:-1800}
+    waited=0
+    while [ ! -f "$replies/$id" ]; do
+      if [ "$waited" -ge "$limit" ]; then
+        echo "heed $1: heed on your Mac did not answer (is it running, and connected to this host?)" >&2
+        exit 3
+      fi
+      sleep 1
+      waited=$((waited + 1))
+    done
+    decode() { base64 -d 2>/dev/null || base64 -D; }
+    code=$(sed -n 1p "$replies/$id")
+    sed -n 2p "$replies/$id" | decode
+    sed -n 3p "$replies/$id" | decode >&2
+    rm -f "$replies/$id"
+    exit "${code:-1}"
+    """#
+
+    /// What heed puts on a host for its agents' hooks (path under `~/.heed` to content), with the paths agents there
+    /// are given (`home` is the host's `$HOME`, from its check). Every agent heed starts on a host, in a session, a run
+    /// or a swarm, is launched with these.
+    public static func integration(home: String) -> (files: [String: String], integration: IntegrationFiles) {
+        let integration = IntegrationFiles(
+            directory: URL(fileURLWithPath: home).appendingPathComponent(".heed"),
+            heedBinary: "\(home)/.heed/bin/heed-hook"
+        )
+        let files = [
+            "~/.heed/claude-hooks.json": AgentIntegration.claudeSettingsJSON(),
+            "~/.heed/heed-pi.js": AgentIntegration.piExtensionSource,
+            "~/.heed/heed-opencode.js": AgentIntegration.opencodePluginSource,
+        ]
+        return (files, integration)
+    }
+
     /// The shell line that writes stdin to a file under `~/.heed` (the hook, hook settings, plugins).
     public static func write(_ path: String, executable: Bool = false) -> String {
         let target = path.hasPrefix("~/") ? "\"$HOME\"/" + ShellQuote.quote(String(path.dropFirst(2))) : ShellQuote
@@ -53,6 +119,120 @@ public enum HostEvents {
     }
 }
 
+/// A `heed goal …` or `heed swarm …` from a host (`HostSetup.heedScript`): its line in the event log, read back, and
+/// the answer heed writes for it there.
+public struct HostCall: Hashable, Sendable {
+    /// `<seconds>-<pid>` on the host: the reply file's name.
+    public var id: String
+    /// The session and pane it came from (heed's pane environment there); empty from a shell heed did not start.
+    public var session: String
+    public var pane: String?
+    /// The command line after `heed` (`goal plan propose --file plan.json`).
+    public var arguments: [String]
+    /// The file `--file` named, read on the host (or stdin for `-`).
+    public var input: String?
+
+    /// The call a line of `~/.heed/events.log` holds, if it holds one: `heed-hook call <id> <input> <arguments…>`.
+    public init?(line: String) {
+        let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
+        guard fields.count == 5 else { return nil }
+        // An empty argument is written as nothing between two spaces: kept, so the input keeps its place.
+        let args = fields[3].split(separator: " ", omittingEmptySubsequences: false).dropLast()
+            .map { Data(base64Encoded: String($0)).map { String(decoding: $0, as: UTF8.self) } }
+        guard args.count >= 4, args[0] == "call", let id = args[1], Self.valid(id),
+              let first = args[3], first == "goal" || first == "swarm"
+        else { return nil }
+        let rest = args.dropFirst(3).compactMap(\.self)
+        guard rest.count == args.count - 3 else { return nil }
+        self.id = id
+        session = fields[1]
+        pane = fields[2].isEmpty ? nil : fields[2]
+        arguments = Array(rest)
+        input = args[2]
+            .flatMap { $0.isEmpty ? nil : Data(base64Encoded: $0).map { String(decoding: $0, as: UTF8.self) } }
+    }
+
+    public init(id: String, session: String, pane: String?, arguments: [String], input: String? = nil) {
+        self.id = id
+        self.session = session
+        self.pane = pane
+        self.arguments = arguments
+        self.input = input
+    }
+
+    /// Only digits and a dash: it names a file on the host.
+    static func valid(_ id: String) -> Bool {
+        !id.isEmpty && id.count < 40 && id.allSatisfy { $0.isASCII && ($0.isNumber || $0 == "-") }
+    }
+
+    /// How long the host's `heed` waits for its answer (`HostSetup.heedScript`): `ask` as long as a question can.
+    public var patience: TimeInterval { arguments.count > 1 && arguments[1] == "ask" ? 1800 : 60 }
+
+    /// Made longer ago than its `heed` waits (by the seconds in its id): nobody reads an answer now.
+    public func isStale(now: Date) -> Bool {
+        guard let seconds = id.split(separator: "-").first.flatMap({ TimeInterval(String($0)) }) else { return true }
+        return now.timeIntervalSince1970 - seconds > patience
+    }
+
+    /// Where the answer goes on the host.
+    public var replyPath: String { "~/.heed/replies/\(id)" }
+
+    /// The answer to it, as the host's `heed` reads it: what `heed goal` on this Mac would print and exit with. `call`
+    /// asks heed (its control method `goal`, in the app; nil when it did not answer); an `ask` is waited for here, as
+    /// the CLI waits, with `sleep` and `clock`. Only heed's own panes there may ask: a shell heed did not start has no
+    /// session, and what needs none (approving a plan) is the owner's, from a terminal on this Mac.
+    public func answer(
+        call: @Sendable (ControlRequest) async -> ControlReply?, sleep: @Sendable (TimeInterval) async -> Void,
+        clock: @Sendable () -> Date
+    ) async -> String {
+        let verb = arguments.first ?? "goal"
+        if GoalCommandLine.wantsHelp(arguments) {
+            return Self.reply(code: 0, out: verb == "swarm" ? SwarmCommandLine.usage : GoalCommandLine.usage, err: nil)
+        }
+        guard !session.isEmpty else {
+            return Self.reply(
+                code: GoalExit.refused.rawValue, out: nil,
+                err: "heed \(verb) on a host works in the panes heed starts there (a session, a swarm's lead or worker)"
+            )
+        }
+        var environment = [HeedEnvironment.sessionID: session]
+        if let pane { environment[HeedEnvironment.pane] = pane }
+        let request: ControlRequest
+        do {
+            request = try GoalCommandLine.request(arguments, environment: environment, read: { _ in input ?? "" })
+        } catch {
+            return Self.reply(code: GoalExit.usage.rawValue, out: nil, err: "\(error)")
+        }
+        guard let first = await call(request) else {
+            return Self.reply(code: GoalExit.unreachable.rawValue, out: nil, err: "heed \(verb): Heed did not answer")
+        }
+        let reply = await GoalAskWait.wait(first: first, request: request, call: call, sleep: sleep, clock: clock)
+        let result = GoalCommandLine.finish(reply, json: request.goal?.json == true)
+        return Self.reply(code: result.code, out: result.out, err: result.err)
+    }
+
+    /// Writes the answer where the host's `heed` waits for it (`replyPath`), over the host's shared connection.
+    public static func send(_ text: String, for call: HostCall, to host: String) async {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("heed-reply-\(UUID().uuidString)")
+        guard (try? Data(text.utf8).write(to: file)) != nil else { return }
+        defer { try? FileManager.default.removeItem(at: file) }
+        let target = "\"$HOME\"/" + ShellQuote.quote(String(call.replyPath.dropFirst(2)))
+        _ = try? await ProcessRunner.run(
+            on: .host(host), "sh", [
+                "-c",
+                "mkdir -p \"$HOME/.heed/replies\" && cat > \(target).tmp && mv \(target).tmp \(target)",
+            ],
+            timeout: .seconds(20), input: file, caller: "hosts.call"
+        )
+    }
+
+    /// The answer as the host's `heed` reads it: the exit code, then stdout and stderr, each base64 on a line.
+    public static func reply(code: Int32, out: String?, err: String?) -> String {
+        func encoded(_ text: String?) -> String { text.map { Data(($0 + "\n").utf8).base64EncodedString() } ?? "" }
+        return "\(code)\n\(encoded(out))\n\(encoded(err))\n"
+    }
+}
+
 /// A pane on a host: the command its terminal runs here.
 public enum RemotePane {
     /// What the pane's terminal runs: ssh to the host and attach to the pane's zmx session there (`zmx`, its path on
@@ -64,13 +244,18 @@ public enum RemotePane {
     ///
     /// `command` (a new pane's agent) is the session's process, run by the host's login shell as `PaneLaunch` says
     /// and never typed into it; `shell` is that shell's syntax, which the host check found, and the part after `--` is
-    /// written in it, since the host's login shell reads it. The prompt rides in the environment (`HEED_PROMPT`).
+    /// written in it, since the host's login shell reads it. The prompt rides in the environment (`HEED_PROMPT`); the
+    /// line puts `~/.heed/bin` first on the agent's PATH, for heed's `heed` there (`HostSetup.heedScript`).
     public static func command(
         host: String, pane: String, directory: String, sessionID: String, zmx: String?,
         command: ShellCommand? = nil, shell: PaneShell = .posix,
         controlDirectory: String = Remote.controlDirectory()
     ) -> String {
-        let launch = command.map { PaneLaunch(command: $0, shell: .login, kind: shell) }
+        let launch = command.map { command in
+            var launch = PaneLaunch(command: command, shell: .login, kind: shell)
+            launch.homePath = ".heed/bin"
+            return launch
+        }
         let environment = [
             "HEED_SESSION_ID=\(ShellQuote.quote(sessionID))", "HEED_PANE_ID=\(ShellQuote.quote(pane))",
             "HEED_BIN=\"$HOME/.heed/bin/heed-hook\"",
@@ -145,12 +330,13 @@ public extension HostSetup {
         let location = Location.host(host)
         var all = files
         all["~/.heed/bin/heed-hook"] = hookScript
+        all["~/.heed/bin/heed"] = heedScript
         for (path, content) in all.sorted(by: { $0.key < $1.key }) {
             let file = FileManager.default.temporaryDirectory.appendingPathComponent("heed-upload-\(UUID().uuidString)")
             try Data(content.utf8).write(to: file)
             defer { try? FileManager.default.removeItem(at: file) }
             let result = try await ProcessRunner.run(
-                on: location, "sh", ["-c", write(path, executable: path.hasSuffix("heed-hook"))], timeout: .seconds(30),
+                on: location, "sh", ["-c", write(path, executable: path.hasPrefix(bin + "/"))], timeout: .seconds(30),
                 input: file, caller: "hosts.install"
             )
             guard result.succeeded else { throw Failure.step("writing \(path)", result.stderr) }

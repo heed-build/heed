@@ -101,7 +101,8 @@ When that worker cannot take it, a get it merged run does, as for any PR, and th
 
 - the swarm is stopped, paused or done;
 - the worker's agent is not set up on this Mac, or is rate limited;
-- its worktree is gone (or the worker never started).
+- its worktree is gone (or the worker never started); for a worker on a host, its host does not answer, or heed looks
+  there over ssh before it starts and finds the worktree gone.
 
 A worker still at work on the task gets it once its turn ends.
 
@@ -110,6 +111,14 @@ A PR's other feedback for a swarm (review threads, failing checks) goes to a run
 
 If `gh` refuses the move, a steering row says why and heed tries again after ten minutes; `b` in the plan pane
 (`:swarm.land`) on the task tries at once, or says why there is nothing to move (`#415 goes against main already`).
+
+## Where it runs
+
+Landing is GitHub's business, so it runs on this Mac whatever machine the workers are on: heed reads the PRs and moves
+a stacked one with `gh` here, against the branch its worker pushed to GitHub. Nothing about it needs the worktree.
+The rebase after a parent merges, or a conflict, goes back to the task's worker where it ran: a worker on a host starts
+again there, in the worktree it kept on the host, even if the task has moved since. When a get it merged run takes it
+instead, that run works where the lead's session does (on this Mac or its host), in a clone of the repo there.
 
 ## Two open blockers
 

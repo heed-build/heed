@@ -48,9 +48,9 @@ extension AppModel {
         return usage
     }
 
-    /// The default branch of the swarm's first repo on this Mac.
+    /// The default branch of the swarm's first repo where it runs (else on this Mac).
     func defaultBranch(of swarm: GoalSwarm) -> String {
-        swarmRecord(swarm, at: .local)?.defaultBranch ?? "main"
+        (swarmRecord(swarm, at: swarm.settings.location) ?? swarmRecord(swarm, at: .local))?.defaultBranch ?? "main"
     }
 
     private func swarmRecord(_ swarm: GoalSwarm, at location: Location) -> RepoRecord? {
@@ -61,6 +61,13 @@ extension AppModel {
 
     /// The live worker on a task.
     func liveWorker(on task: String) -> LiveWorker? { liveWorkers.values.first { $0.task == task } }
+
+    /// The host a task's worker runs on (its live one, else its last), with the host's colour; nil on this Mac.
+    func workerHost(_ task: String, board: SwarmBoard) -> (name: String, color: String?)? {
+        let location = liveWorker(on: task)?.location ?? board.swarm.lastWorker(on: task)?.location
+        guard let name = location?.hostName else { return nil }
+        return (name, config.hosts[name]?.color)
+    }
 
     // MARK: Ticking
 
@@ -149,44 +156,63 @@ extension AppModel {
             }
             say("swarm \(swarm.number): \(task.title) did not start: \(reason)")
         }
-        // The lead's session hosts the workers; else the newest open session on the goal, on this Mac.
+        // The lead's session holds the workers' tabs; else the newest open session on the goal. A worker on a host is
+        // a pane on that host in it, wherever the session runs.
         let onGoal = goals.snapshot.links(of: goal.id).filter { $0.kind == .session }.sorted { $0.at > $1.at }
             .map(\.target)
         guard let session = ([swarm.lead].compactMap(\.self) + onGoal).lazy.compactMap({ id in
-            self.sessions.first { $0.id == id && $0.host == nil && self.layouts[id] != nil }
+            self.sessions.first { $0.id == id && self.layouts[id] != nil }
         }).first else {
             return await fail("no open session on the goal to hold its tab: reopen the lead's")
         }
-        guard let record = swarmRecord(swarm, at: session.location) else {
-            return await fail("none of the swarm's repos is on this Mac")
+        // A task handed over or taken back carries on in its last worker's worktree, where that is.
+        let previous = swarm.lastWorker(on: task.id)
+        let carriesOn = handoff != nil || back != nil
+        let location = SwarmPlace.location(
+            of: task, swarm: swarm.settings, previous: previous, carriesOn: carriesOn
+        )
+        if let problem = SwarmPlace.problem(location, hosts: config.hosts, statuses: hostStatuses) {
+            return await fail(problem)
+        }
+        guard let record = swarmRecord(swarm, at: location) else {
+            return await fail("none of the swarm's repos is on \(SwarmPlace.label(location))")
         }
         guard let agent = settings.agent(owner.agent) else { return await fail("no agent \(owner.agent)") }
-        let root = Runs.worktreeRoot(local: settings.worktreeRoot, host: nil, hosts: config.hosts)
-        let path = SwarmWork.worktreePath(root: root, repo: record.repo, goal: goal.id, slug: task.slug)
-        // A task resumed or handed over carries on in the worktree it left; a new one starts from its base.
-        let previous = swarm.lastWorker(on: task.id)
-        let reuse = FileManager.default.fileExists(atPath: path)
-        let base = reuse ? previous?.base ?? start.base : start.base
-        let stackedOn = reuse ? previous?.stackedOn : start.stackedOn
-        let worktree: String
-        if reuse {
-            worktree = path
-        } else {
-            do {
-                worktree = try await Git.addRunWorktree(record, path: path, branch: base, runBranch: branch)
-            } catch {
-                return await fail("could not make its worktree: \(error)")
-            }
-            await WorktreeInclude.copy(from: record.path, to: worktree, on: record.location)
+        // On a host: heed's hook files go there with the worktree, and its agent gets their paths there.
+        var hostFiles: [String: String] = [:]
+        var files = integration
+        if let host = location.hostName, let onHost = hostAgentFiles(host) {
+            hostFiles = onHost.files
+            files = onHost.integration
         }
+        let root = Runs.worktreeRoot(local: settings.worktreeRoot, host: location.hostName, hosts: config.hosts)
+        let path = carriesOn ? previous.map(\.worktree).flatMap { $0.isEmpty ? nil : $0 }
+            ?? SwarmWork.worktreePath(root: root, repo: record.repo, goal: goal.id, slug: task.slug)
+            : SwarmWork.worktreePath(root: root, repo: record.repo, goal: goal.id, slug: task.slug)
+        // A task resumed or handed over carries on in the worktree it left; a new one starts from its base.
+        let made: (path: String, reused: Bool, base: String)
+        do {
+            made = try await SwarmWorktree.make(
+                record, path: path, branch: branch, base: start.base, keptBase: previous?.base, hostFiles: hostFiles
+            )
+        } catch {
+            return await fail("could not make its worktree on \(SwarmPlace.label(location)): \(error)")
+        }
+        let (worktree, reuse, base) = made
+        let stackedOn = reuse ? previous?.stackedOn : start.stackedOn
         let setup = reuse ? [] : settings.setup.commands(for: record.repo) ?? []
         guard var layout = layouts[session.id] else { return await fail("its session is gone") }
-        if agent.name == "cursor" {
+        // Cursor reads hooks only from the worktree's .cursor/hooks.json, as for a session's worktree: here only.
+        if agent.name == "cursor", location.isLocal {
             try? AgentIntegration.installCursorHooks(worktree: worktree, heed: integration.heedBinary)
         }
-        let pointer = GoalPointer.text(title: goal.title, path: goals.files.doc(goal.id).path)
+        let doc = SwarmPlace.doc(Paths.tilde(goals.files.doc(goal.id).path), at: location)
+        let pointer = GoalPointer.text(title: goal.title, path: location.isLocal ? doc : "it with heed goal show")
+        // heed's plugin is on this Mac: a claude on a host gets the pointer instead.
         let told = config.goals.tellAgents
-            ? GoalLaunch.arguments(agent: agent.name, signOff: nil, pointer: pointer, plugin: integration.plugin)
+            ? GoalLaunch.arguments(
+                agent: agent.name, signOff: nil, pointer: pointer, plugin: location.isLocal ? integration.plugin : nil
+            )
             : []
         let prompt = back.map { back in
             Handoff.swarmReturn(
@@ -194,7 +220,7 @@ extension AppModel {
                 instructions: pilotSettings(for: back.ref).greenInstructions
             )
         } ?? SwarmWork.prompt(
-            task: task, number: number, swarm: swarm, goal: goal.title, doc: Paths.tilde(goals.files.doc(goal.id).path),
+            task: task, number: number, swarm: swarm, goal: goal.title, doc: doc,
             branch: branch, base: base,
             stackedOn: stackedOn.map { id in (numbers[id] ?? "", tasks.first { $0.id == id }?.title ?? id) },
             numbers: numbers, handoff: handoff
@@ -203,26 +229,33 @@ extension AppModel {
         let command = agent.launchCommand(
             prompt: prompt,
             extraArguments: told
-                + AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: integration),
-            environment: AgentIntegration.launchEnvironment(agent: agent, files: integration), model: owner.model
+                + AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: files),
+            environment: AgentIntegration.launchEnvironment(agent: agent, files: files), model: owner.model
         )
         let title = SwarmWork.title(number: number)
         let pane = PaneSpec(
             role: .helper, title: title, directory: worktree,
-            command: WorktreeSetup.paneCommand(setup: setup, then: command, report: true), location: session.location
+            command: WorktreeSetup.paneCommand(setup: setup, then: command, report: true), location: location
         )
         let tab = PaneTab(title: title, tree: .leaf(pane))
         layout.tabs.append(tab)
         commit(.layoutChanged(session: session.id, layout))
+        // On a host the worktree is heed's to manage there: Repos lists it registered, and dd removes it on the host.
+        if !location.isLocal {
+            commit(.worktreeRegistered(Worktree(
+                repo: record.repo, path: worktree, branch: branch, head: "", isMain: false, location: location
+            ).id))
+        }
         let worker = SwarmWorker(
             id: UUID().uuidString.lowercased(), task: task.id, owner: owner, host: session.id,
             repo: record.repo.slug, branch: branch, base: base, stackedOn: stackedOn, worktree: worktree,
-            startedAt: now
+            startedAt: now, machine: location.hostName
         )
         liveWorkers[worker.id] = LiveWorker(
             id: worker.id, swarm: swarm.id, goal: goal.id, task: task.id, sessionID: session.id, tabID: tab.id,
-            paneID: pane.id, agent: agent.name, worktree: worktree, startedAt: now
+            paneID: pane.id, agent: agent.name, worktree: worktree, startedAt: now, location: location
         )
+        if !location.isLocal { startHostEvents() }
         runStates[pane.id] = .working
         workerPanes.insert(pane.id)
         TerminalSurfaces.shared.autostartPanes.insert(pane.id)
@@ -230,6 +263,7 @@ extension AppModel {
         let from = stackedOn.map { "stacked on \(numbers[$0] ?? SwarmPlan.short($0))'s PR" } ?? "from \(base)"
         let text = "\(number) \(task.title): \(owner.label) " + (back.map { "back on \($0.what)" }
             ?? handoff.map { "takes over from \($0)" } ?? from)
+            + (location.hostName.map { " on @\($0)" } ?? "")
         _ = await goalOp { try await $0.startWorker(swarm: swarm.id, worker, text: text, now: now) }
         if let back {
             _ = await goalOp { try await $0.handback(
@@ -515,7 +549,7 @@ extension AppModel {
             liveWorkers[worker.id] = LiveWorker(
                 id: worker.id, swarm: fixture.swarm.id, goal: fixture.swarm.goal, task: worker.task,
                 sessionID: worker.host, tabID: "fixture-tab-\(worker.id)", paneID: pane, agent: worker.owner.agent,
-                worktree: worker.worktree, startedAt: worker.startedAt, worked: true
+                worktree: worker.worktree, startedAt: worker.startedAt, worked: true, location: worker.location
             )
             runStates[pane] = SwarmFixtures.workerStates[worker.task] ?? .working
         }

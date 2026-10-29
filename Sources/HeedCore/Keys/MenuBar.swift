@@ -83,6 +83,7 @@ public enum MenuBar {
         "settings.open": "the app menu's Settings… (⌘,)",
         "update.check": "the app menu's Check for Updates…",
         "app.activate": "brings the window forward, which clicking the menu bar has already done",
+        "swarm.host": "the new swarm form's Where chips, which only that form shows",
     ]
 
     /// An item whose command needs words the menu cannot know (`pr.track <url>`): it opens the command line with the
@@ -314,7 +315,8 @@ public enum MenuBar {
                     ("Steering log by who decided", "swarm.log.who"), ("Between question and answer", "swarm.log.jump"),
                     ("The version's whole diff", "swarm.diff"),
                     ("Restore the version", "swarm.restore"), ("Pause or resume the task", "swarm.task.pause"),
-                    ("Hand the task to another agent…", "swarm.task.swap"), ("The task's worker", "swarm.task.open"),
+                    ("Hand the task to another agent…", "swarm.task.swap"), ("Run the task on…", "swarm.task.host"),
+                    ("The task's worker", "swarm.task.open"),
                     ("The plan in merge order", "swarm.order"), ("Move the task's stacked PR on", "swarm.land"),
                     ("Follow-up swarm…", "swarm.followup"), ("Delete a repeat rule…", "swarm.rule.delete"),
                     ("When a worker is stuck…", "swarm.stuck"), ("Get it merged for its PRs…", "swarm.merge"),

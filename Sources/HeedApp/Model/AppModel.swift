@@ -1440,29 +1440,27 @@ final class AppModel {
 
     private var hostEvents: [String: HostEventStream] = [:]
 
-    /// One event stream per host that has sessions and answers: its agents' hooks, back into `receive`.
-    private func startHostEvents() {
+    /// One event stream per host that has sessions or swarm workers and answers: its agents' hooks, back into
+    /// `receive`.
+    func startHostEvents() {
         guard !isFixture else { return }
-        for host in Set(sessions.compactMap(\.host)) where hostStatus(host).isConnected {
-            let stream = hostEvents[host] ??
-                HostEventStream(host: host) { [weak self] message in self?.receive(message) }
+        let hosts = Set(sessions.compactMap(\.host) + liveWorkers.values.compactMap(\.location.hostName))
+        for host in hosts where hostStatus(host).isConnected {
+            let stream = hostEvents[host] ?? HostEventStream(
+                host: host, onMessage: { [weak self] message in self?.receive(message) },
+                onCall: { [weak self] call in self?.answerHostCall(call, host: host) }
+            )
             hostEvents[host] = stream
             stream.start()
         }
     }
 
-    /// What heed puts on a host for its agents' hooks, with the paths they are given there.
-    private func hostIntegration(home: String) -> (files: [String: String], integration: IntegrationFiles) {
-        let integration = IntegrationFiles(
-            directory: URL(fileURLWithPath: home).appendingPathComponent(".heed"),
-            heedBinary: "\(home)/.heed/bin/heed-hook"
-        )
-        let files = [
-            "~/.heed/claude-hooks.json": AgentIntegration.claudeSettingsJSON(),
-            "~/.heed/heed-pi.js": AgentIntegration.piExtensionSource,
-            "~/.heed/heed-opencode.js": AgentIntegration.opencodePluginSource,
-        ]
-        return (files, integration)
+    /// What heed puts on a host for its agents' hooks and the paths they are given there (`HostSetup.integration`),
+    /// once the host answers and said where its home is; nil before. Every agent heed starts on a host goes through
+    /// this: a session, a handoff, a run, a reviewer, a swarm's lead and its workers.
+    func hostAgentFiles(_ host: String) -> (files: [String: String], integration: IntegrationFiles)? {
+        guard case let .connected(info) = hostStatus(host), let home = info.home else { return nil }
+        return HostSetup.integration(home: home)
     }
 
     /// `↩` on a registered worktree on a host: heed's files go on the host if they are not there yet, then the worktree
@@ -1477,7 +1475,7 @@ final class AppModel {
         let rows = rows.filter { session(for: $0) == nil }
         guard !rows.isEmpty else { return }
         guard !isFixture else { return flash = "fixture: no IO" }
-        let (files, integration) = hostIntegration(home: home)
+        let (files, integration) = HostSetup.integration(home: home)
         let agent = settings.agent(settings.defaultAgent)
         flash = "setting up @\(host)…"
         Task {
@@ -1594,9 +1592,13 @@ final class AppModel {
         var worked = false
         /// What its agent used so far, from its hooks.
         var usage: AgentUsage?
+        /// Where it runs: this Mac, or a host (its worktree and agent there, its pane an ssh to it).
+        var location: Location = .local
     }
 
     var liveWorkers: [String: LiveWorker] = [:]
+    /// Workers whose kept worktree on a host was found gone when their task went back to them: a run takes it instead.
+    var goneWorktrees: Set<String> = []
     /// Every pane a worker used since launch: its late hooks are nobody's news.
     var workerPanes: Set<String> = []
     /// Tasks whose worker is being started (async), so one is not started twice.
@@ -2454,6 +2456,8 @@ final class AppModel {
         case "swarm.pause": toggleSwarmPause()
         case "swarm.task.pause": toggleTaskPause()
         case "swarm.task.swap": swapTaskAgent(command.arguments.first)
+        case "swarm.task.host": setTaskHost(command.arguments.first)
+        case "swarm.host": setSwarmHost(command.arguments.first)
         case "swarm.task.open": openTaskWorker()
         case "swarm.land": landTask()
         case "swarm.order": toggleMergeOrder()
@@ -5337,11 +5341,7 @@ final class AppModel {
         let setup = settings.setup.commands(for: ref.repo) ?? []
         guard var layout = layouts[session.id] else { return fail("the session is gone") }
         let files: IntegrationFiles? = if let host = session.host {
-            if case let .connected(info) = hostStatus(host), let home = info.home {
-                hostIntegration(home: home).integration
-            } else {
-                nil
-            }
+            hostAgentFiles(host)?.integration
         } else {
             integration
         }
@@ -5454,11 +5454,7 @@ final class AppModel {
             return "its session is gone"
         }
         let files: IntegrationFiles? = if let host = session.host {
-            if case let .connected(info) = hostStatus(host), let home = info.home {
-                hostIntegration(home: home).integration
-            } else {
-                nil
-            }
+            hostAgentFiles(host)?.integration
         } else {
             integration
         }
@@ -6647,9 +6643,7 @@ final class AppModel {
     private func hostIntegrations() -> [String: IntegrationFiles] {
         var result: [String: IntegrationFiles] = [:]
         for host in config.hosts.keys {
-            if case let .connected(info) = hostStatus(host), let home = info.home {
-                result[host] = hostIntegration(home: home).integration
-            }
+            result[host] = hostAgentFiles(host)?.integration
         }
         return result
     }
@@ -6686,11 +6680,11 @@ final class AppModel {
         let host = plan.location.hostName
         var hostFiles: [String: String] = [:]
         if let host {
-            guard case let .connected(info) = hostStatus(host), let home = info.home else {
+            guard let onHost = hostAgentFiles(host) else {
                 startWorkError = "@\(host) does not answer: gH shows why"
                 return
             }
-            hostFiles = hostIntegration(home: home).files
+            hostFiles = onHost.files
         }
         startingWork = true
         // The standalone panel cannot show the offer: it waits for a start from the window.
@@ -6807,10 +6801,9 @@ final class AppModel {
         var files: IntegrationFiles? = integration
         var hostFiles: [String: String] = [:]
         if let host = session.host {
-            guard case let .connected(info) = hostStatus(host), let home = info.home else {
+            guard let (written, onHost) = hostAgentFiles(host) else {
                 return flash = "@\(host) does not answer: gH shows why"
             }
-            let (written, onHost) = hostIntegration(home: home)
             hostFiles = written
             files = onHost
         }

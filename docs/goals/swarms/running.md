@@ -116,4 +116,33 @@ task's pull request. Its worktree is under `heed/<repo>/swarm-<goal>-<task>` in 
 the worker ends, so a resumed or handed-over task carries on where it was. A worker on a task heed was quit during is
 recorded as interrupted at the next launch; the task then waits for you.
 
-Workers run on this Mac, in the lead's session (or the newest open session on the goal when the lead's is closed).
+Workers' tabs are in the lead's session (or the newest open session on the goal when the lead's is closed).
+
+## On a host
+
+A swarm runs where its form's **Where** says: this Mac, or one of your [hosts](../../hosts/index.md). On a host its
+lead is a session there, and each worker runs there as a session on a host does:
+
+- its worktree is made on the host, in the host's clone of the repo, under its `worktree_root`
+  (`<worktree_root>/heed/<repo>/swarm-<goal>-<task>`); nothing is cloned to this Mac;
+- heed's hook files go on the host first, so its state, its usage and its tool calls come back through the host's
+  event log, as a remote session's do;
+- its agent runs in zmx there, in a tab of the lead's session whose pane is an ssh to the host, with the host's strip
+  over it; messages and answers heed hands it are typed into that pane like any worker's;
+- `heed goal` and `heed swarm` work in it: heed's `heed` on the host passes them to heed on this Mac
+  ([On a host](../cli.md#on-a-host));
+- its worktree's file changes are read over the host's shared ssh connection every three minutes (once a minute here),
+  only while the host answers;
+- its worktree is kept on the host when it ends, so a resumed or handed-over task carries on there; it is registered
+  in [Repos](../../worktrees/repos.md), so `dd` removes it on the host once you are done with it.
+
+A task can run somewhere else than the swarm: its `host` in the lead's plan, the plan editor's **Host** field, or
+`:swarm.task.host <host|local|->` on the task (`local` is this Mac, `-` where the swarm runs; a right-click offers the
+hosts). It is a small plan change: the plan stays approved, and a worker already at it stays where it is. Its row in the
+plan wears the host's chip, as its row in the agents pane does.
+
+![The agents pane with 2.1's worker on @devbox](../../images/shots/goals/swarm-agents-remote.png)
+
+A host that does not answer when a task should start stalls that task, saying why (`@devbox does not answer: gH shows
+why`); resume it once the host is back. Pull requests, stacking and moving a stacked PR on are GitHub's: heed runs
+`gh` for them on this Mac, against the branch the worker pushed ([Landing](landing.md#where-it-runs)).

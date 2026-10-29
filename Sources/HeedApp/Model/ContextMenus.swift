@@ -140,6 +140,9 @@ extension AppModel {
             case .tasks: return planTaskMenu(index)
             case .versions: return planVersionMenu(index)
             case .steering: return steeringMenu(index)
+            case .agents:
+                let tasks = goals.agentTasks
+                return tasks.indices.contains(index) ? agentMenu(tasks[index]) : []
             }
         case .sessions:
             return []

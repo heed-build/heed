@@ -96,7 +96,9 @@ Swapping is a small plan change: the plan stays approved. Dropping a task (`x`) 
 
 A swarm that reaches its hours or dollars stops starting work and asks you in Needs you: `y` raises that limit by half
 (at least an hour or $5) and it goes on, `n` keeps it paused and stops asking. `:swarm.pause` on a paused swarm does
-the same as `y`. Workers at work when it paused finish their turn.
+the same as `y`. Workers at work when it paused finish their turn. The dollars count what workers at work used so far, not only what
+ended workers cost: heed writes each worker's cost and tokens onto its record as it works, so a restart loses none of
+it ([Watching](watching.md#what-it-used)).
 
 ![The ask in Needs you](../../images/shots/goals/swarm-limit-ask.png)
 

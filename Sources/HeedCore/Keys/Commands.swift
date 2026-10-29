@@ -154,6 +154,18 @@ public enum Commands {
                 + "overview)",
             .views
         ),
+        .init(
+            "goal.agents",
+            "Goals: the swarm's agents: what each does and for how long, stuck or not, its notes and activity, and "
+                + "what needs you; once done, its summary (again: the overview)",
+            .views
+        ),
+        .init(
+            "goal.map",
+            "Goals: the swarm as a map: phases as columns, tasks as cards by state, dependencies as edges (again: the "
+                + "overview)",
+            .views
+        ),
         .init("overlay.pr", "PR overlay for this session (toggle)", .views),
         .init("overlay.item", "open the PR or issue under the cursor; in Sessions, the session's PR (toggle)", .views),
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
@@ -441,6 +453,30 @@ public enum Commands {
         ),
         .init(
             "swarm.restore", "make a plan version current again, as a new version", .selection, arguments: "[version]"
+        ),
+        .init(
+            "swarm.map.move", "the swarm map's cursor: h l between columns, j k between the cards of one", .selection,
+            arguments: "<h|j|k|l>"
+        ),
+        .init(
+            "swarm.followup",
+            "start a follow-up swarm on the goal: the last one's team and limits, its follow-ups for the lead (the form "
+                + "first)",
+            .selection
+        ),
+        .init(
+            "swarm.summary",
+            "the swarm's end-of-build summary: written again from its record, and the lead asked to write its part",
+            .selection
+        ),
+        .init(
+            "swarm.stuck",
+            "when the goal's swarm counts a worker as stuck: estimate (×), errors, quiet, peer and you (minutes)",
+            .selection, arguments: "<estimate|errors|quiet|peer|you> <value>"
+        ),
+        .init(
+            "swarm.rule.delete", "delete one of the goal's repeat rules: the controller stops answering with it",
+            .selection, arguments: "[rule number]"
         ),
         .init(
             "review.recheck",

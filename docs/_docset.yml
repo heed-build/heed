@@ -110,6 +110,8 @@ toc:
           - file: running.md
           - file: landing.md
           - file: steering.md
+          - file: watching.md
+          - file: summary.md
           - file: lead.md
   - folder: keyboard
     children:

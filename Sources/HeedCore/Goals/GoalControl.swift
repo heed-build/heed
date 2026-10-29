@@ -455,7 +455,7 @@ public enum GoalControl {
             ))
         case .reviewRequest:
             return .app(.review(goal: goal.id, kind: command.subject ?? ""), goal: goal)
-        case .planShow, .planPropose, .planApprove, .ask, .swarmSend, .swarmNote, .swarmAnswer:
+        case .planShow, .planPropose, .planApprove, .ask, .swarmSend, .swarmNote, .swarmAnswer, .swarmSummary:
             return try await .reply(SwarmControl.run(command, goal: goal, caller: caller, ops: ops, now: now))
         }
     }

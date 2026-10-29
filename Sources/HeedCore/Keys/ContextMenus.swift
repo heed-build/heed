@@ -305,6 +305,19 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// A repeat rule in a swarm's plan pane: `rule:<id>`.
+    public static func repeatRule(id: Int64, question: String) -> [MenuEntry] {
+        let target = CommandTarget.row(view: "goals", id: "rule:\(id)")
+        var menu = Menu(header: "Rule: \(question)")
+        menu.section([
+            MenuItem(
+                "Delete the rule",
+                CommandInvocation(name: "swarm.rule.delete", arguments: ["\(id)"], target: target)
+            ),
+        ])
+        return menu.entries
+    }
+
     /// A version in a swarm's plan: `planv:<n>`.
     public static func swarmVersion(number: Int, current: Bool, active: Bool) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: "planv:\(number)")

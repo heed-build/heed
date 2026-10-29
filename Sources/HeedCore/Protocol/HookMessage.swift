@@ -47,6 +47,9 @@ public struct HookMessage: Codable, Equatable, Sendable {
         /// What the agent said last, sent with its turn's end (capped, `LastMessage`): what summaries read. Never a
         /// subagent's.
         case lastMessage(String)
+        /// A tool call the agent made, short (`PostToolUse`): what a swarm's agents pane lists and its stuck signal
+        /// reads. Never changes the session's state.
+        case toolCall(ToolCall)
     }
 
     public var session: String

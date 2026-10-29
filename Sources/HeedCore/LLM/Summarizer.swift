@@ -24,6 +24,8 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case goalPersonas
     /// The steps a stranger walks for a goal, one `- ` line each (`WalkDrafter`).
     case walkDraft
+    /// "Since you last looked" on a swarm: what changed, from heed's facts (`SwarmDigest`).
+    case swarmDigest
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -186,6 +188,12 @@ public struct Summarizer: Sendable {
             one "- " line per step, four to seven of them, each a short imperative of at most eight words, in the \
             order a newcomer would take them: from reading the README to having done what the goal is about, with one \
             step that makes a mistake on purpose and one that recovers from it. Only the lines; no preamble.
+            """
+        case .swarmDigest:
+            """
+            You tell a developer coming back to a swarm of coding agents what changed since they last looked, from \
+            heed's list of what happened. Say what moved, what got stuck or was decided, and what waits on them, in \
+            at most three short sentences of plain prose. Only facts from the input; no preamble, no lists.
             """
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)

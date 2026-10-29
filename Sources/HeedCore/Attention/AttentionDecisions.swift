@@ -26,8 +26,10 @@ public extension Notices {
         let item = entry.item
         guard entry.live, GoalAttention.question(of: item) != nil, !entry.muted, !entry.mark.hides(item, now: now)
         else { return nil }
+        // Its time in the id: a reminder (which moves it) notifies again, once.
         return Entry(
-            id: attentionPrefix + item.id, title: item.title, agent: "", state: .asking,
+            id: attentionPrefix + item.id + "@\(Int(item.updatedAt.timeIntervalSince1970))", title: item.title,
+            agent: "", state: .asking,
             reason: "a swarm asks you", kind: .attention, session: attentionPrefix + item.id
         )
     }

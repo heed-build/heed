@@ -18,6 +18,10 @@ public enum SwarmCommandLine {
       answer <question> <text>               answer a question heed handed you: a peer's (it asked your task), or a
                                              worker's scope question (you are the lead). The answer goes to the asker
       ask …                                  heed goal ask: a question, waiting for its answer
+      summary [--outcome <text>] [--decision <text>]… [--follow-up <text>]…
+                                             the lead's end-of-build summary, once the swarm is done: what got
+                                             built, the decisions taken, what is left. heed adds the PRs, who did
+                                             what when and every question; decisions go into GOAL.md
 
     Exit codes as heed goal: 0 done, 1 refused, 2 usage, 3 Heed not reachable, 4 no goal.
     """
@@ -67,6 +71,33 @@ public enum SwarmCommandLine {
             }
             guard let text = joined(args.dropFirst()) else { throw usageError("answer needs the answer") }
             return GoalCommand(.swarmAnswer, goal: goal, json: json, text: text, question: number)
+        case "summary":
+            var outcome: [String] = []
+            var decisions: [String] = []
+            var followUps: [String] = []
+            var index = 0
+            while index < args.count {
+                let flag = args[index]
+                guard ["--outcome", "--decision", "--follow-up"].contains(flag) else {
+                    throw usageError("summary takes --outcome, --decision and --follow-up, not \(flag)")
+                }
+                guard index + 1 < args.count, let value = joined([args[index + 1]][...]) else {
+                    throw usageError("\(flag) needs text")
+                }
+                switch flag {
+                case "--outcome": outcome.append(value)
+                case "--decision": decisions.append(value)
+                default: followUps.append(value)
+                }
+                index += 2
+            }
+            guard !outcome.isEmpty || !decisions.isEmpty || !followUps.isEmpty else {
+                throw usageError("summary needs an --outcome, a --decision or a --follow-up")
+            }
+            var command = GoalCommand(.swarmSummary, goal: goal, json: json, text: outcome.last)
+            command.decisions = decisions
+            command.followUps = followUps
+            return command
         default:
             throw usageError("no command \(first)")
         }

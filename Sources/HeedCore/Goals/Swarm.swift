@@ -35,11 +35,13 @@ public struct GoalSwarm: Hashable, Sendable, Codable, Identifiable {
     public var workers: [SwarmWorker]
     /// The limit it stopped at, while it waits for you to raise it (paused by heed, not by you).
     public var held: SwarmLimit?
+    /// Its end-of-build summary, once it is done (and again when the lead rewrites it).
+    public var summary: SwarmSummary?
 
     public init(
         id: String, goal: String, number: Int, status: Status = .planning, settings: SwarmSettings, plan: Int = 0,
         approved: Int? = nil, lead: String? = nil, startedAt: Date, endedAt: Date? = nil, runningAt: Date? = nil,
-        workers: [SwarmWorker] = [], held: SwarmLimit? = nil
+        workers: [SwarmWorker] = [], held: SwarmLimit? = nil, summary: SwarmSummary? = nil
     ) {
         self.id = id
         self.goal = goal
@@ -54,10 +56,12 @@ public struct GoalSwarm: Hashable, Sendable, Codable, Identifiable {
         self.runningAt = runningAt
         self.workers = workers
         self.held = held
+        self.summary = summary
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, goal, number, status, settings, plan, approved, lead, startedAt, endedAt, runningAt, workers, held
+        case id, goal, number, status, settings, plan, approved, lead, startedAt, endedAt, runningAt, workers, held,
+             summary
     }
 
     /// Runs stored before workers decode unchanged: no workers, never running.
@@ -76,6 +80,7 @@ public struct GoalSwarm: Hashable, Sendable, Codable, Identifiable {
         runningAt = try values.decodeIfPresent(Date.self, forKey: .runningAt)
         workers = try values.decodeIfPresent([SwarmWorker].self, forKey: .workers) ?? []
         held = try values.decodeIfPresent(SwarmLimit.self, forKey: .held)
+        summary = try values.decodeIfPresent(SwarmSummary.self, forKey: .summary)
     }
 
     /// Its workers at work now (recorded as started, not ended).
@@ -175,16 +180,34 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
     public var workers: [Worker]
     public var limits: Limits
     public var autonomy: Autonomy
+    /// When a worker counts as stuck, and how long a question may wait on a peer or on you.
+    public var stuck: SwarmStuck.Settings
 
     public init(
         repos: [String] = [], lead: GoalItem.Owner = GoalItem.Owner(agent: "claude"), workers: [Worker] = [],
-        limits: Limits = Limits(), autonomy: Autonomy = .planChanges
+        limits: Limits = Limits(), autonomy: Autonomy = .planChanges, stuck: SwarmStuck.Settings = .defaults
     ) {
         self.repos = repos
         self.lead = lead
         self.workers = workers
         self.limits = limits
         self.autonomy = autonomy
+        self.stuck = stuck
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case repos, lead, workers, limits, autonomy, stuck
+    }
+
+    /// Settings stored before stuck detection read with its defaults.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        repos = try values.decode([String].self, forKey: .repos)
+        lead = try values.decode(GoalItem.Owner.self, forKey: .lead)
+        workers = try values.decode([Worker].self, forKey: .workers)
+        limits = try values.decode(Limits.self, forKey: .limits)
+        autonomy = try values.decode(Autonomy.self, forKey: .autonomy)
+        stuck = try values.decodeIfPresent(SwarmStuck.Settings.self, forKey: .stuck) ?? .defaults
     }
 
     /// The agents the lead may assign tasks to: the workers' agents, or the lead's when there are none.
@@ -311,6 +334,14 @@ public struct SwarmSteer: Hashable, Sendable, Codable, Identifiable {
         /// heed handed something to an agent (`about`: the message, question or answer; `ref`: to whom): typed into
         /// its pane, or read by its waiting `heed goal ask` or its `plan show`.
         case deliver
+        /// A worker looks stuck (heed, `ref` its task): why, and the ladder's step (`step`: nudge, ask, clear).
+        case stuck
+        /// heed reminded you of a question that waits on you (`about`).
+        case remind
+        /// The lead's end-of-build summary (`heed swarm summary`): its outcome, decisions and follow-ups.
+        case summary
+        /// You deleted a repeat rule (`about`): the controller no longer answers with it.
+        case unrule
     }
 
     public enum State: String, Hashable, Sendable, Codable, CaseIterable {
@@ -359,14 +390,19 @@ public struct SwarmSteer: Hashable, Sendable, Codable, Identifiable {
     public var targets: [String]?
     /// A repeat rule's answer.
     public var answer: String?
+    /// The lead's summary: its decisions and follow-ups.
+    public var decisions: [String]?
+    public var followUps: [String]?
 
     public init(
         id: Int64? = nil, swarm: String, goal: String, at: Date, actor: Actor, kind: Kind, text: String,
         reason: String? = nil, state: State = .applied, about: Int64? = nil, version: Int? = nil, ref: String? = nil,
         options: [String] = [], tasks: [SwarmTask]? = nil, from: String? = nil, to: String? = nil,
         effects: [String]? = nil, category: String? = nil, ladder: [String]? = nil, step: String? = nil,
-        targets: [String]? = nil, answer: String? = nil
+        targets: [String]? = nil, answer: String? = nil, decisions: [String]? = nil, followUps: [String]? = nil
     ) {
+        self.decisions = decisions
+        self.followUps = followUps
         self.from = from
         self.to = to
         self.effects = effects

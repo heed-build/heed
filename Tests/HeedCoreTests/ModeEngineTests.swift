@@ -188,9 +188,10 @@ struct ScopedKeyTests {
     }
 
     @Test func goalPaneCapitalsAreTheSameInEveryGoalsView() throws {
-        // E B R P X U S switch a goal's pane from every view of Goals, and no pane binds one to an action of its own.
+        // E B R P X U S W T switch a goal's pane from every view of Goals, and no pane binds one to an action of its
+        // own.
         let built = Keymaps.build()
-        #expect(DefaultKeys.goalPanes.map(\.0) == ["E", "B", "R", "P", "X", "U", "S"])
+        #expect(DefaultKeys.goalPanes.map(\.0) == ["E", "B", "R", "P", "X", "U", "S", "W", "T"])
         for scope in DefaultKeys.goalScopes {
             let keymap = try #require(built.scoped[scope], "\(scope)")
             let table = try #require(DefaultKeys.scoped[scope], "\(scope)")

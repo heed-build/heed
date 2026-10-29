@@ -16,6 +16,8 @@ public struct GoalCommand: Codable, Equatable, Sendable {
         case ask
         /// `heed swarm send|note|answer`.
         case swarmSend = "swarm send", swarmNote = "swarm note", swarmAnswer = "swarm answer"
+        /// `heed swarm summary`: the lead's end-of-build summary.
+        case swarmSummary = "swarm summary"
     }
 
     public var verb: Verb
@@ -50,6 +52,9 @@ public struct GoalCommand: Codable, Equatable, Sendable {
     public var timeout: Double?
     /// `ask --id <n>`: a question asked before, read again (the CLI's own polls set it too).
     public var question: Int64?
+    /// `swarm summary --decision`, `--follow-up`: the lead's decisions and follow-ups.
+    public var decisions: [String]?
+    public var followUps: [String]?
 
     public init(
         _ verb: Verb, goal: String? = nil, json: Bool = false, subject: String? = nil, text: String? = nil,
@@ -348,7 +353,7 @@ public enum GoalCommandLine {
             guard !to.trimmingCharacters(in: .whitespaces).isEmpty else { throw usageError("--to needs whom") }
             guard let text = joined(args[...]) else { throw usageError("ask needs a question") }
             command.text = text
-        case .swarmSend, .swarmNote, .swarmAnswer:
+        case .swarmSend, .swarmNote, .swarmAnswer, .swarmSummary:
             throw usageError("\(verb.rawValue) is heed \(verb.rawValue): heed swarm --help")
         case .attach:
             guard args.count <= 1 else { throw usageError("attach takes one goal") }

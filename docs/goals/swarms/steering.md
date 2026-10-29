@@ -47,13 +47,14 @@ A question starts at the first step its category allows and moves on when that s
 
 | Step | Moves on after |
 |---|---|
-| A peer | 10 minutes |
+| A peer | 8 minutes (the swarm's "waiting on a peer" setting, [Watching](watching.md#when-a-worker-is-stuck)) |
 | The lead | 10 minutes |
 | The controller | Its answer, a decline (not its question, no options, the decider off or failing), or 3 minutes |
 | You | Never: it waits in Needs you |
 
 Before asking, an agent is told to try another way once. Each move is a row by heed (`to the controller`, `to you`) with
-why.
+why. A worker that looks stuck climbs the same ladder without asking: heed nudges it first, then asks on its behalf
+([Watching](watching.md#when-a-worker-is-stuck)).
 
 ## Asking, from an agent
 
@@ -155,5 +156,5 @@ From heed, `:swarm.send <to> <text>` sends one from you.
 ## Not yet
 
 - Conflicts after a parent's merge go to a get it merged run, not back to the task's own worker.
-- The stuck signals that start the ladder on their own (time over estimate, the same error, no progress) come with
-  the swarm's activity view.
+- A question that waits on you is reminded once ([Watching](watching.md#when-a-worker-is-stuck)); it is not answered
+  for you.

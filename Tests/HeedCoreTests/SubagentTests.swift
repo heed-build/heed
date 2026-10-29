@@ -49,6 +49,7 @@ struct SubagentHookTests {
         """#)
         #expect(created == [
             .subagentState(.working, reason: "Bash", id: "s1", type: nil), .prAdd(url: "https://github.com/o/r/pull/7"),
+            .toolCall(ToolCall(tool: "Bash", input: "gh pr create --fill")),
         ])
     }
 

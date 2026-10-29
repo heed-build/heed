@@ -43,8 +43,8 @@ extension AppModel {
             limited[live.agent] = live.usage?.rateLimitResetsAt
         }
         var usage = SwarmScheduler.Usage.of(swarm, limited: limited, now: Clock.now)
-        usage.dollars += liveWorkers.values.filter { $0.swarm == swarm.id }
-            .compactMap { $0.usage.flatMap(config.usage.cost(of:)) }.reduce(0, +)
+        // A live worker's record holds what was persisted last: its hooks' number now replaces it, never adds to it.
+        usage.dollars = swarmRollup(swarm).dollars
         return usage
     }
 
@@ -94,6 +94,7 @@ extension AppModel {
             }
             if next == .done {
                 refreshSwarmPulls()
+                if let board = try? await goals.ops?.board(of: swarm.id) { await keepSummary(board) }
                 say("swarm \(swarm.number) on \(title) is done: every task merged, in merge order")
                 return
             }
@@ -230,6 +231,10 @@ extension AppModel {
         if case let .usage(report) = message.kind {
             liveWorkers[id]?.usage = (liveWorkers[id]?.usage ?? AgentUsage()).applying(report)
             return
+        }
+        // A tool call: its activity, for the agents pane and the stuck signal.
+        if case let .toolCall(call) = message.kind {
+            return recordWorkerCall(call, worker: id, at: message.sentAt)
         }
         // Its PR: tracked by the session its tab is in, so the pilot drives it.
         if case let .prAdd(url) = message.kind, let live = liveWorkers[id], let ref = PullRef(url: url),
@@ -495,6 +500,6 @@ extension AppModel {
             )
             runStates[pane] = SwarmFixtures.workerStates[worker.task] ?? .working
         }
-        if variant == .landing || variant == .done { loadLandingFixture(fixture) }
+        if variant == .landing || variant == .done || variant == .summary { loadLandingFixture(fixture) }
     }
 }

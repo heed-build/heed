@@ -185,6 +185,13 @@ public enum SwarmControl {
     static func run(
         _ command: GoalCommand, goal: HeedGoal, caller: GoalCaller?, ops: GoalOps, now: Date
     ) async throws -> GoalReply {
+        if command.verb == .swarmSummary { return try await summary(
+            command,
+            goal: goal,
+            caller: caller,
+            ops: ops,
+            now: now
+        ) }
         guard let swarm = try await ops.activeSwarm(of: goal.id) else {
             return .refused(GoalOpError.noSwarm(goal.id).description, goal: goal.id)
         }
@@ -306,6 +313,30 @@ public enum SwarmControl {
         default:
             preconditionFailure("not a swarm command")
         }
+    }
+
+    /// `swarm summary`: the lead's end-of-build summary, on the goal's newest swarm run (done, or landing its last
+    /// PRs). Only the lead writes it, or you from a terminal outside heed.
+    static func summary(
+        _ command: GoalCommand, goal: HeedGoal, caller: GoalCaller?, ops: GoalOps, now: Date
+    ) async throws -> GoalReply {
+        let runs = try await ops.snapshot().swarms(of: goal.id)
+        guard let swarm = runs.first(where: \.status.active) ?? runs.first else {
+            return .refused(GoalOpError.noSwarm(goal.id).description, goal: goal.id)
+        }
+        let address = address(caller, swarm: swarm, fromRun: command.fromRun == true)
+        guard address == .lead || address == .you else {
+            return .refused("the summary is the lead's to write", goal: goal.id)
+        }
+        try await ops.writeSummary(
+            swarm: swarm.id, outcome: command.text, decisions: command.decisions ?? [],
+            followUps: command.followUps ?? [], now: now
+        )
+        return GoalReply(
+            "applied", message: "summary written: it goes into History, the ledger and the goal's page"
+                + ((command.decisions ?? []).isEmpty ? "" : "; its decisions into GOAL.md"),
+            goal: goal.id
+        )
     }
 
     // swiftlint:disable:next function_parameter_count

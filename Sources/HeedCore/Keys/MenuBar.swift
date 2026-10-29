@@ -301,6 +301,8 @@ public enum MenuBar {
                         "swarm.start"
                     ),
                     ("Pause or resume the swarm", "swarm.pause"), ("Stop the swarm", "swarm.stop"),
+                    ("The swarm's agents", "goal.agents"), ("The swarm's map", "goal.map"),
+                    ("Follow-up swarm…", "swarm.followup"), ("End-of-build summary again", "swarm.summary"),
                 ], in: ["goals"]),
                 scopedInvocations("In a swarm's plan", [
                     ("Approve the plan", "swarm.approve"), ("Yes to the change waiting", "swarm.accept"),
@@ -314,12 +316,26 @@ public enum MenuBar {
                     ("Restore the version", "swarm.restore"), ("Pause or resume the task", "swarm.task.pause"),
                     ("Hand the task to another agent…", "swarm.task.swap"), ("The task's worker", "swarm.task.open"),
                     ("The plan in merge order", "swarm.order"), ("Move the task's stacked PR on", "swarm.land"),
+                    ("Follow-up swarm…", "swarm.followup"), ("Delete a repeat rule…", "swarm.rule.delete"),
+                    ("When a worker is stuck…", "swarm.stuck"),
                 ], in: ["goalplan"]),
+                scopedInvocations("A swarm's agents", [
+                    ("The worker's tab", "swarm.task.open"), ("Pause or resume its task", "swarm.task.pause"),
+                    ("Hand its task to another agent…", "swarm.task.swap"), ("Message an agent…", "swarm.send"),
+                    ("Follow-up swarm…", "swarm.followup"), ("End-of-build summary again", "swarm.summary"),
+                    ("When a worker is stuck…", "swarm.stuck"),
+                ], in: ["goalagents"]),
+                scopedInvocations("A swarm's map", [
+                    ("Left", "swarm.map.move h"), ("Right", "swarm.map.move l"), ("Down", "swarm.map.move j"),
+                    ("Up", "swarm.map.move k"), ("The card's worker", "swarm.task.open"),
+                    ("Pause or resume its task", "swarm.task.pause"), ("Edit its task…", "swarm.task.edit"),
+                    ("Follow-up swarm…", "swarm.followup"),
+                ], in: ["goalmap"]),
                 scopedInvocations("A swarm's question", [
                     ("Answer it…", "swarm.answer"), ("Answer with the first option", "swarm.answer.option 1"),
                     ("Ask the controller", "swarm.controller"), ("Same answer for similar questions", "swarm.similar"),
                     ("Overrule the answer…", "swarm.overrule"),
-                ], in: ["goalplan", "swarmask"]),
+                ], in: ["goalplan", "goalagents", "swarmask"]),
                 scoped("In Personas", [
                     ("Spawn as a session…", "persona.session"), ("Spawn as a chat…", "persona.chat"),
                     ("Spawn as a reviewer", "persona.reviewer"), ("Edit its file", "persona.edit"),

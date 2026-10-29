@@ -60,6 +60,7 @@ struct TutorTests {
             "worktreeTable", "confirm", "historyList", "diffBody", "pilotDetail", "attentionFilters", "logList",
             "logUsage", "goalsList", "goalsOverview", "goalsDoc", "sessionGoal", "goalProposals", "goalsBoard",
             "goalsUnassigned", "goalReviewers", "goalReviewerDetail", "goalPersonas", "swarmPlan", "swarmSteering",
+            "swarmMap",
             "goalEvaluations",
             "goalFriction",
         ]

@@ -14,11 +14,12 @@ normal goal, and a follow-up swarm is the next run on the same goal. Old runs st
 steering.
 
 :::{note}
-Swarms come in parts. This heed plans, approves, runs and lands: workers start on ready tasks and open their pull
-requests ([Running](running.md)), and the PRs merge in a merge order, stacked ones moved on as their parents merge
+A swarm plans, approves, runs and lands: workers start on ready tasks and open their pull requests
+([Running](running.md)), the PRs merge in a merge order, stacked ones moved on as their parents merge
 ([Landing](landing.md)), and you steer it: agents' questions go to whoever may answer them, heed's controller answers
-what is within its authority, and what is yours waits in Needs you ([Steering](steering.md)). The map and the
-end-of-build summary come later.
+what is within its authority, and what is yours waits in Needs you ([Steering](steering.md)). You watch it in the
+agents pane and on its map, where a stuck worker is nudged and helped on its own ([Watching](watching.md)), and a done
+swarm writes its end-of-build summary, from which one key starts a follow-up ([The summary](summary.md)).
 :::
 
 ## Starting one

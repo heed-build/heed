@@ -15,6 +15,7 @@ same rules in their first prompt.
 | `heed goal ask <question> [--option <a> [--effect <text>]]… [--to lead\|you\|<task>]` | A question, and wait for its answer (9 minutes by default; exit 6 when none came). Who may answer is by what it is about ([Steering](steering.md)) |
 | `heed swarm answer <n> <text>` | Answer a worker's scope question heed typed into the lead's pane |
 | `heed swarm send <to> <text>` | A message to a task, or `@all` |
+| `heed swarm summary [--outcome <text>] [--decision <text>]… [--follow-up <text>]…` | The end-of-build summary, once the swarm is done ([The summary](summary.md)) |
 | `heed goal plan approve` | Approves the plan: only from a terminal outside heed, never from a pane or a background run |
 
 Before you approve a plan, every proposal is the new draft. After, a small change applies and a structural one waits

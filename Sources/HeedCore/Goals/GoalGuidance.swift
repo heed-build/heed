@@ -103,6 +103,12 @@ public enum GoalGuidance {
             "Do not start the work yourself: workers start on the approved plan, and nothing runs before the owner "
                 + "approves it."
         ),
+        Rule(
+            "When heed says the swarm is done, write its end-of-build summary: what got built in a sentence or two, "
+                + "the decisions taken (they go into GOAL.md) and what is left for a follow-up swarm. heed adds the "
+                + "PRs, who did what when and every question.",
+            "heed swarm summary --outcome TEXT --decision TEXT --follow-up TEXT"
+        ),
     ]
 
     /// What a swarm's worker does: its one task, from the base heed chose, until its PR is open; it reports through
@@ -131,6 +137,12 @@ public enum GoalGuidance {
                 + "the answer, so give it your shell's longest timeout. Exit 6: no answer yet; wait again with "
                 + "--id N, or carry on with what does not depend on it.",
             "heed goal ask QUESTION --option A --effect TEXT --option B --effect TEXT [--to 1.2|lead]"
+        ),
+        Rule(
+            "When heed says you look stuck (the same error again and again, or no progress for a while), note in a "
+                + "line what you tried, then take a different approach. Still stuck, heed asks a peer, its controller "
+                + "or the owner on your behalf and types the answer into your pane.",
+            "heed swarm note TEXT"
         ),
         Rule(
             "A question heed types into your pane from another task is yours to answer if you know; else leave it.",
@@ -273,7 +285,9 @@ public enum HeedPlugin {
 
 /// The first prompt of a swarm's lead session: who it is, what to read, what to do and what never to do.
 public enum SwarmLead {
-    public static func prompt(goal title: String, doc path: String, swarm: GoalSwarm) -> String {
+    public static func prompt(
+        goal title: String, doc path: String, swarm: GoalSwarm, previous: SwarmSummary? = nil
+    ) -> String {
         let settings = swarm.settings
         let workers = settings.workers.isEmpty ? settings.lead.label : settings.workers.map(\.label)
             .joined(separator: ", ")
@@ -284,6 +298,14 @@ public enum SwarmLead {
                 + "Each task works in its own worktree; there is no file ownership, overlaps are sorted out at merge.",
             "",
         ]
+        // A follow-up swarm starts from what the last one left.
+        if let previous, !previous.followUps.isEmpty || !previous.outcome.isEmpty {
+            lines += ["This swarm follows up on the goal's last one. It ended: \(previous.outcome)"]
+            if !previous.followUps.isEmpty {
+                lines += ["It left these follow-ups:"] + previous.followUps.map { "- \($0)" }
+            }
+            lines.append("")
+        }
         lines += GoalGuidance.leadRules.map { rule in
             "- " + rule.text + (rule.command.map { " Run: \($0)." } ?? "")
         }

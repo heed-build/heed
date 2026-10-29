@@ -170,7 +170,26 @@ public enum DefaultKeys {
             // jumps between a question and its answer. 1…9 and i on an answered question answer it again: an
             // overrule.
             ("c", "swarm.controller"), ("w", "swarm.log.who"), ("q", "swarm.log.jump"),
+            // Once it is done: F starts a follow-up swarm on the goal.
+            ("F", "swarm.followup"),
         ] + (1 ... 9).map { ("\($0)", "swarm.answer.option \($0)") }),
+        // A swarm's agents (W): j k move between workers, s or ↩ goes to its tab, p pauses its task, t swaps its agent;
+        // on the right Needs you: 1…9 pick an option of the question under the cursor (its worker's, else the first
+        // waiting), i types an answer, c asks the controller. Once the swarm is done, its summary: F starts a
+        // follow-up.
+        "goalagents": paneWith([
+            ("s", "swarm.task.open"), ("<CR>", "swarm.task.open"), ("p", "swarm.task.pause"),
+            ("t", "swarm.task.swap"), ("i", "swarm.answer"), ("c", "swarm.controller"), ("F", "swarm.followup"),
+        ] + (1 ... 9).map { ("\($0)", "swarm.answer.option \($0)") }),
+        // The swarm's map (T): h l between columns (the goal, then each phase), j k between the cards of one; s or ↩
+        // goes to the card's worker, p pauses its task, t swaps its agent, e edits it in the plan.
+        "goalmap": paneWith([
+            ("h", "swarm.map.move h"), ("l", "swarm.map.move l"), ("j", "swarm.map.move j"),
+            ("k", "swarm.map.move k"), ("<Left>", "swarm.map.move h"), ("<Right>", "swarm.map.move l"),
+            ("<Down>", "swarm.map.move j"), ("<Up>", "swarm.map.move k"), ("s", "swarm.task.open"),
+            ("<CR>", "swarm.task.open"), ("p", "swarm.task.pause"), ("t", "swarm.task.swap"),
+            ("e", "swarm.task.edit"), ("F", "swarm.followup"), ("<Tab>", ""), ("<S-Tab>", ""),
+        ]),
         // Goals › Unassigned (U): y n m i answer heed's asks (y on a suggested goal makes it), u undoes.
         "unassigned": paneWith([
             ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
@@ -232,7 +251,7 @@ public enum DefaultKeys {
     /// Views whose own bindings work in VISUAL too, ahead of VISUAL's: in the diff, `a`, `A` and `y` act on the
     /// selected lines.
     /// The keys of Goals' list and overview: what acts on the goal, and what every view of Goals shares.
-    static let goals: [(String, String)] = goalActions + goalShared
+    static let goals: [(String, String)] = goalActions + goalShared + [("F", "swarm.followup")]
 
     /// Lowercase actions on the goal itself. They apply only where the goal is what you are on: the list, the overview
     /// and GOAL.md. Every other pane binds the key to its own row's meaning or leaves it unbound, so a key never falls
@@ -251,14 +270,16 @@ public enum DefaultKeys {
 
     /// Every view of Goals, by key scope: the list and overview, and each pane of a goal.
     public static let goalScopes = [
-        "goals", "goalboard", "goaldoc", "goalreviewers", "goalpersonas", "goalevals", "goalplan", "unassigned",
+        "goals", "goalboard", "goaldoc", "goalreviewers", "goalpersonas", "goalevals", "goalplan", "goalagents",
+        "goalmap", "unassigned",
     ]
 
     /// The capitals that switch a goal's pane. They work the same in every view of Goals, and no pane may bind one of
     /// them to an action of its own: `S` opens the swarm from Personas as from anywhere else.
     public static let goalPanes: [(String, String)] = [
         ("E", "goal.doc"), ("B", "goal.board"), ("R", "goal.reviewers"), ("P", "goal.personas"),
-        ("X", "goal.evaluations"), ("U", "goal.unassigned"), ("S", "goal.swarm"),
+        ("X", "goal.evaluations"), ("U", "goal.unassigned"), ("S", "goal.swarm"), ("W", "goal.agents"),
+        ("T", "goal.map"),
     ]
 
     /// Goals' list keys with `overrides` laid over (an empty command drops the key): GOAL.md, where the goal is the

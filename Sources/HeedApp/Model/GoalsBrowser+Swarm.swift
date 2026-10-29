@@ -16,9 +16,11 @@ struct SwarmForm: Equatable {
     var workers: [SwarmSettings.Worker] = []
     var limits = SwarmSettings.Limits()
     var autonomy = SwarmSettings.Autonomy.planChanges
+    /// When a worker counts as stuck.
+    var stuck = SwarmStuck.Settings.defaults
 
     var settings: SwarmSettings {
-        SwarmSettings(repos: repos, lead: lead, workers: workers, limits: limits, autonomy: autonomy)
+        SwarmSettings(repos: repos, lead: lead, workers: workers, limits: limits, autonomy: autonomy, stuck: stuck)
     }
 }
 
@@ -68,9 +70,15 @@ extension GoalsBrowser {
         return SwarmLanding.order(tasks).compactMap { byID[$0] }
     }
 
+    /// The task a task command acts on: the plan's cursor, the agents pane's worker, or the map's card.
     var selectedTask: SwarmTask? {
-        let tasks = shownTasks
-        return tasks.indices.contains(taskCursor) ? tasks[taskCursor] : nil
+        switch pane {
+        case .agents: return selectedAgentTask
+        case .map: return mapCursor.flatMap { id in planTasks.first { $0.id == id } }
+        default:
+            let tasks = shownTasks
+            return tasks.indices.contains(taskCursor) ? tasks[taskCursor] : nil
+        }
     }
 
     /// `swarm.order`: by phase or in merge order, the cursor staying on its task.
@@ -159,9 +167,19 @@ extension GoalsBrowser {
 
     /// The cursor on a task (`task:<id>`) or a plan version (`planv:<n>`); true when the id was one.
     func pointPlan(to id: String) -> Bool {
+        if id.hasPrefix("rule:") { return true }
         if id.hasPrefix("task:") {
             let task = String(id.dropFirst(5))
             if let goal = task.split(separator: "/").first.map(String.init), selected?.id != goal { point(to: goal) }
+            if pane == .agents, let index = agentTasks.firstIndex(where: { $0.id == task }) {
+                focus = .agents
+                agentCursor = index
+                return true
+            }
+            if pane == .map {
+                mapCursor = task
+                return true
+            }
             if let index = shownTasks.firstIndex(where: { $0.id == task }) {
                 focus = .tasks
                 taskCursor = index

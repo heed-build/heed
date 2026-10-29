@@ -107,6 +107,10 @@ and its `GOAL.md` says what it is, what it is not, when it is done, what is open
   `heed-goal` skill (loaded with `--plugin-dir`, nothing installed); `heed goal item spawn` starts work on an item.
 - **Colleagues follow along.** Mirror a goal (`M`) to a tracker repo as a meta issue with a sub-issue per item;
   their changes come back as questions for you.
+- **Swarms.** A lead agent plans the goal, you approve the plan, and workers take its tasks in parallel, each in a
+  worktree of its own; their PRs stack on each other and merge in order. Questions go to whoever may answer them (a
+  peer, heed's controller, you), a stuck worker is nudged and helped on its own, the agents pane and a map show how it
+  goes, and a done swarm writes its end-of-build summary.
 
 heed keeps a record of each session (its timeline, outcome and summary, in SQLite); the agents own their transcripts.
 It is macOS only and not sandboxed: it has to spawn shells, git and agents.

@@ -6,8 +6,10 @@ description: Handing a session to another agent, for when one hits its usage lim
 
 When the agent in a session can't go on (it hit its usage limit, or it is going in circles), hand the session to
 another agent: `gA`, or `:agent.switch codex`. `gA` opens the command line on `agent.switch ` and lists the agents
-configured in Settings, except the session's own; `⇥` picks one. Right-click a session row, or its agent's tab, for
-**Hand off to…** with the same list.
+configured in Settings, except the session's own; `⇥` picks one. After the agent and a space it lists that agent's
+models, and after a model its reasoning efforts: `:agent.switch codex gpt-6-luna high`, or `-` for the agent's default
+model (`:agent.switch claude - max`). Left out, the agent starts on its own [model and effort](../agents/models.md).
+Right-click a session row, or its agent's tab, for **Hand off to…** with the same list.
 
 ![Handing off a session whose agent is still running](../images/shots/sessions/handoff-confirm.png)
 

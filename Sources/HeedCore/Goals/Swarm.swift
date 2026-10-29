@@ -132,16 +132,19 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
     public struct Worker: Hashable, Sendable, Codable {
         public var agent: String
         public var model: String?
+        /// Its reasoning effort; nil: the agent's default.
+        public var effort: String?
         public var count: Int
 
-        public init(agent: String, model: String? = nil, count: Int = 1) {
+        public init(agent: String, model: String? = nil, effort: String? = nil, count: Int = 1) {
             self.agent = agent
             self.model = model?.isEmpty == true ? nil : model
+            self.effort = effort?.isEmpty == true ? nil : effort
             self.count = max(count, 1)
         }
 
-        /// `claude ×3`, `codex · o4 ×2`.
-        public var label: String { GoalItem.Owner(agent: agent, model: model).label + " ×\(count)" }
+        /// `claude ×3`, `codex · o4 ×2`, `codex · o4 · high ×2`.
+        public var label: String { GoalItem.Owner(agent: agent, model: model, effort: effort).label + " ×\(count)" }
     }
 
     /// What a swarm may spend: agents at once, hours of wall time, dollars (estimated for subscriptions). Reaching one
@@ -252,6 +255,21 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
 
     /// Where the lead runs, and the workers whose task names no host.
     public var location: Location { host.map(Location.host) ?? .local }
+
+    /// `owner` with the team's model and effort filled in where it names none: the first workers of its agent (the
+    /// lead, for the lead's agent with no workers of it). An owner naming a model keeps it, and an effort only goes
+    /// with the model it was picked for.
+    public func resolved(_ owner: GoalItem.Owner) -> GoalItem.Owner {
+        let seat: GoalItem.Owner? = workers.first { $0.agent == owner.agent }
+            .map { GoalItem.Owner(agent: $0.agent, model: $0.model, effort: $0.effort) }
+            ?? (lead.agent == owner.agent ? lead : nil)
+        guard let seat else { return owner }
+        if owner.model == nil {
+            return GoalItem.Owner(agent: owner.agent, model: seat.model, effort: owner.effort ?? seat.effort)
+        }
+        guard owner.effort == nil, owner.model == seat.model else { return owner }
+        return GoalItem.Owner(agent: owner.agent, model: owner.model, effort: seat.effort)
+    }
 
     /// The agents the lead may assign tasks to: the workers' agents, or the lead's when there are none.
     public var team: [String] {

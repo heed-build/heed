@@ -137,7 +137,8 @@ struct PromoteTests {
         #expect(!empty.options.contains(.copyFiles))
         var form = StartWorkForm(repos: records, settings: .default, promotion: promotion())
         _ = form.handle(.escape)
-        for key in ["j", "j", "j", "j", "l", "l", "l", "Space"] {
+        // Prompt, repo, worktree, agent, model, effort, then the options.
+        for key in ["j", "j", "j", "j", "j", "j", "l", "l", "l", "Space"] {
             _ = form.handle(KeyStroke(key))
         }
         #expect(form.promotion?.copyFiles == true)

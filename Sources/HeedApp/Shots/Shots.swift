@@ -205,7 +205,9 @@ enum Shots {
         Shot(id: "start-work/repos", keys: "o" + prompt + "<Esc>j", crop: .dialog),
         Shot(id: "start-work/repo-search", keys: "o" + prompt + "<Esc>j/mar", crop: .dialog),
         Shot(id: "start-work/branch-name", keys: "o" + prompt + "<Esc>jj", crop: .dialog),
-        Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjj", crop: .dialog),
+        Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjjjj", crop: .dialog),
+        // The model field: h l step through the agent's models (Opus, two steps in), then its efforts (high).
+        Shot(id: "start-work/model", keys: "o" + prompt + "<Esc>jjjjlljlll", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
         Shot(id: "start-work/from-github-picked", keys: ":issues<CR><Space>j<Space>", highlight: [.list, .pickedPanel]),
         Shot(id: "start-work/from-github-dialog", keys: ":issues<CR><Space>j<Space>s", crop: .dialog),
@@ -225,6 +227,27 @@ enum Shots {
             id: "agents/model-calls", subject: .settings(.agents), size: CGSize(width: 1000, height: 820),
             prepare: { model in
                 model.llmTests["claude"] = LLMTest(answer: "Hello!", model: "claude-haiku", seconds: 2.9, cost: 0.00026)
+            }
+        ),
+        // Settings › Agents: claude's own model and effort for its sessions, picked from its list.
+        Shot(
+            id: "agents/model-pickers", subject: .settings(.agents), size: CGSize(width: 1000, height: 1900),
+            prepare: { model in
+                model.applyConfig(source: "[agents.claude]\nmodel = \"opus\"\neffort = \"high\"\n")
+            }
+        ),
+        // Settings › Pilot: background runs on codex with a listed model and effort; conflicts on a custom id.
+        Shot(
+            id: "agents/model-custom", subject: .settings(.pilot), size: CGSize(width: 1000, height: 1950),
+            prepare: { model in
+                model.applyConfig(source: """
+                [pilot]
+                agent = "codex"
+                model = "gpt-6-luna"
+                effort = "high"
+                merge_agent = "claude"
+                merge_model = "team-proxy-small"
+                """)
             }
         ),
         // Settings › Agents › Local decisions: screen snapshots on, with the fake world's invented counts.
@@ -477,9 +500,10 @@ enum Shots {
             model.goals.swarmForm?.statement = "Every diagram type exports to SVG that matches the canvas, with "
                 + "fonts embedded."
             model.goals.swarmForm?.repos = ["globex/markgraph"]
-            model.goals.swarmForm?.lead = GoalItem.Owner(agent: "claude", model: "opus")
+            model.goals.swarmForm?.lead = GoalItem.Owner(agent: "claude", model: "opus", effort: "high")
             model.goals.swarmForm?.workers = [
-                SwarmSettings.Worker(agent: "claude", count: 2), SwarmSettings.Worker(agent: "codex"),
+                SwarmSettings.Worker(agent: "claude", count: 2),
+                SwarmSettings.Worker(agent: "codex", model: "gpt-6-luna", effort: "medium"),
             ]
             model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
         }),

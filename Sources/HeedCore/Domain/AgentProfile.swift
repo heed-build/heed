@@ -32,6 +32,13 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     public var sessionIDFlag: String?
     /// Flag that picks the model (`--model`), for get it green runs that choose one; nil: the agent cannot.
     public var modelFlag: String?
+    /// How the agent takes a reasoning effort (thinking level) at launch: a flag the level follows (`--effort`), or
+    /// arguments with `{level}` in them (`-c model_reasoning_effort={level}`); nil: it takes none.
+    public var effortFlag: String?
+    /// The model and effort its launches use when nothing more specific picks one (`[agents.<name>] model`,
+    /// `effort`); nil: the agent's own default.
+    public var model: String?
+    public var effort: String?
     /// Screen patterns per state name (`blocked = "Allow\\?"`), for agents without hooks; see `ScreenGuess`.
     public var patterns: [String: String] = [:]
 
@@ -56,10 +63,10 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     public func launchCommand(
         prompt text: String, planFirst: Bool = false, extraArguments: [String] = [],
         environment: [String: String] = [:],
-        model: String? = nil
+        model: String? = nil, effort: String? = nil
     ) -> ShellCommand {
         var words: [ShellCommand.Word] = [.raw(command)] + extraArguments.map(ShellCommand.Word.text)
-        if let model, !model.isEmpty, let modelFlag { words += [.raw(modelFlag), .text(model)] }
+        words += modelWords(model: model, effort: effort)
         if planFirst, let planArguments { words.append(.raw(planArguments)) }
         let agent = ShellCommand.Simple(environment: Self.assignments(environment), words: words)
         guard !text.isEmpty else { return ShellCommand([.run([agent])]) }
@@ -72,6 +79,36 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
             return ShellCommand([.run([printf, agent])])
         case .paste, .file: return ShellCommand([.run([agent])])
         }
+    }
+
+    /// The model and effort arguments of a launch: `model` and `effort` when given, else this agent's configured
+    /// ones; each only when the agent has a flag for it.
+    public func modelWords(model: String? = nil, effort: String? = nil) -> [ShellCommand.Word] {
+        var words: [ShellCommand.Word] = []
+        if let model = Self.nonEmpty(model) ?? Self.nonEmpty(self.model), let modelFlag {
+            words += [.raw(modelFlag), .text(model)]
+        }
+        if let effort = Self.nonEmpty(effort) ?? Self.nonEmpty(self.effort),
+           let effortFlag = Self.nonEmpty(effortFlag)
+        {
+            if effortFlag.contains("{level}") {
+                // `{level}` is quoted for the shell wherever it sits; the rest is typed as configured.
+                var segments: [ShellCommand.Segment] = []
+                for (index, part) in effortFlag.components(separatedBy: "{level}").enumerated() {
+                    if index > 0 { segments.append(.text(effort)) }
+                    if !part.isEmpty { segments.append(.raw(part)) }
+                }
+                words.append(ShellCommand.Word(segments))
+            } else {
+                words += [.raw(effortFlag), .text(effort)]
+            }
+        }
+        return words
+    }
+
+    private static func nonEmpty(_ text: String?) -> String? {
+        guard let text = text?.trimmingCharacters(in: .whitespaces), !text.isEmpty else { return nil }
+        return text
     }
 
     /// The command line that resumes session `id`, or nil when this agent cannot resume.
@@ -95,7 +132,9 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
         environment.sorted { $0.key < $1.key }.map { ShellCommand.Assignment($0.key, .text($0.value)) }
     }
 
-    /// Flags verified against each CLI's source or docs on 2026-10-12 (see PLAN.md).
+    /// Flags verified against each CLI's source or docs on 2026-10-12 (see PLAN.md); effort flags against
+    /// `claude --help` (`--effort`), `codex --help` (`-c` with `model_reasoning_effort`) and `pi --help` (`--thinking`)
+    /// on 2026-10-29 (see `AgentModels`). cursor-agent, opencode's TUI and gemini take no effort at launch.
     public static let builtIn: [AgentProfile] = [
         AgentProfile(
             name: "claude", command: "claude", planArguments: "--permission-mode plan",
@@ -114,6 +153,12 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
         // Every built-in takes --model.
         var agent = agent
         agent.modelFlag = "--model"
+        agent.effortFlag = switch agent.name {
+        case "claude": "--effort"
+        case "codex": "-c model_reasoning_effort={level}"
+        case "pi": "--thinking"
+        default: nil
+        }
         return agent
     }
 }

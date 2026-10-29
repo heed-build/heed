@@ -68,6 +68,9 @@ extension AppModel {
     /// its ready tasks start. Never in the fake world: nothing starts there.
     func tickSwarms() {
         guard !isFixture, tutor == nil, let ops = goals.ops, !swarmTicking else { return }
+        if goals.snapshot.swarms.contains(where: { $0.status == .done && goals.boards[$0.id] == nil }) {
+            Task { await loadDoneSwarmBoards() }
+        }
         let active = goals.snapshot.swarms.filter { $0.status.active && $0.approved != nil }
         guard !active.isEmpty else { return }
         swarmTicking = true
@@ -116,7 +119,10 @@ extension AppModel {
     /// A worker on a task: its own worktree on the task's branch, made from `start.base` (or the one it left, for a
     /// handoff or a resumed task), and a tab in the lead's session running the task's agent on the worker's prompt,
     /// with heed's hooks and the goal's skill. The tab is appended without being selected: nothing takes your focus.
-    func startWorker(_ board: SwarmBoard, _ start: SwarmScheduler.Start, handoff: String? = nil) async {
+    /// `back`: the task's worker taken back to its PR (a conflict, a rebase): its own prompt, and what to record.
+    func startWorker(
+        _ board: SwarmBoard, _ start: SwarmScheduler.Start, handoff: String? = nil, back: WorkerReturn? = nil
+    ) async {
         let swarm = board.swarm
         let tasks = runTasks(board)
         guard let goal = goals.snapshot.goal(swarm.goal), let task = tasks.first(where: { $0.id == start.task })
@@ -125,7 +131,8 @@ extension AppModel {
         defer { startingWorkers.remove(task.id) }
         let numbers = SwarmPlan.numbers(tasks)
         let number = numbers[task.id] ?? ""
-        let owner = task.owner ?? GoalItem.Owner(agent: swarm.settings.team.first ?? swarm.settings.lead.agent)
+        let owner = back?.owner ?? task.owner
+            ?? GoalItem.Owner(agent: swarm.settings.team.first ?? swarm.settings.lead.agent)
         let branch = SwarmWork.branch(of: task, goal: goal.id)
         let now = Clock.now
         func fail(_ reason: String) async {
@@ -181,7 +188,12 @@ extension AppModel {
         let told = config.goals.tellAgents
             ? GoalLaunch.arguments(agent: agent.name, signOff: nil, pointer: pointer, plugin: integration.plugin)
             : []
-        let prompt = SwarmWork.prompt(
+        let prompt = back.map { back in
+            Handoff.swarmReturn(
+                task: task, number: number, swarm: swarm, pr: back.ref, branch: branch, base: base, items: back.items,
+                instructions: pilotSettings(for: back.ref).greenInstructions
+            )
+        } ?? SwarmWork.prompt(
             task: task, number: number, swarm: swarm, goal: goal.title, doc: Paths.tilde(goals.files.doc(goal.id).path),
             branch: branch, base: base,
             stackedOn: stackedOn.map { id in (numbers[id] ?? "", tasks.first { $0.id == id }?.title ?? id) },
@@ -216,8 +228,15 @@ extension AppModel {
         TerminalSurfaces.shared.autostartPanes.insert(pane.id)
         TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
         let from = stackedOn.map { "stacked on \(numbers[$0] ?? SwarmPlan.short($0))'s PR" } ?? "from \(base)"
-        let text = "\(number) \(task.title): \(owner.label) " + (handoff.map { "takes over from \($0)" } ?? from)
+        let text = "\(number) \(task.title): \(owner.label) " + (back.map { "back on \($0.what)" }
+            ?? handoff.map { "takes over from \($0)" } ?? from)
         _ = await goalOp { try await $0.startWorker(swarm: swarm.id, worker, text: text, now: now) }
+        if let back {
+            _ = await goalOp { try await $0.handback(
+                swarm: swarm.id, task: task.id, what: back.what, to: owner.label, reason: nil, now: now
+            ) }
+            back.started()
+        }
         say("swarm \(swarm.number): \(text)")
     }
 

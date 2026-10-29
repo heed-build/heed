@@ -2,8 +2,8 @@ import Foundation
 
 /// The fake world's steering, laid over the running anchors swarm: a worker asked its peer and had its answer, the lead
 /// told everyone something, the controller answered a naming question and you overruled it, and two questions wait for
-/// you in Needs you (one with the controller's suggestion, one the lead did not answer in time). Invented, as every
-/// fixture is.
+/// you in Needs you (one with the controller's suggestion, one the lead did not answer in time, one without options
+/// whose answer the controller drafted). Invented, as every fixture is.
 public extension SwarmFixtures {
     /// The rows, oldest first, without ids; `about` and an overrule's `ref` count back into this list (`-n` is the
     /// n-th row, 1-based) until `SwarmFixtures.number` gives them ids.
@@ -93,6 +93,21 @@ public extension SwarmFixtures {
             row(0.09, .heed, .deliver, "typed into its pane", about: -13, ref: sample),
             // 15: another note.
             row(0.05, .agent, .note, "Generated 1,200 of 10,000 pages; 300 of them moved", from: sample),
+            // 16: a question with no options: the controller drafts an answer (17) and it goes on to you (18).
+            row(
+                0.04, .agent, .question, "What should the moved-pages report file be called?",
+                reason: "a reversible implementation choice: the controller may answer it", state: .pending,
+                from: sample, category: .implementation, ladder: [.controller, .you]
+            ),
+            row(
+                0.035, .controller, .suggest, "Call it moved-pages.md, next to the speed report.",
+                reason: "drafted, the question has no options: yours to take", state: .pending, about: -16
+            ),
+            row(
+                0.035, .heed, .escalate, "to you",
+                reason: "no options to pick from: the controller drafted an answer for you to take or not",
+                about: -16, step: .you
+            ),
         ]
     }
 

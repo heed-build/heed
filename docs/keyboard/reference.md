@@ -240,6 +240,7 @@ This page is generated from the code (`mise run shots`).
 | `swarm.followup` | `F` (goalagents), `F` (goaldoc), `F` (goalmap), `F` (goalplan), `F` (goals) | start a follow-up swarm on the goal: the last one's team and limits, its follow-ups for the lead (the form first) |
 | `swarm.summary` |  | the swarm's end-of-build summary: written again from its record, and the lead asked to write its part |
 | `swarm.stuck` `<estimate|errors|quiet|peer|you> <value>` |  | when the goal's swarm counts a worker as stuck: estimate (×), errors, quiet, peer and you (minutes) |
+| `swarm.merge` `<off|auto|heed|repo>` |  | get it merged for the goal's swarm's PRs: off, auto, heed, or repo (each PR's repo says; the default). In merge order either way |
 | `swarm.rule.delete` `[rule number]` |  | delete one of the goal's repeat rules: the controller stops answering with it |
 | `review.recheck` `[reviewer]` | `r` (goaldoc), `r` (goalreviewers), `r` (goals) | re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs) |
 | `review.accept` | `A` (goalreviewers) | accept the risk of the objection under the cursor (again: open it) |

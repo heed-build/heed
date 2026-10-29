@@ -141,6 +141,7 @@ This page is generated from the code (`mise run shots`).
 | `hunch.delete` `[checkpoint]` |  | delete Hunch's downloaded model and the head trained on it |
 | `hunch.retrain` |  | train Hunch on your corrections now, in the background |
 | `hunch.reset` |  | put Hunch back on its checkpoint's own head (the training set stays) |
+| `hunch.screen` |  | have Hunch read the agent pane under the cursor now: working, waiting for input, stuck or done |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
 | `history.timeline` | `T` (dashboard), `T` (history), `T` (ledger), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |

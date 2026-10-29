@@ -80,6 +80,15 @@ public extension SwarmFixtures {
         ]
     }
 
+    /// What Hunch read of the live workers' panes, by task, in the fake world with Hunch as the decider: 2.1's screen
+    /// loops: Hunch says stuck, so its signal does.
+    static func screenReadings(now: Date = Clock.now) -> [String: HunchScreen.Reading] {
+        let at = Date(timeIntervalSince1970: now.timeIntervalSince1970.rounded(.down) - 40)
+        return [
+            "\(anchors)/sample-site": HunchScreen.Reading(state: .stuck, confidence: 0.84, at: at),
+        ]
+    }
+
     /// The build error 2.2 keeps hitting, as its digest.
     static let stuckDigest = "error cs#: the name pageindex does not exist in the current context"
 

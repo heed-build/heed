@@ -105,6 +105,9 @@ struct AgentFacts {
     var estimate: Int?
     var signal: SwarmStuck.Signal?
     var live: Bool
+    /// What the screen reads and who read it: `screen: stuck · Hunch 84%`, or heed's guess when
+    /// Hunch does not read screens; nil when neither says anything.
+    var screen: String?
 
     /// Over its estimate or stuck: amber.
     var amber: Bool { live && (signal?.strong == true || (estimate.map { minutes > $0 } ?? false)) }
@@ -121,6 +124,14 @@ struct AgentFacts {
         let ended = live == nil ? worker?.endedAt ?? Clock.now : Clock.now
         self.live = live != nil
         self.signal = signal
+        if let live, let reading = model.hunchReading(pane: live.paneID) {
+            screen = "screen: \(reading.state.rawValue) · Hunch \(Int((reading.confidence * 100).rounded()))%"
+                + (reading.counts ? "" : ", unsure: heed's guess stands")
+        } else if let read = signal?.reasons.lazy.compactMap({ reason -> String? in
+            if case let .screen(label, source) = reason { "screen: \(label.rawValue) · \(source.title)" } else { nil }
+        }).first {
+            screen = read
+        }
         estimate = task.estimate
         minutes = max(Int(ended.timeIntervalSince(started) / 60), 0)
         if live != nil, signal?.strong == true {
@@ -317,6 +328,7 @@ private struct AgentDetail: View {
                 FactBox(
                     title: "Stuck signal", value: facts.signal.map { $0.main.word } ?? "None",
                     detail: facts.signal?.main.text ?? "stuck after \(board.swarm.settings.stuck.noProgress) min quiet",
+                    note: facts.screen,
                     color: facts.signal?.strong == true ? Theme.block : facts.signal == nil ? Theme.fg : Theme.fg2
                 )
             }
@@ -338,6 +350,7 @@ private struct FactBox: View {
     let title: String
     let value: String
     let detail: String?
+    var note: String?
     let color: Color
 
     var body: some View {
@@ -345,6 +358,7 @@ private struct FactBox: View {
             Text(title.uppercased()).font(Theme.mono(9.5)).foregroundStyle(Theme.fg3)
             Text(value).font(Theme.ui(12.5, weight: .medium)).foregroundStyle(color).lineLimit(2)
             if let detail { Text(detail).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).lineLimit(2) }
+            if let note { Text(note).font(Theme.mono(10.5)).foregroundStyle(Theme.fg2).lineLimit(2) }
         }
         .padding(10)
         .frame(maxWidth: .infinity, minHeight: 74, alignment: .topLeading)

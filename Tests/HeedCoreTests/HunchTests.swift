@@ -323,25 +323,26 @@ struct HunchTrainingSetTests {
         )
     }
 
-    @Test func labelledScreensSayWhetherTheAgentWaits() {
+    @Test func labelledScreensSayWhatTheAgentIsDoing() {
         let examples = HunchTrainingSet.screens([
             snapshot(.asking, .reported, at: 1), snapshot(.blocked, .reported, at: 2),
             snapshot(.working, .sampled, at: 3), snapshot(.done, .reported, at: 4),
-            snapshot(.asking, .guessed, at: 5),
+            snapshot(.asking, .guessed, at: 5), snapshot(.idle, .reported, at: 6),
+            snapshot(.limited, .reported, at: 7), snapshot(.exited, .reported, at: 8),
         ])
-        #expect(examples.map(\.answer) == ["true", "true", "false"])
+        #expect(examples.map(\.answer) == ["waiting for input", "waiting for input", "working", "done"])
         var long = snapshot(.asking, .reported, at: 9)
         long.text = (1 ... 30).map { "line \($0)" }.joined(separator: "\n")
         let kept = HunchTrainingSet.screens([long])[0].state.split(separator: "\n")
         #expect(kept.count == 20 && kept.first == "line 11" && kept.last == "line 30")
-        #expect(examples[0].id == "screen:s1:1900000001000" && examples[0].question == HunchTrainingSet.waitingQuestion)
+        #expect(examples[0].id == "screen:s1:1900000001000" && examples[0].question == HunchScreen.question)
     }
 
     private func example(_ id: String, _ family: HunchFamily, at: TimeInterval, answer: String = "true")
         -> HunchExample
     {
         HunchExample(
-            id: id, family: family, state: "s", question: HunchTrainingSet.waitingQuestion, answer: answer, weight: 1,
+            id: id, family: family, state: "s", question: HunchScreen.question, answer: answer, weight: 1,
             at: day.addingTimeInterval(at)
         )
     }

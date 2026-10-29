@@ -560,6 +560,10 @@ enum Shots {
         Shot(id: "goals/swarm-stuck", keys: "gGjW", crop: .swarmAgent, cropPadding: 8, prepare: {
             $0.loadWatchFixture()
         }),
+        // With Hunch as the decider: its reading of 2.1's pane says stuck, and the signal names Hunch as its source.
+        Shot(id: "goals/swarm-stuck-hunch", keys: "gGjW", crop: .swarmAgent, cropPadding: 8, prepare: {
+            $0.loadHunchScreenFixture()
+        }),
         Shot(id: "goals/swarm-since", keys: "gGjW", crop: .swarmDigest, cropPadding: 8, prepare: {
             $0.loadWatchFixture()
         }),

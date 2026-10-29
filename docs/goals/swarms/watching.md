@@ -73,8 +73,17 @@ A worker looks stuck when any of these holds:
 |---|---|---|
 | The same error, so many times in a row | 3× | Yes |
 | No tool call and no file change for | 10 min | Yes |
-| Its screen reads waiting while its hooks say working | | Yes |
+| Its screen reads waiting or stuck while its hooks say working | | Yes |
 | Time on the task over its estimate | 1.5× | No: amber only |
+
+Who reads the screen depends on your decider. With [Hunch](../../configuration/inference.md#hunch) chosen and its model
+downloaded, Hunch reads the last 20 lines of each working worker's pane as *working*, *waiting for input*, *stuck:
+looping or erroring* or *done*: at most once a minute per worker, only when its screen changed, and never on the main
+thread. Waiting and stuck are signals; working and done are not, and a reading Hunch is less than 50% sure of leaves
+it to heed's guess. Otherwise heed guesses from the screen as it always has: a permission or question prompt on a pane
+whose hooks say working reads waiting. The agents pane's stuck signal says which one read it: *its screen reads stuck
+(Hunch)*, *its screen reads waiting (heed's guess)*, and under it Hunch's newest reading with its confidence.
+`:hunch.screen` has Hunch read the worker under the cursor now.
 
 Waiting for an answer is not being stuck: while a question of its own waits, its quiet does not count (the question
 has its own ladder). Two more settings belong to that ladder: how long a question may wait on a peer before it moves
@@ -92,6 +101,8 @@ When a worker is stuck, heed climbs the ladder for it, and every step is a steer
 3. **Over.** Once it moves again (or its worker ends), the episode ends.
 
 ![A stuck worker in the agents pane](../../images/shots/goals/swarm-stuck.png)
+
+![A worker Hunch reads as stuck, the signal naming Hunch](../../images/shots/goals/swarm-stuck-hunch.png)
 
 ![The steering log of an automatic escalation](../../images/shots/goals/swarm-escalation.png)
 
@@ -136,6 +147,7 @@ new happens); without them, heed's own list of what happened is the text.
 
 ## Not yet
 
-- heed has no screen label of its own for "stuck"; the screen signal is heed's screen guess (a permission or question
-  prompt on a pane whose hooks say working).
+- No hook reports "stuck", so Hunch learns working, waiting and done from your screen snapshots, and judges stuck from
+  its checkpoint alone. Before it has learned from your snapshots, the checkpoint is rarely 50% sure of a pane, so
+  heed's guess usually stands until it has.
 - Codex and other agents report failures only as far as their tool output says so.

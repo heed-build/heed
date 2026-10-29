@@ -32,7 +32,7 @@ gathers no more examples; the ones kept stay until you delete the model folder.
 |---|---|---|
 | **Attention**: done, snooze, mute or boost an item | The item as Attention's suggested weight sees it, with its *How much does this want your attention* question | mute: ignore, snooze: lower, done: normal, boost: boost 1 (done and snooze count half: they say less) |
 | **Goal attach**: yes, no, a move (`m`) or an undo (`u`) | The session or chat as finding its goal saw it, with *This work belongs to the goal …* | yes: true; no and undo: false; a move: false for the goal proposed, true for the one you picked |
-| **[Screen snapshots](../agents/screen-snapshots.md)**, if you record them | The last 20 lines of the agent's screen, with *The last lines ask the user to answer a question or approve something* | true when the hooks said asking or blocked, false when working |
+| **[Screen snapshots](../agents/screen-snapshots.md)**, if you record them | The last 20 lines of the agent's screen, with *What the coding agent in this terminal is doing now* (working, waiting for input, stuck: looping or erroring, done): the question Hunch reads agents' panes with | waiting for input when the hooks said asking or blocked, working when working, done when done; no hook says stuck |
 
 Only the newest example of a thing is kept (a snooze then a done is one example, a done). Ignores, items no one acted
 on, and states read from the screen rather than reported by hooks teach nothing and are left out. Examples are

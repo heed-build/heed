@@ -82,6 +82,14 @@ many options each is cut to a few words, and its confidence for 11 or more optio
 many names is a generative model's job. Until Hunch's model is downloaded, its questions go where the rest go. Each
 part writes its own `decide` row in `:log`; Hunch's say `hunch` and the checkpoint (and head) they used.
 
+Hunch also reads agents' screens, where heed otherwise guesses from patterns: the last 20 lines of a swarm worker's pane
+(its [stuck signal](../goals/swarms/watching.md#when-a-worker-is-stuck)), and of a session whose agent has no hook for
+some states (a waiting or done it reads becomes a guessed state, marked *Hunch*). Each read is one choice: *working*,
+*waiting for input*, *stuck: looping or erroring* or *done*. A pane is read at most once a minute, only when its screen
+changed, off the main thread; its `decide` row says `screen.read`. **Questions** in the pane says whether it is on and
+shows the newest reading. `:hunch.screen` reads the pane under the cursor now. Without Hunch as the decider, or before
+its model is downloaded, heed's own guess is all there is.
+
 ### The model
 
 The pane lists the checkpoints Hunch supports, each pinned to a revision with every file's size and sha256:

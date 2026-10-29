@@ -496,6 +496,7 @@ public enum MenuBar {
                 item("Stop Hunch's download", "hunch.cancel", enabled: facts.hunchDownloading),
                 item("Retrain Hunch from my corrections", "hunch.retrain", enabled: facts.hunchReady),
                 item("Reset Hunch to its checkpoint's head", "hunch.reset", enabled: facts.hunchReady),
+                item("Read this agent's screen with Hunch", "hunch.screen", enabled: facts.hunchReady),
                 item("Delete Hunch's model", "hunch.delete", enabled: facts.hunchReady || facts.hunchDownloading),
             ])
         }

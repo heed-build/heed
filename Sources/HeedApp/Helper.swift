@@ -45,6 +45,7 @@ enum LaunchGuard {
         if let first = arguments.first, cliVerbs.contains(first) { exit(0) }
         let environment = ProcessInfo.processInfo.environment
         guard environment["HEED_FIXTURE"] == nil, environment["HEED_SNAPSHOT"] == nil, environment["HEED_SHOTS"] == nil,
+              environment["HEED_TUTOR_CHECK"] == nil,
               let id = Bundle.main.bundleIdentifier
         else { return }
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: id)

@@ -533,6 +533,8 @@ struct GoalFormView: View {
 
     var body: some View {
         let form = model.goals.form
+        let notes = form?.notes ?? []
+        let tried = form?.tried == true
         ZStack {
             Color.black.opacity(0.45)
             VStack(alignment: .leading, spacing: 14) {
@@ -555,6 +557,7 @@ struct GoalFormView: View {
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
                 .focused($field, equals: .title)
+                FieldNoteView(note: notes.note(for: "title", tried: tried))
                 SectionHeader(title: "The goal")
                 Group {
                     if ShotMode.active {
@@ -603,6 +606,7 @@ struct GoalFormView: View {
                     .onTapGesture { model.goals.form?.mirror.toggle() }
                     .help("Make its issues on GitHub now, and keep them up to date (M on the goal does it later)")
                 }
+                FieldNoteView(note: notes.note(for: "tracker", tried: tried))
                 Text("A meta issue and a sub-issue per item, in a repo of their own; heed checks it can write there "
                     + "first. Mirroring publishes, so it is off unless ticked.")
                     .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
@@ -618,7 +622,10 @@ struct GoalFormView: View {
                     .help("A lead agent drafts a plan for the goal and a team works on it once you approve")
                     Spacer()
                     KeyHint(keys: "<Esc>", label: "cancel")
-                    KeyHint(keys: "<D-CR>", label: form?.swarm == true ? "on to the swarm" : "create", color: Theme.fg)
+                    ConfirmHint(
+                        keys: "<D-CR>", label: form?.swarm == true ? "on to the swarm" : "create",
+                        blocking: notes.blocking
+                    )
                 }
             }
             .padding(22)

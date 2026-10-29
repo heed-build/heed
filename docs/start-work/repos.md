@@ -56,3 +56,21 @@ repo field). Type to narrow, `⌃n` `⌃p` to move, `↩` to add it. It then kee
 The very last chip, **chat, no repo**, turns the dialog into a [chat](../sessions/chats.md).
 
 ![Searching every repo: mar typed, markgraph matched](../images/shots/start-work/repo-search.png)
+
+### A repo heed does not know
+
+When nothing heed knows matches, the search reads what you typed as any repo, as the
+[swarm form](../goals/swarms/index.md#any-repo) does:
+
+- `owner/name`, or its GitHub URL. The format is checked as you type. A repo heed has not seen (on this Mac, a host,
+  or in the PRs and issues it follows) is then looked up on GitHub with a read-only `gh repo view`.
+- A path to a checkout on this Mac (`~/src/name`), which joins Repos.
+
+The line under the search says what it found. `↩` adds the repo once that line says it is fine. A repo that is not on
+this Mac yet gets a chip marked **clones** (a click drops it). On `⌘↩` heed clones it with `gh repo clone` into the
+first of `[worktrees] repo_roots` (`~/Projects` by default), then starts the work in it. The dialog stays open while
+it clones, and says so under the repo field, or why the clone failed.
+
+![A repo heed has not seen, typed into the search](../images/shots/start-work/any-repo.png)
+
+![It is picked, and cloned when the work starts](../images/shots/start-work/any-repo-picked.png)

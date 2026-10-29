@@ -414,7 +414,7 @@ private struct SetupDollarsField: View {
                 .onSubmit(save)
                 .onChange(of: focused) { if !focused { save() } }
             Text("a day").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-            if let problem { Text(problem).font(Theme.ui(11.5)).foregroundStyle(Theme.err) }
+            FieldNoteView(note: problem.map { FieldNote("value", $0) })
         }
     }
 

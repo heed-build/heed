@@ -260,10 +260,10 @@ private struct RuleEditor: View {
                 .foregroundStyle(valid ? Theme.fg : Theme.fg3).fixedSize(horizontal: false, vertical: true)
             matchLine
             ForEach(problems.filter { $0.clause == nil }, id: \.self) { problem in
-                Text(problem.message).font(Theme.ui(11.5)).foregroundStyle(Theme.err)
+                FieldNoteView(note: FieldNote("rule", problem.message))
             }
             if let conflict {
-                Text(conflict).font(Theme.ui(11.5)).foregroundStyle(Theme.err)
+                FieldNoteView(note: FieldNote("rule", conflict))
             }
             HStack(spacing: 10) {
                 Button(editing == nil ? "Add rule" : "Update rule", action: commit).disabled(!valid)
@@ -330,7 +330,7 @@ private struct ClauseRow: View {
                     .buttonStyle(.borderless).help("Remove this condition")
             }
             if let problem {
-                Text(problem).font(Theme.ui(11)).foregroundStyle(Theme.err).padding(.leading, 198)
+                FieldNoteView(note: FieldNote("condition", problem)).padding(.leading, 198)
             }
         }
         .padding(.leading, 8)

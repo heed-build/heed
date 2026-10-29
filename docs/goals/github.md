@@ -14,7 +14,7 @@ keeps them up to date on its own; what colleagues do there comes back to you as 
 
 Each goal mirrors to its own **tracker repo**, which does not have to be a repo the work happens in: a team's planning
 repo, say, while the PRs land in three others. The new goal dialog fills it in from config, and you can change it
-there or later. Settings sets the default in General › Goals (**Tracker on GitHub**), and one per org or repo in
+there or later; one that is not `org/name` is said under the field, and ⌘↩ waits until it is fixed or cleared. Settings sets the default in General › Goals (**Tracker on GitHub**), and one per org or repo in
 [Orgs & repos](../configuration/settings.md#orgs-repos) (**Goal tracker**, on the General tab under Goals; a repo's wins over its org's):
 
 ```toml

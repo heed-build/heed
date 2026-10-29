@@ -22,6 +22,15 @@ struct SwarmForm: Equatable {
     var merge = SwarmSettings.Merge.repo
     /// Where it runs: a host, or nil for this Mac (`swarm.host`).
     var host: String?
+    /// A repo typed into the repo field (`owner/name`, a GitHub URL, a path), checked as you type (`RepoEntry`); ↩ or
+    /// ⌘↩ adds it once it is fine.
+    var repoEntry = ""
+    /// ⌘↩ was pressed: what is missing shows under its field from now on.
+    var tried = false
+    /// Cloning the picked repos that are not where it runs yet, or why that failed: shown under the repos.
+    var cloneNote: FieldNote?
+    /// Why the last `swarm.host` could not be read, shown under Where.
+    var hostProblem: String?
 
     var location: Location { host.map(Location.host) ?? .local }
 
@@ -49,6 +58,8 @@ struct PlanDraft: Equatable {
     var fields = SwarmTaskForm()
     /// Feedback, an answer, a reason.
     var text = ""
+    /// ⌘↩ was pressed: what is missing shows under its field from now on.
+    var tried = false
 
     var isTask: Bool {
         switch kind {

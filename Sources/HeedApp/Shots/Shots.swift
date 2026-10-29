@@ -204,6 +204,9 @@ enum Shots {
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),
         Shot(id: "start-work/repos", keys: "o" + prompt + "<Esc>j", crop: .dialog),
         Shot(id: "start-work/repo-search", keys: "o" + prompt + "<Esc>j/mar", crop: .dialog),
+        // Any repo, typed into the search: one heed has not seen is checked on GitHub, then cloned on ⌘↩.
+        Shot(id: "start-work/any-repo", keys: "o" + prompt + "<Esc>j/globex/report-engine", crop: .dialog),
+        Shot(id: "start-work/any-repo-picked", keys: "o" + prompt + "<Esc>j/globex/report-engine<CR>", crop: .dialog),
         Shot(id: "start-work/branch-name", keys: "o" + prompt + "<Esc>jj", crop: .dialog),
         Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjjjj", crop: .dialog),
         // The model field: h l step through the agent's models (Opus, two steps in), then its efforts (high).
@@ -517,6 +520,24 @@ enum Shots {
             model.goals.swarmForm?.lead = GoalItem.Owner(agent: "claude", model: "opus")
             model.goals.swarmForm?.workers = [SwarmSettings.Worker(agent: "claude", count: 3)]
             model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
+        }),
+        // What is wrong shows under its field: ⌘↩ pressed with no title and no repo, ⌘↩ greyed with the reason.
+        Shot(id: "goals/swarm-new-errors", crop: .swarmForm, cropPadding: 24, prepare: { model in
+            model.perform(CommandInvocation(name: "swarm.new"))
+            model.goals.swarmForm?.title = ""
+            model.goals.swarmForm?.statement = "Reports render in under a second on the big fixtures."
+            model.goals.swarmForm?.repos = []
+            model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
+            model.submitSwarmForm()
+        }),
+        // Any repo, typed: one heed has not seen is checked on GitHub, and cloned where the swarm runs on ⌘↩.
+        Shot(id: "goals/swarm-new-repo", crop: .swarmForm, cropPadding: 24, prepare: { model in
+            model.perform(CommandInvocation(name: "swarm.new"))
+            model.goals.swarmForm?.title = "Faster report rendering"
+            model.goals.swarmForm?.statement = "Reports render in under a second on the big fixtures."
+            model.goals.swarmForm?.repos = ["globex/markgraph"]
+            model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
+            model.setSwarmRepoEntry("globex/report-engine")
         }),
         Shot(id: "goals/swarm-plan", keys: "gGS"),
         Shot(id: "goals/swarm-questions", keys: "gGS", crop: .swarmQuestions, cropPadding: 8),

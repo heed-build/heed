@@ -79,9 +79,7 @@ struct CustomModelField: View {
                     .onSubmit(save)
                     .onChange(of: focused) { if !focused { save() } }
             }
-            if let problem {
-                Text(problem).font(Theme.ui(11)).foregroundStyle(Theme.block)
-            }
+            FieldNoteView(note: problem.map { FieldNote("model", $0) })
         }
     }
 

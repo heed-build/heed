@@ -136,6 +136,9 @@ Headless checks: `HEED_SNAPSHOT=out.png build/Heed.app/Contents/MacOS/Heed` rend
 `docs/` is a [docs-builder](https://github.com/elastic/docs-builder) site published to heed.build by
 `.github/workflows/docs.yml`; `docs/heed-landing.html` is a standalone page copied over the generated home page.
 `mise run docs` builds it the same way and serves it on :4000 (`docs-builder serve` would skip the landing page).
+Both build with docs-builder's design-system layout (`FEATURE_NAVIGATION_PREVIEW=true`), then run
+`scripts/docs-finish.sh`, which appends the heed theme (`docs/heed-docs.css`) to its stylesheet and patches the pages
+(`scripts/docs-pages.py`). `DOCS_BUILDER=<path> mise run docs` builds with a local docs-builder binary.
 
 ## Outside the window
 

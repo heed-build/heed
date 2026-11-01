@@ -27,9 +27,9 @@ if [[ -z "$path_prefix" ]] && grep -q 'prefix:' "$workflow"; then
 fi
 
 # docs-builder is a native binary, not a dotnet tool; cached under .artifacts. Delete it to pick up a newer release,
-# or set DOCS_BUILDER_VERSION to pin one.
-tool=".artifacts/tools/docs-builder"
-if [[ ! -x "$tool" ]]; then
+# or set DOCS_BUILDER_VERSION to pin one. DOCS_BUILDER=<path> uses that binary instead (a local build or install).
+tool="${DOCS_BUILDER:-.artifacts/tools/docs-builder}"
+if [[ -z "${DOCS_BUILDER:-}" && ! -x "$tool" ]]; then
   arch="$(uname -m)"; [[ "$arch" == "x86_64" ]] && arch="x64"
   archive="docs-builder-mac-$arch.zip"
   version="${DOCS_BUILDER_VERSION:-latest}"
@@ -46,18 +46,15 @@ if [[ ! -x "$tool" ]]; then
   chmod +x "$tool"
 fi
 
+# The design-system layout is behind a feature flag, read from the environment only.
+export FEATURE_NAVIGATION_PREVIEW=true
 if [[ -n "$path_prefix" ]]; then
   "$tool" build --path docs --path-prefix "$path_prefix"
 else
   "$tool" build --path docs
 fi
 out=".artifacts/docs/html"
-cp "$landing" "$out/index.html"
-cp docs/robots.txt "$out/robots.txt"
-cp install.sh "$out/install.sh"
-# docs-builder copies images, not fonts; the landing page needs its two.
-mkdir -p "$out/fonts" && cp docs/fonts/*.woff2 "$out/fonts/"
-echo "docs: built $out (landing page applied)"
+scripts/docs-finish.sh "$out" "$path_prefix"
 
 [[ "${1:-}" == "--noserve" ]] && exit 0
 echo "docs: serving http://localhost:4000"

@@ -85,5 +85,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # As .github/workflows/docs.yml builds it, so a PR proves the deploy's build and post-build steps.
       - name: Build documentation
         uses: elastic/docs-builder@main
+        env:
+          FEATURE_NAVIGATION_PREVIEW: true
+
+      - name: Theme and landing page
+        run: scripts/docs-finish.sh .artifacts/docs/html

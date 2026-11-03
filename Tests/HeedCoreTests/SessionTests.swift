@@ -1,3 +1,4 @@
+import Foundation
 @testable import HeedCore
 import Testing
 
@@ -6,7 +7,8 @@ private func pane(_ id: String) -> PaneSpec { PaneSpec(id: id, role: .shell, tit
 private func session(_ id: String, _ state: AgentState, pinned: Bool = false, parked: Bool = false) -> Session {
     Session(
         id: id, title: id, repos: [Repo(org: "o", name: "r")], branch: id, agent: "claude",
-        state: ObservedState(state), pinned: pinned, parked: parked
+        state: ObservedState(state), pinned: pinned, parked: parked,
+        lastActivity: Date(timeIntervalSince1970: 1_000_000)
     )
 }
 
@@ -55,6 +57,19 @@ struct SessionListTests {
         ])
         #expect(list.sections.map(\.group) == [.pinned, .needsYou, .working, .parked])
         #expect(list.ordered.map(\.id) == ["pin", "ask", "busy", "parked", "held"])
+    }
+
+    @Test func parkedSessionsListTheLastInteractedWithFirst() {
+        func parked(_ id: String, minutesAgo: Double) -> Session {
+            var result = session(id, .done)
+            result.lastActivity = Date(timeIntervalSince1970: 1_000_000 - minutesAgo * 60)
+            return result
+        }
+        let list = SessionList([
+            parked("old", minutesAgo: 90), session("busy", .working), parked("new", minutesAgo: 5),
+            parked("mid", minutesAgo: 30),
+        ])
+        #expect(list.ordered.map(\.id) == ["busy", "new", "mid", "old"])
     }
 
     @Test func relativeLineNumbers() {

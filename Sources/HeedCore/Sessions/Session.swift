@@ -363,7 +363,15 @@ public struct SessionList: Sendable {
         }
         sections = SessionGroup.allCases.compactMap { group in
             guard let members = grouped[group], !members.isEmpty else { return nil }
-            return Section(group: group, sessions: members)
+            // Parked is an archive of what you set aside: the one you touched last is on top. The sort is stable, so
+            // sessions with the same time keep the order they came in.
+            let shown = group == .parked
+                ? members.enumerated().sorted { lhs, rhs in
+                    lhs.element.lastActivity != rhs.element.lastActivity
+                        ? lhs.element.lastActivity > rhs.element.lastActivity : lhs.offset < rhs.offset
+                }.map(\.element)
+                : members
+            return Section(group: group, sessions: shown)
         }
         ordered = sections.flatMap(\.sessions)
     }

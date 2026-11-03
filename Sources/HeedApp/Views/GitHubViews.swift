@@ -766,10 +766,24 @@ struct ListBody<Row: View>: View {
                         }
                     }
                 }
-                .onChange(of: cursor) {
-                    if ids.indices.contains(cursor) { proxy.scrollTo(ids[cursor]) }
-                }
+                .onChange(of: cursor) { reveal(proxy) }
             }
+        }
+    }
+}
+
+private extension ListBody {
+    /// Scrolls the cursor row into view. Rows differ in height (section headers, summaries, wrapped tags), and a lazy
+    /// stack only estimates the offset of rows it has not laid out, so the first jump can land short of the row; a
+    /// second one, once the rows around it exist, settles on it.
+    func reveal(_ proxy: ScrollViewProxy) {
+        guard ids.indices.contains(cursor) else { return }
+        let id = ids[cursor]
+        proxy.scrollTo(id)
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(60))
+            guard ids.indices.contains(cursor), ids[cursor] == id else { return }
+            proxy.scrollTo(id)
         }
     }
 }

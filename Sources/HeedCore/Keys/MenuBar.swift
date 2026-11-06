@@ -25,6 +25,7 @@ public enum MenuBar {
         /// The view has a filter typed.
         public var filtered = false
         public var sidebarShown = true
+        public var sidebarTitles = false
         public var inspectorShown = true
         /// The tutor is running (its steps can be gone back, skipped or left).
         public var tutor = false
@@ -252,6 +253,7 @@ public enum MenuBar {
                 item("Where heed looks on a host…", "host.roots"),
                 .separator,
                 item("Sidebar", "sidebar.toggle", checked: facts.sidebarShown),
+                item("Session titles in the sidebar", "sidebar.titles", checked: facts.sidebarTitles),
                 item("Inspector", "inspector.toggle", checked: facts.inspectorShown),
                 .separator,
                 scoped("In Attention", [

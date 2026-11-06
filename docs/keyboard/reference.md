@@ -121,6 +121,7 @@ This page is generated from the code (`mise run shots`).
 | `cleanup.sweep` | `gC` | run the cleanup sweep now |
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
+| `sidebar.titles` | `zt` | show session titles / worktree names in the sidebar rows |
 | `config.edit` |  | open config.toml in $EDITOR |
 | `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |
 | `tutor.hide` `[all]` |  | hide the title bar's tutor reminder for this lesson (all: every reminder) |

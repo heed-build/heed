@@ -751,7 +751,9 @@ struct ListBody<Row: View>: View {
             ScrollViewReader { proxy in
                 ListScroll {
                     ListStack(spacing: 0) {
-                        ForEach(0 ..< count, id: \.self) { index in
+                        // Keyed by row id, not position: under a filter the same position holds another row, and a
+                        // row keyed by position kept the tap handler of the one it replaced.
+                        ForEach(Array(ids.prefix(count).enumerated()), id: \.element) { index, id in
                             row(index)
                                 .hint(hintView.flatMap { model.hintLabel(for: .row($0, index)) })
                                 .contentShape(Rectangle())
@@ -762,7 +764,7 @@ struct ListBody<Row: View>: View {
                                 .rightClickMenu { hintView.map { model.rightClickRow($0, index) } ?? false } _: {
                                     hintView.map { model.rowMenu($0, index) } ?? []
                                 }
-                                .id(ids[index])
+                                .id(id)
                         }
                     }
                 }

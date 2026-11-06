@@ -95,7 +95,8 @@ struct Sidebar: View {
                                         hostLink: session.host.map { model.hostStatus($0) },
                                         subagents: model.liveSubagents(of: session).count,
                                         pending: model.pendingChanges(of: session),
-                                        goal: model.goals.bySession[session.id]?.title
+                                        goal: model.goals.bySession[session.id]?.title,
+                                        showsTitle: model.sidebarShowsTitles
                                     )
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.clickSession(session.id) }
@@ -196,6 +197,8 @@ struct SessionRow: View {
     var pending = PendingChanges()
     /// The title of the goal it is on.
     var goal: String?
+    /// Lead with the session's title instead of its worktree name.
+    var showsTitle = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -209,11 +212,11 @@ struct SessionRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     if session.isChat { ChatGlyph() }
-                    Text(session.worktreeName)
+                    Text(showsTitle ? session.title : session.worktreeName)
                         .font(Theme.ui(13, weight: .medium))
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .help(session.title)
+                        .help(showsTitle ? session.worktreeName : session.title)
                     Spacer(minLength: 4)
                     PendingChips(pending: pending, hasPR: !session.trackedPRs.isEmpty)
                     if let pinNumber { KeyCap(text: "'\(pinNumber)") }

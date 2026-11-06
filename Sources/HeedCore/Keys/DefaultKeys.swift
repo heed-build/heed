@@ -45,7 +45,7 @@ public enum DefaultKeys {
             "gC",
             "cleanup.sweep"
         ),
-        ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"),
+        ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("zt", "sidebar.titles"),
         // The pilot, the same keys everywhere: the PR under the cursor, the open PR, or the session's PRs.
         ("z?", "pilot.why"), ("zv", "pilot.reviewers"), ("gb", "pilot.run"), ("zx", "pilot.run.stop"),
         ("zw", "pilot.watch"), ("zg", "pilot.green"), ("zm", "pilot.merge"), ("zM", "pilot.merge.now"), (

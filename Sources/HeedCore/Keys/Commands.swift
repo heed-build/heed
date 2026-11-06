@@ -192,6 +192,7 @@ public enum Commands {
         .init("cleanup.sweep", "run the cleanup sweep now", .views),
         .init("inspector.toggle", "collapse / expand the inspector", .views),
         .init("sidebar.toggle", "collapse / expand the sessions sidebar", .views),
+        .init("sidebar.titles", "show session titles / worktree names in the sidebar rows", .views),
         .init("config.edit", "open config.toml in $EDITOR", .views),
         .init(
             "tutor", "the tutor: pick a lesson, or start one by name (tour, sessions, prs…)", .views,

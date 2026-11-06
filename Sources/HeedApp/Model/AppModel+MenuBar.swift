@@ -15,6 +15,7 @@ extension AppModel {
         facts.zoomed = currentTab?.zoomed ?? false
         facts.filtered = !(filters[view] ?? "").isEmpty
         facts.sidebarShown = !sidebarCollapsed
+        facts.sidebarTitles = sidebarShowsTitles
         facts.inspectorShown = inspectorVisible
         facts.tutor = tutor != nil
         facts.hunchDownloading = !hunch.downloading.isEmpty

@@ -321,6 +321,11 @@ final class AppModel {
         didSet { if !isFixture { UserDefaults.standard.set(inspectorVisible, forKey: "inspectorVisible") } }
     }
 
+    /// Sidebar rows lead with the session's title instead of its worktree name.
+    private(set) var sidebarShowsTitles = UserDefaults.standard.bool(forKey: "sidebarShowsTitles") {
+        didSet { if !isFixture { UserDefaults.standard.set(sidebarShowsTitles, forKey: "sidebarShowsTitles") } }
+    }
+
     private(set) var sidebarCollapsed = UserDefaults.standard.bool(forKey: "sidebarCollapsed") {
         didSet { if !isFixture { UserDefaults.standard.set(sidebarCollapsed, forKey: "sidebarCollapsed") } }
     }
@@ -2619,6 +2624,7 @@ final class AppModel {
             }
         case "inspector.toggle": inspectorVisible.toggle()
         case "sidebar.toggle": sidebarCollapsed.toggle()
+        case "sidebar.titles": sidebarShowsTitles.toggle()
         case "mode.normal", "mode.insert", "mode.visual", "mode.command", "mode.hint":
             // A key has switched already (ModeEngine does); from `:` the switch happens here.
             if let target = Mode(rawValue: String(command.name.dropFirst(5))), engine.mode != target {

@@ -17,62 +17,32 @@ struct GoalPaneBar: View {
             swarm: !swarms.isEmpty, approved: swarms.first?.approved != nil,
             counts: goals.tabCounts(needsYou: needsYou)
         )
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                crumb(goal: goal?.title, pane: goals.pane.rawValue)
-                Spacer(minLength: 12)
+        let pane = goals.pane.rawValue
+        let parts = GoalPaneTabs.crumb(goal: goal?.title, pane: pane)
+        PaneBar(
+            // The goal's name goes back to its overview.
+            crumb: parts.enumerated().map { index, part in
+                PaneCrumb(
+                    part,
+                    runs: index == 1 && pane != "unassigned" ? CommandInvocation(name: "goal.overview") : nil
+                )
+            },
+            tabs: tabs.map { tab in
+                PaneBarTab(
+                    id: tab.pane, title: tab.title, command: tab.command, count: tab.count,
+                    showsKey: tab.command != "goal.overview",
+                    // Unassigned is Goals', not the goal's.
+                    gapBefore: tab.pane == "unassigned"
+                )
+            },
+            active: pane, scope: "goals", tabsRegion: .goalPaneTabs,
+            select: { selected in
+                if let tab = tabs.first(where: { $0.pane == selected.id }) { model.showGoalPane(tab) }
+            },
+            trailing: {
                 if let goal, goals.pane != .unassigned { GoalProgressLine(goal: goal) }
             }
-            .padding(.horizontal, 20)
-            .frame(height: 44)
-            .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
-            ViewThatFits(in: .horizontal) {
-                strip(tabs, keys: true)
-                strip(tabs, keys: false)
-            }
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 40)
-            .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
-            .shotRegion(.goalPaneTabs)
-        }
-    }
-
-    private func crumb(goal: String?, pane: String) -> some View {
-        let parts = GoalPaneTabs.crumb(goal: goal, pane: pane)
-        return HStack(spacing: 7) {
-            ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
-                if index > 0 { Text("›").foregroundStyle(Theme.fg3) }
-                let last = index == parts.count - 1
-                Text(part)
-                    .foregroundStyle(last ? Theme.fg : Theme.fg2)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    // The goal's name goes back to its overview.
-                    .clickRuns(index == 1 && !last && pane != "unassigned"
-                        ? CommandInvocation(name: "goal.overview") : nil)
-            }
-        }
-        .font(Theme.ui(13, weight: .medium))
-    }
-
-    private func strip(_ tabs: [GoalPaneTabs.Tab], keys: Bool) -> some View {
-        HStack(spacing: 4) {
-            ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
-                // A hairline between tabs, and a wider gap before Unassigned, which is Goals', not the goal's.
-                if index > 0 {
-                    if tab.pane == "unassigned" { Spacer(minLength: 12) }
-                    Theme.line.frame(width: 1, height: 14)
-                }
-                let active = model.goals.pane.rawValue == tab.pane
-                TabLabel(
-                    title: tab.title, active: active, count: tab.count > 0 ? "\(tab.count)" : nil,
-                    key: keys && tab.command != "goal.overview" ? model.keyText(for: tab.command, in: "goals") : nil
-                )
-                .onTapGesture { model.showGoalPane(tab) }
-                .help(Commands.spec(tab.command)?.summary ?? tab.title)
-            }
-        }
+        )
     }
 }
 

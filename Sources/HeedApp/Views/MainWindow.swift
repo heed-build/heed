@@ -56,6 +56,11 @@ struct MainWindow: View {
                             HistoryPaneBar().shotRegion(.historyPaneBar)
                             DashboardView()
                         }
+                    case .mindmap:
+                        VStack(spacing: 0) {
+                            HistoryPaneBar().shotRegion(.historyPaneBar)
+                            MindmapView()
+                        }
                     case .goals:
                         GoalsView()
                     }
@@ -392,6 +397,9 @@ struct StatusBar: View {
         case .ledger:
             let rows = model.ledger.rows
             return "\(rows.isEmpty ? 0 : model.ledger.cursor + 1)/\(rows.count)"
+        case .mindmap:
+            let rows = model.mindmap.siblings
+            return "\(rows.isEmpty ? 0 : model.mindmap.cursor + 1)/\(rows.count)"
         case .dashboard:
             return DashboardText.range(model.dashboard.range)
         case .goals:
@@ -474,6 +482,13 @@ struct StatusBar: View {
                 ("history.timeline", "list"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "timeline")) \($0.1)" }.joined(separator: " · ") + " · { } day · / search"
+        case .normal where model.view == .mindmap:
+            [
+                ("mindmap.out", "out"), ("mindmap.in", "in"), ("mindmap.accept", "keep"), ("mindmap.move", "move"),
+                ("mindmap.nest", "group"), ("mindmap.done", "done"), ("mindmap.less", "less"),
+                ("mindmap.more", "more"), ("mindmap.org.next", "org"), ("history.mindmap", "list"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "mindmap")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .dashboard:
             [
                 ("dashboard.range", "range"),

@@ -105,22 +105,31 @@ public enum DefaultKeys {
             ("T", "history.timeline"),
             ("L", "history.ledger"),
             ("D", "history.dashboard"),
+            ("M", "history.mindmap"),
         ],
         // History's timeline (T, :timeline); T again goes back to the list.
         "timeline": [
-            ("T", "history.timeline"), ("L", "history.ledger"), ("D", "history.dashboard"), ("R", "history.reopen"),
-            ("<CR>", "history.reopen"), ("t", "timeline.kind"),
+            ("T", "history.timeline"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"),
+            ("R", "history.reopen"), ("<CR>", "history.reopen"), ("t", "timeline.kind"),
             ("r", "timeline.repo"), ("w", "timeline.where"), ("c", "timeline.gone"),
         ],
         // History's ledger (L, :ledger); L again goes back to the list.
         "ledger": [
-            ("L", "history.ledger"), ("T", "history.timeline"), ("D", "history.dashboard"), ("R", "history.reopen"),
-            ("<CR>", "history.reopen"), ("S", "ledger.summarize"), ("E", "ledger.edit"),
+            ("L", "history.ledger"), ("T", "history.timeline"), ("D", "history.dashboard"), ("M", "history.mindmap"),
+            ("R", "history.reopen"), ("<CR>", "history.reopen"), ("S", "ledger.summarize"), ("E", "ledger.edit"),
         ],
         // History's dashboard (D, :dashboard); D again goes back to the list.
         "dashboard": [
-            ("D", "history.dashboard"), ("T", "history.timeline"), ("L", "history.ledger"), ("R", "history.reopen"),
-            ("<CR>", "history.reopen"), ("r", "dashboard.range"),
+            ("D", "history.dashboard"), ("T", "history.timeline"), ("L", "history.ledger"), ("M", "history.mindmap"),
+            ("R", "history.reopen"), ("<CR>", "history.reopen"), ("r", "dashboard.range"),
+        ],
+        // History's Mindmap (M, :mindmap): j k move among siblings, h l out and in; M again goes back to the list.
+        "mindmap": [
+            ("M", "history.mindmap"), ("T", "history.timeline"), ("L", "history.ledger"), ("D", "history.dashboard"),
+            ("h", "mindmap.out"), ("l", "mindmap.in"), ("-", "mindmap.less"), ("=", "mindmap.more"),
+            ("]o", "mindmap.org.next"), ("[o", "mindmap.org.prev"), ("y", "mindmap.accept"), ("x", "mindmap.done"),
+            ("p", "mindmap.pin"), (">", "mindmap.nest"), ("<", "mindmap.lift"), ("r", "mindmap.rename"),
+            ("m", "mindmap.move"), ("J", "mindmap.join"), ("S", "mindmap.name"), ("<CR>", "mindmap.open"),
         ],
         // Goals (gG): j k move through the goals, ⇥ to what belongs to the one under the cursor, ↩ opens.
         "goals": goals,

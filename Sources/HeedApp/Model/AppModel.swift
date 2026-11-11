@@ -11,6 +11,8 @@ enum AppView: String, CaseIterable, Identifiable {
     case ledger
     /// History's dashboard (`history.dashboard`): under History's tab too.
     case dashboard
+    /// History's Mindmap (`history.mindmap`): under History's tab too.
+    case mindmap
 
     var id: String { rawValue }
 
@@ -18,11 +20,11 @@ enum AppView: String, CaseIterable, Identifiable {
     /// are still there as `:inbox`, `:issues` and `:prs`; the call log is reached with `:log` only, the timeline,
     /// ledger and dashboard from History.
     static var tabs: [AppView] {
-        allCases.filter { ![.log, .timeline, .ledger, .dashboard, .inbox, .issues, .prs].contains($0) }
+        allCases.filter { ![.log, .timeline, .ledger, .dashboard, .mindmap, .inbox, .issues, .prs].contains($0) }
     }
 
     /// The tab that is lit while this view shows.
-    var tab: AppView { [.timeline, .ledger, .dashboard].contains(self) ? .history : self }
+    var tab: AppView { [.timeline, .ledger, .dashboard, .mindmap].contains(self) ? .history : self }
 
     var title: String {
         switch self {
@@ -39,6 +41,7 @@ enum AppView: String, CaseIterable, Identifiable {
         case .timeline: "Timeline"
         case .ledger: "Ledger"
         case .dashboard: "Dashboard"
+        case .mindmap: "Mindmap"
         }
     }
 
@@ -48,6 +51,7 @@ enum AppView: String, CaseIterable, Identifiable {
         case .timeline: "history.timeline"
         case .ledger: "history.ledger"
         case .dashboard: "history.dashboard"
+        case .mindmap: "history.mindmap"
         default: "view.\(rawValue)"
         }
     }
@@ -689,7 +693,7 @@ final class AppModel {
         case .sessions, .prs, .watch, .repos, .history: [.pulls]
         // Goals show their sessions' PRs, merged or not.
         case .goals: [.pulls]
-        case .log, .timeline, .ledger, .dashboard: []
+        case .log, .timeline, .ledger, .dashboard, .mindmap: []
         }
     }
 
@@ -2019,6 +2023,9 @@ final class AppModel {
         case .dashboard:
             guard let row = dashboard.selected else { return nil }
             return TitleContext(lead: "dashboard", main: row.place, detail: row.title)
+        case .mindmap:
+            guard let node = mindmap.focused else { return nil }
+            return TitleContext(lead: "mindmap", main: node.title, detail: MindmapInstance.title(mindmap.instance))
         case .goals:
             guard let goal = goals.selected else { return nil }
             return TitleContext(lead: "goal", main: goal.title, tags: ["v\(goal.version)"])
@@ -2110,6 +2117,7 @@ final class AppModel {
         case .timeline: timeline.rows.indices.map { HintTarget.row(.timeline, $0) }
         case .ledger: ledger.rows.indices.map { HintTarget.row(.ledger, $0) }
         case .dashboard: dashboard.board.recent.indices.map { HintTarget.row(.dashboard, $0) }
+        case .mindmap: mindmap.siblings.indices.map { HintTarget.row(.mindmap, $0) }
         case .goals: (0 ..< goals.rowCount).map { HintTarget.row(.goals, $0) }
         }
         return zip(HintLabels.generate(count: targets.count), targets).map { ($0, $1) }
@@ -2424,6 +2432,7 @@ final class AppModel {
         case "view.log": view = .log
         case "view.timeline": view = .timeline
         case "view.ledger": view = .ledger
+        case "view.mindmap": view = .mindmap
         case "view.dashboard": view = .dashboard
         case "view.goals": view = .goals
         case "goal.doc": toggleGoalDoc()
@@ -2537,6 +2546,11 @@ final class AppModel {
         case "dashboard.range": dashboard.cycleRange(command.arguments.first)
         case "history.ledger": view = view == .ledger ? .history : .ledger
         case "history.list": view = .history
+        case "history.mindmap": view = view == .mindmap ? .history : .mindmap
+        case "mindmap.in", "mindmap.out", "mindmap.less", "mindmap.more", "mindmap.org.next", "mindmap.org.prev",
+             "mindmap.accept", "mindmap.done", "mindmap.pin", "mindmap.nest", "mindmap.lift", "mindmap.rename",
+             "mindmap.move", "mindmap.join", "mindmap.name", "mindmap.open":
+            performMindmap(command)
         case "ledger.summarize": summarizeLedgerNow()
         case "ledger.edit": editLedger(command.arguments)
         case "history.timeline": view = view == .timeline ? .history : .timeline
@@ -2756,6 +2770,7 @@ final class AppModel {
         case .timeline: timeline.rows.map(\.id)
         case .ledger: ledger.rows.map(\.id)
         case .dashboard: dashboard.board.recent.map(\.id)
+        case .mindmap: mindmap.siblings.map(\.id)
         case .sessions, .goals: []
         default: itemIDs(list)
         }
@@ -2862,6 +2877,7 @@ final class AppModel {
         case .timeline: setRow(timeline.cursor + delta)
         case .ledger: setRow(ledger.cursor + delta)
         case .dashboard: setRow(dashboard.cursor + delta)
+        case .mindmap: setRow(mindmap.cursor + delta)
         case .goals: setRow(goals.rowCursor + delta)
         case .attention, .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
@@ -2886,6 +2902,7 @@ final class AppModel {
         case .timeline: (timeline.rows.map { Calendar.current.startOfDay(for: $0.at).description }, timeline.cursor)
         case .ledger: (ledger.rows.map { Calendar.current.startOfDay(for: $0.updatedAt).description }, ledger.cursor)
         case .dashboard: (dashboard.board.recent.map(\.place), dashboard.cursor)
+        case .mindmap: (mindmap.siblings.map(\.kind.rawValue), mindmap.cursor)
         // Active, done and archived goals are groups.
         case .goals: goals.focus == .goals ? (goals.rows.map(\.status.rawValue), goals.cursor) : ([], 0)
         }
@@ -3473,6 +3490,8 @@ final class AppModel {
                 ledger.setCursor(index)
             case .dashboard:
                 dashboard.setCursor(index)
+            case .mindmap:
+                mindmap.setCursor(index)
             case .goals:
                 goals.setCursor(index)
                 if thenInsert { openGoalRow() }
@@ -4489,6 +4508,11 @@ final class AppModel {
         case .dashboard:
             let id = dashboard.selected?.id
             return (sessions + history.map(\.session)).first { $0.id == id }?.repos ?? []
+        case .mindmap:
+            return (mindmap.focused?.entry.flatMap { ledger.entries[$0] }?.repos ?? []).compactMap { slug in
+                let parts = slug.split(separator: "/", maxSplits: 1)
+                return parts.count == 2 ? Repo(org: String(parts[0]), name: String(parts[1])) : nil
+            }
         case .ledger:
             return ledger.selected?.repos.compactMap { slug in
                 let parts = slug.split(separator: "/", maxSplits: 1)
@@ -6561,6 +6585,7 @@ final class AppModel {
         case .timeline: timeline.setCursor(0)
         case .ledger: ledger.setCursor(0)
         case .dashboard: dashboard.setCursor(0)
+        case .mindmap: mindmap.setCursor(0)
         case .goals: goals.setCursor(0)
         case .repos: repoCursor = 0
         case .attention, .inbox, .issues, .prs, .watch: itemCursor[view] = 0
@@ -6576,6 +6601,7 @@ final class AppModel {
         case .timeline: timeline.rows.count
         case .ledger: ledger.rows.count
         case .dashboard: dashboard.board.recent.count
+        case .mindmap: mindmap.siblings.count
         case .goals: goals.rows.count
         case .repos: worktreeRows.count
         case .attention, .inbox, .issues, .prs, .watch: itemIDs(view).count
@@ -6673,7 +6699,7 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
-        case .log, .timeline, .ledger, .dashboard, .goals:
+        case .log, .timeline, .ledger, .dashboard, .mindmap, .goals:
             return nil
         case .attention:
             let ids = Set(actionIDs(.attention))
@@ -7638,6 +7664,9 @@ final class AppModel {
         case .dashboard:
             state.cursor = dashboard.cursor
             state.rows = dashboard.board.recent.count
+        case .mindmap:
+            state.cursor = mindmap.cursor
+            state.rows = mindmap.siblings.count
         case .goals:
             state.cursor = goals.rowCursor
             state.rows = goals.rowCount

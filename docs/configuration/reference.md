@@ -277,7 +277,7 @@ setup_reminder = true
 # A cheap model names campaigns for work that fits none ([llm]); Hunch, or whichever decider is set, places new
 # work into them. While shadow is on, every placement waits for you (y keeps it, m moves it), and Settings ›
 # Inference & decisions shows how often heed had it right; off, sure placements stand on their own.
-# enabled = false
+# enabled = true
 # shadow = true
 
 [local]

@@ -16,10 +16,13 @@ public enum HistoryPaneTabs {
         public var sessions = 0
         /// Pieces of work in the ledger.
         public var ledger = 0
+        /// Follow-ups still open in the Mindmap shown.
+        public var open = 0
 
-        public init(sessions: Int = 0, ledger: Int = 0) {
+        public init(sessions: Int = 0, ledger: Int = 0, open: Int = 0) {
             self.sessions = sessions
             self.ledger = ledger
+            self.open = open
         }
     }
 
@@ -29,6 +32,7 @@ public enum HistoryPaneTabs {
         ("timeline", "Timeline", "history.timeline"),
         ("ledger", "Ledger", "history.ledger"),
         ("dashboard", "Dashboard", "history.dashboard"),
+        ("mindmap", "Mindmap", "history.mindmap"),
     ]
 
     public static func tabs(counts: Counts = Counts()) -> [Tab] {
@@ -36,6 +40,7 @@ public enum HistoryPaneTabs {
             let count = switch pane.pane {
             case "history": counts.sessions
             case "ledger": counts.ledger
+            case "mindmap": counts.open
             default: 0
             }
             return Tab(pane: pane.pane, title: pane.title, command: pane.command, count: count)

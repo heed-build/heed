@@ -363,3 +363,29 @@ struct MindmapStatsTests {
         #expect(stats.total.rate == 0.5)
     }
 }
+
+struct MindmapFactsTests {
+    @Test func factsAddUpTheWorkUnderANodeFromTheLedger() {
+        var one = entry("e1", "a", files: ["Toc.cs", "Nav.cs"])
+        one.pulls = [PullRef(repo: Repo(org: "acme", name: "docs"), number: 1)]
+        one.agentTime = 600
+        one.agent = "claude"
+        var two = entry("e2", "b", repos: ["acme/site"], files: ["Toc.cs"])
+        two.pulls = [PullRef(repo: Repo(org: "acme", name: "site"), number: 2)]
+        two.outcome = "PR open"
+        two.agentTime = 300
+        two.agent = "codex"
+        let tree = MindmapTree([
+            campaign("nav", "Nav"), MindNode.work(one, parent: "nav", now: t0), MindNode.work(
+                two,
+                parent: "nav",
+                now: t0
+            ),
+        ])
+        let facts = MindmapFacts(of: "nav", in: tree, ledger: ["e1": one, "e2": two])
+        #expect(facts.pieces == 2 && facts.pulls == 2 && facts.openPulls == 1)
+        #expect(facts.agentTime == 900)
+        #expect(facts.repos == ["docs-toolkit", "site"] && facts.agents == ["claude", "codex"])
+        #expect(facts.mostTouched?.file == "Toc.cs" && facts.mostTouched?.times == 2)
+    }
+}

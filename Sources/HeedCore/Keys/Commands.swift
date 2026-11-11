@@ -104,7 +104,7 @@ public enum Commands {
             "view",
             "switch view",
             .views,
-            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|goals|log>"
+            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|mindmap|goals|log>"
         ),
         .init("view.sessions", "sessions", .views),
         .init(
@@ -125,6 +125,7 @@ public enum Commands {
         .init("view.timeline", "History's timeline: sessions, worktrees, PRs and questions, by day", .views),
         .init("view.dashboard", "History's dashboard: what the work amounted to over a range", .views),
         .init("view.ledger", "History's ledger: a summary of each piece of work, kept after its worktree", .views),
+        .init("view.mindmap", "History's Mindmap: the work grouped into campaigns, one Mindmap per org", .views),
         .init("view.goals", "goals: long-running work, what belongs to each goal, and its GOAL.md", .views),
         .init("goal.overview", "Goals: back to the goal's overview from any of its panes", .views),
         .init("goal.doc", "Goals: the goal's GOAL.md and its versions (again: the overview)", .views),
@@ -277,6 +278,10 @@ public enum Commands {
         .init("timeline.gone", "timeline: show or hide removed worktrees", .selection),
         .init("history.ledger", "History's ledger: a summary of each piece of work (again: back to the list)", .views),
         .init("history.dashboard", "History's dashboard: sessions, agent time, PRs, by day, agent and repo", .views),
+        .init(
+            "history.mindmap", "History's Mindmap: the work grouped into campaigns, per org (again: back to the list)",
+            .views
+        ),
         .init(
             "dashboard.range", "dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w)",
             .selection, arguments: "[days]"
@@ -577,6 +582,31 @@ public enum Commands {
             arguments: "<1|-1|lens>"
         ),
         .init("ledger.summarize", "write the ledger summary of this work now", .selection),
+        .init("mindmap.in", "Mindmap: into what the node under the cursor holds", .selection),
+        .init("mindmap.out", "Mindmap: out to the node that holds this one", .selection),
+        .init("mindmap.less", "Mindmap: draw one level less to the right", .selection),
+        .init("mindmap.more", "Mindmap: draw one level more to the right", .selection),
+        .init("mindmap.org.next", "Mindmap: the next org's Mindmap (personal last)", .selection),
+        .init("mindmap.org.prev", "Mindmap: the previous org's Mindmap", .selection),
+        .init("mindmap.accept", "Mindmap: keep the suggested placement as it is", .selection),
+        .init("mindmap.done", "Mindmap: mark the node's first open follow-up done", .selection),
+        .init("mindmap.pin", "Mindmap: pin the node's first decision so it shows above it (again: unpin)", .selection),
+        .init("mindmap.nest", "Mindmap: put the node in a new group with its next sibling", .selection),
+        .init("mindmap.lift", "Mindmap: lift the node out of what holds it", .selection),
+        .init(
+            "mindmap.rename", "Mindmap: rename the node (no title: the command line opens with it)", .selection,
+            arguments: "[title]"
+        ),
+        .init(
+            "mindmap.move", "Mindmap: move the node into a campaign or group by its title (top: to the top)",
+            .selection, arguments: "[title|top]"
+        ),
+        .init(
+            "mindmap.join", "Mindmap: move everything in the node into another by its title, and drop it",
+            .selection, arguments: "[title]"
+        ),
+        .init("mindmap.name", "Mindmap: name campaigns for the work waiting in Unsorted now", .selection),
+        .init("mindmap.open", "Mindmap: a piece of work's ledger entry", .selection),
         .init(
             "ledger.edit", "edit the ledger entry's summary (no text: the command line opens with it)", .selection,
             arguments: "[text]"

@@ -19,6 +19,8 @@ final class MindmapModel {
     @ObservationIgnored var sessionBriefs: [String: String] = [:]
     /// The node (and its instance) a session was started on with `s`, by session id. Since launch only.
     @ObservationIgnored var sessionNodes: [String: (instance: String, node: String)] = [:]
+    /// What Hunch read in a finished session's last message: the question it left, by ledger id ("" for none).
+    @ObservationIgnored var unanswered: [String: String] = [:]
 
     init(fixture: Bool, directory: URL = MindmapStore.defaultDirectory()) {
         self.fixture = fixture

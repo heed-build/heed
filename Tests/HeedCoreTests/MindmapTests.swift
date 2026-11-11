@@ -500,3 +500,60 @@ struct MemoryCommandTests {
         #expect(files["skills/heed-goal/SKILL.md"] != nil)
     }
 }
+
+struct LooseEndsTests {
+    private let ref = PullRef(repo: Repo(org: "acme", name: "docs"), number: 7)
+
+    private func pull(state: PullRequest.State = .open, failed: Int = 0, threads: Int = 0, quietDays: Double = 0)
+        -> PullRequest
+    {
+        PullRequest(
+            ref: ref, title: "t", url: "u", state: state, isDraft: false, headBranch: "b", review: nil,
+            checks: CheckSummary(failed: failed, failedNames: failed > 0 ? ["build"] : []), unresolvedThreads: threads,
+            updatedAt: t0.addingTimeInterval(-quietDays * 86400)
+        )
+    }
+
+    @Test func everyKindComesFromAFactHeedAlreadyHas() {
+        var work = entry("e1", "nav tables")
+        work.pulls = [ref]
+        let open = LooseEnds.of(work, facts: .init(pulls: [pull(failed: 1, threads: 2, quietDays: 9)]), now: t0)
+        #expect(open.map(\.kind) == [.stalePR, .threads, .redCI])
+        var saved = entry("e2", "spike")
+        saved.outcome = "cleaned up"
+        saved.endedAt = t0
+        saved.diff = DiffStat(files: 3, added: 10, removed: 1)
+        #expect(LooseEnds.of(saved, facts: .init(), now: t0).map(\.kind) == [.saved, .noPR])
+        var dropped = entry("e3", "labels")
+        dropped.outcome = "abandoned"
+        dropped.endedAt = t0
+        #expect(LooseEnds.of(dropped, facts: .init(unanswered: "Wrap or truncate?"), now: t0).map(\.kind)
+            == [.question, .abandoned])
+        // Written down already, or landed: nothing loose.
+        dropped.followUps = ["Measure after wrapping"]
+        #expect(LooseEnds.of(dropped, facts: .init(), now: t0).isEmpty)
+        #expect(LooseEnds.of(work, facts: .init(pulls: [pull(state: .merged, failed: 1)]), now: t0).isEmpty)
+    }
+
+    @Test func aLooseEndGoesWhenItsFactDoesAndOneYouDismissedStaysDismissed() {
+        var work = entry("e1", "nav tables", followUps: ["Collapsed by default?"])
+        work.pulls = [ref]
+        var node = MindNode.work(work, parent: nil, now: t0)
+        let red = LooseEnds.of(work, facts: .init(pulls: [pull(failed: 1, threads: 1)]), now: t0)
+        node.open = LooseEnds.merge(red, into: node.open)
+        #expect(node.open.map(\.kind) == [.followUp, .threads, .redCI])
+        var tree = MindmapTree([node])
+        tree.resolve(red[0].text, in: node.id, now: t0)
+        node = tree[node.id]!
+        let still = LooseEnds.of(work, facts: .init(pulls: [pull(threads: 1)]), now: t0)
+        node.open = LooseEnds.merge(still, into: node.open)
+        // CI went green: that one is gone; the thread you dismissed stays dismissed; the follow-up is untouched.
+        #expect(node.open.map(\.kind) == [.followUp, .threads])
+        #expect(node.open[1].resolvedBy == "you" && node.stillOpen.map(\.kind) == [.followUp])
+        // Writing the ledger entry again keeps the loose ends.
+        MindmapPlace.record(work, placed: nil, in: &tree, now: t0)
+        tree.upsert(node)
+        MindmapPlace.record(work, placed: nil, in: &tree, now: t0)
+        #expect(tree.work(for: "e1")?.open.map(\.kind) == [.followUp, .threads])
+    }
+}

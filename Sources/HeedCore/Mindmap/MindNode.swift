@@ -65,9 +65,18 @@ public struct MindNode: Codable, Hashable, Sendable, Identifiable {
     }
 
     public struct OpenItem: Codable, Hashable, Sendable {
-        public enum Kind: String, Codable, Hashable, Sendable {
+        public enum Kind: String, Codable, Hashable, Sendable, CaseIterable {
             /// A follow-up the summary wrote down.
             case followUp = "follow-up"
+            /// Loose ends: what the work left unfinished that nobody wrote down, read from what heed knows of it.
+            /// They clear themselves when that changes (`LooseEnds`).
+            case saved = "saved work"
+            case noPR = "no PR"
+            case stalePR = "quiet PR"
+            case threads = "review threads"
+            case redCI = "red CI"
+            case question = "unanswered"
+            case abandoned
         }
 
         public var kind: Kind

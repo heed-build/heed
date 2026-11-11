@@ -38,7 +38,11 @@ public extension Fixtures {
         ])
         for node in [
             work("h-docs-nav-spike-v1", in: "campaign:docs-nav"), work("h-fix-toc-ordering", in: "campaign:docs-nav"),
-            work("s1", in: "campaign:links", suggested: true),
+            work("s1", in: "campaign:links", suggested: true).map { node in
+                var node = node
+                node.open.append(.init(kind: .threads, text: "docs-toolkit#2841: 2 review threads open", source: "s1"))
+                return node
+            },
         ].compactMap(\.self) {
             acme.upsert(node)
         }

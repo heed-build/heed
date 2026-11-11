@@ -251,7 +251,11 @@ private struct MindmapDetail: View {
                     section("Open · \(open.count)") {
                         ForEach(open, id: \.self) { item in
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(item.text).font(Theme.ui(12.5))
+                                HStack(spacing: 6) {
+                                    if item
+                                        .kind != .followUp { MindmapTag(text: item.kind.rawValue, tint: Theme.block) }
+                                    Text(item.text).font(Theme.ui(12.5))
+                                }
                                 Text(source(item.source)).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
                             }
                             .padding(.leading, 8)

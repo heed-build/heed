@@ -74,8 +74,44 @@ extension AppModel {
             MindmapPlace.record(entry, placed: placed, in: &tree, now: Date())
             MindmapPlace.apply(held, entry: entry, to: &tree, now: Date())
         }
+        await readUnanswered(entry, session: session)
+        await refreshLooseEnds(instance)
         await nameMindmapCampaigns(instance)
         applyGoalBriefs()
+    }
+
+    /// Whether a finished session's last message left a question nobody answered: one yes/no for Hunch, once.
+    private func readUnanswered(_ entry: LedgerEntry, session: Session?) async {
+        guard entry.endedAt != nil, mindmap.unanswered[entry.id] == nil, decisionsOn,
+              let message = session?.lastMessage, !message.isEmpty
+        else { return }
+        let tail = String(message.suffix(1500))
+        let answers = try? await decider(caller: "mindmap.loose").decide(
+            subject: "mindmap:\(entry.id)", state: tail, questions: ["asks": LooseEnds.questionCheck]
+        )
+        let asks = (answers?["asks"]?.probability ?? 0) >= MindmapPlace.checkHolds
+        let line = tail.split(separator: "\n").last { $0.contains("?") }.map(String.init) ?? "a question"
+        mindmap.unanswered[entry.id] = asks ? String(line.prefix(160)) : ""
+    }
+
+    /// Every piece of work's loose ends in `instance`, worked out again from what heed knows now.
+    func refreshLooseEnds(_ instance: String) async {
+        let pulls = Dictionary(github.pulls.map { ($0.ref, $0) }) { first, _ in first }
+        let now = Date()
+        let entries = ledger.entries
+        let unanswered = mindmap.unanswered
+        await mindmap.change(instance) { tree in
+            for node in tree.nodes.values where node.kind == .work {
+                guard let id = node.entry, let entry = entries[id] else { continue }
+                let facts = LooseEnds.Facts(
+                    pulls: entry.pulls.compactMap { pulls[$0] },
+                    unanswered: unanswered[id].flatMap { $0.isEmpty ? nil : $0 }
+                )
+                var updated = node
+                updated.open = LooseEnds.merge(LooseEnds.of(entry, facts: facts, now: now), into: node.open)
+                if updated.open != node.open { tree.upsert(updated) }
+            }
+        }
     }
 
     /// Campaigns for the work that waits in Unsorted, when enough of it does and today's budget allows.

@@ -451,3 +451,52 @@ struct MemoryBriefTests {
         #expect(settings.signOffArguments(agent: agent, repo: nil, session: "s2").isEmpty)
     }
 }
+
+struct MemoryCommandTests {
+    @Test func theCommandNeedsASessionsShellAndWordsToSearch() throws {
+        let env = [HeedEnvironment.sessionID: "s1"]
+        let request = try MemoryCommandLine.request(["memory", "search", "toc", "order"], environment: env)
+        #expect(request.method == .memory && request.session == "s1")
+        #expect(request.arguments == ["search", "toc", "order"])
+        #expect(throws: MemoryCommandLine.UsageError.self) { try MemoryCommandLine.request(
+            ["memory", "show"],
+            environment: [:]
+        ) }
+        #expect(throws: MemoryCommandLine.UsageError.self) { try MemoryCommandLine.request(
+            ["memory", "search"],
+            environment: env
+        ) }
+        #expect(throws: MemoryCommandLine.UsageError.self) { try MemoryCommandLine.request(
+            ["memory", "forget"],
+            environment: env
+        ) }
+    }
+
+    private func world() -> (MindmapTree, [String: LedgerEntry]) {
+        let toc = entry("e1", "fix toc ordering", decisions: ["Index order wins"], followUps: ["Stable sibling key"])
+        return (MindmapTree([campaign("nav", "Docs nav"), MindNode.work(toc, parent: "nav", now: t0)]), ["e1": toc])
+    }
+
+    @Test func showSaysTheCampaignInFullAndSearchNeedsEveryWord() {
+        let (tree, ledger) = world()
+        let shown = MemoryQuery.show("work:e1", in: tree, ledger: ledger, instance: "acme")
+        #expect(shown.hasPrefix("Docs nav (acme, campaign)"))
+        #expect(shown.contains("- Index order wins [fix toc ordering]") && shown.contains("- Stable sibling key"))
+        #expect(MemoryQuery.search("index order", in: tree, ledger: ledger) == "decision: Index order wins [Docs nav]")
+        #expect(MemoryQuery.search("index sibling", in: tree, ledger: ledger).hasPrefix("nothing"))
+    }
+
+    @Test func aNoteIsKeptOnTheCampaignOnce() {
+        var (tree, _) = world()
+        #expect(MemoryQuery
+            .note("Cache the toc", on: "work:e1", session: "s9", in: &tree, now: t0) == "kept on Docs nav")
+        #expect(tree["nav"]?.decisions.map(\.source) == ["s9"])
+        #expect(MemoryQuery.note("Cache the toc", on: "nav", session: "s9", in: &tree, now: t0).hasPrefix("already"))
+    }
+
+    @Test func heedsPluginCarriesTheMemorySkill() {
+        let files = HeedPlugin.files(version: "1")
+        #expect(files["skills/heed-memory/SKILL.md"]?.contains("heed memory search") == true)
+        #expect(files["skills/heed-goal/SKILL.md"] != nil)
+    }
+}

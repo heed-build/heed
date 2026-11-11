@@ -42,6 +42,26 @@ if arguments.first == "goal" || arguments.first == "swarm" {
     exit(result.code)
 }
 
+// `heed memory show|search|note`: what heed's Mindmap keeps about the work this session continues.
+if arguments.first == "memory" {
+    if arguments.count < 2 || ["-h", "--help", "help"].contains(arguments[1]) {
+        print(MemoryCommandLine.usage)
+        exit(0)
+    }
+    do {
+        let reply = try ControlClient().call(MemoryCommandLine.request(arguments, environment: environment))
+        guard reply.ok else {
+            FileHandle.standardError.write(Data("heed memory: \(reply.error ?? "failed")\n".utf8))
+            exit(1)
+        }
+        print(reply.memory ?? "")
+        exit(0)
+    } catch {
+        FileHandle.standardError.write(Data("\(error)\n".utf8))
+        exit(2)
+    }
+}
+
 // `heed sessions|watch|start|send|show`: the control socket, from a terminal or a script. Not a hook: no time limit.
 if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
     do {
@@ -64,7 +84,7 @@ if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
             while true {
                 try FileHandle.standardOutput.write(ControlCoding.line(client.next()))
             }
-        case .start, .send, .show, .goal:
+        case .start, .send, .show, .goal, .memory:
             print(reply.session ?? "")
         }
         exit(0)

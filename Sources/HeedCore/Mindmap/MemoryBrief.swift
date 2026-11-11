@@ -56,6 +56,8 @@ public enum MemoryBrief {
             parts.append("Its PRs: " + pulls.map { "\($0.repo.slug)#\($0.number)" }.joined(separator: ", ") + ".")
         }
         parts.append("Keep to these decisions unless the work shows one is wrong, and say so when it does.")
+        parts.append("In this shell, heed memory show prints all of it, heed memory search with words finds more, and "
+            + "heed memory note with a decision keeps one.")
         return plain(parts.joined(separator: " "))
     }
 

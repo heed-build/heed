@@ -57,6 +57,17 @@ claude gets it with `--append-system-prompt`, codex as `developer_instructions`;
 brief = "node_and_goal"   # or "off"
 ```
 
+## heed memory
+
+From a heed session's shell, an agent (or you) reads and adds to that session's Mindmap, its org's or personal, never
+another's. The brief a session is told mentions it; claude sessions on a goal also get it as the `heed-memory` skill.
+
+```sh
+heed memory show                    # the campaign this work continues: what it is for, decisions, what is open
+heed memory search toc order        # decisions, follow-ups and campaigns that mention every word
+heed memory note "Cache the toc"    # a decision kept on the campaign, for the sessions after this one
+```
+
 ## Keys
 
 | Key | |

@@ -179,12 +179,38 @@ public enum GoalGuidance {
 public enum HeedPlugin {
     public static let name = "heed"
     public static let skill = "heed-goal"
+    public static let memorySkill = "heed-memory"
+
+    /// `heed memory`: what heed's Mindmap keeps about the work, from this session's own org only.
+    static var memorySkillText: String {
+        [
+            "---",
+            "name: \(memorySkill)",
+            "description: heed keeps a memory of earlier work in this org: campaigns, the decisions taken in them and "
+                + "what is still open. Use it before deciding how to approach work, when a past decision may apply, "
+                + "and when you take a decision the next session should keep.",
+            "---",
+            "",
+            "# heed memory",
+            "",
+            "`heed memory` is on your PATH in this session and reads heed's Mindmap for this session's org (or the "
+                + "owner's personal work), never another's.",
+            "",
+            "- `heed memory show`: the campaign this work continues: what it is for, its decisions, what is open.",
+            "- `heed memory search <words>`: decisions, follow-ups and campaigns that mention all of the words.",
+            "- `heed memory note <decision>`: keep a decision on this campaign for the sessions after you.",
+            "",
+            "Keep to decisions that still stand unless the work shows one is wrong; then say so, and note the new one.",
+            "",
+        ].joined(separator: "\n")
+    }
 
     /// The plugin's files, by path under its folder. `version` is heed's: a new heed rewrites them.
     public static func files(version: String) -> [String: String] {
         [
             ".claude-plugin/plugin.json": manifest(version: version),
             "skills/\(skill)/SKILL.md": skillText,
+            "skills/\(memorySkill)/SKILL.md": memorySkillText,
         ]
     }
 
@@ -192,7 +218,7 @@ public enum HeedPlugin {
         let object: [String: Any] = [
             "name": name,
             "version": version,
-            "description": "What heed gives agents working on a goal: the heed-goal skill.",
+            "description": "What heed gives agents working on a goal: the heed-goal and heed-memory skills.",
             "author": ["name": "heed"],
         ]
         let data = (try? JSONSerialization.data(

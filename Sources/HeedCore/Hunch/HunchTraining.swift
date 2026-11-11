@@ -42,6 +42,8 @@ public enum HunchFamily: String, Codable, CaseIterable, Sendable {
     case screens
     /// Your overrules of the swarm controller's answers: the option you picked instead.
     case swarm
+    /// Where you put work in the Mindmap, when heed asked where it goes: the campaign you accepted or moved it to.
+    case mindmap
 
     public var title: String {
         switch self {
@@ -49,6 +51,7 @@ public enum HunchFamily: String, Codable, CaseIterable, Sendable {
         case .attach: "Goal attach"
         case .screens: "Agent screens"
         case .swarm: "Swarm answers"
+        case .mindmap: "Mindmap placement"
         }
     }
 }
@@ -204,6 +207,22 @@ public enum HunchTrainingSet {
             newest[example.id] = example
         }
         return Array(newest.values)
+    }
+
+    // MARK: Mindmap
+
+    /// Work nodes whose placement heed asked about and you answered (accepted, or moved): the campaign option you
+    /// gave, against the state the Decider read.
+    public static func mindmap(_ nodes: [MindNode]) -> [HunchExample] {
+        nodes.compactMap { node in
+            guard node.kind == .work, let entry = node.entry, let placement = node.placement,
+                  let state = placement.state, let verdict = placement.verdict, let at = placement.verdictAt
+            else { return nil }
+            return HunchExample(
+                id: "mindmap:\(entry)", family: .mindmap, state: trimmed(state, keepEnd: false),
+                question: MindmapPlace.question(candidates: placement.options.count), answer: verdict, weight: 1, at: at
+            )
+        }
     }
 
     // MARK: Keeping it

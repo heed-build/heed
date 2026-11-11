@@ -24,7 +24,8 @@ shows what you are looking at: the session's branch and PR, or the item under th
 keys are hidden first, never the names.
 
 In History, `T`, `L` and `D` show its [timeline](../history/timeline.md), [ledger](../history/ledger.md) and
-[dashboard](../history/dashboard.md); the History tab stays lit.
+[dashboard](../history/dashboard.md), from any of them; the History tab stays lit, and the tab strip under it says
+which one shows.
 
 Some views have no key and no name along the top, and are reached by name:
 

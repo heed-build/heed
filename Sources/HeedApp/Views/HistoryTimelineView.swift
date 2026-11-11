@@ -63,7 +63,7 @@ struct HistoryTimelineView: View {
     }
 }
 
-/// The filters, as the keys change them: kinds (`t`), removed worktrees (`D`), repo (`r`), where (`w`). A click does
+/// The filters, as the keys change them: kinds (`t`), removed worktrees (`c`), repo (`r`), where (`w`). A click does
 /// what the key does.
 private struct TimelineFilters: View {
     @Environment(AppModel.self) private var model

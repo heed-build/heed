@@ -92,3 +92,29 @@ struct PaneBar<Trailing: View>: View {
         }
     }
 }
+
+/// Above every History view: `History › Ledger`, and a tab per view with its key and how much is in it.
+struct HistoryPaneBar: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let pane = model.view.rawValue
+        let tabs = HistoryPaneTabs.tabs(
+            counts: .init(sessions: model.history.count, ledger: model.ledger.entries.count)
+        )
+        PaneBar(
+            crumb: HistoryPaneTabs.crumb(pane: pane).map { PaneCrumb($0) },
+            // The list has no key of its own: a view's key again comes back to it.
+            tabs: tabs.map { tab in
+                PaneBarTab(
+                    id: tab.pane, title: tab.title, command: tab.command, count: tab.count,
+                    showsKey: tab.command != "history.list"
+                )
+            },
+            // Each History view has its own key scope; every one binds the others' capitals the same way.
+            active: pane, scope: pane, tabsRegion: .historyPaneTabs,
+            select: { tab in model.showHistoryPane(tab.id, command: tab.command) },
+            trailing: { EmptyView() }
+        )
+    }
+}

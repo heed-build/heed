@@ -25,7 +25,10 @@ struct MainWindow: View {
                     case .repos:
                         ReposView()
                     case .history:
-                        HistoryView()
+                        VStack(spacing: 0) {
+                            HistoryPaneBar().shotRegion(.historyPaneBar)
+                            HistoryView()
+                        }
                     case .attention:
                         AttentionView()
                     case .inbox:
@@ -39,11 +42,20 @@ struct MainWindow: View {
                     case .log:
                         CallLogView()
                     case .timeline:
-                        HistoryTimelineView()
+                        VStack(spacing: 0) {
+                            HistoryPaneBar().shotRegion(.historyPaneBar)
+                            HistoryTimelineView()
+                        }
                     case .ledger:
-                        LedgerView()
+                        VStack(spacing: 0) {
+                            HistoryPaneBar().shotRegion(.historyPaneBar)
+                            LedgerView()
+                        }
                     case .dashboard:
-                        DashboardView()
+                        VStack(spacing: 0) {
+                            HistoryPaneBar().shotRegion(.historyPaneBar)
+                            DashboardView()
+                        }
                     case .goals:
                         GoalsView()
                     }

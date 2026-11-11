@@ -146,9 +146,10 @@ This page is generated from the code (`mise run shots`).
 | `hunch.screen` |  | have Hunch read the agent pane under the cursor now: working, waiting for input, stuck or done |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
+| `history.list` |  | History's list of the sessions that ended |
 | `history.timeline` | `T` (dashboard), `T` (history), `T` (ledger), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |
 | `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (timeline) | History's ledger: a summary of each piece of work (again: back to the list) |
-| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger) | History's dashboard: sessions, agent time, PRs, by day, agent and repo |
+| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (timeline) | History's dashboard: sessions, agent time, PRs, by day, agent and repo |
 
 ## Modes
 
@@ -175,7 +176,7 @@ This page is generated from the code (`mise run shots`).
 | `timeline.kind` `[kind]` | `t` (timeline) | timeline: every kind, or one (sessions, worktrees, prs, questions, chats) |
 | `timeline.repo` `[name]` | `r` (timeline) | timeline: every repo, or the next one |
 | `timeline.where` `[local|host]` | `w` (timeline) | timeline: everywhere, this Mac, or a host |
-| `timeline.gone` | `D` (timeline) | timeline: show or hide removed worktrees |
+| `timeline.gone` | `c` (timeline) | timeline: show or hide removed worktrees |
 | `dashboard.range` `[days]` | `r` (dashboard) | dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w) |
 | `goal.new` `[title]` | `n` (goals) | new goal: a title and what it is (on a session: from its prompt, and the session on it) |
 | `goal.attach` `<goal>` |  | put the session or chat on a goal (no goal: the command line opens to pick one) |

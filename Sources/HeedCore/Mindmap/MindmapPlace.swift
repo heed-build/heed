@@ -144,13 +144,15 @@ public enum MindmapPlace {
                 node.parent = campaign
                 node.suggested = !sure
                 node.placement = .init(
-                    confidence: confidence, route: route, state: placed.state, options: placed.options
+                    confidence: confidence, route: route, state: placed.state, options: placed.options,
+                    chose: placed.options.firstIndex(of: campaign).map { "c\($0 + 1)" }
                 )
             case let .new(confidence, route):
                 node.parent = nil
                 node.suggested = false
                 node.placement = .init(
-                    confidence: confidence, route: route, state: placed.state, options: placed.options
+                    confidence: confidence, route: route, state: placed.state, options: placed.options,
+                    chose: placed.state == nil ? nil : "new"
                 )
             }
         }

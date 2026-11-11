@@ -301,3 +301,65 @@ struct MindmapLearningTests {
         #expect(HunchTrainingSet.mindmap(Array(tree.nodes.values)).isEmpty)
     }
 }
+
+struct MindmapNamingTests {
+    @Test func campaignsComeOnlyWithWorkTheModelWasShown() {
+        let reply = """
+        Here you go:
+        {"campaigns":[
+          {"title":"Make the docs nav trustworthy","intent":"Pages sit where the index says.","area":"Docs",
+           "work":["e1","e2","e9"]},
+          {"title":"Nothing real","work":["e9"]},
+          {"title":"Signed releases","area":"Releases","work":["e2","e3"]}
+        ]}
+        """
+        let proposals = MindmapNaming.parse(reply, known: ["e1", "e2", "e3"])
+        #expect(proposals.map(\.title) == ["Make the docs nav trustworthy", "Signed releases"])
+        // An id goes to the first campaign that names it.
+        #expect(proposals.map(\.work) == [["e1", "e2"], ["e3"]])
+        #expect(MindmapNaming.parse("no json here", known: ["e1"]).isEmpty)
+    }
+
+    @Test func namingMakesAreasAndCampaignsAndLeavesYourWorkWhereItIs() {
+        var mine = MindNode.work(entry("e3", "c"), parent: nil, now: t0)
+        mine.madeBy = .you
+        var tree = MindmapTree([
+            MindNode.work(entry("e1", "a"), parent: nil, now: t0),
+            MindNode.work(entry("e2", "b"), parent: nil, now: t0),
+            mine,
+        ])
+        let proposal = MindmapNaming.Proposal(title: "Docs nav", intent: "x", area: "Docs", work: ["e1", "e2", "e3"])
+        MindmapNaming.apply([proposal], to: &tree, now: t0)
+        let campaign = try? #require(tree.campaigns.first)
+        #expect(campaign?.parent == "area:docs")
+        #expect(tree["area:docs"]?.kind == .area)
+        #expect(tree.work(for: "e1")?.parent == campaign?.id && tree.work(for: "e2")?.parent == campaign?.id)
+        #expect(tree.work(for: "e3")?.parent == nil)
+        // The same area is reused by name.
+        MindmapNaming.apply(
+            [.init(title: "Docs search", area: "docs", work: ["e3"])], to: &tree, now: t0
+        )
+        #expect(tree.nodes.values.count { $0.kind == .area } == 1)
+    }
+}
+
+struct MindmapStatsTests {
+    @Test func statsCountWhatYouAnsweredAndHowOftenHeedHadItRight() {
+        func work(_ id: String, chose: String, verdict: String?) -> MindNode {
+            var node = MindNode.work(entry(id, id), parent: nil, now: t0)
+            node.placement = .init(
+                confidence: 0.6, route: "hunch", state: "s", options: ["a", "b"], chose: chose, verdict: verdict
+            )
+            return node
+        }
+        var words = MindNode.work(entry("w", "w"), parent: nil, now: t0)
+        words.placement = .init(confidence: 1, route: "words")
+        let stats = MindmapStats([MindmapTree([
+            work("e1", chose: "c1", verdict: "c1"), work("e2", chose: "c1", verdict: "c2"),
+            work("e3", chose: "new", verdict: nil), words,
+        ])])
+        #expect(stats.routes["hunch"] == .init(asked: 3, answered: 2, right: 1))
+        #expect(stats.routes["words"] == nil)
+        #expect(stats.total.rate == 0.5)
+    }
+}

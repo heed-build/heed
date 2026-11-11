@@ -92,18 +92,21 @@ public struct MindNode: Codable, Hashable, Sendable, Identifiable {
         public var state: String?
         /// The campaigns it was offered, in order: `c1` is the first.
         public var options: [String]
+        /// What heed answered: an option (`c2`) or `new`.
+        public var chose: String?
         /// The right answer, once you said: the option of the campaign you accepted or moved it to, or `new`.
         public var verdict: String?
         public var verdictAt: Date?
 
         public init(
-            confidence: Double, route: String, state: String? = nil, options: [String] = [], verdict: String? = nil,
-            verdictAt: Date? = nil
+            confidence: Double, route: String, state: String? = nil, options: [String] = [], chose: String? = nil,
+            verdict: String? = nil, verdictAt: Date? = nil
         ) {
             self.confidence = confidence
             self.route = route
             self.state = state
             self.options = options
+            self.chose = chose
             self.verdict = verdict
             self.verdictAt = verdictAt
         }

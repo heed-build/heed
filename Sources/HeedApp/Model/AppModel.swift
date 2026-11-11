@@ -275,6 +275,8 @@ final class AppModel {
     let goals: GoalsBrowser
     /// Hunch: its checkpoints, the training set and runs (AppModel+Hunch).
     let hunch: HunchModel
+    /// History's Mindmap: one per org and one for personal work (AppModel+Mindmap).
+    let mindmap: MindmapModel
 
     /// The `:log` view's rows and filters.
     let callLog: CallLogBrowser
@@ -375,6 +377,7 @@ final class AppModel {
         dashboard = DashboardBrowser(fixture: isFixture)
         goals = GoalsBrowser(fixture: isFixture)
         hunch = HunchModel(fixture: isFixture)
+        mindmap = MindmapModel(fixture: isFixture)
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
@@ -453,6 +456,7 @@ final class AppModel {
         timeline.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         dashboard.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         startLedger(log: log)
+        startMindmap()
         if !isFixture { await attention.open(beside: file) }
         // Before resume is offered: sessions on a goal resume told so.
         if !isFixture {

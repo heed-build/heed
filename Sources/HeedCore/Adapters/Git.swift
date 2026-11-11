@@ -15,6 +15,15 @@ public enum Git {
         return url.flatMap { parseRemote($0) } ?? Repo(org: "local", name: URL(fileURLWithPath: path).lastPathComponent)
     }
 
+    /// The repo a clone was forked from, when it has an `upstream` remote (the usual name for it); nil otherwise.
+    public static func upstream(at path: String, on location: Location = .local) async -> Repo? {
+        let url = try? await ProcessRunner.output(
+            on: location, "git", ["-C", path, "remote", "get-url", "upstream"], timeout: .seconds(5),
+            caller: "git.upstream"
+        )
+        return url.flatMap { parseRemote($0) }
+    }
+
     /// `main` from `origin/HEAD`, falling back to `main`.
     public static func defaultBranch(at path: String, on location: Location = .local) async -> String {
         let ref = try? await ProcessRunner.output(

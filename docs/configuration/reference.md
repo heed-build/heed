@@ -272,6 +272,14 @@ setup_reminder = true
 # on this Mac, adopted only when it does no worse on examples it never saw. Unset: on once a model is downloaded.
 # learn = true
 
+[mindmap]
+# Group finished work into History's Mindmap: one per GitHub org, and one for your personal work, never mixed.
+# A cheap model names campaigns for work that fits none ([llm]); Hunch, or whichever decider is set, places new
+# work into them. While shadow is on, every placement waits for you (y keeps it, m moves it), and Settings ›
+# Inference & decisions shows how often heed had it right; off, sure placements stand on their own.
+# enabled = false
+# shadow = true
+
 [local]
 # Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,
 # asking, blocked, idle, done), the cleaned last 30 lines of its pane, the agent and the state; now and then one

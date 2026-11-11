@@ -224,6 +224,9 @@ private struct HunchLearningGroup: View {
                 }
             }
         }
+        if model.config.mindmap.enabled {
+            mindmapField
+        }
         Field(label: "Last trained", detail: lastDetail(hunch.record)) {
             VStack(alignment: .leading, spacing: 4) {
                 if let training = hunch.training {
@@ -279,6 +282,35 @@ private struct HunchLearningGroup: View {
                     }
             }
         }
+    }
+
+    /// How often heed placed Mindmap work where you kept it: the numbers that decide whether `[mindmap] shadow` can go.
+    private var mindmapField: some View {
+        let stats = model.mindmap.stats
+        return Field(
+            label: "Mindmap placement",
+            detail: "Of the placements heed asked about and you answered (y kept it, m moved it), how many it had right, "
+                + "by what answered. While shadow is on in [mindmap], every placement waits for you."
+        ) {
+            if stats.total.asked == 0 {
+                Text("none yet").font(Theme.mono(12)).foregroundStyle(Theme.fg3)
+            } else {
+                HStack(spacing: 14) {
+                    Text(Self.placementLine(stats.total)).font(Theme.mono(12))
+                    ForEach(stats.routes.keys.sorted(), id: \.self) { route in
+                        if let numbers = stats.routes[route] {
+                            Text("\(route) \(Self.placementLine(numbers))").font(Theme.ui(11.5))
+                                .foregroundStyle(Theme.fg3)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    static func placementLine(_ route: MindmapStats.Route) -> String {
+        let rate = route.rate.map { " · \(Int(($0 * 100).rounded()))% right" } ?? ""
+        return "\(route.answered) of \(route.asked) answered\(rate)"
     }
 
     private func lastDetail(_ record: HunchLearningRecord) -> String {

@@ -123,7 +123,7 @@ public enum MenuBar {
         /// The PR in front is open, or the session has an open PR.
         var openPull: Bool { facts.pull.map(\.open) ?? (hasRepo && (facts.session?.openPulls ?? 0) > 0) }
         var anyPull: Bool { facts.pull != nil || hasRepo && (facts.session?.pulls ?? 0) > 0 }
-        var historyViews: Set<String> { ["history", "timeline", "ledger", "dashboard"] }
+        var historyViews: Set<String> { ["history", "timeline", "ledger", "dashboard", "mindmap"] }
 
         func item(
             _ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true, checked: Bool = false,
@@ -243,6 +243,7 @@ public enum MenuBar {
                 view("Timeline", "view.timeline", "timeline"),
                 view("Ledger", "view.ledger", "ledger"),
                 view("Dashboard", "view.dashboard", "dashboard"),
+                view("Mindmap", "view.mindmap", "mindmap"),
                 view("Goals", "view.goals", "goals"),
                 view("Call log", "view.log", "log"),
                 item("Hosts", "host.open"),
@@ -280,8 +281,25 @@ public enum MenuBar {
                     ("Timeline: next kind", "timeline.kind"), ("Timeline: next repo", "timeline.repo"),
                     ("Timeline: where", "timeline.where"), ("Timeline: removed worktrees", "timeline.gone"),
                     ("Dashboard: next range", "dashboard.range"), ("Ledger: summarize now", "ledger.summarize"),
-                    ("Ledger: edit the summary", "ledger.edit"),
+                    ("Ledger: edit the summary", "ledger.edit"), ("Mindmap", "history.mindmap"),
                 ], in: historyViews),
+                scoped("In the Mindmap", [
+                    ("In", "mindmap.in"), ("Out", "mindmap.out"), ("Less depth", "mindmap.less"),
+                    ("More depth", "mindmap.more"), ("Next org", "mindmap.org.next"), (
+                        "Previous org",
+                        "mindmap.org.prev"
+                    ),
+                    ("Keep where heed put it", "mindmap.accept"), ("Move…", "mindmap.move"), (
+                        "Join into…",
+                        "mindmap.join"
+                    ),
+                    ("Group with the next", "mindmap.nest"), ("Lift out", "mindmap.lift"), (
+                        "Rename…",
+                        "mindmap.rename"
+                    ),
+                    ("Follow-up done", "mindmap.done"), ("Pin the decision", "mindmap.pin"),
+                    ("Name campaigns now", "mindmap.name"), ("Ledger entry", "mindmap.open"),
+                ], in: ["mindmap"]),
                 scoped("In Goals", [
                     ("New goal…", "goal.new"), ("Overview", "goal.overview"), (
                         "Next steps: hide or show",

@@ -92,6 +92,7 @@ toc:
       - file: dashboard.md
       - file: timeline.md
       - file: ledger.md
+      - file: mindmap.md
       - file: reopening.md
   - folder: goals
     children:

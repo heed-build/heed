@@ -77,7 +77,7 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|goals|log>` |  | switch view |
+| `view` `<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|mindmap|goals|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: everything that wants you, one feed, with why (a filter: tagged, reviews, mine, ...) |
 | `view.inbox` |  | inbox |
@@ -89,6 +89,7 @@ This page is generated from the code (`mise run shots`).
 | `view.timeline` |  | History's timeline: sessions, worktrees, PRs and questions, by day |
 | `view.dashboard` |  | History's dashboard: what the work amounted to over a range |
 | `view.ledger` |  | History's ledger: a summary of each piece of work, kept after its worktree |
+| `view.mindmap` |  | History's Mindmap: the work grouped into campaigns, one Mindmap per org |
 | `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
 | `goal.overview` |  | Goals: back to the goal's overview from any of its panes |
 | `goal.doc` | `E` (goalagents), `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalmap), `E` (goalpersonas), `E` (goalplan), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
@@ -147,9 +148,10 @@ This page is generated from the code (`mise run shots`).
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
 | `history.list` |  | History's list of the sessions that ended |
-| `history.timeline` | `T` (dashboard), `T` (history), `T` (ledger), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |
-| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (timeline) | History's ledger: a summary of each piece of work (again: back to the list) |
-| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (timeline) | History's dashboard: sessions, agent time, PRs, by day, agent and repo |
+| `history.timeline` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |
+| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (timeline) | History's ledger: a summary of each piece of work (again: back to the list) |
+| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (timeline) | History's dashboard: sessions, agent time, PRs, by day, agent and repo |
+| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (timeline) | History's Mindmap: the work grouped into campaigns, per org (again: back to the list) |
 
 ## Modes
 
@@ -275,6 +277,22 @@ This page is generated from the code (`mise run shots`).
 | `eval.rewalk` `[lens]` | `r` (goalevals) | walk again now, in a fresh clone: the lens picked (after a fix, to see whether it helped) |
 | `eval.lens` `<1|-1|lens>` | `h` (goalevals), `l` (goalevals) | Evaluations: pick a lens, the next (1), the one before (-1) or one by name |
 | `ledger.summarize` | `S` (ledger) | write the ledger summary of this work now |
+| `mindmap.in` | `l` (mindmap) | Mindmap: into what the node under the cursor holds |
+| `mindmap.out` | `h` (mindmap) | Mindmap: out to the node that holds this one |
+| `mindmap.less` | `-` (mindmap) | Mindmap: draw one level less to the right |
+| `mindmap.more` | `=` (mindmap) | Mindmap: draw one level more to the right |
+| `mindmap.org.next` | `]o` (mindmap) | Mindmap: the next org's Mindmap (personal last) |
+| `mindmap.org.prev` | `[o` (mindmap) | Mindmap: the previous org's Mindmap |
+| `mindmap.accept` | `y` (mindmap) | Mindmap: keep the suggested placement as it is |
+| `mindmap.done` | `x` (mindmap) | Mindmap: mark the node's first open follow-up done |
+| `mindmap.pin` | `p` (mindmap) | Mindmap: pin the node's first decision so it shows above it (again: unpin) |
+| `mindmap.nest` | `>` (mindmap) | Mindmap: put the node in a new group with its next sibling |
+| `mindmap.lift` | `<` (mindmap) | Mindmap: lift the node out of what holds it |
+| `mindmap.rename` `[title]` | `r` (mindmap) | Mindmap: rename the node (no title: the command line opens with it) |
+| `mindmap.move` `[title|top]` | `m` (mindmap) | Mindmap: move the node into a campaign or group by its title (top: to the top) |
+| `mindmap.join` `[title]` | `J` (mindmap) | Mindmap: move everything in the node into another by its title, and drop it |
+| `mindmap.name` | `S` (mindmap) | Mindmap: name campaigns for the work waiting in Unsorted now |
+| `mindmap.open` | `<CR>` (mindmap) | Mindmap: a piece of work's ledger entry |
 | `ledger.edit` `[text]` | `E` (ledger) | edit the ledger entry's summary (no text: the command line opens with it) |
 | `log.kind` `[all|kind]` | `t` (log) | call log: all, or one kind (shell, github, llm, decide) |
 | `log.failed` | `x` (log) | call log: only calls that failed, or all |

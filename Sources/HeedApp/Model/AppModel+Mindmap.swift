@@ -116,3 +116,82 @@ extension AppModel {
         }
     }
 }
+
+// MARK: The view's commands
+
+extension AppModel {
+    func performMindmap(_ command: CommandInvocation) {
+        let words = command.arguments
+        let now = Date()
+        let instance = mindmap.instance
+        let node = mindmap.focused
+        func change(_ body: @escaping (inout MindmapTree) -> Void) {
+            Task { await mindmap.change(instance, body) }
+        }
+        switch command.name {
+        case "mindmap.in": mindmap.enter()
+        case "mindmap.out": mindmap.leave()
+        case "mindmap.less": mindmap.changeDepth(by: -1)
+        case "mindmap.more": mindmap.changeDepth(by: 1)
+        case "mindmap.org.next": mindmap.cycleInstance(by: 1)
+        case "mindmap.org.prev": mindmap.cycleInstance(by: -1)
+        case "mindmap.accept":
+            guard let node, node.suggested else { return say("nothing suggested here") }
+            change { $0.accept(node.id, now: now) }
+            say("kept where heed put it")
+        case "mindmap.done":
+            guard let node, let item = mindmap.shown.stillOpen(under: node.id).first else {
+                return say("nothing open here")
+            }
+            let holder = ([node] + mindmap.shown.descendants(of: node.id)).first { $0.stillOpen.contains(item) }
+            change { $0.resolve(item.text, in: holder?.id ?? node.id, now: now) }
+            say("done: \(item.text)")
+        case "mindmap.pin":
+            guard let node, let decision = node.decisions.first else { return say("no decision here") }
+            change { $0.togglePin(decision.text, in: node.id, now: now) }
+        case "mindmap.nest":
+            let rows = mindmap.siblings
+            let index = mindmap.cursor
+            guard let node, rows.indices.contains(index + 1) else { return say("nothing next to it to group with") }
+            let id = "group:\(UUID().uuidString.prefix(8).lowercased())"
+            change { _ = $0.group([node.id, rows[index + 1].id], title: "New group", id: id, now: now) }
+            mindmap.focus = id
+            openCommandLine("mindmap.rename ")
+        case "mindmap.lift":
+            guard let node else { return }
+            change { $0.lift(node.id, now: now) }
+        case "mindmap.rename":
+            guard let node else { return say("no node here") }
+            guard !words.isEmpty else { return openCommandLine("mindmap.rename " + node.title) }
+            change { $0.rename(node.id, to: words.joined(separator: " "), now: now) }
+        case "mindmap.move", "mindmap.join":
+            guard let node else { return say("no node here") }
+            guard !words.isEmpty else { return openCommandLine(command.name + " ") }
+            let title = words.joined(separator: " ")
+            if command.name == "mindmap.move", title == "top" {
+                change { $0.move(node.id, to: nil, now: now) }
+                return
+            }
+            let target = mindmap.shown.nodes.values.filter { $0.kind != .work && $0.id != node.id }
+                .first { $0.title.localizedCaseInsensitiveContains(title) }
+            guard let target else { return say("no campaign or group called \(title)") }
+            if command.name == "mindmap.move" {
+                change { $0.move(node.id, to: target.id, now: now) }
+                say("moved into \(target.title)")
+            } else {
+                change { $0.join(node.id, into: target.id, now: now) }
+                mindmap.focus = target.id
+                say("joined into \(target.title)")
+            }
+        case "mindmap.name":
+            guard config.llm.enabled else { return say("naming campaigns needs model calls ([llm])") }
+            Task { await nameMindmapCampaigns(instance) }
+            say("naming campaigns for \(mindmap.shown.unsorted.count) waiting")
+        case "mindmap.open":
+            guard let entry = node?.entry, ledger.entries[entry] != nil else { return mindmap.enter() }
+            view = .ledger
+            moveCursor(.ledger, to: entry)
+        default: break
+        }
+    }
+}

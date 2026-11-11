@@ -443,6 +443,8 @@ enum Shots {
         Shot(id: "history/history", keys: "gh"),
         Shot(id: "history/detail", keys: "gh", crop: .historyDetail),
         Shot(id: "history/pane-tabs", keys: "ghL", crop: .historyPaneBar, cropPadding: 0),
+        Shot(id: "history/mindmap", keys: "ghM"),
+        Shot(id: "history/mindmap-inside", keys: "ghMjl"),
         Shot(id: "history/timeline", keys: "ghT"),
         Shot(id: "history/dashboard", keys: "ghD"),
         // Twelve weeks: r steps the range on from four weeks.

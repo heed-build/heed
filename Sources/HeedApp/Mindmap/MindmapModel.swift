@@ -19,7 +19,76 @@ final class MindmapModel {
     init(fixture: Bool, directory: URL = MindmapStore.defaultDirectory()) {
         self.fixture = fixture
         self.directory = directory
-        context.login = UserDefaults.standard.string(forKey: Self.loginKey)
+        if fixture {
+            trees = Fixtures.mindmap.mapValues { MindmapTree($0) }
+            instance = trees.keys.sorted().first ?? MindmapInstance.personal
+        } else {
+            context.login = UserDefaults.standard.string(forKey: Self.loginKey)
+        }
+    }
+
+    // MARK: Browsing
+
+    /// The instance shown: an org, or personal (`[o` `]o` switch).
+    var instance = MindmapInstance.personal
+    /// The node under the cursor; nil: the first top-level one.
+    var focus: String?
+    /// How many levels the map draws to the right of the focus (`-` `=`).
+    var depth = 2
+    static let depths = 1 ... 4
+
+    /// Every instance there is, orgs by name, personal last.
+    var instances: [String] {
+        let all = Set(trees.keys).union([instance])
+        return all.filter { $0 != MindmapInstance.personal }.sorted()
+            + (all.contains(MindmapInstance.personal) ? [MindmapInstance.personal] : [])
+    }
+
+    var shown: MindmapTree { tree(instance) }
+
+    /// The focused node, falling back to the first top-level one.
+    var focused: MindNode? {
+        let tree = shown
+        if let focus, let node = tree[focus] { return node }
+        return tree.roots.first
+    }
+
+    /// The focus and its siblings: the column the cursor moves in.
+    var siblings: [MindNode] {
+        let tree = shown
+        guard let node = focused else { return [] }
+        return node.parent.flatMap { tree[$0] == nil ? nil : tree.children(of: $0) } ?? tree.roots
+    }
+
+    var cursor: Int { siblings.firstIndex { $0.id == focused?.id } ?? 0 }
+
+    func setCursor(_ index: Int) {
+        let rows = siblings
+        guard !rows.isEmpty else { return }
+        focus = rows[min(max(index, 0), rows.count - 1)].id
+    }
+
+    /// `l`: into the focus's first child. `h`: out to its parent.
+    func enter() {
+        guard let node = focused, let first = shown.children(of: node.id).first else { return }
+        focus = first.id
+    }
+
+    func leave() {
+        guard let parent = focused?.parent, shown[parent] != nil else { return }
+        focus = parent
+    }
+
+    /// `[o` `]o`: the next or previous instance.
+    func cycleInstance(by step: Int) {
+        let all = instances
+        guard let index = all.firstIndex(of: instance), all.count > 1 else { return }
+        instance = all[(index + step + all.count) % all.count]
+        focus = nil
+    }
+
+    func changeDepth(by step: Int) {
+        depth = min(max(depth + step, Self.depths.lowerBound), Self.depths.upperBound)
     }
 
     static let loginKey = "mindmap.login"

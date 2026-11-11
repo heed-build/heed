@@ -352,6 +352,14 @@ public extension Tutor {
                 doneLine: "{dashboard.range} on the dashboard steps from a week to four and twelve weeks."
             ) { _, now, seen in seen.contains { $0.view == "dashboard" } && now.view == "history" },
             TutorStep(
+                "The Mindmap",
+                say: "{history.mindmap} shows the Mindmap: the work grouped into campaigns, with what was decided and "
+                    + "what is still open, one Mindmap per org. {history.mindmap} again comes back.",
+                keys: ["{history.mindmap}", "{history.mindmap}"], target: "historyList",
+                doneLine: "In the Mindmap {mindmap.in} and {mindmap.out} go in and out; {mindmap.accept} keeps where "
+                    + "heed put a piece of work."
+            ) { _, now, seen in seen.contains { $0.view == "mindmap" } && now.view == "history" },
+            TutorStep(
                 "Reopen it",
                 say: "{history.reopen} brings the session back: its worktree, and its agent resuming where it was.",
                 keys: ["{history.reopen}"], target: "historyList",

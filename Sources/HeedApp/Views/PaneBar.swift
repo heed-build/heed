@@ -100,7 +100,10 @@ struct HistoryPaneBar: View {
     var body: some View {
         let pane = model.view.rawValue
         let tabs = HistoryPaneTabs.tabs(
-            counts: .init(sessions: model.history.count, ledger: model.ledger.entries.count)
+            counts: .init(
+                sessions: model.history.count, ledger: model.ledger.entries.count,
+                open: model.mindmap.shown.roots.reduce(0) { $0 + model.mindmap.shown.stillOpen(under: $1.id).count }
+            )
         )
         PaneBar(
             crumb: HistoryPaneTabs.crumb(pane: pane).map { PaneCrumb($0) },

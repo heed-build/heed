@@ -299,6 +299,7 @@ public enum MenuBar {
                     ),
                     ("Follow-up done", "mindmap.done"), ("Pin the decision", "mindmap.pin"),
                     ("Name campaigns now", "mindmap.name"), ("Ledger entry", "mindmap.open"),
+                    ("Start a session here…", "mindmap.session"),
                 ], in: ["mindmap"]),
                 scoped("In Goals", [
                     ("New goal…", "goal.new"), ("Overview", "goal.overview"), (

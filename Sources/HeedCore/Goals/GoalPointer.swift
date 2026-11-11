@@ -45,18 +45,22 @@ public enum AgentInstructions {
 /// takes no per-session plugin (plugins are installed), so it gets the pointer and the same guidance as instructions
 /// (`GoalGuidance.instructions`). Without the plugin (a host, which does not have it) claude gets the pointer.
 public enum GoalLaunch {
-    public static func arguments(agent: String, signOff: String?, pointer: String?, plugin: String?) -> [String] {
-        guard let pointer else { return AgentInstructions.arguments(agent: agent, [signOff].compactMap(\.self)) }
+    public static func arguments(
+        agent: String, signOff: String?, pointer: String?, plugin: String?, brief: String? = nil
+    ) -> [String] {
+        guard let pointer else {
+            return AgentInstructions.arguments(agent: agent, [signOff, brief].compactMap(\.self))
+        }
         switch agent {
         case "claude" where plugin != nil:
             return ["--plugin-dir", plugin ?? ""]
-                + AgentInstructions.arguments(agent: agent, [signOff].compactMap(\.self))
+                + AgentInstructions.arguments(agent: agent, [signOff, brief].compactMap(\.self))
         case "codex":
             return AgentInstructions.arguments(
-                agent: agent, [signOff, pointer, GoalGuidance.instructions].compactMap(\.self)
+                agent: agent, [signOff, pointer, GoalGuidance.instructions, brief].compactMap(\.self)
             )
         default:
-            return AgentInstructions.arguments(agent: agent, [signOff, pointer].compactMap(\.self))
+            return AgentInstructions.arguments(agent: agent, [signOff, pointer, brief].compactMap(\.self))
         }
     }
 }

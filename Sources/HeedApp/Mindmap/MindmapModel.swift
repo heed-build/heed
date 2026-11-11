@@ -15,6 +15,8 @@ final class MindmapModel {
     /// Naming calls made today, per instance (`MindmapNaming.dailyCalls`).
     @ObservationIgnored private var named: [String: (day: Date, count: Int)] = [:]
     @ObservationIgnored let fixture: Bool
+    /// Briefs of sessions started on a node (`s`), by session id: told again when they resume. Since launch only.
+    @ObservationIgnored var sessionBriefs: [String: String] = [:]
 
     init(fixture: Bool, directory: URL = MindmapStore.defaultDirectory()) {
         self.fixture = fixture

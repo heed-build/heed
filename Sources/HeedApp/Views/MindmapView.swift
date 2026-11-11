@@ -259,8 +259,15 @@ private struct MindmapDetail: View {
                         }
                     }
                 }
+                if let brief = model.memoryBrief(on: node) {
+                    section("A session started here is told") {
+                        Text(brief).font(Theme.ui(11.5)).foregroundStyle(Theme.fg2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 Theme.line.frame(height: 1).padding(.top, 6)
                 FlowLayout(spacing: 18, lineSpacing: 6) {
+                    hint("mindmap.session", "session here")
                     hint("mindmap.in", "in")
                     hint("mindmap.out", "out")
                     if node.suggested { hint("mindmap.accept", "keep") }

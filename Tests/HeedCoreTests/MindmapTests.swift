@@ -389,3 +389,65 @@ struct MindmapFactsTests {
         #expect(facts.mostTouched?.file == "Toc.cs" && facts.mostTouched?.times == 2)
     }
 }
+
+struct MemoryBriefTests {
+    private func tree() -> (MindmapTree, [String: LedgerEntry]) {
+        var spike = entry(
+            "e1",
+            "nav spike",
+            summary: "A flat model. Slower on large sites.",
+            decisions: ["Keep the tree"]
+        )
+        spike.outcome = "closed"
+        let toc = entry("e2", "fix toc ordering", decisions: ["Index order wins"], followUps: ["Stable sibling key"])
+        var node = campaign("nav", "Make the docs nav trustworthy")
+        node.intent = "Pages sit where the index says."
+        return (
+            MindmapTree([
+                node,
+                MindNode.work(spike, parent: "nav", now: t0),
+                MindNode.work(toc, parent: "nav", now: t0),
+            ]),
+            ["e1": spike, "e2": toc]
+        )
+    }
+
+    @Test func aBriefSaysWhatStandsWhatWasDroppedAndWhatIsOpen() throws {
+        let (tree, ledger) = tree()
+        let text = try #require(MemoryBrief.text(for: "work:e2", in: tree, ledger: ledger, instance: "acme"))
+        #expect(text.contains("continues Make the docs nav trustworthy (acme)"))
+        #expect(text.contains("Keep the tree") && text.contains("Index order wins"))
+        #expect(text.contains("Tried and dropped: nav spike (A flat model)"))
+        #expect(text.contains("Still open: Stable sibling key"))
+        // It goes through a shell and TOML untouched.
+        #expect(!text.contains { "\"'`$\\\n".contains($0) })
+    }
+
+    @Test func aSupersededDecisionIsNotPassedOn() throws {
+        var (tree, ledger) = tree()
+        var work = try #require(tree.work(for: "e1"))
+        work.decisions[0].supersededBy = "Index order wins"
+        tree.upsert(work)
+        ledger["e1"] = ledger["e1"]
+        let text = try #require(MemoryBrief.text(for: "nav", in: tree, ledger: ledger, instance: "acme"))
+        #expect(!text.contains("Keep the tree"))
+    }
+
+    @Test func aGoalsSessionsAreBriefedFromTheCampaignMostOfItsWorkIsIn() {
+        let (tree, _) = tree()
+        #expect(MemoryBrief.campaign(holding: ["e1", "e2", "nowhere"], in: tree)?.id == "nav")
+        #expect(MemoryBrief.campaign(holding: ["nowhere"], in: tree) == nil)
+    }
+
+    @Test func theBriefRidesTheLaunchInstructionsEvenWithHeedsPlugin() {
+        let claude = GoalLaunch.arguments(agent: "claude", signOff: nil, pointer: "goal", plugin: "/p", brief: "B")
+        #expect(claude == ["--plugin-dir", "/p", "--append-system-prompt", "B"])
+        let codex = GoalLaunch.arguments(agent: "codex", signOff: nil, pointer: nil, plugin: nil, brief: "B")
+        #expect(codex == ["-c", "developer_instructions=" + TOMLValue.quote("B")])
+        var settings = WorkSettings()
+        settings.memoryBriefs = ["s1": "B"]
+        let agent = AgentProfile.builtIn.first { $0.name == "claude" }!
+        #expect(settings.signOffArguments(agent: agent, repo: nil, session: "s1") == ["--append-system-prompt", "B"])
+        #expect(settings.signOffArguments(agent: agent, repo: nil, session: "s2").isEmpty)
+    }
+}

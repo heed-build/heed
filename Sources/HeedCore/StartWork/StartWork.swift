@@ -35,6 +35,8 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     /// heed's plugin folder (`HeedPlugin`), for claude sessions on a goal; nil unless `[goals] tell_agents`. Not
     /// config: the app sets it.
     public var goalPlugin: String?
+    /// What sessions are told from the Mindmap (`MemoryBrief`), by session id. Not config: the app sets it.
+    public var memoryBriefs: [String: String] = [:]
 
     /// The launch arguments carrying what `agent` is told: the sign-off when it applies in `repo`, and, when
     /// `session` is on a goal, the goal (`GoalLaunch`). `host`: where the session runs; heed's plugin is on this Mac.
@@ -43,7 +45,8 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     {
         GoalLaunch.arguments(
             agent: agent.name, signOff: signOff.applies(to: repo) ? SignOff.instruction : nil,
-            pointer: session.flatMap { goalPointers[$0] }, plugin: host == nil ? goalPlugin : nil
+            pointer: session.flatMap { goalPointers[$0] }, plugin: host == nil ? goalPlugin : nil,
+            brief: session.flatMap { memoryBriefs[$0] }
         )
     }
 

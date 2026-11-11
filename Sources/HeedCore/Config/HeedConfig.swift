@@ -50,6 +50,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var hunch = HunchSettings()
     /// `[mindmap]`: whether finished work is grouped into History's Mindmap, and whether heed may place it alone.
     public var mindmap = MindmapSettings()
+    /// `[memory]`: what sessions are told from the Mindmap at launch.
+    public var memory = MemorySettings()
     /// `[local]`: what heed keeps on this Mac to learn local decisions from (screen snapshots). Off by default.
     public var local = LocalSettings()
     /// `[start_work]`: whether the on-device model helps Start work guess.
@@ -111,6 +113,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.decisions == rhs.decisions,
             lhs.hunch == rhs.hunch,
             lhs.mindmap == rhs.mindmap,
+            lhs.memory == rhs.memory,
             lhs.local == rhs.local,
             lhs.startWork == rhs.startWork,
             lhs.goals == rhs.goals,
@@ -743,6 +746,14 @@ public enum ConfigLoader {
         // [mindmap]
         if let flag = bool(["mindmap", "enabled"]) { config.mindmap.enabled = flag }
         if let flag = bool(["mindmap", "shadow"]) { config.mindmap.shadow = flag }
+        // [memory]
+        if let name = string(["memory", "brief"]) {
+            if let brief = MemorySettings.Brief(rawValue: name) {
+                config.memory.brief = brief
+            } else {
+                problems.append(ConfigProblem(path: "memory.brief", message: "expected node_and_goal or off"))
+            }
+        }
         // [local]
         if let flag = bool(["local", "record_screens"]) { config.local.recordScreens = flag }
         if let days = integer(["local", "keep_days"], range: 1 ... 365) { config.local.keepDays = days }
@@ -1107,6 +1118,12 @@ public enum ConfigLoader {
     # Inference & decisions shows how often heed had it right; off, sure placements stand on their own.
     # enabled = true
     # shadow = true
+
+    [memory]
+    # What a session is told at launch from the Mindmap: the decisions that still stand in its campaign, what was
+    # tried and dropped, what is still open, and its PRs, from that org's Mindmap only. "node_and_goal": sessions
+    # started from a Mindmap node (s) and sessions on a goal whose work sits in a campaign; "off": none.
+    # brief = "node_and_goal"
 
     [local]
     # Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,

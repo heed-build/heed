@@ -75,6 +75,7 @@ extension AppModel {
             MindmapPlace.apply(held, entry: entry, to: &tree, now: Date())
         }
         await nameMindmapCampaigns(instance)
+        applyGoalBriefs()
     }
 
     /// Campaigns for the work that waits in Unsorted, when enough of it does and today's budget allows.
@@ -187,11 +188,96 @@ extension AppModel {
             guard config.llm.enabled else { return say("naming campaigns needs model calls ([llm])") }
             Task { await nameMindmapCampaigns(instance) }
             say("naming campaigns for \(mindmap.shown.unsorted.count) waiting")
+        case "mindmap.session":
+            guard let node else { return say("no node here") }
+            guard !words.isEmpty else { return openCommandLine("mindmap.session ") }
+            Task { await startMindmapSession(on: node, prompt: words.joined(separator: " ")) }
         case "mindmap.open":
             guard let entry = node?.entry, ledger.entries[entry] != nil else { return mindmap.enter() }
             view = .ledger
             moveCursor(.ledger, to: entry)
         default: break
         }
+    }
+}
+
+// MARK: Memory: what sessions are told
+
+extension AppModel {
+    /// The brief a session started on `node` is told, from the instance shown; nil when off or there is nothing to say.
+    func memoryBrief(on node: MindNode) -> String? {
+        guard config.memory.brief != .off else { return nil }
+        return MemoryBrief.text(
+            for: node.id, in: mindmap.shown, ledger: ledger.entries, instance: mindmap.instance
+        )
+    }
+
+    /// Sessions on a goal are told the brief of the campaign most of the goal's work sits in, from that work's own
+    /// Mindmap.
+    func applyGoalBriefs() {
+        var briefs: [String: String] = [:]
+        if config.memory.brief != .off, config.mindmap.enabled {
+            let snapshot = goals.snapshot
+            for goal in snapshot.goals where goal.status != .archived {
+                let sessions = snapshot.links.filter { $0.goal == goal.id && ($0.kind == .session || $0.kind == .chat) }
+                    .map(\.target)
+                let entries = sessions.compactMap { ledger.entries[$0] }
+                guard let first = entries.first else { continue }
+                let instance = mindmap.instance(of: first).instance
+                let tree = mindmap.tree(instance)
+                guard let campaign = MemoryBrief.campaign(holding: entries.map(\.id), in: tree),
+                      let text = MemoryBrief.text(
+                          for: campaign.id, in: tree, ledger: ledger.entries, instance: instance
+                      )
+                else { continue }
+                for session in sessions where briefs[session] == nil {
+                    briefs[session] = text
+                }
+            }
+        }
+        // A session started on a node keeps that node's brief.
+        setMemoryBriefs(briefs.merging(mindmap.sessionBriefs) { _, node in node })
+    }
+
+    /// `s` in the Mindmap: a new session in the repo of the node's newest work, with the default agent, told the
+    /// node's brief at launch.
+    func startMindmapSession(on node: MindNode, prompt: String) async {
+        let work = mindmap.shown.entries(under: node.id).compactMap { ledger.entries[$0] }
+            .sorted { $0.updatedAt > $1.updatedAt }
+        guard let slug = work.first?.repos.first,
+              let record = repos.first(where: { $0.repo.slug == slug && $0.location == .local })
+        else { return say("no repo on this Mac for \(node.title)") }
+        guard let agent = settings.agent(settings.defaultAgent) else { return say("no default agent") }
+        var plan = StartWorkPlan(
+            prompt: prompt, repos: [record], name: StartWork.branchName(for: prompt, prefixes: settings.prefixes),
+            agent: agent, integration: integration
+        )
+        let id = plan.sessionID
+        if let brief = memoryBrief(on: node) {
+            mindmap.sessionBriefs[id] = brief
+            applyGoalBriefs()
+        }
+        plan.signOff = settings.signOffArguments(agent: agent, repo: record.repo, session: id)
+        let changes: [DomainChange]
+        do {
+            changes = try await StartWork.execute(plan, settings: settings, hosts: config.hosts)
+        } catch {
+            mindmap.sessionBriefs[id] = nil
+            applyGoalBriefs()
+            return say("start failed: \(error)")
+        }
+        var panes: [PaneSpec] = []
+        for case let .layoutChanged(_, layout) in changes {
+            for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
+                TerminalSurfaces.shared.autostartPanes.insert(pane.id)
+                panes.append(pane)
+            }
+        }
+        commit(changes)
+        for pane in panes {
+            TerminalSurfaces.shared.prepare(pane, sessionID: id)
+        }
+        say("started a session on \(node.title)" +
+            (mindmap.sessionBriefs[id] == nil ? "" : ", told what was decided here"))
     }
 }

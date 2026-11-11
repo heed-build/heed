@@ -29,6 +29,8 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     /// A short answer to a swarm agent's question that has no options, drafted for you to take or not
     /// (`SwarmController.draft`).
     case swarmAnswer
+    /// Campaigns for Mindmap work that fits none yet, as JSON (`MindmapNaming`).
+    case mindmapName
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -161,6 +163,16 @@ public struct Summarizer: Sendable {
             goal, notTheGoal, doneWhen, openQuestions, decisions; "op": one of add, remove, replace; "text": the \
             line; "target": the existing line a remove or replace is about, or null; "evidence": null; "reason": one \
             short sentence}]}.
+            """
+        case .mindmapName:
+            """
+            You group pieces of software work into campaigns: what a run of work was for, the way a person would say it \
+            at a standup ("Make the docs nav trustworthy", "Signed releases before 1.0"), not a component name. Each \
+            piece is listed under Already known as its id, a colon, its title and what it did. Reply with JSON only: \
+            {"campaigns":[{"title":"at most six words","intent":"one sentence on what it is for","area":"one or two \
+            words for the broad part of the work it belongs to","work":["ids"]}]}. Put a piece in a campaign only when \
+            it plainly belongs there; routine upkeep (dependency bumps, formatting) goes in a campaign titled "Upkeep". \
+            Leave out pieces that fit nothing yet. Never invent ids.
             """
         case .goalDraft:
             """

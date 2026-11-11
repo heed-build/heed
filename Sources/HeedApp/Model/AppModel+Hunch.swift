@@ -124,10 +124,11 @@ extension AppModel {
         let titles = Dictionary(goals.snapshot.goals.map { ($0.id, $0.title) }) { first, _ in first }
         let screens = await (try? eventLog?.screenSnapshots(limit: 20000)) ?? []
         let steering = await (try? goals.ops?.steering(goal: nil)) ?? []
+        let placed = mindmap.allNodes
         let examples = await Task.detached(priority: .utility) {
             HunchTrainingSet.attention(labels: labels, decisions: decided)
                 + HunchTrainingSet.attach(attach, goalTitles: titles) + HunchTrainingSet.screens(screens)
-                + HunchTrainingSet.swarm(steering)
+                + HunchTrainingSet.swarm(steering) + HunchTrainingSet.mindmap(placed)
         }.value
         await hunch.keep(examples)
     }

@@ -127,6 +127,7 @@ extension AppModel {
         }
         ledger.upsert(entry)
         learnFromLedger(entry)
+        await placeInMindmap(entry, session: session)
         // Files touched are the best evidence of which goal the work is on.
         findGoal(id, trigger: .ledger)
     }

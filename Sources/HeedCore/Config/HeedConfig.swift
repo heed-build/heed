@@ -48,6 +48,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var decisions = DecisionSettings()
     /// `[hunch]`: Hunch's checkpoint, and whether it learns from your corrections.
     public var hunch = HunchSettings()
+    /// `[mindmap]`: whether finished work is grouped into History's Mindmap, and whether heed may place it alone.
+    public var mindmap = MindmapSettings()
     /// `[local]`: what heed keeps on this Mac to learn local decisions from (screen snapshots). Off by default.
     public var local = LocalSettings()
     /// `[start_work]`: whether the on-device model helps Start work guess.
@@ -108,6 +110,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.llm == rhs.llm,
             lhs.decisions == rhs.decisions,
             lhs.hunch == rhs.hunch,
+            lhs.mindmap == rhs.mindmap,
             lhs.local == rhs.local,
             lhs.startWork == rhs.startWork,
             lhs.goals == rhs.goals,
@@ -737,6 +740,9 @@ public enum ConfigLoader {
             }
         }
         if let flag = bool(["hunch", "learn"]) { config.hunch.learn = flag }
+        // [mindmap]
+        if let flag = bool(["mindmap", "enabled"]) { config.mindmap.enabled = flag }
+        if let flag = bool(["mindmap", "shadow"]) { config.mindmap.shadow = flag }
         // [local]
         if let flag = bool(["local", "record_screens"]) { config.local.recordScreens = flag }
         if let days = integer(["local", "keep_days"], range: 1 ... 365) { config.local.keepDays = days }
@@ -1093,6 +1099,14 @@ public enum ConfigLoader {
     # Learn from your corrections (Attention actions, goal attach answers, labelled screen snapshots): a head trained
     # on this Mac, adopted only when it does no worse on examples it never saw. Unset: on once a model is downloaded.
     # learn = true
+
+    [mindmap]
+    # Group finished work into History's Mindmap: one per GitHub org, and one for your personal work, never mixed.
+    # A cheap model names campaigns for work that fits none ([llm]); Hunch, or whichever decider is set, places new
+    # work into them. While shadow is on, every placement waits for you (y keeps it, m moves it), and Settings ›
+    # Inference & decisions shows how often heed had it right; off, sure placements stand on their own.
+    # enabled = false
+    # shadow = true
 
     [local]
     # Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,

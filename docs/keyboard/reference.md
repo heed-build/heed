@@ -77,7 +77,7 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|mindmap|goals|log>` |  | switch view |
+| `view` `<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|mindmap|standup|goals|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: everything that wants you, one feed, with why (a filter: tagged, reviews, mine, ...) |
 | `view.inbox` |  | inbox |
@@ -89,6 +89,7 @@ This page is generated from the code (`mise run shots`).
 | `view.timeline` |  | History's timeline: sessions, worktrees, PRs and questions, by day |
 | `view.dashboard` |  | History's dashboard: what the work amounted to over a range |
 | `view.ledger` |  | History's ledger: a summary of each piece of work, kept after its worktree |
+| `view.standup` |  | History's standup reports: your questions answered, one report per org |
 | `view.mindmap` |  | History's Mindmap: the work grouped into campaigns, one Mindmap per org |
 | `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
 | `goal.overview` |  | Goals: back to the goal's overview from any of its panes |
@@ -148,10 +149,11 @@ This page is generated from the code (`mise run shots`).
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
 | `history.list` |  | History's list of the sessions that ended |
-| `history.timeline` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |
-| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (timeline) | History's ledger: a summary of each piece of work (again: back to the list) |
-| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (timeline) | History's dashboard: sessions, agent time, PRs, by day, agent and repo |
-| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (timeline) | History's Mindmap: the work grouped into campaigns, per org (again: back to the list) |
+| `history.timeline` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (standup), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |
+| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (standup), `L` (timeline) | History's ledger: a summary of each piece of work (again: back to the list) |
+| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup), `D` (timeline) | History's dashboard: sessions, agent time, PRs, by day, agent and repo |
+| `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup), `U` (timeline) | History's standup: your questions answered per org (again: back to the list) |
+| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (timeline) | History's Mindmap: the work grouped into campaigns, per org (again: back to the list) |
 
 ## Modes
 
@@ -179,6 +181,12 @@ This page is generated from the code (`mise run shots`).
 | `timeline.repo` `[name]` | `r` (timeline) | timeline: every repo, or the next one |
 | `timeline.where` `[local|host]` | `w` (timeline) | timeline: everywhere, this Mac, or a host |
 | `timeline.gone` | `c` (timeline) | timeline: show or hide removed worktrees |
+| `standup.run` | `S` (standup) | standup: write a report for this org now |
+| `standup.copy` `[plain]` | `y` (standup) | standup: copy the answer to the question shown (all with none), as markdown |
+| `standup.copy.all` `[plain]` | `Y` (standup) | standup: copy the whole report, as markdown |
+| `standup.question` | `t` (standup) | standup: show one question's answers, the next, or all again |
+| `standup.org.next` | `]o` (standup) | standup: the next org's reports (personal last) |
+| `standup.org.prev` | `[o` (standup) | standup: the previous org's reports |
 | `dashboard.range` `[days]` | `r` (dashboard) | dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w) |
 | `goal.new` `[title]` | `n` (goals) | new goal: a title and what it is (on a session: from its prompt, and the session on it) |
 | `goal.attach` `<goal>` |  | put the session or chat on a goal (no goal: the command line opens to pick one) |

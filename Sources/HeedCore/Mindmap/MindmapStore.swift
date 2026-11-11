@@ -56,7 +56,30 @@ public actor MindmapStore {
         CREATE INDEX nodes_parent ON nodes (parent);
         CREATE UNIQUE INDEX nodes_entry ON nodes (entry) WHERE entry IS NOT NULL;
         """),
+        SQLiteMigration(sql: """
+        CREATE TABLE reports (
+            id TEXT PRIMARY KEY,
+            at REAL NOT NULL,
+            report TEXT NOT NULL
+        );
+        CREATE INDEX reports_at ON reports (at);
+        """),
     ]
+
+    /// This Mindmap's standup reports, newest first.
+    public func reports(limit: Int = 200) throws -> [StandupReport] {
+        try database.query("SELECT report FROM reports ORDER BY at DESC LIMIT ?", [.integer(Int64(limit))]) { row in
+            try JSONDecoder.heed.decode(StandupReport.self, from: row[0].data ?? Data())
+        }
+    }
+
+    public func save(_ report: StandupReport) throws {
+        let json = try String(decoding: JSONEncoder.heed.encode(report), as: UTF8.self)
+        try database.run(
+            "INSERT OR REPLACE INTO reports (id, at, report) VALUES (?, ?, ?)",
+            [.text(report.id), SQLiteValue(report.at), .text(json)]
+        )
+    }
 
     public func nodes() throws -> [MindNode] {
         try database.query("SELECT node FROM nodes ORDER BY updated_at DESC, id") { row in

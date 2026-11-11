@@ -121,7 +121,7 @@ extension AppModel {
                 id: row.id, title: row.title, reopenable: history.contains { $0.id == row.id },
                 onGitHub: session?.repos.contains { $0.org != "local" } ?? false
             )
-        case .mindmap:
+        case .mindmap, .standup:
             return []
         case .ledger:
             let rows = ledger.rows

@@ -33,6 +33,7 @@ public enum HistoryPaneTabs {
         ("ledger", "Ledger", "history.ledger"),
         ("dashboard", "Dashboard", "history.dashboard"),
         ("mindmap", "Mindmap", "history.mindmap"),
+        ("standup", "Standup", "history.standup"),
     ]
 
     public static func tabs(counts: Counts = Counts()) -> [Tab] {

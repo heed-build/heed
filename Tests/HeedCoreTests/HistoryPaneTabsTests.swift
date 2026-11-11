@@ -4,8 +4,8 @@ import Testing
 @Suite struct HistoryPaneTabsTests {
     @Test func tabsNameEveryHistoryViewOnceWithItsCount() {
         let tabs = HistoryPaneTabs.tabs(counts: .init(sessions: 12, ledger: 5, open: 3))
-        #expect(tabs.map(\.pane) == ["history", "timeline", "ledger", "dashboard", "mindmap"])
-        #expect(tabs.map(\.count) == [12, 0, 5, 0, 3])
+        #expect(tabs.map(\.pane) == ["history", "timeline", "ledger", "dashboard", "mindmap", "standup"])
+        #expect(tabs.map(\.count) == [12, 0, 5, 0, 3, 0])
         #expect(HistoryPaneTabs.crumb(pane: "ledger") == ["History", "Ledger"])
         #expect(HistoryPaneTabs.crumb(pane: "history") == ["History", "Sessions"])
     }
@@ -28,6 +28,7 @@ import Testing
         }
         #expect(keys == [
             "history.timeline": "T", "history.ledger": "L", "history.dashboard": "D", "history.mindmap": "M",
+            "history.standup": "U",
         ])
     }
 

@@ -93,6 +93,7 @@ toc:
       - file: timeline.md
       - file: ledger.md
       - file: mindmap.md
+      - file: standup.md
       - file: reopening.md
   - folder: goals
     children:

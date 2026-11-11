@@ -31,6 +31,8 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case swarmAnswer
     /// Campaigns for Mindmap work that fits none yet, as JSON (`MindmapNaming`).
     case mindmapName
+    /// One standup question answered from one Mindmap (`StandupInputs`); the question is in the instructions.
+    case standup
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -163,6 +165,14 @@ public struct Summarizer: Sendable {
             goal, notTheGoal, doneWhen, openQuestions, decisions; "op": one of add, remove, replace; "text": the \
             line; "target": the existing line a remove or replace is about, or null; "evidence": null; "reason": one \
             short sentence}]}.
+            """
+        case .standup:
+            """
+            You answer one standup question for a software engineer, from heed's notes on their work: lines under \
+            Already known that start with work (a piece of work, its campaign in brackets, its outcome, its PRs, what it \
+            did), campaign (a campaign and its synopsis) or open (something still open in a campaign). Answer in at \
+            most five short markdown bullets, first person, plain words, naming PRs as org/repo#number. Only what the \
+            notes say; when they say nothing that answers it, reply with one bullet: nothing to report. No preamble.
             """
         case .mindmapName:
             """

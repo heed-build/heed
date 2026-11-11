@@ -104,7 +104,7 @@ public enum Commands {
             "view",
             "switch view",
             .views,
-            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|mindmap|goals|log>"
+            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|mindmap|standup|goals|log>"
         ),
         .init("view.sessions", "sessions", .views),
         .init(
@@ -125,6 +125,7 @@ public enum Commands {
         .init("view.timeline", "History's timeline: sessions, worktrees, PRs and questions, by day", .views),
         .init("view.dashboard", "History's dashboard: what the work amounted to over a range", .views),
         .init("view.ledger", "History's ledger: a summary of each piece of work, kept after its worktree", .views),
+        .init("view.standup", "History's standup reports: your questions answered, one report per org", .views),
         .init("view.mindmap", "History's Mindmap: the work grouped into campaigns, one Mindmap per org", .views),
         .init("view.goals", "goals: long-running work, what belongs to each goal, and its GOAL.md", .views),
         .init("goal.overview", "Goals: back to the goal's overview from any of its panes", .views),
@@ -278,6 +279,20 @@ public enum Commands {
         .init("timeline.gone", "timeline: show or hide removed worktrees", .selection),
         .init("history.ledger", "History's ledger: a summary of each piece of work (again: back to the list)", .views),
         .init("history.dashboard", "History's dashboard: sessions, agent time, PRs, by day, agent and repo", .views),
+        .init(
+            "history.standup", "History's standup: your questions answered per org (again: back to the list)", .views
+        ),
+        .init("standup.run", "standup: write a report for this org now", .selection),
+        .init(
+            "standup.copy",
+            "standup: copy the answer to the question shown (all with none), as markdown",
+            .selection,
+            arguments: "[plain]"
+        ),
+        .init("standup.copy.all", "standup: copy the whole report, as markdown", .selection, arguments: "[plain]"),
+        .init("standup.question", "standup: show one question's answers, the next, or all again", .selection),
+        .init("standup.org.next", "standup: the next org's reports (personal last)", .selection),
+        .init("standup.org.prev", "standup: the previous org's reports", .selection),
         .init(
             "history.mindmap", "History's Mindmap: the work grouped into campaigns, per org (again: back to the list)",
             .views

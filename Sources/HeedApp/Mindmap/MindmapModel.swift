@@ -17,6 +17,8 @@ final class MindmapModel {
     @ObservationIgnored let fixture: Bool
     /// Briefs of sessions started on a node (`s`), by session id: told again when they resume. Since launch only.
     @ObservationIgnored var sessionBriefs: [String: String] = [:]
+    /// The node (and its instance) a session was started on with `s`, by session id. Since launch only.
+    @ObservationIgnored var sessionNodes: [String: (instance: String, node: String)] = [:]
 
     init(fixture: Bool, directory: URL = MindmapStore.defaultDirectory()) {
         self.fixture = fixture

@@ -253,6 +253,7 @@ extension AppModel {
             agent: agent, integration: integration
         )
         let id = plan.sessionID
+        mindmap.sessionNodes[id] = (mindmap.instance, node.id)
         if let brief = memoryBrief(on: node) {
             mindmap.sessionBriefs[id] = brief
             applyGoalBriefs()
@@ -279,5 +280,65 @@ extension AppModel {
         }
         say("started a session on \(node.title)" +
             (mindmap.sessionBriefs[id] == nil ? "" : ", told what was decided here"))
+    }
+}
+
+// MARK: heed memory
+
+extension AppModel {
+    /// The Mindmap node a session's memory is read from, and its instance: the node it was started on, else its own
+    /// piece of work, else the campaign its goal's work sits in.
+    func memoryNode(forSession id: String) -> (instance: String, node: String)? {
+        if let started = mindmap.sessionNodes[id] { return started }
+        let session = sessions.first { $0.id == id } ?? history.first { $0.id == id }?.session
+        let instance: String = if let entry = ledger.entries[id] {
+            mindmap.instance(of: entry).instance
+        } else if let repo = session?.repos.first {
+            MindmapInstance.owner(of: repo.slug, context: mindmap.context)
+        } else {
+            MindmapInstance.personal
+        }
+        let tree = mindmap.tree(instance)
+        if let work = tree.work(for: id) { return (instance, work.id) }
+        let links = goals.snapshot.links
+        let onGoals = Set(links.filter { $0.target == id }.map(\.goal))
+        let siblings = links.filter { onGoals.contains($0.goal) }.map(\.target)
+        guard let campaign = MemoryBrief.campaign(holding: siblings, in: tree) else { return nil }
+        return (instance, campaign.id)
+    }
+
+    /// `heed memory show|search|note`, from a session's shell: that session's own Mindmap only.
+    func controlMemory(_ request: ControlRequest) async -> ControlReply {
+        let words = request.arguments ?? []
+        guard let session = request.session, let verb = words.first else { return .failure("heed memory: no session") }
+        let text = words.dropFirst().joined(separator: " ")
+        let found = memoryNode(forSession: session)
+        switch verb {
+        case "search":
+            let instance = found?.instance ?? memoryInstance(forSession: session)
+            return ControlReply(memory: MemoryQuery.search(text, in: mindmap.tree(instance), ledger: ledger.entries))
+        case "show":
+            guard let found else { return ControlReply(memory: "nothing kept for this work yet") }
+            return ControlReply(memory: MemoryQuery.show(
+                found.node, in: mindmap.tree(found.instance), ledger: ledger.entries, instance: found.instance
+            ))
+        case "note":
+            guard let found else {
+                return ControlReply(ok: false, error: "no campaign for this session yet: nothing to keep it on")
+            }
+            var answer = ""
+            await mindmap.change(found.instance) { tree in
+                answer = MemoryQuery.note(text, on: found.node, session: session, in: &tree, now: Date())
+            }
+            return ControlReply(memory: answer)
+        default:
+            return .failure(MemoryCommandLine.usage)
+        }
+    }
+
+    private func memoryInstance(forSession id: String) -> String {
+        let session = sessions.first { $0.id == id } ?? history.first { $0.id == id }?.session
+        return session?.repos.first.map { MindmapInstance.owner(of: $0.slug, context: mindmap.context) }
+            ?? MindmapInstance.personal
     }
 }

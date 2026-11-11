@@ -28,7 +28,7 @@ public enum HeedControl {
 ///   Answered with `goal` in the reply.
 public struct ControlRequest: Codable, Equatable, Sendable {
     public enum Method: String, Codable, Sendable {
-        case sessions, watch, start, send, show, goal
+        case sessions, watch, start, send, show, goal, memory
     }
 
     public var id: Int?
@@ -126,11 +126,14 @@ public struct ControlReply: Codable, Equatable, Sendable {
     public var event: String?
     /// `goal`: what the command did (its exit code, its words, what changed).
     public var goal: GoalReply?
+    /// `memory`: what to print.
+    public var memory: String?
 
     public init(
         id: Int? = nil, ok: Bool = true, error: String? = nil, session: String? = nil,
-        sessions: [ControlSession]? = nil, event: String? = nil, goal: GoalReply? = nil
+        sessions: [ControlSession]? = nil, event: String? = nil, goal: GoalReply? = nil, memory: String? = nil
     ) {
+        self.memory = memory
         self.id = id
         self.ok = ok
         self.error = error
@@ -451,6 +454,8 @@ public enum ControlCommandLine {
             request.session = words[0]
         case .goal:
             throw HookCommandLine.UsageError(description: GoalCommandLine.usage)
+        case .memory:
+            throw HookCommandLine.UsageError(description: MemoryCommandLine.usage)
         }
         return request
     }

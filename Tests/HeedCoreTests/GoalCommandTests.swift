@@ -400,9 +400,11 @@ struct GoalSpawnConfigTests {
 }
 
 struct HeedPluginTests {
-    @Test func thePluginIsAManifestAndOneSkill() throws {
+    @Test func thePluginIsAManifestAndItsSkills() throws {
         let files = HeedPlugin.files(version: "1.2.3")
-        #expect(Set(files.keys) == [".claude-plugin/plugin.json", "skills/heed-goal/SKILL.md"])
+        #expect(Set(files.keys) == [
+            ".claude-plugin/plugin.json", "skills/heed-goal/SKILL.md", "skills/heed-memory/SKILL.md",
+        ])
         let json = try #require(files[".claude-plugin/plugin.json"])
         let manifest = try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
         #expect(manifest["name"] as? String == "heed" && manifest["version"] as? String == "1.2.3")

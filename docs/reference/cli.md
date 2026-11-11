@@ -38,6 +38,7 @@ work anywhere while Heed runs:
 | `heed start [--agent <name>] [--dir <path>] [--arg <word>]... [--focus] "<prompt>"` | Starts an agent on the prompt in `path` (here by default): as work in that worktree when Heed knows it, else as a chat in the folder, with each `--arg` added to its command line (an editor's MCP config, say). It starts off screen; `--focus` brings Heed forward on it. A worktree that already has a session is refused with that session's id |
 | `heed send <session> "<text>"` | Types the text into the session's agent and presses Return, only while the agent is idle or done and you have not just typed there; otherwise it says why and sends nothing |
 | `heed show [--focus] <session>` | Shows the session in Heed's window; `--focus` also brings Heed forward |
+| `heed memory show\|search\|note` | What heed's [Mindmap](../history/mindmap.md#heed-memory) keeps about the work the calling session continues, from its own org's Mindmap only |
 | `heed goal <command>` | The goal the calling session is on: read it, record decisions, questions and items, check criteria with evidence, propose scope changes, spawn work. See [Agents keep the goal](../goals/cli.md) |
 | `heed swarm send\|note\|answer` | A swarm's agents: messages to a task, the lead or `@all`, progress notes, answers to questions heed handed them (method `goal` too). See [Steering](../goals/swarms/steering.md) |
 

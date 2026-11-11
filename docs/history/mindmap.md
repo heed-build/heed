@@ -27,6 +27,25 @@ repo goes with that repo's org. `[o` and `]o` switch between them; each lives in
 | Decisions | The ledger's decisions, with the work they came from. One rises to the node above when two of its children take it, or you pin it (`p`). One that later work went against is struck through |
 | Open | Follow-ups nobody did yet. Later work that does one closes it; `x` marks it done |
 
+## Loose ends
+
+Next to the follow-ups a summary wrote down, Open lists what a piece of work left unfinished that nobody wrote down,
+from what heed already knows:
+
+| Loose end | When |
+|---|---|
+| saved work | Its worktree was removed, the work was saved, and it never landed |
+| no PR | It ended with commits and no PR |
+| quiet PR | Its PR is open with no activity for a week |
+| review threads | Its open PR has review threads nobody resolved |
+| red CI | Its open PR's checks fail |
+| unanswered | The agent's last message asked something, and the session ended there (Hunch reads it) |
+| abandoned | It was abandoned with nothing written about what was left |
+
+Each is worked out again when the ledger writes and when you open the Mindmap, so one goes away by itself when its
+fact does: the PR merges, the thread is resolved, CI goes green. `x` dismisses one for good. A session's brief and
+`heed memory show` list them with what is still open.
+
 ## How work gets placed
 
 When the ledger writes an entry, heed places the work. Clear cases are settled by the words and files alone. The

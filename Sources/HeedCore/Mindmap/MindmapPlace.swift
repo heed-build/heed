@@ -137,6 +137,7 @@ public enum MindmapPlace {
             node.decisions.first { $0.text == decision.text } ?? decision
         }
         node.open = fresh.open.map { item in node.open.first { $0.text == item.text } ?? item }
+            + node.open.filter { $0.kind != .followUp }
         node.updatedAt = now
         if let placed, node.madeBy != .you {
             switch placed.outcome {

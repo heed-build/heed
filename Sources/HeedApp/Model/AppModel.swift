@@ -2546,7 +2546,9 @@ final class AppModel {
         case "dashboard.range": dashboard.cycleRange(command.arguments.first)
         case "history.ledger": view = view == .ledger ? .history : .ledger
         case "history.list": view = .history
-        case "history.mindmap": view = view == .mindmap ? .history : .mindmap
+        case "history.mindmap":
+            view = view == .mindmap ? .history : .mindmap
+            if view == .mindmap, !isFixture { Task { await refreshLooseEnds(mindmap.instance) } }
         case "mindmap.in", "mindmap.out", "mindmap.less", "mindmap.more", "mindmap.org.next", "mindmap.org.prev",
              "mindmap.accept", "mindmap.done", "mindmap.pin", "mindmap.nest", "mindmap.lift", "mindmap.rename",
              "mindmap.move", "mindmap.join", "mindmap.name", "mindmap.open", "mindmap.session":

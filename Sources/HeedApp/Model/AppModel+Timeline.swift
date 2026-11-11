@@ -8,3 +8,13 @@ extension AppModel {
         return history.first { $0.id == id }
     }
 }
+
+extension AppModel {
+    /// A click on a tab of History's pane bar: opens that view, as its key does (a click on the one shown does
+    /// nothing, where its key would go back to the list).
+    func showHistoryPane(_ pane: String, command: String) {
+        guard clicksReachLists, pane != view.rawValue else { return }
+        clickedOutsideTerminal()
+        perform(CommandInvocation(name: command))
+    }
+}

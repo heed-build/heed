@@ -2532,6 +2532,7 @@ final class AppModel {
         case "history.dashboard": view = view == .dashboard ? .history : .dashboard
         case "dashboard.range": dashboard.cycleRange(command.arguments.first)
         case "history.ledger": view = view == .ledger ? .history : .ledger
+        case "history.list": view = .history
         case "ledger.summarize": summarizeLedgerNow()
         case "ledger.edit": editLedger(command.arguments)
         case "history.timeline": view = view == .timeline ? .history : .timeline

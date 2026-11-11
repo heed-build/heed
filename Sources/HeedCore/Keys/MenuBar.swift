@@ -275,7 +275,7 @@ public enum MenuBar {
                 ], in: ["repos"]),
                 scoped("In History", [
                     ("Reopen", "history.reopen"), ("Start again from its prompt", "history.again"),
-                    ("Next outcome", "history.outcome"), ("Timeline", "history.timeline"),
+                    ("Next outcome", "history.outcome"), ("Sessions", "history.list"), ("Timeline", "history.timeline"),
                     ("Ledger", "history.ledger"), ("Dashboard", "history.dashboard"),
                     ("Timeline: next kind", "timeline.kind"), ("Timeline: next repo", "timeline.repo"),
                     ("Timeline: where", "timeline.where"), ("Timeline: removed worktrees", "timeline.gone"),

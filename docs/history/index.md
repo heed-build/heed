@@ -23,6 +23,12 @@ timeline (started, PR opened, ended) and the agent's resume command.
 Heed keeps the prompt, the agent's session id, the timeline and the agent's last message, plus what its event log
 recorded and the [ledger](ledger.md)'s summary; the transcript belongs to the agent.
 
+A strip of tabs above every History view names them all, with their keys and how much is in each: Sessions (this
+list), Timeline `T`, Ledger `L` and Dashboard `D`. The same keys work in every one of them; a view's own key again
+comes back here, and a click on a tab opens it.
+
+![History's tabs: Sessions, Timeline, Ledger and Dashboard, each with its key](../images/shots/history/pane-tabs.png)
+
 `T` shows the same history as a [timeline](timeline.md): sessions, worktrees, PRs and questions, by day. `L` shows the
 [ledger](ledger.md): a short summary of each piece of work, kept after its worktree is gone. `D` shows the
 [dashboard](dashboard.md): sessions, agent time and PRs over a range.

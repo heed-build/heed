@@ -108,9 +108,9 @@ public enum DefaultKeys {
         ],
         // History's timeline (T, :timeline); T again goes back to the list.
         "timeline": [
-            ("T", "history.timeline"), ("L", "history.ledger"), ("R", "history.reopen"), ("<CR>", "history.reopen"),
-            ("t", "timeline.kind"),
-            ("r", "timeline.repo"), ("w", "timeline.where"), ("D", "timeline.gone"),
+            ("T", "history.timeline"), ("L", "history.ledger"), ("D", "history.dashboard"), ("R", "history.reopen"),
+            ("<CR>", "history.reopen"), ("t", "timeline.kind"),
+            ("r", "timeline.repo"), ("w", "timeline.where"), ("c", "timeline.gone"),
         ],
         // History's ledger (L, :ledger); L again goes back to the list.
         "ledger": [

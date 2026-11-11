@@ -29,7 +29,7 @@ longer does. When heed [saved its work](../worktrees/removing.md#saved-first) be
 | `t` | Every kind, then each one alone: sessions, worktrees, PRs, questions, chats |
 | `r` | Every repo, then each one |
 | `w` | Everywhere, then this Mac, then each host |
-| `D` | Show or hide lines about removed worktrees |
+| `c` | Show or hide lines about removed worktrees |
 | `{` `}` | The previous and next day |
 | `/` | Search the lines |
 

@@ -2549,7 +2549,7 @@ final class AppModel {
         case "history.mindmap": view = view == .mindmap ? .history : .mindmap
         case "mindmap.in", "mindmap.out", "mindmap.less", "mindmap.more", "mindmap.org.next", "mindmap.org.prev",
              "mindmap.accept", "mindmap.done", "mindmap.pin", "mindmap.nest", "mindmap.lift", "mindmap.rename",
-             "mindmap.move", "mindmap.join", "mindmap.name", "mindmap.open":
+             "mindmap.move", "mindmap.join", "mindmap.name", "mindmap.open", "mindmap.session":
             performMindmap(command)
         case "ledger.summarize": summarizeLedgerNow()
         case "ledger.edit": editLedger(command.arguments)
@@ -2957,11 +2957,17 @@ final class AppModel {
 
     /// What sessions on a goal are told at launch and resume (`[goals] tell_agents`), kept in the work settings every
     /// launch reads.
+    /// What sessions are told from the Mindmap, by session id (`AppModel+Mindmap`).
+    func setMemoryBriefs(_ briefs: [String: String]) {
+        if settings.memoryBriefs != briefs { settings.memoryBriefs = briefs }
+    }
+
     func applyGoalPointers() {
         let pointers = config.goals.tellAgents ? GoalPointer.bySession(goals.snapshot, files: goals.files) : [:]
         if settings.goalPointers != pointers { settings.goalPointers = pointers }
         let plugin = config.goals.tellAgents ? integration.plugin : nil
         if settings.goalPlugin != plugin { settings.goalPlugin = plugin }
+        applyGoalBriefs()
     }
 
     func select(sessionID: String) {

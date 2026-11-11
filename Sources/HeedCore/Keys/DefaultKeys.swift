@@ -130,6 +130,7 @@ public enum DefaultKeys {
             ("]o", "mindmap.org.next"), ("[o", "mindmap.org.prev"), ("y", "mindmap.accept"), ("x", "mindmap.done"),
             ("p", "mindmap.pin"), (">", "mindmap.nest"), ("<", "mindmap.lift"), ("r", "mindmap.rename"),
             ("m", "mindmap.move"), ("J", "mindmap.join"), ("S", "mindmap.name"), ("<CR>", "mindmap.open"),
+            ("s", "mindmap.session"),
         ],
         // Goals (gG): j k move through the goals, ⇥ to what belongs to the one under the cursor, ↩ opens.
         "goals": goals,

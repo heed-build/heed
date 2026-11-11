@@ -280,6 +280,12 @@ setup_reminder = true
 # enabled = true
 # shadow = true
 
+[memory]
+# What a session is told at launch from the Mindmap: the decisions that still stand in its campaign, what was
+# tried and dropped, what is still open, and its PRs, from that org's Mindmap only. "node_and_goal": sessions
+# started from a Mindmap node (s) and sessions on a goal whose work sits in a campaign; "off": none.
+# brief = "node_and_goal"
+
 [local]
 # Screen snapshots for a local decision model to learn from: at each state an agent's hooks report (working,
 # asking, blocked, idle, done), the cleaned last 30 lines of its pane, the agent and the state; now and then one

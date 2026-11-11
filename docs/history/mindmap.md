@@ -43,6 +43,20 @@ enabled = true
 shadow = true
 ```
 
+## What sessions are told
+
+`s` on a node starts a session in the repo of its newest work: type the prompt, and the agent is told at launch
+what was decided there and still stands, what was tried and dropped, what is still open, and its PRs. The detail
+pane shows that text under "A session started here is told". A session on a [goal](../goals/index.md) is told the
+same about the campaign most of the goal's work sits in. It comes from that org's Mindmap only.
+
+claude gets it with `--append-system-prompt`, codex as `developer_instructions`; other agents are not told.
+
+```toml
+[memory]
+brief = "node_and_goal"   # or "off"
+```
+
 ## Keys
 
 | Key | |
@@ -59,6 +73,7 @@ shadow = true
 | `x` | Its first open follow-up done |
 | `p` | Pin its first decision |
 | `S` | Name campaigns for Unsorted work now |
+| `s` | Start a session here, told what was decided and what is open |
 | `↩` | A piece of work's ledger entry |
 
 What you moved, grouped or renamed stays when heed places work again.

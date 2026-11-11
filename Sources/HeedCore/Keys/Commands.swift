@@ -608,6 +608,10 @@ public enum Commands {
         .init("mindmap.name", "Mindmap: name campaigns for the work waiting in Unsorted now", .selection),
         .init("mindmap.open", "Mindmap: a piece of work's ledger entry", .selection),
         .init(
+            "mindmap.session", "Mindmap: start a session on this node, told what was decided and what is open here",
+            .selection, arguments: "[prompt]"
+        ),
+        .init(
             "ledger.edit", "edit the ledger entry's summary (no text: the command line opens with it)", .selection,
             arguments: "[text]"
         ),

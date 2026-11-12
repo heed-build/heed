@@ -55,6 +55,7 @@ struct StartWorkView: View {
 
             if let promotion = form.promotion { promotionNote(promotion, form).padding(.horizontal, 20) }
             promptBox(form, cap: promptCap).padding(.horizontal, 20).padding(.bottom, 16)
+            if form.fields.contains(.kind) { section("Kind", .kind, form) { kindField(form) } }
             section("Repo", .repo, form) { repoField(form) }
             if form.chat != nil {
                 section("Folder", .worktree, form) { folderField(form) }
@@ -142,7 +143,8 @@ struct StartWorkView: View {
                             + (guess.repo.location.hostName.map { " @\($0)" } ?? ""),
                         detail: guess.confidence > 0 ? "\(guess.confidence)%" : nil,
                         selected: primary, secondary: selected && !primary,
-                        focused: form.field == .repo && form.repoCursor == index
+                        focused: form.field == .repo && form.repoCursor == index,
+                        org: guess.repo.repo
                     )
                     .onTapGesture { model.clickStartWork { $0.pickRepo(at: index) } }
                 }
@@ -170,7 +172,7 @@ struct StartWorkView: View {
                     .onTapGesture { model.clickStartWork { $0.pickRepo(at: $0.chatChipIndex) } }
                 }
             }
-            if let search = form.repoSearch { repoSearch(search, note: form.searchNote) }
+            if let search = form.repoSearch { repoSearch(search, note: form.searchNote, form: form) }
             FieldNoteView(note: form.cloneNote)
             if form.chat != nil {
                 Text("A chat: the agent works in a folder, with no repo, worktree or branch.")
@@ -187,7 +189,7 @@ struct StartWorkView: View {
     }
 
     /// Any repo by name: what is typed, then the best matches (most recently worked in first), the cursor on one.
-    private func repoSearch(_ search: Typeahead<RepoRecord>, note: FieldNote?) -> some View {
+    private func repoSearch(_ search: Typeahead<RepoRecord>, note: FieldNote?, form: StartWorkForm) -> some View {
         let matches = search.matches
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
@@ -204,6 +206,9 @@ struct StartWorkView: View {
                     OrgTile(org: record.repo.org, color: record.repo.color, size: 14)
                     Text(record.repo.slug).font(Theme.mono(12)).lineLimit(1)
                     Spacer()
+                    if let worked = form.lastWorkedText(record) {
+                        Text(worked).font(Theme.ui(11)).foregroundStyle(Theme.fg3)
+                    }
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
@@ -219,7 +224,7 @@ struct StartWorkView: View {
             if note != nil {
                 FieldNoteView(note: note).padding(.horizontal, 10).padding(.vertical, 5)
             }
-            Text("⌃n ⌃p move · ↩ add · any repo: owner/name, a GitHub URL or a path · ⎋ close").font(Theme.ui(11))
+            Text("⌃n ⌃p move · ↩ pick · any repo: owner/name, a GitHub URL or a path · ⎋ close").font(Theme.ui(11))
                 .foregroundStyle(Theme.fg3)
                 .padding(.horizontal, 10).padding(.vertical, 6)
         }
@@ -526,10 +531,37 @@ struct StartWorkView: View {
         .background(Theme.bg3)
     }
 
+    /// What the work is, one chip each; the pick sets the branch prefix.
+    private func kindField(_ form: StartWorkForm) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FlowLayout {
+                ForEach(WorkKind.allCases, id: \.self) { kind in
+                    let picked = form.kind == kind
+                    Text(kind.rawValue)
+                        .font(Theme.mono(12, weight: .semibold))
+                        .foregroundStyle(picked ? Theme.ink : Theme.kind(kind))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(RoundedRectangle(cornerRadius: 5).fill(
+                            picked ? Theme.kind(kind) : Theme.kind(kind).opacity(0.12)
+                        ))
+                        .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(
+                            form.field == .kind && picked ? Theme.fg : .clear, lineWidth: 1.5
+                        ))
+                        .onTapGesture { model.clickStartWork { $0.pickKind(kind) } }
+                }
+            }
+            Text("Sets the branch prefix: \(form.kind.prefix(in: form.branchPrefixes))/. h l to change it.")
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+        }
+    }
+
     private func choice(
-        _ label: String, detail: String? = nil, selected: Bool, secondary: Bool = false, focused: Bool
+        _ label: String, detail: String? = nil, selected: Bool, secondary: Bool = false, focused: Bool,
+        org: Repo? = nil
     ) -> some View {
         HStack(spacing: 6) {
+            if let org { OrgTile(org: org.org, color: org.color, size: 14) }
             Text(label).font(Theme.mono(12.5, weight: selected ? .semibold : .regular)).lineLimit(1).fixedSize()
             if let detail { Text(detail).font(Theme.mono(10.5)).foregroundStyle(selected ? Theme.bg3 : Theme.fg3) }
         }

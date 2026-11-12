@@ -105,6 +105,8 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var lastMessage: String?
     /// Worktrees of `repos`, or a chat's folder.
     public var workspace: Workspace = .worktrees
+    /// What the work is (feat, fix, …); nil for a chat, and for sessions started before kinds.
+    public var kind: WorkKind?
 
     /// The chat's folder; nil for a session in worktrees.
     public var chat: ChatFolder? {
@@ -158,7 +160,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     private enum CodingKeys: String, CodingKey {
         case id, title, prompt, repos, branch, agent, agentSessionID, state, activity, trackedPRs, pinned, parked,
              lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs, host, issues, hiddenIssues,
-             notes, usage, chat, lastMessage
+             notes, usage, chat, lastMessage, kind
     }
 
     /// Sessions cached before branches were followed still load.
@@ -189,6 +191,8 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         notes = try container.decodeIfPresent([FeedbackItem].self, forKey: .notes) ?? []
         usage = try container.decodeIfPresent(AgentUsage.self, forKey: .usage)
         lastMessage = try container.decodeIfPresent(String.self, forKey: .lastMessage)
+        // A kind this build does not know (a newer heed's) reads as none rather than failing the session.
+        kind = (try? container.decodeIfPresent(WorkKind.self, forKey: .kind)) ?? nil
         workspace = try container.decodeIfPresent(ChatFolder.self, forKey: .chat).map(Workspace.chat) ?? .worktrees
     }
 
@@ -219,6 +223,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         try container.encode(notes, forKey: .notes)
         try container.encodeIfPresent(usage, forKey: .usage)
         try container.encodeIfPresent(lastMessage, forKey: .lastMessage)
+        try container.encodeIfPresent(kind, forKey: .kind)
         try container.encodeIfPresent(chat, forKey: .chat)
     }
 

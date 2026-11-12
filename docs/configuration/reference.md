@@ -37,6 +37,7 @@ docs = ["docs", "doc", "document", "readme"]
 test = ["test", "tests", "cover"]
 perf = ["perf", "speed", "optimize", "faster"]
 feature = ["add", "implement", "support", "create", "introduce", "build", "feature"]
+plan = ["plan", "spike", "investigate", "explore", "research"]
 
 [start_work]
 # Where the Mac has Apple's on-device model (Apple Intelligence, macOS 26): it suggests the repo when the prompt

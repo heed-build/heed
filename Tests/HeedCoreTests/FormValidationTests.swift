@@ -337,7 +337,7 @@ struct FormValidationTests {
         ]
         // Start work's repo search says what a typed repo is, and the clone, under the repo field.
         let startWork = try Self.source("Sources/HeedApp/Views/StartWorkView.swift")
-        #expect(startWork.contains("repoSearch(search, note: form.searchNote)"))
+        #expect(startWork.contains("repoSearch(search, note: form.searchNote, form: form)"))
         #expect(startWork.contains("FieldNoteView(note: note)"))
         #expect(startWork.contains("FieldNoteView(note: form.cloneNote)"))
         #expect(startWork.contains("ForEach(form.typedRepos"))

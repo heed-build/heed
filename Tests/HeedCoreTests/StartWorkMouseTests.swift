@@ -43,16 +43,17 @@ struct StartWorkMouseTests {
         #expect(form.field == .repo)
         #expect(!form.editing)
         #expect(form.repoCursor == docs)
-        #expect(form.selectedRepos == ["o/markgraph", "o/docs-toolkit"])
+        // One repo: the clicked one instead, and clicking it again keeps it.
+        #expect(form.selectedRepos == ["o/docs-toolkit"])
         form.pickRepo(at: docs)
-        #expect(form.selectedRepos == ["o/markgraph"])
+        #expect(form.selectedRepos == ["o/docs-toolkit"])
         // Out of range changes nothing.
         form.pickRepo(at: 99)
-        #expect(form.selectedRepos == ["o/markgraph"])
+        #expect(form.selectedRepos == ["o/docs-toolkit"])
         #expect(form.repoCursor == docs)
     }
 
-    @Test func theSearchChipOpensSearchAndAClickedRowIsAdded() {
+    @Test func theSearchChipOpensSearchAndAClickedRowIsPicked() {
         var form = StartWorkForm(repos: records, settings: .default)
         type("markgraph arrows", into: &form)
         form.pickRepo(at: form.repoChoices.count)
@@ -61,7 +62,7 @@ struct StartWorkMouseTests {
         let docs = search?.matches.firstIndex { $0.id == "o/docs-toolkit" } ?? -1
         form.pickSearchMatch(at: docs)
         #expect(form.repoSearch == nil)
-        #expect(form.selectedRepos == ["o/markgraph", "o/docs-toolkit"])
+        #expect(form.selectedRepos == ["o/docs-toolkit"])
     }
 
     @Test func theChatChipTurnsItIntoAChatAndAFolderChipPicksTheKind() {

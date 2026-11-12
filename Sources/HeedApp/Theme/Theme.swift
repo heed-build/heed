@@ -31,6 +31,18 @@ enum Theme {
     static let done = Color(hex: 0x72D699)
     static let err = Color(hex: 0xF97770)
 
+    /// A kind of work's hue: its badge and its Start work chip. Drawn as text on a tint, never as a state dot.
+    static func kind(_ kind: WorkKind) -> Color {
+        switch kind {
+        case .feat: Color(hex: 0x8FB4FF)
+        case .fix: Color(hex: 0xFF8F8F)
+        case .refactor: Color(hex: 0xC9A0FF)
+        case .docs: Color(hex: 0x7FD1C7)
+        case .chore: Color(hex: 0x9AA0AD)
+        case .plan: Color(hex: 0xE8C36A)
+        }
+    }
+
     static func modeColor(_ mode: Mode) -> Color {
         switch mode {
         case .normal: inverse

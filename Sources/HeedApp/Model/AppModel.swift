@@ -6831,7 +6831,7 @@ final class AppModel {
         var form = StartWorkForm(
             repos: repos, lastWorked: StartWork.lastWorked(sessions: sessions, closed: history), context: context,
             settings: settings, prompt: prompt, integration: integration, hostIntegrations: hostIntegrations(),
-            hosts: config.hosts.keys.sorted(), chat: chat, promotion: promotion
+            hosts: config.hosts.keys.sorted(), chat: chat, promotion: promotion, takenBranches: takenBranches
         )
         form.catalogs = settings.agents.reduce(into: [:]) { $0[$1.name] = modelCatalog($1.name) }
         if promotion != nil {
@@ -6845,6 +6845,20 @@ final class AppModel {
         startWork = form
         prepareStartWorkSmarts()
         adviseStartWork()
+    }
+
+    /// Branch names in use per repo slug, so Start work's guessed name never clashes: worktrees' and sessions'.
+    private var takenBranches: [String: Set<String>] {
+        var taken: [String: Set<String>] = [:]
+        for worktree in worktrees {
+            if let branch = worktree.branch { taken[worktree.repo.slug, default: []].insert(branch) }
+        }
+        for session in sessions {
+            for repo in session.repos {
+                taken[repo.slug, default: []].formUnion(session.branches)
+            }
+        }
+        return taken
     }
 
     /// `chat.promote`: Start work for the chat's conversation, once its transcript and files are read (off the main

@@ -31,6 +31,7 @@ struct StartWorkRepoSearchTests {
     @Test func anyRepoCanBePickedBySearchAndGetsAChip() {
         var form = StartWorkForm(repos: records, settings: .default)
         _ = form.handle(.escape) // stop editing the prompt
+        _ = form.handle(KeyStroke("j")) // kind
         _ = form.handle(KeyStroke("j")) // repo field
         #expect(form.field == .repo)
         _ = form.handle(KeyStroke("/"))
@@ -47,6 +48,7 @@ struct StartWorkRepoSearchTests {
     @Test func theChipBeforeTheChatChipOpensSearch() {
         var form = StartWorkForm(repos: records, settings: .default)
         _ = form.handle(.escape)
+        _ = form.handle(KeyStroke("j"))
         _ = form.handle(KeyStroke("j"))
         for _ in 0 ..< 20 {
             _ = form.handle(KeyStroke("l"))

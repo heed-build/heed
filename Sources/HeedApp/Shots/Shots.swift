@@ -205,15 +205,17 @@ enum Shots {
 
     static let startWork: [Shot] = [
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),
-        Shot(id: "start-work/repos", keys: "o" + prompt + "<Esc>j", crop: .dialog),
-        Shot(id: "start-work/repo-search", keys: "o" + prompt + "<Esc>j/mar", crop: .dialog),
+        // The kind row: h l pick what the work is, and the name's prefix follows.
+        Shot(id: "start-work/kind", keys: "o" + prompt + "<Esc>jl", crop: .dialog),
+        Shot(id: "start-work/repos", keys: "o" + prompt + "<Esc>jj", crop: .dialog),
+        Shot(id: "start-work/repo-search", keys: "o" + prompt + "<Esc>jj/mar", crop: .dialog),
         // Any repo, typed into the search: one heed has not seen is checked on GitHub, then cloned on ⌘↩.
-        Shot(id: "start-work/any-repo", keys: "o" + prompt + "<Esc>j/globex/report-engine", crop: .dialog),
-        Shot(id: "start-work/any-repo-picked", keys: "o" + prompt + "<Esc>j/globex/report-engine<CR>", crop: .dialog),
-        Shot(id: "start-work/branch-name", keys: "o" + prompt + "<Esc>jj", crop: .dialog),
-        Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjjjj", crop: .dialog),
+        Shot(id: "start-work/any-repo", keys: "o" + prompt + "<Esc>jj/globex/report-engine", crop: .dialog),
+        Shot(id: "start-work/any-repo-picked", keys: "o" + prompt + "<Esc>jj/globex/report-engine<CR>", crop: .dialog),
+        Shot(id: "start-work/branch-name", keys: "o" + prompt + "<Esc>jjj", crop: .dialog),
+        Shot(id: "start-work/agent-options", keys: "o" + prompt + "<Esc>jjjjjjj", crop: .dialog),
         // The model field: h l step through the agent's models (Opus, two steps in), then its efforts (high).
-        Shot(id: "start-work/model", keys: "o" + prompt + "<Esc>jjjjlljlll", crop: .dialog),
+        Shot(id: "start-work/model", keys: "o" + prompt + "<Esc>jjjjjlljlll", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
         Shot(id: "start-work/from-github-picked", keys: ":issues<CR><Space>j<Space>", highlight: [.list, .pickedPanel]),
         Shot(id: "start-work/from-github-dialog", keys: ":issues<CR><Space>j<Space>s", crop: .dialog),

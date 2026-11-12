@@ -108,6 +108,7 @@ struct PromoteTests {
         #expect(form.selectedRepos == ["o/markgraph"])
         _ = form.handle(.escape)
         _ = form.handle(KeyStroke("j"))
+        _ = form.handle(KeyStroke("j"))
         for _ in 0 ..< 10 {
             _ = form.handle(KeyStroke("l"))
         }
@@ -137,8 +138,8 @@ struct PromoteTests {
         #expect(!empty.options.contains(.copyFiles))
         var form = StartWorkForm(repos: records, settings: .default, promotion: promotion())
         _ = form.handle(.escape)
-        // Prompt, repo, worktree, agent, model, effort, then the options.
-        for key in ["j", "j", "j", "j", "j", "j", "l", "l", "l", "Space"] {
+        // Prompt, kind, repo, worktree, agent, model, effort, then the options.
+        for key in ["j", "j", "j", "j", "j", "j", "j", "l", "l", "l", "Space"] {
             _ = form.handle(KeyStroke(key))
         }
         #expect(form.promotion?.copyFiles == true)

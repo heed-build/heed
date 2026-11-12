@@ -67,7 +67,7 @@ struct ChatStartTests {
         var form = StartWorkForm(repos: records, settings: .default)
         type("markgraph arrows", into: &form)
         #expect(form.selectedRepos == ["o/markgraph"])
-        press("Esc", "j", into: &form)
+        press("Esc", "j", "j", into: &form) // past the kind, to the repos
         // Two repos, the search chip, then the chat chip.
         #expect(form.chatChipIndex == 3)
         press("l", "l", "l", "Space", into: &form)

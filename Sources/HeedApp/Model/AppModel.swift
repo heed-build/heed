@@ -2962,6 +2962,10 @@ final class AppModel {
             ledger.setCursor(index)
         } else if view == .dashboard {
             dashboard.setCursor(index)
+        } else if view == .mindmap {
+            mindmap.setCursor(index)
+        } else if view == .standup {
+            standup.setCursor(index)
         } else if view == .goals {
             goals.setCursor(index)
         } else if view == .repos {

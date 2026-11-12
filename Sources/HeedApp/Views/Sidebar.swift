@@ -142,7 +142,8 @@ struct Sidebar: View {
                                         quiet: group == .parked && section.group != .parked,
                                         hidesAgent: session.agent == model.settings.defaultAgent,
                                         // Under its repo's header, a one-repo session need not say it again.
-                                        hidesRepo: list.view.grouping == .repo && session.involvedRepos.count == 1
+                                        hidesRepo: list.view.grouping == .repo && session.involvedRepos.count == 1,
+                                        kind: model.kind(of: session)
                                     )
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.clickSession(session.id) }
@@ -292,6 +293,8 @@ struct SessionRow: View {
     var hidesAgent = false
     /// Its group's header names its only repo already.
     var hidesRepo = false
+    /// What the work is, and how big it got (from `pending`), after its repo.
+    var kind: WorkKind?
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -327,6 +330,8 @@ struct SessionRow: View {
                     // Where it works, its host and how long you have been away; the repo's name gets the room first.
                     HStack(spacing: 6) {
                         place.layoutPriority(1)
+                        if let kind { WorkKindBadge(kind: kind) }
+                        if let size = WorkSize.of(lines: pending.lines, files: pending.files) { SizeBars(size: size) }
                         Spacer(minLength: 4)
                         if let host = session.host { HostChip(location: .host(host), color: hostColor) }
                         idleAge

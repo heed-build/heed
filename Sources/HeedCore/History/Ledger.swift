@@ -36,6 +36,10 @@ public struct LedgerEntry: Identifiable, Codable, Hashable, Sendable {
     public var summarizedAt: Date?
     /// The last attempt failed: why (no agent logged in, the daily cap). The previous summary stays.
     public var failure: String?
+    /// What the work was (`WorkKind`'s raw value, kept as text so a kind this build does not know still reads).
+    public var kind: String?
+
+    public var workKind: WorkKind? { kind.flatMap(WorkKind.init(rawValue:)) }
 
     public enum Source: String, Codable, Hashable, Sendable {
         /// Written by heed's cheap model.
@@ -225,6 +229,8 @@ public enum Ledger {
         entry.pulls = session.trackedPRs
         entry.usage = session.usage ?? entry.usage
         entry.outcome = outcome(session: session, closed: closed, pulls: pulls)
+        let titles = session.trackedPRs.compactMap { pulls.pull($0)?.title }
+        entry.kind = SessionBadges.kind(of: session, pullTitles: titles)?.rawValue ?? entry.kind
         return entry
     }
 

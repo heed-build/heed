@@ -147,6 +147,15 @@ private struct MindmapCard: View {
             if style != .path {
                 HStack(spacing: 6) {
                     MindmapTag(text: node.stage?.rawValue ?? node.kind.rawValue, tint: tint)
+                    // A piece of work: what it was and how big, as on its session's row.
+                    if node.kind == .work, let entry = node.entry.flatMap({ model.ledger.entries[$0] }) {
+                        if let kind = entry.workKind { WorkKindBadge(kind: kind) }
+                        if let size = WorkSize.of(
+                            lines: entry.diff.map { $0.added + $0.removed }, files: entry.diff?.files
+                        ) {
+                            SizeBars(size: size)
+                        }
+                    }
                     if node.suggested { MindmapTag(text: "suggested", tint: Theme.ask) }
                     let pieces = tree.entries(under: node.id).count
                     if node.kind != .work { Text("\(pieces) piece\(pieces == 1 ? "" : "s")") }

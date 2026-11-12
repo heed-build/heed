@@ -22,8 +22,14 @@ Under the header, **new session** and **new chat** run what `o` and `gc` do; eac
 
 Each row shows the session's state glyph and its title (`zt` shows worktree names instead; hover for the other) on
 a line of its own, so it has the row's whole width. Under it, its first repo, `+2` for the others it touches (one chip
-per worktree, then one per repo it opened a PR in, all of them on the cursor's row), how long since you last touched
-it, and its pin key (`'1`). Below that, the agent's
+per worktree, then one per repo it opened a PR in, all of them on the cursor's row), what kind of work it is and how
+big it got, how long since you last touched it, and its pin key (`'1`).
+
+**Kind and size.** The kind (`feat`, `fix`, `refactor`, `docs`, `chore`, `plan`) is the one picked in Start work or
+named by heed; else what its PR's title says in conventional-commit style (`fix(nav): …`); else its branch's prefix.
+`K` (`:session.kind docs`) changes it. The three bars are its size against where its branch left the base, committed
+or not: one under 100 lines, three past 800 lines or 20 files. Heed measures it for open sessions' worktrees, again
+each time their agent finishes a turn. The same badges show on the session's [Mindmap](../history/mindmap.md) card. Below that, the agent's
 line: its model (shortened: `model-a · ctx 38%`) and, while it works, how full its context is, in amber from 80%; when
 it is not working, what it waits on. The agent's name shows only when it is not your default agent. At the end of the
 agent's line sit what the session holds: `↑2` in amber for commits not pushed, `~3` for files not committed (summed
@@ -82,7 +88,7 @@ is a command too, with a key in the sidebar:
 | | Key | Choices |
 |---|---|---|
 | Group | `zG` (`:sessions.group repo`) | **status** (the groups above), **campaign** (the [Mindmap](../history/mindmap.md) campaign the work is in, Unplaced for the rest), **repo** (each session's first repo), **none** |
-| Sort | `T` (`:sessions.sort idle`) | **attention** (as they came, Parked last touched first), **you, recent first**, **idle longest**, **started** (newest first) |
+| Sort | `T` (`:sessions.sort idle`) | **attention** (as they came, Parked last touched first), **you, recent first**, **idle longest**, **started** (newest first), **size** (most lines changed first) |
 | Rows | `zR` (`:sessions.rows one`) | **two lines**, or **one line** each: the state, the repo's mark and the title alone; the cursor's row in full |
 
 Whatever groups the rest, **Pinned** and **Needs you** stay on top. Grouped by campaign or repo, a parked session stays

@@ -32,6 +32,8 @@ public struct SessionsView: Hashable, Sendable, Codable {
         case idle
         /// The newest first.
         case started
+        /// The most changed lines first.
+        case size
 
         public var title: String {
             switch self {
@@ -39,6 +41,7 @@ public struct SessionsView: Hashable, Sendable, Codable {
             case .touched: "you, recent first"
             case .idle: "idle longest"
             case .started: "started"
+            case .size: "size"
             }
         }
 
@@ -49,6 +52,7 @@ public struct SessionsView: Hashable, Sendable, Codable {
             case .touched: "recent"
             case .idle: "idle"
             case .started: "newest"
+            case .size: "size"
             }
         }
     }

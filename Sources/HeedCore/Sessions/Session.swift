@@ -406,10 +406,12 @@ public struct SessionList: Sendable {
 
     /// `pilot` says what the pilot knows of each session. `hold` keeps one session (the one under the cursor) in the
     /// group it had while the pilot would move it; pinning or parking it moves it at once. `view` groups and sorts;
-    /// `campaign` says where a session's work is in the Mindmap, for grouping by campaign.
+    /// `campaign` says where a session's work is in the Mindmap, for grouping by campaign, and `size` how many lines it
+    /// changed, for sorting by size.
     public init(
         _ sessions: [Session], pilot: (Session) -> SessionPilot = { _ in SessionPilot() }, hold: SessionHold? = nil,
-        view: SessionsView = .standard, campaign: (Session) -> SessionCampaign? = { _ in nil }
+        view: SessionsView = .standard, campaign: (Session) -> SessionCampaign? = { _ in nil },
+        size: (Session) -> Int = { _ in 0 }
     ) {
         var groups: [String: SessionGroup] = [:]
         for session in sessions {
@@ -420,7 +422,7 @@ public struct SessionList: Sendable {
                 groups[session.id] = natural
             }
         }
-        let sorted = Self.sorted(sessions, by: view.sort, groups: groups)
+        let sorted = Self.sorted(sessions, by: view.sort, groups: groups, size: size)
         var sections: [Section] = []
         if view.grouping == .status {
             for group in SessionGroup.allCases {
@@ -471,7 +473,8 @@ public struct SessionList: Sendable {
 
     /// `sessions` in `sort`'s order. Every sort is stable: sessions that tie keep the order they came in.
     static func sorted(
-        _ sessions: [Session], by sort: SessionsView.Sort, groups: [String: SessionGroup]
+        _ sessions: [Session], by sort: SessionsView.Sort, groups: [String: SessionGroup],
+        size: (Session) -> Int = { _ in 0 }
     ) -> [Session] {
         func stable(_ before: (Session, Session) -> Bool?) -> [Session] {
             sessions.enumerated().sorted { lhs, rhs in
@@ -493,6 +496,7 @@ public struct SessionList: Sendable {
         case .touched: return stable { compare($0.touched, $1.touched, descending: true) }
         case .idle: return stable { compare($0.touched, $1.touched, descending: false) }
         case .started: return stable { compare($0.createdAt, $1.createdAt, descending: true) }
+        case .size: return stable { compare(size($0), size($1), descending: true) }
         }
     }
 

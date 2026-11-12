@@ -52,6 +52,10 @@ public enum Commands {
             .move, arguments: "[title]"
         ),
         .init("session.autoname", "let heed name the session again, from what it is doing", .move),
+        .init(
+            "session.kind", "what the work is: feat, fix, refactor, docs, chore or plan (no argument: the next)", .move,
+            arguments: "[kind]"
+        ),
         .init("session.back", "back to previous session", .move),
         .init("session.agent", "INSERT into the session's agent pane (the focused pane when it has none)", .move),
         .init("session.open", "go to the session matching these words", .move, arguments: "<words>"),
@@ -207,8 +211,8 @@ public enum Commands {
         ),
         .init(
             "sessions.sort",
-            "sort the sessions: attention, you recent first, idle longest, started (no argument: next)",
-            .views, arguments: "[attention|touched|idle|started]"
+            "sort the sessions: attention, you recent first, idle longest, started, size (no argument: next)",
+            .views, arguments: "[attention|touched|idle|started|size]"
         ),
         .init("sessions.rows", "one line or two per session in the sidebar", .views, arguments: "[one|two]"),
         .init("config.edit", "open config.toml in $EDITOR", .views),

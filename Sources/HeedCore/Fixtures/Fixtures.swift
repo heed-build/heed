@@ -205,6 +205,9 @@ public enum Fixtures {
         {
             sessions[index].lastTouched = Clock.now.addingTimeInterval(-minutes * 60)
         }
+        // What each is: two picked in Start work, the rest read from their branch or PR.
+        sessions[0].kind = .fix
+        sessions[2].kind = .refactor
         sessions[0].usage = AgentUsage(
             model: "model-a", tokens: TokenCounts(input: 1840, output: 4120, cacheRead: 9870, cacheWrite: 610),
             costUSD: 0.42, contextTokens: 76000, contextWindow: 200_000
@@ -223,6 +226,20 @@ public enum Fixtures {
             }
             for repo in session.repos {
                 var status = WorktreeStatus(upstream: "origin/\(session.branch)")
+                // How much each changed against its base, for the size bars and the size sort.
+                let sizes = [
+                    "s1": (180, 40, 6),
+                    "s2": (30, 6, 2),
+                    "s3": (420, 380, 14),
+                    "s4": (55, 12, 3),
+                    "s5": (900, 120, 24),
+                    "s6": (12, 0, 1),
+                ]
+                if let size = sizes[session.id] {
+                    status.added = size.0
+                    status.removed = size.1
+                    status.files = size.2
+                }
                 // Work not shared yet, for the rows' pending chips: s1 has files to commit, s6 a commit and files.
                 switch (session.id, repo) {
                 case ("s1", docsToolkit): status.changedFiles = 2

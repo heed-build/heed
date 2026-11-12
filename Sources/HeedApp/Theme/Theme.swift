@@ -162,8 +162,9 @@ final class Avatars {
 
     func image(for org: String) -> NSImage? { images[org.lowercased()] }
 
-    /// Shows cached avatars at once, then refreshes missing or week-old ones in the background.
-    func load(_ orgs: [String]) {
+    /// Shows cached avatars at once, then refreshes missing or week-old ones in the background (from `urls`, by
+    /// lowercased name, where the API gave one: a bot's or app's avatar is not at github.com/<name>.png).
+    func load(_ orgs: [String], urls: [String: URL] = [:]) {
         let wanted = Set(orgs.map { $0.lowercased() }).subtracting(requested)
         guard !wanted.isEmpty else { return }
         requested.formUnion(wanted)
@@ -175,7 +176,7 @@ final class Avatars {
                 if cache.isStale(org) { stale.append(org) }
             }
             for org in stale {
-                if let data = await cache.refresh(org) { await self.store(org, data) }
+                if let data = await cache.refresh(org, from: urls[org]) { await self.store(org, data) }
             }
         }
     }

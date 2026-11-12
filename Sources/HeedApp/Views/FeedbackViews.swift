@@ -419,7 +419,14 @@ struct ReaderView: View {
                     ListScroll {
                         VStack(alignment: .leading, spacing: 14) {
                             header(ref, detail)
-                            if let detail {
+                            Theme.line.frame(height: 1).padding(.vertical, 4)
+                            if let conversation = model.conversation(ref.repo, ref.number) {
+                                ThreadConversationView(
+                                    conversation: conversation, seenAt: model.seenAt(ref.repo, ref.number)
+                                ) {
+                                    if let detail { review(ref, detail) }
+                                }
+                            } else if let detail {
                                 card {
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text("\(detail.author ?? "someone") opened this").font(Theme.ui(12))
@@ -428,23 +435,9 @@ struct ReaderView: View {
                                             .fixedSize(horizontal: false, vertical: true)
                                     }
                                 }
-                                ForEach(detail.threads.filter { !$0.isResolved }) { thread in
-                                    threadCard(
-                                        thread,
-                                        queued: model.feedback[ref.description]?.items
-                                            .first { $0.id == thread.id }?.status == .queued
-                                    )
-                                }
-                                ForEach(detail.failingChecks, id: \.name) { check in
-                                    card {
-                                        HStack(spacing: 8) {
-                                            Text("\(check.name) failed").foregroundStyle(Theme.err)
-                                            Text(check.summary).font(Theme.mono(12)).foregroundStyle(Theme.fg2)
-                                                .lineLimit(1)
-                                        }
-                                        .font(Theme.ui(12.5))
-                                    }
-                                }
+                                review(ref, detail)
+                            }
+                            if detail != nil {
                                 FeedbackPanel(ref: ref, wide: false).padding(-20).padding(.top, 20)
                             } else {
                                 Text("Fetching \(ref)…").foregroundStyle(Theme.fg3)
@@ -460,21 +453,72 @@ struct ReaderView: View {
     }
 
     private func header(_ ref: PullRef, _ detail: PullDetail?) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                RepoChip(repo: ref.repo)
-                Text(verbatim: "#\(ref.number)").font(Theme.mono(12)).foregroundStyle(Theme.fg2)
-                if let pull = model.github.pull(ref) { StateTag(state: pull.state, draft: pull.isDraft) }
-                Spacer()
-                KeyHint("jump.back", key: "⌃o", spacing: 8, label: "back")
+        let conversation = model.conversation(ref.repo, ref.number)
+        return ThreadHeader(
+            repo: ref.repo, kind: .pr, number: ref.number,
+            title: conversation?.title ?? detail?.title ?? model.github.pull(ref)?.title ?? "",
+            author: conversation?.author?.login ?? detail?.author, openedAt: conversation?.createdAt,
+            chips: chips(ref, detail, conversation),
+            actions: [
+                .init(command: "feedback.queue", label: "Queue for session", scope: "pr"),
+                .init(command: "feedback.send", label: "Send queued", scope: "pr"),
+                .init(command: "feedback.session", label: "New session", scope: "pr"),
+                .init(command: "pr.session", label: "Its session", scope: "pr"),
+                .init(command: "open.browser", label: "GitHub", scope: "pr"),
+                .init(command: "jump.back", label: "Back", scope: "pr"),
+            ]
+        )
+    }
+
+    /// The PR's state, checks, size, mergeability and review, as the header's chips.
+    private func chips(
+        _ ref: PullRef, _ detail: PullDetail?, _ conversation: ThreadConversation?
+    ) -> [ThreadHeader.Chip] {
+        let pull = model.github.pull(ref)
+        var chips: [ThreadHeader.Chip] = []
+        let state = conversation?.stateText ?? pull.map { $0.isDraft ? "draft" : $0.state.rawValue.lowercased(
+        ) } ?? "open"
+        chips.append(.init(
+            text: state,
+            tint: state == "open" ? Theme.done : state == "merged" ? Theme.ask
+                : state == "closed" ? Theme.err : Theme.fg2
+        ))
+        if let checks = detail?.checks ?? pull?.checks, checks.total > 0 {
+            chips.append(.init(
+                text: "checks \(checks.passed)/\(checks.total)",
+                tint: checks.failed > 0 ? Theme.err : checks.pending > 0 ? Theme.block : Theme.done
+            ))
+        }
+        if let detail {
+            chips.append(.init(text: "\(detail.headBranch) → \(detail.baseBranch)"))
+            chips.append(.init(text: "+\(detail.additions) −\(detail.deletions) · \(detail.commitCount) commits"))
+            if detail.mergeable == "CONFLICTING" { chips.append(.init(text: "conflicts", tint: Theme.err)) }
+            switch detail.reviewDecision {
+            case "CHANGES_REQUESTED": chips.append(.init(text: "changes requested", tint: Theme.err))
+            case "APPROVED": chips.append(.init(text: "approved", tint: Theme.done))
+            case "REVIEW_REQUIRED": chips.append(.init(text: "review required", tint: Theme.block))
+            default: break
             }
-            Text(detail?.title ?? model.github.pull(ref)?.title ?? "").font(Theme.ui(17, weight: .semibold))
-            if let detail {
-                Text(
-                    "\(detail.headBranch) → \(detail.baseBranch) · \(detail.commitCount) commits · +\(detail.additions) −\(detail.deletions)"
-                )
-                .font(Theme.mono(11.5))
-                .foregroundStyle(Theme.fg3)
+        }
+        return chips + (conversation?.labels ?? []).map { ThreadHeader.Chip(text: $0) }
+    }
+
+    /// What only a PR has, between its description and its conversation: the unresolved review threads with their
+    /// code, and the failing checks, each as the review-feedback pipeline sees it.
+    @ViewBuilder private func review(_ ref: PullRef, _ detail: PullDetail) -> some View {
+        ForEach(detail.threads.filter { !$0.isResolved }) { thread in
+            threadCard(
+                thread,
+                queued: model.feedback[ref.description]?.items.first { $0.id == thread.id }?.status == .queued
+            )
+        }
+        ForEach(detail.failingChecks, id: \.name) { check in
+            card {
+                HStack(spacing: 8) {
+                    Text("\(check.name) failed").foregroundStyle(Theme.err)
+                    Text(check.summary).font(Theme.mono(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                }
+                .font(Theme.ui(12.5))
             }
         }
     }

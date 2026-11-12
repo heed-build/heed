@@ -38,10 +38,12 @@ on top.
 
 ## The item under the cursor
 
-The right side shows the summary, the thread in three lines (its last comments), why you see it, and the
-[rule](attention-rules.md) that matched.
+The right side shows the summary, why you see it, the [rule](attention-rules.md) that matched, what you can do, and
+for an issue or a PR the thread itself: its description and comments as GitHub renders them, the same cards as the
+[reader](reading.md). Until the thread has loaded (a moment after the cursor stops on it) its last three comments
+stand in.
 
-![The detail: summary, the last three comments, the rule that matched](../images/shots/github/attention-detail.png)
+![The detail: summary, the rule that matched, and the thread](../images/shots/github/attention-detail.png)
 
 | Key | |
 |---|---|

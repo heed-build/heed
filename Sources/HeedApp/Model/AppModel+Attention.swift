@@ -303,6 +303,9 @@ extension AppModel {
         Task {
             try? await Task.sleep(for: .milliseconds(500))
             guard view == .attention, attentionSelected?.item.id == item.id else { return }
+            if item.kind == .pr || item.kind == .issue, let repo = item.repo, let number = item.number {
+                loadConversation(repo, number, updatedAt: item.updatedAt)
+            }
             await fetchDetail(item)
             summarize(item)
             suggestWeight(item)

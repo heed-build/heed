@@ -372,7 +372,10 @@ enum Shots {
             model.commit(.githubSynced(state))
         }),
         Shot(id: "github/attention", keys: "gm", highlight: [.attentionFilters]),
-        Shot(id: "github/attention-detail", keys: "gm/2845<CR>", crop: .attentionDetail),
+        Shot(
+            id: "github/attention-detail", size: CGSize(width: 1440, height: 1240), keys: "gm/2845<CR>",
+            crop: .attentionDetail
+        ),
         Shot(id: "github/attention-muted", keys: "gm" + String(repeating: "t", count: 7)),
         Shot(id: "github/attention-reply", keys: "gm/2845<CR>R", crop: .confirm),
         Shot(id: "github/inbox", keys: ":inbox<CR>", highlight: [.chips]),
@@ -380,8 +383,10 @@ enum Shots {
         Shot(id: "github/issues", keys: ":issues<CR>", highlight: [.issueRepos, .chips]),
         Shot(id: "github/issue-rows", size: short, keys: ":issues<CR>", crop: .list),
         Shot(id: "github/prs", keys: ":prs<CR>"),
-        Shot(id: "github/reader-pr", keys: ":prs<CR>go"),
-        Shot(id: "github/reader-issue", size: CGSize(width: 1200, height: 420), keys: ":issues<CR>go", crop: .reader),
+        Shot(id: "github/reader-pr", size: CGSize(width: 1440, height: 1600), keys: ":prs<CR>go"),
+        Shot(
+            id: "github/reader-issue", size: CGSize(width: 1200, height: 1110), keys: ":issues<CR>go", crop: .reader
+        ),
         Shot(id: "github/feedback", keys: "go", prepare: withGreenInstructions),
         Shot(id: "github/delivery", keys: "go", crop: .delivery),
         Shot(id: "github/prompt", keys: "go", crop: .promptPreview, prepare: withGreenInstructions),

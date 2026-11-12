@@ -139,7 +139,17 @@ enum ShotRunner {
 
         let renderer = ImageRenderer(content: view)
         renderer.proposedSize = ProposedViewSize(shot.size)
-        guard var image = rasterize(renderer) else { throw Failure(description: "nothing rendered") }
+        var drawn = rasterize(renderer)
+        // ImageRenderer cannot draw a web view: a pass asks for the readers' pages it shows, ThreadSnapshots renders
+        // them in a real web view offscreen, and the next pass draws those pictures (twice more at most, for pages
+        // that only show once the pictures above them have their height).
+        for _ in 0 ..< 3 {
+            guard await ThreadSnapshots.shared.render() else { break }
+            let again = ImageRenderer(content: view)
+            again.proposedSize = ProposedViewSize(shot.size)
+            drawn = rasterize(again)
+        }
+        guard var image = drawn else { throw Failure(description: "nothing rendered") }
         if let crop = shot.crop {
             guard let rect = frames.rects[crop] else { throw Failure(description: "region \(crop) not on screen") }
             let padded = rect.insetBy(dx: -shot.cropPadding, dy: -shot.cropPadding)

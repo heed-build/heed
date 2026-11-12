@@ -1781,6 +1781,8 @@ final class AppModel {
     private(set) var explainRow = 0
     /// Titles and states of the issues sessions link to (fetched, not cached on disk).
     private(set) var issueInfo: [IssueRef: IssueInfo] = [:]
+    /// PRs and issues Start work has asked GitHub about (`lookUpStartWorkLinks`), so each is fetched once.
+    var linkLookups: Set<String> = []
     private var issueInfoFetchedAt: [IssueRef: Date] = [:]
 
     private func openHostsPicker() {
@@ -3639,6 +3641,7 @@ final class AppModel {
     }
 
     private func deleteSession(_ id: String, removals: [SweepPlan.Removal], kept: [String]) {
+        if !isFixture { removeSessionFiles(id) }
         if let session = sessions.first(where: { $0.id == id }), let chat = session.chat, chat.kind == .scratch,
            session.location.isLocal, !isFixture
         {
@@ -7055,12 +7058,14 @@ final class AppModel {
         if stroke == KeyStroke("v", .command), let text = NSPasteboard.general.string(forType: .string) {
             form.paste(text)
             startWork = form
+            lookUpStartWorkLinks()
             return
         }
         switch form.handle(stroke) {
         case .handled, .ignored:
             startWork = form
             lookUpStartWorkEntry()
+            lookUpStartWorkLinks()
         case .cancel:
             startWork = nil
         case let .start(plan):
@@ -7149,7 +7154,7 @@ final class AppModel {
                 }
                 let trusted = await trustChatsRoot(for: plan)
                 // A persona's session or chat goes on its goal first, so it launches told about the goal.
-                let plan = await preparePersonaLaunch(plan)
+                let plan = await withAttachments(preparePersonaLaunch(plan))
                 let changes = try await StartWork.execute(plan, settings: self.settings, hosts: hosts)
                 for case let .layoutChanged(_, layout) in changes {
                     for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
@@ -8214,6 +8219,7 @@ final class AppModel {
         guard var form = startWork else { return }
         change(&form)
         startWork = form
+        lookUpStartWorkLinks()
     }
 
     /// The Start button: exactly ⌘↩.

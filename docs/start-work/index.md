@@ -20,7 +20,7 @@ The dialog has its own small modes, like Heed itself:
 |---|---|
 | `⌘↩` | Start |
 | `⌃n` / `⌃p` | Cycle the repo guess (or the agent, on the agent row) |
-| `⌘V` | Paste at the cursor |
+| `⌘V` | Paste at the cursor; a big paste (over 20 lines or 2,000 characters) becomes an attachment |
 | `⎋` | Stop typing; again to cancel |
 
 While typing, the cursor moves as in any text field, here and wherever heed takes typing (the `:` line, a `/` filter,
@@ -43,6 +43,17 @@ the pickers):
 | **Worktree** | The branch and folder name, from the kind and the prompt's words. See [Branch names](branch-names.md). |
 | **Agent** | Which agent starts, or a shell only. See [Agent and options](agent-and-options.md). |
 | **Options** | Autostart, plan first, shell split. |
+
+**Attachments.** A big paste (a CI log, a diff, a stack trace) is kept beside the prompt as a chip that says what it
+looks like and how long it is. When the work starts it is written to a file in heed's folder for the session, and the
+prompt tells the agent to read it, so the prompt stays short. On a host the text goes into the prompt instead. In the
+prompt field, after `⎋`, `h` `l` pick a chip, `x` drops it and `P` (or a click) puts its text back in the prompt.
+
+**Links.** A PR or issue URL in the prompt shows as a chip with its title once heed has fetched it, and the branch is
+named from that title: "look at …/issues/88" becomes `fix/redirects-moved-pages` when the issue is "Fix redirects for
+moved pages".
+
+![A pasted CI log kept as an attachment, and the linked issue with its title](../images/shots/start-work/attachment.png)
 
 The bottom of the dialog shows the exact command the agent pane will run, and **Cancel** and **Start** buttons that do
 what `⎋` and `⌘↩` do.

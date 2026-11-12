@@ -86,19 +86,22 @@ struct StartWorkView: View {
         let active = form.field == .prompt
         // Grows with the text up to `cap`, then scrolls, kept at the end where the typing happens.
         return ListScroll {
-            Group {
-                if form.prompt.isEmpty, !active {
-                    Text(form.chat == nil ? "Describe the task…" : "Ask anything…").foregroundStyle(Theme.fg3)
-                } else {
-                    CaretText(
-                        input: active ? form.caret : EditableText(form.prompt), active: active && form.editing,
-                        caret: Theme.done
-                    )
+            VStack(alignment: .leading, spacing: 10) {
+                Group {
+                    if form.prompt.isEmpty, !active {
+                        Text(form.chat == nil ? "Describe the task…" : "Ask anything…").foregroundStyle(Theme.fg3)
+                    } else {
+                        CaretText(
+                            input: active ? form.caret : EditableText(form.prompt), active: active && form.editing,
+                            caret: Theme.done
+                        )
+                    }
                 }
+                .font(Theme.mono(13))
+                .lineSpacing(4)
+                .frame(maxWidth: .infinity, minHeight: form.attachments.isEmpty ? 64 : 24, alignment: .topLeading)
+                if !form.links.isEmpty || !form.attachments.isEmpty { promptChips(form) }
             }
-            .font(Theme.mono(13))
-            .lineSpacing(4)
-            .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
             .padding(14)
         }
         .defaultScrollAnchor(.bottom)
@@ -109,6 +112,46 @@ struct StartWorkView: View {
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(active ? Theme.fg2 : Theme.line))
         .contentShape(Rectangle())
         .onTapGesture { model.clickStartWork { $0.focus(field: .prompt, edit: true) } }
+    }
+
+    /// The PRs and issues the prompt links, with their titles once fetched, and the big pastes kept beside it.
+    private func promptChips(_ form: StartWorkForm) -> some View {
+        FlowLayout {
+            ForEach(form.links, id: \.url) { link in
+                HStack(spacing: 6) {
+                    Text(link.ref.isPull ? "PR" : "ISSUE").font(Theme.mono(9, weight: .semibold))
+                        .foregroundStyle(Theme.fg2)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 3).fill(Theme.chip))
+                    Text(link.label).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
+                    Text(form.linkTitles[link.url] ?? "…").font(Theme.ui(12)).foregroundStyle(Theme.fg).lineLimit(1)
+                }
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg3))
+                .help(link.url)
+            }
+            ForEach(Array(form.attachments.enumerated()), id: \.element.id) { index, attachment in
+                let focused = form.field == .prompt && !form.editing && form.attachmentCursor == index
+                HStack(spacing: 6) {
+                    Text(attachment.kind == .json ? "JSON" : "TXT").font(Theme.mono(9, weight: .semibold))
+                        .foregroundStyle(Theme.fg2)
+                        .padding(.horizontal, 4).padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 3).fill(Theme.chip))
+                    Text("Pasted \(attachment.kind.title) · \(attachment.lines) lines").font(Theme.ui(12))
+                        .foregroundStyle(Theme.fg)
+                    Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.fg3)
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.clickStartWork { $0.dropAttachment(at: index) } }
+                        .help("Drop it (x)")
+                }
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg3))
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(focused ? Theme.fg : Theme.line))
+                .contentShape(Rectangle())
+                .onTapGesture { model.clickStartWork { $0.inlineAttachment(at: index) } }
+                .help("Sent as a file the agent reads. Click (or P) to put it back in the prompt; x drops it.")
+            }
+        }
     }
 
     private func section(
@@ -453,6 +496,10 @@ struct StartWorkView: View {
                 Text("$").foregroundStyle(Theme.done)
                 Text(form.plan.command?.posix ?? "(shell only)").lineLimit(4).truncationMode(.middle)
                     .fixedSize(horizontal: false, vertical: true)
+                if !form.attachments.isEmpty {
+                    Text("+ \(form.attachments.count) file\(form.attachments.count == 1 ? "" : "s")")
+                        .foregroundStyle(Theme.fg3).fixedSize()
+                }
             }
             .font(Theme.mono(12))
             if let error = form.error ?? model.startWorkError {

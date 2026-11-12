@@ -226,6 +226,8 @@ public struct StartWorkPlan: Hashable, Sendable {
     public var model: String?
     /// What the work is (Start work's kind row); nil for a chat.
     public var kind: WorkKind?
+    /// Big pastes kept beside the prompt; the app writes them out and tells the agent where (`PromptAttachments`).
+    public var attachments: [PromptAttachment] = []
     /// Its reasoning effort (its `effortFlag`); nil: the agent's configured one, else its own default.
     public var effort: String?
 

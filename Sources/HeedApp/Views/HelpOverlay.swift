@@ -79,7 +79,7 @@ struct HelpOverlay: View {
                 .padding(.horizontal, 6)
                 .background(RoundedRectangle(cornerRadius: 3).fill(Theme.modeColor(model.mode)))
             Spacer()
-            KeyCap(text: "?")
+            KeyCap(text: model.keyText(for: "overlay.help"))
             Text("every mode except INSERT").foregroundStyle(Theme.fg2)
             KeyCap(text: "⌘/")
             Text("everywhere").foregroundStyle(Theme.fg2)

@@ -455,9 +455,11 @@ private struct MindmapJudge: View {
             if let placement = node.placement {
                 Text("heed · \(Int((placement.confidence * 100).rounded()))%").font(Theme.mono(10.5))
             }
-            Image(systemName: "checkmark").help("heed put it in the right place (y)")
+            Image(systemName: "checkmark")
+                .help("heed put it in the right place (\(model.keyText(for: "mindmap.accept", in: "mindmap")))")
                 .onTapGesture { model.judgeMindmap(node.id, keep: true) }
-            Image(systemName: "arrow.turn.up.right").help("move it somewhere else (m)")
+            Image(systemName: "arrow.turn.up.right")
+                .help("move it somewhere else (\(model.keyText(for: "mindmap.move", in: "mindmap")))")
                 .onTapGesture { model.judgeMindmap(node.id, keep: false) }
         }
         .font(Theme.ui(10.5))

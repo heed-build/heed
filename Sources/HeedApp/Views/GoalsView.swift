@@ -642,7 +642,9 @@ struct GoalFormView: View {
                     }
                     .clickable()
                     .onTapGesture { model.goals.form?.mirror.toggle() }
-                    .help("Make its issues on GitHub now, and keep them up to date (M on the goal does it later)")
+                    .help(
+                        "Make its issues on GitHub now, and keep them up to date (\(model.keyText(for: "goal.mirror", in: "goals")) on the goal does it later)"
+                    )
                 }
                 FieldNoteView(note: notes.note(for: "tracker", tried: tried))
                 Text("A meta issue and a sub-issue per item, in a repo of their own; heed checks it can write there "

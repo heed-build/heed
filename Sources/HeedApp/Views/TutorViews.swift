@@ -259,7 +259,7 @@ struct TutorFinishCard: View {
                 if let next = model.nextTutorLesson {
                     chip("Next: \(next.title) · \(next.minutes) min", key: "↩", accent: true)
                 }
-                chip("Cheat sheet", key: "?", accent: false)
+                chip("Cheat sheet", key: model.keyText(for: "overlay.help"), accent: false)
                 chip("Replay", key: "r", accent: false)
             }
             Text(":q leaves the tutor; your sessions come back as they were.")

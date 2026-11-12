@@ -34,7 +34,7 @@ struct UnassignedPane: View {
                         ]
                     )
                     Step(number: 3, title: "Act by confidence", lead: "Every act has undo", lines: [
-                        "≥ \(Self.number(settings.auto))  attach, u undoes",
+                        "≥ \(Self.number(settings.auto))  attach, \(model.keyText(for: "goal.attach.undo", in: "unassigned")) undoes",
                         "\(Self.number(settings.ask))–\(Self.number(settings.auto))  ask, one key",
                         "< \(Self.number(settings.ask))  leave it, cluster later",
                     ])
@@ -304,7 +304,8 @@ private struct Learnt: View {
             note: "\(attach.rules.rules.count) rule\(attach.rules.rules.count == 1 ? "" : "s")"
         ) {
             Text(
-                "Undo, n, a move or i adds a line to attach.rules (“never branch:feature/x-* -> goal”), and rules apply "
+                "Undo, \(model.keyText(for: "goal.ask.no", in: "unassigned")), a move or "
+                    + "\(model.keyText(for: "goal.ask.ignore", in: "unassigned")) adds a line to attach.rules (“never branch:feature/x-* -> goal”), and rules apply "
                     + "before any signal. Plain lines you can edit."
             )
             .font(Theme.ui(12)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)

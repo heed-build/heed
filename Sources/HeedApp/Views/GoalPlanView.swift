@@ -182,7 +182,12 @@ private struct PlanOutline: View {
                     } else {
                         KeyHint("swarm.task.edit", scope: "goalplan", label: "edit task")
                         KeyHint("swarm.task.add", scope: "goalplan", label: "add")
-                        KeyHint("swarm.task.move", ["1"], key: "J K", scope: "goalplan", label: "move")
+                        KeyHint(
+                            "swarm.task.move", ["1"],
+                            key: "\(model.keyText(for: "swarm.task.move 1", in: "goalplan")) "
+                                + model.keyText(for: "swarm.task.move -1", in: "goalplan"),
+                            label: "move"
+                        )
                         KeyHint("swarm.task.drop", scope: "goalplan", label: "drop")
                         KeyHint("swarm.replan", scope: "goalplan", label: "re-plan with feedback")
                         if board.pending != nil {
@@ -1177,9 +1182,11 @@ struct SwarmFormView: View {
                             .onTapGesture { toggleRepo(slug) }
                     }
                     if model.swarmRepoChoices.isEmpty {
-                        Text(form.host.map { "no repos found on @\($0) yet: type one below, or gH checks where "
+                        Text(
+                            form.host.map { "no repos found on @\($0) yet: type one below, or \(model.keyText(for: "host.open")) checks where "
                                 + "they are"
-                        } ?? "no repos on this Mac yet: type one below").font(Theme.ui(12))
+                            } ?? "no repos on this Mac yet: type one below"
+                        ).font(Theme.ui(12))
                             .foregroundStyle(Theme.fg3)
                     }
                 }
@@ -1474,7 +1481,7 @@ private struct MergeOrder: View {
                 if board.swarm.status.active {
                     KeyHint("swarm.land", scope: "goalplan", label: "move a stacked PR on")
                 }
-                KeyHint("merge.queue", key: "gM", label: "merge queue")
+                KeyHint("merge.queue", label: "merge queue")
             }
         }
     }

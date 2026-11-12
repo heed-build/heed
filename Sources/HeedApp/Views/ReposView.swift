@@ -209,31 +209,34 @@ struct ReposView: View {
             HStack {
                 SectionHeader(title: "Auto cleanup rules")
                 Spacer()
-                KeyCap(text: "zi")
+                KeyCap(text: model.keyText(for: "inspector.toggle"))
             }
             let rule = model.config.cleanup
             ruleRow(
                 "Remove worktrees with no activity\(rule.enabled ? "" : " (off)")",
                 rule.enabled
                     ? "Nothing for \(rule.idleDays)d: no agent output, keystrokes, commits or PR events."
-                    : "Off. Turn it on in Settings (⌘,) or [cleanup] enabled; dd removes worktrees by hand."
+                    : "Off. Turn it on in Settings (\(model.keyText(for: "settings.open"))) or [cleanup] enabled; "
+                    + "\(model.keyText(for: "select.remove", in: "repos")) removes worktrees by hand."
             )
             ruleRow("Sweeps never remove dirty or unpushed work", "Always on. Skipped trees show a warning instead.")
             ruleRow(
                 "Save work before removing",
                 "Always on. Kept as heed/archive/<branch>"
-                    + (rule.keepArchiveDays == 0 ? "." : " for \(rule.keepArchiveDays)d.") + " R in History brings it back."
+                    + (rule.keepArchiveDays == 0 ? "." : " for \(rule.keepArchiveDays)d.") + " \(model.keyText(for: "history.reopen", in: "history")) in History brings it back."
             )
             ruleRow("Delete the local branch too\(rule.deleteBranch ? "" : " (off)")", "Remote branch is left alone.")
             ruleRow(
                 "Ask before each sweep\(rule.askBeforeSweep ? " (on)" : " (off)")",
-                rule.askBeforeSweep ? "Sweeps run only with gC." : "Sweeps run hourly; gC runs one now."
+                rule.askBeforeSweep
+                    ? "Sweeps run only with \(model.keyText(for: "cleanup.sweep"))."
+                    : "Sweeps run hourly; \(model.keyText(for: "cleanup.sweep")) runs one now."
             )
-            Text("Edit in Settings (⌘,) or config.toml [cleanup].")
+            Text("Edit in Settings (\(model.keyText(for: "settings.open"))) or config.toml [cleanup].")
                 .font(Theme.ui(11.5))
                 .foregroundStyle(Theme.fg3)
             HStack(spacing: 8) {
-                KeyCap(text: "m")
+                KeyCap(text: model.keyText(for: "session.pin"))
                 Text("pinned sessions are never cleaned up").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
             }
             Spacer()
@@ -345,6 +348,7 @@ private struct ReadinessText: View {
 
 /// A repo's detected setup, waiting for approval: what it would run in each new worktree, and the keys.
 private struct SetupBanner: View {
+    @Environment(AppModel.self) private var model
     let record: RepoRecord
     let proposal: SetupProposal
 
@@ -357,7 +361,7 @@ private struct SetupBanner: View {
                     .font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
             }
             Spacer()
-            KeyCap(text: "S")
+            KeyCap(text: model.keyText(for: "setup.review", in: "repos"))
             Text("approve, edit or never").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
         .padding(14)
@@ -369,6 +373,7 @@ private struct SetupBanner: View {
 
 /// What the next sweep would do (design/screens/Repos.png).
 private struct SweepBanner: View {
+    @Environment(AppModel.self) private var model
     let plan: SweepPlan
 
     var body: some View {
@@ -402,7 +407,7 @@ private struct SweepBanner: View {
                 }
             }
             Spacer()
-            KeyCap(text: "gC")
+            KeyCap(text: model.keyText(for: "cleanup.sweep"))
             Text("run now").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
         .padding(14)

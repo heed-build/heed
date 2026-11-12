@@ -49,7 +49,7 @@ struct DiffOverlayView: View {
             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
             .clipShape(RoundedRectangle(cornerRadius: 5))
             KeyHint("diff.split", scope: "diff") { EmptyView() }
-            KeyHint("overlay.diff", key: "gd") { EmptyView() }
+            KeyHint("overlay.diff") { EmptyView() }
             Text("or").foregroundStyle(Theme.fg3)
             KeyHint("overlay.close", scope: "diff") { EmptyView() }
         }
@@ -313,12 +313,17 @@ struct DiffOverlayView: View {
         .background(isCursor ? Theme.bg3 : Theme.bg2)
     }
 
+    /// Two commands' keys on one cap, as bound in the diff (`n N`).
+    private func pair(_ first: String, _ second: String) -> String {
+        "\(model.keyText(for: first, in: "diff")) \(model.keyText(for: second, in: "diff"))"
+    }
+
     private var footer: some View {
         // Buttons as well as hints: a click runs what the key runs, on the selected lines when there are some.
         let lines = selection != nil
         return HStack(spacing: 14) {
-            KeyHint("diff.hunk.next", key: "n N", label: "hunk", color: Theme.fg2)
-            KeyHint("diff.file.next", key: "]f [f", label: "file", color: Theme.fg2)
+            KeyHint("diff.hunk.next", key: pair("diff.hunk.next", "diff.hunk.prev"), label: "hunk", color: Theme.fg2)
+            KeyHint("diff.file.next", key: pair("diff.file.next", "diff.file.prev"), label: "file", color: Theme.fg2)
             KeyHint(
                 "diff.ask",
                 scope: "diff",

@@ -21,9 +21,12 @@ struct FirstRunView: View {
         VStack(alignment: .leading, spacing: 22) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Welcome to Heed").font(Theme.ui(20, weight: .semibold))
-                Text("Here is what it found. Everything can be changed later in Settings (⌘,) or config.toml.")
-                    .font(Theme.ui(13))
-                    .foregroundStyle(Theme.fg2)
+                Text(
+                    "Here is what it found. Everything can be changed later in Settings "
+                        + "(\(model.keyText(for: "settings.open"))) or config.toml."
+                )
+                .font(Theme.ui(13))
+                .foregroundStyle(Theme.fg2)
             }
             step("GitHub", done: report.githubUser != nil) {
                 if let user = report.githubUser {
@@ -77,11 +80,13 @@ struct FirstRunView: View {
             step("Keys", done: true) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
-                        Text("i enters INSERT (keys go to the terminal);").foregroundStyle(Theme.fg2)
+                        Text("\(model.keyText(for: "mode.insert")) enters INSERT (keys go to the terminal);")
+                            .foregroundStyle(Theme.fg2)
                         KeyCap(text: "⇧⎋")
                         Text("or").foregroundStyle(Theme.fg2)
                         KeyCap(text: KeyCapText.of(model.config.insertEscape))
-                        Text("leaves it. ? shows every key.").foregroundStyle(Theme.fg2)
+                        Text("leaves it. \(model.keyText(for: "overlay.help")) shows every key.")
+                            .foregroundStyle(Theme.fg2)
                     }
                     Text("Change the escape chord with insert_escape under [keys] in config.toml.")
                         .font(Theme.ui(12))

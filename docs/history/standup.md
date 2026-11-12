@@ -28,6 +28,17 @@ questions = [
 ]
 ```
 
+An org can ask its own questions, and your personal work too:
+
+```toml
+[orgs.acme]
+standup_questions = ["What did I ship?", "What needs review?"]
+
+[standup]
+personal_questions = ["What did I learn?"]
+```
+
+When a report is ready, heed posts a notification (outside [quiet hours](../github/attention.md)); Open goes to it.
 A report missed while the Mac slept, or heed was quit, is written once, when heed next looks. `S` writes one now for
 the org shown.
 

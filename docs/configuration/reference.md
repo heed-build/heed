@@ -289,6 +289,8 @@ setup_reminder = true
 # at = "08:40"
 # range_days = 1          # unset: since the last report
 # questions = ["What did I finish since the last standup?", "What am I working on next?", "What is blocked?"]
+# Questions of one org's own: standup_questions under [orgs.<name>]; your personal work's: personal_questions here.
+# personal_questions = ["What did I learn?"]
 
 [memory]
 # What a session is told at launch from the Mindmap: the decisions that still stand in its campaign, what was

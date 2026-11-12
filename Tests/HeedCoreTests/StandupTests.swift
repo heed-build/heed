@@ -94,4 +94,23 @@ struct StandupTests {
         #expect(!inputs.known.contains { $0.contains("old work") })
         #expect(inputs.title == "Standup for acme")
     }
+
+    @Test func anOrgCanAskItsOwnQuestionsAndPersonalWorkToo() throws {
+        let decoded = ConfigLoader.decode("""
+        [standup]
+        enabled = true
+        questions = ["Done?"]
+        personal_questions = ["Learned?"]
+
+        [orgs.Acme]
+        standup_questions = ["Shipped?", "Blocked?"]
+        """)
+        let config = try #require(decoded.config)
+        #expect(decoded.problems.isEmpty)
+        #expect(config.standup.questions(for: "acme") == ["Shipped?", "Blocked?"])
+        #expect(config.standup.questions(for: MindmapInstance.personal) == ["Learned?"])
+        #expect(config.standup.questions(for: "globex") == ["Done?"])
+        // An org called personal is still an org.
+        #expect(config.standup.questions(for: "personal") == ["Done?"])
+    }
 }

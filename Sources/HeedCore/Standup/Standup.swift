@@ -12,6 +12,13 @@ public struct StandupSettings: Equatable, Sendable {
     /// What a report covers: since the last report (nil), or this many days back.
     public var rangeDays: Int?
     public var questions = StandupSettings.defaultQuestions
+    /// Questions of one Mindmap's own, by instance (`[orgs.<name>] standup_questions`, `[standup] personal_questions`).
+    public var questionsByInstance: [String: [String]] = [:]
+
+    /// The questions `instance`'s report answers: its own, or everyone's.
+    public func questions(for instance: String) -> [String] {
+        questionsByInstance[instance].flatMap { $0.isEmpty ? nil : $0 } ?? questions
+    }
 
     public static let defaultQuestions = [
         "What did I finish since the last standup?",
@@ -49,7 +56,7 @@ public enum StandupSchedule {
     /// Whether a report is due: a slot has passed since the last one. Missed while the Mac slept or heed was quit, it
     /// runs once, when heed next looks.
     public static func due(now: Date, last: Date?, settings: StandupSettings, calendar: Calendar = .current) -> Bool {
-        guard settings.enabled, !settings.questions.isEmpty,
+        guard settings.enabled,
               let slot = lastSlot(before: now, settings: settings, calendar: calendar)
         else { return false }
         return last.map { $0 < slot } ?? true

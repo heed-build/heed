@@ -746,6 +746,16 @@ enum Shots {
                 model.settingsFilter.onlyModified = true
             }
         ),
+        // Search: every page at once, the tree keeping the pages with matches, each match its own row (claude's
+        // model, changed, with its mark), advanced ones tagged, a key match saying its key.
+        Shot(
+            id: "configuration/settings-search", subject: .settings(.notifications),
+            size: CGSize(width: 1080, height: 1300),
+            prepare: { model in
+                model.applyConfig(source: Shots.modifiedConfig)
+                model.settingsQuery = "model"
+            }
+        ),
         // Notifications with three settings changed, one of them refused.
         Shot(
             id: "configuration/modified", subject: .settings(.notifications), size: CGSize(width: 1080, height: 860),

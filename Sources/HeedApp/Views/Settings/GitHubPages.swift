@@ -69,6 +69,28 @@ struct PilotPage: View {
     }
 }
 
+/// Search's matches on Pilot: each tab holding one, its cards with only the matching rows, under `Pilot › Reviews`.
+struct PilotSearchResults: View {
+    @Environment(AppModel.self) private var model
+    let search: SettingsSearch
+
+    var body: some View {
+        let pilot = model.config.pilot.defaults
+        let tabs = SettingsPage.pilot.tabs.filter { tab in search.matches(on: .pilot).contains { $0.entry.tab == tab } }
+        ForEach(tabs, id: \.self) { tab in
+            Group {
+                switch tab {
+                case .merged: PilotMerged(pilot: pilot)
+                case .reviews: PilotReviews(pilot: pilot)
+                case .instructions: PilotInstructions(pilot: pilot)
+                default: PilotGreen(pilot: pilot)
+                }
+            }
+            .environment(\.settingsCrumbs, [SettingsPage.pilot.title, tab.title])
+        }
+    }
+}
+
 /// The agents a run may use, by name; the empty tag is the key unset.
 @MainActor private func agentOptions(_ model: AppModel, none: String) -> [(String, String)] {
     [("", none)] + model.settings.agents.map { ($0.name, $0.name) }

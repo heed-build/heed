@@ -50,11 +50,12 @@ On Settings › Model calls:
 
 - **Agent**: *Taking turns* (`auto`) uses every agent you are logged in to, round-robin, as Heed always has; one agent
   takes every call alone. Each uses a cheap model; the chosen agent's Model calls tab, on Settings › Agents, sets
-  another (`llm_model`).
+  another (`llm_model`, advanced).
 - **Detected**: which agents are installed and logged in, as Heed runs them (without your shell). **Check again**
   looks again.
 - **Limits**: the timeout, how many run at once, the back-off after a failure, and per agent per day the calls and
-  dollars after which background calls stop until tomorrow. Calls you ask for still run.
+  dollars after which background calls stop until tomorrow. Calls you ask for still run. The first three are
+  advanced: they show with [Show advanced](settings.md#show-advanced-and-only-modified) on, or once set.
 - **Test**: one tiny call to the chosen agent (for taking turns, the first one logged in), never cached, with its
   answer, the model, how long it took and what it cost. It shows in `:log`.
 
@@ -66,7 +67,7 @@ On Settings › Decisions & Hunch:
   asks goes without). The on-device model picks an option and says how sure it is (low, medium, high); Heed turns that into
   probabilities, and every decision writes a `decide` row in `:log` as a model call's does.
 - **Attach on its own at** and **Ask from**, under Finding new work's goal: the thresholds
-  [finding new work's goal](../goals/attach.md) acts on.
+  [finding new work's goal](../goals/attach.md) acts on (advanced).
 - **Test**: one decision, where a piece of finished work stands, with the pick, the confidence and how long it took.
 
 The last test of each is kept between launches: a failed one says so in the pane, and in the reminder.

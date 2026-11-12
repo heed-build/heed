@@ -396,6 +396,18 @@ public enum SettingsTab: String, CaseIterable, Sendable {
         }
     }
 
+    /// Orgs & repos' tab of the same name; nil for an agent's.
+    public var overrideTab: OverrideTab? {
+        switch self {
+        case .general: .general
+        case .green: .green
+        case .merged: .merged
+        case .reviews: .reviews
+        case .instructions: .instructions
+        case .sessions, .modelCalls: nil
+        }
+    }
+
     public var title: String {
         switch self {
         case .sessions: "Sessions"

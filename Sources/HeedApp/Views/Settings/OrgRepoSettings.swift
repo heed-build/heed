@@ -145,19 +145,7 @@ private struct ScopeDetail: View {
             if tabs.isEmpty {
                 Text("Nothing is overridden here.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             }
-            let sections = keys.map(\.group).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
-            ForEach(sections, id: \.self) { section in
-                SettingsCard(title: section) {
-                    ForEach(keys.filter { $0.group == section }, id: \.id) { key in
-                        OverrideRow(scope: scope, key: key)
-                        if key.id == "setup", case let .repo(repo) = scope,
-                           let proposal = model.setupProposal(for: repo)
-                        {
-                            SetupProposalLine(repo: repo, proposal: proposal)
-                        }
-                    }
-                }
-            }
+            OverrideCards(scope: scope, keys: keys)
             if tab == Overrides.tab(of: "tasks"), case let .repo(repo) = scope,
                let tasks = config.repos[repo.slug]?.tasks, !tasks.isEmpty
             {
@@ -180,6 +168,52 @@ private struct ScopeDetail: View {
         }
         let fromOrg = Overrides.setKeys(at: .org(repo.org), in: model.config).count
         return own + (fromOrg > 0 ? " · \(fromOrg) inherited from \(repo.org)" : "")
+    }
+}
+
+/// A tab's settings at one org or repo, a card per group.
+private struct OverrideCards: View {
+    @Environment(AppModel.self) private var model
+    let scope: OverrideScope
+    let keys: [OverrideKey]
+
+    var body: some View {
+        let sections = keys.map(\.group).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+        ForEach(sections, id: \.self) { section in
+            SettingsCard(title: section) {
+                ForEach(keys.filter { $0.group == section }, id: \.id) { key in
+                    OverrideRow(scope: scope, key: key)
+                    if key.id == "setup", case let .repo(repo) = scope,
+                       let proposal = model.setupProposal(for: repo)
+                    {
+                        SetupProposalLine(repo: repo, proposal: proposal)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Search's matches on Orgs & repos: at each org or repo, each tab holding one, that tab's cards with only the
+/// matching rows, under `Orgs & repos › acme › Get it green`.
+struct OrgRepoSearchResults: View {
+    @Environment(AppModel.self) private var model
+    let search: SettingsSearch
+
+    var body: some View {
+        let matches = search.matches(on: .orgsAndRepos).filter { !SettingsSearchPane.hasNoRow($0) }
+        let scopes = matches.compactMap { $0.target?.overrideScope }
+            .reduce(into: [OverrideScope]()) { if !$0.contains($1) { $0.append($1) } }
+        ForEach(scopes, id: \.title) { scope in
+            let tabs = OverrideTab.allCases.filter { tab in
+                matches.contains { $0.target == scope.target && $0.entry.tab?.overrideTab == tab }
+            }
+            ForEach(tabs) { tab in
+                OverrideCards(scope: scope, keys: Overrides.keys(for: scope, on: tab, in: model.config))
+                    .environment(\.settingsCrumbs, [SettingsPage.orgsAndRepos.title, scope.title, tab.title])
+                    .environment(\.settingsCrumbTarget, scope.target)
+            }
+        }
     }
 }
 
@@ -235,19 +269,27 @@ private struct OverrideTabStrip: View {
 
 private struct OverrideRow: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.settingsSearch) private var search
     let scope: OverrideScope
     let key: OverrideKey
+
+    private var id: String { "override.\(key.id)" }
 
     var body: some View {
         let (value, source) = Overrides.effective(key, at: scope, in: model.config)
         let own = Overrides.value(key, at: scope, in: model.config) != nil
         let problems = Self.problems(key, at: scope, in: model.configProblems)
-        let visibility = SettingsCatalog.visibility(
-            ["override.\(key.id)"], at: scope.target, in: model.config, problems: model.configProblems,
-            filter: model.settingsFilter
-        )
+        let visibility: SettingVisibility = if let search {
+            search.contains([id], at: scope.target) ? .shown : .hidden
+        } else {
+            SettingsCatalog.visibility(
+                [id], at: scope.target, in: model.config, problems: model.configProblems, filter: model.settingsFilter
+            )
+        }
         if visibility == .shown {
-            row(value: value, source: source, own: own, problems: problems).settingsLine(.shown)
+            row(value: value, source: source, own: own, problems: problems)
+                .settingsSearchRow([id], target: scope.target)
+                .settingsLine(.shown)
         } else {
             EmptyView().settingsLine(visibility)
         }
@@ -296,7 +338,9 @@ private struct OverrideRow: View {
     private func label(source: OverrideSource, own: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
-                Text(key.label).font(Theme.ui(13)).foregroundStyle(own ? Theme.fg : Theme.fg2)
+                Text(searchHighlighted(key.label, search)).font(Theme.ui(13))
+                    .foregroundStyle(own ? Theme.fg : Theme.fg2)
+                if search != nil, SettingsCatalog.entry(id)?.level == .advanced { AdvancedTag() }
                 Text(source.rawValue)
                     .font(Theme.mono(10.5))
                     .foregroundStyle(own ? Theme.block : Theme.fg3)
@@ -304,7 +348,11 @@ private struct OverrideRow: View {
                     .background(RoundedRectangle(cornerRadius: 4)
                         .fill(own ? Theme.block.opacity(0.16) : Theme.chip))
             }
-            Text(key.detail).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+            if let search, let entry = SettingsCatalog.entry(id), search.matchesKey(entry) {
+                Text(searchHighlighted(SettingsCatalog.keyText(scope.path + [key.id]), search)).font(Theme.mono(11))
+                    .foregroundStyle(Theme.fg3)
+            }
+            Text(searchHighlighted(key.detail, search)).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                 .fixedSize(horizontal: false, vertical: true)
             ForEach(Self.problems(key, at: scope, in: model.configProblems), id: \.self) { problem in
                 Text("config.toml: \(problem.reason). Like \(problem.example)")

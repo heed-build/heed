@@ -73,6 +73,11 @@ struct CommandCompletionTests {
         // So do the Pilot and an agent.
         #expect(CommandCompletions.candidates("settings.open pilot m", context).map(\.label) == ["pilot merged"])
         #expect(CommandCompletions.candidates("settings.open mo", context).map(\.label).first == "model-calls")
+        // Settings' search offers the settings' names, with where each is.
+        let grace = CommandCompletions.candidates("settings.find gra", context)
+        #expect(grace.first?.label == "grace")
+        #expect(grace.first?.summary == "Notifications › Sessions")
+        #expect(grace.first?.line == "settings.find grace")
         #expect(CommandCompletions.candidates("pilot.pause ", context).map(\.label).contains("forever"))
         #expect(CommandCompletions.candidates("merge.run ", context).map(\.label) == ["acme/api", "all"])
         #expect(CommandCompletions.candidates("issues.repo ", context).map(\.label) == ["api"])

@@ -113,8 +113,8 @@ goal, your corrections, and the model tokens it spent.
 
 ## Settings
 
-Settings › Decisions & Hunch › Finding new work's goal turns finding goals on and off, sets the two thresholds and whether the model is asked, and
-opens `attach.rules`. In config.toml:
+Settings › Decisions & Hunch › Finding new work's goal turns finding goals on and off, sets the two thresholds and whether the model is asked
+(these three are advanced: turn on Show advanced, or search for `attach`), and opens `attach.rules`. In config.toml:
 
 ```toml
 [goals]

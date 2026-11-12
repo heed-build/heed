@@ -899,22 +899,14 @@ private struct PlanEditor: View {
     private var owner: some View {
         let fields = draft.fields
         let agentText = fields.agent.isEmpty ? "no owner" : fields.agent
-        let label = Text(agentText + " ▾").font(Theme.mono(11.5)).foregroundStyle(Theme.fg)
-            .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
         return VStack(alignment: .leading, spacing: 4) {
             Text("Owner").font(Theme.ui(10.5)).foregroundStyle(Theme.fg3)
             HStack(spacing: 6) {
-                if ShotMode.active {
-                    label
-                } else {
-                    Menu {
-                        Button("no owner") { setOwner(agent: "") }
-                        ForEach(model.settings.agents.map(\.name), id: \.self) { name in
-                            Button(name) { setOwner(agent: name) }
-                        }
-                    } label: { label }
-                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                DropdownMenu(agentText, size: .small) {
+                    Button("no owner") { setOwner(agent: "") }
+                    ForEach(model.settings.agents.map(\.name), id: \.self) { name in
+                        Button(name) { setOwner(agent: name) }
+                    }
                 }
                 if !fields.agent.isEmpty {
                     let catalog = model.modelCatalog(fields.agent)
@@ -1358,9 +1350,7 @@ struct SwarmFormView: View {
 
     /// An agent; a click picks the next one.
     private func agentChip(_ agent: String, set: @escaping (String) -> Void) -> some View {
-        Text(agent + " ▾").font(Theme.mono(11.5)).foregroundStyle(Theme.fg)
-            .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+        DropdownChip(text: agent, size: .small)
             .clickable()
             .onTapGesture {
                 let agents = model.swarmAgents

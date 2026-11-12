@@ -240,23 +240,16 @@ private struct PersonaFile: View {
             }
             .font(Theme.mono(12)).foregroundStyle(Theme.fg)
             FlowLayout(spacing: 8, lineSpacing: 8) {
-                if ShotMode.active {
-                    Picked(text: agent + " ▾")
-                    Picked(text: tier + " ▾")
-                } else {
-                    Menu {
-                        Button("The goal's sessions' agent") { model.goals.personas.spawn.agent = nil }
-                        ForEach(model.settings.agents.map(\.name), id: \.self) { name in
-                            Button(name) { model.goals.personas.spawn.agent = name }
-                        }
-                    } label: { Picked(text: agent + " ▾") }
-                        .menuStyle(.borderlessButton).fixedSize()
-                    Menu {
-                        ForEach(ModelTier.allCases, id: \.self) { tier in
-                            Button(tier.rawValue) { model.goals.personas.spawn.tier = tier }
-                        }
-                    } label: { Picked(text: tier + " ▾") }
-                        .menuStyle(.borderlessButton).fixedSize()
+                DropdownMenu(agent) {
+                    Button("The goal's sessions' agent") { model.goals.personas.spawn.agent = nil }
+                    ForEach(model.settings.agents.map(\.name), id: \.self) { name in
+                        Button(name) { model.goals.personas.spawn.agent = name }
+                    }
+                }
+                DropdownMenu(tier) {
+                    ForEach(ModelTier.allCases, id: \.self) { tier in
+                        Button(tier.rawValue) { model.goals.personas.spawn.tier = tier }
+                    }
                 }
                 KeyHint("persona.session", scope: "goalpersonas", label: "spawn as session")
                 KeyHint("persona.chat", scope: "goalpersonas", label: "as chat")
@@ -281,14 +274,4 @@ private struct PersonaFile: View {
 
     private var agent: String { model.goals.personas.spawn.agent ?? "session's agent" }
     private var tier: String { model.goals.personas.spawn.tier.rawValue }
-}
-
-private struct Picked: View {
-    let text: String
-
-    var body: some View {
-        Text(text).font(Theme.mono(12)).foregroundStyle(Theme.fg)
-            .padding(.horizontal, 10).padding(.vertical, 5)
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
-    }
 }

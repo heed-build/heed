@@ -444,6 +444,7 @@ enum Shots {
         Shot(id: "history/detail", keys: "gh", crop: .historyDetail),
         Shot(id: "history/pane-tabs", keys: "ghL", crop: .historyPaneBar, cropPadding: 0),
         Shot(id: "history/mindmap", keys: "ghM"),
+        Shot(id: "history/mindmap-work", keys: "ghMljl"),
         Shot(id: "history/standup", keys: "ghU"),
         Shot(id: "history/mindmap-inside", keys: "ghMjl"),
         Shot(id: "history/timeline", keys: "ghT"),

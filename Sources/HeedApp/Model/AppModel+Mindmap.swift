@@ -166,6 +166,14 @@ extension AppModel {
             Task { await mindmap.change(instance, body) }
         }
         switch command.name {
+        case "mindmap.link.next", "mindmap.link.prev":
+            guard let node else { return }
+            let links = MindmapLinks.of(node.id, in: mindmap.shown, ledger: ledger.entries)
+            guard !links.isEmpty else { return say("nothing linked to \(node.title)") }
+            let step = command.name == "mindmap.link.next" ? 0 : links.count - 1
+            let target = links[step].target
+            mindmap.focus = target
+            say("\(links[step].label): \(mindmap.shown[target]?.title ?? target)")
         case "mindmap.in": mindmap.enter()
         case "mindmap.out": mindmap.leave()
         case "mindmap.less": mindmap.changeDepth(by: -1)

@@ -301,7 +301,8 @@ public enum MenuBar {
                     ),
                     ("Follow-up done", "mindmap.done"), ("Pin the decision", "mindmap.pin"),
                     ("Name campaigns now", "mindmap.name"), ("Ledger entry", "mindmap.open"),
-                    ("Start a session here…", "mindmap.session"),
+                    ("Start a session here…", "mindmap.session"), ("Next link", "mindmap.link.next"),
+                    ("Previous link", "mindmap.link.prev"),
                 ], in: ["mindmap"]),
                 scoped("In the Standup", [
                     ("Copy the answer", "standup.copy"), ("Copy the report", "standup.copy.all"),

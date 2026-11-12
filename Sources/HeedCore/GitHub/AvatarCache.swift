@@ -38,9 +38,10 @@ public struct AvatarCache: Sendable {
         return now.timeIntervalSince(modified) > maxAge
     }
 
-    /// Downloads and caches an avatar; returns the fresh data, or nil (keeping any cached copy) on failure.
-    public func refresh(_ login: String, session: URLSession = .shared) async -> Data? {
-        guard let url = Self.url(for: login) else { return nil }
+    /// Downloads and caches an avatar (from `url` when the API gave one, else github.com's); returns the fresh data,
+    /// or nil (keeping any cached copy) on failure.
+    public func refresh(_ login: String, from url: URL? = nil, session: URLSession = .shared) async -> Data? {
+        guard let url = url ?? Self.url(for: login) else { return nil }
         do {
             let (data, response) = try await session.data(from: url)
             guard (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty else { return nil }

@@ -79,6 +79,13 @@ public struct WhatsNewContent: Sendable {
 public enum WhatsNew {
     /// Every feature entry, newest version first. Written in the docs' voice: what you can do now, in a line.
     public static let features: [WhatsNewFeature] = [
+        // 0.39: the readers render threads as GitHub does.
+        WhatsNewFeature(
+            "0.39.0", "Threads read like GitHub",
+            "The PR and issue readers, and Attention's detail, show the description and every comment as GitHub "
+                + "renders them: code, tables, task lists, images. Links open in your browser.",
+            showMe: .command("view.attention")
+        ),
         // 0.37: the Settings redesign, and what merged alongside it.
         WhatsNewFeature(
             "0.37.0", "Settings as a tree",

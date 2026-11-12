@@ -70,11 +70,15 @@ struct WhatsNewTests {
         }
     }
 
-    /// The next version gets the settings redesign: release-drafter bumps the minor for every feature/ branch.
-    @Test func theNewestVersionHasTheSettingsRedesign() {
+    /// The next version gets the rendered threads (release-drafter bumps the minor for every feature/ branch); 0.37
+    /// keeps the settings redesign.
+    @Test func theNewestVersionHasTheRenderedThreads() {
         let newest = WhatsNew.items(since: nil, upTo: WhatsNew.newest.description).features.map(\.title)
-        #expect(newest.contains("Settings as a tree"))
-        #expect(newest.contains("Search every setting"))
-        #expect(newest.contains("Configure…"))
+        #expect(WhatsNew.newest.description == "0.39.0")
+        #expect(newest == ["Threads read like GitHub"])
+        let settings = WhatsNew.items(since: nil, upTo: "0.37.0").features.map(\.title)
+        #expect(settings.contains("Settings as a tree"))
+        #expect(settings.contains("Search every setting"))
+        #expect(settings.contains("Configure…"))
     }
 }

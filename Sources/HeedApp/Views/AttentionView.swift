@@ -326,6 +326,7 @@ private struct AttentionDetail: View {
     var body: some View {
         let item = entry.item
         let detail = model.detail(of: item)
+        let conversation = item.repo.flatMap { repo in item.number.flatMap { model.conversation(repo, $0) } }
         ListScroll {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 6) {
@@ -357,7 +358,8 @@ private struct AttentionDetail: View {
                         Text(item.placeholderSummary).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
                 }
-                if let digest = detail?.digest, !digest.isEmpty {
+                // The three-line digest until the thread itself has loaded (it goes last: it can be long).
+                if conversation == nil, let digest = detail?.digest, !digest.isEmpty {
                     section("Thread in \(digest.count) line\(digest.count == 1 ? "" : "s")") {
                         VStack(alignment: .leading, spacing: 4) {
                             ForEach(Array(digest.enumerated()), id: \.offset) { _, line in
@@ -445,6 +447,14 @@ private struct AttentionDetail: View {
                             if item.notificationID != nil { action("attention.mute", "mute thread", item: item.id) }
                         }
                         if item.url != nil { action("open.browser", "open on GitHub", item: item.id) }
+                    }
+                }
+                if let conversation {
+                    section("Thread") {
+                        ThreadConversationView(
+                            conversation: conversation, seenAt: model.seenAt(conversation.repo, conversation.number),
+                            compact: true
+                        )
                     }
                 }
             }

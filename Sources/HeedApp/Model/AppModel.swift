@@ -308,9 +308,30 @@ final class AppModel {
 
     private(set) var overlay: Overlay? { didSet { updateScope() } }
     /// The PR open in the reader, over whatever view it was opened from.
-    private(set) var reader: PullRef? { didSet { updateScope() } }
+    private(set) var reader: PullRef? {
+        didSet {
+            updateScope()
+            if let reader { loadConversation(reader.repo, reader.number) }
+        }
+    }
+
     /// The issue being read (`go` or ↩ on an issue).
-    private(set) var issueReader: Issue? { didSet { updateScope() } }
+    private(set) var issueReader: Issue? {
+        didSet {
+            updateScope()
+            if let issueReader { loadConversation(issueReader.repo, issueReader.number) }
+        }
+    }
+
+    /// The readers' threads, body and comments as GitHub renders them, by `ThreadConversation.key`: fetched when a
+    /// reader or Attention's detail opens one, kept in memory for the session (AppModel+Threads).
+    var conversations: [String: ThreadConversation] = [:]
+    /// Why a thread's conversation did not load, by key, until it does.
+    var conversationErrors: [String: String] = [:]
+    var conversationsLoading: Set<String> = []
+    /// When you last looked at each thread, by key: what folds the comments you read. Nothing records it yet (the
+    /// split inbox will); empty means every comment shows.
+    var threadSeenAt: [String: Date] = [:]
     /// The PR the overlay shows (one of the current session's).
     private(set) var overlayPull: PullRef?
     private(set) var feedbackCursor = 0
@@ -457,6 +478,7 @@ final class AppModel {
             tailnet = Fixtures.tailnet
             tailscalePath = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
             issueInfo = Fixtures.issueInfo
+            conversations = Fixtures.conversations
             llmStatuses = Self.fixtureLLMStatuses
             localModel = .available
             for (id, live) in Fixtures.subagents {

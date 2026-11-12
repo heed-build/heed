@@ -70,17 +70,15 @@ struct WhatsNewTests {
         }
     }
 
-    /// 0.37 brought the settings redesign: release-drafter bumps the minor for every feature/ branch.
-    @Test func theSettingsRedesignIsIn037() {
-        let titles = WhatsNew.items(since: nil, upTo: "0.37.0").features.map(\.title)
-        #expect(titles.contains("Settings as a tree"))
-        #expect(titles.contains("Search every setting"))
-        #expect(titles.contains("Configure…"))
-    }
-
-    /// The next version gets Attention's redesign.
-    @Test func theNewestVersionHasAttentionsCoverage() {
+    /// The next version gets the rendered threads (release-drafter bumps the minor for every feature/ branch); 0.37
+    /// keeps the settings redesign.
+    @Test func theNewestVersionHasTheRenderedThreads() {
         let newest = WhatsNew.items(since: nil, upTo: WhatsNew.newest.description).features.map(\.title)
-        #expect(WhatsNew.newest == HeedVersion(0, 39) && newest.contains("Attention says what it has"))
+        #expect(WhatsNew.newest.description == "0.39.0")
+        #expect(newest == ["Threads read like GitHub", "Attention says what it has"])
+        let settings = WhatsNew.items(since: nil, upTo: "0.37.0").features.map(\.title)
+        #expect(settings.contains("Settings as a tree"))
+        #expect(settings.contains("Search every setting"))
+        #expect(settings.contains("Configure…"))
     }
 }

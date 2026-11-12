@@ -77,9 +77,6 @@ public struct WhatsNewContent: Sendable {
 }
 
 public enum WhatsNew {
-    /// What `:settings.configure` would be: the setup wizard's command. Until it is in, Configure… opens Settings.
-    public static let configureCommand = "settings.open"
-
     /// Every feature entry, newest version first. Written in the docs' voice: what you can do now, in a line.
     public static let features: [WhatsNewFeature] = [
         // 0.37: the Settings redesign, and what merged alongside it.
@@ -105,7 +102,7 @@ public enum WhatsNew {
             "0.37.0", "Configure…",
             "Pick a profile, then go through the settings that add the most and are still at their default. "
                 + "Nothing is written until you apply.",
-            showMe: .command(configureCommand)
+            showMe: .command("settings.configure")
         ),
         WhatsNewFeature(
             "0.37.0", "What's new, after each update",

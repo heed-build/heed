@@ -129,9 +129,13 @@ struct NudgePolicyTests {
     @Test func highImpactGapsAreTheWizardsHighOnes() throws {
         let gaps = NudgePolicy.highImpactGaps(in: .default, chosen: ChosenSettings())
         #expect(!gaps.isEmpty)
-        #expect(gaps.allSatisfy { $0.impact == .high })
+        #expect(gaps.allSatisfy { $0.entry.impact == .high })
         #expect(gaps.map(\.id) == SettingsCatalog.gaps(in: .default, chosen: ChosenSettings())
             .filter { $0.impact == .high }.map(\.id))
+        // The wizard's actions come along: model calls' setup, zmx's install while it does not work.
+        #expect(gaps.first { $0.id == "llm.agent" }?.action == .setUpModelCalls)
+        #expect(NudgePolicy.highImpactGaps(in: .default, chosen: ChosenSettings(), facts: GapFacts(zmxWorks: true))
+            .first { $0.id == "sessions.persist" }?.action == nil)
         let chosen = ChosenSettings(Set(gaps.map(\.id)))
         #expect(NudgePolicy.highImpactGaps(in: .default, chosen: chosen).isEmpty)
     }
@@ -177,7 +181,13 @@ struct NudgePolicyTests {
 
     @Test func aSafeMomentIsNormalAndClearThenLaunchOrIdleInFront() {
         func safe(_ mode: Mode = .normal, dialog: Bool = false, front: Bool, idle: TimeInterval, launch: Bool) -> Bool {
-            NudgePolicy.isSafeMoment(mode: mode, dialogUp: dialog, frontmost: front, idleSeconds: idle, atLaunch: launch)
+            NudgePolicy.isSafeMoment(
+                mode: mode,
+                dialogUp: dialog,
+                frontmost: front,
+                idleSeconds: idle,
+                atLaunch: launch
+            )
         }
         #expect(safe(front: false, idle: 0, launch: true))
         #expect(safe(front: true, idle: 60, launch: false))

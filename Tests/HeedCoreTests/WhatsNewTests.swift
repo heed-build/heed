@@ -68,7 +68,6 @@ struct WhatsNewTests {
                 break
             }
         }
-        #expect(Commands.spec(WhatsNew.configureCommand) != nil)
     }
 
     /// The next version gets the settings redesign: release-drafter bumps the minor for every feature/ branch.

@@ -143,6 +143,7 @@ This page is generated from the code (`mise run shots`).
 | `settings.find` `<words>` |  | Settings: search every setting by name, description, page or config key (grace_seconds), every word matching |
 | `whatsnew.show` |  | what's new in heed: the features and new settings since the version you last opened |
 | `nudges.hide` `[always]` |  | hide the title bar's settings-worth-a-look pill until the next launch (always: for good) |
+| `settings.configure` |  | Settings: Configure…, a profile, then the settings still worth deciding, then the changes to apply |
 | `inference.setup` |  | set up heed's model calls and decisions (Settings › Model calls) |
 | `inference.hide` `[always]` |  | hide the title bar's model call setup reminder until the next launch (always: for good) |
 | `hunch.download` `[checkpoint]` |  | download (or resume) Hunch's model, english by default; says its size and license first |

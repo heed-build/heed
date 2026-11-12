@@ -4,7 +4,7 @@ import HeedCore
 /// heed's own nudge, while one is up: what's new since the version last opened, or the settings worth a look.
 enum NudgeDialog {
     case whatsNew(WhatsNewContent)
-    case gaps([SettingsEntry])
+    case gaps([SettingsGap])
 }
 
 /// heed's own nudges: "New in heed X" once after an update, the settings worth a look at most once per `[nudges]
@@ -30,8 +30,8 @@ extension AppModel {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
     }
 
-    /// The high-impact settings still at their default and not chosen in the wizard.
-    var highImpactGaps: [SettingsEntry] { NudgePolicy.highImpactGaps(in: config, chosen: nudgeChosen) }
+    /// The high-impact settings still at their default and not decided in Configure…, with what each needs done.
+    var highImpactGaps: [SettingsGap] { settingsGaps.filter { $0.entry.impact == .high } }
 
     /// The pill's count; nil while it does not show. Screenshots show it only where a shot asks.
     var nudgePill: Int? {
@@ -46,16 +46,6 @@ extension AppModel {
     /// Checks once now that the launch's own dialogs had their chance, then every few seconds for a safe moment.
     func startNudges() {
         guard !isFixture, !ShotMode.active else { return }
-        nudgeChosen = ChosenSettings.load()
-        // The wizard keeps what was chosen in preferences: follow it, so the pill's count does.
-        NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                let chosen = ChosenSettings.load()
-                if self?.nudgeChosen != chosen { self?.nudgeChosen = chosen }
-            }
-        }
         checkNudges(atLaunch: true)
         nudgeTask?.cancel()
         nudgeTask = Task { [weak self] in
@@ -99,11 +89,11 @@ extension AppModel {
     }
 
     /// Anything up that a nudge must not cover: every dialog `busy` knows (mode included), readers, the goal and
-    /// swarm forms, the tutor's picker, a text field with the keyboard.
+    /// swarm forms, the tutor's picker, a text field with the keyboard, Configure… itself.
     private var nudgeDialogUp: Bool {
         busy || reader != nil || issueReader != nil || goals.form != nil || goals.sourceForm != nil
             || goals.swarmForm != nil || goals.planDraft != nil || goals.draft != nil || tutorPicker != nil
-            || textInputActive || diffNote != nil
+            || textInputActive || diffNote != nil || configure != nil
     }
 
     /// heed is the active app with its main window key: not Settings, not another app.
@@ -137,7 +127,7 @@ extension AppModel {
             flash = "no more reminders about settings; Settings › Notifications turns them back on"
         } else {
             guard nudgePill != nil else { return flash = "no settings reminder here" }
-            flash = "hidden until the next launch; \(WhatsNew.configureCommand == "settings.open" ? "Settings" : "Configure…") still lists them"
+            flash = "hidden until the next launch; Configure… still lists them"
         }
         nudgePillHidden = true
     }
@@ -172,11 +162,16 @@ extension AppModel {
         hideNudgePill(always: true)
     }
 
-    /// Configure…: the setup wizard, the nudge closed as seen.
-    func openConfigure() {
+    /// Configure… from a nudge or the pill: the nudge closed as seen, then the wizard.
+    func configureFromNudge() {
         closeNudge(seen: true)
-        nudgePillHidden = false
-        perform(CommandInvocation(parsing: WhatsNew.configureCommand))
+        openConfigure()
+    }
+
+    /// A gap's Set up & test, in the gap nudge: what Settings › Model calls' one click does, written and tested.
+    func setUpModelCallsFromNudge() {
+        closeNudge(seen: true)
+        applySuggestedSetup()
     }
 
     /// A feature's Show me: its command, or Settings on its setting's page.

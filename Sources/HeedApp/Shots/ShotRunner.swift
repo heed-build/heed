@@ -124,9 +124,9 @@ enum ShotRunner {
             return
         }
         if case .nudge = shot.subject, let nudge = model.nudge {
-            let card = NudgeCard(nudge: nudge).frame(width: 640).padding(24).background(Theme.bg)
+            let card = NudgeCard(nudge: nudge, cap: 2000).frame(width: 640).padding(24).background(Theme.bg)
                 .environment(model).environment(\.colorScheme, .dark)
-            try write(fittedImage(card, width: 688), shot: shot, into: directory)
+            try await write(fittedImage(card, width: 688), shot: shot, into: directory)
             return
         }
         let frames = ShotFrames()
@@ -191,11 +191,29 @@ enum ShotRunner {
     }
 
     /// The same at the height the view wants for `width`.
-    private static func fittedImage(_ view: some View, width: CGFloat) throws -> CGImage {
-        let probe = NSHostingView(rootView: view.frame(width: width))
-        probe.frame = NSRect(x: 0, y: 0, width: width, height: 4000)
-        probe.layoutSubtreeIfNeeded()
-        return try hostedImage(view, size: CGSize(width: width, height: ceil(probe.fittingSize.height)))
+    private static func fittedImage(_ view: some View, width: CGFloat) async throws -> CGImage {
+        // Laid out twice around a turn of the run loop: a capped scroll learns its content's height from
+        // the first.
+        let hosting = NSHostingView(rootView: view.frame(width: width))
+        hosting.frame = NSRect(x: 0, y: 0, width: width, height: 4000)
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.contentView = hosting
+        for _ in 0 ..< 3 {
+            hosting.layoutSubtreeIfNeeded()
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        hosting.setFrameSize(NSSize(width: width, height: ceil(hosting.fittingSize.height)))
+        window.setContentSize(hosting.frame.size)
+        hosting.layoutSubtreeIfNeeded()
+        try? await Task.sleep(for: .milliseconds(50))
+        hosting.layoutSubtreeIfNeeded()
+        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
+            throw Failure(description: "no bitmap")
+        }
+        hosting.cacheDisplay(in: hosting.bounds, to: rep)
+        guard let image = rep.cgImage else { throw Failure(description: "no image") }
+        return image
     }
 
     private static func write(_ image: CGImage, shot: Shot, into directory: URL) throws {

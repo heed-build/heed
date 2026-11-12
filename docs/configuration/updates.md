@@ -37,6 +37,9 @@ install = "ask"                    # ask | auto
 
 Settings › Updates sets both.
 
+After an update, the first time you open heed it shows **New in heed X**: the features and new settings since the
+version you had. See [What's new and nudges](whats-new.md).
+
 ## Homebrew
 
 The cask says Heed updates itself, so `brew upgrade` leaves it alone; `brew upgrade --greedy heed` still upgrades it

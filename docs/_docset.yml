@@ -139,6 +139,8 @@ toc:
     children:
       - file: index.md
       - file: settings.md
+      - file: configure.md
+      - file: whats-new.md
       - file: inference.md
       - file: local-learning.md
       - file: reference.md

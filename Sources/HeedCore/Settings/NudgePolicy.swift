@@ -137,8 +137,10 @@ public enum NudgePolicy {
     }
 
     /// The gaps the nudge and the pill are about: the wizard's, high impact only.
-    public static func highImpactGaps(in config: HeedConfig, chosen: ChosenSettings) -> [SettingsEntry] {
-        SettingsCatalog.gaps(in: config, chosen: chosen).filter { $0.impact == .high }
+    public static func highImpactGaps(
+        in config: HeedConfig, chosen: ChosenSettings, facts: GapFacts = GapFacts()
+    ) -> [SettingsGap] {
+        SettingsCatalog.gaps(in: config, chosen: chosen, facts: facts).filter { $0.entry.impact == .high }
     }
 
     /// The title bar's pill between nudges ("N settings worth a look"): while there are high-impact gaps and the gap

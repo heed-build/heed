@@ -232,6 +232,12 @@ public enum Commands {
             "Settings: show only what differs from heed's defaults, or every setting again", .views
         ),
         .init(
+            "settings.find",
+            "Settings: search every setting by name, description, page or config key (grace_seconds), every word "
+                + "matching",
+            .views, arguments: "<words>"
+        ),
+        .init(
             "inference.setup", "set up heed's model calls and decisions (Settings › Model calls)", .views
         ),
         .init(

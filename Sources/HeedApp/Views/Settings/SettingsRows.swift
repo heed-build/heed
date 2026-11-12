@@ -83,15 +83,19 @@ extension ContainerValues {
 struct SettingsCard<Content: View>: View {
     @Environment(AppModel.self) private var model
     @Environment(\.settingsPage) private var page
+    @Environment(\.settingsSearch) private var search
     let title: String
     var note: String?
     var bare = false
     @ViewBuilder let content: Content
 
     var body: some View {
-        let onlyModified = model.settingsFilter.onlyModified
+        // Searching keeps only the matching rows, as Only modified keeps the changed ones.
+        let onlyModified = model.settingsFilter.onlyModified || search != nil
         if bare {
-            if !onlyModified || isChanged {
+            if let search {
+                if let page, search.contains(page: page, section: title) { section { content } }
+            } else if !onlyModified || isChanged {
                 section { content }
             }
         } else {
@@ -132,13 +136,17 @@ struct SettingsCard<Content: View>: View {
 
     private func section(@ViewBuilder _ body: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionHeader(title: title).padding(.leading, 2)
-            if let note, !model.settingsFilter.onlyModified {
+            if search != nil {
+                SettingsBreadcrumb(title: title).padding(.leading, 2)
+            } else {
+                SectionHeader(title: title).padding(.leading, 2)
+            }
+            if let note, !model.settingsFilter.onlyModified, search == nil {
                 Text(note).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, 2)
             }
-            body()
+            body().environment(\.settingsCardTitle, title)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .id(title)
@@ -191,6 +199,7 @@ extension View {
 /// that only means something while another is on is indented, and hidden while that one is off.
 struct SettingRow<Control: View>: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.settingsSearch) private var search
     let ids: [String]
     var target: SettingTarget = .global
     var label: String?
@@ -228,12 +237,19 @@ struct SettingRow<Control: View>: View {
         let entries = ids.compactMap(SettingsCatalog.entry)
         let modified = entries.filter { SettingsCatalog.isModified($0, at: target, in: config) }
         let problems = entries.flatMap { SettingsCatalog.problems(for: $0, at: target, in: model.configProblems) }
-        let visibility = SettingsCatalog.visibility(
-            ids, at: target, in: config, problems: model.configProblems, filter: model.settingsFilter
-        )
+        // Searching draws the rows that matched, advanced or not, and with their parent off (dimmed); the search
+        // itself has already kept only the changed ones under Only modified.
+        let visibility: SettingVisibility = if let search {
+            search.contains(ids, at: target) ? .shown : .hidden
+        } else {
+            SettingsCatalog.visibility(
+                ids, at: target, in: config, problems: model.configProblems, filter: model.settingsFilter
+            )
+        }
         if visibility == .shown {
             // Under Only modified the parent may not show: nothing is indented under what is not there.
-            let indent = !model.settingsFilter.onlyModified && (indented || SettingsCatalog.parents[ids[0]] != nil)
+            let indent = !model.settingsFilter.onlyModified && search == nil
+                && (indented || SettingsCatalog.parents[ids[0]] != nil)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .center, spacing: 14) {
                     text(entries, modified: !modified.isEmpty, problems: problems)
@@ -255,6 +271,7 @@ struct SettingRow<Control: View>: View {
                 }
             }
             .opacity(isDimmed ? 0.55 : 1)
+            .settingsSearchRow(ids, target: target)
             .settingsLine(.shown)
         } else {
             EmptyView().settingsLine(visibility)
@@ -269,9 +286,19 @@ struct SettingRow<Control: View>: View {
 
     private func text(_ entries: [SettingsEntry], modified: Bool, problems: [SettingProblem]) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(label ?? entries.first?.label ?? ids[0]).font(Theme.ui(13)).foregroundStyle(Theme.fg)
+            HStack(spacing: 6) {
+                Text(searchHighlighted(label ?? entries.first?.label ?? ids[0], search)).font(Theme.ui(13))
+                    .foregroundStyle(Theme.fg)
+                // Found by search although its page hides it with Show advanced off.
+                if search != nil, entries.allSatisfy({ $0.level == .advanced }) { AdvancedTag() }
+            }
+            // Found by its key: the key, as config.toml writes it here.
+            if let search, let entry = entries.first(where: search.matchesKey), let path = entry.path(at: target) {
+                Text(searchHighlighted(SettingsCatalog.keyText(path), search)).font(Theme.mono(11))
+                    .foregroundStyle(Theme.fg3)
+            }
             if let detail = detail ?? entries.first?.detail, !detail.isEmpty {
-                Text(detail).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                Text(searchHighlighted(detail, search)).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if modified, problems.isEmpty {

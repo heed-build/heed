@@ -138,6 +138,39 @@ private struct EveryAgentDetail: View {
     }
 }
 
+/// Search's matches on Agents: at each agent, each tab holding one, that tab's cards with only the matching rows,
+/// under `Agents › claude › Sessions`.
+struct AgentsSearchResults: View {
+    @Environment(AppModel.self) private var model
+    let search: SettingsSearch
+
+    var body: some View {
+        let matches = search.matches(on: .agents)
+        let names = matches.compactMap { match -> String? in
+            if case let .agent(name)? = match.target { name } else { nil }
+        }
+        .reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+        ForEach(names, id: \.self) { name in
+            if let agent = model.config.work.agent(name) {
+                let tabs = SettingsPage.agents.tabs.filter { tab in
+                    matches.contains { $0.target == .agent(name) && $0.entry.tab == tab }
+                }
+                ForEach(tabs, id: \.self) { tab in
+                    Group {
+                        switch tab {
+                        case .modelCalls:
+                            AgentModelCalls(agent: agent, status: model.llmStatuses.first { $0.name == name })
+                        default: AgentSessions(agent: agent)
+                        }
+                    }
+                    .environment(\.settingsCrumbs, [SettingsPage.agents.title, name, tab.title])
+                    .environment(\.settingsCrumbTarget, .agent(name))
+                }
+            }
+        }
+    }
+}
+
 /// One agent: its name, what it is, and its two tabs.
 private struct AgentDetail: View {
     @Environment(AppModel.self) private var model
@@ -277,13 +310,14 @@ struct TableSummary: View {
 /// Model calls: the agent's part in heed's own calls (`[llm]`): on or off, its login, its model, and a Test.
 private struct AgentModelCalls: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.settingsSearch) private var search
     let agent: AgentProfile
     let status: LLMAgentStatus?
 
     var body: some View {
         let target = SettingTarget.agent(agent.name)
         let settings = model.config.llm
-        if LLMDialect.of(agent) == nil {
+        if LLMDialect.of(agent) == nil, search == nil {
             Text("Custom agents take no part in heed's own model calls (summaries, decisions).")
                 .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         } else {

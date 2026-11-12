@@ -45,6 +45,11 @@ Each setting is on one page only. `:settings.open <page>` opens one (`general`, 
 `keys`); the names of the sections Settings had before still work (`colors`, `repos`, `cleanup`, `inference`, `llm`,
 `modes`, `rules`, `ssh`) and open the page their settings are on now.
 
+Some of what the table lists is [advanced](#show-advanced-and-only-modified) (the notification grace, model calls'
+timeout, at once and back off, the attach thresholds, the call log's retention, tool paths, an agent's command line
+flags, several of Get it merged's): it is on its page, but hidden until Show advanced is on or you set it.
+[Search](#search) finds it either way.
+
 ## Rows
 
 Each section is a card of rows: what the setting is and does on the left, its control on the right. Settings that only
@@ -79,6 +84,34 @@ say while Only modified is on: every change shows, advanced or not.
 ![Only modified: the tree keeps four pages; Notifications shows its two changes and the refused quiet hours](../images/shots/configuration/settings-modified.png)
 
 `:settings.advanced` and `:settings.modified` flip the switches from anywhere (and open Settings to show it).
+
+## Search
+
+The field at the top of the tree searches every setting at once: ⌘F puts the keyboard there while Settings is in
+front, and `:settings.find <words>` opens Settings with the words typed. Every word has to match a setting's own
+text: its name, its description, or its key as `config.toml` writes it (`grace_seconds`, `notifications.grace_seconds`,
+`llm.timeout_seconds`, `[orgs.<org>] watch`). Case does not matter. Where a setting lives counts only when nothing
+matches that way, or when you name the place outright: `model` finds what mentions models, not every setting on Model
+calls; `model calls`, `limits` or `pilot` list that page or section whole.
+
+![Searching for "model": the tree keeps the pages with matches and counts them, the pane lists them by page](../images/shots/configuration/settings-search.png)
+
+While the field has words, the tree keeps the pages with matches, each with how many; their groups are open (the
+folds come back as they were when the field is empty). The pane says how many settings match and lists them as their
+own pages draw them, so you can change one there: the same controls, the amber bar of a changed one, its default and
+↺. Each card is headed by where it is, `Model calls › Limits`, or for an agent, org or repo `Agents › claude ›
+Sessions › Starting`. The page with the best match (in a name, then in a key) comes first. A match on its key shows the key; an advanced setting is
+found whether Show advanced is on or not, and is tagged `advanced`.
+
+An agent's setting is listed for each agent that changes it, else for the default agent; an org or repo setting for
+each org or repo that overrides it, else for the first org Orgs & repos lists. A host setting with no host yet is
+listed with nowhere to set it.
+
+↑ and ↓ move through the matches, ↩ opens the one you are on (the first, before you move) on its page: the search
+clears, the page opens on its tab and its agent, org or repo, and the row is scrolled to and flashes. Clicking a card's
+heading does the same for its first row. An advanced row opened this way turns Show advanced on, so it is there. ⎋
+clears the field. With **Only modified** on, search finds only what differs from heed's defaults (or that heed
+refused); when that leaves nothing, the pane says so and offers to turn Only modified off.
 
 ## Agents
 

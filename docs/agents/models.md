@@ -7,7 +7,8 @@ description: The models and reasoning efforts Heed offers for each agent, where 
 Wherever Heed lets you choose what an agent runs on, it offers a list rather than a text field: Start work, the swarm
 form (the lead and each kind of worker), a handoff (`:agent.switch`), Settings › Agents (each agent's own model and
 effort on its Sessions tab, and the model for Heed's [model calls](model-calls.md) on its Model calls tab), Settings › Pilot
-(the get it green run and the merge-conflict run) and Settings › Orgs & repos (the same, per org and repo).
+(the get it green run and the merge-conflict run, which is advanced) and Settings › Orgs & repos (the same, per org and
+repo). Searching Settings for `model` lists every one of them.
 
 Each list starts with **the agent's default** (nothing is passed, so the agent uses its own, or the model and effort
 set for it below), then the models Heed knows for that agent, newest first, by name and id, then **Custom…**, which

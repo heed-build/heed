@@ -51,6 +51,17 @@ public enum CommandCompletions {
     public static let settingsSections = SettingsPage.allCases.map(\.commandName)
         + ["colors", "cleanup", "inference"]
 
+    /// `:settings.find <words>`: every setting's name, once, with where it is (`Notifications › Sessions`).
+    public static let settingsLabels: [(String, String)] = SettingsCatalog.entries.reduce(into: []) { found, entry in
+        let label = entry.label.lowercased()
+        guard !found.contains(where: { $0.0 == label }) else { return }
+        found.append((
+            label,
+            ([entry.page.title] + [entry.tab?.title, entry.section].compactMap(\.self))
+                .reduce(into: [String]()) { if $0.last != $1 { $0.append($1) } }.joined(separator: " › ")
+        ))
+    }
+
     /// `:pilot.pause <duration>`, the durations offered (any `<n>m|h|d` works).
     public static let pauseDurations: [(String, String)] = [
         ("30m", "half an hour"), ("1h", "an hour"), ("4h", "four hours"), ("1d", "a day"),
@@ -126,6 +137,7 @@ public enum CommandCompletions {
             + OverrideTab.allCases.map { ("orgs \($0.rawValue)", "Orgs & repos › \($0.title)") }
             + SettingsPage.pilot.tabs.map { ("pilot \($0.commandName)", "Pilot › \($0.title)") }
             + SettingsPage.agents.tabs.map { ("agents \($0.commandName)", "Agents › \($0.title)") }
+        case "settings.find": settingsLabels
         case "pilot.pause": pauseDurations.map { ($0.0, $0.1) }
         case "view.attention", "attention.filter": AttentionFilter.allCases.map { ($0.rawValue, $0.title) }
         case "attention.snooze": snoozeDurations.map { ($0.0, $0.1) }

@@ -2801,6 +2801,10 @@ final class AppModel {
             settingsFilter.onlyModified.toggle()
             flash = settingsFilter.onlyModified ? "Settings: only modified settings" : "Settings: every setting"
             openSettings?()
+        case "settings.find":
+            settingsQuery = command.arguments.joined(separator: " ")
+            settingsFindAsked = true
+            openSettings?()
         case "welcome": showFirstRun()
         case "setup.review": reviewSetup()
         case "repo.setup": openRepoSetup(command.arguments.first)
@@ -7626,6 +7630,14 @@ final class AppModel {
 
     /// `:settings.open agents`: the page the Settings window turns to.
     var settingsPage: SettingsPage?
+
+    /// Settings' search (⌘F there, `:settings.find <words>`); empty shows the tree and its pages.
+    var settingsQuery = ""
+    /// `:settings.find` asked for the keyboard to go to Settings' search field; Settings takes it.
+    var settingsFindAsked = false
+
+    /// A breadcrumb in Settings' search asked to open its rows on their page.
+    var settingsReveal: SettingsReveal?
 
     /// Set on the sandbox model while the tutor runs; nil everywhere else.
     private(set) var tutor: Tutor?

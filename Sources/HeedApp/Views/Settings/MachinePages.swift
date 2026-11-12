@@ -7,10 +7,11 @@ import SwiftUI
 /// is gH's (it reads ~/.ssh/config and your tailnet); editing one is the file's, and ↺ removes a key set there.
 struct HostsPage: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.settingsSearch) private var search
 
     var body: some View {
         let hosts = model.config.hosts.values.sorted { $0.name < $1.name }
-        if !model.settingsFilter.onlyModified {
+        if !model.settingsFilter.onlyModified, search == nil {
             HStack(spacing: 12) {
                 Button("Add or check hosts (gH)") {
                     model.activateHeed()
@@ -19,7 +20,7 @@ struct HostsPage: View {
                 Button("Edit in config.toml") { NSWorkspace.shared.open(model.configFile) }
             }
         }
-        if hosts.isEmpty {
+        if hosts.isEmpty, search == nil {
             Text("No hosts yet. gH lists the ones in ~/.ssh/config and on your tailnet to add.")
                 .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
         }

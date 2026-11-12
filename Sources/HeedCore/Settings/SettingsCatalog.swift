@@ -191,15 +191,30 @@ public enum SettingsCatalog {
 
     // MARK: Search
 
-    /// Entries matching `query`: every word of it in the label, detail, page, tree group, section, tab or config
-    /// key (`grace_seconds`, `llm.timeout_seconds`, `[orgs.<org>] watch`), ignoring case. Label matches first, then
-    /// key matches, then the rest, each in page order. An empty query matches nothing.
+    /// Entries matching `query`: every word of it in the entry's own text (label, detail, config key:
+    /// `grace_seconds`, `llm.timeout_seconds`, `[orgs.<org>] watch`), ignoring case. Where they live (page, tree
+    /// group, section, tab) counts only when no entry's own text matches, or when the query names that place
+    /// outright: "model" finds what says model, not every entry on Model calls; "pilot" and "model calls" list
+    /// their page. Label matches first, then key matches, then the rest, each in page order. An empty query matches
+    /// nothing.
     public static func search(_ query: String, in entries: [SettingsEntry] = entries) -> [SettingsEntry] {
         let words = query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
         guard !words.isEmpty else { return [] }
-        let found = entries.filter { entry in
-            let text = entry.searchText
+        let own = entries.filter { entry in
+            let text = entry.ownText
             return words.allSatisfy { text.contains($0) }
+        }
+        let found: [SettingsEntry]
+        if own.isEmpty {
+            found = entries.filter { entry in
+                let text = entry.searchText
+                return words.allSatisfy { text.contains($0) }
+            }
+        } else {
+            let name = words.joined(separator: " ")
+            found = entries.filter { entry in
+                own.contains { $0.id == entry.id } || entry.placeNames.contains(name)
+            }
         }
         func rank(_ entry: SettingsEntry) -> Int {
             let label = entry.label.lowercased()
@@ -315,8 +330,17 @@ public struct SettingsEntry: Identifiable, Sendable {
     }
 
     var searchText: String {
-        ([label, detail, page.title, page.group.title, section, tab?.title ?? "", key.joined(separator: ".")]
-            + keyTexts).joined(separator: "\n").lowercased()
+        ([ownText] + placeNames).joined(separator: "\n")
+    }
+
+    /// What the entry itself says: its label, detail and key, lowercased.
+    var ownText: String {
+        ([label, detail, key.joined(separator: ".")] + keyTexts).joined(separator: "\n").lowercased()
+    }
+
+    /// Where it lives, lowercased: its page, tree group, section and tab.
+    var placeNames: [String] {
+        [page.title, page.group.title, section, tab?.title].compactMap(\.self).map { $0.lowercased() }
     }
 }
 
@@ -393,6 +417,18 @@ public enum SettingsTab: String, CaseIterable, Sendable {
         case .merged: .merged
         case .reviews: .reviews
         case .instructions: .instructions
+        }
+    }
+
+    /// Orgs & repos' tab of the same name; nil for an agent's.
+    public var overrideTab: OverrideTab? {
+        switch self {
+        case .general: .general
+        case .green: .green
+        case .merged: .merged
+        case .reviews: .reviews
+        case .instructions: .instructions
+        case .sessions, .modelCalls: nil
         }
     }
 

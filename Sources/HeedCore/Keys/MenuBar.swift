@@ -267,6 +267,7 @@ public enum MenuBar {
                 item("Group sessions: next", "sessions.group"),
                 item("Sort sessions: next", "sessions.sort"),
                 item("One line per session", "sessions.rows", checked: facts.sessionRowsOne),
+                item("Close what is done…", "sessions.close.ready"),
                 item("Inspector", "inspector.toggle", checked: facts.inspectorShown),
                 .separator,
                 scoped("In Attention", [

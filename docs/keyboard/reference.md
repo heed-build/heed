@@ -130,6 +130,7 @@ This page is generated from the code (`mise run shots`).
 | `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
 | `sessions.sort` `[attention|touched|idle|started|size]` | `T` (sessions) | sort the sessions: attention, you recent first, idle longest, started, size (no argument: next) |
 | `sessions.rows` `[one|two]` | `zR` (sessions) | one line or two per session in the sidebar |
+| `sessions.close.ready` | `X` (sessions) | close every session in Can close (its PRs merged or closed, nothing left open), after asking |
 | `config.edit` |  | open config.toml in $EDITOR |
 | `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |
 | `tutor.hide` `[all]` |  | hide the title bar's tutor reminder for this lesson (all: every reminder) |

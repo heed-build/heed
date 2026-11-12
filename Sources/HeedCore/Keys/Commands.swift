@@ -238,6 +238,11 @@ public enum Commands {
             .views, arguments: "<words>"
         ),
         .init(
+            "settings.configure",
+            "Settings: Configure…, a profile, then the settings still worth deciding, then the changes to apply",
+            .views
+        ),
+        .init(
             "inference.setup", "set up heed's model calls and decisions (Settings › Model calls)", .views
         ),
         .init(

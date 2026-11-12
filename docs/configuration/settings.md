@@ -113,6 +113,12 @@ heading does the same for its first row. An advanced row opened this way turns S
 clears the field. With **Only modified** on, search finds only what differs from heed's defaults (or that heed
 refused); when that leaves nothing, the pane says so and offers to turn Only modified off.
 
+## Configure…
+
+**Configure…** at the top of the tree goes through the settings still worth deciding, with their count as a badge
+(`13 gaps`). It starts from an optional profile (Hands on, Autopilot, Focus, Minimal), lists the gaps, and shows the
+keys it will write before **Apply** writes them. See [Configure…](configure.md).
+
 ## Agents
 
 The list has **Every agent**, what the agents share (the default agent on General, model calls and their limits on

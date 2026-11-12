@@ -731,6 +731,36 @@ enum Shots {
                 model.applyConfig(source: Shots.modifiedConfig)
             }
         ),
+        // Configure…, step 1: Autopilot picked, what it sets and keeps.
+        Shot(
+            id: "configuration/configure-profile", subject: .settings(.notifications),
+            size: CGSize(width: 1080, height: 760),
+            prepare: { $0.configure = ConfigureDraft(profile: .autopilot) }
+        ),
+        // Step 2 after Focus: the gaps left, ranked; persistent panes needs zmx installed, model calls Set up & test,
+        // one kept at its default and one set.
+        Shot(
+            id: "configuration/configure-gaps", subject: .settings(.notifications),
+            size: CGSize(width: 1080, height: 980),
+            prepare: { model in
+                model.zmxHealth = ZmxHealth(path: nil)
+                var draft = ConfigureDraft(step: .gaps, profile: .focus)
+                draft.keepDefault("notifications.enabled")
+                draft.set("pilot.green", .text("auto"))
+                model.configure = draft
+            }
+        ),
+        // Step 3: the keys Apply writes, and what is decided without a write.
+        Shot(
+            id: "configuration/configure-review", subject: .settings(.notifications),
+            size: CGSize(width: 1080, height: 820),
+            prepare: { model in
+                var draft = ConfigureDraft(step: .review, profile: .focus)
+                draft.keepDefault("notifications.enabled")
+                draft.set("pilot.green", .text("auto"))
+                model.configure = draft
+            }
+        ),
         // Show advanced off: Model calls' limits are advanced, so its card says what it hides; one changed shows.
         Shot(
             id: "configuration/settings-advanced", subject: .settings(.modelCalls), size: CGSize(

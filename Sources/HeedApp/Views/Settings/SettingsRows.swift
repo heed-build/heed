@@ -395,14 +395,34 @@ struct CardNote<Content: View>: View {
 
 // MARK: Controls
 
+/// Where a control's change goes: config.toml (the default), or Configure…'s draft, which writes nothing until Apply.
+struct ConfigWrites: Sendable {
+    var onSet: @MainActor @Sendable (AppModel, [String], TOMLValue, Bool) -> Void = { model, path, value, multiline in
+        model.setConfig(path, value, multiline: multiline)
+    }
+
+    var onUnset: @MainActor @Sendable (AppModel, [String]) -> Void = { model, path in model.unsetConfig(path) }
+
+    @MainActor func set(_ model: AppModel, _ path: [String], _ value: TOMLValue, multiline: Bool = false) {
+        onSet(model, path, value, multiline)
+    }
+
+    @MainActor func unset(_ model: AppModel, _ path: [String]) { onUnset(model, path) }
+}
+
+extension EnvironmentValues {
+    @Entry var configWrites = ConfigWrites()
+}
+
 /// On or off: always a switch.
 struct ConfigSwitch: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let isOn: Bool
 
     var body: some View {
-        Toggle("", isOn: Binding(get: { isOn }, set: { model.setConfig(path, .bool($0)) }))
+        Toggle("", isOn: Binding(get: { isOn }, set: { writes.set(model, path, .bool($0)) }))
             .toggleStyle(.switch)
             .controlSize(.small)
             .tint(Theme.done)
@@ -414,6 +434,7 @@ struct ConfigSwitch: View {
 /// that is not a number in range goes back to the value.
 struct NumberField: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let value: Double
     var unit: String?
@@ -489,13 +510,14 @@ struct NumberField: View {
         let scale = pow(10, Double(places))
         let rounded = (number * scale).rounded() / scale
         guard rounded != value else { return }
-        model.setConfig(path, places == 0 ? .integer(Int(rounded)) : .float(rounded))
+        writes.set(model, path, places == 0 ? .integer(Int(rounded)) : .float(rounded))
     }
 }
 
 /// A short choice, as segments.
 struct SegmentedChoice<Value: Hashable>: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let value: Value
     let options: [(Value, String)]
@@ -504,7 +526,7 @@ struct SegmentedChoice<Value: Hashable>: View {
     var width: CGFloat?
 
     var body: some View {
-        Picker("", selection: Binding(get: { value }, set: { model.setConfig(path, .string(name($0))) })) {
+        Picker("", selection: Binding(get: { value }, set: { writes.set(model, path, .string(name($0))) })) {
             ForEach(options, id: \.0) { Text($0.1).tag($0.0) }
         }
         .pickerStyle(.segmented)
@@ -516,6 +538,7 @@ struct SegmentedChoice<Value: Hashable>: View {
 /// Several of a list on or off, as chips (a list config.toml writes in this order).
 struct ChipToggles: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let options: [(String, String)]
     let chosen: Set<String>
@@ -530,7 +553,7 @@ struct ChipToggles: View {
                     var next = chosen
                     if on { next.remove(name) } else { next.insert(name) }
                     guard allowNone || !next.isEmpty else { return }
-                    model.setConfig(path, .array(options.map(\.0).filter(next.contains).map { .string($0) }))
+                    writes.set(model, path, .array(options.map(\.0).filter(next.contains).map { .string($0) }))
                 } label: {
                     Text(title)
                         .font(Theme.ui(11.5, weight: on ? .semibold : .regular))
@@ -549,6 +572,7 @@ struct ChipToggles: View {
 /// A text field that writes to config.toml when you press return or leave it.
 struct ConfigTextField: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let value: String
     var placeholder = ""
@@ -573,9 +597,9 @@ struct ConfigTextField: View {
     private func save() {
         guard text != value else { return }
         if emptyUnsets, text.trimmingCharacters(in: .whitespaces).isEmpty {
-            model.unsetConfig(path)
+            writes.unset(model, path)
         } else {
-            model.setConfig(path, .string(text))
+            writes.set(model, path, .string(text))
         }
     }
 }
@@ -583,6 +607,7 @@ struct ConfigTextField: View {
 /// A comma separated list written to config.toml as an array.
 struct ListField: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let values: [String]
     var width: CGFloat = 240
@@ -604,13 +629,14 @@ struct ListField: View {
     private func save() {
         let list = text.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         guard list != values else { return }
-        model.setConfig(path, .array(list.map { .string($0) }))
+        writes.set(model, path, .array(list.map { .string($0) }))
     }
 }
 
 /// A list of lines (questions), one item a line, written as an array when you leave the field.
 struct LinesField: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let values: [String]
     @State private var text = ""
@@ -630,13 +656,14 @@ struct LinesField: View {
     private func save() {
         let lines = text.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         guard lines != values else { return }
-        model.setConfig(path, .array(lines.map { .string($0) }), multiline: true)
+        writes.set(model, path, .array(lines.map { .string($0) }), multiline: true)
     }
 }
 
 /// Instructions added to a prompt: several lines, written when you leave the field (⌘↩ too).
 struct InstructionsField: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let value: String
     /// nil: as wide as the row allows.
@@ -659,19 +686,20 @@ struct InstructionsField: View {
 
     private func save() {
         guard text != value else { return }
-        model.setConfig(path, .string(text.trimmingCharacters(in: .whitespacesAndNewlines)))
+        writes.set(model, path, .string(text.trimmingCharacters(in: .whitespacesAndNewlines)))
     }
 }
 
 /// A duration from a short list, written as text (`"1h"`): a value set in config.toml outside the list shows too.
 struct DurationPicker: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let options: [String]
     let current: String
 
     var body: some View {
-        Picker("", selection: Binding(get: { current }, set: { model.setConfig(path, .string($0)) })) {
+        Picker("", selection: Binding(get: { current }, set: { writes.set(model, path, .string($0)) })) {
             ForEach(options.contains(current) ? options : options + [current], id: \.self) { Text($0).tag($0) }
         }
         .labelsHidden()
@@ -682,6 +710,7 @@ struct DurationPicker: View {
 /// A choice from a menu; the empty tag is the key removed (heed's default).
 struct MenuChoice: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let value: String
     let options: [(String, String)]
@@ -690,7 +719,7 @@ struct MenuChoice: View {
     var body: some View {
         Picker("", selection: Binding(
             get: { value },
-            set: { $0.isEmpty ? model.unsetConfig(path) : model.setConfig(path, .string($0)) }
+            set: { $0.isEmpty ? writes.unset(model, path) : writes.set(model, path, .string($0)) }
         )) {
             ForEach(options, id: \.0) { Text($0.1).tag($0.0) }
             if !options.contains(where: { $0.0 == value }) { Text(value).tag(value) }
@@ -703,6 +732,7 @@ struct MenuChoice: View {
 /// A dollar amount, written as a TOML number when it is one (0 or more); anything else is said, not written.
 struct DollarsField: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let value: Double
     var unit = "a day"
@@ -740,13 +770,14 @@ struct DollarsField: View {
         }
         problem = nil
         guard dollars != value else { return }
-        model.setConfig(path, .float(dollars))
+        writes.set(model, path, .float(dollars))
     }
 }
 
 /// "Edit in config.toml", for what Settings only shows.
 struct EditInConfigButton: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     var title = "Edit in config.toml"
 
     var body: some View {
@@ -759,6 +790,7 @@ struct EditInConfigButton: View {
 /// A link to another page of Settings (`General ›`).
 struct PageLink: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let page: SettingsPage
     var title: String?
     var before: () -> Void = {}

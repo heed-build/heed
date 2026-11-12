@@ -149,7 +149,7 @@ struct KeysPage: View {
 }
 
 /// zmx's check, under its field: where it is, its version, whether it works, and what panes do because of it.
-private struct ZmxStatus: View {
+struct ZmxStatus: View {
     let health: ZmxHealth?
     let setting: PanePersistence
 
@@ -224,8 +224,9 @@ private struct TailscaleStatusLine: View {
 
 /// A system-wide shortcut: typed in vim notation, or recorded from the next key pressed. Checked before it is
 /// written, so a shortcut that cannot work never reaches config.toml.
-private struct ShortcutField: View {
+struct ShortcutField: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.configWrites) private var writes
     let path: [String]
     let value: String
     /// The other global shortcut, which this one may not repeat.
@@ -293,6 +294,6 @@ private struct ShortcutField: View {
         problem = nil
         text = notation
         guard notation != value else { return }
-        model.setConfig(path, .string(notation))
+        writes.set(model, path, .string(notation))
     }
 }

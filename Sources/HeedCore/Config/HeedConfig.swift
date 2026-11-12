@@ -539,6 +539,9 @@ public enum ConfigLoader {
                 if !pilot.isEmpty { config.pilot.orgs[org] = pilot }
                 if let tracker = string(["orgs", org, "goals_tracker"]) { config.goals.mirror.trackers[org] = tracker }
                 if let flag = bool(["orgs", org, "goals_mirror"]) { config.goals.mirror.mirrors[org] = flag }
+                if let questions = strings(["orgs", org, "standup_questions"]) {
+                    config.standup.questionsByInstance[MindmapInstance.name(org)] = questions
+                }
             }
         }
         // [hosts.<name>]: ssh, tailscale, transport, user, repo_roots, worktree_root, color.
@@ -767,6 +770,9 @@ public enum ConfigLoader {
             }
         }
         if let days = integer(["standup", "range_days"], range: 1 ... 31) { config.standup.rangeDays = days }
+        if let questions = strings(["standup", "personal_questions"]) {
+            config.standup.questionsByInstance[MindmapInstance.personal] = questions
+        }
         if let questions = strings(["standup", "questions"]) {
             config.standup.questions = questions.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
         }
@@ -1152,6 +1158,8 @@ public enum ConfigLoader {
     # at = "08:40"
     # range_days = 1          # unset: since the last report
     # questions = ["What did I finish since the last standup?", "What am I working on next?", "What is blocked?"]
+    # Questions of one org's own: standup_questions under [orgs.<name>]; your personal work's: personal_questions here.
+    # personal_questions = ["What did I learn?"]
 
     [memory]
     # What a session is told at launch from the Mindmap: the decisions that still stand in its campaign, what was

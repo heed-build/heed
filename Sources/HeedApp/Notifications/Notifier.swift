@@ -111,6 +111,22 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     private static func identifier(_ id: String) -> String { "heed.session.\(id)" }
 
+    /// A standup report is ready: one notification per org's report, outside quiet hours, replacing the last one.
+    func announceStandup(instance: String, title: String, body: String) {
+        guard let model, let center, !(model.config.attention.quiet?.contains(Date()) ?? false) else { return }
+        Task {
+            guard await authorized(center) else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.categoryIdentifier = Self.sessionCategory
+            content.userInfo = ["standup": instance]
+            try? await center.add(UNNotificationRequest(
+                identifier: "heed.standup.\(instance)", content: content, trigger: nil
+            ))
+        }
+    }
+
     /// Posts the notice; false when macOS does not allow Heed to notify.
     @discardableResult
     private func post(_ notice: Notices.Notice?) async -> Bool {
@@ -161,7 +177,13 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     ) async {
         let action = response.actionIdentifier
         let session = response.notification.request.content.userInfo["session"] as? String ?? ""
+        let standup = response.notification.request.content.userInfo["standup"] as? String
         await MainActor.run {
+            if let standup, let model = self.model,
+               action == Self.open || action == UNNotificationDefaultActionIdentifier
+            {
+                return model.showStandup(instance: standup)
+            }
             guard let model = self.model, !session.isEmpty else { return }
             if action == Self.allow {
                 model.allowPermission(sessionID: session)

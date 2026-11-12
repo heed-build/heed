@@ -33,7 +33,7 @@ extension AppModel {
 
     /// One report for `instance`: each question answered from its Mindmap's work since `from`.
     func writeStandup(_ instance: String, now: Date = Date(), priority: LLMRequest.Priority) async {
-        guard !standup.writing.contains(instance) else { return }
+        guard !standup.writing.contains(instance), !config.standup.questions(for: instance).isEmpty else { return }
         standup.writing.insert(instance)
         defer { standup.writing.remove(instance) }
         let from = StandupSchedule.from(now: now, last: standup.reports[instance]?.first?.at, settings: config.standup)
@@ -41,7 +41,7 @@ extension AppModel {
             instance: instance, tree: mindmap.tree(instance), ledger: ledger.entries, from: from, now: now
         )
         var answers: [StandupReport.Answer] = []
-        for question in config.standup.questions {
+        for question in config.standup.questions(for: instance) {
             let text = await inputs.known.isEmpty ? "- nothing to report" : (try? summarizer.summarize(
                 kind: .standup, inputs: inputs, instructions: "The question: \(question)", caller: "standup.answer",
                 priority: priority
@@ -58,6 +58,18 @@ extension AppModel {
 
     private func notifyStandup(_ report: StandupReport) {
         flash = "standup for \(MindmapInstance.title(report.instance)) is ready (History › Standup)"
+        let first = report.answers.first.map { "\($0.question) \($0.text)" } ?? ""
+        Notifier.shared.announceStandup(
+            instance: report.instance, title: "Standup for \(MindmapInstance.title(report.instance))",
+            body: String(first.replacingOccurrences(of: "\n", with: " ").prefix(180))
+        )
+    }
+
+    /// A standup notification's Open: History › Standup on that org's report.
+    func showStandup(instance: String) {
+        view = .standup
+        standup.instance = instance
+        standup.setCursor(0)
     }
 
     func performStandup(_ command: CommandInvocation) {

@@ -46,10 +46,10 @@ public struct CompletionContext: Sendable {
 }
 
 public enum CommandCompletions {
-    /// `:settings.open <section>`.
-    public static let settingsSections = [
-        "general", "agents", "inference", "colors", "cleanup", "pilot", "attention", "keys", "hosts",
-    ]
+    /// `:settings.open <page>`: every page, then the names earlier Settings sections had (they open the page their
+    /// settings are on now).
+    public static let settingsSections = SettingsPage.allCases.map(\.commandName)
+        + ["colors", "cleanup", "inference"]
 
     /// `:pilot.pause <duration>`, the durations offered (any `<n>m|h|d` works).
     public static let pauseDurations: [(String, String)] = [
@@ -121,8 +121,11 @@ public enum CommandCompletions {
         case "swarm.merge": SwarmSettings.Merge.allCases.map { merge in
                 (merge.rawValue, merge == .repo ? "as each PR's repo says" : "get it merged \(merge.rawValue)")
             }
-        case "settings.open": settingsSections.map { ($0, "") }
+        case "settings.open": settingsSections.map { ($0, SettingsPage.named($0)?.title ?? "") }
             + OverrideTab.allCases.map { ("colors \($0.rawValue)", "Orgs & repos › \($0.title)") }
+            + OverrideTab.allCases.map { ("orgs \($0.rawValue)", "Orgs & repos › \($0.title)") }
+            + SettingsPage.pilot.tabs.map { ("pilot \($0.commandName)", "Pilot › \($0.title)") }
+            + SettingsPage.agents.tabs.map { ("agents \($0.commandName)", "Agents › \($0.title)") }
         case "pilot.pause": pauseDurations.map { ($0.0, $0.1) }
         case "view.attention", "attention.filter": AttentionFilter.allCases.map { ($0.rawValue, $0.title) }
         case "attention.snooze": snoozeDurations.map { ($0.0, $0.1) }

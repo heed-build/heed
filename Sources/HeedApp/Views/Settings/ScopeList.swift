@@ -1,8 +1,8 @@
 import HeedCore
 import SwiftUI
 
-/// The left pane of Settings' two-pane pages (Agents, Orgs & repos): a filter, an optional switch under it, then the
-/// items, each with what it is (a glyph or an org's tile), its name, a note, and its count of modified settings
+/// The left pane of Settings' two-pane pages (Agents, Orgs & repos): a filter, then the items, each with what it is (a
+/// glyph or an org's tile), its name, a note, and its count of modified settings
 /// (`● 2`) and a red ! for a value heed refused. Click one to show it.
 struct ScopeList: View {
     struct Item: Identifiable {
@@ -28,8 +28,6 @@ struct ScopeList: View {
     }
 
     @Binding var query: String
-    /// A switch under the filter (Orgs & repos' Only overridden).
-    var toggle: (title: String, isOn: Binding<Bool>)?
     let items: [Item]
     let selected: String?
     let select: (String) -> Void
@@ -39,10 +37,7 @@ struct ScopeList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             TextField("Filter", text: $query).textFieldStyle(.roundedBorder).font(Theme.ui(12))
-                .padding(.bottom, toggle == nil ? 6 : 0)
-            if let toggle {
-                Toggle(toggle.title, isOn: toggle.isOn).font(Theme.ui(12)).padding(.vertical, 6)
-            }
+                .padding(.bottom, 6)
             ForEach(items) { item in
                 row(item)
             }

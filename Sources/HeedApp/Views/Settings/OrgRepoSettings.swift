@@ -8,16 +8,16 @@ struct OrgRepoSettings: View {
     @Environment(AppModel.self) private var model
     @State private var selected: OverrideScope?
     @State private var query = ""
-    private var onlyOverridden: Bool { model.orgRepoOnlyOverridden }
+    /// Only modified: the list keeps the orgs and repos that override something here, or have a value heed refused.
+    private var onlyModified: Bool { model.settingsFilter.onlyModified }
 
     var body: some View {
         let groups = groups()
-        let shown = selected ?? firstOverridden(groups) ?? groups.first.map { OverrideScope.org($0.org) }
+        let listed = groups.flatMap { [OverrideScope.org($0.org)] + $0.repos.map(OverrideScope.repo) }
+        let shown = selected.flatMap { scope in !onlyModified || listed.contains(scope) ? scope : nil }
+            ?? firstOverridden(groups) ?? groups.first.map { OverrideScope.org($0.org) }
         HStack(alignment: .top, spacing: 0) {
-            ScopeList(
-                query: $query, toggle: ("Only overridden", Bindable(model).orgRepoOnlyOverridden),
-                items: items(groups), selected: shown?.title
-            ) { title in
+            ScopeList(query: $query, items: items(groups), selected: shown?.title) { title in
                 selected = groups.flatMap { [OverrideScope.org($0.org)] + $0.repos.map(OverrideScope.repo) }
                     .first { $0.title == title }
             }
@@ -69,10 +69,10 @@ struct OrgRepoSettings: View {
             let members = repos.values.filter { $0.org == org }.sorted { $0.name.lowercased() < $1.name.lowercased() }
                 .filter { repo in
                     (words.isEmpty || repo.slug.lowercased().contains(words))
-                        && (!onlyOverridden || count(.repo(repo)) > 0)
+                        && (!onlyModified || isChanged(.repo(repo)))
                 }
             let orgMatches = (words.isEmpty || org.lowercased().contains(words))
-                && (!onlyOverridden || count(.org(org)) > 0)
+                && (!onlyModified || isChanged(.org(org)))
             guard orgMatches || !members.isEmpty else { return nil }
             return Group(org: org, repos: members, cloned: cloned)
         }
@@ -87,6 +87,12 @@ struct OrgRepoSettings: View {
 
     private func count(_ scope: OverrideScope) -> Int {
         Overrides.setKeys(at: scope, in: model.config).count
+    }
+
+    /// Overrides something, or has a value heed refused.
+    private func isChanged(_ scope: OverrideScope) -> Bool {
+        count(scope) > 0 || SettingsCatalog.counts(in: model.config, problems: model.configProblems)
+            .problems(.target(.orgsAndRepos, scope.target)) > 0
     }
 
     /// The list: each org, then its repos (cut in the middle when long, the whole name on hover), with the
@@ -126,13 +132,18 @@ private struct ScopeDetail: View {
                 Text(summary(set: set)).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            OverrideTabStrip(counts: Overrides.overrideCounts(at: scope, in: config))
-            let tab = model.orgRepoTab
-            let keys = Overrides.keys(for: scope, on: tab, in: config, onlyOverridden: model.orgRepoOnlyOverridden)
-            // Only Only overridden empties a tab; a repo's tasks count as an override on theirs, so they are not
-            // "nothing".
-            if keys.isEmpty, (Overrides.overrideCounts(at: scope, in: config)[tab] ?? 0) == 0 {
-                Text("Nothing on \(tab.title) is overridden here.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            let counts = Overrides.overrideCounts(at: scope, in: config)
+            let refused = SettingsCatalog.counts(in: config, problems: model.configProblems)
+            // Only modified keeps the tabs holding an override or a refused value, and shows one of them.
+            let (tabs, tab) = model.settingsFilter.tabs(OverrideTab.allCases, current: model.orgRepoTab) { tab in
+                (counts[tab] ?? 0) > 0 || refused.problems(.tab(.orgsAndRepos, scope.target, SettingsTab(tab))) > 0
+            }
+            OverrideTabStrip(tabs: tabs, current: tab, counts: counts)
+            let keys = Overrides.keys(for: scope, on: tab, in: config)
+            // Only modified empties a tab only when nothing here is overridden; a repo's tasks count as an override
+            // on theirs, so they are not "nothing".
+            if tabs.isEmpty {
+                Text("Nothing is overridden here.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             }
             let sections = keys.map(\.group).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
             ForEach(sections, id: \.self) { section in
@@ -173,21 +184,23 @@ private struct ScopeDetail: View {
 }
 
 /// The form's tabs, as the title bar draws its views: each with the overrides it holds at this org or repo (`● 2`,
-/// as the list marks them), ⌘1–⌘5 to turn to one. Under Only overridden a tab with none is dimmed. The tab is the
+/// as the list marks them), ⌘1–⌘5 to turn to one. Under Only modified only the tabs holding one show. The tab is the
 /// same for every org and repo, and kept between launches. A narrow window gets the short names, and at its narrowest
 /// they take two lines, so no tab is ever cut off.
 private struct OverrideTabStrip: View {
     @Environment(AppModel.self) private var model
+    let tabs: [OverrideTab]
+    let current: OverrideTab
     let counts: [OverrideTab: Int]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ViewThatFits(in: .horizontal) {
-                strip(OverrideTab.allCases, short: false)
-                strip(OverrideTab.allCases, short: true)
+                strip(tabs, short: false)
+                strip(tabs, short: true)
                 VStack(alignment: .leading, spacing: 4) {
-                    strip(Array(OverrideTab.allCases.prefix(3)), short: true)
-                    strip(Array(OverrideTab.allCases.dropFirst(3)), short: true)
+                    strip(Array(tabs.prefix(3)), short: true)
+                    strip(Array(tabs.dropFirst(3)), short: true)
                 }
             }
             Theme.line.frame(height: 1)
@@ -206,9 +219,8 @@ private struct OverrideTabStrip: View {
                 } label: {
                     TabLabel(
                         title: short ? tab.shortTitle : tab.title,
-                        active: model.orgRepoTab == tab,
-                        count: count > 0 ? "● \(count)" : nil,
-                        dimmed: model.orgRepoOnlyOverridden && count == 0
+                        active: current == tab,
+                        count: count > 0 ? "● \(count)" : nil
                     )
                 }
                 .buttonStyle(.plain)
@@ -230,6 +242,20 @@ private struct OverrideRow: View {
         let (value, source) = Overrides.effective(key, at: scope, in: model.config)
         let own = Overrides.value(key, at: scope, in: model.config) != nil
         let problems = Self.problems(key, at: scope, in: model.configProblems)
+        let visibility = SettingsCatalog.visibility(
+            ["override.\(key.id)"], at: scope.target, in: model.config, problems: model.configProblems,
+            filter: model.settingsFilter
+        )
+        if visibility == .shown {
+            row(value: value, source: source, own: own, problems: problems).settingsLine(.shown)
+        } else {
+            EmptyView().settingsLine(visibility)
+        }
+    }
+
+    private func row(value: OverrideValue, source: OverrideSource, own: Bool, problems: [SettingProblem])
+        -> some View
+    {
         // Label beside the control when the pane is wide enough; else the control under the label, as wide as the
         // pane allows. Nothing is ever wider than the pane.
         ViewThatFits(in: .horizontal) {
@@ -264,11 +290,7 @@ private struct OverrideRow: View {
         -> [SettingProblem]
     {
         guard let entry = SettingsCatalog.entry("override.\(key.id)") else { return [] }
-        let target: SettingTarget = switch scope {
-        case let .org(name): .org(name)
-        case let .repo(repo): .repo(repo.slug)
-        }
-        return SettingsCatalog.problems(for: entry, at: target, in: problems)
+        return SettingsCatalog.problems(for: entry, at: scope.target, in: problems)
     }
 
     private func label(source: OverrideSource, own: Bool) -> some View {
@@ -454,6 +476,16 @@ private struct OverrideTextField: View {
             text = shown
         } else {
             model.setConfig(path, .string(text))
+        }
+    }
+}
+
+extension OverrideScope {
+    /// The org or repo as the catalog has it.
+    var target: SettingTarget {
+        switch self {
+        case let .org(name): .org(name)
+        case let .repo(repo): .repo(repo.slug)
         }
     }
 }

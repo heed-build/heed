@@ -10,12 +10,14 @@ struct HostsPage: View {
 
     var body: some View {
         let hosts = model.config.hosts.values.sorted { $0.name < $1.name }
-        HStack(spacing: 12) {
-            Button("Add or check hosts (gH)") {
-                model.activateHeed()
-                model.perform(CommandInvocation(name: "host.open"))
+        if !model.settingsFilter.onlyModified {
+            HStack(spacing: 12) {
+                Button("Add or check hosts (gH)") {
+                    model.activateHeed()
+                    model.perform(CommandInvocation(name: "host.open"))
+                }
+                Button("Edit in config.toml") { NSWorkspace.shared.open(model.configFile) }
             }
-            Button("Edit in config.toml") { NSWorkspace.shared.open(model.configFile) }
         }
         if hosts.isEmpty {
             Text("No hosts yet. gH lists the ones in ~/.ssh/config and on your tailnet to add.")

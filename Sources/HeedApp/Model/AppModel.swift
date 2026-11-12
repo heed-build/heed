@@ -2768,6 +2768,14 @@ final class AppModel {
                 guard openSettingsPage(page, rest: Array(command.arguments.dropFirst())) else { return }
             }
             openSettings?()
+        case "settings.advanced":
+            settingsFilter.showAdvanced.toggle()
+            flash = settingsFilter.showAdvanced ? "Settings: advanced settings shown" : "Settings: advanced settings hidden"
+            openSettings?()
+        case "settings.modified":
+            settingsFilter.onlyModified.toggle()
+            flash = settingsFilter.onlyModified ? "Settings: only modified settings" : "Settings: every setting"
+            openSettings?()
         case "welcome": showFirstRun()
         case "setup.review": reviewSetup()
         case "repo.setup": openRepoSetup(command.arguments.first)
@@ -3220,6 +3228,29 @@ final class AppModel {
         }
     }
 
+    /// Settings' two switches at the foot of the tree (Show advanced, Only modified), kept between launches like the
+    /// fold state; shots neither read nor write them.
+    var settingsFilter: SettingsFilter = ShotMode.active
+        ? SettingsFilter()
+        : SettingsFilter(
+            showAdvanced: UserDefaults.standard.bool(forKey: "settingsShowAdvanced"),
+            onlyModified: UserDefaults.standard.bool(forKey: "settingsOnlyModified")
+        )
+    {
+        didSet {
+            guard !isFixture else { return }
+            UserDefaults.standard.set(settingsFilter.showAdvanced, forKey: "settingsShowAdvanced")
+            UserDefaults.standard.set(settingsFilter.onlyModified, forKey: "settingsOnlyModified")
+        }
+    }
+
+    /// Reset all, under Only modified: removes every key the page's changed rows have, as each row's ↺ would.
+    func unsetConfig(all paths: [[String]]) {
+        for path in paths {
+            unsetConfig(path)
+        }
+    }
+
     /// `:settings.open <page> [tab]`, `:settings.open agents <agent> [tab]`: false (and a flash) for a tab or agent
     /// the page does not have.
     func openSettingsPage(_ page: SettingsPage, rest: [String]) -> Bool {
@@ -3258,10 +3289,6 @@ final class AppModel {
         settingsPage = page
         return true
     }
-
-    /// Settings › Orgs & repos' Only overridden: the list keeps the orgs and repos that override something, and each
-    /// tab the rows overridden at the selected one.
-    var orgRepoOnlyOverridden = false
 
     /// What to trust before the first agent starts in a repo: Claude Code's folder trust for its main checkout, and
     /// mise's for a config that sets `[env]`. Asked once per repo, local repos only.

@@ -85,14 +85,20 @@ struct StartWorkView: View {
         let active = form.field == .prompt
         // Grows with the text up to `cap`, then scrolls, kept at the end where the typing happens.
         return ListScroll {
-            (Text(form.prompt.isEmpty && !active ? form.chat == nil ? "Describe the task…" : "Ask anything…" : form
-                    .prompt)
-                .foregroundStyle(form.prompt.isEmpty ? Theme.fg3 : Theme.fg)
-                + Text(active && form.editing ? "▌" : "").foregroundStyle(Theme.done))
-                .font(Theme.mono(13))
-                .lineSpacing(4)
-                .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
-                .padding(14)
+            Group {
+                if form.prompt.isEmpty, !active {
+                    Text(form.chat == nil ? "Describe the task…" : "Ask anything…").foregroundStyle(Theme.fg3)
+                } else {
+                    CaretText(
+                        input: active ? form.caret : EditableText(form.prompt), active: active && form.editing,
+                        caret: Theme.done
+                    )
+                }
+            }
+            .font(Theme.mono(13))
+            .lineSpacing(4)
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+            .padding(14)
         }
         .defaultScrollAnchor(.bottom)
         .scrollBounceBehavior(.basedOnSize)
@@ -186,7 +192,7 @@ struct StartWorkView: View {
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
-                Text(search.query + "▌").font(Theme.mono(12.5))
+                CaretText(input: search.input).font(Theme.mono(12.5))
                 Spacer()
                 Text("\(matches.count) of \(search.items.count)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
             }
@@ -226,10 +232,13 @@ struct StartWorkView: View {
         VStack(alignment: .leading, spacing: 6) {
             FlowLayout {
                 HStack {
-                    Text(form.name + (form.field == .worktree && form.editing ? "▌" : ""))
-                        .font(Theme.mono(12.5))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    CaretText(
+                        input: form.field == .worktree && form.editing ? form.caret : EditableText(form.name),
+                        active: form.field == .worktree && form.editing, caret: Theme.done
+                    )
+                    .font(Theme.mono(12.5))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
                     Spacer(minLength: 12)
                     // The on-device model is thinking about a better name (and repo): the name may still change.
                     Text(form.thinking ? "thinking…" : "auto-named").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
@@ -277,11 +286,14 @@ struct StartWorkView: View {
                 }
             }
             HStack {
-                Text((picked ? form.chat?.path ?? "" : form.name) +
-                    (form.field == .worktree && form.editing ? "▌" : ""))
-                    .font(Theme.mono(12.5))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                CaretText(
+                    input: form.field == .worktree && form.editing
+                        ? form.caret : EditableText(picked ? form.chat?.path ?? "" : form.name),
+                    active: form.field == .worktree && form.editing, caret: Theme.done
+                )
+                .font(Theme.mono(12.5))
+                .lineLimit(1)
+                .truncationMode(.middle)
                 Spacer(minLength: 12)
                 Text(picked ? "path" : "auto-named").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
             }
@@ -338,24 +350,27 @@ struct StartWorkView: View {
                         }
                     }
                     if form.customModel {
-                        Text((form.model ?? "") + (form.field == .model && form.editing ? "▌" : ""))
-                            .font(Theme.mono(12.5))
-                            .foregroundStyle(Theme.fg)
-                            .frame(minWidth: 160, alignment: .leading)
-                            .padding(.horizontal, 10).padding(.vertical, 7)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
-                            .overlay(RoundedRectangle(cornerRadius: 6)
-                                .strokeBorder(form.field == .model && form.editing ? Theme.fg2 : Theme.line))
-                            .overlay(alignment: .leading) {
-                                if (form.model ?? "").isEmpty, !(form.field == .model && form.editing) {
-                                    Text("model id").font(Theme.mono(12.5)).foregroundStyle(Theme.fg3).padding(
-                                        .leading,
-                                        10
-                                    )
-                                }
+                        CaretText(
+                            input: form.field == .model && form.editing ? form.caret : EditableText(form.model ?? ""),
+                            active: form.field == .model && form.editing, caret: Theme.done
+                        )
+                        .font(Theme.mono(12.5))
+                        .foregroundStyle(Theme.fg)
+                        .frame(minWidth: 160, alignment: .leading)
+                        .padding(.horizontal, 10).padding(.vertical, 7)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
+                        .overlay(RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(form.field == .model && form.editing ? Theme.fg2 : Theme.line))
+                        .overlay(alignment: .leading) {
+                            if (form.model ?? "").isEmpty, !(form.field == .model && form.editing) {
+                                Text("model id").font(Theme.mono(12.5)).foregroundStyle(Theme.fg3).padding(
+                                    .leading,
+                                    10
+                                )
                             }
-                            .contentShape(Rectangle())
-                            .onTapGesture { model.clickStartWork { $0.focus(field: .model, edit: true) } }
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.clickStartWork { $0.focus(field: .model, edit: true) } }
                     }
                     if !efforts.isEmpty {
                         let picked = efforts.first { $0.tag == (form.effort ?? ModelPicker.defaultTag) }

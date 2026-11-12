@@ -190,6 +190,12 @@ public struct HostRootsChooser: Equatable, Sendable {
         startEditing(cursor == addRow ? .folder("~/") : .worktreeRoot(worktreeRoot))
     }
 
+    /// The line being typed, with its cursor (`HostRootsView` draws it).
+    public private(set) var input = EditableText()
+
+    /// The cursor for `text`: where it was while the text is the one typed, else at its end.
+    public func caret(for text: String) -> EditableText { input.text == text ? input : EditableText(text) }
+
     private mutating func startEditing(_ line: Editing) {
         editing = line
         problem = nil
@@ -199,6 +205,9 @@ public struct HostRootsChooser: Equatable, Sendable {
         var text: String = switch line {
         case let .folder(text), let .worktreeRoot(text): text
         }
+        var edit = caret(for: text)
+        // ⌃w and ⌥⌫ at the end go up a folder, as they always did; elsewhere they delete the word before the cursor.
+        let atEnd = edit.cursor == text.count && edit.selection == nil
         switch stroke {
         case .escape:
             editing = nil
@@ -223,18 +232,14 @@ public struct HostRootsChooser: Equatable, Sendable {
             editing = nil
             problem = nil
             return .handled
-        case KeyStroke("BS"):
-            if !text.isEmpty { text.removeLast() }
-        case KeyStroke("w", .control), KeyStroke("BS", .option):
+        case KeyStroke("w", .control) where atEnd, KeyStroke("BS", .option) where atEnd:
             text = PathCompletion.droppingLastComponent(text)
-        case KeyStroke("u", .control):
-            text = ""
-        case KeyStroke("Space"):
-            text += " "
+            edit.set(text)
         default:
-            guard !stroke.isNamed, stroke.modifiers.subtracting(.option).isEmpty else { return .handled }
-            text += stroke.key
+            guard edit.handle(stroke) else { return .handled }
+            text = edit.text
         }
+        input = edit
         editing = if case .folder = line { .folder(text) } else { .worktreeRoot(text) }
         problem = nil
         return .handled

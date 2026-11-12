@@ -140,6 +140,9 @@ public struct StartWorkForm: Sendable {
     /// The agents' hook files on each host (under its ~/.heed), for work started there.
     private let hostIntegrations: [String: IntegrationFiles]
     private var nameEdited = false
+    /// The field being typed in, with its cursor (`caret`).
+    private var input = EditableText()
+    private var inputField: Field?
     private var reposTouched = false
 
     public init(
@@ -397,28 +400,46 @@ public struct StartWorkForm: Sendable {
             editing = false
             return .handled
         }
-        let folder = field == .worktree && chat?.kind == .folder
-        var text = field == .prompt ? prompt : field == .model ? model ?? "" : folder ? chat?.path ?? "" : name
+        syncInput()
         switch stroke {
-        case KeyStroke("BS"):
-            if !text.isEmpty { text.removeLast() }
-        case KeyStroke("BS", .option), KeyStroke("w", .control):
-            text = Self.deletingLastWord(text)
-        case KeyStroke("u", .control):
-            text = ""
-        case KeyStroke("Space"):
-            // A model id has no spaces.
-            if field != .model { text += " " }
         case KeyStroke("CR"):
             guard field == .prompt else {
                 editing = false
                 return .handled
             }
-            text += "\n"
+            input.insert("\n")
+        case KeyStroke("Space") where field == .model:
+            // A model id has no spaces.
+            return .handled
         default:
-            guard !stroke.isNamed, stroke.modifiers.subtracting(.option).isEmpty else { return .ignored }
-            text += stroke.key
+            guard input.handle(stroke) else { return .ignored }
         }
+        store(input.text)
+        return .handled
+    }
+
+    /// The text of the field being edited: the prompt, the model id, the folder's path or the worktree's name.
+    private var editedText: String {
+        let folder = field == .worktree && chat?.kind == .folder
+        return field == .prompt ? prompt : field == .model ? model ?? "" : folder ? chat?.path ?? "" : name
+    }
+
+    /// The edited field with its cursor; a field the cursor has not been in yet has it at its end.
+    public var caret: EditableText {
+        inputField == field && input.text == editedText
+            ? input : EditableText(editedText, multiline: field == .prompt)
+    }
+
+    /// The cursor follows the field: a field whose text changed since (or another field) starts at its end.
+    private mutating func syncInput() {
+        input = caret
+        inputField = field
+    }
+
+    /// Puts edited text into its field. The worktree's name is made branch-safe on the way, which can change what was
+    /// typed (a space becomes `-`): the cursor keeps its place, as near as the shorter text allows.
+    private mutating func store(_ text: String) {
+        let folder = field == .worktree && chat?.kind == .folder
         if field == .prompt {
             setPrompt(text)
         } else if field == .model {
@@ -429,8 +450,12 @@ public struct StartWorkForm: Sendable {
             // A scratch folder's name is one folder: no `/`.
             name = chat == nil ? Self.branchSafe(text) : Self.branchSafe(text).replacingOccurrences(of: "/", with: "-")
             nameEdited = true
+            if name != text {
+                let cursor = input.cursor
+                input = EditableText(name)
+                input.moveCursor(to: cursor)
+            }
         }
-        return .handled
     }
 
     private mutating func navigate(_ stroke: KeyStroke) -> Outcome {
@@ -563,20 +588,29 @@ public struct StartWorkForm: Sendable {
         toggle()
     }
 
-    /// Paste goes into whatever is being edited.
+    /// Paste goes into whatever is being edited, at its cursor.
     public mutating func paste(_ text: String) {
+        if var search = repoSearch {
+            search.paste(text)
+            repoSearch = search
+            return
+        }
+        let folder = field == .worktree && chat?.kind == .folder
+        let pasted: String
         if field == .model, customModel {
-            model = (model ?? "") + text.filter { !$0.isWhitespace }
-        } else if field == .worktree, chat?.kind == .folder {
-            chat?.path += text.trimmingCharacters(in: .newlines)
+            pasted = text.filter { !$0.isWhitespace }
+        } else if folder {
+            pasted = text.trimmingCharacters(in: .newlines)
         } else if field == .worktree {
-            name = Self.branchSafe(name + text)
-            nameEdited = true
+            pasted = text
         } else {
             field = .prompt
             editing = true
-            setPrompt(prompt + text)
+            pasted = text
         }
+        syncInput()
+        input.paste(pasted)
+        store(input.text)
     }
 
     // MARK: Editing state

@@ -20,8 +20,20 @@ The dialog has its own small modes, like Heed itself:
 |---|---|
 | `⌘↩` | Start |
 | `⌃n` / `⌃p` | Cycle the repo guess (or the agent, on the agent row) |
-| `⌘V` | Paste into the prompt |
+| `⌘V` | Paste at the cursor |
 | `⎋` | Stop typing; again to cancel |
+
+While typing, the cursor moves as in any text field, here and wherever heed takes typing (the `:` line, a `/` filter,
+the pickers):
+
+| Key | |
+|---|---|
+| `←` `→` | A character; `⌥←` `⌥→` a word; `⌘←` `⌘→`, `Home` `End` or `⌃a` `⌃e` the line's start or end |
+| `↑` `↓` | A line in the prompt (`⌘↑` `⌘↓` its start or end); in a picker they move the list |
+| `⇧` with any of those | Select; typing or pasting replaces the selection. `⌘A` selects all |
+| `⌫` `⌦` | The character before or after the cursor |
+| `⌥⌫` or `⌃w` | The word before the cursor (at the end of a folder path: up a folder) |
+| `⌃u` or `⌘⌫` | Back to the line's start |
 
 | Field | |
 |---|---|

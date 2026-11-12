@@ -346,7 +346,14 @@ final class AppModel {
         didSet { if !isFixture { UserDefaults.standard.set(sidebarCollapsed, forKey: "sidebarCollapsed") } }
     }
 
-    private(set) var commandText = ""
+    /// The `:` line, with its cursor.
+    private(set) var commandLine = EditableText()
+    /// What the `:` line holds; setting it puts the cursor at the end.
+    private(set) var commandText: String {
+        get { commandLine.text }
+        set { commandLine.set(newValue) }
+    }
+
     /// While ⇥ / ↓ cycle the command line's matches: the line they were matched against, and the one taken.
     private var completionAnchor: String?
     private(set) var completionIndex: Int?
@@ -1783,6 +1790,11 @@ final class AppModel {
 
     private func answerHostsPicker(_ stroke: KeyStroke) {
         guard var picker = hostsPicker else { return }
+        if let text = pasted(stroke) {
+            picker.paste(text)
+            hostsPicker = picker
+            return
+        }
         // ⌃r: where heed looks for repos on the host under the cursor (letters go to the search).
         if stroke == KeyStroke("r", .control) {
             return perform(CommandInvocation(name: "host.roots"))
@@ -2249,7 +2261,11 @@ final class AppModel {
         if goals.spawnTyping, answerSpawnText(stroke) { return true }
         if goals.personas.draft != nil, answerPersonaText(stroke) { return true }
         if filtering {
-            typeFilter(stroke)
+            if stroke == KeyStroke("v", .command) {
+                if let text = NSPasteboard.general.string(forType: .string) { pasteFilter(text) }
+            } else {
+                typeFilter(stroke)
+            }
             return true
         }
         if startWork != nil {
@@ -2313,17 +2329,26 @@ final class AppModel {
         if mode == .insert { terminalFocusRequest += 1 }
     }
 
+    /// What ⌘V pastes, when `stroke` is ⌘V and the pasteboard has text.
+    private func pasted(_ stroke: KeyStroke) -> String? {
+        stroke == KeyStroke("v", .command) ? NSPasteboard.general.string(forType: .string) : nil
+    }
+
     private func typeText(_ stroke: KeyStroke) {
         switch mode {
         case .command:
             completionAnchor = nil
             completionIndex = nil
-            if stroke.key == "BS" {
-                if commandText.isEmpty { engine.enter(.normal) } else { commandText.removeLast() }
-            } else if stroke.key == "Space" {
-                commandText += " "
-            } else if !stroke.isNamed, stroke.modifiers.isEmpty {
-                commandText += stroke.key
+            if stroke == KeyStroke("BS"), commandText.isEmpty {
+                engine.enter(.normal)
+            } else if stroke == KeyStroke("v", .command) {
+                if let text = NSPasteboard.general.string(forType: .string) {
+                    commandLine.paste(text.replacingOccurrences(of: "\n", with: " "))
+                }
+            } else if stroke.modifiers.contains(.option), !stroke.isNamed {
+                // ⌥ with a character types nothing here, as before.
+            } else {
+                commandLine.handle(stroke)
             }
         case .hint:
             guard !stroke.isNamed, stroke.modifiers.isEmpty else { return }
@@ -3705,7 +3730,13 @@ final class AppModel {
 
     /// `P` in Sessions: a path typed with directory completion, previewed as it changes, imported with ↩.
     struct PathImport {
-        var query: String
+        /// What is typed, with its cursor.
+        var input: EditableText
+        var query: String {
+            get { input.text }
+            set { input.set(newValue) }
+        }
+
         /// Directories completing the query; the cursor picks one for ⇥.
         var candidates: [String] = []
         var cursor = 0
@@ -3718,7 +3749,7 @@ final class AppModel {
     private var pathPreviewTask: Task<Void, Never>?
 
     private func openPathImport() {
-        pathImport = PathImport(query: "~/")
+        pathImport = PathImport(input: EditableText("~/"))
         refreshPathImport()
     }
 
@@ -3748,17 +3779,17 @@ final class AppModel {
             state.cursor = max(state.cursor - 1, 0)
             pathImport = state
             return
-        case KeyStroke("BS"):
-            if !state.query.isEmpty { state.query.removeLast() }
-        case KeyStroke("w", .control), KeyStroke("BS", .option):
+        case KeyStroke("w", .control) where state.input.cursor == state.query.count && state.input.selection == nil,
+             KeyStroke("BS", .option) where state.input.cursor == state.query.count && state.input.selection == nil:
+            // At the end: up a folder, as always; elsewhere they delete the word before the cursor.
             state.query = PathCompletion.droppingLastComponent(state.query)
-        case KeyStroke("u", .control):
-            state.query = ""
-        case KeyStroke("Space"):
-            state.query += " "
         default:
-            guard !stroke.isNamed, stroke.modifiers.subtracting(.option).isEmpty else { return }
-            state.query += stroke.key
+            let before = state.query
+            guard state.input.handle(stroke) else { return }
+            guard state.query != before else {
+                pathImport = state
+                return
+            }
         }
         state.cursor = 0
         pathImport = state
@@ -3908,6 +3939,11 @@ final class AppModel {
 
     private func answerImportPicker(_ stroke: KeyStroke) {
         guard var picker = importPicker else { return }
+        if let text = pasted(stroke) {
+            picker.paste(text)
+            importPicker = picker
+            return
+        }
         // A typed path imports whatever worktree is there, known or not.
         if stroke == KeyStroke("CR"), Self.looksLikePath(picker.query), picker.matches.isEmpty {
             importPicker = nil
@@ -6697,27 +6733,42 @@ final class AppModel {
     }
 
     private func typeFilter(_ stroke: KeyStroke) {
-        var text = filter(for: view)
+        var input = filterCaret
         switch stroke {
         case .escape:
-            text = ""
+            input.set("")
             filtering = false
         case KeyStroke("CR"):
             filtering = false
-        case KeyStroke("BS"):
-            if text.isEmpty { filtering = false } else { text.removeLast() }
-        case KeyStroke("u", .control):
-            text = ""
-        case KeyStroke("w", .control):
-            text = FilterQuery.droppingLastWord(text)
-        case KeyStroke("Space"):
-            text += " "
+        case KeyStroke("BS") where input.isEmpty:
+            filtering = false
         default:
-            guard !stroke.isNamed, stroke.modifiers.isEmpty else { return }
-            text += stroke.key
+            guard !(stroke.modifiers.contains(.option) && !stroke.isNamed) else { return }
+            guard input.handle(stroke) else { return }
         }
+        filterInput = input
+        let text = input.text
         guard text != filter(for: view) else { return }
         filters[view] = text.isEmpty ? nil : text
+        resetCursor(view)
+    }
+
+    /// The `/` filter being typed, with its cursor.
+    private var filterInput = EditableText()
+
+    /// The current view's filter with its cursor: where it was while the filter is what was typed, else at its end.
+    var filterCaret: EditableText {
+        let text = filter(for: view)
+        return filterInput.text == text ? filterInput : EditableText(text)
+    }
+
+    /// ⌘V while filtering: into the filter, at its cursor, on one line.
+    private func pasteFilter(_ text: String) {
+        var input = filterCaret
+        input.paste(text.replacingOccurrences(of: "\n", with: " "))
+        filterInput = input
+        guard input.text != filter(for: view) else { return }
+        filters[view] = input.text.isEmpty ? nil : input.text
         resetCursor(view)
     }
 
@@ -7440,6 +7491,11 @@ final class AppModel {
 
     private func answerTaskPicker(_ stroke: KeyStroke) {
         guard var state = taskPicker else { return }
+        if let text = pasted(stroke) {
+            state.picker.paste(text)
+            taskPicker = state
+            return
+        }
         if stroke == KeyStroke("r", .control) { return refreshTasks() }
         switch state.picker.handle(stroke) {
         case .handled: taskPicker = state

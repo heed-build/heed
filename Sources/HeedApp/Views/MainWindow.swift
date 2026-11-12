@@ -421,8 +421,7 @@ struct StatusBar: View {
     private var filterLine: some View {
         HStack(spacing: 0) {
             Text("/").foregroundStyle(Theme.ask)
-            Text(model.filter(for: model.view)).foregroundStyle(Theme.fg)
-            Rectangle().fill(Theme.fg).frame(width: 7, height: 14)
+            CaretText(input: model.filterCaret)
             Text(
                 "  \(model.view.title.lowercased()) · \(model.filterMatches) match\(model.filterMatches == 1 ? "" : "es")"
             )
@@ -573,8 +572,7 @@ struct CommandLineView: View {
             completions
             HStack(spacing: 0) {
                 Text(":").foregroundStyle(Theme.ask)
-                Text(model.commandText)
-                Rectangle().fill(Theme.fg).frame(width: 7, height: 15)
+                CaretText(input: model.commandLine)
                 Spacer()
             }
             .font(Theme.mono(13))
@@ -740,7 +738,7 @@ struct ImportPickerView: View {
                 .padding(18)
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
-                    Text(picker.query + "▌").font(Theme.mono(12.5))
+                    CaretText(input: picker.input).font(Theme.mono(12.5))
                     Spacer()
                     Text("\(matches.count) of \(picker.items.count)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                 }
@@ -831,7 +829,7 @@ struct TaskPickerView: View {
                 .padding(18)
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
-                    Text(picker.query + "▌").font(Theme.mono(12.5))
+                    CaretText(input: picker.input).font(Theme.mono(12.5))
                     Spacer()
                     Text(state.loading ? "reading…" : "\(matches.count) of \(picker.items.count)")
                         .font(Theme.mono(11)).foregroundStyle(Theme.fg3)
@@ -916,7 +914,7 @@ struct PathImportView: View {
                 .padding(18)
                 HStack(spacing: 6) {
                     Image(systemName: "folder").font(.system(size: 11)).foregroundStyle(Theme.fg3)
-                    Text(state.query + "▌").font(Theme.mono(12.5)).lineLimit(1).truncationMode(.head)
+                    CaretText(input: state.input).font(Theme.mono(12.5)).lineLimit(1).truncationMode(.head)
                     Spacer()
                 }
                 .padding(.horizontal, 18)
@@ -1031,7 +1029,7 @@ struct HostsPickerView: View {
                 .padding(18)
                 HStack(spacing: 6) {
                     Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
-                    Text(picker.query + "▌").font(Theme.mono(12.5))
+                    CaretText(input: picker.input).font(Theme.mono(12.5))
                     Spacer()
                 }
                 .padding(.horizontal, 18)
@@ -1277,7 +1275,7 @@ struct HostRootsView: View {
                     line(chooser.addRow) {
                         Image(systemName: "plus").font(.system(size: 11)).foregroundStyle(Theme.fg3).frame(width: 14)
                         if case let .folder(text) = chooser.editing {
-                            Text(text + "▌").font(Theme.mono(12.5))
+                            CaretText(input: chooser.caret(for: text)).font(Theme.mono(12.5))
                         } else {
                             Text("add a folder…").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
                         }
@@ -1290,7 +1288,7 @@ struct HostRootsView: View {
                 line(chooser.worktreeRow) {
                     Text("worktrees go in").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
                     if case let .worktreeRoot(text) = chooser.editing {
-                        Text(text + "▌").font(Theme.mono(12.5))
+                        CaretText(input: chooser.caret(for: text)).font(Theme.mono(12.5))
                     } else {
                         Text(chooser.worktreeRoot).font(Theme.mono(12.5, weight: .semibold))
                     }

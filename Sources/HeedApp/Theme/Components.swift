@@ -627,3 +627,44 @@ struct DropdownMenu<Items: View>: View {
         }
     }
 }
+
+/// Typed text with its cursor where it is (`EditableText`): a block over the character after the cursor (a space past
+/// the end of a line), the selection tinted. Every text heed types through the key router draws with this, so the
+/// cursor looks the same in Start work's prompt, the command line, a filter and a picker.
+struct CaretText: View {
+    let input: EditableText
+    /// Draw the cursor (the field is being typed in).
+    var active = true
+    var color: Color = Theme.fg
+    var caret: Color = Theme.fg
+
+    var body: some View { Text(Self.attributed(input, active: active, color: color, caret: caret)) }
+
+    static func attributed(_ input: EditableText, active: Bool, color: Color, caret: Color) -> AttributedString {
+        var out = AttributedString()
+        let characters = Array(input.text)
+        let selection = active ? input.selection : nil
+        func piece(_ text: String, background: Color? = nil, foreground: Color? = nil) {
+            var run = AttributedString(text)
+            run.foregroundColor = foreground ?? color
+            if let background { run.backgroundColor = background }
+            out += run
+        }
+        for (offset, character) in characters.enumerated() {
+            if active, selection == nil, offset == input.cursor {
+                if character == "\n" {
+                    piece(" ", background: caret)
+                    piece("\n")
+                } else {
+                    piece(String(character), background: caret, foreground: Theme.bg)
+                }
+            } else if let selection, selection.contains(offset) {
+                piece(String(character), background: caret.opacity(0.35))
+            } else {
+                piece(String(character))
+            }
+        }
+        if active, selection == nil, input.cursor >= characters.count { piece(" ", background: caret) }
+        return out
+    }
+}

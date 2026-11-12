@@ -9,7 +9,9 @@ public struct Typeahead<Item: Sendable>: Sendable {
         case cancel
     }
 
-    public private(set) var query = ""
+    /// What is typed, with its cursor.
+    public private(set) var input = EditableText()
+    public var query: String { input.text }
     public private(set) var cursor = 0
     public let items: [Item]
     private let fields: @Sendable (Item) -> [String]
@@ -40,22 +42,17 @@ public struct Typeahead<Item: Sendable>: Sendable {
             cursor = min(cursor + 1, max(matches.count - 1, 0))
         case KeyStroke("p", .control), KeyStroke("k", .control), KeyStroke("Up"):
             cursor = max(cursor - 1, 0)
-        case KeyStroke("BS"):
-            if !query.isEmpty { query.removeLast() }
-            cursor = 0
-        case KeyStroke("w", .control), KeyStroke("BS", .option):
-            query = FilterQuery.droppingLastWord(query)
-            cursor = 0
-        case KeyStroke("u", .control):
-            query = ""
-            cursor = 0
-        case KeyStroke("Space"):
-            query += " "
         default:
-            guard !stroke.isNamed, stroke.modifiers.subtracting(.option).isEmpty else { return .handled }
-            query += stroke.key
-            cursor = 0
+            let before = query
+            guard input.handle(stroke) else { return .handled }
+            if query != before { cursor = 0 }
         }
         return .handled
+    }
+
+    /// Pasted text goes into the query, at its cursor.
+    public mutating func paste(_ text: String) {
+        input.paste(text.replacingOccurrences(of: "\n", with: " "))
+        cursor = 0
     }
 }

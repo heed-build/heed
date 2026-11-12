@@ -18,7 +18,9 @@ public struct HunkNoteDraft: Hashable, Sendable {
     /// The new side's line under the cursor, else the hunk's start.
     public var line: Int
     public var repo: Repo?
-    public private(set) var text = ""
+    /// What is typed, with its cursor; several lines.
+    public private(set) var input = EditableText(multiline: true)
+    public var text: String { input.text }
 
     public init(fileID: String, hunk: Int, row: Int, path: String, line: Int, repo: Repo?) {
         self.fileID = fileID
@@ -40,23 +42,14 @@ public struct HunkNoteDraft: Hashable, Sendable {
         case KeyStroke("CR", .command):
             return isEmpty ? .handled : .queue(send: true)
         case KeyStroke("CR", .shift), KeyStroke("CR", .option):
-            text += "\n"
-        case KeyStroke("BS"):
-            if !text.isEmpty { text.removeLast() }
-        case KeyStroke("BS", .option), KeyStroke("w", .control):
-            text = StartWorkForm.deletingLastWord(text)
-        case KeyStroke("u", .control):
-            text = ""
-        case KeyStroke("Space"):
-            text += " "
+            input.insert("\n")
         default:
-            guard !stroke.isNamed, stroke.modifiers.subtracting([.option, .shift]).isEmpty else { return .handled }
-            text += stroke.key
+            input.handle(stroke)
         }
         return .handled
     }
 
-    public mutating func paste(_ pasted: String) { text += pasted }
+    public mutating func paste(_ pasted: String) { input.paste(pasted) }
 }
 
 public extension Hunk {

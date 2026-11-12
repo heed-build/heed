@@ -388,11 +388,9 @@ private struct NoteBox: View {
             }
             .foregroundStyle(Theme.fg2)
             HStack(alignment: .bottom, spacing: 0) {
-                Text(draft.text.isEmpty ? " " : draft.text)
-                    .font(Theme.ui(13)).foregroundStyle(Theme.fg)
+                CaretText(input: draft.input, caret: Theme.busy)
+                    .font(Theme.ui(13))
                     .fixedSize(horizontal: false, vertical: true)
-                // The caret, as in the filter and Start work's prompt.
-                Rectangle().fill(Theme.busy).frame(width: 1.5, height: 15).padding(.bottom, 1)
                 Spacer(minLength: 0)
             }
             .padding(10)

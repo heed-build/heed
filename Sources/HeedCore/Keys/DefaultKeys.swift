@@ -92,7 +92,7 @@ public enum DefaultKeys {
         "sessions": [
             ("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path"),
             ("<CR>", "session.agent"), ("T", "sessions.sort"), ("zG", "sessions.group"), ("zR", "sessions.rows"),
-            ("R", "session.rename"), ("K", "session.kind"),
+            ("R", "session.rename"), ("K", "session.kind"), ("X", "sessions.close.ready"),
         ],
         "repos": [
             ("o", "worktree.new"), ("r", "repo.scan"), ("w", "issues.visibility"), ("dd", "select.remove"),

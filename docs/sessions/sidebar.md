@@ -99,6 +99,16 @@ Grouped by repo, a row leaves out the repo its header names. The choice is kept 
 
 ![One line a row, idle longest first](../images/shots/sessions/one-line.png)
 
+## Can close
+
+A session whose work is done with leaves its group for **Can close** at the bottom: every PR it tracks merged or
+closed, nothing in its worktrees not pushed or not committed, its agent neither working nor waiting on you, and no
+follow-up left open in its [ledger](../history/ledger.md) entry. A pinned session, or one that needs you, stays where
+it is. Heed never closes anything itself: `X` (`:sessions.close.ready`) closes everything in the band after one
+confirmation, each to History as merged or closed, and `R` in History reopens one.
+
+![Can close at the bottom of the sidebar](../images/shots/sessions/can-close.png)
+
 The footer counts repos and worktrees; `gr` opens [Repos](../worktrees/index.md).
 
 ## The rail

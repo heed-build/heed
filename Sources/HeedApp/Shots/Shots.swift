@@ -140,6 +140,15 @@ enum Shots {
         Shot(id: "sessions/sidebar", size: CGSize(width: 1440, height: 640), crop: .sidebar),
         Shot(id: "sessions/watching", size: CGSize(width: 1440, height: 1000), keys: "jjj", crop: .sidebar),
         Shot(id: "sessions/rail", size: CGSize(width: 1440, height: 640), keys: "zs", crop: .rail),
+        // Can close: a session whose PR merged and that has nothing left open, at the bottom for X.
+        Shot(id: "sessions/can-close", size: CGSize(width: 1440, height: 1100), crop: .sidebar, prepare: { model in
+            model.commit(.sessionUpserted(Session(
+                id: "s9", title: "Redirect checker: first pass", repos: [Repo(org: "acme", name: "docs-toolkit")],
+                branch: "fix/redirect-checker", agent: "claude", state: ObservedState(.done),
+                trackedPRs: [PullRef(repo: Repo(org: "acme", name: "docs-toolkit"), number: 2836)],
+                lastActivity: ShotRunner.instant.addingTimeInterval(-7200)
+            )))
+        }),
         // The View menu's choices: by repo, and one line a row sorted by how long you have been away.
         Shot(
             id: "sessions/by-repo", size: CGSize(width: 1440, height: 1000),

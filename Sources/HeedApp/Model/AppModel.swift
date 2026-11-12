@@ -1304,7 +1304,7 @@ final class AppModel {
             )
         }, pilot: sessionPilot, hold: hold, view: sessionsView, campaign: campaign(of:), size: { [unowned self] in
             pendingChanges(of: $0).lines ?? 0
-        })
+        }, closable: { [unowned self] in closeReadiness(of: $0) != nil })
         if let selected, let index = list.ordered.firstIndex(where: { $0.id == selected }) {
             cursor = index
         } else {
@@ -2454,6 +2454,7 @@ final class AppModel {
         case "session.pin": togglePin()
         case "session.rename", "session.autoname": renameSession(command)
         case "session.kind": changeKind(command)
+        case "sessions.close.ready": confirmCloseReady()
         case "session.park": updateCurrent { $0.parked.toggle() }
         case "session.close": confirmClose()
         case "session.delete": confirmDelete()
@@ -3135,6 +3136,32 @@ final class AppModel {
             flash = "sessions: \(rows.title) a row"
         }
         sessionsView = view
+    }
+
+    /// Whether a session's work is done with, and why (`CloseReadiness`).
+    func closeReadiness(of session: Session) -> CloseReadiness.Ready? {
+        let group = SessionGroup.of(session, pilot: sessionPilot(session))
+        return CloseReadiness.check(
+            session, pulls: github, pending: pendingChanges(of: session),
+            followUps: ledger.entries[session.id]?.followUps, group: group
+        )
+    }
+
+    /// `sessions.close.ready` (`X`): every session in the Can close band, closed after one confirmation.
+    private func confirmCloseReady() {
+        let ready = sessions.compactMap { session in closeReadiness(of: session).map { (session, $0) } }
+        guard !ready.isEmpty else { return flash = "nothing is done with yet" }
+        ask(Confirmation(
+            title: "Close \(ready.count) session\(ready.count == 1 ? "" : "s") that \(ready.count == 1 ? "is" : "are") done?",
+            lines: ready.prefix(8).map { "\($0.0.title): \($0.1.reason)" }
+                + (ready.count > 8 ? ["and \(ready.count - 8) more"] : [])
+                + ["Their worktrees stay; they move to History, where R reopens them"],
+            accept: "Close"
+        ) { [weak self] in
+            for (session, readiness) in ready {
+                self?.closeSession(session.id, outcome: readiness.outcome)
+            }
+        })
     }
 
     /// The kind of work a session shows: its own, else its PR's conventional title, else its branch's prefix.

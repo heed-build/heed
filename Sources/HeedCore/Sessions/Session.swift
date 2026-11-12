@@ -376,6 +376,8 @@ public struct SessionList: Sendable {
             case unplaced
             /// No grouping: everything else, in one list.
             case all
+            /// Done with (`CloseReadiness`): at the bottom, whatever the grouping, for you to close.
+            case canClose
         }
 
         public let header: Header
@@ -392,6 +394,7 @@ public struct SessionList: Sendable {
             case let .campaign(campaign): "campaign:\(campaign.id)"
             case .unplaced: "unplaced"
             case .all: "all"
+            case .canClose: "can-close"
             }
         }
     }
@@ -411,7 +414,7 @@ public struct SessionList: Sendable {
     public init(
         _ sessions: [Session], pilot: (Session) -> SessionPilot = { _ in SessionPilot() }, hold: SessionHold? = nil,
         view: SessionsView = .standard, campaign: (Session) -> SessionCampaign? = { _ in nil },
-        size: (Session) -> Int = { _ in 0 }
+        size: (Session) -> Int = { _ in 0 }, closable: (Session) -> Bool = { _ in false }
     ) {
         var groups: [String: SessionGroup] = [:]
         for session in sessions {
@@ -422,7 +425,10 @@ public struct SessionList: Sendable {
                 groups[session.id] = natural
             }
         }
-        let sorted = Self.sorted(sessions, by: view.sort, groups: groups, size: size)
+        let all = Self.sorted(sessions, by: view.sort, groups: groups, size: size)
+        // What is done with leaves its group for the band at the bottom; what is pinned or needs you never does.
+        let done = all.filter { ![.pinned, .needsYou].contains(groups[$0.id]) && closable($0) }
+        let sorted = all.filter { !done.contains($0) }
         var sections: [Section] = []
         if view.grouping == .status {
             for group in SessionGroup.allCases {
@@ -465,6 +471,7 @@ public struct SessionList: Sendable {
                 sections.append(Section(header: header, sessions: live + shown.filter { groups[$0.id] == .parked }))
             }
         }
+        if !done.isEmpty { sections.append(Section(header: .canClose, sessions: done)) }
         self.sections = sections
         ordered = sections.flatMap(\.sessions)
         self.groups = groups

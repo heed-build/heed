@@ -215,6 +215,10 @@ public enum Commands {
             .views, arguments: "[attention|touched|idle|started|size]"
         ),
         .init("sessions.rows", "one line or two per session in the sidebar", .views, arguments: "[one|two]"),
+        .init(
+            "sessions.close.ready",
+            "close every session in Can close (its PRs merged or closed, nothing left open), after asking", .views
+        ),
         .init("config.edit", "open config.toml in $EDITOR", .views),
         .init(
             "tutor", "the tutor: pick a lesson, or start one by name (tour, sessions, prs…)", .views,

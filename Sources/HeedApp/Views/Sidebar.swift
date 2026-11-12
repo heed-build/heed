@@ -129,8 +129,11 @@ struct Sidebar: View {
                                         pilot: model.pilotStatus(of: session),
                                         readyToMerge: session.trackedPRs.contains(where: model.readyToMerge),
                                         group: group,
-                                        label: Self.showsLabel(group, model.sessionPilot(session))
+                                        label: section.header == .canClose
+                                            ? model.closeReadiness(of: session)?.reason
+                                            : Self.showsLabel(group, model.sessionPilot(session))
                                             ? model.watchLabel(of: session) : nil,
+                                        labelTint: section.header == .canClose ? Theme.done : nil,
                                         hostColor: session.host.flatMap { model.config.hosts[$0]?.color },
                                         hostLink: session.host.map { model.hostStatus($0) },
                                         subagents: model.liveSubagents(of: session).count,
@@ -241,6 +244,13 @@ struct Sidebar: View {
                 }
             case .all:
                 EmptyView()
+            case .canClose:
+                HStack(spacing: 6) {
+                    SectionHeader(title: "Can close · \(section.sessions.count)", tint: Theme.done)
+                    Text("nothing left open").font(Theme.ui(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                    Spacer()
+                    KeyHint("sessions.close.ready", label: "close all")
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -274,6 +284,8 @@ struct SessionRow: View {
     var group: SessionGroup = .working
     /// What heed is doing about its PRs ("getting it merged · waiting for checks"), shown instead of the agent's line.
     var label: String?
+    /// The label's colour when it is not heed's (Can close says why in green).
+    var labelTint: Color?
     /// For a session on a host: its colour (`[hosts.x] color`) and how the link stands.
     var hostColor: String?
     var hostLink: HostStatus?
@@ -371,7 +383,7 @@ struct SessionRow: View {
                     HStack(spacing: 6) {
                         Text(label)
                             .font(Theme.ui(11.5))
-                            .foregroundStyle(isStalled ? Theme.err : Theme.busy)
+                            .foregroundStyle(labelTint ?? (isStalled ? Theme.err : Theme.busy))
                             .lineLimit(1)
                             .truncationMode(.tail)
                         // Under a pinned session's agent line, the marks are there already.

@@ -18,6 +18,16 @@ enum SmartGuesses {
         return nil
     }
 
+    /// The session namer on the same model, or nil where it cannot run.
+    static func namer() -> (any SessionNamer)? {
+        #if canImport(FoundationModels)
+            if #available(macOS 26, *), case .available = SystemLanguageModel.default.availability {
+                return FoundationModelsNamer()
+            }
+        #endif
+        return nil
+    }
+
     /// Whether the model can run here, as Settings says it.
     static var status: String {
         #if canImport(FoundationModels)
@@ -121,6 +131,50 @@ enum SmartGuesses {
                 )
             }
             return lines.joined(separator: "\n")
+        }
+    }
+
+    /// Names a session on the on-device model: a free-text title, cleaned afterwards, and its kind from a fixed set.
+    @available(macOS 26, *)
+    struct FoundationModelsNamer: SessionNamer {
+        func name(_ question: SessionNaming.Question) async throws -> SessionNaming.Answer? {
+            let schema = try GenerationSchema(
+                root: DynamicGenerationSchema(name: "SessionName", properties: [
+                    .init(
+                        name: "title",
+                        description: "What the work is now, in three to six words, sentence case, no repository name",
+                        schema: DynamicGenerationSchema(type: String.self)
+                    ),
+                    .init(
+                        name: "kind",
+                        schema: DynamicGenerationSchema(
+                            name: "Kind", description: "The kind of work",
+                            anyOf: WorkKind.allCases.map(\.rawValue)
+                        )
+                    ),
+                ]),
+                dependencies: []
+            )
+            var lines = ["You name a developer's coding session for a list they scan many times a day."]
+            if !question.others.isEmpty {
+                lines
+                    .append("Other sessions, to be distinct from: " + question.others.prefix(20)
+                        .joined(separator: "; "))
+            }
+            let session = LanguageModelSession(instructions: lines.joined(separator: "\n"))
+            var task = "Prompt: \(question.prompt.prefix(1200))"
+            if !question.pullTitles
+                .isEmpty { task += "\nPull requests: " + question.pullTitles.joined(separator: "; ") }
+            if let last = question.lastMessage { task += "\nThe agent's last message: \(last.suffix(1200))" }
+            let response = try await session.respond(
+                to: task, schema: schema, options: GenerationOptions(temperature: 0)
+            )
+            let content = response.content
+            guard let title = try? content.value(String.self, forProperty: "title"),
+                  let clean = SessionNaming.clean(title)
+            else { return nil }
+            let kind = (try? content.value(String.self, forProperty: "kind")).flatMap(WorkKind.init(rawValue:))
+            return SessionNaming.Answer(title: clean, kind: kind)
         }
     }
 #endif

@@ -25,6 +25,8 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var continuePrompt: String
     /// New sessions open a shell split beside the agent (`[sessions] shell_split`); off means one pane.
     public var shellSplit = false
+    /// Heed names sessions as their work goes (`[sessions] name_sessions`).
+    public var nameSessions = true
     /// Whether panes outlive heed: `zmx` keeps each pane's terminal in a zmx session that heed reattaches to.
     public var persist: PanePersistence = .auto
     /// Which repos' sessions are asked to sign off with a summary (`[pilot] summary_sign_off`, per org and repo).

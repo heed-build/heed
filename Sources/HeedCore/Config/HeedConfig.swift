@@ -268,6 +268,7 @@ public enum ConfigLoader {
         }
         if let text = string(["sessions", "continue_prompt"]) { config.work.continuePrompt = text }
         if let flag = bool(["sessions", "shell_split"]) { config.work.shellSplit = flag }
+        if let flag = bool(["sessions", "name_sessions"]) { config.work.nameSessions = flag }
         if let text = string(["sessions", "persist"]) {
             if let persist = PanePersistence(rawValue: text.lowercased()) {
                 config.work.persist = persist
@@ -934,6 +935,9 @@ public enum ConfigLoader {
     continue_prompt = "Continue where you left off."
     # Open a shell split beside the agent in new sessions (Start work can still toggle it per session).
     shell_split = false
+    # Heed names each session from what it is doing: after its agent's first turn and when it opens a PR, on Apple's
+    # on-device model where the Mac has it, else a model call. A title you give it (session.rename) stays.
+    name_sessions = true
     # Keep every pane's terminal alive in a zmx session, so agents keep running when heed quits, restarts or updates,
     # and come back as they were: auto (zmx when it is installed and works; Settings > General shows its check),
     # zmx, or none (panes end with heed).

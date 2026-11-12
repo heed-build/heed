@@ -206,6 +206,8 @@ public enum MenuBar {
                 .separator,
                 session("Pin", "session.pin", checked: facts.session?.pinned ?? false),
                 session("Park", "session.park", checked: facts.session?.parked ?? false),
+                session("Rename…", "session.rename"),
+                session("Let heed name it", "session.autoname"),
                 session(
                     facts.session?.chat == true ? "New chat from its prompt" : "Start again from its prompt",
                     "work.again"

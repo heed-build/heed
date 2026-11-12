@@ -33,6 +33,8 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case mindmapName
     /// One standup question answered from one Mindmap (`StandupInputs`); the question is in the instructions.
     case standup
+    /// A session's title and kind for the sidebar (`SessionNaming`).
+    case sessionName
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
@@ -173,6 +175,14 @@ public struct Summarizer: Sendable {
             did), campaign (a campaign and its synopsis) or open (something still open in a campaign). Answer in at \
             most five short markdown bullets, first person, plain words, naming PRs as org/repo#number. Only what the \
             notes say; when they say nothing that answers it, reply with one bullet: nothing to report. No preamble.
+            """
+        case .sessionName:
+            """
+            You name a developer's coding session for a list they scan many times a day: what the work is now (it may \
+            have moved on from the prompt), in three to six words, sentence case, no trailing period, no quotes, no \
+            repository name. Make it distinct from the other sessions listed under Already known. Also say what kind \
+            of work it is: feat, fix, refactor, docs, chore or plan. Reply with exactly two lines: "title: ..." and \
+            "kind: ...".
             """
         case .mindmapName:
             """

@@ -311,12 +311,16 @@ struct SessionRow: View {
                         OrgTile(org: repo.org, color: repo.color, size: 12).help(repo.slug)
                     }
                     // A title reads from its start; a worktree name keeps both ends (`fix-…-redirects`).
+                    // A name heed just gave it shows in heed's blue until the cursor has been on it.
                     Text(showsTitle ? session.title : session.worktreeName)
                         .font(Theme.ui(13, weight: .medium))
+                        .foregroundStyle(showsTitle && !session.titleSeen ? Theme.busy : Theme.fg)
                         .lineLimit(1)
                         .truncationMode(showsTitle ? .tail : .middle)
                         .layoutPriority(1)
-                        .help(showsTitle ? session.worktreeName : session.title)
+                        .help(showsTitle ?
+                            (session.titleSeen ? session.worktreeName : "heed named it from what it is doing")
+                            : session.title)
                     Spacer(minLength: 0)
                 }
                 if !folded {

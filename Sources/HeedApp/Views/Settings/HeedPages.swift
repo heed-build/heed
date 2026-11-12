@@ -30,6 +30,9 @@ struct GeneralPage: View {
             SettingRow("sessions.shell_split") {
                 ConfigSwitch(path: ["sessions", "shell_split"], isOn: work.shellSplit)
             }
+            SettingRow("sessions.name_sessions") {
+                ConfigSwitch(path: ["sessions", "name_sessions"], isOn: work.nameSessions)
+            }
             SettingRow("sessions.persist") {
                 SegmentedChoice(
                     path: ["sessions", "persist"], value: model.settings.persist,

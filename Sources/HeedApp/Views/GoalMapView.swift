@@ -300,16 +300,33 @@ private struct MapFacts: View {
 }
 
 private struct MapKeys: View {
+    @Environment(AppModel.self) private var model
+
     var body: some View {
         Panel(title: "Drill", note: "") {
             VStack(alignment: .leading, spacing: 6) {
-                KeyHint("swarm.map.move", ["l"], key: "h l", scope: "goalmap", label: "between columns")
-                KeyHint("swarm.map.move", ["j"], key: "j k", scope: "goalmap", label: "between cards")
+                KeyHint(
+                    "swarm.map.move",
+                    ["l"],
+                    key: pair("swarm.map.move h", "swarm.map.move l"),
+                    label: "between columns"
+                )
+                KeyHint(
+                    "swarm.map.move",
+                    ["j"],
+                    key: pair("swarm.map.move j", "swarm.map.move k"),
+                    label: "between cards"
+                )
                 KeyHint("swarm.task.open", scope: "goalmap", label: "its worker's tab")
                 KeyHint("swarm.task.pause", scope: "goalmap", label: "pause the task")
                 KeyHint("swarm.task.edit", scope: "goalmap", label: "edit it in the plan")
                 KeyHint("goal.agents", scope: "goalmap", label: "the agents")
             }
         }
+    }
+
+    /// Two commands' keys on one cap, as bound in the map (`h l`).
+    private func pair(_ first: String, _ second: String) -> String {
+        "\(model.keyText(for: first, in: "goalmap")) \(model.keyText(for: second, in: "goalmap"))"
     }
 }

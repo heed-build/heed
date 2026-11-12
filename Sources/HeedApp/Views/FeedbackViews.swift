@@ -75,15 +75,15 @@ struct PullOverlayView: View {
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .clipped()
             HStack(spacing: 10) {
-                KeyHint("pr.prev", key: "h") { EmptyView() }
-                KeyHint("pr.next", key: "l", spacing: 10) {
+                KeyHint("pr.prev", scope: "pr") { EmptyView() }
+                KeyHint("pr.next", scope: "pr", spacing: 10) {
                     if wide {
                         Text(model.currentSession?.trackedPRs.isEmpty == false ? "PRs of this session" : "tabs")
                             .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
                 }
                 Theme.line.frame(width: 1, height: 16).padding(.horizontal, 4)
-                KeyHint("overlay.item", key: "go", spacing: 10) {
+                KeyHint("overlay.item", spacing: 10) {
                     Text("or").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
                 KeyHint("overlay.close", key: "⎋", spacing: 10, label: wide ? "back to session" : "back")
@@ -297,8 +297,10 @@ struct NotesPanel: View {
                                 .rightClickMenu { model.rightClickFeedback(item.id) } _: { model.feedbackMenu(item) }
                         }
                         if items.isEmpty {
-                            Text("No notes. a on a hunk in the diff (gd) queues one.")
-                                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3).padding(20)
+                            Text(
+                                "No notes. \(model.keyText(for: "diff.ask", in: "diff")) on a hunk in the diff (\(model.keyText(for: "overlay.diff"))) queues one."
+                            )
+                            .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3).padding(20)
                         }
                     }
                     .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))

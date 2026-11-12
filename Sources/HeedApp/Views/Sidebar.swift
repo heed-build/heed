@@ -11,7 +11,9 @@ struct Sidebar: View {
             HStack {
                 SectionHeader(title: "Sessions")
                 Spacer()
-                CollapseButton(systemImage: "sidebar.left", key: "zs") { model.toggleSidebar() }
+                CollapseButton(systemImage: "sidebar.left", key: model.keyText(for: "sidebar.toggle")) {
+                    model.toggleSidebar()
+                }
                 FilterPill(view: .sessions)
             }
             .padding(.horizontal, 16)
@@ -36,7 +38,7 @@ struct Sidebar: View {
             HStack {
                 Text("\(model.repos.count) repos · \(model.worktreeCount) worktrees").foregroundStyle(Theme.fg2)
                 Spacer()
-                KeyCap(text: "gr")
+                KeyCap(text: model.keyText(for: "view.repos"))
             }
             .font(Theme.ui(12))
             .padding(.horizontal, 16)
@@ -271,6 +273,7 @@ struct Sidebar: View {
 }
 
 struct SessionRow: View {
+    @Environment(AppModel.self) private var model
     let session: Session
     let number: Int
     let isCursor: Bool
@@ -347,7 +350,7 @@ struct SessionRow: View {
                         Spacer(minLength: 4)
                         if let host = session.host { HostChip(location: .host(host), color: hostColor) }
                         idleAge
-                        if let pinNumber { KeyCap(text: "'\(pinNumber)") }
+                        if let pinNumber { KeyCap(text: model.keyText(for: "pin.jump \(pinNumber)")) }
                     }
                     // On the cursor's row, every repo it touches.
                     if isCursor, session.chat == nil, session.involvedRepos.count > 1 {
@@ -394,7 +397,7 @@ struct SessionRow: View {
                     }
                     if isStalled, !compact {
                         HStack(spacing: 6) {
-                            KeyCap(text: "zr")
+                            KeyCap(text: model.keyText(for: "pilot.retry"))
                             Text("another round").foregroundStyle(Theme.fg3)
                         }
                         .font(Theme.ui(11.5))
@@ -494,7 +497,10 @@ struct SessionRow: View {
             PendingChips(pending: pending, hasPR: !session.trackedPRs.isEmpty)
             if readyToMerge {
                 Text("✓ ready").font(Theme.mono(10.5)).foregroundStyle(Theme.done).fixedSize()
-                    .help("A PR of this session is ready to merge, and get it merged is off: zM merges it")
+                    .help(
+                        "A PR of this session is ready to merge, and get it merged is off: "
+                            + "\(model.keyText(for: "pilot.merge.now")) merges it"
+                    )
             } else if let pilot, pilot != .unwatched {
                 PilotMark(status: pilot, compact: true)
             }
@@ -625,8 +631,10 @@ struct SessionRail: View {
     var body: some View {
         let list = model.list
         VStack(spacing: 0) {
-            CollapseButton(systemImage: "sidebar.left", key: "zs") { model.toggleSidebar() }
-                .padding(.vertical, 12)
+            CollapseButton(systemImage: "sidebar.left", key: model.keyText(for: "sidebar.toggle")) {
+                model.toggleSidebar()
+            }
+            .padding(.vertical, 12)
             ListScroll {
                 VStack(spacing: 2) {
                     ForEach(Array(list.ordered.enumerated()), id: \.element.id) { index, session in

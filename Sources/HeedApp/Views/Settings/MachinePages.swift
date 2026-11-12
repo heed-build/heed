@@ -13,7 +13,7 @@ struct HostsPage: View {
         let hosts = model.config.hosts.values.sorted { $0.name < $1.name }
         if !model.settingsFilter.onlyModified, search == nil {
             HStack(spacing: 12) {
-                Button("Add or check hosts (gH)") {
+                Button("Add or check hosts (\(model.keyText(for: "host.open")))") {
                     model.activateHeed()
                     model.perform(CommandInvocation(name: "host.open"))
                 }
@@ -21,8 +21,10 @@ struct HostsPage: View {
             }
         }
         if hosts.isEmpty, search == nil {
-            Text("No hosts yet. gH lists the ones in ~/.ssh/config and on your tailnet to add.")
-                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+            Text(
+                "No hosts yet. \(model.keyText(for: "host.open")) lists the ones in ~/.ssh/config and on your tailnet to add."
+            )
+            .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
         }
         ForEach(hosts, id: \.name) { host in
             let target = SettingTarget.host(host.name)

@@ -175,7 +175,7 @@ private struct PilotRowView: View {
                 if case let .stalled(rounds) = row.status {
                     HStack(spacing: 6) {
                         Text("\(rounds) rounds without a new approval").foregroundStyle(Theme.err)
-                        KeyCap(text: "zr")
+                        KeyCap(text: model.keyText(for: "pilot.retry"))
                         Text("another round").foregroundStyle(Theme.fg3)
                     }
                     .font(Theme.ui(11.5))
@@ -236,7 +236,13 @@ private struct PilotDetail: View {
                         settings: model.pilotSettings(for: row.ref),
                         everything: true
                     ).isEmpty {
-                        KeyHint("pilot.copilot", target: .pull(row.ref), key: "C", spacing: 5, label: "ask Copilot")
+                        KeyHint(
+                            "pilot.copilot",
+                            target: .pull(row.ref),
+                            scope: "watch",
+                            spacing: 5,
+                            label: "ask Copilot"
+                        )
                     }
                 }
                 // The verdict, rule by rule: what holds the PR back from green, or that nothing does.
@@ -303,7 +309,7 @@ private struct PilotActivity: View {
             HStack {
                 SectionHeader(title: "Activity")
                 Spacer()
-                KeyCap(text: "zi")
+                KeyCap(text: model.keyText(for: "inspector.toggle"))
             }
             .padding(.horizontal, 16)
             .frame(height: 44)
@@ -415,9 +421,15 @@ private struct MergeSection: View {
                 }
                 if let action = model.mergePlan(ref) { line("Next run", MergeQueueView.describe(action)) }
                 if let next = model.nextMergeRun(ref.repo.slug) {
-                    line("Queue", "\(ref.repo.slug) runs " + MergeQueueView.when(next) + " · gM shows it")
+                    line(
+                        "Queue",
+                        "\(ref.repo.slug) runs " + MergeQueueView.when(next) + " · \(model.keyText(for: "merge.queue")) shows it"
+                    )
                 } else {
-                    line("Queue", "\(ref.repo.slug) runs only when asked (R, :merge.run)")
+                    line(
+                        "Queue",
+                        "\(ref.repo.slug) runs only when asked (\(model.keyText(for: "merge.run", in: "watch")), :merge.run)"
+                    )
                 }
                 if let last = model.mergeRuns[ref.repo.slug]?.first,
                    let entry = last.lines.first(where: { $0.ref == ref })
@@ -474,8 +486,8 @@ struct MergeQueueView: View {
                     Text(header).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
                 }
                 FlowLayout(spacing: 14, lineSpacing: 6) {
-                    KeyHint("merge.run", [repo], key: "R", spacing: 5, label: "run now")
-                    KeyHint("merge.queue", key: "gM", spacing: 5, label: "back to the PR")
+                    KeyHint("merge.run", [repo], scope: "watch", spacing: 5, label: "run now")
+                    KeyHint("merge.queue", spacing: 5, label: "back to the PR")
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     SectionHeader(title: "PRs · \(refs.count)")

@@ -3,6 +3,7 @@ import SwiftUI
 
 /// Offline or partial-sync notice above the GitHub lists (design/screens/Empty.png).
 struct SyncBanner: View {
+    @Environment(AppModel.self) private var model
     let status: SyncStatus
     let syncedAt: Date?
 
@@ -28,7 +29,7 @@ struct SyncBanner: View {
             Image(systemName: "exclamationmark.circle").foregroundStyle(tint)
             Text(text).foregroundStyle(tint).lineLimit(2)
             Spacer()
-            KeyCap(text: "r")
+            KeyCap(text: model.keyText(for: "github.sync"))
             Text("sync").foregroundStyle(Theme.fg3)
         }
         .font(Theme.ui(12))
@@ -574,7 +575,7 @@ private struct PullDetail: View {
                     StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
                     Text(session.title).font(Theme.ui(12.5))
                     Spacer()
-                    KeyCap(text: "gS")
+                    KeyCap(text: model.keyText(for: "pr.session"))
                 }
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg3))
@@ -586,9 +587,9 @@ private struct PullDetail: View {
             }
             Spacer()
             HStack(spacing: 10) {
-                KeyCap(text: "↩")
+                KeyCap(text: model.keyText(for: "open.reader"))
                 Text("read here").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-                KeyCap(text: "gB")
+                KeyCap(text: model.keyText(for: "open.browser"))
                 Text("open in the browser").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
             }
         }
@@ -684,7 +685,7 @@ struct FilterPill: View {
         let typing = model.filtering && model.view == view
         if text.isEmpty, !typing {
             HStack(spacing: 6) {
-                KeyCap(text: "/")
+                KeyCap(text: model.keyText(for: "session.filter"))
                 Text("filter").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             }
             .fixedSize()

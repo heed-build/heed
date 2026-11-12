@@ -123,7 +123,9 @@ private struct TabStrip: View {
                     hint(model.keyLabel(for: "tab.next"), "tab")
                 }
                 if !model.inspectorVisible {
-                    CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
+                    CollapseButton(systemImage: "sidebar.right", key: model.keyText(for: "inspector.toggle")) {
+                        model.toggleInspector()
+                    }
                 }
             }
             .font(Theme.ui(11.5))
@@ -487,11 +489,13 @@ private struct PaneView: View {
 }
 
 private struct EmptyCenter: View {
+    @Environment(AppModel.self) private var model
+
     var body: some View {
         VStack(spacing: 10) {
             Text("No session").font(Theme.ui(15, weight: .medium))
             HStack(spacing: 6) {
-                KeyCap(text: "o")
+                KeyCap(text: model.keyText(for: "work.start"))
                 Text("start work").foregroundStyle(Theme.fg3)
             }
         }

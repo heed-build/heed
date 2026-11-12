@@ -204,7 +204,7 @@ struct TitleBar: View {
             Label { Text(compact ? "\(model.askingCount)" : "\(model.askingCount) asking").fixedSize() }
                 icon: { StateGlyph(state: .asking) }
         }
-        KeyHint("session.attention", key: "ga") {
+        KeyHint("session.attention") {
             if !compact { Text("next attention").foregroundStyle(Theme.fg3).fixedSize() }
         }
         if let reminder = model.tutorReminder { TutorReminderView(reminder: reminder, compact: compact) }
@@ -436,6 +436,12 @@ struct StatusBar: View {
     }
 
     /// The pilot's keys as bound: `zw watch · zg green · zm merge · zp pause` by default.
+    /// A command's key as bound in `scope`, or two commands' keys on one cap (`j k`).
+    private func key(_ command: String, _ other: String? = nil, in scope: String) -> String {
+        let first = model.keyText(for: command, in: scope)
+        return other.map { "\(first) \(model.keyText(for: $0, in: scope))" } ?? first
+    }
+
     private var pilotHints: String {
         [("pilot.watch", "watch"), ("pilot.green", "green"), ("pilot.merge", "merge"), ("pilot.pause", "pause")]
             .map { "\(model.keyText(for: $0.0)) \($0.1)" }.joined(separator: " · ")
@@ -472,15 +478,28 @@ struct StatusBar: View {
         case .normal where model.hostRootsChooser != nil: "j k move · space pick · a add a folder · w worktrees · ↩ save · ⎋ skip"
         case .normal where model.pathImport != nil: "⇥ complete · ⌃n ⌃p choose · ⌃w up a folder · ↩ import · ⎋ cancel"
         case .normal where model.filtering: "words match anywhere · ⌃w word · ⌃u clear · ↩ keep · ⎋ clear"
-        case .normal where model.overlay == .diff: "j k line · n hunk · ]f file · ⇥ scope · c commit · t split · gd close"
-        case .normal where model.issueReader != nil: "s start session · a add to session · gB browser · ⎋ back"
+        case .normal where model.overlay == .diff:
+            "\(key("row.next", "row.prev", in: "diff")) line · \(key("diff.hunk.next", in: "diff")) hunk · "
+                + "\(key("diff.file.next", in: "diff")) file · \(key("diff.scope.next", in: "diff")) scope · "
+                + "\(key("diff.commit", in: "diff")) commit · \(key("diff.split", in: "diff")) split · "
+                + "\(key("overlay.diff", in: "diff")) close"
+        case .normal where model.issueReader != nil:
+            "\(key("items.start", in: "issue")) start session · \(key("items.add", in: "issue")) add to session · "
+                + "\(key("open.browser", in: "issue")) browser · ⎋ back"
         case .normal where model.reader != nil || model.overlay == .pr:
-            "j k item · space queue · s send · \(model.keyText(for: "pilot.green")) green · h l PRs · gS session · ⎋ back"
+            "\(key("row.next", "row.prev", in: "pr")) item · space queue · \(key("feedback.send", in: "pr")) send · "
+                + "\(model.keyText(for: "pilot.green")) green · \(key("pr.prev", "pr.next", in: "pr")) PRs · "
+                + "\(key("pr.session", in: "pr")) session · ⎋ back"
         case .normal where model.repoSetup != nil: "j k move · h l change · space write or not · ↩ next · ⌫ back · ⎋ close"
         case .normal where model.view == .repos:
-            "o start work here · \(model.keyText(for: "repo.setup", in: "repos")) set up merging · v select · dd remove · r rescan · w issues · / filter"
+            "\(key("worktree.new", in: "repos")) start work here · \(key("repo.setup", in: "repos")) set up merging · "
+                + "\(key("mode.visual", in: "repos")) select · \(key("select.remove", in: "repos")) remove · "
+                + "\(key("repo.scan", in: "repos")) rescan · \(key("issues.visibility", in: "repos")) issues · "
+                + "\(key("session.filter", in: "repos")) filter"
         case .normal where model.view == .history:
-            "j k move · / filter · R reopen · O new from prompt · t outcome · \(model.keyText(for: "history.timeline", in: "history")) timeline · "
+            "\(key("row.next", "row.prev", in: "history")) move · \(key("session.filter", in: "history")) filter · "
+                + "\(key("history.reopen", in: "history")) reopen · \(key("history.again", in: "history")) new from prompt · "
+                + "\(key("history.outcome", in: "history")) outcome · \(key("history.timeline", in: "history")) timeline · "
                 + "\(model.keyText(for: "history.ledger", in: "history")) ledger · "
                 + "\(model.keyText(for: "history.dashboard", in: "history")) dashboard"
         case .normal where model.view == .timeline:
@@ -492,7 +511,8 @@ struct StatusBar: View {
                 ("history.reopen", "reopen"),
                 ("history.timeline", "list"),
             ]
-            .map { "\(model.keyText(for: $0.0, in: "timeline")) \($0.1)" }.joined(separator: " · ") + " · { } day · / search"
+            .map { "\(model.keyText(for: $0.0, in: "timeline")) \($0.1)" }.joined(separator: " · ")
+            + " · \(key("group.prev", "group.next", in: "timeline")) day · \(key("session.filter", in: "timeline")) search"
         case .normal where model.view == .standup:
             [
                 ("standup.copy", "copy answer"), ("standup.copy.all", "copy report"), ("standup.question", "question"),
@@ -532,7 +552,8 @@ struct StatusBar: View {
                 ("history.ledger", "list"),
                 ("history.timeline", "timeline"),
             ]
-            .map { "\(model.keyText(for: $0.0, in: "ledger")) \($0.1)" }.joined(separator: " · ") + " · / search"
+            .map { "\(model.keyText(for: $0.0, in: "ledger")) \($0.1)" }.joined(separator: " · ")
+            + " · \(key("session.filter", in: "ledger")) search"
         case .normal where model.view == .log:
             [
                 ("log.kind", "kind"),
@@ -543,25 +564,36 @@ struct StatusBar: View {
                 ("log.agent", "agent"),
                 ("log.copy", "copy"),
             ]
-            .map { "\(model.keyText(for: $0.0, in: "log")) \($0.1)" }.joined(separator: " · ") + " · / search"
+            .map { "\(model.keyText(for: $0.0, in: "log")) \($0.1)" }.joined(separator: " · ")
+            + " · \(key("session.filter", in: "log")) search"
         case .normal where model.view == .attention:
             [
                 ("attention.done", "done"), ("attention.snooze", "snooze"), ("attention.mute", "mute"),
                 ("attention.reply", "reply"), ("attention.session", "session"), ("attention.filter", "filter"),
             ]
-            .map { "\(model.keyText(for: $0.0, in: "attention")) \($0.1)" }.joined(separator: " · ") + " · / search"
+            .map { "\(model.keyText(for: $0.0, in: "attention")) \($0.1)" }.joined(separator: " · ")
+            + " · \(key("session.filter", in: "attention")) search"
         case .normal where model.view == .inbox: "↩ read · space pick · v range · s start session · a add · x mark read · t unread/all · / filter"
         case .normal where model.view == .issues: "↩ read · space pick · s start session · t filter · ⇥ repo · w all/yours · / filter"
-        case .normal where model.view == .prs: "↩ open · \(pilotHints) · v select · gS session · r sync"
-        case .normal where model.view == .watch: "↩ open · \(pilotHints) · v select · R merge now · gM queue"
+        case .normal where model.view == .prs:
+            "\(key("open.reader", in: "prs")) open · \(pilotHints) · \(key("mode.visual", in: "prs")) select · "
+                + "\(key("pr.session", in: "prs")) session · \(key("github.sync", in: "prs")) sync"
+        case .normal where model.view == .watch:
+            "\(key("open.reader", in: "watch")) open · \(pilotHints) · \(key("mode.visual", in: "watch")) select · "
+                + "\(key("merge.run", in: "watch")) merge now · \(key("merge.queue", in: "watch")) queue"
         case .normal:
-            "\(model.keyText(for: "session.agent", in: "sessions")) agent · i insert · o start work · m pin · { } group · Iw import · : command · ? keys"
+            "\(key("session.agent", in: "sessions")) agent · \(key("mode.insert", in: "sessions")) insert · "
+                + "\(key("work.start", in: "sessions")) start work · \(key("session.pin", in: "sessions")) pin · "
+                + "\(key("group.prev", "group.next", in: "sessions")) group · \(key("session.import", in: "sessions")) import · "
+                + "\(key("mode.command", in: "sessions")) command · \(key("overlay.help", in: "sessions")) keys"
         case .insert: "⇧⎋ or \(KeyCapText.of(model.config.insertEscape)) normal · ⌘/ keys"
         case .visual where model.view == .watch || model.view == .prs:
             "\(model.pickedIDs(model.view).count) selected · \(model.keyText(for: "pilot.pause")) pause or resume · space toggle · ⎋ cancel"
         case .visual where model.overlay == .diff:
-            "\(model.diffCursor.selection?.count ?? 0) selected · j k extend · \(model.keyText(for: "diff.ask", in: "diff")) note · \(model.keyText(for: "diff.ask.now", in: "diff")) ask now · \(model.keyText(for: "diff.copy", in: "diff")) copy path:lines · ⎋ cancel"
-        case .visual: "\(model.selectedRows.count) selected · space toggle · y copy path · o open session · ⎋ cancel"
+            "\(model.diffCursor.selection?.count ?? 0) selected · \(model.keyText(for: "row.next")) \(model.keyText(for: "row.prev")) extend · \(model.keyText(for: "diff.ask", in: "diff")) note · \(model.keyText(for: "diff.ask.now", in: "diff")) ask now · \(model.keyText(for: "diff.copy", in: "diff")) copy path:lines · ⎋ cancel"
+        case .visual:
+            "\(model.selectedRows.count) selected · space toggle · \(model.keyText(for: "select.copy")) copy path · "
+                + "\(model.keyText(for: "select.open")) open session · ⎋ cancel"
         case .command: "⇥ complete · ↑↓ choose · ↩ run · ⎋ cancel"
         case .hint: "type a label · ⎋ cancel"
         }
@@ -735,7 +767,7 @@ struct ImportPickerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Import a worktree").font(Theme.ui(15, weight: .semibold))
                     Text(
-                        "Worktrees of your repos that Heed does not manage yet. Importing resumes the agent session kept there, else starts the agent fresh. Elsewhere on disk? Ip imports a path."
+                        "Worktrees of your repos that Heed does not manage yet. Importing resumes the agent session kept there, else starts the agent fresh. Elsewhere on disk? \(model.keyText(for: "session.import.path", in: "sessions")) imports a path."
                     )
                     .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
@@ -796,7 +828,10 @@ struct ImportPickerView: View {
                     .padding(.vertical, 10)
                 }
                 HStack {
-                    Text("⌃n ⌃p move · ↩ import · ⎋ cancel · Ip (in Sessions) imports a path").font(Theme.ui(11.5))
+                    Text(
+                        "⌃n ⌃p move · ↩ import · ⎋ cancel · "
+                            + "\(model.keyText(for: "session.import.path", in: "sessions")) (in Sessions) imports a path"
+                    ).font(Theme.ui(11.5))
                         .foregroundStyle(Theme.fg3)
                     Spacer()
                 }

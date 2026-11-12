@@ -45,7 +45,7 @@ struct LedgerView: View {
     private var empty: String {
         if !model.ledger.entries.isEmpty { return "Nothing matches." }
         return "No summaries yet. Heed writes one when a PR opens or merges, before a worktree is removed, or after a "
-            + "day idle ([summary] when); S writes one now."
+            + "day idle ([summary] when); \(model.keyText(for: "ledger.summarize", in: "ledger")) writes one now."
     }
 
     private func header(count: Int) -> some View {

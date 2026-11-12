@@ -275,10 +275,11 @@ setup_reminder = true
 [mindmap]
 # Group finished work into History's Mindmap: one per GitHub org, and one for your personal work, never mixed.
 # A cheap model names campaigns for work that fits none ([llm]); Hunch, or whichever decider is set, places new
-# work into them. While shadow is on, every placement waits for you (y keeps it, m moves it), and Settings ›
-# Inference & decisions shows how often heed had it right; off, sure placements stand on their own.
+# work into them; ✓ and ↦ on a card heed placed say it is right or move it (y and m do the same), and that is what
+# it learns from. Settings › Inference & decisions shows how often heed had it right. With shadow on, every
+# placement waits for y or m instead of standing.
 # enabled = true
-# shadow = true
+# shadow = false
 
 [standup]
 # A standup report on the days you choose: one per Mindmap (each org, and personal, never mixed), each of your

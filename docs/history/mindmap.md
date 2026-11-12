@@ -53,13 +53,15 @@ rest is one question, sized so [Hunch](../configuration/local-learning.md) answe
 closest campaigns this work continues, or something new. Work that fits none waits in Unsorted until a cheap model
 names a campaign for it ([model calls](../agents/model-calls.md), six times a day per Mindmap at most).
 
-While `[mindmap] shadow` is on (the default), every placement waits for you: `y` keeps it, `m` moves it. What you do
-is what Hunch learns from, and Settings › Inference & decisions shows how often heed had it right.
+heed places the work and moves on; nothing waits for you. On a card it placed after asking, a faint `heed · 72%`
+with ✓ and ↦ says how sure it was: ✓ (or `y`) says it is right, ↦ (or `m`) moves it. Either is what Hunch learns
+from, and Settings › Inference & decisions shows how often heed had it right. Leaving a card alone is fine too. With
+`shadow = true`, every placement waits for `y` or `m` instead of standing.
 
 ```toml
 [mindmap]
 enabled = true
-shadow = true
+shadow = false
 ```
 
 ## What sessions are told

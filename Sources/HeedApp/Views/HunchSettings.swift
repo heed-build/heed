@@ -290,7 +290,7 @@ private struct HunchLearningGroup: View {
         return Field(
             label: "Mindmap placement",
             detail: "Of the placements heed asked about and you answered (y kept it, m moved it), how many it had right, "
-                + "by what answered. While shadow is on in [mindmap], every placement waits for you."
+                + "by what answered. ✓ and ↦ on a card heed placed, or y and m, are the answers."
         ) {
             if stats.total.asked == 0 {
                 Text("none yet").font(Theme.mono(12)).foregroundStyle(Theme.fg3)

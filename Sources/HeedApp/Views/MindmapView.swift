@@ -130,6 +130,7 @@ struct MindmapView: View {
 
 /// One node as a card: its title, kind or stage, and what waits in it.
 private struct MindmapCard: View {
+    @Environment(AppModel.self) private var model
     enum Style { case path, sibling, focus, inside }
     let node: MindNode
     let tree: MindmapTree
@@ -150,6 +151,10 @@ private struct MindmapCard: View {
                     let pieces = tree.entries(under: node.id).count
                     if node.kind != .work { Text("\(pieces) piece\(pieces == 1 ? "" : "s")") }
                     if open > 0 { Text("● \(open) open").foregroundStyle(Theme.block) }
+                    if node.unconfirmed || node.suggested {
+                        Spacer(minLength: 4)
+                        MindmapJudge(node: node)
+                    }
                 }
                 .font(Theme.ui(11)).foregroundStyle(Theme.fg3)
             }
@@ -218,11 +223,11 @@ private struct MindmapDetail: View {
                     .font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
                 Text(node.title).font(Theme.ui(18, weight: .semibold))
                 if let intent = node.intent { Text(intent).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2) }
-                if node.suggested, let placement = node.placement {
+                if node.suggested || node.unconfirmed, let placement = node.placement {
                     Text("heed put it here, \(Int((placement.confidence * 100).rounded()))% sure (\(placement.route)): "
-                        + "\(model.keyText(for: "mindmap.accept", in: "mindmap")) keeps it, "
-                        + "\(model.keyText(for: "mindmap.move", in: "mindmap")) moves it")
-                        .font(Theme.ui(12)).foregroundStyle(Theme.ask)
+                        + "\(model.keyText(for: "mindmap.accept", in: "mindmap")) or ✓ says it is right, "
+                        + "\(model.keyText(for: "mindmap.move", in: "mindmap")) or ↦ moves it")
+                        .font(Theme.ui(12)).foregroundStyle(node.suggested ? Theme.ask : Theme.fg3)
                 }
                 section("Facts") {
                     HStack(spacing: 6) {
@@ -421,5 +426,28 @@ private struct MindmapWires: View {
             }
         }
         .allowsHitTesting(false)
+    }
+}
+
+/// On a card heed placed and nobody judged yet: how sure it was, faintly, and two quiet controls. ✓ says it is right,
+/// ↦ moves it (the command line opens for where). Either is what Hunch learns from; leaving it is fine too.
+private struct MindmapJudge: View {
+    @Environment(AppModel.self) private var model
+    let node: MindNode
+    @State private var hovered = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let placement = node.placement {
+                Text("heed · \(Int((placement.confidence * 100).rounded()))%").font(Theme.mono(10.5))
+            }
+            Image(systemName: "checkmark").help("heed put it in the right place (y)")
+                .onTapGesture { model.judgeMindmap(node.id, keep: true) }
+            Image(systemName: "arrow.turn.up.right").help("move it somewhere else (m)")
+                .onTapGesture { model.judgeMindmap(node.id, keep: false) }
+        }
+        .font(Theme.ui(10.5))
+        .foregroundStyle(hovered ? Theme.fg2 : Theme.fg3.opacity(0.7))
+        .onHover { hovered = $0 }
     }
 }

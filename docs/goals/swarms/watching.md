@@ -121,7 +121,9 @@ limits.
 
 `T` on a goal (`:goal.map`) draws its swarm as a map: the goal and its lead on the left, the plan's phases as columns,
 each task a card coloured by its state (done, working, asking, blocked, stuck, waiting), and an edge for every task it
-waits for. A task that waits for nothing hangs off the goal. The plan is drawn whole, scaled to fit.
+waits for. A task that waits for nothing hangs off the goal. A small plan is drawn larger to fill the pane; a large one
+is never shrunk below its own size, so its cards stay readable: it scrolls both ways, and moving the cursor with the
+map's keys keeps its card in view.
 
 A dot on a dotted path is something on its way: a message, an answer or a question heed has not handed to its agent
 yet (it hands things over only when the agent is idle and you are not typing to it, see
@@ -140,8 +142,9 @@ goal's card stands for the lead, you, the controller and heed alike. While the w
 | `t` | Hand its task to another agent |
 | `e` | Edit the task, in the plan |
 
-On the right: the swarm's numbers, the first question that is yours, the keys, and what changed since you last looked.
-The status bar lists the map's own keys; a goal's list keys (`a` archive, `n` new) are not offered there, as they do
+Over the map, the swarm's numbers in a line (agents, tasks done, time, spend, its lead); under it, the map's keys, each
+one clickable. What changed since you last looked and the questions that are yours are on the agents pane (`W`), so
+the graph has the whole width. The status bar lists the map's own keys; a goal's list keys (`a` archive, `n` new) are not offered there, as they do
 not work there.
 
 ## Since you last looked

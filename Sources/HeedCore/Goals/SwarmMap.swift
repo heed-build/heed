@@ -81,6 +81,18 @@ public enum SwarmMap {
         public init() {}
     }
 
+    /// How large the map draws in a room of `room` (width, height) for a graph of `content`, margins included: up to
+    /// half again its size when a small plan fits, and never smaller than its own size. A plan too large for the room
+    /// scrolls instead of shrinking, so its cards stay readable.
+    public static func scale(
+        content: (width: Double, height: Double),
+        room: (width: Double, height: Double)
+    ) -> Double {
+        guard content.width > 0, content.height > 0 else { return 1 }
+        let fit = min(room.width / content.width, room.height / content.height)
+        return min(max(fit, 1), 1.5)
+    }
+
     /// The layout for `tasks` (in outline order) with each task's state. `goal`: the goal's title; `lead`: its lead's
     /// label.
     public static func layout(

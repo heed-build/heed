@@ -369,6 +369,16 @@ struct SwarmMapTests {
         #expect(layout.width == validator.frame.maxX + SwarmMap.Metrics().cardWidth + SwarmMap.Metrics().columnGap)
     }
 
+    @Test func aLargePlanScrollsInsteadOfShrinking() {
+        // Too wide or too tall for the room: drawn at its own size, never smaller.
+        #expect(SwarmMap.scale(content: (2000, 400), room: (900, 600)) == 1)
+        #expect(SwarmMap.scale(content: (600, 1200), room: (900, 600)) == 1)
+        // A small plan grows to fit, up to half again its size.
+        #expect(SwarmMap.scale(content: (600, 300), room: (900, 600)) == 1.5)
+        #expect(abs(SwarmMap.scale(content: (800, 300), room: (1000, 600)) - 1.25) < 0.001)
+        #expect(SwarmMap.scale(content: (0, 0), room: (900, 600)) == 1)
+    }
+
     @Test func theSamePlanLaysOutTheSame() {
         let one = SwarmMap.layout(goal: "G", lead: "claude", tasks: tasks, states: [:])
         let two = SwarmMap.layout(goal: "G", lead: "claude", tasks: tasks, states: [:])

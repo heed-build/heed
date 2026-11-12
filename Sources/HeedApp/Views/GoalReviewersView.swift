@@ -362,15 +362,7 @@ private struct SpawnPanel: View {
                 }
             }
             SectionHeader(title: "Runs as")
-            if ShotMode.active {
-                // Screenshots draw no AppKit views: the menus' labels instead.
-                HStack(spacing: 8) {
-                    Picked(text: (spawn.agent ?? defaultAgent) + " ▾")
-                    Picked(text: (spawn.tier ?? model.config.goals.tier(for: spawn.kind)).rawValue + " ▾")
-                }
-            } else {
-                runsAs(spawn)
-            }
+            runsAs(spawn)
             Text("Reviewers read, run tests and benchmarks in a worktree of their own, and write what they find. "
                 + "They never edit your code or push.")
                 .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
@@ -385,24 +377,18 @@ private struct SpawnPanel: View {
 
     private func runsAs(_ spawn: GoalsBrowser.Spawn) -> some View {
         HStack(spacing: 8) {
-            Menu {
+            DropdownMenu(spawn.agent ?? defaultAgent) {
                 Button("The goal's sessions' agent") { model.goals.spawn.agent = nil }
                 ForEach(model.settings.agents.map(\.name), id: \.self) { name in
                     Button(name) { model.goals.spawn.agent = name }
                 }
-            } label: {
-                Picked(text: (spawn.agent ?? defaultAgent) + " ▾")
             }
-            .menuStyle(.borderlessButton).fixedSize()
-            Menu {
+            DropdownMenu((spawn.tier ?? model.config.goals.tier(for: spawn.kind)).rawValue) {
                 Button("As configured") { model.goals.spawn.tier = nil }
                 ForEach(ModelTier.allCases, id: \.self) { tier in
                     Button(tier.rawValue) { model.goals.spawn.tier = tier }
                 }
-            } label: {
-                Picked(text: (spawn.tier ?? model.config.goals.tier(for: spawn.kind)).rawValue + " ▾")
             }
-            .menuStyle(.borderlessButton).fixedSize()
         }
     }
 
@@ -443,16 +429,6 @@ private struct Tag: View {
         Text(text).font(Theme.mono(11)).foregroundStyle(Theme.block)
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(RoundedRectangle(cornerRadius: 4).fill(Theme.block.opacity(0.12)))
-    }
-}
-
-private struct Picked: View {
-    let text: String
-
-    var body: some View {
-        Text(text).font(Theme.mono(12)).foregroundStyle(Theme.fg)
-            .padding(.horizontal, 10).padding(.vertical, 5)
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
     }
 }
 

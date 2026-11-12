@@ -208,15 +208,7 @@ struct ModelChips: View {
         }
     }
 
-    @ViewBuilder private func chip(_ text: String, @ViewBuilder items: () -> some View) -> some View {
-        let label = Text(text + " ▾").font(Theme.mono(11.5)).foregroundStyle(Theme.fg)
-            .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
-        if ShotMode.active {
-            label
-        } else {
-            Menu { items() } label: { label }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-        }
+    private func chip(_ text: String, @ViewBuilder items: @escaping () -> some View) -> some View {
+        DropdownMenu(text, size: .small, items: items)
     }
 }

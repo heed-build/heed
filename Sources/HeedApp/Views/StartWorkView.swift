@@ -326,13 +326,15 @@ struct StartWorkView: View {
                 FlowLayout {
                     if catalog.takesModel {
                         let option = ModelPicker.models(catalog).first { $0.tag == form.modelSelection }
-                        menu(ModelPicker.models(catalog).map { ($0.tag, ModelMenuPicker.text($0)) }) { tag in
-                            model.clickStartWork { $0.pickModel(tag) }
-                        } label: {
-                            choice(
-                                modelLabel(option, form), detail: option?.detail, selected: false,
-                                focused: form.field == .model && !form.editing
-                            )
+                        DropdownMenu(
+                            modelLabel(option, form), detail: option?.detail,
+                            focused: form.field == .model && !form.editing
+                        ) {
+                            ForEach(ModelPicker.models(catalog), id: \.tag) { option in
+                                Button(ModelMenuPicker.text(option)) {
+                                    model.clickStartWork { $0.pickModel(option.tag) }
+                                }
+                            }
                         }
                     }
                     if form.customModel {
@@ -357,13 +359,12 @@ struct StartWorkView: View {
                     }
                     if !efforts.isEmpty {
                         let picked = efforts.first { $0.tag == (form.effort ?? ModelPicker.defaultTag) }
-                        menu(efforts.map { ($0.tag, $0.label) }) { tag in
-                            model.clickStartWork { $0.pickEffort(tag) }
-                        } label: {
-                            choice(
-                                "effort: " + (picked?.label ?? form.effort ?? ""), selected: false,
-                                focused: form.field == .effort
-                            )
+                        DropdownMenu(
+                            "effort: " + (picked?.label ?? form.effort ?? ""), focused: form.field == .effort
+                        ) {
+                            ForEach(efforts, id: \.tag) { effort in
+                                Button(effort.label) { model.clickStartWork { $0.pickEffort(effort.tag) } }
+                            }
                         }
                     }
                 }
@@ -376,20 +377,6 @@ struct StartWorkView: View {
 
     private func modelLabel(_ option: ModelPicker.Option?, _ form: StartWorkForm) -> String {
         option?.label ?? form.model ?? "agent's default"
-    }
-
-    /// A chip that opens a menu of `items` (tag, title) on a click; the chip alone in shots.
-    @ViewBuilder private func menu(
-        _ items: [(String, String)], pick: @escaping (String) -> Void, @ViewBuilder label: () -> some View
-    ) -> some View {
-        if ShotMode.active {
-            label()
-        } else {
-            Menu {
-                ForEach(items, id: \.0) { item in Button(item.1) { pick(item.0) } }
-            } label: { label() }
-                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-        }
     }
 
     private func optionsField(_ form: StartWorkForm) -> some View {

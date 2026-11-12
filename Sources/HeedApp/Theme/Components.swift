@@ -571,3 +571,59 @@ struct GraphCanvas<Node: Identifiable, Card: View>: View {
         .frame(width: size.width, height: size.height, alignment: .topLeading)
     }
 }
+
+/// A chip that opens a list (a model, an effort, an agent): a raised fill, a border a step stronger than a choice
+/// chip's, and a chevron after a hairline, so it reads as a dropdown. `large` is Start work's field chip, `small` the
+/// inline chip of goal plans and swarms. The look only: `DropdownMenu` puts it on a menu.
+struct DropdownChip: View {
+    enum Size { case large, small }
+
+    let text: String
+    var detail: String?
+    var size = Size.large
+    var focused = false
+
+    var body: some View {
+        let large = size == .large
+        HStack(spacing: large ? 8 : 5) {
+            HStack(spacing: 6) {
+                Text(text).font(Theme.mono(large ? 12.5 : 11.5)).lineLimit(1).fixedSize()
+                if let detail { Text(detail).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3) }
+            }
+            Theme.keyCapBorder.frame(width: 1, height: large ? 14 : 10)
+            Image(systemName: "chevron.down").font(.system(size: large ? 9 : 7.5, weight: .semibold))
+                .foregroundStyle(Theme.fg2)
+        }
+        .foregroundStyle(Theme.fg)
+        .padding(.leading, large ? 12 : 7).padding(.trailing, large ? 9 : 6)
+        .padding(.vertical, large ? 7 : 2)
+        .background(RoundedRectangle(cornerRadius: large ? 6 : 4).fill(large ? Theme.bg3 : Theme.chip))
+        .overlay(RoundedRectangle(cornerRadius: large ? 6 : 4).strokeBorder(
+            focused ? Theme.fg : Theme.keyCapBorder, lineWidth: focused ? 1.5 : 1
+        ))
+        .contentShape(Rectangle())
+    }
+}
+
+/// A `DropdownChip` that opens `items` on a click; in shots, which draw no AppKit views, the chip alone.
+struct DropdownMenu<Items: View>: View {
+    let chip: DropdownChip
+    @ViewBuilder let items: () -> Items
+
+    init(
+        _ text: String, detail: String? = nil, size: DropdownChip.Size = .large, focused: Bool = false,
+        @ViewBuilder items: @escaping () -> Items
+    ) {
+        chip = DropdownChip(text: text, detail: detail, size: size, focused: focused)
+        self.items = items
+    }
+
+    var body: some View {
+        if ShotMode.active {
+            chip
+        } else {
+            Menu { items() } label: { chip }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        }
+    }
+}

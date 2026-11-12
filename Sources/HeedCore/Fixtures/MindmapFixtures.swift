@@ -37,7 +37,15 @@ public extension Fixtures {
             ),
         ])
         for node in [
-            work("h-docs-nav-spike-v1", in: "campaign:docs-nav"), work("h-fix-toc-ordering", in: "campaign:docs-nav"),
+            work("h-docs-nav-spike-v1", in: "campaign:docs-nav").map { node in
+                var node = node
+                node.decisions.append(.init(
+                    text: "Sort the nav by title", source: node.entry ?? "",
+                    supersededBy: "Fall back to title order when a folder has no index"
+                ))
+                return node
+            },
+            work("h-fix-toc-ordering", in: "campaign:docs-nav"),
             work("s1", in: "campaign:links", suggested: true).map { node in
                 var node = node
                 node.open.append(.init(kind: .threads, text: "docs-toolkit#2841: 2 review threads open", source: "s1"))

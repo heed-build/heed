@@ -557,3 +557,27 @@ struct LooseEndsTests {
         #expect(tree.work(for: "e1")?.open.map(\.kind) == [.followUp, .threads])
     }
 }
+
+struct MindmapLinksTests {
+    @Test func workThatReplacedADecisionLinksBothWaysAndSharedFilesLinkCampaigns() {
+        var spike = MindNode.work(entry("e1", "spike", files: ["Toc.cs", "Nav.cs"]), parent: "nav", now: t0)
+        spike.decisions = [.init(text: "Sort by title", source: "e1", supersededBy: "Index order wins")]
+        let toc = MindNode.work(entry("e2", "toc", decisions: ["Index order wins"]), parent: "nav", now: t0)
+        let other = MindNode.work(
+            entry("e3", "search", files: ["Toc.cs", "Nav.cs", "Search.cs"]),
+            parent: "search",
+            now: t0
+        )
+        let tree = MindmapTree([campaign("nav", "Nav"), campaign("search", "Search"), spike, toc, other])
+        let ledger = [
+            "e1": entry("e1", "spike", files: ["Toc.cs", "Nav.cs"]), "e2": entry("e2", "toc"),
+            "e3": entry("e3", "search", files: ["Toc.cs", "Nav.cs", "Search.cs"]),
+        ]
+        #expect(MindmapLinks.of("work:e1", in: tree, ledger: ledger).contains(.init(kind: .ledTo, target: "work:e2")))
+        #expect(MindmapLinks.of("work:e2", in: tree, ledger: ledger) == [.init(kind: .ledFrom, target: "work:e1")])
+        #expect(MindmapLinks.of("nav", in: tree, ledger: ledger)
+            == [.init(kind: .sameFiles(["Nav.cs", "Toc.cs"]), target: "search")])
+        // What a node holds, and what holds it, are not links.
+        #expect(!MindmapLinks.of("nav", in: tree, ledger: ledger).contains { $0.target == "work:e1" })
+    }
+}

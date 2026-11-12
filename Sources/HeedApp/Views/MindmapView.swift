@@ -63,7 +63,7 @@ struct MindmapView: View {
                                 .foregroundStyle(Theme.fg2)
                         }
                         ForEach(path, id: \.id) { node in
-                            MindmapCard(node: node, tree: tree, style: .path)
+                            MindmapCard(node: node, tree: tree, style: .path).wireAnchor(node.id)
                                 .onTapGesture { model.mindmap.focus = node.id }
                         }
                     }
@@ -74,18 +74,28 @@ struct MindmapView: View {
                     ) {
                         ForEach(siblings, id: \.id) { node in
                             MindmapCard(node: node, tree: tree, style: node.id == focus?.id ? .focus : .sibling)
+                                .wireAnchor(node.id)
                                 .onTapGesture { model.mindmap.focus = node.id }
                         }
                     }
                     column("Inside", count: inside.count, width: 300) {
                         ForEach(inside, id: \.id) { node in
                             MindmapCard(node: node, tree: tree, style: .inside, depth: mindmap.depth - 1)
+                                .wireAnchor(node.id)
                                 .onTapGesture { model.mindmap.focus = node.id }
                         }
                     }
                     Spacer(minLength: 0)
                 }
                 .padding(20)
+                .overlayPreferenceValue(WireAnchors.self) { anchors in
+                    GeometryReader { proxy in
+                        MindmapWires(
+                            anchors: anchors, proxy: proxy, path: path.map(\.id), siblings: siblings.map(\.id),
+                            focus: focus?.id, inside: inside.map(\.id)
+                        )
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -263,6 +273,19 @@ private struct MindmapDetail: View {
                         }
                     }
                 }
+                let links = MindmapLinks.of(node.id, in: tree, ledger: model.ledger.entries)
+                if !links.isEmpty {
+                    section("Linked · \(links.count)") {
+                        ForEach(links, id: \.self) { link in
+                            HStack(spacing: 6) {
+                                MindmapTag(text: link.label, tint: Theme.fg2)
+                                Text(tree[link.target]?.title ?? link.target).font(Theme.ui(12.5)).lineLimit(1)
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture { model.mindmap.focus = link.target }
+                        }
+                    }
+                }
                 if let brief = model.memoryBrief(on: node) {
                     section("A session started here is told") {
                         Text(brief).font(Theme.ui(11.5)).foregroundStyle(Theme.fg2)
@@ -280,6 +303,7 @@ private struct MindmapDetail: View {
                     hint("mindmap.rename", "rename")
                     if !open.isEmpty { hint("mindmap.done", "done") }
                     if node.entry != nil { hint("mindmap.open", "ledger") }
+                    if !links.isEmpty { hint("mindmap.link.next", "linked") }
                 }
             }
             .padding(24)
@@ -330,5 +354,71 @@ private struct MindmapDetail: View {
 
     private func hint(_ command: String, _ text: String) -> some View {
         KeyHint(command, scope: "mindmap", label: text, color: Theme.fg2)
+    }
+}
+
+// MARK: Wires
+
+struct WireAnchors: PreferenceKey {
+    static let defaultValue: [String: Anchor<CGRect>] = [:]
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
+extension View {
+    func wireAnchor(_ id: String) -> some View {
+        anchorPreference(key: WireAnchors.self, value: .bounds) { [id: $0] }
+    }
+}
+
+/// The lines between the columns: down the path, from the path to every sibling, from the focus to what it holds.
+private struct MindmapWires: View {
+    let anchors: [String: Anchor<CGRect>]
+    let proxy: GeometryProxy
+    let path: [String]
+    let siblings: [String]
+    let focus: String?
+    let inside: [String]
+
+    var body: some View {
+        Canvas { context, _ in
+            func rect(_ id: String) -> CGRect? { anchors[id].map { proxy[$0] } }
+            func curve(from: CGPoint, to: CGPoint, color: Color, width: CGFloat) {
+                var line = Path()
+                line.move(to: from)
+                let middle = (from.x + to.x) / 2
+                line.addCurve(to: to, control1: CGPoint(x: middle, y: from.y), control2: CGPoint(x: middle, y: to.y))
+                context.stroke(line, with: .color(color), lineWidth: width)
+            }
+            for (upper, lower) in zip(path, path.dropFirst()) {
+                if let top = rect(upper), let bottom = rect(lower) {
+                    var line = Path()
+                    line.move(to: CGPoint(x: top.minX + 14, y: top.maxY))
+                    line.addLine(to: CGPoint(x: bottom.minX + 14, y: bottom.minY))
+                    context.stroke(line, with: .color(Theme.fg3.opacity(0.6)), lineWidth: 1.2)
+                }
+            }
+            if let holder = path.last.flatMap(rect) {
+                for sibling in siblings {
+                    guard let card = rect(sibling) else { continue }
+                    let on = sibling == focus
+                    curve(
+                        from: CGPoint(x: holder.maxX, y: holder.midY), to: CGPoint(x: card.minX, y: card.midY),
+                        color: on ? Theme.block : Theme.fg3.opacity(0.5), width: on ? 1.6 : 1.2
+                    )
+                }
+            }
+            if let focus, let card = rect(focus) {
+                for child in inside {
+                    guard let kid = rect(child) else { continue }
+                    curve(
+                        from: CGPoint(x: card.maxX, y: card.midY), to: CGPoint(x: kid.minX, y: kid.midY),
+                        color: Theme.block.opacity(0.75), width: 1.4
+                    )
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 }

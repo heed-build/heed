@@ -2572,7 +2572,8 @@ final class AppModel {
             if view == .mindmap, !isFixture { Task { await refreshLooseEnds(mindmap.instance) } }
         case "mindmap.in", "mindmap.out", "mindmap.less", "mindmap.more", "mindmap.org.next", "mindmap.org.prev",
              "mindmap.accept", "mindmap.done", "mindmap.pin", "mindmap.nest", "mindmap.lift", "mindmap.rename",
-             "mindmap.move", "mindmap.join", "mindmap.name", "mindmap.open", "mindmap.session":
+             "mindmap.move", "mindmap.join", "mindmap.name", "mindmap.open", "mindmap.session", "mindmap.link.next",
+             "mindmap.link.prev":
             performMindmap(command)
         case "ledger.summarize": summarizeLedgerNow()
         case "ledger.edit": editLedger(command.arguments)

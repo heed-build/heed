@@ -622,6 +622,8 @@ public enum Commands {
         ),
         .init("mindmap.name", "Mindmap: name campaigns for the work waiting in Unsorted now", .selection),
         .init("mindmap.open", "Mindmap: a piece of work's ledger entry", .selection),
+        .init("mindmap.link.next", "Mindmap: to the next node this one links to (led to, same files)", .selection),
+        .init("mindmap.link.prev", "Mindmap: to the previous node this one links to", .selection),
         .init(
             "mindmap.session", "Mindmap: start a session on this node, told what was decided and what is open here",
             .selection, arguments: "[prompt]"

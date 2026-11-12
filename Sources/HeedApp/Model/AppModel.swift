@@ -2706,6 +2706,7 @@ final class AppModel {
         case "attention.session": attentionGoToSession()
         case "attention.filter": cycleAttentionFilter(command.arguments.first)
         case "attention.sort": toggleAttentionSort()
+        case "attention.coverage": showAttentionCoverage()
         case "view.inbox": view = .inbox
         case "view.issues": view = .issues
         case "view.prs": view = .prs

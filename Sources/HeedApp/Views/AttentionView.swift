@@ -26,26 +26,9 @@ struct AttentionView: View {
                     .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
                     SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
                     if let note = model.github.teams.note { TeamsNote(text: note) }
-                    ListBody(
-                        count: rows.count, cursor: cursor, ids: rows.map(\.id), empty: emptyText, hintView: .attention
-                    ) { index in
-                        VStack(alignment: .leading, spacing: 0) {
-                            let section = Self.section(rows[index].item.updatedAt)
-                            if !rows[index].pinned,
-                               index == 0 || rows[index - 1].pinned
-                               || Self.section(rows[index - 1].item.updatedAt) != section
-                            {
-                                header(section)
-                            } else if rows[index].pinned, index == 0 {
-                                header("Pinned")
-                            }
-                            AttentionRow(
-                                entry: rows[index], index: index, cursor: cursor,
-                                summary: model.attention.summary(for: rows[index].item),
-                                isPicked: picked.contains(rows[index].id)
-                            )
-                        }
-                    }
+                    // In the space left above the coverage line, however long the list.
+                    Color.clear.overlay(alignment: .top) { list(rows, cursor: cursor, picked: picked) }.clipped()
+                    CoverageLine(coverage: model.attentionCoverage)
                 }
                 if geometry.size.width >= 1100 {
                     Group {
@@ -60,6 +43,29 @@ struct AttentionView: View {
                     .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
                     .shotRegion(.attentionDetail)
                 }
+            }
+        }
+    }
+
+    private func list(_ rows: [AttentionEntry], cursor: Int, picked: Set<String>) -> some View {
+        ListBody(
+            count: rows.count, cursor: cursor, ids: rows.map(\.id), empty: emptyText, hintView: .attention
+        ) { index in
+            VStack(alignment: .leading, spacing: 0) {
+                let section = Self.section(rows[index].item.updatedAt)
+                if !rows[index].pinned,
+                   index == 0 || rows[index - 1].pinned
+                   || Self.section(rows[index - 1].item.updatedAt) != section
+                {
+                    header(section)
+                } else if rows[index].pinned, index == 0 {
+                    header("Pinned")
+                }
+                AttentionRow(
+                    entry: rows[index], index: index, cursor: cursor,
+                    summary: model.attention.summary(for: rows[index].item),
+                    isPicked: picked.contains(rows[index].id)
+                )
             }
         }
     }
@@ -87,6 +93,31 @@ struct AttentionView: View {
         case .muted: "Nothing muted. M mutes a thread; an ignore rule mutes what it matches."
         default: "Nothing here. \(model.keyText(for: "attention.filter", in: "attention")) steps through the filters."
         }
+    }
+}
+
+/// The foot of the list: what heed has of what GitHub has, in a line (amber when something is missing); a click shows
+/// the sources (`:attention.coverage`).
+private struct CoverageLine: View {
+    @Environment(AppModel.self) private var model
+    let coverage: AttentionCoverage
+
+    var body: some View {
+        let tint = coverage.mismatch ? Theme.block : Theme.fg3
+        HStack(spacing: 8) {
+            Image(systemName: coverage.mismatch ? "exclamationmark.circle" : "checkmark.circle")
+                .foregroundStyle(tint)
+            Text(coverage.line).foregroundStyle(coverage.mismatch ? Theme.block : Theme.fg2).lineLimit(1)
+            Spacer(minLength: 8)
+        }
+        .font(Theme.ui(11.5))
+        .padding(.horizontal, 16)
+        .frame(height: 30)
+        .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        .contentShape(Rectangle())
+        .onTapGesture { model.perform(CommandInvocation(name: "attention.coverage")) }
+        .shotRegion(.attentionCoverage)
+        .help("What Attention has of each source (:attention.coverage)")
     }
 }
 

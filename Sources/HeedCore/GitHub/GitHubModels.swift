@@ -13,11 +13,13 @@ public struct GitHubState: Hashable, Sendable, Codable {
     public var teams: ViewerTeams
     /// Which team each `team_mention` and `review_requested` thread came through, by thread id.
     public var teamMentions: TeamMentionCache
+    /// What the last fetch of each source brought, against what GitHub says it has (Attention's coverage).
+    public var fetches: GitHubFetches
 
     public init(
         viewer: String? = nil, inbox: [InboxItem] = [], issues: [Issue] = [], pulls: [PullRequest] = [],
         syncedAt: Date? = nil, status: SyncStatus = .never, teams: ViewerTeams = ViewerTeams(),
-        teamMentions: TeamMentionCache = TeamMentionCache()
+        teamMentions: TeamMentionCache = TeamMentionCache(), fetches: GitHubFetches = GitHubFetches()
     ) {
         self.viewer = viewer
         self.inbox = inbox
@@ -27,10 +29,11 @@ public struct GitHubState: Hashable, Sendable, Codable {
         self.status = status
         self.teams = teams
         self.teamMentions = teamMentions
+        self.fetches = fetches
     }
 
     private enum CodingKeys: String, CodingKey {
-        case viewer, inbox, issues, pulls, syncedAt, status, teams, teamMentions
+        case viewer, inbox, issues, pulls, syncedAt, status, teams, teamMentions, fetches
     }
 
     /// Caches from before team attribution still load.
@@ -45,6 +48,7 @@ public struct GitHubState: Hashable, Sendable, Codable {
         teams = try container.decodeIfPresent(ViewerTeams.self, forKey: .teams) ?? ViewerTeams()
         teamMentions = try container.decodeIfPresent(TeamMentionCache.self, forKey: .teamMentions)
             ?? TeamMentionCache()
+        fetches = try container.decodeIfPresent(GitHubFetches.self, forKey: .fetches) ?? GitHubFetches()
     }
 
     public func pull(_ ref: PullRef) -> PullRequest? { pulls.first { $0.ref == ref } }
@@ -52,6 +56,48 @@ public struct GitHubState: Hashable, Sendable, Codable {
     /// PRs that need you: failing checks, changes requested or unresolved review threads.
     public var pullsNeedingAttention: Int {
         pulls.count { $0.checks.failed > 0 || $0.review == .changesRequested || $0.unresolvedThreads > 0 }
+    }
+}
+
+/// One fetch of a GitHub source: how many items it brought, against GitHub's own count where GitHub gives one.
+public struct SourceFetch: Hashable, Sendable, Codable {
+    public var fetched: Int
+    /// GitHub's total: a search's `issueCount`; for notifications, the unread ones when every page was read. Nil when
+    /// not known (the cap stopped the notifications before the last page).
+    public var total: Int?
+    /// The cap stopped the fetch before GitHub ran out.
+    public var capped: Bool
+    public var at: Date
+
+    public init(fetched: Int, total: Int?, capped: Bool, at: Date) {
+        self.fetched = fetched
+        self.total = total
+        self.capped = capped
+        self.at = at
+    }
+
+    /// What GitHub has that heed did not fetch: the total less what came, when the total is known.
+    public var dropped: Int { max(0, (total ?? fetched) - fetched) }
+}
+
+/// The last fetch of each source Attention is built from; nil until it was fetched once.
+public struct GitHubFetches: Hashable, Sendable, Codable {
+    /// Unread notifications: `fetched` is how many came, `total` GitHub's unread count when every page was read.
+    public var notifications: SourceFetch?
+    /// The open issues mentioning you, and those assigned to you (the issue searches).
+    public var mentions: SourceFetch?
+    public var assigned: SourceFetch?
+    /// Your open pull requests.
+    public var pulls: SourceFetch?
+
+    public init(
+        notifications: SourceFetch? = nil, mentions: SourceFetch? = nil, assigned: SourceFetch? = nil,
+        pulls: SourceFetch? = nil
+    ) {
+        self.notifications = notifications
+        self.mentions = mentions
+        self.assigned = assigned
+        self.pulls = pulls
     }
 }
 
@@ -153,6 +199,8 @@ public struct Issue: Identifiable, Hashable, Sendable, Codable {
     public var labels: [String]
     public var author: String?
     public var updatedAt: Date
+    /// When it was opened; nil in caches from before heed asked.
+    public var createdAt: Date?
     /// Assigned to you / mentions you. Neither: it is shown because its repo shows all issues.
     public var assigned = false
     public var mentioned = false
@@ -161,8 +209,9 @@ public struct Issue: Identifiable, Hashable, Sendable, Codable {
 
     public init(
         repo: Repo, number: Int, title: String, url: String, body: String, labels: [String], author: String?,
-        updatedAt: Date, assigned: Bool = false, mentioned: Bool = false
+        updatedAt: Date, createdAt: Date? = nil, assigned: Bool = false, mentioned: Bool = false
     ) {
+        self.createdAt = createdAt
         self.assigned = assigned
         self.mentioned = mentioned
         self.repo = repo

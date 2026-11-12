@@ -12,10 +12,20 @@ extension AppModel {
         return Set(sessions.flatMap(\.trackedPRs).filter { driving.contains(pilotStatus(for: $0).group) })
     }
 
-    /// Every Attention item, from the domain as it is now (the fake world adds its team mentions).
-    var attentionItems: [AttentionItem] {
+    /// GitHub as Attention reads it: the domain's, plus the fake world's team mentions and old mentions.
+    var attentionGitHub: GitHubState {
         var state = github
-        if isFixture { state.inbox += Fixtures.attentionInbox }
+        if isFixture {
+            state.inbox += Fixtures.attentionInbox
+            state.issues += Fixtures.attentionOldIssues
+            if state.fetches == GitHubFetches() { state.fetches = Fixtures.attentionFetches(state) }
+        }
+        return state
+    }
+
+    /// Every Attention item, from the domain as it is now.
+    var attentionItems: [AttentionItem] {
+        let state = attentionGitHub
         let titles = Dictionary(goals.snapshot.goals.map { ($0.id, $0.title) }) { first, _ in first }
         return AttentionFeed.items(
             github: state, sessions: sessions, details: attention.details, pilotDriving: pilotDriving,
@@ -46,6 +56,24 @@ extension AppModel {
     }
 
     var attentionCounts: [AttentionFilter: Int] { AttentionRanking.counts(attentionEntries, now: Clock.now) }
+
+    /// What Attention has of each source, against what GitHub says: the line at the foot of the list.
+    var attentionCoverage: AttentionCoverage {
+        AttentionCoverage.of(github: attentionGitHub, entries: attentionEntries, now: Clock.now)
+    }
+
+    /// `:attention.coverage`: the sources, one line each, with how many came, where they went, and when.
+    func showAttentionCoverage() {
+        let coverage = attentionCoverage
+        ask(Confirmation(
+            title: coverage.mismatch ? "Attention is missing some of what GitHub has" : "What Attention has",
+            lines: coverage.table(now: Clock.now) + [
+                "Heed reads every unread notification up to \(GitHub.notificationCap), keeps read ones 30 days, "
+                    + "and \(GitHub.issueSearchCap) issues per search, newest first",
+            ],
+            accept: "Sync now", cancel: "Close", destructive: false
+        ) { [weak self] in self?.perform(CommandInvocation(name: "github.sync")) })
+    }
 
     /// The row under the cursor.
     var attentionSelected: AttentionEntry? {

@@ -77,11 +77,12 @@ case-insensitively.
 
 | Input | Matches |
 |---|---|
-| `mention` | You or one of your teams was @-mentioned |
-| `user:me` | You yourself were mentioned (`mention user:me`) |
+| `mention` | You or one of your teams was @-mentioned, [mentions from before](attention.md#mentioned-before) included |
+| `user:me` | You yourself were mentioned, and lately (`mention user:me`): a mention from before does not match, so `mention user:me boost 3` leaves the old ones folded |
 | `team:acme/docs-eng` | It came through that team: the team mentioned, or asked to review. `team:?` matches a team mention whose team heed could not work out |
 | `review` | A review was requested; `requested:me` of you yourself, `requested:team` of one of your teams |
-| `assigned`, `ci`, `mine`, `changes`, `threads`, `mergeable`, `comment`, `subscribed`, `watching` | The reason it is there: assigned to you, CI failed, your PR, changes requested, unresolved threads, ready to merge (with merging off), ... |
+| `assigned` | Assigned to you, assignments from before included |
+| `ci`, `mine`, `changes`, `threads`, `mergeable`, `comment`, `subscribed`, `watching` | The reason it is there: CI failed, your PR, changes requested, unresolved threads, ready to merge (with merging off), ... |
 | `agent blocked\|asking\|limited` | An agent in one of those states; `agent` alone, any agent |
 | `proposals` | A goal with changes to its `GOAL.md` waiting for you ([Goals](../goals/items.md#in-attention)) |
 | `author maria`, `author me` | Who opened it |

@@ -338,6 +338,7 @@ This page is generated from the code (`mise run shots`).
 | `attention.session` | `gS` (attention), `gS` (swarmask) | go to the item's session |
 | `attention.filter` `[filter]` | `t` (attention), `t` (swarmask) | next Attention filter, or the one named |
 | `attention.sort` | `T` (attention), `T` (swarmask) | Attention: recent first, or weight then recent |
+| `attention.coverage` |  | what Attention has of each source against what GitHub says, and where it went |
 | `issues.repo.next` | `<Tab>` (issues) | next repo in the Issues repo column |
 | `issues.repo.prev` | `<S-Tab>` (issues) | previous repo in the Issues repo column |
 | `issues.repo` `[name]` |  | show one repo's issues (no name: every repo) |

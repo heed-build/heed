@@ -274,6 +274,7 @@ public enum MenuBar {
                     ("Done", "attention.done"), ("Snooze…", "attention.snooze"), ("Mute thread", "attention.mute"),
                     ("Draft a reply…", "attention.reply"), ("Go to its session", "attention.session"),
                     ("Next filter", "attention.filter"), ("Sort", "attention.sort"),
+                    ("What Attention has…", "attention.coverage"),
                 ], in: ["attention"]),
                 scoped("In the Inbox and Issues", [
                     ("Start a session from it", "items.start"), ("Add it to this session", "items.add"),

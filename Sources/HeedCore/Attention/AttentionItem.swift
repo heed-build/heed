@@ -46,11 +46,23 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case yourPR
     /// An open issue in a repo whose issues you watch (`[repos.x] issues = "all"`): the Issues filter lists it.
     case watching
+    /// An open issue the search says mentions you, or is assigned to you, with no notification saying so and opened
+    /// more than 14 days ago: an old ask, listed under Tagged and Issues and folded out of Needs me.
+    case mentionedBefore
+    case assignedBefore
     case subscribed
     case other
 
-    /// Reasons that alone do not put an item in the feed: they keep it listed under My PRs or Issues.
-    public var passive: Bool { self == .yourPR || self == .watching }
+    /// Reasons that alone do not put an item in the feed: they keep it listed under My PRs, Issues or Tagged.
+    public var passive: Bool { Self.passiveReasons.contains(self) }
+
+    static let passiveReasons: Set<AttentionReason> = [.yourPR, .watching, .mentionedBefore, .assignedBefore]
+
+    /// Mentioned or assigned before: folded, and counted at the foot of Attention.
+    public var before: Bool { self == .mentionedBefore || self == .assignedBefore }
+
+    /// How long a search-only mention or assignment still counts as a fresh one (from when the issue was opened).
+    public static let freshMention: TimeInterval = 14 * 86400
 
     /// A few words: `tagged you`, `review requested`, `agent blocked`, ...
     public var text: String {
@@ -80,6 +92,8 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         case .goalMirror: "from GitHub"
         case .yourPR: "your PR"
         case .watching: "watching"
+        case .mentionedBefore: "mentioned before"
+        case .assignedBefore: "assigned before"
         case .subscribed: "subscribed"
         case .other: "activity"
         }
@@ -100,6 +114,9 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         default: .other
         }
     }
+
+    /// A notification reason that asks something of you, and so stays once read: a mention, a review, an assignment.
+    public var asks: Bool { [.mentioned, .teamMention, .reviewRequested, .assigned].contains(self) }
 
     public static func < (lhs: AttentionReason, rhs: AttentionReason) -> Bool {
         allCases.firstIndex(of: lhs)! < allCases.firstIndex(of: rhs)!
@@ -144,13 +161,16 @@ public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
     public var session: String?
     /// Who spoke last in the thread, when known: whose turn it is.
     public var lastCommenter: String?
+    /// Who did what in the thread lately, from its details, when they are fetched for its last update: what tells
+    /// someone else's activity from yours or a bot's (`AttentionActivity`).
+    public var activity: ThreadActivity?
 
     public init(
         id: String, kind: Kind, repo: Repo?, number: Int?, title: String, url: String?,
         reasons: Set<AttentionReason>, teams: Set<String> = [], updatedAt: Date, notificationID: String? = nil,
         unread: Bool = false, author: String? = nil, authorIsBot: Bool = false, labels: [String] = [],
         isDraft: Bool? = nil, size: Int? = nil, branch: String? = nil, agentState: AgentState? = nil,
-        session: String? = nil, lastCommenter: String? = nil
+        session: String? = nil, lastCommenter: String? = nil, activity: ThreadActivity? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -172,6 +192,7 @@ public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
         self.agentState = agentState
         self.session = session
         self.lastCommenter = lastCommenter
+        self.activity = activity
     }
 
     /// The id of an issue or PR thread: one per number in a repo (issues and PRs share numbers).
@@ -228,12 +249,29 @@ public struct ThreadDetail: Hashable, Sendable, Codable {
         public var author: String
         public var text: String
         public var at: Date
+        /// A GitHub App or bot account wrote it.
+        public var isBot: Bool
 
-        public init(author: String, text: String, at: Date) {
+        public init(author: String, text: String, at: Date, isBot: Bool = false) {
             self.author = author
             self.text = text
             self.at = at
+            self.isBot = isBot
         }
+
+        private enum CodingKeys: String, CodingKey { case author, text, at, isBot }
+
+        /// Details from before heed asked who is a bot still load.
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            author = try container.decode(String.self, forKey: .author)
+            text = try container.decode(String.self, forKey: .text)
+            at = try container.decode(Date.self, forKey: .at)
+            isBot = try container.decodeIfPresent(Bool.self, forKey: .isBot) ?? false
+        }
+
+        /// A bot by its account type, or by its login (`dependabot[bot]`).
+        public var byBot: Bool { isBot || author.hasSuffix("[bot]") }
     }
 
     public var url: String
@@ -290,11 +328,12 @@ public struct AttentionMark: Hashable, Sendable, Codable {
         self.mutedAt = mutedAt
     }
 
-    /// Whether it keeps `item` out of the feed at `now`: muted; snoozed and not yet due; done and nothing since.
+    /// Whether it keeps `item` out of the feed at `now`: muted; snoozed and not yet due; done and nothing new since
+    /// (`AttentionActivity.isNew`: your own comments and pushes, and bots, are not new).
     public func hides(_ item: AttentionItem, now: Date) -> Bool {
         if mutedAt != nil { return true }
         if let snoozedUntil, snoozedUntil > now { return true }
-        if let doneAt, item.updatedAt <= doneAt { return true }
+        if let doneAt, !AttentionActivity.isNew(item, since: doneAt) { return true }
         return false
     }
 }

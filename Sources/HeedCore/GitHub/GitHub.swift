@@ -8,6 +8,8 @@ public enum GitHub {
         public var value: Value
         /// Items GitHub withheld (SAML).
         public var hidden: Int
+        /// The sources it fetched, against what GitHub says it has.
+        public var fetches = GitHubFetches()
     }
 
     public struct Failure: Error, CustomStringConvertible {
@@ -32,7 +34,9 @@ public enum GitHub {
     ) async throws -> GitHubState {
         let full = parts == Set(GitHubPart.allCases)
         async let viewer = fetch(full || previous.viewer == nil) { try await viewer(caller: caller) }
-        async let inbox = fetch(parts.contains(.inbox)) { try await notifications(caller: caller) }
+        async let inbox = fetch(parts.contains(.inbox)) { try await notifications(
+            previous: previous.inbox, lastFetch: previous.fetches.notifications?.at, now: now, caller: caller
+        ) }
         async let pulls = fetch(parts.contains(.pulls)) { try await pullRequests(tracked: tracked, caller: caller) }
         async let issues = fetch(parts.contains(.issues)) { try await self.issues(
             rules: issueRules,
@@ -58,17 +62,25 @@ public enum GitHub {
         }
         var teams = previous.teams
         var mentions = previous.teamMentions
-        var inboxItems = fetchedInbox ?? previous.inbox
+        var inboxItems = fetchedInbox?.value ?? previous.inbox
+        var fetches = previous.fetches
         if let fetchedInbox {
             (teams, mentions) = await attributeTeams(
-                inbox: fetchedInbox, teams: teams, cache: mentions, refresh: refreshTeams, now: now, caller: caller
+                inbox: fetchedInbox.value, teams: teams, cache: mentions, refresh: refreshTeams, now: now,
+                caller: caller
             )
-            inboxItems = mentions.applied(to: fetchedInbox)
+            inboxItems = mentions.applied(to: fetchedInbox.value)
+            fetches.notifications = fetchedInbox.fetches.notifications
         }
+        if let fetchedIssues {
+            fetches.mentions = fetchedIssues.fetches.mentions
+            fetches.assigned = fetchedIssues.fetches.assigned
+        }
+        if let fetchedPulls { fetches.pulls = fetchedPulls.fetches.pulls }
         return GitHubState(
             viewer: login, inbox: inboxItems, issues: fetchedIssues?.value ?? previous.issues,
             pulls: fetchedPulls?.value ?? previous.pulls, syncedAt: now, status: status, teams: teams,
-            teamMentions: mentions
+            teamMentions: mentions, fetches: fetches
         )
     }
 
@@ -84,13 +96,91 @@ public enum GitHub {
         return result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    public static func notifications(caller: String) async throws -> [InboxItem] {
+    /// How many notifications one read of them takes at most (ten pages of 50, GitHub's largest page).
+    public static let notificationCap = 500
+    /// How far back the first fetch reads threads that are read already; later ones read since the last fetch.
+    public static let firstReadWindow: TimeInterval = 14 * 86400
+    /// How far before the last fetch a `since=` starts, so nothing updated while it ran falls between two.
+    static let sinceMargin: TimeInterval = 5 * 60
+
+    /// The notifications, merged into `previous`: every unread one (each page, up to the cap), and the threads
+    /// updated since the last fetch, read or not (`all=true&since=`), so a thread read elsewhere stays, unread false,
+    /// instead of vanishing. Read threads older than Attention's 30 days drop out.
+    public static func notifications(
+        previous: [InboxItem] = [], lastFetch: Date? = nil, now: Date = Date(), caller: String
+    ) async throws -> Fetched<[InboxItem]> {
+        let unread = try await pages(cap: notificationCap) { page in
+            try await notificationPage("notifications?per_page=50&page=\(page)", page: page, caller: caller)
+        }
+        let since = (lastFetch?.addingTimeInterval(-sinceMargin) ?? now.addingTimeInterval(-firstReadWindow))
+            .formatted(.iso8601)
+        let recent = try await pages(cap: notificationCap) { page in
+            try await notificationPage(
+                "notifications?all=true&since=\(since)&per_page=50&page=\(page)", page: page, caller: caller
+            )
+        }
+        if unread.capped || recent.capped {
+            NSLog("heed: notifications stopped at the cap of \(notificationCap); older ones were not read")
+        }
+        let inbox = mergeNotifications(
+            previous: previous, unread: unread.items, unreadComplete: !unread.capped, recent: recent.items, now: now
+        )
+        let fetch = SourceFetch(
+            fetched: unread.items.count, total: unread.capped ? nil : unread.items.count, capped: unread.capped,
+            at: now
+        )
+        return Fetched(value: inbox, hidden: 0, fetches: GitHubFetches(notifications: fetch))
+    }
+
+    private static func notificationPage(_ path: String, page: Int, caller: String) async throws -> [InboxItem] {
         let result = try await gh(
-            ["api", "notifications?per_page=50"], operation: "GET notifications", timeout: .seconds(30),
-            caller: caller, items: { ((try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [Any])?.count }
+            ["api", path], operation: "GET notifications", variables: page > 1 ? ["page": "\(page)"] : [:],
+            timeout: .seconds(30), caller: caller,
+            items: { ((try? JSONSerialization.jsonObject(with: Data($0.utf8))) as? [Any])?.count }
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return parseNotifications(Data(result.stdout.utf8))
+    }
+
+    /// Reads pages 1, 2, ... until one comes back short of `perPage`, or `cap` items are in: what came, and whether
+    /// the cap stopped it (the last page was full, so GitHub may have more).
+    static func pages<T>(
+        perPage: Int = 50, cap: Int, _ page: (Int) async throws -> [T]
+    ) async throws -> (items: [T], capped: Bool) {
+        var items: [T] = []
+        var number = 1
+        while true {
+            let batch = try await page(number)
+            items += batch
+            if batch.count < perPage { return (items, false) }
+            if items.count >= cap { return (Array(items.prefix(cap)), true) }
+            number += 1
+        }
+    }
+
+    /// `previous` brought up to date: the threads fetched replace what heed had; when `unread` is every unread
+    /// thread GitHub has (the cap did not stop it), a known thread not among them was read elsewhere and stays, read.
+    /// Read threads not updated within `retention` drop out; unread ones stay whatever their age.
+    static func mergeNotifications(
+        previous: [InboxItem], unread: [InboxItem], unreadComplete: Bool, recent: [InboxItem], now: Date,
+        retention: TimeInterval = AttentionStore.retention
+    ) -> [InboxItem] {
+        var byID = Dictionary(previous.map { ($0.id, $0) }) { _, last in last }
+        if unreadComplete {
+            let ids = Set(unread.map(\.id))
+            for id in byID.keys where !ids.contains(id) {
+                byID[id]?.unread = false
+            }
+        }
+        for item in recent + unread {
+            var item = item
+            // Teams are attributed once per thread, after the fetch: keep what was worked out.
+            if item.teams.isEmpty, let known = byID[item.id] { item.teams = known.teams }
+            byID[item.id] = item
+        }
+        let cutoff = now.addingTimeInterval(-retention)
+        return byID.values.filter { $0.unread || $0.updatedAt >= cutoff }
+            .sorted { $0.updatedAt == $1.updatedAt ? $0.id < $1.id : $0.updatedAt > $1.updatedAt }
     }
 
     public static func pullRequests(tracked: [PullRef], caller: String) async throws -> Fetched<[PullRequest]> {
@@ -100,6 +190,10 @@ public enum GitHub {
             caller: caller
         )
         var (pulls, hidden) = parsePullSearch(mine)
+        let page = searchPage(mine)
+        let fetch = SourceFetch(
+            fetched: pulls.count, total: page.total, capped: (page.total ?? 0) > pulls.count, at: Date()
+        )
         let missing = tracked.filter { ref in !pulls.contains { $0.ref == ref } }
         if !missing.isEmpty {
             let data = try await graphql(
@@ -112,33 +206,82 @@ public enum GitHub {
             pulls += extra
             hidden += extraHidden
         }
-        return Fetched(value: pulls.sorted { $0.updatedAt > $1.updatedAt }, hidden: hidden)
+        return Fetched(
+            value: pulls.sorted { $0.updatedAt > $1.updatedAt }, hidden: hidden,
+            fetches: GitHubFetches(pulls: fetch)
+        )
     }
+
+    /// How many issues one search reads at most (four pages of 50), newest update first.
+    public static let issueSearchCap = 200
 
     /// Issues assigned to you or mentioning you, anywhere, plus every open issue in the repos `rules` shows all of.
     public static func issues(rules: IssueRules, local: [Repo], caller: String) async throws -> Fetched<[Issue]> {
         let base = "is:open is:issue archived:false"
         async let assigned = search("\(base) assignee:@me", caller: caller)
         async let mentioned = search("\(base) mentions:@me", caller: caller)
-        var watched: [([Issue], Int)] = []
+        var watched: [SearchResult] = []
         for query in watchQueries(base: base, qualifiers: rules.watchQualifiers(local: local)) {
             try await watched.append(search(query, caller: caller))
         }
-        let (mine, mineHidden) = try await assigned
-        let (mentions, mentionsHidden) = try await mentioned
+        let mine = try await assigned
+        let mentions = try await mentioned
         let merged = mergeIssues(
-            assigned: mine, mentioned: mentions,
-            watched: watched.flatMap(\.0).filter { rules.visibility($0.repo) == .all }
+            assigned: mine.issues, mentioned: mentions.issues,
+            watched: watched.flatMap(\.issues).filter { rules.visibility($0.repo) == .all }
         )
-        return Fetched(value: merged, hidden: mineHidden + mentionsHidden + watched.map(\.1).reduce(0, +))
+        let now = Date()
+        return Fetched(
+            value: merged, hidden: mine.hidden + mentions.hidden + watched.map(\.hidden).reduce(0, +),
+            fetches: GitHubFetches(mentions: mentions.fetch(at: now), assigned: mine.fetch(at: now))
+        )
     }
 
-    private static func search(_ query: String, caller: String) async throws -> ([Issue], Int) {
-        try await parseIssueSearch(graphql(
-            issueSearchQuery, operation: "issueSearch",
-            variables: ["q": "\(query) sort:updated-desc"],
-            caller: caller
-        ))
+    struct SearchResult {
+        var issues: [Issue] = []
+        var hidden = 0
+        var total: Int?
+        var capped = false
+
+        func fetch(at date: Date) -> SourceFetch {
+            SourceFetch(fetched: issues.count, total: total, capped: capped, at: date)
+        }
+    }
+
+    /// One issue search, page after page (`after:` the last cursor) up to `cap`, newest update first.
+    static func search(_ query: String, cap: Int = issueSearchCap, caller: String) async throws -> SearchResult {
+        try await searchPages(cap: cap) { cursor in
+            var variables = ["q": "\(query) sort:updated-desc"]
+            if let cursor { variables["after"] = cursor }
+            return try await graphql(issueSearchQuery, operation: "issueSearch", variables: variables, caller: caller)
+        }
+    }
+
+    /// Asks `page` for the first page, then for the one after each cursor, until there is none or `cap` issues are in.
+    static func searchPages(cap: Int, _ page: (String?) async throws -> Data) async throws -> SearchResult {
+        var result = SearchResult()
+        var cursor: String?
+        repeat {
+            let data = try await page(cursor)
+            let (issues, hidden) = parseIssueSearch(data)
+            let info = searchPage(data)
+            result.issues += issues
+            result.hidden += hidden
+            result.total = info.total ?? result.total
+            cursor = info.next
+        } while cursor != nil && result.issues.count < cap
+        result.capped = cursor != nil
+        result.issues = Array(result.issues.prefix(cap))
+        return result
+    }
+
+    /// A search answer's `issueCount`, and the cursor of the next page when there is one.
+    static func searchPage(_ data: Data) -> (total: Int?, next: String?) {
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let search = (json?["data"] as? [String: Any])?["search"] as? [String: Any]
+        let info = search?["pageInfo"] as? [String: Any]
+        let next = info?["hasNextPage"] as? Bool == true ? info?["endCursor"] as? String : nil
+        return (search?["issueCount"] as? Int, next)
     }
 
     /// GitHub caps a search query at 256 characters, so qualifiers are split over several queries (at most 8).
@@ -357,10 +500,10 @@ public enum GitHub {
     }
 
     static func threadDetailsQuery(count: Int) -> String {
-        let comments = "comments(last: 3) { nodes { author { login } bodyText createdAt } }"
+        let comments = "comments(last: 3) { nodes { author { __typename login } bodyText createdAt } }"
         let common = "url updatedAt author { __typename login } labels(first: 10) { nodes { name } } bodyText \(comments)"
         let fields = "... on Issue { \(common) } ... on PullRequest { \(common) isDraft additions deletions headRefName "
-            + "reviews(last: 3) { nodes { author { login } bodyText state submittedAt } } }"
+            + "reviews(last: 3) { nodes { author { __typename login } bodyText state submittedAt } } }"
         let variables = (0 ..< count).map { "$u\($0): URI!" }.joined(separator: ", ")
         let lookups = (0 ..< count).map { "r\($0): resource(url: $u\($0)) { \(fields) }" }.joined(separator: " ")
         return "query(\(variables)) { \(lookups) }"
@@ -380,13 +523,17 @@ public enum GitHub {
             func entries(_ key: String, at dateKey: String) -> [ThreadDetail.Comment] {
                 (((node[key] as? [String: Any])?["nodes"] as? [Any]) ?? []).compactMap { value in
                     guard let entry = value as? [String: Any] else { return nil }
-                    let login = (entry["author"] as? [String: Any])?["login"] as? String ?? "ghost"
+                    let author = entry["author"] as? [String: Any]
+                    let login = author?["login"] as? String ?? "ghost"
                     var text = (entry["bodyText"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                     if text.isEmpty, let state = entry["state"] as? String {
                         text = state.lowercased().replacingOccurrences(of: "_", with: " ")
                     }
                     guard !text.isEmpty else { return nil }
-                    return ThreadDetail.Comment(author: login, text: text, at: date(entry[dateKey] as? String))
+                    return ThreadDetail.Comment(
+                        author: login, text: text, at: date(entry[dateKey] as? String),
+                        isBot: author?["__typename"] as? String == "Bot"
+                    )
                 }
             }
             let comments = (entries("comments", at: "createdAt") + entries("reviews", at: "submittedAt"))
@@ -712,7 +859,9 @@ public enum GitHub {
     """
 
     static let pullSearchQuery = """
-    query($q: String!) { search(query: $q, type: ISSUE, first: 50) { nodes { ... on PullRequest { \(pullFields) } } } }
+    query($q: String!) { search(query: $q, type: ISSUE, first: 50) { issueCount nodes { ... on PullRequest { \(
+        pullFields
+    ) } } } }
     """
 
     /// Titles and states of the issues sessions link to, at most 50 a call. A number that turns out to be a PR is left
@@ -765,8 +914,10 @@ public enum GitHub {
     }
 
     static let issueSearchQuery = """
-    query($q: String!) { search(query: $q, type: ISSUE, first: 50) { nodes { ... on Issue {
+    query($q: String!, $after: String) { search(query: $q, type: ISSUE, first: 50, after: $after) {
+      issueCount pageInfo { hasNextPage endCursor } nodes { ... on Issue {
       number title url bodyText updatedAt repository { nameWithOwner } author { login } labels(first: 10) { nodes { name } }
+      createdAt
     } } } }
     """
 
@@ -1102,7 +1253,8 @@ public enum GitHub {
                 repo: repo, number: number, title: node["title"] as? String ?? "", url: node["url"] as? String ?? "",
                 body: String((node["bodyText"] as? String ?? "").prefix(4000)), labels: labels,
                 author: (node["author"] as? [String: Any])?["login"] as? String,
-                updatedAt: date(node["updatedAt"] as? String)
+                updatedAt: date(node["updatedAt"] as? String),
+                createdAt: (node["createdAt"] as? String).map { date($0) }
             )
         }
         return (issues, hiddenCount(json))

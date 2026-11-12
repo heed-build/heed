@@ -188,9 +188,13 @@ struct AttentionFeedTests {
         #expect(AttentionMark(snoozedUntil: now.addingTimeInterval(60)).hides(item, now: now))
         #expect(!AttentionMark(snoozedUntil: ago(1)).hides(item, now: now))
         #expect(AttentionMark(doneAt: ago(5)).hides(item, now: now))
-        // Something happened after you were done: back.
-        #expect(!AttentionMark(doneAt: ago(20)).hides(item, now: now))
-        #expect(AttentionMark(doneAt: ago(10)).hides(item, now: now))
+        // Someone else did something after you were done: back.
+        var answered = item
+        answered.activity = ThreadActivity(others: ago(10))
+        #expect(!AttentionMark(doneAt: ago(20)).hides(answered, now: now))
+        #expect(AttentionMark(doneAt: ago(10)).hides(answered, now: now))
+        // Your own: still done.
+        #expect(AttentionMark(doneAt: ago(20)).hides(item, now: now))
     }
 
     @Test func theDigestIsTheLastThreeCommentsOneLineEach() {

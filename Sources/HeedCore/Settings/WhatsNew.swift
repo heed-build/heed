@@ -79,6 +79,13 @@ public struct WhatsNewContent: Sendable {
 public enum WhatsNew {
     /// Every feature entry, newest version first. Written in the docs' voice: what you can do now, in a line.
     public static let features: [WhatsNewFeature] = [
+        // 0.39: Attention's redesign.
+        WhatsNewFeature(
+            "0.39.0", "Attention says what it has",
+            "Every unread notification and read ones for 30 days, old mentions folded, done until someone else acts; "
+                + "a line at the foot says how much of GitHub's it has, :attention.coverage per source.",
+            showMe: .command("attention.coverage")
+        ),
         // 0.37: the Settings redesign, and what merged alongside it.
         WhatsNewFeature(
             "0.37.0", "Settings as a tree",

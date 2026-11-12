@@ -724,6 +724,10 @@ public enum Commands {
         .init("attention.session", "go to the item's session", .selection),
         .init("attention.filter", "next Attention filter, or the one named", .selection, arguments: "[filter]"),
         .init("attention.sort", "Attention: recent first, or weight then recent", .selection),
+        .init(
+            "attention.coverage", "what Attention has of each source against what GitHub says, and where it went",
+            .selection
+        ),
         .init("issues.repo.next", "next repo in the Issues repo column", .selection),
         .init("issues.repo.prev", "previous repo in the Issues repo column", .selection),
         .init("issues.repo", "show one repo's issues (no name: every repo)", .selection, arguments: "[name]"),

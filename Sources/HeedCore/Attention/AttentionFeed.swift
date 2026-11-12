@@ -9,22 +9,28 @@ public enum AttentionFeed {
     /// - `pilotDriving`: PRs the pilot is getting green; their failing CI is the pilot's, so it is no reason here
     ///   (the PR shows under Watching), unless it stalls and leaves the set.
     /// - `readyToMerge`: PRs that meet every merge requirement while get it merged is off for them (`MergeCandidate`).
+    /// - A notification you have read counts only while it asks something of you (a mention, a review request, an
+    ///   assignment): the rest left when you read them, wherever you read them.
+    /// - An issue the search says mentions you or is assigned to you is a fresh mention or assignment when it was
+    ///   opened within 14 days, else mentioned (assigned) before: folded, unless a notification says it is new.
     public static func items(
         github: GitHubState, sessions: [Session], details: [String: ThreadDetail] = [:],
-        pilotDriving: Set<PullRef> = [], readyToMerge: Set<PullRef> = [], goals: [GoalNotice] = []
+        pilotDriving: Set<PullRef> = [], readyToMerge: Set<PullRef> = [], goals: [GoalNotice] = [],
+        now: Date = Clock.now
     ) -> [AttentionItem] {
         var byID: [String: AttentionItem] = [:]
         func add(_ item: AttentionItem) {
             byID[item.id] = byID[item.id].map { merged($0, item) } ?? item
         }
 
-        for note in github.inbox {
+        for note in github.inbox where note.unread || AttentionReason(notification: note.reason).asks {
             add(item(note))
         }
         for issue in github.issues {
             var reasons: Set<AttentionReason> = []
-            if issue.assigned { reasons.insert(.assigned) }
-            if issue.mentioned { reasons.insert(.mentioned) }
+            let fresh = now.timeIntervalSince(issue.createdAt ?? issue.updatedAt) < AttentionReason.freshMention
+            if issue.assigned { reasons.insert(fresh ? .assigned : .assignedBefore) }
+            if issue.mentioned { reasons.insert(fresh ? .mentioned : .mentionedBefore) }
             if reasons.isEmpty { reasons.insert(.watching) }
             add(AttentionItem(
                 id: AttentionItem.threadID(issue.repo, issue.number), kind: .issue, repo: issue.repo,
@@ -63,12 +69,17 @@ public enum AttentionFeed {
 
         return byID.values.map { item in
             var item = item
+            // A notification that says so is the fresh mention or assignment; the search's older one goes.
+            if item.reasons.contains(.mentioned) { item.reasons.remove(.mentionedBefore) }
+            if item.reasons.contains(.assigned) { item.reasons.remove(.assignedBefore) }
             if item.url == nil, item.kind == .pr || item.kind == .issue, let repo = item.repo,
                let number = item.number
             {
                 item.url = "https://github.com/\(repo.slug)/\(item.kind == .pr ? "pull" : "issues")/\(number)"
             }
-            if let url = item.url?.lowercased(), let detail = details[url] { apply(detail, to: &item) }
+            if let url = item.url?.lowercased(), let detail = details[url] {
+                apply(detail, to: &item, viewer: github.viewer)
+            }
             if item.session == nil { item.session = session(for: item, in: sessions) }
             return item
         }.sorted { $0.updatedAt == $1.updatedAt ? $0.id < $1.id : $0.updatedAt > $1.updatedAt }
@@ -128,13 +139,14 @@ public enum AttentionFeed {
         return item
     }
 
-    static func apply(_ detail: ThreadDetail, to item: inout AttentionItem) {
+    static func apply(_ detail: ThreadDetail, to item: inout AttentionItem, viewer: String? = nil) {
         item.author = item.author ?? detail.author
         item.authorIsBot = item.authorIsBot || detail.authorIsBot
         if item.labels.isEmpty { item.labels = detail.labels }
         item.isDraft = item.isDraft ?? detail.isDraft
         item.size = item.size ?? detail.size
         item.lastCommenter = detail.lastCommenter
+        item.activity = ThreadActivity.of(detail, viewer: viewer, updatedAt: item.updatedAt)
     }
 
     /// A session that tracks the item's PR, or works on its issue.
@@ -180,7 +192,7 @@ public enum AttentionFilter: String, CaseIterable, Hashable, Sendable {
     public func matches(_ item: AttentionItem) -> Bool {
         switch self {
         case .needsMe: item.wantsYou
-        case .tagged: !item.reasons.isDisjoint(with: [.mentioned, .teamMention])
+        case .tagged: !item.reasons.isDisjoint(with: [.mentioned, .teamMention, .mentionedBefore])
         case .reviews: item.reasons.contains(.reviewRequested)
         case .myPRs: item.reasons.contains(.yourPR)
         case .agents: item.kind == .agent

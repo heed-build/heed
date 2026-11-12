@@ -14,8 +14,16 @@ struct AgentsPage: View {
 
     var body: some View {
         let counts = SettingsCatalog.counts(in: model.config, problems: model.configProblems)
-        let agents = model.config.work.agents
-        let shown = selected == Self.every || agents.contains { $0.name == selected } ? selected : Self.every
+        let onlyModified = model.settingsFilter.onlyModified
+        // Only modified keeps the agents with a change; Every agent holds none of its own.
+        let agents = model.config.work.agents.filter { agent in
+            !onlyModified || counts.isChanged(.target(.agents, .agent(agent.name)))
+        }
+        let shown = if agents.contains(where: { $0.name == selected }) || (selected == Self.every && !onlyModified) {
+            selected
+        } else {
+            onlyModified ? agents.first?.name ?? Self.every : Self.every
+        }
         HStack(alignment: .top, spacing: 0) {
             ScopeList(query: $query, items: items(agents, counts: counts), selected: shown) { selected = $0 }
                 .frame(width: ScopeList.width)
@@ -23,6 +31,8 @@ struct AgentsPage: View {
             Group {
                 if let agent = agents.first(where: { $0.name == shown }) {
                     AgentDetail(agent: agent, counts: counts)
+                } else if onlyModified {
+                    Text("No agent's settings are modified.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 } else {
                     EveryAgentDetail()
                 }
@@ -47,7 +57,7 @@ struct AgentsPage: View {
     private func items(_ agents: [AgentProfile], counts: SettingsCounts) -> [ScopeList.Item] {
         let words = query.lowercased()
         var items: [ScopeList.Item] = []
-        if words.isEmpty || "every agent".contains(words) {
+        if words.isEmpty || "every agent".contains(words), !model.settingsFilter.onlyModified {
             items.append(.init(
                 id: Self.every, title: "Every agent", leading: .glyph("≡", Theme.fg3),
                 help: "What every agent shares: the default agent, and model calls' switch and limits"
@@ -144,11 +154,14 @@ private struct AgentDetail: View {
                 Text(agent.name).font(Theme.mono(16, weight: .semibold))
                 statusLine(status: status, readiness: readiness, modified: modified)
             }
+            let (tabs, tab) = model.settingsFilter.tabs(SettingsPage.agents.tabs, current: model.agentTab) {
+                counts.isChanged(.tab(.agents, target, $0))
+            }
             SettingsTabStrip(
-                tabs: SettingsPage.agents.tabs, current: model.agentTab,
+                tabs: tabs, current: tab,
                 count: { counts.modified(.tab(.agents, target, $0)) }, pick: { model.agentTab = $0 }
             )
-            switch model.agentTab {
+            switch tab {
             case .modelCalls: AgentModelCalls(agent: agent, status: status)
             default: AgentSessions(agent: agent)
             }

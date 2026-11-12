@@ -224,6 +224,14 @@ public enum Commands {
             arguments: "[page] [tab]"
         ),
         .init(
+            "settings.advanced",
+            "Settings: show or hide the advanced settings (a set or refused one always shows)", .views
+        ),
+        .init(
+            "settings.modified",
+            "Settings: show only what differs from heed's defaults, or every setting again", .views
+        ),
+        .init(
             "inference.setup", "set up heed's model calls and decisions (Settings › Model calls)", .views
         ),
         .init(

@@ -48,8 +48,12 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.err.opacity(0.1)))
                         }
-                        SettingsPageHeader(page: tree.page).id("top")
-                        page(tree.page)
+                        if let kept = tree.kept, !kept.contains(.page(tree.page)) {
+                            NothingModified(page: kept.isEmpty ? nil : tree.page).id("top")
+                        } else {
+                            SettingsPageHeader(page: tree.page).id("top")
+                            page(tree.page).environment(\.settingsPage, tree.page)
+                        }
                     }
                     .padding(24)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -83,6 +87,14 @@ struct SettingsView: View {
         .foregroundStyle(Theme.fg)
         .onAppear { tree.folded = model.settingsFolded.subtracting([.group(tree.page.group)]) }
         .onChange(of: tree.folded) { model.settingsFolded = tree.folded }
+        // Only modified keeps the lines with a change; the page shown moves to one that has one.
+        .onChange(of: model.settingsFilter.onlyModified ? counts.changedNodes : nil, initial: true) { _, kept in
+            tree.kept = kept
+            if let page = tree.keptPage, page != tree.page {
+                tree.show(.page(page))
+                cursor = .page(page)
+            }
+        }
         // `:settings.open agents` turns the window to that page, open or not.
         .onChange(of: model.settingsPage, initial: true) { _, asked in
             if let asked {
@@ -140,6 +152,10 @@ struct SettingsSidebar: View {
                     ForEach(tree.visible, id: \.self) { node in
                         line(node)
                     }
+                    if tree.kept?.isEmpty == true {
+                        Text("Nothing is modified.").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3)
+                            .padding(.horizontal, 8).padding(.vertical, 5)
+                    }
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 12)
@@ -153,6 +169,19 @@ struct SettingsSidebar: View {
             .onKeyPress(.rightArrow) { go(tree.right(cursor)) }
             Theme.line.frame(height: 1)
             VStack(alignment: .leading, spacing: 4) {
+                FootSwitch(
+                    title: "Only modified", isOn: Bindable(model).settingsFilter.onlyModified,
+                    help: "Only what differs from heed's defaults, or that config.toml has and heed refused "
+                        + "(:settings.modified)"
+                )
+                FootSwitch(
+                    title: "Show advanced", isOn: Bindable(model).settingsFilter.showAdvanced,
+                    help: model.settingsFilter.onlyModified
+                        ? "Only modified shows every changed setting, advanced or not"
+                        : "Tuning: timeouts, limits, retention, tool paths, command lines. A set one always shows "
+                        + "(:settings.advanced)"
+                )
+                .disabled(model.settingsFilter.onlyModified)
                 Button("Open config.toml") { NSWorkspace.shared.open(model.configFile) }
                     .buttonStyle(.link)
                     .font(Theme.ui(12.5))
@@ -234,6 +263,46 @@ struct SettingsSidebar: View {
                 Text("!").font(Theme.mono(12, weight: .bold)).foregroundStyle(Theme.err)
                     .help("\(problems) value\(problems == 1 ? "" : "s") config.toml has that heed refused")
             }
+        }
+    }
+}
+
+/// A switch at the foot of the tree: its name left, the switch right.
+private struct FootSwitch: View {
+    let title: String
+    @Binding var isOn: Bool
+    let help: String
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            Text(title).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .toggleStyle(.switch)
+        .controlSize(.mini)
+        .tint(Theme.done)
+        .help(help)
+        .padding(.bottom, 2)
+    }
+}
+
+/// Only modified with nothing modified (on the page asked for, or anywhere): every setting is at heed's default.
+private struct NothingModified: View {
+    @Environment(AppModel.self) private var model
+    /// The page asked for; nil: nothing is modified on any page.
+    let page: SettingsPage?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(page.map { "Nothing on \($0.title) is modified" } ?? "Nothing is modified")
+                .font(Theme.ui(17, weight: .semibold))
+            Text(page == nil
+                ? "Every setting is at heed's default, and config.toml has nothing heed refused."
+                : "Its settings are at heed's defaults; the tree lists the pages with changes.")
+                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+            Button("Show every setting") { model.settingsFilter.onlyModified = false }
+                .buttonStyle(.link)
+                .font(Theme.ui(12.5))
         }
     }
 }

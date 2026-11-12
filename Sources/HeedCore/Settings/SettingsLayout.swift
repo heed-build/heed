@@ -201,20 +201,34 @@ public struct SettingsTree: Equatable, Sendable {
     public var page: SettingsPage
     /// Groups folded, and pages whose sections are folded away.
     public var folded: Set<SettingsNode>
+    /// Only modified's lines (`SettingsCounts.changedNodes`): the tree shows only these; nil shows every line.
+    public var kept: Set<SettingsNode>?
 
-    public init(page: SettingsPage = .general, folded: Set<SettingsNode> = []) {
+    public init(page: SettingsPage = .general, folded: Set<SettingsNode> = [], kept: Set<SettingsNode>? = nil) {
         self.page = page
         self.folded = folded
+        self.kept = kept
     }
 
     /// The lines under a node, folded or not.
     public func children(of node: SettingsNode) -> [SettingsNode] {
-        switch node {
+        let lines: [SettingsNode] = switch node {
         case let .group(group): group.pages.map(SettingsNode.page)
         case let .page(page):
             page == self.page && page.sections.count > 1 ? page.sections.map { .section(page, $0) } : []
         case .section: []
         }
+        return lines.filter(isKept)
+    }
+
+    private func isKept(_ node: SettingsNode) -> Bool { kept?.contains(node) ?? true }
+
+    /// The page shown when Only modified keeps lines: `page` while it holds a change, else the first page that does
+    /// (nil when nothing is changed anywhere).
+    public var keptPage: SettingsPage? {
+        guard let kept else { return page }
+        if kept.contains(.page(page)) { return page }
+        return SettingsPage.allCases.first { kept.contains(.page($0)) }
     }
 
     public func isOpen(_ node: SettingsNode) -> Bool { !folded.contains(node) && !children(of: node).isEmpty }
@@ -224,7 +238,7 @@ public struct SettingsTree: Equatable, Sendable {
         func lines(_ node: SettingsNode) -> [SettingsNode] {
             [node] + (folded.contains(node) ? [] : children(of: node).flatMap(lines))
         }
-        return SettingsGroup.allCases.flatMap { lines(.group($0)) }
+        return SettingsGroup.allCases.map(SettingsNode.group).filter(isKept).flatMap(lines)
     }
 
     /// The line `by` lines from `node` (↑ ↓), kept inside the tree. A page reached is shown.

@@ -82,6 +82,8 @@ public enum MenuBar {
         "feedback.watch": "pilot.watch's former name; PR has Watch",
         "app.quit": "the app menu's Quit Heed (⌘Q)",
         "settings.open": "the app menu's Settings… (⌘,)",
+        "settings.advanced": "Settings' Show advanced switch, at the foot of its tree",
+        "settings.modified": "Settings' Only modified switch, at the foot of its tree",
         "update.check": "the app menu's Check for Updates…",
         "app.activate": "brings the window forward, which clicking the menu bar has already done",
         "swarm.host": "the new swarm form's Where chips, which only that form shows",

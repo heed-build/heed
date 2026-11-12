@@ -58,6 +58,28 @@ from `config.toml`); ↺ is dim on a setting at its default. A value `config.tom
 the reason and a line it would take; heed uses its default meanwhile, and ↺ removes the value. Problems that belong to
 no setting (a syntax error, a key heed no longer reads) show at the top of Settings, as well as in the status bar.
 
+## Show advanced and Only modified
+
+Two switches sit at the foot of the tree, and stay as they are when you quit and reopen heed.
+
+**Show advanced** is off at first: tuning most people never touch (timeouts, limits, retention, tool paths, command
+lines) is hidden, and a card that hides some says how many at its foot, `2 advanced hidden · Show`; **Show** turns the
+switch on, for every page. An advanced setting you changed, or one `config.toml` has a value heed refused for, always
+shows: nothing set or broken is out of sight. The tree's counts include hidden settings.
+
+![Model calls with Show advanced off: the limits card shows the timeout, which is changed, and hides two](../images/shots/configuration/settings-advanced.png)
+
+**Only modified** keeps what differs from heed's defaults, and what heed refused. The tree keeps the groups, pages and
+sections with a change; each page only its changed rows, with the default to compare and ↺; Agents and Orgs & repos
+only the agents, orgs and repos with one; and each tab strip (Agents, Pilot, Orgs & repos) only the tabs that hold one.
+The page's line says how many, and **Reset all** puts all of them back: it asks first, lists the keys, then removes
+them from `config.toml`, as each row's ↺ would. With nothing changed anywhere, the page says so. Show advanced has no
+say while Only modified is on: every change shows, advanced or not.
+
+![Only modified: the tree keeps four pages; Notifications shows its two changes and the refused quiet hours](../images/shots/configuration/settings-modified.png)
+
+`:settings.advanced` and `:settings.modified` flip the switches from anywhere (and open Settings to show it).
+
 ## Agents
 
 The list has **Every agent**, what the agents share (the default agent on General, model calls and their limits on
@@ -127,12 +149,13 @@ link at the foot of Pilot on the tab it was on.
 repo mirrors to (`goals_tracker`), and whether it mirrors from the start (`goals_mirror`); their defaults are
 Goals › GitHub mirror's tracker and **Mirror new goals**. Emptying the tracker field removes the override.
 
-### Only overridden
+### Only modified
 
-**Only overridden** keeps the orgs and repos that override something in the list, and in each tab only the rows
-overridden at the selected one. Tabs with none are dimmed:
+With [Only modified](#show-advanced-and-only-modified) on, the list keeps the orgs and repos that override something
+(or have a value heed refused), the tabs only those holding an override at the selected one, and each tab only its
+overridden rows:
 
-![Only overridden: Get it merged shows acme/docs-toolkit's three overrides; the tabs without one are dimmed](../images/shots/configuration/orgs-repos-only-overridden.png)
+![Only modified: acme/docs-toolkit shows General and Get it merged, with its three merge overrides](../images/shots/configuration/orgs-repos-only-modified.png)
 
 An override a repo inherits from its org is not one of its own: it shows on the org.
 

@@ -258,9 +258,11 @@ enum Shots {
                 """)
             }
         ),
-        // Settings › Decisions & Hunch › Local decisions: screen snapshots on, with the fake world's invented counts.
+        // Settings › Decisions & Hunch › Local decisions: screen snapshots on, with the fake world's invented counts;
+        // advanced settings shown, for how long snapshots are kept.
         Shot(
-            id: "agents/local-decisions", subject: .settings(.decisions), size: CGSize(width: 1180, height: 2150)
+            id: "agents/local-decisions", subject: .settings(.decisions), size: CGSize(width: 1180, height: 2150),
+            prepare: { $0.settingsFilter.showAdvanced = true }
         ),
     ]
 
@@ -727,6 +729,23 @@ enum Shots {
                 model.applyConfig(source: Shots.modifiedConfig)
             }
         ),
+        // Show advanced off: Model calls' limits are advanced, so its card says what it hides; one changed shows.
+        Shot(
+            id: "configuration/settings-advanced", subject: .settings(.modelCalls), size: CGSize(
+                width: 1080,
+                height: 1000
+            ),
+            prepare: { $0.applyConfig(source: Shots.modifiedConfig) }
+        ),
+        // Only modified: the tree keeps the pages with changes, Notifications only its changed rows, one refused.
+        Shot(
+            id: "configuration/settings-modified", subject: .settings(.notifications),
+            size: CGSize(width: 1080, height: 760),
+            prepare: { model in
+                model.applyConfig(source: Shots.modifiedConfig)
+                model.settingsFilter.onlyModified = true
+            }
+        ),
         // Notifications with three settings changed, one of them refused.
         Shot(
             id: "configuration/modified", subject: .settings(.notifications), size: CGSize(width: 1080, height: 860),
@@ -737,9 +756,10 @@ enum Shots {
             id: "configuration/agents", subject: .settings(.agents), size: CGSize(width: 1180, height: 1120),
             prepare: { $0.applyConfig(source: Shots.modifiedConfig) }
         ),
-        // History, tall enough for the call log's retention at its foot.
+        // History with advanced settings shown, tall enough for the call log's retention at its foot.
         Shot(
-            id: "configuration/settings-history", subject: .settings(.history), size: CGSize(width: 1080, height: 1300)
+            id: "configuration/settings-history", subject: .settings(.history), size: CGSize(width: 1080, height: 1300),
+            prepare: { $0.settingsFilter.showAdvanced = true }
         ),
         // Orgs & repos at the Settings window's default width, a shot per tab, and at its minimum width on the longest
         // tab: tall enough for the whole page (the window scrolls it), and nothing may be clipped at the side.
@@ -757,14 +777,15 @@ enum Shots {
             }
         )
     } + [
-        // Only overridden: the list and each tab keep what is overridden, and the tabs with nothing are dimmed.
+        // Only modified on Orgs & repos: the list keeps the orgs and repos that override something, the tabs those
+        // holding an override, each tab its overridden rows.
         Shot(
-            id: "configuration/orgs-repos-only-overridden", subject: .settings(.orgsAndRepos),
+            id: "configuration/orgs-repos-only-modified", subject: .settings(.orgsAndRepos),
             size: CGSize(width: 1180, height: 900),
             prepare: { model in
                 model.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit"))
                 model.orgRepoTab = .merged
-                model.orgRepoOnlyOverridden = true
+                model.settingsFilter.onlyModified = true
             }
         ),
         Shot(
@@ -775,6 +796,8 @@ enum Shots {
             prepare: { model in
                 model.settingsScope = .repo(Fixtures.longNamedRepo)
                 model.orgRepoTab = .merged
+                // Every row, advanced ones too: the longest the tab gets.
+                model.settingsFilter.showAdvanced = true
             }
         ),
         Shot(id: "configuration/settings-hosts", subject: .settings(.hosts), size: CGSize(width: 1080, height: 900)),

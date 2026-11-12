@@ -31,9 +31,11 @@ struct PilotPage: View {
 
     var body: some View {
         let counts = SettingsCatalog.counts(in: model.config, problems: model.configProblems)
-        let tab = SettingsPage.pilot.tabs.contains(model.pilotTab) ? model.pilotTab : .green
+        let (tabs, tab) = model.settingsFilter.tabs(
+            SettingsPage.pilot.tabs, current: SettingsPage.pilot.tabs.contains(model.pilotTab) ? model.pilotTab : .green
+        ) { counts.isChanged(.tab(.pilot, .global, $0)) }
         SettingsTabStrip(
-            tabs: SettingsPage.pilot.tabs, current: tab, count: { counts.modified(.tab(.pilot, .global, $0)) },
+            tabs: tabs, current: tab, count: { counts.modified(.tab(.pilot, .global, $0)) },
             pick: { model.pilotTab = $0 }
         )
         switch tab {
@@ -43,6 +45,12 @@ struct PilotPage: View {
         default: PilotGreen(pilot: model.config.pilot.defaults)
         }
         let orgs = model.config.pilot.orgs.count, repos = model.config.pilot.repos.count
+        if !model.settingsFilter.onlyModified {
+            footer(orgs: orgs, repos: repos, tab: tab)
+        }
+    }
+
+    private func footer(orgs: Int, repos: Int, tab: SettingsTab) -> some View {
         HStack(spacing: 6) {
             Text(orgs + repos == 0
                 ? "No org or repo overrides these."

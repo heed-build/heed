@@ -138,6 +138,8 @@ This page is generated from the code (`mise run shots`).
 | `tools.detect` |  | find git and gh again (login shell PATH, usual places, [tools]) |
 | `app.quit` |  | quit Heed |
 | `settings.open` `[page] [tab]` | `<D-,>` | open Settings, on a page (general, notifications, updates, agents, model-calls, decisions, worktrees, goals, history, github, pilot, orgs, attention, hosts, tools, keys; the old colors, cleanup, inference still work); orgs and pilot take a tab (green, merged, reviews, instructions), agents an agent and a tab (sessions, model-calls) |
+| `settings.advanced` |  | Settings: show or hide the advanced settings (a set or refused one always shows) |
+| `settings.modified` |  | Settings: show only what differs from heed's defaults, or every setting again |
 | `inference.setup` |  | set up heed's model calls and decisions (Settings › Model calls) |
 | `inference.hide` `[always]` |  | hide the title bar's model call setup reminder until the next launch (always: for good) |
 | `hunch.download` `[checkpoint]` |  | download (or resume) Hunch's model, english by default; says its size and license first |

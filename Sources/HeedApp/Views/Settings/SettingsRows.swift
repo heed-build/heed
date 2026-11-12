@@ -13,51 +13,132 @@ struct SectionOffsetsKey: PreferenceKey {
     }
 }
 
-/// The page's title and the line under it.
+/// The page's title and the line under it; under Only modified, how many of its settings are changed and Reset all,
+/// which asks first and then removes their keys from config.toml.
 struct SettingsPageHeader: View {
+    @Environment(AppModel.self) private var model
     let page: SettingsPage
+    @State private var confirming = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(page.title).font(Theme.ui(17, weight: .semibold))
-            Text(page.subtitle).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
-                .fixedSize(horizontal: false, vertical: true)
+            if model.settingsFilter.onlyModified {
+                let changes = SettingsCatalog.changes(on: page, in: model.config, problems: model.configProblems)
+                HStack(spacing: 4) {
+                    Text(Self.summary(changes) + " · showing only those ·").foregroundStyle(Theme.fg2)
+                    Button("Reset all \(changes.count)") { confirming = true }
+                        .buttonStyle(.link)
+                        .disabled(changes.isEmpty)
+                }
+                .font(Theme.ui(12.5))
+                .confirmationDialog(
+                    "Reset \(changes.count) setting\(changes.count == 1 ? "" : "s") on \(page.title)?",
+                    isPresented: $confirming
+                ) {
+                    Button("Reset all \(changes.count)", role: .destructive) {
+                        model.unsetConfig(all: SettingsCatalog.resetPaths(changes))
+                    }
+                } message: {
+                    Text(Self.removing(SettingsCatalog.resetPaths(changes)))
+                }
+            } else {
+                Text(page.subtitle).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+    }
+
+    /// `3 modified`, `2 modified · 1 refused`.
+    static func summary(_ changes: [SettingState]) -> String {
+        let modified = changes.count { $0.isModified }
+        let refused = changes.count { !$0.isModified && !$0.problems.isEmpty }
+        return refused == 0 ? "\(modified) modified" : "\(modified) modified · \(refused) refused"
+    }
+
+    /// What the confirmation says goes: the keys, as config.toml has them.
+    static func removing(_ paths: [[String]]) -> String {
+        let keys = paths.map(SettingsCatalog.keyText)
+        let shown = keys.prefix(8).joined(separator: "\n")
+        let more = keys.count > 8 ? "\nand \(keys.count - 8) more" : ""
+        return "These keys are removed from config.toml, and heed's defaults apply:\n" + shown + more
     }
 }
 
-/// A section of a page: its name, a note under it, then its rows in one card (bg2, a hairline between rows). `bare`
-/// sections hold something else than rows (a list, a status card) and draw no card. The tree scrolls to it by name.
+/// What a line of a card is, for the card: a setting drawn, an advanced one hidden (counted in the card's foot), or
+/// anything else (a note, a status, a button row).
+enum SettingsLine: Equatable {
+    case other, setting, hiddenAdvanced
+}
+
+extension ContainerValues {
+    @Entry var settingsLine: SettingsLine = .other
+}
+
+/// A section of a page: its name, a note under it, then its rows in one card (bg2, a hairline between rows), and when
+/// Show advanced hides some of them, "2 advanced hidden · Show" at its foot. Under Only modified it keeps only its
+/// setting rows, and draws nothing when none is left. `bare` sections hold something else than rows (a list, a
+/// status card) and draw no card; under Only modified one shows only while its section holds a change. The tree
+/// scrolls to it by name.
 struct SettingsCard<Content: View>: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.settingsPage) private var page
     let title: String
     var note: String?
     var bare = false
     @ViewBuilder let content: Content
 
     var body: some View {
+        let onlyModified = model.settingsFilter.onlyModified
+        if bare {
+            if !onlyModified || isChanged {
+                section { content }
+            }
+        } else {
+            Group(subviews: content) { lines in
+                let hidden = lines.count(where: { $0.containerValues.settingsLine == .hiddenAdvanced })
+                let rows = lines.filter { line in
+                    onlyModified ? line.containerValues.settingsLine == .setting
+                        : line.containerValues.settingsLine != .hiddenAdvanced
+                }
+                if !onlyModified || !rows.isEmpty {
+                    section {
+                        VStack(spacing: 0) {
+                            ForEach(rows) { row in
+                                if row.id != rows.first?.id { Theme.line.frame(height: 1) }
+                                row
+                            }
+                            if hidden > 0 {
+                                if !rows.isEmpty { Theme.line.frame(height: 1) }
+                                AdvancedHiddenNote(count: hidden)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Theme.bg2)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+                    }
+                }
+            }
+        }
+    }
+
+    /// A bare section holds a change: by its name on the page shown.
+    private var isChanged: Bool {
+        guard let page else { return false }
+        return SettingsCatalog.counts(in: model.config, problems: model.configProblems)
+            .isChanged(.section(page, title))
+    }
+
+    private func section(@ViewBuilder _ body: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: title).padding(.leading, 2)
-            if let note {
+            if let note, !model.settingsFilter.onlyModified {
                 Text(note).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, 2)
             }
-            if bare {
-                content
-            } else {
-                Group(subviews: content) { rows in
-                    VStack(spacing: 0) {
-                        ForEach(rows) { row in
-                            if row.id != rows.first?.id { Theme.line.frame(height: 1) }
-                            row
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Theme.bg2)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
-                }
-            }
+            body()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .id(title)
@@ -66,6 +147,41 @@ struct SettingsCard<Content: View>: View {
                 key: SectionOffsetsKey.self, value: [title: geometry.frame(in: .named(SettingsView.scrollSpace)).minY]
             )
         })
+    }
+}
+
+/// A card's foot while Show advanced is off: how many of its rows it hides, and Show (which turns the switch on).
+struct AdvancedHiddenNote: View {
+    @Environment(AppModel.self) private var model
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("\(count) advanced hidden ·").foregroundStyle(Theme.fg3)
+            Button("Show") { model.settingsFilter.showAdvanced = true }
+                .buttonStyle(.link)
+                .help("Show advanced settings, on every page (:settings.advanced)")
+        }
+        .font(Theme.ui(12))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+extension EnvironmentValues {
+    /// The page Settings shows, for what its cards look up by section.
+    @Entry var settingsPage: SettingsPage?
+}
+
+extension View {
+    /// A row of a card as the card counts it: drawn, or an advanced one Show advanced hides.
+    @ViewBuilder func settingsLine(_ visibility: SettingVisibility) -> some View {
+        switch visibility {
+        case .shown: containerValue(\.settingsLine, .setting)
+        case .hiddenAdvanced: Color.clear.frame(width: 0, height: 0).containerValue(\.settingsLine, .hiddenAdvanced)
+        case .hidden: EmptyView()
+        }
     }
 }
 
@@ -112,8 +228,12 @@ struct SettingRow<Control: View>: View {
         let entries = ids.compactMap(SettingsCatalog.entry)
         let modified = entries.filter { SettingsCatalog.isModified($0, at: target, in: config) }
         let problems = entries.flatMap { SettingsCatalog.problems(for: $0, at: target, in: model.configProblems) }
-        if SettingsCatalog.isShown(ids[0], at: target, in: config, problems: model.configProblems) {
-            let indent = indented || SettingsCatalog.parents[ids[0]] != nil
+        let visibility = SettingsCatalog.visibility(
+            ids, at: target, in: config, problems: model.configProblems, filter: model.settingsFilter
+        )
+        if visibility == .shown {
+            // Under Only modified the parent may not show: nothing is indented under what is not there.
+            let indent = !model.settingsFilter.onlyModified && (indented || SettingsCatalog.parents[ids[0]] != nil)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .center, spacing: 14) {
                     text(entries, modified: !modified.isEmpty, problems: problems)
@@ -135,6 +255,9 @@ struct SettingRow<Control: View>: View {
                 }
             }
             .opacity(isDimmed ? 0.55 : 1)
+            .settingsLine(.shown)
+        } else {
+            EmptyView().settingsLine(visibility)
         }
     }
 
@@ -312,11 +435,13 @@ struct NumberField: View {
                 .onChange(of: value) { if !focused { text = Self.text(value, places) } }
                 .onSubmit { save(text) }
                 .onChange(of: focused) { if !focused { save(text) } }
-            Text(unit ?? "").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                .lineLimit(1)
-                .fixedSize()
-                .frame(minWidth: unit == nil ? 0 : 30, alignment: .leading)
+            if let unit {
+                Text(unit).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
             Stepper("", value: Binding(get: { value }, set: { write($0) }), in: range, step: step).labelsHidden()
+                .padding(.leading, -4)
         }
     }
 

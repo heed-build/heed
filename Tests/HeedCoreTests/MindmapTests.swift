@@ -581,3 +581,22 @@ struct MindmapLinksTests {
         #expect(!MindmapLinks.of("nav", in: tree, ledger: ledger).contains { $0.target == "work:e1" })
     }
 }
+
+struct MindmapGoalTests {
+    @Test func aCampaignBecomesASuggestionWithItsWorkOnIt() throws {
+        var node = campaign("nav", "Make the docs nav trustworthy")
+        node.intent = "Pages sit where the index says."
+        let one = entry("e1", "spike", files: ["Toc.cs"])
+        let two = entry("e2", "toc", repos: ["acme/docs-toolkit"], decisions: ["Index order wins"])
+        let tree = MindmapTree([
+            node,
+            MindNode.work(one, parent: "nav", now: t0),
+            MindNode.work(two, parent: "nav", now: t0),
+        ])
+        let suggestion = try #require(MindmapGoal.suggestion(for: "work:e2", in: tree, ledger: ["e1": one, "e2": two]))
+        #expect(suggestion.title == "Make the docs nav trustworthy")
+        #expect(Set(suggestion.subjects.map(\.id)) == ["e1", "e2"] && suggestion.repo == "acme/docs-toolkit")
+        #expect(suggestion.terms.first == "Pages sit where the index says.")
+        #expect(MindmapGoal.suggestion(for: "nav", in: MindmapTree([node]), ledger: [:]) == nil)
+    }
+}

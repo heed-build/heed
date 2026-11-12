@@ -166,6 +166,15 @@ extension AppModel {
             Task { await mindmap.change(instance, body) }
         }
         switch command.name {
+        case "mindmap.goal":
+            guard let node, let suggestion = MindmapGoal.suggestion(
+                for: node.id,
+                in: mindmap.shown,
+                ledger: ledger.entries
+            )
+            else { return say("no campaign with work here to make a goal of") }
+            view = .goals
+            createSuggestedGoal(suggestion)
         case "mindmap.link.next", "mindmap.link.prev":
             guard let node else { return }
             let links = MindmapLinks.of(node.id, in: mindmap.shown, ledger: ledger.entries)

@@ -46,6 +46,11 @@ extension SettingsCatalog {
             "New sessions open a shell beside the agent; off is one pane.", since: "0.1.0"
         ) { .bool($0.work.shellSplit) },
         global(
+            "sessions.name_sessions", .general, "Sessions", "Name sessions",
+            "Heed names each session from what it is doing, after its first turn and when it opens a PR; a title "
+                + "you give it stays.", since: "0.37.0"
+        ) { .bool($0.work.nameSessions) },
+        global(
             "sessions.persist", .general, "Sessions", "Persistent panes",
             "Panes run in zmx, so agents keep running when heed quits, restarts or updates, and come back as they "
                 + "were. Auto uses zmx when it is installed and passes its check (Tools).",

@@ -31,6 +31,8 @@ This page is generated from the code (`mise run shots`).
 | `session.import` `[path]` | `Iw` (sessions) | import a worktree Heed does not manage yet as a session |
 | `session.import.path` | `Ip` (sessions) | import the worktree at a path (any repo, anywhere) |
 | `session.pin` | `m` | pin / unpin session |
+| `session.rename` `[title]` | `R` (sessions) | give the session your title, which heed keeps (no title: the command line opens with it) |
+| `session.autoname` |  | let heed name the session again, from what it is doing |
 | `session.back` | `''` | back to previous session |
 | `session.agent` | `<CR>` (sessions) | INSERT into the session's agent pane (the focused pane when it has none) |
 | `session.open` `<words>` |  | go to the session matching these words |

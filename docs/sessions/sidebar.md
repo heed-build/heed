@@ -20,7 +20,7 @@ Under the header, **new session** and **new chat** run what `o` and `gc` do; eac
 | **Chats** | [Chats](chats.md): sessions with no repo or worktree. One that asks or is blocked is in Needs you instead. |
 | **Parked** | Sessions you set aside with `zz`, and finished ones. |
 
-Each row shows the session's state glyph and its worktree's name (`zt` shows titles instead; hover for the other) on
+Each row shows the session's state glyph and its title (`zt` shows worktree names instead; hover for the other) on
 a line of its own, so it has the row's whole width. Under it, its first repo, `+2` for the others it touches (one chip
 per worktree, then one per repo it opened a PR in, all of them on the cursor's row), how long since you last touched
 it, and its pin key (`'1`). Below that, the agent's
@@ -30,6 +30,13 @@ agent's line sit what the session holds: `↑2` in amber for commits not pushed,
 over its worktrees, only when there are any; hovering `↑` says when no PR carries those commits yet), heed's mark on
 its PRs, and how many it tracks. The numbers on the left are relative to the cursor, as in vim: the number on a row is
 how many `j` or `k` presses away it is.
+
+**Titles follow the work.** A session starts with its prompt's first words as its title. Heed names it once its agent
+finishes its first turn, and again when it opens a PR, from what it is doing now: on Apple's on-device model where the
+Mac has it, else a model call (at most 40 a day). A new name shows in heed's blue until the cursor has been on the row,
+and the session's timeline keeps the old one. Heed renames a session at most six times, so a title settles. `R` (or
+`:session.rename Your title`) gives it your title, which heed keeps; `:session.autoname` hands it back. Your title is
+on its [Mindmap](../history/mindmap.md) card too. `[sessions] name_sessions = false` turns naming off.
 
 **How long you have been away.** The age on a row (`48m`, `3h`, `2d`) is the time since you last typed in the session
 or went into it, not since its agent last did something. It shows from 15 minutes, in grey, then amber past an hour

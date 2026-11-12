@@ -113,6 +113,12 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
 
     /// When you last touched it, or when it started.
     public var touched: Date { lastTouched ?? createdAt }
+    /// Who gave it its title (`SessionNaming`): the prompt until heed names it, then heed, or you.
+    public var titleBy: TitleSource = .prompt
+    /// False after heed renames it, until the cursor has been on it: the row says it has a new name.
+    public var titleSeen = true
+    /// How often heed has named it (`SessionNaming.perSession` at most).
+    public var namings = 0
 
     /// The chat's folder; nil for a session in worktrees.
     public var chat: ChatFolder? {
@@ -166,7 +172,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     private enum CodingKeys: String, CodingKey {
         case id, title, prompt, repos, branch, agent, agentSessionID, state, activity, trackedPRs, pinned, parked,
              lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs, host, issues, hiddenIssues,
-             notes, usage, chat, lastMessage, kind, lastTouched
+             notes, usage, chat, lastMessage, kind, lastTouched, titleBy, titleSeen, namings
     }
 
     /// Sessions cached before branches were followed still load.
@@ -200,6 +206,9 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         // A kind this build does not know (a newer heed's) reads as none rather than failing the session.
         kind = (try? container.decodeIfPresent(WorkKind.self, forKey: .kind)) ?? nil
         lastTouched = try container.decodeIfPresent(Date.self, forKey: .lastTouched)
+        titleBy = (try? container.decodeIfPresent(TitleSource.self, forKey: .titleBy)) ?? .prompt
+        titleSeen = try container.decodeIfPresent(Bool.self, forKey: .titleSeen) ?? true
+        namings = try container.decodeIfPresent(Int.self, forKey: .namings) ?? 0
         workspace = try container.decodeIfPresent(ChatFolder.self, forKey: .chat).map(Workspace.chat) ?? .worktrees
     }
 
@@ -232,6 +241,9 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         try container.encodeIfPresent(lastMessage, forKey: .lastMessage)
         try container.encodeIfPresent(kind, forKey: .kind)
         try container.encodeIfPresent(lastTouched, forKey: .lastTouched)
+        if titleBy != .prompt { try container.encode(titleBy, forKey: .titleBy) }
+        if !titleSeen { try container.encode(titleSeen, forKey: .titleSeen) }
+        if namings > 0 { try container.encode(namings, forKey: .namings) }
         try container.encodeIfPresent(chat, forKey: .chat)
     }
 

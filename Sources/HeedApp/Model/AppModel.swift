@@ -365,7 +365,11 @@ final class AppModel {
         return view
     }
 
-    private(set) var sidebarShowsTitles = UserDefaults.standard.bool(forKey: "sidebarShowsTitles") {
+    /// Model calls for session names today (`SessionNaming.dailyCalls`).
+    var sessionNamingCalls: (day: Date, count: Int) = (.distantPast, 0)
+
+    /// Titles by default, now that heed names sessions; a Mac that chose worktree names keeps them.
+    private(set) var sidebarShowsTitles = UserDefaults.standard.object(forKey: "sidebarShowsTitles") as? Bool ?? true {
         didSet { if !isFixture { UserDefaults.standard.set(sidebarShowsTitles, forKey: "sidebarShowsTitles") } }
     }
 
@@ -420,7 +424,10 @@ final class AppModel {
         self.settings = settings
         self.isFixture = isFixture
         // Fixtures, snapshots and docs shots draw the sidebar as it comes, whatever this Mac chose.
-        if isFixture { sessionsView = .standard }
+        if isFixture {
+            sessionsView = .standard
+            sidebarShowsTitles = true
+        }
         callLog = CallLogBrowser(fixture: isFixture)
         timeline = TimelineBrowser(fixture: isFixture)
         ledger = LedgerBrowser(fixture: isFixture)
@@ -1367,6 +1374,7 @@ final class AppModel {
         if !replacingDomain, historyChanged || githubChanged || detailsChanged || sessionsChanged {
             noticeLedger(before: before, after: after)
         }
+        if !replacingDomain, sessionsChanged || githubChanged { noticeNaming(before: before, after: after) }
         if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
         if !replacingDomain, githubChanged { tickSwarms() }
         if !replacingDomain, sessionsChanged { noticeGoalAttach(before: before, after: after) }
@@ -2431,6 +2439,7 @@ final class AppModel {
             view = .sessions
             if let next = list.nextNeedingYou(after: cursor) { setCursor(next) } else { flash = "nobody needs you" }
         case "session.pin": togglePin()
+        case "session.rename", "session.autoname": renameSession(command)
         case "session.park": updateCurrent { $0.parked.toggle() }
         case "session.close": confirmClose()
         case "session.delete": confirmDelete()
@@ -3061,6 +3070,7 @@ final class AppModel {
         let clamped = min(max(index, 0), count - 1)
         if clamped != cursor { previousSessionID = currentSession?.id }
         cursor = clamped
+        markTitleSeen()
     }
 
     /// What sessions on a goal are told at launch and resume (`[goals] tell_agents`), kept in the work settings every

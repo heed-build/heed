@@ -46,6 +46,12 @@ public enum Commands {
         ),
         .init("session.import.path", "import the worktree at a path (any repo, anywhere)", .move),
         .init("session.pin", "pin / unpin session", .move),
+        .init(
+            "session.rename",
+            "give the session your title, which heed keeps (no title: the command line opens with it)",
+            .move, arguments: "[title]"
+        ),
+        .init("session.autoname", "let heed name the session again, from what it is doing", .move),
         .init("session.back", "back to previous session", .move),
         .init("session.agent", "INSERT into the session's agent pane (the focused pane when it has none)", .move),
         .init("session.open", "go to the session matching these words", .move, arguments: "<words>"),

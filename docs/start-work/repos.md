@@ -42,8 +42,9 @@ smart_guesses = false
 Where the model is not available (an older macOS, Apple Intelligence off, or its model still downloading), Start work
 guesses by the rules above alone, as it always has.
 
-Move to the repo field (`⎋` then `j`) and use `h` `l` to move between chips and `space` to add or remove one. More than
-one repo makes a cross-repo session: a worktree in each, on the same branch. `⌃n` `⌃p` cycle which one is primary.
+Move to the repo field (`⎋` then `j`) and use `h` `l` to move between chips and `space` to pick one; `⌃n` `⌃p`
+cycle the guesses. Work starts in one repo, with one worktree. When the session opens a PR in another repo, that repo
+shows on the session too.
 
 Repos on your [hosts](../hosts/index.md) are guessed the same way and their chips say `@host`: picking one starts
 the work there.
@@ -51,7 +52,8 @@ the work there.
 ## Any other repo
 
 When none of the guesses is right, the chip **other repo…** opens a search over every repo (or press `/` on the
-repo field). Type to narrow, `⌃n` `⌃p` to move, `↩` to add it. It then keeps a chip of its own.
+repo field). Type to narrow, `⌃n` `⌃p` to move, `↩` to pick it. It then keeps a chip of its own. Each row says when you last
+worked there.
 
 The very last chip, **chat, no repo**, turns the dialog into a [chat](../sessions/chats.md).
 

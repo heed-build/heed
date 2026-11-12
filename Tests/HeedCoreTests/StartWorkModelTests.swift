@@ -34,7 +34,7 @@ struct StartWorkModelTests {
 
     @Test func agentsWithoutEffortOrAShellSkipTheFields() {
         var gemini = form(agent: "gemini")
-        #expect(gemini.fields == [.prompt, .repo, .worktree, .agent, .model, .options])
+        #expect(gemini.fields == [.prompt, .kind, .repo, .worktree, .agent, .model, .options])
         gemini.focus(field: .model)
         press("j", into: &gemini)
         #expect(gemini.field == .options)

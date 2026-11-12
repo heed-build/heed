@@ -314,8 +314,10 @@ struct StartWorkFormTests {
     @Test func typingGuessesReposAndNamesTheWorktree() {
         var form = StartWorkForm(repos: records, settings: .default)
         type("Fix anchors in docs-toolkit and docs-website", into: &form)
-        #expect(form.name == "fix/anchors-docs-toolkit-docs")
-        // Only the top guess: a second repo (and its worktree) is yours to add.
+        // The repos it names are where the work is, not what it is called.
+        #expect(form.name == "fix/anchors")
+        #expect(form.kind == .fix)
+        // Only the top guess.
         #expect(form.selectedRepos == ["acme/docs-toolkit"])
         #expect(form.plan.command?.posix == "claude 'Fix anchors in docs-toolkit and docs-website'")
     }
@@ -326,11 +328,13 @@ struct StartWorkFormTests {
         #expect(form.handle(.escape) == .handled)
         #expect(!form.editing)
         #expect(form.handle(KeyStroke("j")) == .handled)
+        #expect(form.field == .kind)
+        #expect(form.handle(KeyStroke("j")) == .handled)
         #expect(form.field == .repo)
-        // The cursor is on the first guess (markgraph, selected); move right and add docs-toolkit.
+        // The cursor is on the first guess (markgraph, selected); move right and pick docs-toolkit instead: one repo.
         _ = form.handle(KeyStroke("l"))
         _ = form.handle(KeyStroke("Space"))
-        #expect(form.selectedRepos.count == 2)
+        #expect(form.selectedRepos == ["acme/docs-toolkit"])
         _ = form.handle(KeyStroke("j"))
         _ = form.handle(KeyStroke("j"))
         #expect(form.field == .agent)
@@ -341,7 +345,7 @@ struct StartWorkFormTests {
             return
         }
         #expect(plan.command == nil)
-        #expect(plan.repos.first?.repo.name == "markgraph")
+        #expect(plan.repos.map(\.repo.name) == ["docs-toolkit"])
         #expect(form.handle(.escape) == .cancel)
     }
 
@@ -361,11 +365,13 @@ struct StartWorkFormTests {
         type("first words", into: &form)
         _ = form.handle(KeyStroke("Tab"))
         _ = form.handle(KeyStroke("Tab"))
+        _ = form.handle(KeyStroke("Tab"))
         #expect(form.field == .worktree)
         _ = form.handle(KeyStroke("i"))
         _ = form.handle(KeyStroke("u", .control))
         type("My Name", into: &form)
         #expect(form.name == "my-name")
+        _ = form.handle(KeyStroke("Tab", .shift))
         _ = form.handle(KeyStroke("Tab", .shift))
         _ = form.handle(KeyStroke("Tab", .shift))
         type(" more", into: &form)

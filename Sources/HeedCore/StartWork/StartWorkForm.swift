@@ -9,7 +9,7 @@ import Foundation
 /// catalogue with `h l`; Custom… is typed (`i`). They are skipped when the agent has nothing to pick.
 public struct StartWorkForm: Sendable {
     public enum Field: Int, CaseIterable, Sendable {
-        case prompt, repo, worktree, agent, model, effort, options
+        case prompt, kind, repo, worktree, agent, model, effort, options
     }
 
     public enum Option: Int, CaseIterable, Sendable {
@@ -35,6 +35,12 @@ public struct StartWorkForm: Sendable {
     public private(set) var editing = true
     public private(set) var prompt = ""
     public private(set) var name = ""
+    /// What the work is; it picks the branch prefix. Guessed from the prompt until you choose (`h l` on its row).
+    public private(set) var kind: WorkKind = .feat
+    private var kindEdited = false
+    /// Branch names already used, by repo slug (its worktrees' and sessions' branches): a guessed name gets `-2`
+    /// rather than clash.
+    public private(set) var takenBranches: [String: Set<String>] = [:]
     public private(set) var guesses: [RepoGuess] = []
     /// The guesses by the rules alone, before a model's pick.
     private var ruledGuesses: [RepoGuess] = []
@@ -149,8 +155,9 @@ public struct StartWorkForm: Sendable {
         repos: [RepoRecord], lastWorked: [String: Date] = [:], context: StartContext? = nil,
         settings: WorkSettings, prompt: String = "", integration: IntegrationFiles? = nil,
         hostIntegrations: [String: IntegrationFiles] = [:], hosts: [String] = [], chat: Bool = false,
-        promotion: Promotion? = nil
+        promotion: Promotion? = nil, takenBranches: [String: Set<String>] = [:]
     ) {
+        self.takenBranches = takenBranches
         self.promotion = promotion
         self.hostIntegrations = hostIntegrations
         self.hosts = hosts
@@ -207,6 +214,7 @@ public struct StartWorkForm: Sendable {
     public var fields: [Field] {
         Field.allCases.filter { field in
             switch field {
+            case .kind: chat == nil
             case .model: catalog?.takesModel == true
             case .effort: !(catalog.map { ModelPicker.efforts($0, model: model, current: effort) } ?? []).isEmpty
             default: true
@@ -328,6 +336,7 @@ public struct StartWorkForm: Sendable {
         plan.model = pickedModel
         plan.effort = effort
         plan.promotion = promotion
+        plan.kind = kind
         plan.instructions = instructions[records.first?.repo.slug ?? ""] ?? ""
         plan.signOff = signOffArguments(records.first?.repo)
         return plan
@@ -521,7 +530,8 @@ public struct StartWorkForm: Sendable {
         repoSearch = nil
         reposTouched = true
         cloneNote = nil
-        if !selectedRepos.contains(slug) { selectedRepos.append(slug) }
+        selectedRepos = [slug]
+        suggestName()
     }
 
     /// A click on a typed repo's chip: dropped.
@@ -533,7 +543,8 @@ public struct StartWorkForm: Sendable {
     private mutating func add(searched record: RepoRecord) {
         repoSearch = nil
         reposTouched = true
-        if !selectedRepos.contains(record.id) { selectedRepos.append(record.id) }
+        selectedRepos = [record.id]
+        suggestName()
         repoCursor = repoChoices.firstIndex { $0.repo.id == record.id } ?? repoCursor
     }
 
@@ -564,6 +575,20 @@ public struct StartWorkForm: Sendable {
         error = nil
         add(searched: record)
     }
+
+    /// A click on a kind: chosen.
+    public mutating func pickKind(_ kind: WorkKind) {
+        focus(field: .kind)
+        choose(kind: kind)
+    }
+
+    /// "worked here 2 days ago" for a repo in the search; nil for one you never worked in.
+    public func lastWorkedText(_ record: RepoRecord) -> String? {
+        lastWorked[record.id].map { StartWork.ago($0, now: Clock.now) }
+    }
+
+    /// The prefixes in effect, for the kind row's note.
+    public var branchPrefixes: BranchPrefixes { prefixes }
 
     /// A click on an agent: chosen.
     public mutating func pickAgent(at index: Int) {
@@ -631,6 +656,10 @@ public struct StartWorkForm: Sendable {
             let last = chatChips.count - 1
             let next = min(max((chat?.cursor ?? 0) + delta, 0), last)
             chat?.cursor = next
+        case .kind:
+            let all = WorkKind.allCases
+            let index = all.firstIndex(of: kind) ?? 0
+            choose(kind: all[((index + delta) % all.count + all.count) % all.count])
         case .agent:
             setAgent(((agentIndex + delta) % agents.count + agents.count) % agents.count)
         case .model:
@@ -667,11 +696,9 @@ public struct StartWorkForm: Sendable {
                 selectedRepos = [id]
                 return
             }
-            if let index = selectedRepos.firstIndex(of: id) {
-                selectedRepos.remove(at: index)
-            } else {
-                selectedRepos.append(id)
-            }
+            // One repo, one worktree: another chip replaces it. A session still shows the repos its PRs land in.
+            selectedRepos = [id]
+            suggestName()
         case .worktree:
             guard var picked = chat else { break }
             switch picked.cursor {
@@ -712,6 +739,46 @@ public struct StartWorkForm: Sendable {
         return .handled
     }
 
+    /// `h l` on the kind row, or a click on a kind: that kind, and its prefix on the name heed suggests.
+    public mutating func choose(kind: WorkKind) {
+        kindEdited = true
+        self.kind = kind
+        suggestName()
+        if !nameEdited { guessedName = name }
+    }
+
+    /// The name heed suggests while you have not typed one: the prompt's meaningful words, without links or the repos
+    /// it names, after the kind's prefix, made unique in the repo. Until you choose a kind, the name's prefix (from
+    /// the first word, or the on-device model) says which kind it is.
+    private mutating func suggestName(advice: StartWorkAdvice? = nil) {
+        guard !nameEdited else { return }
+        if chat != nil {
+            name = Chats.scratchName(for: prompt, on: Clock.now)
+            return
+        }
+        guard !prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            name = ""
+            return
+        }
+        let stripped = StartWork.namingText(prompt, repoNames: repos.map(\.repo.name))
+        let text = StartWork.slugWords(stripped).isEmpty ? prompt : stripped
+        var suggested = advice.map { StartWork.branchName(for: text, prefixes: prefixes, advice: $0) }
+            ?? StartWork.branchName(for: text, prefixes: prefixes)
+        if kindEdited {
+            suggested = StartWork.prefixed(suggested, with: kind.prefix(in: prefixes), known: knownPrefixes)
+        } else {
+            let prefix = suggested.firstIndex(of: "/").map { String(suggested[..<$0]) }
+            kind = prefix.flatMap(WorkKind.init(prefix:)) ?? WorkKind.guess(for: text, prefixes: prefixes)
+        }
+        let slug = selectedRecords.first?.repo.slug ?? selectedRepos.first ?? ""
+        name = StartWork.unique(suggested, taken: takenBranches[slug] ?? [])
+    }
+
+    /// Every prefix a name may start with: the configured ones and each kind's names.
+    private var knownPrefixes: Set<String> {
+        Set(StartWork.prefixChoices(prefixes)).union(WorkKind.allCases.flatMap(\.prefixNames))
+    }
+
     private mutating func setPrompt(_ text: String) {
         prompt = text
         ruledGuesses = StartWork.guessRepos(for: text, in: repos, lastWorked: lastWorked, context: context)
@@ -722,19 +789,12 @@ public struct StartWorkForm: Sendable {
             advisedRepo = nil
         }
         advised = advisedRepo != nil
-        if !nameEdited {
-            name = chat != nil ? Chats.scratchName(for: text, on: Clock.now)
-                : text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : StartWork.branchName(
-                    for: text,
-                    prefixes: prefixes
-                )
-        }
         if !reposTouched, chat == nil {
-            // The top guess only. Each selected repo gets a worktree, so a second one is yours to add (space), never a
-            // guess: a prompt names repos for many reasons (an issue link, a repo it reads from).
+            // The top guess only: a prompt names repos for many reasons (an issue link, a repo it reads from).
             selectedRepos = guesses.first.flatMap { $0.confidence > 0 ? [$0.repo.id] : nil } ?? []
             guessedRepo = selectedRepos.first
         }
+        suggestName()
         if !nameEdited { guessedName = name }
     }
 
@@ -779,7 +839,7 @@ public struct StartWorkForm: Sendable {
         }
         if question.asksName, !nameEdited, chat == nil {
             let named = StartWorkAdvice(name: advice.name, prefix: question.prefixes.isEmpty ? nil : advice.prefix)
-            name = StartWork.branchName(for: prompt, prefixes: prefixes, advice: named)
+            suggestName(advice: named)
             guessedName = name
             advised = advised || advice.name != nil || named.prefix != nil
         }

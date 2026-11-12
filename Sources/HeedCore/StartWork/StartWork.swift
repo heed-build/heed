@@ -98,6 +98,7 @@ public struct BranchPrefixes: Hashable, Sendable, Codable {
             "test": ["test", "tests", "cover"],
             "perf": ["perf", "speed", "optimize", "faster"],
             "feature": ["add", "implement", "support", "create", "introduce", "build", "feature"],
+            "plan": ["plan", "spike", "investigate", "explore", "research"],
         ],
         defaultPrefix: "feature"
     )
@@ -221,6 +222,8 @@ public struct StartWorkPlan: Hashable, Sendable {
     public var arguments: [String] = []
     /// The model the agent runs on (its `modelFlag`); nil: the agent's configured one, else its own default.
     public var model: String?
+    /// What the work is (Start work's kind row); nil for a chat.
+    public var kind: WorkKind?
     /// Its reasoning effort (its `effortFlag`); nil: the agent's configured one, else its own default.
     public var effort: String?
 
@@ -305,14 +308,49 @@ public enum StartWork {
             : "\(prefixes.defaultPrefix)/\(name(for: prompt, maxWords: maxWords))"
     }
 
+    /// The prompt without the repos it names (`docs-builder, look at …`, `elastic/docs-builder`): where the work
+    /// happens is the repo field's, not the branch name's.
+    public static func namingText(_ prompt: String, repoNames: [String]) -> String {
+        // Links first: a repo's name inside a URL would otherwise leave the rest of the URL behind.
+        var text = referencesRemoved(prompt)
+        for name in Set(repoNames.map { $0.lowercased() }).sorted(by: { $0.count > $1.count }) where name.count > 1 {
+            let escaped = NSRegularExpression.escapedPattern(for: name)
+            text = text.replacingOccurrences(
+                of: #"(?i)(?<![\w.-])([\w.-]+/)?"# + escaped + #"(?![\w-])"#, with: " ", options: .regularExpression
+            )
+        }
+        return text
+    }
+
+    /// `name` with `prefix` in place of the prefix it has (any of `known`), or in front when it has none.
+    public static func prefixed(_ name: String, with prefix: String, known: Set<String>) -> String {
+        var rest = name
+        if let slash = name.firstIndex(of: "/"), known.contains(String(name[..<slash])) {
+            rest = String(name[name.index(after: slash)...])
+        }
+        return prefix.isEmpty ? rest : "\(prefix)/\(rest)"
+    }
+
+    /// `name`, or `name-2`, `name-3`, … when a worktree or branch of the repo already has it.
+    public static func unique(_ name: String, taken: Set<String>) -> String {
+        guard taken.contains(name) else { return name }
+        var number = 2
+        while taken.contains("\(name)-\(number)") {
+            number += 1
+        }
+        return "\(name)-\(number)"
+    }
+
     public static func name(for prompt: String, maxWords: Int = 4) -> String {
         let words = slugWords(prompt)
         let name = words.prefix(maxWords).joined(separator: "-")
         return name.isEmpty ? "work-\(Int(Date().timeIntervalSince1970) % 100_000)" : String(name.prefix(48))
     }
 
+    /// The prompt's meaningful words for a name: links and `org/repo#12` references dropped (they say what the work
+    /// is about, not what it is), then stop words.
     static func slugWords(_ prompt: String) -> [String] {
-        prompt.lowercased()
+        referencesRemoved(prompt).lowercased()
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "." })
             .map { word -> String in
                 // `redirects.yml` → `redirects`; keep version-like words (`0.17`) whole.
@@ -475,6 +513,7 @@ public enum StartWork {
             activity: plan.command == nil ? "shell" : "starting", lastActivity: now
         )
         session.host = plan.location.hostName
+        session.kind = plan.kind
         session.worktreePaths = created.map(\.path)
         let built = layout(
             for: plan, session: session, worktrees: created, tasks: settings.tasks, setup: settings.setup

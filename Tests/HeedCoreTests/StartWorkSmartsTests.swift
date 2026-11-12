@@ -179,6 +179,7 @@ struct StartWorkNameAdviceTests {
         var start = form("look why deploys are slow")
         _ = start.handle(KeyStroke("Tab"))
         _ = start.handle(KeyStroke("Tab"))
+        _ = start.handle(KeyStroke("Tab"))
         #expect(start.field == .worktree)
         _ = start.handle(KeyStroke("i"))
         type("x", into: &start)

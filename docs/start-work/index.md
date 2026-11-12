@@ -38,8 +38,9 @@ the pickers):
 | Field | |
 |---|---|
 | **Prompt** | What you want done. It grows with what you type, up to a third of the window, then scrolls. |
-| **Repo** | The guessed repo, and any others for a cross-repo session. See [Choosing repos](repos.md). The last chip makes it a [chat](../sessions/chats.md). |
-| **Worktree** | The branch and folder name, from your first word. See [Branch names](branch-names.md). |
+| **Kind** | What the work is: feat, fix, refactor, docs, chore or plan. It picks the branch prefix. See [Branch names](branch-names.md#kind). |
+| **Repo** | The guessed repo; another chip or **other repo…** picks a different one. See [Choosing repos](repos.md). The last chip makes it a [chat](../sessions/chats.md). |
+| **Worktree** | The branch and folder name, from the kind and the prompt's words. See [Branch names](branch-names.md). |
 | **Agent** | Which agent starts, or a shell only. See [Agent and options](agent-and-options.md). |
 | **Options** | Autostart, plan first, shell split. |
 

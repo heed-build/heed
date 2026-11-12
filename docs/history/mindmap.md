@@ -103,6 +103,7 @@ heed memory note "Cache the toc"    # a decision kept on the campaign, for the s
 | `x` | Its first open follow-up done |
 | `p` | Pin its first decision |
 | `]l` `[l` | To a node this one links to: work that led to it, or a campaign touching the same files |
+| `n` | Make a goal of the campaign: its GOAL.md drafted from the work, the work put on it |
 | `S` | Name campaigns for Unsorted work now |
 | `s` | Start a session here, told what was decided and what is open |
 | `↩` | A piece of work's ledger entry |

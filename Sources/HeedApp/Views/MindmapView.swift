@@ -304,6 +304,7 @@ private struct MindmapDetail: View {
                     if !open.isEmpty { hint("mindmap.done", "done") }
                     if node.entry != nil { hint("mindmap.open", "ledger") }
                     if !links.isEmpty { hint("mindmap.link.next", "linked") }
+                    if node.kind != .work { hint("mindmap.goal", "make a goal") }
                 }
             }
             .padding(24)

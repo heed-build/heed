@@ -2573,7 +2573,7 @@ final class AppModel {
         case "mindmap.in", "mindmap.out", "mindmap.less", "mindmap.more", "mindmap.org.next", "mindmap.org.prev",
              "mindmap.accept", "mindmap.done", "mindmap.pin", "mindmap.nest", "mindmap.lift", "mindmap.rename",
              "mindmap.move", "mindmap.join", "mindmap.name", "mindmap.open", "mindmap.session", "mindmap.link.next",
-             "mindmap.link.prev":
+             "mindmap.link.prev", "mindmap.goal":
             performMindmap(command)
         case "ledger.summarize": summarizeLedgerNow()
         case "ledger.edit": editLedger(command.arguments)

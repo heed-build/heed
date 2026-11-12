@@ -301,6 +301,7 @@ This page is generated from the code (`mise run shots`).
 | `mindmap.join` `[title]` | `J` (mindmap) | Mindmap: move everything in the node into another by its title, and drop it |
 | `mindmap.name` | `S` (mindmap) | Mindmap: name campaigns for the work waiting in Unsorted now |
 | `mindmap.open` | `<CR>` (mindmap) | Mindmap: a piece of work's ledger entry |
+| `mindmap.goal` | `n` (mindmap) | Mindmap: make a goal of this campaign, its work on it and its GOAL.md drafted |
 | `mindmap.link.next` | `]l` (mindmap) | Mindmap: to the next node this one links to (led to, same files) |
 | `mindmap.link.prev` | `[l` (mindmap) | Mindmap: to the previous node this one links to |
 | `mindmap.session` `[prompt]` | `s` (mindmap) | Mindmap: start a session on this node, told what was decided and what is open here |

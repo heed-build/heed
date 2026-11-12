@@ -622,6 +622,11 @@ public enum Commands {
         ),
         .init("mindmap.name", "Mindmap: name campaigns for the work waiting in Unsorted now", .selection),
         .init("mindmap.open", "Mindmap: a piece of work's ledger entry", .selection),
+        .init(
+            "mindmap.goal",
+            "Mindmap: make a goal of this campaign, its work on it and its GOAL.md drafted",
+            .selection
+        ),
         .init("mindmap.link.next", "Mindmap: to the next node this one links to (led to, same files)", .selection),
         .init("mindmap.link.prev", "Mindmap: to the previous node this one links to", .selection),
         .init(

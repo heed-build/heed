@@ -96,11 +96,11 @@ the keys do.
 
 ![A goal's overview](../images/shots/goals/overview.png)
 
-The goal's title and statement, the next-steps card while it shows, then its numbers: its confidence (its basis on
-hover), items done, criteria met (from **Done when**), the sessions and chats on it, and how many of their PRs merged.
-**What is left** puts what still has to happen at one glance: the ring and what it is made of, the done-when criteria
-not met first (met ones with their evidence), each quality bar against its score, under-bar ones first, and the items
-done.
+The goal's title and statement, the next-steps card while it shows, then the sessions and chats on it and how many of
+their PRs merged. **What is left** is where the page shows how far the goal is, once: the score ring and what it is
+made of, the progress line (criteria met from **Done when**, items done, bars reached), the done-when criteria not met
+first (met ones with their evidence), and each quality bar against its score, under-bar ones first. On the goal's other
+panes the pane bar carries the ring and the progress line instead.
 
 ![What is left](../images/shots/goals/progress.png)
  **Implementation state** is the goal's items by stage (see

@@ -185,20 +185,12 @@ private struct GoalOverviewPane: View {
         let overview = model.goalOverview(goal)
         let doc = model.goals.snapshot.docs[goal.id]
         let goals = model.goals
-        let work = goals.items.filter { $0.kind == .work }
-        let done = goals.columns[.done]?.count { $0.kind == .work } ?? 0
         ListScroll {
             VStack(alignment: .leading, spacing: 18) {
                 GoalHeader(goal: goal, statement: doc?.goal ?? "")
                 if let guide = goals.shownGuide(of: goal) { GoalGuideCard(guide: guide).shotRegion(.goalGuide) }
+                // The score, the criteria and the items are What is left's, once; the tiles count the rest.
                 HStack(spacing: 12) {
-                    StatTile(value: goal.score.map { String(format: "%.1f", $0) } ?? "–", label: "confidence")
-                        .help(goals.progress(of: goal).confidence?.basis ?? "No score yet")
-                    StatTile(value: work.isEmpty ? "–" : "\(done)/\(work.count)", label: "items done")
-                    StatTile(
-                        value: overview.criteriaTotal == 0 ? "–" : "\(overview.criteriaMet)/\(overview.criteriaTotal)",
-                        label: "criteria met"
-                    )
                     StatTile(value: "\(overview.sessions)", label: overview.sessions == 1 ? "session" : "sessions")
                     StatTile(
                         value: overview.pulls.isEmpty ? "–" : "\(overview.merged) of \(overview.pulls.count)",

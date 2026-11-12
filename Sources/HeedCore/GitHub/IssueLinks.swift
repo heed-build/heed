@@ -112,8 +112,11 @@ public enum IssueLinks {
     }
 
     /// The links in the order the inspector lists them: open PRs, merged, closed, then open issues, closed issues.
+    /// Open PRs, then merged, then closed, each newest first: by when it was last updated when that is known, else the
+    /// one tracked last first. Then issues, open first.
     public static func ordered(
-        pulls: [PullRef], state: (PullRef) -> PullRequest.State?, issues: [IssueRef], closed: (IssueRef) -> Bool
+        pulls: [PullRef], state: (PullRef) -> PullRequest.State?, issues: [IssueRef], closed: (IssueRef) -> Bool,
+        updated: (PullRef) -> Date? = { _ in nil }
     ) -> [SessionLink] {
         func rank(_ pull: PullRef) -> Int {
             switch state(pull) {
@@ -122,7 +125,12 @@ public enum IssueLinks {
             case .closed: 2
             }
         }
-        let sortedPulls = pulls.enumerated().sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }
+        let sortedPulls = pulls.enumerated().sorted { lhs, rhs in
+            let left = rank(lhs.element), right = rank(rhs.element)
+            if left != right { return left < right }
+            if let one = updated(lhs.element), let other = updated(rhs.element), one != other { return one > other }
+            return lhs.offset > rhs.offset
+        }
         let sortedIssues = issues.enumerated().sorted {
             (closed($0.element) ? 1 : 0, $0.offset) < (closed($1.element) ? 1 : 0, $1.offset)
         }

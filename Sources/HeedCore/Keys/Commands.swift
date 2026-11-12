@@ -203,6 +203,17 @@ public enum Commands {
         .init("cleanup.rules", "show the cleanup rules (Repos, with its rules panel)", .views),
         .init("cleanup.sweep", "run the cleanup sweep now", .views),
         .init("inspector.toggle", "collapse / expand the inspector", .views),
+        .init(
+            "inspector.tackle", "hand the session's loose end with this text to its agent (none: all of them)", .views,
+            arguments: "[text]"
+        ),
+        .init(
+            "inspector.resolve",
+            "mark a loose end done, on the Mindmap node it lives on",
+            .views,
+            arguments: "<node> <text>"
+        ),
+        .init("inspector.copy", "copy a path to the pasteboard", .views, arguments: "<path>"),
         .init("sidebar.toggle", "collapse / expand the sessions sidebar", .views),
         .init("sidebar.titles", "show session titles / worktree names in the sidebar rows", .views),
         .init(

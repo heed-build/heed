@@ -252,7 +252,7 @@ backoff_minutes = 10
 daily_calls = 100
 daily_dollars = 1.0
 # Which agent takes the calls: "auto" (every usable one, taking turns) or one name ("claude"). Unset: not chosen
-# yet; calls take turns, and the title bar reminds you to set it up (Settings › Inference & decisions).
+# yet; calls take turns, and the title bar reminds you to set it up (Settings › Model calls).
 # agent = "auto"
 # false: no reminder on launch while model calls or decisions are not set up, or their last test failed.
 setup_reminder = true
@@ -265,7 +265,7 @@ setup_reminder = true
 # decider = "local"
 
 [hunch]
-# The Laya checkpoint Hunch runs, downloaded from Settings › Inference & decisions: "english" (the default) or
+# The Laya checkpoint Hunch runs, downloaded from Settings › Decisions & Hunch: "english" (the default) or
 # "multilingual".
 # checkpoint = "english"
 # Learn from your corrections (Attention actions, goal attach answers, labelled screen snapshots): a head trained
@@ -276,7 +276,7 @@ setup_reminder = true
 # Group finished work into History's Mindmap: one per GitHub org, and one for your personal work, never mixed.
 # A cheap model names campaigns for work that fits none ([llm]); Hunch, or whichever decider is set, places new
 # work into them; ✓ and ↦ on a card heed placed say it is right or move it (y and m do the same), and that is what
-# it learns from. Settings › Inference & decisions shows how often heed had it right. With shadow on, every
+# it learns from. Settings › Decisions & Hunch shows how often heed had it right. With shadow on, every
 # placement waits for y or m instead of standing.
 # enabled = true
 # shadow = false

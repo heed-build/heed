@@ -31,7 +31,7 @@ The model is not asked about the repo when the prompt names one, because a named
 Start work from something in a repo (a session, worktree, PR or issue), or once you have picked a repo yourself. The field says **thinking…** while an answer is on its way. Typing never waits for it, and an
 answer to a prompt you have since changed is dropped. An answer takes about one to two seconds.
 
-The model runs on this Mac: nothing is sent anywhere. Turn it off in **Settings › Worktrees & cleanup › Start work**,
+The model runs on this Mac: nothing is sent anywhere. Turn it off in **Settings › Worktrees › Start work**,
 or in `config.toml`:
 
 ```toml

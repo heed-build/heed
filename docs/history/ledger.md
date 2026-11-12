@@ -21,7 +21,7 @@ History's list.
 | Model, tokens, cost | What the agent reported for the session |
 
 The model reads the work's commits and diff against its base branch, its pull request (description, reviews, review
-threads), heed's timeline of the session, and the agent's last message. Your `summary_instructions` (Settings › Pilot,
+threads), heed's timeline of the session, and the agent's last message. Your `summary_instructions` (Settings › Pilot › Instructions,
 or per org and repo) are added to heed's prompt. Summaries and the ledger stay in `heed.sqlite` on this Mac.
 
 ## When it is written
@@ -41,7 +41,7 @@ include = ["summary", "decisions", "follow_ups", "files"]
 | `idle` | Nothing happened in the session for `idle_hours`, and nothing was written since |
 | `chat_closed` | A chat closes (off by default) |
 
-Settings › General › History ledger has the same switches. With model calls off (`[llm] enabled = false`) nothing is
+Settings › History › Ledger has the same switches. With model calls off (`[llm] enabled = false`) nothing is
 written; the daily caps of `[llm]` apply.
 
 | Key | |
@@ -66,6 +66,6 @@ summary_sign_off = true        # or under [orgs.<name>] and [repos."org/name"]
 ```
 
 claude gets it as `--append-system-prompt`, codex as `developer_instructions` (`-c`); other agents are not asked.
-Settings › Pilot › Extra instructions has the switch, and Orgs & repos › Instructions the per-org and per-repo ones.
+Settings › Pilot › Instructions has the switch, and Orgs & repos › Instructions the per-org and per-repo ones.
 
 ![An abandoned spike in full: its follow-up, and the agent time an estimate](../images/shots/history/ledger-detail.png)

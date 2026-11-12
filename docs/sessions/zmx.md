@@ -25,7 +25,7 @@ persist = "auto"   # the default: zmx when it is installed and works; zmx to ins
 zmx = ""           # empty: found like git and gh (Homebrew, ~/.local/bin, your PATH); or a path
 ```
 
-**Settings › General › Tools** shows zmx's check, next to git and gh: where it found zmx, its version, and whether it
+**Settings › Tools** shows zmx's check, next to git and gh: where it found zmx, its version, and whether it
 works the way Heed uses it (`zmx version`, then listing Heed's own sessions). It also says whether panes run in zmx
 because of it. With `auto`, a zmx that is missing or fails its check leaves panes as plain shells. With `zmx`, Heed
 uses it whenever it is there, and says how to install it when it is not.

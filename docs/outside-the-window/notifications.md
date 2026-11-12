@@ -54,4 +54,4 @@ reminder_minutes = 15
 quiet = "22:00-07:00"   # "" for none
 ```
 
-The same settings are in Settings (`⌘,`), under Outside the window.
+The same settings are in Settings (`⌘,`) › Notifications, quiet hours with them.

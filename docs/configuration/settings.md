@@ -9,22 +9,86 @@ here, and the other way round. Key bindings live only in the file.
 
 ![Settings: General](../images/shots/configuration/settings.png)
 
-| Section | Holds |
+## The tree
+
+The sidebar is a tree: five groups, their pages, and under the page shown its sections. Click a page to show it, a
+section to scroll to it; the section at the top of the page is the one marked. Click a group to fold it. With the
+tree focused, ↑ and ↓ move, ← folds (or goes up a level) and → unfolds (or goes down one). What is folded stays
+folded when you quit and reopen heed.
+
+![The tree with Agents, GitHub and Machine folded: a folded group keeps its count](../images/shots/configuration/settings-tree.png)
+
+`● 3` beside a page says three of its settings differ from heed's defaults; groups add their pages up, folded or not.
+A red `!` says `config.toml` has a value there heed refused.
+
+| Group | Page | Holds |
+|---|---|---|
+| **Heed** | **General** | The default agent, resume on launch, the continue prompt, shell split, [persistent panes](../sessions/zmx.md), the menu bar item and the Dock state |
+| | **Notifications** | [Notifications](../outside-the-window/notifications.md) when a session needs you (asking, blocked, the grace, the reminder), Attention notifications, and quiet hours, once for both |
+| | **Updates** | Whether heed checks for [updates](updates.md), and whether it asks before installing |
+| **Agents** | **Agents** | Each agent's own settings, in two tabs (see below) |
+| | **Model calls** | Where heed's [model calls and decisions](inference.md) stand and one click to set them up, the switch for every model call, which agent takes them, a **Test**, the limits (timeout, at once, back off, daily calls and dollars), whether the inspector shows a cost and your prices, and the reminder on launch |
+| | **Decisions & Hunch** | The decider and its **Test**, [finding new work's goal](../goals/attach.md) with its two thresholds and `attach.rules`, [Hunch](local-learning.md) (its model, what it keeps, learning from your corrections, how often the Mindmap placed work right) and [screen snapshots](../agents/screen-snapshots.md) |
+| **Work** | **Worktrees** | Where worktrees go, the repo roots, offering to trust repos for agents, branch prefixes, Start work's [smart guesses](../start-work/repos.md#smart-guesses), the cleanup rules, and how long [saved work](../worktrees/removing.md#saved-first) is kept |
+| | **Goals** | Telling agents their goal, [reviewers](../goals/reviewers.md) running on their own, items spawned, and the [GitHub mirror](../goals/github.md) |
+| | **History** | When the [ledger](../history/ledger.md) writes a summary and what it includes, While you were away, the [Mindmap](../history/mindmap.md), session memory, [standups](../history/standup.md), and how long the [call log](../reference/call-log.md) keeps each kind of call |
+| **GitHub** | **GitHub** | The poll interval and the issues default |
+| | **Pilot** | The defaults every PR starts from, on four tabs: Get it green (with watching), Get it merged, Reviews, Instructions |
+| | **Orgs & repos** | Per org and per repo, over five tabs (see below) |
+| | **Attention** | The [rules](../github/attention-rules.md) in plain words, an editor that builds one, what an edit would change before you save it, and the weights |
+| **Machine** | **Hosts** | Every [host](../hosts/index.md) in `[hosts.<name>]` as `config.toml` has it |
+| | **Tools** | Where heed found git, gh and the rest, zmx's and Tailscale's checks, and where to look instead |
+| | **Keys & modes** | The INSERT escape chord, the two [global shortcuts](../outside-the-window/global-shortcuts.md) (typed or recorded, checked before they are written), and every binding as it stands |
+
+Each setting is on one page only. `:settings.open <page>` opens one (`general`, `notifications`, `updates`, `agents`,
+`model-calls`, `decisions`, `worktrees`, `goals`, `history`, `github`, `pilot`, `orgs`, `attention`, `hosts`, `tools`,
+`keys`); the names of the sections Settings had before still work (`colors`, `repos`, `cleanup`, `inference`, `llm`,
+`modes`, `rules`, `ssh`) and open the page their settings are on now.
+
+## Rows
+
+Each section is a card of rows: what the setting is and does on the left, its control on the right. Settings that only
+mean something while another is on sit indented under it, and hide while it is off (unless you set one: nothing set is
+ever out of sight).
+
+![Notifications with three settings changed, quiet hours refused](../images/shots/configuration/modified.png)
+
+A setting changed from heed's default has an amber bar, says what the default is, and ↺ puts it back (removes the key
+from `config.toml`); ↺ is dim on a setting at its default. A value `config.toml` has that heed refused has a red bar,
+the reason and a line it would take; heed uses its default meanwhile, and ↺ removes the value. Problems that belong to
+no setting (a syntax error, a key heed no longer reads) show at the top of Settings, as well as in the status bar.
+
+## Agents
+
+The list has **Every agent**, what the agents share (the default agent on General, model calls and their limits on
+Model calls), then each agent with what it is and how many of its settings are changed:
+
+| Mark | Means |
 |---|---|
-| **General** | Default agent, resume on launch, the continue prompt, shell split, persistent panes, when the History [ledger](../history/ledger.md) writes a summary and what it includes, [Goals](../goals/index.md) (telling agents their goal, [finding new work's goal](../goals/attach.md) with its two thresholds, the model and `attach.rules`, [reviewers](../goals/reviewers.md) running on their own and their runs a day, and the [GitHub mirror](../goals/github.md)'s tracker, per org too, whether new goals mirror and the label), menu bar item, Dock state, [notifications](../outside-the-window/notifications.md) (which states, the grace, the reminder, quiet hours), GitHub poll interval, issues default, how long the [call log](../reference/call-log.md) keeps each kind of call, [updates](updates.md) (whether Heed checks, and whether it asks before installing), and where `git`, `gh` and `zmx` are |
-| **Agents** | Each agent's command, prompt delivery, the [model and effort](../agents/models.md) its sessions start on, plan and resume arguments, and its part in Heed's [model calls](../agents/model-calls.md): whether it takes part, whether it is installed and logged in, its model, and a **Test**; then model calls for every agent (`[llm]`): the switch that turns them all off or back on, the timeout, how many run at once, the back-off, and the daily caps in calls and dollars; **Usage**: whether the inspector shows a cost, and how many prices `[usage.prices]` sets; below them, **Local decisions**: whether [screen snapshots](../agents/screen-snapshots.md) are recorded, how long they are kept, what is kept so far, how many [Start work outcomes](../agents/screen-snapshots.md#start-work-outcomes) are kept, and **Delete all** |
-| **Inference & decisions** | Where Heed's [model calls and decisions](inference.md) stand, what goes without, one click to set both up from what this Mac has, the agent, its model, the daily budget, the decider, the goal attach thresholds, a **Test** of each, and the reminder on launch |
-| **Orgs & repos** | Per org and per repo, over five tabs: colour, issues, the [goal tracker](../goals/github.md#the-tracker) and whether new goals mirror, and every Pilot setting, with which ones override the defaults (see below) |
-| **Hosts** | Every [host](../hosts/index.md) in `[hosts.<name>]` with its ssh destination, transport, tailnet machine, user, repo roots, worktree root and colour, read-only; **Add or check hosts** opens `gH`, and each host is edited in `config.toml` |
-| **Worktrees & cleanup** | Where worktrees go, the repo roots, offering to trust repos for agents, Start work's [smart guesses](../start-work/repos.md#smart-guesses), the cleanup rules, and how long [saved work](../worktrees/removing.md#saved-first) is kept |
-| **Pilot** | The defaults every PR starts from: watching, get it green, get it merged and their rules, [merge now and force merge](../github/watch.md#ready-to-merge-and-merge-now), extra instructions for heed's prompts (summaries too), and whether agents sign off with a summary |
-| **Attention** | The [rules](../github/attention-rules.md) in plain words, an editor that builds a rule from choices, what an edit would change over the last 30 days before you save it, the weights, Attention notifications and quiet hours |
-| **Keys & modes** | The INSERT escape chord, the two [global shortcuts](../outside-the-window/global-shortcuts.md) (typed or recorded, checked before they are written), and every binding as it stands, read-only: bindings are edited in `config.toml` |
+| `✓` | Ready: installed, logged in, its hooks passed per run |
+| `○` | Not installed (dimmed) |
+| `!` | Broken, and why: logged out, its own command not found, its last test failed |
+
+![Agents: claude changes three settings; pi and opencode are logged out](../images/shots/configuration/agents.png)
+
+For the selected agent, its status line (`installed · logged in · full hooks · 3 modified`) and two tabs, each with its
+count. **Sessions**: its command, prompt delivery, the [model and effort](../agents/models.md) its sessions start on,
+plan and resume arguments, its command line flags, profiles and screen patterns, and its hooks. **Model calls**: its
+part in heed's [model calls](../agents/model-calls.md): whether it takes part, its login, its model, and a **Test**.
+⌘1 and ⌘2 turn to a tab, and the tab stays as it is for every agent. `:settings.open agents codex model-calls` opens
+codex on its Model calls tab.
+
+## Pilot
+
+The defaults every PR starts from, on the same tabs Orgs & repos has: **Get it green** (watching, whether and how get
+it green runs, the agents and models of its runs and of merge-conflict runs), **Get it merged** (whether and how PRs
+merge, what heed waits for, merging by hand), **Reviews** and **Instructions**. `:settings.open pilot merged` opens it
+on a tab; the link at its foot leads to the same tab of Orgs & repos.
 
 ## Orgs & repos
 
-Every org and repo heed knows, from the repo list and from `config.toml` (ones you have not cloned here say so). A
-marked one, `● 3`, overrides three settings.
+The same two panes as Agents: every org and repo heed knows, from the repo list and from `config.toml` (ones you have
+not cloned here say so). A marked one, `● 3`, overrides three settings.
 
 ![Orgs & repos: acme/docs-toolkit overrides five settings and inherits three from its org](../images/shots/configuration/orgs-repos.png)
 
@@ -56,12 +120,12 @@ as it is when you pick another org or repo, and when you quit and reopen heed.
 ![Orgs & repos, Instructions](../images/shots/configuration/orgs-repos-instructions.png)
 
 `:settings.open colors <tab>` opens the page on a tab (`general`, `green`, `merged`, `reviews`, `instructions`), and
-the links that lead here land on the right one: `:setup.edit` and the link under General › Goals on General, the
-link at the foot of Pilot on Get it green.
+the links that lead here land on the right one: `:setup.edit` and the link under Goals › GitHub mirror on General, the
+link at the foot of Pilot on the tab it was on.
 
 **Goals**, on General, holds the [goal tracker](../goals/github.md#the-tracker) a new goal from work in this org or
 repo mirrors to (`goals_tracker`), and whether it mirrors from the start (`goals_mirror`); their defaults are
-General › Goals' tracker and **Mirror new goals**. Emptying the tracker field removes the override.
+Goals › GitHub mirror's tracker and **Mirror new goals**. Emptying the tracker field removes the override.
 
 ### Only overridden
 
@@ -87,4 +151,4 @@ it:
 Hosts are added and checked in `gH`, which reads `~/.ssh/config` and your tailnet; this page lists what
 `config.toml` says about each, and which values are the defaults. Change one in the file (**Edit in config.toml**).
 
-Problems in the file show at the top of Settings as well as in the status bar.
+Each key set there is marked like any other setting, and ↺ removes it.

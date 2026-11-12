@@ -10,7 +10,7 @@ are examples for [Hunch](../configuration/local-learning.md), the local model th
 whether an agent is working, waiting on you or done. That matters most for agents with no hook for it (gemini, a plain shell). The hooks provide the labels, so you
 label nothing yourself.
 
-Recording is **off by default**. Turn it on in **Settings › Agents › Local decisions**, or in `config.toml`:
+Recording is **off by default**. Turn it on in **Settings › Decisions & Hunch › Local decisions**, or in `config.toml`:
 
 ```toml
 [local]
@@ -18,7 +18,7 @@ record_screens = true
 keep_days = 30
 ```
 
-![Settings › Agents › Local decisions: labelled snapshots per agent and state, the last seven days, Delete all](../images/shots/agents/local-decisions.png)
+![Settings › Decisions & Hunch › Local decisions: labelled snapshots per agent and state, the last seven days, Delete all](../images/shots/agents/local-decisions.png)
 
 ## What is kept
 
@@ -66,4 +66,4 @@ plan-first you chose. A local model can learn better guesses from them later. No
 
 They are kept in the same `heed.sqlite`, on this Mac only, and deleted after `keep_days` like snapshots. They are kept
 whether or not `record_screens` is on, since your prompts are already part of your sessions and history. Settings ›
-Agents › Local decisions shows how many are kept. **Delete all** removes them together with the snapshots.
+Decisions & Hunch › Local decisions shows how many are kept. **Delete all** removes them together with the snapshots.

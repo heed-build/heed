@@ -48,10 +48,10 @@ right, what GitHub's rate limit had left when Heed last asked.
 ## How long calls are kept
 
 `log.sqlite` in `~/Library/Application Support/Heed` keeps each kind for its own number of days, set under `[log]`
-in config.toml or under Call log in Settings › General, and at most `max_rows` of each kind; Heed prunes it every
+in config.toml or under Call log in Settings › History, and at most `max_rows` of each kind; Heed prunes it every
 hour.
 
-![Settings › General: the call log's retention](../images/shots/configuration/settings.png)
+![Settings › History: the call log's retention at its foot](../images/shots/configuration/settings-history.png)
 
 | Key | Default | |
 |---|---|---|

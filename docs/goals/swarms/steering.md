@@ -32,7 +32,7 @@ whatever else it says, and what the words do not place goes to you too.
 for, else one that waits for it, as long as its worker is at work. `--to lead` asks the lead first; `--to you` asks you
 straight away.
 
-**The controller** is heed's deciders, as set up in Settings › Inference & decisions: Hunch for small choices, the rest
+**The controller** is heed's deciders, as set up in Settings › Model calls and Decisions & Hunch: Hunch for small choices, the rest
 routed on as everywhere else ([Inference & decisions](../../configuration/inference.md)). It only ever answers with
 one of the asker's options. Each decision writes a `decide` row in the call log and a steering row marked
 **by controller**.
@@ -122,7 +122,7 @@ it under **For you** in `heed goal plan show`. Each hand-over is a row by heed.
 
 Answering a question someone else answered (the controller, the lead, a peer, a repeat) overrules it: a new row of its
 own, marked **overruled**, pointing at the answer it overrules, which reads struck through from then on. The new answer
-is typed to the agent, and an overrule of the controller is a label Hunch learns from (Settings › Inference & decisions
+is typed to the agent, and an overrule of the controller is a label Hunch learns from (Settings › Decisions & Hunch
 › Hunch, **Swarm answers**).
 
 In the plan's steering log, put the cursor on the answer, or its question, and press the option's digit, or `i` to type

@@ -26,6 +26,28 @@ struct SettingsSearchTests {
         ])
     }
 
+    /// Where an entry lives (page, group, section, tab) makes it match only when nothing matches on its own text,
+    /// or when the query names the place outright.
+    @Test func placeNamesCountOnlyWithoutOwnMatchesOrWhenNamed() {
+        func ids(_ query: String) -> [String] { SettingsCatalog.search(query).map(\.id) }
+        // "model" is in Model calls' page name, but At once says nothing of models: not found.
+        let model = ids("model")
+        #expect(model.contains("llm.enabled"))
+        #expect(model.contains("agent.model"))
+        #expect(!model.contains("llm.concurrency"))
+        #expect(!model.contains("llm.daily_calls"))
+        // Naming the page lists it whole.
+        let page = ids("Model calls")
+        #expect(page.contains("llm.concurrency"))
+        #expect(page.contains("llm.daily_calls"))
+        #expect(page.first == "llm.enabled")
+        // A section named outright too.
+        #expect(ids("limits").contains("llm.concurrency"))
+        // Words found in no entry's own text fall back to the places: page and section together.
+        let fallback = ids("decisions & hunch local decisions")
+        #expect(fallback == ["local.record_screens", "local.keep_days"])
+    }
+
     @Test func configKeysAsWrittenMatch() {
         #expect(Self.ids(SettingsCatalog.search("grace_seconds", in: .default)) == ["notifications.grace_seconds"])
         #expect(Self.ids(SettingsCatalog.search("notifications.grace_seconds", in: .default)) == [
@@ -135,5 +157,16 @@ struct SettingsSearchTests {
         let ranges = search.ranges(in: text).map { String(text[$0]) }
         // "model" and "odel" overlap into one.
         #expect(ranges == ["Model", "calls", "model"])
+    }
+
+    /// The field editor's commands the search takes; the rest stay the text's.
+    @Test func theFieldHandsOnlyItsFourKeysToTheSearch() {
+        #expect(SettingsSearchKey(command: "moveUp:") == .up)
+        #expect(SettingsSearchKey(command: "moveDown:") == .down)
+        #expect(SettingsSearchKey(command: "insertNewline:") == .open)
+        #expect(SettingsSearchKey(command: "cancelOperation:") == .clear)
+        #expect(SettingsSearchKey(command: "moveLeft:") == nil)
+        #expect(SettingsSearchKey(command: "deleteBackward:") == nil)
+        #expect(SettingsSearchKey(command: "insertTab:") == nil)
     }
 }

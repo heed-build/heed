@@ -112,48 +112,98 @@ struct AdvancedTag: View {
 /// clears it.
 struct SettingsSearchField: View {
     @Environment(AppModel.self) private var model
-    var focused: FocusState<SettingsFocus?>.Binding
-    let move: (Int) -> Void
-    let open: () -> Void
-    let clear: () -> Void
+    /// Bumped to put the keyboard in the field (⌘F, `:settings.find`).
+    let focusRequest: Int
+    let key: (SettingsSearchKey) -> Void
+    @State private var editing = false
 
     var body: some View {
-        let isFocused = focused.wrappedValue == .search
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
-            TextField("Search settings", text: Bindable(model).settingsQuery)
-                .textFieldStyle(.plain)
-                .font(Theme.ui(12.5))
-                .focused(focused, equals: .search)
-                .onKeyPress(.upArrow) {
-                    move(-1)
-                    return .handled
-                }
-                .onKeyPress(.downArrow) {
-                    move(1)
-                    return .handled
-                }
-                .onKeyPress(.escape) {
-                    clear()
-                    return .handled
-                }
-                .onSubmit(open)
+            SettingsQueryField(
+                text: Bindable(model).settingsQuery, focusRequest: focusRequest, key: key,
+                editing: { editing = $0 }
+            )
+            .frame(height: 17)
             Text(model.settingsQuery.isEmpty ? "⌘F" : "esc").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg))
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(
-            isFocused || !model.settingsQuery.isEmpty ? Theme.fg3 : Theme.keyCapBorder
+            editing || !model.settingsQuery.isEmpty ? Theme.fg3 : Theme.keyCapBorder
         ))
-        .contentShape(Rectangle())
-        .onTapGesture { focused.wrappedValue = .search }
     }
 }
 
-/// Where the keyboard is in Settings: the search field or the tree.
+/// The text itself, an AppKit field: its delegate sees the field editor's commands (moveUp:, moveDown:,
+/// insertNewline:, cancelOperation:) before the editor acts on them, so ↑ ↓ ↩ ⎋ reach the search whatever SwiftUI
+/// does with key presses in a text field.
+private struct SettingsQueryField: NSViewRepresentable {
+    @Binding var text: String
+    let focusRequest: Int
+    let key: (SettingsSearchKey) -> Void
+    let editing: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField()
+        field.isBordered = false
+        field.drawsBackground = false
+        field.focusRingType = .none
+        field.font = .systemFont(ofSize: 12.5)
+        field.textColor = NSColor(Theme.fg)
+        field.placeholderAttributedString = NSAttributedString(
+            string: "Search settings",
+            attributes: [.foregroundColor: NSColor(Theme.fg3), .font: NSFont.systemFont(ofSize: 12.5)]
+        )
+        field.cell?.isScrollable = true
+        field.cell?.wraps = false
+        field.lineBreakMode = .byTruncatingTail
+        field.delegate = context.coordinator
+        field.stringValue = text
+        context.coordinator.focusRequest = focusRequest
+        return field
+    }
+
+    func updateNSView(_ field: NSTextField, context: Context) {
+        context.coordinator.parent = self
+        if field.stringValue != text { field.stringValue = text }
+        if context.coordinator.focusRequest != focusRequest {
+            context.coordinator.focusRequest = focusRequest
+            DispatchQueue.main.async { field.window?.makeFirstResponder(field) }
+        }
+    }
+
+    @MainActor final class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: SettingsQueryField
+        var focusRequest = 0
+
+        init(_ parent: SettingsQueryField) {
+            self.parent = parent
+        }
+
+        func controlTextDidChange(_ notification: Notification) {
+            guard let field = notification.object as? NSTextField else { return }
+            parent.text = field.stringValue
+        }
+
+        func controlTextDidBeginEditing(_: Notification) { parent.editing(true) }
+
+        func controlTextDidEndEditing(_: Notification) { parent.editing(false) }
+
+        func control(_: NSControl, textView _: NSTextView, doCommandBy selector: Selector) -> Bool {
+            guard let key = SettingsSearchKey(command: NSStringFromSelector(selector)) else { return false }
+            parent.key(key)
+            return true
+        }
+    }
+}
+
+/// Where the keyboard is in Settings, of what SwiftUI focuses: the tree (the search field is AppKit's).
 enum SettingsFocus: Hashable {
-    case search, tree
+    case tree
 }
 
 /// The pane while searching: how many settings match, then each page's matching rows under their breadcrumbs, the

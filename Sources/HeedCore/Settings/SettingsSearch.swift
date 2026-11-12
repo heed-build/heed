@@ -142,3 +142,24 @@ public extension SettingsTree {
         return SettingsTree(page: page, folded: folded.subtracting(nodes), kept: nodes)
     }
 }
+
+/// A key in Settings' search field, as AppKit's field editor names it (`moveDown:`): the ones the search takes instead
+/// of the text. Anything else stays the field's (typing, ← →, ⌘A).
+public enum SettingsSearchKey: Equatable, Sendable {
+    /// ↑ ↓: the cursor through the matches.
+    case up, down
+    /// ↩: the match the cursor is on, on its page.
+    case open
+    /// ⎋: the field emptied, the keyboard to the tree.
+    case clear
+
+    public init?(command: String) {
+        switch command {
+        case "moveUp:": self = .up
+        case "moveDown:": self = .down
+        case "insertNewline:": self = .open
+        case "cancelOperation:": self = .clear
+        default: return nil
+        }
+    }
+}

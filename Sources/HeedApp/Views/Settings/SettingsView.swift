@@ -16,6 +16,8 @@ struct SettingsView: View {
     /// A section the tree asked to scroll to.
     @State private var scrollTarget: String?
     @FocusState private var focus: SettingsFocus?
+    /// Bumped to put the keyboard in the search field.
+    @State private var searchFocusRequest = 0
     /// The search pane's rows, top to bottom, and the one ↑ ↓ are on (nil: none yet, ↩ opens the first).
     @State private var spots: [SettingsSearchSpot] = []
     @State private var resultCursor: String?
@@ -36,9 +38,16 @@ struct SettingsView: View {
         let search = currentSearch
         HStack(spacing: 0) {
             VStack(spacing: 0) {
-                SettingsSearchField(focused: $focus, move: moveResult, open: openResult, clear: clearSearch)
-                    .padding(.horizontal, 10)
-                    .padding(.top, 12)
+                SettingsSearchField(focusRequest: searchFocusRequest) { key in
+                    switch key {
+                    case .up: moveResult(-1)
+                    case .down: moveResult(1)
+                    case .open: openResult()
+                    case .clear: clearSearch()
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.top, 12)
                 SettingsSidebar(
                     tree: $tree, cursor: $cursor, focus: $focus, inView: inView, counts: counts, search: search,
                     pickMatch: { page in resultCursor = spots.first { $0.page == page }?.key },
@@ -134,7 +143,7 @@ struct SettingsView: View {
         .foregroundStyle(Theme.fg)
         // ⌘F while the Settings window is key: the search field (the main window never sees Settings' keys).
         .background {
-            Button("") { focus = .search }
+            Button("") { searchFocusRequest += 1 }
                 .keyboardShortcut("f", modifiers: .command)
                 .opacity(0)
                 .allowsHitTesting(false)
@@ -159,8 +168,10 @@ struct SettingsView: View {
             }
         }
         // `:settings.find` fills the field: the keyboard goes there, as ⌘F would.
-        .onChange(of: model.settingsQuery, initial: true) { _, query in
-            if !query.isEmpty, focus != .search, !ShotMode.active { focus = .search }
+        .onChange(of: model.settingsFindAsked, initial: true) { _, asked in
+            guard asked else { return }
+            model.settingsFindAsked = false
+            if !ShotMode.active { searchFocusRequest += 1 }
         }
         // A breadcrumb: the first of its card's rows, on its page.
         .onChange(of: model.settingsReveal) { _, asked in

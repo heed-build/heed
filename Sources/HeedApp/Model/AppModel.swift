@@ -2778,6 +2778,7 @@ final class AppModel {
             openSettings?()
         case "settings.find":
             settingsQuery = command.arguments.joined(separator: " ")
+            settingsFindAsked = true
             openSettings?()
         case "welcome": showFirstRun()
         case "setup.review": reviewSetup()
@@ -7562,6 +7563,8 @@ final class AppModel {
 
     /// Settings' search (⌘F there, `:settings.find <words>`); empty shows the tree and its pages.
     var settingsQuery = ""
+    /// `:settings.find` asked for the keyboard to go to Settings' search field; Settings takes it.
+    var settingsFindAsked = false
 
     /// A breadcrumb in Settings' search asked to open its rows on their page.
     var settingsReveal: SettingsReveal?

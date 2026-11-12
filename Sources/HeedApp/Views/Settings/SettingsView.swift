@@ -66,6 +66,9 @@ struct SettingsView: View {
                 }
                 .onChange(of: tree.page) { proxy.scrollTo("top", anchor: .top) }
             }
+            // A page taller than the window starts at its top (shots draw it unscrolled, cut at the foot).
+            .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+            .clipped()
         }
         // Sized by the window, not by the page: the page scrolls inside it.
         .frame(

@@ -199,6 +199,12 @@ public enum Fixtures {
             }(),
         ]
         // What the first session's agent used, as its hooks reported it (the inspector's agent line).
+        // When you last touched each: the sidebar's idle age and its "you, recent first" and "idle longest" sorts.
+        for (index, minutes) in [(0, 2.0), (1, 9.0), (2, 48.0), (3, 190.0), (4, 1500.0), (5, 3000.0), (6, 7300.0)]
+            where sessions.indices.contains(index)
+        {
+            sessions[index].lastTouched = Clock.now.addingTimeInterval(-minutes * 60)
+        }
         sessions[0].usage = AgentUsage(
             model: "model-a", tokens: TokenCounts(input: 1840, output: 4120, cacheRead: 9870, cacheWrite: 610),
             costUSD: 0.42, contextTokens: 76000, contextWindow: 200_000

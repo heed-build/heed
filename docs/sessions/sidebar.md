@@ -20,14 +20,20 @@ Under the header, **new session** and **new chat** run what `o` and `gc` do; eac
 | **Chats** | [Chats](chats.md): sessions with no repo or worktree. One that asks or is blocked is in Needs you instead. |
 | **Parked** | Sessions you set aside with `zz`, and finished ones. |
 
-Each row shows the session's state glyph, its worktree's name (hover it for the title from the prompt), its repos (one chip per worktree, then one per repo it opened a
-PR in), the agent (and, when it is not working, what it waits on: the spinner says it is working), and how many pull
-requests it tracks. Once its agent has reported usage, the agent's line also names the model it runs (shortened:
-`claude · model-a · ctx 38%`) and, while it works, how full its context is, in amber from 80%. Work not shared yet
-shows as chips on the first line: `↑2` in amber for commits not pushed, `~3` for files not committed, summed over the
-session's worktrees and only when there are any (hovering `↑` says when no PR carries those commits yet). The numbers
-on the left are relative to
-the cursor, as in vim: the number on a row is how many `j` or `k` presses away it is.
+Each row shows the session's state glyph and its worktree's name (`zt` shows titles instead; hover for the other) on
+a line of its own, so it has the row's whole width. Under it, its first repo, `+2` for the others it touches (one chip
+per worktree, then one per repo it opened a PR in, all of them on the cursor's row), how long since you last touched
+it, and its pin key (`'1`). Below that, the agent's
+line: its model (shortened: `model-a · ctx 38%`) and, while it works, how full its context is, in amber from 80%; when
+it is not working, what it waits on. The agent's name shows only when it is not your default agent. At the end of the
+agent's line sit what the session holds: `↑2` in amber for commits not pushed, `~3` for files not committed (summed
+over its worktrees, only when there are any; hovering `↑` says when no PR carries those commits yet), heed's mark on
+its PRs, and how many it tracks. The numbers on the left are relative to the cursor, as in vim: the number on a row is
+how many `j` or `k` presses away it is.
+
+**How long you have been away.** The age on a row (`48m`, `3h`, `2d`) is the time since you last typed in the session
+or went into it, not since its agent last did something. It shows from 15 minutes, in grey, then amber past an hour
+and rust past a day.
 
 A session with a get it green or get it merged [run](../github/watch.md#runs) working gets a second row under it, in
 any group: `↳`, the goal and PR (`get it green #412`), how long it has run, then its agent and model and the last line
@@ -60,6 +66,25 @@ The cursor stays on its session. When a session changes group (a parked agent st
 the rows move but the selection does not, so what you are looking at, and typing into, never switches under you. Heed
 does not move the session under the cursor at all: a session it starts or stops watching changes group when you move
 off it. What you do yourself (pin, park) and what needs you show at once.
+
+## Grouping and sorting
+
+The dropdown at the end of the **new session** row says how the list is grouped and sorted, and changes it. Each choice
+is a command too, with a key in the sidebar:
+
+| | Key | Choices |
+|---|---|---|
+| Group | `zG` (`:sessions.group repo`) | **status** (the groups above), **campaign** (the [Mindmap](../history/mindmap.md) campaign the work is in, Unplaced for the rest), **repo** (each session's first repo), **none** |
+| Sort | `T` (`:sessions.sort idle`) | **attention** (as they came, Parked last touched first), **you, recent first**, **idle longest**, **started** (newest first) |
+| Rows | `zR` (`:sessions.rows one`) | **two lines**, or **one line** each: the state, the repo's mark and the title alone; the cursor's row in full |
+
+Whatever groups the rest, **Pinned** and **Needs you** stay on top. Grouped by campaign or repo, a parked session stays
+in its group, after the live ones, on one quiet line; a group sits where its first live session comes in the sort.
+Grouped by repo, a row leaves out the repo its header names. The choice is kept on this Mac.
+
+![Sessions grouped by repo: Pinned and Needs you on top, then each repo](../images/shots/sessions/by-repo.png)
+
+![One line a row, idle longest first](../images/shots/sessions/one-line.png)
 
 The footer counts repos and worktrees; `gr` opens [Repos](../worktrees/index.md).
 

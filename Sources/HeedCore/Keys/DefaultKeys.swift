@@ -91,7 +91,7 @@ public enum DefaultKeys {
         // ↩ on a session types into its agent; go, gB and gl still read or open its PRs and issues.
         "sessions": [
             ("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path"),
-            ("<CR>", "session.agent"),
+            ("<CR>", "session.agent"), ("T", "sessions.sort"), ("zG", "sessions.group"), ("zR", "sessions.rows"),
         ],
         "repos": [
             ("o", "worktree.new"), ("r", "repo.scan"), ("w", "issues.visibility"), ("dd", "select.remove"),

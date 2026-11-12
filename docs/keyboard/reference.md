@@ -124,6 +124,9 @@ This page is generated from the code (`mise run shots`).
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
 | `sidebar.titles` | `zt` | show session titles / worktree names in the sidebar rows |
+| `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
+| `sessions.sort` `[attention|touched|idle|started]` | `T` (sessions) | sort the sessions: attention, you recent first, idle longest, started (no argument: next) |
+| `sessions.rows` `[one|two]` | `zR` (sessions) | one line or two per session in the sidebar |
 | `config.edit` |  | open config.toml in $EDITOR |
 | `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |
 | `tutor.hide` `[all]` |  | hide the title bar's tutor reminder for this lesson (all: every reminder) |

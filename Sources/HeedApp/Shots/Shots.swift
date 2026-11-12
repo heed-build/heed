@@ -140,6 +140,15 @@ enum Shots {
         Shot(id: "sessions/sidebar", size: CGSize(width: 1440, height: 640), crop: .sidebar),
         Shot(id: "sessions/watching", size: CGSize(width: 1440, height: 1000), keys: "jjj", crop: .sidebar),
         Shot(id: "sessions/rail", size: CGSize(width: 1440, height: 640), keys: "zs", crop: .rail),
+        // The View menu's choices: by repo, and one line a row sorted by how long you have been away.
+        Shot(
+            id: "sessions/by-repo", size: CGSize(width: 1440, height: 1000),
+            keys: "zt" + typed(":sessions.group repo") + "<CR>", crop: .sidebar
+        ),
+        Shot(
+            id: "sessions/one-line", size: CGSize(width: 1440, height: 640),
+            keys: "zt" + typed(":sessions.sort idle") + "<CR>" + typed(":sessions.rows one") + "<CR>", crop: .sidebar
+        ),
         Shot(id: "sessions/moving", size: CGSize(width: 1440, height: 640), keys: "2j", crop: .sidebar),
         Shot(id: "sessions/attention", size: CGSize(width: 1440, height: 640), keys: "ga", crop: .sidebar),
         Shot(id: "sessions/insert-before", crop: .panes),

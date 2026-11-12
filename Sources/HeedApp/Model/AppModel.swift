@@ -339,6 +339,24 @@ final class AppModel {
     }
 
     /// Sidebar rows lead with the session's title instead of its worktree name.
+    /// How the sidebar groups and sorts sessions, and one or two lines a row; kept per Mac.
+    private(set) var sessionsView = AppModel.savedSessionsView() {
+        didSet {
+            guard sessionsView != oldValue else { return }
+            if !isFixture, let data = try? JSONEncoder().encode(sessionsView) {
+                UserDefaults.standard.set(data, forKey: "sessionsView")
+            }
+            rebuildList()
+        }
+    }
+
+    private static func savedSessionsView() -> SessionsView {
+        guard let data = UserDefaults.standard.data(forKey: "sessionsView"),
+              let view = try? JSONDecoder().decode(SessionsView.self, from: data)
+        else { return .standard }
+        return view
+    }
+
     private(set) var sidebarShowsTitles = UserDefaults.standard.bool(forKey: "sidebarShowsTitles") {
         didSet { if !isFixture { UserDefaults.standard.set(sidebarShowsTitles, forKey: "sidebarShowsTitles") } }
     }
@@ -393,6 +411,8 @@ final class AppModel {
     init(domain: Domain, settings: WorkSettings = .default, isFixture: Bool) {
         self.settings = settings
         self.isFixture = isFixture
+        // Fixtures, snapshots and docs shots draw the sidebar as it comes, whatever this Mac chose.
+        if isFixture { sessionsView = .standard }
         callLog = CallLogBrowser(fixture: isFixture)
         timeline = TimelineBrowser(fixture: isFixture)
         ledger = LedgerBrowser(fixture: isFixture)
@@ -1265,7 +1285,7 @@ final class AppModel {
                 [session.title, session.worktreeName, session.branch, session.agent, session.location.label]
                     + session.repos.map(\.name) + session.trackedPRs.map { "#\($0.number)" }
             )
-        }, pilot: sessionPilot, hold: hold)
+        }, pilot: sessionPilot, hold: hold, view: sessionsView, campaign: campaign(of:))
         if let selected, let index = list.ordered.firstIndex(where: { $0.id == selected }) {
             cursor = index
         } else {
@@ -2284,8 +2304,9 @@ final class AppModel {
             if var session = currentSession {
                 let now = Date()
                 lastTyped[session.id] = now
-                if now.timeIntervalSince(session.lastActivity) > 60 {
-                    session.lastActivity = now
+                if now.timeIntervalSince(session.touched) > 60 { session.lastTouched = now }
+                if now.timeIntervalSince(session.lastActivity) > 60 || session.lastTouched == now {
+                    if now.timeIntervalSince(session.lastActivity) > 60 { session.lastActivity = now }
                     commit(.sessionUpserted(session))
                 }
             }
@@ -2327,7 +2348,10 @@ final class AppModel {
             default: nil
             }
         }
-        if mode == .insert { terminalFocusRequest += 1 }
+        if mode == .insert {
+            terminalFocusRequest += 1
+            touchCurrentSession()
+        }
     }
 
     /// What ⌘V pastes, when `stroke` is ⌘V and the pasteboard has text.
@@ -2703,6 +2727,7 @@ final class AppModel {
         case "inspector.toggle": inspectorVisible.toggle()
         case "sidebar.toggle": sidebarCollapsed.toggle()
         case "sidebar.titles": sidebarShowsTitles.toggle()
+        case "sessions.group", "sessions.sort", "sessions.rows": changeSessionsView(command)
         case "mode.normal", "mode.insert", "mode.visual", "mode.command", "mode.hint":
             // A key has switched already (ModeEngine does); from `:` the switch happens here.
             if let target = Mode(rawValue: String(command.name.dropFirst(5))), engine.mode != target {
@@ -3038,6 +3063,50 @@ final class AppModel {
         let plugin = config.goals.tellAgents ? integration.plugin : nil
         if settings.goalPlugin != plugin { settings.goalPlugin = plugin }
         applyGoalBriefs()
+    }
+
+    /// You went into the session under the cursor (INSERT in it): it was touched now, at most once a minute.
+    private func touchCurrentSession() {
+        guard view == .sessions, var session = currentSession else { return }
+        let now = Date()
+        guard now.timeIntervalSince(session.touched) > 60 else { return }
+        session.lastTouched = now
+        commit(.sessionUpserted(session))
+    }
+
+    /// `sessions.group` `sessions.sort` `sessions.rows`: the named choice, or the next one.
+    private func changeSessionsView(_ command: CommandInvocation) {
+        var view = sessionsView
+        let argument = command.arguments.first?.lowercased()
+        switch command.name {
+        case "sessions.group":
+            guard let grouping = argument.map({ SessionsView.Grouping(rawValue: $0) })
+                ?? SessionsView.next(view.grouping) else { return flash = "group by status, campaign, repo or none" }
+            view.grouping = grouping
+            flash = "sessions by \(grouping.title)"
+        case "sessions.sort":
+            guard let sort = argument.map({ SessionsView.Sort(rawValue: $0) }) ?? SessionsView.next(view.sort) else {
+                return flash = "sort by attention, touched, idle or started"
+            }
+            view.sort = sort
+            flash = "sessions sorted: \(sort.title)"
+        default:
+            guard let rows = argument.map({ SessionsView.Rows(rawValue: $0) }) ?? SessionsView.next(view.rows) else {
+                return flash = "rows: one or two"
+            }
+            view.rows = rows
+            flash = "sessions: \(rows.title) a row"
+        }
+        sessionsView = view
+    }
+
+    /// The Mindmap campaign a session's work is in, across the instances (each session's work is in one at most).
+    func campaign(of session: Session) -> SessionCampaign? {
+        guard sessionsView.grouping == .campaign else { return nil }
+        for instance in mindmap.instances {
+            if let campaign = SessionCampaign.of(entry: session.id, in: mindmap.tree(instance)) { return campaign }
+        }
+        return nil
     }
 
     func select(sessionID: String) {

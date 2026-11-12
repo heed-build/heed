@@ -48,7 +48,7 @@ extension SettingsCatalog {
         global(
             "sessions.name_sessions", .general, "Sessions", "Name sessions",
             "Heed names each session from what it is doing, after its first turn and when it opens a PR; a title "
-                + "you give it stays.", since: "0.37.0"
+                + "you give it stays.", since: "0.38.0"
         ) { .bool($0.work.nameSessions) },
         global(
             "sessions.persist", .general, "Sessions", "Persistent panes",

@@ -176,6 +176,11 @@ enum Shots {
 
     static let prompt = typed("Fix broken anchors in the redirect pages")
 
+    /// A CI log, as pasted into Start work.
+    static let ciLog = (1 ... 214).map { line in
+        "2026-10-13T09:\(String(format: "%02d", line % 60)):00Z \(line % 9 == 0 ? "ERROR" : "INFO") step \(line)"
+    }.joined(separator: "\n")
+
     /// The fake world's chats, added to `main`: in the sidebar's Chats group (one asking, in Needs you) and History.
     static func withChats(_ model: AppModel) {
         var changes: [DomainChange] = Fixtures.chats.flatMap { session, layout in
@@ -216,6 +221,17 @@ enum Shots {
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),
         // The kind row: h l pick what the work is, and the name's prefix follows.
         Shot(id: "start-work/kind", keys: "o" + prompt + "<Esc>jl", crop: .dialog),
+        // A CI log pasted: kept beside the prompt as a file; a linked issue with its title.
+        Shot(id: "start-work/attachment", crop: .dialog, prepare: { model in
+            model
+                .openStartWork(
+                    prompt: "The docs build fails since https://github.com/acme/docs-website/issues/88, fix it"
+                )
+            model.clickStartWork { form in
+                form.paste(ciLog)
+                form.setLinkTitles(["https://github.com/acme/docs-website/issues/88": "Redirects to moved pages 404"])
+            }
+        }),
         Shot(id: "start-work/repos", keys: "o" + prompt + "<Esc>jj", crop: .dialog),
         Shot(id: "start-work/repo-search", keys: "o" + prompt + "<Esc>jj/mar", crop: .dialog),
         // Any repo, typed into the search: one heed has not seen is checked on GitHub, then cloned on ⌘↩.

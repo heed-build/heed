@@ -37,6 +37,12 @@ public struct StartWorkForm: Sendable {
     public private(set) var name = ""
     /// What the work is; it picks the branch prefix. Guessed from the prompt until you choose (`h l` on its row).
     public private(set) var kind: WorkKind = .feat
+    /// Big pastes, kept beside the prompt (`PromptAttachments`); the agent is told where they are.
+    public private(set) var attachments: [PromptAttachment] = []
+    /// The attachment chip `h l` are on in the prompt field (NORMAL); `x` drops it, `P` puts it back in the prompt.
+    public private(set) var attachmentCursor = 0
+    /// Titles of the PRs and issues the prompt links, by URL; the app fills them in as it fetches them.
+    public private(set) var linkTitles: [String: String] = [:]
     private var kindEdited = false
     /// Branch names already used, by repo slug (its worktrees' and sessions' branches): a guessed name gets `-2`
     /// rather than clash.
@@ -337,6 +343,7 @@ public struct StartWorkForm: Sendable {
         plan.effort = effort
         plan.promotion = promotion
         plan.kind = kind
+        plan.attachments = attachments
         plan.instructions = instructions[records.first?.repo.slug ?? ""] ?? ""
         plan.signOff = signOffArguments(records.first?.repo)
         return plan
@@ -489,6 +496,10 @@ public struct StartWorkForm: Sendable {
             toggle()
         case KeyStroke("/") where field == .repo:
             openSearch()
+        case KeyStroke("x") where field == .prompt && !attachments.isEmpty:
+            dropAttachment(at: attachmentCursor)
+        case KeyStroke("P") where field == .prompt && !attachments.isEmpty:
+            inlineAttachment(at: attachmentCursor)
         default:
             return .ignored
         }
@@ -631,6 +642,12 @@ public struct StartWorkForm: Sendable {
         } else {
             field = .prompt
             editing = true
+            // A log or a diff is kept beside the prompt, not in it.
+            if PromptAttachments.isLarge(text) {
+                attachments.append(PromptAttachment(id: (attachments.map(\.id).max() ?? 0) + 1, text: text))
+                attachmentCursor = attachments.count - 1
+                return
+            }
             pasted = text
         }
         syncInput()
@@ -649,6 +666,8 @@ public struct StartWorkForm: Sendable {
 
     private mutating func moveWithin(by delta: Int) {
         switch field {
+        case .prompt where !attachments.isEmpty:
+            attachmentCursor = min(max(attachmentCursor + delta, 0), attachments.count - 1)
         case .repo:
             // The last stops are the search chip and the chat chip.
             repoCursor = min(max(repoCursor + delta, 0), lastRepoStop)
@@ -761,7 +780,10 @@ public struct StartWorkForm: Sendable {
             return
         }
         let stripped = StartWork.namingText(prompt, repoNames: repos.map(\.repo.name))
-        let text = StartWork.slugWords(stripped).isEmpty ? prompt : stripped
+        // A linked PR or issue says what the work is better than the words around the link.
+        let titles = linkTitles
+        let linked = links.lazy.compactMap { titles[$0.url] }.first
+        let text = linked ?? (StartWork.slugWords(stripped).isEmpty ? prompt : stripped)
         var suggested = advice.map { StartWork.branchName(for: text, prefixes: prefixes, advice: $0) }
             ?? StartWork.branchName(for: text, prefixes: prefixes)
         if kindEdited {
@@ -772,6 +794,33 @@ public struct StartWorkForm: Sendable {
         }
         let slug = selectedRecords.first?.repo.slug ?? selectedRepos.first ?? ""
         name = StartWork.unique(suggested, taken: takenBranches[slug] ?? [])
+    }
+
+    /// A click on an attachment's ✕, or `x` on it: dropped.
+    public mutating func dropAttachment(at index: Int) {
+        guard attachments.indices.contains(index) else { return }
+        attachments.remove(at: index)
+        attachmentCursor = min(attachmentCursor, max(attachments.count - 1, 0))
+    }
+
+    /// `P` on an attachment, or a click on it: its text back in the prompt, at the end.
+    public mutating func inlineAttachment(at index: Int) {
+        guard attachments.indices.contains(index) else { return }
+        let attachment = attachments.remove(at: index)
+        attachmentCursor = min(attachmentCursor, max(attachments.count - 1, 0))
+        let joined = prompt.isEmpty ? attachment.text : prompt + "\n\n" + attachment.text
+        setPrompt(joined)
+    }
+
+    /// The PRs and issues the prompt links, in order.
+    public var links: [PromptLink] { PromptLink.links(in: prompt) }
+
+    /// What heed fetched for the prompt's links: their titles, which the branch is named from.
+    public mutating func setLinkTitles(_ titles: [String: String]) {
+        guard titles != linkTitles else { return }
+        linkTitles = titles
+        suggestName()
+        if !nameEdited { guessedName = name }
     }
 
     /// Every prefix a name may start with: the configured ones and each kind's names.

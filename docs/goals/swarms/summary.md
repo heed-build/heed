@@ -38,7 +38,9 @@ lead writes it (or you, from a terminal outside heed). `:swarm.summary` assemble
 
 ## Where it goes
 
-- **The goal's swarm**: `W` on a done swarm shows the summary instead of the agents.
+- **The goal's swarm**: `W` on a done swarm shows the summary first, and under it the agents as they were while it
+  ran: each worker, the one under the cursor with its progress notes and activity (`j` `k` move between them, `s`
+  goes to a worker's tab), and what changed since you last looked.
 - **History's ledger**: one entry per swarm, titled `Swarm: <goal>`, with its PRs, agent time, spend, decisions and
   follow-ups (`L` in History).
 - **`GOAL.md`**: the lead's decisions are recorded under Decisions, as records (they apply at once and can be undone,

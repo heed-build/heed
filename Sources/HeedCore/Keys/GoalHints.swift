@@ -65,9 +65,9 @@ public enum GoalHints {
             ], "")
         case "goalagents" where context.done:
             ([
-                Hint("swarm.followup", "follow-up swarm"), Hint("goal.swarm", "plan"), Hint("goal.map", "map"),
-                Hint("goal.agents", "overview"),
-            ], "")
+                Hint("swarm.followup", "follow-up swarm"), Hint("swarm.task.open", "its tab"),
+                Hint("goal.swarm", "plan"), Hint("goal.map", "map"), Hint("goal.agents", "overview"),
+            ], "j k agent")
         case "goalagents":
             ([
                 Hint("swarm.task.open", "its tab"), Hint("swarm.task.pause", "pause"), Hint("swarm.task.swap", "swap"),
@@ -116,7 +116,7 @@ public enum GoalHints {
             ([
                 Hint("goal.ask.yes", "yes"), Hint("goal.ask.no", "no"), Hint("goal.ask.move", "move"),
                 Hint("goal.ask.ignore", "ignore like this"), Hint("goal.attach.undo", "undo last"),
-                Hint("goal.unassigned", "back"),
+                Hint("goal.unassigned.how", "how it works"), Hint("goal.unassigned", "back"),
             ], "")
         default:
             // The list and the overview, and GOAL.md with nothing waiting: the goal is what you are on. In GOAL.md `n`

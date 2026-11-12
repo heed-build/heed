@@ -3,66 +3,65 @@ import SwiftUI
 
 /// A done swarm's end-of-build summary (deck p15): the outcome with its numbers, the PRs in merge order, who did what
 /// when, what the agents ran into, every question with who answered it and how long it took, the decisions and the
-/// follow-ups. Written by the lead over heed's record; also in History's ledger. `F` starts a follow-up swarm.
+/// follow-ups. Written by the lead over heed's record; also in History's ledger. `F` starts a follow-up swarm. The
+/// agents pane draws it first, with the agents under it.
 struct SwarmSummaryView: View {
     @Environment(AppModel.self) private var model
     let board: SwarmBoard
     let summary: SwarmSummary
 
     var body: some View {
-        ListScroll {
-            VStack(alignment: .leading, spacing: 14) {
-                SummaryHeader(summary: summary)
-                if !summary.prs.isEmpty {
-                    HStack(alignment: .top, spacing: 10) {
-                        ForEach(summary.prs, id: \.task) { pr in SummaryPR(pr: pr) }
-                    }
+        VStack(alignment: .leading, spacing: 14) {
+            SummaryHeader(summary: summary)
+            if !summary.prs.isEmpty {
+                HStack(alignment: .top, spacing: 10) {
+                    ForEach(summary.prs, id: \.task) { pr in SummaryPR(pr: pr) }
                 }
-                HStack(alignment: .top, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Panel(title: "Who did what, when", note: "working · waiting · stuck") {
-                            SummaryTimeline(summary: summary)
-                        }
-                        Panel(title: "What they ran into", note: "\(summary.episodes.count)") {
-                            if summary.episodes.isEmpty { Quiet("Nothing: no stuck stretches, long waits or moves.") }
-                            ForEach(Array(summary.episodes.enumerated()), id: \.offset) { _, episode in
-                                SummaryEpisode(episode: episode)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    VStack(alignment: .leading, spacing: 14) {
-                        Panel(title: "Questions · \(summary.questions.count)", note: summary.answeredLine) {
-                            SummaryQuestions(summary: summary)
-                        }
-                        HStack(alignment: .top, spacing: 14) {
-                            Panel(title: "Decisions", note: "") {
-                                if summary.decisions.isEmpty { Quiet("None recorded.") }
-                                ForEach(summary.decisions, id: \.self) { line in
-                                    Text("· " + line).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                            Panel(title: "Follow-ups", note: "") {
-                                if summary.followUps.isEmpty { Quiet("Nothing left over.") }
-                                ForEach(summary.followUps, id: \.self) { line in
-                                    Text("· " + line).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                KeyHint("swarm.followup", scope: "goalagents", label: "start a follow-up swarm")
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                Text(summary.byLead ? "Written by the lead over heed's record of the run: its plan, the steering log "
-                    + "and every agent's activity. In History's ledger too."
-                    : "Assembled by heed from the run's record; the lead adds its outcome, decisions and follow-ups "
-                    + "with heed swarm summary.")
-                    .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
             }
-            .padding(20)
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Panel(title: "Who did what, when", note: "working · waiting · stuck") {
+                        SummaryTimeline(summary: summary)
+                    }
+                    Panel(title: "What they ran into", note: "\(summary.episodes.count)") {
+                        if summary.episodes.isEmpty { Quiet("Nothing: no stuck stretches, long waits or moves.") }
+                        ForEach(Array(summary.episodes.enumerated()), id: \.offset) { _, episode in
+                            SummaryEpisode(episode: episode)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 14) {
+                    Panel(title: "Questions · \(summary.questions.count)", note: summary.answeredLine) {
+                        SummaryQuestions(summary: summary)
+                    }
+                    HStack(alignment: .top, spacing: 14) {
+                        Panel(title: "Decisions", note: "") {
+                            if summary.decisions.isEmpty { Quiet("None recorded.") }
+                            ForEach(summary.decisions, id: \.self) { line in
+                                Text("· " + line).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        Panel(title: "Follow-ups", note: "") {
+                            if summary.followUps.isEmpty { Quiet("Nothing left over.") }
+                            ForEach(summary.followUps, id: \.self) { line in
+                                Text("· " + line).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            KeyHint("swarm.followup", scope: "goalagents", label: "start a follow-up swarm")
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+            }
+            Text(summary.byLead ? "Written by the lead over heed's record of the run: its plan, the steering log "
+                + "and every agent's activity. In History's ledger too."
+                : "Assembled by heed from the run's record; the lead adds its outcome, decisions and follow-ups "
+                + "with heed swarm summary.")
+                .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
         }
+        .padding(20)
     }
 }
 

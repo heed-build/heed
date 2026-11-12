@@ -690,3 +690,29 @@ struct GoalAttachAttentionTests {
         #expect(GoalAttachAsks.key(of: ask.id) == "chat:c1" && GoalAttachAsks.key(of: "acme/x#1") == nil)
     }
 }
+
+struct AttachExplainerTests {
+    @Test func showsOnItsOwnOnlyWhileNothingWaits() {
+        let explainer = AttachExplainer()
+        #expect(explainer.shows(waiting: 0))
+        #expect(!explainer.shows(waiting: 1))
+        #expect(!explainer.shows(waiting: 4))
+    }
+
+    @Test func toggleFlipsWhatShowsNowAndKeepsIt() {
+        var explainer = AttachExplainer()
+        // Something waits: collapsed, the key opens it, and it stays open when the asks are answered.
+        let opened = explainer.toggle(waiting: 2)
+        #expect(opened)
+        #expect(explainer.shows(waiting: 2))
+        #expect(explainer.shows(waiting: 0))
+        let closed = explainer.toggle(waiting: 0)
+        #expect(!closed)
+        #expect(!explainer.shows(waiting: 0))
+        // Nothing waits: shown, the key hides it.
+        var empty = AttachExplainer()
+        let hidden = empty.toggle(waiting: 0)
+        #expect(!hidden)
+        #expect(!empty.shows(waiting: 0))
+    }
+}

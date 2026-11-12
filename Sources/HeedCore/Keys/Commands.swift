@@ -238,6 +238,15 @@ public enum Commands {
             .views, arguments: "<words>"
         ),
         .init(
+            "whatsnew.show",
+            "what's new in heed: the features and new settings since the version you last opened",
+            .views
+        ),
+        .init(
+            "nudges.hide", "hide the title bar's settings-worth-a-look pill until the next launch (always: for good)",
+            .views, arguments: "[always]"
+        ),
+        .init(
             "settings.configure",
             "Settings: Configure…, a profile, then the settings still worth deciding, then the changes to apply",
             .views

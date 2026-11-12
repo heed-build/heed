@@ -149,6 +149,7 @@ public enum CommandCompletions {
         case "tutor": ([Tutor.tour] + Tutor.viewLessons).map { ($0.id, $0.title) }
         case "tutor.hide": [("all", "every lesson's reminder")]
         case "inference.hide": [("always", "never remind me ([llm] setup_reminder = false)")]
+        case "nudges.hide": [("always", "never remind me ([nudges] gaps = \"off\")")]
         case "hunch.download", "hunch.cancel", "hunch.delete":
             HunchCatalogue.details.map { ($0.id, "\($0.details.title), \($0.details.languages)") }
         case "log.kind": CallKind.all.map { ($0.rawValue, "") }

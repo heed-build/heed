@@ -865,6 +865,18 @@ enum Shots {
             id: "configuration/inference-reminder", crop: .titleBar,
             prepare: { $0.inferenceReminderInShots = true }
         ),
+        // After an update: what is new since the version last opened, the new settings with their rows.
+        Shot(
+            id: "configuration/whats-new", subject: .nudge,
+            prepare: { $0.nudge = .whatsNew(WhatsNew.items(since: "0.36.0", upTo: "0.37.0")) }
+        ),
+        // The settings worth a look: the high-impact ones still at their default, each with its row.
+        Shot(
+            id: "configuration/nudge-gaps", subject: .nudge,
+            prepare: { $0.nudge = .gaps($0.highImpactGaps) }
+        ),
+        // Between nudges, the title bar's pill.
+        Shot(id: "configuration/nudge-pill", crop: .titleBar, prepare: { $0.nudgePillInShots = true }),
         // Hunch in each of its states: chosen with no model, downloading, ready with a trained head, learning.
         Shot(
             id: "configuration/hunch-no-model", subject: .settings(.decisions), size: CGSize(width: 1180, height: 2000),

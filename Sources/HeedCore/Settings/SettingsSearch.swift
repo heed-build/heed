@@ -87,6 +87,15 @@ public struct SettingsSearch: Sendable {
     }
 }
 
+public extension SettingsSearch {
+    /// These global settings' rows alone, as search draws them, with nothing highlighted: a few real rows shown
+    /// outside Settings (what's new, the gap nudge). Scoped settings have no one target to show at and are left out.
+    static func only(_ entries: [SettingsEntry]) -> SettingsSearch {
+        let matches = entries.filter { $0.scope == .global }.map { SettingMatch(entry: $0, target: .global) }
+        return SettingsSearch(query: "", words: [], matches: matches)
+    }
+}
+
 public extension SettingsCatalog {
     /// Searches every setting (advanced ones too) for `query`. A global setting is listed once; a scoped one at each
     /// agent, org, repo or host where it differs from heed's default or was refused, else once at the one its page

@@ -532,6 +532,8 @@ public enum MenuBar {
                 item("Leave the tutor", "tutor.exit", enabled: facts.tutor),
                 item("Hide the tutor reminder", "tutor.hide"),
                 .separator,
+                item("What's New in Heed", "whatsnew.show"),
+                item("Hide the settings reminder", "nudges.hide"),
                 item("Getting started checks", "welcome"),
                 item("Set up model calls & decisions", "inference.setup"),
                 item("Hide the setup reminder", "inference.hide"),

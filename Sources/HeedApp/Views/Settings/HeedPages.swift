@@ -102,6 +102,18 @@ struct NotificationsPage: View {
                 )
             }
         }
+        SettingsCard(title: "Nudges") {
+            SettingRow("nudges.whats_new") {
+                ConfigSwitch(path: ["nudges", "whats_new"], isOn: model.config.nudges.whatsNew)
+            }
+            SettingRow("nudges.gaps") {
+                SegmentedChoice(
+                    path: ["nudges", "gaps"], value: model.config.nudges.gaps,
+                    options: [(.threeDays, "Every 3 days"), (.weekly, "Weekly"), (.off, "Off")], name: \.rawValue,
+                    width: 270
+                )
+            }
+        }
     }
 }
 

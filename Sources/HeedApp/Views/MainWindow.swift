@@ -118,6 +118,9 @@ struct MainWindow: View {
             if model.firstRun != nil { FirstRunView() }
         }
         .overlay {
+            if let nudge = model.nudge { NudgeView(nudge: nudge) }
+        }
+        .overlay {
             if model.overlay == .help { HelpOverlay() }
         }
         .overlay(alignment: .bottom) {
@@ -206,6 +209,7 @@ struct TitleBar: View {
         }
         if let reminder = model.tutorReminder { TutorReminderView(reminder: reminder, compact: compact) }
         if let text = model.inferenceReminder { InferenceReminderView(text: text, compact: compact) }
+        if let count = model.nudgePill { NudgePillView(count: count, compact: compact) }
     }
 
     /// Unread inbox items; PRs that need you.

@@ -24,7 +24,7 @@ A red `!` says `config.toml` has a value there heed refused.
 | Group | Page | Holds |
 |---|---|---|
 | **Heed** | **General** | The default agent, resume on launch, the continue prompt, shell split, [persistent panes](../sessions/zmx.md), the menu bar item and the Dock state |
-| | **Notifications** | [Notifications](../outside-the-window/notifications.md) when a session needs you (asking, blocked, the grace, the reminder), Attention notifications, and quiet hours, once for both |
+| | **Notifications** | [Notifications](../outside-the-window/notifications.md) when a session needs you (asking, blocked, the grace, the reminder), Attention notifications, quiet hours, once for both, and heed's own [nudges](whats-new.md): what's new after an update, and how often it points at settings worth a look |
 | | **Updates** | Whether heed checks for [updates](updates.md), and whether it asks before installing |
 | **Agents** | **Agents** | Each agent's own settings, in two tabs (see below) |
 | | **Model calls** | Where heed's [model calls and decisions](inference.md) stand and one click to set them up, the switch for every model call, which agent takes them, a **Test**, the limits (timeout, at once, back off, daily calls and dollars), whether the inspector shows a cost and your prices, and the reminder on launch |
@@ -118,6 +118,14 @@ refused); when that leaves nothing, the pane says so and offers to turn Only mod
 **Configure…** at the top of the tree goes through the settings still worth deciding, with their count as a badge
 (`13 gaps`). It starts from an optional profile (Hands on, Autopilot, Focus, Minimal), lists the gaps, and shows the
 keys it will write before **Apply** writes them. See [Configure…](configure.md).
+
+## What's new and nudges
+
+After an update heed shows once what is new since the version you last opened, with the new settings' rows. Every
+three days at most it points at the high-impact settings still at their defaults, and between those nudges the title
+bar shows **N settings worth a look**. Both only show at a safe moment, never while you type or over a dialog, and
+never bring heed to the front. Settings › Notifications › Nudges sets how often, or turns them off. See
+[What's new and nudges](whats-new.md).
 
 ## Agents
 

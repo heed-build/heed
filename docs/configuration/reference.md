@@ -280,6 +280,16 @@ setup_reminder = true
 # enabled = true
 # shadow = true
 
+[standup]
+# A standup report on the days you choose: one per Mindmap (each org, and personal, never mixed), each of your
+# questions answered by a cheap model from that Mindmap's work since the last report ([llm]). History › Standup
+# shows them; y copies an answer, Y the whole report. Missed while the Mac slept, it runs once when heed looks.
+# enabled = false
+# days = ["mon", "tue", "wed", "thu", "fri"]
+# at = "08:40"
+# range_days = 1          # unset: since the last report
+# questions = ["What did I finish since the last standup?", "What am I working on next?", "What is blocked?"]
+
 [memory]
 # What a session is told at launch from the Mindmap: the decisions that still stand in its campaign, what was
 # tried and dropped, what is still open, and its PRs, from that org's Mindmap only. "node_and_goal": sessions

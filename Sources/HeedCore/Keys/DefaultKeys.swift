@@ -105,27 +105,45 @@ public enum DefaultKeys {
             ("T", "history.timeline"),
             ("L", "history.ledger"),
             ("D", "history.dashboard"),
-            ("M", "history.mindmap"),
+            ("M", "history.mindmap"), ("U", "history.standup"),
         ],
         // History's timeline (T, :timeline); T again goes back to the list.
         "timeline": [
-            ("T", "history.timeline"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"),
+            ("T", "history.timeline"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"), (
+                "U",
+                "history.standup"
+            ),
             ("R", "history.reopen"), ("<CR>", "history.reopen"), ("t", "timeline.kind"),
             ("r", "timeline.repo"), ("w", "timeline.where"), ("c", "timeline.gone"),
         ],
         // History's ledger (L, :ledger); L again goes back to the list.
         "ledger": [
-            ("L", "history.ledger"), ("T", "history.timeline"), ("D", "history.dashboard"), ("M", "history.mindmap"),
+            ("L", "history.ledger"), ("T", "history.timeline"), ("D", "history.dashboard"), ("M", "history.mindmap"), (
+                "U",
+                "history.standup"
+            ),
             ("R", "history.reopen"), ("<CR>", "history.reopen"), ("S", "ledger.summarize"), ("E", "ledger.edit"),
         ],
         // History's dashboard (D, :dashboard); D again goes back to the list.
         "dashboard": [
-            ("D", "history.dashboard"), ("T", "history.timeline"), ("L", "history.ledger"), ("M", "history.mindmap"),
+            ("D", "history.dashboard"), ("T", "history.timeline"), ("L", "history.ledger"), ("M", "history.mindmap"), (
+                "U",
+                "history.standup"
+            ),
             ("R", "history.reopen"), ("<CR>", "history.reopen"), ("r", "dashboard.range"),
+        ],
+        // History's standup reports (U, :standup); U again goes back to the list.
+        "standup": [
+            ("U", "history.standup"), ("T", "history.timeline"), ("L", "history.ledger"), ("D", "history.dashboard"),
+            ("M", "history.mindmap"), ("y", "standup.copy"), ("Y", "standup.copy.all"), ("t", "standup.question"),
+            ("]o", "standup.org.next"), ("[o", "standup.org.prev"), ("S", "standup.run"),
         ],
         // History's Mindmap (M, :mindmap): j k move among siblings, h l out and in; M again goes back to the list.
         "mindmap": [
-            ("M", "history.mindmap"), ("T", "history.timeline"), ("L", "history.ledger"), ("D", "history.dashboard"),
+            ("M", "history.mindmap"), ("U", "history.standup"), ("T", "history.timeline"), ("L", "history.ledger"), (
+                "D",
+                "history.dashboard"
+            ),
             ("h", "mindmap.out"), ("l", "mindmap.in"), ("-", "mindmap.less"), ("=", "mindmap.more"),
             ("]o", "mindmap.org.next"), ("[o", "mindmap.org.prev"), ("y", "mindmap.accept"), ("x", "mindmap.done"),
             ("p", "mindmap.pin"), (">", "mindmap.nest"), ("<", "mindmap.lift"), ("r", "mindmap.rename"),

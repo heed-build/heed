@@ -61,6 +61,11 @@ struct MainWindow: View {
                             HistoryPaneBar().shotRegion(.historyPaneBar)
                             MindmapView()
                         }
+                    case .standup:
+                        VStack(spacing: 0) {
+                            HistoryPaneBar().shotRegion(.historyPaneBar)
+                            StandupView()
+                        }
                     case .goals:
                         GoalsView()
                     }
@@ -397,6 +402,9 @@ struct StatusBar: View {
         case .ledger:
             let rows = model.ledger.rows
             return "\(rows.isEmpty ? 0 : model.ledger.cursor + 1)/\(rows.count)"
+        case .standup:
+            let rows = model.standup.rows
+            return "\(rows.isEmpty ? 0 : model.standup.cursor + 1)/\(rows.count)"
         case .mindmap:
             let rows = model.mindmap.siblings
             return "\(rows.isEmpty ? 0 : model.mindmap.cursor + 1)/\(rows.count)"
@@ -482,6 +490,12 @@ struct StatusBar: View {
                 ("history.timeline", "list"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "timeline")) \($0.1)" }.joined(separator: " · ") + " · { } day · / search"
+        case .normal where model.view == .standup:
+            [
+                ("standup.copy", "copy answer"), ("standup.copy.all", "copy report"), ("standup.question", "question"),
+                ("standup.org.next", "org"), ("standup.run", "write now"), ("history.standup", "list"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "standup")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .mindmap:
             [
                 ("mindmap.out", "out"), ("mindmap.in", "in"), ("mindmap.accept", "keep"), ("mindmap.move", "move"),

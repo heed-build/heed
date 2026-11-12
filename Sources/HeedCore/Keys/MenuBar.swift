@@ -123,7 +123,7 @@ public enum MenuBar {
         /// The PR in front is open, or the session has an open PR.
         var openPull: Bool { facts.pull.map(\.open) ?? (hasRepo && (facts.session?.openPulls ?? 0) > 0) }
         var anyPull: Bool { facts.pull != nil || hasRepo && (facts.session?.pulls ?? 0) > 0 }
-        var historyViews: Set<String> { ["history", "timeline", "ledger", "dashboard", "mindmap"] }
+        var historyViews: Set<String> { ["history", "timeline", "ledger", "dashboard", "mindmap", "standup"] }
 
         func item(
             _ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true, checked: Bool = false,
@@ -244,6 +244,7 @@ public enum MenuBar {
                 view("Ledger", "view.ledger", "ledger"),
                 view("Dashboard", "view.dashboard", "dashboard"),
                 view("Mindmap", "view.mindmap", "mindmap"),
+                view("Standup", "view.standup", "standup"),
                 view("Goals", "view.goals", "goals"),
                 view("Call log", "view.log", "log"),
                 item("Hosts", "host.open"),
@@ -282,6 +283,7 @@ public enum MenuBar {
                     ("Timeline: where", "timeline.where"), ("Timeline: removed worktrees", "timeline.gone"),
                     ("Dashboard: next range", "dashboard.range"), ("Ledger: summarize now", "ledger.summarize"),
                     ("Ledger: edit the summary", "ledger.edit"), ("Mindmap", "history.mindmap"),
+                    ("Standup", "history.standup"),
                 ], in: historyViews),
                 scoped("In the Mindmap", [
                     ("In", "mindmap.in"), ("Out", "mindmap.out"), ("Less depth", "mindmap.less"),
@@ -301,6 +303,11 @@ public enum MenuBar {
                     ("Name campaigns now", "mindmap.name"), ("Ledger entry", "mindmap.open"),
                     ("Start a session here…", "mindmap.session"),
                 ], in: ["mindmap"]),
+                scoped("In the Standup", [
+                    ("Copy the answer", "standup.copy"), ("Copy the report", "standup.copy.all"),
+                    ("Next question", "standup.question"), ("Next org", "standup.org.next"),
+                    ("Previous org", "standup.org.prev"), ("Write a report now", "standup.run"),
+                ], in: ["standup"]),
                 scoped("In Goals", [
                     ("New goal…", "goal.new"), ("Overview", "goal.overview"), (
                         "Next steps: hide or show",

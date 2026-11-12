@@ -26,7 +26,8 @@ enum ShotRegion: String, CaseIterable {
     case pilotDetail, pilotActivity
     case attentionFilters, attentionDetail
     case goalsList, goalsOverview, goalsDoc, goalVersions, goalForm, sessionGoal, inspectorGoal
-    case historyPaneTabs, historyPaneBar, mindmapColumns, mindmapDetail, goalPaneTabs, goalPaneBar, goalGuide, goalLeft,
+    case historyPaneTabs, historyPaneBar, mindmapColumns, mindmapDetail, standupList, standupDetail, goalPaneTabs,
+         goalPaneBar, goalGuide, goalLeft,
          goalRow
     case goalsBoard, goalMatrix, goalProposals
     case goalsUnassigned, goalAsk

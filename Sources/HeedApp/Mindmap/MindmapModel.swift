@@ -133,6 +133,17 @@ final class MindmapModel {
         try? await store.delete(Array(removed))
     }
 
+    /// `instance`'s standup reports, newest first.
+    func reports(_ instance: String) async -> [StandupReport] {
+        guard !fixture, let store = await store(instance) else { return [] }
+        return await (try? store.reports()) ?? []
+    }
+
+    func save(_ report: StandupReport) async {
+        guard !fixture, let store = await store(report.instance) else { return }
+        try? await store.save(report)
+    }
+
     private func store(_ instance: String) async -> MindmapStore? {
         if let store = stores[instance] { return store }
         let store = await MindmapStore.open(instance, in: directory)

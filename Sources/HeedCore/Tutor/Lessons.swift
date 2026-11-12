@@ -360,6 +360,13 @@ public extension Tutor {
                     + "heed put a piece of work."
             ) { _, now, seen in seen.contains { $0.view == "mindmap" } && now.view == "history" },
             TutorStep(
+                "The standup",
+                say: "{history.standup} shows standup reports: your own questions answered from each org's Mindmap, "
+                    + "on the days you choose. {history.standup} again comes back.",
+                keys: ["{history.standup}", "{history.standup}"], target: "historyList",
+                doneLine: "In the standup {standup.copy} copies an answer and {standup.copy.all} the whole report."
+            ) { _, now, seen in seen.contains { $0.view == "standup" } && now.view == "history" },
+            TutorStep(
                 "Reopen it",
                 say: "{history.reopen} brings the session back: its worktree, and its agent resuming where it was.",
                 keys: ["{history.reopen}"], target: "historyList",

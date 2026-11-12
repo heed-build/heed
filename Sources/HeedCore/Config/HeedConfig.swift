@@ -52,6 +52,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var mindmap = MindmapSettings()
     /// `[memory]`: what sessions are told from the Mindmap at launch.
     public var memory = MemorySettings()
+    /// `[standup]`: reports on the days you choose, one per Mindmap.
+    public var standup = StandupSettings()
     /// `[local]`: what heed keeps on this Mac to learn local decisions from (screen snapshots). Off by default.
     public var local = LocalSettings()
     /// `[start_work]`: whether the on-device model helps Start work guess.
@@ -114,6 +116,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.hunch == rhs.hunch,
             lhs.mindmap == rhs.mindmap,
             lhs.memory == rhs.memory,
+            lhs.standup == rhs.standup,
             lhs.local == rhs.local,
             lhs.startWork == rhs.startWork,
             lhs.goals == rhs.goals,
@@ -746,6 +749,27 @@ public enum ConfigLoader {
         // [mindmap]
         if let flag = bool(["mindmap", "enabled"]) { config.mindmap.enabled = flag }
         if let flag = bool(["mindmap", "shadow"]) { config.mindmap.shadow = flag }
+        // [standup]
+        if let flag = bool(["standup", "enabled"]) { config.standup.enabled = flag }
+        if let names = strings(["standup", "days"]) {
+            let days = names.compactMap { StandupSettings.dayNames.firstIndex(of: $0.lowercased()).map { $0 + 1 } }
+            if days.count == names.count, !days.isEmpty {
+                config.standup.days = days
+            } else {
+                problems.append(ConfigProblem(path: "standup.days", message: "expected days like \"mon\", \"wed\""))
+            }
+        }
+        if let text = string(["standup", "at"]) {
+            if let minutes = StandupSettings.minutes(text) {
+                config.standup.at = minutes
+            } else {
+                problems.append(ConfigProblem(path: "standup.at", message: "expected a time like \"08:40\""))
+            }
+        }
+        if let days = integer(["standup", "range_days"], range: 1 ... 31) { config.standup.rangeDays = days }
+        if let questions = strings(["standup", "questions"]) {
+            config.standup.questions = questions.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+        }
         // [memory]
         if let name = string(["memory", "brief"]) {
             if let brief = MemorySettings.Brief(rawValue: name) {
@@ -1118,6 +1142,16 @@ public enum ConfigLoader {
     # Inference & decisions shows how often heed had it right; off, sure placements stand on their own.
     # enabled = true
     # shadow = true
+
+    [standup]
+    # A standup report on the days you choose: one per Mindmap (each org, and personal, never mixed), each of your
+    # questions answered by a cheap model from that Mindmap's work since the last report ([llm]). History › Standup
+    # shows them; y copies an answer, Y the whole report. Missed while the Mac slept, it runs once when heed looks.
+    # enabled = false
+    # days = ["mon", "tue", "wed", "thu", "fri"]
+    # at = "08:40"
+    # range_days = 1          # unset: since the last report
+    # questions = ["What did I finish since the last standup?", "What am I working on next?", "What is blocked?"]
 
     [memory]
     # What a session is told at launch from the Mindmap: the decisions that still stand in its campaign, what was

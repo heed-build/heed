@@ -11,7 +11,8 @@ signing in to `gh` or installing an agent in another terminal shows up without a
 
 - **GitHub**: whether `gh` is signed in. Heed talks to GitHub only through `gh`; it never asks for a token.
 - **Tools**: where `git` and `gh` are, found through your login shell's PATH and the usual install locations. See
-  [Finding git and gh](../configuration/tools.md).
+  [Finding git and gh](../configuration/tools.md). `zmx` shows too; it is optional, and with it
+  [agents outlive Heed](../sessions/zmx.md).
 - **Repos**: the repositories under `~/Projects` and `~/code` (change them with `repo_roots`).
 - **Agents**: which of claude, codex, cursor, pi, opencode and gemini are installed.
 

@@ -18,7 +18,7 @@ struct GoalReviewersPane: View {
                     ReviewerDetail(goal: goal, reviewer: reviewer, quality: quality)
                 } else {
                     Panel(title: "No reviewers yet", note: "") {
-                        Quieter("heed spawns one per lens the goal's profile requires once a model has read its "
+                        Quiet("heed spawns one per lens the goal's profile requires once a model has read its "
                             + "GOAL.md. Spawn one yourself on the right.")
                     }
                 }
@@ -175,7 +175,7 @@ private struct ReviewerDetail: View {
             }
             SectionHeader(title: "Objections")
             if objections.isEmpty {
-                Quieter(reviewer.score == nil ? "Nothing yet: it has not reviewed." : "None. It is happy.")
+                Quiet(reviewer.score == nil ? "Nothing yet: it has not reviewed." : "None. It is happy.")
             }
             VStack(spacing: 0) {
                 ForEach(Array(objections.enumerated()), id: \.element.id) { index, objection in
@@ -441,7 +441,7 @@ struct QualityBars: View {
     var body: some View {
         Panel(title: "Quality bars", note: quality.profile?.profile.text ?? "profile not decided yet") {
             if quality.lenses.isEmpty {
-                Quieter("No lens required yet.")
+                Quiet("No lens required yet.")
             }
             ForEach(quality.lenses, id: \.lens) { lens in
                 HStack(spacing: 10) {
@@ -499,7 +499,7 @@ struct HowHappy: View {
         let quality = model.goals.qualities[goal.id] ?? .empty
         Panel(title: "How happy are they", note: quality.live.isEmpty ? "" : "\(quality.live.count)") {
             if quality.live.isEmpty {
-                Quieter("No reviewers yet: they come with the goal's profile.")
+                Quiet("No reviewers yet: they come with the goal's profile.")
             }
             VStack(spacing: 8) {
                 ForEach(quality.live) { reviewer in
@@ -518,15 +518,5 @@ struct HowHappy: View {
                 KeyHint("review.recheck", scope: "goals", label: "re-check all")
             }
         }
-    }
-}
-
-private struct Quieter: View {
-    let text: String
-
-    init(_ text: String) { self.text = text }
-
-    var body: some View {
-        Text(text).font(Theme.ui(12)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
     }
 }

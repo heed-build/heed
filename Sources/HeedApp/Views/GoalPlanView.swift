@@ -221,7 +221,7 @@ private struct PlanOutline: View {
             status: schedule?.states[task.id], worker: swarm.lastWorker(on: task.id), landing: landing,
             place: marked ? place : nil, placeColor: place.hostName.flatMap { model.config.hosts[$0]?.color }
         )
-        .shotRegion(task.slug == "validator-speed" ? .swarmTask : task.slug == "sample-site" ? .swarmHeld : nil)
+        .shotRegion(model.shotTaskRegions[task.slug])
         .hint(goals.focus == .tasks ? model.hintLabel(for: .row(.goals, row)) : nil)
         .contentShape(Rectangle())
         .onTapGesture { model.clickPlanTask(row) }

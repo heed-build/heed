@@ -189,7 +189,7 @@ This page is generated from the code (`mise run shots`).
 | `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch) | toggle row |
 | `history.reopen` | `R` (dashboard), `<CR>` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger), `R` (timeline), `<CR>` (timeline) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
-| `history.outcome` | `t` (history) | cycle the outcome filter |
+| `history.outcome` `[outcome]` | `t` (history) | history: the next outcome filter, or one by name (all, merged, …) |
 | `timeline.kind` `[kind]` | `t` (timeline) | timeline: every kind, or one (sessions, worktrees, prs, questions, chats) |
 | `timeline.repo` `[name]` | `r` (timeline) | timeline: every repo, or the next one |
 | `timeline.where` `[local|host]` | `w` (timeline) | timeline: everywhere, this Mac, or a host |

@@ -545,6 +545,19 @@ public enum Outcome: String, Hashable, Sendable, Codable, CaseIterable {
     case cleanedUp = "cleaned up"
     /// A chat that became work (`chat.promote`): its timeline names the session it became.
     case promoted
+
+    /// History's outcome filter after `history.outcome`: the next one after `current` (nil is All), or the one `words`
+    /// name (`all` is All; `cleaned up`, `cleaned-up` and `cleanedup` the same). A name that is none keeps `current`.
+    public static func filter(after current: Outcome?, named words: [String]) -> Outcome? {
+        guard !words.isEmpty else {
+            let all: [Outcome?] = [nil] + allCases
+            let index = all.firstIndex(of: current) ?? 0
+            return all[(index + 1) % all.count]
+        }
+        let key = words.joined().lowercased().filter(\.isLetter)
+        if key == "all" { return nil }
+        return allCases.first { $0.rawValue.filter(\.isLetter) == key } ?? current
+    }
 }
 
 /// A session that is no longer active: kept for search, reopening and starting again from its prompt.

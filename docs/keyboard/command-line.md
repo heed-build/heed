@@ -61,6 +61,7 @@ Everything you can do with the mouse, the menu bar or a global shortcut is a com
 | `:settings.open [page] [tab]` | Settings, on a page: `general`, `notifications`, `updates`, `agents`, `model-calls`, `decisions`, `worktrees`, `goals`, `history`, `github`, `pilot`, `orgs`, `attention`, `hosts`, `tools` or `keys` (the old `colors`, `cleanup`, `inference` still work); `orgs` and `pilot` take a tab, `agents` an agent and a tab |
 | `:settings.find <words>` | [Search Settings](../configuration/settings.md#search): every setting whose name, description, page or config key (`grace_seconds`) has each word |
 | `:settings.advanced`, `:settings.modified` | Flip Settings' [Show advanced and Only modified](../configuration/settings.md#show-advanced-and-only-modified) switches |
+| `:settings.configure` | [Configure…](../configuration/configure.md): a profile, the settings still worth deciding, then the changes to apply |
 | `:app.activate` | Bring the window to the front |
 | `:repo.add <path>` | Add a repo outside the scanned folders |
 | `:cleanup.rules` | Show the cleanup rules |

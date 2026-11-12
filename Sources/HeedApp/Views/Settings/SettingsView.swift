@@ -148,6 +148,15 @@ struct SettingsView: View {
                 .opacity(0)
                 .allowsHitTesting(false)
         }
+        // Configure… over the whole window; nothing behind it takes a click while it is open.
+        .overlay {
+            if let draft = model.configure {
+                ZStack {
+                    Theme.bg.opacity(0.78).contentShape(Rectangle()).onTapGesture {}
+                    ConfigureView(draft: draft).padding(24)
+                }
+            }
+        }
         .onAppear { tree.folded = model.settingsFolded.subtracting([.group(tree.page.group)]) }
         .onChange(of: tree.folded) { model.settingsFolded = tree.folded }
         // Only modified keeps the lines with a change; the page shown moves to one that has one.
@@ -286,6 +295,10 @@ struct SettingsSidebar: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Just under the search field, as wide as it.
+            ConfigureButton(gaps: model.settingsGaps.count)
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
             ScrollView {
                 VStack(alignment: .leading, spacing: 1) {
                     ForEach(shown.visible, id: \.self) { node in
@@ -430,6 +443,38 @@ struct SettingsSidebar: View {
                     .help("\(problems) value\(problems == 1 ? "" : "s") config.toml has that heed refused")
             }
         }
+    }
+}
+
+/// Configure… at the top of the tree, with how many settings are still worth deciding (none: no badge).
+private struct ConfigureButton: View {
+    @Environment(AppModel.self) private var model
+    let gaps: Int
+
+    var body: some View {
+        Button { model.openConfigure() } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles").font(.system(size: 11))
+                Text("Configure…").font(Theme.ui(12.5, weight: .medium))
+                Spacer(minLength: 4)
+                if gaps > 0 {
+                    Text("\(gaps) gap\(gaps == 1 ? "" : "s")")
+                        .font(Theme.ui(10.5, weight: .semibold))
+                        .foregroundStyle(Theme.block)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1.5)
+                        .background(Capsule().fill(Theme.block.opacity(0.16)))
+                }
+            }
+            .foregroundStyle(Theme.fg)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg3))
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.keyCapBorder))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("A profile, then the settings still worth deciding, then the changes to apply (:settings.configure)")
     }
 }
 

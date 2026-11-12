@@ -27,6 +27,12 @@ struct HeedApp: App {
                     delegate.host.current.perform(CommandInvocation(name: "update.check"))
                 }
             }
+            // Under Settings…: Configure… goes through what is still worth deciding.
+            CommandGroup(after: .appSettings) {
+                Button("Configure…") {
+                    delegate.host.current.perform(CommandInvocation(name: "settings.configure"))
+                }
+            }
             CommandGroup(replacing: .help) {}
         }
 

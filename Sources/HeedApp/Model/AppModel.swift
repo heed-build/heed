@@ -160,8 +160,9 @@ final class AppModel {
     private(set) var firstRun: FirstRunReport?
     /// Where git and gh were found, and the search path every command and pane runs with.
     private(set) var tools: ToolReport?
-    /// zmx on this Mac, as last checked (Settings › General shows it); nil until tools are detected.
-    private(set) var zmxHealth: ZmxHealth?
+    /// zmx on this Mac, as last checked (Settings › General shows it); nil until tools are detected. Set by tool
+    /// detection, and by shots that show a Mac without it.
+    var zmxHealth: ZmxHealth?
     /// Opens the Settings window (set by the view, which has the SwiftUI action).
     var openSettings: (() -> Void)?
     /// Nil for fixtures: nothing is persisted and no adapter runs.
@@ -2805,6 +2806,7 @@ final class AppModel {
             settingsQuery = command.arguments.joined(separator: " ")
             settingsFindAsked = true
             openSettings?()
+        case "settings.configure": openConfigure()
         case "welcome": showFirstRun()
         case "setup.review": reviewSetup()
         case "repo.setup": openRepoSetup(command.arguments.first)
@@ -3272,6 +3274,15 @@ final class AppModel {
             UserDefaults.standard.set(settingsFilter.onlyModified, forKey: "settingsOnlyModified")
         }
     }
+
+    /// The settings decided on in Configure… (Keep default included), which are no longer gaps; kept with heed's UI
+    /// state, never in config.toml. Shots neither read nor write it.
+    var settingsChosen: ChosenSettings = ShotMode.active ? ChosenSettings() : ChosenSettings.load() {
+        didSet { if !isFixture { settingsChosen.save() } }
+    }
+
+    /// Configure… while it is open over Settings: what it will write, nothing written yet.
+    var configure: ConfigureDraft?
 
     /// Reset all, under Only modified: removes every key the page's changed rows have, as each row's ↺ would.
     func unsetConfig(all paths: [[String]]) {

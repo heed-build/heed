@@ -189,14 +189,13 @@ private struct GoalOverviewPane: View {
             VStack(alignment: .leading, spacing: 18) {
                 GoalHeader(goal: goal, statement: doc?.goal ?? "")
                 if let guide = goals.shownGuide(of: goal) { GoalGuideCard(guide: guide).shotRegion(.goalGuide) }
-                // The score, the criteria and the items are What is left's, once; the tiles count the rest.
-                HStack(spacing: 12) {
-                    StatTile(value: "\(overview.sessions)", label: overview.sessions == 1 ? "session" : "sessions")
-                    StatTile(
-                        value: overview.pulls.isEmpty ? "–" : "\(overview.merged) of \(overview.pulls.count)",
-                        label: "PRs merged"
-                    )
-                }
+                // The score, the criteria and the items are What is left's, once; one quiet line counts the rest.
+                Text([
+                    overview.sessions == 1 ? "1 session" : "\(overview.sessions) sessions",
+                    overview.pulls.isEmpty ? "no PRs yet" : "\(overview.merged) of \(overview.pulls.count) PRs merged",
+                ].joined(separator: " · "))
+                    .font(Theme.mono(12)).foregroundStyle(Theme.fg2)
+                    .padding(.top, -8)
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 16) {
                         GoalLeftPanel(goal: goal).shotRegion(.goalLeft)

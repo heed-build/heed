@@ -480,7 +480,8 @@ struct MergeQueueView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     SectionHeader(title: "PRs · \(refs.count)")
                     if refs.isEmpty {
-                        Text("No PRs here with merge on: M on a PR adds it.").font(Theme.ui(12))
+                        Text("No PRs here with merge on: \(model.keyText(for: "pilot.merge")) on a PR adds it.")
+                            .font(Theme.ui(12))
                             .foregroundStyle(Theme.fg3)
                     }
                     ForEach(refs, id: \.self) { ref in

@@ -1121,7 +1121,7 @@ public enum ConfigLoader {
     # "model-a" = "3 / 15"
 
     [log]
-    # The call log (:log): every command heed runs, its GitHub calls and (later) its model runs, with how long each
+    # The call log (:log): every command heed runs, its GitHub calls and its model calls, with how long each
     # took and how it ended. Kept this many days per kind, and at most max_rows rows of each kind; pruned hourly.
     shell_days = 7
     github_read_days = 3

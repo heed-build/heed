@@ -16,7 +16,13 @@ struct GoalEvaluationsPane: View {
                 if let evaluation {
                     EvaluatorCard(evaluation: evaluation)
                 } else {
-                    Panel(title: "No evaluations", note: "") { Quiet("This goal has no quality record yet.") }
+                    Panel(title: "No evaluations", note: "") {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Quiet("No stranger has walked this goal yet. Its required lenses walk with its reviewers; "
+                                + "pick a lens on the right to walk it now.")
+                            KeyHint("eval.rewalk", scope: "goalevals", label: "walk the lens picked now")
+                        }
+                    }
                 }
             }
             .frame(width: 360)

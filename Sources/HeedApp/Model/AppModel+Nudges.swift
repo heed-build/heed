@@ -156,6 +156,12 @@ extension AppModel {
         flash = "what's new off; :whatsnew.show still opens it"
     }
 
+    /// The same switch flipped back, when what's new was opened by hand while off.
+    func turnOnWhatsNew() {
+        if !isFixture { setConfig(["nudges", "whats_new"], .bool(true)) }
+        flash = "what's new on: it opens after an update"
+    }
+
     /// Don't remind me, on the gap nudge.
     func turnOffGapNudge() {
         closeNudge(seen: true)

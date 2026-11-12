@@ -321,7 +321,10 @@ public enum Commands {
         .init("select.toggle", "toggle row", .selection),
         .init("history.reopen", "reopen: resume, recreating the worktree if needed", .selection),
         .init("history.again", "start a new session from this prompt", .selection),
-        .init("history.outcome", "cycle the outcome filter", .selection),
+        .init(
+            "history.outcome", "history: the next outcome filter, or one by name (all, merged, …)", .selection,
+            arguments: "[outcome]"
+        ),
         .init("history.list", "History's list of the sessions that ended", .views),
         .init("history.timeline", "History as a timeline: what happened, by day (again: back to the list)", .views),
         .init(

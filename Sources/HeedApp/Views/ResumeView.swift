@@ -32,7 +32,9 @@ struct ResumeView: View {
                         .font(Theme.ui(12))
                         .foregroundStyle(Theme.fg3)
                 }
-                Text("\(form.candidates.count) sessions were open when Heed quit. Parked ones stay closed.")
+                Text(form.candidates.count == 1
+                    ? "1 session was open when Heed quit. Parked ones stay closed."
+                    : "\(form.candidates.count) sessions were open when Heed quit. Parked ones stay closed.")
                     .font(Theme.ui(12.5))
                     .foregroundStyle(Theme.fg2)
             }

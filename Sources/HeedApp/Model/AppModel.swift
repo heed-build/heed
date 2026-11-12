@@ -136,6 +136,8 @@ final class AppModel {
     var inferenceReminderHidden = false
     /// Screenshots show the setup reminder only where a shot asks for it.
     var inferenceReminderInShots = false
+    /// Swarm tasks a shot crops to, by slug: the shot says which, so views never name fixture data.
+    var shotTaskRegions: [String: ShotRegion] = [:]
     /// heed's own nudges (AppModel+Nudges): the one shown, the title bar pill hidden for this launch, what's new put
     /// off with Not now, and config.toml written this launch.
     var nudge: NudgeDialog?
@@ -2843,7 +2845,7 @@ final class AppModel {
         case "history.reopen": reopenSelected()
         case "history.again":
             openStartWork(prompt: selectedHistory?.session.prompt ?? "", chat: selectedHistory?.session.isChat == true)
-        case "history.outcome": cycleOutcome()
+        case "history.outcome": cycleOutcome(named: command.arguments)
         // :q in the tutor leaves the tutor, as its banner says; it never quits the app from there.
         case "app.quit": if tutor != nil { onTutorRequest?(.exit) } else { NSApp.terminate(nil) }
         case "config.edit": NSWorkspace.shared.open(configFile)
@@ -4328,10 +4330,8 @@ final class AppModel {
         return rows.indices.contains(historyCursor) ? rows[historyCursor] : nil
     }
 
-    private func cycleOutcome() {
-        let all: [Outcome?] = [nil] + Outcome.allCases
-        let index = all.firstIndex(of: historyOutcome) ?? 0
-        historyOutcome = all[(index + 1) % all.count]
+    private func cycleOutcome(named words: [String]) {
+        historyOutcome = Outcome.filter(after: historyOutcome, named: words)
         historyCursor = 0
     }
 

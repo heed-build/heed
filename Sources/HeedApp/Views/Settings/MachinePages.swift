@@ -107,13 +107,18 @@ struct KeysPage: View {
             note: "They work from any app. One key with ⌃, ⌥ or ⌘; Record takes the next one you press, ⎋ cancels. "
                 + "Empty turns one off."
         ) {
-            SettingRow("keys.global_start_work", defaultText: "off", stacked: true) {
+            SettingRow(
+                "keys.global_start_work", defaultText: KeyCapText.of(HeedConfig.default.globalStartWork),
+                stacked: true
+            ) {
                 ShortcutField(
                     path: ["keys", "global_start_work"], value: model.config.globalStartWork,
                     other: model.config.globalActivate
                 )
             }
-            SettingRow("keys.global_activate", defaultText: "off", stacked: true) {
+            SettingRow(
+                "keys.global_activate", defaultText: KeyCapText.of(HeedConfig.default.globalActivate), stacked: true
+            ) {
                 ShortcutField(
                     path: ["keys", "global_activate"], value: model.config.globalActivate,
                     other: model.config.globalStartWork

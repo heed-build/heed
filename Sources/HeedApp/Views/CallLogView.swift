@@ -146,8 +146,11 @@ private struct CallRow: View {
                 .foregroundStyle(Theme.fg3)
                 .frame(width: 64, alignment: .leading)
             KindTag(call: call).frame(width: 58, alignment: .leading)
-            Text(call.caller).foregroundStyle(Theme.fg2).lineLimit(1).truncationMode(.tail)
-                .frame(width: 150, alignment: .leading)
+            // Narrow: the caller gives way, it is in the detail and `log.caller` filters on it.
+            if !compact {
+                Text(call.caller).foregroundStyle(Theme.fg2).lineLimit(1).truncationMode(.tail)
+                    .frame(width: 150, alignment: .leading)
+            }
             HStack(spacing: 6) {
                 if let host = call.host { HostChip(location: .host(host)).fixedSize() }
                 Text(CallLine.summary(call)).foregroundStyle(Theme.fg).lineLimit(1).truncationMode(.middle)
@@ -174,7 +177,7 @@ private struct KindTag: View {
     var body: some View {
         HStack(spacing: 3) {
             Text(call.kind.rawValue).foregroundStyle(color)
-            if call.write { Text("w").foregroundStyle(Theme.block) }
+            if call.write { Text("w").foregroundStyle(Theme.block).help("A write: it changed something on GitHub") }
         }
         .font(Theme.mono(11))
     }
@@ -229,12 +232,18 @@ private struct CallDetail: View {
                 if let host = call.host { HostChip(location: .host(host)) }
             }
             Text(call.operation ?? call.caller).font(Theme.ui(16, weight: .semibold))
-            block(call.command, tint: Theme.fg)
-            fields
-            if let stderr = call.stderr { output("stderr", stderr) }
-            if let stdout = call.stdout { output("stdout", stdout) }
-            ForEach(call.detail.sorted { $0.key < $1.key }, id: \.key) { key, value in
-                output(key, value)
+            // Long output scrolls; the keys below stay put.
+            ListScroll {
+                VStack(alignment: .leading, spacing: 14) {
+                    block(call.command, tint: Theme.fg)
+                    fields
+                    if let stderr = call.stderr { output("stderr", stderr) }
+                    if let stdout = call.stdout { output("stdout", stdout) }
+                    ForEach(call.detail.sorted { $0.key < $1.key }, id: \.key) { key, value in
+                        output(key, value)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             Spacer(minLength: 0)
             Theme.line.frame(height: 1)

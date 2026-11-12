@@ -22,11 +22,13 @@ struct HistoryView: View {
         return VStack(spacing: 0) {
             HStack(spacing: 8) {
                 chip("All", on: model.historyOutcome == nil)
+                    .clickRuns(CommandInvocation(name: "history.outcome", arguments: ["all"]))
                 ForEach(Outcome.allCases, id: \.self) { outcome in
                     chip(
                         outcome.rawValue.prefix(1).uppercased() + outcome.rawValue.dropFirst(),
                         on: model.historyOutcome == outcome
                     )
+                    .clickRuns(CommandInvocation(name: "history.outcome", arguments: [outcome.rawValue]))
                 }
                 Spacer()
                 FilterPill(view: .history)

@@ -38,6 +38,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var hosts: [String: HostConfig] = [:]
     /// `[updates]`: whether heed looks for a new version, and whether it asks before installing one.
     public var updates = UpdateSettings()
+    /// `[nudges]`: what's new after an update, and how often heed points at the settings worth a look.
+    public var nudges = NudgeSettings()
     /// `[usage]`: whether the inspector shows a cost, and the prices it estimates one from.
     public var usage = UsageSettings()
     /// `[log]`: how long the call log keeps each kind of call.
@@ -109,6 +111,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.pilot == rhs.pilot,
             lhs.hosts == rhs.hosts,
             lhs.updates == rhs.updates,
+            lhs.nudges == rhs.nudges,
             lhs.usage == rhs.usage,
             lhs.log == rhs.log,
             lhs.llm == rhs.llm,
@@ -692,6 +695,15 @@ public enum ConfigLoader {
                 problems.append(ConfigProblem(path: "updates.install", message: "expected ask or auto"))
             }
         }
+        // [nudges]
+        if let flag = bool(["nudges", "whats_new"]) { config.nudges.whatsNew = flag }
+        if let text = string(["nudges", "gaps"]) {
+            if let cadence = NudgeSettings.Cadence(rawValue: text.lowercased()) {
+                config.nudges.gaps = cadence
+            } else {
+                problems.append(ConfigProblem(path: "nudges.gaps", message: "expected \"3d\", \"weekly\" or \"off\""))
+            }
+        }
         // [log]
         if let days = integer(["log", "shell_days"], range: 1 ... 365) { config.log.shellDays = days }
         if let days = integer(["log", "github_read_days"], range: 1 ... 365) { config.log.githubReadDays = days }
@@ -1086,6 +1098,14 @@ public enum ConfigLoader {
     # ask: show what is new and install when you say so. auto: download in the background and install on quit.
     install = "ask"                    # ask | auto
 
+    [nudges]
+    # After an update, once: what is new since the version you last opened, with the new settings. :whatsnew.show
+    # opens it any time.
+    whats_new = true
+    # How often heed may point at the settings that add the most and are still at their default (Configure… goes
+    # through them): "3d", "weekly" or "off". Only when heed is in front and idle in NORMAL mode, never over a dialog.
+    gaps = "3d"                        # 3d | weekly | off
+
     [usage]
     # The inspector shows each session's model and tokens, as its agent's hooks report them, and a cost marked ≈: what
     # the agent reported (opencode), else an estimate from the prices below. false leaves the cost out.
@@ -1324,6 +1344,33 @@ public struct UpdateSettings: Equatable, Sendable {
     public init(check: Bool = true, install: Install = .ask) {
         self.check = check
         self.install = install
+    }
+}
+
+/// `[nudges]`.
+public struct NudgeSettings: Equatable, Sendable {
+    /// How often the gap nudge may show.
+    public enum Cadence: String, CaseIterable, Sendable {
+        case threeDays = "3d"
+        case weekly
+        case off
+
+        /// The least time between two gap nudges; nil: never.
+        public var interval: TimeInterval? {
+            switch self {
+            case .threeDays: 3 * 86400
+            case .weekly: 7 * 86400
+            case .off: nil
+            }
+        }
+    }
+
+    public var whatsNew = true
+    public var gaps = Cadence.threeDays
+
+    public init(whatsNew: Bool = true, gaps: Cadence = .threeDays) {
+        self.whatsNew = whatsNew
+        self.gaps = gaps
     }
 }
 

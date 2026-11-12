@@ -10,7 +10,7 @@ public extension SettingsPage {
     var sections: [String] {
         switch self {
         case .general: ["Sessions", "Outside the window"]
-        case .notifications: ["Sessions", "Attention", "Quiet hours"]
+        case .notifications: ["Sessions", "Attention", "Quiet hours", "Nudges"]
         case .updates: ["Updates"]
         case .agents, .pilot, .orgsAndRepos, .hosts: []
         case .modelCalls: ["Set up", "Model calls", "Limits", "Usage", "Reminder"]
@@ -38,7 +38,7 @@ public extension SettingsPage {
     var subtitle: String {
         switch self {
         case .general: "How sessions start and come back, and what heed shows outside its window."
-        case .notifications: "When heed taps you on the shoulder, outside the window."
+        case .notifications: "When heed taps you on the shoulder: notifications, quiet hours, and its own nudges."
         case .updates: "New versions of heed, signed by its key and notarized by Apple."
         case .agents: "Each agent heed starts: how it runs, what it starts on, and its part in heed's model calls."
         case .modelCalls: "heed's own short calls (summaries, drafted replies, goal plans) through an agent CLI you are "
@@ -83,6 +83,7 @@ public extension SettingsPage {
         "colors": .orgsAndRepos, "repos": .orgsAndRepos, "orgs": .orgsAndRepos, "cleanup": .worktrees,
         "modes": .keys, "rules": .attention, "ssh": .hosts, "inference": .modelCalls, "llm": .modelCalls,
         "hunch": .decisions, "notify": .notifications, "ledger": .history, "zmx": .tools, "update": .updates,
+        "nudges": .notifications, "whatsnew": .notifications,
     ]
 }
 

@@ -217,6 +217,14 @@ check = true
 # ask: show what is new and install when you say so. auto: download in the background and install on quit.
 install = "ask"                    # ask | auto
 
+[nudges]
+# After an update, once: what is new since the version you last opened, with the new settings. :whatsnew.show
+# opens it any time.
+whats_new = true
+# How often heed may point at the settings that add the most and are still at their default (Configure… goes
+# through them): "3d", "weekly" or "off". Only when heed is in front and idle in NORMAL mode, never over a dialog.
+gaps = "3d"                        # 3d | weekly | off
+
 [usage]
 # The inspector shows each session's model and tokens, as its agent's hooks report them, and a cost marked ≈: what
 # the agent reported (opencode), else an estimate from the prices below. false leaves the cost out.

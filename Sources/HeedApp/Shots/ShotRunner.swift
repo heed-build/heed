@@ -17,6 +17,9 @@ struct Shot {
         case dock
         /// The Settings window, open on a section.
         case settings(SettingsView.Section = .general)
+        /// The nudge the shot put up (`model.nudge`), alone: its rows are Settings' native controls, drawn through
+        /// AppKit like Settings, at the dialog's own height.
+        case nudge
     }
 
     /// Output path under docs/images/shots, without extension: `sessions/anatomy`.
@@ -120,6 +123,12 @@ enum ShotRunner {
             )
             return
         }
+        if case .nudge = shot.subject, let nudge = model.nudge {
+            let card = NudgeCard(nudge: nudge).frame(width: 640).padding(24).background(Theme.bg)
+                .environment(model).environment(\.colorScheme, .dark)
+            try write(fittedImage(card, width: 688), shot: shot, into: directory)
+            return
+        }
         let frames = ShotFrames()
         let view = ShotFrame(highlight: shot.highlight, frames: frames) {
             subject(shot, model: model)
@@ -181,6 +190,14 @@ enum ShotRunner {
         return image
     }
 
+    /// The same at the height the view wants for `width`.
+    private static func fittedImage(_ view: some View, width: CGFloat) throws -> CGImage {
+        let probe = NSHostingView(rootView: view.frame(width: width))
+        probe.frame = NSRect(x: 0, y: 0, width: width, height: 4000)
+        probe.layoutSubtreeIfNeeded()
+        return try hostedImage(view, size: CGSize(width: width, height: ceil(probe.fittingSize.height)))
+    }
+
     private static func write(_ image: CGImage, shot: Shot, into directory: URL) throws {
         let url = directory.appendingPathComponent(shot.id + ".png")
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -198,7 +215,7 @@ enum ShotRunner {
         case .menuBar: MenuBarMock()
         case .menu: MenuMock()
         case .dock: DockMock()
-        case .settings: EmptyView()
+        case .settings, .nudge: EmptyView()
         }
     }
 }

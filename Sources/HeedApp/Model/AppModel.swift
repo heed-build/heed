@@ -136,6 +136,15 @@ final class AppModel {
     var inferenceReminderHidden = false
     /// Screenshots show the setup reminder only where a shot asks for it.
     var inferenceReminderInShots = false
+    /// heed's own nudges (AppModel+Nudges): the one shown, the title bar pill hidden for this launch, what's new put
+    /// off with Not now, the settings chosen in the wizard (from preferences), and config.toml written this launch.
+    var nudge: NudgeDialog?
+    var nudgePillHidden = false
+    var nudgePillInShots = false
+    var whatsNewPostponed = false
+    var nudgeChosen = ChosenSettings()
+    var configCreatedThisLaunch = false
+    @ObservationIgnored var nudgeTask: Task<Void, Never>?
     /// Settings › Decisions & Hunch › Local decisions: what the screen snapshots kept amount to; nil until read
     /// (AppModel+ScreenSnapshots).
     var screenCounts: ScreenSnapshotCounts?
@@ -489,6 +498,7 @@ final class AppModel {
         await receiveSpooled()
         await offerResume(domain: cached)
         startAwayTracking()
+        startNudges()
         startGitHubSync()
         startScreenReading()
         startSteering()
@@ -874,6 +884,7 @@ final class AppModel {
         }
         configWatcher = watcher
         applyConfig(source: watcher.start())
+        configCreatedThisLaunch = watcher.createdFile
         if watcher.createdFile { showFirstRun() }
     }
 
@@ -1863,11 +1874,11 @@ final class AppModel {
     }
 
     /// A dialog, overlay or typing that a question of heed's own must not cut into.
-    private var busy: Bool {
+    var busy: Bool {
         mode != .normal || confirmation != nil || importPicker != nil || taskPicker != nil || hostsPicker != nil
             || linkPicker != nil || pathImport != nil || startWork != nil || resume != nil || firstRun != nil
             || hostRootsChooser != nil || awaySummary != nil || runReader != nil || pilotExplain != nil
-            || overlay != nil || filtering || tutor != nil || repoSetup != nil
+            || overlay != nil || filtering || tutor != nil || repoSetup != nil || nudge != nil
     }
 
     /// After you added or checked a host: asks where its projects are, once, when config does not say. While you are
@@ -2221,6 +2232,7 @@ final class AppModel {
             if stroke == .escape || stroke == KeyStroke("q") || stroke == KeyStroke("CR") { runReader = nil }
             return true
         }
+        if nudge != nil { return answerNudge(stroke) }
         if awaySummary != nil {
             answerAwaySummary(stroke)
             return true
@@ -2662,6 +2674,8 @@ final class AppModel {
         case "tutor.hide": hideTutorReminder(all: command.arguments.first == "all")
         case "inference.setup": openInferenceSetup()
         case "inference.hide": hideInferenceReminder(always: command.arguments.first == "always")
+        case "whatsnew.show": showWhatsNew()
+        case "nudges.hide": hideNudgePill(always: command.arguments.first == "always")
         case "hunch.download": downloadHunch(command.arguments.first)
         case "hunch.cancel": cancelHunchDownload(command.arguments.first)
         case "hunch.delete": deleteHunchModel(command.arguments.first)
@@ -8069,7 +8083,7 @@ final class AppModel {
     /// Clicking into a terminal means typing there: focus that pane and enter INSERT. Without this a click left
     /// NORMAL on, and the next letters ran as commands (x closes the session).
     func clickedPane(_ paneID: String) {
-        guard startWork == nil, resume == nil, firstRun == nil, !filtering else { return }
+        guard startWork == nil, resume == nil, firstRun == nil, nudge == nil, !filtering else { return }
         if currentTab?.focused != paneID { focusPane(paneID) }
         enterInsert()
     }
@@ -8077,7 +8091,7 @@ final class AppModel {
     /// Whether a click on a list may act: not while a dialog or form has the keyboard.
     var clicksReachLists: Bool {
         startWork == nil && confirmation == nil && resume == nil && firstRun == nil && importPicker == nil
-            && pathImport == nil && tutorPicker == nil && awaySummary == nil && repoSetup == nil
+            && pathImport == nil && tutorPicker == nil && awaySummary == nil && repoSetup == nil && nudge == nil
     }
 
     /// A click on a session in the sidebar or the rail selects it; a double-click also types into its agent pane.

@@ -100,6 +100,18 @@ extension SettingsCatalog {
                 + "in Needs you and on the Dock, not as a notification when they end.",
             impact: .low, since: "0.11.4", example: "quiet = \"22:00-07:00\""
         ) { .text($0.attention.quiet?.description ?? "") },
+        global(
+            "nudges.whats_new", .notifications, "Nudges", "What's new",
+            "After an update, once: what is new since the version you last opened, with the new settings. "
+                + ":whatsnew.show opens it any time.",
+            since: "0.37.0"
+        ) { .bool($0.nudges.whatsNew) },
+        global(
+            "nudges.gaps", .notifications, "Nudges", "Settings worth a look",
+            "How often heed may point at the settings that add the most and are still at their default. Only while "
+                + "heed is in front and idle in NORMAL mode, never over a dialog.",
+            since: "0.37.0", example: "gaps = \"weekly\""
+        ) { .text($0.nudges.gaps.rawValue) },
     ]
 
     static let updates: [SettingsEntry] = [

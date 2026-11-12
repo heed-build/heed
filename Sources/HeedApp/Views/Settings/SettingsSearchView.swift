@@ -280,12 +280,19 @@ struct SettingsBreadcrumb: View {
     @Environment(\.settingsPage) private var page
     @Environment(\.settingsCrumbs) private var crumbs
     @Environment(\.settingsCrumbTarget) private var target
+    @Environment(\.settingsOutside) private var outside
     let title: String
 
     var body: some View {
         let parts = (crumbs + [title]).reduce(into: [String]()) { if $0.last != $1 { $0.append($1) } }
         Button {
-            if let page { model.settingsReveal = SettingsReveal(page: page, card: title, target: target) }
+            if outside {
+                // Shown outside Settings (a nudge): Settings, on the page.
+                model.settingsPage = page
+                model.openSettings?()
+            } else if let page {
+                model.settingsReveal = SettingsReveal(page: page, card: title, target: target)
+            }
         } label: {
             HStack(spacing: 5) {
                 ForEach(Array(parts.enumerated()), id: \.offset) { index, part in

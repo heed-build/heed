@@ -78,12 +78,35 @@ public enum Git {
         }
     }
 
-    public static func status(at path: String, on location: Location = .local) async throws -> WorktreeStatus {
+    /// `withSize`: also how much it changed against its base (one more git call, so only for open sessions'
+    /// worktrees).
+    public static func status(
+        at path: String, on location: Location = .local, withSize: Bool = false
+    ) async throws -> WorktreeStatus {
         let output = try await ProcessRunner.output(
             on: location, "git", ["-C", path, "status", "--porcelain=v2", "--branch"], timeout: .seconds(10),
             caller: "git.status"
         )
-        return parseStatus(output)
+        var status = parseStatus(output)
+        if withSize, let stat = try? await ProcessRunner.output(
+            on: location, "git", ["-C", path, "diff", "--shortstat", "--merge-base", "origin/HEAD"],
+            timeout: .seconds(10), caller: "git.size"
+        ) {
+            let size = parseShortStat(stat)
+            status.files = size.files
+            status.added = size.added
+            status.removed = size.removed
+        }
+        return status
+    }
+
+    /// ` 3 files changed, 120 insertions(+), 8 deletions(-)`; nothing changed reads as zeros.
+    public static func parseShortStat(_ text: String) -> (files: Int, added: Int, removed: Int) {
+        func number(before word: String) -> Int {
+            guard let range = text.range(of: #"(\d+) "# + word, options: .regularExpression) else { return 0 }
+            return Int(text[range].prefix { $0.isNumber }) ?? 0
+        }
+        return (number(before: "file"), number(before: "insertion"), number(before: "deletion"))
     }
 
     /// What is uncommitted in a worktree and its commit (`FileActivity`): a swarm worker's progress, polled.

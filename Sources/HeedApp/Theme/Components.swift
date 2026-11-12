@@ -668,3 +668,36 @@ struct CaretText: View {
         return out
     }
 }
+
+/// What a piece of work is (`WorkKind`), as a small tinted word: on session rows and Mindmap cards.
+struct WorkKindBadge: View {
+    let kind: WorkKind
+
+    var body: some View {
+        Text(kind.rawValue)
+            .font(Theme.mono(9.5, weight: .semibold))
+            .foregroundStyle(Theme.kind(kind))
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .background(RoundedRectangle(cornerRadius: 3).fill(Theme.kind(kind).opacity(0.14)))
+            .fixedSize()
+            .help("\(kind.rawValue): K changes it")
+    }
+}
+
+/// How big a piece of work is (`WorkSize`): three bars, one lit for small, all three for large.
+struct SizeBars: View {
+    let size: WorkSize
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 1.5) {
+            ForEach(0 ..< 3, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(index < size.bars ? Theme.fg2 : Theme.fg3.opacity(0.35))
+                    .frame(width: 3, height: 5 + CGFloat(index) * 2.5)
+            }
+        }
+        .fixedSize()
+        .help("\(size.rawValue): lines and files changed against the base")
+    }
+}

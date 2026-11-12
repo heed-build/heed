@@ -33,6 +33,7 @@ This page is generated from the code (`mise run shots`).
 | `session.pin` | `m` | pin / unpin session |
 | `session.rename` `[title]` | `R` (sessions) | give the session your title, which heed keeps (no title: the command line opens with it) |
 | `session.autoname` |  | let heed name the session again, from what it is doing |
+| `session.kind` `[kind]` | `K` (sessions) | what the work is: feat, fix, refactor, docs, chore or plan (no argument: the next) |
 | `session.back` | `''` | back to previous session |
 | `session.agent` | `<CR>` (sessions) | INSERT into the session's agent pane (the focused pane when it has none) |
 | `session.open` `<words>` |  | go to the session matching these words |
@@ -127,7 +128,7 @@ This page is generated from the code (`mise run shots`).
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
 | `sidebar.titles` | `zt` | show session titles / worktree names in the sidebar rows |
 | `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
-| `sessions.sort` `[attention|touched|idle|started]` | `T` (sessions) | sort the sessions: attention, you recent first, idle longest, started (no argument: next) |
+| `sessions.sort` `[attention|touched|idle|started|size]` | `T` (sessions) | sort the sessions: attention, you recent first, idle longest, started, size (no argument: next) |
 | `sessions.rows` `[one|two]` | `zR` (sessions) | one line or two per session in the sidebar |
 | `config.edit` |  | open config.toml in $EDITOR |
 | `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |

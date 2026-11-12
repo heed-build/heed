@@ -80,6 +80,12 @@ public struct WorktreeStatus: Hashable, Sendable, Codable {
     public var ahead: Int
     public var behind: Int
     public var upstream: String?
+    /// Lines added and removed against where the branch left its base (`origin/HEAD`), committed or not; nil until
+    /// measured (heed measures only the worktrees of open sessions).
+    public var added: Int?
+    public var removed: Int?
+    /// Files that differ from the base.
+    public var files: Int?
 
     public init(
         changedFiles: Int = 0,
@@ -135,6 +141,10 @@ public enum RepoOrder {
 public struct PendingChanges: Hashable, Sendable {
     public var ahead = 0
     public var dirty = 0
+    /// Lines changed (added plus removed) and files that differ from the base, over its worktrees; nil when none was
+    /// measured.
+    public var lines: Int?
+    public var files: Int?
 
     public init(ahead: Int = 0, dirty: Int = 0) {
         self.ahead = ahead
@@ -147,6 +157,10 @@ public struct PendingChanges: Hashable, Sendable {
             guard let status = worktree.status else { continue }
             ahead += status.ahead
             dirty += status.changedFiles + status.untrackedFiles
+            if let added = status.added, let removed = status.removed {
+                lines = (lines ?? 0) + added + removed
+                files = (files ?? 0) + (status.files ?? 0)
+            }
         }
     }
 

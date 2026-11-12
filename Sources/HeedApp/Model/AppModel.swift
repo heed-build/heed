@@ -1302,7 +1302,9 @@ final class AppModel {
                 [session.title, session.worktreeName, session.branch, session.agent, session.location.label]
                     + session.repos.map(\.name) + session.trackedPRs.map { "#\($0.number)" }
             )
-        }, pilot: sessionPilot, hold: hold, view: sessionsView, campaign: campaign(of:))
+        }, pilot: sessionPilot, hold: hold, view: sessionsView, campaign: campaign(of:), size: { [unowned self] in
+            pendingChanges(of: $0).lines ?? 0
+        })
         if let selected, let index = list.ordered.firstIndex(where: { $0.id == selected }) {
             cursor = index
         } else {
@@ -1375,6 +1377,7 @@ final class AppModel {
             noticeLedger(before: before, after: after)
         }
         if !replacingDomain, sessionsChanged || githubChanged { noticeNaming(before: before, after: after) }
+        if !replacingDomain, sessionsChanged { noticeTurnEnds(before: before, after: after) }
         if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
         if !replacingDomain, githubChanged { tickSwarms() }
         if !replacingDomain, sessionsChanged { noticeGoalAttach(before: before, after: after) }
@@ -1403,6 +1406,7 @@ final class AppModel {
         // one record, and each has worktrees of its own. A repo's list is committed once all its clones answered.
         let known = repos.filter { $0.location.isLocal && !found.map(\.path).contains($0.path) }
         let clones = Dictionary(grouping: found + known) { $0.repo }
+        let measured = sessionWorktreePaths
         await withTaskGroup(of: [DomainChange].self) { group in
             for (repo, records) in clones {
                 group.addTask {
@@ -1416,7 +1420,9 @@ final class AppModel {
                     }
                     guard !listed.isEmpty else { return [] }
                     for index in listed.indices {
-                        listed[index].status = try? await Git.status(at: listed[index].path)
+                        listed[index].status = try? await Git.status(
+                            at: listed[index].path, withSize: measured.contains(listed[index].path)
+                        )
                     }
                     return [.worktreesListed(repo: repo, listed)]
                 }
@@ -1519,7 +1525,10 @@ final class AppModel {
             for record in records {
                 guard var listed = try? await Git.worktrees(of: record) else { continue }
                 for index in listed.indices {
-                    listed[index].status = try? await Git.status(at: listed[index].path, on: record.location)
+                    listed[index].status = try? await Git.status(
+                        at: listed[index].path, on: record.location,
+                        withSize: sessionWorktreePaths.contains(listed[index].path)
+                    )
                 }
                 commit(.worktreesListed(repo: record.repo, listed))
                 if let archives = await Archive.list(record) {
@@ -1780,6 +1789,8 @@ final class AppModel {
     /// The explainer's row at its top (`j` `k`).
     private(set) var explainRow = 0
     /// Titles and states of the issues sessions link to (fetched, not cached on disk).
+    /// When each repo's worktrees were last listed for their sizes (`refreshWorktrees(of:)`).
+    var sizeRefreshedAt: [String: Date] = [:]
     private(set) var issueInfo: [IssueRef: IssueInfo] = [:]
     /// PRs and issues Start work has asked GitHub about (`lookUpStartWorkLinks`), so each is fetched once.
     var linkLookups: Set<String> = []
@@ -2442,6 +2453,7 @@ final class AppModel {
             if let next = list.nextNeedingYou(after: cursor) { setCursor(next) } else { flash = "nobody needs you" }
         case "session.pin": togglePin()
         case "session.rename", "session.autoname": renameSession(command)
+        case "session.kind": changeKind(command)
         case "session.park": updateCurrent { $0.parked.toggle() }
         case "session.close": confirmClose()
         case "session.delete": confirmDelete()
@@ -3123,6 +3135,26 @@ final class AppModel {
             flash = "sessions: \(rows.title) a row"
         }
         sessionsView = view
+    }
+
+    /// The kind of work a session shows: its own, else its PR's conventional title, else its branch's prefix.
+    func kind(of session: Session) -> WorkKind? {
+        SessionBadges.kind(of: session, pullTitles: session.trackedPRs.compactMap { github.pull($0)?.title })
+    }
+
+    /// `session.kind [kind]`: that kind on the session under the cursor, or the next one.
+    private func changeKind(_ command: CommandInvocation) {
+        guard var session = currentSession, !session.isChat else { return flash = "a chat has no kind" }
+        if let word = command.arguments.first {
+            guard let kind = WorkKind(rawValue: word.lowercased()) else {
+                return flash = "a kind is feat, fix, refactor, docs, chore or plan"
+            }
+            session.kind = kind
+        } else {
+            session.kind = SessionBadges.next(after: kind(of: session))
+        }
+        commit(.sessionUpserted(session))
+        flash = "\(session.title): \(session.kind?.rawValue ?? "")"
     }
 
     /// The Mindmap campaign a session's work is in, across the instances (each session's work is in one at most).

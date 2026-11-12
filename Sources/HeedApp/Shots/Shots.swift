@@ -639,6 +639,7 @@ enum Shots {
         Shot(id: "goals/swarm-running", keys: "gGjS", prepare: { $0.loadRunningSwarmFixture(.running) }),
         Shot(id: "goals/swarm-stacked", keys: "gGjS", crop: .swarmTask, cropPadding: 8, prepare: {
             $0.loadRunningSwarmFixture(.running)
+            $0.shotTaskRegions = ["validator-speed": .swarmTask]
         }),
         Shot(id: "goals/swarm-goal-running", keys: "gGj", crop: .goalSwarm, cropPadding: 8, prepare: {
             $0.loadRunningSwarmFixture(.running)
@@ -657,6 +658,7 @@ enum Shots {
         }),
         Shot(id: "goals/swarm-held", keys: "gGjS", crop: .swarmHeld, cropPadding: 8, prepare: {
             $0.loadRunningSwarmFixture(.landing)
+            $0.shotTaskRegions = ["sample-site": .swarmHeld]
         }),
         // m: the outline itself in merge order.
         Shot(id: "goals/swarm-merge-order", keys: "gGjSm", crop: .swarmOutline, cropPadding: 8, prepare: {

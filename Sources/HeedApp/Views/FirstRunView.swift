@@ -40,7 +40,7 @@ struct FirstRunView: View {
                 }
             }
             step("Tools", done: report.tools.map { $0.tools.allSatisfy { $0.path != nil } } ?? false) {
-                ToolsList(report: report.tools)
+                ToolsList(report: report.tools, zmx: model.zmxHealth)
             }
             step("Repos", done: !model.repos.isEmpty) {
                 Text(model.repos.isEmpty
@@ -94,12 +94,10 @@ struct FirstRunView: View {
                 Text(model.firstRunChecking ? "checking…" : "checks again every few seconds")
                     .font(Theme.ui(12))
                     .foregroundStyle(Theme.fg3)
-                KeyCap(text: "r")
-                Text("check now").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                KeyCap(text: "e")
-                Text("open config").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                KeyCap(text: "t")
-                Text("show me around").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                // The dialog's own keys (not the keymap's); a click on one presses it.
+                action("r", "check now", help: "Check git, gh and the agents again")
+                action("e", "open config", help: "Open config.toml")
+                action("t", "show me around", help: "Start the tour")
                 HStack(spacing: 6) {
                     Text("Start").fontWeight(.medium)
                     KeyCap(text: "↩")
@@ -108,6 +106,10 @@ struct FirstRunView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.inverse))
+                .contentShape(Rectangle())
+                .onTapGesture { model.press([KeyStroke("CR")]) }
+                .pointerStyle(.link)
+                .help("Close this and start")
             }
             .font(Theme.ui(12.5))
         }
@@ -115,6 +117,16 @@ struct FirstRunView: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
         .shadow(color: .black.opacity(0.5), radius: 30)
+    }
+
+    private func action(_ key: String, _ label: String, help: String) -> some View {
+        HStack(spacing: 6) {
+            KeyCap(text: key)
+            Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+        }
+        .clickable()
+        .onTapGesture { model.press([KeyStroke(key)]) }
+        .help(help)
     }
 
     private func step(_ title: String, done: Bool, @ViewBuilder content: () -> some View) -> some View {
@@ -133,6 +145,8 @@ struct FirstRunView: View {
 /// git and gh as detected: where, which version and why that one; shared by the first run and Settings.
 struct ToolsList: View {
     let report: ToolReport?
+    /// zmx as checked, for First run: optional, so missing it is no problem, only a pointer to what it adds.
+    var zmx: ZmxHealth??
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -156,6 +170,7 @@ struct ToolsList: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                if let zmx { zmxRow(zmx) }
                 Text(report.shellPath == nil
                     ? "\(Paths.abbreviate(report.shell)) did not report its PATH; searched the usual places instead."
                     :
@@ -167,5 +182,25 @@ struct ToolsList: View {
                 Text("Looking for git and gh…").foregroundStyle(Theme.fg3)
             }
         }
+    }
+
+    private func zmxRow(_ health: ZmxHealth?) -> some View {
+        HStack(spacing: 12) {
+            Text("zmx").font(Theme.mono(12.5)).frame(width: 90, alignment: .leading)
+            if let health, let path = health.path {
+                Text(Paths.abbreviate(path)).font(Theme.mono(11.5))
+                Text(health.works ? [health.version, "agents outlive heed"].compactMap(\.self).joined(separator: " · ")
+                    : health.problem ?? "does not work")
+                    .foregroundStyle(health.works ? Theme.fg3 : Theme.block)
+                    .lineLimit(1)
+            } else if health == nil {
+                Text("checking…").foregroundStyle(Theme.fg3)
+            } else {
+                Text("not found").foregroundStyle(Theme.fg3)
+                Text("optional: with it, agents keep running when heed quits").foregroundStyle(Theme.fg3)
+                    .lineLimit(1)
+            }
+        }
+        .font(Theme.ui(12.5))
     }
 }

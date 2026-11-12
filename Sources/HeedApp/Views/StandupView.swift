@@ -33,6 +33,11 @@ struct StandupView: View {
                         "Turn them on with [standup] enabled = true: your questions answered from each org's Mindmap.")
                         .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3).multilineTextAlignment(.center)
                         .frame(maxWidth: 440)
+                    if !model.config.standup.enabled {
+                        // The switch is on Settings › History, under Standup.
+                        KeyHint("settings.open", ["history"], spacing: 8, label: "turn them on in Settings")
+                            .padding(.top, 4)
+                    }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {

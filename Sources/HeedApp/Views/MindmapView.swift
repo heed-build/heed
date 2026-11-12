@@ -172,9 +172,14 @@ private struct MindmapCard: View {
             }
             if style == .inside, depth > 0 {
                 let kids = tree.children(of: node.id)
-                ForEach(Array(kids.prefix(4).enumerated()), id: \.element.id) { index, kid in
-                    Text((index == min(kids.count, 4) - 1 ? "└ " : "├ ") + kid.title)
+                // Four at most; past that the last line counts the rest, so the └ is always the real end.
+                let shown = kids.count > 4 ? 3 : kids.count
+                ForEach(Array(kids.prefix(shown).enumerated()), id: \.element.id) { index, kid in
+                    Text((index == shown - 1 && kids.count == shown ? "└ " : "├ ") + kid.title)
                         .font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                }
+                if kids.count > shown {
+                    Text("└ \(kids.count - shown) more").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                 }
                 if kids.count > 4 { Text("+\(kids.count - 4) more").font(Theme.mono(11)).foregroundStyle(Theme.fg3) }
             }

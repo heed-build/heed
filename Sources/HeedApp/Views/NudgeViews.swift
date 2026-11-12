@@ -76,11 +76,14 @@ private struct WhatsNewDialog: View {
             }
             NudgeGapsLink().padding(.top, 14)
         } footer: {
-            Toggle("Don't show what's new", isOn: Binding(get: { false }, set: { if $0 { model.turnOffWhatsNew() } }))
-                .toggleStyle(.switch).controlSize(.mini).tint(Theme.done)
-                .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                .fixedSize()
-                .help("[nudges] whats_new = false; :whatsnew.show still opens it")
+            Toggle("Don't show what's new", isOn: Binding(
+                get: { !model.config.nudges.whatsNew },
+                set: { $0 ? model.turnOffWhatsNew() : model.turnOnWhatsNew() }
+            ))
+            .toggleStyle(.switch).controlSize(.mini).tint(Theme.done)
+            .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            .fixedSize()
+            .help("[nudges] whats_new = false; :whatsnew.show still opens it")
             Spacer(minLength: 12)
             NudgeButton(title: "Not now", key: "⎋", help: "Close; it shows again at the next launch") {
                 model.closeNudge(seen: false)

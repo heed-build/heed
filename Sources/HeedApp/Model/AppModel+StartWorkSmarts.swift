@@ -73,7 +73,7 @@ extension AppModel {
         Task.detached(priority: .utility) { await log.record(outcome, keepDays: keepDays) }
     }
 
-    /// Settings › Agents › Local decisions: how many outcomes are kept. Fixtures keep their invented count.
+    /// Settings › Decisions & Hunch › Local decisions: how many outcomes are kept. Fixtures keep their invented count.
     func refreshStartOutcomeCount() async {
         guard !isFixture, let log = eventLog else { return }
         startOutcomeCount = try? await log.startOutcomeCount()

@@ -1,6 +1,6 @@
 import Foundation
 
-/// How a test in Settings › Inference & decisions went: one tiny model call, or one decision. Kept between launches,
+/// How a test in Settings › Model calls went: one tiny model call, or one decision. Kept between launches,
 /// so a failed one still says so (and reminds you) after a restart.
 public struct SetupTest: Codable, Equatable, Sendable {
     /// What was tested: the `[llm] agent` value, or the `[decisions] decider`.
@@ -62,7 +62,7 @@ public enum SetupState: Equatable, Sendable {
     }
 }
 
-/// Settings › Inference & decisions, decided: where model calls (`[llm]`) and decisions (`[decisions]`) stand, what
+/// Settings › Model calls, decided: where model calls (`[llm]`) and decisions (`[decisions]`) stand, what
 /// detection suggests for each, what goes without while they do not work, and whether the title bar reminds you.
 public struct InferenceSetup: Equatable, Sendable {
     public var inference: SetupState

@@ -137,8 +137,8 @@ This page is generated from the code (`mise run shots`).
 | `update.check` |  | look for a new version of heed now (also :update) |
 | `tools.detect` |  | find git and gh again (login shell PATH, usual places, [tools]) |
 | `app.quit` |  | quit Heed |
-| `settings.open` `[section] [tab]` | `<D-,>` | open Settings, on a section (general, agents, inference, colors, cleanup, pilot, attention, keys, hosts); orgs takes a tab (general, green, merged, reviews, instructions) |
-| `inference.setup` |  | set up heed's model calls and decisions (Settings › Inference & decisions) |
+| `settings.open` `[page] [tab]` | `<D-,>` | open Settings, on a page (general, notifications, updates, agents, model-calls, decisions, worktrees, goals, history, github, pilot, orgs, attention, hosts, tools, keys; the old colors, cleanup, inference still work); orgs and pilot take a tab (green, merged, reviews, instructions), agents an agent and a tab (sessions, model-calls) |
+| `inference.setup` |  | set up heed's model calls and decisions (Settings › Model calls) |
 | `inference.hide` `[always]` |  | hide the title bar's model call setup reminder until the next launch (always: for good) |
 | `hunch.download` `[checkpoint]` |  | download (or resume) Hunch's model, english by default; says its size and license first |
 | `hunch.cancel` `[checkpoint]` |  | stop Hunch's model download; hunch.download resumes it |

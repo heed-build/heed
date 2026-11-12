@@ -173,7 +173,7 @@ public struct ScreenSampler: Sendable {
     }
 }
 
-/// What Settings › Agents › Local decisions shows of the snapshots kept.
+/// What Settings › Decisions & Hunch › Local decisions shows of the snapshots kept.
 public struct ScreenSnapshotCounts: Equatable, Sendable {
     public struct Labelled: Equatable, Sendable, Hashable {
         public var agent: String

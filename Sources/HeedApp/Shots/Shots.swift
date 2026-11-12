@@ -104,7 +104,10 @@ enum Shots {
         Shot(id: "landing/main", chrome: false),
         Shot(id: "landing/states", chrome: false, keys: "2j"),
         Shot(id: "landing/start-work", chrome: false, keys: "o" + typed("Fix broken anchors in the redirect pages")),
-        Shot(id: "landing/agents", subject: .settings(.agents), size: CGSize(width: 1100, height: 700)),
+        Shot(
+            id: "landing/agents", subject: .settings(.agents), size: CGSize(width: 1180, height: 720),
+            prepare: { $0.applyConfig(source: "[agents.claude]\nmodel = \"opus\"\neffort = \"high\"\n") }
+        ),
         Shot(id: "landing/keys", chrome: false, keys: "?"),
         Shot(id: "landing/prs", chrome: false, keys: ":prs<CR>"),
         Shot(id: "landing/green", chrome: false, keys: "gw"),
@@ -225,23 +228,25 @@ enum Shots {
 
     static let agents: [Shot] = [
         Shot(id: "agents/guessed", size: short, keys: "2j", crop: .sidebar),
-        // Settings › Agents: claude's part in heed's model calls, after a Test.
+        // Settings › Agents › claude › Model calls: its part in heed's model calls, after a Test.
         Shot(
-            id: "agents/model-calls", subject: .settings(.agents), size: CGSize(width: 1000, height: 820),
+            id: "agents/model-calls", subject: .settings(.agents), size: CGSize(width: 1180, height: 720),
             prepare: { model in
+                model.agentTab = .modelCalls
                 model.llmTests["claude"] = LLMTest(answer: "Hello!", model: "claude-haiku", seconds: 2.9, cost: 0.00026)
             }
         ),
-        // Settings › Agents: claude's own model and effort for its sessions, picked from its list.
+        // Settings › Agents › claude › Sessions: its own model and effort for its sessions, picked from its list.
         Shot(
-            id: "agents/model-pickers", subject: .settings(.agents), size: CGSize(width: 1000, height: 1900),
+            id: "agents/model-pickers", subject: .settings(.agents), size: CGSize(width: 1180, height: 860),
             prepare: { model in
                 model.applyConfig(source: "[agents.claude]\nmodel = \"opus\"\neffort = \"high\"\n")
             }
         ),
-        // Settings › Pilot: background runs on codex with a listed model and effort; conflicts on a custom id.
+        // Settings › Pilot › Get it green: background runs on codex with a listed model and effort; conflicts on a
+        // custom id.
         Shot(
-            id: "agents/model-custom", subject: .settings(.pilot), size: CGSize(width: 1000, height: 1950),
+            id: "agents/model-custom", subject: .settings(.pilot), size: CGSize(width: 1180, height: 1060),
             prepare: { model in
                 model.applyConfig(source: """
                 [pilot]
@@ -253,8 +258,10 @@ enum Shots {
                 """)
             }
         ),
-        // Settings › Agents › Local decisions: screen snapshots on, with the fake world's invented counts.
-        Shot(id: "agents/local-decisions", subject: .settings(.agents), size: CGSize(width: 1000, height: 1900)),
+        // Settings › Decisions & Hunch › Local decisions: screen snapshots on, with the fake world's invented counts.
+        Shot(
+            id: "agents/local-decisions", subject: .settings(.decisions), size: CGSize(width: 1180, height: 2150)
+        ),
     ]
 
     static let hosts: [Shot] = [
@@ -681,22 +688,69 @@ enum Shots {
         Shot(id: "keyboard/visual", size: short, keys: "grvjj", crop: .worktreeTable),
     ]
 
+    /// A config.toml with a few settings changed across the pages, one of them a value heed refuses (quiet hours
+    /// that are not a time range), for the shots of the modified marks and the tree's counts.
+    static let modifiedConfig = """
+    [notifications]
+    grace_seconds = 45
+    blocked = false
+    [attention]
+    quiet = "22-7"
+    [agents.claude]
+    model = "opus"
+    effort = "high"
+    plan = "--plan"
+    [agents.codex]
+    llm = false
+    [llm]
+    timeout_seconds = 60
+    [pilot]
+    green = "auto"
+    max_rounds = 5
+    """
+
     static let configuration: [Shot] = [
         Shot(id: "configuration/problem", keys: "", crop: .statusBar, cropPadding: 0, prepare: { model in
             model.applyConfig(source: "[cleanup]\nidle_days = 0\n")
         }),
-        // Tall enough for the whole General page, down to the call log's retention and the tools.
-        Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 900, height: 2280)),
+        // Settings › General, as heed ships.
+        Shot(id: "configuration/settings", subject: .settings(), size: CGSize(width: 1080, height: 720)),
+        // The tree: groups folded keep their counts, a refused value marks its page and group, the page shown lists
+        // its sections.
+        Shot(
+            id: "configuration/settings-tree", subject: .settings(.notifications), size: CGSize(
+                width: 1080,
+                height: 760
+            ),
+            prepare: { model in
+                model.settingsFolded = [.group(.agents), .group(.github), .group(.machine)]
+                model.applyConfig(source: Shots.modifiedConfig)
+            }
+        ),
+        // Notifications with three settings changed, one of them refused.
+        Shot(
+            id: "configuration/modified", subject: .settings(.notifications), size: CGSize(width: 1080, height: 860),
+            prepare: { $0.applyConfig(source: Shots.modifiedConfig) }
+        ),
+        // Agents: each with what it is and how many settings it changes; claude's Sessions tab.
+        Shot(
+            id: "configuration/agents", subject: .settings(.agents), size: CGSize(width: 1180, height: 1120),
+            prepare: { $0.applyConfig(source: Shots.modifiedConfig) }
+        ),
+        // History, tall enough for the call log's retention at its foot.
+        Shot(
+            id: "configuration/settings-history", subject: .settings(.history), size: CGSize(width: 1080, height: 1300)
+        ),
         // Orgs & repos at the Settings window's default width, a shot per tab, and at its minimum width on the longest
         // tab: tall enough for the whole page (the window scrolls it), and nothing may be clipped at the side.
         Shot(
-            id: "configuration/orgs-repos", subject: .settings(.colors), size: CGSize(width: 1000, height: 960),
+            id: "configuration/orgs-repos", subject: .settings(.orgsAndRepos), size: CGSize(width: 1180, height: 1000),
             prepare: { $0.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit")) }
         ),
     ] + OverrideTab.allCases.dropFirst().map { tab in
         Shot(
-            id: "configuration/orgs-repos-\(tab.rawValue)", subject: .settings(.colors),
-            size: CGSize(width: 1000, height: 960),
+            id: "configuration/orgs-repos-\(tab.rawValue)", subject: .settings(.orgsAndRepos),
+            size: CGSize(width: 1180, height: 1100),
             prepare: { model in
                 model.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit"))
                 model.orgRepoTab = tab
@@ -705,8 +759,8 @@ enum Shots {
     } + [
         // Only overridden: the list and each tab keep what is overridden, and the tabs with nothing are dimmed.
         Shot(
-            id: "configuration/orgs-repos-only-overridden", subject: .settings(.colors),
-            size: CGSize(width: 1000, height: 960),
+            id: "configuration/orgs-repos-only-overridden", subject: .settings(.orgsAndRepos),
+            size: CGSize(width: 1180, height: 900),
             prepare: { model in
                 model.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit"))
                 model.orgRepoTab = .merged
@@ -714,22 +768,25 @@ enum Shots {
             }
         ),
         Shot(
-            id: "configuration/orgs-repos-min", subject: .settings(.colors), size: CGSize(width: 780, height: 1100),
+            id: "configuration/orgs-repos-min", subject: .settings(.orgsAndRepos), size: CGSize(
+                width: 820,
+                height: 1300
+            ),
             prepare: { model in
                 model.settingsScope = .repo(Fixtures.longNamedRepo)
                 model.orgRepoTab = .merged
             }
         ),
-        Shot(id: "configuration/settings-hosts", subject: .settings(.hosts), size: CGSize(width: 1000, height: 820)),
-        // Settings › Inference & decisions as a first launch finds it: nothing chosen, the one-click setup on top.
+        Shot(id: "configuration/settings-hosts", subject: .settings(.hosts), size: CGSize(width: 1080, height: 900)),
+        // Settings › Model calls as a first launch finds it: nothing chosen, the one-click setup on top.
         Shot(
-            id: "configuration/inference-not-configured", subject: .settings(.inference),
-            size: CGSize(width: 1100, height: 1060)
+            id: "configuration/inference-not-configured", subject: .settings(.modelCalls),
+            size: CGSize(width: 1180, height: 1080)
         ),
         // The same once set up: claude for model calls, the on-device model for decisions, both tested.
         Shot(
-            id: "configuration/inference-configured", subject: .settings(.inference),
-            size: CGSize(width: 1100, height: 1000),
+            id: "configuration/inference-configured", subject: .settings(.modelCalls),
+            size: CGSize(width: 1180, height: 1080),
             prepare: { model in
                 model.applyConfig(source: "[llm]\nagent = \"claude\"\n[decisions]\ndecider = \"local\"\n")
                 model.llmTests["claude"] = LLMTest(
@@ -745,19 +802,19 @@ enum Shots {
         ),
         // Hunch in each of its states: chosen with no model, downloading, ready with a trained head, learning.
         Shot(
-            id: "configuration/hunch-no-model", subject: .settings(.inference), size: CGSize(width: 1100, height: 2000),
+            id: "configuration/hunch-no-model", subject: .settings(.decisions), size: CGSize(width: 1180, height: 2000),
             prepare: { HunchShots.prepare($0, .noModel) }
         ),
         Shot(
-            id: "configuration/hunch-downloading", subject: .settings(.inference),
-            size: CGSize(width: 1100, height: 2000), prepare: { HunchShots.prepare($0, .downloading) }
+            id: "configuration/hunch-downloading", subject: .settings(.decisions),
+            size: CGSize(width: 1180, height: 2000), prepare: { HunchShots.prepare($0, .downloading) }
         ),
         Shot(
-            id: "configuration/hunch-ready", subject: .settings(.inference), size: CGSize(width: 1100, height: 2000),
+            id: "configuration/hunch-ready", subject: .settings(.decisions), size: CGSize(width: 1180, height: 2000),
             prepare: { HunchShots.prepare($0, .ready) }
         ),
         Shot(
-            id: "configuration/hunch-learning", subject: .settings(.inference), size: CGSize(width: 1100, height: 2000),
+            id: "configuration/hunch-learning", subject: .settings(.decisions), size: CGSize(width: 1180, height: 2000),
             prepare: { HunchShots.prepare($0, .learning) }
         ),
         // The title bar's reminder while Hunch is chosen and its model is downloading.
@@ -770,7 +827,7 @@ enum Shots {
         ),
         Shot(
             id: "configuration/attention-rules", subject: .settings(.attention), size: CGSize(
-                width: 1180,
+                width: 1300,
                 height: 1480
             ),
             prepare: { model in
@@ -785,7 +842,7 @@ enum Shots {
         // The editor at work: a repo typed without its org is caught before the rule can be added.
         Shot(
             id: "configuration/attention-rule-editor", subject: .settings(.attention),
-            size: CGSize(width: 1180, height: 1120),
+            size: CGSize(width: 1300, height: 1120),
             prepare: { model in
                 model.attention.ruleDraftSeed = ["mention user:me boost 3", "author bot:dependabot ignore"]
                 model.attention.ruleFormSeed = AttentionRuleForm(

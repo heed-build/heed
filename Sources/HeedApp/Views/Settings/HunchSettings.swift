@@ -1,55 +1,58 @@
 import HeedCore
 import SwiftUI
 
-/// Settings › Inference & decisions › Hunch: the Laya checkpoints Hunch runs (size, license, source; download with
+/// Settings › Decisions & Hunch › Hunch: the Laya checkpoints Hunch runs (size, license, source; download with
 /// progress, stop, resume, delete), what the models folder holds, which questions Hunch answers and which go elsewhere,
 /// and learning from your corrections. Nothing downloads until you press Download; nothing here leaves the Mac.
-struct HunchGroup: View {
+struct HunchCard: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         let hunch = model.hunch
-        GroupLabel(title: "Hunch")
-        Text(
-            "Hunch answers typed questions on this Mac with a small Laya checkpoint (tens of milliseconds, no "
+        SettingsCard(
+            title: "Hunch",
+            note: "Hunch answers typed questions on this Mac with a small Laya checkpoint (tens of milliseconds, no "
                 + "network), and learns from your corrections. The model, your examples and what it learns stay in "
                 + "~/Library/Application Support/Heed/models and never leave this Mac."
-        )
-        .font(Theme.ui(11.5))
-        .foregroundStyle(Theme.fg3)
-        .fixedSize(horizontal: false, vertical: true)
-        if !hunch.supported {
-            Text("Hunch needs a Mac with Apple silicon.").font(Theme.ui(12)).foregroundStyle(Theme.err)
-        } else {
-            Field(
-                label: "Model",
-                detail: "Downloaded from its origin at a pinned revision, every file checked by sha256."
-            ) {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(hunch.catalogue) { checkpoint in
-                        CheckpointRow(checkpoint: checkpoint, chosen: checkpoint.id == hunch.checkpointID)
+        ) {
+            if !hunch.supported {
+                CardNote { Text("Hunch needs a Mac with Apple silicon.").foregroundStyle(Theme.err) }
+            } else {
+                SettingRow(
+                    "hunch.checkpoint",
+                    detail: "Downloaded from its origin at a pinned revision, every file checked by sha256.",
+                    defaultText: "english", stacked: true
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(hunch.catalogue) { checkpoint in
+                            CheckpointRow(checkpoint: checkpoint, chosen: checkpoint.id == hunch.checkpointID)
+                        }
                     }
                 }
-            }
-            Field(label: "On disk", detail: "Everything Hunch keeps, in the models folder.") {
-                Text(hunch.usage.summary(titles: Dictionary(uniqueKeysWithValues: hunch.catalogue.map {
-                    ($0.id, $0.title)
-                })))
-                .font(Theme.mono(12))
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            Field(label: "Questions", detail: "Which decisions Hunch takes, and where the rest go.") {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(HunchRouting.summary(
-                        localReady: model.localModel.ready, modelCalls: model.config.llm.enabled
-                    ))
-                    .font(Theme.ui(12))
-                    .foregroundStyle(Theme.fg2)
+                InfoRow(label: "On disk", detail: "Everything Hunch keeps, in the models folder.", stacked: true) {
+                    Text(hunch.usage.summary(titles: Dictionary(uniqueKeysWithValues: hunch.catalogue.map {
+                        ($0.id, $0.title)
+                    })))
+                    .font(Theme.mono(12))
                     .fixedSize(horizontal: false, vertical: true)
-                    ScreenReadingLine()
                 }
+                InfoRow(
+                    label: "Questions",
+                    detail: "Which decisions Hunch takes, and where the rest go.",
+                    stacked: true
+                ) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(HunchRouting.summary(
+                            localReady: model.localModel.ready, modelCalls: model.config.llm.enabled
+                        ))
+                        .font(Theme.ui(12))
+                        .foregroundStyle(Theme.fg2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        ScreenReadingLine()
+                    }
+                }
+                HunchLearningRows()
             }
-            HunchLearningGroup()
         }
     }
 }
@@ -184,29 +187,24 @@ private struct CheckpointRow: View {
     }
 }
 
-/// `[hunch] learn`: the toggle, the training set, the last run and its held-out score, Retrain now and Reset.
-private struct HunchLearningGroup: View {
+/// `[hunch] learn`: the switch, the training set, the last run and its held-out score, Retrain now and Reset.
+private struct HunchLearningRows: View {
     @Environment(AppModel.self) private var model
     @State private var confirmReset = false
 
     var body: some View {
         let hunch = model.hunch
         let ready = hunch.status.modelReady
-        Field(
-            label: "Learn from my corrections",
+        SettingRow(
+            "hunch.learn",
             detail: "Your Attention actions (done, snooze, mute, boost), your answers to goal attach proposals, and "
                 + "screen snapshots with the state the hooks reported become examples. Hunch trains its head on them in "
-                + "the background, at low priority, only when the Mac is idle and on power. On by default once a "
-                + "model is downloaded."
+                + "the background, at low priority, only when the Mac is idle and on power.",
+            defaultText: "on once a model is downloaded"
         ) {
-            Toggle("", isOn: Binding(
-                get: { model.hunchLearns }, set: { model.setConfig(["hunch", "learn"], .bool($0)) }
-            ))
-            .toggleStyle(.switch)
-            .labelsHidden()
-            .disabled(!ready)
+            ConfigSwitch(path: ["hunch", "learn"], isOn: model.hunchLearns).disabled(!ready)
         }
-        Field(
+        InfoRow(
             label: "Examples",
             detail: "Kept in the models folder, newest \(HunchTrainingSet.maxExamples) at most. One in five is held "
                 + "out: never trained on, only used to judge."
@@ -227,7 +225,7 @@ private struct HunchLearningGroup: View {
         if model.config.mindmap.enabled {
             mindmapField
         }
-        Field(label: "Last trained", detail: lastDetail(hunch.record)) {
+        InfoRow(label: "Last trained", detail: lastDetail(hunch.record)) {
             VStack(alignment: .leading, spacing: 4) {
                 if let training = hunch.training {
                     HStack(spacing: 8) {
@@ -248,7 +246,7 @@ private struct HunchLearningGroup: View {
                 }
             }
         }
-        Field(
+        InfoRow(
             label: "Held-out accuracy",
             detail: "The head in use before the run, and the run's own. A new head is used only when it does no worse."
         ) {
@@ -265,7 +263,7 @@ private struct HunchLearningGroup: View {
                 Text("not measured yet").font(Theme.mono(12)).foregroundStyle(Theme.fg3)
             }
         }
-        Field(label: "Head", detail: "Reset goes back to the checkpoint's own head; the examples stay.") {
+        InfoRow(label: "Head", detail: "Reset goes back to the checkpoint's own head; the examples stay.") {
             HStack(spacing: 12) {
                 Text(hunch.record.head == nil ? "the checkpoint's own" : "trained on your corrections")
                     .font(Theme.mono(12))
@@ -287,7 +285,7 @@ private struct HunchLearningGroup: View {
     /// How often heed placed Mindmap work where you kept it: the numbers that decide whether `[mindmap] shadow` can go.
     private var mindmapField: some View {
         let stats = model.mindmap.stats
-        return Field(
+        return InfoRow(
             label: "Mindmap placement",
             detail: "Of the placements heed asked about and you answered (y kept it, m moved it), how many it had right, "
                 + "by what answered. ✓ and ↦ on a card heed placed, or y and m, are the answers."

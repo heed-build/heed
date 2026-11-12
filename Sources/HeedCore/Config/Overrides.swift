@@ -184,7 +184,7 @@ public enum Overrides {
         OverrideKey(
             id: "goals_tracker", label: "Goal tracker",
             detail: "Where a new goal from work here mirrors on GitHub, as org/name (any repo you can triage). "
-                + "The default is General › Goals' tracker.",
+                + "The default is Goals › GitHub mirror's tracker.",
             kind: .repoSlug, repoOnly: false,
             read: { config, scope in config.goals.mirror.trackers[scope.goalKey].map(OverrideValue.text) },
             fallback: { .text($0.goals.mirror.tracker) }

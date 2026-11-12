@@ -8,14 +8,14 @@ description: Choose which agent takes Heed's own model calls and what answers it
 Heed makes short [model calls](../agents/model-calls.md) of its own (summaries, drafted replies, goal plans) through
 an agent CLI you are logged in to, and asks typed questions, *decisions*, of Apple's on-device model, of
 [Hunch](#hunch) (a small model on this Mac that learns from your corrections) or of a model call.
-**Settings › Inference & decisions** sets up both, and tests them. `:inference.setup` opens it, as does
-`:settings.open inference` and **Help › Set up model calls & decisions**.
+**Settings › Model calls** sets up both, and tests them; the decider itself is on **Settings › Decisions & Hunch**.
+`:inference.setup` opens Model calls, as do `:settings.open model-calls` and **Help › Set up model calls & decisions**.
 
-![Settings › Inference & decisions before anything is chosen](../images/shots/configuration/inference-not-configured.png)
+![Settings › Model calls before anything is chosen](../images/shots/configuration/inference-not-configured.png)
 
 ## Where it stands
 
-The top of the pane says, for model calls and for decisions, one of:
+The top of Settings › Model calls says, for model calls and for decisions, one of:
 
 | State | Means |
 |---|---|
@@ -44,24 +44,29 @@ Set up never downloads anything. When Hunch has no model, the card offers **Down
 
 ![Set up: claude for model calls, the on-device model for decisions, both tested](../images/shots/configuration/inference-configured.png)
 
-## Inference
+## Model calls
+
+On Settings › Model calls:
 
 - **Agent**: *Taking turns* (`auto`) uses every agent you are logged in to, round-robin, as Heed always has; one agent
-  takes every call alone. Each uses a cheap model; **Model** sets another for the chosen agent (`llm_model`).
+  takes every call alone. Each uses a cheap model; the chosen agent's Model calls tab, on Settings › Agents, sets
+  another (`llm_model`).
 - **Detected**: which agents are installed and logged in, as Heed runs them (without your shell). **Check again**
   looks again.
-- **Daily budget**: per agent per day, background calls stop until tomorrow at this many calls or dollars. Calls you
-  ask for still run.
+- **Limits**: the timeout, how many run at once, the back-off after a failure, and per agent per day the calls and
+  dollars after which background calls stop until tomorrow. Calls you ask for still run.
 - **Test**: one tiny call to the chosen agent (for taking turns, the first one logged in), never cached, with its
   answer, the model, how long it took and what it cost. It shows in `:log`.
 
 ## Decisions
 
-- **Decider**: *On-device* (Apple's model), *Hunch* (below), *Model call* (through Inference above) or *Off* (what
+On Settings › Decisions & Hunch:
+
+- **Decider**: *On-device* (Apple's model), *Hunch* (below), *Model call* (through Model calls) or *Off* (what
   asks goes without). The on-device model picks an option and says how sure it is (low, medium, high); Heed turns that into
   probabilities, and every decision writes a `decide` row in `:log` as a model call's does.
-- **Attach on its own at** and **Ask from**: the thresholds [finding new work's goal](../goals/attach.md) acts on, the
-  same as in General › Goals.
+- **Attach on its own at** and **Ask from**, under Finding new work's goal: the thresholds
+  [finding new work's goal](../goals/attach.md) acts on.
 - **Test**: one decision, where a piece of finished work stands, with the pick, the confidence and how long it took.
 
 The last test of each is kept between launches: a failed one says so in the pane, and in the reminder.

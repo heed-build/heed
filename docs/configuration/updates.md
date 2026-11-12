@@ -35,7 +35,7 @@ install = "ask"                    # ask | auto
 - `check = false`: Heed never looks on its own. `:update` still does.
 - `install = "auto"`: a new version downloads in the background and is installed when you quit Heed.
 
-Settings › General › Updates sets both.
+Settings › Updates sets both.
 
 ## Homebrew
 

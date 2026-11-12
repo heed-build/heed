@@ -55,7 +55,7 @@ names a campaign for it ([model calls](../agents/model-calls.md), six times a da
 
 heed places the work and moves on; nothing waits for you. On a card it placed after asking, a faint `heed · 72%`
 with ✓ and ↦ says how sure it was: ✓ (or `y`) says it is right, ↦ (or `m`) moves it. Either is what Hunch learns
-from, and Settings › Inference & decisions shows how often heed had it right. Leaving a card alone is fine too. With
+from, and Settings › Decisions & Hunch shows how often heed had it right. Leaving a card alone is fine too. With
 `shadow = true`, every placement waits for `y` or `m` instead of standing.
 
 ```toml

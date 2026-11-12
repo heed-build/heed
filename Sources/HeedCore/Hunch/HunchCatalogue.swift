@@ -1,6 +1,6 @@
 import Foundation
 
-/// A Laya checkpoint Hunch can run, as Settings › Inference & decisions lists it: where it comes from (pinned to a
+/// A Laya checkpoint Hunch can run, as Settings › Decisions & Hunch lists it: where it comes from (pinned to a
 /// revision, every file with its size and sha256), its license, and what it is good for. The files come from Hunch's
 /// own pinned list (the app passes them in), so heed never disagrees with the package about what a checkpoint is.
 public struct HunchCheckpoint: Equatable, Sendable, Identifiable {

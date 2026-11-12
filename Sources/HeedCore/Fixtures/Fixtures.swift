@@ -1038,7 +1038,7 @@ public enum Fixtures {
         ]
     }
 
-    /// Settings › Agents › Local decisions in the fake world: invented counts of screen snapshots kept.
+    /// Settings › Decisions & Hunch › Local decisions in the fake world: invented counts of screen snapshots kept.
     public static func screenCounts(now: Date, calendar: Calendar = .current) -> ScreenSnapshotCounts {
         let labelled: [(String, AgentState, Int)] = [
             ("claude", .asking, 17), ("claude", .blocked, 38), ("claude", .done, 64), ("claude", .idle, 41),

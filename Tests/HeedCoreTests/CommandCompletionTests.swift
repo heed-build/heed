@@ -66,9 +66,13 @@ struct CommandCompletionTests {
         #expect(CommandCompletions.candidates("tab.go ", context).map(\.label) == ["1", "2"])
         #expect(CommandCompletions.candidates("host.filter d", context).map(\.label) == ["devbox"])
         #expect(CommandCompletions.candidates("agent co", context).map(\.line) == ["agent codex"])
-        #expect(CommandCompletions.candidates("settings.open k", context).map(\.label) == ["keys"])
+        // Names starting with what is typed come first, then those containing it.
+        #expect(CommandCompletions.candidates("settings.open k", context).map(\.label).first == "keys")
         // Orgs & repos opens on a tab.
         #expect(CommandCompletions.candidates("settings.open colors m", context).map(\.label) == ["colors merged"])
+        // So do the Pilot and an agent.
+        #expect(CommandCompletions.candidates("settings.open pilot m", context).map(\.label) == ["pilot merged"])
+        #expect(CommandCompletions.candidates("settings.open mo", context).map(\.label).first == "model-calls")
         #expect(CommandCompletions.candidates("pilot.pause ", context).map(\.label).contains("forever"))
         #expect(CommandCompletions.candidates("merge.run ", context).map(\.label) == ["acme/api", "all"])
         #expect(CommandCompletions.candidates("issues.repo ", context).map(\.label) == ["api"])

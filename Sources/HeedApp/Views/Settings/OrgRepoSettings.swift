@@ -13,31 +13,28 @@ struct OrgRepoSettings: View {
     var body: some View {
         let groups = groups()
         let shown = selected ?? firstOverridden(groups) ?? groups.first.map { OverrideScope.org($0.org) }
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Orgs & repos").font(Theme.ui(17, weight: .semibold))
-            Text("Orgs and repos can override the defaults: color, issues, goal trackers, and every Pilot setting. A "
-                + "repo takes its org's values unless it sets its own. Marked ones override something.")
-                .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(alignment: .top, spacing: 0) {
-                list(groups, shown: shown).frame(width: Self.listWidth)
-                Theme.line.frame(width: 1)
-                if let scope = shown {
-                    // Takes what the list leaves, never more: rows fold to one column when it is narrow.
-                    ScopeDetail(scope: scope).padding(.leading, 18)
-                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-                } else {
-                    Text("Repos appear here once the repo scan finds them.").foregroundStyle(Theme.fg3).padding(18)
-                }
+        HStack(alignment: .top, spacing: 0) {
+            ScopeList(
+                query: $query, toggle: ("Only overridden", Bindable(model).orgRepoOnlyOverridden),
+                items: items(groups), selected: shown?.title
+            ) { title in
+                selected = groups.flatMap { [OverrideScope.org($0.org)] + $0.repos.map(OverrideScope.repo) }
+                    .first { $0.title == title }
+            }
+            .frame(width: ScopeList.width)
+            Theme.line.frame(width: 1)
+            if let scope = shown {
+                // Takes what the list leaves, never more: rows fold to one column when it is narrow.
+                ScopeDetail(scope: scope).padding(.leading, 18)
+                    .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            } else {
+                Text("Repos appear here once the repo scan finds them.").foregroundStyle(Theme.fg3).padding(18)
             }
         }
         // `:setup.edit` opens the page on a repo.
         .onAppear(perform: takeRequestedScope)
         .onChange(of: model.settingsScope) { takeRequestedScope() }
     }
-
-    /// Wide enough for most repo names; longer ones are cut in the middle, the full name on hover.
-    static let listWidth: CGFloat = 210
 
     private func takeRequestedScope() {
         guard let scope = model.settingsScope else { return }
@@ -92,51 +89,25 @@ struct OrgRepoSettings: View {
         Overrides.setKeys(at: scope, in: model.config).count
     }
 
-    private func list(_ groups: [Group], shown: OverrideScope?) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            TextField("Filter", text: $query).textFieldStyle(.roundedBorder).font(Theme.ui(12))
-            Toggle("Only overridden", isOn: Bindable(model).orgRepoOnlyOverridden).font(Theme.ui(12)).padding(
-                .vertical,
-                6
-            )
-            ForEach(groups, id: \.org) { group in
-                row(.org(group.org), indent: 0, cloned: true, shown: shown)
-                ForEach(group.repos, id: \.slug) { repo in
-                    row(.repo(repo), indent: 16, cloned: group.cloned.contains(repo.slug), shown: shown)
-                }
+    /// The list: each org, then its repos (cut in the middle when long, the whole name on hover), with the
+    /// overrides each holds and a red ! where config.toml has a value heed refused there.
+    private func items(_ groups: [Group]) -> [ScopeList.Item] {
+        let counts = SettingsCatalog.counts(in: model.config, problems: model.configProblems)
+        return groups.flatMap { group -> [ScopeList.Item] in
+            let org = OverrideScope.org(group.org)
+            return [ScopeList.Item(
+                id: org.title, title: group.org, bold: true, leading: .org(group.org), count: count(org),
+                problems: counts.problems(.target(.orgsAndRepos, .org(group.org)))
+            )] + group.repos.map { repo in
+                let cloned = group.cloned.contains(repo.slug)
+                return ScopeList.Item(
+                    id: OverrideScope.repo(repo).title, title: repo.name, mono: true, indent: 16,
+                    note: cloned ? nil : "not cloned", count: count(.repo(repo)),
+                    problems: counts.problems(.target(.orgsAndRepos, .repo(repo.slug))), dimmed: !cloned,
+                    help: repo.slug
+                )
             }
         }
-        .padding(.trailing, 12)
-    }
-
-    private func row(_ scope: OverrideScope, indent: CGFloat, cloned: Bool, shown: OverrideScope?) -> some View {
-        let overrides = count(scope)
-        let isSelected = shown == scope
-        return HStack(spacing: 6) {
-            switch scope {
-            case let .org(name):
-                OrgTile(org: name, color: Palette.shared.color(for: Repo(org: name, name: "")), size: 14)
-                Text(name).font(Theme.ui(12.5, weight: .semibold)).lineLimit(1).truncationMode(.middle)
-            case let .repo(repo):
-                Text(repo.name).font(Theme.mono(12)).foregroundStyle(cloned ? Theme.fg : Theme.fg3)
-                    .lineLimit(1).truncationMode(.middle)
-                if !cloned {
-                    Text("not cloned").font(Theme.ui(10.5)).foregroundStyle(Theme.fg3).fixedSize()
-                }
-            }
-            Spacer(minLength: 4)
-            if overrides > 0 {
-                Text("● \(overrides)").font(Theme.mono(11, weight: .semibold)).foregroundStyle(Theme.block)
-                    .help("\(overrides) override\(overrides == 1 ? "" : "s")")
-            }
-        }
-        .padding(.leading, 8 + indent)
-        .padding(.trailing, 8)
-        .padding(.vertical, 5)
-        .background(RoundedRectangle(cornerRadius: 5).fill(isSelected ? Theme.bg3 : .clear))
-        .contentShape(Rectangle())
-        .help(scope.title)
-        .onTapGesture { selected = scope }
     }
 }
 
@@ -163,17 +134,17 @@ private struct ScopeDetail: View {
             if keys.isEmpty, (Overrides.overrideCounts(at: scope, in: config)[tab] ?? 0) == 0 {
                 Text("Nothing on \(tab.title) is overridden here.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             }
-            ForEach(Array(keys.enumerated()), id: \.element.id) { index, key in
-                if index == 0 || keys[index - 1].group != key.group {
-                    VStack(alignment: .leading, spacing: 6) {
-                        SectionHeader(title: key.group)
-                        Theme.line.frame(height: 1)
+            let sections = keys.map(\.group).reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+            ForEach(sections, id: \.self) { section in
+                SettingsCard(title: section) {
+                    ForEach(keys.filter { $0.group == section }, id: \.id) { key in
+                        OverrideRow(scope: scope, key: key)
+                        if key.id == "setup", case let .repo(repo) = scope,
+                           let proposal = model.setupProposal(for: repo)
+                        {
+                            SetupProposalLine(repo: repo, proposal: proposal)
+                        }
                     }
-                    .padding(.top, index == 0 ? 0 : 10)
-                }
-                OverrideRow(scope: scope, key: key)
-                if key.id == "setup", case let .repo(repo) = scope, let proposal = model.setupProposal(for: repo) {
-                    SetupProposalLine(repo: repo, proposal: proposal)
                 }
             }
             if tab == Overrides.tab(of: "tasks"), case let .repo(repo) = scope,
@@ -258,6 +229,7 @@ private struct OverrideRow: View {
     var body: some View {
         let (value, source) = Overrides.effective(key, at: scope, in: model.config)
         let own = Overrides.value(key, at: scope, in: model.config) != nil
+        let problems = Self.problems(key, at: scope, in: model.configProblems)
         // Label beside the control when the pane is wide enough; else the control under the label, as wide as the
         // pane allows. Nothing is ever wider than the pane.
         ViewThatFits(in: .horizontal) {
@@ -275,10 +247,28 @@ private struct OverrideRow: View {
                 editor(value)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .leading) {
-            if own { Theme.block.frame(width: 2).offset(x: -10) }
+            if !problems.isEmpty {
+                Theme.err.frame(width: 3)
+            } else if own {
+                Theme.block.frame(width: 3)
+            }
         }
+    }
+
+    /// The values config.toml has for this key here that heed refused, from the catalog.
+    static func problems(_ key: OverrideKey, at scope: OverrideScope, in problems: [ConfigProblem])
+        -> [SettingProblem]
+    {
+        guard let entry = SettingsCatalog.entry("override.\(key.id)") else { return [] }
+        let target: SettingTarget = switch scope {
+        case let .org(name): .org(name)
+        case let .repo(repo): .repo(repo.slug)
+        }
+        return SettingsCatalog.problems(for: entry, at: target, in: problems)
     }
 
     private func label(source: OverrideSource, own: Bool) -> some View {
@@ -294,6 +284,11 @@ private struct OverrideRow: View {
             }
             Text(key.detail).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
                 .fixedSize(horizontal: false, vertical: true)
+            ForEach(Self.problems(key, at: scope, in: model.configProblems), id: \.self) { problem in
+                Text("config.toml: \(problem.reason). Like \(problem.example)")
+                    .font(Theme.ui(11.5)).foregroundStyle(Theme.err)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -321,7 +316,11 @@ private struct OverrideRow: View {
             Toggle("", isOn: Binding(
                 get: { if case let .bool(on) = value { on } else { false } },
                 set: { model.setConfig(path, .bool($0)) }
-            )).labelsHidden()
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .tint(Theme.done)
+            .labelsHidden()
         case let .choice(options):
             Picker("", selection: Binding(
                 get: { if case let .text(text) = value { text } else { "" } },
@@ -407,6 +406,8 @@ private struct SetupProposalLine: View {
             Button("Never") { model.setConfig(["repos", repo.slug, "setup"], .array([])) }
         }
         .font(Theme.ui(12))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
     }
 }
 

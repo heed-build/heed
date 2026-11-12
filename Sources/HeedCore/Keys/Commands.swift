@@ -216,13 +216,15 @@ public enum Commands {
         .init("app.quit", "quit Heed", .views),
         .init(
             "settings.open",
-            "open Settings, on a section (general, agents, inference, colors, cleanup, pilot, attention, keys, hosts); "
-                + "orgs takes a tab (general, green, merged, reviews, instructions)",
+            "open Settings, on a page (general, notifications, updates, agents, model-calls, decisions, worktrees, "
+                + "goals, history, github, pilot, orgs, attention, hosts, tools, keys; the old colors, cleanup, "
+                + "inference still work); orgs and pilot take a tab (green, merged, reviews, instructions), agents an "
+                + "agent and a tab (sessions, model-calls)",
             .views,
-            arguments: "[section] [tab]"
+            arguments: "[page] [tab]"
         ),
         .init(
-            "inference.setup", "set up heed's model calls and decisions (Settings › Inference & decisions)", .views
+            "inference.setup", "set up heed's model calls and decisions (Settings › Model calls)", .views
         ),
         .init(
             "inference.hide", "hide the title bar's model call setup reminder until the next launch (always: for good)",

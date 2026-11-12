@@ -5,7 +5,7 @@ import HeedCore
     import FoundationModels
 #endif
 
-/// How Settings › Inference & decisions' decision test went.
+/// How Settings › Model calls' decision test went.
 struct DecisionTest: Equatable {
     var running = false
     var answer: String?
@@ -13,7 +13,7 @@ struct DecisionTest: Equatable {
     var seconds: Double?
 }
 
-/// Settings › Inference & decisions: where model calls and decisions stand (`InferenceSetup`), one click to set both
+/// Settings › Model calls: where model calls and decisions stand (`InferenceSetup`), one click to set both
 /// up from what is detected, a test of each, and the title bar's reminder while they are not set up.
 extension AppModel {
     /// Where the setup stands. Before detection has run, a chosen agent is taken to work.
@@ -38,7 +38,7 @@ extension AppModel {
 
     /// `inference.setup`: Settings, on the pane.
     func openInferenceSetup() {
-        settingsSection = .inference
+        settingsPage = .modelCalls
         openSettings?()
         guard !isFixture else { return }
         localModel = LocalModels.availability

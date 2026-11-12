@@ -6,7 +6,7 @@ description: The models and reasoning efforts Heed offers for each agent, where 
 
 Wherever Heed lets you choose what an agent runs on, it offers a list rather than a text field: Start work, the swarm
 form (the lead and each kind of worker), a handoff (`:agent.switch`), Settings › Agents (each agent's own model and
-effort, and the model for Heed's [model calls](model-calls.md)), Settings › Inference & decisions, Settings › Pilot
+effort on its Sessions tab, and the model for Heed's [model calls](model-calls.md) on its Model calls tab), Settings › Pilot
 (the get it green run and the merge-conflict run) and Settings › Orgs & repos (the same, per org and repo).
 
 Each list starts with **the agent's default** (nothing is passed, so the agent uses its own, or the model and effort
@@ -36,7 +36,7 @@ them. codex's list carries each model's own effort levels and default.
 
 ## An agent's own model and effort
 
-Settings › Agents › **Model** sets what an agent's sessions start on when nothing more specific picks one: a session
+Settings › Agents › Sessions › **Model and effort** sets what an agent's sessions start on when nothing more specific picks one: a session
 from Start work left on the default, a handoff without a model, a swarm task whose owner names none, a get it green
 run without `[pilot] model`. In config.toml:
 
@@ -49,4 +49,4 @@ effort = "high"      # its reasoning effort
 A custom agent takes a model and an effort when it says how: `model_flag` and `effort_flag` (a flag the level
 follows, or arguments with `{level}` in them). See [Custom agents](custom-agents.md).
 
-![Settings › Pilot: runs on codex with a listed model, conflicts on a custom id](../images/shots/agents/model-custom.png)
+![Settings › Pilot › Get it green: runs on codex with a listed model, conflicts on a custom id](../images/shots/agents/model-custom.png)

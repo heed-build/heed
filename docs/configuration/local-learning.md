@@ -16,7 +16,7 @@ something it was asked about, that becomes an example. You label nothing yoursel
 
 ## Turning it on
 
-**Learn from my corrections** in Settings › Inference & decisions › Hunch, or in `config.toml`:
+**Learn from my corrections** in Settings › Decisions & Hunch › Hunch, or in `config.toml`:
 
 ```toml
 [hunch]

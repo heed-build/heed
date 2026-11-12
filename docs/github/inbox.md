@@ -15,7 +15,7 @@ description: Your GitHub notifications in Heed, filtered, read and turned into s
 | Chip | Shows |
 |---|---|
 | Unread | What you have not read yet (the default) |
-| All | Everything |
+| All | Everything, threads you read (here or elsewhere) included, for 30 days |
 | PRs | Pull requests |
 | Issues | Issues |
 | Review requested | Pull requests waiting on your review |

@@ -183,7 +183,8 @@ struct CallLogTests {
             }
         }
         let calls = try await rows(log)
-        #expect(calls.count == 3 && calls.allSatisfy { $0.kind == .github })
+        // Notifications are two reads: every unread one, and what changed since, read or not.
+        #expect(calls.count == 4 && calls.allSatisfy { $0.kind == .github })
         let byOperation = Dictionary(calls.map { ($0.operation ?? "", $0) }) { first, _ in first }
         #expect(byOperation["GET notifications"]?.items == 3)
         #expect(byOperation["GET notifications"]?.write == false)

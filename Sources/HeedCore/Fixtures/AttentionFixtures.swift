@@ -37,6 +37,40 @@ public extension Fixtures {
         ]
     }()
 
+    /// Open issues the search finds mentioning you or assigned to you, opened long ago and with no notification about
+    /// them: folded out of Needs me as mentioned (assigned) before. One had a bot's comment today: still folded.
+    static let attentionOldIssues: [Issue] = {
+        func ago(_ days: Double) -> Date { Clock.now.addingTimeInterval(-days * 86400) }
+        func old(
+            _ repo: Repo, _ number: Int, _ title: String, opened: Double, updated: Double, assigned: Bool = false
+        ) -> Issue {
+            Issue(
+                repo: repo, number: number, title: title, url: "https://github.com/\(repo.slug)/issues/\(number)",
+                body: "", labels: [], author: "maintainer", updatedAt: ago(updated), createdAt: ago(opened),
+                assigned: assigned, mentioned: !assigned
+            )
+        }
+        return [
+            old(docsToolkit, 1204, "Assembler: support versioned nav", opened: 410, updated: 0.2),
+            old(docsToolkit, 1388, "Broken anchors after a heading is renamed", opened: 330, updated: 41),
+            old(guides, 51, "Style guide: one word for sign in", opened: 600, updated: 120),
+            old(guides, 58, "Screenshots go stale after each release", opened: 520, updated: 200),
+            old(markgraph, 7, "Theme tokens for diagrams", opened: 700, updated: 300),
+            old(ingest, 40, "Retry budget per stage", opened: 250, updated: 30, assigned: true),
+        ]
+    }()
+
+    /// What the fake world's last sync fetched of each source: everything GitHub has, a minute ago.
+    static func attentionFetches(_ state: GitHubState) -> GitHubFetches {
+        let at = Clock.now.addingTimeInterval(-60)
+        func all(_ count: Int) -> SourceFetch { SourceFetch(fetched: count, total: count, capped: false, at: at) }
+        return GitHubFetches(
+            notifications: all(state.inbox.count(where: \.unread)),
+            mentions: all(state.issues.count(where: \.mentioned)),
+            assigned: all(state.issues.count(where: \.assigned)), pulls: all(state.pulls.count { $0.state == .open })
+        )
+    }
+
     /// Thread details, by URL: who opened each, and the last comments (the three-line digest).
     static let attentionDetails: [String: ThreadDetail] = {
         func ago(_ minutes: Double) -> Date { Clock.now.addingTimeInterval(-minutes * 60) }

@@ -378,6 +378,22 @@ enum Shots {
         ),
         Shot(id: "github/attention-muted", keys: "gm" + String(repeating: "t", count: 7)),
         Shot(id: "github/attention-reply", keys: "gm/2845<CR>R", crop: .confirm),
+        // Mentions from long ago that no notification is about: folded out of Needs me, listed under Tagged.
+        Shot(id: "github/attention-tagged", keys: "gmt"),
+        Shot(id: "github/attention-coverage", keys: "gm:attention.coverage<CR>", crop: .confirm),
+        // The mention search stopped at its cap: the foot of the list turns amber.
+        Shot(id: "github/attention-missing", keys: "gm", crop: .attentionCoverage, cropPadding: 8, prepare: { model in
+            var state = model.github
+            var fetches = Fixtures.attentionFetches(model.attentionGitHub)
+            fetches.mentions = SourceFetch(
+                fetched: 200,
+                total: 254,
+                capped: true,
+                at: Clock.now.addingTimeInterval(-60)
+            )
+            state.fetches = fetches
+            model.commit(.githubSynced(state))
+        }),
         Shot(id: "github/inbox", keys: ":inbox<CR>", highlight: [.chips]),
         Shot(id: "github/inbox-rows", size: short, keys: ":inbox<CR>", crop: .list),
         Shot(id: "github/issues", keys: ":issues<CR>", highlight: [.issueRepos, .chips]),

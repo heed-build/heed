@@ -41,7 +41,7 @@ public struct AttentionAction: Hashable, Sendable {
 public enum AttentionCondition: Hashable, Sendable {
     /// Any of these reasons.
     case reasons(Set<AttentionReason>)
-    /// You were mentioned yourself (`mention user:me`).
+    /// You were mentioned yourself, and lately (`mention user:me`): a mention from before does not count.
     case mentionedDirectly
     /// One of the teams it came through matches the glob (`team:acme/docs-*`).
     case team(String)
@@ -216,9 +216,10 @@ public struct AttentionRules: Hashable, Sendable {
     static let actionWords: Set<String> = ["boost", "lower", "ignore", "pin", "notify"]
 
     static let reasonWords: [String: Set<AttentionReason>] = [
-        "mention": [.mentioned, .teamMention],
+        // `mention` and `assigned` match the old ones too; `user:me` only a fresh mention (`mentionedDirectly`).
+        "mention": [.mentioned, .teamMention, .mentionedBefore],
         "review": [.reviewRequested],
-        "assigned": [.assigned],
+        "assigned": [.assigned, .assignedBefore],
         "ci": [.ciFailed],
         "mine": [.yourPR, .author],
         "changes": [.changesRequested],

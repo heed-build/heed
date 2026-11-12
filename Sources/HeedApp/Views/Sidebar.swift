@@ -50,10 +50,16 @@ struct Sidebar: View {
     /// `o new session  gc new chat`: key hints, so a click runs what the key runs and the caps follow your keymap.
     /// Narrower than both labels, the short ones (`session`, `chat`), then the keys alone.
     private var starts: some View {
-        ViewThatFits(in: .horizontal) {
-            startRow { $0.label }
-            startRow { $0.short }
-            startRow { _ in "" }
+        // The View menu at the row's end (the header has no room for it beside the filter); the starts fit in what
+        // is left.
+        HStack(spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                startRow { $0.label }
+                startRow { $0.short }
+                startRow { _ in "" }
+            }
+            Spacer(minLength: 0)
+            viewMenu
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 10)
@@ -70,16 +76,50 @@ struct Sidebar: View {
         .fixedSize(horizontal: true, vertical: false)
     }
 
+    /// The header's dropdown: what groups the sessions, their order, one or two lines a row. Each is a command too
+    /// (`zG`, `T`, `zR`), so the keys and the menu do the same thing.
+    private var viewMenu: some View {
+        let view = model.sessionsView
+        return DropdownMenu(view.label, size: .small) {
+            Section("Group") {
+                ForEach(SessionsView.Grouping.allCases, id: \.self) { grouping in
+                    Button { run("sessions.group", grouping.rawValue) } label: {
+                        Label(grouping.title, systemImage: view.grouping == grouping ? "checkmark" : "")
+                    }
+                }
+            }
+            Section("Sort") {
+                ForEach(SessionsView.Sort.allCases, id: \.self) { sort in
+                    Button { run("sessions.sort", sort.rawValue) } label: {
+                        Label(sort.title, systemImage: view.sort == sort ? "checkmark" : "")
+                    }
+                }
+            }
+            Section("Rows") {
+                ForEach(SessionsView.Rows.allCases, id: \.self) { rows in
+                    Button { run("sessions.rows", rows.rawValue) } label: {
+                        Label(rows.title, systemImage: view.rows == rows ? "checkmark" : "")
+                    }
+                }
+            }
+        }
+    }
+
+    private func run(_ name: String, _ argument: String) {
+        model.perform(CommandInvocation(name: name, arguments: [argument]))
+    }
+
     private func sessionList(_ list: SessionList) -> some View {
         VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ListScroll {
                     ListStack(alignment: .leading, spacing: 0) {
-                        ForEach(list.sections, id: \.group) { section in
+                        ForEach(list.sections, id: \.id) { section in
                             VStack(alignment: .leading, spacing: 0) {
                                 groupHeader(section, pins: list.pins.count)
                                 ForEach(section.sessions) { session in
                                     let index = list.ordered.firstIndex(of: session) ?? 0
+                                    let group = list.groups[session.id] ?? .working
                                     SessionRow(
                                         session: session,
                                         number: list.lineNumber(of: index, cursor: model.cursor),
@@ -88,15 +128,21 @@ struct Sidebar: View {
                                         hint: model.hintLabel(for: .session(session.id)),
                                         pilot: model.pilotStatus(of: session),
                                         readyToMerge: session.trackedPRs.contains(where: model.readyToMerge),
-                                        group: section.group,
-                                        label: Self.showsLabel(section.group, model.sessionPilot(session))
+                                        group: group,
+                                        label: Self.showsLabel(group, model.sessionPilot(session))
                                             ? model.watchLabel(of: session) : nil,
                                         hostColor: session.host.flatMap { model.config.hosts[$0]?.color },
                                         hostLink: session.host.map { model.hostStatus($0) },
                                         subagents: model.liveSubagents(of: session).count,
                                         pending: model.pendingChanges(of: session),
                                         goal: model.goals.bySession[session.id]?.title,
-                                        showsTitle: model.sidebarShowsTitles
+                                        showsTitle: model.sidebarShowsTitles,
+                                        rows: list.view.rows,
+                                        // Grouped by something else, a parked session stays in its group, quietly.
+                                        quiet: group == .parked && section.group != .parked,
+                                        hidesAgent: session.agent == model.settings.defaultAgent,
+                                        // Under its repo's header, a one-repo session need not say it again.
+                                        hidesRepo: list.view.grouping == .repo && session.involvedRepos.count == 1
                                     )
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.clickSession(session.id) }
@@ -152,25 +198,64 @@ struct Sidebar: View {
         }
     }
 
+    @ViewBuilder
     private func groupHeader(_ section: SessionList.Section, pins: Int) -> some View {
-        HStack(spacing: 6) {
-            if section.group == .pinned {
-                Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(Theme.fg3)
+        Group {
+            switch section.header {
+            case let .status(group):
+                HStack(spacing: 6) {
+                    if group == .pinned {
+                        Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(Theme.fg3)
+                    }
+                    let count = group == .pinned ? "\(pins)/\(SessionGroup.maxPins)" : "\(section.sessions.count)"
+                    SectionHeader(title: "\(group.rawValue) · \(count)", tint: Self.tint(group))
+                    if group == .chats {
+                        Text("no repo, no worktree").font(Theme.ui(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                    }
+                    Spacer()
+                    if group == .pinned { KeyCap(text: "'") }
+                }
+            case let .repo(repo):
+                HStack(spacing: 6) {
+                    OrgTile(org: repo.org, color: repo.color, size: 12)
+                    Text(repo.name).font(Theme.mono(11.5, weight: .semibold)).foregroundStyle(repo.color.foreground)
+                        .lineLimit(1)
+                    Text("· \(section.sessions.count)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                    Spacer()
+                }
+            case let .campaign(campaign):
+                HStack(spacing: 6) {
+                    Text(campaign.title).font(Theme.ui(12, weight: .semibold)).foregroundStyle(Theme.fg2)
+                        .lineLimit(1).truncationMode(.middle)
+                    Spacer(minLength: 4)
+                    if let stage = campaign.stage {
+                        Text(stage.rawValue).font(Theme.mono(10.5)).foregroundStyle(Self.tint(stage))
+                    }
+                    Text("· \(section.sessions.count)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                }
+            case .unplaced:
+                HStack {
+                    SectionHeader(title: "Unplaced · \(section.sessions.count)")
+                    Spacer()
+                }
+            case .all:
+                EmptyView()
             }
-            let count = section.group == .pinned ? "\(pins)/\(SessionGroup.maxPins)" : "\(section.sessions.count)"
-            SectionHeader(
-                title: "\(section.group.rawValue) · \(count)",
-                tint: Self.tint(section.group)
-            )
-            if section.group == .chats {
-                Text("no repo, no worktree").font(Theme.ui(11)).foregroundStyle(Theme.fg3).lineLimit(1)
-            }
-            Spacer()
-            if section.group == .pinned { KeyCap(text: "'") }
         }
         .padding(.horizontal, 16)
         .padding(.top, 14)
         .padding(.bottom, 6)
+    }
+
+    /// A campaign's stage: building in heed's blue, landing amber, done green, stalled red, exploring quiet.
+    static func tint(_ stage: MindNode.Stage) -> Color {
+        switch stage {
+        case .building: Theme.busy
+        case .landing: Theme.block
+        case .done: Theme.done
+        case .stalled: Theme.err
+        case .exploring: Theme.fg3
+        }
     }
 }
 
@@ -199,6 +284,14 @@ struct SessionRow: View {
     var goal: String?
     /// Lead with the session's title instead of its worktree name.
     var showsTitle = false
+    /// One line a row: only the cursor's row shows more.
+    var rows: SessionsView.Rows = .two
+    /// A parked session in another grouping: one line, dimmed.
+    var quiet = false
+    /// Its agent is the default one: the agent's line leaves the name out.
+    var hidesAgent = false
+    /// Its group's header names its only repo already.
+    var hidesRepo = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -210,39 +303,38 @@ struct SessionRow: View {
             StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
+                // The title has its line to itself, so it reads; what the session holds goes on the line under it.
                 HStack(spacing: 6) {
                     if session.isChat { ChatGlyph() }
+                    // One line a row keeps the repo as its org's mark.
+                    if folded, !hidesRepo, let repo = session.involvedRepos.first {
+                        OrgTile(org: repo.org, color: repo.color, size: 12).help(repo.slug)
+                    }
+                    // A title reads from its start; a worktree name keeps both ends (`fix-…-redirects`).
                     Text(showsTitle ? session.title : session.worktreeName)
                         .font(Theme.ui(13, weight: .medium))
                         .lineLimit(1)
-                        .truncationMode(.middle)
+                        .truncationMode(showsTitle ? .tail : .middle)
+                        .layoutPriority(1)
                         .help(showsTitle ? session.worktreeName : session.title)
-                    Spacer(minLength: 4)
-                    PendingChips(pending: pending, hasPR: !session.trackedPRs.isEmpty)
-                    if let pinNumber { KeyCap(text: "'\(pinNumber)") }
-                    if readyToMerge {
-                        Text("✓ ready").font(Theme.mono(10.5)).foregroundStyle(Theme.done).fixedSize()
-                            .help("A PR of this session is ready to merge, and get it merged is off: zM merges it")
-                    } else if let pilot, pilot != .unwatched {
-                        PilotMark(status: pilot, compact: true)
-                    }
-                    if let host = session.host { HostChip(location: .host(host), color: hostColor) }
-                    if !session.trackedPRs.isEmpty {
-                        Text("\(session.trackedPRs.count) PR")
-                            .font(Theme.mono(10.5))
-                            .foregroundStyle(Theme.fg2)
-                            .padding(.horizontal, 6)
-                            .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
-                    }
+                    Spacer(minLength: 0)
                 }
-                if let chat = session.chat {
+                if !folded {
+                    // Where it works, its host and how long you have been away; the repo's name gets the room first.
                     HStack(spacing: 6) {
-                        ChatFolderChip(chat: chat)
-                        if let goal { GoalChip(session: session.id, title: goal) }
+                        place.layoutPriority(1)
+                        Spacer(minLength: 4)
+                        if let host = session.host { HostChip(location: .host(host), color: hostColor) }
+                        idleAge
+                        if let pinNumber { KeyCap(text: "'\(pinNumber)") }
                     }
-                } else if !compact {
-                    FlowChips(repos: session.involvedRepos)
-                    if let goal {
+                    // On the cursor's row, every repo it touches.
+                    if isCursor, session.chat == nil, session.involvedRepos.count > 1 {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(session.involvedRepos.dropFirst(), id: \.self) { RepoChip(repo: $0) }
+                        }
+                    }
+                    if let goal, !compact {
                         if isCursor {
                             GoalChip(session: session.id, title: goal).shotRegion(.sessionGoal)
                         } else {
@@ -251,22 +343,34 @@ struct SessionRow: View {
                     }
                 }
                 // A pinned session keeps its agent's line, with heed's under it.
-                if label == nil || group == .pinned {
+                if !folded, !compact, label == nil || group == .pinned {
                     // Working: the spinner says it, so just the agent, its model and how full its context is; the
                     // command it runs changes with every hook and would make the list jump. Always one line,
-                    // whatever the state says.
-                    agentLine
-                        .font(Theme.ui(11.5))
-                        .foregroundStyle(Theme.fg3)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    // whatever the state says. How long you have been away sits at its end.
+                    // The agent's line gives way to the marks at its end.
+                    HStack(spacing: 6) {
+                        agentLine
+                            .font(Theme.ui(11.5))
+                            .foregroundStyle(Theme.fg3)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer(minLength: 4)
+                        marks
+                    }
                 }
-                if let label {
-                    Text(label)
-                        .font(Theme.ui(11.5))
-                        .foregroundStyle(isStalled ? Theme.err : Theme.busy)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                if let label, !folded {
+                    HStack(spacing: 6) {
+                        Text(label)
+                            .font(Theme.ui(11.5))
+                            .foregroundStyle(isStalled ? Theme.err : Theme.busy)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        // Under a pinned session's agent line, the marks are there already.
+                        if group != .pinned {
+                            Spacer(minLength: 4)
+                            marks
+                        }
+                    }
                     if isStalled, !compact {
                         HStack(spacing: 6) {
                             KeyCap(text: "zr")
@@ -280,8 +384,8 @@ struct SessionRow: View {
         .padding(.leading, 6)
         .padding(.trailing, 12)
         .padding(.vertical, compact ? 6 : 9)
-        // Watching asks to be left be: a little quieter than what is yours.
-        .opacity(compact ? 0.8 : 1)
+        // Watching asks to be left be: a little quieter than what is yours; a parked one among live work more so.
+        .opacity(quiet && !isCursor ? 0.6 : compact ? 0.8 : 1)
         .background(isCursor ? Theme.bg3 : .clear)
         // A session on a host gets a rail in the host's colour: dashed while the link is down, dimmed when offline.
         .overlay(alignment: .leading) {
@@ -304,20 +408,85 @@ struct SessionRow: View {
         }
     }
 
-    /// `claude · model-a · ctx 38% · 2 subagents`, the percentage amber once the context is 80% full.
+    /// `claude · model-a · ctx 38% · 2 subagents`, the percentage amber once the context is 80% full. The default
+    /// agent's name is left out: it says nothing on every row.
     private var agentLine: Text {
         let line = AgentUsage.line(
-            agent: session.agent, working: session.state.state == .working, activity: session.activity,
-            usage: session.usage, subagents: subagents
+            agent: hidesAgent ? "" : session.agent, working: session.state.state == .working,
+            activity: session.activity, usage: session.usage, subagents: subagents
         )
-        var text = Text(line.lead)
+        var parts: [Text] = []
+        let lead = line.lead.hasPrefix(" · ") ? String(line.lead.dropFirst(3)) : line.lead
+        if !lead.isEmpty { parts.append(Text(lead)) }
         if let context = line.context {
-            let part = Text(context).foregroundStyle(line.contextIsHigh ? Theme.block : Theme.fg3)
+            parts.append(Text(context).foregroundStyle(line.contextIsHigh ? Theme.block : Theme.fg3))
+        }
+        if let count = line.subagents { parts.append(Text(count)) }
+        if let activity = line.activity, !activity.isEmpty { parts.append(Text(activity)) }
+        guard var text = parts.first else { return Text(session.agent) }
+        for part in parts.dropFirst() {
             text = Text("\(text) · \(part)")
         }
-        if let count = line.subagents { text = Text("\(text) · \(count)") }
-        if let activity = line.activity { text = Text("\(text) · \(activity)") }
         return text
+    }
+
+    /// How long since you touched it: nothing under 15 minutes, then quiet grey, amber past an hour, rust past a day.
+    private var idleAge: some View {
+        // Redrawn every minute; the clock is heed's, so screenshots pin it.
+        TimelineView(.periodic(from: .now, by: 60)) { _ in
+            if let text = SessionsView.idleText(since: session.touched, now: Clock.now) {
+                let warmth = SessionsView.idleWarmth(since: session.touched, now: Clock.now)
+                Text(text)
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(warmth == 0 ? Theme.fg3 : warmth == 1 ? Theme.block.opacity(0.7) : Theme.err
+                        .opacity(0.7))
+                    .fixedSize()
+                    .help("You last touched it \(text) ago")
+            }
+        }
+    }
+
+    /// Where it works: its first repo (with `+N` for the others, unless the cursor is on it), or a chat's folder.
+    @ViewBuilder private var place: some View {
+        if let chat = session.chat {
+            ChatFolderChip(chat: chat)
+        } else if let repo = session.involvedRepos.first, !hidesRepo {
+            HStack(spacing: 5) {
+                RepoChip(repo: repo)
+                if session.involvedRepos.count > 1, !isCursor {
+                    Text("+\(session.involvedRepos.count - 1)").font(Theme.mono(10.5))
+                        .foregroundStyle(Theme.fg3).fixedSize()
+                        .help(session.involvedRepos.dropFirst().map(\.name).joined(separator: ", "))
+                }
+            }
+        }
+    }
+
+    /// One line: the title line alone, unless the cursor is on it.
+    private var folded: Bool { (rows == .one || quiet) && !isCursor }
+
+    /// What the session holds, at the end of its agent's (or heed's) line: commits and files not yet in, a PR ready
+    /// to merge or heed's mark, its PRs. Never beside the title: the title has its line to itself. A folded row shows
+    /// none of them until the cursor is on it.
+    private var marks: some View {
+        HStack(spacing: 6) {
+            PendingChips(pending: pending, hasPR: !session.trackedPRs.isEmpty)
+            if readyToMerge {
+                Text("✓ ready").font(Theme.mono(10.5)).foregroundStyle(Theme.done).fixedSize()
+                    .help("A PR of this session is ready to merge, and get it merged is off: zM merges it")
+            } else if let pilot, pilot != .unwatched {
+                PilotMark(status: pilot, compact: true)
+            }
+            if !session.trackedPRs.isEmpty {
+                Text("\(session.trackedPRs.count) PR")
+                    .font(Theme.mono(10.5))
+                    .foregroundStyle(Theme.fg2)
+                    .padding(.horizontal, 6)
+                    .background(RoundedRectangle(cornerRadius: 4).fill(Theme.chip))
+                    .fixedSize()
+            }
+        }
+        .fixedSize()
     }
 
     private var isOffline: Bool { if case .offline = hostLink { true } else { false } }
@@ -409,16 +578,6 @@ struct RunChildRow: View {
         .background(Theme.busy.opacity(0.05))
         .overlay(alignment: .leading) {
             Theme.busy.opacity(0.5).frame(width: 2).padding(.vertical, 2).padding(.leading, 32)
-        }
-    }
-}
-
-private struct FlowChips: View {
-    let repos: [Repo]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(repos, id: \.self) { RepoChip(repo: $0) }
         }
     }
 }

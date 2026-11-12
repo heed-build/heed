@@ -195,6 +195,16 @@ public enum Commands {
         .init("inspector.toggle", "collapse / expand the inspector", .views),
         .init("sidebar.toggle", "collapse / expand the sessions sidebar", .views),
         .init("sidebar.titles", "show session titles / worktree names in the sidebar rows", .views),
+        .init(
+            "sessions.group", "group the sessions by status, campaign, repo or not at all (no argument: the next)",
+            .views, arguments: "[status|campaign|repo|none]"
+        ),
+        .init(
+            "sessions.sort",
+            "sort the sessions: attention, you recent first, idle longest, started (no argument: next)",
+            .views, arguments: "[attention|touched|idle|started]"
+        ),
+        .init("sessions.rows", "one line or two per session in the sidebar", .views, arguments: "[one|two]"),
         .init("config.edit", "open config.toml in $EDITOR", .views),
         .init(
             "tutor", "the tutor: pick a lesson, or start one by name (tour, sessions, prs…)", .views,

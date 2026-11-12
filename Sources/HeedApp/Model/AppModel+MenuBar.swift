@@ -16,6 +16,7 @@ extension AppModel {
         facts.filtered = !(filters[view] ?? "").isEmpty
         facts.sidebarShown = !sidebarCollapsed
         facts.sidebarTitles = sidebarShowsTitles
+        facts.sessionRowsOne = sessionsView.rows == .one
         facts.inspectorShown = inspectorVisible
         facts.tutor = tutor != nil
         facts.hunchDownloading = !hunch.downloading.isEmpty

@@ -107,6 +107,12 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var workspace: Workspace = .worktrees
     /// What the work is (feat, fix, …); nil for a chat, and for sessions started before kinds.
     public var kind: WorkKind?
+    /// When you last touched it: typed in it, opened it or answered it (not the agent's own activity); nil before
+    /// heed recorded it, which reads as when it started.
+    public var lastTouched: Date?
+
+    /// When you last touched it, or when it started.
+    public var touched: Date { lastTouched ?? createdAt }
 
     /// The chat's folder; nil for a session in worktrees.
     public var chat: ChatFolder? {
@@ -160,7 +166,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     private enum CodingKeys: String, CodingKey {
         case id, title, prompt, repos, branch, agent, agentSessionID, state, activity, trackedPRs, pinned, parked,
              lastActivity, createdAt, timeline, branches, worktreePaths, untrackedPRs, host, issues, hiddenIssues,
-             notes, usage, chat, lastMessage, kind
+             notes, usage, chat, lastMessage, kind, lastTouched
     }
 
     /// Sessions cached before branches were followed still load.
@@ -193,6 +199,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         lastMessage = try container.decodeIfPresent(String.self, forKey: .lastMessage)
         // A kind this build does not know (a newer heed's) reads as none rather than failing the session.
         kind = (try? container.decodeIfPresent(WorkKind.self, forKey: .kind)) ?? nil
+        lastTouched = try container.decodeIfPresent(Date.self, forKey: .lastTouched)
         workspace = try container.decodeIfPresent(ChatFolder.self, forKey: .chat).map(Workspace.chat) ?? .worktrees
     }
 
@@ -224,6 +231,7 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
         try container.encodeIfPresent(usage, forKey: .usage)
         try container.encodeIfPresent(lastMessage, forKey: .lastMessage)
         try container.encodeIfPresent(kind, forKey: .kind)
+        try container.encodeIfPresent(lastTouched, forKey: .lastTouched)
         try container.encodeIfPresent(chat, forKey: .chat)
     }
 
@@ -347,44 +355,137 @@ public struct SessionPilot: Equatable, Sendable {
 /// The sessions as the sidebar lists them: grouped, in a stable order, so `j`/`k` and counts walk the list you see.
 public struct SessionList: Sendable {
     public struct Section: Sendable {
-        public let group: SessionGroup
+        public enum Header: Hashable, Sendable {
+            /// One of the status groups (all of them when grouping by status; Pinned, Needs you and Chats otherwise).
+            case status(SessionGroup)
+            case repo(Repo)
+            case campaign(SessionCampaign)
+            /// Grouping by campaign: work not in one yet.
+            case unplaced
+            /// No grouping: everything else, in one list.
+            case all
+        }
+
+        public let header: Header
         public let sessions: [Session]
+
+        /// The status group of a status section; nil for a repo, campaign or the whole list.
+        public var group: SessionGroup? { if case let .status(group) = header { group } else { nil } }
+
+        /// A stable identity for the section, for the view's list.
+        public var id: String {
+            switch header {
+            case let .status(group): "status:\(group.rawValue)"
+            case let .repo(repo): "repo:\(repo.slug)"
+            case let .campaign(campaign): "campaign:\(campaign.id)"
+            case .unplaced: "unplaced"
+            case .all: "all"
+            }
+        }
     }
 
     public let sections: [Section]
     /// Every session in display order.
     public let ordered: [Session]
+    /// Each session's status group, whichever section it is shown in: its row draws by it (Watching compact, heed's
+    /// label in Watching and Stalled, Parked quiet when grouped by something else).
+    public let groups: [String: SessionGroup]
+    public let view: SessionsView
 
     /// `pilot` says what the pilot knows of each session. `hold` keeps one session (the one under the cursor) in the
-    /// group it had while the pilot would move it; pinning or parking it moves it at once.
+    /// group it had while the pilot would move it; pinning or parking it moves it at once. `view` groups and sorts;
+    /// `campaign` says where a session's work is in the Mindmap, for grouping by campaign.
     public init(
-        _ sessions: [Session], pilot: (Session) -> SessionPilot = { _ in SessionPilot() }, hold: SessionHold? = nil
+        _ sessions: [Session], pilot: (Session) -> SessionPilot = { _ in SessionPilot() }, hold: SessionHold? = nil,
+        view: SessionsView = .standard, campaign: (Session) -> SessionCampaign? = { _ in nil }
     ) {
-        let grouped = Dictionary(grouping: sessions) { session in
+        var groups: [String: SessionGroup] = [:]
+        for session in sessions {
             let natural = SessionGroup.of(session, pilot: pilot(session))
-            guard let hold, hold.id == session.id, hold.pinned == session.pinned, hold.parked == session.parked
-            else { return natural }
-            return SessionGroup.held(hold.group, natural: natural)
+            if let hold, hold.id == session.id, hold.pinned == session.pinned, hold.parked == session.parked {
+                groups[session.id] = SessionGroup.held(hold.group, natural: natural)
+            } else {
+                groups[session.id] = natural
+            }
         }
-        sections = SessionGroup.allCases.compactMap { group in
-            guard let members = grouped[group], !members.isEmpty else { return nil }
-            // Parked is an archive of what you set aside: the one you touched last is on top. The sort is stable, so
-            // sessions with the same time keep the order they came in.
-            let shown = group == .parked
-                ? members.enumerated().sorted { lhs, rhs in
-                    lhs.element.lastActivity != rhs.element.lastActivity
-                        ? lhs.element.lastActivity > rhs.element.lastActivity : lhs.offset < rhs.offset
-                }.map(\.element)
-                : members
-            return Section(group: group, sessions: shown)
+        let sorted = Self.sorted(sessions, by: view.sort, groups: groups)
+        var sections: [Section] = []
+        if view.grouping == .status {
+            for group in SessionGroup.allCases {
+                let members = sorted.filter { groups[$0.id] == group }
+                if !members.isEmpty { sections.append(Section(header: .status(group), sessions: members)) }
+            }
+        } else {
+            // What is yours to act on stays on top, whatever groups the rest.
+            let bands: [SessionGroup] = [.pinned, .needsYou]
+            for group in bands {
+                let members = sorted.filter { groups[$0.id] == group }
+                if !members.isEmpty { sections.append(Section(header: .status(group), sessions: members)) }
+            }
+            let rest = sorted.filter { !bands.contains(groups[$0.id] ?? .working) }
+            var order: [Section.Header] = []
+            var members: [Section.Header: [Session]] = [:]
+            for session in rest {
+                let header: Section.Header = switch view.grouping {
+                case .repo: session.repos.first.map(Section.Header.repo) ?? .status(.chats)
+                case .campaign: campaign(session).map(Section.Header.campaign) ?? .unplaced
+                case .none, .status: .all
+                }
+                if members[header] == nil { order.append(header) }
+                members[header, default: []].append(session)
+            }
+            // Each group where its first live session comes in the sort, groups of only parked work after them, and
+            // Unplaced and chats last. Parked sessions go after the live ones in their group.
+            let last: Set<Section.Header> = [.unplaced, .status(.chats)]
+            var firstLive: [Section.Header: Int] = [:]
+            for header in order {
+                if let index = members[header]?.firstIndex(where: { groups[$0.id] != .parked }) {
+                    firstLive[header] = rest.firstIndex(of: members[header]![index])
+                }
+            }
+            let live = order.filter { firstLive[$0] != nil }.sorted { firstLive[$0]! < firstLive[$1]! }
+            let byLiveFirst = live + order.filter { !live.contains($0) }
+            for header in byLiveFirst.filter({ !last.contains($0) }) + byLiveFirst.filter(last.contains) {
+                let shown = members[header] ?? []
+                let live = shown.filter { groups[$0.id] != .parked }
+                sections.append(Section(header: header, sessions: live + shown.filter { groups[$0.id] == .parked }))
+            }
         }
+        self.sections = sections
         ordered = sections.flatMap(\.sessions)
+        self.groups = groups
+        self.view = view
     }
 
-    /// The group a session is shown in.
-    public func group(of id: String) -> SessionGroup? {
-        sections.first { $0.sessions.contains { $0.id == id } }?.group
+    /// `sessions` in `sort`'s order. Every sort is stable: sessions that tie keep the order they came in.
+    static func sorted(
+        _ sessions: [Session], by sort: SessionsView.Sort, groups: [String: SessionGroup]
+    ) -> [Session] {
+        func stable(_ before: (Session, Session) -> Bool?) -> [Session] {
+            sessions.enumerated().sorted { lhs, rhs in
+                before(lhs.element, rhs.element) ?? (lhs.offset < rhs.offset)
+            }.map(\.element)
+        }
+        func compare<Value: Comparable>(_ lhs: Value, _ rhs: Value, descending: Bool) -> Bool? {
+            lhs == rhs ? nil : descending ? lhs > rhs : lhs < rhs
+        }
+        switch sort {
+        case .attention:
+            // Parked is an archive of what you set aside: the one you touched last is on top.
+            // Live before parked keeps the order consistent; each group is listed on its own anyway.
+            return stable { lhs, rhs in
+                let left = groups[lhs.id] == .parked, right = groups[rhs.id] == .parked
+                if left != right { return right }
+                return left ? compare(lhs.lastActivity, rhs.lastActivity, descending: true) : nil
+            }
+        case .touched: return stable { compare($0.touched, $1.touched, descending: true) }
+        case .idle: return stable { compare($0.touched, $1.touched, descending: false) }
+        case .started: return stable { compare($0.createdAt, $1.createdAt, descending: true) }
+        }
     }
+
+    /// The status group a session is in, whichever section shows it.
+    public func group(of id: String) -> SessionGroup? { groups[id] }
 
     /// The pinned sessions in pin order, for `'1`..`'9`.
     public var pins: [Session] { ordered.filter(\.pinned) }

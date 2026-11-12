@@ -63,6 +63,9 @@ public enum MenuBar {
 
     /// Commands the menu bar leaves out, and why. Every other command is in some menu (a test holds it to that).
     public static let unlisted: [String: String] = [
+        "inspector.tackle": "the inspector's loose ends run it from their own right-click menu",
+        "inspector.resolve": "the inspector's loose ends run it from their own right-click menu",
+        "inspector.copy": "the inspector's worktree line runs it from its right-click menu (a click copies too)",
         "row.next": "moving the cursor: the mouse clicks rows and scrolls",
         "row.prev": "moving the cursor: the mouse clicks rows and scrolls",
         "row.first": "moving the cursor: the mouse clicks rows and scrolls",

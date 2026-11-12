@@ -14,149 +14,301 @@ struct Inspector: View {
         .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
     }
 
-    /// Worktrees, links and runs each scroll on their own, up to a share of the column, so a long list in one never
-    /// pushes the others out of sight.
+    /// A session: what it is, its PRs, issues and runs scroll; the anchored parts under them keep small caps of their
+    /// own, so a long list never pushes them out of sight.
     private func content(height: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             if let session = model.currentSession, let chat = session.chat {
                 chatSections(session, chat)
             } else if let session = model.currentSession {
-                section {
-                    HStack {
-                        SectionHeader(title: "Worktree")
-                        Spacer()
-                        CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
-                    }
-                    CappedScroll(cap: height * 0.18) {
-                        // Once per path (the same worktree can be listed under two repos, e.g. a fork's clone), each
-                        // led by its repo: a cross-repo session's worktrees often share their folder name.
-                        ForEach(Self.unique(model.worktrees.filter { session.owns($0) })) { worktree in
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 6) {
-                                    RepoChip(repo: worktree.repo)
-                                    if let host = worktree.location.hostName { HostChip(location: .host(host)) }
-                                }
-                                Text(Paths.abbreviate(worktree.path)).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2)
-                                    .lineLimit(1).truncationMode(.middle)
-                                    .help(worktree.path)
-                                if let status = worktree.status { WorktreeStatusLine(status: status) }
-                            }
-                        }
-                    }
-                }
-                section { GoalCard(session: session) }.shotRegion(.inspectorGoal)
-                section {
-                    HStack {
-                        SectionHeader(title: "Links")
-                        Spacer()
-                        KeyCap(text: "gB")
-                    }
-                    let links = model.links(of: session)
-                    if links.isEmpty { emptyLinks(session) }
-                    CappedScroll(cap: height * 0.45) {
-                        // PRs and issues apart: each under its own heading, PRs as cards, issues as rows.
+                // What it is and its PRs and issues scroll; what was learned and left open around it, who else is in
+                // the same files, and its agent stay anchored at the bottom, each in a small capped box.
+                ListScroll {
+                    VStack(alignment: .leading, spacing: 0) {
+                        section { summary(session) }
+                        let links = model.links(of: session)
                         let pulls = links.filter { if case .pull = $0 { true } else { false } }
                         let issues = links.filter { if case .issue = $0 { true } else { false } }
-                        ForEach([("Pull requests", pulls), ("Issues", issues)], id: \.0) { group in
-                            if !group.1.isEmpty {
-                                Text("\(group.0) · \(group.1.count)").font(Theme.ui(11, weight: .semibold))
-                                    .foregroundStyle(Theme.fg3)
-                                    .padding(.top, group.0 == "Issues" && !pulls.isEmpty ? 6 : 0)
-                                ForEach(group.1, id: \.self) { link in
-                                    LinkCard(session: session, link: link)
-                                        .contentShape(Rectangle())
-                                        // A click opens it here (the PR overlay, the issue reader); ⌘-click on GitHub.
-                                        .onTapGesture {
-                                            model.open(link, browser: NSEvent.modifierFlags.contains(.command))
-                                        }
-                                        .help("\(link.url)\n⌘-click opens it on GitHub")
-                                        .rightClickMenu { model.rightClickNamed() } _: { menu(for: link) }
+                        section {
+                            HStack {
+                                SectionHeader(title: "Pull requests")
+                                Spacer()
+                                KeyCap(text: "gB")
+                            }
+                            if pulls.isEmpty { emptyLinks(session) }
+                            ForEach(pulls, id: \.self) { link in linkRow(link, session: session) }
+                        }
+                        if !issues.isEmpty {
+                            section {
+                                SectionHeader(title: "Issues")
+                                ForEach(issues, id: \.self) { link in linkRow(link, session: session) }
+                            }
+                        }
+                        let runs = Array(model.runs.filter { $0.sessionID == session.id }.prefix(10))
+                        if !runs.isEmpty {
+                            section {
+                                SectionHeader(title: "Runs")
+                                CappedScroll(cap: height * 0.22) {
+                                    ForEach(runs) { run in
+                                        RunRow(run: run)
+                                            .contentShape(Rectangle())
+                                            .onTapGesture { model.open(run: run) }
+                                            .help(run
+                                                .isRunning ? "Go to its tab" : "Open: what it did, and its last screen")
+                                            .rightClickMenu { model.rightClickNamed() } _: { model.runMenu(run) }
+                                    }
+                                }
+                            }
+                        }
+                        if !session.notes.isEmpty {
+                            // Notes on its diff before it has a PR: the PR overlay's last tab sends them.
+                            section {
+                                HStack {
+                                    SectionHeader(title: "Your notes")
+                                    Spacer()
+                                    let queued = session.notes.count { $0.status == .queued }
+                                    if queued > 0 {
+                                        Text("\(queued) queued").font(Theme.mono(11)).foregroundStyle(Theme.block)
+                                    }
+                                    KeyCap(text: model.keyText(for: "overlay.item"))
+                                }
+                                ForEach(session.notes.suffix(4)) { note in
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(note.noteLocation ?? "").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                                            .lineLimit(1).truncationMode(.head)
+                                        Text(note.text).font(Theme.ui(12))
+                                            .foregroundStyle(note.status == .queued ? Theme.fg : Theme.fg3).lineLimit(2)
+                                    }
                                 }
                             }
                         }
                     }
                 }
-                let runs = Array(model.runs.filter { $0.sessionID == session.id }.prefix(10))
-                if !runs.isEmpty {
-                    section {
-                        SectionHeader(title: "Runs")
-                        CappedScroll(cap: height * 0.22) {
-                            ForEach(runs) { run in
-                                RunRow(run: run)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { model.open(run: run) }
-                                    .help(run.isRunning ? "Go to its tab" : "Open: what it did, and its last screen")
-                                    .rightClickMenu { model.rightClickNamed() } _: { model.runMenu(run) }
-                            }
-                        }
-                    }
-                }
-                if !session.notes.isEmpty {
-                    // Notes on its diff before it has a PR: the PR overlay's last tab sends them.
-                    section {
-                        HStack {
-                            SectionHeader(title: "Your notes")
-                            Spacer()
-                            let queued = session.notes.count { $0.status == .queued }
-                            if queued > 0 {
-                                Text("\(queued) queued").font(Theme.mono(11)).foregroundStyle(Theme.block)
-                            }
-                            KeyCap(text: model.keyText(for: "overlay.item"))
-                        }
-                        ForEach(session.notes.suffix(4)) { note in
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(note.noteLocation ?? "").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
-                                    .lineLimit(1).truncationMode(.head)
-                                Text(note.text).font(Theme.ui(12))
-                                    .foregroundStyle(note.status == .queued ? Theme.fg : Theme.fg3).lineLimit(2)
-                            }
-                        }
-                    }
-                }
-                let subagents = model.liveSubagents(of: session)
-                if !subagents.isEmpty {
-                    // What the agent has running on its behalf, oldest first; gone as each one stops.
-                    section {
-                        SectionHeader(title: "Subagents · \(subagents.count)")
-                        ForEach(subagents) { subagent in
-                            HStack(spacing: 8) {
-                                StateGlyph(state: .working)
-                                Text(subagent.type ?? "subagent").foregroundStyle(Theme.fg).lineLimit(1)
-                                Spacer(minLength: 4)
-                                Text(Ages.short(subagent.startedAt)).foregroundStyle(Theme.fg3)
-                            }
-                            .font(Theme.mono(11))
-                            .help(subagent.id)
-                        }
-                    }
-                }
-                section {
-                    SectionHeader(title: "Agent events")
-                    UsageLine(session: session)
-                    let log = model.events[session.id] ?? []
-                    if log.isEmpty {
-                        HStack(spacing: 8) {
-                            StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
-                            Text(session.state.state.rawValue).foregroundStyle(Theme.fg)
-                            Text(session.state.reason ?? (session.state.source == .guessed ? "not reported yet" : ""))
-                                .foregroundStyle(Theme.fg3)
-                                .lineLimit(1)
-                        }
-                        .font(Theme.mono(11))
-                    }
-                    ForEach(Array(log.prefix(8).enumerated()), id: \.offset) { _, event in
-                        HStack(spacing: 8) {
-                            Text(event.at, format: .dateTime.hour().minute().second()).foregroundStyle(Theme.fg3)
-                            StateGlyph(state: event.state)
-                            Text(event.state.rawValue).foregroundStyle(Theme.fg)
-                            Text(event.reason ?? "").foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.tail)
-                        }
-                        .font(Theme.mono(11))
-                    }
-                }
+                .frame(maxHeight: .infinity, alignment: .top)
+                anchored(session)
             }
             Spacer(minLength: 0)
         }
+    }
+
+    /// What the session is about, where its work sits in the Mindmap, and its goal as a pill.
+    @ViewBuilder private func summary(_ session: Session) -> some View {
+        HStack {
+            SectionHeader(title: "Summary")
+            Spacer()
+            CollapseButton(systemImage: "sidebar.right", key: "zi") { model.toggleInspector() }
+        }
+        if let text = model.summary(of: session) {
+            Text(text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg).lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+        } else {
+            Text("Nothing to say yet: a summary shows once its agent has finished a turn.")
+                .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+        }
+        if let campaign = model.placement(of: session).flatMap({ SessionCampaign.of(entry: session.id, in: $0.tree) }) {
+            HStack(spacing: 6) {
+                Text(campaign.title).font(Theme.ui(11.5)).foregroundStyle(Theme.fg2).lineLimit(1)
+                if let stage = campaign.stage {
+                    Text(stage.rawValue).font(Theme.mono(10.5)).foregroundStyle(Sidebar.tint(stage))
+                }
+            }
+            .help("Its campaign in the Mindmap")
+        }
+        if let goal = model.goals.bySession[session.id] {
+            let target = CommandTarget.session(session.id)
+            HStack(spacing: 7) {
+                ScoreRing(score: goal.score, size: 18)
+                Text(goal.title).font(Theme.ui(12, weight: .medium)).foregroundStyle(Theme.fg).lineLimit(1)
+                Spacer(minLength: 0)
+                Text("goal").font(Theme.mono(10)).foregroundStyle(Theme.fg3)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 7).fill(Theme.bg3))
+            .contentShape(Rectangle())
+            .clickRuns(CommandInvocation(name: "goal.jump", target: target))
+            .help("Its goal: click to go there")
+            .rightClickMenu { model.rightClickNamed() } _: {
+                [
+                    .header(goal.title),
+                    .item(MenuItem("Go to the goal", CommandInvocation(name: "goal.jump", target: target))),
+                    .item(MenuItem("Move to another goal", CommandInvocation(name: "goal.attach", target: target))),
+                    .item(MenuItem("Take it off the goal", CommandInvocation(name: "goal.detach", target: target))),
+                ]
+            }
+            .shotRegion(.inspectorGoal)
+        }
+    }
+
+    /// A PR or an issue: a click opens it on GitHub; the right-click menu does the rest.
+    private func linkRow(_ link: SessionLink, session: Session) -> some View {
+        LinkCard(session: session, link: link)
+            .contentShape(Rectangle())
+            .onTapGesture { model.open(link, browser: true) }
+            .help("\(link.url)\nClick opens it on GitHub; right-click for more")
+            .rightClickMenu { model.rightClickNamed() } _: { menu(for: link) }
+    }
+
+    /// Learned decisions, loose ends, overlapping sessions, the agent's events and the worktree: each only when it has
+    /// something, each capped small so together they never crowd out the PRs.
+    @ViewBuilder private func anchored(_ session: Session) -> some View {
+        let decisions = model.learnedDecisions(of: session)
+        let loose = model.looseEnds(of: session)
+        let overlaps = model.overlaps(of: session)
+        VStack(alignment: .leading, spacing: 0) {
+            if !decisions.isEmpty {
+                anchoredSection {
+                    HStack {
+                        SectionHeader(title: "Learned decisions")
+                        Spacer()
+                        Text("\(decisions.count)").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                    }
+                    CappedScroll(cap: Self.lines(3)) {
+                        ForEach(Array(decisions.enumerated()), id: \.offset) { _, decision in decisionRow(decision) }
+                    }
+                }
+            }
+            if !loose.isEmpty {
+                anchoredSection {
+                    HStack {
+                        SectionHeader(title: "Loose ends")
+                        Spacer()
+                        Text("Tackle all").font(Theme.ui(11, weight: .medium)).foregroundStyle(Theme.fg)
+                            .padding(.horizontal, 7).padding(.vertical, 1)
+                            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
+                            .contentShape(Rectangle())
+                            .onTapGesture { model.tackle(loose.map(\.item), in: session) }
+                            .help("Hand every loose end to \(session.agent) in one prompt")
+                    }
+                    CappedScroll(cap: Self.lines(3)) {
+                        ForEach(Array(loose.enumerated()), id: \.offset) { _, entry in
+                            looseRow(entry.item, node: entry.node, session: session)
+                        }
+                    }
+                }
+            }
+            if !overlaps.isEmpty {
+                anchoredSection {
+                    SectionHeader(title: "Overlapping sessions")
+                    CappedScroll(cap: Self.lines(3)) {
+                        ForEach(overlaps, id: \.session.id) { overlap in
+                            overlapRow(overlap.session, files: overlap.files)
+                        }
+                    }
+                }
+            }
+            anchoredSection { AgentEventsLine(session: session) }
+            worktreeLines(session)
+        }
+        .background(Theme.bg)
+        .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+    }
+
+    /// The height of `count` one-line rows in the anchored boxes.
+    private static func lines(_ count: Int) -> CGFloat { CGFloat(count) * 22 }
+
+    private func decisionRow(_ decision: MindNode.Decision) -> some View {
+        HStack(spacing: 7) {
+            Rectangle().fill(decision.pinned ? Theme.block.opacity(0.7) : Theme.line).frame(width: 2, height: 14)
+            Text(decision.text).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1).truncationMode(.tail)
+        }
+        .frame(height: 22, alignment: .leading)
+        .help(decision.text)
+        .rightClickMenu { model.rightClickNamed() } _: {
+            [.header("Decision"), .item(MenuItem("Open the Mindmap", CommandInvocation(name: "history.mindmap")))]
+        }
+    }
+
+    private func looseRow(_ item: MindNode.OpenItem, node: String, session: Session) -> some View {
+        HStack(spacing: 7) {
+            Text(item.kind.rawValue).font(Theme.mono(9.5)).foregroundStyle(Theme.fg2)
+                .padding(.horizontal, 4).background(RoundedRectangle(cornerRadius: 3).fill(Theme.chip))
+                .fixedSize()
+            Text(item.text).font(Theme.ui(12)).foregroundStyle(Theme.fg).lineLimit(1).truncationMode(.tail)
+        }
+        .frame(height: 22, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture { model.tackle([item], in: session) }
+        .help("\(item.text)\nClick hands it to \(session.agent); right-click to mark it done")
+        .rightClickMenu { model.rightClickNamed() } _: {
+            [
+                .header(item.kind.rawValue),
+                .item(MenuItem(
+                    "Hand it to \(session.agent)", CommandInvocation(name: "inspector.tackle", arguments: [item.text])
+                )),
+                .item(MenuItem(
+                    "Mark it done", CommandInvocation(name: "inspector.resolve", arguments: [node, item.text])
+                )),
+            ]
+        }
+    }
+
+    private func overlapRow(_ other: Session, files: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 7) {
+                StateGlyph(state: other.state.state, size: 9)
+                Text(other.title).font(Theme.ui(12)).foregroundStyle(Theme.fg).lineLimit(1)
+            }
+            Text("same files · " + files.prefix(3).map { ($0 as NSString).lastPathComponent }.joined(separator: ", "))
+                .font(Theme.mono(10.5)).foregroundStyle(Theme.block.opacity(0.8)).lineLimit(1).padding(.leading, 16)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { model.select(sessionID: other.id) }
+        .help(files.joined(separator: "\n"))
+        .rightClickMenu { model.rightClickNamed() } _: {
+            [.header(other.title), .item(MenuItem(
+                "Go to it", CommandInvocation(name: "session.open", arguments: [other.title])
+            ))]
+        }
+    }
+
+    /// Where it works, at the very bottom: a click copies the path; right-click opens a shell there.
+    @ViewBuilder private func worktreeLines(_ session: Session) -> some View {
+        let worktrees = Self.unique(model.worktrees.filter { session.owns($0) })
+        if !worktrees.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(worktrees) { worktree in
+                    HStack(spacing: 6) {
+                        Image(systemName: "folder").font(.system(size: 10)).foregroundStyle(Theme.fg3)
+                        Text(Paths.abbreviate(worktree.path)).font(Theme.mono(11)).foregroundStyle(Theme.fg2)
+                            .lineLimit(1).truncationMode(.head)
+                            .layoutPriority(1)
+                        Spacer(minLength: 4)
+                        if let status = worktree.status {
+                            // Just the counts: the branch is the session's, its upstream is in the tooltip.
+                            Text("↑\(status.ahead) ↓\(status.behind) ~\(status.changedFiles + status.untrackedFiles)")
+                                .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3).fixedSize()
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.copyPath(worktree.path) }
+                    .help(
+                        "\(worktree.path)\(worktree.status?.upstream.map { "\n↥ \($0)" } ?? "")\n"
+                            + "Click copies it; right-click opens a shell there"
+                    )
+                    .rightClickMenu { model.rightClickNamed() } _: {
+                        [
+                            .header(Paths.abbreviate(worktree.path)),
+                            .item(MenuItem("Shell in a pane beside", CommandInvocation(name: "pane.split.right"))),
+                            .item(MenuItem("Shell in a new tab", CommandInvocation(name: "tab.new"))),
+                            .item(MenuItem(
+                                "Copy the path", CommandInvocation(name: "inspector.copy", arguments: [worktree.path])
+                            )),
+                        ]
+                    }
+                }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 9)
+            .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        }
+    }
+
+    private func anchoredSection(@ViewBuilder _ content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 6) { content() }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 9)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .top) { Theme.line.frame(height: 1) }
     }
 
     /// A chat: its folder where a session's worktree would be, and its agent's events. No links: it has no branch for a
@@ -675,4 +827,65 @@ struct CappedScroll<Content: View>: View {
 private struct ContentHeight: PreferenceKey {
     static let defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+/// The agent's latest event on one line; a click opens the rest (up to eight).
+private struct AgentEventsLine: View {
+    @Environment(AppModel.self) private var model
+    let session: Session
+    @State private var open = false
+
+    var body: some View {
+        let log = model.events[session.id] ?? []
+        VStack(alignment: .leading, spacing: 5) {
+            let subagents = model.liveSubagents(of: session)
+            HStack {
+                SectionHeader(title: "Agent events")
+                if !subagents.isEmpty {
+                    Text("· \(subagents.count) subagent\(subagents.count == 1 ? "" : "s")")
+                        .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                        .help(subagents.map { $0.type ?? "subagent" }.joined(separator: ", "))
+                }
+                Spacer()
+                if log.count > 1 {
+                    Text("\(log.count) \(open ? "▾" : "▸")").font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { open.toggle() }
+            if open {
+                UsageLine(session: session)
+                ForEach(subagents) { subagent in
+                    HStack(spacing: 8) {
+                        StateGlyph(state: .working)
+                        Text(subagent.type ?? "subagent").foregroundStyle(Theme.fg).lineLimit(1)
+                        Spacer(minLength: 4)
+                        Text(Ages.short(subagent.startedAt)).foregroundStyle(Theme.fg3)
+                    }
+                    .font(Theme.mono(11))
+                }
+            }
+            if let first = log.first {
+                ForEach(Array(log.prefix(open ? 8 : 1).enumerated()), id: \.offset) { _, event in
+                    HStack(spacing: 8) {
+                        StateGlyph(state: event.state)
+                        Text(event.state.rawValue).foregroundStyle(Theme.fg)
+                        Text(event.reason ?? "").foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.tail)
+                        Spacer(minLength: 4)
+                        Text(event.at, format: .dateTime.hour().minute()).foregroundStyle(Theme.fg3)
+                    }
+                    .font(Theme.mono(11))
+                }
+                .id(first.at)
+            } else {
+                HStack(spacing: 8) {
+                    StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
+                    Text(session.state.state.rawValue).foregroundStyle(Theme.fg)
+                    Text(session.state.reason ?? (session.state.source == .guessed ? "not reported yet" : ""))
+                        .foregroundStyle(Theme.fg3).lineLimit(1)
+                }
+                .font(Theme.mono(11))
+            }
+        }
+    }
 }

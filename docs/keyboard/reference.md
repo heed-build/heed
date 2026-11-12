@@ -125,6 +125,9 @@ This page is generated from the code (`mise run shots`).
 | `cleanup.rules` |  | show the cleanup rules (Repos, with its rules panel) |
 | `cleanup.sweep` | `gC` | run the cleanup sweep now |
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
+| `inspector.tackle` `[text]` |  | hand the session's loose end with this text to its agent (none: all of them) |
+| `inspector.resolve` `<node> <text>` |  | mark a loose end done, on the Mindmap node it lives on |
+| `inspector.copy` `<path>` |  | copy a path to the pasteboard |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
 | `sidebar.titles` | `zt` | show session titles / worktree names in the sidebar rows |
 | `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions) | group the sessions by status, campaign, repo or not at all (no argument: the next) |

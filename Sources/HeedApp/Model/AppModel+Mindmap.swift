@@ -39,7 +39,7 @@ extension AppModel {
     }
 
     /// A ledger entry, (re)written: placed in its Mindmap. Work already placed (or moved by you) only takes the
-    /// entry's new words; new work is placed, as a suggestion while `[mindmap] shadow` is on.
+    /// entry's new words; new work is placed (only as a suggestion with `[mindmap] shadow` on).
     func placeInMindmap(_ entry: LedgerEntry, session: Session?) async {
         guard !isFixture, config.mindmap.enabled else { return }
         if entry.chat, entry.repos.isEmpty, session?.chat?.kind == .folder, let path = session?.chat?.path,
@@ -57,8 +57,9 @@ extension AppModel {
             placed = await MindmapPlace.decide(
                 entry, in: tree, ledger: ledger.entries, decider: decider, route: mindmapRoute
             )
-            if config.mindmap.shadow, case let .campaign(id, confidence, route, _)? = placed?.outcome {
-                placed?.outcome = .campaign(id, confidence: confidence, route: route, sure: false)
+            // With shadow on every placement waits; off, heed places it, and its card asks quietly whether it is right.
+            if case let .campaign(id, confidence, route, _)? = placed?.outcome {
+                placed?.outcome = .campaign(id, confidence: confidence, route: route, sure: !config.mindmap.shadow)
             }
         }
         var held: [MindmapPlace.Check] = []
@@ -141,7 +142,7 @@ extension AppModel {
                 entry, in: mindmap.tree(instance), ledger: ledger.entries,
                 decider: free ? decider(caller: "mindmap.place") : nil, route: mindmapRoute
             )
-            if case let .campaign(id, confidence, route, _) = placed.outcome {
+            if config.mindmap.shadow, case let .campaign(id, confidence, route, _) = placed.outcome {
                 placed.outcome = .campaign(id, confidence: confidence, route: route, sure: false)
             }
             await mindmap
@@ -190,7 +191,7 @@ extension AppModel {
         case "mindmap.org.next": mindmap.cycleInstance(by: 1)
         case "mindmap.org.prev": mindmap.cycleInstance(by: -1)
         case "mindmap.accept":
-            guard let node, node.suggested else { return say("nothing suggested here") }
+            guard let node, node.suggested || node.unconfirmed else { return say("nothing to confirm here") }
             change { $0.accept(node.id, now: now) }
             say("kept where heed put it")
         case "mindmap.done":
@@ -393,5 +394,13 @@ extension AppModel {
         let session = sessions.first { $0.id == id } ?? history.first { $0.id == id }?.session
         return session?.repos.first.map { MindmapInstance.owner(of: $0.slug, context: mindmap.context) }
             ?? MindmapInstance.personal
+    }
+}
+
+extension AppModel {
+    /// ✓ or ↦ on a card: the node becomes the focus, then `mindmap.accept` or `mindmap.move` runs on it.
+    func judgeMindmap(_ id: String, keep: Bool) {
+        mindmap.focus = id
+        performMindmap(CommandInvocation(name: keep ? "mindmap.accept" : "mindmap.move"))
     }
 }

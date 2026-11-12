@@ -600,3 +600,20 @@ struct MindmapGoalTests {
         #expect(MindmapGoal.suggestion(for: "nav", in: MindmapTree([node]), ledger: [:]) == nil)
     }
 }
+
+struct MindmapJudgeTests {
+    @Test func aPlacementHeedAskedAboutIsUnconfirmedUntilYouSaySo() {
+        var work = MindNode.work(entry("e1", "a"), parent: "nav", now: t0)
+        work.placement = .init(confidence: 0.8, route: "hunch", state: "s", options: ["nav", "rel"], chose: "c1")
+        var tree = MindmapTree([campaign("nav", "Nav"), campaign("rel", "Rel"), work])
+        #expect(tree.work(for: "e1")?.unconfirmed == true)
+        // Not suggested (shadow off): ✓ still confirms it, and that is a label.
+        tree.accept("work:e1", now: t0)
+        #expect(tree.work(for: "e1")?.placement?.verdict == "c1")
+        #expect(tree.work(for: "e1")?.unconfirmed == false)
+        // Words-settled placements have nothing to judge.
+        var plain = MindNode.work(entry("e2", "b"), parent: "nav", now: t0)
+        plain.placement = .init(confidence: 1, route: "words")
+        #expect(!plain.unconfirmed)
+    }
+}

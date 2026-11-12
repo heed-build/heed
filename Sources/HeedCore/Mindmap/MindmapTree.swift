@@ -209,10 +209,10 @@ public struct MindmapTree: Hashable, Sendable {
         nodes[id]?.placement?.verdictAt = now
     }
 
-    /// `y`: a suggested placement accepted as it is.
+    /// `y`, or ✓ on the card: heed placed it right. A suggestion stands; an unconfirmed placement is confirmed.
     public mutating func accept(_ id: String, now: Date) {
-        guard nodes[id]?.suggested == true else { return }
-        noteVerdict(id, campaign: nodes[id]?.parent, now: now)
+        guard let node = nodes[id], node.suggested || node.unconfirmed else { return }
+        noteVerdict(id, campaign: node.parent, now: now)
         nodes[id]?.suggested = false
         nodes[id]?.updatedAt = now
     }

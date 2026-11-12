@@ -11,7 +11,11 @@ public extension Fixtures {
             guard let entry = entries[id] else { return nil }
             var node = MindNode.work(entry, parent: parent, now: entry.updatedAt)
             node.suggested = suggested
-            node.placement = .init(confidence: suggested ? 0.62 : 0.91, route: "hunch")
+            // What Hunch was asked: placements nobody judged show the quiet ✓ ↦ controls.
+            node.placement = .init(
+                confidence: suggested ? 0.62 : 0.91, route: "hunch", state: suggested ? "asked" : nil,
+                options: [parent], chose: "c1"
+            )
             return node
         }
         var acme = MindmapTree([
@@ -48,6 +52,7 @@ public extension Fixtures {
             work("h-fix-toc-ordering", in: "campaign:docs-nav"),
             work("s1", in: "campaign:links", suggested: true).map { node in
                 var node = node
+                node.suggested = false
                 node.open.append(.init(kind: .threads, text: "docs-toolkit#2841: 2 review threads open", source: "s1"))
                 return node
             },

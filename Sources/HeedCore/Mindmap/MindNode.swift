@@ -163,6 +163,11 @@ public struct MindNode: Codable, Hashable, Sendable, Identifiable {
         )
     }
 
+    /// Placed by heed after asking, and nobody said yet whether it is right: what the judgement controls show on.
+    public var unconfirmed: Bool {
+        kind == .work && madeBy == .heed && placement?.state != nil && placement?.verdict == nil
+    }
+
     /// Open items nobody resolved yet.
     public var stillOpen: [OpenItem] { open.filter { $0.resolvedBy == nil } }
 

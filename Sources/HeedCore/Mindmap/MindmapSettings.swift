@@ -2,10 +2,11 @@
 public struct MindmapSettings: Equatable, Sendable {
     /// Finished work is grouped into the Mindmap.
     public var enabled = true
-    /// Every placement waits for you, so how often heed is right can be measured before it places work alone.
-    public var shadow = true
+    /// Every placement waits for you (`y` or `m`) instead of standing. Off by default: heed places work, and the
+    /// small judgement controls on what it placed are how you correct it.
+    public var shadow = false
 
-    public init(enabled: Bool = true, shadow: Bool = true) {
+    public init(enabled: Bool = true, shadow: Bool = false) {
         self.enabled = enabled
         self.shadow = shadow
     }

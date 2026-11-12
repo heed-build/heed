@@ -103,7 +103,7 @@ public extension Tutor {
                 "Smart guesses",
                 say: "Where the Mac has Apple Intelligence (macOS 26), its on-device model reads your words for the "
                     + "repo, the branch name and its prefix, on this Mac only. Without it, or with smart guesses off "
-                    + "(Settings › Worktrees & cleanup), heed's own rules guess from your words and recent sessions. "
+                    + "(Settings › Worktrees), heed's own rules guess from your words and recent sessions. "
                     + "Type a few more words: the guesses follow.",
                 keys: [], target: "dialog",
                 doneLine: "Your own picks always win: a repo or prefix you choose is never guessed over."
@@ -302,7 +302,7 @@ public extension Tutor {
             ) { _, now, seen in seen.contains(where: \.confirmationOpen) && !now.confirmationOpen },
             TutorStep(
                 "The cleanup sweep",
-                say: "Cleanup is off until you turn it on (Settings › Worktrees & cleanup); here it removes worktrees "
+                say: "Cleanup is off until you turn it on (Settings › Worktrees); here it removes worktrees "
                     + "idle for 3 days. {cleanup.sweep} runs the sweep now: it lists what goes and what it keeps, "
                     + "and asks first. n keeps everything.",
                 keys: ["{cleanup.sweep}", "n"], target: "confirm",

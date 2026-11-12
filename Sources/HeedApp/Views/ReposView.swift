@@ -147,7 +147,7 @@ struct ReposView: View {
                         + "repositories. Add the folder yours live in, or import a worktree from anywhere: its repo "
                         + "comes with it. :repo.add <path> adds one repo.",
                     actions: [
-                        .init("add the folder your repos are in", "settings.open", arguments: ["cleanup"], key: "⌘,"),
+                        .init("add the folder your repos are in", "settings.open", arguments: ["worktrees"], key: "⌘,"),
                         .init("import a worktree by its path", "session.import.path"),
                         .init("scan again", "repo.scan"),
                     ]

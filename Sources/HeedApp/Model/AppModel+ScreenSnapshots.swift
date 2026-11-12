@@ -61,7 +61,7 @@ extension AppModel {
         Task.detached(priority: .utility) { await log.pruneScreens(now: Date(), keepDays: keepDays) }
     }
 
-    /// Settings › Agents › Local decisions: reads the counts. Fixtures keep their invented ones.
+    /// Settings › Decisions & Hunch › Local decisions: reads the counts. Fixtures keep their invented ones.
     func refreshScreenCounts() async {
         guard !isFixture, let log = eventLog else { return }
         screenCounts = try? await log.screenCounts()

@@ -15,14 +15,10 @@ struct AttentionRuleSettings: View {
     var body: some View {
         let saved = model.config.attention.rules
         let preview = model.attentionPreview(draft.rules)
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Attention").font(Theme.ui(17, weight: .semibold))
-            Text(
-                "What matters in Attention. Each rule matches some items and boosts, lowers, mutes, pins or notifies "
-                    + "about them; the first rule that matches an item decides. Muted items stay under Muted for 30 days."
-            )
-            .font(Theme.ui(12)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
-            GroupLabel(title: "Rules")
+        let ruleNote = "Each rule matches some items and boosts, lowers, mutes, pins or notifies about them; the first "
+            + "rule that matches an item decides. Muted items stay under Muted for 30 days."
+        SettingsCard(title: "Rules", note: ruleNote, bare: true) {
+            RulesModified()
             VStack(alignment: .leading, spacing: 6) {
                 if draft.saved.isEmpty {
                     Text("No rules yet: every item keeps its normal weight. Add one below.")
@@ -47,7 +43,8 @@ struct AttentionRuleSettings: View {
                 items: model.attentionRuleItems, viewer: model.github.viewer,
                 suggestions: model.attentionRuleSuggestions, commit: commit, cancel: reset
             )
-            GroupLabel(title: "Try before you save")
+        }
+        SettingsCard(title: "Try before you save", bare: true) {
             VStack(alignment: .leading, spacing: 8) {
                 if draft.saved == saved {
                     Text("These are the rules in use. Edit them to see what would change over the last 30 days.")
@@ -78,8 +75,11 @@ struct AttentionRuleSettings: View {
                 }
             }
             .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
-            GroupLabel(title: "Weights")
+            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+        }
+        SettingsCard(title: "Weights", bare: true) {
             VStack(alignment: .leading, spacing: 5) {
                 weight("boost 3", "top of the feed when sorted by weight; notifies")
                 weight("boost 1-2", "higher when sorted by weight")
@@ -87,19 +87,9 @@ struct AttentionRuleSettings: View {
                 weight("mute", "ignore: out of the feed, under Muted for 30 days")
                 weight("pin", "always at the top")
             }
-            GroupLabel(title: "Notifications")
-            Field(
-                label: "Notify",
-                detail: "Items a rule says to notify about (notify, or boost 3); several from one sync come as one."
-            ) {
-                Toggle("", isOn: Binding(
-                    get: { model.config.notifications.attention },
-                    set: { model.setConfig(["notifications", "attention"], .bool($0)) }
-                )).labelsHidden()
-            }
-            Field(label: "Quiet hours", detail: "Local time, 24-hour (\"22:00-07:00\"); empty for none.") {
-                ConfigTextField(path: ["attention", "quiet"], value: model.config.attention.quiet?.description ?? "")
-                    .frame(width: 160)
+            HStack(spacing: 6) {
+                Text("Whether Attention notifies, and quiet hours:").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                PageLink(page: .notifications)
             }
         }
         .onAppear {
@@ -529,5 +519,23 @@ private struct Chips<Option: Hashable>: View {
             }
         }
         .frame(maxWidth: 520, alignment: .leading)
+    }
+}
+
+/// `[attention] rules` as a row: modified (or refused) like any other setting, with ↺ back to none.
+private struct RulesModified: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let count = model.config.attention.rules.count
+        SettingRow(
+            "attention.rules", label: "Rules in config.toml",
+            detail: count == 0 ? "None: every item keeps its normal weight." : "\(count) line\(count == 1 ? "" : "s"), "
+                + "edited below and saved with Save.",
+            defaultText: "none"
+        ) {
+            EmptyView()
+        }
+        .settingsCard()
     }
 }

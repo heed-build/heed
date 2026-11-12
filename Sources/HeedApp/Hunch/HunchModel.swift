@@ -3,7 +3,7 @@ import HeedCore
 import Observation
 
 /// Hunch in the app: the checkpoints it can download and where each stands, the training set and the last run, and a
-/// run in progress. Settings › Inference & decisions renders it; `AppModel+Hunch` drives it. All IO runs off the main
+/// run in progress. Settings › Decisions & Hunch renders it; `AppModel+Hunch` drives it. All IO runs off the main
 /// actor; fixtures (and shots) set its values and do none.
 @MainActor
 @Observable

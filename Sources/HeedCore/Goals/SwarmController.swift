@@ -1,6 +1,6 @@
 import Foundation
 
-/// The controller: heed's deciders (Settings › Inference & decisions: Hunch for small choices, the rest routed as
+/// The controller: heed's deciders (Settings › Decisions & Hunch: Hunch for small choices, the rest routed as
 /// everywhere) answering a swarm's question within its authority. A repeat of a question you answered comes first (an
 /// exact one needs no decider; a near one is a yes/no statement for it); then, if the question is the controller's,
 /// it picks one of the asker's options. A question that is yours it does not answer: on its own it passes it to you,

@@ -52,7 +52,7 @@ public enum SwarmAuthority {
         /// The task owning the nearest work (`--to <task>`, or the one the asker's task waits for).
         case peer
         case lead
-        /// heed's deciders (Settings › Inference & decisions), within its authority.
+        /// heed's deciders (Settings › Decisions & Hunch), within its authority.
         case controller
         case you
 

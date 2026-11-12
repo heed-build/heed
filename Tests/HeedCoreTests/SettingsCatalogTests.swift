@@ -69,11 +69,12 @@ struct SettingsCatalogTests {
     /// The keys Settings writes today, as literal paths in its views: each has an entry.
     @Test func everyKeySettingsWritesHasAnEntry() throws {
         let views = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().appendingPathComponent("Sources/HeedApp/Views")
-        let files = ["SettingsView", "InferenceSettings", "OrgRepoSettings", "AttentionRuleSettings", "HunchSettings"]
+            .deletingLastPathComponent().appendingPathComponent("Sources/HeedApp/Views/Settings")
+        let files = try FileManager.default.contentsOfDirectory(atPath: views.path).filter { $0.hasSuffix(".swift") }
+        #expect(files.count > 8)
         var paths: Set<String> = []
         for file in files {
-            let text = try String(contentsOf: views.appendingPathComponent("\(file).swift"), encoding: .utf8)
+            let text = try String(contentsOf: views.appendingPathComponent(file), encoding: .utf8)
             let pattern = try NSRegularExpression(pattern: #"\["([a-z_]+)", "([a-z_]+)"\]"#)
             for match in pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
                 guard let table = Range(match.range(at: 1), in: text), let key = Range(match.range(at: 2), in: text)

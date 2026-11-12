@@ -120,13 +120,15 @@ final class AppModel {
     private(set) var config = HeedConfig.default
     /// What is wrong with config.toml, if anything; the last good config stays in use.
     private(set) var configProblems: [ConfigProblem] = []
+    /// config.toml as written, for Settings to show a value heed refused as you typed it.
+    private(set) var configTable = TOMLTable()
     /// heed's own model calls (`[llm]`): every call goes through `runLLM` (AppModel+LLM).
     let llm = LLMRunner()
     /// What detection found per agent, for Settings › Agents.
     var llmStatuses: [LLMAgentStatus] = []
     /// Settings' Test per agent: running, or how the last one ended.
     var llmTests: [String: LLMTest] = [:]
-    /// Settings › Inference & decisions (AppModel+Inference): whether Apple's on-device model can run here, the last
+    /// Settings › Model calls (AppModel+Inference): whether Apple's on-device model can run here, the last
     /// tests (kept between launches), the decision test running, and the title bar reminder hidden for this launch.
     var localModel = LocalModel.unsupported
     var setupTests = SetupTests() { didSet { saveSetupTests() } }
@@ -134,10 +136,11 @@ final class AppModel {
     var inferenceReminderHidden = false
     /// Screenshots show the setup reminder only where a shot asks for it.
     var inferenceReminderInShots = false
-    /// Settings › Agents › Local decisions: what the screen snapshots kept amount to; nil until read
+    /// Settings › Decisions & Hunch › Local decisions: what the screen snapshots kept amount to; nil until read
     /// (AppModel+ScreenSnapshots).
     var screenCounts: ScreenSnapshotCounts?
-    /// Settings › Agents › Local decisions: Start work outcomes kept; nil until read (AppModel+StartWorkSmarts).
+    /// Settings › Decisions & Hunch › Local decisions: Start work outcomes kept; nil until read
+    /// (AppModel+StartWorkSmarts).
     var startOutcomeCount: Int?
     /// Asks the on-device model while Start work is open with smart guesses on; nil otherwise.
     @ObservationIgnored var startWorkAdvice: StartWorkAdviceScheduler?
@@ -909,6 +912,7 @@ final class AppModel {
     func applyConfig(source: String) {
         let (decoded, problems) = ConfigLoader.decode(source)
         configProblems = problems
+        configTable = (try? TOMLDocument(source))?.root ?? TOMLTable()
         guard let decoded else { return }
         let toolsChanged = decoded.tools != config.tools
         let issuesChanged = decoded.issues != config.issues
@@ -986,6 +990,11 @@ final class AppModel {
         } catch {
             flash = "could not write config.toml: \(error)"
         }
+    }
+
+    /// The text config.toml has at `path`, refused or not; nil when it has none there, or not text.
+    func configValue(_ path: [String]) -> String? {
+        configTable.value(at: path)?.string
     }
 
     func setConfig(_ path: [String], _ value: TOMLValue, multiline: Bool = false) {
@@ -2752,20 +2761,11 @@ final class AppModel {
         case "tools.detect": Task { await detectTools(force: true) }
         case "settings.open":
             if let name = command.arguments.first {
-                guard let section = SettingsView.Section.named(name) else {
-                    flash =
-                        "no Settings section \(name) (\(CommandCompletions.settingsSections.joined(separator: ", ")))"
+                guard let page = SettingsPage.named(name) else {
+                    flash = "no Settings page \(name) (\(CommandCompletions.settingsSections.joined(separator: ", ")))"
                     return
                 }
-                // `:settings.open orgs merged`: Orgs & repos on a tab.
-                if section == .colors, let name = command.arguments.dropFirst().first {
-                    guard let tab = OverrideTab.named(name) else {
-                        flash = "no Orgs & repos tab \(name) (\(OverrideTab.allCases.map(\.rawValue).joined(separator: ", ")))"
-                        return
-                    }
-                    orgRepoTab = tab
-                }
-                settingsSection = section
+                guard openSettingsPage(page, rest: Array(command.arguments.dropFirst())) else { return }
             }
             openSettings?()
         case "welcome": showFirstRun()
@@ -3170,7 +3170,7 @@ final class AppModel {
         guard let record = record ?? setupTarget else { return flash = "no repo here" }
         settingsScope = .repo(record.repo)
         orgRepoTab = Overrides.tab(of: "setup")
-        settingsSection = .colors
+        settingsPage = .orgsAndRepos
         openSettings?()
     }
 
@@ -3184,6 +3184,79 @@ final class AppModel {
         : UserDefaults.standard.string(forKey: "orgRepoTab").flatMap(OverrideTab.init(rawValue:)) ?? .general
     {
         didSet { if !isFixture { UserDefaults.standard.set(orgRepoTab.rawValue, forKey: "orgRepoTab") } }
+    }
+
+    /// The tab Settings › Pilot shows, kept between launches like `orgRepoTab`.
+    var pilotTab: SettingsTab = ShotMode.active
+        ? .green
+        : UserDefaults.standard.string(forKey: "pilotTab").flatMap(SettingsTab.init(rawValue:))
+        .flatMap { SettingsPage.pilot.tabs.contains($0) ? $0 : nil } ?? .green
+    {
+        didSet { if !isFixture { UserDefaults.standard.set(pilotTab.rawValue, forKey: "pilotTab") } }
+    }
+
+    /// The tab Settings › Agents shows for every agent (Sessions, Model calls), kept between launches.
+    var agentTab: SettingsTab = ShotMode.active
+        ? .sessions
+        : UserDefaults.standard.string(forKey: "agentTab").flatMap(SettingsTab.init(rawValue:))
+        .flatMap { SettingsPage.agents.tabs.contains($0) ? $0 : nil } ?? .sessions
+    {
+        didSet { if !isFixture { UserDefaults.standard.set(agentTab.rawValue, forKey: "agentTab") } }
+    }
+
+    /// The agent Settings › Agents shows next (`:settings.open agents codex`); nil: Every agent, `""` too.
+    var settingsAgent: String?
+
+    /// The Settings sidebar's folded groups and pages, kept between launches; shots neither read nor write it.
+    var settingsFolded: Set<SettingsNode> = ShotMode.active
+        ? []
+        : Set((UserDefaults.standard.stringArray(forKey: "settingsFolded") ?? []).compactMap(SettingsNode.init))
+    {
+        didSet {
+            if !isFixture { UserDefaults.standard.set(
+                settingsFolded.map(\.description).sorted(),
+                forKey: "settingsFolded"
+            ) }
+        }
+    }
+
+    /// `:settings.open <page> [tab]`, `:settings.open agents <agent> [tab]`: false (and a flash) for a tab or agent
+    /// the page does not have.
+    func openSettingsPage(_ page: SettingsPage, rest: [String]) -> Bool {
+        var rest = rest
+        switch page {
+        case .orgsAndRepos:
+            if let name = rest.first {
+                guard let tab = OverrideTab.named(name) else {
+                    flash = "no Orgs & repos tab \(name) (\(OverrideTab.allCases.map(\.rawValue).joined(separator: ", ")))"
+                    return false
+                }
+                orgRepoTab = tab
+            }
+        case .agents:
+            if let name = rest.first, SettingsTab.named(name, on: .agents) == nil {
+                guard settings.agent(name) != nil || name == "every" else {
+                    flash = "no agent \(name) (\(settings.agents.map(\.name).joined(separator: ", ")))"
+                    return false
+                }
+                settingsAgent = name == "every" ? "" : name
+                rest.removeFirst()
+            }
+            fallthrough
+        case .pilot:
+            if let name = rest.first {
+                guard let tab = SettingsTab.named(name, on: page) else {
+                    let names = page.tabs.map(\.commandName).joined(separator: ", ")
+                    flash = "no \(page.title) tab \(name) (\(names))"
+                    return false
+                }
+                if page == .pilot { pilotTab = tab } else { agentTab = tab }
+            }
+        default:
+            break
+        }
+        settingsPage = page
+        return true
     }
 
     /// Settings › Orgs & repos' Only overridden: the list keeps the orgs and repos that override something, and each
@@ -7454,8 +7527,8 @@ final class AppModel {
         case exit
     }
 
-    /// `:settings.open agents`: the section the Settings window turns to.
-    var settingsSection: SettingsView.Section?
+    /// `:settings.open agents`: the page the Settings window turns to.
+    var settingsPage: SettingsPage?
 
     /// Set on the sandbox model while the tutor runs; nil everywhere else.
     private(set) var tutor: Tutor?

@@ -94,7 +94,7 @@ extension AppModel {
         return (pane, session.id)
     }
 
-    /// The newest reading of any pane, for Settings › Inference & decisions.
+    /// The newest reading of any pane, for Settings › Decisions & Hunch.
     var latestScreenReading: HunchScreen.Reading? {
         screenReadings.values.max { $0.at < $1.at }
     }

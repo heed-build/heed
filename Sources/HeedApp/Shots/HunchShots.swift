@@ -1,7 +1,7 @@
 import Foundation
 import HeedCore
 
-/// Settings › Inference & decisions with Hunch chosen, in each of its states, from invented values: no IO, no model.
+/// Settings › Decisions & Hunch with Hunch chosen, in each of its states, from invented values: no IO, no model.
 @MainActor
 enum HunchShots {
     enum State {

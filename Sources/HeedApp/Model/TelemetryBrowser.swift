@@ -53,7 +53,41 @@ final class TelemetryBrowser {
         }
     }
 
+    /// What the forwarder did, per collector host.
+    private(set) var forwarding: [String: TelemetryForwarder.Stats] = [:]
+    /// The proxy banner was put away for this launch (`telemetry.banner.hide`).
+    private(set) var bannerHidden = false
+
     func setReceiver(_ state: Receiver) { if state != receiver { receiver = state } }
+    func setForwarding(_ stats: [String: TelemetryForwarder.Stats]) { if stats != forwarding { forwarding = stats } }
+    func hideBanner() { bannerHidden = true }
+
+    /// The fake world as it is when heed forwards claude's metrics and logs to a collector of yours (shots).
+    func showProxyInShots() {
+        let metrics = TelemetryUpstream(url: URL(string: "https://otel.example.com/v1/metrics")!, wire: .protobuf)
+        let logs = TelemetryUpstream(url: URL(string: "https://otel.example.com/v1/logs")!, wire: .protobuf)
+        export = TelemetryExport(port: 4318, modes: ["claude": .forward([.metrics: metrics, .logs: logs])])
+        var stats = TelemetryForwarder.Stats()
+        stats.forwarded = 1204
+        forwarding = ["otel.example.com": stats]
+    }
+
+    /// The banner shows while heed forwards any agent's telemetry, unless put away for this launch.
+    var showsBanner: Bool { (export?.proxying ?? false) && !bannerHidden }
+
+    /// `otel.example.com · 1204 sent · 0 dropped`, per host heed forwards to.
+    func forwardingLines() -> [String] {
+        let hosts = Set((export?.routes.values.flatMap(\.values) ?? []).compactMap(\.host))
+        return hosts.sorted().map { host in
+            let stats = forwarding[host] ?? TelemetryForwarder.Stats()
+            var parts = ["\(stats.forwarded) sent", "\(stats.dropped) dropped"]
+            if stats.pending > 0 { parts.append("\(stats.pending) waiting") }
+            if stats.refused > 0 { parts.append("\(stats.refused) refused") }
+            if stats.pending > 0 || stats.refused > 0, let error = stats.lastError { parts.append(error) }
+            return "forwarding to \(host) · " + parts.joined(separator: " · ")
+        }
+    }
+
     func setExport(_ value: TelemetryExport?) { if value != export { export = value } }
 
     var selected: TelemetryRow? { board.rows.indices.contains(cursor) ? board.rows[cursor] : nil }

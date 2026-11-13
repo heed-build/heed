@@ -101,11 +101,13 @@ public struct OTLPBatch: Hashable, Sendable {
 public enum OTLPError: Error, Equatable, CustomStringConvertible {
     case notJSON
     case unknownSignal
+    case notProtobuf
 
     public var description: String {
         switch self {
         case .notJSON: "the body is not OTLP JSON"
         case .unknownSignal: "neither traces, logs nor metrics"
+        case .notProtobuf: "the body is not OTLP protobuf"
         }
     }
 }
@@ -118,6 +120,11 @@ public enum OTLPJSON {
     public static func decode(_ data: Data, signal: OTLPSignal? = nil) throws -> OTLPBatch {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { throw OTLPError.notJSON }
+        return try decode(root: root, signal: signal)
+    }
+
+    /// From the JSON mapping's objects, however they were read (`OTLPProtobuf` builds the same ones).
+    static func decode(root: [String: Any], signal: OTLPSignal?) throws -> OTLPBatch {
         var batch = OTLPBatch()
         let wanted = signal.map { [$0] } ?? OTLPSignal.allCases
         var known = false

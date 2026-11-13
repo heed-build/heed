@@ -274,11 +274,14 @@ decide_days = 30
 max_rows = 50000
 
 [telemetry]
-# The agents' own OpenTelemetry (Insights › OpenTelemetry, :trace): heed listens for OTLP/HTTP JSON on
-# 127.0.0.1 only, and starts claude and codex with their exporters pointed there, unless you send that agent's
-# telemetry somewhere yourself (an OTEL_ endpoint or exporter in your shell, Claude Code's settings env, or [otel]
-# in Codex's config): then heed adds nothing to it. Nothing is sent off this Mac. false: no receiver, no exporters.
+# The agents' own OpenTelemetry (Insights › OpenTelemetry, :trace): heed listens for OTLP/HTTP (JSON or protobuf)
+# on 127.0.0.1 only, and starts claude and codex with their exporters pointed there. false: no receiver, no
+# exporters, every agent as you set it up.
 enabled = true
+# An agent you already send telemetry from (OTEL_ variables in your shell, [otel] exporters in Codex's config) is
+# pointed at heed too, and heed forwards every export unchanged to your collector, with your headers, which it never
+# keeps. false: heed leaves such an agent alone. gRPC and Claude Code's settings env are always left alone.
+proxy = true
 port = 4318
 # Kept this many days, and at most max_rows spans; pruned hourly.
 days = 7

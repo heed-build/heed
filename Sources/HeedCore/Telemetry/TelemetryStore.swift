@@ -14,6 +14,9 @@ public struct TelemetrySettings: Equatable, Sendable {
     public var toolDetails = true
     /// Ask the agents to include your prompts' text, so a turn reads by what you asked.
     public var prompts = false
+    /// An agent you send telemetry from yourself is pointed at heed too, and heed forwards each export unchanged to
+    /// where it went; false: heed leaves that agent alone.
+    public var proxy = true
 
     public init() {}
 }

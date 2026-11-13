@@ -141,6 +141,7 @@ public extension SettingsCatalog {
         "mindmap.shadow": "mindmap.enabled",
         "standup.days": "standup.enabled",
         "telemetry.port": "telemetry.enabled",
+        "telemetry.proxy": "telemetry.enabled",
         "telemetry.days": "telemetry.enabled",
         "telemetry.max_rows": "telemetry.enabled",
         "telemetry.tool_details": "telemetry.enabled",

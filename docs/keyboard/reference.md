@@ -237,6 +237,8 @@ This page is generated from the code (`mise run shots`).
 | `telemetry.kind` `[kind]` | `K` (telemetry) | OpenTelemetry: which spans the table lists: turns, tools, waits and model; all; one kind |
 | `telemetry.live` | `l` (telemetry) | OpenTelemetry: stop or start redrawing as spans arrive |
 | `telemetry.open` | `<CR>` (telemetry) | OpenTelemetry: the span's session's trace, on its turn |
+| `telemetry.proxy.off` | `P` (telemetry) | OpenTelemetry: stop forwarding agents you set up yourself through heed ([telemetry] proxy = false) |
+| `telemetry.banner.hide` | `x` (telemetry) | OpenTelemetry: put the forwarding banner away until heed starts again |
 | `standup.run` | `S` (standup) | standup: write a report for this org now |
 | `standup.copy` `[plain]` | `y` (standup) | standup: copy the answer to the question shown (all with none), as markdown |
 | `standup.copy.all` `[plain]` | `Y` (standup) | standup: copy the whole report, as markdown |

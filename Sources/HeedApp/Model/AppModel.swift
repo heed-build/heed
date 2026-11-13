@@ -2877,7 +2877,7 @@ final class AppModel {
             view = view == .telemetry ? .dashboard : .telemetry
             if view == .telemetry { telemetry.reload() }
         case "telemetry.range", "telemetry.agent", "telemetry.repo", "telemetry.model", "telemetry.kind",
-             "telemetry.live", "telemetry.open":
+             "telemetry.live", "telemetry.open", "telemetry.proxy.off", "telemetry.banner.hide":
             performTelemetry(command)
         case "session.trace", "trace.turn.next", "trace.turn.prev", "trace.span.next", "trace.span.prev":
             performTrace(command)

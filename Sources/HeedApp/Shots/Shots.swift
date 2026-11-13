@@ -645,6 +645,13 @@ enum Shots {
             id: "history/telemetry-query", size: CGSize(width: 1600, height: 1000),
             keys: "ghT/tool:bash<Space>status:error<CR>"
         ),
+        // claude sent its telemetry to a collector of yours: heed forwards it, and says so until P turns it off.
+        Shot(
+            id: "history/telemetry-proxy", size: CGSize(width: 1600, height: 1000), keys: "ghT",
+            crop: .telemetryBanner, cropPadding: 0, prepare: { model in
+                model.telemetry.showProxyInShots()
+            }
+        ),
         Shot(
             id: "history/telemetry-tiles",
             size: CGSize(width: 1600, height: 1000),

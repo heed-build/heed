@@ -5,10 +5,10 @@ import Testing
 /// The agents' own OpenTelemetry: OTLP/JSON as Claude Code and Codex send it (recorded from their documented schemas
 /// in Fixtures/otlp), read into heed's spans, made whole, summed, and served over HTTP.
 struct TelemetryTests {
-    static func payload(_ name: String) throws -> Data {
+    static func payload(_ name: String, _ type: String = "json") throws -> Data {
         let url = try #require(Bundle.module.url(
             forResource: name,
-            withExtension: "json",
+            withExtension: type,
             subdirectory: "Fixtures/otlp"
         ))
         return try Data(contentsOf: url)
@@ -338,23 +338,28 @@ struct TelemetryTests {
         #expect(args.contains(#"otel.exporter={otlp-http={endpoint="http://127.0.0.1:4999/v1/logs",protocol="json"}}"#))
         #expect(plain.arguments(agent: "claude").isEmpty)
 
+        // With forwarding off, an agent you set up yourself is left alone.
+        settings.proxy = false
         let shell = TelemetryExport.decide(
             settings: settings, process: [:], shell: ["OTEL_EXPORTER_OTLP_ENDPOINT": "https://collector.example"],
             claudeSettings: nil, codexConfig: nil
         )
         #expect(!shell.exports("claude"))
         #expect(shell.environment(agent: "claude").isEmpty)
-        #expect(shell.summary(agent: "claude") == "left alone: OTEL_EXPORTER_OTLP_ENDPOINT is set in your shell")
+        #expect(
+            shell.summary(agent: "claude")
+                == "your own setup, heed not involved: OTEL_EXPORTER_OTLP_ENDPOINT is set in your shell"
+        )
         #expect(shell.exports("codex"))
 
         let files = TelemetryExport.decide(
             settings: settings, process: [:], shell: [:],
             claudeSettings: #"{"env":{"CLAUDE_CODE_ENABLE_TELEMETRY":"1"}}"#,
-            codexConfig: "[otel]\nexporter = { otlp-grpc = { endpoint = \"http://x:4317\" } }\n"
+            codexConfig: "[otel]\nexporter = { otlp-http = { endpoint = \"http://x:4318/v1/logs\" } }\n"
         )
         #expect(!files.exports("claude"))
         #expect(!files.exports("codex"))
-        #expect(files.leftAlone["codex"] == "otel.exporter is set in ~/.codex/config.toml")
+        #expect(files.leftAlone["codex"] == "[otel] exporters are set in Codex's config.toml")
         // An [otel] table without an exporter sends nothing; heed may.
         let quiet = TelemetryExport.decide(
             settings: settings, process: [:], shell: [:], claudeSettings: nil,
@@ -424,17 +429,29 @@ struct TelemetryTests {
         }
     }
 
-    @Test func answersJSONRefusesProtobufAndInflatesGzip() throws {
+    @Test func answersJSONAndProtobufAndInflatesGzip() throws {
         let logs = try Self.payload("claude-logs")
         let ok = OTLPHTTP.handle(HTTPRequest(
             method: "POST", path: "/v1/logs", headers: ["content-type": "application/json"], body: logs
         ))
         #expect(ok.status == 200)
         #expect(ok.records?.spans.count == 2)
-        let proto = OTLPHTTP.handle(HTTPRequest(
-            method: "POST", path: "/v1/logs", headers: ["content-type": "application/x-protobuf"], body: Data([1])
+        let proto = try OTLPHTTP.handle(HTTPRequest(
+            method: "POST", path: "/v1/logs", headers: ["content-type": "application/x-protobuf"],
+            body: Self.payload("claude-logs", "pb")
         ))
-        #expect(proto.status == 415)
+        #expect(proto.status == 200)
+        #expect(proto.contentType == "application/x-protobuf")
+        #expect(proto.body.isEmpty)
+        #expect(proto.records?.spans.first?.cost == 0.0231)
+        let broken = OTLPHTTP.handle(HTTPRequest(
+            method: "POST", path: "/v1/logs", headers: ["content-type": "application/x-protobuf"], body: Data([0x0A, 9])
+        ))
+        #expect(broken.status == 400)
+        let other = OTLPHTTP.handle(HTTPRequest(
+            method: "POST", path: "/v1/logs", headers: ["content-type": "text/plain"], body: Data([1])
+        ))
+        #expect(other.status == 415)
         // `{"resourceLogs":[]}`, gzipped.
         let gzip = Data(base64Encoded: "H4sIAAAAAAAAA6tWKkotzi8tSk71yU8vVrKKjq0FAHCOHGgTAAAA")!
         let inflated = OTLPHTTP.handle(HTTPRequest(

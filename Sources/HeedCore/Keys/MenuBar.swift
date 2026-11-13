@@ -350,6 +350,10 @@ public enum MenuBar {
                         "telemetry.model"
                     ),
                     ("Next kinds", "telemetry.kind"), ("Live", "telemetry.live"),
+                    ("Stop forwarding through heed", "telemetry.proxy.off"), (
+                        "Hide the banner",
+                        "telemetry.banner.hide"
+                    ),
                 ], in: ["telemetry"]),
                 scoped("In a trace", [
                     ("Next turn", "trace.turn.next"), ("Previous turn", "trace.turn.prev"),

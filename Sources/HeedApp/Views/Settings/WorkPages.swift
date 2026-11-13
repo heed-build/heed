@@ -267,10 +267,13 @@ private struct TelemetryCard: View {
         SettingsCard(
             title: "OpenTelemetry",
             note: "The agents' own spans, metrics and events (Insights › OpenTelemetry, :trace), received on "
-                + "127.0.0.1 only. heed points claude and codex at it only when you send theirs nowhere yourself."
+                + "127.0.0.1 only. An agent you already send telemetry from is forwarded on, unchanged, through heed."
         ) {
             SettingRow("telemetry.enabled") {
                 ConfigSwitch(path: ["telemetry", "enabled"], isOn: settings.enabled)
+            }
+            SettingRow("telemetry.proxy", indented: true) {
+                ConfigSwitch(path: ["telemetry", "proxy"], isOn: settings.proxy)
             }
             SettingRow("telemetry.port", indented: true) {
                 NumberField(
@@ -299,6 +302,7 @@ private struct TelemetryCard: View {
                         ForEach(TelemetryExport.agents, id: \.self) { agent in
                             Text("\(agent): \(export.summary(agent: agent))")
                         }
+                        ForEach(model.telemetry.forwardingLines(), id: \.self) { Text($0) }
                     }
                 }
             }

@@ -500,10 +500,15 @@ extension SettingsCatalog {
         global(
             "telemetry.enabled", .history, "OpenTelemetry", "Receive the agents' telemetry",
             "Listen on 127.0.0.1 for the agents' own OpenTelemetry (Insights › OpenTelemetry, :trace), and start "
-                + "claude and codex with their exporters pointed there, unless you send theirs somewhere yourself. "
-                + "Nothing leaves this Mac.",
+                + "claude and codex with their exporters pointed there. What heed keeps stays on this Mac.",
             since: "0.42.0"
         ) { .bool($0.telemetry.enabled) },
+        global(
+            "telemetry.proxy", .history, "OpenTelemetry", "Forward through heed",
+            "An agent you already send telemetry from is pointed at heed too, and heed forwards every export "
+                + "unchanged to your collector, with your headers, which it never keeps. Off: heed leaves it alone.",
+            since: "0.42.0"
+        ) { .bool($0.telemetry.proxy) },
         global(
             "telemetry.port", .history, "OpenTelemetry", "Port",
             "OTLP/HTTP on 127.0.0.1. A port another collector holds leaves the receiver off.", level: .advanced,

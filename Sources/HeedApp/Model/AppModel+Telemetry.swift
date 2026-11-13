@@ -36,44 +36,68 @@ extension AppModel {
     }
 
     /// Starts, stops or moves the receiver to what `[telemetry]` says now, and decides again whom heed points at
-    /// it. Runs on every config change; does nothing when nothing it reads changed.
+    /// it and what it forwards. Runs on every config change; the receiver restarts only when it is turned on or off
+    /// or moves port, so panes already started keep their forwards (turning `proxy` off changes the next launches).
     func applyTelemetrySettings() {
         guard telemetryReady, !isFixture else { return }
         let settings = config.telemetry
         guard settings != telemetrySettingsRunning else { return }
+        let before = telemetrySettingsRunning
         telemetrySettingsRunning = settings
-        telemetryServer?.stop()
-        telemetryServer = nil
-        integration.telemetry = nil
-        telemetry.setExport(nil)
-        guard settings.enabled else {
-            telemetry.setReceiver(.off)
-            return
-        }
-        guard telemetry.store != nil else {
-            telemetry.setReceiver(.failed("telemetry.sqlite could not be opened"))
-            return
-        }
-        let server = TelemetryServer(port: settings.port)
-        do {
-            try server.start()
-        } catch {
-            telemetry.setReceiver(.failed("\(error)"))
-            return
-        }
-        telemetryServer = server
-        telemetry.setReceiver(.listening(port: settings.port))
-        Task { [weak self] in
-            for await records in server.records {
-                await self?.receivedTelemetry(records)
+        let restart = before == nil || before?.enabled != settings.enabled || before?.port != settings.port
+        if restart {
+            telemetryServer?.stop()
+            telemetryServer = nil
+            integration.telemetry = nil
+            telemetry.setExport(nil)
+            telemetry.setForwarding([:])
+            guard settings.enabled else {
+                telemetry.setReceiver(.off)
+                return
+            }
+            guard telemetry.store != nil else {
+                telemetry.setReceiver(.failed("telemetry.sqlite could not be opened"))
+                return
+            }
+            let server = TelemetryServer(port: settings.port)
+            do {
+                try server.start()
+            } catch {
+                // Panes start exactly as they would without heed: nothing points at a receiver that is not there.
+                telemetry.setReceiver(.failed("\(error)"))
+                return
+            }
+            telemetryServer = server
+            telemetry.setReceiver(.listening(port: settings.port))
+            Task { [weak self] in
+                for await records in server.records {
+                    await self?.receivedTelemetry(records)
+                }
+            }
+            // What the forwarder did, for Settings and the banner: counts only, every few seconds.
+            Task { [weak self] in
+                while !Task.isCancelled {
+                    guard let self, telemetryServer === server else { return }
+                    telemetry.setForwarding(server.forwarder.stats())
+                    try? await Task.sleep(for: .seconds(3))
+                }
             }
         }
+        guard let server = telemetryServer else { return }
         Task { [weak self] in
             let export = await Self.decideExport(settings)
-            guard let self, telemetrySettingsRunning == settings else { return }
+            guard let self, telemetrySettingsRunning == settings, telemetryServer === server else { return }
             integration.telemetry = export
             telemetry.setExport(export)
+            // Forwards only ever add while the receiver runs: a pane started with one keeps it.
+            server.addRoutes(export.routes)
         }
+    }
+
+    /// `telemetry.proxy.off`, from the banner: `[telemetry] proxy = false`.
+    func stopTelemetryProxy() {
+        setConfig(["telemetry", "proxy"], .bool(false))
+        flash = "heed stops forwarding: each agent exports only to its own endpoint again from its pane's next launch."
     }
 
     /// Reads, off the main actor, what you set up yourself: heed's environment, your login shell's OTEL variables,
@@ -148,6 +172,8 @@ extension AppModel {
         case "telemetry.model": telemetry.cycleModel(argument)
         case "telemetry.kind": telemetry.cycleKinds(argument)
         case "telemetry.live": telemetry.toggleLive()
+        case "telemetry.proxy.off": stopTelemetryProxy()
+        case "telemetry.banner.hide": telemetry.hideBanner()
         case "telemetry.open":
             guard let row = telemetry.selected, let session = row.session else {
                 flash = "That span is from no session heed knows."

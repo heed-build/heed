@@ -13,6 +13,9 @@ struct TelemetryView: View {
         let browser = model.telemetry
         let board = browser.board
         VStack(spacing: 0) {
+            if browser.showsBanner, let export = browser.export {
+                ProxyBanner(export: export, lines: browser.forwardingLines()).shotRegion(.telemetryBanner)
+            }
             FilterBar(browser: browser, query: model.filter(for: .telemetry))
             if board.isEmpty, board.rows.isEmpty {
                 Text(empty(browser))
@@ -95,6 +98,56 @@ struct TelemetryReceiverPill: View {
                     + " · OTLP 127.0.0.1:\(port)"
             )
         }
+    }
+}
+
+// MARK: The proxy banner
+
+/// While heed forwards an agent's telemetry to your own collector: that heed sits in between, what stays here, who
+/// goes where (hosts only), and the key that stops it.
+private struct ProxyBanner: View {
+    @Environment(AppModel.self) private var model
+    let export: TelemetryExport
+    let lines: [String]
+
+    var body: some View {
+        let who = TelemetryExport.agents.compactMap { agent -> String? in
+            let hosts = Set(export.upstreams(agent).values.map(\.host)).sorted()
+            return hosts.isEmpty ? nil : "\(agent) → \(hosts.joined(separator: ", "))"
+        }
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "arrow.triangle.branch").font(.system(size: 13)).foregroundStyle(Theme.block)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("heed sits between your agents and your own collector: \(who.joined(separator: " · "))")
+                    .font(Theme.ui(13, weight: .semibold)).foregroundStyle(Theme.fg)
+                Text(
+                    "Every export goes on to it unchanged, with your headers, which heed never keeps. What heed "
+                        + "keeps of it stays on this Mac. \(model.keyText(for: "telemetry.proxy.off", in: "telemetry")) "
+                        + "stops it: those agents export only to their own endpoint again, from each pane's next launch."
+                )
+                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
+                if !lines.isEmpty {
+                    Text(lines.joined(separator: "   ")).font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 12)
+            HStack(spacing: 8) {
+                Text("stop forwarding").font(Theme.ui(12.5)).foregroundStyle(Theme.fg)
+                KeyCap(text: model.keyText(for: "telemetry.proxy.off", in: "telemetry"))
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 26)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg3))
+            .clickRuns(CommandInvocation(name: "telemetry.proxy.off"))
+            KeyCap(text: model.keyText(for: "telemetry.banner.hide", in: "telemetry"))
+                .padding(.top, 4)
+                .clickRuns(CommandInvocation(name: "telemetry.banner.hide"))
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 12)
+        .background(Theme.block.opacity(0.07))
+        .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
     }
 }
 

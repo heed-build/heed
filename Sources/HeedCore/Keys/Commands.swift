@@ -470,6 +470,16 @@ public enum Commands {
         .init("telemetry.live", "OpenTelemetry: stop or start redrawing as spans arrive", .selection),
         .init("telemetry.open", "OpenTelemetry: the span's session's trace, on its turn", .selection),
         .init(
+            "telemetry.proxy.off",
+            "OpenTelemetry: stop forwarding agents you set up yourself through heed ([telemetry] proxy = false)",
+            .selection
+        ),
+        .init(
+            "telemetry.banner.hide",
+            "OpenTelemetry: put the forwarding banner away until heed starts again",
+            .selection
+        ),
+        .init(
             "session.trace",
             "a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back)",
             .views, arguments: "[session]"

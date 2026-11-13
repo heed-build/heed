@@ -9,38 +9,66 @@ for what they cost, metrics for tokens. heed listens for it on this Mac and show
 `:telemetry`, `:otel`, `history.telemetry`) opens it as an observability view, and `t` on a session (or `:trace`)
 shows that session's own trace.
 
-Nothing leaves this Mac. The receiver listens on `127.0.0.1` only, and heed sends nothing anywhere: what the agents
-send stays in `telemetry.sqlite`, beside heed's other files, for a week.
+The receiver listens on `127.0.0.1` only, and what heed keeps of the agents' telemetry stays in `telemetry.sqlite`,
+beside heed's other files, for a week. heed sends none of it anywhere of its own; the one thing that leaves this Mac
+is an export an agent already sent to a collector of yours, which heed passes on there ([below](#when-you-already-export)).
 
 ![Insights' OpenTelemetry: the filter bar, six numbers with their line across the hour, latency by tool, each agent's state, cost by model, the spans newest first and the selected span's trace](../images/shots/history/telemetry.png)
 
 ## How the agents get there
 
-Every session heed starts with claude or codex is told to export to heed, unless you already send that agent's
-telemetry somewhere yourself.
+Every session heed starts with claude or codex is told to export to heed.
 
 | Agent | What heed adds to its command line |
 |---|---|
-| claude | `CLAUDE_CODE_ENABLE_TELEMETRY=1`, OTLP exporters for metrics, logs and traces (`CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1`), `OTEL_EXPORTER_OTLP_PROTOCOL=http/json`, `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318`, shorter export intervals so the view is live, and `OTEL_LOG_TOOL_DETAILS=1` so a span says which command or file |
+| claude | `CLAUDE_CODE_ENABLE_TELEMETRY=1`, OTLP exporters for metrics, logs and traces (`CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1`), each signal's endpoint at `http://127.0.0.1:4318` with `http/json`, shorter export intervals so the view is live, and `OTEL_LOG_TOOL_DETAILS=1` so a span says which command or file |
 | codex | `-c otel.exporter=…`, `-c otel.trace_exporter=…` and `-c otel.metrics_exporter=…`, each `otlp-http` to `127.0.0.1` with `protocol = "json"`, for this run only |
 
-The variables are set on the agent's own command, so the pane's shell never has them. heed leaves an agent alone when
-any of these is set:
+The variables are set on the agent's own command, so the pane's shell never has them. Settings › History ›
+OpenTelemetry says, per agent, what heed does: "exporting to heed", "forwarding to <host> through heed", or "your own
+setup, heed not involved", with why. The pill at the end of Insights' tabs says whether the receiver is listening and
+how many agents sent anything in the last ten minutes.
 
-| Agent | Left alone when |
+If the receiver cannot listen (another collector holds the port, `[telemetry] enabled = false`), panes start exactly
+as they would without heed. Other agents (opencode, gemini, pi, cursor) are not pointed at heed; one you set up to
+send OTLP/HTTP to `127.0.0.1:4318` is read too, by its `service.name`. A session started before heed listened sends
+nothing until it is reopened. On a [host](../hosts/index.md), agents are not pointed at heed: `127.0.0.1` there is the
+host, not this Mac.
+
+## When you already export
+
+An agent you already send telemetry from is pointed at heed too (`[telemetry] proxy = true`, the default), and heed
+forwards every export to where it went before: the same bytes, path aside, with the same content type and encoding,
+and with your headers. Each signal goes to its own endpoint, as yours did; a signal you did not export goes to heed
+alone. Your intervals, what your exports include, and your headers stay as you set them: heed changes only where the
+agent sends, and keeps your protocol (`http/protobuf` or `http/json`) so your collector gets what it expects.
+
+| Agent | Forwarded when |
 |---|---|
-| claude | `OTEL_EXPORTER_OTLP_ENDPOINT` (or a per-signal endpoint), `OTEL_METRICS_EXPORTER`, `OTEL_LOGS_EXPORTER`, `OTEL_TRACES_EXPORTER` or `CLAUDE_CODE_ENABLE_TELEMETRY` is set in your login shell, in heed's own environment, or in the `env` of `~/.claude/settings.json` |
-| codex | `~/.codex/config.toml` (or `$CODEX_HOME/config.toml`) sets `exporter`, `trace_exporter` or `metrics_exporter` under `[otel]` |
+| claude | `CLAUDE_CODE_ENABLE_TELEMETRY=1` with an `otlp` exporter for a signal (traces with the enhanced beta), over HTTP, set in your login shell or heed's environment. Its endpoint: the signal's own `OTEL_EXPORTER_OTLP_<SIGNAL>_ENDPOINT`, else `OTEL_EXPORTER_OTLP_ENDPOINT` with `/v1/<signal>` |
+| codex | An `otlp-http` exporter under `[otel]` in `~/.codex/config.toml` (or `$CODEX_HOME`): heed overrides only its `endpoint` for the run, so your `protocol` and `headers` there still apply |
 
-Settings › History › OpenTelemetry says, per agent, which it is, and the pill at the end of Insights' tabs says
-whether the receiver is listening and how many agents sent anything in the last ten minutes. heed reads your shell
-for those variables only (`env | grep -E '^(OTEL_|CLAUDE_CODE_ENABLE_TELEMETRY)'`), once when the receiver starts.
+heed leaves an agent alone, "your own setup, heed not involved", when it exports over gRPC (a `grpc` protocol, an
+endpoint on port 4317, Codex's `otlp-grpc`), when Claude Code's telemetry is set in the `env` of
+`~/.claude/settings.json` (Claude Code applies that itself), and for every agent you set up when `proxy = false`.
 
-Other agents (opencode, gemini, pi, cursor) are not pointed at heed; if you set one up yourself to send OTLP/HTTP
-JSON to `127.0.0.1:4318`, heed reads it too, as spans named by the agent's `service.name`.
+Your headers carry your credentials. The agent sends them with each export, as it always did; heed passes them on and
+never writes them anywhere: not to disk, not to the call log, not to Settings, which shows the collector's host only.
+It reads your shell for the telemetry variables only, headers filtered out before it sees a line
+(`env | grep -E '^(OTEL_|CLAUDE_CODE_ENABLE_TELEMETRY|…)' | grep -v '_HEADERS='`), once when the receiver starts.
 
-A session started before heed listened, or while the receiver was off, sends nothing until it is reopened. On a
-[host](../hosts/index.md), agents are not pointed at heed: `127.0.0.1` there is the host, not this Mac.
+heed answers the agent at once and passes the export on in the background, one at a time and in order. While your
+collector is down (no answer, 408, 429, 5xx) heed holds what arrives, up to 512 exports or 32 MB, and tries again with
+backoff from one second to a minute; when that is full the oldest goes. A collector's other refusals (a 4xx) are not
+retried. Settings counts each: `forwarding to otel.example.com · 1204 sent · 0 dropped`. What is held is held in
+memory, so exports still waiting when heed quits are lost.
+
+While heed forwards anything, the OpenTelemetry tab says so in a banner: which agent goes to which host, that what
+heed keeps stays on this Mac, and that `P` stops it. `P` writes `[telemetry] proxy = false`: from each pane's next
+launch, those agents export only to their own endpoint again; panes already running keep forwarding through heed
+until then. `x` puts the banner away until heed starts again.
+
+![The banner while heed forwards claude's telemetry to a collector of yours](../images/shots/history/telemetry-proxy.png)
 
 ## The view
 
@@ -106,14 +134,16 @@ reported, when it reported one; else what its hooks reported, else the estimate 
 A span and an event about the same request or tool call count once. A span is tied to its heed session by the
 agent's own session id (`session.id`, `conversation.id`), which heed knows from the agent's hooks.
 
-The receiver takes OTLP/HTTP with JSON bodies (`http/json`), gzipped or not, at `/v1/traces`, `/v1/logs` and
-`/v1/metrics`. Protobuf (`http/protobuf`) and gRPC are refused, with a 415 that says so.
+The receiver takes OTLP/HTTP at `/v1/traces`, `/v1/logs` and
+`/v1/metrics` (and a forward's `/forward/<agent>/v1/<signal>`), and reads JSON (`http/json`) and protobuf
+(`http/protobuf`, Codex's `binary`), gzipped or not. gRPC is not taken.
 
 ## Configuration
 
 ```toml
 [telemetry]
 enabled = true       # false: no receiver, and the agents are not pointed at heed
+proxy = true         # an agent you already export from goes through heed, forwarded on; false: left alone
 port = 4318          # on 127.0.0.1; a port another collector holds leaves the receiver off
 days = 7             # kept this long
 max_rows = 200000    # spans kept at most, newest first

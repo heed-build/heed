@@ -145,7 +145,10 @@ public enum DefaultKeys {
             ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"),
             ("U", "history.standup"), ("T", "history.telemetry"), ("<CR>", "telemetry.open"),
             ("r", "telemetry.range"), ("a", "telemetry.agent"), ("p", "telemetry.repo"), ("m", "telemetry.model"),
-            ("K", "telemetry.kind"), ("l", "telemetry.live"),
+            ("K", "telemetry.kind"), ("l", "telemetry.live"), ("P", "telemetry.proxy.off"), (
+                "x",
+                "telemetry.banner.hide"
+            ),
         ],
         // A session's trace (t on a session, :trace): j k turns, h l spans in the turn; t or ⎋ goes back.
         "trace": [

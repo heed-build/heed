@@ -43,8 +43,8 @@ public extension Tutor {
         ) { start, now, _ in now.panes > start.panes },
         TutorStep(
             "Views",
-            say: "Each view is g and a letter: {view.attention} Attention, {view.watch} Watch, {view.repos} Repos. Visit two, then {view.sessions} comes home.",
-            keys: ["{view.watch}", "{view.attention}", "{view.sessions}"], target: "viewTabs",
+            say: "Each view is g and a letter: {view.attention} Attention, {view.autopilot} Autopilot, {view.repos} Repos. Visit two, then {view.sessions} comes home.",
+            keys: ["{view.autopilot}", "{view.attention}", "{view.sessions}"], target: "viewTabs",
             doneLine: "Views stay where you left them: switching back finds the same row."
         ) { _, now, seen in Set(seen.map(\.view)).count >= 3 && now.view == "sessions" },
         TutorStep(
@@ -231,12 +231,33 @@ public extension Tutor {
                 doneLine: "It stops after three rounds without progress. Nobody gets nagged forever."
             ) { _, now, _ in now.overlay == nil },
         ]),
-        TutorLesson(id: "watch", title: "Watch", minutes: 3, world: .mondayMorning, steps: [
+        // Kept as "watch": progress saved under the name the lesson had when the view was Watch.
+        TutorLesson(id: "watch", title: "Autopilot", minutes: 4, world: .mondayMorning, steps: [
             TutorStep(
-                "Every PR, by what it needs",
-                say: "{view.watch} opens Watch: the PRs your sessions track, grouped by what they need, stuck ones first.",
-                keys: ["{view.watch}"], target: "list",
-                doneLine: "On the right, everything heed did lately: what it sent, what it held back, and why."
+                "What heed can do",
+                say: "{view.autopilot} opens Autopilot on Can do: a card for each thing heed does on its own, how much "
+                    + "of it is on, and what it did this week.",
+                keys: ["{view.autopilot}"], target: "autopilotCards",
+                doneLine: "Nothing here is new machinery: each card is a setting you already had, with its numbers."
+            ) { _, now, _ in now.view == "autopilot" },
+            TutorStep(
+                "Pick one",
+                say: "{autopilot.move l} picks the next card. The right side says what changes with it, how it goes, "
+                    + "and what it never does.",
+                keys: ["{autopilot.move l}"], target: "autopilotDetail",
+                doneLine: "y turns it on where it would help most, Y everywhere. Settings stays the long way round."
+            ) { start, now, _ in now.view == "autopilot" && now.cursor != start.cursor },
+            TutorStep(
+                "Where it is on",
+                say: "{autopilot.where} lays every repo against each capability: on, asks you first, or off.",
+                keys: ["{autopilot.where}"], target: "autopilotMatrix",
+                doneLine: "h j k l move over the cells; y a x turn the one under the cursor on, to ask first, or off."
+            ) { _, now, _ in now.view == "where" },
+            TutorStep(
+                "What it is doing",
+                say: "{autopilot.now} shows Now: the PRs heed stopped on first, then each capability's work.",
+                keys: ["{autopilot.now}"], target: "list",
+                doneLine: "On the right, the merge queues, cleanup, summaries and goal asks, then everything heed did."
             ) { _, now, _ in now.view == "watch" },
             TutorStep(
                 "Why it is not green",
@@ -267,8 +288,9 @@ public extension Tutor {
             },
             TutorStep(
                 "Get it merged",
-                say: "{pilot.merge} turns merging on for the PR: auto hands it to GitHub's auto-merge, heed merges by its own rules.",
-                keys: ["{pilot.merge}"], target: "pilotDetail",
+                say: "{row.next} down to Copilot's PR, where merging is off; {pilot.merge} turns it on: auto hands it to GitHub's "
+                    + "auto-merge, heed merges by its own rules.",
+                keys: ["{row.next}", "{pilot.merge}"], target: "pilotDetail",
                 doneLine: "{pilot.merge} again cycles to heed, then off. Repos and orgs can turn it on in config."
             ) { start, now, _ in now.merging > start.merging },
             TutorStep(
@@ -284,6 +306,12 @@ public extension Tutor {
                 keys: ["⎋", "{pilot.watch}"], target: "list",
                 doneLine: "{pilot.watch} again watches it. Watching is on by default; an org or repo can turn it off."
             ) { start, now, _ in now.watching < start.watching },
+            TutorStep(
+                "What it did",
+                say: "{autopilot.done} lists what heed did on its own this week, by day: sends, fixes, merges, asks.",
+                keys: ["{autopilot.done}"], target: "autopilotDone",
+                doneLine: "t narrows it to one capability, r to one repo; ↩ opens the PR or session."
+            ) { _, now, _ in now.view == "done" },
         ]),
         TutorLesson(id: "repos", title: "Repos", minutes: 4, world: .mondayMorning, steps: [
             TutorStep(

@@ -5,7 +5,7 @@ description: Feeding review comments and failing checks back to the agent that o
 # Review feedback
 
 When a session's pull request gets review comments or failing checks, Heed can hand them to the agent. In Sessions,
-`go` opens the PR overlay for the session's pull request. The [Watch view](watch.md) (`gw`) shows every PR this
+`go` opens the PR overlay for the session's pull request. [Autopilot's Now](autopilot.md#now) (`gw` `N`) shows every PR this
 happens for, and what heed did.
 
 ![The PR overlay: the pipeline counts, the items, delivery and the prompt that will be sent](../images/shots/github/feedback.png)
@@ -32,7 +32,7 @@ rebase and push; it resolves once GitHub says the PR merges cleanly. Your notes 
 | `zg` | Cycle green (auto-feed): **Off**, **Ask**, **Auto when idle** |
 | `zw` | Watch or stop watching this PR |
 | `zm` | Cycle merging: off, auto, heed |
-| `zp` | Pause or resume it (see [Watch](watch.md)) |
+| `zp` | Pause or resume it (see [Get it green and merged](watch.md)) |
 | `S` | Start a new session from this PR |
 | `h` / `l` (or `←` / `→`, `[p` / `]p`) | The session's previous / next PR |
 

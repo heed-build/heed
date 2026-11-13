@@ -84,7 +84,7 @@ struct AttentionActionsTests {
         #expect(normal["gm"] == "view.attention")
         #expect(normal["gi"] == "view.attention issues")
         #expect(normal["gp"] == "view.attention mine")
-        #expect(normal["gw"] == "view.watch" && normal["ga"] == "session.attention")
+        #expect(normal["gw"] == "view.autopilot" && normal["ga"] == "session.attention")
         #expect(AttentionFilter(rawValue: "issues") == .issues && AttentionFilter(rawValue: "mine") == .myPRs)
         let scoped = Dictionary(DefaultKeys.scoped["attention"]!.map { ($0.0, $0.1) }) { first, _ in first }
         #expect(scoped["x"] == "attention.done" && scoped["Z"] == "attention.snooze" && scoped["M"] == "attention.mute")

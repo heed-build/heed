@@ -66,6 +66,7 @@ toc:
       - file: pull-requests.md
       - file: reading.md
       - file: review-feedback.md
+      - file: autopilot.md
       - file: watch.md
       - file: repo-setup.md
       - file: tracking-prs.md

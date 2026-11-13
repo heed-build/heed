@@ -85,8 +85,8 @@ An **issue** opens in the [reader](../github/reading.md) or the browser, or come
 
 ## PRs and Watch
 
-A right-click on a row in [PRs](../github/pull-requests.md) or [Watch](../github/watch.md) offers that PR: open it,
-open it in the browser or its repo on GitHub, go to its session, and the pilot's items for it alone. In Watch it also
+A right-click on a row in [PRs](../github/pull-requests.md) or Autopilot's [Now](../github/autopilot.md#now) offers that PR: open it,
+open it in the browser or its repo on GitHub, go to its session, and the pilot's items for it alone. In Now it also
 runs or shows the PR's [merge queue](../github/watch.md) (`R`, `gM`).
 
 ## Attention

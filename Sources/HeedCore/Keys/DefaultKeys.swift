@@ -22,7 +22,10 @@ public enum DefaultKeys {
         ("'1", "pin.jump 1"), ("'2", "pin.jump 2"), ("'3", "pin.jump 3"), ("'4", "pin.jump 4"), ("'5", "pin.jump 5"),
         ("'6", "pin.jump 6"), ("'7", "pin.jump 7"), ("'8", "pin.jump 8"), ("'9", "pin.jump 9"),
         ("gG", "view.goals"), ("'g", "goal.jump"),
-        ("gh", "view.insights"), ("gr", "view.repos"), ("gw", "view.watch"), ("gM", "merge.queue"), ("gH", "host.open"),
+        ("gh", "view.insights"), ("gr", "view.repos"), ("gw", "view.autopilot"), ("gM", "merge.queue"), (
+            "gH",
+            "host.open"
+        ),
         (
             "@",
             "host.filter"
@@ -236,9 +239,32 @@ public enum DefaultKeys {
         "prs": [
             ("r", "github.sync"), ("<Space>", "select.toggle"),
         ],
+        // Autopilot's Now (N): the PRs heed works on, stalled first. A asks Copilot (C is Can do, as in every Autopilot
+        // view), R runs the PR's merge queue, ↩ reads the PR.
         "watch": [
-            ("r", "github.sync"), ("<Space>", "select.toggle"), ("R", "merge.run"), ("C", "pilot.copilot"),
-        ],
+            ("r", "github.sync"), ("<Space>", "select.toggle"), ("R", "merge.run"), ("A", "pilot.copilot"),
+            ("<CR>", "autopilot.open"),
+        ] + AutopilotTabs.keys,
+        // Autopilot's Can do (gw, C): h j k l between the cards, y turns the picked one on here, Y everywhere, ↩ shows
+        // what it did (Done), S its Settings.
+        "autopilot": [
+            ("h", "autopilot.move h"), ("j", "autopilot.move j"), ("k", "autopilot.move k"), ("l", "autopilot.move l"),
+            ("<Left>", "autopilot.move h"), ("<Down>", "autopilot.move j"), ("<Up>", "autopilot.move k"),
+            ("<Right>", "autopilot.move l"), ("y", "autopilot.on"), ("Y", "autopilot.everywhere"),
+            ("x", "autopilot.off"), ("<CR>", "autopilot.open"), ("S", "autopilot.settings"),
+        ] + AutopilotTabs.keys,
+        // Autopilot's Where (W): h j k l between cells, y a x turn the one under the cursor on, ask first or off, ↩
+        // opens the repo in Repos, M sets up merging there, S the capability's Settings.
+        "where": [
+            ("h", "autopilot.move h"), ("j", "autopilot.move j"), ("k", "autopilot.move k"), ("l", "autopilot.move l"),
+            ("<Left>", "autopilot.move h"), ("<Down>", "autopilot.move j"), ("<Up>", "autopilot.move k"),
+            ("<Right>", "autopilot.move l"), ("y", "autopilot.on"), ("a", "autopilot.ask"), ("x", "autopilot.off"),
+            ("<CR>", "autopilot.open"), ("M", "repo.setup"), ("S", "autopilot.settings"),
+        ] + AutopilotTabs.keys,
+        // Autopilot's Done (D): j k move, ↩ opens the PR or session, t narrows to a capability, r to a repo, { } days.
+        "done": [
+            ("<CR>", "autopilot.open"), ("t", "autopilot.what"), ("r", "autopilot.repo"),
+        ] + AutopilotTabs.keys,
         /// The diff overlay. ↩ writes a note on the line, as a double-click does.
         "diff": [
             ("n", "diff.hunk.next"), ("N", "diff.hunk.prev"), ("]f", "diff.file.next"), ("[f", "diff.file.prev"),

@@ -30,7 +30,7 @@ Tasks move up and down (`J` `K`) only by phase: the merge order follows what eac
 
 ![The outline in merge order](../../images/shots/goals/swarm-merge-order.png)
 
-The same label is on the swarm's PRs in Watch, in the PRs view, in the inspector and in the merge queue:
+The same label is on the swarm's PRs in Autopilot's Now, in the PRs view, in the inspector and in the merge queue:
 `swarm 1 · 3/4 · after #412 held`. A done swarm's PRs keep it until each has merged or closed as heed last saw it; a
 stopped swarm's lose it.
 

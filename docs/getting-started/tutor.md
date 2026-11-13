@@ -15,7 +15,7 @@ underneath (the Dock and the menu bar stay live). They come back exactly as they
 - **The global tour**: nine steps, about six minutes. Two modes, moving around, pins, the session that needs you,
   Start work, panes, views, the command line, and the keys sheet. The first-run screen offers it (`t`, show me around).
 - **View lessons**: one per view, two to four minutes each: Sessions, Start work, Attention (and two on its
-  Everything tab and its issues), PRs, Watch, Repos, Insights, Goals, the call log, Agents, Hosts and Diff. Each opens
+  Everything tab and its issues), PRs, Autopilot, Repos, Insights, Goals, the call log, Agents, Hosts and Diff. Each opens
   in its view; `inbox` and `issues` open Attention on Everything and on its issues.
 
 ## Starting it
@@ -78,7 +78,7 @@ next lesson you have not done (`↩`), the cheat sheet (`?`) and a replay (`r`).
 
 | World | What is in it | Lessons |
 |---|---|---|
-| Monday morning | Five agents, two PRs, one blocked on a permission, one asking questions | The tour, Sessions, Attention, its issues, Watch, Repos, Insights, Goals, the call log, Agents, Hosts, Diff |
+| Monday morning | Five agents, two PRs, one blocked on a permission, one asking questions | The tour, Sessions, Attention, its issues, Autopilot, Repos, Insights, Goals, the call log, Agents, Hosts, Diff |
 | PR storm | Review comments and a failing check on a PR whose agent is busy | Attention's Everything, PRs |
 | Fresh repos | Your repos and worktrees, no sessions yet | Start work |
 

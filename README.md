@@ -79,7 +79,7 @@ first screen for the tour, or `:tutor` any time.
 
 <table>
   <tr>
-    <td><img src="docs/images/shots/landing/green.png" alt="The Watch view: PRs by what they need, a PR's green checklist, and what heed did"></td>
+    <td><img src="docs/images/shots/landing/green.png" alt="Autopilot's Now: PRs by what heed does for them, a PR's green checklist, and what heed did"></td>
     <td><img src="docs/images/shots/landing/merged.png" alt="A PR heed merges: each merge rule and the one holding it back"></td>
   </tr>
   <tr>

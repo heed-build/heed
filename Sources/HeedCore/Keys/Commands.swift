@@ -87,6 +87,11 @@ public enum Commands {
             .move
         ),
         .init("view.history", "Insights, as view.insights does (the name it had before)", .move),
+        .init(
+            "view.autopilot",
+            "Autopilot: what heed can do on its own (Can do first), where it is on, what it does now, what it did",
+            .move
+        ),
         .init("goal.jump", "go to the session's goal; in Goals, to the goal of the session under the cursor", .move),
         // Panes & tabs
         .init("pane.left", "focus pane left", .panes),
@@ -134,7 +139,35 @@ public enum Commands {
             .views
         ),
         .init("view.prs", "pull requests", .views),
-        .init("view.watch", "watch: the PRs your sessions track, what heed does for each and has done", .views),
+        .init("view.watch", "Autopilot, as view.autopilot does (the view was Watch before)", .views),
+        .init("autopilot.cando", "Autopilot's Can do: a card per thing heed can do on its own", .views),
+        .init("autopilot.where", "Autopilot's Where: each repo, and which capabilities are on there", .views),
+        .init(
+            "autopilot.now", "Autopilot's Now: stalled PRs first, then what each capability is working on", .views
+        ),
+        .init("autopilot.done", "Autopilot's Done: what heed did on its own, by day", .views),
+        .init(
+            "autopilot.move", "Autopilot: move between cards (Can do) or cells (Where)", .selection,
+            arguments: "<h|j|k|l>"
+        ),
+        .init(
+            "autopilot.on", "Autopilot: turn the capability on here (the repo in Where; its default on Can do)",
+            .selection, arguments: "[capability] [repo]"
+        ),
+        .init("autopilot.ask", "Autopilot: have the capability ask you first here", .selection),
+        .init("autopilot.off", "Autopilot: turn the capability off here", .selection),
+        .init("autopilot.everywhere", "Autopilot: turn the capability on in every repo", .selection),
+        .init(
+            "autopilot.open",
+            "Autopilot: what the card did (Can do), the repo in Repos (Where), read the PR (Now and Done)",
+            .selection
+        ),
+        .init("autopilot.settings", "Autopilot: open the Settings page of the capability", .selection),
+        .init(
+            "autopilot.what", "Done: every capability, or the next one (or one by name)", .selection,
+            arguments: "[capability]"
+        ),
+        .init("autopilot.repo", "Done: every repo, or the next one (or one by name)", .selection, arguments: "[repo]"),
         .init("view.repos", "repos & worktrees", .views),
         .init(
             "view.log",

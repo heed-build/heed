@@ -15,9 +15,20 @@ public enum Fixtures {
         repo.quietMinutes = 15
         repo.gateChecks = ["build", "integration"]
         repo.holdLabels = ["do-not-merge"]
-        let misconfigured = PilotOverrides(merge: .auto)
+        repo.green = .auto
+        repo.merge = .heed
+        repo.copilotConflicts = true
+        repo.copilotComments = true
+        var misconfigured = PilotOverrides(merge: .auto)
+        misconfigured.copilotConflicts = true
+        // Autopilot's Where: green on auto in editor-rules, off in docs-website.
+        let rules = PilotOverrides(green: .auto, reviewers: ["copilot"])
+        let website = PilotOverrides(green: .off)
         return PilotRules(
-            orgs: ["acme": org], repos: ["acme/docs-toolkit": repo, "globex/markgraph": misconfigured]
+            orgs: ["acme": org], repos: [
+                "acme/docs-toolkit": repo, "globex/markgraph": misconfigured, "initech/editor-rules": rules,
+                "acme/docs-website": website,
+            ]
         )
     }()
 
@@ -204,6 +215,19 @@ public enum Fixtures {
         }
         // What each is: two picked in Start work, the rest read from their branch or PR.
         sessions[0].kind = .fix
+        // Autopilot's Done: heed named two sessions, and told one to carry on after a restart (oldest first in their
+        // timelines, so what the inspector shows of them stays as it was).
+        for (index, was, hours) in [(1, "add a validator for cross links", 30.0), (3, "fix arrowheads", 52.0)] {
+            sessions[index].titleBy = .heed
+            sessions[index].titleSeen = true
+            sessions[index].namings = 1
+            sessions[index].timeline.insert(TimelineEvent(
+                at: Clock.now.addingTimeInterval(-hours * 3600), text: "renamed: \(was) → \(sessions[index].title)"
+            ), at: 0)
+        }
+        sessions[3].timeline.insert(TimelineEvent(
+            at: Clock.now.addingTimeInterval(-26 * 3600), text: "sent “Continue where you left off.”"
+        ), at: 0)
         sessions[2].kind = .refactor
         sessions[0].usage = AgentUsage(
             model: "model-a", tokens: TokenCounts(input: 1840, output: 4120, cacheRead: 9870, cacheWrite: 610),
@@ -330,6 +354,7 @@ public enum Fixtures {
                 kind: .merged, text: "Fix label clipping"
             ),
         ]
+        log += pilotWeek
         log.sort { $0.at > $1.at }
         // heed merges #2841 (held: lint failed), docs-website#1920 has auto-merge on.
         pipeline.merge = .heed
@@ -393,6 +418,62 @@ public enum Fixtures {
             ],
             log
         )
+    }()
+
+    /// The rest of the week, for Autopilot's Done, on PRs no session tracks any more (so the open PRs' timelines stay
+    /// as they were): heed's rounds, fixes, merges, Copilot and review asks, and three sends you made by hand in
+    /// docs-website, where green is off.
+    static let pilotWeek: [PilotEvent] = {
+        let now = Clock.now
+        func at(_ days: Double, _ hour: Double) -> Date {
+            Calendar.current.startOfDay(for: now).addingTimeInterval(-days * 86400 + hour * 3600)
+        }
+        func pr(_ repo: Repo, _ number: Int) -> PullRef { PullRef(repo: repo, number: number) }
+        var log: [PilotEvent] = []
+        let rounds: [(Repo, Int, Double, Double, String)] = [
+            (docsToolkit, 2830, 1, 14.2, "Heading ids survive renames"), (markgraph, 412, 1, 11.1, "Label padding"),
+            (docsToolkit, 2827, 2, 16.4, "Link checker skips mailto"), (editorRules, 409, 2, 10.3, "Rule docs"),
+            (docsToolkit, 2824, 3, 15.0, "Cache the nav tree"), (markgraph, 410, 4, 13.5, "Arrow labels"),
+            (editorRules, 407, 5, 9.4, "Bump the parser"), (docsToolkit, 2821, 6, 12.0, "Anchors for tables"),
+        ]
+        for (repo, number, day, hour, title) in rounds {
+            let ref = pr(repo, number)
+            log += [
+                PilotEvent(at: at(day, hour), ref: ref, kind: .sent, text: "sent 2 items to claude (round 1)"),
+                PilotEvent(
+                    at: at(day, hour + 0.4), ref: ref, kind: .addressed, text: "the agent pushed: 2 items addressed"
+                ),
+                PilotEvent(at: at(day, hour + 0.6), ref: ref, kind: .resolved, text: "check lint resolved"),
+                PilotEvent(at: at(day, hour + 2), ref: ref, kind: .merged, text: title),
+            ]
+        }
+        log += [
+            PilotEvent(
+                at: at(1, 9.5), ref: pr(docsToolkit, 2830), kind: .autoMerge,
+                text: "auto-merge on: squash; GitHub merges once its requirements are met"
+            ),
+            PilotEvent(at: at(2, 8.2), ref: pr(docsToolkit, 2827), kind: .updated, text: "merged main in"),
+            PilotEvent(at: at(3, 10.1), ref: pr(editorRules, 408), kind: .review, text: "asked @copilot to review"),
+            PilotEvent(at: at(4, 9.9), ref: pr(markgraph, 410), kind: .review, text: "asked @copilot to review"),
+            PilotEvent(
+                at: at(2, 15.3), ref: pr(editorRules, 409), kind: .copilot,
+                text: "asked Copilot to merge in main and resolve the conflicts"
+            ),
+            // You, by hand, in docs-website (green off there): what Autopilot's nudge counts.
+            PilotEvent(
+                at: at(1, 16.0), ref: pr(docsWebsite, 1917), kind: .sent,
+                text: "sent 3 items to claude (round 1) (by you)"
+            ),
+            PilotEvent(
+                at: at(3, 11.0), ref: pr(docsWebsite, 1915), kind: .sent,
+                text: "sent 2 items to claude (round 1) (by you)"
+            ),
+            PilotEvent(
+                at: at(4, 17.0), ref: pr(docsWebsite, 1915), kind: .sent,
+                text: "sent 2 items to claude (round 2) (by you)"
+            ),
+        ]
+        return log
     }()
 
     /// The merge queues' runs: docs-website turned green and got auto-merge, docs-toolkit holds #2841 on lint.

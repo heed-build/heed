@@ -33,6 +33,9 @@ Goals.
 
 ## Also in Heed
 
+- [Autopilot](github/autopilot.md) (`gw`) shows everything heed can do on its own (get PRs green, merge them, hand
+  conflicts to Copilot, clean up worktrees, put work on its goal, name sessions), where each is on, what it is doing
+  now, and what it took off your hands this week.
 - Start work guesses the repo and the branch name, with Apple's on-device model where it is available
   ([Smart guesses](start-work/repos.md#smart-guesses)).
 - PRs that could merge say **Ready to merge**, and `zM` merges one now; the setup wizard proposes a repo's merge and

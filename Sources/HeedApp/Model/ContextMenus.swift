@@ -53,6 +53,8 @@ extension AppModel {
         switch list {
         case .attention:
             return attentionMenu(index)
+        case .autopilot, .autopilotWhere, .autopilotDone:
+            return []
         case .prs:
             let rows = pullRows
             return rows.indices.contains(index) ? pullMenu(rows[index].ref, place: .prs) : []

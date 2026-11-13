@@ -371,16 +371,26 @@ enum Shots {
             state.status = .offline("gh: could not resolve host api.github.com")
             model.commit(.githubSynced(state))
         }),
-        Shot(id: "github/attention", keys: "gm", highlight: [.attentionFilters]),
+        Shot(id: "github/attention", keys: "gm", highlight: [.attentionTabs]),
+        // The split: For you in its sections on the left, the PR under the cursor on the right, the comment read
+        // before folded and the new ones marked.
+        Shot(id: "github/attention-split", size: CGSize(width: 1440, height: 1000), keys: "gm3j"),
         Shot(
             id: "github/attention-detail", size: CGSize(width: 1440, height: 1240), keys: "gm/2845<CR>",
             crop: .attentionDetail
         ),
-        Shot(id: "github/attention-muted", keys: "gm" + String(repeating: "t", count: 7)),
+        Shot(id: "github/attention-muted", keys: "gm" + String(repeating: "t", count: 6)),
         Shot(id: "github/attention-reply", keys: "gm/2845<CR>R", crop: .confirm),
-        // Mentions from long ago that no notification is about: folded out of Needs me, listed under Tagged.
-        Shot(id: "github/attention-tagged", keys: "gmt"),
-        Shot(id: "github/attention-coverage", keys: "gm:attention.coverage<CR>", crop: .confirm),
+        // Mentions from long ago that no notification is about: folded out of For you, listed under Mentions.
+        Shot(id: "github/attention-mentions", keys: "gm:attention.filter mentions<CR>"),
+        // For you with Mentioned before unfolded.
+        Shot(
+            id: "github/attention-unfolded",
+            size: CGSize(width: 1440, height: 1560),
+            keys: "gmza",
+            crop: .attentionList
+        ),
+        Shot(id: "github/attention-coverage", keys: "gm:attention.coverage<CR>", crop: .attentionDetail),
         // The mention search stopped at its cap: the foot of the list turns amber.
         Shot(id: "github/attention-missing", keys: "gm", crop: .attentionCoverage, cropPadding: 8, prepare: { model in
             var state = model.github
@@ -394,7 +404,7 @@ enum Shots {
             state.fetches = fetches
             model.commit(.githubSynced(state))
         }),
-        Shot(id: "github/inbox", keys: ":inbox<CR>", highlight: [.chips]),
+        Shot(id: "github/inbox", keys: ":inbox<CR>", highlight: [.attentionTabs]),
         Shot(id: "github/inbox-rows", size: short, keys: ":inbox<CR>", crop: .list),
         Shot(id: "github/issues", keys: ":issues<CR>", highlight: [.issueRepos, .chips]),
         Shot(id: "github/issue-rows", size: short, keys: ":issues<CR>", crop: .list),

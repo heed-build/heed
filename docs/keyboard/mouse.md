@@ -94,12 +94,14 @@ runs or shows the PR's [merge queue](../github/watch.md) (`R`, `gM`).
 A right-click on a row offers to open it (`↩`), open it in the browser, go to its session (`gS`), draft a reply (`R`),
 start a session from it (`s`) or add it to the selected session (`a`), and be done with it (`x`), snooze it for an hour
 or until tomorrow, or mute its thread (`M`). An agent's row offers only its session, done and snooze. Picked rows
-(`␣`) work as in the Inbox below.
+(`␣`) work as in Issues below. A click on a row shows it in the reader beside the list and counts as opening it; a
+click on a tab opens the tab, on a section's *all done* or *folded* runs `X` or `za`, and on the line at the foot opens
+Coverage. Drag the line between list and reader to change the split.
 
-## Inbox and Issues
+## Issues
 
 A right-click on a row offers to open it (`↩`), open it in the browser or its repo on GitHub, start a session from it
-(`s`) or add it to the selected session (`a`); in the Inbox, mark it read (`x`); in Issues, show all of its repo's
+(`s`) or add it to the selected session (`a`), and show all of its repo's
 issues or only yours (`w`). With rows picked (`␣`), a right-click on one of them acts on all the picked rows, and the
 items say how many; a right-click on a row that is not picked acts on that row alone.
 

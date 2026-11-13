@@ -1,36 +1,24 @@
 ---
-description: Your GitHub notifications in Heed, filtered, read and turned into sessions.
+description: Your GitHub notifications are Attention's Everything tab now.
 ---
 
 # Inbox
 
-`:inbox` opens your notifications (`gm` opens [Attention](attention.md), which they are part of): pull requests, issues, CI runs, releases and discussions, newest first.
+The Inbox is [Attention](attention.md)'s **Everything** tab now: every notification (pull requests, issues, CI runs,
+releases, discussions) and every item the other tabs list, newest first, with the thread under the cursor beside it.
+`:inbox` and `:view.inbox` open it, as `:view.attention all` does.
 
-![The Inbox: filter chips across the top, notifications below](../images/shots/github/inbox.png)
+![Everything: the tab where the inbox went](../images/shots/github/inbox.png)
 
-## Filters
+What was the Inbox's is Attention's:
 
-`t` cycles the chips; `/` [filters](../sessions/filtering.md) by text on top of them.
-
-| Chip | Shows |
+| Inbox | In Attention |
 |---|---|
-| Unread | What you have not read yet (the default) |
-| All | Everything, threads you read (here or elsewhere) included, for 30 days |
-| PRs | Pull requests |
-| Issues | Issues |
-| Review requested | Pull requests waiting on your review |
-| Assigned | Things assigned to you |
-| CI runs | GitHub Actions telling you a workflow run finished (failed, mostly) on your branch |
+| Unread, All | Everything lists every item; [For you](attention.md#for-you) what is new or waits on you |
+| PRs, Issues, Review requested, Assigned, CI runs | The tabs and the narrow lists: My PRs, Reviews, `gi`, `:view.attention ci` |
+| `x` mark read | `x` done: marked read on GitHub, back when someone else acts ([Done](attention.md#done)) |
+| `space`, `v`, `s`, `a` | The same: pick, [start a session](../start-work/from-github.md), add to the current one |
+| `go`, `↩` | `↩` the full [reader](reading.md); the thread under the cursor already shows on the right |
+| `gB` | The same: open in the browser |
 
-## Acting on items
-
-| Key | |
-|---|---|
-| `space` | Pick an item; `v` picks a range |
-| `s` | [Start a session](../start-work/from-github.md) from the picked items |
-| `a` | Add them to the current session |
-| `go`, `↩` | [Read](reading.md) the item in the app |
-| `x` | Mark read: done with it, as `x` is everywhere |
-| `gB` | Open in the browser |
-
-![Inbox rows: kind, repo, title, why it is in your inbox, and when](../images/shots/github/inbox-rows.png)
+![Everything's rows: kind, repo, title, why it is there, and when](../images/shots/github/inbox-rows.png)

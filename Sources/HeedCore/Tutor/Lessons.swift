@@ -142,17 +142,18 @@ public extension Tutor {
         TutorLesson(id: "attention", title: "Attention", minutes: 3, world: .mondayMorning, steps: [
             TutorStep(
                 "Why it is here",
-                say: "Every item says why it wants you; on the right, its summary and the rule that matched. {attention.filter} goes through the filters on the left: go to Muted.",
-                keys: ["{attention.filter}"], target: "attentionFilters",
+                say: "Every item says why it wants you; on the right, the thread itself. {attention.filter} goes through the tabs over the list, then Muted: go to Muted.",
+                keys: ["{attention.filter}"], target: "attentionTabs",
                 doneLine: "Muted keeps what rules ignore and what you muted, for 30 days."
             ) { _, now, _ in now.attentionFilter == "muted" },
             TutorStep(
                 "Done",
-                say: "{attention.filter} once more is Needs me again. {attention.done} is done with the item under the cursor.",
+                say: "{attention.filter} once more is For you again. {attention.done} is done with the item under the cursor.",
                 keys: ["{attention.filter}", "{attention.done}"], target: "list",
                 doneLine: "Read on GitHub too. It comes back when something new happens in it."
             ) { _, now, seen in
-                now.attentionFilter == "needs" && seen.contains { $0.attentionFilter == "needs" && $0.rows > now.rows }
+                now.attentionFilter == "foryou" && seen
+                    .contains { $0.attentionFilter == "foryou" && $0.rows > now.rows }
             },
             TutorStep(
                 "Later",
@@ -161,10 +162,11 @@ public extension Tutor {
                 doneLine: "Snoozing stays in heed. {attention.mute} mutes a thread on GitHub itself."
             ) { start, now, _ in now.rows < start.rows },
         ]),
-        TutorLesson(id: "inbox", title: "Inbox", minutes: 2, world: .prStorm, steps: [
+        // The inbox is Attention's Everything now; the lesson keeps its id, so progress and `:tutor inbox` hold.
+        TutorLesson(id: "inbox", title: "Everything tab", minutes: 2, world: .prStorm, steps: [
             TutorStep(
                 "Open one",
-                say: "{open.reader} reads the item under the cursor without leaving heed; ⎋ closes it.",
+                say: "Everything lists all of it, the thread under the cursor on the right. {open.reader} opens it in the full reader; ⎋ closes it.",
                 keys: ["{open.reader}", "⎋"], target: "list",
                 doneLine: "Read in place. {open.browser} opens it on GitHub instead."
             ) { _, now, seen in seen.contains { $0.overlay != nil } && now.overlay == nil },
@@ -176,8 +178,8 @@ public extension Tutor {
             ) { _, now, _ in now.picked >= 2 },
             TutorStep(
                 "Dismiss together",
-                say: "{items.read} marks everything picked as read.",
-                keys: ["{items.read}"], target: "list",
+                say: "{attention.done} is done with everything picked.",
+                keys: ["{attention.done}"], target: "list",
                 doneLine: "Read, here and on GitHub."
             ) { start, now, _ in now.unread < start.unread },
         ]),

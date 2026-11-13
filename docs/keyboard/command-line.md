@@ -19,7 +19,7 @@ description: Running any command by name from the command line.
 The list above the line shows every match, scrolling past ten: commands with their keys, and short forms (marked
 *alias*) with the command they run. After a space it completes the argument: view names for `:view`, session titles
 for `:session.open`, pins for `:pin.jump`, tabs for `:tab.go`, hosts for `:host.filter`, Settings sections, pause
-and snooze durations, Attention's filters for `:view.attention` and `:attention.filter`, the call log's kinds for
+and snooze durations, Attention's tabs for `:view.attention` and `:attention.filter`, the call log's kinds for
 `:log.kind`, the timeline's kinds, repos and places, the dashboard's ranges, merge queues for `:merge.run` and
 `:merge.queue`, repos for `:issues.repo`, the session's PRs and issues for `:pr.untrack` and `:issue.remove`, lessons
 for `:tutor`, `all` for `:tutor.hide` and agents for `:agent`. Paths, URLs and prompts are typed as they are.
@@ -38,7 +38,7 @@ Short forms work too:
 | `:pr 2841` | Read pull request 2841 |
 | `:track <url>` | Track a pull request in this session (`gU` takes the URL on the clipboard) |
 | `:wt sweep` | Run the cleanup sweep |
-| `:attention`, `:inbox`, `:log`, … | Switch view |
+| `:attention`, `:log`, … | Switch view; `:inbox` opens Attention's [Everything](../github/inbox.md) |
 | `:import <path>` | Import the worktree at a path |
 | `:tutor [lesson]` | The [tutor](../getting-started/tutor.md)'s picker, or a lesson by name |
 | `:back`, `:skip` | In the tutor: the step again, or skip it |
@@ -56,7 +56,10 @@ Everything you can do with the mouse, the menu bar or a global shortcut is a com
 | `:tab.go <n>` | Go to tab n |
 | `:filter.clear` | Clear the view's filter |
 | `:issues.repo [name]` | Show one repo's issues; no name shows every repo |
-| `:attention.coverage` | [What Attention has](../github/attention.md#is-anything-missing) of each source against what GitHub says, and where it went |
+| `:view.attention [tab]` | Attention on a tab: `foryou`, `reviews`, `mentions`, `mine`, `agents`, `all`, `muted`, or `issues`, `ci` (the old `needs`, `tagged`, `inbox` still work) |
+| `:attention.coverage` | [Coverage](../github/attention.md#is-anything-missing): what Attention has of each source against what GitHub says, and where it went |
+| `:attention.done.new` | Done with everything in For you's [New since](../github/attention.md#for-you) (`X`) |
+| `:attention.fold` | List For you's Mentioned before, or fold it again (`za`) |
 | `:resume` | The "pick up where you left off" dialog, as on launch |
 | `:work.start.panel` | Start work in the floating panel |
 | `:settings.open [page] [tab]` | Settings, on a page: `general`, `notifications`, `updates`, `agents`, `model-calls`, `decisions`, `worktrees`, `goals`, `history`, `github`, `pilot`, `orgs`, `attention`, `hosts`, `tools` or `keys` (the old `colors`, `cleanup`, `inference` still work); `orgs` and `pilot` take a tab, `agents` an agent and a tab |

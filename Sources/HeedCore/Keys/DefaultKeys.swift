@@ -275,7 +275,8 @@ public enum DefaultKeys {
     static let attention: [(String, String)] = [
         ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "attention.done"),
         ("Z", "attention.snooze"), ("M", "attention.mute"), ("R", "attention.reply"), ("gS", "attention.session"),
-        ("t", "attention.filter"), ("T", "attention.sort"), ("r", "github.sync"),
+        ("t", "attention.filter"), ("T", "attention.sort"), ("r", "github.sync"), ("X", "attention.done.new"),
+        ("za", "attention.fold"), ("<C-e>", "attention.reader.down"), ("<C-y>", "attention.reader.up"),
         ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
     ]
 

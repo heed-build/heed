@@ -58,6 +58,13 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
 
     static let passiveReasons: Set<AttentionReason> = [.yourPR, .watching, .mentionedBefore, .assignedBefore]
 
+    /// A reason that goes on asking until you act (a review request, an assignment, changes requested, an agent's
+    /// question): For you lists it under Waiting on you once nothing is new. The rest (comments, a state change, a
+    /// subscription) are news only: once you looked, For you lets them go, and Everything keeps them.
+    public var waits: Bool { !passive && !Self.newsOnly.contains(self) }
+
+    static let newsOnly: Set<AttentionReason> = [.author, .comment, .stateChange, .subscribed, .other]
+
     /// Mentioned or assigned before: folded, and counted at the foot of Attention.
     public var before: Bool { self == .mentionedBefore || self == .assignedBefore }
 

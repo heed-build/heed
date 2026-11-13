@@ -98,7 +98,7 @@ struct AttentionFeedTests {
         )
         let items = AttentionFeed.items(github: GitHubState(issues: [watched], pulls: [closed]), sessions: [])
         #expect(items.map(\.id) == ["acme/docs#9"])
-        #expect(items[0].reasons == [.watching] && !AttentionFilter.needsMe.matches(items[0]))
+        #expect(items[0].reasons == [.watching] && !AttentionFilter.forYou.matches(items[0]))
         #expect(AttentionFilter.issues.matches(items[0]))
     }
 
@@ -166,17 +166,17 @@ struct AttentionFeedTests {
                 updatedAt: now
             )
         }
-        #expect(AttentionFilter.tagged.matches(item(.pr, [.teamMention])))
-        #expect(AttentionFilter.tagged.matches(item(.issue, [.mentioned])))
-        #expect(!AttentionFilter.tagged.matches(item(.pr, [.reviewRequested])))
+        #expect(AttentionFilter.mentions.matches(item(.pr, [.teamMention])))
+        #expect(AttentionFilter.mentions.matches(item(.issue, [.mentioned])))
+        #expect(!AttentionFilter.mentions.matches(item(.pr, [.reviewRequested])))
         #expect(AttentionFilter.reviews.matches(item(.pr, [.reviewRequested])))
         #expect(AttentionFilter.myPRs.matches(item(.pr, [.yourPR])))
         #expect(!AttentionFilter.myPRs.matches(item(.pr, [.reviewRequested])))
         #expect(AttentionFilter.agents.matches(item(.agent, [.agentBlocked])))
         #expect(AttentionFilter.ci.matches(item(.ci, [.ciFailed])))
         #expect(AttentionFilter.issues.matches(item(.issue, [.watching])))
-        #expect(AttentionFilter.needsMe.matches(item(.issue, [.subscribed])))
-        #expect(!AttentionFilter.needsMe.matches(item(.pr, [.yourPR])))
+        #expect(AttentionFilter.forYou.matches(item(.issue, [.subscribed])))
+        #expect(!AttentionFilter.forYou.matches(item(.pr, [.yourPR])))
     }
 
     @Test func marksHideUntilTheyNoLongerApply() {

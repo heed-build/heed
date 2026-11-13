@@ -41,38 +41,37 @@ extension AppModel {
         )
     }
 
-    /// What the view lists: the filter, the sort, and `/`.
-    var attentionRows: [AttentionEntry] {
+    /// What the tab lists, in its sections: the tab, the sort, and `/`.
+    var attentionListing: AttentionListing {
         let text = filter(for: .attention)
-        return AttentionRanking.list(attentionEntries, filter: attention.filter, sort: attention.sort, now: Clock.now)
-            .filter { entry in
-                let item = entry.item
-                return FilterQuery.matches(
-                    text,
-                    [item.title, item.place, item.author ?? ""] + item.orderedReasons.map(\.text) + item.labels
-                        + item.teams.sorted()
-                )
-            }
+        let entries = attentionEntries.filter { entry in
+            let item = entry.item
+            return FilterQuery.matches(
+                text,
+                [item.title, item.place, item.author ?? ""] + item.orderedReasons.map(\.text) + item.labels
+                    + item.teams.sorted()
+            )
+        }
+        return AttentionListing.of(
+            entries, filter: attention.filter, sort: attention.sort, seen: attention.sectionSeen,
+            unfoldBefore: attention.unfoldBefore, now: Clock.now
+        )
     }
 
-    var attentionCounts: [AttentionFilter: Int] { AttentionRanking.counts(attentionEntries, now: Clock.now) }
+    /// The rows the cursor moves over.
+    var attentionRows: [AttentionEntry] { attentionListing.rows }
+
+    var attentionCounts: [AttentionFilter: Int] {
+        AttentionListing.counts(attentionEntries, seen: attention.sectionSeen, now: Clock.now)
+    }
+
+    /// Whether the item has something from someone else since you last looked at it: its blue dot (cleared as soon
+    /// as you looked, though its row stays in New until you leave Attention).
+    func attentionIsNew(_ item: AttentionItem) -> Bool { attention.seen.isNew(item) }
 
     /// What Attention has of each source, against what GitHub says: the line at the foot of the list.
     var attentionCoverage: AttentionCoverage {
         AttentionCoverage.of(github: attentionGitHub, entries: attentionEntries, now: Clock.now)
-    }
-
-    /// `:attention.coverage`: the sources, one line each, with how many came, where they went, and when.
-    func showAttentionCoverage() {
-        let coverage = attentionCoverage
-        ask(Confirmation(
-            title: coverage.mismatch ? "Attention is missing some of what GitHub has" : "What Attention has",
-            lines: coverage.table(now: Clock.now) + [
-                "Heed reads every unread notification up to \(GitHub.notificationCap), keeps read ones 30 days, "
-                    + "and \(GitHub.issueSearchCap) issues per search, newest first",
-            ],
-            accept: "Sync now", cancel: "Close", destructive: false
-        ) { [weak self] in self?.perform(CommandInvocation(name: "github.sync")) })
     }
 
     /// The row under the cursor.
@@ -124,7 +123,7 @@ extension AppModel {
 
     /// A notification's Open: Attention, on the item.
     func showAttentionItem(_ id: String) {
-        attention.filter = attentionEntries.first { $0.id == id }?.muted == true ? .muted : .needsMe
+        attention.filter = attentionEntries.first { $0.id == id }?.muted == true ? .muted : .everything
         view = .attention
         moveCursor(.attention, to: id)
         activateHeed()
@@ -132,10 +131,10 @@ extension AppModel {
 
     // MARK: Commands
 
-    /// `view.attention [filter]`: `gm` opens it, `gi` with Issues, `gp` with My PRs.
+    /// `view.attention [filter]`: `gm` opens it, `gi` with Issues, `gp` with My PRs, `:inbox` with Everything.
     func openAttention(_ name: String?) {
         if let name {
-            guard let filter = AttentionFilter(rawValue: name) else {
+            guard let filter = AttentionFilter.named(name) else {
                 say("no Attention filter named \(name)")
                 return
             }
@@ -148,17 +147,17 @@ extension AppModel {
         attentionSelectionChanged()
     }
 
-    /// `attention.filter [name]`: the next filter, or the one named.
+    /// `attention.filter [name]`: the next tab (after Everything, Muted), or the one named.
     func cycleAttentionFilter(_ name: String?) {
         if let name {
-            guard let filter = AttentionFilter(rawValue: name) else {
+            guard let filter = AttentionFilter.named(name) else {
                 say("no Attention filter named \(name)")
                 return
             }
             attention.filter = filter
         } else {
-            let all = AttentionFilter.allCases
-            attention.filter = all[(all.firstIndex(of: attention.filter)! + 1) % all.count]
+            let all = AttentionFilter.cycle
+            attention.filter = all[((all.firstIndex(of: attention.filter) ?? -1) + 1) % all.count]
         }
         itemCursor[.attention] = 0
         attentionSelectionChanged()
@@ -184,13 +183,63 @@ extension AppModel {
         if !threads.isEmpty { commit(.inboxRead(threads)) }
         clearPicks()
         say(targets.count == 1 ? "done" : "done with \(targets.count)")
+        finishDone(targets)
+    }
+
+    /// `X`: done with everything in For you's New since.
+    func attentionDoneNew() {
+        let ids = Set(attentionListing.ids(.new))
+        guard attention.filter == .forYou, !ids.isEmpty else {
+            say("nothing new to be done with")
+            return
+        }
+        let targets = attentionEntries.filter { ids.contains($0.id) }
+        let now = Clock.now
+        for entry in targets {
+            var mark = entry.mark
+            mark.doneAt = max(now, entry.item.updatedAt)
+            attention.setMark(mark, for: entry.id)
+        }
+        let threads = targets.compactMap(\.item.notificationID)
+        if !threads.isEmpty { commit(.inboxRead(threads)) }
+        clearPicks()
+        say("done with the \(targets.count) new")
+        finishDone(targets)
+    }
+
+    /// After done: what you did, for Hunch; the threads read on GitHub; the reader on the row now under the cursor.
+    private func finishDone(_ targets: [AttentionEntry]) {
         recordLabel(.done, targets)
+        attentionSelectionChanged()
+        let threads = targets.compactMap(\.item.notificationID)
         guard !isFixture, !threads.isEmpty else { return }
         Task {
             for thread in threads {
                 try? await GitHub.markRead(threadID: thread, caller: "attention.done")
             }
         }
+    }
+
+    /// `za`: Mentioned before, listed or folded again.
+    func toggleAttentionFold() {
+        guard attention.filter == .forYou, let before = attentionListing.section(.before) else {
+            say("nothing is folded here")
+            return
+        }
+        let id = attentionSelected?.id
+        attention.unfoldBefore.toggle()
+        if attention.unfoldBefore {
+            // To the first of them, as opening a fold does.
+            itemCursor[.attention] = before.start
+        } else if let id, !attentionRows.contains(where: { $0.id == id }) {
+            itemCursor[.attention] = max(0, attentionRows.count - 1)
+        }
+        attentionSelectionChanged()
+    }
+
+    /// `⌃e` / `⌃y`: the reader scrolls by half its height; the cursor stays in the list.
+    func scrollAttentionReader(_ direction: Int) {
+        attention.readerScroll = (direction, attention.readerScroll.count + 1)
     }
 
     /// `Z`: out of the feed until later; local, nothing is told to GitHub.
@@ -210,6 +259,7 @@ extension AppModel {
         let day = until.timeIntervalSince(Clock.now) > 20 * 3600
         say("snoozed until \(until.formatted(date: day ? .abbreviated : .omitted, time: .shortened))")
         recordLabel(.snooze, targets)
+        attentionSelectionChanged()
     }
 
     /// `M`: mute the thread on GitHub (its subscription ignored, so it holds everywhere); listed under Muted.
@@ -227,6 +277,7 @@ extension AppModel {
         clearPicks()
         say(targets.count == 1 ? "muted" : "muted \(targets.count)")
         recordLabel(.mute, targets)
+        attentionSelectionChanged()
         guard !isFixture else { return }
         let threads = targets.compactMap(\.item.notificationID)
         Task {
@@ -323,11 +374,17 @@ extension AppModel {
         item.url.flatMap { attention.details[$0.lowercased()] }
     }
 
-    /// The cursor moved in Attention: after a moment on the row, its details and summary are fetched (each once per
-    /// update of the thread).
+    /// The cursor moved in Attention (or the row under it changed): the thread you leave counts as seen if you read
+    /// it (`AttentionVisit`), the reader shows the new one, and after a moment on the row its details and summary
+    /// are fetched (each once per update of the thread).
     func attentionSelectionChanged() {
         updateScope()
-        guard view == .attention, !isFixture, let item = attentionSelected?.item else { return }
+        let current = view == .attention ? attentionSelected?.item : nil
+        if attention.visit?.id != current?.id {
+            endAttentionVisit()
+            attention.visit = current.map { AttentionVisit(id: $0.id, startedAt: Clock.now) }
+        }
+        guard view == .attention, !isFixture, let item = current else { return }
         Task {
             try? await Task.sleep(for: .milliseconds(500))
             guard view == .attention, attentionSelected?.item.id == item.id else { return }
@@ -338,6 +395,31 @@ extension AppModel {
             summarize(item)
             suggestWeight(item)
         }
+    }
+
+    /// The reader's thread is left: seen, if you read it.
+    func endAttentionVisit() {
+        guard let visit = attention.visit else { return }
+        attention.visit = nil
+        if let at = visit.seen(leavingAt: Clock.now) { attention.markSeen(visit.id, at: at) }
+    }
+
+    /// A click on the row or ↩ on it: the thread is opened on purpose, so it counts as read when you leave it.
+    func openedAttentionItem() {
+        guard view == .attention, let id = attentionSelected?.id else { return }
+        if attention.visit?.id != id { attentionSelectionChanged() }
+        attention.visit?.opened = true
+    }
+
+    /// Into Attention: For you's sections from when you last looked, held still while you are here.
+    func enteredAttention() {
+        attention.sectionSeen = attention.seen
+    }
+
+    /// Out of Attention: the thread in the reader seen if read, and New since starts now next time.
+    func leftAttention() {
+        endAttentionVisit()
+        attention.left(at: Clock.now)
     }
 
     private func fetchDetail(_ item: AttentionItem) async {

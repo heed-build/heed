@@ -120,10 +120,10 @@ struct AttentionNeedsYouTests {
         // A cache from before heed asked when it was opened goes by its last update.
         #expect(found["acme/docs#5"]?.reasons == [.mentionedBefore])
         #expect(found["acme/docs#6"]?.reasons == [.mentioned])
-        // Folded: out of Needs me, still under Tagged.
+        // Folded: out of For you, still under Mentions.
         #expect(found["acme/docs#1"]?.wantsYou == false && found["acme/docs#3"]?.wantsYou == false)
-        #expect(AttentionFilter.tagged.matches(found["acme/docs#1"]!))
-        #expect(!AttentionFilter.needsMe.matches(found["acme/docs#1"]!))
+        #expect(AttentionFilter.mentions.matches(found["acme/docs#1"]!))
+        #expect(!found["acme/docs#1"]!.wantsYou)
     }
 
     @Test func theFourteenDayWindowEndsAtFourteenDays() {
@@ -307,8 +307,8 @@ struct AttentionCoverageTests {
         #expect(mentions?.count(.folded) == 2 && mentions?.count(.listed) == 1)
         #expect(result.row(.assigned)?.count(.folded) == 1)
         #expect(result
-            .table(now: now)[0] == "Notifications: 4 of 4 unread · 2 in Needs me · 1 done · 1 muted · fetched 2m ago")
-        #expect(result.table(now: now)[1] == "Mentions: 3 of 3 open · 1 in Needs me · 2 folded · fetched 2m ago")
+            .table(now: now)[0] == "Notifications: 4 of 4 unread · 2 in For you · 1 done · 1 muted · fetched 2m ago")
+        #expect(result.table(now: now)[1] == "Mentions: 3 of 3 open · 1 in For you · 2 folded · fetched 2m ago")
     }
 
     @Test func aCapOrSAMLIsAMismatch() {

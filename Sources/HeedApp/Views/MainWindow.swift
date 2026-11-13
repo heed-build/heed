@@ -215,7 +215,7 @@ struct TitleBar: View {
     /// Unread inbox items; PRs that need you.
     private func badge(_ view: AppView) -> Int {
         switch view {
-        case .attention: model.attentionCounts[.needsMe] ?? 0
+        case .attention: model.attentionCounts[.forYou] ?? 0
         case .inbox: model.github.inbox.count(where: \.unread)
         case .prs: model.github.pullsNeedingAttention
         default: 0
@@ -567,12 +567,13 @@ struct StatusBar: View {
             .map { "\(model.keyText(for: $0.0, in: "log")) \($0.1)" }.joined(separator: " · ")
             + " · \(key("session.filter", in: "log")) search"
         case .normal where model.view == .attention:
-            [
-                ("attention.done", "done"), ("attention.snooze", "snooze"), ("attention.mute", "mute"),
-                ("attention.reply", "reply"), ("attention.session", "session"), ("attention.filter", "filter"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "attention")) \($0.1)" }.joined(separator: " · ")
-            + " · \(key("session.filter", in: "attention")) search"
+            "\(key("row.next", "row.prev", in: "attention")) move · \(key("open.reader", in: "attention")) open · "
+                + [
+                    ("attention.done", "done"), ("attention.snooze", "snooze"), ("attention.reply", "reply"),
+                    ("items.start", "session"), ("attention.filter", "tab"),
+                ]
+                .map { "\(model.keyText(for: $0.0, in: "attention")) \($0.1)" }.joined(separator: " · ")
+                + " · \(key("session.filter", in: "attention")) filter"
         case .normal where model.view == .inbox: "↩ read · space pick · v range · s start session · a add · x mark read · t unread/all · / filter"
         case .normal where model.view == .issues: "↩ read · space pick · s start session · t filter · ⇥ repo · w all/yours · / filter"
         case .normal where model.view == .prs:

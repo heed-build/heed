@@ -20,7 +20,7 @@ struct TutorReminderTests {
         progress.lastStep = 1
         let reminder = progress.reminder(view: "prs")
         #expect(reminder?.lesson == "inbox")
-        #expect(reminder?.text.hasPrefix("Resume the Inbox · 2/") == true)
+        #expect(reminder?.text.hasPrefix("Resume the Everything tab · 2/") == true)
         progress.lastLesson = "tour"
         #expect(progress.reminder(view: "prs")?.text.hasPrefix("Resume the tour · 2/9") == true)
     }

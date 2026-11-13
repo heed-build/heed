@@ -92,6 +92,12 @@ public enum WhatsNew {
                 + "a line at the foot says how much of GitHub's it has, :attention.coverage per source.",
             showMe: .command("attention.coverage")
         ),
+        WhatsNewFeature(
+            "0.39.0", "Attention, split",
+            "Tabs over the list, For you in New since you looked, Waiting on you and Mentioned before, and the thread "
+                + "beside it with what you read folded. :inbox is its Everything tab.",
+            showMe: .command("view.attention")
+        ),
         // 0.37: the Settings redesign, and what merged alongside it.
         WhatsNewFeature(
             "0.37.0", "Settings as a tree",

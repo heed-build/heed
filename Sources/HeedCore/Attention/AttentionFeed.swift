@@ -170,32 +170,57 @@ public enum AttentionFeed {
     }
 }
 
-/// The sidebar's filters.
+/// Attention's tabs, and the two narrower lists `gi` and `view.attention ci` still open.
 public enum AttentionFilter: String, CaseIterable, Hashable, Sendable {
-    /// The raw values are what `view.attention` and `attention.filter` take: `gi` is `view.attention issues`.
-    case needsMe = "needs", tagged, reviews, myPRs = "mine", agents, ci, issues, muted
+    /// The raw values are what `view.attention` and `attention.filter` take: `gp` is `view.attention mine`. The
+    /// names before the tabs (`needs`, `tagged`, `inbox`) still work (`named`).
+    case forYou = "foryou", reviews, mentions, myPRs = "mine", agents, everything = "all", muted, ci, issues
 
-    public var title: String {
-        switch self {
-        case .needsMe: "Needs me"
-        case .tagged: "Tagged"
-        case .reviews: "Review requests"
-        case .myPRs: "My PRs"
-        case .agents: "Agents"
-        case .ci: "CI"
-        case .issues: "Issues"
-        case .muted: "Muted"
+    /// The tabs over the list, in order; `t` steps through them and Muted.
+    public static let tabs: [AttentionFilter] = [.forYou, .reviews, .mentions, .myPRs, .agents, .everything]
+    /// What `t` steps through: the tabs, then Muted.
+    public static let cycle: [AttentionFilter] = tabs + [.muted]
+
+    /// A filter by its name, its title, or its name before the tabs: `needs` is For you, `tagged` Mentions, and
+    /// `inbox` (the view Everything replaced) Everything.
+    public static func named(_ name: String) -> AttentionFilter? {
+        let key = name.lowercased().filter { $0.isLetter }
+        if let filter = AttentionFilter(rawValue: key) { return filter }
+        switch key {
+        case "needs", "needsme", "you": return .forYou
+        case "tagged", "mention": return .mentions
+        case "review", "reviewrequests": return .reviews
+        case "inbox", "everything", "every": return .everything
+        case "mypr", "myprs", "prs": return .myPRs
+        default: return allCases.first { $0.title.lowercased().filter(\.isLetter) == key }
         }
     }
 
-    /// Whether `item` belongs under this filter (muted aside: what is muted is decided by rules and marks).
+    public var title: String {
+        switch self {
+        case .forYou: "For you"
+        case .reviews: "Reviews"
+        case .mentions: "Mentions"
+        case .myPRs: "My PRs"
+        case .agents: "Agents"
+        case .everything: "Everything"
+        case .muted: "Muted"
+        case .ci: "CI"
+        case .issues: "Issues"
+        }
+    }
+
+    /// Whether `item` belongs under this filter (muted aside: what is muted is decided by rules and marks). For you
+    /// takes what wants you and what is folded as mentioned or assigned before; its sections sort them
+    /// (`AttentionListing`).
     public func matches(_ item: AttentionItem) -> Bool {
         switch self {
-        case .needsMe: item.wantsYou
-        case .tagged: !item.reasons.isDisjoint(with: [.mentioned, .teamMention, .mentionedBefore])
+        case .forYou: item.wantsYou || item.reasons.contains(where: \.before)
         case .reviews: item.reasons.contains(.reviewRequested)
+        case .mentions: !item.reasons.isDisjoint(with: [.mentioned, .teamMention, .mentionedBefore])
         case .myPRs: item.reasons.contains(.yourPR)
         case .agents: item.kind == .agent
+        case .everything: true
         case .ci: item.reasons.contains(.ciFailed)
         case .issues: item.kind == .issue
         case .muted: false

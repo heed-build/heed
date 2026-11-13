@@ -119,10 +119,10 @@ public enum Commands {
         .init("view.sessions", "sessions", .views),
         .init(
             "view.attention",
-            "attention: everything that wants you, one feed, with why (a filter: tagged, reviews, mine, ...)",
+            "attention: what wants you, with why, the thread beside it (a tab: foryou, reviews, mentions, mine, ...)",
             .views, arguments: "[filter]"
         ),
-        .init("view.inbox", "inbox", .views),
+        .init("view.inbox", "Attention's Everything tab, where the inbox went", .views),
         .init("view.issues", "issues", .views),
         .init("view.prs", "pull requests", .views),
         .init("view.watch", "watch: the PRs your sessions track, what heed does for each and has done", .views),
@@ -741,10 +741,17 @@ public enum Commands {
             "attention.reply", "draft a reply with the model; you read it before anything is posted", .selection
         ),
         .init("attention.session", "go to the item's session", .selection),
-        .init("attention.filter", "next Attention filter, or the one named", .selection, arguments: "[filter]"),
+        .init(
+            "attention.filter", "next Attention tab (Muted after Everything), or the one named", .selection,
+            arguments: "[filter]"
+        ),
+        .init("attention.done.new", "done with everything in For you's New since", .selection),
+        .init("attention.fold", "For you's Mentioned before: list it, or fold it again", .selection),
+        .init("attention.reader.down", "scroll Attention's reader down half its height", .selection),
+        .init("attention.reader.up", "scroll Attention's reader up half its height", .selection),
         .init("attention.sort", "Attention: recent first, or weight then recent", .selection),
         .init(
-            "attention.coverage", "what Attention has of each source against what GitHub says, and where it went",
+            "attention.coverage", "Coverage: what Attention has of each source against GitHub, and where it went",
             .selection
         ),
         .init("issues.repo.next", "next repo in the Issues repo column", .selection),

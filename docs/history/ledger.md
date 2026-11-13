@@ -4,9 +4,9 @@ description: A short summary of each piece of work, written by a cheap model, ke
 
 # Ledger
 
-`L` in History (or `:ledger`, `history.ledger`) shows the ledger: one entry per session or chat, newest first, with a
+`L` in Insights (or `:ledger`, `history.ledger`) shows the ledger: one entry per session or chat, newest first, with a
 short summary of what the work did and where it stands. It stays after the worktree is removed. `L` again goes back to
-History's list.
+History.
 
 ![The ledger: entries on the left, the selected one's summary, decisions, follow-ups and facts on the right](../images/shots/history/ledger.png)
 

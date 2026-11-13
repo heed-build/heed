@@ -46,7 +46,7 @@ overlay (`go`) and go back to the agent when it is idle. More in [Review feedbac
 
 ## 6. Done
 
-When the pull request is merged, the session moves to History with its outcome. Its prompt, timeline and agent session
-stay there, ready to reopen. More in [History](../history/index.md).
+When the pull request is merged, the session moves to History, in Insights (`gh`, then `D`), with its outcome. Its
+prompt, its story and agent session stay there, ready to reopen. More in [Insights](../history/index.md).
 
 ![History: closed sessions grouped by day, with their outcomes](../images/shots/getting-started/first-session-6-history.png)

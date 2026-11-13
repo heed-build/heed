@@ -46,7 +46,8 @@ This page is generated from the code (`mise run shots`).
 | `chat.new` `[prompt]` | `gc` | start a chat: an agent in a scratch folder or one you pick, no repo or worktree |
 | `chat.promote` |  | turn this chat into work: pick a repo, heed makes a worktree and hands the agent the chat |
 | `agent.switch` `[agent] [model] [effort]` | `gA` | hand the session to another agent: stop its agent, start that one on a handoff prompt |
-| `view.history` | `gh` | history |
+| `view.insights` | `gh` | Insights: the dashboard first, then History, the ledger, the Mindmap and standups |
+| `view.history` |  | Insights, as view.insights does (the name it had before) |
 | `goal.jump` | `'g` | go to the session's goal; in Goals, to the goal of the session under the cursor |
 
 ## Panes & tabs
@@ -80,20 +81,20 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `view` `<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|mindmap|standup|goals|log>` |  | switch view |
+| `view` `<sessions|attention|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
 | `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: what wants you, with why, the thread beside it (a tab: foryou, reviews, mentions, mine, ...) |
 | `view.inbox` |  | Attention's Everything tab, where the inbox went |
-| `view.issues` |  | Attention's issues: assigned to you or mentioning you, where the Issues view went |
+| `view.issues` |  | issues |
 | `view.prs` |  | pull requests |
 | `view.watch` | `gw` | watch: the PRs your sessions track, what heed does for each and has done |
 | `view.repos` | `gr` | repos & worktrees |
 | `view.log` |  | the call log: every command and GitHub call heed made, how long it took, how it ended |
-| `view.timeline` |  | History's timeline: sessions, worktrees, PRs and questions, by day |
-| `view.dashboard` |  | History's dashboard: what the work amounted to over a range |
-| `view.ledger` |  | History's ledger: a summary of each piece of work, kept after its worktree |
-| `view.standup` |  | History's standup reports: your questions answered, one report per org |
-| `view.mindmap` |  | History's Mindmap: the work grouped into campaigns, one Mindmap per org |
+| `view.timeline` |  | Insights' History with every event as its own line (what the timeline was) |
+| `view.dashboard` |  | Insights' dashboard: what the work amounted to over a range |
+| `view.ledger` |  | Insights' ledger: a summary of each piece of work, kept after its worktree |
+| `view.standup` |  | Insights' standup reports: your questions answered, one report per org |
+| `view.mindmap` |  | Insights' Mindmap: the work grouped into campaigns, one Mindmap per org |
 | `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
 | `goal.overview` |  | Goals: back to the goal's overview from any of its panes |
 | `goal.doc` | `E` (goalagents), `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalmap), `E` (goalpersonas), `E` (goalplan), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
@@ -121,9 +122,9 @@ This page is generated from the code (`mise run shots`).
 | `links.pick` | `gl` | pick one of the session's PRs and issues to open in the browser |
 | `issue.add` `[url]` | `gI` | link an issue to the session (its URL, or the copied one) |
 | `issue.remove` `[url]` |  | take an issue off the session |
-| `open.reader` | `<CR>` | read the item, issue or PR |
-| `cleanup.rules` |  | the cleanup settings (Settings › Worktrees › Cleanup) |
-| `cleanup.run` | `gC` | clean up worktrees now: remove the ones idle past your cleanup settings (lists them and asks first) |
+| `open.reader` | `<CR>` | read inbox item, issue or PR |
+| `cleanup.rules` |  | show the cleanup rules (Repos, with its rules panel) |
+| `cleanup.sweep` | `gC` | run the cleanup sweep now |
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
 | `inspector.tackle` `[text]` |  | hand the session's loose end with this text to its agent (none: all of them) |
 | `inspector.resolve` `<node> <text>` |  | mark a loose end done, on the Mindmap node it lives on |
@@ -164,12 +165,12 @@ This page is generated from the code (`mise run shots`).
 | `hunch.screen` |  | have Hunch read the agent pane under the cursor now: working, waiting for input, stuck or done |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
-| `history.list` |  | History's list of the sessions that ended |
-| `history.timeline` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (standup), `T` (timeline) | History as a timeline: what happened, by day (again: back to the list) |
-| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (standup), `L` (timeline) | History's ledger: a summary of each piece of work (again: back to the list) |
-| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup), `D` (timeline) | History's dashboard: sessions, agent time, PRs, by day, agent and repo |
-| `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup), `U` (timeline) | History's standup: your questions answered per org (again: back to the list) |
-| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (timeline) | History's Mindmap: the work grouped into campaigns, per org (again: back to the list) |
+| `history.list` |  | Insights' History: the work that ended, by day, each with its story |
+| `history.timeline` |  | History with every event as its own line (again: folded), as history.events |
+| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (standup) | Insights' ledger: a summary of each piece of work (again: back to History) |
+| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup) | Insights' dashboard: what shipped, agent time, your bests, goals (again: History) |
+| `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup) | Insights' standup: your questions answered per org (again: back to History) |
+| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to History) |
 
 ## Modes
 
@@ -189,14 +190,15 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch) | toggle row |
-| `history.reopen` | `R` (dashboard), `<CR>` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger), `R` (timeline), `<CR>` (timeline) | reopen: resume, recreating the worktree if needed |
+| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch) | toggle row |
+| `history.reopen` | `R` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
-| `history.outcome` `[outcome]` | `t` (history) | history: the next outcome filter, or one by name (all, merged, …) |
-| `timeline.kind` `[kind]` | `t` (timeline) | timeline: every kind, or one (sessions, worktrees, prs, questions, chats) |
-| `timeline.repo` `[name]` | `r` (timeline) | timeline: every repo, or the next one |
-| `timeline.where` `[local|host]` | `w` (timeline) | timeline: everywhere, this Mac, or a host |
-| `timeline.gone` | `c` (timeline) | timeline: show or hide removed worktrees |
+| `history.outcome` `[outcome]` | `t` (history) | History: the next outcome filter, or one by name (all, merged, …) |
+| `history.events` | `e` (history) | History: every event as its own line, or folded into its piece of work again |
+| `timeline.kind` `[kind]` | `K` (history) | History: every kind, or one (sessions, worktrees, prs, questions, chats) |
+| `timeline.repo` `[name]` | `r` (history) | History: every repo, or the next one |
+| `timeline.where` `[local|host]` | `w` (history) | History: everywhere, this Mac, or a host |
+| `timeline.gone` | `c` (history) | History: show or hide removed worktrees |
 | `standup.run` | `S` (standup) | standup: write a report for this org now |
 | `standup.copy` `[plain]` | `y` (standup) | standup: copy the answer to the question shown (all with none), as markdown |
 | `standup.copy.all` `[plain]` | `Y` (standup) | standup: copy the whole report, as markdown |
@@ -330,9 +332,11 @@ This page is generated from the code (`mise run shots`).
 | `log.caller` | `c` (log) | call log: only the caller of the call under the cursor, or every caller |
 | `log.agent` | `a` (log) | call log: only the agent of the call under the cursor, or every agent |
 | `log.copy` | `y` (log) | copy the command of the call under the cursor |
-| `github.sync` | `r` (attention), `r` (pr), `r` (prs), `r` (swarmask), `r` (watch) | sync GitHub now |
-| `items.start` | `s` (attention), `s` (issue), `s` (swarmask) | start one session from the picked items |
-| `items.add` | `a` (attention), `a` (issue), `a` (swarmask) | add the picked items to the current session |
+| `github.sync` | `r` (attention), `r` (inbox), `r` (issues), `r` (pr), `r` (prs), `r` (swarmask), `r` (watch) | sync GitHub now |
+| `items.start` | `s` (attention), `s` (inbox), `s` (issue), `s` (issues), `s` (swarmask) | start one session from the picked items |
+| `items.add` | `a` (attention), `a` (inbox), `a` (issue), `a` (issues), `a` (swarmask) | add the picked items to the current session |
+| `items.read` | `x` (inbox) | mark read |
+| `items.filter` | `t` (inbox), `t` (issues) | cycle the filter chips |
 | `attention.done` | `x` (attention), `x` (swarmask) | done: mark the thread read on GitHub; it comes back when something new happens |
 | `attention.snooze` `[duration]` | `Z` (attention), `Z` (swarmask) | snooze: out of the feed until later (3h, or 30m, 2d, tomorrow) |
 | `attention.mute` | `M` (attention), `M` (swarmask) | mute the thread on GitHub (no more notifications about it); listed under Muted |
@@ -346,6 +350,10 @@ This page is generated from the code (`mise run shots`).
 | `attention.sort` | `T` (attention), `T` (swarmask) | Attention: recent first, or weight then recent |
 | `attention.summarize` | `U` (attention), `U` (swarmask) | write the thread's catch-up summary again (↻): what is new since you last looked |
 | `attention.coverage` |  | Coverage: what Attention has of each source against GitHub, and where it went |
+| `issues.repo.next` | `<Tab>` (issues) | next repo in the Issues repo column |
+| `issues.repo.prev` | `<S-Tab>` (issues) | previous repo in the Issues repo column |
+| `issues.repo` `[name]` |  | show one repo's issues (no name: every repo) |
+| `issues.visibility` | `w` (issues), `w` (repos) | flip the repo under the cursor between all issues and only yours |
 | `feedback.queue` | `<Space>` (pr) | queue / unqueue the item |
 | `feedback.send` | `s` (pr) | send queued feedback to the session |
 | `feedback.mode` |  | pilot.green, by its former name |
@@ -378,9 +386,7 @@ This page is generated from the code (`mise run shots`).
 | `diff.ask.now` | `A` (diff) | ask the agent about this hunk (or the selected lines) now |
 | `diff.copy` | `y` (diff) | copy path:line (path:first-last for selected lines) |
 | `diff.edit` | `e` (diff) | open the file in the editor |
-| `repo.add` `[path]` | `a` (repos) | add or clone a repo: the dialog, or the repo at a path added (kept in repo_paths outside the roots) |
-| `repo.reveal` | `<D-o>` (repos) | show the repo's folder in Finder |
-| `repos.focus` `[repos|worktrees]` | `h` (repos), `l` (repos), `<Tab>` (repos), `<S-Tab>` (repos) | Repos: between the repo column and the worktree table (repos, worktrees, or the other one) |
+| `repo.add` `<path>` |  | add a repo outside the scanned roots (kept in repo_paths) |
 | `repo.scan` | `r` (repos) | refresh: rescan the repo roots |
 | `worktree.new` | `o` (repos) | start work in the repo under the cursor |
 | `setup.review` | `S` (repos) | the setup heed detected for the repo's new worktrees: approve, edit or never |

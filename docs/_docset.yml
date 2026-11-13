@@ -88,7 +88,6 @@ toc:
     children:
       - file: index.md
       - file: dashboard.md
-      - file: timeline.md
       - file: ledger.md
       - file: mindmap.md
       - file: standup.md

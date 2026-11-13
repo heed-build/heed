@@ -10,10 +10,10 @@ with the thing under the mouse.
 
 A key hint is a button too: click `zg green` beside a PR, `x done` in Attention or a row of the `?` overlay, and it runs
 what the key runs, on what it sits beside. The pointer turns to a hand over it and its tooltip names the command
-(`:pilot.green`). So do the filter chips of the [call log](../reference/call-log.md) and the [timeline](../history/timeline.md), the PR overlay's tabs,
+(`:pilot.green`). So do the filter chips of the [call log](../reference/call-log.md) and [History](../history/index.md#filters), the PR overlay's tabs,
 its Green modes and the checkbox on a feedback item (it queues or unqueues the item, as `space` does). A row of `:`'s
 completions takes the line as `⇥` would, a double-click runs it; a key listed after a pending `g` presses the rest. In
-History, its timeline, ledger and dashboard, `↩` and a double-click reopen, as `R` does.
+History and the ledger, `↩` and a double-click reopen, as `R` does; on the dashboard they read the PR.
 
 Every item in a right-click menu runs a command, the same one its key runs, and shows that key on the right: the menu
 teaches the keys as you use it. A command with no key shows its `:name` instead (`:pr.untrack`), which is what still
@@ -37,7 +37,7 @@ works in every mode like the other [Mac shortcuts](mac-shortcuts.md).
 |---|---|
 | File | Start work (`⌘N`), the floating panel, a new chat, importing a worktree, adding or cloning a repo, resume and *While you were away…*, syncing GitHub, rescanning repos, cleaning up worktrees and the cleanup settings, `config.toml`, finding git and gh again |
 | Session | Type into its agent or the focused pane, pin, park, start again from its prompt, *Hand off to…*, promote a chat, its goal (go to it, put it on one, take it off, a new goal from it), run a task, link or take off an issue, close, delete, stop every agent |
-| View | Every view, those without a tab too (PRs, the timeline, ledger, dashboard and call log), hosts, the filter, the sidebar and inspector, and a submenu each for Attention (and the issue reader), Repos, History, Goals (and a goal's board, `GOAL.md`, personas, evaluations and Unassigned) and the call log |
+| View | Every view, those without a tab too (PRs, History, the ledger, Mindmap, standup and call log), hosts, the filter, the sidebar and inspector, and a submenu each for Attention (and the issue reader), Repos, Insights, Goals (and a goal's board, `GOAL.md`, personas, evaluations and Unassigned) and the call log |
 | PR | The PR overlay, the diff, the session's PRs, the browser and links, tracking, everything the pilot does (watch, get it green, get it merged, merge now, pause, one more round, Copilot, reviewers, its run), merge queues, setting up a repo, and submenus for review feedback and the diff |
 | Go | The next session needing you (`ga`), back, a session by name, your pinned sessions, hints, VISUAL and the command line |
 | Window | Splitting, sizing, zooming, closing and moving between panes; new, next, previous, moving and closing tabs, and each tab by number |
@@ -99,17 +99,18 @@ row that is not picked acts on that row alone. A click on a row shows it in the 
 click on a tab opens the tab, on a section's *all done* or *folded* runs `X` or `za`, and on the line at the foot opens
 Coverage. Drag the line between list and reader to change the split.
 
-## Repos and History
+## Repos and Insights
 
 A worktree in Repos goes to its session or imports it (`↩`), starts work in its repo (`o`), copies its path, pins its
 session, opens its repo on GitHub, cleans up worktrees (`gC`), reviews the repo's
 setup (`S`), or removes it (`dd`, which asks first; never offered for the repo's own checkout). Selected worktrees
 (VISUAL) work as picked rows do above.
 
-A session in History reopens (`R`), starts again from its prompt (`O`), or opens its repo on GitHub. A row of History's
-[timeline](../history/timeline.md), [ledger](../history/ledger.md) or [dashboard](../history/dashboard.md) reopens its
-session (`R`) or opens its repo on GitHub, and goes back to the list; the timeline also shows only the row's kind, and
-the ledger writes the summary again (`S`) or edits it (`E`).
+A piece of work in [History](../history/index.md#history) reopens (`R`), starts again from its prompt (`O`), or opens
+its repo on GitHub; an event on its own line reopens its session, shows only its kind, or folds every event back
+(`e`). A row of the [ledger](../history/ledger.md) reopens its session (`R`), opens its repo on GitHub, writes the
+summary again (`S`) or edits it (`E`). A PR the [dashboard](../history/dashboard.md) shows as shipped is read (`↩`),
+opened in the browser (`gB`), or its session reopened (`R`).
 
 ## Goals
 

@@ -273,6 +273,21 @@ llm_days = 30
 decide_days = 30
 max_rows = 50000
 
+[telemetry]
+# The agents' own OpenTelemetry (Insights › OpenTelemetry, :trace): heed listens for OTLP/HTTP JSON on
+# 127.0.0.1 only, and starts claude and codex with their exporters pointed there, unless you send that agent's
+# telemetry somewhere yourself (an OTEL_ endpoint or exporter in your shell, Claude Code's settings env, or [otel]
+# in Codex's config): then heed adds nothing to it. Nothing is sent off this Mac. false: no receiver, no exporters.
+enabled = true
+port = 4318
+# Kept this many days, and at most max_rows spans; pruned hourly.
+days = 7
+max_rows = 200000
+# Ask Claude Code for each tool's details (the bash command, the file), so a span says what ran.
+tool_details = true
+# Ask the agents to include your prompts' text, so a turn reads by what you asked. It stays on this Mac.
+prompts = false
+
 [llm]
 # heed's own short model calls (summaries, typed decisions), made headless through the agent CLIs you are logged
 # in to (claude, codex, gemini, opencode, pi, cursor), each with a cheap model, taking turns. No API keys: your

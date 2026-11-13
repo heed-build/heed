@@ -50,6 +50,10 @@ This page is generated from the code (`mise run shots`).
 | `view.history` |  | Insights, as view.insights does (the name it had before) |
 | `view.autopilot` | `gw` | Autopilot: what heed can do on its own (Can do first), where it is on, what it does now, what it did |
 | `goal.jump` | `'g` | go to the session's goal; in Goals, to the goal of the session under the cursor |
+| `trace.turn.next` | `j` (trace), `<Down>` (trace) | trace: the next turn |
+| `trace.turn.prev` | `k` (trace), `<Up>` (trace) | trace: the previous turn |
+| `trace.span.next` | `l` (trace), `<Right>` (trace) | trace: the next span in the turn |
+| `trace.span.prev` | `h` (trace), `<Left>` (trace) | trace: the previous span in the turn |
 
 ## Panes & tabs
 
@@ -171,12 +175,14 @@ This page is generated from the code (`mise run shots`).
 | `hunch.screen` |  | have Hunch read the agent pane under the cursor now: working, waiting for input, stuck or done |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
-| `history.list` | `H` (dashboard), `H` (history), `H` (ledger), `H` (mindmap), `H` (standup) | Insights' History: the work that ended, by day, each with its story (again: the dashboard) |
+| `history.list` | `H` (dashboard), `H` (history), `H` (ledger), `H` (mindmap), `H` (standup), `H` (telemetry) | Insights' History: the work that ended, by day, each with its story (again: the dashboard) |
 | `history.timeline` |  | History with every event as its own line (again: folded), as history.events |
-| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (standup) | Insights' ledger: a summary of each piece of work (again: back to the dashboard) |
-| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup) | Insights' dashboard: what shipped, agent time, your bests, goals; where Insights opens |
-| `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup) | Insights' standup: your questions answered per org (again: back to the dashboard) |
-| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
+| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (standup), `L` (telemetry) | Insights' ledger: a summary of each piece of work (again: back to the dashboard) |
+| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup), `D` (telemetry) | Insights' dashboard: what shipped, agent time, your bests, goals; where Insights opens |
+| `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup), `U` (telemetry) | Insights' standup: your questions answered per org (again: back to the dashboard) |
+| `history.telemetry` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (standup), `T` (telemetry) | Insights' OpenTelemetry: the agents' own spans, latency, waits and cost (again: back to the dashboard) |
+| `session.trace` `[session]` | `t` (sessions), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
+| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 
 ## Modes
 
@@ -224,6 +230,13 @@ This page is generated from the code (`mise run shots`).
 | `timeline.repo` `[name]` | `r` (history) | History: every repo, or the next one |
 | `timeline.where` `[local|host]` | `w` (history) | History: everywhere, this Mac, or a host |
 | `timeline.gone` | `c` (history) | History: show or hide removed worktrees |
+| `telemetry.range` `[range]` | `r` (telemetry) | OpenTelemetry: the next range (15 m, 1 h, 6 h, 24 h, 7 d), or one named (30m) |
+| `telemetry.agent` `[agent]` | `a` (telemetry) | OpenTelemetry: only the next agent, then all again (or the one named) |
+| `telemetry.repo` `[repo]` | `p` (telemetry) | OpenTelemetry: only the next repo, then all again (or the one named) |
+| `telemetry.model` `[model]` | `m` (telemetry) | OpenTelemetry: only the next model, then all again (or the one named) |
+| `telemetry.kind` `[kind]` | `K` (telemetry) | OpenTelemetry: which spans the table lists: turns, tools, waits and model; all; one kind |
+| `telemetry.live` | `l` (telemetry) | OpenTelemetry: stop or start redrawing as spans arrive |
+| `telemetry.open` | `<CR>` (telemetry) | OpenTelemetry: the span's session's trace, on its turn |
 | `standup.run` | `S` (standup) | standup: write a report for this org now |
 | `standup.copy` `[plain]` | `y` (standup) | standup: copy the answer to the question shown (all with none), as markdown |
 | `standup.copy.all` `[plain]` | `Y` (standup) | standup: copy the whole report, as markdown |

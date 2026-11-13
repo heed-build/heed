@@ -17,6 +17,7 @@ description: Where Heed keeps its configuration, cache and other files.
 | `~/Library/Application Support/Heed/personas` | The shared library of personas (`L` copies one in, `:persona.use` copies one onto a goal) |
 | `~/Library/Application Support/Heed/plugin` | heed's claude plugin with the [`heed-goal` skill](../goals/cli.md#the-heed-goal-skill), passed with `--plugin-dir` to claude sessions on a goal; rewritten when Heed updates |
 | `~/Library/Application Support/Heed/log.sqlite` | The call log: commands Heed ran and its GitHub calls, with how long each took and how it ended; never environment variables. Pruned per `[log]` |
+| `~/Library/Application Support/Heed/telemetry.sqlite` | The agents' own [OpenTelemetry](../history/opentelemetry.md): spans, prompts and usage samples as the receiver read them. Pruned per `[telemetry]` |
 | `~/Library/Application Support/Heed/chats` | The scratch folders of [chats](../sessions/chats.md) started without a folder; with cleanup on, cleanup removes a closed chat's 30 days after it closed |
 | `~/Library/Application Support/Heed/ghostty-panes.conf` | The few terminal settings Heed sets for its panes |
 | `~/Library/Application Support/Heed/heed.sock` | The socket hooks report to |

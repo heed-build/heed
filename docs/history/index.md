@@ -1,16 +1,16 @@
 ---
 navigation_title: Insights
-description: What your work amounted to and what ended, with its story; a dashboard, History, the ledger, the Mindmap and standups.
+description: What your work amounted to and what ended, with its story; a dashboard, History, the ledger, the Mindmap, standups and the agents' own OpenTelemetry.
 ---
 
 # Insights
 
 `gh` opens Insights on its [dashboard](dashboard.md): what shipped this week, agent time set against the week before,
 your bests and the goals that moved. A strip of tabs under the title bar names every Insights view with its key and how
-much is in each: Dashboard `D`, History `H`, Ledger `L`, Mindmap `M` and Standup `U`. The same keys work in every one of
-them; a view's own key again comes back to the dashboard, and a click on a tab opens it.
+much is in each: Dashboard `D`, History `H`, Ledger `L`, Mindmap `M`, Standup `U` and OpenTelemetry `T`. The same keys
+work in every one of them; a view's own key again comes back to the dashboard, and a click on a tab opens it.
 
-![Insights' tabs: Dashboard, History, Ledger, Mindmap and Standup, each with its key](../images/shots/history/pane-tabs.png)
+![Insights' tabs: Dashboard, History, Ledger, Mindmap, Standup and OpenTelemetry, each with its key](../images/shots/history/pane-tabs.png)
 
 | View | |
 |---|---|
@@ -19,6 +19,7 @@ them; a view's own key again comes back to the dashboard, and a click on a tab o
 | [Ledger](ledger.md) | A short summary of each piece of work, kept after its worktree is gone |
 | [Mindmap](mindmap.md) | The work grouped into campaigns, one Mindmap per org |
 | [Standup](standup.md) | Your own questions answered from each Mindmap, on the days you choose |
+| [OpenTelemetry](opentelemetry.md) | The agents' own spans: latency by tool, waits for your OK, cost by model, and each session's trace |
 
 ## History
 

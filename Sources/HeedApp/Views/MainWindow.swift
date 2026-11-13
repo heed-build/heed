@@ -212,10 +212,10 @@ struct TitleBar: View {
         if let count = model.nudgePill { NudgePillView(count: count, compact: compact) }
     }
 
-    /// Unread inbox items; PRs that need you.
+    /// For you's New in Attention; unread inbox items; PRs that need you.
     private func badge(_ view: AppView) -> Int {
         switch view {
-        case .attention: model.attentionCounts[.forYou] ?? 0
+        case .attention: model.attentionNewCount
         case .inbox: model.github.inbox.count(where: \.unread)
         case .prs: model.github.pullsNeedingAttention
         default: 0
@@ -300,7 +300,11 @@ private struct ViewTab: View {
     let key: String?
 
     var body: some View {
-        TabLabel(title: view.title, active: active, count: count > 0 ? "\(count)" : nil, key: key)
+        // Attention's count is what is new since you looked (For you's New), and says so.
+        TabLabel(
+            title: view.title, active: active,
+            count: count > 0 ? (view == .attention ? "\(count) new" : "\(count)") : nil, key: key
+        )
     }
 }
 

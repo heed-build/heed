@@ -61,6 +61,11 @@ extension AppModel {
     /// The rows the cursor moves over.
     var attentionRows: [AttentionEntry] { attentionListing.rows }
 
+    /// For you's New as it is now: the title bar's "N new".
+    var attentionNewCount: Int {
+        AttentionListing.newCount(attentionEntries, seen: attention.seen, now: Clock.now)
+    }
+
     var attentionCounts: [AttentionFilter: Int] {
         AttentionListing.counts(attentionEntries, seen: attention.sectionSeen, now: Clock.now)
     }
@@ -82,7 +87,7 @@ extension AppModel {
     }
 
     /// What the actions act on: the picked rows, else the one under the cursor (or the one right-clicked).
-    private var attentionTargets: [AttentionEntry] {
+    var attentionTargets: [AttentionEntry] {
         let ids = Set(actionIDs(.attention))
         return attentionRows.filter { ids.contains($0.id) }
     }
@@ -90,7 +95,7 @@ extension AppModel {
     // MARK: Sync
 
     /// After a GitHub sync: keeps what Attention shows (so muted and ignored items stay listed for 30 days), fetches
-    /// details for threads that are new or changed, and summarizes boosted ones.
+    /// details for threads that are new or changed, and writes New's summaries ahead (`[attention] summaries`).
     func attentionSynced() async {
         guard !isFixture else { return }
         let now = Clock.now
@@ -100,9 +105,7 @@ extension AppModel {
         if !needed.isEmpty {
             await attention.saveDetails(GitHub.threadDetails(needed, caller: "attention.details"), now: now)
         }
-        for entry in attentionEntries.filter({ $0.live && $0.weight >= 2 && !$0.muted }).prefix(5) {
-            summarize(entry.item)
-        }
+        queueAheadSummaries()
     }
 
     /// The items rules say to notify about, into `Notices` as one input: several from one sync come as one
@@ -375,8 +378,8 @@ extension AppModel {
     }
 
     /// The cursor moved in Attention (or the row under it changed): the thread you leave counts as seen if you read
-    /// it (`AttentionVisit`), the reader shows the new one, and after a moment on the row its details and summary
-    /// are fetched (each once per update of the thread).
+    /// it (`AttentionVisit`), the reader shows the new one, and after a moment on the row its thread and details
+    /// are fetched (each once per update of the thread) and its summary written when one is due.
     func attentionSelectionChanged() {
         updateScope()
         let current = view == .attention ? attentionSelected?.item : nil
@@ -392,7 +395,7 @@ extension AppModel {
                 loadConversation(repo, number, updatedAt: item.updatedAt)
             }
             await fetchDetail(item)
-            summarize(item)
+            summarizeOnOpen(item)
             suggestWeight(item)
         }
     }
@@ -428,24 +431,6 @@ extension AppModel {
         await attention.saveDetails(
             GitHub.threadDetails([(url, item.updatedAt)], caller: "attention.details"), now: Clock.now
         )
-    }
-
-    /// Writes the item's summary with the cheap model, unless there is one for this update (or one on the way).
-    func summarize(_ item: AttentionItem) {
-        guard !isFixture, config.llm.enabled, item.onGitHub, !attention.summarizing.contains(item.id),
-              attention.summary(for: item) == nil
-        else { return }
-        attention.summarizing.insert(item.id)
-        let inputs = AttentionText.inputs(for: item, detail: detail(of: item))
-        let instructions = summaryInstructions(for: item.repo)
-        Task {
-            defer { attention.summarizing.remove(item.id) }
-            if await attention.loadSummary(for: item) != nil { return }
-            guard let text = try? await summarizer.summarize(
-                kind: .thread, inputs: inputs, instructions: instructions, caller: "attention.summary"
-            ) else { return }
-            attention.saveSummary(text, for: item)
-        }
     }
 
     /// Settings' try before you save: what `rules` would change, against the rules in use, over the items of the last

@@ -60,18 +60,21 @@ public enum AttentionPreview: Hashable, Sendable {
     /// You looked and nobody did anything since.
     case nothingNew(since: Date)
 
-    /// The newest comment when it is new to you (or you never looked), else the summary, else that nothing is new
-    /// since you looked; nil when there is nothing to say (the reasons say it).
+    /// For a thread new to you (or one you never looked at): its catch-up summary's first line when one is written
+    /// and up to date (`summary`), else the newest comment. For one with nothing new since you looked: that. Nil when
+    /// there is nothing to say (the reasons say it).
     public static func of(
         _: AttentionItem, detail: ThreadDetail?, summary: String?, isNew: Bool, seenAt: Date?
     ) -> AttentionPreview? {
-        if isNew || seenAt == nil, let comment = detail?.comments.last,
-           let line = comment.text.split(whereSeparator: \.isNewline).first.map(String.init), !line.isEmpty
-        {
-            return .comment(author: comment.author, text: line)
-        }
-        if let line = summary?.split(whereSeparator: \.isNewline).first.map(String.init), !line.isEmpty {
-            return .summary(line)
+        if isNew || seenAt == nil {
+            if let line = summary?.split(whereSeparator: \.isNewline).first.map(String.init), !line.isEmpty {
+                return .summary(line)
+            }
+            if let comment = detail?.comments.last,
+               let line = comment.text.split(whereSeparator: \.isNewline).first.map(String.init), !line.isEmpty
+            {
+                return .comment(author: comment.author, text: line)
+            }
         }
         if !isNew, let seenAt { return .nothingNew(since: seenAt) }
         return nil
@@ -152,6 +155,11 @@ public struct AttentionListing: Hashable, Sendable {
             if !folded { rows += members }
         }
         return AttentionListing(rows: rows, sections: sections)
+    }
+
+    /// For you's New, as it is now (`seen` as it is, not as when you came in): the title bar's "N new".
+    public static func newCount(_ entries: [AttentionEntry], seen: AttentionSeen, now: Date) -> Int {
+        of(entries, filter: .forYou, seen: seen, now: now).section(.new)?.total ?? 0
     }
 
     /// The count on each tab: For you counts New and Waiting on you (not what is folded), the rest what they list.

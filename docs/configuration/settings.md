@@ -35,7 +35,7 @@ A red `!` says `config.toml` has a value there heed refused.
 | **GitHub** | **GitHub** | The poll interval and the issues default |
 | | **Pilot** | The defaults every PR starts from, on four tabs: Get it green (with watching), Get it merged, Reviews, Instructions |
 | | **Orgs & repos** | Per org and per repo, over five tabs (see below) |
-| | **Attention** | The [rules](../github/attention-rules.md) in plain words, an editor that builds one, what an edit would change before you save it, and the weights |
+| | **Attention** | The [rules](../github/attention-rules.md) in plain words, an editor that builds one, what an edit would change before you save it, the weights, and when [catch-up summaries](../github/attention.md#catch-up-summaries) are written |
 | **Machine** | **Hosts** | Every [host](../hosts/index.md) in `[hosts.<name>]` as `config.toml` has it |
 | | **Tools** | Where heed found git, gh and the rest, zmx's and Tailscale's checks, and where to look instead |
 | | **Keys & modes** | The INSERT escape chord, the two [global shortcuts](../outside-the-window/global-shortcuts.md) (typed or recorded, checked before they are written), and every binding as it stands |

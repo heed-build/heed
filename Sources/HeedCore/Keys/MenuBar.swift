@@ -280,7 +280,7 @@ public enum MenuBar {
                     ("Draft a reply…", "attention.reply"), ("Go to its session", "attention.session"),
                     ("Next tab", "attention.filter"), ("Sort", "attention.sort"),
                     ("Done with everything new", "attention.done.new"), ("Fold Mentioned before", "attention.fold"),
-                    ("Coverage", "attention.coverage"),
+                    ("Rewrite the summary", "attention.summarize"), ("Coverage", "attention.coverage"),
                 ], in: ["attention"]),
                 scoped("In the Inbox and Issues", [
                     ("Start a session from it", "items.start"), ("Add it to this session", "items.add"),

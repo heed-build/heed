@@ -42,15 +42,19 @@ public struct QuietHours: Equatable, Sendable, CustomStringConvertible {
     }
 }
 
-/// `[attention]`: what may ask for your attention, and when not. Only `quiet` so far; it applies to every notification.
+/// `[attention]`: what may ask for your attention, and when not: quiet hours (every notification respects them), the
+/// rules, and when Attention's catch-up summaries are written.
 public struct AttentionSettings: Equatable, Sendable {
     public var quiet: QuietHours?
     /// `[attention] rules`: the lines as written, first match wins (`AttentionRules`).
     public var rules: [String]
+    /// `[attention] summaries`: ahead (New's threads before you open them, and the rest on open), open, or off.
+    public var summaries: AttentionSummaryMode
 
-    public init(quiet: QuietHours? = nil, rules: [String] = []) {
+    public init(quiet: QuietHours? = nil, rules: [String] = [], summaries: AttentionSummaryMode = .ahead) {
         self.quiet = quiet
         self.rules = rules
+        self.summaries = summaries
     }
 
     /// The rules, parsed; lines that do not parse are left out and reported.

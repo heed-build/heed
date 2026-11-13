@@ -751,6 +751,10 @@ public enum Commands {
         .init("attention.reader.up", "scroll Attention's reader up half its height", .selection),
         .init("attention.sort", "Attention: recent first, or weight then recent", .selection),
         .init(
+            "attention.summarize",
+            "write the thread's catch-up summary again (↻): what is new since you last looked", .selection
+        ),
+        .init(
             "attention.coverage", "Coverage: what Attention has of each source against GitHub, and where it went",
             .selection
         ),

@@ -3,7 +3,8 @@ import SwiftUI
 
 /// Settings › Attention: the rules in order, each in plain words; an editor that builds a rule from choices, so only
 /// a rule the grammar accepts can be added; what an edit would have changed over the last 30 days before it is saved;
-/// and quiet hours. Nothing is written until Save. Lines the editor cannot build stay as written, read-only.
+/// when catch-up summaries are written; and a link to quiet hours. Nothing is written until Save. Lines the editor
+/// cannot build stay as written, read-only.
 struct AttentionRuleSettings: View {
     @Environment(AppModel.self) private var model
     @State private var draft = AttentionRuleDraft(lines: [])
@@ -78,6 +79,18 @@ struct AttentionRuleSettings: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+        }
+        SettingsCard(title: "Summaries") {
+            SettingRow("attention.summaries") {
+                SegmentedChoice(
+                    path: ["attention", "summaries"], value: model.config.attention.summaries,
+                    options: [(.ahead, "Ahead"), (.open, "On open"), (.off, "Off")], name: \.rawValue
+                )
+            }
+            CardNote {
+                Text("Written by heed's model calls, within their daily cap:")
+                PageLink(page: .modelCalls)
+            }
         }
         SettingsCard(title: "Weights", bare: true) {
             VStack(alignment: .leading, spacing: 5) {

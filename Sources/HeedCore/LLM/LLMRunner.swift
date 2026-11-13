@@ -20,10 +20,13 @@ public struct LLMRequest: Sendable {
     public var agent: String?
     /// Answer an identical earlier call from the cache, and keep this answer for the next.
     public var cached: Bool
+    /// Told which agent and model took the call, as it starts (Attention's "summarizing… claude haiku"). Not called
+    /// for an answer from the cache.
+    public var onStart: (@Sendable (_ agent: String, _ model: String?) -> Void)?
 
     public init(
         call: LLMCall, priority: Priority = .background, caller: String, operation: String? = nil,
-        agent: String? = nil, cached: Bool = true
+        agent: String? = nil, cached: Bool = true, onStart: (@Sendable (String, String?) -> Void)? = nil
     ) {
         self.call = call
         self.priority = priority
@@ -31,6 +34,7 @@ public struct LLMRequest: Sendable {
         self.operation = operation
         self.agent = agent
         self.cached = cached
+        self.onStart = onStart
     }
 }
 
@@ -508,6 +512,7 @@ public actor LLMRunner {
         let clock = ContinuousClock()
         let start = clock.now
         add(spend: agent.name, cost: nil)
+        request.onStart?(agent.name, model)
         var result: ProcessResult?
         var failure: String?
         do {

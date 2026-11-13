@@ -139,7 +139,7 @@ struct AttentionView: View {
     private func preview(_ entry: AttentionEntry) -> AttentionPreview? {
         let item = entry.item
         return AttentionPreview.of(
-            item, detail: model.detail(of: item), summary: model.attention.summary(for: item),
+            item, detail: model.detail(of: item), summary: model.summaryPreview(item),
             isNew: model.attentionIsNew(item), seenAt: model.attention.seen.threads[item.id]
         )
     }
@@ -248,8 +248,8 @@ private struct AttentionTabs: View {
     }
 }
 
-/// The foot of the list: what heed has of what GitHub has, in a line (amber when something is missing); a click opens
-/// Coverage in the reader's place (`:attention.coverage`).
+/// The foot of the list: what heed has of what GitHub has, in a line (amber when something is missing), and while the
+/// ahead queue runs "summarizing 2 of 5"; a click opens Coverage in the reader's place (`:attention.coverage`).
 private struct CoverageLine: View {
     @Environment(AppModel.self) private var model
     let coverage: AttentionCoverage
@@ -261,6 +261,12 @@ private struct CoverageLine: View {
                 .foregroundStyle(coverage.mismatch ? tint : Theme.done)
             Text(coverage.line).foregroundStyle(coverage.mismatch ? Theme.block : Theme.fg2).lineLimit(1)
             Spacer(minLength: 8)
+            // The ahead queue at work, beside the trust line.
+            if let progress = model.attention.summaryProgress, progress.total > 0 {
+                Text(progress.text).foregroundStyle(Theme.busy).lineLimit(1).fixedSize()
+                    .help("Catch-up summaries for New, written ahead ([attention] summaries)")
+                Text("·").foregroundStyle(Theme.dim)
+            }
             Text(model.overlay == .coverage ? "close" : "coverage").foregroundStyle(Theme.fg3)
         }
         .font(Theme.ui(11.5))
@@ -529,7 +535,8 @@ private struct AttentionRow: View {
 }
 
 /// An issue or PR in the reader: where it is, its title, chips for why it is here and its state, what you can do
-/// with it (each with its key), the summary when written, then the conversation as GitHub renders it, the comments
+/// with it (each with its key), the catch-up summary in its state, then the conversation as GitHub renders it, the
+/// comments
 /// you read folded and "new · N" where the new ones start.
 private struct AttentionReader: View {
     @Environment(AppModel.self) private var model
@@ -550,14 +557,7 @@ private struct AttentionReader: View {
                     chips: chips(conversation), actions: actions
                 )
                 why
-                if let summary = model.attention.summary(for: item) {
-                    card("Summary") {
-                        Text(summary).font(Theme.ui(13)).foregroundStyle(Theme.fg)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                } else if model.attention.summarizing.contains(item.id) {
-                    card("Summary") { Text("summarizing…").font(Theme.ui(12.5)).foregroundStyle(Theme.fg3) }
-                }
+                SummaryCard(item: item)
                 if let draft = model.attention.draft, draft.id == item.id {
                     card("Draft reply") {
                         Text(draft.text ?? "drafting…").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
@@ -726,15 +726,9 @@ private struct AttentionDetail: View {
                 if let (board, question) = model.swarmQuestion(for: item) {
                     SwarmAskCard(board: board, question: question, item: item.id).shotRegion(.swarmAsk)
                 }
+                // Agents, goals, CI runs and releases have no catch-up summary: what heed knows says it.
                 section("Summary") {
-                    if let summary = model.attention.summary(for: item) {
-                        Text(summary).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    } else if model.attention.summarizing.contains(item.id) {
-                        Text("summarizing…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                    } else {
-                        Text(item.placeholderSummary).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                    }
+                    Text(item.placeholderSummary).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
                 // The three-line digest until the thread itself has loaded (it goes last: it can be long).
                 if conversation == nil, let digest = detail?.digest, !digest.isEmpty {

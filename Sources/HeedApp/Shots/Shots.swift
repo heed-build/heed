@@ -17,6 +17,9 @@ enum Shots {
         text.replacingOccurrences(of: " ", with: "<Space>")
     }
 
+    /// The PR the summary card's shots show.
+    static let summaryShotID = "acme/docs-toolkit#2845"
+
     static let firstRunReport = FirstRunReport(
         githubUser: "you",
         agents: [
@@ -391,6 +394,46 @@ enum Shots {
             crop: .attentionList
         ),
         Shot(id: "github/attention-coverage", keys: "gm:attention.coverage<CR>", crop: .attentionDetail),
+        // The catch-up card in each of its states, on the PR under the cursor.
+        Shot(
+            id: "github/attention-summary-summarizing", keys: "gm/2845<CR>", crop: .attentionSummary,
+            prepare: { model in
+                model.attention.setCatchUp(nil, for: summaryShotID)
+                model.attention.summaryRuns[summaryShotID] = SummaryRun(
+                    startedAt: Clock.now.addingTimeInterval(-3), agent: "claude", model: "haiku"
+                )
+            }
+        ),
+        Shot(id: "github/attention-summary-up-to-date", keys: "gm/2845<CR>", crop: .attentionSummary),
+        Shot(
+            id: "github/attention-summary-stale", keys: "gm/2845<CR>", crop: .attentionSummary, prepare: { model in
+                let ago = { (minutes: Double) in Clock.now.addingTimeInterval(-minutes * 60) }
+                model.attention.setCatchUp(CatchUpSummary(
+                    text: "- The reviewer finds the validator good and has one question before approving.",
+                    since: ago(40), coversUpTo: ago(20), count: 1, state: "open", writtenAt: ago(18),
+                    agent: "claude", model: "haiku"
+                ), for: summaryShotID)
+            }
+        ),
+        Shot(
+            id: "github/attention-summary-failed", keys: "gm/2845<CR>", crop: .attentionSummary, prepare: { model in
+                model.attention.setCatchUp(nil, for: summaryShotID)
+                let until = Clock.now.addingTimeInterval(40 * 60)
+                model.attention.summaryFailures[summaryShotID] = SummaryFailure(
+                    kind: .rateLimited, text: "claude rate limited until \(AgentUsage.clock(until))", until: until,
+                    at: Clock.now.addingTimeInterval(-60), forUpdate: Clock.now
+                )
+            }
+        ),
+        Shot(
+            id: "github/attention-summary-off", keys: "gm/2845<CR>", crop: .attentionSummary,
+            prepare: { $0.applyConfig(source: "[llm]\nenabled = false\n") }
+        ),
+        // The ahead queue at work: the foot of the list says how far it is.
+        Shot(
+            id: "github/attention-summarizing", keys: "gm", crop: .attentionCoverage, cropPadding: 8,
+            prepare: { $0.attention.summaryProgress = SummaryProgress(total: 5, done: 1) }
+        ),
         // The mention search stopped at its cap: the foot of the list turns amber.
         Shot(id: "github/attention-missing", keys: "gm", crop: .attentionCoverage, cropPadding: 8, prepare: { model in
             var state = model.github

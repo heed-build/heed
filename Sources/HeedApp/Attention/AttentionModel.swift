@@ -13,10 +13,14 @@ final class AttentionModel {
     private(set) var details: [String: ThreadDetail] = [:]
     /// Items seen in the last 30 days, live or not: what Muted lists and rules are tried against.
     private(set) var stored: [StoredAttentionItem] = []
-    /// Summaries by item id, for the update they were written for.
-    private(set) var summaries: [String: (updatedAt: Date, text: String)] = [:]
-    /// Items whose summary is being written.
-    var summarizing: Set<String> = []
+    /// Catch-up summaries by item id: what was new since you last looked, and what each covers.
+    private(set) var catchUps: [String: CatchUpSummary] = [:]
+    /// Summaries being written (or queued ahead), by item id.
+    var summaryRuns: [String: SummaryRun] = [:]
+    /// Why the last attempt at an item's summary failed, until one is written.
+    var summaryFailures: [String: SummaryFailure] = [:]
+    /// The ahead queue at work: for the list's footer.
+    var summaryProgress: SummaryProgress?
     /// A reply being drafted (`nil` text) or drafted, for one item.
     var draft: (id: String, text: String?)?
 
@@ -58,7 +62,7 @@ final class AttentionModel {
         marks = Fixtures.attentionMarks
         details = Fixtures.attentionDetails
         stored = Fixtures.attentionStored
-        summaries = Fixtures.attentionSummaries.mapValues { (Clock.now, $0) }
+        catchUps = Fixtures.attentionCatchUps
         seen = Fixtures.attentionSeen
         sectionSeen = seen
         suggestions = Fixtures.attentionSuggestions.mapValues { (Clock.now, $0) }
@@ -113,23 +117,20 @@ final class AttentionModel {
         Task { try? await store.saveDetails(fetched, now: now) }
     }
 
-    /// The summary for `item` as it is now, from memory or the store.
-    func summary(for item: AttentionItem) -> String? {
-        guard let known = summaries[item.id], known.updatedAt >= item.updatedAt else { return nil }
-        return known.text
-    }
-
-    func loadSummary(for item: AttentionItem) async -> String? {
-        if let known = summary(for: item) { return known }
-        guard let text = try? await store?.summary(for: item.id, updatedAt: item.updatedAt) else { return nil }
-        summaries[item.id] = (item.updatedAt, text)
-        return text
-    }
-
-    func saveSummary(_ text: String, for item: AttentionItem) {
-        summaries[item.id] = (item.updatedAt, text)
+    func saveCatchUp(_ summary: CatchUpSummary, for id: String) {
+        catchUps[id] = summary
+        summaryFailures[id] = nil
         guard let store else { return }
-        Task { try? await store.saveSummary(text, for: item.id, updatedAt: item.updatedAt) }
+        Task {
+            do { try await store.saveCatchUp(summary, for: id) } catch {
+                NSLog("heed: could not keep a summary: \(error)")
+            }
+        }
+    }
+
+    /// Fixtures and shots: a summary in memory only.
+    func setCatchUp(_ summary: CatchUpSummary?, for id: String) {
+        catchUps[id] = summary
     }
 
     private func reload(now: Date = Date()) async {
@@ -138,6 +139,10 @@ final class AttentionModel {
             marks = try await store.marks()
             details = try await store.details()
             stored = try await store.items(now: now)
+            // What was written while it loaded stays.
+            catchUps = try await store.catchUps().merging(catchUps) { stored, written in
+                written.writtenAt >= stored.writtenAt ? written : stored
+            }
             let loaded = try await store.seen()
             // What was marked while it loaded stays (the later of the two).
             seen.threads.merge(loaded.threads) { max($0, $1) }

@@ -199,6 +199,10 @@ quiet = ""
 #   "agent blocked|asking        boost 3",
 #   "ci branch:main              lower",
 # ]
+# Catch-up summaries in the reader: what is new in a thread since you last looked (the whole thread when you never
+# did), written by heed's model calls ([llm]). "ahead": for every thread in For you's New, newest first, within
+# the daily cap, and on open for the rest; "open": only when you open a thread; "off": none.
+summaries = "ahead"
 
 [summary]
 # While you were away: what still waits on you, then what merged, how background runs ended, which agents

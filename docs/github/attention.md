@@ -52,8 +52,12 @@ as soon as you have looked. Leaving Attention moves what you read to Waiting on 
 
 Each row says what it is (`PR`, `IS`, `AG`, ...), its repo and number, its title and age; under that why it is there
 (`review requested`, `tagged you`, `agent blocked`, ...), its weight when a [rule](attention-rules.md) boosted it
-(`▲▲`), and a preview: the newest comment when it is new to you, else the summary when the model wrote one, else
-*nothing new since you looked*.
+(`▲▲`), and a preview. For a thread with something new, the preview is the first line of its
+[catch-up summary](#catch-up-summaries) once that is written and up to date, else the newest comment. For one with
+nothing new since you looked it is *nothing new since you looked*.
+
+The count beside Attention in the title bar is For you's New: *7 new*, the threads with something new from someone
+else since you last looked. It goes down as you read them.
 
 Needs you in the sessions sidebar stays as it is, and `ga` still goes to the next session needing you: the agents
 here are the same ones.
@@ -66,7 +70,8 @@ beside the other Attention data, for 30 days). A thread counts as looked at when
 showed, so a comment that came in while you read is still new next time.
 
 The reader uses the same time: the comments before it fold into one line (*6 earlier comments, read*, a click shows
-them), and *new · 3* marks where the new ones start.
+them), and *new · 3* marks where the new ones start. Your own comments are never new, and neither is anything before
+your latest one: writing a comment means you saw the thread up to there, here or on GitHub.
 
 ## What counts as wanting you
 
@@ -134,8 +139,8 @@ it.
 ## The reader
 
 The right side follows the cursor. An issue or a PR shows in full: where it is and who opened it, its title, chips
-for why it is there and its state, its actions as buttons with their keys, the summary when the model wrote one, the
-[rule](attention-rules.md) that matched, then the thread as GitHub renders it, the same cards as the
+for why it is there and its state, its actions as buttons with their keys, the [rule](attention-rules.md) that
+matched, the [catch-up summary](#catch-up-summaries) card, then the thread as GitHub renders it, the same cards as the
 [reader](reading.md), with the comments you read folded. Until the thread has loaded its last three comments stand in.
 An agent or one of heed's goal items shows its card with what you can do, as before.
 
@@ -157,11 +162,62 @@ list and reader to change the split; heed keeps it.
 | `↩`, a double-click | The full [reader](reading.md); for an agent, go to its session. A click on a row opens it in the reader |
 | `X` | Done with everything in New since |
 | `za` | List Mentioned before, or fold it again |
+| `U` | Write the thread's [catch-up summary](#catch-up-summaries) again (↻ on the card) |
 | `⌃e`, `⌃y` | Scroll the reader down, up |
 | `gB` | Open it on GitHub |
 | `space`, `s`, `a` | Pick items, [start a session](../start-work/from-github.md) from them, or add them to the current one |
 
 ![A drafted reply, shown in full before it is posted](../images/shots/github/attention-reply.png)
+
+## Catch-up summaries
+
+The card at the top of the reader says what is new in the thread since you last looked: only the comments and reviews
+by others after that time, and a change of state (merged, closed). It covers exactly the comments under *new · N*.
+For a thread you never looked at, or one with nothing new since, it covers the whole thread: the description and
+every comment. Heed's [model calls](../agents/model-calls.md) write it, in at most three lines, and keep it with the
+time of the newest comment it covers and how many comments it covered.
+
+![A catch-up summary, up to date](../images/shots/github/attention-summary-up-to-date.png)
+
+**When they are written** (`[attention] summaries`, Settings › Attention):
+
+- `"ahead"` (the default): after each sync, for every thread in For you's New that has none up to date, newest first,
+  so the card is there when you open it. These are background calls. They stop at what the day's
+  [daily cap](../agents/model-calls.md) leaves, less 10 calls kept for everything else, and never more than 25 in one
+  go. They run one fewer at a time than `[llm] concurrency`, so a call you ask for gets a slot. A failed call stops
+  the run until the next sync. While it runs, the foot of the list says how far it is:
+
+  ![The ahead queue at work](../images/shots/github/attention-summarizing.png)
+
+- `"open"`: only when you open a thread in the reader (after a moment on it). With `"ahead"`, opening a thread
+  writes the summary too when New's run did not cover it.
+- `"off"`: none.
+
+Only issues and pull requests get one: never agents, goals, CI runs or releases. A summary written on open counts
+against the daily cap like the ahead ones. `U` (or ↻ on the card, `:attention.summarize`) writes it again right away,
+ahead of background calls and past the daily cap.
+
+**The card always says its state:**
+
+| State | |
+|---|---|
+| *summarizing…* | Being written: by which agent and model, since when. *waiting its turn* while it is queued ahead |
+| *up to date* | Written for the comments it says, and nothing by others since |
+| *stale · 2 new* | Comments by others came after it, or the thread's state changed. It stays, dimmed, until `U` rewrites it (or the next sync's ahead run or opening it does) |
+| *failed* | The model call's reason, from the runner: rate limited until a time, logged out, the daily cap reached, a timeout, or the thread that would not load. `:log` has the call. Heed tries again on its own once the time it named has passed, after `[llm] backoff_minutes` otherwise, or when the thread changes |
+| *off* | Model calls are off (`[llm] enabled = false`), or summaries are (`[attention] summaries = "off"`). *Turn on* opens the Settings page that turns them on |
+
+![summarizing…](../images/shots/github/attention-summary-summarizing.png)
+
+![stale · 1 new](../images/shots/github/attention-summary-stale.png)
+
+![failed: claude rate limited](../images/shots/github/attention-summary-failed.png)
+
+![off: model calls are off](../images/shots/github/attention-summary-off.png)
+
+Each summary is a `llm` row in the [call log](../reference/call-log.md) with caller `attention.summary`. When the reader
+had not loaded the thread yet, fetching it is a `gh` row with the same caller. Summaries are kept in `attention.sqlite` with the rest
+of Attention, for 30 days. The repo's `summary_instructions` are added to heed's prompt, as for the other summaries.
 
 Done, mute and a posted reply are GitHub writes, and show in the [call log](../reference/call-log.md) as such.
 Snoozing is local.

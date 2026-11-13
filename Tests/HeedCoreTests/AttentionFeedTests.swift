@@ -290,13 +290,16 @@ struct AttentionStoreTests {
         try await store.record([item("new", updated: later)], now: later)
         try await store.setMark(AttentionMark(mutedAt: now), for: "old")
         try await store.setMark(AttentionMark(doneAt: later), for: "new")
-        try await store.saveSummary("s", for: "old", updatedAt: now)
+        let summary = CatchUpSummary(
+            text: "s", since: nil, coversUpTo: now, count: 0, state: "open", writtenAt: now
+        )
+        try await store.saveCatchUp(summary, for: "old")
         try await store.saveDetails([ThreadDetail(url: "https://x/1", updatedAt: now)], now: now)
         #expect(try await store.items(now: later).map(\.item.id) == ["new"])
         try await store.prune(now: later)
         #expect(try await store.items(since: .distantPast).map(\.item.id) == ["new"])
         #expect(try await store.marks() == ["new": AttentionMark(doneAt: later)])
-        #expect(try await store.summary(for: "old", updatedAt: now) == nil)
+        #expect(try await store.catchUps().isEmpty)
         #expect(try await store.details().isEmpty)
     }
 
@@ -309,14 +312,10 @@ struct AttentionStoreTests {
         #expect(try await store.marks().isEmpty)
     }
 
-    @Test func detailsAndSummariesByUpdate() async throws {
+    @Test func detailsByURL() async throws {
         let store = try store()
         let detail = ThreadDetail(url: "https://github.com/Acme/Docs/pull/41", author: "maria", updatedAt: now)
         try await store.saveDetails([detail], now: now)
         #expect(try await store.details() == ["https://github.com/acme/docs/pull/41": detail])
-        try await store.saveSummary("Asks one thing.", for: "acme/docs#41", updatedAt: now)
-        #expect(try await store.summary(for: "acme/docs#41", updatedAt: now) == "Asks one thing.")
-        // A newer update has no summary yet.
-        #expect(try await store.summary(for: "acme/docs#41", updatedAt: now.addingTimeInterval(1)) == nil)
     }
 }

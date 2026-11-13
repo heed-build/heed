@@ -105,13 +105,39 @@ public extension Fixtures {
         return Dictionary(uniqueKeysWithValues: details.map { ($0.url.lowercased(), $0) })
     }()
 
-    /// What the cheap model wrote, by item id.
-    static let attentionSummaries: [String: String] = [
-        "acme/docs-toolkit#2845": "Asks you one thing before approving: whether the redirect map is generated at "
-            + "build time or checked in, and to say so in the PR description. Checks are green.",
-        "acme/guides#77": "A proposal to archive the 7.x guides in Q1, with redirects. Each team is asked to reply by "
-            + "Friday; your team owns most of the pages.",
-    ]
+    /// The catch-up summaries the fake world's model wrote, by item id: the PR under the cursor for the one comment
+    /// that is new to you (written two minutes ago), the team mention and the assigned issue for their whole thread.
+    static var attentionCatchUps: [String: CatchUpSummary] {
+        func ago(_ minutes: Double) -> Date { Clock.now.addingTimeInterval(-minutes * 60) }
+        return [
+            "acme/docs-toolkit#2845": CatchUpSummary(
+                text: """
+                - The reviewer asks one thing before approving: is the redirect map generated at build time or \
+                checked in?
+                - Generated costs about 40 s of CI and needs the assembler to run before lint; checked in risks drift.
+                - Your review is the only one requested.
+                """,
+                since: ago(20), coversUpTo: ago(4), count: 1, state: "open", writtenAt: ago(2), agent: "claude",
+                model: "haiku"
+            ),
+            "acme/guides#77": CatchUpSummary(
+                text: """
+                - Your team is asked to say by Friday whether the 7.x guides can be archived in Q1.
+                - Writers agreed as long as the redirects stay; your team owns most of the pages.
+                """,
+                since: nil, coversUpTo: ago(130), count: 3, state: "open", writtenAt: ago(60), agent: "codex",
+                model: "fast-model"
+            ),
+            "acme/docs-toolkit#2830": CatchUpSummary(
+                text: """
+                - Assigned to you: moving a page drops its heading anchors from the redirects.
+                - Reproduced on main; you are fixing it in #2841, where a missing anchor now fails the build.
+                """,
+                since: nil, coversUpTo: ago(26 * 60), count: 1, state: "open", writtenAt: ago(25 * 60),
+                agent: "claude", model: "haiku"
+            ),
+        ]
+    }
 
     /// The Decider's suggestions for items no rule matched, by item id.
     static let attentionSuggestions: [String: String] = ["acme/docs-toolkit#2830": "boost 1"]

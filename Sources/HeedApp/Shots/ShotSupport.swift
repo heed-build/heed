@@ -24,7 +24,7 @@ enum ShotRegion: String, CaseIterable {
     case dashboardTiles, dashboardHeatmap, dashboardShares, dashboardRecent
     case logList, logDetail, logUsage
     case pilotDetail, pilotActivity
-    case attentionTabs, attentionList, attentionDetail, attentionCoverage
+    case attentionTabs, attentionList, attentionDetail, attentionCoverage, attentionSummary
     case goalsList, goalsOverview, goalsDoc, goalVersions, goalForm, sessionGoal, inspectorGoal
     case historyPaneTabs, historyPaneBar, mindmapColumns, mindmapDetail, standupList, standupDetail, goalPaneTabs,
          goalPaneBar, goalGuide, goalLeft,

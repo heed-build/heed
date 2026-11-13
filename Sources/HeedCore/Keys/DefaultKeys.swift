@@ -38,6 +38,8 @@ public enum DefaultKeys {
         ("<C-w>-", "pane.shorter"), ("<C-w>=", "pane.equalize"),
         ("gt", "tab.next"), ("gT", "tab.prev"), ("gn", "tab.new"), ("!", "task.run"),
         ("g>", "tab.move.right"), ("g<lt>", "tab.move.left"),
+        // A helper on the session's PR: watch it in a split, or take it over (the band over its panes says so).
+        ("gW", "helper.watch"), ("gO", "helper.takeover"),
         ("gs", "view.sessions"), ("gm", "view.attention"), ("gi", "view.attention issues"),
         ("gp", "view.attention mine"),
         ("gl", "links.pick"), ("gI", "issue.add"), ("go", "overlay.item"), ("]p", "pr.next"), ("[p", "pr.prev"), (
@@ -92,11 +94,8 @@ public enum DefaultKeys {
     /// Bindings that only apply in one view, keyed by view name.
     public static let scoped: [String: [(String, String)]] = [
         // ↩ on a session types into its agent; go, gB and gl still read or open its PRs and issues.
-        "sessions": [
-            ("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path"),
-            ("<CR>", "session.agent"), ("T", "sessions.sort"), ("zG", "sessions.group"), ("zR", "sessions.rows"),
-            ("R", "session.rename"), ("K", "session.kind"), ("X", "sessions.close.ready"),
-        ],
+        "sessions": sessions,
+        "sessionshelper": laid(helper, over: sessions),
         "repos": [
             ("o", "worktree.new"), ("r", "repo.scan"), ("dd", "select.remove"),
             ("<CR>", "select.open"), ("S", "setup.review"), ("M", "repo.setup"),
@@ -230,6 +229,12 @@ public enum DefaultKeys {
             ("a", "log.agent"), ("y", "log.copy"),
         ],
         "attention": attention,
+        // A helper's split, open under Attention's reader, under a session's panes (gW) or under Now's tiles: i tells
+        // it
+        // something, p pauses it, zx stops it, zo zooms it, ⎋ closes the split; y Y n answer what it asks; once done,
+        // ⌘↩ pushes and replies, P pushes only, X twice throws it away, gd shows its diff.
+        "attentionhelper": laid(helper, over: attention),
+        "watchhelper": laid(helper, over: watch),
         // Attention with a swarm's question under the cursor: 1…9 pick an option, i types an answer, c asks the
         // controller, A makes your next answer the answer to similar questions too; y takes the controller's
         // suggestion (n types another). Everything else is Attention's.
@@ -239,12 +244,7 @@ public enum DefaultKeys {
         "prs": [
             ("r", "github.sync"), ("<Space>", "select.toggle"),
         ],
-        // Autopilot's Now (N): the PRs heed works on, stalled first. A asks Copilot (C is Can do, as in every Autopilot
-        // view), R runs the PR's merge queue, ↩ reads the PR.
-        "watch": [
-            ("r", "github.sync"), ("<Space>", "select.toggle"), ("R", "merge.run"), ("A", "pilot.copilot"),
-            ("<CR>", "autopilot.open"),
-        ] + AutopilotTabs.keys,
+        "watch": watch,
         // Autopilot's Can do (gw, C): h j k l between the cards, y turns the picked one on here, Y everywhere, ↩ shows
         // what it did (Done), S its Settings.
         "autopilot": [
@@ -283,12 +283,36 @@ public enum DefaultKeys {
         ],
     ]
 
-    /// Attention's own keys. heed's goal asks have one key each; on other items m pins as before.
+    /// Autopilot's Now (N): the PRs heed works on, stalled first; h l move between the helpers' live tiles above
+    /// them (↩ opens one in a split, j k go back to the PRs). A asks Copilot (C is Can do, as in every Autopilot
+    /// view), R runs the PR's merge queue, ↩ reads the PR.
+    static let watch: [(String, String)] = [
+        ("r", "github.sync"), ("<Space>", "select.toggle"), ("R", "merge.run"), ("A", "pilot.copilot"),
+        ("<CR>", "autopilot.open"), ("h", "helper.tile.prev"), ("l", "helper.tile.next"),
+        ("<Left>", "helper.tile.prev"), ("<Right>", "helper.tile.next"),
+    ] + AutopilotTabs.keys
+
+    static let sessions: [(String, String)] = [
+        ("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path"),
+        ("<CR>", "session.agent"), ("T", "sessions.sort"), ("zG", "sessions.group"), ("zR", "sessions.rows"),
+        ("R", "session.rename"), ("K", "session.kind"), ("X", "sessions.close.ready"),
+    ]
+
+    /// A helper's split: steering, pausing, stopping, zooming and closing it; its permission asks; its close-out.
+    static let helper: [(String, String)] = [
+        ("i", "helper.steer"), ("p", "helper.pause"), ("zx", "helper.stop"), ("zo", "helper.zoom"),
+        ("<Esc>", "helper.close"), ("y", "helper.allow"), ("Y", "helper.allow.always"), ("n", "helper.deny"),
+        ("<D-CR>", "helper.push"), ("P", "helper.push.only"), ("X", "helper.throwaway"), ("gd", "helper.diff"),
+    ]
+
+    /// Attention's own keys. heed's goal asks have one key each; on other items m pins as before. D does heed's next
+    /// step for the item, Y does it and turns it on for the repo from now on, . proposes the next other step.
     static let attention: [(String, String)] = [
         ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "attention.done"),
         ("Z", "attention.snooze"), ("M", "attention.mute"), ("R", "attention.reply"), ("gS", "attention.session"),
         ("t", "attention.filter"), ("T", "attention.sort"), ("r", "github.sync"), ("X", "attention.done.new"),
         ("za", "attention.fold"), ("<C-e>", "attention.reader.down"), ("<C-y>", "attention.reader.up"),
+        ("D", "helper.do"), ("Y", "helper.always"), (".", "helper.other"),
         ("U", "attention.summarize"), ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), (
             "i",
             "goal.ask.ignore"

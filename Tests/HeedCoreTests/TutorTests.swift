@@ -63,7 +63,7 @@ struct TutorTests {
             "goalsUnassigned", "goalReviewers", "goalReviewerDetail", "goalPersonas", "swarmPlan", "swarmSteering",
             "swarmMap",
             "goalEvaluations",
-            "goalFriction", "goalGuide", "goalSources", "repoColumn", "addRepo",
+            "goalFriction", "goalGuide", "goalSources", "repoColumn", "addRepo", "nextStep",
         ]
         for lesson in [Tutor.tour] + Tutor.viewLessons {
             for step in lesson.steps {

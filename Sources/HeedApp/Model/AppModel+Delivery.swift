@@ -22,10 +22,11 @@ extension AppModel {
     }
 
     /// Hands `text` to the agent in `pane`. `typed`: what is typed when it comes to that, when it must differ (one
-    /// line). `typingGrace`: as `Delivery.verdict`'s. Returns where it ended up; `.waiting` means nothing was sent.
+    /// line). `typingGrace`: as `Delivery.verdict`'s. `mayType` false: its channel or nothing, never the pane (a
+    /// helper's notice). Returns where it ended up; `.waiting` means nothing was sent.
     func sendToAgent(
         _ text: String, typed: String? = nil, pane: String, state: AgentState, lastTyped: Date?,
-        typingGrace: TimeInterval = 20
+        typingGrace: TimeInterval = 20, mayType: Bool = true
     ) async -> DeliveryOutcome {
         let inbox = inbox(forPane: pane)
         switch Delivery.route(
@@ -35,6 +36,7 @@ extension AppModel {
         case let .wait(reason):
             return .waiting(reason)
         case .type:
+            guard mayType else { return .waiting("its agent has no channel heed may use, and this is never typed") }
             TerminalSurfaces.shared.typeLine(typed ?? text, paneID: pane)
             return .typed(fallback: nil)
         case let .channel(inbox):
@@ -43,21 +45,26 @@ extension AppModel {
                 result, via: inbox, state: state, lastTyped: lastTyped, now: Clock.now, typingGrace: typingGrace
             )
             if resolved.forget, inboxes[pane] == inbox { inboxes[pane] = nil }
-            if resolved.typeNow { TerminalSurfaces.shared.typeLine(typed ?? text, paneID: pane) }
+            if resolved.typeNow {
+                guard mayType else { return .failed("\(inbox.channel.label) did not take it, and this is never typed") }
+                TerminalSurfaces.shared.typeLine(typed ?? text, paneID: pane)
+            }
             return resolved.outcome
         }
     }
 
     /// Tells a session's agent something, from heed itself (a helper fixing its PR, say): through its channel, or
-    /// typed when it is idle and you are not typing there. Recorded on the session either way; `.waiting` and
-    /// `.failed` mean it was not sent, and nothing retries it.
+    /// typed when it is idle and you are not typing there (unless `mayType` is false). Recorded on the session when
+    /// sent; `.waiting` and `.failed` mean it was not sent, and nothing retries it.
     @discardableResult
-    func notify(session id: String, text: String) async -> DeliveryOutcome {
+    func notify(session id: String, text: String, mayType: Bool = true) async -> DeliveryOutcome {
         guard let session = sessions.first(where: { $0.id == id }) else { return .failed("no session \(id)") }
         guard let layout = layouts[id], let (_, pane) = agentPane(in: layout) else {
             return .failed("\(session.title) has no agent pane")
         }
-        let outcome = await sendToAgent(text, pane: pane, state: session.state.state, lastTyped: lastTyped[id])
+        let outcome = await sendToAgent(
+            text, pane: pane, state: session.state.state, lastTyped: lastTyped[id], mayType: mayType
+        )
         if outcome.sent, var told = sessions.first(where: { $0.id == id }) {
             told.record("told \(told.agent): \(text.prefix(80)) · \(outcome.summary)")
             commit(.sessionUpserted(told))

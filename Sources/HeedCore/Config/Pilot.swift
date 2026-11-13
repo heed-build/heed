@@ -30,10 +30,12 @@ public enum ForceMerge: String, CaseIterable, Hashable, Sendable {
     public static func named(_ name: String) -> ForceMerge? { ForceMerge(rawValue: name.lowercased()) }
 }
 
-/// Where get it green sends a PR's feedback: a background run (an agent in its own tab, worktree and branch), or the
-/// session's own agent, typed in once it is idle and you have left it alone for a while.
+/// Where get it green sends a PR's feedback: a helper (an agent heed starts over ACP in its own worktree, drawn and
+/// steered in heed, which pushes only once you approve), a background run (an agent in its own tab, worktree and
+/// branch), or the session's own agent, typed in once it is idle and you have left it alone for a while. Helpers are
+/// the default; the other two stay for agents without an ACP adapter.
 public enum RunIn: String, CaseIterable, Hashable, Sendable {
-    case background, session
+    case helper, background, session
 
     public var configName: String { rawValue }
     public static func named(_ name: String) -> RunIn? { RunIn(rawValue: name.lowercased()) }
@@ -96,8 +98,8 @@ public struct PilotSettings: Hashable, Sendable {
     public var mergeEffort: String?
     /// A run still working after this long is stopped.
     public var runTimeout: TimeInterval = 1800
-    /// Background runs, or the session's agent.
-    public var runIn: RunIn = .background
+    /// Helpers, background runs, or the session's agent.
+    public var runIn: RunIn = .helper
     /// Extra instructions heed adds to its prompts: after get it green's feedback items, to heed merge's self-review
     /// criteria, after Start work's issue text, and to the summaries heed's model calls write. Additions only: what
     /// heed needs from a prompt stays as it is.

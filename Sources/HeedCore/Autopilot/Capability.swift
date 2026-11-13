@@ -123,8 +123,8 @@ public enum Capability: String, CaseIterable, Hashable, Sendable, Identifiable {
         switch self {
         case .green: [
                 "A review comment or a failing check arrives on a PR your session tracks.",
-                "On auto, heed sends what is open in one prompt per round: to a run of its own, or the session's agent.",
-                "The agent pushes; heed resolves what it fixed and checks again.",
+                "On auto, heed sends what is open in one prompt per round to a helper: an agent in its own worktree, over ACP.",
+                "The helper pushes and replies once its work is done (or once you approve, on ask); heed checks again.",
                 "Still not green after max_rounds (3) rounds without a new approval: it stops, and the PR shows stalled.",
             ]
         case .merge: [
@@ -179,6 +179,7 @@ public enum Capability: String, CaseIterable, Hashable, Sendable, Identifiable {
         case .green: [
                 "types into your session's agent unless run_in = \"session\", and then not while it works or "
                     + "within 5 minutes of your typing in it",
+                "pushes or replies before a helper is done, or on ask before you approve its close-out",
                 "sends for a paused, merged or closed PR",
                 "goes past max_rounds without a new approval (zr gives one more)",
                 "runs two rounds for one PR at once",

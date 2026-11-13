@@ -16,6 +16,7 @@ enum ShotRegion: String, CaseIterable {
     case tutorBanner, tutorCard, tutorReminder, inferenceReminder, nudgePill
     case repoColumn, worktreeTable, repoCard, cleanupBar, setupBanner, addRepo
     case list, syncBanner
+    case helperSplit, helperCloseOut, helperTiles, nextStep, sessionBand
     case pipeline, delivery, promptPreview, reader
     case diffFiles, diffBody
     case historyFilters, historyList, historyDetail

@@ -5,6 +5,9 @@ import Foundation
 public enum PilotPlan {
     /// The next round, or why there is none.
     public enum Step: Hashable, Sendable {
+        /// A helper: an agent over ACP in its own worktree, drawn in heed, pushing once you approve (`run_in =
+        /// "helper"`, the default). Its round's agent is the helpers' (`[helpers] agent`).
+        case helper(Round)
         /// A run of its own (a tab, worktree and branch): `run_in = "background"`.
         case background(Round)
         /// Typed into the session's agent once it is idle: `run_in = "session"`.
@@ -36,7 +39,7 @@ public enum PilotPlan {
 
     public static func next(
         settings: PilotSettings, pipeline: PullFeedback?, status: PilotStatus, sessionAgent: String?,
-        now: Date = Date()
+        helperAgent: String? = nil, now: Date = Date()
     ) -> Step {
         let effective = PullFeedback.effective(pipeline, settings)
         switch status {
@@ -60,6 +63,11 @@ public enum PilotPlan {
         if settings.runIn == .session {
             return .session(Round(
                 goal: goal, agent: sessionAgent, model: nil, timeout: settings.runTimeout, instructions: instructions
+            ))
+        }
+        if settings.runIn == .helper {
+            return .helper(Round(
+                goal: goal, agent: helperAgent, model: nil, timeout: settings.runTimeout, instructions: instructions
             ))
         }
         let chosen = settings.runAgent(for: goal)
@@ -89,6 +97,11 @@ public enum PilotPlan {
     /// `nothing: get it green is off`, `paused until 14:00`, `stopped after 3 rounds`.
     public static func text(_ step: Step, now: Date = Date(), calendar: Calendar = .current) -> String {
         switch step {
+        case let .helper(round):
+            [
+                round.goal == .merged ? "conflict helper" : "helper", "\(round.agent ?? "an agent") via ACP",
+                PilotDuration.text(round.timeout), instructionsText(round.instructions),
+            ].compactMap(\.self).joined(separator: " · ")
         case let .background(round):
             [
                 round.goal == .merged ? "conflict run" : "background run", agentText(round),
@@ -198,6 +211,7 @@ public enum PilotPlan {
             ]
                 : ["run_in", "agent", "model", "effort"]) + ["run_timeout", "green_instructions"]
         case .session: ["run_in", "green_instructions"]
+        case .helper: ["run_in", "run_timeout", "green_instructions"]
         case .copilot: ["copilot_conflicts"]
         case .paused: ["watch"]
         case .stopped: ["max_rounds"]
@@ -242,7 +256,7 @@ public enum PilotPlan {
     /// Watching, Get it green, A round, Conflicts and Get it merged, for a PR.
     public static func rows(
         settings: PilotSettings, pipeline: PullFeedback?, status: PilotStatus, sessionAgent: String?,
-        sources: [String: Source], now: Date = Date()
+        helperAgent: String? = nil, sources: [String: Source], now: Date = Date()
     ) -> [Row] {
         let effective = PullFeedback.effective(pipeline, settings)
         func origin(_ keys: [String]) -> String {
@@ -299,6 +313,17 @@ public enum PilotPlan {
                 ].compactMap(\.self).joined(separator: ", "),
                 tone: .busy, origin: origin(["run_in", "green_instructions"])
             ))
+        } else if settings.runIn == .helper {
+            rows.append(Row(
+                title: "A round", value: "a helper",
+                detail: [
+                    "\(helperAgent ?? "an agent") over ACP in its own worktree, drawn in heed",
+                    "it pushes and replies once you approve",
+                    "\(PilotDuration.text(settings.runTimeout)) at most",
+                    instructions.map { "\($0) added" },
+                ].compactMap(\.self).joined(separator: ", "),
+                tone: .busy, origin: origin(["run_in", "run_timeout", "green_instructions"])
+            ))
         } else {
             rows.append(Row(
                 title: "A round", value: "background run",
@@ -315,6 +340,8 @@ public enum PilotPlan {
             ("Copilot", ["copilot_conflicts"])
         } else if settings.runIn == .session {
             ("the session's \(sessionAgent ?? "agent")", ["run_in"])
+        } else if settings.runIn == .helper {
+            ("a helper, \(helperAgent ?? "an agent") via ACP", ["run_in"])
         } else {
             (agentText(Round(
                 goal: .merged, agent: settings.runAgent(for: .merged).agent ?? sessionAgent,

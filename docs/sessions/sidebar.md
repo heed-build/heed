@@ -52,6 +52,15 @@ A session with a get it green or get it merged [run](../github/watch.md#runs) wo
 any group: `↳`, the goal and PR (`get it green #412`), how long it has run, then its agent and model and the last line
 of its screen. Click it to go to the run's tab. The rail leaves it out.
 
+A [helper](../agents/helpers.md) on one of the session's PRs gets the same kind of row (`↳ helper getting #2841 green`,
+how long, its agent and what it does now); it has no tab, so a click watches it in a split under the session's panes
+(`gW`). The session itself gets a band over its panes saying what the helper does, with **Watch it** and **Take it
+over** (`gO`). Nothing is typed into the session.
+
+![A helper on the session's PR: the band over its panes](../images/shots/sessions/helper-band.png)
+
+![Watch it: the helper in a split under the session's panes](../images/shots/sessions/helper-watch.png)
+
 Click a session to select it; double-click it (or press `↩`) to type into its agent (INSERT). Rows in the other lists (Attention,
 Watch, Repos, History and the rest) take clicks the same way: a click moves the cursor there, a double-click opens the
 row as `↩` does. A right-click opens a menu of what you can do with it, each item with its key

@@ -823,6 +823,46 @@ public enum Commands {
             "attention.coverage", "Coverage: what Attention has of each source against GitHub, and where it went",
             .selection
         ),
+        .init(
+            "helper.do", "do heed's next step for the item (review it, draft a reply, get it green, merge, set up "
+                + "Autopilot, start work)", .selection
+        ),
+        .init(
+            "helper.always", "do heed's next step, and from now on always in this repo (turns its Autopilot "
+                + "capability on)", .selection
+        ),
+        .init("helper.other", "propose the item's next other step instead (and back to heed's own)", .selection),
+        .init("helper.watch", "Watch it: the helper on the session's PR, in a split under its panes", .selection),
+        .init(
+            "helper.takeover", "Take it over: stop the helper and hand its branch to your session as a note",
+            .selection
+        ),
+        .init("helper.steer", "tell the helper something (it stops its turn and reads it)", .selection),
+        .init("helper.pause", "pause the helper (its turn is cancelled), or let it carry on", .selection),
+        .init("helper.stop", "stop the helper; its close-out keeps what it did", .selection),
+        .init("helper.zoom", "the helper's split takes the whole column, or not", .selection),
+        .init("helper.close", "close the helper's split (it keeps working)", .selection),
+        .init("helper.allow", "allow what the helper asks to run, once", .selection),
+        .init(
+            "helper.allow.always",
+            "allow what the helper asks to run, from now on (the agent remembers)",
+            .selection
+        ),
+        .init("helper.deny", "deny what the helper asks to run", .selection),
+        .init(
+            "helper.push",
+            "push the helper's work to the PR's branch and post its replies (a review: post it)",
+            .selection
+        ),
+        .init("helper.push.only", "push the helper's work to the PR's branch, without its replies", .selection),
+        .init(
+            "helper.throwaway",
+            "throw away what the helper did: its worktree and branch go (twice, to be sure)",
+            .selection
+        ),
+        .init("helper.diff", "the helper's whole diff, in its close-out", .selection),
+        .init("helper.tile.next", "Now: the next helper's tile", .selection),
+        .init("helper.tile.prev", "Now: the previous helper's tile", .selection),
         .init("feedback.queue", "queue / unqueue the item", .selection),
         .init("feedback.send", "send queued feedback to the session", .selection),
         .init("feedback.mode", "pilot.green, by its former name", .selection),

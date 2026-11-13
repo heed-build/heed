@@ -167,6 +167,12 @@ enum Shots {
         Shot(id: "sessions/insert-after", keys: "i", crop: .panes),
         Shot(id: "sessions/split", keys: "<C-w>v", highlight: [.panes]),
         Shot(id: "sessions/tab-strip", crop: .tabStrip, cropPadding: 6),
+        // A helper on the session's PR: the band says so (nothing typed in); gW watches it under the panes.
+        Shot(id: "sessions/helper-band", crop: .sessionBand, prepare: { $0.loadHelperFixture() }),
+        Shot(id: "sessions/helper-watch", keys: "gW", prepare: { $0.loadHelperFixture() }),
+        Shot(id: "sessions/helper-row", size: CGSize(width: 1440, height: 640), crop: .sidebar, prepare: {
+            $0.loadHelperFixture()
+        }),
         Shot(id: "sessions/task-picker", keys: "!", crop: .picker, prepare: withDiscoveredTasks),
         Shot(id: "sessions/run-tab", keys: "4j", crop: .center),
         Shot(id: "sessions/run-reader", crop: .dialog, prepare: { $0.runReader = $0.runs.first { !$0.isRunning } }),
@@ -351,6 +357,10 @@ enum Shots {
         Shot(id: "autopilot/where", keys: "gwW"),
         Shot(id: "autopilot/where-merge", keys: "gwWjjl", crop: .autopilotFooter),
         Shot(id: "autopilot/now", keys: "gwN"),
+        // Now's helpers at work, live, one tile each; ↩ on a tile opens it in a split.
+        Shot(id: "autopilot/now-helpers", keys: "gwNl", prepare: { $0.loadHelperFixture() }),
+        Shot(id: "autopilot/now-helpers-tiles", keys: "gwNl", crop: .helperTiles, prepare: { $0.loadHelperFixture() }),
+        Shot(id: "autopilot/now-helper-open", keys: "gwNll<CR>", prepare: { $0.loadHelperFixture() }),
         Shot(id: "autopilot/done", keys: "gwD"),
         Shot(id: "autopilot/done-merge", keys: "gwDtt", crop: .autopilotDone),
         // Now: the PRs by card, stalled first; the selected PR's checklist, merge rules and timeline.
@@ -391,6 +401,22 @@ enum Shots {
             crop: .attentionDetail
         ),
         Shot(id: "github/attention-muted", keys: "gm" + String(repeating: "t", count: 6)),
+        // heed's next step: each row's line, and the reader's one proposal (D does it, Y always in the repo, . other).
+        Shot(id: "attention/next-steps", size: CGSize(width: 1440, height: 1000), keys: "gm", crop: .attentionList),
+        Shot(id: "attention/next-step", keys: "gp/2841<CR>"),
+        Shot(id: "attention/next-step-review", keys: "gm/2845<CR>", crop: .nextStep),
+        // Once approved: the helper in a split under the reader, its plan, story, diffs and the permission it asks.
+        Shot(id: "attention/helper", size: CGSize(width: 1440, height: 1000), keys: "gp/2841<CR>", prepare: {
+            $0.loadHelperFixture()
+        }),
+        Shot(id: "attention/helper-zoom", size: CGSize(width: 1440, height: 1000), keys: "gp/2841<CR>zo", prepare: {
+            $0.loadHelperFixture()
+        }),
+        // Its close-out: what it did, the replies heed will post, and what you do with them.
+        Shot(
+            id: "attention/helper-done", size: CGSize(width: 1440, height: 1000), keys: "gp/2841<CR>zo",
+            crop: .helperCloseOut, prepare: { $0.loadHelperFixture(done: true) }
+        ),
         Shot(id: "github/attention-reply", keys: "gm/2845<CR>R", crop: .confirm),
         // Mentions from long ago that no notification is about: folded out of For you, listed under Mentions.
         Shot(id: "github/attention-mentions", keys: "gm:attention.filter mentions<CR>"),

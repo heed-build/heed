@@ -19,7 +19,7 @@ enum TutorCheck {
             "o" + Shots.typed("Fix the broken anchors"), Shots.typed(" in the docs"), "<C-n>", "<D-CR>",
             "<S-Esc>gc" + Shots.typed("What is a cron line") + "<D-CR>", ":promote<CR><D-CR>",
         ],
-        "attention": ["tttttt", "tx", "Z"],
+        "attention": [".", "tttttt", "tx", "Z"],
         "inbox": ["<CR><Esc>", "<Space>j<Space>", "x"],
         "issues": ["/a<CR>", "s", "<Esc><Esc><CR>"],
         "prs": ["<CR>", "<Space>", "s", "<Esc>"],

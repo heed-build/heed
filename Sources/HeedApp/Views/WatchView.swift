@@ -77,6 +77,20 @@ struct WatchView: View {
         let sections = rows.map { AutopilotNow.section(of: model.autopilotPull($0)) }
         VStack(spacing: 0) {
             AutopilotPaneBar()
+            // The helpers at work, live, above the PRs; ↩ on a tile opens it in a split in the PRs' place.
+            if !model.helpers.active.isEmpty { HelperTiles() }
+            if let helper = model.visibleHelper {
+                HelperSplit(helper: helper)
+            } else {
+                prs(rows: rows, cursor: cursor, picked: picked, sections: sections)
+            }
+        }
+    }
+
+    private func prs(
+        rows: [AppModel.PilotRow], cursor: Int, picked: Set<String>, sections: [AutopilotNow.Section?]
+    ) -> some View {
+        Group {
             GeometryReader { geometry in
                 HStack(spacing: 0) {
                     VStack(spacing: 0) {

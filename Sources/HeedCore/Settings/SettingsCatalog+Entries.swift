@@ -26,7 +26,7 @@ extension SettingsCatalog {
     // MARK: Global settings
 
     static let globalEntries: [SettingsEntry] = general + notifications + updates + modelCalls + decisions
-        + worktrees + goals + history + github + pilot + attention + tools + keys
+        + worktrees + goals + history + github + pilot + helpers + attention + tools + keys
 
     static let general: [SettingsEntry] = [
         global(
@@ -493,6 +493,26 @@ extension SettingsCatalog {
         ) { .integer($0.log.maxRows) },
     ]
 
+    static let helpers: [SettingsEntry] = [
+        global(
+            "helpers.agent", .pilot, "Helpers", tab: .green, "Helper agent",
+            "Which agent helpers run over ACP: claude, codex, opencode or gemini. Empty: your default agent when heed "
+                + "knows an ACP way to it, else claude.",
+            since: "0.42.0", example: "agent = \"claude\""
+        ) { $0.helpers.agent.map(SettingValue.text) },
+        global(
+            "helpers.command", .pilot, "Helpers", tab: .green, "Adapter command",
+            "The ACP adapter's command line, instead of the one heed knows (claude-agent-acp, codex-acp, opencode acp, "
+                + "gemini --acp).",
+            level: .advanced, since: "0.42.0", example: "command = \"npx -y @agentclientprotocol/claude-agent-acp\""
+        ) { $0.helpers.command.map(SettingValue.text) },
+        global(
+            "helpers.spend_cap", .pilot, "Helpers", tab: .green, "Spend cap",
+            "Dollars one helper may spend before heed stops it, from what its agent reports. 0: no cap.",
+            since: "0.42.0"
+        ) { .number($0.helpers.spendCap) },
+    ]
+
     static let github: [SettingsEntry] = [
         global(
             "github.poll_seconds", .github, "GitHub", "GitHub poll",
@@ -615,9 +635,10 @@ extension SettingsCatalog {
             ) { .integer($0.maxRounds) },
             entry(
                 "run_in", "Runs in",
-                "Background: each round is an agent in its own tab, worktree and branch (heed/get-it-green/…), all "
-                    + "removed when it is done. Session: the session's own agent, once it is idle and you have not "
-                    + "typed in it for five minutes.",
+                "Helper: an agent heed starts over ACP in its own worktree, drawn and steered in heed; it pushes and "
+                    + "replies only once you approve. Background: an agent in its own tab, worktree and branch "
+                    + "(heed/get-it-green/…), all removed when it is done. Session: the session's own agent, once it is "
+                    + "idle and you have not typed in it for five minutes.",
                 since: "0.9.6"
             ) { .text($0.runIn.configName) },
             entry(

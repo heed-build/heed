@@ -228,6 +228,8 @@ final class AppModel {
     let isFixture: Bool
     /// Attention's store, marks and thread details.
     let attention = AttentionModel()
+    /// The helpers heed runs on your behalf over ACP, and what their splits show (AppModel+Helpers).
+    let helpers = HelpersModel()
     private var hookServer: HookServer?
     /// The control socket (`HeedControl`): editors and scripts start, type into and follow sessions through it.
     var controlServer: ControlServer?
@@ -406,7 +408,7 @@ final class AppModel {
     func updateScope() {
         engine.scope = overlay == .diff ? "diff" : issueReader != nil ? "issue"
             : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope
-            : view == .attention && attentionQuestion != nil ? "swarmask" : view.rawValue
+            : view == .attention && attentionQuestion != nil ? "swarmask" : helperScope ?? view.rawValue
     }
 
     // Diff overlay
@@ -564,6 +566,8 @@ final class AppModel {
         }
         updateScope()
         if !isFixture { loadInferenceSetup() }
+        // Whether helpers can run (their ACP adapter on the PATH): said on the proposal and in Now before one starts.
+        if !isFixture { Task { _ = await helperAvailability() } }
         tutorRecord = tutorProgress
         // The tutor runs in its own window and model; the reminder here follows what it saves.
         NotificationCenter.default
@@ -2474,6 +2478,10 @@ final class AppModel {
             typeDiffNote(stroke)
             return true
         }
+        if helpers.steer != nil {
+            typeSteer(stroke)
+            return true
+        }
         let before = engine.mode
         let outcome = engine.handle(stroke)
         switch outcome {
@@ -2584,6 +2592,8 @@ final class AppModel {
         case let .feedback(id): pointFeedback(id)
         default: break
         }
+        // Now's cursor back in its list leaves the helpers' tiles.
+        if view == .watch, command.name.hasPrefix("row.") { helpers.tile = nil }
         switch command.name {
         case "row.next": moveRow(by: count)
         case "row.prev": moveRow(by: -count)
@@ -2857,6 +2867,12 @@ final class AppModel {
                 callLog.copy(call)
                 flash = "copied: \(call.command)"
             }
+        case "autopilot.open" where openTile(): break
+        case "helper.do", "helper.always", "helper.other", "helper.watch", "helper.takeover", "helper.steer",
+             "helper.pause", "helper.stop", "helper.zoom", "helper.close", "helper.allow", "helper.allow.always",
+             "helper.deny", "helper.push", "helper.push.only", "helper.throwaway", "helper.diff", "helper.tile.next",
+             "helper.tile.prev":
+            performHelper(command)
         case "view.autopilot", "view.watch", "autopilot.cando", "autopilot.where", "autopilot.now", "autopilot.done",
              "autopilot.move", "autopilot.on", "autopilot.ask", "autopilot.off", "autopilot.everywhere",
              "autopilot.open", "autopilot.settings", "autopilot.what", "autopilot.repo":
@@ -5709,11 +5725,14 @@ final class AppModel {
         sessions.first { $0.trackedPRs.contains(ref) }?.agent
     }
 
+    /// The agent helpers run (`[helpers] agent`, else the default agent's when it has an adapter).
+    var helperAgentName: String? { ACPAgents.chosen(config.helpers, defaultAgent: settings.defaultAgent)?.agent }
+
     /// What heed would do next for a PR (`PilotPlan`): the PR card's `next` line.
     func pilotPlan(for ref: PullRef) -> PilotPlan.Step {
         PilotPlan.next(
             settings: pilotSettings(for: ref), pipeline: feedback[ref.description], status: pilotStatus(for: ref),
-            sessionAgent: sessionAgent(for: ref), now: Clock.now
+            sessionAgent: sessionAgent(for: ref), helperAgent: helperAgentName, now: Clock.now
         )
     }
 
@@ -5725,7 +5744,8 @@ final class AppModel {
     func pilotPlanRows(for ref: PullRef) -> [PilotPlan.Row] {
         PilotPlan.rows(
             settings: pilotSettings(for: ref), pipeline: feedback[ref.description], status: pilotStatus(for: ref),
-            sessionAgent: sessionAgent(for: ref), sources: pilotPlanSources(for: ref), now: Clock.now
+            sessionAgent: sessionAgent(for: ref), helperAgent: helperAgentName, sources: pilotPlanSources(for: ref),
+            now: Clock.now
         )
     }
 
@@ -6168,6 +6188,11 @@ final class AppModel {
             }
             return
         }
+        // A helper (the default): an agent over ACP in its own worktree, drawn in heed. It needs no session; the one
+        // that tracks the PR is told, never typed into. A swarm PR's feedback goes to its own runs, as before.
+        if !isFixture, pilotSettings(for: ref).runIn == .helper, swarmPulls[ref.description] == nil {
+            return deliverToHelper(ref, prompt: prompt, explicit: explicit)
+        }
         guard let session = sessions.first(where: { $0.trackedPRs.contains(ref) }) else {
             if explicit { flash = "no session tracks #\(ref.number)" }
             return
@@ -6218,6 +6243,44 @@ final class AppModel {
             else { return }
             markSent(ref, pipeline: &pipeline, session: &session, to: target, byYou: explicit)
         }
+    }
+
+    /// `run_in = "helper"`: one helper per PR at a time; the next round waits for it to be closed out.
+    private func deliverToHelper(_ ref: PullRef, prompt: String, explicit: Bool) {
+        guard let pipeline = feedback[ref.description] else { return }
+        if let helper = helpers.current(on: ref) {
+            pendingDelivery.insert(ref)
+            if explicit {
+                openHelper(helper.id)
+                flash = "a helper is on #\(ref.number); this goes once you close it out"
+            }
+            logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: a helper is on it")
+            return
+        }
+        guard !startingRuns.contains(ref.description) else { return }
+        startingRuns.insert(ref.description)
+        let queued = pipeline.queued
+        let kind: HelperKind = Runs.goal(for: pilotStatus(for: ref)) == .merged ? .conflict : .green
+        let sessionID = sessions.first { $0.trackedPRs.contains(ref) }?.id
+        Task {
+            defer { startingRuns.remove(ref.description) }
+            guard let target = await startHelper(kind, ref: ref, items: queued, sessionID: sessionID, prompt: {
+                HelperPrompt.green(feedback: prompt, branch: $0, prBranch: $1)
+            }), var pipeline = feedback[ref.description] else { return }
+            if let sessionID, var session = sessions.first(where: { $0.id == sessionID }) {
+                markSent(ref, pipeline: &pipeline, session: &session, to: target, byYou: explicit)
+            } else {
+                pendingDelivery.remove(ref)
+                pipeline.markSent(at: pullDetails[ref.description]?.headSHA)
+                commit(.feedbackChanged(pipeline))
+                logPilot(ref, .sent, "sent \(queued.count) item\(queued.count == 1 ? "" : "s") to \(target)")
+            }
+        }
+    }
+
+    /// A helper on the PR was closed out: what queued meanwhile goes now.
+    func helperClosed(_ ref: PullRef) {
+        if pendingDelivery.contains(ref) { deliver(ref, explicit: false) }
     }
 
     /// `run_in = "session"`: typed into the session's own agent, once it is idle and you have left it alone (five
@@ -8129,6 +8192,7 @@ final class AppModel {
         state.mode = mode
         state.view = view.rawValue
         state.attentionFilter = attention.filter.rawValue
+        state.otherSteps = helpers.otherSteps
         switch view {
         case .sessions:
             state.cursor = cursor

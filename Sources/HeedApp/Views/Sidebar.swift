@@ -165,6 +165,14 @@ struct Sidebar: View {
                                             .contentShape(Rectangle())
                                             .onTapGesture { model.open(run: run) }
                                             .help("Go to the run's tab")
+                                    } else if let helper = model.helperNotice(for: session)?.helper,
+                                              helper.phase.isLive || helper.phase.awaitsCloseOut
+                                    {
+                                        // A helper on its PR: no tab of its own; a click watches it under the panes.
+                                        HelperChildRow(helper: helper)
+                                            .clickRuns(CommandInvocation(
+                                                name: "helper.watch", target: .session(session.id)
+                                            ))
                                     }
                                 }
                             }
@@ -593,6 +601,44 @@ struct RunChildRow: View {
                 }
                 Text(verbatim: ([run.model.map { "\(run.agent) \($0)" } ?? run.agent] + [lastLine].compactMap(\.self))
                     .joined(separator: " · "))
+                    .font(Theme.ui(11))
+                    .foregroundStyle(Theme.fg3)
+                    .truncationMode(.tail)
+            }
+        }
+        .lineLimit(1)
+        .padding(.leading, 40)
+        .padding(.trailing, 12)
+        .padding(.vertical, 6)
+        .background(Theme.busy.opacity(0.05))
+        .overlay(alignment: .leading) {
+            Theme.busy.opacity(0.5).frame(width: 2).padding(.vertical, 2).padding(.leading, 32)
+        }
+    }
+}
+
+/// A helper working on one of a session's PRs, under the session: what it is and what it does now.
+struct HelperChildRow: View {
+    let helper: HelperRun
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text("↳").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+            StateGlyph(
+                state: helper.phase.awaitsCloseOut ? .done : helper.permission != nil ? .asking : .working,
+                size: 10
+            )
+            .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(verbatim: "helper " + helper.headline.prefix(1).lowercased() + helper.headline.dropFirst())
+                        .font(Theme.ui(12, weight: .medium))
+                        .foregroundStyle(Theme.busy)
+                    Spacer(minLength: 4)
+                    Text(Elapsed.text((helper.endedAt ?? Clock.now).timeIntervalSince(helper.startedAt)))
+                        .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                }
+                Text(verbatim: ([helper.adapter] + [helper.now].compactMap(\.self)).joined(separator: " · "))
                     .font(Theme.ui(11))
                     .foregroundStyle(Theme.fg3)
                     .truncationMode(.tail)

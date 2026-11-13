@@ -27,15 +27,15 @@ This page is generated from the code (`mise run shots`).
 | `session.attention` | `ga` | next session needing you |
 | `session.park` | `zz` | park session |
 | `session.close` | `x` | close session, keep worktree |
-| `session.delete` | `dd` (sessions) | delete session and its worktrees (asks first) |
-| `session.import` `[path]` | `Iw` (sessions) | import a worktree Heed does not manage yet as a session |
-| `session.import.path` | `Ip` (sessions) | import the worktree at a path (any repo, anywhere) |
+| `session.delete` | `dd` (sessions), `dd` (sessionshelper) | delete session and its worktrees (asks first) |
+| `session.import` `[path]` | `Iw` (sessions), `Iw` (sessionshelper) | import a worktree Heed does not manage yet as a session |
+| `session.import.path` | `Ip` (sessions), `Ip` (sessionshelper) | import the worktree at a path (any repo, anywhere) |
 | `session.pin` | `m` | pin / unpin session |
-| `session.rename` `[title]` | `R` (sessions) | give the session your title, which heed keeps (no title: the command line opens with it) |
+| `session.rename` `[title]` | `R` (sessions), `R` (sessionshelper) | give the session your title, which heed keeps (no title: the command line opens with it) |
 | `session.autoname` |  | let heed name the session again, from what it is doing |
-| `session.kind` `[kind]` | `K` (sessions) | what the work is: feat, fix, refactor, docs, chore or plan (no argument: the next) |
+| `session.kind` `[kind]` | `K` (sessions), `K` (sessionshelper) | what the work is: feat, fix, refactor, docs, chore or plan (no argument: the next) |
 | `session.back` | `''` | back to previous session |
-| `session.agent` | `<CR>` (sessions) | INSERT into the session's agent pane (the focused pane when it has none) |
+| `session.agent` | `<CR>` (sessions), `<CR>` (sessionshelper) | INSERT into the session's agent pane (the focused pane when it has none) |
 | `session.open` `<words>` |  | go to the session matching these words |
 | `pin.jump` `<1-9>` | `'1`, `'2`, `'3`, `'4`, `'5`, `'6`, `'7`, `'8`, `'9` | jump to pinned session |
 | `work.start` | `o` | start work |
@@ -89,10 +89,10 @@ This page is generated from the code (`mise run shots`).
 | `view.issues` |  | Attention's issues: assigned to you or mentioning you, where the Issues view went |
 | `view.prs` |  | pull requests |
 | `view.watch` |  | Autopilot, as view.autopilot does (the view was Watch before) |
-| `autopilot.cando` | `C` (autopilot), `C` (done), `C` (watch), `C` (where) | Autopilot's Can do: a card per thing heed can do on its own |
-| `autopilot.where` | `W` (autopilot), `W` (done), `W` (watch), `W` (where) | Autopilot's Where: each repo, and which capabilities are on there |
-| `autopilot.now` | `N` (autopilot), `N` (done), `N` (watch), `N` (where) | Autopilot's Now: stalled PRs first, then what each capability is working on |
-| `autopilot.done` | `D` (autopilot), `D` (done), `D` (watch), `D` (where) | Autopilot's Done: what heed did on its own, by day |
+| `autopilot.cando` | `C` (autopilot), `C` (done), `C` (watch), `C` (watchhelper), `C` (where) | Autopilot's Can do: a card per thing heed can do on its own |
+| `autopilot.where` | `W` (autopilot), `W` (done), `W` (watch), `W` (watchhelper), `W` (where) | Autopilot's Where: each repo, and which capabilities are on there |
+| `autopilot.now` | `N` (autopilot), `N` (done), `N` (watch), `N` (watchhelper), `N` (where) | Autopilot's Now: stalled PRs first, then what each capability is working on |
+| `autopilot.done` | `D` (autopilot), `D` (done), `D` (watch), `D` (watchhelper), `D` (where) | Autopilot's Done: what heed did on its own, by day |
 | `view.repos` | `gr` | repos & worktrees |
 | `view.log` |  | the call log: every command and GitHub call heed made, how long it took, how it ended |
 | `view.timeline` |  | Insights' History with every event as its own line (what the timeline was) |
@@ -136,9 +136,9 @@ This page is generated from the code (`mise run shots`).
 | `inspector.copy` `<path>` |  | copy a path to the pasteboard |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
 | `sidebar.titles` | `zt` | show session titles / worktree names in the sidebar rows |
-| `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
-| `sessions.sort` `[attention|touched|idle|started|size]` | `T` (sessions) | sort the sessions: attention, you recent first, idle longest, started, size (no argument: next) |
-| `sessions.rows` `[one|two]` | `zR` (sessions) | one line or two per session in the sidebar |
+| `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions), `zG` (sessionshelper) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
+| `sessions.sort` `[attention|touched|idle|started|size]` | `T` (sessions), `T` (sessionshelper) | sort the sessions: attention, you recent first, idle longest, started, size (no argument: next) |
+| `sessions.rows` `[one|two]` | `zR` (sessions), `zR` (sessionshelper) | one line or two per session in the sidebar |
 | `sessions.close.ready` | `X` (sessions) | close every session in Can close (its PRs merged or closed, nothing left open), after asking |
 | `config.edit` |  | open config.toml in $EDITOR |
 | `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |
@@ -200,11 +200,11 @@ This page is generated from the code (`mise run shots`).
 | `autopilot.ask` | `a` (where) | Autopilot: have the capability ask you first here |
 | `autopilot.off` | `x` (autopilot), `x` (where) | Autopilot: turn the capability off here |
 | `autopilot.everywhere` | `Y` (autopilot) | Autopilot: turn the capability on in every repo |
-| `autopilot.open` | `<CR>` (autopilot), `<CR>` (done), `<CR>` (watch), `<CR>` (where) | Autopilot: what the card did (Can do), the repo in Repos (Where), read the PR (Now and Done) |
+| `autopilot.open` | `<CR>` (autopilot), `<CR>` (done), `<CR>` (watch), `<CR>` (watchhelper), `<CR>` (where) | Autopilot: what the card did (Can do), the repo in Repos (Where), read the PR (Now and Done) |
 | `autopilot.settings` | `S` (autopilot), `S` (where) | Autopilot: open the Settings page of the capability |
 | `autopilot.what` `[capability]` | `t` (done) | Done: every capability, or the next one (or one by name) |
 | `autopilot.repo` `[repo]` | `r` (done) | Done: every repo, or the next one (or one by name) |
-| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch) | toggle row |
+| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (attentionhelper), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch), `<Space>` (watchhelper) | toggle row |
 | `history.reopen` | `R` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` `[outcome]` | `t` (history) | History: the next outcome filter, or one by name (all, merged, …) |
@@ -244,7 +244,7 @@ This page is generated from the code (`mise run shots`).
 | `goal.guide` |  | Goals: hide the goal's next-steps card (it comes back if a step it ticked off goes back), or show it again |
 | `goal.ask.yes` | `y` (attention), `y` (swarmask), `y` (unassigned) | yes: on the goal heed proposed (on a suggested goal: make it) |
 | `goal.ask.no` | `n` (attention), `n` (swarmask), `n` (unassigned) | no: not on that goal, and heed learns it (on a suggested goal: drop it) |
-| `goal.ask.move` `<goal>` | `m` (attention), `m` (swarmask), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
+| `goal.ask.move` `<goal>` | `m` (attention), `m` (attentionhelper), `m` (swarmask), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
 | `goal.ask.ignore` | `i` (attention), `i` (unassigned) | leave things like this on no goal, and heed learns to (an ignore rule) |
 | `goal.unassigned.how` | `g?` (unassigned) | Unassigned: show or hide how heed puts work on goals (shown on its own only while nothing waits for you) |
 | `goal.attach.undo` | `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
@@ -346,22 +346,41 @@ This page is generated from the code (`mise run shots`).
 | `log.caller` | `c` (log) | call log: only the caller of the call under the cursor, or every caller |
 | `log.agent` | `a` (log) | call log: only the agent of the call under the cursor, or every agent |
 | `log.copy` | `y` (log) | copy the command of the call under the cursor |
-| `github.sync` | `r` (attention), `r` (pr), `r` (prs), `r` (swarmask), `r` (watch) | sync GitHub now |
-| `items.start` | `s` (attention), `s` (issue), `s` (swarmask) | start one session from the picked items |
-| `items.add` | `a` (attention), `a` (issue), `a` (swarmask) | add the picked items to the current session |
-| `attention.done` | `x` (attention), `x` (swarmask) | done: mark the thread read on GitHub; it comes back when something new happens |
-| `attention.snooze` `[duration]` | `Z` (attention), `Z` (swarmask) | snooze: out of the feed until later (3h, or 30m, 2d, tomorrow) |
-| `attention.mute` | `M` (attention), `M` (swarmask) | mute the thread on GitHub (no more notifications about it); listed under Muted |
-| `attention.reply` | `R` (attention), `R` (swarmask) | draft a reply with the model; you read it before anything is posted |
-| `attention.session` | `gS` (attention), `gS` (swarmask) | go to the item's session |
-| `attention.filter` `[filter]` | `t` (attention), `t` (swarmask) | next Attention tab (Muted after Everything), or the one named |
+| `github.sync` | `r` (attention), `r` (attentionhelper), `r` (pr), `r` (prs), `r` (swarmask), `r` (watch), `r` (watchhelper) | sync GitHub now |
+| `items.start` | `s` (attention), `s` (attentionhelper), `s` (issue), `s` (swarmask) | start one session from the picked items |
+| `items.add` | `a` (attention), `a` (attentionhelper), `a` (issue), `a` (swarmask) | add the picked items to the current session |
+| `attention.done` | `x` (attention), `x` (attentionhelper), `x` (swarmask) | done: mark the thread read on GitHub; it comes back when something new happens |
+| `attention.snooze` `[duration]` | `Z` (attention), `Z` (attentionhelper), `Z` (swarmask) | snooze: out of the feed until later (3h, or 30m, 2d, tomorrow) |
+| `attention.mute` | `M` (attention), `M` (attentionhelper), `M` (swarmask) | mute the thread on GitHub (no more notifications about it); listed under Muted |
+| `attention.reply` | `R` (attention), `R` (attentionhelper), `R` (swarmask) | draft a reply with the model; you read it before anything is posted |
+| `attention.session` | `gS` (attention), `gS` (attentionhelper), `gS` (swarmask) | go to the item's session |
+| `attention.filter` `[filter]` | `t` (attention), `t` (attentionhelper), `t` (swarmask) | next Attention tab (Muted after Everything), or the one named |
 | `attention.done.new` | `X` (attention), `X` (swarmask) | done with everything in For you's New since |
-| `attention.fold` | `za` (attention), `za` (swarmask) | For you's Mentioned before: list it, or fold it again |
-| `attention.reader.down` | `<C-e>` (attention), `<C-e>` (swarmask) | scroll Attention's reader down half its height |
-| `attention.reader.up` | `<C-y>` (attention), `<C-y>` (swarmask) | scroll Attention's reader up half its height |
-| `attention.sort` | `T` (attention), `T` (swarmask) | Attention: recent first, or weight then recent |
-| `attention.summarize` | `U` (attention), `U` (swarmask) | write the thread's catch-up summary again (↻): what is new since you last looked |
+| `attention.fold` | `za` (attention), `za` (attentionhelper), `za` (swarmask) | For you's Mentioned before: list it, or fold it again |
+| `attention.reader.down` | `<C-e>` (attention), `<C-e>` (attentionhelper), `<C-e>` (swarmask) | scroll Attention's reader down half its height |
+| `attention.reader.up` | `<C-y>` (attention), `<C-y>` (attentionhelper), `<C-y>` (swarmask) | scroll Attention's reader up half its height |
+| `attention.sort` | `T` (attention), `T` (attentionhelper), `T` (swarmask) | Attention: recent first, or weight then recent |
+| `attention.summarize` | `U` (attention), `U` (attentionhelper), `U` (swarmask) | write the thread's catch-up summary again (↻): what is new since you last looked |
 | `attention.coverage` |  | Coverage: what Attention has of each source against GitHub, and where it went |
+| `helper.do` | `D` (attention), `D` (attentionhelper), `D` (swarmask) | do heed's next step for the item (review it, draft a reply, get it green, merge, set up Autopilot, start work) |
+| `helper.always` | `Y` (attention), `Y` (swarmask) | do heed's next step, and from now on always in this repo (turns its Autopilot capability on) |
+| `helper.other` | `.` (attention), `.` (attentionhelper), `.` (swarmask) | propose the item's next other step instead (and back to heed's own) |
+| `helper.watch` | `gW` | Watch it: the helper on the session's PR, in a split under its panes |
+| `helper.takeover` | `gO` | Take it over: stop the helper and hand its branch to your session as a note |
+| `helper.steer` | `i` (attentionhelper), `i` (sessionshelper), `i` (watchhelper) | tell the helper something (it stops its turn and reads it) |
+| `helper.pause` | `p` (attentionhelper), `p` (sessionshelper), `p` (watchhelper) | pause the helper (its turn is cancelled), or let it carry on |
+| `helper.stop` | `zx` (attentionhelper), `zx` (sessionshelper), `zx` (watchhelper) | stop the helper; its close-out keeps what it did |
+| `helper.zoom` | `zo` (attentionhelper), `zo` (sessionshelper), `zo` (watchhelper) | the helper's split takes the whole column, or not |
+| `helper.close` | `<Esc>` (attentionhelper), `<Esc>` (sessionshelper), `<Esc>` (watchhelper) | close the helper's split (it keeps working) |
+| `helper.allow` | `y` (attentionhelper), `y` (sessionshelper), `y` (watchhelper) | allow what the helper asks to run, once |
+| `helper.allow.always` | `Y` (attentionhelper), `Y` (sessionshelper), `Y` (watchhelper) | allow what the helper asks to run, from now on (the agent remembers) |
+| `helper.deny` | `n` (attentionhelper), `n` (sessionshelper), `n` (watchhelper) | deny what the helper asks to run |
+| `helper.push` | `<D-CR>` (attentionhelper), `<D-CR>` (sessionshelper), `<D-CR>` (watchhelper) | push the helper's work to the PR's branch and post its replies (a review: post it) |
+| `helper.push.only` | `P` (attentionhelper), `P` (sessionshelper), `P` (watchhelper) | push the helper's work to the PR's branch, without its replies |
+| `helper.throwaway` | `X` (attentionhelper), `X` (sessionshelper), `X` (watchhelper) | throw away what the helper did: its worktree and branch go (twice, to be sure) |
+| `helper.diff` | `gd` (attentionhelper), `gd` (sessionshelper), `gd` (watchhelper) | the helper's whole diff, in its close-out |
+| `helper.tile.next` | `l` (watch), `<Right>` (watch), `l` (watchhelper), `<Right>` (watchhelper) | Now: the next helper's tile |
+| `helper.tile.prev` | `h` (watch), `<Left>` (watch), `h` (watchhelper), `<Left>` (watchhelper) | Now: the previous helper's tile |
 | `feedback.queue` | `<Space>` (pr) | queue / unqueue the item |
 | `feedback.send` | `s` (pr) | send queued feedback to the session |
 | `feedback.mode` |  | pilot.green, by its former name |
@@ -372,12 +391,12 @@ This page is generated from the code (`mise run shots`).
 | `pilot.run` | `gb` | show the session's running get it green / get it merged run |
 | `pilot.run.stop` | `zx` | stop the session's running get it green / get it merged run |
 | `pilot.retry` | `zr` | one more round of get it green for a stalled PR (or the picked PRs) |
-| `pilot.copilot` | `C` (pr), `A` (watch) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |
+| `pilot.copilot` | `C` (pr), `A` (watch), `A` (watchhelper) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |
 | `pilot.reviewers` | `zv` | ask the PR's configured reviewers ([pilot] reviewers) to review it |
 | `pilot.merge` | `zm` | get it merged for the PR (or the picked PRs): off or auto |
 | `pilot.merge.now` | `zM` | merge the PR now; past unmet required reviews or checks with --admin when you are an admin (merge_now, force_merge) |
 | `pilot.merge.setup` |  | set up get it merged for the PR's repo |
-| `merge.run` `[repo|all]` | `R` (watch) | run a repo's merge queue now (no name: the PR's repo; all: every queue) |
+| `merge.run` `[repo|all]` | `R` (watch), `R` (watchhelper) | run a repo's merge queue now (no name: the PR's repo; all: every queue) |
 | `merge.queue` `[repo]` | `gM` | show a repo's merge queue and its runs (no name: the PR's repo) |
 | `pilot.pause` `[duration]` | `zp`, `zp` (VISUAL) | pause the PR (or the picked PRs), or resume: 30m, 1h, 4h, 1d, forever, off |
 | `feedback.dismiss` | `x` (pr) | dismiss the item |

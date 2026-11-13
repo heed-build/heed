@@ -173,7 +173,9 @@ the base branch requires linear history, and `admin_merge` where you are not an 
 Settings come from three levels and a choice made on the PR, so it is not always plain what the next round will be.
 Every PR card, in the inspector and in Now's middle pane, says it in one line under the pilot's:
 
-- `next  background run · codex · 30m · 1 instruction`: a [run](#runs) of its own, with the agent and model it
+- `next  helper · claude via ACP · 30m`: a [helper](../agents/helpers.md) (the default), with the agent it runs
+  over ACP and how long it may work.
+- `next  background run · codex · 30m · 1 instruction`: a [run](#in-a-background-tab-instead) of its own, with the agent and model it
   starts, how long it may work, and how many lines of `green_instructions` it gets.
 - `next  conflict run · …`: the PR conflicts with its base, so the round takes `merge_agent` and `merge_model`.
 - `next  typed into the session's claude`: `run_in = "session"`.
@@ -224,8 +226,17 @@ never set follow the settings.
 
 ## Runs
 
-By default get it green never types into your session's agent. Each round (heed sending on its own with
-`green = "auto"`, or `zg` with items queued) is a **run** in the background:
+Get it green never types into your session's agent. By default each round (heed sending on its own with
+`green = "auto"`, `zg` with items queued, or `D` on the PR in Attention) goes to a [helper](../agents/helpers.md): an
+agent heed starts over ACP in a worktree of its own, drawn in heed (in Attention under the reader, in Autopilot › Now
+as a live tile, and under the session's panes with `gW`), which pushes and replies only once you approve its close-out.
+One helper per PR at a time; what queues meanwhile goes once you close it out. The session tracking the PR is told on a
+band over its panes, never typed into.
+
+### In a background tab instead
+
+`run_in = "background"` (per org and repo too, or **Runs in** on the Pilot page) keeps the way rounds ran before
+helpers, for an agent heed has no ACP adapter for. Each round is a **run** in the background:
 
 - **Where:** a worktree of its own (`<worktree_root>/heed/<repo>/get-it-green-<branch>`) on a branch of its own,
   `heed/get-it-green/<branch>`, tracking the pull request's. Conflicts with the base get `heed/get-it-merged/…`.
@@ -325,7 +336,7 @@ max_rounds = 3       # prompts without a new approval before it stops
 agent = ""           # runs' agent (codex, claude, ...); empty: the session's
 model = ""           # their model (haiku, gpt-6-luna, ...); empty: the agent's default
 effort = ""          # their reasoning effort (low, high, ...); empty: the agent's default
-run_in = "background" # background (a run of its own) or session (the session's agent, once idle)
+run_in = "helper"    # helper (an ACP agent in its own worktree), background (a tab of its own) or session
 merge_agent = ""     # background runs for merge conflicts; empty: agent
 merge_model = ""     # their model; empty: model (with a merge_agent of its own, that agent's default)
 merge_effort = ""    # their effort; empty: effort (with a merge_agent of its own, that agent's default)

@@ -456,7 +456,7 @@ enum Shots {
         Shot(id: "github/delivery", keys: "go", crop: .delivery),
         Shot(id: "github/prompt", keys: "go", crop: .promptPreview, prepare: withGreenInstructions),
         // The setup wizard on the fake world's invented history: the Repos column's status, then each step.
-        Shot(id: "github/repo-setup-repos", size: short, keys: "gr", crop: .repoColumn),
+        Shot(id: "github/repo-setup-repos", keys: "grhj", crop: .repoCard),
         Shot(id: "github/repo-setup-1-sampling", keys: "gr", crop: .dialog, prepare: { model in
             model.showRepoSetupSampling(Fixtures.main.repos[0].repo)
         }),
@@ -475,25 +475,38 @@ enum Shots {
     }
 
     static let worktrees: [Shot] = [
-        Shot(id: "worktrees/repos", keys: "gr", highlight: [.repoColumn, .worktreeTable, .rulesPanel]),
+        // A repo picked in the column (h, then j): its card, then its worktrees.
+        Shot(
+            id: "worktrees/repos", keys: "grhj",
+            highlight: [.repoColumn, .cleanupBar, .repoCard, .worktreeTable]
+        ),
+        // All worktrees, grouped by repo.
+        Shot(id: "worktrees/repos-all", keys: "gr"),
         Shot(id: "worktrees/repos-filtered", keys: "gr/fix<CR>", crop: .worktreeTable),
         // No repos under the roots yet: where to look, and the next step.
         Shot(id: "worktrees/repos-empty", size: CGSize(width: 1440, height: 760), keys: "gr", fixture: "empty"),
-        Shot(id: "worktrees/repo-column", size: short, keys: "gr", crop: .repoColumn),
+        Shot(id: "worktrees/repo-column", size: short, keys: "grhj", crop: .repoColumn),
+        Shot(id: "worktrees/repo-card", keys: "grhj", crop: .repoCard),
+        // Add or clone: your GitHub repos and your orgs', where each already is; typing narrows, space picks.
+        Shot(id: "worktrees/add-repo", keys: "gra", crop: .addRepo),
+        Shot(id: "worktrees/add-repo-picked", keys: "gra" + "acme/an<Space><C-n><Space>", crop: .addRepo),
+        Shot(id: "worktrees/add-repo-org", keys: "gra<Tab><Tab>", crop: .addRepo),
+        Shot(id: "worktrees/add-repo-typed", keys: "gra" + "acme/brand-new", crop: .addRepo),
+        Shot(id: "worktrees/add-repo-folder", keys: "gra" + "~/Projects/side-project", crop: .addRepo),
         Shot(id: "worktrees/import-worktree", keys: "Iw", crop: .picker),
         // Typing narrows by repo, branch or the path below its root, and marks what matched.
         Shot(id: "worktrees/import-worktree-filtered", keys: "Iwgantt", crop: .picker),
         Shot(id: "worktrees/import-path", keys: "Ip" + "code/wt/docs-toolkit/toc", crop: .picker),
         Shot(id: "worktrees/remove", keys: "gr4jvjd", crop: .confirm),
-        Shot(id: "worktrees/rules", keys: "gr", crop: .rulesPanel),
-        Shot(id: "worktrees/sweep", keys: "gr", crop: .sweepBanner, prepare: { model in
+        Shot(id: "worktrees/cleanup-off", keys: "gr", crop: .cleanupBar),
+        Shot(id: "worktrees/cleanup", keys: "gr", crop: .cleanupBar, prepare: { model in
             model.applyConfig(source: "[cleanup]\nenabled = true\nidle_days = 3\n")
         }),
-        // A chat closed 40 days ago: its scratch folder is in the sweep too.
-        Shot(id: "worktrees/sweep-chats", keys: "gr", crop: .sweepBanner, prepare: withOldChat),
-        Shot(id: "worktrees/sweep-chats-confirm", keys: "grgC", crop: .confirm, prepare: withOldChat),
-        // Work saved 120 days ago, past keep_archive_days: the sweep drops it, and says so first.
-        Shot(id: "worktrees/sweep-archives", keys: "grgC", crop: .confirm, prepare: withOldArchive),
+        // A chat closed 40 days ago: its scratch folder goes with the cleanup too.
+        Shot(id: "worktrees/cleanup-chats", keys: "gr", crop: .cleanupBar, prepare: withOldChat),
+        Shot(id: "worktrees/cleanup-chats-confirm", keys: "grgC", crop: .confirm, prepare: withOldChat),
+        // Work saved 120 days ago, past keep_archive_days: cleanup drops it, and says so first.
+        Shot(id: "worktrees/cleanup-archives", keys: "grgC", crop: .confirm, prepare: withOldArchive),
         Shot(id: "worktrees/setup", keys: "gr", crop: .setupBanner, prepare: withSetupProposals),
         Shot(id: "worktrees/setup-review", keys: "grS", crop: .confirm, prepare: withSetupProposals),
     ]

@@ -22,6 +22,12 @@ struct WorktreesPage: View {
             SettingRow("worktrees.offer_trust") {
                 ConfigSwitch(path: ["worktrees", "offer_trust"], isOn: work.offerTrust)
             }
+            SettingRow("worktrees.after_add") {
+                SegmentedChoice(
+                    path: ["worktrees", "after_add"], value: work.afterAdd,
+                    options: AfterAdd.allCases.map { ($0, $0.title) }, name: \.rawValue, width: 300
+                )
+            }
         }
         SettingsCard(title: "Branch names") {
             SettingRow("worktrees.default_prefix") {

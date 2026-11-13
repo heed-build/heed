@@ -355,7 +355,7 @@ struct StartWorkView: View {
             if let plan {
                 Text(picked ? "The agent works in this folder with its normal permissions; heed never removes it."
                     :
-                    "\(Paths.tilde(plan.path)) · an empty folder heed makes; with cleanup on, the sweep removes it 30 days after the chat closes, unless pinned")
+                    "\(Paths.tilde(plan.path)) · an empty folder heed makes; with cleanup on, it is removed 30 days after the chat closes, unless pinned")
                     .font(Theme.mono(11))
                     .foregroundStyle(Theme.fg3)
                     .lineLimit(2)

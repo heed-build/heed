@@ -156,7 +156,7 @@ public enum CommandCompletions {
         case "timeline.where": context.timelinePlaces.map { ($0, "") } + [("all", "everywhere")]
         case "goal.attach": context.goals.map { ($0.id, $0.title) }
         case "goal.restore": context.goalVersions.map { ("\($0.number)", $0.note) }
-        case "wt": [("sweep", "→ :cleanup.sweep")]
+        case "wt": [("clean", "→ :cleanup.run")]
         default: []
         }
     }

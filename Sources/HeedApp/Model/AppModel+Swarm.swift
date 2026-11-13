@@ -238,8 +238,10 @@ extension AppModel {
 
     /// Clones a repo where work runs (`gh repo clone` into the first repo root there) and reads its record, or says
     /// why not.
-    func cloneRepo(_ slug: String, at location: Location, caller: String) async -> Result<RepoRecord, FieldNote> {
-        let root = cloneRoot(location)
+    func cloneRepo(
+        _ slug: String, at location: Location, caller: String, root chosen: String? = nil
+    ) async -> Result<RepoRecord, FieldNote> {
+        let root = chosen ?? cloneRoot(location)
         let repo = RepoEntry.repo(slug)
         let into = location.isLocal ? Paths.expand(root) : root
         let path = "\(into)/\(repo.name)"

@@ -82,7 +82,7 @@ struct CommandCompletionTests {
         #expect(CommandCompletions.candidates("tutor.hide ", context).map(\.label) == ["all"])
         #expect(CommandCompletions.candidates("tutor ", context).map(\.label).contains("tour"))
         #expect(CommandCompletions.candidates("tutor ", context).map(\.label).contains("sessions"))
-        #expect(CommandCompletions.candidates("wt ", context).map(\.line) == ["wt sweep"])
+        #expect(CommandCompletions.candidates("wt ", context).map(\.line) == ["wt clean"])
         // Free text has nothing to offer.
         #expect(CommandCompletions.candidates("repo.add ~/", context).isEmpty)
     }

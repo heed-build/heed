@@ -268,6 +268,10 @@ final class AppModel {
     private var heldSession: String?
     private var previousSessionID: String?
     private(set) var repoCursor = 0
+    /// Repos: which side j k move, the repo column or the worktree table (`h` `l`, ⇥).
+    private(set) var reposFocus: ReposFocus = .worktrees
+    /// The repo the column picked: the table shows its worktrees only. Nil is All.
+    private(set) var pickedRepo: Repo?
     /// VISUAL selection in the Repos table: worktree ids toggled with space, plus the range from the anchor.
     private(set) var toggledRows: Set<String> = []
     private var visualAnchor: Int?
@@ -1945,7 +1949,7 @@ final class AppModel {
         mode != .normal || confirmation != nil || importPicker != nil || taskPicker != nil || hostsPicker != nil
             || linkPicker != nil || pathImport != nil || startWork != nil || resume != nil || firstRun != nil
             || hostRootsChooser != nil || awaySummary != nil || runReader != nil || pilotExplain != nil
-            || overlay != nil || filtering || tutor != nil || repoSetup != nil || nudge != nil
+            || overlay != nil || filtering || tutor != nil || repoSetup != nil || nudge != nil || addRepoDialog != nil
     }
 
     /// After you added or checked a host: asks where its projects are, once, when config does not say. While you are
@@ -2154,8 +2158,10 @@ final class AppModel {
     private(set) var worktreeRows: [Worktree] = []
     /// Repos as Repos lists them: most worktrees first, then by name.
     private(set) var sortedRepos: [RepoRecord] = []
-    /// Rows per repo slug in `worktreeRows`.
+    /// Rows per repo slug, whichever repo is picked (the column's counts).
     private(set) var worktreeRowCounts: [String: Int] = [:]
+    /// Rows for All, whichever repo is picked.
+    private(set) var allWorktreeRowCount = 0
     /// Every added worktree, whatever the filter.
     private(set) var worktreeCount = 0
 
@@ -2178,11 +2184,46 @@ final class AppModel {
                 session(for: worktree)?.agent ?? "", worktree.location.label,
             ])
         }
-        worktreeRows = matching.sorted {
+        let all = matching.sorted {
             $0.repo.slug == $1.repo.slug ? $0.path < $1.path
                 : (rank[$0.repo.slug] ?? .max, $0.repo.slug) < (rank[$1.repo.slug] ?? .max, $1.repo.slug)
         }
-        worktreeRowCounts = Dictionary(grouping: worktreeRows, by: \.repo.slug).mapValues(\.count)
+        // A picked repo that is gone (removed, rescanned away) is All again.
+        if let picked = pickedRepo, !sortedRepos.contains(where: { $0.repo == picked }) { pickedRepo = nil }
+        worktreeRows = RepoFilter.rows(all, repo: pickedRepo)
+        worktreeRowCounts = Dictionary(grouping: all, by: \.repo.slug).mapValues(\.count)
+        allWorktreeRowCount = all.count
+        if repoCursor >= worktreeRows.count { repoCursor = max(worktreeRows.count - 1, 0) }
+    }
+
+    /// The repos the column lists, in its order (after All).
+    var columnRepos: [Repo] { sortedRepos.map(\.repo) }
+
+    /// The column's row of the picked repo: 0 is All.
+    var columnIndex: Int { RepoFilter.index(of: pickedRepo, in: columnRepos) }
+
+    /// Picks a repo in the column (nil: All): the table narrows to it, its cursor on the first row.
+    func pickRepo(_ repo: Repo?) {
+        guard repo != pickedRepo else { return }
+        pickedRepo = repo
+        repoCursor = 0
+        toggledRows = []
+        rebuildWorktreeRows()
+    }
+
+    /// A click on a repo in the column: picks it and moves focus there.
+    func clickRepo(_ repo: Repo?) {
+        reposFocus = .repos
+        pickRepo(repo)
+    }
+
+    /// `h` `l` and ⇥ in Repos: the repo column or the worktree table; no argument switches.
+    func focusRepos(_ argument: String?) {
+        switch argument {
+        case "repos": reposFocus = .repos
+        case "worktrees": reposFocus = .worktrees
+        default: reposFocus = reposFocus == .repos ? .worktrees : .repos
+        }
     }
 
     func session(for worktree: Worktree) -> Session? {
@@ -2301,6 +2342,10 @@ final class AppModel {
         }
         if pathImport != nil {
             answerPathImport(stroke)
+            return true
+        }
+        if addRepoDialog != nil {
+            answerAddRepo(stroke)
             return true
         }
         if firstRun != nil {
@@ -2516,15 +2561,19 @@ final class AppModel {
         case "chat.new": openStartWork(prompt: command.arguments.joined(separator: " "), fromCursor: false, chat: true)
         case "worktree.new":
             openStartWork(prompt: "")
-            if worktreeRows.indices.contains(repoCursor) {
-                let row = worktreeRows[repoCursor]
-                startWork?.choose(repo: StartContext.id(row.repo, row.location))
+            if let repo = reposUnderCursor.first {
+                let location = worktreeRows.indices.contains(repoCursor) && reposFocus == .worktrees
+                    ? worktreeRows[repoCursor].location : .local
+                startWork?.choose(repo: StartContext.id(repo, location))
             }
         case "repo.scan": rescan()
-        case "repo.add": addRepo(command.arguments.joined(separator: " "))
-        case "cleanup.rules":
-            view = .repos
-            inspectorVisible = true
+        case "repo.add":
+            if command.arguments.isEmpty { openAddRepo() } else { addRepo(command.arguments.joined(separator: " ")) }
+        case "repo.reveal": revealRepo()
+        case "repos.focus":
+            if view != .repos { view = .repos }
+            focusRepos(command.arguments.first)
+        case "cleanup.rules": perform(CommandInvocation(name: "settings.open", arguments: ["worktrees"]))
         case "pane.left": updateTab { $0.focus(.left) }
         case "pane.right": updateTab { $0.focus(.right) }
         case "pane.up": updateTab { $0.focus(.up) }
@@ -2812,7 +2861,7 @@ final class AppModel {
         case "select.open": openSelected()
         case "select.remove": confirmRemoveSelected()
         case "session.filter": startFilter()
-        case "cleanup.sweep": confirmSweep()
+        case "cleanup.run": confirmSweep()
         case "github.sync": Task { await syncGitHub() }
         case "items.start": startFromItems()
         case "items.add": addItemsToSession()
@@ -3013,7 +3062,7 @@ final class AppModel {
             return
         }
         switch view {
-        case .repos: setRow(repoCursor + delta)
+        case .repos: setRow((reposFocus == .repos ? columnIndex : repoCursor) + delta)
         case .history: setRow(historyCursor + delta)
         case .log: setRow(callLog.cursor + delta)
         case .timeline: setRow(timeline.cursor + delta)
@@ -3084,6 +3133,8 @@ final class AppModel {
             standup.setCursor(index)
         } else if view == .goals {
             goals.setCursor(index)
+        } else if view == .repos, reposFocus == .repos {
+            pickRepo(RepoFilter.repo(at: index, in: columnRepos))
         } else if view == .repos {
             let count = worktreeRows.count
             guard count > 0 else { return }
@@ -3744,7 +3795,7 @@ final class AppModel {
             return
         }
         ask(Confirmation(
-            title: "Run the cleanup sweep?",
+            title: "Clean up worktrees?",
             lines: plan.removals.map {
                 "remove \($0.worktree.repo.name)/\($0.worktree.branch ?? "") (\($0.idleText))"
             } + plan.chatRemovals.map { "remove chat scratch folder \($0.name) (closed \($0.closedDays)d)" }
@@ -3752,7 +3803,7 @@ final class AppModel {
                     "drop \($0.repo.name) \($0.name) (saved \(Int(Clock.now.timeIntervalSince($0.archivedAt) / 86400))d ago)"
                 },
             kept: plan.skips.map { "\($0.worktree.repo.name)/\($0.worktree.branch ?? ""): \($0.reason)" },
-            accept: "Sweep"
+            accept: "Clean up"
         ) { [weak self] in Task { await self?.runSweep(explicit: true) } })
     }
 
@@ -3925,6 +3976,13 @@ final class AppModel {
     }
 
     private(set) var pathImport: PathImport?
+
+    /// Repos › Add or clone (`a`, `:repo.add`): the field, the lists, what is picked; nil when closed.
+    var addRepoDialog: AddRepoForm?
+    /// The dialog's lookups and folder completions: a newer keystroke cancels the older.
+    @ObservationIgnored var addRepoFieldTask: Task<Void, Never>?
+    /// What `gh repo list` last answered, loaded from the caches folder on first use.
+    @ObservationIgnored var repoListCache: RepoListCache?
     private var pathPreviewTask: Task<Void, Never>?
 
     private func openPathImport() {
@@ -4057,7 +4115,7 @@ final class AppModel {
 
     /// `:repo.add <path>`: the repo at `path` joins Repos with its worktrees, and is kept in `[worktrees] repo_paths`
     /// when it lies outside the scanned roots.
-    private func addRepo(_ raw: String) {
+    func addRepo(_ raw: String) {
         let path = Paths.expand(raw.trimmingCharacters(in: .whitespaces))
         guard !raw.trimmingCharacters(in: .whitespaces).isEmpty else {
             flash = ":repo.add <path> adds a repo outside \(settings.repoRoots.joined(separator: ", "))"
@@ -4076,7 +4134,7 @@ final class AppModel {
     }
 
     /// The repo and worktrees at `path`, made known: added to the domain (and to repo_paths if outside the roots).
-    private func adoptRepo(at path: String) async -> (worktree: Worktree, listed: [Worktree])? {
+    func adoptRepo(at path: String) async -> (worktree: Worktree, listed: [Worktree])? {
         guard let found = await Git.locate(path) else {
             flash = "not inside a git worktree: \(Paths.abbreviate(path))"
             return nil
@@ -4731,7 +4789,12 @@ final class AppModel {
         let index = cursor(in: view)
         switch view {
         case .sessions: return currentSession?.involvedRepos ?? []
-        case .repos: return worktreeRows.indices.contains(repoCursor) ? [worktreeRows[repoCursor].repo] : []
+        case .repos:
+            // The column's pick while it has focus (or the table is empty), else the worktree's.
+            if reposFocus == .worktrees, worktreeRows.indices.contains(repoCursor) {
+                return [worktreeRows[repoCursor].repo]
+            }
+            return pickedRepo.map { [$0] } ?? []
         case .attention: return attentionSelected?.item.repo.map { [$0] } ?? []
         case .prs: return pullRows.indices.contains(index) ? [pullRows[index].ref.repo] : []
         case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
@@ -7949,6 +8012,10 @@ final class AppModel {
         state.repoSetupOpen = repoSetup != nil
         state.repoSetupStep = repoSetup?.step.rawValue ?? 0
         state.importOpen = importPicker != nil || pathImport != nil
+        state.addRepoOpen = addRepoDialog != nil
+        state.addRepoPicked = addRepoDialog?.picked.count ?? 0
+        state.reposFocus = reposFocus.rawValue
+        state.pickedRepo = pickedRepo?.slug
         state.hostsOpen = hostsPicker != nil
         state.hostSessions = sessions.count { $0.host != nil }
         state.commandLine = mode == .command
@@ -8111,6 +8178,7 @@ final class AppModel {
     var clicksReachLists: Bool {
         startWork == nil && confirmation == nil && resume == nil && firstRun == nil && importPicker == nil
             && pathImport == nil && tutorPicker == nil && awaySummary == nil && repoSetup == nil && nudge == nil
+            && addRepoDialog == nil
     }
 
     /// A click on a session in the sidebar or the rail selects it; a double-click also types into its agent pane.

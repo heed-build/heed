@@ -14,7 +14,7 @@ enum ShotRegion: String, CaseIterable {
     case sidebar, rail, center, tabStrip, panes, inspector, needsYou
     case dialog, confirm, picker, leaderHints, commandLine, filterPill, help
     case tutorBanner, tutorCard, tutorReminder, inferenceReminder, nudgePill
-    case repoColumn, worktreeTable, rulesPanel, sweepBanner, setupBanner
+    case repoColumn, worktreeTable, repoCard, cleanupBar, setupBanner, addRepo
     case list, syncBanner
     case pipeline, delivery, promptPreview, reader
     case diffFiles, diffBody

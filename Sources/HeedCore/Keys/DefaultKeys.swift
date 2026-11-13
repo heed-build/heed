@@ -43,7 +43,7 @@ public enum DefaultKeys {
         ), ("gS", "pr.session"),
         ("<C-o>", "jump.back"), ("gB", "open.browser"), ("gR", "open.repo"), ("gU", "pr.track"), (
             "gC",
-            "cleanup.sweep"
+            "cleanup.run"
         ),
         ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("zt", "sidebar.titles"),
         // The pilot, the same keys everywhere: the PR under the cursor, the open PR, or the session's PRs.
@@ -97,6 +97,9 @@ public enum DefaultKeys {
         "repos": [
             ("o", "worktree.new"), ("r", "repo.scan"), ("dd", "select.remove"),
             ("<CR>", "select.open"), ("S", "setup.review"), ("M", "repo.setup"),
+            // The repo column and the table: h l between them, ⇥ to the other; a adds or clones a repo.
+            ("h", "repos.focus repos"), ("l", "repos.focus worktrees"), ("<Tab>", "repos.focus"),
+            ("<S-Tab>", "repos.focus"), ("a", "repo.add"), ("<D-o>", "repo.reveal"),
         ],
         // ↩ and a double-click reopen, as R does: there is nothing else in History to open.
         "history": [
@@ -362,7 +365,8 @@ public enum Keymaps {
             if mode == .insert {
                 table = table.map { $0.0 == DefaultKeys.insertEscape ? (insertEscape, "mode.normal") : $0 }
             }
-            for (notation, command) in table + (overrides[mode] ?? []) {
+            for (notation, given) in table + (overrides[mode] ?? []) {
+                let command = Commands.current(given)
                 do {
                     let keys = try KeyNotation.parse(notation)
                     if command.isEmpty {
@@ -393,7 +397,8 @@ public enum Keymaps {
         var scoped: [String: Keymap] = [:]
         for scope in Set(DefaultKeys.scoped.keys).union(scopedOverrides.keys) {
             var keymap = Keymap()
-            for (notation, command) in (DefaultKeys.scoped[scope] ?? []) + (scopedOverrides[scope] ?? []) {
+            for (notation, given) in (DefaultKeys.scoped[scope] ?? []) + (scopedOverrides[scope] ?? []) {
+                let command = Commands.current(given)
                 do {
                     let keys = try KeyNotation.parse(notation)
                     if command.isEmpty {

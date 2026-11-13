@@ -288,29 +288,46 @@ public extension Tutor {
         TutorLesson(id: "repos", title: "Repos", minutes: 4, world: .mondayMorning, steps: [
             TutorStep(
                 "Read the table",
-                say: "Every worktree of every repo, with its session, PR and status. {row.next} walks it.",
+                say: "Every worktree of every repo, grouped by repo, with its session, changes, PR and age. "
+                    + "{row.next} walks it.",
                 keys: ["{row.next}"], target: "worktreeTable",
-                doneLine: "Repos with more worktrees come first."
+                doneLine: "A worktree with no session says so: ↩ imports it."
             ) { start, now, _ in now.cursor - start.cursor >= 2 },
             TutorStep(
+                "Pick a repo",
+                say: "The column on the left is a filter. {repos.focus repos} moves there, then {row.next} picks "
+                    + "a repo: its card says how main stands against origin and whether merging is set up.",
+                keys: ["{repos.focus repos}", "{row.next}"], target: "repoColumn",
+                doneLine: "{repos.focus worktrees} goes back to its worktrees; All shows every one again."
+            ) { _, now, _ in now.reposFocus == "repos" && now.pickedRepo != nil },
+            TutorStep(
+                "Add or clone",
+                say: "{repo.add} opens Add or clone: your GitHub repos and your orgs', each saying where it already "
+                    + "is. Type to narrow, space picks. ⎋ closes it.",
+                keys: ["{repo.add}", "⎋"], target: "addRepo",
+                doneLine: "⌘↩ clones what is not here, then opens Repo setup on it (Settings › Worktrees changes that)."
+            ) { _, now, seen in seen.contains(where: \.addRepoOpen) && !now.addRepoOpen },
+            TutorStep(
                 "Create one",
-                say: "{worktree.new} starts work in the repo under the cursor. ⎋ twice closes it.",
-                keys: ["{worktree.new}", "⎋"], target: "dialog",
+                say: "{repos.focus worktrees} goes back to the table. {worktree.new} starts work in the repo under "
+                    + "the cursor. ⎋ twice closes it.",
+                keys: ["{repos.focus worktrees}", "{worktree.new}", "⎋"], target: "dialog",
                 doneLine: "Start work, with the repo already picked."
             ) { _, now, seen in seen.contains(where: \.startWorkOpen) && !now.startWorkOpen },
             TutorStep(
                 "Removing asks first",
-                say: "dd removes the worktree under the cursor, and asks first: n keeps it.",
-                keys: ["dd", "n"], target: "confirm",
+                say: "{row.last} goes to the last worktree; dd removes the one under the cursor, and asks first: n "
+                    + "keeps it. A pinned session's worktree is never removed.",
+                keys: ["{row.last}", "dd", "n"], target: "confirm",
                 doneLine: "Nothing is removed until you say y, and the dialog names what goes."
             ) { _, now, seen in seen.contains(where: \.confirmationOpen) && !now.confirmationOpen },
             TutorStep(
-                "The cleanup sweep",
+                "Clean up worktrees",
                 say: "Cleanup is off until you turn it on (Settings › Worktrees); here it removes worktrees "
-                    + "idle for 3 days. {cleanup.sweep} runs the sweep now: it lists what goes and what it keeps, "
+                    + "idle for 3 days. {cleanup.run} cleans up now: it lists what goes and what it keeps, "
                     + "and asks first. n keeps everything.",
-                keys: ["{cleanup.sweep}", "n"], target: "confirm",
-                doneLine: "Dirty or unpushed work is never swept, and removed work is saved first: R in History."
+                keys: ["{cleanup.run}", "n"], target: "confirm",
+                doneLine: "Dirty or unpushed work is never removed, and removed work is saved first: R in History."
             ) { _, now, seen in seen.contains(where: \.confirmationOpen) && !now.confirmationOpen },
             TutorStep(
                 "Set up merging",

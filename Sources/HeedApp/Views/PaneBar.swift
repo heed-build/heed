@@ -25,7 +25,8 @@ struct PaneBarTab: Identifiable {
 }
 
 /// Above a view's panes: where you are (a breadcrumb, with what the view wants on the right), and a tab per pane with
-/// its key and what waits there. A click on a tab opens it as its key does; the keys keep working.
+/// its key and what waits there. A click on a tab opens it as its key does; the keys keep working. With no breadcrumb
+/// there is only the strip.
 struct PaneBar<Trailing: View>: View {
     @Environment(AppModel.self) private var model
     let crumb: [PaneCrumb]
@@ -39,14 +40,16 @@ struct PaneBar<Trailing: View>: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                crumbs
-                Spacer(minLength: 12)
-                trailing()
+            if !crumb.isEmpty {
+                HStack(spacing: 12) {
+                    crumbs
+                    Spacer(minLength: 12)
+                    trailing()
+                }
+                .padding(.horizontal, 20)
+                .frame(height: 44)
+                .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
             }
-            .padding(.horizontal, 20)
-            .frame(height: 44)
-            .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
             ViewThatFits(in: .horizontal) {
                 strip(keys: true)
                 strip(keys: false)
@@ -93,7 +96,8 @@ struct PaneBar<Trailing: View>: View {
     }
 }
 
-/// Above every History view: `History › Ledger`, and a tab per view with its key and how much is in it.
+/// Above every Insights view: a tab per view with its key and how much is in it (the title bar already says Insights,
+/// so there is no breadcrumb).
 struct HistoryPaneBar: View {
     @Environment(AppModel.self) private var model
 
@@ -106,8 +110,8 @@ struct HistoryPaneBar: View {
             )
         )
         PaneBar(
-            crumb: HistoryPaneTabs.crumb(pane: pane).map { PaneCrumb($0) },
-            // The list has no key of its own: a view's key again comes back to it.
+            crumb: [],
+            // History has no key of its own: a view's key again comes back to it.
             tabs: tabs.map { tab in
                 PaneBarTab(
                     id: tab.pane, title: tab.title, command: tab.command, count: tab.count,

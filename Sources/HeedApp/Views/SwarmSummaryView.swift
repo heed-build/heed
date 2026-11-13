@@ -3,7 +3,7 @@ import SwiftUI
 
 /// A done swarm's end-of-build summary (deck p15): the outcome with its numbers, the PRs in merge order, who did what
 /// when, what the agents ran into, every question with who answered it and how long it took, the decisions and the
-/// follow-ups. Written by the lead over heed's record; also in History's ledger. `F` starts a follow-up swarm. The
+/// follow-ups. Written by the lead over heed's record; also in Insights' ledger. `F` starts a follow-up swarm. The
 /// agents pane draws it first, with the agents under it.
 struct SwarmSummaryView: View {
     @Environment(AppModel.self) private var model
@@ -56,7 +56,7 @@ struct SwarmSummaryView: View {
                 .frame(maxWidth: .infinity)
             }
             Text(summary.byLead ? "Written by the lead over heed's record of the run: its plan, the steering log "
-                + "and every agent's activity. In History's ledger too."
+                + "and every agent's activity. In Insights' ledger too."
                 : "Assembled by heed from the run's record; the lead adds its outcome, decisions and follow-ups "
                 + "with heed swarm summary.")
                 .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)

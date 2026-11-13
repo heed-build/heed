@@ -88,7 +88,7 @@ enum Shots {
         Shot(id: "getting-started/first-session-3-blocked", keys: "j", highlight: [.sidebar, .panes]),
         Shot(id: "getting-started/first-session-4-insert", keys: "ji", highlight: [.panes]),
         Shot(id: "getting-started/first-session-5-feedback", keys: "go", highlight: [.pipeline]),
-        Shot(id: "getting-started/first-session-6-history", keys: "gh", highlight: [.historyList]),
+        Shot(id: "getting-started/first-session-6-history", keys: "ghD", highlight: [.historyList]),
     ]
 
     static let concepts: [Shot] = [
@@ -215,12 +215,12 @@ enum Shots {
             keys: "o" + chatPrompt + "<Esc>j" + String(repeating: "l", count: 7),
             crop: .dialog
         ),
-        Shot(id: "sessions/chats-history", keys: "gh", prepare: withChats),
+        Shot(id: "sessions/chats-history", keys: "ghD", prepare: withChats),
         // :promote on the asking scratch chat: its conversation goes to the new worktree's agent.
         Shot(id: "sessions/chats-promote", keys: "4G:promote<CR>", crop: .dialog, prepare: withChats),
         Shot(id: "sessions/chats-promote-codex", keys: "4G:promote<CR><Esc>jjjl", crop: .dialog, prepare: withChats),
         // The chat closed into History as promoted, naming the session it became.
-        Shot(id: "sessions/chats-promoted", keys: "gh", prepare: { model in
+        Shot(id: "sessions/chats-promoted", keys: "ghDgg", prepare: { model in
             withChats(model)
             guard var chat = Fixtures.chats.first?.0 else { return }
             chat.record("promoted → feature/nightly-cron-job", at: ShotRunner.instant)
@@ -256,7 +256,7 @@ enum Shots {
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
         Shot(id: "start-work/from-github-picked", keys: "gi<Space>j<Space>", highlight: [.list]),
         Shot(id: "start-work/from-github-dialog", keys: "gi<Space>j<Space>s", crop: .dialog),
-        Shot(id: "start-work/again", keys: "ghO", crop: .dialog),
+        Shot(id: "start-work/again", keys: "ghDO", crop: .dialog),
         Shot(
             id: "start-work/on-a-host", keys: "o" + typed("Fix the flaky link checker in docs-toolkit") + "<C-n>",
             crop: .dialog
@@ -567,23 +567,31 @@ enum Shots {
 
     static let noteText = "Lowercase the slug once in the helper instead of at each call site."
 
+    /// Insights (`gh`): the dashboard first; D from there is History, every other view a capital away.
     static let history: [Shot] = [
-        Shot(id: "history/history", keys: "gh"),
-        Shot(id: "history/detail", keys: "gh", crop: .historyDetail),
+        Shot(id: "history/dashboard", keys: "gh"),
+        // Four weeks: r steps the range on from a week.
+        Shot(id: "history/dashboard-weeks", keys: "ghr"),
+        // What shipped, the cursor on the second card.
+        Shot(id: "history/dashboard-shipped", keys: "ghj", crop: .dashboardShipped),
+        Shot(id: "history/dashboard-bests", keys: "gh", crop: .dashboardBests),
+        // With the closed chat: a quiet line in its day.
+        Shot(id: "history/history", keys: "ghD", prepare: withChats),
+        Shot(id: "history/detail", keys: "ghD", crop: .historyDetail, prepare: withChats),
+        Shot(id: "history/filters", keys: "ghD", crop: .historyFilters),
         Shot(id: "history/pane-tabs", keys: "ghL", crop: .historyPaneBar, cropPadding: 0),
+        // e: every event as its own line, as the timeline was.
+        Shot(id: "history/every-event", keys: "ghDe"),
+        // Only worktrees: removed ones struck through, with what was saved.
+        Shot(id: "history/every-event-worktrees", keys: "ghDeKK"),
+        Shot(id: "history/every-event-detail", keys: "ghDeKK/flowchart<CR>", crop: .historyDetail),
         Shot(id: "history/mindmap", keys: "ghM"),
         Shot(id: "history/mindmap-work", keys: "ghMljl"),
         Shot(id: "history/standup", keys: "ghU"),
         Shot(id: "history/mindmap-inside", keys: "ghMjl"),
-        Shot(id: "history/timeline", keys: "ghT"),
-        Shot(id: "history/dashboard", keys: "ghD"),
-        // Twelve weeks: r steps the range on from four weeks.
-        Shot(id: "history/dashboard-weeks", keys: "ghDr"),
         Shot(id: "history/ledger", keys: "ghL"),
         // The abandoned spike: its follow-up, the agent time an estimate.
         Shot(id: "history/ledger-detail", keys: "ghLjjj"),
-        Shot(id: "history/timeline-worktrees", keys: "ghTtt"),
-        Shot(id: "history/timeline-detail", keys: "ghTtt/flowchart<CR>", crop: .timelineDetail),
     ]
 
     /// Goals (`gG`), on the fake world's goals (`GoalFixtures`).

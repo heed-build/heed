@@ -37,11 +37,6 @@ struct MainWindow: View {
                         WatchView()
                     case .log:
                         CallLogView()
-                    case .timeline:
-                        VStack(spacing: 0) {
-                            HistoryPaneBar().shotRegion(.historyPaneBar)
-                            HistoryTimelineView()
-                        }
                     case .ledger:
                         VStack(spacing: 0) {
                             HistoryPaneBar().shotRegion(.historyPaneBar)
@@ -281,9 +276,9 @@ struct TitleBar: View {
                     view: view,
                     active: model.view.tab == view,
                     count: badge(view),
-                    key: compact ? nil : model.keyCap(for: view.command)
+                    key: compact ? nil : model.keyCap(for: view.tabCommand)
                 )
-                .onTapGesture { model.perform(CommandInvocation(name: view.command)) }
+                .onTapGesture { model.perform(CommandInvocation(name: view.tabCommand)) }
             }
         }
     }
@@ -298,7 +293,7 @@ private struct ViewTab: View {
     var body: some View {
         // Attention's count is what is new since you looked (For you's New), and says so.
         TabLabel(
-            title: view.title, active: active,
+            title: view.tabTitle, active: active,
             count: count > 0 ? (view == .attention ? "\(count) new" : "\(count)") : nil, key: key
         )
     }
@@ -402,9 +397,6 @@ struct StatusBar: View {
         case .repos: return "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
         case .history: return "\(model.historyRows.isEmpty ? 0 : model.historyCursor + 1)/\(model.historyRows.count)"
         case .log: return "\(model.callLog.rows.isEmpty ? 0 : model.callLog.cursor + 1)/\(model.callLog.rows.count)"
-        case .timeline:
-            let rows = model.timeline.rows
-            return "\(rows.isEmpty ? 0 : model.timeline.cursor + 1)/\(rows.count)"
         case .ledger:
             let rows = model.ledger.rows
             return "\(rows.isEmpty ? 0 : model.ledger.cursor + 1)/\(rows.count)"
@@ -415,7 +407,9 @@ struct StatusBar: View {
             let rows = model.mindmap.siblings
             return "\(rows.isEmpty ? 0 : model.mindmap.cursor + 1)/\(rows.count)"
         case .dashboard:
-            return DashboardText.range(model.dashboard.range)
+            let shipped = model.dashboard.board.shipped
+            return DashboardText.range(model.dashboard.range) + " · \(shipped.isEmpty ? 0 : model.dashboard.cursor + 1)/"
+                + "\(shipped.count) shipped"
         case .goals:
             let goals = model.goals
             return "\(goals.rowCount == 0 ? 0 : goals.rowCursor + 1)/\(goals.rowCount)"
@@ -508,44 +502,35 @@ struct StatusBar: View {
                 + "\(key("mode.visual", in: "repos")) select · \(key("select.remove", in: "repos")) remove · "
                 + "\(key("session.filter", in: "repos")) filter"
         case .normal where model.view == .history:
-            "\(key("row.next", "row.prev", in: "history")) move · \(key("session.filter", in: "history")) filter · "
-                + "\(key("history.reopen", in: "history")) reopen · \(key("history.again", in: "history")) new from prompt · "
-                + "\(key("history.outcome", in: "history")) outcome · \(key("history.timeline", in: "history")) timeline · "
-                + "\(model.keyText(for: "history.ledger", in: "history")) ledger · "
-                + "\(model.keyText(for: "history.dashboard", in: "history")) dashboard"
-        case .normal where model.view == .timeline:
-            [
-                ("timeline.kind", "kind"),
-                ("timeline.repo", "repo"),
-                ("timeline.where", "where"),
-                ("timeline.gone", "removed"),
-                ("history.reopen", "reopen"),
-                ("history.timeline", "list"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "timeline")) \($0.1)" }.joined(separator: " · ")
-            + " · \(key("group.prev", "group.next", in: "timeline")) day · \(key("session.filter", in: "timeline")) search"
+            "\(key("row.next", "row.prev", in: "history")) move · "
+                + [
+                    ("history.events", model.historyBrowser.everyEvent ? "fold" : "every event"),
+                    ("history.outcome", "outcome"), ("timeline.repo", "repo"), ("timeline.where", "where"),
+                ]
+                .map { "\(model.keyText(for: $0.0, in: "history")) \($0.1)" }.joined(separator: " · ")
+                + " · \(key("group.prev", "group.next", in: "history")) day · "
+                + "\(key("history.reopen", in: "history")) reopen · \(key("history.again", in: "history")) new · "
+                + "\(key("session.filter", in: "history")) filter"
         case .normal where model.view == .standup:
             [
                 ("standup.copy", "copy answer"), ("standup.copy.all", "copy report"), ("standup.question", "question"),
-                ("standup.org.next", "org"), ("standup.run", "write now"), ("history.standup", "list"),
+                ("standup.org.next", "org"), ("standup.run", "write now"), ("history.standup", "History"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "standup")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .mindmap:
             [
                 ("mindmap.out", "out"), ("mindmap.in", "in"), ("mindmap.accept", "keep"), ("mindmap.move", "move"),
                 ("mindmap.nest", "group"), ("mindmap.done", "done"), ("mindmap.less", "less"),
-                ("mindmap.more", "more"), ("mindmap.org.next", "org"), ("history.mindmap", "list"),
+                ("mindmap.more", "more"), ("mindmap.org.next", "org"), ("history.mindmap", "History"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "mindmap")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .dashboard:
-            [
-                ("dashboard.range", "range"),
-                ("history.reopen", "reopen"),
-                ("history.dashboard", "list"),
-                ("history.timeline", "timeline"),
-                ("history.ledger", "ledger"),
-            ]
-            .map { "\(model.keyText(for: $0.0, in: "dashboard")) \($0.1)" }.joined(separator: " · ")
+            "\(key("row.next", "row.prev", in: "dashboard")) shipped · "
+                + [
+                    ("open.reader", "read the PR"), ("dashboard.range", "range"), ("history.reopen", "reopen"),
+                    ("history.dashboard", "back to History"),
+                ]
+                .map { "\(model.keyText(for: $0.0, in: "dashboard")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.goals.form != nil: "type the title and the goal · ⌘↩ create · ⎋ cancel"
         case .normal where model.goals.swarmForm != nil:
             "the goal, where (↩ adds a typed repo), the team, your say and limits · ⌘↩ ask the lead for a plan · "
@@ -560,8 +545,7 @@ struct StatusBar: View {
                 ("ledger.summarize", "write again"),
                 ("ledger.edit", "edit"),
                 ("history.reopen", "reopen"),
-                ("history.ledger", "list"),
-                ("history.timeline", "timeline"),
+                ("history.ledger", "History"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "ledger")) \($0.1)" }.joined(separator: " · ")
             + " · \(key("session.filter", in: "ledger")) search"

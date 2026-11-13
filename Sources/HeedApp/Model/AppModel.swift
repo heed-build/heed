@@ -5,29 +5,33 @@ import Observation
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
     case sessions, attention, goals, watch, prs, repos, history, log
-    /// History as a timeline (`history.timeline`): under History's tab, not one of its own.
-    case timeline
-    /// History's ledger (`history.ledger`): under History's tab too.
+    /// Insights' ledger (`history.ledger`): under Insights' tab, with History.
     case ledger
-    /// History's dashboard (`history.dashboard`): under History's tab too.
+    /// Insights' dashboard (`history.dashboard`): where Insights' tab (`gh`) opens.
     case dashboard
-    /// History's Mindmap (`history.mindmap`): under History's tab too.
+    /// Insights' Mindmap (`history.mindmap`): under Insights' tab too.
     case mindmap
-    /// History's standup reports (`history.standup`): under History's tab too.
+    /// Insights' standup reports (`history.standup`): under Insights' tab too.
     case standup
 
     var id: String { rawValue }
 
     /// The views the title bar lists. Attention stands for PRs too (`gp` opens it on My PRs), which is still there as
     /// `:prs`; `:inbox` and `:issues` open Attention's Everything and its issues. The call log is reached with `:log`
-    /// only, the timeline, ledger and dashboard from History.
+    /// only. History stands for Insights: its ledger, dashboard, Mindmap and standups are tabs inside it.
     static var tabs: [AppView] {
         allCases
-            .filter { ![.log, .timeline, .ledger, .dashboard, .mindmap, .standup, .prs].contains($0) }
+            .filter { ![.log, .ledger, .dashboard, .mindmap, .standup, .prs].contains($0) }
     }
 
     /// The tab that is lit while this view shows.
-    var tab: AppView { [.timeline, .ledger, .dashboard, .mindmap, .standup].contains(self) ? .history : self }
+    var tab: AppView { [.ledger, .dashboard, .mindmap, .standup].contains(self) ? .history : self }
+
+    /// What the title bar calls it: History's tab is the whole of Insights.
+    var tabTitle: String { self == .history ? HistoryPaneTabs.area : title }
+
+    /// What a click on its title-bar tab runs: Insights opens on its dashboard.
+    var tabCommand: String { self == .history ? "view.insights" : command }
 
     var title: String {
         switch self {
@@ -39,7 +43,6 @@ enum AppView: String, CaseIterable, Identifiable {
         case .repos: "Repos"
         case .history: "History"
         case .log: "Log"
-        case .timeline: "Timeline"
         case .ledger: "Ledger"
         case .dashboard: "Dashboard"
         case .mindmap: "Mindmap"
@@ -50,7 +53,6 @@ enum AppView: String, CaseIterable, Identifiable {
     /// The command that switches to this view; its key comes from the live keymap.
     var command: String {
         switch self {
-        case .timeline: "history.timeline"
         case .ledger: "history.ledger"
         case .dashboard: "history.dashboard"
         case .mindmap: "history.mindmap"
@@ -105,7 +107,10 @@ final class AppModel {
     private(set) var layouts: [String: SessionLayout] = [:]
     private(set) var repos: [RepoRecord] = [] { didSet { if repos != oldValue { rebuildWorktreeRows() } } }
     private(set) var worktrees: [Worktree] = [] { didSet { if worktrees != oldValue { rebuildWorktreeRows() } } }
-    private(set) var history: [HistoryEntry] = []
+    private(set) var history: [HistoryEntry] = [] {
+        didSet { if history != oldValue { historyBrowser.setEntries(history) } }
+    }
+
     // What the pilot knows decides Watching and Stalled in the sidebar, so each change rebuilds the list.
     private(set) var github = GitHubState() { didSet { rebuildList() } }
     private(set) var pullDetails: [String: PullDetail] = [:] {
@@ -231,7 +236,7 @@ final class AppModel {
             if filters[.sessions] != oldValue[.sessions] { rebuildList() }
             if filters[.repos] != oldValue[.repos] { rebuildWorktreeRows() }
             if filters[.log] != oldValue[.log] { callLog.setSearch(filters[.log] ?? "") }
-            if filters[.timeline] != oldValue[.timeline] { timeline.setSearch(filters[.timeline] ?? "") }
+            if filters[.history] != oldValue[.history] { historyBrowser.setSearch(filters[.history] ?? "") }
             if filters[.ledger] != oldValue[.ledger] { ledger.setSearch(filters[.ledger] ?? "") }
             if filters[.goals] != oldValue[.goals] { goals.setSearch(filters[.goals] ?? "") }
         }
@@ -239,8 +244,8 @@ final class AppModel {
 
     func filter(for view: AppView) -> String { filters[view] ?? "" }
     var sessionFilter: String { filter(for: .sessions) }
-    private(set) var historyOutcome: Outcome?
-    private(set) var historyCursor = 0
+    var historyOutcome: Outcome? { historyBrowser.outcome }
+    var historyCursor: Int { historyBrowser.cursor }
 
     // GitHub lists: cursor and picked ids per view
     var itemCursor: [AppView: Int] = [:] {
@@ -297,25 +302,25 @@ final class AppModel {
             }
             if view == .log, oldValue != .log { callLog.opened() }
             if oldValue == .log, view != .log { callLog.closed() }
-            if view == .timeline, oldValue != .timeline { timeline.opened() }
-            if oldValue == .timeline, view != .timeline { timeline.closed() }
+            if view == .history, oldValue != .history { historyBrowser.opened() }
+            if oldValue == .history, view != .history { historyBrowser.closed() }
             if view == .dashboard, oldValue != .dashboard { dashboard.reload() }
         }
     }
 
-    /// History's timeline: its lines, filters and cursor.
-    let timeline: TimelineBrowser
-    /// History's ledger: its entries and cursor.
+    /// Insights' History: the work that ended with its stories, the filters and the cursor.
+    let historyBrowser: HistoryBrowser
+    /// Insights' ledger: its entries and cursor.
     let ledger: LedgerBrowser
-    /// History's dashboard: the range's numbers.
+    /// Insights' dashboard: the range's numbers.
     let dashboard: DashboardBrowser
     /// Goals: the goals, what is on each, and the cursor.
     let goals: GoalsBrowser
     /// Hunch: its checkpoints, the training set and runs (AppModel+Hunch).
     let hunch: HunchModel
-    /// History's Mindmap: one per org and one for personal work (AppModel+Mindmap).
+    /// Insights' Mindmap: one per org and one for personal work (AppModel+Mindmap).
     let mindmap: MindmapModel
-    /// History's standup reports, one per Mindmap (AppModel+Standup).
+    /// Insights' standup reports, one per Mindmap (AppModel+Standup).
     let standup: StandupModel
 
     /// The `:log` view's rows and filters.
@@ -464,7 +469,7 @@ final class AppModel {
             sidebarShowsTitles = true
         }
         callLog = CallLogBrowser(fixture: isFixture)
-        timeline = TimelineBrowser(fixture: isFixture)
+        historyBrowser = HistoryBrowser(fixture: isFixture)
         ledger = LedgerBrowser(fixture: isFixture)
         dashboard = DashboardBrowser(fixture: isFixture)
         goals = GoalsBrowser(fixture: isFixture)
@@ -509,8 +514,10 @@ final class AppModel {
         }
         applyGoalPointers()
         if isFixture { adoptFixtureRuns() } else { interruptRuns() }
-        timeline.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
-        dashboard.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
+        historyBrowser.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
+        dashboard.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty } goals: { [weak self] in
+            self?.dashboardGoals ?? .init()
+        }
         updateScope()
         if !isFixture { loadInferenceSetup() }
         tutorRecord = tutorProgress
@@ -546,8 +553,10 @@ final class AppModel {
         store = DomainStore(domain: cached, file: file, log: log)
         eventLog = log
         pruneScreenSnapshots()
-        timeline.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
-        dashboard.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
+        historyBrowser.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
+        dashboard.attach(log: log) { [weak self] in self?.currentDomain ?? .empty } goals: { [weak self] in
+            self?.dashboardGoals ?? .init()
+        }
         startLedger(log: log)
         startMindmap()
         startStandup()
@@ -782,7 +791,7 @@ final class AppModel {
         case .sessions, .prs, .watch, .repos, .history: [.pulls]
         // Goals show their sessions' PRs, merged or not.
         case .goals: [.pulls]
-        case .log, .timeline, .ledger, .dashboard, .mindmap, .standup: []
+        case .log, .ledger, .dashboard, .mindmap, .standup: []
         }
     }
 
@@ -2116,12 +2125,12 @@ final class AppModel {
         case .log:
             guard let call = callLog.selected else { return nil }
             return TitleContext(lead: call.kind.rawValue, main: call.caller, detail: call.operation ?? call.command)
-        case .timeline:
-            guard let item = timeline.selected else { return nil }
-            return TitleContext(lead: "timeline", main: item.name, detail: item.lead)
         case .dashboard:
             guard let row = dashboard.selected else { return nil }
-            return TitleContext(lead: "dashboard", main: row.place, detail: row.title)
+            return TitleContext(
+                lead: "dashboard", main: String(row.repo.split(separator: "/").last ?? ""),
+                detail: row.number.map { "\(row.title) #\($0)" } ?? row.title
+            )
         case .standup:
             guard let report = standup.selected else { return nil }
             return TitleContext(
@@ -2256,9 +2265,8 @@ final class AppModel {
         case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
         case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
         case .log: callLog.rows.indices.map { HintTarget.row(.log, $0) }
-        case .timeline: timeline.rows.indices.map { HintTarget.row(.timeline, $0) }
         case .ledger: ledger.rows.indices.map { HintTarget.row(.ledger, $0) }
-        case .dashboard: dashboard.board.recent.indices.map { HintTarget.row(.dashboard, $0) }
+        case .dashboard: dashboard.board.shipped.indices.map { HintTarget.row(.dashboard, $0) }
         case .mindmap: mindmap.siblings.indices.map { HintTarget.row(.mindmap, $0) }
         case .standup: standup.rows.indices.map { HintTarget.row(.standup, $0) }
         case .goals: (0 ..< goals.rowCount).map { HintTarget.row(.goals, $0) }
@@ -2597,17 +2605,21 @@ final class AppModel {
         case "task.refresh": refreshTasks()
         case "view":
             // The inbox is Attention's Everything now, and the Issues view its issues; `:view inbox` and `:view issues`
-            // go there.
+            // go there. Insights opens on its dashboard, and the timeline is History with every event unfolded.
             if command.arguments.first == "inbox" {
                 openAttention("all")
             } else if command.arguments.first == "issues" {
                 openAttention("issues")
+            } else if command.arguments.first == "insights" {
+                view = .dashboard
+            } else if command.arguments.first == "timeline" {
+                showEveryEvent()
             } else if let target = AppView(rawValue: command.arguments.first ?? "") {
                 view = target
             }
-        case "view.history": view = .history
+        case "view.insights", "view.history": view = .dashboard
         case "view.log": view = .log
-        case "view.timeline": view = .timeline
+        case "view.timeline": showEveryEvent()
         case "view.ledger": view = .ledger
         case "view.mindmap": view = .mindmap
         case "view.standup": view = .standup
@@ -2739,15 +2751,16 @@ final class AppModel {
             performMindmap(command)
         case "ledger.summarize": summarizeLedgerNow()
         case "ledger.edit": editLedger(command.arguments)
-        case "history.timeline": view = view == .timeline ? .history : .timeline
-        case "timeline.kind": timeline.change { $0.cycleKind(command.arguments.first) }
+        case "history.events", "history.timeline":
+            if view == .history { historyBrowser.toggleEvents() } else { showEveryEvent() }
+        case "timeline.kind": historyBrowser.change { $0.cycleKind(command.arguments.first) }
         case "timeline.repo":
-            let repos = timeline.choices.repos
-            timeline.change { $0.cycleRepo(among: repos, named: command.arguments.first) }
+            let repos = historyBrowser.choices.repos
+            historyBrowser.change { $0.cycleRepo(among: repos, named: command.arguments.first) }
         case "timeline.where":
-            let places = timeline.choices.places
-            timeline.change { $0.cyclePlace(among: places, named: command.arguments.first) }
-        case "timeline.gone": timeline.change { $0.showGone.toggle() }
+            let places = historyBrowser.choices.places
+            historyBrowser.change { $0.cyclePlace(among: places, named: command.arguments.first) }
+        case "timeline.gone": historyBrowser.change { $0.showGone.toggle() }
         case "log.kind": callLog.change { $0.cycleKind(named: command.arguments.first) }
         case "log.failed": callLog.change { $0.failedOnly.toggle() }
         case "log.slow": callLog.change { $0.slowOnly.toggle() }
@@ -2958,9 +2971,8 @@ final class AppModel {
         case .repos: worktreeRows.map(\.id)
         case .history: historyRows.map(\.id)
         case .log: callLog.rows.map { String($0.id) }
-        case .timeline: timeline.rows.map(\.id)
         case .ledger: ledger.rows.map(\.id)
-        case .dashboard: dashboard.board.recent.map(\.id)
+        case .dashboard: dashboard.board.shipped.map(\.id)
         case .mindmap: mindmap.siblings.map(\.id)
         case .standup: standup.rows.map(\.id)
         case .sessions, .goals: []
@@ -3037,7 +3049,7 @@ final class AppModel {
         context.currentAgent = currentSession?.agent
         context.catalogs = settings.agents.reduce(into: [:]) { $0[$1.name] = modelCatalog($1.name) }
         context.mergeRepos = mergeQueues.keys.sorted()
-        let choices = timeline.choices
+        let choices = historyBrowser.choices
         context.timelineRepos = choices.repos.map { String($0.split(separator: "/").last ?? "") }
         context.timelinePlaces = choices.places
         context.goals = goals.snapshot.ordered.filter { $0.status != .archived }.map { ($0.id, $0.title) }
@@ -3065,7 +3077,6 @@ final class AppModel {
         case .repos: setRow((reposFocus == .repos ? columnIndex : repoCursor) + delta)
         case .history: setRow(historyCursor + delta)
         case .log: setRow(callLog.cursor + delta)
-        case .timeline: setRow(timeline.cursor + delta)
         case .ledger: setRow(ledger.cursor + delta)
         case .dashboard: setRow(dashboard.cursor + delta)
         case .mindmap: setRow(mindmap.cursor + delta)
@@ -3084,14 +3095,12 @@ final class AppModel {
         case .attention: (attentionRows.map { AttentionView.section($0.item.updatedAt) }, cursor(in: .attention))
         case .prs: (pullRows.map(\.ref.repo.slug), cursor(in: .prs))
         case .watch: (pilotRows.map(\.status.group.rawValue), cursor(in: .watch))
-        case .history:
-            (historyRows.map { Calendar.current.startOfDay(for: $0.closedAt).description }, historyCursor)
+        // A day is a group: { and } go from day to day.
+        case .history: (historyRows.map { Calendar.current.startOfDay(for: $0.at).description }, historyCursor)
         // A run of calls from one caller (a sync, a repo refresh) is a group.
         case .log: (callLog.rows.map(\.caller), callLog.cursor)
-        // A day is a group: { and } go from day to day.
-        case .timeline: (timeline.rows.map { Calendar.current.startOfDay(for: $0.at).description }, timeline.cursor)
         case .ledger: (ledger.rows.map { Calendar.current.startOfDay(for: $0.updatedAt).description }, ledger.cursor)
-        case .dashboard: (dashboard.board.recent.map(\.place), dashboard.cursor)
+        case .dashboard: (dashboard.board.shipped.map(\.repo), dashboard.cursor)
         case .mindmap: (mindmap.siblings.map(\.kind.rawValue), mindmap.cursor)
         case .standup: ([], 0)
         // Active, done and archived goals are groups.
@@ -3116,13 +3125,9 @@ final class AppModel {
             guard count > 0 else { return }
             itemCursor[view] = min(max(index, 0), count - 1)
         } else if view == .history {
-            let count = historyRows.count
-            guard count > 0 else { return }
-            historyCursor = min(max(index, 0), count - 1)
+            historyBrowser.setCursor(index)
         } else if view == .log {
             callLog.setCursor(index)
-        } else if view == .timeline {
-            timeline.setCursor(index)
         } else if view == .ledger {
             ledger.setCursor(index)
         } else if view == .dashboard {
@@ -3877,11 +3882,9 @@ final class AppModel {
                 repoCursor = index
                 if thenInsert { openSelected() }
             case .history:
-                historyCursor = index
+                historyBrowser.setCursor(index)
             case .log:
                 callLog.setCursor(index)
-            case .timeline:
-                timeline.setCursor(index)
             case .ledger:
                 ledger.setCursor(index)
             case .dashboard:
@@ -4380,38 +4383,37 @@ final class AppModel {
     // MARK: History
 
     /// History in display order (newest first), filtered by `/` text and the outcome chip.
-    var historyRows: [HistoryEntry] {
-        let filter = filter(for: .history)
-        return history.filter { entry in
-            (historyOutcome == nil || entry.outcome == historyOutcome)
-                && FilterQuery.matches(
-                    filter,
-                    [
-                        entry.session.title, entry.session.prompt, entry.session.branch, entry.session.agent,
-                        entry.session.location.label,
-                    ] + entry.session.repos.map(\.name)
-                )
-        }
-    }
+    /// Insights' History in display order (newest first): its work and its loose events, narrowed by the outcome,
+    /// the filters and `/`.
+    var historyRows: [HistoryFeed.Line] { historyBrowser.lines }
 
-    var selectedHistory: HistoryEntry? {
-        let rows = historyRows
-        return rows.indices.contains(historyCursor) ? rows[historyCursor] : nil
-    }
+    /// The history entry of the History line under the cursor.
+    var selectedHistory: HistoryEntry? { historyBrowser.selectedEntry }
 
     private func cycleOutcome(named words: [String]) {
-        historyOutcome = Outcome.filter(after: historyOutcome, named: words)
-        historyCursor = 0
+        historyBrowser.cycleOutcome(named: words)
+    }
+
+    /// The timeline's old ways in (`:timeline`, `view.timeline`, `history.timeline` from elsewhere): History with
+    /// every event unfolded.
+    private func showEveryEvent() {
+        view = .history
+        if !historyBrowser.everyEvent { historyBrowser.toggleEvents() }
+    }
+
+    /// What the dashboard reads of the goals, as Goals has them loaded.
+    var dashboardGoals: DashboardBrowser.GoalsSource {
+        .init(goals: goals.snapshot.goals, evidence: goals.snapshot.evidence, qualities: goals.qualities)
     }
 
     private func reopenSelected() {
-        // In the timeline: the session of the line under the cursor, when it is in History.
-        let picked = view == .timeline ? timeline.selected.flatMap(timelineEntry)
-            : view == .ledger ? ledger.selected.flatMap { entry in history.first { $0.id == entry.id } }
-            : view == .dashboard ? dashboard.selected.flatMap { row in history.first { $0.id == row.id } }
+        // In History an event's own line reopens its session, when it is in History; on the dashboard, the session
+        // of the PR under the cursor.
+        let picked = view == .ledger ? ledger.selected.flatMap { entry in history.first { $0.id == entry.id } }
+            : view == .dashboard ? dashboard.selected?.session.flatMap { id in history.first { $0.id == id } }
             : selectedHistory
         guard let entry = picked else {
-            if [.timeline, .ledger, .dashboard].contains(view) {
+            if [.history, .ledger, .dashboard].contains(view) {
                 flash = "nothing to reopen: its session is not in History"
             }
             return
@@ -4682,6 +4684,8 @@ final class AppModel {
         case .prs: return pullRows.indices.contains(index) ? pullRows[index].url : nil
         case .watch: return pilotRows.indices.contains(index) ? pilotRows[index].ref.url : nil
         case .sessions: return currentSession?.trackedPRs.first?.url
+        case .dashboard: return dashboard.selected?.pull?.url
+        case .history: return selectedHistory?.session.trackedPRs.last?.url
         default: return nil
         }
     }
@@ -4798,11 +4802,12 @@ final class AppModel {
         case .attention: return attentionSelected?.item.repo.map { [$0] } ?? []
         case .prs: return pullRows.indices.contains(index) ? [pullRows[index].ref.repo] : []
         case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
-        case .history: return selectedHistory?.session.repos ?? []
-        case .timeline: return timeline.selected?.repository.map { [$0] } ?? []
-        case .dashboard:
-            let id = dashboard.selected?.id
-            return (sessions + history.map(\.session)).first { $0.id == id }?.repos ?? []
+        case .history:
+            if case let .event(item) = historyBrowser.selected, selectedHistory == nil {
+                return item.repository.map { [$0] } ?? []
+            }
+            return selectedHistory?.session.repos ?? []
+        case .dashboard: return dashboard.selected?.pull.map { [$0.repo] } ?? []
         case .standup: return []
         case .mindmap:
             return (mindmap.focused?.entry.flatMap { ledger.entries[$0] }?.repos ?? []).compactMap { slug in
@@ -4965,6 +4970,9 @@ final class AppModel {
                   let number = item.number else { return nil }
             return PullRef(repo: repo, number: number)
         case .sessions: return currentSession?.trackedPRs.first
+        // What shipped on the dashboard; the work under the cursor in History.
+        case .dashboard: return dashboard.selected?.pull
+        case .history: return selectedHistory?.session.trackedPRs.last
         default: return nil
         }
     }
@@ -6869,9 +6877,8 @@ final class AppModel {
     private func resetCursor(_ view: AppView) {
         switch view {
         case .sessions: cursor = 0
-        case .history: historyCursor = 0
+        case .history: historyBrowser.setCursor(0)
         case .log: callLog.setCursor(0)
-        case .timeline: timeline.setCursor(0)
         case .ledger: ledger.setCursor(0)
         case .dashboard: dashboard.setCursor(0)
         case .mindmap: mindmap.setCursor(0)
@@ -6888,9 +6895,8 @@ final class AppModel {
         case .sessions: list.ordered.count
         case .history: historyRows.count
         case .log: callLog.rows.count
-        case .timeline: timeline.rows.count
         case .ledger: ledger.rows.count
-        case .dashboard: dashboard.board.recent.count
+        case .dashboard: dashboard.board.shipped.count
         case .mindmap: mindmap.siblings.count
         case .standup: standup.rows.count
         case .goals: goals.rows.count
@@ -7004,7 +7010,7 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
-        case .log, .timeline, .ledger, .dashboard, .mindmap, .standup, .goals:
+        case .log, .ledger, .dashboard, .mindmap, .standup, .goals:
             return nil
         case .attention:
             let ids = Set(actionIDs(.attention))
@@ -7974,15 +7980,12 @@ final class AppModel {
         case .log:
             state.cursor = callLog.cursor
             state.rows = callLog.rows.count
-        case .timeline:
-            state.cursor = timeline.cursor
-            state.rows = timeline.rows.count
         case .ledger:
             state.cursor = ledger.cursor
             state.rows = ledger.rows.count
         case .dashboard:
             state.cursor = dashboard.cursor
-            state.rows = dashboard.board.recent.count
+            state.rows = dashboard.board.shipped.count
         case .standup:
             state.cursor = standup.cursor
             state.rows = standup.rows.count
@@ -8040,6 +8043,7 @@ final class AppModel {
         state.diffRow = diffRow
         state.diffNoteOpen = diffNote != nil
         state.historyOutcome = historyOutcome.map(\.rawValue) ?? ""
+        state.historyEvents = historyBrowser.everyEvent
         let tracked = Set(sessions.flatMap(\.trackedPRs))
         state.paused = tracked.count { feedback[$0.description]?.isPaused(Clock.now) == true }
         state.merging = tracked.count { pilot(for: $0).merge != .off }

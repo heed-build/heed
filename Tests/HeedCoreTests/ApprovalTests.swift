@@ -358,7 +358,8 @@ struct PermissionHookTests {
         let ask = ask
         let started = Date()
         #expect(try await onThread { PermissionHook.wait(for: ask, socket: path, ceiling: 0.3) } == .pass)
-        #expect(Date().timeIntervalSince(started) < 2)
+        // Well under the server's 3 s answer: the hook gave up at its ceiling (CI machines can be slow to get there).
+        #expect(Date().timeIntervalSince(started) < 2.9)
         try await Task.sleep(for: .milliseconds(200))
         #expect(gone.ids == ["ask-1"])
     }

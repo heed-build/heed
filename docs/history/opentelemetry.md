@@ -1,5 +1,5 @@
 ---
-description: The agents' own OpenTelemetry, received on this Mac: spans, latency by tool, waits for your OK, cost by model, and each session's trace.
+description: "The agents' own OpenTelemetry, received on this Mac: spans, latency by tool, waits for your OK, cost by model, and each session's trace."
 ---
 
 # OpenTelemetry

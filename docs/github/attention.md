@@ -170,6 +170,38 @@ list and reader to change the split; heed keeps it.
 
 ![A drafted reply, shown in full before it is posted](../images/shots/github/attention-reply.png)
 
+## Heed's next step
+
+Each issue and PR has one next step heed has worked out, and one key for it. The row says it under its title
+(`next: start a review`, or `▶ heed is getting it green` once a helper is on it), and the reader proposes it at the top:
+*Heed's next step: get it green and merge it*, with the steps it will take.
+
+![Attention's rows, each with its next step](../images/shots/attention/next-steps.png)
+
+![The reader's proposal for your PR: get it green and merge it](../images/shots/attention/next-step.png)
+
+| The item | Heed's next step | What `D` does |
+|---|---|---|
+| Someone else's PR that asks your review | **Start a review** | a [helper](../agents/helpers.md) reads it against its issue, runs its tests and drafts comments; nothing is posted until you send it |
+| An issue that tags you | **Draft a reply** | a reply drafted from the thread (as `R`); you read it before anything is posted |
+| Your issue where you spoke last | **Nothing to do** | nothing: heed waits for someone else to answer |
+| Your PR with failing checks or review comments | **Get it green** (and merge it, when merging is on) | a helper fixes them in its own worktree and pushes once you approve |
+| Your PR that conflicts with its base | **Resolve the conflict** | a helper merges the base in, in its own worktree |
+| Your green PR | **Merge it** | merges now by the repo's rules (as `zM`) |
+| Your PR in a repo without Autopilot | **Set up Autopilot** | the [repo setup](repo-setup.md): samples merged PRs and CI and proposes settings you approve |
+| An issue assigned to you | **Start work** | [Start work](../start-work/from-github.md) on it |
+
+| Key | |
+|---|---|
+| `D` | Do heed's next step |
+| `Y` | **Always in the repo:** do it, and turn the step's Autopilot capability on for the repo (get it green on auto, or merging), so heed does it by itself from now on. Steps that are yours to send each time (a review, a reply) have no Always |
+| `.` | **Other:** propose the item's next other step instead (a reply, a review, Start work); again goes back to heed's own |
+
+`↩` still opens the reader, as before. Once you approve a step that a helper does, the helper opens in a split under
+the reader: see [Helpers](../agents/helpers.md).
+
+![The proposal on a PR that asks your review](../images/shots/attention/next-step-review.png)
+
 ## Catch-up summaries
 
 The card at the top of the reader says what is new in the thread since you last looked: only the comments and reviews

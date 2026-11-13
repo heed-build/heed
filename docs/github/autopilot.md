@@ -71,7 +71,17 @@ there. Cleanup, Goals and Summaries are set once for every repo, so their cells 
 
 ## Now
 
-What the pilot is doing, by card: **Stalled** first (heed stopped and says why, with the key out: `zr` one more round),
+On top, the **helpers at work**: a live tile per [helper](../agents/helpers.md), each in its own worktree beside your
+sessions. A tile says what it is (*Getting #2841 green*), its repo, agent and age, what it does now, its plan as pips,
+the files it touched, its last tool calls, and what it asks you (`y` allows it once the helper is open). `h` `l` move
+between the tiles and `↩` opens the one under the cursor in a split in the PRs' place (`⎋` closes it); `j` `k` go back
+to the PRs.
+
+![Now: the helpers at work above the PRs](../images/shots/autopilot/now-helpers.png)
+
+![A helper opened from its tile](../images/shots/autopilot/now-helper-open.png)
+
+Under them, what the pilot is doing, by card: **Stalled** first (heed stopped and says why, with the key out: `zr` one more round),
 then **Green** (PRs being fixed, with the rounds used so far), **Merge** (PRs with merging on, with what the next run of
 their queue does), **Copilot** (PRs Copilot was asked about) and **Not watched**. Merged and closed PRs move to Done.
 

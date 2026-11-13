@@ -82,6 +82,18 @@ ask_before_sweep = false           # true: cleanup runs only when you press Clea
 # History can bring it back. Cleanup drops those older than this many days; 0 keeps them.
 keep_archive_days = 90
 
+[helpers]
+# Helpers are agents heed starts on your behalf over ACP (the Agent Client Protocol), each in a worktree of its own,
+# drawn in heed as they work: get it green, a conflict, a review of someone else's PR. Which agent they run:
+# claude, codex, opencode or gemini; empty: your default agent when heed knows an ACP way to it, else claude.
+# Claude and Codex need an adapter: npm install -g @agentclientprotocol/claude-agent-acp (or codex-acp).
+agent = ""
+# The adapter's command line, instead of the one heed knows (e.g. "npx -y @agentclientprotocol/claude-agent-acp").
+command = ""
+# Dollars one helper may spend before heed stops it, from what its agent reports; 0: no cap. An agent that reports
+# no cost is stopped by [pilot] run_timeout only.
+spend_cap = 0.5
+
 [github]
 # How often the view on screen refreshes from GitHub; the others refresh five times less often.
 poll_seconds = 60
@@ -95,10 +107,11 @@ watch = true
 green = "ask"
 # Prompts sent without a new approval before get it green stops.
 max_rounds = 3
-# Where each round of get it green (or get it merged) goes: background (an agent in its own tab, worktree and branch,
-# heed/get-it-green/<branch>, all removed when it is done) or session (the session's own agent, once it is idle and
-# you have not typed in it for five minutes). Also per org and per repo.
-run_in = "background"
+# Where each round of get it green (or get it merged) goes: helper (an agent heed starts over ACP in its own worktree,
+# heed/get-it-green/<branch>, drawn and steered in heed; it pushes and replies only once you approve, see
+# [helpers]), background (an agent in its own tab, worktree and branch, all removed when it is done) or session (the
+# session's own agent, once it is idle and you have not typed in it for five minutes). Also per org and per repo.
+run_in = "helper"
 # Which agent, model and reasoning effort background runs use; empty: the session's agent and that agent's
 # defaults. Also per org and per repo.
 agent = ""

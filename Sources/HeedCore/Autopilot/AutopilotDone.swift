@@ -117,7 +117,7 @@ public enum AutopilotDone {
         for session in record.sessions {
             let repo = session.repos.first?.slug
             for (index, event) in session.timeline.enumerated() {
-                if !record.continuePrompt.isEmpty, event.text == "sent “\(record.continuePrompt)”" {
+                if !record.continuePrompt.isEmpty, event.text.hasPrefix("sent “\(record.continuePrompt)”") {
                     entries.append(AutopilotEntry(
                         id: "continue-\(session.id)-\(index)", at: event.at, capability: .resume,
                         text: "Told \(session.agent) to carry on in \(session.title)",

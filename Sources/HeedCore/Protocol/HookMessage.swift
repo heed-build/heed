@@ -50,6 +50,9 @@ public struct HookMessage: Codable, Equatable, Sendable {
         /// A tool call the agent made, short (`PostToolUse`): what a swarm's agents pane lists and its stuck signal
         /// reads. Never changes the session's state.
         case toolCall(ToolCall)
+        /// Where the agent takes messages besides its terminal (Claude's cross-session inbox socket, from its hook's
+        /// environment): heed hands it what it would otherwise type (`AgentChannels`).
+        case inbox(socket: String)
     }
 
     public var session: String
@@ -109,9 +112,10 @@ public enum HookCommandLine {
         arguments.first == "hook" && arguments.count >= 2 ? arguments[1] : nil
     }
 
-    /// `readInput` supplies stdin, read only by `hook` (agents pass their hook payload there).
+    /// `readInput` supplies stdin, read only by `hook` (agents pass their hook payload there). `environment`: the
+    /// hook's own, where Claude Code says where its inbox is; empty for hooks relayed from a host.
     public static func parse(
-        _ arguments: [String], readInput: () -> Data = { Data() }
+        _ arguments: [String], environment: [String: String] = [:], readInput: () -> Data = { Data() }
     ) throws(UsageError) -> [HookMessage.Kind] {
         if arguments.first == "hook" {
             guard arguments.count >= 3 else { throw UsageError(description: "heed hook: expected <agent> <event>") }
@@ -128,7 +132,9 @@ public enum HookCommandLine {
             }
             let input = (try? JSONSerialization.jsonObject(with: readInput())) as? [String: Any] ?? [:]
             switch arguments[1] {
-            case "claude": return AgentIntegration.claudeHook(event: event, input: input)
+            case "claude":
+                return AgentIntegration.claudeHook(event: event, input: input)
+                    + AgentIntegration.claudeInbox(event: event, environment: environment)
             case "codex": return AgentIntegration.codexHook(event: event, input: input)
             case "cursor": return AgentIntegration.cursorHook(event: event, input: input)
             default: throw UsageError(description: "heed hook: unknown agent '\(arguments[1])'")

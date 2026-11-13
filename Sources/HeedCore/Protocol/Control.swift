@@ -128,6 +128,8 @@ public struct ControlReply: Codable, Equatable, Sendable {
     public var goal: GoalReply?
     /// `memory`: what to print.
     public var memory: String?
+    /// `send`: how it reached the agent ("through Claude's inbox", "typed into its pane").
+    public var delivery: String?
 
     public init(
         id: Int? = nil, ok: Bool = true, error: String? = nil, session: String? = nil,
@@ -410,7 +412,7 @@ public enum ControlCommandLine {
     usage: heed sessions                                  (every session: id, state, needs you, title)
            heed watch                                     (the session list as JSON lines, each time it changes)
            heed start [--agent <name>] [--dir <path>] [--arg <word>]... [--focus] "<prompt>"
-           heed send <session> "<text>"                   (only while its agent is idle or done)
+           heed send <session> "<text>"                   (its inbox, else typed while its agent is idle)
            heed show [--focus] <session>
            heed goal <command>                            (the goal this session is on: heed goal --help)
     Talks to the app over \(HeedControl.defaultSocketPath()) (or $\(HeedControl.socketVariable)).

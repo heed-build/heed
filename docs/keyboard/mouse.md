@@ -37,7 +37,7 @@ works in every mode like the other [Mac shortcuts](mac-shortcuts.md).
 |---|---|
 | File | Start work (`⌘N`), the floating panel, a new chat, importing a worktree, adding a repo, resume and *While you were away…*, syncing GitHub, rescanning repos, the cleanup sweep and rules, `config.toml`, finding git and gh again |
 | Session | Type into its agent or the focused pane, pin, park, start again from its prompt, *Hand off to…*, promote a chat, its goal (go to it, put it on one, take it off, a new goal from it), run a task, link or take off an issue, close, delete, stop every agent |
-| View | Every view, those without a tab too (Inbox, Issues, PRs, the timeline, ledger, dashboard and call log), hosts, the filter, the sidebar and inspector, and a submenu each for Attention, Inbox and Issues, Repos, History, Goals (and a goal's board, `GOAL.md`, personas, evaluations and Unassigned) and the call log |
+| View | Every view, those without a tab too (PRs, the timeline, ledger, dashboard and call log), hosts, the filter, the sidebar and inspector, and a submenu each for Attention (and the issue reader), Repos, History, Goals (and a goal's board, `GOAL.md`, personas, evaluations and Unassigned) and the call log |
 | PR | The PR overlay, the diff, the session's PRs, the browser and links, tracking, everything the pilot does (watch, get it green, get it merged, merge now, pause, one more round, Copilot, reviewers, its run), merge queues, setting up a repo, and submenus for review feedback and the diff |
 | Go | The next session needing you (`ga`), back, a session by name, your pinned sessions, hints, VISUAL and the command line |
 | Window | Splitting, sizing, zooming, closing and moving between panes; new, next, previous, moving and closing tabs, and each tab by number |
@@ -93,24 +93,16 @@ runs or shows the PR's [merge queue](../github/watch.md) (`R`, `gM`).
 
 A right-click on a row offers to open it (`↩`), open it in the browser, go to its session (`gS`), draft a reply (`R`),
 start a session from it (`s`) or add it to the selected session (`a`), and be done with it (`x`), snooze it for an hour
-or until tomorrow, or mute its thread (`M`). An agent's row offers only its session, done and snooze. Picked rows
-(`␣`) work as in Issues below. A click on a row shows it in the reader beside the list and counts as opening it; a
+or until tomorrow, or mute its thread (`M`). An agent's row offers only its session, done and snooze. With rows
+picked (`␣`), a right-click on one of them acts on all the picked rows, and the items say how many; a right-click on a
+row that is not picked acts on that row alone. A click on a row shows it in the reader beside the list and counts as opening it; a
 click on a tab opens the tab, on a section's *all done* or *folded* runs `X` or `za`, and on the line at the foot opens
 Coverage. Drag the line between list and reader to change the split.
-
-## Issues
-
-A right-click on a row offers to open it (`↩`), open it in the browser or its repo on GitHub, start a session from it
-(`s`) or add it to the selected session (`a`), and show all of its repo's
-issues or only yours (`w`). With rows picked (`␣`), a right-click on one of them acts on all the picked rows, and the
-items say how many; a right-click on a row that is not picked acts on that row alone.
-
-A repo in the Issues repo column shows its issues, flips between all issues and only yours, or opens on GitHub.
 
 ## Repos and History
 
 A worktree in Repos goes to its session or imports it (`↩`), starts work in its repo (`o`), copies its path, pins its
-session, opens its repo on GitHub, flips its repo's issues (`w`), runs the cleanup sweep (`gC`), reviews the repo's
+session, opens its repo on GitHub, runs the cleanup sweep (`gC`), reviews the repo's
 setup (`S`), or removes it (`dd`, which asks first; never offered for the repo's own checkout). Selected worktrees
 (VISUAL) work as picked rows do above.
 

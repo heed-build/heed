@@ -1,6 +1,6 @@
 ---
 navigation_title: GitHub
-description: Attention, your inbox, issues and pull requests, synced through the GitHub CLI.
+description: Attention, pull requests and Watch, synced through the GitHub CLI.
 ---
 
 # GitHub
@@ -12,11 +12,13 @@ when its checks or review threads change.
 
 | View | Key | Shows |
 |---|---|---|
-| [Attention](attention.md) | `gm` | Everything that wants you, one feed: notifications, issues, your PRs and agents waiting on you. `gi` opens it on Issues, `gp` on My PRs |
-| [Inbox](inbox.md) | `:inbox` | Your notifications: Attention's Everything tab now |
-| [Issues](issues.md) | `:issues` | Issues assigned to you or mentioning you, and every issue in repos you watch |
+| [Attention](attention.md) | `gm` | Everything that wants you, one feed: notifications, issues assigned to you or mentioning you, your PRs and agents waiting on you. `gi` opens it on issues, `gp` on My PRs |
 | [Pull requests](pull-requests.md) | `:prs` | Your open pull requests and the ones your sessions track |
 | [Watch](watch.md) | `gw` | The PRs your sessions track, what heed is doing for each, and what it has done |
+
+Heed is not a GitHub browser: it brings you what involves you, so you can pick it up without going looking. There is
+no list of every issue in a repo; `:inbox` and `:issues`, the views that were, open Attention's Everything tab and its
+issues.
 
 [Setting up a repo](repo-setup.md) proposes get it merged and get it green for a repo from its own merged PRs and CI.
 

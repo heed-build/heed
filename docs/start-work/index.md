@@ -68,5 +68,5 @@ outside the dialog cancels it, as it does for the [floating panel](from-anywhere
 ## Other ways in
 
 - [From anywhere](from-anywhere.md): `⌃⌥Space` opens it over any app.
-- [From GitHub](from-github.md): `s` on Attention items, issues or inbox items starts a session from them.
+- [From GitHub](from-github.md): `s` on Attention items starts a session from them.
 - [Starting again](again.md): `O` starts from a previous session's prompt.

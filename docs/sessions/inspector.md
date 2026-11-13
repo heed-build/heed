@@ -50,13 +50,13 @@ At the bottom, anchored:
 ## Links
 
 **Click a link** to open it on GitHub. `go` opens the session's PR in the [PR overlay](../github/review-feedback.md),
-and the issue reader is a key away in the [Issues view](../github/reading.md). A **right-click** on a PR card offers
+and the [issue reader](../github/reading.md#issues) is a key away in Attention. A **right-click** on a PR card offers
 the pilot's commands for that PR alone ([right-click](../keyboard/mouse.md)).
 
 A session's issues come from three places:
 
 - its prompt's closing words: `Fixes #12`, `Closes org/repo#3`, `Resolves <issue URL>`. Start work from
-  [Issues](../github/issues.md) writes these for you;
+  [Attention](../github/attention.md) writes these for you;
 - the issues its PRs close, as GitHub reports them;
 - `heed issue add <url>` from the agent, or `gI` (`:issue.add <url>`; the copied URL when you give none).
   `:issue.remove` takes one off.

@@ -153,12 +153,6 @@ force_merge = "ask"
 # summary (History, L). Off by default; per org and per repo too.
 summary_sign_off = false
 
-[issues]
-# Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open
-# issues. Override per org ([orgs.<org>] issues = "all") or per repo ([repos."org/name"] issues = "involved");
-# the most specific wins. w in Issues (I in Repos) flips the repo under the cursor.
-default = "involved"
-
 [ui]
 # A menu bar item: an owl that shows how many sessions need you, with those sessions, Start work and Open Heed.
 menu_bar = true
@@ -414,7 +408,6 @@ resume = "--resume {id}"
 # Org and repo colors: teal, pink, lime, orange, periwinkle, sky. Repos inherit their org's.
 # [orgs.acme]
 # color = "teal"
-# issues = "all"
 
 # Setup per repo (or per org): commands each new worktree runs before its agent starts, joined with &&. Unset, heed
 # proposes what it detects (mise install when the repo uses mise, else its lockfiles' installs) and runs nothing
@@ -450,7 +443,7 @@ global_start_work = "<C-M-Space>"
 global_activate = "<C-M-h>"
 # Shift+Escape leaves INSERT too; a plain Escape always goes to the terminal. [keys.insert] "<S-Esc>" = "" unbinds.
 
-# Bindings per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.inbox], [keys.history],
+# Bindings per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.attention], [keys.history],
 # [keys.diff], [keys.pr]), in vim notation, each naming a command (the same names : completes). "" unbinds.
 # [keys.normal]
 # "gC" = ""

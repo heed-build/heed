@@ -60,5 +60,5 @@ on and the failing checks; under the conversation is the [review feedback](revie
 
 ![The issue reader](../images/shots/github/reader-issue.png)
 
-Until a thread has loaded, an issue shows what was synced of it: the body for the issues in the [Issues](issues.md)
-view, the title for others. If it cannot load (gh signed out, no access) the reader says why.
+Until a thread has loaded, an issue shows what was synced of it: the body for the issues assigned to you or mentioning
+you, the title for others. If it cannot load (gh signed out, no access) the reader says why.

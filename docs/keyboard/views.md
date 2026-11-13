@@ -29,8 +29,9 @@ which one shows.
 
 Some views have no key and no name along the top, and are reached by name:
 
-- `:issues` and `:prs`: the [Issues](../github/issues.md) and [Pull requests](../github/pull-requests.md) views,
-  which Attention gathers into its tabs. `:inbox` opens Attention's [Everything](../github/inbox.md) tab.
+- `:prs`: the [Pull requests](../github/pull-requests.md) view, which Attention gathers into its My PRs tab.
+  `:inbox` and `:issues` open [Attention](../github/attention.md#tabs) on Everything and on its issues, where the Inbox
+  and Issues views were.
 - `:log`: the [call log](../reference/call-log.md) of every command and GitHub call Heed made.
 
 `⎋` closes an overlay or a reader, but never changes the view: views are places of their own.

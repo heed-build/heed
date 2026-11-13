@@ -114,7 +114,8 @@ leaves it where it is (`b` on the task in the plan still moves it).
 
 The asker's waiting `heed goal ask` reads its answer itself. Anything else for an agent (a message, a question handed
 to a peer or the lead, an answer the asker stopped waiting for, an overrule) is typed into its pane, one at a time, only
-when its agent is idle and you have not typed there in the last 20 seconds, the same rule feedback for a PR follows. A
+when its agent is idle and you have not typed there in the last 20 seconds, the same rule feedback for a PR follows
+(a Claude agent gets it through its [inbox](../../agents/messages.md) instead, whenever it runs). A
 worker whose turn ends while something waits for it is kept going until it has it. A worker also finds what waits for
 it under **For you** in `heed goal plan show`. Each hand-over is a row by heed.
 

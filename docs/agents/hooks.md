@@ -21,6 +21,9 @@ configuration is edited.
 
 The command preview at the bottom of [Start work](../start-work/agent-and-options.md) shows exactly what will run.
 
+Claude's hook also passes on where the session's inbox is (`CLAUDE_CODE_MESSAGING_SOCKET`), so heed can send it
+messages without typing: see [How Heed talks to agents](messages.md).
+
 ## What each reports
 
 | State | claude | opencode | codex | pi | cursor |

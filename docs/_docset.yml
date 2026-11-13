@@ -53,6 +53,7 @@ toc:
     children:
       - file: index.md
       - file: hooks.md
+      - file: messages.md
       - file: screen-reading.md
       - file: custom-agents.md
       - file: models.md

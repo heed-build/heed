@@ -266,7 +266,9 @@ one takes you to its tab.
 
 `run_in = "session"` (per org and repo too, or **Runs in** on the Pilot page) sends each round to the session's own
 agent instead, as one prompt typed into its pane. It waits until that agent is idle or done, never while it works,
-is blocked or asks, and until you have not typed in it for five minutes (20 seconds after `zg`). No worktree, branch or
+is blocked or asks, and until you have not typed in it for five minutes (20 seconds after `zg`). A Claude session gets
+it through its [inbox](../agents/messages.md) instead, which holds it until the agent can read it; the five minutes
+still apply. No worktree, branch or
 tab is made. Use it where a fresh worktree gets in the way, such as an agent that asks to trust every new folder.
 
 Nothing is sent for a PR once it is merged or closed, in either mode.

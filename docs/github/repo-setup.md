@@ -68,7 +68,7 @@ labels) turns one item on or off.
 
 ## 3. Validate
 
-heed replays its merge rules (`merge = "heed"`, see [Watch](watch.md)) over the sampled PRs as they were just before
+heed replays its merge rules (`merge = "heed"`, see [Get it green and merged](watch.md)) over the sampled PRs as they were just before
 they merged, and says which would have been held and why. It checks the settings against the repo's: a method the repo
 allows, auto-merge allowed for `auto`, linear history against merge commits, a merge queue, required approvals a
 trusted AI review does not satisfy, up-to-date branches, and admin rights for `force_merge`.

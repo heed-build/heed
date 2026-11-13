@@ -48,6 +48,7 @@ This page is generated from the code (`mise run shots`).
 | `agent.switch` `[agent] [model] [effort]` | `gA` | hand the session to another agent: stop its agent, start that one on a handoff prompt |
 | `view.insights` | `gh` | Insights: the dashboard first, then History, the ledger, the Mindmap and standups |
 | `view.history` |  | Insights, as view.insights does (the name it had before) |
+| `view.autopilot` | `gw` | Autopilot: what heed can do on its own (Can do first), where it is on, what it does now, what it did |
 | `goal.jump` | `'g` | go to the session's goal; in Goals, to the goal of the session under the cursor |
 
 ## Panes & tabs
@@ -87,7 +88,11 @@ This page is generated from the code (`mise run shots`).
 | `view.inbox` |  | Attention's Everything tab, where the inbox went |
 | `view.issues` |  | Attention's issues: assigned to you or mentioning you, where the Issues view went |
 | `view.prs` |  | pull requests |
-| `view.watch` | `gw` | watch: the PRs your sessions track, what heed does for each and has done |
+| `view.watch` |  | Autopilot, as view.autopilot does (the view was Watch before) |
+| `autopilot.cando` | `C` (autopilot), `C` (done), `C` (watch), `C` (where) | Autopilot's Can do: a card per thing heed can do on its own |
+| `autopilot.where` | `W` (autopilot), `W` (done), `W` (watch), `W` (where) | Autopilot's Where: each repo, and which capabilities are on there |
+| `autopilot.now` | `N` (autopilot), `N` (done), `N` (watch), `N` (where) | Autopilot's Now: stalled PRs first, then what each capability is working on |
+| `autopilot.done` | `D` (autopilot), `D` (done), `D` (watch), `D` (where) | Autopilot's Done: what heed did on its own, by day |
 | `view.repos` | `gr` | repos & worktrees |
 | `view.log` |  | the call log: every command and GitHub call heed made, how long it took, how it ended |
 | `view.timeline` |  | Insights' History with every event as its own line (what the timeline was) |
@@ -190,6 +195,15 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
+| `autopilot.move` `<h|j|k|l>` | `h` (autopilot), `j` (autopilot), `k` (autopilot), `l` (autopilot), `<Left>` (autopilot), `<Down>` (autopilot), `<Up>` (autopilot), `<Right>` (autopilot), `h` (where), `j` (where), `k` (where), `l` (where), `<Left>` (where), `<Down>` (where), `<Up>` (where), `<Right>` (where) | Autopilot: move between cards (Can do) or cells (Where) |
+| `autopilot.on` `[capability] [repo]` | `y` (autopilot), `y` (where) | Autopilot: turn the capability on here (the repo in Where; its default on Can do) |
+| `autopilot.ask` | `a` (where) | Autopilot: have the capability ask you first here |
+| `autopilot.off` | `x` (autopilot), `x` (where) | Autopilot: turn the capability off here |
+| `autopilot.everywhere` | `Y` (autopilot) | Autopilot: turn the capability on in every repo |
+| `autopilot.open` | `<CR>` (autopilot), `<CR>` (done), `<CR>` (watch), `<CR>` (where) | Autopilot: what the card did (Can do), the repo in Repos (Where), read the PR (Now and Done) |
+| `autopilot.settings` | `S` (autopilot), `S` (where) | Autopilot: open the Settings page of the capability |
+| `autopilot.what` `[capability]` | `t` (done) | Done: every capability, or the next one (or one by name) |
+| `autopilot.repo` `[repo]` | `r` (done) | Done: every repo, or the next one (or one by name) |
 | `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch) | toggle row |
 | `history.reopen` | `R` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
@@ -358,7 +372,7 @@ This page is generated from the code (`mise run shots`).
 | `pilot.run` | `gb` | show the session's running get it green / get it merged run |
 | `pilot.run.stop` | `zx` | stop the session's running get it green / get it merged run |
 | `pilot.retry` | `zr` | one more round of get it green for a stalled PR (or the picked PRs) |
-| `pilot.copilot` | `C` (pr), `C` (watch) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |
+| `pilot.copilot` | `C` (pr), `A` (watch) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |
 | `pilot.reviewers` | `zv` | ask the PR's configured reviewers ([pilot] reviewers) to review it |
 | `pilot.merge` | `zm` | get it merged for the PR (or the picked PRs): off or auto |
 | `pilot.merge.now` | `zM` | merge the PR now; past unmet required reviews or checks with --admin when you are an admin (merge_now, force_merge) |
@@ -389,7 +403,7 @@ This page is generated from the code (`mise run shots`).
 | `setup.approve` |  | approve the detected setup for the repo's new worktrees |
 | `setup.never` |  | no setup for the repo's new worktrees, and no more proposals |
 | `setup.edit` |  | edit the repo's setup commands (Settings, Orgs & repos) |
-| `repo.setup` `[repo]` | `M` (repos) | set up get it merged and get it green for the repo: sample its history, propose, validate, write config |
+| `repo.setup` `[repo]` | `M` (repos), `M` (where) | set up get it merged and get it green for the repo: sample its history, propose, validate, write config |
 | `select.remove` | `d` (VISUAL), `dd` (repos) | remove the selected worktrees, or the one under the cursor (asks first) |
 | `select.pin` | `m` (VISUAL) | pin selected |
 | `select.copy` | `y` (VISUAL) | copy paths |

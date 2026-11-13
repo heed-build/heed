@@ -1,22 +1,22 @@
 ---
-description: "The Watch view: every PR your sessions track, what heed is doing for each, and what it has done."
+description: "Get it green and get it merged: the rules, the merge queue, runs, stalled and paused PRs, and their settings."
 ---
 
-# Watch
+# Get it green and merged
 
-`gw` opens the Watch view: every pull request your sessions track, grouped by what it needs, with what heed is doing
-for each and a log of what it has done.
+The PRs your sessions track are watched: heed follows their checks and reviews, sends what holds them back to their
+agent (**green**) and merges them once they are (**merge**). [Autopilot](autopilot.md)'s **Now** (`gw` then `N`) shows
+them as heed works on them; this page is how each part works and how it is set.
 
-![The Watch view: PRs by state, the selected PR's items and timeline, and the activity log](../images/shots/watch/view.png)
+![Autopilot's Now: PRs by card, the selected PR's checklist and timeline, and what else is running](../images/shots/autopilot/now.png)
 
-- **Left**, the PRs, most urgent first: *Needs you* (feedback and no session to send it to), *Stalled* (out of
-  rounds: see below), *Failing* (a check failed, or a conflict), *Changes*,
-  *Feeding* (sent to the agent, waiting for its push), *Pending* (checks running, or a draft), *Green*, *Passing* (not
-  fetched in detail yet), *Paused*, *Done* (merged or closed) and *Not watched*. `{` `}` jump between groups.
+- **Left**, the PRs by card, stalled first: *Stalled* (out of rounds: see below, or feedback with no session to send it
+  to), *Green* (being fixed, with the rounds used), *Merge* (merging on, and what the next run does), *Copilot* (asked)
+  and *Not watched*. Merged and closed PRs are in Autopilot's Done. `{` `}` jump between cards.
 - **Middle**, the PR under the cursor: one line on where it stands, its **green** checklist, its open items, and its
   **timeline**: everything heed noticed and did for it.
-- **Right**, the **merge queues** with when each runs next, and the **activity** across all PRs, newest first (`zi`
-  hides it).
+- **Right**, the **merge queues** with when each runs next, what cleanup, summaries and goals are doing, and the
+  **activity** across all PRs, newest first (`zi` hides it).
 
 ## Green
 
@@ -57,8 +57,8 @@ something, one comment asks for both:
 > Make sure the build and tests still pass.
 
 Copilot works in its own environment and pushes to the PR's branch. What it was asked shows as sent, so your agent does
-not get it as well. Pull in your session's worktree before its agent pushes again. `C` asks Copilot for the PR you are
-on, both kinds, whatever the options say.
+not get it as well. Pull in your session's worktree before its agent pushes again. `A` in Now (`C` in the PR
+overlay) asks Copilot for the PR you are on, both kinds, whatever the options say.
 
 heed asks only where Copilot can work: it checks that the repo lists Copilot among those an issue can be assigned to,
 which is the case when the Copilot coding agent is on for the repo (any paid Copilot plan; on Business and Enterprise an
@@ -104,7 +104,7 @@ GitHub does the merging, so the repo has to allow auto-merge (Settings ▸ Gener
 when it does not. Only PRs your sessions track are merged.
 
 A queue runs every hour (`merge_schedule`), when merging is turned on, when one of its PRs turns green, and after one of
-them merges, so the others get brought up to date. `R` in the Watch view runs the PR's queue now, `:merge.run all`
+them merges, so the others get brought up to date. `R` in Now runs the PR's queue now, `:merge.run all`
 every queue. `gM` shows the PR's queue in the middle: its PRs with what the next run does to each, and every run with
 what it did. `gM` again, or moving the cursor, goes back to the PR.
 
@@ -171,7 +171,7 @@ the base branch requires linear history, and `admin_merge` where you are not an 
 ## What heed will do
 
 Settings come from three levels and a choice made on the PR, so it is not always plain what the next round will be.
-Every PR card, in the inspector and in Watch's middle pane, says it in one line under the pilot's:
+Every PR card, in the inspector and in Now's middle pane, says it in one line under the pilot's:
 
 - `next  background run · codex · 30m · 1 instruction`: a [run](#runs) of its own, with the agent and model it
   starts, how long it may work, and how many lines of `green_instructions` it gets.
@@ -188,7 +188,7 @@ it sent last; the pilot's line itself names both modes, `watching · green ask �
 Hover the line for each setting behind it and where its value comes from: `default`, `org <name>`, `repo`, or
 `this PR` for a choice made with `zw`, `zg` or `zm`.
 
-`z?` (`:pilot.why`), or a click on its key cap, opens the whole picture for the PR you are on: in Watch and the PRs view the PR under the cursor,
+`z?` (`:pilot.why`), or a click on its key cap, opens the whole picture for the PR you are on: in Now and the PRs view the PR under the cursor,
 in the PR overlay its PR, in Sessions the session's first PR. One row each for **Watching**, **Get it green**, **A
 round**, **Conflicts** and **Get it merged**: the value, what it means for this PR now, and on the right where it comes
 from, amber when it is not the default. Below them, **what holds it back**: the green rules and, with
@@ -201,12 +201,12 @@ from, amber when it is not the default. Below them, **what holds it back**: the 
 
 | Key | |
 |---|---|
-| `↩` | Open the [PR overlay](review-feedback.md) |
+| `↩` | Read the PR ([PR overlay](review-feedback.md)) |
 | `zw` | Watch or stop watching |
 | `zg` | Cycle green: off, ask, auto |
 | `zm` | Cycle merging: off, auto, heed |
 | `zM` | Merge now (force merge with `--admin` where you are an admin and GitHub's requirements are unmet) |
-| `C` | Ask Copilot to resolve the PR's merge conflicts and address its review comments |
+| `A` | Ask Copilot to resolve the PR's merge conflicts and address its review comments (`C` in the PR overlay) |
 | `zr` | Another round for a stalled PR |
 | `zp` | Pause or resume |
 | `z?` | What heed will do for the PR, and what holds it back |
@@ -218,7 +218,7 @@ from, amber when it is not the default. Below them, **what holds it back**: the 
 | `R` | Run the PR's merge queue now |
 | `gM` | Show the PR's merge queue |
 
-The pilot keys are the same everywhere: in Watch, the PRs view and the PR overlay they act on that PR, and in
+The pilot keys are the same everywhere: in Now, the PRs view and the PR overlay they act on that PR, and in
 Sessions on every PR the session tracks. A choice made with them sticks to that PR; PRs you
 never set follow the settings.
 
@@ -243,7 +243,7 @@ By default get it green never types into your session's agent. Each round (heed 
 
 While it works, it shows in three places: a row under its session in the sidebar (the goal and PR, how long, its agent
 and the last line of its screen), a box on the PR's card in the inspector (also with the round and the key to its tab),
-and the PR's line in Watch (`a codex run is on it (4m)`). Clicking the row or the box goes to its tab.
+and the PR's line in Now (`a codex run is on it (4m)`). Clicking the row or the box goes to its tab.
 
 When its agent finishes its turn (or exits, or runs past `run_timeout`), the run ends at once:
 
@@ -286,9 +286,9 @@ git for-each-ref --format='%(refname:short)' 'refs/heads/heed/'
 ## Stalled
 
 Get it green sends up to `max_rounds` prompts (3) without a new approval; then it stops, and the PR is **stalled**.
-It shows in its own group in Watch and in the sidebar, in red, with how many rounds it used.
+It shows first in Now and in its own group in the sidebar, in red, with how many rounds it used.
 
-![A stalled PR in the Watch view](../images/shots/watch/stalled.png)
+![A stalled PR in Now](../images/shots/watch/stalled.png)
 
 A new approval starts the count again. `zr` gives the PR one more round now: heed sends what is open (on `auto`), and
 stops again if that round brings no approval either. Stalled does not count toward what needs you in the Dock and the

@@ -29,7 +29,7 @@ Nothing in your own agent configuration changes: Heed passes its hooks to each a
 `:welcome` shows this screen again later.
 
 With no sessions yet, the sidebar says what a session is and offers the first steps: click one, or press its key.
-Repos does the same when it found no repositories, and History, Watch, Attention and the call log say what fills them.
+Repos does the same when it found no repositories, and History, Autopilot, Attention and the call log say what fills them.
 
 ![No sessions yet: start work, a new chat, or the tour](../images/shots/getting-started/empty.png)
 

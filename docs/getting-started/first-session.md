@@ -40,7 +40,8 @@ keyboard back to Heed. More in [Typing into agents](../sessions/typing-into-agen
 ## 5. Review feedback goes back to the agent
 
 When the agent opens a pull request, the session tracks it. Review comments and failing checks queue up in the PR
-overlay (`go`) and go back to the agent when it is idle. More in [Review feedback](../github/review-feedback.md).
+overlay (`go`) and go back to the agent when it is idle. More in [Review feedback](../github/review-feedback.md);
+[Autopilot](../github/autopilot.md) (`gw`) shows what heed can do with them on its own, and where that is on.
 
 ![The PR overlay: two items queued for the agent, the prompt that will be sent](../images/shots/getting-started/first-session-5-feedback.png)
 

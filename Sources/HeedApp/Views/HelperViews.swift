@@ -881,6 +881,7 @@ struct SessionHelperBand: View {
     @Environment(AppModel.self) private var model
     let helper: HelperRun
     let text: String
+    let sessionID: String
 
     var body: some View {
         HStack(spacing: 12) {
@@ -913,11 +914,17 @@ struct SessionHelperBand: View {
     }
 
     private var detail: String {
-        if case .closed = helper.phase { return text }
+        if case .closed = helper.phase { return text + delivery }
         var parts = [" · in its own worktree"]
         if let progress = helper.planProgress { parts.append("step \(progress.step) of \(progress.of)") }
         if helper.phase.awaitsCloseOut { parts.append("done: waiting for your close-out") }
         if helper.permission != nil { parts.append("asks you") }
-        return parts.joined(separator: " · ")
+        return parts.joined(separator: " · ") + delivery
+    }
+
+    /// How the session's agent got heed's note, once it was sent.
+    private var delivery: String {
+        guard let outcome = model.helpers.notices[sessionID]?.outcome else { return "" }
+        return outcome.sent ? " · its agent was told \(outcome.summary)" : " · shown here only"
     }
 }

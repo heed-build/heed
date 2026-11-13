@@ -104,8 +104,10 @@ verdict).
 | `gd` | The whole diff |
 
 Once it pushed, your session is told in words: *heed pushed a3f9c1d to fix-anchors-redirects: lint fix + a
-301-chain test. Pull before your next change.* For now that note is the band over the session and a line in its
-events; it is never typed into the agent. With get it green on **Auto** for the repo (Autopilot's **Always**), heed
+301-chain test. Pull before your next change.* The note is always the band over the session, and it reaches the
+agent through its own [channel](messages.md) when it has one (Claude's inbox, codex's queue). It is never typed: an
+agent without a channel gets the band only, and the band says which it was. Either way the session's events record
+it. With get it green on **Auto** for the repo (Autopilot's **Always**), heed
 pushes and replies as soon as a helper is done and has changed something.
 
 **Take it over** (`gO` on the session) stops the helper and leaves its worktree and branch where they are, and the

@@ -726,13 +726,22 @@ extension AppModel {
         commit(.runUpdated(run))
     }
 
-    /// The notify hook: what heed tells a session about a helper. Until heed has a channel into an agent's own
-    /// message inbox, it is a band over the session's panes and a line in its events; it is never typed in.
+    /// What heed tells a session about a helper: always a band over its panes, and through its agent's own channel
+    /// (Claude's inbox, codex's queue) when it has one (`notify(session:text:mayType: false)`). Never typed in: an
+    /// agent without a channel gets the band only. The outcome is kept on the band and in the session's events.
     func notifySession(_ sessionID: String, helperID: String, _ text: String) {
         helpers.notices[sessionID] = HelpersModel.SessionNotice(helperID: helperID, text: text, at: Clock.now)
-        guard var session = sessions.first(where: { $0.id == sessionID }) else { return }
-        session.record("heed: \(text)")
-        commit(.sessionUpserted(session))
+        guard !isFixture else { return }
+        Task {
+            let outcome = await notify(session: sessionID, text: text, mayType: false)
+            if helpers.notices[sessionID]?.helperID == helperID, helpers.notices[sessionID]?.text == text {
+                helpers.notices[sessionID]?.outcome = outcome
+            }
+            // notify records what it sent; what it did not send is on the band only, and said so.
+            guard !outcome.sent, var session = sessions.first(where: { $0.id == sessionID }) else { return }
+            session.record("heed (band only, \(outcome.summary)): \(text.prefix(80))")
+            commit(.sessionUpserted(session))
+        }
     }
 }
 

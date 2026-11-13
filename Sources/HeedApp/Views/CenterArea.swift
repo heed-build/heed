@@ -11,7 +11,7 @@ struct CenterArea: View {
             TabStrip().shotRegion(.tabStrip)
             // A helper on one of the session's PRs: a band says so (never typed in); Watch it opens it below.
             if let session = model.currentSession, let notice = model.helperNotice(for: session) {
-                SessionHelperBand(helper: notice.helper, text: notice.text)
+                SessionHelperBand(helper: notice.helper, text: notice.text, sessionID: session.id)
             }
             GeometryReader { geometry in
                 VStack(spacing: 0) {

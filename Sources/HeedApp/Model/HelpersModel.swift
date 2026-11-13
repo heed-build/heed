@@ -59,6 +59,8 @@ final class HelpersModel {
         var helperID: String
         var text: String
         var at: Date
+        /// How its agent got it: through its channel, or not (the band only); nil while it is being sent.
+        var outcome: DeliveryOutcome?
     }
 
     func run(_ id: String?) -> HelperRun? {

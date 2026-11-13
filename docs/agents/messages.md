@@ -87,3 +87,7 @@ A part of heed that wants to tell a session something calls `notify(session:text
 channel, else typed under the typing rules, recorded on the session either way. It says where the message ended up
 (`DeliveryOutcome`): delivered, queued, typed (and why its channel was not used), waiting, or failed. Nothing
 retries a message that waits.
+
+[Helpers](helpers.md) tell a session about the work they do on its PR this way, with typing ruled out
+(`mayType: false`): the note goes through the agent's channel or not at all, and the band over the session's panes
+shows it in every case.

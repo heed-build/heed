@@ -17,15 +17,18 @@ public enum AgentIntegration {
         default: []
         }
         if !resuming, let flag = agent.sessionIDFlag { args += [flag, sessionID] }
+        args += files.telemetry?.arguments(agent: agent.name) ?? []
         return args + signOff
     }
 
     /// Environment set on the agent's command line itself (opencode's plugin travels in its config env var).
     public static func launchEnvironment(agent: AgentProfile, files: IntegrationFiles) -> [String: String] {
-        switch agent.name {
+        let own: [String: String] = switch agent.name {
         case "opencode": ["OPENCODE_CONFIG_CONTENT": #"{"plugin":["file://\#(files.opencodePlugin)"]}"#]
         default: [:]
         }
+        // Its OpenTelemetry to heed's receiver, when heed listens and you send it nowhere yourself.
+        return own.merging(files.telemetry?.environment(agent: agent.name) ?? [:]) { first, _ in first }
     }
 
     /// The agent's own session id when Heed assigns it at launch, else nil until its start hook reports one.
@@ -580,6 +583,9 @@ public struct IntegrationFiles: Hashable, Sendable {
     public var plugin: String
     /// heed's version, which the plugin carries: a new heed rewrites it.
     public var version: String
+    /// Where the agents' OpenTelemetry goes: heed's receiver on this Mac, once it listens; nil on a host, or when the
+    /// receiver is off.
+    public var telemetry: TelemetryExport?
 
     public init(directory: URL, heedBinary: String = "heed", version: String = "dev") {
         claudeSettings = directory.appendingPathComponent("claude-hooks.json").path

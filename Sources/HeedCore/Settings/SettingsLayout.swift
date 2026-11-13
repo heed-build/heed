@@ -17,7 +17,7 @@ public extension SettingsPage {
         case .decisions: ["Decisions", "Finding new work's goal", "Hunch", "Local decisions"]
         case .worktrees: ["Worktrees", "Branch names", "Start work", "Cleanup", "Saved work"]
         case .goals: ["Agents", "Reviewers", "Items", "GitHub mirror"]
-        case .history: ["Ledger", "While you were away", "Mindmap", "Memory", "Standup", "Call log"]
+        case .history: ["Ledger", "While you were away", "Mindmap", "Memory", "Standup", "OpenTelemetry", "Call log"]
         case .github: ["GitHub"]
         case .attention: ["Rules", "Try before you save", "Summaries", "Weights"]
         case .tools: ["Found", "Tools"]
@@ -46,7 +46,8 @@ public extension SettingsPage {
         case .decisions: "Who answers heed's typed questions: Apple's on-device model, Hunch, a model call, or no one."
         case .worktrees: "Where worktrees go, what their branches are called, and when idle ones are swept."
         case .goals: "What goals do on their own: telling agents, reviewers, spawned items and the GitHub mirror."
-        case .history: "The ledger's summaries, the Mindmap, standups, and how long the call log keeps each call."
+        case .history: "The ledger's summaries, the Mindmap, standups, the agents' OpenTelemetry, and how long the call "
+            + "log keeps each call."
         case .github: "How often heed asks gh."
         case .pilot: "What heed does with the PRs your sessions track: the defaults every PR starts from. Orgs and "
             + "repos override them in Orgs & repos."
@@ -139,6 +140,11 @@ public extension SettingsCatalog {
         "cleanup.ask_before_sweep": "cleanup.enabled",
         "mindmap.shadow": "mindmap.enabled",
         "standup.days": "standup.enabled",
+        "telemetry.port": "telemetry.enabled",
+        "telemetry.days": "telemetry.enabled",
+        "telemetry.max_rows": "telemetry.enabled",
+        "telemetry.tool_details": "telemetry.enabled",
+        "telemetry.prompts": "telemetry.enabled",
         "standup.at": "standup.enabled",
         "standup.range_days": "standup.enabled",
         "standup.questions": "standup.enabled",

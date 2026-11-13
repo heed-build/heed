@@ -135,6 +135,7 @@ public enum Fixtures {
         case "pr-storm": prStorm
         case "fresh-repos": freshRepos
         case "chats": withChats
+        case "approvals": approvals
         default: nil
         }
     }

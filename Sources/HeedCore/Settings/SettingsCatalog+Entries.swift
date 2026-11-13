@@ -106,6 +106,12 @@ extension SettingsCatalog {
             since: "0.11.4"
         ) { .integer($0.notifications.reminderMinutes) },
         global(
+            "approvals.wait_seconds", .notifications, "Approvals", "Wait for heed",
+            "How long a Claude Code or Codex permission request waits for your answer in heed (gy) before the agent "
+                + "asks in its own pane. 0: agents always ask in their pane.",
+            since: "0.42.0"
+        ) { .integer($0.approvals.waitSeconds) },
+        global(
             "notifications.attention", .notifications, "Attention", "Notify",
             "Attention items a rule says to notify about (notify, or boost 3); several from one sync come as one.",
             since: "0.12.0"

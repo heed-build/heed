@@ -54,8 +54,17 @@ public enum AgentIntegration {
     static func codexArguments(heed: String) -> [String] {
         ["--dangerously-bypass-hook-trust"] + codexEvents.flatMap { event in
             let command = TOMLValue.quote("\(ShellQuote.quote(heed)) hook codex \(event)")
-            return ["-c", "hooks.\(event)=[{hooks=[{type=\"command\",command=\(command),timeout=15}]}]"]
+            return [
+                "-c",
+                "hooks.\(event)=[{hooks=[{type=\"command\",command=\(command),timeout=\(hookTimeout(event))}]}]",
+            ]
         }
+    }
+
+    /// Seconds an agent lets a hook run. A permission hook may wait for your answer in heed (`PermissionHook`); the
+    /// rest return at once.
+    static func hookTimeout(_ event: String) -> Int {
+        event == "PermissionRequest" ? PermissionHook.hookTimeout : 15
     }
 
     static func codexHook(event: String, input: [String: Any]) -> [HookMessage.Kind] {
@@ -75,7 +84,10 @@ public enum AgentIntegration {
         case "PostToolUse":
             return [.state(.working, reason: tool.map { describe(tool: $0, input: input) })] + created(input)
                 + toolCall(input)
-        case "PermissionRequest": return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
+        // A question to you is not a permission: the session stays as its question left it.
+        case "PermissionRequest":
+            if PermissionAsk.isQuestion(tool: tool) { return [] }
+            return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
         case "Stop":
             let lastWords = input["last_assistant_message"] as? String
             return codexUsage(input) + LastMessage.kinds(lastWords) + [TurnEnd.kind(lastWords: lastWords)]
@@ -401,7 +413,10 @@ public enum AgentIntegration {
         var hooks: [String: Any] = [:]
         for (event, matcher) in claudeEvents {
             var entry: [String: Any] = [
-                "hooks": [["type": "command", "command": "\"${HEED_BIN:-true}\" hook claude \(event)", "timeout": 15]],
+                "hooks": [[
+                    "type": "command", "command": "\"${HEED_BIN:-true}\" hook claude \(event)",
+                    "timeout": hookTimeout(event),
+                ]],
             ]
             if let matcher { entry["matcher"] = matcher }
             hooks[event] = [entry]
@@ -450,11 +465,17 @@ public enum AgentIntegration {
             var stopped = input
             stopped["error"] = nil
             return toolCall(stopped)
+        // AskUserQuestion and ExitPlanMode reach the permission flow too, but ask you something: they stay asking
+        // (their PreToolUse said so).
         case "PermissionRequest":
+            if PermissionAsk.isQuestion(tool: tool) { return [] }
             return [.state(.blocked, reason: tool.map { describe(tool: $0, input: input) })]
         case "Notification":
             switch input["notification_type"] as? String {
-            case "permission_prompt": return [.state(.blocked, reason: input["message"] as? String)]
+            case "permission_prompt":
+                let message = input["message"] as? String
+                if PermissionAsk.isQuestion(message: message) { return [.state(.asking, reason: message)] }
+                return [.state(.blocked, reason: message)]
             case "idle_prompt": return [.atPrompt]
             case "elicitation_dialog": return [.state(.asking, reason: input["message"] as? String)]
             default: return [.notify(input["message"] as? String ?? "")]

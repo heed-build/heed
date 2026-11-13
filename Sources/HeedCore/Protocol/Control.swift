@@ -26,9 +26,11 @@ public enum HeedControl {
 /// - `show`: `session`, `focus`. Heed shows the session; it comes to the front only with `focus`.
 /// - `goal`: `goal` (a `heed goal` command), `session` (the calling pane's session, when there is one) and `pane`.
 ///   Answered with `goal` in the reply.
+/// - `permission`: `permission` (a permission hook's ask), `session` and `pane`. Answered once you answer it in heed,
+///   or with a pass when heed will not (`PermissionHook`).
 public struct ControlRequest: Codable, Equatable, Sendable {
     public enum Method: String, Codable, Sendable {
-        case sessions, watch, start, send, show, goal, memory
+        case sessions, watch, start, send, show, goal, memory, permission
     }
 
     public var id: Int?
@@ -43,12 +45,15 @@ public struct ControlRequest: Codable, Equatable, Sendable {
     public var goal: GoalCommand?
     /// The calling pane (`HEED_PANE_ID`), for `goal`: a swarm worker's tab is a pane of the lead's session.
     public var pane: String?
+    /// `permission`: what the agent's permission hook asks.
+    public var permission: PermissionAsk?
 
     public init(
         id: Int? = nil, method: Method, session: String? = nil, directory: String? = nil, agent: String? = nil,
         prompt: String? = nil, arguments: [String]? = nil, text: String? = nil, focus: Bool? = nil,
-        goal: GoalCommand? = nil, pane: String? = nil
+        goal: GoalCommand? = nil, pane: String? = nil, permission: PermissionAsk? = nil
     ) {
+        self.permission = permission
         self.pane = pane
         self.id = id
         self.method = method
@@ -130,11 +135,17 @@ public struct ControlReply: Codable, Equatable, Sendable {
     public var memory: String?
     /// `send`: how it reached the agent ("through Claude's inbox", "typed into its pane").
     public var delivery: String?
+    /// `permission`: the answer, and the id of the ask it answers.
+    public var permission: PermissionAnswer?
+    public var permissionID: String?
 
     public init(
         id: Int? = nil, ok: Bool = true, error: String? = nil, session: String? = nil,
-        sessions: [ControlSession]? = nil, event: String? = nil, goal: GoalReply? = nil, memory: String? = nil
+        sessions: [ControlSession]? = nil, event: String? = nil, goal: GoalReply? = nil, memory: String? = nil,
+        permission: PermissionAnswer? = nil, permissionID: String? = nil
     ) {
+        self.permission = permission
+        self.permissionID = permissionID
         self.memory = memory
         self.id = id
         self.ok = ok
@@ -178,9 +189,17 @@ public final class ControlServer: @unchecked Sendable {
     private let queue = DispatchQueue(label: "heed.control")
     private var listener: Int32 = -1
     private var acceptSource: DispatchSourceRead?
-    private var clients: [Int32: (source: DispatchSourceRead, pending: Data)] = [:]
+    private var clients: [Int32: (source: DispatchSourceRead, pending: Data, serial: Int)] = [:]
     private var watchers: Set<Int32> = []
     private var published: [ControlSession]?
+    /// Each connection's number: a reply goes only to the connection that asked, never to a later one that was given
+    /// the same descriptor.
+    private var serial = 0
+    /// Permission asks still waiting, by connection: when the hook goes away (the agent stopped it), `permissionGone`
+    /// hears of it.
+    private var waitingAsks: [Int32: String] = [:]
+    /// Called (on a private queue) with the id of a permission ask whose hook closed its connection before an answer.
+    public var permissionGone: (@Sendable (String) -> Void)?
 
     public init(path: String = HeedControl.defaultSocketPath(), handler: @escaping Handler) {
         self.path = path
@@ -261,7 +280,8 @@ public final class ControlServer: @unchecked Sendable {
             setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
             let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
             source.setEventHandler { [weak self] in self?.read(fd) }
-            clients[fd] = (source, Data())
+            serial += 1
+            clients[fd] = (source, Data(), serial)
             source.resume()
         }
     }
@@ -292,16 +312,20 @@ public final class ControlServer: @unchecked Sendable {
             return
         }
         let handler = handler
+        let serial = clients[fd]?.serial
+        if request.method == .permission, let id = request.permission?.id { waitingAsks[fd] = id }
         Task { [weak self] in
             var reply = await handler(request)
             reply.id = request.id
-            self?.answer(request, with: reply, to: fd)
+            self?.answer(request, with: reply, to: fd, serial: serial)
         }
     }
 
-    private func answer(_ request: ControlRequest, with reply: ControlReply, to fd: Int32) {
+    private func answer(_ request: ControlRequest, with reply: ControlReply, to fd: Int32, serial: Int?) {
         queue.async { [self] in
-            guard clients[fd] != nil, let data = try? ControlCoding.line(reply) else { return }
+            guard let client = clients[fd], client.serial == serial, let data = try? ControlCoding.line(reply)
+            else { return }
+            if request.method == .permission { waitingAsks[fd] = nil }
             send(data, to: fd)
             guard request.method == .watch, reply.ok, clients[fd] != nil else { return }
             watchers.insert(fd)
@@ -328,6 +352,7 @@ public final class ControlServer: @unchecked Sendable {
 
     private func drop(_ fd: Int32) {
         guard let client = clients.removeValue(forKey: fd) else { return }
+        if let ask = waitingAsks.removeValue(forKey: fd) { permissionGone?(ask) }
         watchers.remove(fd)
         client.source.cancel()
         close(fd)
@@ -360,6 +385,12 @@ public final class ControlClient {
     }
 
     deinit { close(fd) }
+
+    /// Reads give up after `seconds` (the call then throws), for a caller that must not wait forever.
+    public func readTimeout(_ seconds: TimeInterval) {
+        var timeout = timeval(tv_sec: Int(seconds), tv_usec: Int32((seconds - seconds.rounded(.down)) * 1_000_000))
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+    }
 
     /// Sends `request` and waits for its reply (events that arrive first are skipped).
     public func call(_ request: ControlRequest) throws -> ControlReply {
@@ -458,6 +489,8 @@ public enum ControlCommandLine {
             throw HookCommandLine.UsageError(description: GoalCommandLine.usage)
         case .memory:
             throw HookCommandLine.UsageError(description: MemoryCommandLine.usage)
+        case .permission:
+            throw HookCommandLine.UsageError(description: usage)
         }
         return request
     }

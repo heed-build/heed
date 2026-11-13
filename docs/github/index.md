@@ -13,7 +13,7 @@ when its checks or review threads change.
 | View | Key | Shows |
 |---|---|---|
 | [Attention](attention.md) | `gm` | Everything that wants you, one feed: notifications, issues, your PRs and agents waiting on you. `gi` opens it on Issues, `gp` on My PRs |
-| [Inbox](inbox.md) | `:inbox` | Your notifications |
+| [Inbox](inbox.md) | `:inbox` | Your notifications: Attention's Everything tab now |
 | [Issues](issues.md) | `:issues` | Issues assigned to you or mentioning you, and every issue in repos you watch |
 | [Pull requests](pull-requests.md) | `:prs` | Your open pull requests and the ones your sessions track |
 | [Watch](watch.md) | `gw` | The PRs your sessions track, what heed is doing for each, and what it has done |

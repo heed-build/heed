@@ -11,6 +11,10 @@ state, and buttons for what you can do, each with its key. Under it is the conve
 comment as a card with its author, when it was written and its reactions. On a PR, reviews that approve, ask for
 changes or say something are cards too.
 
+When you have looked at the thread before in [Attention](attention.md#when-you-looked), the comments from before then
+fold into one line (*6 earlier comments, read*; a click shows them) and *new · 3* marks where the new ones start.
+A thread you never opened there shows every comment.
+
 ## What renders
 
 Bodies and comments are GitHub's own rendering of the markdown, drawn in heed's colours: headings, lists, task lists,

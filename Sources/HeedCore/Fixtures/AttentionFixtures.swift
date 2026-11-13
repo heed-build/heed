@@ -116,6 +116,18 @@ public extension Fixtures {
     /// The Decider's suggestions for items no rule matched, by item id.
     static let attentionSuggestions: [String: String] = ["acme/docs-toolkit#2830": "boost 1"]
 
+    /// When you last looked: Attention an hour and a quarter ago, and the PR under the cursor 25 minutes ago (so its
+    /// reader folds the comment you read and marks the new ones), the issue assigned to you after it last changed.
+    static var attentionSeen: AttentionSeen {
+        AttentionSeen(
+            threads: [
+                "acme/docs-toolkit#2845": Clock.now.addingTimeInterval(-25 * 60),
+                "acme/docs-toolkit#2830": Clock.now.addingTimeInterval(-30 * 60),
+            ],
+            leftAt: Clock.now.addingTimeInterval(-75 * 60)
+        )
+    }
+
     /// Marks: one thread muted earlier.
     static let attentionMarks: [String: AttentionMark] = [
         "acme/guides#64": AttentionMark(mutedAt: Clock.now.addingTimeInterval(-3 * 86400)),

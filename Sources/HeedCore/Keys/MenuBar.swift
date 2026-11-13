@@ -69,6 +69,9 @@ public enum MenuBar {
         "row.last": "moving the cursor: the mouse clicks rows and scrolls",
         "goal.item.column": "moving the board's cursor: the mouse clicks a card in any column",
         "row.halfpage.down": "moving the cursor: the mouse clicks rows and scrolls",
+        "attention.reader.down": "scrolling Attention's reader: the mouse scrolls it",
+        "attention.reader.up": "scrolling Attention's reader: the mouse scrolls it",
+        "view.inbox": "the Inbox is Attention's Everything tab: View › Attention, then the tab",
         "row.halfpage.up": "moving the cursor: the mouse clicks rows and scrolls",
         "group.next": "moving the cursor: the mouse clicks rows and scrolls",
         "group.prev": "moving the cursor: the mouse clicks rows and scrolls",
@@ -242,7 +245,6 @@ public enum MenuBar {
             return Menu("View", [
                 view("Sessions", "view.sessions", "sessions"),
                 view("Attention", "view.attention", "attention"),
-                view("Inbox", "view.inbox", "inbox"),
                 view("Issues", "view.issues", "issues"),
                 view("Pull requests", "view.prs", "prs"),
                 view("Watch", "view.watch", "watch"),
@@ -273,8 +275,9 @@ public enum MenuBar {
                 scoped("In Attention", [
                     ("Done", "attention.done"), ("Snooze…", "attention.snooze"), ("Mute thread", "attention.mute"),
                     ("Draft a reply…", "attention.reply"), ("Go to its session", "attention.session"),
-                    ("Next filter", "attention.filter"), ("Sort", "attention.sort"),
-                    ("What Attention has…", "attention.coverage"),
+                    ("Next tab", "attention.filter"), ("Sort", "attention.sort"),
+                    ("Done with everything new", "attention.done.new"), ("Fold Mentioned before", "attention.fold"),
+                    ("Coverage", "attention.coverage"),
                 ], in: ["attention"]),
                 scoped("In the Inbox and Issues", [
                     ("Start a session from it", "items.start"), ("Add it to this session", "items.add"),

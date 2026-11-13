@@ -11,8 +11,9 @@ extension AppModel {
         conversations[ThreadConversation.key(repo: repo, number: number)]
     }
 
+    /// When you last looked at the thread in Attention's reader: the comments before fold, "new · N" marks the rest.
     func seenAt(_ repo: Repo, _ number: Int) -> Date? {
-        threadSeenAt[ThreadConversation.key(repo: repo, number: number)]
+        attention.seen.threads[ThreadConversation.key(repo: repo, number: number)]
     }
 
     /// Fetches a thread's conversation unless one fetched in the last minute is still current (`updatedAt`: when

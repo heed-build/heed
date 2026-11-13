@@ -71,12 +71,15 @@ enum Overlay: Equatable {
     case help
     case pr
     case diff
+    /// Attention's Coverage, in its reader's place (`:attention.coverage`, or a click on the line at its foot).
+    case coverage
 
     var name: String {
         switch self {
         case .help: "help"
         case .pr: "pr"
         case .diff: "diff"
+        case .coverage: "coverage"
         }
     }
 }
@@ -279,7 +282,14 @@ final class AppModel {
         didSet {
             updateScope()
             if view != oldValue { viewChangedForSync() }
-            if view == .attention, oldValue != .attention { attentionSelectionChanged() }
+            if view == .attention, oldValue != .attention {
+                enteredAttention()
+                attentionSelectionChanged()
+            }
+            if oldValue == .attention, view != .attention {
+                leftAttention()
+                if overlay == .coverage { overlay = nil }
+            }
             if view == .log, oldValue != .log { callLog.opened() }
             if oldValue == .log, view != .log { callLog.closed() }
             if view == .timeline, oldValue != .timeline { timeline.opened() }
@@ -329,9 +339,6 @@ final class AppModel {
     /// Why a thread's conversation did not load, by key, until it does.
     var conversationErrors: [String: String] = [:]
     var conversationsLoading: Set<String> = []
-    /// When you last looked at each thread, by key: what folds the comments you read. Nothing records it yet (the
-    /// split inbox will); empty means every comment shows.
-    var threadSeenAt: [String: Date] = [:]
     /// The PR the overlay shows (one of the current session's).
     private(set) var overlayPull: PullRef?
     private(set) var feedbackCursor = 0
@@ -2561,7 +2568,13 @@ final class AppModel {
         case "pane.equalize": updateTab { $0.tree = $0.tree.equalized() }
         case "task.run": runTask(named: command.arguments.joined(separator: " ").nilIfEmpty)
         case "task.refresh": refreshTasks()
-        case "view": if let target = AppView(rawValue: command.arguments.first ?? "") { view = target }
+        case "view":
+            // The inbox is Attention's Everything now; `:view inbox` goes there.
+            if command.arguments.first == "inbox" {
+                openAttention("all")
+            } else if let target = AppView(rawValue: command.arguments.first ?? "") {
+                view = target
+            }
         case "view.history": view = .history
         case "view.log": view = .log
         case "view.timeline": view = .timeline
@@ -2730,8 +2743,15 @@ final class AppModel {
         case "attention.session": attentionGoToSession()
         case "attention.filter": cycleAttentionFilter(command.arguments.first)
         case "attention.sort": toggleAttentionSort()
-        case "attention.coverage": showAttentionCoverage()
-        case "view.inbox": view = .inbox
+        case "attention.coverage":
+            // Coverage, in the reader's place; again (or ⎋) closes it.
+            if view != .attention { openAttention(nil) }
+            overlay = overlay == .coverage ? nil : .coverage
+        case "attention.done.new": attentionDoneNew()
+        case "attention.fold": toggleAttentionFold()
+        case "attention.reader.down": scrollAttentionReader(1)
+        case "attention.reader.up": scrollAttentionReader(-1)
+        case "view.inbox": openAttention("all")
         case "view.issues": view = .issues
         case "view.prs": view = .prs
         case "overlay.help": overlay = overlay == .help ? nil : .help
@@ -5046,6 +5066,7 @@ final class AppModel {
     }
 
     private func openReader() {
+        if view == .attention, commandTarget == nil { openedAttentionItem() }
         // An agent in Attention has no thread to read: its session is where you answer it.
         if view == .attention, commandTarget == nil, attentionSelected?.item.kind == .agent {
             return attentionGoToSession()
@@ -7890,8 +7911,12 @@ final class AppModel {
         guard let lesson = Tutor.lesson(id) else { return }
         tutorWorld = world ?? lesson.world
         if !lesson.config.isEmpty, isFixture { applyConfig(source: lesson.config) }
-        // A view's lesson opens in that view.
-        view = AppView(rawValue: id) ?? .sessions
+        // A view's lesson opens in that view; the inbox's in Attention's Everything, where the inbox went.
+        if id == "inbox" {
+            openAttention("all")
+        } else {
+            view = AppView(rawValue: id) ?? .sessions
+        }
         let resume = step ?? tutorProgress.resumeStep(id)
         tutor = Tutor(lesson: lesson, step: resume, state: tutorState, now: startedAt)
         tutorSnapshots = [resume: (currentDomain, view)]
@@ -8359,6 +8384,7 @@ final class AppModel {
         guard clicksReachLists, view == list else { return }
         clickedOutsideTerminal()
         setRow(index)
+        if list == .attention { openedAttentionItem() }
         guard open, list != .log else { return }
         perform(engine.normalCommand(for: [KeyStroke("CR")], scope: engine.scope)
             ?? CommandInvocation(name: "open.reader"))

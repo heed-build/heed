@@ -14,9 +14,9 @@ public struct StoredAttentionItem: Hashable, Sendable {
 }
 
 /// `attention.sqlite`: every Attention item heed has seen in the last 30 days (muted and ignored ones too, so the
-/// Muted filter keeps them and a rule can be tried against what it would have changed), what you did to each (done,
-/// snoozed, muted), the thread details fetched for them, and their summaries. Its own file beside `heed.sqlite`, so
-/// its schema moves on its own.
+/// Muted tab keeps them and a rule can be tried against what it would have changed), what you did to each (done,
+/// snoozed, muted), the thread details fetched for them, their summaries, and when you last looked at each thread
+/// and at Attention. Its own file beside `heed.sqlite`, so its schema moves on its own.
 public actor AttentionStore {
     private let database: SQLiteDatabase
 
@@ -75,6 +75,17 @@ public actor AttentionStore {
             id TEXT PRIMARY KEY,
             updated_at REAL NOT NULL,
             summary TEXT NOT NULL
+        );
+        """),
+        // When you last looked: at each thread (opened in Attention's reader), and when you last left Attention.
+        SQLiteMigration(sql: """
+        CREATE TABLE seen (
+            id TEXT PRIMARY KEY,
+            seen_at REAL NOT NULL
+        );
+        CREATE TABLE moments (
+            name TEXT PRIMARY KEY,
+            at REAL NOT NULL
         );
         """),
     ]
@@ -170,6 +181,35 @@ public actor AttentionStore {
         )
     }
 
+    // MARK: Seen
+
+    /// When you last looked at each thread, and when you last left Attention.
+    public func seen() throws -> AttentionSeen {
+        let rows = try database.query("SELECT id, seen_at FROM seen") { row in
+            (row[0].text ?? "", row[1].date ?? .distantPast)
+        }
+        let left = try database.scalar("SELECT at FROM moments WHERE name = 'left'", [])?.date
+        return AttentionSeen(threads: Dictionary(rows) { _, last in last }, leftAt: left)
+    }
+
+    /// You looked at a thread at `at`; an earlier time never replaces a later one.
+    public func setSeen(_ id: String, at: Date) throws {
+        try database.run(
+            """
+            INSERT INTO seen (id, seen_at) VALUES (?1, ?2)
+            ON CONFLICT (id) DO UPDATE SET seen_at = max(seen_at, ?2)
+            """,
+            [.text(id), SQLiteValue(at)]
+        )
+    }
+
+    /// You left Attention at `at`.
+    public func setLeft(at: Date) throws {
+        try database.run(
+            "INSERT OR REPLACE INTO moments (name, at) VALUES ('left', ?)", [SQLiteValue(at)]
+        )
+    }
+
     // MARK: Retention
 
     /// Drops items not seen for 30 days, with their marks and summaries, and details fetched that long ago.
@@ -179,6 +219,7 @@ public actor AttentionStore {
             try database.run("DELETE FROM items WHERE last_seen < ?", [cutoff])
             try database.run("DELETE FROM marks WHERE id NOT IN (SELECT id FROM items)")
             try database.run("DELETE FROM summaries WHERE id NOT IN (SELECT id FROM items)")
+            try database.run("DELETE FROM seen WHERE id NOT IN (SELECT id FROM items)")
             try database.run("DELETE FROM details WHERE fetched_at < ?", [cutoff])
         }
     }

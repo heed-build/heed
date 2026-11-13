@@ -30,8 +30,21 @@ final class AttentionModel {
     /// A rule Settings' editor opens with, half built (screenshots show the editor at work).
     var ruleFormSeed: AttentionRuleForm?
 
-    var filter: AttentionFilter = .needsMe
+    var filter: AttentionFilter = .forYou
     var sort: AttentionSort = .recent
+
+    /// When you last looked at each thread and at Attention, as it is now: what the dots and the reader's fold read.
+    private(set) var seen = AttentionSeen()
+    /// The same, as it was when you came into Attention: what For you's sections are decided by, so rows stay where
+    /// they are while you read them.
+    var sectionSeen = AttentionSeen()
+    /// Mentioned before listed rather than folded (`za`).
+    var unfoldBefore = false
+    /// The thread in the reader, since when, and whether you opened it on purpose.
+    var visit: AttentionVisit?
+    /// A request to scroll the reader by half its height: down (1) or up (-1), and a count so the same twice moves
+    /// twice.
+    var readerScroll: (direction: Int, count: Int) = (0, 0)
 
     /// Opens `attention.sqlite` beside the domain file and loads what it keeps.
     func open(beside file: URL) async {
@@ -46,6 +59,8 @@ final class AttentionModel {
         details = Fixtures.attentionDetails
         stored = Fixtures.attentionStored
         summaries = Fixtures.attentionSummaries.mapValues { (Clock.now, $0) }
+        seen = Fixtures.attentionSeen
+        sectionSeen = seen
         suggestions = Fixtures.attentionSuggestions.mapValues { (Clock.now, $0) }
     }
 
@@ -69,6 +84,25 @@ final class AttentionModel {
                 NSLog("heed: could not keep an Attention mark: \(error)")
             }
         }
+    }
+
+    /// You looked at a thread at `at` (later times only).
+    func markSeen(_ id: String, at: Date) {
+        guard seen.threads[id].map({ $0 < at }) ?? true else { return }
+        seen.threads[id] = at
+        guard let store else { return }
+        Task {
+            do { try await store.setSeen(id, at: at) } catch {
+                NSLog("heed: could not keep when a thread was seen: \(error)")
+            }
+        }
+    }
+
+    /// You left Attention at `at`: New since starts there next time.
+    func left(at: Date) {
+        seen.leftAt = at
+        guard let store else { return }
+        Task { try? await store.setLeft(at: at) }
     }
 
     func saveDetails(_ fetched: [ThreadDetail], now: Date) {
@@ -104,6 +138,11 @@ final class AttentionModel {
             marks = try await store.marks()
             details = try await store.details()
             stored = try await store.items(now: now)
+            let loaded = try await store.seen()
+            // What was marked while it loaded stays (the later of the two).
+            seen.threads.merge(loaded.threads) { max($0, $1) }
+            seen.leftAt = [seen.leftAt, loaded.leftAt].compactMap(\.self).max()
+            if sectionSeen == AttentionSeen() { sectionSeen = seen }
         } catch {
             NSLog("heed: could not read Attention items: \(error)")
         }

@@ -75,7 +75,7 @@ struct WhatsNewTests {
     @Test func theNewestVersionHasTheRenderedThreads() {
         let newest = WhatsNew.items(since: nil, upTo: WhatsNew.newest.description).features.map(\.title)
         #expect(WhatsNew.newest.description == "0.39.0")
-        #expect(newest == ["Threads read like GitHub", "Attention says what it has"])
+        #expect(newest == ["Threads read like GitHub", "Attention says what it has", "Attention, split"])
         let settings = WhatsNew.items(since: nil, upTo: "0.37.0").features.map(\.title)
         #expect(settings.contains("Settings as a tree"))
         #expect(settings.contains("Search every setting"))

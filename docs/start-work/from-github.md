@@ -4,7 +4,7 @@ description: Start a session from Attention items, inbox items or issues, or add
 
 # From GitHub
 
-In [Attention](../github/attention.md), the Inbox and Issues, pick items with `space` (or a range with `v`), then:
+In [Attention](../github/attention.md) and Issues, pick items with `space` (or a range with `v`), then:
 
 | Key | |
 |---|---|

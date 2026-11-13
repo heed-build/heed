@@ -301,10 +301,10 @@ struct AttentionRankingTests {
             item("pinned", [.comment], minutes: 50, labels: ["blocker"]),
         ]
         let entries = AttentionRanking.entries(live: live, rules: rules, marks: [:], viewer: "you", now: now)
-        #expect(AttentionRanking.list(entries, filter: .needsMe, now: now).map(\.id) == [
+        #expect(AttentionRanking.list(entries, filter: .forYou, now: now).map(\.id) == [
             "pinned", "mention", "plain", "review",
         ])
-        #expect(AttentionRanking.list(entries, filter: .needsMe, sort: .weight, now: now).map(\.id) == [
+        #expect(AttentionRanking.list(entries, filter: .forYou, sort: .weight, now: now).map(\.id) == [
             "pinned", "review", "plain", "mention",
         ])
     }
@@ -327,12 +327,12 @@ struct AttentionRankingTests {
             live: live, stored: gone + [live[4]], rules: rules, marks: marks, viewer: "you", now: now
         )
         #expect(entries.count == 7)
-        #expect(AttentionRanking.list(entries, filter: .needsMe, now: now).map(\.id) == ["kept"])
+        #expect(AttentionRanking.list(entries, filter: .forYou, now: now).map(\.id) == ["kept"])
         #expect(AttentionRanking.list(entries, filter: .muted, now: now).map(\.id) == ["noise", "muted", "old-noise"])
         let counts = AttentionRanking.counts(entries, now: now)
-        #expect(counts[.needsMe] == 1 && counts[.muted] == 3 && counts[.reviews] == 0)
+        #expect(counts[.forYou] == 1 && counts[.muted] == 3 && counts[.reviews] == 0)
         // Snoozed comes back when it is due.
         let later = now.addingTimeInterval(120)
-        #expect(AttentionRanking.list(entries, filter: .needsMe, now: later).map(\.id) == ["snoozed", "kept"])
+        #expect(AttentionRanking.list(entries, filter: .forYou, now: later).map(\.id) == ["snoozed", "kept"])
     }
 }

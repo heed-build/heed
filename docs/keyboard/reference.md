@@ -82,8 +82,8 @@ This page is generated from the code (`mise run shots`).
 |---|---|---|
 | `view` `<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|mindmap|standup|goals|log>` |  | switch view |
 | `view.sessions` | `gs` | sessions |
-| `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: everything that wants you, one feed, with why (a filter: tagged, reviews, mine, ...) |
-| `view.inbox` |  | inbox |
+| `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: what wants you, with why, the thread beside it (a tab: foryou, reviews, mentions, mine, ...) |
+| `view.inbox` |  | Attention's Everything tab, where the inbox went |
 | `view.issues` |  | issues |
 | `view.prs` |  | pull requests |
 | `view.watch` | `gw` | watch: the PRs your sessions track, what heed does for each and has done |
@@ -336,9 +336,13 @@ This page is generated from the code (`mise run shots`).
 | `attention.mute` | `M` (attention), `M` (swarmask) | mute the thread on GitHub (no more notifications about it); listed under Muted |
 | `attention.reply` | `R` (attention), `R` (swarmask) | draft a reply with the model; you read it before anything is posted |
 | `attention.session` | `gS` (attention), `gS` (swarmask) | go to the item's session |
-| `attention.filter` `[filter]` | `t` (attention), `t` (swarmask) | next Attention filter, or the one named |
+| `attention.filter` `[filter]` | `t` (attention), `t` (swarmask) | next Attention tab (Muted after Everything), or the one named |
+| `attention.done.new` | `X` (attention), `X` (swarmask) | done with everything in For you's New since |
+| `attention.fold` | `za` (attention), `za` (swarmask) | For you's Mentioned before: list it, or fold it again |
+| `attention.reader.down` | `<C-e>` (attention), `<C-e>` (swarmask) | scroll Attention's reader down half its height |
+| `attention.reader.up` | `<C-y>` (attention), `<C-y>` (swarmask) | scroll Attention's reader up half its height |
 | `attention.sort` | `T` (attention), `T` (swarmask) | Attention: recent first, or weight then recent |
-| `attention.coverage` |  | what Attention has of each source against what GitHub says, and where it went |
+| `attention.coverage` |  | Coverage: what Attention has of each source against GitHub, and where it went |
 | `issues.repo.next` | `<Tab>` (issues) | next repo in the Issues repo column |
 | `issues.repo.prev` | `<S-Tab>` (issues) | previous repo in the Issues repo column |
 | `issues.repo` `[name]` |  | show one repo's issues (no name: every repo) |

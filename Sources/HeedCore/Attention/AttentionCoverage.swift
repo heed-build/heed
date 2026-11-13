@@ -49,6 +49,9 @@ public struct AttentionCoverage: Hashable, Sendable {
     public var totals: [Fate: Int]
     /// How many of the folded ones are assignments (the rest are mentions).
     public var foldedAssignments: Int
+    /// What the Muted tab lists: muted by you or ignored by a rule, live or only remembered (for 30 days). The line
+    /// says this number, so it and the tab agree; the rows count only what the last sync brought.
+    public var muted: Int
 
     public var mismatch: Bool { samlHidden > 0 || rows.contains(where: \.mismatch) }
 
@@ -117,7 +120,10 @@ public struct AttentionCoverage: Hashable, Sendable {
                 && !entry.item.reasons.contains(.mentionedBefore)
         }
         let saml = if case let .partial(hidden, _) = github.status { hidden } else { 0 }
-        return AttentionCoverage(rows: rows, samlHidden: saml, totals: totals, foldedAssignments: foldedAssignments)
+        return AttentionCoverage(
+            rows: rows, samlHidden: saml, totals: totals, foldedAssignments: foldedAssignments,
+            muted: entries.count(where: \.muted)
+        )
     }
 
     // MARK: Text
@@ -149,7 +155,6 @@ public struct AttentionCoverage: Hashable, Sendable {
             }
             parts.append("\(folded) old \(what) folded")
         }
-        let muted = (totals[.muted] ?? 0) + (totals[.hiddenByRule] ?? 0)
         if muted > 0 { parts.append("\(muted) muted") }
         return parts.joined(separator: " · ")
     }
@@ -171,7 +176,7 @@ public struct AttentionCoverage: Hashable, Sendable {
                 if row.capped { parts.append("\(row.dropped) past the cap of \(GitHub.issueSearchCap)") }
             }
             let fates: [(Fate, String)] = [
-                (.listed, "in Needs me"), (.folded, "folded"), (.done, "done"), (.snoozed, "snoozed"),
+                (.listed, "in For you"), (.folded, "folded"), (.done, "done"), (.snoozed, "snoozed"),
                 (.hiddenByRule, "hidden by a rule"), (.muted, "muted"),
             ]
             for (fate, word) in fates where row.count(fate) > 0 {

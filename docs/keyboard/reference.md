@@ -125,6 +125,9 @@ This page is generated from the code (`mise run shots`).
 | `cleanup.rules` |  | show the cleanup rules (Repos, with its rules panel) |
 | `cleanup.sweep` | `gC` | run the cleanup sweep now |
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
+| `inspector.tackle` `[text]` |  | hand the session's loose end with this text to its agent (none: all of them) |
+| `inspector.resolve` `<node> <text>` |  | mark a loose end done, on the Mindmap node it lives on |
+| `inspector.copy` `<path>` |  | copy a path to the pasteboard |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
 | `sidebar.titles` | `zt` | show session titles / worktree names in the sidebar rows |
 | `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
@@ -227,6 +230,7 @@ This page is generated from the code (`mise run shots`).
 | `goal.ask.no` | `n` (attention), `n` (swarmask), `n` (unassigned) | no: not on that goal, and heed learns it (on a suggested goal: drop it) |
 | `goal.ask.move` `<goal>` | `m` (attention), `m` (swarmask), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
 | `goal.ask.ignore` | `i` (attention), `i` (unassigned) | leave things like this on no goal, and heed learns to (an ignore rule) |
+| `goal.unassigned.how` | `g?` (unassigned) | Unassigned: show or hide how heed puts work on goals (shown on its own only while nothing waits for you) |
 | `goal.attach.undo` | `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
 | `goal.attach.find` |  | look for the session's goal now: rules, signals, the model when unsure |
 | `goal.bar` `<lens> <bar|off|auto>` |  | pin a quality bar for the goal: a lens and 0–10, off to drop the lens, auto for the profile's |

@@ -40,7 +40,8 @@ struct GoalPaneBar: View {
                 if let tab = tabs.first(where: { $0.pane == selected.id }) { model.showGoalPane(tab) }
             },
             trailing: {
-                if let goal, goals.pane != .unassigned { GoalProgressLine(goal: goal) }
+                // Not on the overview, where What is left shows it with what it is made of.
+                if let goal, goals.pane != .unassigned, goals.pane != .overview { GoalProgressLine(goal: goal) }
             }
         )
     }
@@ -180,8 +181,9 @@ private struct GuideStepRow: View {
 
 // MARK: What is left
 
-/// The goal's progress in full: the ring and what it is made of, each done-when criterion (met ones with their
-/// evidence), each bar against its score, and the items done. What is not met yet comes first.
+/// The goal's progress in full, and on the overview the one place it shows: the ring and what it is made of, the
+/// progress line (criteria, items, bars), each done-when criterion (met ones with their evidence) and each bar against
+/// its score. What is not met yet comes first; the items one by one are the matrix under it.
 struct GoalLeftPanel: View {
     @Environment(AppModel.self) private var model
     let goal: HeedGoal
@@ -226,15 +228,6 @@ struct GoalLeftPanel: View {
                 }
                 .padding(.top, 2)
                 .clickRuns(CommandInvocation(name: "goal.reviewers"))
-            }
-            if progress.itemsTotal > 0 {
-                HStack(spacing: 8) {
-                    Text("items").font(Theme.ui(12)).foregroundStyle(Theme.fg2).frame(width: 96, alignment: .leading)
-                    Meter(fraction: Double(progress.itemsDone) / Double(progress.itemsTotal), tint: Theme.busy)
-                    Text("\(progress.itemsDone)/\(progress.itemsTotal) done").font(Theme.mono(11))
-                        .foregroundStyle(Theme.fg2).frame(width: 70, alignment: .trailing)
-                }
-                .clickRuns(CommandInvocation(name: "goal.board"))
             }
         }
     }

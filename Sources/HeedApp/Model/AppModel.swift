@@ -2610,6 +2610,7 @@ final class AppModel {
         case "goal.undo": undoGoalEdit()
         case "goal.sharpen": sharpenGoal()
         case "goal.unassigned": showUnassigned()
+        case "goal.unassigned.how": toggleUnassignedHow()
         case "goal.ask.yes": answerGoalYes()
         case "goal.ask.no": answerGoalNo()
         case "goal.ask.move": answerGoalMove(command.arguments)
@@ -2809,6 +2810,7 @@ final class AppModel {
         case "inspector.toggle": inspectorVisible.toggle()
         case "sidebar.toggle": sidebarCollapsed.toggle()
         case "sidebar.titles": sidebarShowsTitles.toggle()
+        case "inspector.tackle", "inspector.resolve", "inspector.copy": performInspector(command)
         case "sessions.group", "sessions.sort", "sessions.rows": changeSessionsView(command)
         case "mode.normal", "mode.insert", "mode.visual", "mode.command", "mode.hint":
             // A key has switched already (ModeEngine does); from `:` the switch happens here.
@@ -4819,7 +4821,7 @@ final class AppModel {
     func links(of session: Session) -> [SessionLink] {
         IssueLinks.ordered(
             pulls: session.trackedPRs, state: { self.github.pull($0)?.state }, issues: issues(of: session),
-            closed: { self.issueInfo[$0]?.closed ?? false }
+            closed: { self.issueInfo[$0]?.closed ?? false }, updated: { self.github.pull($0)?.updatedAt }
         )
     }
 

@@ -4,7 +4,7 @@ import SwiftUI
 /// A swarm's agents (`goal.agents`, `W`; deck p12): on the left every worker with what it is doing, for how long and
 /// against its estimate (amber over it or stuck); in the middle the one under the cursor, its stuck signal, its
 /// progress notes and its activity; on the right what changed since you last looked and what needs you. Once the swarm
-/// is done, its end-of-build summary instead.
+/// is done, its end-of-build summary comes first, and the agents, their activity and what changed stay under it.
 struct GoalAgentsPane: View {
     @Environment(AppModel.self) private var model
     let goal: HeedGoal
@@ -13,32 +13,21 @@ struct GoalAgentsPane: View {
         let goals = model.goals
         if let board = goals.board, board.swarm.goal == goal.id {
             if let summary = model.summaryShown(board) {
-                SwarmSummaryView(board: board, summary: summary).shotRegion(.swarmSummary)
+                ListScroll {
+                    VStack(alignment: .leading, spacing: 4) {
+                        SwarmSummaryView(board: board, summary: summary).shotRegion(.swarmSummary)
+                        VStack(alignment: .leading, spacing: 12) {
+                            SectionHeader(title: "While it ran")
+                            // As while it ran, at a fixed height: the list and the activity scroll on their own.
+                            AgentsBoard(board: board, regions: false).frame(height: 560)
+                        }
+                        .padding([.horizontal, .bottom], 20)
+                    }
+                }
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     SwarmUsageHeader(board: board)
-                    HStack(alignment: .top, spacing: 16) {
-                        AgentList(board: board).frame(width: 290).shotRegion(.swarmAgents)
-                        if let task = goals.selectedAgentTask {
-                            AgentDetail(board: board, task: task).shotRegion(.swarmAgent)
-                        } else {
-                            EmptyState(
-                                title: "No agent has worked yet",
-                                detail: "Workers start on the approved plan's ready tasks; each shows here with what "
-                                    + "it does, for how long, and whether it looks stuck.",
-                                actions: [EmptyState.Action("The plan", "goal.swarm")]
-                            )
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                        ListScroll {
-                            VStack(alignment: .leading, spacing: 16) {
-                                SinceYouLooked(board: board).shotRegion(.swarmDigest)
-                                NeedsYouQueue(board: board, scope: "goalagents").shotRegion(.swarmNeedsYou)
-                            }
-                        }
-                        .frame(width: 330)
-                        .frame(maxHeight: .infinity, alignment: .top)
-                    }
+                    AgentsBoard(board: board, regions: true)
                 }
                 .frame(maxHeight: .infinity, alignment: .top)
                 .padding(20)
@@ -51,6 +40,39 @@ struct GoalAgentsPane: View {
                 actions: [EmptyState.Action("Swarm this goal", "swarm.start")]
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+/// The workers on the left, the one under the cursor in the middle, what changed and what needs you on the right.
+/// `regions`: mark them for the shots (only where the pane is the live one, so a region is never drawn twice).
+private struct AgentsBoard: View {
+    @Environment(AppModel.self) private var model
+    let board: SwarmBoard
+    let regions: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            AgentList(board: board).frame(width: 290).shotRegion(regions ? .swarmAgents : nil)
+            if let task = model.goals.selectedAgentTask {
+                AgentDetail(board: board, task: task).shotRegion(regions ? .swarmAgent : nil)
+            } else {
+                EmptyState(
+                    title: "No agent has worked yet",
+                    detail: "Workers start on the approved plan's ready tasks; each shows here with what "
+                        + "it does, for how long, and whether it looks stuck.",
+                    actions: [EmptyState.Action("The plan", "goal.swarm")]
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            ListScroll {
+                VStack(alignment: .leading, spacing: 16) {
+                    SinceYouLooked(board: board).shotRegion(regions ? .swarmDigest : nil)
+                    NeedsYouQueue(board: board, scope: "goalagents").shotRegion(regions ? .swarmNeedsYou : nil)
+                }
+            }
+            .frame(width: 330)
+            .frame(maxHeight: .infinity, alignment: .top)
         }
     }
 }

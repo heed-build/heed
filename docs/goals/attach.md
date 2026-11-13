@@ -9,7 +9,9 @@ ledger entry, heed looks for its goal. When it is sure, it attaches the work and
 it asks you once, one key. Otherwise it leaves the work alone, in **Unassigned**.
 
 `U` in Goals (or `:goal.unassigned`) opens Unassigned: what heed decided lately and why, what it asks, goals it
-suggests, and what it learnt from you.
+suggests, and what it learnt from you. While nothing waits for you there (no ask, no suggested goal), the three steps
+below show on top of it, as cards; otherwise they fold to a line, so what needs you comes first. `g?`
+(`:goal.unassigned.how`) shows or hides them either way.
 
 ![Unassigned: decisions with their reasons, an ask, and a suggested goal](../images/shots/goals/unassigned.png)
 

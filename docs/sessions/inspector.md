@@ -1,34 +1,47 @@
 ---
-description: "The inspector: the selected session's worktrees, its links (pull requests and issues) and agent events."
+description: "The inspector: what the selected session is about, its PRs and issues, and what was learned and left open around it."
 ---
 
 # The inspector
 
-The inspector, on the right of the Sessions view, shows the selected session's surroundings.
+The inspector, on the right of the Sessions view, shows the selected session's surroundings. The top part scrolls; the
+parts at the bottom stay put, each kept small, and each shows only when it has something to say.
 
-![The inspector: worktrees with their upstream and status, links to pull requests and issues, runs, subagents, agent events](../images/shots/sessions/inspector.png)
+![The inspector: summary and goal, PRs and issues, then loose ends, agent events and the worktree at the bottom](../images/shots/sessions/inspector.png)
 
-- **Worktrees**: each worktree's path, its upstream, how far ahead and behind it is, and whether it has uncommitted
-  changes. Commits not pushed (`↑`) show in amber and uncommitted files (`~`) brighter, when there are any, as on the
-  sidebar's chips.
-- **Links**: the session's pull requests, then its issues. Open PRs come first, then merged, then closed; each shows
-  its checks bar, its review state, and what heed is doing about it. A merged or closed PR shrinks to its name and
-  title: there is nothing left to watch. Issues show their title and whether they are open.
-- **Subagents**: while the agent has subagents running (claude and codex), each one's type and how long it has run.
-  Each leaves the list as it stops. See [Subagents](../agents/hooks.md#subagents).
-- **Agent events**: first a line with the agent's model and what it used, as far as its
-  [hooks](../agents/hooks.md#model-and-usage) tell: `claude · model-a · 12.3k in / 4.1k out · ≈$0.42 · ctx 38%`. Only
-  the parts known show: input counts every token sent, cached or not; the cost is marked `≈` because it is an estimate;
-  `ctx` is how full the context was at the last request (its size, when the window is not known). While the agent is
-  rate limited and the reset is known, the line ends with when it lifts: `resets at 18:20`. Hover it for the cache
-  split. Then the latest states the agent reported, newest first. A turn's working steps show while it runs and
-  fold away once it ends, leaving how it ended.
+At the top, scrolling:
+
+- **Summary**: what the session is about, a few sentences from its [ledger](../history/ledger.md) entry while that is
+  fresh, else from what its agent said last. Under it, the [Mindmap](../history/mindmap.md) campaign its work sits in
+  and that campaign's stage, and its goal as a pill (click it to go there; right-click to move it to another goal or
+  take it off).
+- **Pull requests**, open first, then merged, then closed, each newest first. An open PR shows its checks bar, its review
+  state and what heed is doing about it; a merged or closed one shrinks to its number and title.
+- **Issues**, open first.
+- **Runs**: the session's get it green and get it merged runs.
+
+At the bottom, anchored:
+
+- **Learned decisions**: what was decided in the session's campaign and still stands, pinned ones first. Three lines
+  show; the rest scroll. Hover one for all of it.
+- **Loose ends**: follow-ups left open around this work, and the ones heed spots itself (red CI, a quiet PR, review
+  threads, an unanswered question, unsaved work). Click one to hand it to the session's agent; **Tackle all** hands
+  every one over in one prompt (only when the agent is idle and you have not just typed in it). Right-click to mark one
+  done.
+- **Overlapping sessions**: other open sessions changing the same files in the same repo, with those files. Click one
+  to go to it.
+- **Agent events**: the latest state the agent reported, on one line, with how many subagents it has running. Click
+  the header for the rest: the agent's model and what it used, as far as its [hooks](../agents/hooks.md#model-and-usage)
+  tell (`claude · model-a · 12.3k in / 4.1k out · ≈$0.42 · ctx 38%`), its subagents, and the latest states, newest
+  first.
+- **The worktree**: its path with `↑` (commits not pushed), `↓` (behind) and `~` (files not committed). Click to copy
+  the path; right-click to open a shell in a pane beside the agent or in a new tab.
 
 ## Links
 
-**Click a link** to open it here: a PR in the [PR overlay](../github/review-feedback.md), an issue in the
-[reader](../github/reading.md). **⌘-click** opens it on GitHub. `go` opens the PR overlay from the keyboard. A
-**right-click** on a PR card offers the pilot's commands for that PR alone ([right-click](../keyboard/mouse.md)).
+**Click a link** to open it on GitHub. `go` opens the session's PR in the [PR overlay](../github/review-feedback.md),
+and the issue reader is a key away in the [Issues view](../github/reading.md). A **right-click** on a PR card offers
+the pilot's commands for that PR alone ([right-click](../keyboard/mouse.md)).
 
 A session's issues come from three places:
 
@@ -63,8 +76,5 @@ In the other views `gB` opens the item under the cursor and `gR` its repo.
 A session's get it green and get it merged runs list under **Runs**: the agent and the model it was asked to use (and
 the one it actually ran, when its hooks report another), how long it took, how it went, and its tokens and `≈` cost.
 Click one to read it: the same, its branches and its last screen.
-
-Worktrees, links and runs each scroll on their own once they outgrow their share of the column, so a session with many
-PRs never pushes its runs or agent events out of sight.
 
 `zi` collapses and expands the inspector. It also gives way first when the window is narrow.

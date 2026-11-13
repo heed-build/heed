@@ -89,15 +89,30 @@ public enum Git {
         )
         var status = parseStatus(output)
         if withSize, let stat = try? await ProcessRunner.output(
-            on: location, "git", ["-C", path, "diff", "--shortstat", "--merge-base", "origin/HEAD"],
+            on: location, "git", ["-C", path, "diff", "--numstat", "--merge-base", "origin/HEAD"],
             timeout: .seconds(10), caller: "git.size"
         ) {
-            let size = parseShortStat(stat)
-            status.files = size.files
+            let size = parseNumStat(stat)
+            status.files = size.paths.count
             status.added = size.added
             status.removed = size.removed
+            status.paths = Array(size.paths.prefix(WorktreeStatus.pathLimit))
         }
         return status
+    }
+
+    /// `120\t8\tdocs/a.md` a line: lines added, removed, the path (`-` for a binary file's counts).
+    public static func parseNumStat(_ text: String) -> (added: Int, removed: Int, paths: [String]) {
+        var added = 0, removed = 0
+        var paths: [String] = []
+        for line in text.split(separator: "\n") {
+            let parts = line.split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
+            guard parts.count == 3 else { continue }
+            added += Int(parts[0]) ?? 0
+            removed += Int(parts[1]) ?? 0
+            paths.append(String(parts[2]))
+        }
+        return (added, removed, paths)
     }
 
     /// ` 3 files changed, 120 insertions(+), 8 deletions(-)`; nothing changed reads as zeros.

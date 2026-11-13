@@ -205,8 +205,8 @@ public enum DefaultKeys {
         ] + (1 ... 9).map { ("\($0)", "swarm.answer.option \($0)") }),
         // A swarm's agents (W): j k move between workers, s or ↩ goes to its tab, p pauses its task, t swaps its agent;
         // on the right Needs you: 1…9 pick an option of the question under the cursor (its worker's, else the first
-        // waiting), i types an answer, c asks the controller. Once the swarm is done, its summary: F starts a
-        // follow-up.
+        // waiting), i types an answer, c asks the controller. Once the swarm is done, its summary on top (F starts a
+        // follow-up) and the agents under it, as before.
         "goalagents": paneWith([
             ("s", "swarm.task.open"), ("<CR>", "swarm.task.open"), ("p", "swarm.task.pause"),
             ("t", "swarm.task.swap"), ("i", "swarm.answer"), ("c", "swarm.controller"), ("F", "swarm.followup"),
@@ -220,10 +220,11 @@ public enum DefaultKeys {
             ("<CR>", "swarm.task.open"), ("p", "swarm.task.pause"), ("t", "swarm.task.swap"),
             ("e", "swarm.task.edit"), ("F", "swarm.followup"), ("<Tab>", ""), ("<S-Tab>", ""),
         ]),
-        // Goals › Unassigned (U): y n m i answer heed's asks (y on a suggested goal makes it), u undoes.
+        // Goals › Unassigned (U): y n m i answer heed's asks (y on a suggested goal makes it), u undoes, g? shows or
+        // hides how heed decides (? stays help, as everywhere).
         "unassigned": paneWith([
             ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
-            ("u", "goal.attach.undo"), ("<Tab>", ""), ("<S-Tab>", ""),
+            ("u", "goal.attach.undo"), ("g?", "goal.unassigned.how"), ("<Tab>", ""), ("<S-Tab>", ""),
         ]),
         // The call log has no key of its own (:log); inside it, its filters.
         "log": [

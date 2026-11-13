@@ -86,6 +86,10 @@ public struct WorktreeStatus: Hashable, Sendable, Codable {
     public var removed: Int?
     /// Files that differ from the base.
     public var files: Int?
+    /// Which files differ from the base (at most `pathLimit`), for telling which sessions touch the same files.
+    public var paths: [String]?
+
+    public static let pathLimit = 200
 
     public init(
         changedFiles: Int = 0,

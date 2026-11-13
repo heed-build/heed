@@ -132,6 +132,17 @@ extension AppModel {
         endGoalEditing()
     }
 
+    /// `goal.unassigned.how`: show or hide how heed decides, on top of Unassigned. From anywhere else it opens
+    /// Unassigned with it shown.
+    func toggleUnassignedHow() {
+        if view != .goals || goals.pane != .unassigned {
+            showUnassigned()
+            if goals.attach.showsExplainer { return }
+        }
+        say(goals.attach.toggleExplainer() ? "how work finds its goal shows on top"
+            : "how work finds its goal is hidden; \(keyText(for: "goal.unassigned.how", in: "unassigned")) shows it")
+    }
+
     /// `goal.attach.find`: look for the session's goal now.
     func findGoalNow() {
         guard let session = currentSession else { return say("no session here") }

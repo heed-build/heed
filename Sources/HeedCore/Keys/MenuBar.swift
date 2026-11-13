@@ -63,6 +63,9 @@ public enum MenuBar {
 
     /// Commands the menu bar leaves out, and why. Every other command is in some menu (a test holds it to that).
     public static let unlisted: [String: String] = [
+        "inspector.tackle": "the inspector's loose ends run it from their own right-click menu",
+        "inspector.resolve": "the inspector's loose ends run it from their own right-click menu",
+        "inspector.copy": "the inspector's worktree line runs it from its right-click menu (a click copies too)",
         "row.next": "moving the cursor: the mouse clicks rows and scrolls",
         "row.prev": "moving the cursor: the mouse clicks rows and scrolls",
         "row.first": "moving the cursor: the mouse clicks rows and scrolls",
@@ -335,7 +338,8 @@ public enum MenuBar {
                     ("Open", "goal.open"), ("Goals or what is on one", "goal.focus"),
                     ("Take off the goal", "goal.detach"), ("Board", "goal.board"),
                     ("Sharpen the goal…", "goal.sharpen"), ("Plan its items now", "goal.plan"),
-                    ("Unassigned", "goal.unassigned"), ("Undo heed's last attachment", "goal.attach.undo"),
+                    ("Unassigned", "goal.unassigned"), ("How work finds its goal: show or hide", "goal.unassigned.how"),
+                    ("Undo heed's last attachment", "goal.attach.undo"),
                     ("Reviewers and quality bars", "goal.reviewers"),
                     ("Re-check", "review.recheck"), ("Accept the risk", "review.accept"),
                     ("Start a session to fix it", "review.fix"), ("Ask the reviewer why", "review.why"),

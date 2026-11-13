@@ -41,6 +41,15 @@ struct LinksTests {
         #expect(links == [
             .pull(pulls[2]), .pull(pulls[0]), .pull(pulls[1]), .issue(issues[1]), .issue(issues[0]),
         ])
+        // Within a state, newest first: the one updated last, else the one tracked last.
+        let merged = [4, 5, 6].map { PullRef(repo: repo, number: $0) }
+        let byTracking = IssueLinks.ordered(pulls: merged, state: { _ in .merged }, issues: [], closed: { _ in false })
+        #expect(byTracking == [.pull(merged[2]), .pull(merged[1]), .pull(merged[0])])
+        let byUpdate = IssueLinks.ordered(
+            pulls: merged, state: { _ in .merged }, issues: [], closed: { _ in false },
+            updated: { Date(timeIntervalSince1970: [4: 300, 5: 100, 6: 200][$0.number]!) }
+        )
+        #expect(byUpdate == [.pull(merged[0]), .pull(merged[2]), .pull(merged[1])])
         #expect(SessionLink.repo(repo).url == "https://github.com/o/r")
         #expect(IssueLinks
             .compareURL(repo: repo, branch: "fix/a b") == "https://github.com/o/r/compare/fix/a%20b?expand=1")

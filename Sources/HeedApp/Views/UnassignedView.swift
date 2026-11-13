@@ -1,10 +1,10 @@
 import HeedCore
 import SwiftUI
 
-/// Goals › Unassigned (`goal.unassigned`): how new work found its goal. On top, how heed decides (signals, the model
-/// only when unsure, acting by confidence); then what it decided just now, with reasons, and goals it suggests from
-/// work
-/// on no goal; on the right, what it asks you (y n m i) and what it learnt from you.
+/// Goals › Unassigned (`goal.unassigned`): how new work found its goal. What it decided just now, with reasons, and
+/// goals it suggests from work on no goal; on the right, what it asks you (y n m i) and what it learnt from you. How
+/// heed decides (signals, the model only when unsure, acting by confidence) shows on top while nothing waits for you,
+/// and folds to a line otherwise; `goal.unassigned.how` shows or hides it.
 struct UnassignedPane: View {
     @Environment(AppModel.self) private var model
 
@@ -14,30 +14,26 @@ struct UnassignedPane: View {
         let settings = model.config.goals.attach
         ListScroll {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("How work finds its goal").font(Theme.ui(18, weight: .semibold))
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text("Unassigned").font(Theme.ui(18, weight: .semibold))
                     Spacer(minLength: 12)
                     Text(settings.enabled ? "you do nothing unless heed asks" : "off: [goals] attach = false")
                         .font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                 }
-                HStack(alignment: .top, spacing: 12) {
-                    Step(number: 1, title: "Signals", lead: "Free, local, instant", lines: [
-                        "same worktree or branch family", "files touched already on the goal", "a linked PR or issue",
-                        "the prompt against GOAL.md", "repo and recency",
-                    ])
-                    Step(
-                        number: 2, title: "Model", lead: settings.model && model.config.llm.enabled
-                            ? "Cheap, only when unsure" : "Off: signals alone",
-                        lines: [
-                            "Reads the goals and the work; picks a goal or none, with a reason and how sure.",
-                            "Logged as a decide call (:log).",
-                        ]
-                    )
-                    Step(number: 3, title: "Act by confidence", lead: "Every act has undo", lines: [
-                        "≥ \(Self.number(settings.auto))  attach, \(model.keyText(for: "goal.attach.undo", in: "unassigned")) undoes",
-                        "\(Self.number(settings.ask))–\(Self.number(settings.auto))  ask, one key",
-                        "< \(Self.number(settings.ask))  leave it, cluster later",
-                    ])
+                if attach.showsExplainer {
+                    HowItWorks(settings: settings)
+                } else {
+                    HStack(spacing: 8) {
+                        Text("How work finds its goal").font(Theme.ui(12.5, weight: .semibold))
+                            .foregroundStyle(Theme.fg2)
+                        Text("signals, the model only when unsure, acting by confidence")
+                            .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
+                        Spacer(minLength: 8)
+                        KeyHint("goal.unassigned.how", scope: "unassigned", label: "show")
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
+                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
                 }
                 HStack(alignment: .top, spacing: 16) {
                     VStack(alignment: .leading, spacing: 10) {
@@ -86,6 +82,41 @@ struct UnassignedPane: View {
     }
 
     static func number(_ value: Double) -> String { String(format: "%.2f", value) }
+}
+
+/// How heed decides, in three steps: the signals, the model only when unsure, acting by confidence.
+private struct HowItWorks: View {
+    @Environment(AppModel.self) private var model
+    let settings: AttachSettings
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("How work finds its goal").font(Theme.ui(12.5, weight: .semibold)).foregroundStyle(Theme.fg2)
+                Spacer(minLength: 8)
+                KeyHint("goal.unassigned.how", scope: "unassigned", label: "hide")
+            }
+            HStack(alignment: .top, spacing: 12) {
+                Step(number: 1, title: "Signals", lead: "Free, local, instant", lines: [
+                    "same worktree or branch family", "files touched already on the goal", "a linked PR or issue",
+                    "the prompt against GOAL.md", "repo and recency",
+                ])
+                Step(
+                    number: 2, title: "Model", lead: settings.model && model.config.llm.enabled
+                        ? "Cheap, only when unsure" : "Off: signals alone",
+                    lines: [
+                        "Reads the goals and the work; picks a goal or none, with a reason and how sure.",
+                        "Logged as a decide call (:log).",
+                    ]
+                )
+                Step(number: 3, title: "Act by confidence", lead: "Every act has undo", lines: [
+                    "≥ \(UnassignedPane.number(settings.auto))  attach, \(model.keyText(for: "goal.attach.undo", in: "unassigned")) undoes",
+                    "\(UnassignedPane.number(settings.ask))–\(UnassignedPane.number(settings.auto))  ask, one key",
+                    "< \(UnassignedPane.number(settings.ask))  leave it, cluster later",
+                ])
+            }
+        }
+    }
 }
 
 /// One of the three steps on top.

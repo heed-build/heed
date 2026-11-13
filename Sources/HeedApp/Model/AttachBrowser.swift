@@ -32,6 +32,8 @@ final class AttachBrowser {
     @ObservationIgnored var inFlight: Set<String> = []
     /// Links, by key, from the goals' snapshot: what is on a goal by now.
     private(set) var linked: Set<String> = []
+    /// How heed decides, on top of the pane: on its own only while nothing waits for you (`goal.unassigned.how`).
+    private(set) var explainer = AttachExplainer()
 
     func load(decisions fresh: [AttachDecision], rules read: AttachRules, linked keys: Set<String>) {
         if fresh != decisions { decisions = fresh }
@@ -85,6 +87,14 @@ final class AttachBrowser {
         }
         return latest.values.count { $0.leftUnassigned && !linked.contains($0.subject.key) }
     }
+
+    /// Asks and suggested goals: what waits for you in the pane.
+    var waiting: Int { asks.count + suggestions.count }
+
+    var showsExplainer: Bool { explainer.shows(waiting: waiting) }
+
+    /// `goal.unassigned.how`. Returns whether it shows after.
+    func toggleExplainer() -> Bool { explainer.toggle(waiting: waiting) }
 
     func today(now: Date) -> AttachDay {
         AttachDay.of(decisions, since: Calendar.current.startOfDay(for: now))

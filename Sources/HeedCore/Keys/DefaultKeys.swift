@@ -277,7 +277,10 @@ public enum DefaultKeys {
         ("Z", "attention.snooze"), ("M", "attention.mute"), ("R", "attention.reply"), ("gS", "attention.session"),
         ("t", "attention.filter"), ("T", "attention.sort"), ("r", "github.sync"), ("X", "attention.done.new"),
         ("za", "attention.fold"), ("<C-e>", "attention.reader.down"), ("<C-y>", "attention.reader.up"),
-        ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), ("i", "goal.ask.ignore"),
+        ("U", "attention.summarize"), ("y", "goal.ask.yes"), ("n", "goal.ask.no"), ("m", "goal.ask.move"), (
+            "i",
+            "goal.ask.ignore"
+        ),
     ]
 
     /// Views whose own bindings work in VISUAL too, ahead of VISUAL's: in the diff, `a`, `A` and `y` act on the

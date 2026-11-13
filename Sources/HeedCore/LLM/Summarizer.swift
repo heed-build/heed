@@ -10,6 +10,9 @@ public enum SummaryKind: String, Sendable, CaseIterable {
     case ledger
     /// A GitHub thread in Attention: what it is about and what it asks of you.
     case thread
+    /// Attention's catch-up: what is new in a thread since you last looked (`CatchUp`), or the whole thread when you
+    /// never did, in at most three `- ` lines.
+    case catchUp
     /// A reply to a GitHub thread, drafted for you to read before anything is posted.
     case reply
     /// A goal broken into items, one `- ` line each (`GoalPlanner`).
@@ -135,6 +138,14 @@ public struct Summarizer: Sendable {
             stands, in at most three short sentences of plain prose. Name people when it matters who asked. No \
             preamble, no headings, no lists.
             """
+        case .catchUp:
+            """
+            You catch a developer up on a GitHub issue or pull request thread: what happened since they last looked \
+            (the new comments and reviews, and a change of state), or, when the input says they never looked, the \
+            whole thread. Answer in at most three "- " lines, each one short plain sentence: first what it asks of \
+            them, if anything (a review, an answer, a decision), then what changed or where it stands. Name people \
+            when it matters who said it. Only facts from the input; no preamble, no headings.
+            """
         case .reply:
             """
             You draft a reply to a GitHub issue or pull request thread for the developer it is addressed to, from its \
@@ -241,6 +252,21 @@ public struct Summarizer: Sendable {
         }
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
         return extra.isEmpty ? base : base + "\n\nAlso: " + extra
+    }
+
+    /// A summary with who wrote it: the text, the agent and the model (nil from the cache's answer when it did not
+    /// say). `onStart` is told the agent and model as the call starts.
+    public func write(
+        kind: SummaryKind, inputs: SummaryInputs, instructions: String = "", caller: String,
+        priority: LLMRequest.Priority = .background, onStart: (@Sendable (String, String?) -> Void)? = nil
+    ) async throws -> (text: String, agent: String, model: String?) {
+        let response = try await run(LLMRequest(
+            call: LLMCall(system: Self.system(kind, instructions: instructions), prompt: inputs.prompt),
+            priority: priority, caller: caller, operation: "summarize \(kind.rawValue)", onStart: onStart
+        ))
+        let text = response.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { throw LLMError.failed(reasons: ["\(response.agent): an empty summary"]) }
+        return (text, response.agent, response.model)
     }
 
     /// The summary's text. Identical inputs are answered from the runner's cache.

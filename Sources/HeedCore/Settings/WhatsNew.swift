@@ -79,6 +79,13 @@ public struct WhatsNewContent: Sendable {
 public enum WhatsNew {
     /// Every feature entry, newest version first. Written in the docs' voice: what you can do now, in a line.
     public static let features: [WhatsNewFeature] = [
+        // 0.39: Attention catches you up on a thread.
+        WhatsNewFeature(
+            "0.39.0", "Catch up on a thread",
+            "The reader's card says what is new since you last looked, written ahead for New and on open for the "
+                + "rest; it always says its state (up to date, stale, failed and why), and U writes it again.",
+            showMe: .setting("attention.summaries")
+        ),
         // 0.39: the readers render threads as GitHub does.
         WhatsNewFeature(
             "0.39.0", "Threads read like GitHub",

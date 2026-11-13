@@ -172,9 +172,14 @@ public struct ThreadFold: Equatable, Sendable {
 
     /// Without `seenAt` nothing folds and there is no divider. With it, comments written up to then are read: they
     /// fold, and the divider sits at the first one after. When nothing is new, the last read one stays out as
-    /// context. `unfolded` (a click on the fold) shows them all and keeps the divider.
-    public static func compute(_ comments: [ThreadComment], seenAt: Date?, unfolded: Bool = false) -> ThreadFold {
-        guard let seenAt, !comments.isEmpty else { return ThreadFold(folded: 0, divider: nil, newCount: 0) }
+    /// context. `unfolded` (a click on the fold) shows them all and keeps the divider. Your own comments (`viewer`)
+    /// are never new, and nor is what came before them: you saw the thread up to there (`ThreadSeen.effective`).
+    public static func compute(
+        _ comments: [ThreadComment], seenAt: Date?, viewer: String? = nil, unfolded: Bool = false
+    ) -> ThreadFold {
+        guard let seenAt = ThreadSeen.effective(seenAt, comments: comments, viewer: viewer), !comments.isEmpty else {
+            return ThreadFold(folded: 0, divider: nil, newCount: 0)
+        }
         let firstNew = comments.firstIndex { $0.createdAt > seenAt } ?? comments.count
         let newCount = comments.count - firstNew
         let folded = unfolded ? 0 : newCount > 0 ? firstNew : comments.count - 1

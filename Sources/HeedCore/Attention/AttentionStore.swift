@@ -88,6 +88,15 @@ public actor AttentionStore {
             at REAL NOT NULL
         );
         """),
+        // Catch-up summaries (what is new since you last looked) replace the whole-thread ones, which go.
+        SQLiteMigration(sql: """
+        DROP TABLE summaries;
+        CREATE TABLE summaries (
+            id TEXT PRIMARY KEY,
+            written_at REAL NOT NULL,
+            summary TEXT NOT NULL
+        );
+        """),
     ]
 
     // MARK: Items
@@ -167,17 +176,19 @@ public actor AttentionStore {
         }
     }
 
-    /// The summary written for an item at its `updatedAt`; nil when there is none for that update.
-    public func summary(for id: String, updatedAt: Date) throws -> String? {
-        try database.scalar(
-            "SELECT summary FROM summaries WHERE id = ? AND updated_at >= ?", [.text(id), SQLiteValue(updatedAt)]
-        )?.text
+    /// Every item's catch-up summary, by item id.
+    public func catchUps() throws -> [String: CatchUpSummary] {
+        let rows = try database.query("SELECT id, summary FROM summaries") { row in
+            try (row[0].text ?? "", JSONDecoder.heed.decode(CatchUpSummary.self, from: row[1].data ?? Data()))
+        }
+        return Dictionary(rows) { _, last in last }
     }
 
-    public func saveSummary(_ summary: String, for id: String, updatedAt: Date) throws {
+    /// Keeps an item's catch-up summary, replacing the one before.
+    public func saveCatchUp(_ summary: CatchUpSummary, for id: String) throws {
         try database.run(
-            "INSERT OR REPLACE INTO summaries (id, updated_at, summary) VALUES (?, ?, ?)",
-            [.text(id), SQLiteValue(updatedAt), .text(summary)]
+            "INSERT OR REPLACE INTO summaries (id, written_at, summary) VALUES (?, ?, ?)",
+            [.text(id), SQLiteValue(summary.writtenAt), .text(Self.json(summary))]
         )
     }
 

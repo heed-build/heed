@@ -19,7 +19,7 @@ public extension SettingsPage {
         case .goals: ["Agents", "Reviewers", "Items", "GitHub mirror"]
         case .history: ["Ledger", "While you were away", "Mindmap", "Memory", "Standup", "Call log"]
         case .github: ["GitHub"]
-        case .attention: ["Rules", "Try before you save", "Weights"]
+        case .attention: ["Rules", "Try before you save", "Summaries", "Weights"]
         case .tools: ["Found", "Tools"]
         case .keys: ["Modes", "Global shortcuts", "Bindings"]
         }
@@ -52,7 +52,7 @@ public extension SettingsPage {
             + "repos override them in Orgs & repos."
         case .orgsAndRepos: "Orgs and repos can override the defaults: color, issues, goal trackers, and every Pilot "
             + "setting. A repo takes its org's values unless it sets its own."
-        case .attention: "What matters in Attention: rules that boost, lower, mute, pin or notify."
+        case .attention: "What matters in Attention: rules that boost, lower, mute, pin or notify, and its summaries."
         case .hosts: "Machines heed drives over your own ssh, or over your tailnet."
         case .tools: "The commands heed runs, and where it found them."
         case .keys: "Modes, the global shortcuts, and every binding. Bindings are edited in config.toml."

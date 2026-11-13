@@ -660,6 +660,15 @@ public enum ConfigLoader {
                 problems.append(ConfigProblem(path: "attention.rules", message: problem.description))
             }
         }
+        if let text = string(["attention", "summaries"]) {
+            if let mode = AttentionSummaryMode(rawValue: text) {
+                config.attention.summaries = mode
+            } else {
+                problems.append(ConfigProblem(
+                    path: "attention.summaries", message: "expected \"ahead\", \"open\" or \"off\""
+                ))
+            }
+        }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         if let names = strings(["summary", "when"]) {
@@ -1081,6 +1090,10 @@ public enum ConfigLoader {
     #   "agent blocked|asking        boost 3",
     #   "ci branch:main              lower",
     # ]
+    # Catch-up summaries in the reader: what is new in a thread since you last looked (the whole thread when you never
+    # did), written by heed's model calls ([llm]). "ahead": for every thread in For you's New, newest first, within
+    # the daily cap, and on open for the rest; "open": only when you open a thread; "off": none.
+    summaries = "ahead"
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents

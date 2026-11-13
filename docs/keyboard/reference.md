@@ -346,6 +346,7 @@ This page is generated from the code (`mise run shots`).
 | `attention.reader.down` | `<C-e>` (attention), `<C-e>` (swarmask) | scroll Attention's reader down half its height |
 | `attention.reader.up` | `<C-y>` (attention), `<C-y>` (swarmask) | scroll Attention's reader up half its height |
 | `attention.sort` | `T` (attention), `T` (swarmask) | Attention: recent first, or weight then recent |
+| `attention.summarize` | `U` (attention), `U` (swarmask) | write the thread's catch-up summary again (↻): what is new since you last looked |
 | `attention.coverage` |  | Coverage: what Attention has of each source against GitHub, and where it went |
 | `issues.repo.next` | `<Tab>` (issues) | next repo in the Issues repo column |
 | `issues.repo.prev` | `<S-Tab>` (issues) | previous repo in the Issues repo column |

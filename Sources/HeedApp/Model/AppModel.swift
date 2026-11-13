@@ -2751,6 +2751,7 @@ final class AppModel {
         case "attention.session": attentionGoToSession()
         case "attention.filter": cycleAttentionFilter(command.arguments.first)
         case "attention.sort": toggleAttentionSort()
+        case "attention.summarize": attentionSummarize()
         case "attention.coverage":
             // Coverage, in the reader's place; again (or ⎋) closes it.
             if view != .attention { openAttention(nil) }

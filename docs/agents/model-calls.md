@@ -33,7 +33,8 @@ Custom agents take no part: Heed knows how to call each built-in headless, not a
   uncalibrated: Heed never takes an action that cannot be undone on it.
 
 Today they write the [ledger](../history/ledger.md)'s summaries, and in [Attention](../github/attention.md) a
-summary of each thread, a drafted reply (shown in full before anything is posted) and a suggested weight for items no
+[catch-up summary](../github/attention.md#catch-up-summaries) of what is new in a thread since you last looked
+(ahead for New, on open for the rest, per `[attention] summaries`), a drafted reply (shown in full before anything is posted) and a suggested weight for items no
 [rule](../github/attention-rules.md) matched. With `[llm] enabled = false`, none of that happens and the rest of Heed
 works as before.
 

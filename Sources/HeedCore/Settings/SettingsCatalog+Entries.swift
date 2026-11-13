@@ -496,6 +496,13 @@ extension SettingsCatalog {
                 + "ignore, pin or notify.",
             since: "0.12.0", example: "rules = [\"author bot:dependabot ignore\"]"
         ) { .list($0.attention.rules) },
+        global(
+            "attention.summaries", .attention, "Summaries", "Catch-up summaries",
+            "What is new in a thread since you last looked, written by heed's model calls. Ahead: every thread in "
+                + "New, newest first, within the daily cap, and the rest when you open them; Open: only when you "
+                + "open one; Off: none.",
+            since: "0.39.0"
+        ) { .text($0.attention.summaries.rawValue) },
     ]
 
     static let tools: [SettingsEntry] = [

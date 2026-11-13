@@ -32,16 +32,39 @@ extension AppModel {
             defer { conversationsLoading.remove(key) }
             do {
                 let fetched = try await GitHub.conversation(repo: repo, number: number, caller: "reader.conversation")
-                if conversations[key] == nil, conversations.count >= Self.conversationsKept,
-                   let oldest = conversations.min(by: { $0.value.fetchedAt < $1.value.fetchedAt })?.key
-                {
-                    conversations[oldest] = nil
-                }
-                conversations[key] = fetched
-                conversationErrors[key] = nil
+                keepConversation(fetched)
             } catch {
                 conversationErrors[key] = (error as? GitHub.Failure)?.description ?? error.localizedDescription
             }
         }
+    }
+
+    /// A thread fetched: kept, the oldest fetched going when there are too many.
+    private func keepConversation(_ fetched: ThreadConversation) {
+        let key = fetched.key
+        if conversations[key] == nil, conversations.count >= Self.conversationsKept,
+           let oldest = conversations.min(by: { $0.value.fetchedAt < $1.value.fetchedAt })?.key
+        {
+            conversations[oldest] = nil
+        }
+        conversations[key] = fetched
+        conversationErrors[key] = nil
+    }
+
+    /// The thread as it is since `updatedAt`, for a summary: the one kept when it is that recent, else the one a
+    /// reader is loading right now, else fetched (`caller`).
+    func currentConversation(
+        _ repo: Repo, _ number: Int, updatedAt: Date, caller: String
+    ) async throws -> ThreadConversation {
+        let key = ThreadConversation.key(repo: repo, number: number)
+        var waited = 0
+        while conversationsLoading.contains(key), waited < 150 {
+            try await Task.sleep(for: .milliseconds(200))
+            waited += 1
+        }
+        if let known = conversations[key], known.fetchedAt >= updatedAt { return known }
+        let fetched = try await GitHub.conversation(repo: repo, number: number, caller: caller)
+        keepConversation(fetched)
+        return fetched
     }
 }

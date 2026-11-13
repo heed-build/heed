@@ -128,16 +128,16 @@ struct AttentionListingTests {
 
     // MARK: Preview
 
-    @Test func previewIsTheNewCommentElseTheSummaryElseNothingNew() {
+    @Test func previewIsTheSummaryElseTheNewCommentElseNothingNew() {
         let pr = item("p", [.reviewRequested])
         let detail = ThreadDetail(
             url: "u", comments: [.init(author: "reviewer", text: "One question\nmore", at: ago(1))], updatedAt: now
         )
-        #expect(AttentionPreview.of(pr, detail: detail, summary: "S", isNew: true, seenAt: ago(9))
-            == .comment(author: "reviewer", text: "One question"))
-        #expect(AttentionPreview.of(pr, detail: detail, summary: "S\nmore", isNew: false, seenAt: ago(9))
+        #expect(AttentionPreview.of(pr, detail: detail, summary: "S\nmore", isNew: true, seenAt: ago(9))
             == .summary("S"))
-        #expect(AttentionPreview.of(pr, detail: detail, summary: nil, isNew: false, seenAt: ago(9))
+        #expect(AttentionPreview.of(pr, detail: detail, summary: nil, isNew: true, seenAt: ago(9))
+            == .comment(author: "reviewer", text: "One question"))
+        #expect(AttentionPreview.of(pr, detail: detail, summary: "S", isNew: false, seenAt: ago(9))
             == .nothingNew(since: ago(9)))
         #expect(AttentionPreview.of(pr, detail: nil, summary: nil, isNew: true, seenAt: nil) == nil)
     }

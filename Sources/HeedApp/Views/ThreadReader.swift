@@ -82,7 +82,8 @@ struct ThreadActionButton: View {
 
 /// A thread's conversation: the opening post, whatever the reader puts after it (a PR's review threads and
 /// checks), then the comments. With `seenAt`, the comments you had read fold into one line (a click unfolds them)
-/// and "new · N" marks where the new ones start; without it everything shows. `compact` is the narrow Attention
+/// and "new · N" marks where the new ones start; your own comments count as read, and so does what came before
+/// them. Without either everything shows. `compact` is the narrow Attention
 /// pane.
 struct ThreadConversationView<Between: View>: View {
     @Environment(AppModel.self) private var model
@@ -95,7 +96,7 @@ struct ThreadConversationView<Between: View>: View {
 
     var body: some View {
         let comments = conversation.comments
-        let fold = ThreadFold.compute(comments, seenAt: seenAt, unfolded: unfolded)
+        let fold = ThreadFold.compute(comments, seenAt: seenAt, viewer: model.github.viewer, unfolded: unfolded)
         VStack(alignment: .leading, spacing: compact ? 10 : 14) {
             ThreadCard(
                 author: conversation.author, verb: "opened this", at: conversation.createdAt,

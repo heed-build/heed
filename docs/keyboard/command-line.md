@@ -60,6 +60,7 @@ Everything you can do with the mouse, the menu bar or a global shortcut is a com
 | `:attention.coverage` | [Coverage](../github/attention.md#is-anything-missing): what Attention has of each source against what GitHub says, and where it went |
 | `:attention.done.new` | Done with everything in For you's [New since](../github/attention.md#for-you) (`X`) |
 | `:attention.fold` | List For you's Mentioned before, or fold it again (`za`) |
+| `:attention.summarize` | Write the thread's [catch-up summary](../github/attention.md#catch-up-summaries) again now (`U`, ↻ on the card) |
 | `:resume` | The "pick up where you left off" dialog, as on launch |
 | `:work.start.panel` | Start work in the floating panel |
 | `:settings.open [page] [tab]` | Settings, on a page: `general`, `notifications`, `updates`, `agents`, `model-calls`, `decisions`, `worktrees`, `goals`, `history`, `github`, `pilot`, `orgs`, `attention`, `hosts`, `tools` or `keys` (the old `colors`, `cleanup`, `inference` still work); `orgs` and `pilot` take a tab, `agents` an agent and a tab |

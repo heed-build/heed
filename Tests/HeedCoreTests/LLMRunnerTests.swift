@@ -129,6 +129,21 @@ struct LLMRunnerTests {
         #expect(fakes[0].calls == ["q0", "q3"] && fakes[1].calls == ["q1"])
     }
 
+    /// Attention's "summarizing… claude haiku" hears which agent took the call as it starts; a cached answer is not a
+    /// start.
+    @Test func theCallerHearsWhichAgentStarted() async throws {
+        let fake = try FakeCLI()
+        var settings = LLMSettings()
+        settings.agents["claude"] = LLMSettings.Agent(model: "haiku")
+        let runner = runner([fake.agent("claude")], settings: settings)
+        let started = Mutex<[String]>([])
+        var request = ask("q", cached: true)
+        request.onStart = { agent, model in started.withLock { $0.append("\(agent) \(model ?? "-")") } }
+        _ = try await runner.run(request)
+        _ = try await runner.run(request)
+        #expect(started.withLock { $0 } == ["claude haiku"])
+    }
+
     @Test func oneAgentChosenTakesEveryCall() async throws {
         let fakes = try [FakeCLI(), FakeCLI()]
         var settings = LLMSettings()

@@ -181,7 +181,7 @@ This page is generated from the code (`mise run shots`).
 | `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup), `D` (telemetry) | Insights' dashboard: what shipped, agent time, your bests, goals; where Insights opens |
 | `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup), `U` (telemetry) | Insights' standup: your questions answered per org (again: back to the dashboard) |
 | `history.telemetry` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (standup), `T` (telemetry) | Insights' OpenTelemetry: the agents' own spans, latency, waits and cost (again: back to the dashboard) |
-| `session.trace` `[session]` | `t` (sessions), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
+| `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
 | `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 
 ## Modes

@@ -338,10 +338,11 @@ public extension Tutor {
                 doneLine: "Config is written only on the last step's ↩; GitHub's own settings never change."
             ) { _, now, seen in seen.contains { $0.repoSetupStep >= 2 } && !now.repoSetupOpen },
         ], config: "[cleanup]\nenabled = true\nidle_days = 3\n"),
-        TutorLesson(id: "history", title: "History", minutes: 2, world: .mondayMorning, steps: [
+        TutorLesson(id: "history", title: "Insights", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(
                 "Pick one",
-                say: "Sessions that ended, newest first. {row.next} moves to an older one.",
+                say: "Insights' History: the work that ended, by day, newest first, each with its story on the line "
+                    + "under it. {row.next} moves to an older one.",
                 keys: ["{row.next}"], target: "historyList",
                 doneLine: "Each keeps its prompt, branch, PRs and how it ended."
             ) { start, now, _ in now.cursor > start.cursor },
@@ -349,15 +350,16 @@ public extension Tutor {
                 "Filter by outcome",
                 say: "{history.outcome} shows one outcome at a time: merged, closed, abandoned, cleaned up.",
                 keys: ["{history.outcome}"], target: "historyList",
-                doneLine: "{history.outcome} again cycles on."
+                doneLine: "{history.outcome} again cycles on; {timeline.repo} and {timeline.where} narrow by repo and "
+                    + "place."
             ) { start, now, _ in now.historyOutcome != start.historyOutcome },
             TutorStep(
-                "The timeline",
-                say: "{history.timeline} shows the same days as a timeline: sessions, worktrees, PRs and questions as "
-                    + "they happened. {history.timeline} again comes back to the list.",
-                keys: ["{history.timeline}", "{history.timeline}"], target: "historyList",
-                doneLine: "Removed worktrees stay on the timeline, struck through, with what was saved."
-            ) { _, now, seen in seen.contains { $0.view == "timeline" } && now.view == "history" },
+                "Every event",
+                say: "{history.events} unfolds every event as its own line: sessions, worktrees, PRs and questions "
+                    + "as they happened. {history.events} again folds them back into their work.",
+                keys: ["{history.events}", "{history.events}"], target: "historyList",
+                doneLine: "Removed worktrees stay there, struck through, with what was saved."
+            ) { _, now, seen in seen.contains(where: \.historyEvents) && !now.historyEvents },
             TutorStep(
                 "The ledger",
                 say: "{history.ledger} shows the ledger: a short summary of each piece of work, written by a cheap "
@@ -367,8 +369,9 @@ public extension Tutor {
             ) { _, now, seen in seen.contains { $0.view == "ledger" } && now.view == "history" },
             TutorStep(
                 "The dashboard",
-                say: "{history.dashboard} sums it up: sessions, agent time per day, where the time went by agent and "
-                    + "repo, and how recent sessions went. {history.dashboard} again comes back.",
+                say: "{history.dashboard} shows the dashboard, where {view.insights} opens Insights: what shipped, "
+                    + "agent time against the range before, your bests and your goals. {history.dashboard} again "
+                    + "comes back.",
                 keys: ["{history.dashboard}", "{history.dashboard}"], target: "historyList",
                 doneLine: "{dashboard.range} on the dashboard steps from a week to four and twelve weeks."
             ) { _, now, seen in seen.contains { $0.view == "dashboard" } && now.view == "history" },

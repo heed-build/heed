@@ -12,7 +12,7 @@ public enum MenuBar {
         public var session: ContextMenus.SessionFacts?
         /// The PR in front: the one open in the PR overlay or the reader, or the PRs or Watch row under the cursor.
         public var pull: ContextMenus.PullFacts?
-        /// The view you are on (`sessions`, `attention`, `timeline`…).
+        /// The view you are on (`sessions`, `attention`, `history`…).
         public var view = "sessions"
         /// What keys read now: the view's name, or `diff`, `pr` or `issue` while an overlay or the reader is open.
         public var scope = "sessions"
@@ -98,6 +98,10 @@ public enum MenuBar {
         "app.activate": "brings the window forward, which clicking the menu bar has already done",
         "swarm.host": "the new swarm form's Where chips, which only that form shows",
         "repos.focus": "moving between Repos' column and table: the mouse clicks either",
+        "view.history": "view.insights' former name; View has Insights",
+        "view.dashboard": "where Insights opens: View › Insights",
+        "view.timeline": "the timeline is History with every event: In Insights has History: every event",
+        "history.timeline": "the timeline's former key; In Insights has History: every event",
     ]
 
     /// An item whose command needs words the menu cannot know (`pr.track <url>`): it opens the command line with the
@@ -136,7 +140,7 @@ public enum MenuBar {
         /// The PR in front is open, or the session has an open PR.
         var openPull: Bool { facts.pull.map(\.open) ?? (hasRepo && (facts.session?.openPulls ?? 0) > 0) }
         var anyPull: Bool { facts.pull != nil || hasRepo && (facts.session?.pulls ?? 0) > 0 }
-        var historyViews: Set<String> { ["history", "timeline", "ledger", "dashboard", "mindmap", "standup"] }
+        var historyViews: Set<String> { ["history", "ledger", "dashboard", "mindmap", "standup"] }
 
         func item(
             _ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true, checked: Bool = false,
@@ -254,10 +258,9 @@ public enum MenuBar {
                 view("Pull requests", "view.prs", "prs"),
                 view("Watch", "view.watch", "watch"),
                 view("Repos & worktrees", "view.repos", "repos"),
-                view("History", "view.history", "history"),
-                view("Timeline", "view.timeline", "timeline"),
+                view("Insights", "view.insights", "dashboard"),
+                view("History", "history.list", "history"),
                 view("Ledger", "view.ledger", "ledger"),
-                view("Dashboard", "view.dashboard", "dashboard"),
                 view("Mindmap", "view.mindmap", "mindmap"),
                 view("Standup", "view.standup", "standup"),
                 view("Goals", "view.goals", "goals"),
@@ -293,12 +296,12 @@ public enum MenuBar {
                     ("Review the repo's setup…", "setup.review"), ("Approve the setup", "setup.approve"),
                     ("No setup, ever", "setup.never"), ("Edit the setup…", "setup.edit"),
                 ], in: ["repos"]),
-                scoped("In History", [
+                scoped("In Insights", [
                     ("Reopen", "history.reopen"), ("Start again from its prompt", "history.again"),
-                    ("Next outcome", "history.outcome"), ("Sessions", "history.list"), ("Timeline", "history.timeline"),
-                    ("Ledger", "history.ledger"), ("Dashboard", "history.dashboard"),
-                    ("Timeline: next kind", "timeline.kind"), ("Timeline: next repo", "timeline.repo"),
-                    ("Timeline: where", "timeline.where"), ("Timeline: removed worktrees", "timeline.gone"),
+                    ("Dashboard", "history.dashboard"), ("History", "history.list"), ("Ledger", "history.ledger"),
+                    ("History: every event", "history.events"), ("History: next outcome", "history.outcome"),
+                    ("History: next kind", "timeline.kind"), ("History: next repo", "timeline.repo"),
+                    ("History: where", "timeline.where"), ("History: removed worktrees", "timeline.gone"),
                     ("Dashboard: next range", "dashboard.range"), ("Ledger: summarize now", "ledger.summarize"),
                     ("Ledger: edit the summary", "ledger.edit"), ("Mindmap", "history.mindmap"),
                     ("Standup", "history.standup"),

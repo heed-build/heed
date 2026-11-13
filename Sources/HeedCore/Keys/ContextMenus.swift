@@ -707,32 +707,34 @@ public enum ContextMenus {
         return menu.entries
     }
 
-    /// A line of History's timeline: its session can be reopened when it is in History, and the line's kind shown
-    /// alone.
+    /// An event on its own line in History (every event unfolded, or one that belongs to no session): its session
+    /// can be reopened when it is in History, and the line's kind shown alone.
     public static func timeline(
         id: String, title: String, kind: String, reopenable: Bool, onGitHub: Bool
     ) -> [MenuEntry] {
-        let target = CommandTarget.row(view: "timeline", id: id)
+        let target = CommandTarget.row(view: "history", id: id)
         var menu = Menu(header: title)
         menu.section([
             reopenable ? MenuItem("Reopen", CommandInvocation(name: "history.reopen", target: target)) : nil,
             MenuItem("Only \(kind)", CommandInvocation(name: "timeline.kind", arguments: [kind], target: target)),
             onGitHub ? MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target)) : nil,
         ])
-        menu.section([MenuItem("Back to the list", CommandInvocation(name: "history.timeline"))])
+        menu.section([MenuItem("Every event, or folded into work", CommandInvocation(name: "history.events"))])
         return menu.entries
     }
 
-    /// A recent session on the dashboard.
+    /// A PR the dashboard shows as shipped: read it, open it, reopen its session when it is in History.
     public static func dashboard(id: String, title: String, reopenable: Bool, onGitHub: Bool) -> [MenuEntry] {
         let target = CommandTarget.row(view: "dashboard", id: id)
         var menu = Menu(header: title)
         menu.section([
-            reopenable ? MenuItem("Reopen", CommandInvocation(name: "history.reopen", target: target)) : nil,
-            onGitHub ? MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target)) : nil,
+            MenuItem("Read the PR", CommandInvocation(name: "open.reader", target: target)),
+            onGitHub ? MenuItem("Open in the browser", CommandInvocation(name: "open.browser", target: target)) : nil,
+            reopenable ? MenuItem("Reopen its session", CommandInvocation(name: "history.reopen", target: target)) :
+                nil,
             MenuItem("Next range", CommandInvocation(name: "dashboard.range")),
         ])
-        menu.section([MenuItem("Back to the list", CommandInvocation(name: "history.dashboard"))])
+        menu.section([MenuItem("History", CommandInvocation(name: "history.dashboard"))])
         return menu.entries
     }
 

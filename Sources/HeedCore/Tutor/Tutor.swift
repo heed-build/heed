@@ -3,7 +3,7 @@ import Foundation
 /// What the tutor can see of the app after each key: enough to tell whether a step was done, nothing more.
 public struct TutorState: Equatable, Sendable {
     public var mode: Mode = .normal
-    /// `sessions`, `attention`, `prs`, `repos`, `history`.
+    /// `sessions`, `attention`, `prs`, `repos`, `history`, `dashboard`.
     public var view = "sessions"
     /// The row the cursor is on in the current view's list.
     public var cursor = 0
@@ -63,6 +63,8 @@ public struct TutorState: Equatable, Sendable {
     /// The diff overlay's comment box is open (`diff.ask`).
     public var diffNoteOpen = false
     public var historyOutcome = ""
+    /// History shows every event as its own line (`history.events`).
+    public var historyEvents = false
     /// The Watch view: tracked PRs paused, with merging on, and whether a merge queue is in the middle.
     public var paused = 0
     public var merging = 0

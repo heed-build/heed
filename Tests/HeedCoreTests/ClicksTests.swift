@@ -13,10 +13,12 @@ struct ClicksTests {
 
     // MARK: Double-click on a row runs what ↩ runs there
 
-    @Test func aDoubleClickInHistoryAndItsViewsReopensAsReturnDoes() {
-        for view in ["history", "timeline", "ledger", "dashboard"] {
+    @Test func aDoubleClickInHistoryAndTheLedgerReopensAsReturnDoes() {
+        for view in ["history", "ledger"] {
             #expect(engine().normalCommand(for: enter, scope: view)?.name == "history.reopen", "\(view)")
         }
+        // On the dashboard a row is a PR that shipped: ↩ reads it.
+        #expect(engine().normalCommand(for: enter, scope: "dashboard")?.name == "open.reader")
     }
 
     @Test func aDoubleClickElsewhereRunsTheViewsOwnReturnOrOpensTheReader() {
@@ -37,7 +39,7 @@ struct ClicksTests {
 
     @Test func returnStillShowsAsTheLetterInHistorysHints() {
         let built = Keymaps.build()
-        for view in ["history", "timeline", "ledger", "dashboard"] {
+        for view in ["history", "ledger", "dashboard"] {
             #expect(built.scoped[view]?.keys(for: "history.reopen").first == [KeyStroke("R")], "\(view)")
         }
     }

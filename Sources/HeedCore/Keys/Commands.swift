@@ -81,7 +81,12 @@ public enum Commands {
             .move,
             arguments: "[agent] [model] [effort]"
         ),
-        .init("view.history", "history", .move),
+        .init(
+            "view.insights",
+            "Insights: the dashboard first, then History, the ledger, the Mindmap and standups",
+            .move
+        ),
+        .init("view.history", "Insights, as view.insights does (the name it had before)", .move),
         .init("goal.jump", "go to the session's goal; in Goals, to the goal of the session under the cursor", .move),
         // Panes & tabs
         .init("pane.left", "focus pane left", .panes),
@@ -114,7 +119,7 @@ public enum Commands {
             "view",
             "switch view",
             .views,
-            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|history|timeline|ledger|dashboard|mindmap|standup|goals|log>"
+            arguments: "<sessions|attention|inbox|issues|prs|watch|repos|insights|history|timeline|ledger|dashboard|mindmap|standup|goals|log>"
         ),
         .init("view.sessions", "sessions", .views),
         .init(
@@ -136,11 +141,11 @@ public enum Commands {
             "the call log: every command and GitHub call heed made, how long it took, how it ended",
             .views
         ),
-        .init("view.timeline", "History's timeline: sessions, worktrees, PRs and questions, by day", .views),
-        .init("view.dashboard", "History's dashboard: what the work amounted to over a range", .views),
-        .init("view.ledger", "History's ledger: a summary of each piece of work, kept after its worktree", .views),
-        .init("view.standup", "History's standup reports: your questions answered, one report per org", .views),
-        .init("view.mindmap", "History's Mindmap: the work grouped into campaigns, one Mindmap per org", .views),
+        .init("view.timeline", "Insights' History with every event as its own line (what the timeline was)", .views),
+        .init("view.dashboard", "Insights' dashboard: what the work amounted to over a range", .views),
+        .init("view.ledger", "Insights' ledger: a summary of each piece of work, kept after its worktree", .views),
+        .init("view.standup", "Insights' standup reports: your questions answered, one report per org", .views),
+        .init("view.mindmap", "Insights' Mindmap: the work grouped into campaigns, one Mindmap per org", .views),
         .init("view.goals", "goals: long-running work, what belongs to each goal, and its GOAL.md", .views),
         .init("goal.overview", "Goals: back to the goal's overview from any of its panes", .views),
         .init("goal.doc", "Goals: the goal's GOAL.md and its versions (again: the overview)", .views),
@@ -341,22 +346,33 @@ public enum Commands {
         .init("history.reopen", "reopen: resume, recreating the worktree if needed", .selection),
         .init("history.again", "start a new session from this prompt", .selection),
         .init(
-            "history.outcome", "history: the next outcome filter, or one by name (all, merged, …)", .selection,
+            "history.outcome", "History: the next outcome filter, or one by name (all, merged, …)", .selection,
             arguments: "[outcome]"
         ),
-        .init("history.list", "History's list of the sessions that ended", .views),
-        .init("history.timeline", "History as a timeline: what happened, by day (again: back to the list)", .views),
+        .init("history.list", "Insights' History: the work that ended, by day, each with its story", .views),
         .init(
-            "timeline.kind", "timeline: every kind, or one (sessions, worktrees, prs, questions, chats)", .selection,
+            "history.events", "History: every event as its own line, or folded into its piece of work again",
+            .selection
+        ),
+        .init(
+            "history.timeline", "History with every event as its own line (again: folded), as history.events",
+            .views
+        ),
+        .init(
+            "timeline.kind", "History: every kind, or one (sessions, worktrees, prs, questions, chats)", .selection,
             arguments: "[kind]"
         ),
-        .init("timeline.repo", "timeline: every repo, or the next one", .selection, arguments: "[name]"),
-        .init("timeline.where", "timeline: everywhere, this Mac, or a host", .selection, arguments: "[local|host]"),
-        .init("timeline.gone", "timeline: show or hide removed worktrees", .selection),
-        .init("history.ledger", "History's ledger: a summary of each piece of work (again: back to the list)", .views),
-        .init("history.dashboard", "History's dashboard: sessions, agent time, PRs, by day, agent and repo", .views),
+        .init("timeline.repo", "History: every repo, or the next one", .selection, arguments: "[name]"),
+        .init("timeline.where", "History: everywhere, this Mac, or a host", .selection, arguments: "[local|host]"),
+        .init("timeline.gone", "History: show or hide removed worktrees", .selection),
+        .init("history.ledger", "Insights' ledger: a summary of each piece of work (again: back to History)", .views),
         .init(
-            "history.standup", "History's standup: your questions answered per org (again: back to the list)", .views
+            "history.dashboard",
+            "Insights' dashboard: what shipped, agent time, your bests, goals (again: History)",
+            .views
+        ),
+        .init(
+            "history.standup", "Insights' standup: your questions answered per org (again: back to History)", .views
         ),
         .init("standup.run", "standup: write a report for this org now", .selection),
         .init(
@@ -370,7 +386,7 @@ public enum Commands {
         .init("standup.org.next", "standup: the next org's reports (personal last)", .selection),
         .init("standup.org.prev", "standup: the previous org's reports", .selection),
         .init(
-            "history.mindmap", "History's Mindmap: the work grouped into campaigns, per org (again: back to the list)",
+            "history.mindmap", "Insights' Mindmap: the work grouped into campaigns, per org (again: back to History)",
             .views
         ),
         .init(

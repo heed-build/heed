@@ -1,9 +1,9 @@
-/// History's views, as the tab strip above them shows them: each with the command (and so the key) that opens it, and
-/// a count of what is in it. Every History view keeps the same capitals for the others, so the strip reads the same
+/// Insights' views, as the tab strip above them shows them: each with the command (and so the key) that opens it, and
+/// a count of what is in it. Every Insights view keeps the same capitals for the others, so the strip reads the same
 /// wherever you are.
 public enum HistoryPaneTabs {
     public struct Tab: Hashable, Sendable, Identifiable {
-        /// The view's name (`AppView`'s raw value): `history`, `timeline`, `ledger`, `dashboard`.
+        /// The view's name (`AppView`'s raw value): `history`, `ledger`, `dashboard`, `mindmap`, `standup`.
         public var pane: String
         public var title: String
         public var command: String
@@ -26,10 +26,15 @@ public enum HistoryPaneTabs {
         }
     }
 
-    /// The panes, and the commands every History view binds to the same keys.
+    /// The area's name, in the title bar and the menus.
+    public static let area = "Insights"
+
+    /// The view `gh` (`view.insights`) opens.
+    public static let home = "dashboard"
+
+    /// The panes, and the commands every Insights view binds to the same keys.
     public static let panes: [(pane: String, title: String, command: String)] = [
-        ("history", "Sessions", "history.list"),
-        ("timeline", "Timeline", "history.timeline"),
+        ("history", "History", "history.list"),
         ("ledger", "Ledger", "history.ledger"),
         ("dashboard", "Dashboard", "history.dashboard"),
         ("mindmap", "Mindmap", "history.mindmap"),
@@ -46,10 +51,5 @@ public enum HistoryPaneTabs {
             }
             return Tab(pane: pane.pane, title: pane.title, command: pane.command, count: count)
         }
-    }
-
-    /// The breadcrumb: `History › Ledger`.
-    public static func crumb(pane: String) -> [String] {
-        ["History", panes.first { $0.pane == pane }?.title ?? pane]
     }
 }

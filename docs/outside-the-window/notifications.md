@@ -24,10 +24,11 @@ time there is something to say, not when Heed starts; System Settings › Notifi
   ("Still blocked: …"), then nothing until it moves on and comes back. `reminder_minutes = 0` sends none. A session
   you were looking at when it would have notified counts as notified: it gets the reminder if you leave it waiting.
 - **Open** (or clicking the notification) brings Heed forward on the session.
-- **Allow**, on a Claude permission prompt, answers it with yes without leaving the app you are in. Heed presses Return
-  only while the session is still blocked and its screen shows Claude's prompt with the cursor on `1. Yes`; otherwise
-  it brings Heed forward on the session instead, so you answer it yourself. macOS asks you to unlock first when the
-  screen is locked. Other agents' prompts get Open only.
+- **Allow**, on a Claude permission prompt, answers it with yes without leaving the app you are in. While Claude's
+  permission hook waits in heed's [approvals](../agents/approvals.md), Allow answers that request through the hook.
+  Once Claude asks in its pane instead, Heed presses Return only while the session is still blocked and its screen
+  shows Claude's prompt with the cursor on `1. Yes`; otherwise it brings Heed forward on the session, so you answer it
+  yourself. macOS asks you to unlock first when the screen is locked. Other agents' prompts get Open only.
 
 - **Attention.** An [Attention](../github/attention.md) item a [rule](../github/attention-rules.md) says to notify
   about (`notify`, or `boost 3`) notifies when a sync brings it in, under the same quiet hours, without a grace or a

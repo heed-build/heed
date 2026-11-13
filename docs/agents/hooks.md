@@ -30,12 +30,13 @@ messages without typing: see [How Heed talks to agents](messages.md).
 |---|---|---|---|---|---|
 | working | ✓ | ✓ | ✓ | ✓ | ✓ |
 | idle | ✓ | ✓ | ✓ | ✓ | |
-| blocked | ✓ | ✓ | ✓ | | |
+| blocked ² | ✓ | ✓ | ✓ | | |
 | asking | ✓ | ✓ | ✓ ¹ | ✓ ¹ | ✓ ¹ |
 | done | ✓ | ✓ | ✓ | ✓ | ✓ |
 | limited | ✓ | ✓ | | | |
 
 ¹ Only a question in the turn's last words (below); other questions are read from the screen.
+² Blocked sessions are listed in [Approvals](approvals.md); claude's and codex's are answered from there.
 
 Anything left blank is [read from the screen](screen-reading.md).
 
@@ -78,6 +79,32 @@ for your approval ("plan to approve"). A Claude turn that ends with background t
 (their results start the next turn); one that ends with a scheduled prompt shows **idle** until it fires. Claude's idle
 notification, about a minute after a turn, only turns a working session idle: a done, asking or blocked session keeps
 what it said.
+
+## Permission requests
+
+Claude Code and Codex ask before running what their mode does not allow, and both run a `PermissionRequest` hook
+first. Heed's hook for it does more than report: it sends the request to heed's [approvals](approvals.md) (`gy`) over
+the control socket and waits there for your answer, which it returns as the hook's decision. That hook is given 300
+seconds (the others 15); it waits at most `[approvals] wait_seconds` (120 by default), then returns nothing, and the
+agent asks in its pane as it always did. With heed not running it returns at once.
+
+| Agent | Request in | Answer back |
+|---|---|---|
+| claude | `PermissionRequest`: `tool_name`, `tool_input`, `permission_mode`, `permission_suggestions` | `hookSpecificOutput.decision`: `allow` (with `updatedPermissions` for "always", saved to `localSettings`), or `deny` with a `message` |
+| codex | `PermissionRequest`: `tool_name`, `tool_input` (its `description` is the approval reason), `permission_mode` | `allow`, or `deny` with a `message` (Codex refuses rules from a hook) |
+| opencode | the plugin's `permission.asked` event: blocked | answered in its pane |
+| cursor, pi | no permission event: read from the screen | answered in its pane |
+| gemini | read from the screen | answered in its pane |
+
+Claude also runs `PermissionRequest` for its questions (`AskUserQuestion`) and its plan (`ExitPlanMode`). Those ask you
+something rather than for permission, so heed leaves them out by their tool's name: the session stays asking, as its
+`PreToolUse` said. A `permission_prompt` notification that names one of them is read as asking too. The same goes for
+Codex's `request_user_input`.
+
+Gemini CLI has hooks (`BeforeTool`, `Notification` with `ToolPermission`), but none can answer its permission prompt
+(its notification hook is for observing only), it reads them only from a `settings.json` file (heed passes hooks per
+run and writes no agent config), and it runs hooks with a cleaned environment, without heed's `HEED_*` variables. So
+heed does not wire it. opencode's plugins have a `permission.ask` hook; heed does not answer through it yet.
 
 ## Subagents
 

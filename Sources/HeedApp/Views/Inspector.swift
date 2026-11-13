@@ -16,7 +16,7 @@ struct Inspector: View {
 
     /// A session: what it is, its PRs, issues and runs scroll; the anchored parts under them keep small caps of their
     /// own, so a long list never pushes them out of sight.
-    private func content(height: CGFloat) -> some View {
+    private func content(height _: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             if let session = model.currentSession, let chat = session.chat {
                 chatSections(session, chat)
@@ -42,22 +42,6 @@ struct Inspector: View {
                             section {
                                 SectionHeader(title: "Issues")
                                 ForEach(issues, id: \.self) { link in linkRow(link, session: session) }
-                            }
-                        }
-                        let runs = Array(model.runs.filter { $0.sessionID == session.id }.prefix(10))
-                        if !runs.isEmpty {
-                            section {
-                                SectionHeader(title: "Runs")
-                                CappedScroll(cap: height * 0.22) {
-                                    ForEach(runs) { run in
-                                        RunRow(run: run)
-                                            .contentShape(Rectangle())
-                                            .onTapGesture { model.open(run: run) }
-                                            .help(run
-                                                .isRunning ? "Go to its tab" : "Open: what it did, and its last screen")
-                                            .rightClickMenu { model.rightClickNamed() } _: { model.runMenu(run) }
-                                    }
-                                }
                             }
                         }
                         if !session.notes.isEmpty {
@@ -547,30 +531,10 @@ private struct LinkCard: View {
         let finished = pull.map { $0.state != .open } ?? false
         Text(pull?.title ?? session.title).font(Theme.ui(13, weight: .medium)).lineLimit(finished ? 1 : 2)
             .foregroundStyle(finished ? Theme.fg2 : Theme.fg)
-        if finished { EmptyView() } else if let pull {
-            // The bar takes the card's width; the summary and the review read underneath it.
-            CheckBar(checks: pull.checks).padding(.top, 2)
-            (CheckText.text(pull.checks)
-                + Text(verbatim: " · \(pull.review?.text ?? "no review")").foregroundStyle(Theme.fg3))
-                .font(Theme.ui(11.5))
-                .lineLimit(1)
-        }
-        // What the pilot is doing for this PR (nothing to say once it is merged or closed).
-        if !finished {
-            let watching = model.pilot(for: ref).watching
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                PilotMark(status: model.pilotStatus(for: ref), compact: true)
-                Text(pull == nil && watching ? "waiting for the next sync" : model.pilotLine(
-                    for: ref,
-                    mentionsRun: false
-                ))
-                .foregroundStyle(watching ? Theme.fg2 : Theme.fg3)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-            .font(Theme.mono(11))
+        if !finished, let pull {
+            PullCardRows(pull: pull, card: model.pullCard(pull, session: session), agent: session.agent)
+            // A swarm's part in it, and merging that cannot do what its settings ask: worth their own line.
             if let swarm = model.swarmPulls[ref.description] { SwarmPullLine(pull: swarm) }
-            PilotGreenLine(ref: ref)
-            PilotPlanLine(ref: ref)
             PilotMergeLine(ref: ref)
         }
         if let run = model.workingRun(for: ref) {
@@ -887,5 +851,204 @@ private struct AgentEventsLine: View {
                 .font(Theme.mono(11))
             }
         }
+    }
+}
+
+/// An open PR's rows: checks, review, the session's agent and heed, each a small picture with a few words; then the
+/// one thing that waits for you, when anything does.
+private struct PullCardRows: View {
+    @Environment(AppModel.self) private var model
+    let pull: PullRequest
+    let card: PullCard
+    let agent: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            row(icon: "checkmark", tint: Theme.fg3) {
+                VStack(alignment: .leading, spacing: 3) {
+                    CheckBar(checks: pull.checks)
+                    CheckText.text(pull.checks).font(Theme.mono(10.5)).lineLimit(1)
+                }
+            }
+            row(icon: "eye", tint: Theme.fg3) {
+                HStack(spacing: 7) {
+                    if !card.reviewers.isEmpty { ReviewerFaces(reviewers: card.reviewers) }
+                    Text(card.review).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                }
+            }
+            if let line = card.agent {
+                row(letter: String(agent.prefix(1)).uppercased(), tint: Theme.ask) {
+                    HStack(spacing: 6) {
+                        if card.agentWorking { StateGlyph(state: .working, size: 10) }
+                        Text(line).font(Theme.ui(12)).foregroundStyle(Theme.fg).lineLimit(1)
+                        Spacer(minLength: 4)
+                        if let rounds = card.rounds { RoundDots(rounds: rounds) }
+                    }
+                }
+            }
+            if !card.runs.isEmpty || card.holding != nil || card.green != .off || card.merge != .off {
+                row(letter: "h", tint: Theme.busy) {
+                    HStack(spacing: 6) {
+                        if !card.runs.isEmpty { RunBlocks(runs: card.runs) }
+                        if let holding = card.holding {
+                            Text(holding).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
+                        }
+                        Spacer(minLength: 4)
+                        ModePills(green: card.green, merge: card.merge)
+                    }
+                }
+                .help(model.pilotLine(for: pull.ref, mentionsRun: false))
+            }
+            if let call = card.call { callLine(call) }
+        }
+        .padding(.top, 2)
+    }
+
+    private func row(icon: String? = nil, letter: String? = nil, tint: Color, @ViewBuilder _ content: () -> some View)
+        -> some View
+    {
+        HStack(alignment: .center, spacing: 8) {
+            Group {
+                if let icon {
+                    Image(systemName: icon).font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.fg2)
+                } else {
+                    Text(letter ?? "").font(.system(size: 10, weight: .bold)).foregroundStyle(Theme.ink)
+                }
+            }
+            .frame(width: 18, height: 18)
+            .background(RoundedRectangle(cornerRadius: 5).fill(icon == nil ? tint : Theme.chip))
+            content().frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder private func callLine(_ call: PullCard.Call) -> some View {
+        let good = call == .merge
+        let tint = good ? Theme.done : Theme.block
+        HStack {
+            switch call {
+            case let .send(count):
+                Text("\(count) item\(count == 1 ? "" : "s") for \(agent)").lineLimit(1)
+            case .merge:
+                Text("Ready to merge")
+            }
+            Spacer(minLength: 4)
+            Text(good ? "zM merge" : "go review").font(Theme.mono(10)).foregroundStyle(tint)
+                .padding(.horizontal, 4)
+                .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(tint.opacity(0.5)))
+        }
+        .font(Theme.ui(12)).foregroundStyle(tint)
+        .padding(.horizontal, 8).padding(.vertical, 5)
+        .background(RoundedRectangle(cornerRadius: 6).fill(tint.opacity(0.08)))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(tint.opacity(0.3)))
+        .contentShape(Rectangle())
+        // Its own action rather than the card's (which opens GitHub): the PR view, or merging.
+        .onTapGesture {
+            if good {
+                model.perform(CommandInvocation(name: "pilot.merge.now", target: .pull(pull.ref)))
+            } else {
+                model.open(.pull(pull.ref))
+            }
+        }
+        .help(good ? "Merge it now" : "Open the PR view: pick which items go to \(agent), and send them")
+    }
+}
+
+/// Reviewers' GitHub avatars (initials until they load), each ringed by what they said.
+private struct ReviewerFaces: View {
+    let reviewers: [PullCard.Reviewer]
+
+    var body: some View {
+        HStack(spacing: -5) {
+            ForEach(reviewers.prefix(4), id: \.login) { reviewer in
+                Group {
+                    if let image = Avatars.shared.image(for: reviewer.login) {
+                        Image(nsImage: image).resizable().interpolation(.high)
+                    } else {
+                        Text(String(reviewer.login.prefix(2)).uppercased())
+                            .font(.system(size: 7.5, weight: .bold)).foregroundStyle(Theme.ink)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Theme.fg3)
+                    }
+                }
+                .frame(width: 18, height: 18)
+                .clipShape(Circle())
+                .overlay(Circle().strokeBorder(Self.ring(reviewer.verdict), lineWidth: 1.5))
+                .overlay(Circle().strokeBorder(Theme.bg3, lineWidth: 0.5).padding(-1.5))
+                .help("\(reviewer.login): \(reviewer.verdict.rawValue)")
+            }
+        }
+    }
+
+    static func ring(_ verdict: PullCard.Reviewer.Verdict) -> Color {
+        switch verdict {
+        case .approved: Theme.done
+        case .changes: Theme.block
+        case .commented: Theme.fg3
+        }
+    }
+}
+
+/// heed's rounds on a PR: one dot each, lit as it is used.
+private struct RoundDots: View {
+    let rounds: PullCard.Rounds
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0 ..< max(rounds.of, 1), id: \.self) { index in
+                Circle().fill(index < rounds.used ? Theme.busy : Theme.fg3.opacity(0.3)).frame(width: 6, height: 6)
+            }
+        }
+        .help("round \(rounds.used) of \(rounds.of)")
+    }
+}
+
+/// heed's runs on a PR, oldest first: green pushed, grey no change, red timed out or failed, blue still running. A
+/// click opens one: a running one's tab, a finished one's reader.
+private struct RunBlocks: View {
+    @Environment(AppModel.self) private var model
+    let runs: [PilotRun]
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(runs) { run in
+                RoundedRectangle(cornerRadius: 2).fill(Self.tint(run.outcome)).frame(width: 11, height: 7)
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.open(run: run) }
+                    .help("\(run.goal.rawValue) · \(run.agent) · \(run.outcome?.text ?? "running") · "
+                        + Ages.short(run.startedAt) + " ago\nClick to open it")
+            }
+        }
+    }
+
+    static func tint(_ outcome: PilotRun.Outcome?) -> Color {
+        switch outcome {
+        case nil: Theme.busy
+        case .pushed?: Theme.done.opacity(0.8)
+        case .noChanges?, .stopped?, .interrupted?: Theme.fg3.opacity(0.6)
+        case .timedOut?, .failed?: Theme.err.opacity(0.75)
+        }
+    }
+}
+
+/// heed's two switches for a PR, as they are: green (off, ask, auto) and merge (off, auto, heed).
+private struct ModePills: View {
+    let green: AutoFeed
+    let merge: MergeMode
+
+    var body: some View {
+        HStack(spacing: 0) {
+            pill("green \(green.configName)", on: green != .off)
+            Theme.line.frame(width: 1, height: 12)
+            pill("merge \(merge.rawValue)", on: merge != .off)
+        }
+        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+        .fixedSize()
+    }
+
+    private func pill(_ text: String, on: Bool) -> some View {
+        Text(text).font(Theme.mono(10)).foregroundStyle(on ? Theme.fg : Theme.fg3)
+            .padding(.horizontal, 5).padding(.vertical, 1)
+            .background(on ? Theme.selected : .clear)
     }
 }

@@ -43,6 +43,19 @@ struct AttentionView: View {
                     Group {
                         if model.overlay == .coverage {
                             CoverageView(coverage: model.attentionCoverage)
+                        } else if let helper = model.visibleHelper {
+                            // The helper you approved, in a split under the reader (zo: the whole column).
+                            VStack(spacing: 0) {
+                                if !model.helpers.zoomed,
+                                   let entry = rows.indices.contains(cursor) ? rows[cursor] : nil
+                                {
+                                    AttentionReader(entry: entry).id(entry.id)
+                                        .frame(height: (geometry.size.height * 0.34).rounded(), alignment: .top)
+                                        .clipped()
+                                    Theme.line.frame(height: 1)
+                                }
+                                HelperSplit(helper: helper, compact: true)
+                            }
                         } else if let entry = rows.indices.contains(cursor) ? rows[cursor] : nil {
                             if entry.item.kind == .pr || entry.item.kind == .issue,
                                entry.item.repo != nil, entry.item.number != nil
@@ -100,7 +113,8 @@ struct AttentionView: View {
                         AttentionRow(
                             entry: rows[index], index: index, cursor: cursor,
                             preview: preview(rows[index]), isNew: model.attentionIsNew(rows[index].item),
-                            isPicked: picked.contains(rows[index].id), compact: compact
+                            isPicked: picked.contains(rows[index].id), compact: compact,
+                            nextStep: model.proposedStep(for: rows[index].item)
                         )
                         // A folded section after the last row still says what it holds.
                         if index == rows.count - 1 {
@@ -439,6 +453,8 @@ private struct AttentionRow: View {
     let isPicked: Bool
     /// Beside the reader: one line of reasons and preview under the title.
     var compact = true
+    /// heed's next step for it, when it has one: the row's last line.
+    var nextStep: NextStep?
 
     var body: some View {
         let item = entry.item
@@ -468,6 +484,7 @@ private struct AttentionRow: View {
                     previewText.lineLimit(2)
                     FlowLayout(spacing: 5) { tags(limit: nil) }
                 }
+                if let step = nextStep { NextStepLine(step: step) }
             }
         }
         .padding(.leading, 8)
@@ -556,6 +573,9 @@ private struct AttentionReader: View {
                     author: conversation?.author?.login ?? item.author, openedAt: conversation?.createdAt,
                     chips: chips(conversation), actions: actions
                 )
+                if let step = model.proposedStep(for: item), model.visibleHelper == nil {
+                    NextStepProposal(item: item, step: step)
+                }
                 why
                 SummaryCard(item: item)
                 if let draft = model.attention.draft, draft.id == item.id {

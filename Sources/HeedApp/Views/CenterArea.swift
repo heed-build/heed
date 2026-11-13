@@ -9,19 +9,33 @@ struct CenterArea: View {
     var body: some View {
         VStack(spacing: 0) {
             TabStrip().shotRegion(.tabStrip)
-            if let tab = model.currentTab {
-                Group {
-                    if tab.zoomed, let pane = tab.tree.panes.first(where: { $0.id == tab.focused }) {
-                        PaneView(pane: pane, number: (tab.tree.panes.firstIndex(of: pane) ?? 0) + 1, tab: tab)
+            // A helper on one of the session's PRs: a band says so (never typed in); Watch it opens it below.
+            if let session = model.currentSession, let notice = model.helperNotice(for: session) {
+                SessionHelperBand(helper: notice.helper, text: notice.text)
+            }
+            GeometryReader { geometry in
+                VStack(spacing: 0) {
+                    if let tab = model.currentTab {
+                        Group {
+                            if tab.zoomed, let pane = tab.tree.panes.first(where: { $0.id == tab.focused }) {
+                                PaneView(pane: pane, number: (tab.tree.panes.firstIndex(of: pane) ?? 0) + 1, tab: tab)
+                            } else {
+                                PaneTreeView(tree: tab.tree, tab: tab)
+                            }
+                        }
+                        .shotRegion(.panes)
+                        // A pane's terminal must survive re-layout (splits, zoom); identity is the pane id, not
+                        // position.
+                        .id(tab.id)
                     } else {
-                        PaneTreeView(tree: tab.tree, tab: tab)
+                        EmptyCenter()
+                    }
+                    if let helper = model.visibleHelper {
+                        Theme.line.frame(height: 1)
+                        HelperSplit(helper: helper)
+                            .frame(height: (geometry.size.height * (model.helpers.zoomed ? 0.85 : 0.5)).rounded())
                     }
                 }
-                .shotRegion(.panes)
-                // A pane's terminal must survive re-layout (splits, zoom); identity is the pane id, not position.
-                .id(tab.id)
-            } else {
-                EmptyCenter()
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

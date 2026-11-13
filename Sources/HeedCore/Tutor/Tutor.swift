@@ -71,6 +71,8 @@ public struct TutorState: Equatable, Sendable {
     public var mergeQueue = false
     /// The pilot's explainer (`pilot.why`) is open; tracked PRs heed watches.
     public var explainOpen = false
+    /// Times `.` proposed another of an Attention item's next steps.
+    public var otherSteps = 0
     public var watching = 0
     /// The call log's filters: the kind shown (`""` for all), and whether only failed calls show.
     public var logKind = ""

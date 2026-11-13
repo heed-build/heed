@@ -139,7 +139,14 @@ public extension Tutor {
                 seen.contains(where: \.startWorkOpen) && !now.startWorkOpen && now.sessions > start.sessions
             },
         ]),
-        TutorLesson(id: "attention", title: "Attention", minutes: 3, world: .mondayMorning, steps: [
+        TutorLesson(id: "attention", title: "Attention", minutes: 4, world: .mondayMorning, steps: [
+            TutorStep(
+                "Heed's next step",
+                say: "Each row's last line is heed's next step for it, and the reader proposes it on top: {helper.do} "
+                    + "does it. {helper.other} proposes another step instead: press it.",
+                keys: ["{helper.other}"], target: "nextStep",
+                doneLine: "{helper.always} does it and turns it on for the repo, so heed does it by itself from now on."
+            ) { start, now, _ in now.otherSteps > start.otherSteps },
             TutorStep(
                 "Why it is here",
                 say: "Every item says why it wants you; on the right, the thread itself. {attention.filter} goes through the tabs over the list, then Muted: go to Muted.",

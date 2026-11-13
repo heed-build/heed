@@ -72,6 +72,14 @@ extension AppModel {
         }
     }
 
+    /// An open PR's card: reviewers, the agent's part, heed's runs and switches, and what waits for you.
+    func pullCard(_ pull: PullRequest, session: Session) -> PullCard {
+        PullCard.make(
+            pull: pull, detail: pullDetails[pull.ref.description], pipeline: feedback[pull.ref.description],
+            settings: pilotSettings(for: pull.ref), runs: runs, session: session, readyToMerge: readyToMerge(pull.ref)
+        )
+    }
+
     /// A path on the pasteboard, said so.
     func copyPath(_ path: String) {
         NSPasteboard.general.clearContents()

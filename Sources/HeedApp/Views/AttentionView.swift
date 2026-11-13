@@ -21,7 +21,7 @@ struct AttentionView: View {
         let picked = model.pickedIDs(.attention)
         GeometryReader { geometry in
             let split = geometry.size.width >= 1000
-            HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 0) {
                 VStack(spacing: 0) {
                     AttentionTabs().shotRegion(.attentionTabs)
                     SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
@@ -33,7 +33,10 @@ struct AttentionView: View {
                     .clipped()
                     CoverageLine(coverage: model.attentionCoverage)
                 }
-                .frame(width: split ? (geometry.size.width * share).rounded() : geometry.size.width)
+                .frame(
+                    width: split ? (geometry.size.width * share).rounded() : geometry.size.width,
+                    height: geometry.size.height
+                )
                 .shotRegion(.attentionList)
                 if split {
                     divider(width: geometry.size.width)

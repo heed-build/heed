@@ -15,10 +15,20 @@ At the top, scrolling:
   fresh, else from what its agent said last. Under it, the [Mindmap](../history/mindmap.md) campaign its work sits in
   and that campaign's stage, and its goal as a pill (click it to go there; right-click to move it to another goal or
   take it off).
-- **Pull requests**, open first, then merged, then closed, each newest first. An open PR shows its checks bar, its review
-  state and what heed is doing about it; a merged or closed one shrinks to its number and title.
+- **Pull requests**, open first, then merged, then closed, each newest first. A merged or closed one shrinks to its
+  number and title. An open one has a row for each part of its way through:
+  - **checks**: the bar, one segment a check, and the one that failed;
+  - **review**: the reviewers' GitHub avatars, each ringed by their latest verdict (green approved, amber changes asked),
+    and the state in words;
+  - **the agent**: only while something heed sent it is open: what it is doing about it, and heed's rounds for this PR
+    as dots, lit as each is used;
+  - **heed**: its background runs on the PR as small blocks, oldest first (green pushed, grey no change, red timed out
+    or failed, blue running; click one to open it), and its two switches, green and merge, as they are.
+
+  A line at the bottom shows only when you are the next step: **items for the agent** (review comments, failing checks
+  and your notes, waiting because green is on ask: click it for the [PR overlay](../github/review-feedback.md), where
+  you pick which ones go), or **ready to merge** (click it, or `zM`, to merge).
 - **Issues**, open first.
-- **Runs**: the session's get it green and get it merged runs.
 
 At the bottom, anchored:
 
@@ -73,8 +83,8 @@ In the other views `gB` opens the item under the cursor and `gR` its repo.
 
 ## Runs
 
-A session's get it green and get it merged runs list under **Runs**: the agent and the model it was asked to use (and
-the one it actually ran, when its hooks report another), how long it took, how it went, and its tokens and `≈` cost.
-Click one to read it: the same, its branches and its last screen.
+A session's get it green and get it merged runs are the blocks on each PR card's heed row. Click one to read it: the
+agent and the model it was asked to use (and the one it actually ran), how long it took, how it went, its tokens and
+`≈` cost, its branches and its last screen. A running one opens its tab.
 
 `zi` collapses and expands the inspector. It also gives way first when the window is narrow.

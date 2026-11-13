@@ -50,6 +50,7 @@ public enum DefaultKeys {
             "gC",
             "cleanup.run"
         ),
+        ("gy", "approvals.open"),
         ("zi", "inspector.toggle"), ("zs", "sidebar.toggle"), ("zt", "sidebar.titles"),
         // The pilot, the same keys everywhere: the PR under the cursor, the open PR, or the session's PRs.
         ("z?", "pilot.why"), ("zv", "pilot.reviewers"), ("gb", "pilot.run"), ("zx", "pilot.run.stop"),
@@ -280,6 +281,15 @@ public enum DefaultKeys {
             ("h", "pr.prev"), ("l", "pr.next"), ("<Left>", "pr.prev"), ("<Right>", "pr.next"),
             ("<Space>", "feedback.queue"), ("s", "feedback.send"), ("C", "pilot.copilot"),
             ("x", "feedback.dismiss"), ("S", "feedback.session"), ("<Esc>", "overlay.close"), ("r", "github.sync"),
+        ],
+        /// What agents ask permission for (gy): y n answer the selected one and move on (the next is selected), Y N
+        /// all of them, r every read-only one, a always in this repo, t no with a reason, gS its session.
+        "approvals": [
+            ("j", "approvals.next"), ("k", "approvals.prev"), ("<Down>", "approvals.next"), ("<Up>", "approvals.prev"),
+            ("y", "approvals.allow"), ("n", "approvals.deny"), ("Y", "approvals.allow.all"),
+            ("N", "approvals.deny.all"), ("r", "approvals.allow.read"), ("a", "approvals.always"),
+            ("t", "approvals.deny.reason"), ("gS", "approvals.session"), ("gy", "approvals.open"),
+            ("<Esc>", "overlay.close"),
         ],
     ]
 

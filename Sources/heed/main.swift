@@ -84,7 +84,7 @@ if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
             while true {
                 try FileHandle.standardOutput.write(ControlCoding.line(client.next()))
             }
-        case .start, .send, .show, .goal, .memory:
+        case .start, .send, .show, .goal, .memory, .permission:
             print(reply.session ?? "")
         }
         exit(0)
@@ -95,9 +95,11 @@ if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
 }
 
 // A hook must never hold up an agent: whatever happens (a stdin that never closes, a stuck socket), give up quietly.
+// A permission hook waits for your answer in heed, but never past `PermissionHook.ceiling`: then the agent asks.
+let permissionHook = PermissionHook.handles(arguments)
 if arguments.first != "tools", arguments.first != "cleanup" {
     signal(SIGALRM) { _ in _exit(0) }
-    alarm(3)
+    alarm(permissionHook ? UInt32(PermissionHook.ceiling) + 5 : 3)
 }
 
 if arguments.isEmpty || arguments.first == "--help" || arguments.first == "-h" {
@@ -142,9 +144,12 @@ if arguments.first == "cleanup" {
 }
 
 let kinds: [HookMessage.Kind]
+var hookInput: Data?
 do {
     kinds = try HookCommandLine.parse(arguments, environment: environment) {
-        FileHandle.standardInput.readDataToEndOfFile()
+        let data = FileHandle.standardInput.readDataToEndOfFile()
+        hookInput = data
+        return data
     }
 } catch {
     FileHandle.standardError.write(Data("\(error)\n".utf8))
@@ -189,6 +194,14 @@ if !lines.isEmpty, !send(data, to: socketPath) {
     let spool = HookSpool.path(forSocket: socketPath)
     let outcome = HookSpool.append(data, to: spool) ? "kept in \(spool) for its next launch" : "message dropped"
     FileHandle.standardError.write(Data("heed: app not reachable at \(socketPath), \(outcome)\n".utf8))
+}
+
+// The ask goes to heed's queue, and this hook waits for your answer there; a pass prints nothing, so the agent asks.
+if permissionHook, let input = hookInput,
+   let ask = PermissionHook.ask(arguments, input: input, environment: environment),
+   let output = PermissionHook.output(PermissionHook.wait(for: ask), for: ask)
+{
+    FileHandle.standardOutput.write(output)
 }
 
 exit(0)

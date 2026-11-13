@@ -106,13 +106,13 @@ struct SettingsLayoutTests {
         let tree = SettingsTree(page: .notifications)
         let lines = tree.visible
         #expect(lines.first == .group(.heed))
-        #expect(Array(lines.prefix(8)) == [
+        #expect(Array(lines.prefix(9)) == [
             .group(.heed), .page(.general), .page(.notifications), .section(.notifications, "Sessions"),
-            .section(.notifications, "Attention"), .section(.notifications, "Quiet hours"),
-            .section(.notifications, "Nudges"), .page(.updates),
+            .section(.notifications, "Approvals"), .section(.notifications, "Attention"),
+            .section(.notifications, "Quiet hours"), .section(.notifications, "Nudges"), .page(.updates),
         ])
-        // 5 groups, 16 pages, 4 sections.
-        #expect(lines.count == 5 + 16 + 4)
+        // 5 groups, 16 pages, 5 sections.
+        #expect(lines.count == 5 + 16 + 5)
         // A page with one section lists none.
         #expect(SettingsTree(page: .github).children(of: .page(.github)).isEmpty)
     }

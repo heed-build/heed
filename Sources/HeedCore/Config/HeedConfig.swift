@@ -15,6 +15,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var showDockState = true
     /// `[notifications]`: a macOS notification when a session starts needing you.
     public var notifications = NotificationSettings()
+    /// `[approvals]`: how long an agent's permission hook waits for your answer in heed.
+    public var approvals = ApprovalSettings()
     /// `[attention]`: quiet hours, which notifications respect.
     public var attention = AttentionSettings()
     /// `[summary] away_hours`: how long away (from the Mac, or with heed quit) before the summary of what happened
@@ -97,6 +99,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.showMenuBarItem == rhs.showMenuBarItem,
             lhs.showDockState == rhs.showDockState,
             lhs.notifications == rhs.notifications,
+            lhs.approvals == rhs.approvals,
             lhs.attention == rhs.attention,
             lhs.summaryAwayHours == rhs.summaryAwayHours,
             lhs.ledger == rhs.ledger,
@@ -677,6 +680,10 @@ public enum ConfigLoader {
         if let minutes = integer(["notifications", "reminder_minutes"], range: 0 ... 1440) {
             config.notifications.reminderMinutes = minutes
         }
+        // [approvals]
+        if let seconds = integer(["approvals", "wait_seconds"], range: 0 ... PermissionHook.maxWait) {
+            config.approvals.waitSeconds = seconds
+        }
         // [attention]
         if let text = string(["attention", "quiet"]) {
             if text.isEmpty {
@@ -1128,6 +1135,11 @@ public enum ConfigLoader {
     # One reminder if it still needs you this long after the notification, then nothing until it comes back; 0: none.
     reminder_minutes = 15
 
+    [approvals]
+    # How long an agent's permission hook (Claude Code, Codex) waits for your answer in heed (gy) before the agent
+    # asks in its own pane, as it would without heed; 0 lets them always ask there. At most 240.
+    wait_seconds = 120
+
     [attention]
     # Quiet hours: no notifications from start to end, local time, 24-hour ("22:00-07:00"); "" for none. What needed
     # you meanwhile is not notified when they end: Needs you and the Dock badge show it. macOS Focus applies as well.
@@ -1444,6 +1456,16 @@ public struct NudgeSettings: Equatable, Sendable {
     public init(whatsNew: Bool = true, gaps: Cadence = .threeDays) {
         self.whatsNew = whatsNew
         self.gaps = gaps
+    }
+}
+
+/// `[approvals]`.
+public struct ApprovalSettings: Equatable, Sendable {
+    /// Seconds a permission hook waits on heed before the agent asks in its pane; 0: never waits.
+    public var waitSeconds = 120
+
+    public init(waitSeconds: Int = 120) {
+        self.waitSeconds = waitSeconds
     }
 }
 

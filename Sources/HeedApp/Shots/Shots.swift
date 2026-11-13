@@ -271,7 +271,21 @@ enum Shots {
 
     static let short = CGSize(width: 1440, height: 640)
 
-    static let agents: [Shot] = [
+    /// Five asks from four agents waiting on you (docs/agents/approvals.md).
+    static let approvals: [Shot] = {
+        let asks: @MainActor (AppModel) -> Void = { $0.approvals.queue = ApprovalQueue(asks: Fixtures.approvalAsks()) }
+        return [
+            Shot(id: "agents/approvals", keys: "gy", prepare: asks, fixture: "approvals"),
+            Shot(id: "agents/approvals-next", keys: "gyy", crop: .dialog, prepare: asks, fixture: "approvals"),
+            Shot(id: "agents/approvals-pill", crop: .titleBar, cropPadding: 0, prepare: asks, fixture: "approvals"),
+            Shot(id: "agents/approvals-strip", crop: .panes, prepare: { model in
+                asks(model)
+                model.select(sessionID: "s3")
+            }, fixture: "approvals"),
+        ]
+    }()
+
+    static let agents: [Shot] = approvals + [
         Shot(id: "agents/guessed", size: short, keys: "2j", crop: .sidebar),
         // Settings › Agents › claude › Model calls: its part in heed's model calls, after a Test.
         Shot(

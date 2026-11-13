@@ -54,6 +54,7 @@ toc:
       - file: index.md
       - file: hooks.md
       - file: messages.md
+      - file: approvals.md
       - file: screen-reading.md
       - file: custom-agents.md
       - file: helpers.md

@@ -10,7 +10,7 @@ public extension SettingsPage {
     var sections: [String] {
         switch self {
         case .general: ["Sessions", "Outside the window"]
-        case .notifications: ["Sessions", "Attention", "Quiet hours", "Nudges"]
+        case .notifications: ["Sessions", "Approvals", "Attention", "Quiet hours", "Nudges"]
         case .updates: ["Updates"]
         case .agents, .pilot, .orgsAndRepos, .hosts: []
         case .modelCalls: ["Set up", "Model calls", "Limits", "Usage", "Reminder"]

@@ -115,7 +115,8 @@ This page is generated from the code (`mise run shots`).
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
 | `overlay.help` | `?`, `<D-/>`, `?` (VISUAL), `<D-/>` (VISUAL), `<D-/>` (INSERT), `<D-/>` (COMMAND) | keys & states |
-| `overlay.close` | `<Esc>`, `<Esc>` (diff), `<Esc>` (issue), `<Esc>` (pr) | close overlay |
+| `overlay.close` | `<Esc>`, `<Esc>` (approvals), `<Esc>` (diff), `<Esc>` (issue), `<Esc>` (pr) | close overlay |
+| `approvals.open` | `gy`, `gy` (approvals) | what agents ask permission for, from every session, oldest first (toggle) |
 | `pr.next` | `]p`, `l` (pr), `<Right>` (pr) | next PR of this session |
 | `pr.prev` | `[p`, `h` (pr), `<Left>` (pr) | previous PR of this session |
 | `pr.session` | `gS` | jump from a PR to its session |
@@ -204,6 +205,16 @@ This page is generated from the code (`mise run shots`).
 | `autopilot.settings` | `S` (autopilot), `S` (where) | Autopilot: open the Settings page of the capability |
 | `autopilot.what` `[capability]` | `t` (done) | Done: every capability, or the next one (or one by name) |
 | `autopilot.repo` `[repo]` | `r` (done) | Done: every repo, or the next one (or one by name) |
+| `approvals.next` | `j` (approvals), `<Down>` (approvals) | approvals: the next request |
+| `approvals.prev` | `k` (approvals), `<Up>` (approvals) | approvals: the request before |
+| `approvals.allow` | `y` (approvals) | approvals: allow the selected request; the next one is selected |
+| `approvals.deny` `[reason]` | `n` (approvals) | approvals: deny the selected request, telling the agent why when given |
+| `approvals.deny.reason` | `t` (approvals) | approvals: deny the selected request with a reason you type |
+| `approvals.always` | `a` (approvals) | approvals: allow, and save the agent's own allow rule in this repo (Claude Code) |
+| `approvals.allow.all` | `Y` (approvals) | approvals: allow every request heed can answer |
+| `approvals.deny.all` | `N` (approvals) | approvals: deny every request heed can answer |
+| `approvals.allow.read` | `r` (approvals) | approvals: allow every read-only request inside its worktree |
+| `approvals.session` | `gS` (approvals) | approvals: go to the selected request's session |
 | `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (attentionhelper), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch), `<Space>` (watchhelper) | toggle row |
 | `history.reopen` | `R` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |

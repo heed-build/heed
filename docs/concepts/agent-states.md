@@ -40,7 +40,8 @@ running"). A subagent finishing never marks the session done or asking. See
 
 - The sidebar's groups and glyphs, and the inspector's event list.
 - [Attention](../github/attention.md), whose Agents filter lists those asking, blocked or rate limited.
-- The title bar's counts of blocked and asking sessions.
+- The title bar's count of asking sessions, and the amber pill of permission requests waiting (blocked sessions),
+  which `gy` opens: [Approvals](../agents/approvals.md).
 - The [Dock badge](../outside-the-window/dock.md) and the [menu bar item](../outside-the-window/menu-bar.md).
 - A [notification](../outside-the-window/notifications.md) when a session starts needing you.
 - `ga` jumps to the next session that needs you.

@@ -57,7 +57,7 @@ enum TutorCheck {
             "o" + Shots.typed("Fix the flaky link checker in docs-toolkit"),
             "<D-CR>",
         ],
-        "agents": ["ga", "i<S-Esc>", "jjzz"],
+        "agents": ["ga", "gy<Esc>", "i<S-Esc>", "jjzz"],
         "diff": ["gd", "n", "a"],
     ]
 

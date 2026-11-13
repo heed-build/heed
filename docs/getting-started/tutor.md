@@ -84,7 +84,7 @@ next lesson you have not done (`↩`), the cheat sheet (`?`) and a replay (`r`).
 
 Agents in them are scripted: their panes show a transcript rather than a shell, so every lesson plays the same. Starting
 work, reopening from History and sending feedback happen as they would, without git or an agent. The Repos lesson's
-world has automatic cleanup on (worktrees idle for 3 days), so its sweep has something to show; yours stays off until
+world has automatic cleanup on (worktrees idle for 3 days), so cleaning up has something to show; yours stays off until
 you turn it on.
 
 Only your progress is kept between launches: which lessons are done, and the step you were on, so quitting mid-lesson

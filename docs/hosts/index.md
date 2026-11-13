@@ -126,7 +126,7 @@ A worktree on a host is one of:
 | **stale** | Its host does not answer: shown as last seen |
 | **missing** | Registered, but no longer on its host |
 
-The cleanup sweep never touches a host's worktrees. `dd` [removes](../worktrees/removing.md) one on its host, in the
+Cleanup never touches a host's worktrees. `dd` [removes](../worktrees/removing.md) one on its host, in the
 host's clone, saving its work there first; [reopening](../history/reopening.md) a session that ran on a host makes its
 worktree again on that host.
 

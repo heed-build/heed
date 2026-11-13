@@ -122,8 +122,8 @@ This page is generated from the code (`mise run shots`).
 | `issue.add` `[url]` | `gI` | link an issue to the session (its URL, or the copied one) |
 | `issue.remove` `[url]` |  | take an issue off the session |
 | `open.reader` | `<CR>` | read the item, issue or PR |
-| `cleanup.rules` |  | show the cleanup rules (Repos, with its rules panel) |
-| `cleanup.sweep` | `gC` | run the cleanup sweep now |
+| `cleanup.rules` |  | the cleanup settings (Settings › Worktrees › Cleanup) |
+| `cleanup.run` | `gC` | clean up worktrees now: remove the ones idle past your cleanup settings (lists them and asks first) |
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
 | `inspector.tackle` `[text]` |  | hand the session's loose end with this text to its agent (none: all of them) |
 | `inspector.resolve` `<node> <text>` |  | mark a loose end done, on the Mindmap node it lives on |
@@ -378,7 +378,9 @@ This page is generated from the code (`mise run shots`).
 | `diff.ask.now` | `A` (diff) | ask the agent about this hunk (or the selected lines) now |
 | `diff.copy` | `y` (diff) | copy path:line (path:first-last for selected lines) |
 | `diff.edit` | `e` (diff) | open the file in the editor |
-| `repo.add` `<path>` |  | add a repo outside the scanned roots (kept in repo_paths) |
+| `repo.add` `[path]` | `a` (repos) | add or clone a repo: the dialog, or the repo at a path added (kept in repo_paths outside the roots) |
+| `repo.reveal` | `<D-o>` (repos) | show the repo's folder in Finder |
+| `repos.focus` `[repos|worktrees]` | `h` (repos), `l` (repos), `<Tab>` (repos), `<S-Tab>` (repos) | Repos: between the repo column and the worktree table (repos, worktrees, or the other one) |
 | `repo.scan` | `r` (repos) | refresh: rescan the repo roots |
 | `worktree.new` | `o` (repos) | start work in the repo under the cursor |
 | `setup.review` | `S` (repos) | the setup heed detected for the repo's new worktrees: approve, edit or never |

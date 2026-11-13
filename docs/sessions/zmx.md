@@ -39,7 +39,7 @@ The setting applies to panes opened from then on; panes already open keep going 
 | Quit Heed with agents working | Asks first; the agents stop | Quits; the agents keep going |
 | Next launch | Resume dialog: each agent restarts from its history | Panes reattach to the running agents; only ones that are gone (after a reboot) resume |
 | `exit` in a pane | The pane closes | The same |
-| Close or delete a session, sweep a worktree | Its terminals end | Its zmx sessions end too, so nothing is left running |
+| Close or delete a session, clean up a worktree | Its terminals end | Its zmx sessions end too, so nothing is left running |
 
 `:agents.stop` ends every agent and shell in every pane at once, when you want them all gone (Heed asks first).
 Sessions stay; their panes come back as shells.

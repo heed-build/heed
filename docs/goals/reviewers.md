@@ -63,7 +63,7 @@ A reviewer needs no session of yours. It gets a worktree of its own on `heed/rev
 your clone of the repo on this Mac: at the head of the goal's open PR, else at a branch the goal's work is on (an open
 session's, or a closed one's from the ledger). When a session on the goal is open, the reviewer runs in a tab there,
 like get it green, so you can watch it; otherwise it runs headless (claude `-p`, codex `exec`). The worktree and branch
-are removed when it ends; the cleanup sweep removes any left behind. A run still going after 30 minutes is stopped.
+are removed when it ends; cleanup removes any left behind. A run still going after 30 minutes is stopped.
 When the work is in a repo with no clone on this Mac, Attention says so (`reviewers blocked`) instead.
 
 It is told the goal (its `GOAL.md`), its bar, what changed since its last review and the objections it raised before,

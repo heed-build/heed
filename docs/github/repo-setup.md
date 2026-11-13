@@ -7,9 +7,10 @@ description: "The setup wizard: heed reads how a repo merges and how its CI fail
 Get it merged and get it green have a dozen settings per repo. The setup wizard reads the repo's own history and
 proposes them, each with the reason, so you start from what the repo already does rather than from defaults.
 
-Every repo in the [Repos view](../worktrees/repos.md) (`gr`) says where it stands, and has a **Set up…** button:
+Pick a repo in the [Repos view](../worktrees/repos.md) (`gr`): its card says where it stands, and has a **Set up** button
+(the repo column says **not set up** or **merging ⚠** until it is):
 
-![The Repos column: each repo's merging and green status, and Set up…](../images/shots/github/repo-setup-repos.png)
+![A repo's card in Repos: its merging and green status, and Set up](../images/shots/github/repo-setup-repos.png)
 
 - **merging: not set up** (nothing in config decides it), **off**, **heed · squash** in green when it is set, or
   **⚠** and what is wrong, such as auto-merge turned on in heed while the repo does not allow it.

@@ -35,7 +35,7 @@ works in every mode like the other [Mac shortcuts](mac-shortcuts.md).
 
 | Menu | What is in it |
 |---|---|
-| File | Start work (`⌘N`), the floating panel, a new chat, importing a worktree, adding a repo, resume and *While you were away…*, syncing GitHub, rescanning repos, the cleanup sweep and rules, `config.toml`, finding git and gh again |
+| File | Start work (`⌘N`), the floating panel, a new chat, importing a worktree, adding or cloning a repo, resume and *While you were away…*, syncing GitHub, rescanning repos, cleaning up worktrees and the cleanup settings, `config.toml`, finding git and gh again |
 | Session | Type into its agent or the focused pane, pin, park, start again from its prompt, *Hand off to…*, promote a chat, its goal (go to it, put it on one, take it off, a new goal from it), run a task, link or take off an issue, close, delete, stop every agent |
 | View | Every view, those without a tab too (PRs, the timeline, ledger, dashboard and call log), hosts, the filter, the sidebar and inspector, and a submenu each for Attention (and the issue reader), Repos, History, Goals (and a goal's board, `GOAL.md`, personas, evaluations and Unassigned) and the call log |
 | PR | The PR overlay, the diff, the session's PRs, the browser and links, tracking, everything the pilot does (watch, get it green, get it merged, merge now, pause, one more round, Copilot, reviewers, its run), merge queues, setting up a repo, and submenus for review feedback and the diff |
@@ -102,7 +102,7 @@ Coverage. Drag the line between list and reader to change the split.
 ## Repos and History
 
 A worktree in Repos goes to its session or imports it (`↩`), starts work in its repo (`o`), copies its path, pins its
-session, opens its repo on GitHub, runs the cleanup sweep (`gC`), reviews the repo's
+session, opens its repo on GitHub, cleans up worktrees (`gC`), reviews the repo's
 setup (`S`), or removes it (`dd`, which asks first; never offered for the repo's own checkout). Selected worktrees
 (VISUAL) work as picked rows do above.
 

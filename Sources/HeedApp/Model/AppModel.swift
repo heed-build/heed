@@ -107,7 +107,14 @@ final class AppModel {
     private(set) var history: [HistoryEntry] = []
     // What the pilot knows decides Watching and Stalled in the sidebar, so each change rebuilds the list.
     private(set) var github = GitHubState() { didSet { rebuildList() } }
-    private(set) var pullDetails: [String: PullDetail] = [:] { didSet { rebuildList() } }
+    private(set) var pullDetails: [String: PullDetail] = [:] {
+        didSet {
+            rebuildList()
+            // Reviewers' faces for the PR cards.
+            if !isFixture { Avatars.shared.load(pullDetails.values.flatMap { $0.reviews.map(\.author) }) }
+        }
+    }
+
     private(set) var feedback: [String: PullFeedback] = [:] { didSet { rebuildList() } }
     /// What the pilot noticed and did, newest first.
     private(set) var pilotLog: [PilotEvent] = [] { didSet { rebuildList() } }

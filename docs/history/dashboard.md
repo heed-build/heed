@@ -6,7 +6,7 @@ description: "Where Insights opens: what shipped, agent time against the range b
 
 `gh` opens Insights here (so do `D` in any Insights view, `:dashboard` and `history.dashboard`). It sums up the last
 week against the week before; `r` steps the range to four weeks, then twelve, then back (`:dashboard.range 14` or `2w`
-for any other). `D` again goes to [History](index.md#history).
+for any other). `H` goes to [History](index.md#history).
 
 ![The dashboard: the week in a sentence, four numbers, what shipped, your bests, twelve weeks, your agents and goals](../images/shots/history/dashboard.png)
 

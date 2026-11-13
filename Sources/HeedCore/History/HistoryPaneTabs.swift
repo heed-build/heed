@@ -34,9 +34,9 @@ public enum HistoryPaneTabs {
 
     /// The panes, and the commands every Insights view binds to the same keys.
     public static let panes: [(pane: String, title: String, command: String)] = [
+        ("dashboard", "Dashboard", "history.dashboard"),
         ("history", "History", "history.list"),
         ("ledger", "Ledger", "history.ledger"),
-        ("dashboard", "Dashboard", "history.dashboard"),
         ("mindmap", "Mindmap", "history.mindmap"),
         ("standup", "Standup", "history.standup"),
     ]

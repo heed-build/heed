@@ -514,21 +514,21 @@ struct StatusBar: View {
         case .normal where model.view == .standup:
             [
                 ("standup.copy", "copy answer"), ("standup.copy.all", "copy report"), ("standup.question", "question"),
-                ("standup.org.next", "org"), ("standup.run", "write now"), ("history.standup", "History"),
+                ("standup.org.next", "org"), ("standup.run", "write now"), ("history.list", "History"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "standup")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .mindmap:
             [
                 ("mindmap.out", "out"), ("mindmap.in", "in"), ("mindmap.accept", "keep"), ("mindmap.move", "move"),
                 ("mindmap.nest", "group"), ("mindmap.done", "done"), ("mindmap.less", "less"),
-                ("mindmap.more", "more"), ("mindmap.org.next", "org"), ("history.mindmap", "History"),
+                ("mindmap.more", "more"), ("mindmap.org.next", "org"), ("history.list", "History"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "mindmap")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.view == .dashboard:
             "\(key("row.next", "row.prev", in: "dashboard")) shipped · "
                 + [
                     ("open.reader", "read the PR"), ("dashboard.range", "range"), ("history.reopen", "reopen"),
-                    ("history.dashboard", "back to History"),
+                    ("history.list", "History"),
                 ]
                 .map { "\(model.keyText(for: $0.0, in: "dashboard")) \($0.1)" }.joined(separator: " · ")
         case .normal where model.goals.form != nil: "type the title and the goal · ⌘↩ create · ⎋ cancel"
@@ -545,7 +545,7 @@ struct StatusBar: View {
                 ("ledger.summarize", "write again"),
                 ("ledger.edit", "edit"),
                 ("history.reopen", "reopen"),
-                ("history.ledger", "History"),
+                ("history.list", "History"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "ledger")) \($0.1)" }.joined(separator: " · ")
             + " · \(key("session.filter", in: "ledger")) search"

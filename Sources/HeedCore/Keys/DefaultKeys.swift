@@ -109,30 +109,37 @@ public enum DefaultKeys {
             ("t", "history.outcome"),
             ("e", "history.events"),
             ("r", "timeline.repo"), ("w", "timeline.where"), ("K", "timeline.kind"), ("c", "timeline.gone"),
-            ("L", "history.ledger"),
-            ("D", "history.dashboard"),
+            ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"),
             ("M", "history.mindmap"), ("U", "history.standup"),
         ],
-        // Insights' ledger (L, :ledger); L again goes back to History.
+        // Insights' ledger (L, :ledger); L again goes back to the dashboard.
         "ledger": [
-            ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"), ("U", "history.standup"),
+            ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"), (
+                "U",
+                "history.standup"
+            ),
             ("R", "history.reopen"), ("<CR>", "history.reopen"), ("S", "ledger.summarize"), ("E", "ledger.edit"),
         ],
-        // Insights' dashboard (gh, D, :dashboard): j k move through what shipped, ↩ reads its PR; D again goes to
-        // History.
+        // Insights' dashboard (gh, D, :dashboard), where Insights opens: j k move through what shipped, ↩ reads its PR.
         "dashboard": [
-            ("D", "history.dashboard"), ("L", "history.ledger"), ("M", "history.mindmap"), ("U", "history.standup"),
+            ("H", "history.list"), ("D", "history.dashboard"), ("L", "history.ledger"), ("M", "history.mindmap"), (
+                "U",
+                "history.standup"
+            ),
             ("R", "history.reopen"), ("r", "dashboard.range"),
         ],
-        // Insights' standup reports (U, :standup); U again goes back to History.
+        // Insights' standup reports (U, :standup); U again goes back to the dashboard.
         "standup": [
-            ("U", "history.standup"), ("L", "history.ledger"), ("D", "history.dashboard"),
+            ("H", "history.list"), ("U", "history.standup"), ("L", "history.ledger"), ("D", "history.dashboard"),
             ("M", "history.mindmap"), ("y", "standup.copy"), ("Y", "standup.copy.all"), ("t", "standup.question"),
             ("]o", "standup.org.next"), ("[o", "standup.org.prev"), ("S", "standup.run"),
         ],
-        // Insights' Mindmap (M, :mindmap): j k move among siblings, h l out and in; M again goes back to History.
+        // Insights' Mindmap (M, :mindmap): j k move among siblings, h l out and in; M again goes back to the dashboard.
         "mindmap": [
-            ("M", "history.mindmap"), ("U", "history.standup"), ("L", "history.ledger"), ("D", "history.dashboard"),
+            ("H", "history.list"), ("M", "history.mindmap"), ("U", "history.standup"), ("L", "history.ledger"), (
+                "D",
+                "history.dashboard"
+            ),
             ("h", "mindmap.out"), ("l", "mindmap.in"), ("-", "mindmap.less"), ("=", "mindmap.more"),
             ("]o", "mindmap.org.next"), ("[o", "mindmap.org.prev"), ("y", "mindmap.accept"), ("x", "mindmap.done"),
             ("p", "mindmap.pin"), (">", "mindmap.nest"), ("<", "mindmap.lift"), ("r", "mindmap.rename"),

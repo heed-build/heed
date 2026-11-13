@@ -2733,16 +2733,16 @@ final class AppModel {
         case "eval.accept": acceptFriction()
         case "eval.rewalk": rewalk(command.arguments)
         case "eval.lens": pickEvaluationLens(command.arguments)
-        case "history.dashboard": view = view == .dashboard ? .history : .dashboard
+        case "history.dashboard": view = .dashboard
         case "dashboard.range": dashboard.cycleRange(command.arguments.first)
-        case "history.ledger": view = view == .ledger ? .history : .ledger
-        case "history.list": view = .history
-        case "history.standup": view = view == .standup ? .history : .standup
+        case "history.ledger": view = view == .ledger ? .dashboard : .ledger
+        case "history.list": view = view == .history ? .dashboard : .history
+        case "history.standup": view = view == .standup ? .dashboard : .standup
         case "standup.run", "standup.copy", "standup.copy.all", "standup.question", "standup.org.next",
              "standup.org.prev":
             performStandup(command)
         case "history.mindmap":
-            view = view == .mindmap ? .history : .mindmap
+            view = view == .mindmap ? .dashboard : .mindmap
             if view == .mindmap, !isFixture { Task { await refreshLooseEnds(mindmap.instance) } }
         case "mindmap.in", "mindmap.out", "mindmap.less", "mindmap.more", "mindmap.org.next", "mindmap.org.prev",
              "mindmap.accept", "mindmap.done", "mindmap.pin", "mindmap.nest", "mindmap.lift", "mindmap.rename",

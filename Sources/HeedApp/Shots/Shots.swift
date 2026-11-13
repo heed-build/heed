@@ -88,7 +88,7 @@ enum Shots {
         Shot(id: "getting-started/first-session-3-blocked", keys: "j", highlight: [.sidebar, .panes]),
         Shot(id: "getting-started/first-session-4-insert", keys: "ji", highlight: [.panes]),
         Shot(id: "getting-started/first-session-5-feedback", keys: "go", highlight: [.pipeline]),
-        Shot(id: "getting-started/first-session-6-history", keys: "ghD", highlight: [.historyList]),
+        Shot(id: "getting-started/first-session-6-history", keys: "ghH", highlight: [.historyList]),
     ]
 
     static let concepts: [Shot] = [
@@ -215,12 +215,12 @@ enum Shots {
             keys: "o" + chatPrompt + "<Esc>j" + String(repeating: "l", count: 7),
             crop: .dialog
         ),
-        Shot(id: "sessions/chats-history", keys: "ghD", prepare: withChats),
+        Shot(id: "sessions/chats-history", keys: "ghH", prepare: withChats),
         // :promote on the asking scratch chat: its conversation goes to the new worktree's agent.
         Shot(id: "sessions/chats-promote", keys: "4G:promote<CR>", crop: .dialog, prepare: withChats),
         Shot(id: "sessions/chats-promote-codex", keys: "4G:promote<CR><Esc>jjjl", crop: .dialog, prepare: withChats),
         // The chat closed into History as promoted, naming the session it became.
-        Shot(id: "sessions/chats-promoted", keys: "ghDgg", prepare: { model in
+        Shot(id: "sessions/chats-promoted", keys: "ghHgg", prepare: { model in
             withChats(model)
             guard var chat = Fixtures.chats.first?.0 else { return }
             chat.record("promoted → feature/nightly-cron-job", at: ShotRunner.instant)
@@ -256,7 +256,7 @@ enum Shots {
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
         Shot(id: "start-work/from-github-picked", keys: "gi<Space>j<Space>", highlight: [.list]),
         Shot(id: "start-work/from-github-dialog", keys: "gi<Space>j<Space>s", crop: .dialog),
-        Shot(id: "start-work/again", keys: "ghDO", crop: .dialog),
+        Shot(id: "start-work/again", keys: "ghHO", crop: .dialog),
         Shot(
             id: "start-work/on-a-host", keys: "o" + typed("Fix the flaky link checker in docs-toolkit") + "<C-n>",
             crop: .dialog
@@ -576,15 +576,15 @@ enum Shots {
         Shot(id: "history/dashboard-shipped", keys: "ghj", crop: .dashboardShipped),
         Shot(id: "history/dashboard-bests", keys: "gh", crop: .dashboardBests),
         // With the closed chat: a quiet line in its day.
-        Shot(id: "history/history", keys: "ghD", prepare: withChats),
-        Shot(id: "history/detail", keys: "ghD", crop: .historyDetail, prepare: withChats),
-        Shot(id: "history/filters", keys: "ghD", crop: .historyFilters),
+        Shot(id: "history/history", keys: "ghH", prepare: withChats),
+        Shot(id: "history/detail", keys: "ghH", crop: .historyDetail, prepare: withChats),
+        Shot(id: "history/filters", keys: "ghH", crop: .historyFilters),
         Shot(id: "history/pane-tabs", keys: "ghL", crop: .historyPaneBar, cropPadding: 0),
         // e: every event as its own line, as the timeline was.
-        Shot(id: "history/every-event", keys: "ghDe"),
+        Shot(id: "history/every-event", keys: "ghHe"),
         // Only worktrees: removed ones struck through, with what was saved.
-        Shot(id: "history/every-event-worktrees", keys: "ghDeKK"),
-        Shot(id: "history/every-event-detail", keys: "ghDeKK/flowchart<CR>", crop: .historyDetail),
+        Shot(id: "history/every-event-worktrees", keys: "ghHeKK"),
+        Shot(id: "history/every-event-detail", keys: "ghHeKK/flowchart<CR>", crop: .historyDetail),
         Shot(id: "history/mindmap", keys: "ghM"),
         Shot(id: "history/mindmap-work", keys: "ghMljl"),
         Shot(id: "history/standup", keys: "ghU"),

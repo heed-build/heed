@@ -349,7 +349,11 @@ public enum Commands {
             "history.outcome", "History: the next outcome filter, or one by name (all, merged, …)", .selection,
             arguments: "[outcome]"
         ),
-        .init("history.list", "Insights' History: the work that ended, by day, each with its story", .views),
+        .init(
+            "history.list",
+            "Insights' History: the work that ended, by day, each with its story (again: the dashboard)",
+            .views
+        ),
         .init(
             "history.events", "History: every event as its own line, or folded into its piece of work again",
             .selection
@@ -365,14 +369,19 @@ public enum Commands {
         .init("timeline.repo", "History: every repo, or the next one", .selection, arguments: "[name]"),
         .init("timeline.where", "History: everywhere, this Mac, or a host", .selection, arguments: "[local|host]"),
         .init("timeline.gone", "History: show or hide removed worktrees", .selection),
-        .init("history.ledger", "Insights' ledger: a summary of each piece of work (again: back to History)", .views),
         .init(
-            "history.dashboard",
-            "Insights' dashboard: what shipped, agent time, your bests, goals (again: History)",
+            "history.ledger",
+            "Insights' ledger: a summary of each piece of work (again: back to the dashboard)",
             .views
         ),
         .init(
-            "history.standup", "Insights' standup: your questions answered per org (again: back to History)", .views
+            "history.dashboard",
+            "Insights' dashboard: what shipped, agent time, your bests, goals; where Insights opens",
+            .views
+        ),
+        .init(
+            "history.standup", "Insights' standup: your questions answered per org (again: back to the dashboard)",
+            .views
         ),
         .init("standup.run", "standup: write a report for this org now", .selection),
         .init(
@@ -386,7 +395,8 @@ public enum Commands {
         .init("standup.org.next", "standup: the next org's reports (personal last)", .selection),
         .init("standup.org.prev", "standup: the previous org's reports", .selection),
         .init(
-            "history.mindmap", "Insights' Mindmap: the work grouped into campaigns, per org (again: back to History)",
+            "history.mindmap",
+            "Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard)",
             .views
         ),
         .init(

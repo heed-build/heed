@@ -85,7 +85,7 @@ This page is generated from the code (`mise run shots`).
 | `view.sessions` | `gs` | sessions |
 | `view.attention` `[filter]` | `gm`, `gi`, `gp` | attention: what wants you, with why, the thread beside it (a tab: foryou, reviews, mentions, mine, ...) |
 | `view.inbox` |  | Attention's Everything tab, where the inbox went |
-| `view.issues` |  | issues |
+| `view.issues` |  | Attention's issues: assigned to you or mentioning you, where the Issues view went |
 | `view.prs` |  | pull requests |
 | `view.watch` | `gw` | watch: the PRs your sessions track, what heed does for each and has done |
 | `view.repos` | `gr` | repos & worktrees |
@@ -122,7 +122,7 @@ This page is generated from the code (`mise run shots`).
 | `links.pick` | `gl` | pick one of the session's PRs and issues to open in the browser |
 | `issue.add` `[url]` | `gI` | link an issue to the session (its URL, or the copied one) |
 | `issue.remove` `[url]` |  | take an issue off the session |
-| `open.reader` | `<CR>` | read inbox item, issue or PR |
+| `open.reader` | `<CR>` | read the item, issue or PR |
 | `cleanup.rules` |  | show the cleanup rules (Repos, with its rules panel) |
 | `cleanup.sweep` | `gC` | run the cleanup sweep now |
 | `inspector.toggle` | `zi` | collapse / expand the inspector |
@@ -165,12 +165,12 @@ This page is generated from the code (`mise run shots`).
 | `hunch.screen` |  | have Hunch read the agent pane under the cursor now: working, waiting for input, stuck or done |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
-| `history.list` |  | Insights' History: the work that ended, by day, each with its story |
+| `history.list` | `H` (dashboard), `H` (history), `H` (ledger), `H` (mindmap), `H` (standup) | Insights' History: the work that ended, by day, each with its story (again: the dashboard) |
 | `history.timeline` |  | History with every event as its own line (again: folded), as history.events |
-| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (standup) | Insights' ledger: a summary of each piece of work (again: back to History) |
-| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup) | Insights' dashboard: what shipped, agent time, your bests, goals (again: History) |
-| `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup) | Insights' standup: your questions answered per org (again: back to History) |
-| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to History) |
+| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (standup) | Insights' ledger: a summary of each piece of work (again: back to the dashboard) |
+| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup) | Insights' dashboard: what shipped, agent time, your bests, goals; where Insights opens |
+| `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup) | Insights' standup: your questions answered per org (again: back to the dashboard) |
+| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 
 ## Modes
 
@@ -190,7 +190,7 @@ This page is generated from the code (`mise run shots`).
 
 | Command | Keys | Does |
 |---|---|---|
-| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (inbox), `<Space>` (issues), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch) | toggle row |
+| `select.toggle` | `<Space>` (VISUAL), `<Space>` (attention), `<Space>` (prs), `<Space>` (swarmask), `<Space>` (watch) | toggle row |
 | `history.reopen` | `R` (dashboard), `R` (history), `<CR>` (history), `R` (ledger), `<CR>` (ledger) | reopen: resume, recreating the worktree if needed |
 | `history.again` | `O` (history) | start a new session from this prompt |
 | `history.outcome` `[outcome]` | `t` (history) | History: the next outcome filter, or one by name (all, merged, …) |
@@ -332,11 +332,9 @@ This page is generated from the code (`mise run shots`).
 | `log.caller` | `c` (log) | call log: only the caller of the call under the cursor, or every caller |
 | `log.agent` | `a` (log) | call log: only the agent of the call under the cursor, or every agent |
 | `log.copy` | `y` (log) | copy the command of the call under the cursor |
-| `github.sync` | `r` (attention), `r` (inbox), `r` (issues), `r` (pr), `r` (prs), `r` (swarmask), `r` (watch) | sync GitHub now |
-| `items.start` | `s` (attention), `s` (inbox), `s` (issue), `s` (issues), `s` (swarmask) | start one session from the picked items |
-| `items.add` | `a` (attention), `a` (inbox), `a` (issue), `a` (issues), `a` (swarmask) | add the picked items to the current session |
-| `items.read` | `x` (inbox) | mark read |
-| `items.filter` | `t` (inbox), `t` (issues) | cycle the filter chips |
+| `github.sync` | `r` (attention), `r` (pr), `r` (prs), `r` (swarmask), `r` (watch) | sync GitHub now |
+| `items.start` | `s` (attention), `s` (issue), `s` (swarmask) | start one session from the picked items |
+| `items.add` | `a` (attention), `a` (issue), `a` (swarmask) | add the picked items to the current session |
 | `attention.done` | `x` (attention), `x` (swarmask) | done: mark the thread read on GitHub; it comes back when something new happens |
 | `attention.snooze` `[duration]` | `Z` (attention), `Z` (swarmask) | snooze: out of the feed until later (3h, or 30m, 2d, tomorrow) |
 | `attention.mute` | `M` (attention), `M` (swarmask) | mute the thread on GitHub (no more notifications about it); listed under Muted |
@@ -350,10 +348,6 @@ This page is generated from the code (`mise run shots`).
 | `attention.sort` | `T` (attention), `T` (swarmask) | Attention: recent first, or weight then recent |
 | `attention.summarize` | `U` (attention), `U` (swarmask) | write the thread's catch-up summary again (↻): what is new since you last looked |
 | `attention.coverage` |  | Coverage: what Attention has of each source against GitHub, and where it went |
-| `issues.repo.next` | `<Tab>` (issues) | next repo in the Issues repo column |
-| `issues.repo.prev` | `<S-Tab>` (issues) | previous repo in the Issues repo column |
-| `issues.repo` `[name]` |  | show one repo's issues (no name: every repo) |
-| `issues.visibility` | `w` (issues), `w` (repos) | flip the repo under the cursor between all issues and only yours |
 | `feedback.queue` | `<Space>` (pr) | queue / unqueue the item |
 | `feedback.send` | `s` (pr) | send queued feedback to the session |
 | `feedback.mode` |  | pilot.green, by its former name |

@@ -363,31 +363,31 @@ public extension Tutor {
             TutorStep(
                 "The ledger",
                 say: "{history.ledger} shows the ledger: a short summary of each piece of work, written by a cheap "
-                    + "model, kept after its worktree is gone. {history.ledger} again comes back.",
-                keys: ["{history.ledger}", "{history.ledger}"], target: "historyList",
+                    + "model, kept after its worktree is gone. {history.list} comes back to History.",
+                keys: ["{history.ledger}", "{history.list}"], target: "historyList",
                 doneLine: "{ledger.summarize} in the ledger writes a summary now; {ledger.edit} edits one."
             ) { _, now, seen in seen.contains { $0.view == "ledger" } && now.view == "history" },
             TutorStep(
                 "The dashboard",
                 say: "{history.dashboard} shows the dashboard, where {view.insights} opens Insights: what shipped, "
-                    + "agent time against the range before, your bests and your goals. {history.dashboard} again "
-                    + "comes back.",
-                keys: ["{history.dashboard}", "{history.dashboard}"], target: "historyList",
+                    + "agent time against the range before, your bests and your goals. {history.list} comes back "
+                    + "to History.",
+                keys: ["{history.dashboard}", "{history.list}"], target: "historyList",
                 doneLine: "{dashboard.range} on the dashboard steps from a week to four and twelve weeks."
             ) { _, now, seen in seen.contains { $0.view == "dashboard" } && now.view == "history" },
             TutorStep(
                 "The Mindmap",
                 say: "{history.mindmap} shows the Mindmap: the work grouped into campaigns, with what was decided and "
-                    + "what is still open, one Mindmap per org. {history.mindmap} again comes back.",
-                keys: ["{history.mindmap}", "{history.mindmap}"], target: "historyList",
+                    + "what is still open, one Mindmap per org. {history.list} comes back.",
+                keys: ["{history.mindmap}", "{history.list}"], target: "historyList",
                 doneLine: "In the Mindmap {mindmap.in} and {mindmap.out} go in and out; {mindmap.accept} keeps where "
                     + "heed put a piece of work."
             ) { _, now, seen in seen.contains { $0.view == "mindmap" } && now.view == "history" },
             TutorStep(
                 "The standup",
                 say: "{history.standup} shows standup reports: your own questions answered from each org's Mindmap, "
-                    + "on the days you choose. {history.standup} again comes back.",
-                keys: ["{history.standup}", "{history.standup}"], target: "historyList",
+                    + "on the days you choose. {history.list} comes back.",
+                keys: ["{history.standup}", "{history.list}"], target: "historyList",
                 doneLine: "In the standup {standup.copy} copies an answer and {standup.copy.all} the whole report."
             ) { _, now, seen in seen.contains { $0.view == "standup" } && now.view == "history" },
             TutorStep(

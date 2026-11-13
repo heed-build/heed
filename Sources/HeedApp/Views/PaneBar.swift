@@ -111,12 +111,9 @@ struct HistoryPaneBar: View {
         )
         PaneBar(
             crumb: [],
-            // History has no key of its own: a view's key again comes back to it.
+            // Every view has its key; a view's key again comes back to the dashboard, where Insights opens.
             tabs: tabs.map { tab in
-                PaneBarTab(
-                    id: tab.pane, title: tab.title, command: tab.command, count: tab.count,
-                    showsKey: tab.command != "history.list"
-                )
+                PaneBarTab(id: tab.pane, title: tab.title, command: tab.command, count: tab.count, showsKey: true)
             },
             // Each History view has its own key scope; every one binds the others' capitals the same way.
             active: pane, scope: pane, tabsRegion: .historyPaneTabs,

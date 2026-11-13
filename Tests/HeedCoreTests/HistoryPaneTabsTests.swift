@@ -4,15 +4,15 @@ import Testing
 @Suite struct HistoryPaneTabsTests {
     @Test func tabsNameEveryInsightsViewOnceWithItsCount() {
         let tabs = HistoryPaneTabs.tabs(counts: .init(sessions: 12, ledger: 5, open: 3))
-        #expect(tabs.map(\.pane) == ["history", "ledger", "dashboard", "mindmap", "standup"])
-        #expect(tabs.map(\.title) == ["History", "Ledger", "Dashboard", "Mindmap", "Standup"])
-        #expect(tabs.map(\.count) == [12, 5, 0, 3, 0])
+        #expect(tabs.map(\.pane) == ["dashboard", "history", "ledger", "mindmap", "standup"])
+        #expect(tabs.map(\.title) == ["Dashboard", "History", "Ledger", "Mindmap", "Standup"])
+        #expect(tabs.map(\.count) == [0, 12, 5, 3, 0])
         #expect(HistoryPaneTabs.area == "Insights" && HistoryPaneTabs.home == "dashboard")
     }
 
     /// The strip shows the same keys in every Insights view, so each view binds every other view's capital to it.
     @Test func everyInsightsViewBindsTheSameKeysToTheOthers() {
-        let switching = HistoryPaneTabs.panes.map(\.command).filter { $0 != "history.list" }
+        let switching = HistoryPaneTabs.panes.map(\.command)
         var keys: [String: String] = [:]
         for scope in HistoryPaneTabs.panes.map(\.pane) {
             let bindings = DefaultKeys.scoped[scope] ?? []
@@ -29,7 +29,8 @@ import Testing
             #expect(!bindings.contains { $0.1 == "history.timeline" }, "\(scope)")
         }
         #expect(keys == [
-            "history.ledger": "L", "history.dashboard": "D", "history.mindmap": "M", "history.standup": "U",
+            "history.list": "H", "history.ledger": "L", "history.dashboard": "D", "history.mindmap": "M",
+            "history.standup": "U",
         ])
     }
 

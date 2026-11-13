@@ -7,10 +7,10 @@ description: What your work amounted to and what ended, with its story; a dashbo
 
 `gh` opens Insights on its [dashboard](dashboard.md): what shipped this week, agent time set against the week before,
 your bests and the goals that moved. A strip of tabs under the title bar names every Insights view with its key and how
-much is in each: History, Ledger `L`, Dashboard `D`, Mindmap `M` and Standup `U`. The same keys work in every one of
-them; a view's own key again comes back to History, and a click on a tab opens it.
+much is in each: Dashboard `D`, History `H`, Ledger `L`, Mindmap `M` and Standup `U`. The same keys work in every one of
+them; a view's own key again comes back to the dashboard, and a click on a tab opens it.
 
-![Insights' tabs: History, Ledger, Dashboard, Mindmap and Standup, each with its key](../images/shots/history/pane-tabs.png)
+![Insights' tabs: Dashboard, History, Ledger, Mindmap and Standup, each with its key](../images/shots/history/pane-tabs.png)
 
 | View | |
 |---|---|
@@ -22,7 +22,7 @@ them; a view's own key again comes back to History, and a click on a tab opens i
 
 ## History
 
-`D` on the dashboard (or `:history`, `history.list`) shows History: the sessions and chats that ended, grouped by day,
+`H` (or `:history`, `history.list`) shows History: the sessions and chats that ended, grouped by day,
 newest first, each day's header saying what it came to (`2 merged · 1 abandoned · 2 questions answered`).
 
 ![History: the filter column, the work that ended by day with its story under each, and the selected one in full](../images/shots/history/history.png)

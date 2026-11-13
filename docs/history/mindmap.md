@@ -6,7 +6,7 @@ description: Finished work grouped into campaigns, one Mindmap per org, each wit
 
 `M` in Insights (or `:mindmap`, `history.mindmap`) shows the Mindmap: the work heed's [ledger](ledger.md) wrote up,
 grouped the way you would tell it at a standup. Areas hold campaigns (what a run of work was for), campaigns hold
-the pieces of work, and you can group further yourself. `M` again goes back to History.
+the pieces of work, and you can group further yourself. `M` again goes back to the dashboard.
 
 ![The Mindmap: what holds the node, the node among its siblings, what it holds, and the node in full](../images/shots/history/mindmap.png)
 

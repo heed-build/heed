@@ -497,6 +497,41 @@ extension SettingsCatalog {
             "log.max_rows", .history, "Call log", "At most",
             "Rows of each kind, newest kept, whatever their age.", level: .advanced, since: "0.11.4"
         ) { .integer($0.log.maxRows) },
+        global(
+            "telemetry.enabled", .history, "OpenTelemetry", "Receive the agents' telemetry",
+            "Listen on 127.0.0.1 for the agents' own OpenTelemetry (Insights › OpenTelemetry, :trace), and start "
+                + "claude and codex with their exporters pointed there. What heed keeps stays on this Mac.",
+            since: "0.42.0"
+        ) { .bool($0.telemetry.enabled) },
+        global(
+            "telemetry.proxy", .history, "OpenTelemetry", "Forward through heed",
+            "An agent you already send telemetry from is pointed at heed too, and heed forwards every export "
+                + "unchanged to your collector, with your headers, which it never keeps. Off: heed leaves it alone.",
+            since: "0.42.0"
+        ) { .bool($0.telemetry.proxy) },
+        global(
+            "telemetry.port", .history, "OpenTelemetry", "Port",
+            "OTLP/HTTP on 127.0.0.1. A port another collector holds leaves the receiver off.", level: .advanced,
+            since: "0.42.0"
+        ) { .integer($0.telemetry.port) },
+        global(
+            "telemetry.days", .history, "OpenTelemetry", "Keep", "Days of spans, prompts and usage kept.",
+            level: .advanced, since: "0.42.0"
+        ) { .integer($0.telemetry.days) },
+        global(
+            "telemetry.max_rows", .history, "OpenTelemetry", "At most", "Spans kept, newest first, whatever their age.",
+            level: .advanced, since: "0.42.0"
+        ) { .integer($0.telemetry.maxRows) },
+        global(
+            "telemetry.tool_details", .history, "OpenTelemetry", "Tool details",
+            "Ask Claude Code for each tool's command or file, so a span says what ran.", level: .advanced,
+            since: "0.42.0"
+        ) { .bool($0.telemetry.toolDetails) },
+        global(
+            "telemetry.prompts", .history, "OpenTelemetry", "Prompts",
+            "Ask the agents to include your prompts' text, so a turn reads by what you asked.", level: .advanced,
+            since: "0.42.0"
+        ) { .bool($0.telemetry.prompts) },
     ]
 
     static let helpers: [SettingsEntry] = [

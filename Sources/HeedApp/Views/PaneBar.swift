@@ -118,7 +118,7 @@ struct HistoryPaneBar: View {
             // Each History view has its own key scope; every one binds the others' capitals the same way.
             active: pane, scope: pane, tabsRegion: .historyPaneTabs,
             select: { tab in model.showHistoryPane(tab.id, command: tab.command) },
-            trailing: { EmptyView() }
+            trailing: { if model.view == .telemetry { TelemetryReceiverPill() } }
         )
     }
 }

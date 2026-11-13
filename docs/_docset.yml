@@ -95,6 +95,7 @@ toc:
       - file: ledger.md
       - file: mindmap.md
       - file: standup.md
+      - file: opentelemetry.md
       - file: reopening.md
   - folder: goals
     children:

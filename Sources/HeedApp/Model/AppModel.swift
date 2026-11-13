@@ -13,6 +13,10 @@ enum AppView: String, CaseIterable, Identifiable {
     case mindmap
     /// Insights' standup reports (`history.standup`): under Insights' tab too.
     case standup
+    /// Insights' OpenTelemetry (`history.telemetry`): the agents' own spans, under Insights' tab too.
+    case telemetry
+    /// A session's trace (`session.trace`), from its agent's OpenTelemetry: under Sessions' tab.
+    case trace
     /// Autopilot's Can do (`autopilot.cando`): where Autopilot's tab (`gw`) opens. Autopilot's Now is `watch`.
     case autopilot
     /// Autopilot's Where (`autopilot.where`): repos by capability.
@@ -28,14 +32,18 @@ enum AppView: String, CaseIterable, Identifiable {
     static var tabs: [AppView] {
         allCases
             .filter {
-                ![.log, .ledger, .dashboard, .mindmap, .standup, .prs, .autopilot, .autopilotWhere, .autopilotDone]
-                    .contains($0)
+                ![
+                    .log, .ledger, .dashboard, .mindmap, .standup, .telemetry, .trace, .prs, .autopilot,
+                    .autopilotWhere, .autopilotDone,
+                ]
+                .contains($0)
             }
     }
 
     /// The tab that is lit while this view shows.
     var tab: AppView {
-        if [.ledger, .dashboard, .mindmap, .standup].contains(self) { return .history }
+        if [.ledger, .dashboard, .mindmap, .standup, .telemetry].contains(self) { return .history }
+        if self == .trace { return .sessions }
         if isAutopilot { return .watch }
         return self
     }
@@ -78,6 +86,8 @@ enum AppView: String, CaseIterable, Identifiable {
         case .dashboard: "Dashboard"
         case .mindmap: "Mindmap"
         case .standup: "Standup"
+        case .telemetry: "OpenTelemetry"
+        case .trace: "Trace"
         }
     }
 
@@ -88,6 +98,8 @@ enum AppView: String, CaseIterable, Identifiable {
         case .dashboard: "history.dashboard"
         case .mindmap: "history.mindmap"
         case .standup: "history.standup"
+        case .telemetry: "history.telemetry"
+        case .trace: "session.trace"
         case .autopilot: "autopilot.cando"
         case .autopilotWhere: "autopilot.where"
         case .watch: "autopilot.now"
@@ -238,8 +250,9 @@ final class AppModel {
     private var hookServer: HookServer?
     /// The control socket (`HeedControl`): editors and scripts start, type into and follow sessions through it.
     var controlServer: ControlServer?
-    /// Where the per-run hook files live. Screenshots show a made-up home, never the real one.
-    let integration = ShotMode.active
+    /// Where the per-run hook files live. Screenshots show a made-up home, never the real one. Its `telemetry` is set
+    /// once the receiver listens (AppModel+Telemetry).
+    var integration = ShotMode.active
         ? IntegrationFiles(
             directory: URL(fileURLWithPath: "/Users/you/Library/Application Support/Heed"),
             heedBinary: "/Applications/Heed.app/Contents/Helpers/heed"
@@ -281,6 +294,7 @@ final class AppModel {
             if filters[.history] != oldValue[.history] { historyBrowser.setSearch(filters[.history] ?? "") }
             if filters[.ledger] != oldValue[.ledger] { ledger.setSearch(filters[.ledger] ?? "") }
             if filters[.goals] != oldValue[.goals] { goals.setSearch(filters[.goals] ?? "") }
+            if filters[.telemetry] != oldValue[.telemetry] { telemetry.setQuery(filters[.telemetry] ?? "") }
         }
     }
 
@@ -366,6 +380,13 @@ final class AppModel {
     let mindmap: MindmapModel
     /// Insights' standup reports, one per Mindmap (AppModel+Standup).
     let standup: StandupModel
+    /// Insights' OpenTelemetry and sessions' traces (AppModel+Telemetry).
+    let telemetry: TelemetryBrowser
+    @ObservationIgnored var telemetryServer: TelemetryServer?
+    /// The `[telemetry]` the receiver runs with now; nil before it was started.
+    @ObservationIgnored var telemetrySettingsRunning: TelemetrySettings?
+    /// `telemetry.sqlite` is open (or could not be): the receiver may start.
+    @ObservationIgnored var telemetryReady = false
 
     /// The `:log` view's rows and filters.
     let callLog: CallLogBrowser
@@ -532,6 +553,7 @@ final class AppModel {
         hunch = HunchModel(fixture: isFixture)
         mindmap = MindmapModel(fixture: isFixture)
         standup = StandupModel(fixture: isFixture)
+        telemetry = TelemetryBrowser(fixture: isFixture)
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
@@ -571,6 +593,7 @@ final class AppModel {
         applyGoalPointers()
         if isFixture { adoptFixtureRuns() } else { interruptRuns() }
         historyBrowser.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
+        telemetry.context = { [weak self] in self?.telemetryContext ?? TelemetryContext() }
         dashboard.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty } goals: { [weak self] in
             self?.dashboardGoals ?? .init()
         }
@@ -596,6 +619,7 @@ final class AppModel {
         if !isFixture { await detectTools() }
         await startLLM()
         startHooks()
+        await startTelemetry(beside: file)
         let integration = integration
         Task.detached(priority: .utility) {
             do { try integration.write() } catch { NSLog("heed: could not write hook files: \(error)") }
@@ -856,7 +880,7 @@ final class AppModel {
         case .sessions, .prs, .watch, .repos, .history, .autopilot, .autopilotWhere, .autopilotDone: [.pulls]
         // Goals show their sessions' PRs, merged or not.
         case .goals: [.pulls]
-        case .log, .ledger, .dashboard, .mindmap, .standup: []
+        case .log, .ledger, .dashboard, .mindmap, .standup, .telemetry, .trace: []
         }
     }
 
@@ -1098,6 +1122,7 @@ final class AppModel {
         // PRs nobody set by hand follow the new pilot settings.
         if pilotChanged { settlePilots() }
         configureLLM()
+        applyTelemetrySettings()
     }
 
     /// `[tools] zmx` (a path, or a name on the search path), else zmx on the search path.
@@ -2229,6 +2254,12 @@ final class AppModel {
                 lead: "standup", main: MindmapInstance.title(report.instance),
                 detail: report.at.formatted(date: .abbreviated, time: .shortened)
             )
+        case .telemetry:
+            guard let row = telemetry.selected else { return nil }
+            return TitleContext(lead: "span", main: row.title, detail: row.label)
+        case .trace:
+            guard let trace = telemetry.trace else { return nil }
+            return TitleContext(lead: "trace", main: trace.title, detail: trace.agent)
         case .mindmap:
             guard let node = mindmap.focused else { return nil }
             return TitleContext(lead: "mindmap", main: node.title, detail: MindmapInstance.title(mindmap.instance))
@@ -2363,6 +2394,8 @@ final class AppModel {
         case .dashboard: dashboard.board.shipped.indices.map { HintTarget.row(.dashboard, $0) }
         case .mindmap: mindmap.siblings.indices.map { HintTarget.row(.mindmap, $0) }
         case .standup: standup.rows.indices.map { HintTarget.row(.standup, $0) }
+        case .telemetry: telemetry.board.rows.indices.map { HintTarget.row(.telemetry, $0) }
+        case .trace: []
         case .goals: (0 ..< goals.rowCount).map { HintTarget.row(.goals, $0) }
         }
         return zip(HintLabels.generate(count: targets.count), targets).map { ($0, $1) }
@@ -2840,6 +2873,14 @@ final class AppModel {
         case "history.ledger": view = view == .ledger ? .dashboard : .ledger
         case "history.list": view = view == .history ? .dashboard : .history
         case "history.standup": view = view == .standup ? .dashboard : .standup
+        case "history.telemetry":
+            view = view == .telemetry ? .dashboard : .telemetry
+            if view == .telemetry { telemetry.reload() }
+        case "telemetry.range", "telemetry.agent", "telemetry.repo", "telemetry.model", "telemetry.kind",
+             "telemetry.live", "telemetry.open", "telemetry.proxy.off", "telemetry.banner.hide":
+            performTelemetry(command)
+        case "session.trace", "trace.turn.next", "trace.turn.prev", "trace.span.next", "trace.span.prev":
+            performTrace(command)
         case "standup.run", "standup.copy", "standup.copy.all", "standup.question", "standup.org.next",
              "standup.org.prev":
             performStandup(command)
@@ -3090,6 +3131,7 @@ final class AppModel {
         case .dashboard: dashboard.board.shipped.map(\.id)
         case .mindmap: mindmap.siblings.map(\.id)
         case .standup: standup.rows.map(\.id)
+        case .telemetry: telemetry.board.rows.map(\.id)
         case .sessions, .goals: []
         default: itemIDs(list)
         }
@@ -3196,6 +3238,8 @@ final class AppModel {
         case .dashboard: setRow(dashboard.cursor + delta)
         case .mindmap: setRow(mindmap.cursor + delta)
         case .standup: setRow(standup.cursor + delta)
+        case .telemetry: setRow(telemetry.cursor + delta)
+        case .trace: telemetry.moveTurn(delta)
         case .goals: setRow(goals.rowCursor + delta)
         case .attention, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .autopilotDone: setRow(autopilotBrowser.doneCursor + delta)
@@ -3228,7 +3272,7 @@ final class AppModel {
         case .ledger: (ledger.rows.map { Calendar.current.startOfDay(for: $0.updatedAt).description }, ledger.cursor)
         case .dashboard: (dashboard.board.shipped.map(\.repo), dashboard.cursor)
         case .mindmap: (mindmap.siblings.map(\.kind.rawValue), mindmap.cursor)
-        case .standup: ([], 0)
+        case .standup, .telemetry, .trace: ([], 0)
         // Active, done and archived goals are groups.
         case .goals: goals.focus == .goals ? (goals.rows.map(\.status.rawValue), goals.cursor) : ([], 0)
         }
@@ -3262,6 +3306,8 @@ final class AppModel {
             mindmap.setCursor(index)
         } else if view == .standup {
             standup.setCursor(index)
+        } else if view == .telemetry {
+            telemetry.setCursor(index)
         } else if view == .goals {
             goals.setCursor(index)
         } else if view == .autopilotDone {
@@ -4025,6 +4071,9 @@ final class AppModel {
                 mindmap.setCursor(index)
             case .standup:
                 standup.setCursor(index)
+            case .telemetry:
+                telemetry.setCursor(index)
+                if thenInsert { perform(CommandInvocation(name: "telemetry.open")) }
             case .goals:
                 goals.setCursor(index)
                 if thenInsert { openGoalRow() }
@@ -4950,7 +4999,8 @@ final class AppModel {
             }
             return selectedHistory?.session.repos ?? []
         case .dashboard: return dashboard.selected?.pull.map { [$0.repo] } ?? []
-        case .standup: return []
+        case .standup, .trace: return []
+        case .telemetry: return []
         case .mindmap:
             return (mindmap.focused?.entry.flatMap { ledger.entries[$0] }?.repos ?? []).compactMap { slug in
                 let parts = slug.split(separator: "/", maxSplits: 1)
@@ -7113,6 +7163,8 @@ final class AppModel {
         case .dashboard: dashboard.setCursor(0)
         case .mindmap: mindmap.setCursor(0)
         case .standup: standup.setCursor(0)
+        case .telemetry: telemetry.setCursor(0)
+        case .trace: break
         case .goals: goals.setCursor(0)
         case .repos: repoCursor = 0
         case .attention, .prs, .watch: itemCursor[view] = 0
@@ -7132,6 +7184,8 @@ final class AppModel {
         case .dashboard: dashboard.board.shipped.count
         case .mindmap: mindmap.siblings.count
         case .standup: standup.rows.count
+        case .telemetry: telemetry.board.rows.count
+        case .trace: telemetry.trace?.turns.count ?? 0
         case .goals: goals.rows.count
         case .repos: worktreeRows.count
         case .attention, .prs, .watch: itemIDs(view).count
@@ -7246,7 +7300,7 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
-        case .log, .ledger, .dashboard, .mindmap, .standup, .goals, .autopilot, .autopilotDone:
+        case .log, .ledger, .dashboard, .mindmap, .standup, .telemetry, .trace, .goals, .autopilot, .autopilotDone:
             return nil
         case .autopilotWhere:
             return autopilotWhereRepo.map { repo in
@@ -8230,6 +8284,12 @@ final class AppModel {
         case .standup:
             state.cursor = standup.cursor
             state.rows = standup.rows.count
+        case .telemetry:
+            state.cursor = telemetry.cursor
+            state.rows = telemetry.board.rows.count
+        case .trace:
+            state.cursor = telemetry.traceTurn
+            state.rows = telemetry.trace?.turns.count ?? 0
         case .mindmap:
             state.cursor = mindmap.cursor
             state.rows = mindmap.siblings.count

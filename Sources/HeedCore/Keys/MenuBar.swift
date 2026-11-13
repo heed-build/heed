@@ -172,7 +172,7 @@ public enum MenuBar {
         /// The PR in front is open, or the session has an open PR.
         var openPull: Bool { facts.pull.map(\.open) ?? (hasRepo && (facts.session?.openPulls ?? 0) > 0) }
         var anyPull: Bool { facts.pull != nil || hasRepo && (facts.session?.pulls ?? 0) > 0 }
-        var historyViews: Set<String> { ["history", "ledger", "dashboard", "mindmap", "standup"] }
+        var historyViews: Set<String> { ["history", "ledger", "dashboard", "mindmap", "standup", "telemetry"] }
 
         func item(
             _ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true, checked: Bool = false,
@@ -254,6 +254,7 @@ public enum MenuBar {
                 session("Rename…", "session.rename"),
                 session("Let heed name it", "session.autoname"),
                 session("Next kind", "session.kind"),
+                session("Trace", "session.trace"),
                 session(
                     facts.session?.chat == true ? "New chat from its prompt" : "Start again from its prompt",
                     "work.again"
@@ -298,6 +299,7 @@ public enum MenuBar {
                 view("Ledger", "view.ledger", "ledger"),
                 view("Mindmap", "view.mindmap", "mindmap"),
                 view("Standup", "view.standup", "standup"),
+                view("OpenTelemetry", "history.telemetry", "telemetry"),
                 view("Goals", "view.goals", "goals"),
                 view("Call log", "view.log", "log"),
                 item("Hosts", "host.open"),
@@ -341,6 +343,22 @@ public enum MenuBar {
                     ("Ledger: edit the summary", "ledger.edit"), ("Mindmap", "history.mindmap"),
                     ("Standup", "history.standup"),
                 ], in: historyViews),
+                scoped("In OpenTelemetry", [
+                    ("Its session's trace", "telemetry.open"), ("Next range", "telemetry.range"),
+                    ("Next agent", "telemetry.agent"), ("Next repo", "telemetry.repo"), (
+                        "Next model",
+                        "telemetry.model"
+                    ),
+                    ("Next kinds", "telemetry.kind"), ("Live", "telemetry.live"),
+                    ("Stop forwarding through heed", "telemetry.proxy.off"), (
+                        "Hide the banner",
+                        "telemetry.banner.hide"
+                    ),
+                ], in: ["telemetry"]),
+                scoped("In a trace", [
+                    ("Next turn", "trace.turn.next"), ("Previous turn", "trace.turn.prev"),
+                    ("Next span", "trace.span.next"), ("Previous span", "trace.span.prev"),
+                ], in: ["trace"]),
                 scoped("In Autopilot", [
                     ("Turn on here", "autopilot.on"), ("Ask me first", "autopilot.ask"), ("Turn off", "autopilot.off"),
                     ("Turn on everywhere", "autopilot.everywhere"), ("Open", "autopilot.open"),

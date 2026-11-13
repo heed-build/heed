@@ -108,7 +108,7 @@ extension AppModel {
                 reopenable: row.session.map { id in history.contains { $0.id == id } } ?? false,
                 onGitHub: row.pull.map { $0.repo.org != "local" } ?? false
             )
-        case .mindmap, .standup:
+        case .mindmap, .standup, .telemetry, .trace:
             return []
         case .ledger:
             let rows = ledger.rows

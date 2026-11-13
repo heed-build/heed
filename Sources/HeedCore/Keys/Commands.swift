@@ -433,6 +433,61 @@ public enum Commands {
             "history.standup", "Insights' standup: your questions answered per org (again: back to the dashboard)",
             .views
         ),
+        .init(
+            "history.telemetry",
+            "Insights' OpenTelemetry: the agents' own spans, latency, waits and cost (again: back to the dashboard)",
+            .views
+        ),
+        .init(
+            "telemetry.range",
+            "OpenTelemetry: the next range (15 m, 1 h, 6 h, 24 h, 7 d), or one named (30m)",
+            .selection,
+            arguments: "[range]"
+        ),
+        .init(
+            "telemetry.agent",
+            "OpenTelemetry: only the next agent, then all again (or the one named)",
+            .selection,
+            arguments: "[agent]"
+        ),
+        .init(
+            "telemetry.repo",
+            "OpenTelemetry: only the next repo, then all again (or the one named)",
+            .selection,
+            arguments: "[repo]"
+        ),
+        .init(
+            "telemetry.model",
+            "OpenTelemetry: only the next model, then all again (or the one named)",
+            .selection,
+            arguments: "[model]"
+        ),
+        .init(
+            "telemetry.kind",
+            "OpenTelemetry: which spans the table lists: turns, tools, waits and model; all; one kind",
+            .selection, arguments: "[kind]"
+        ),
+        .init("telemetry.live", "OpenTelemetry: stop or start redrawing as spans arrive", .selection),
+        .init("telemetry.open", "OpenTelemetry: the span's session's trace, on its turn", .selection),
+        .init(
+            "telemetry.proxy.off",
+            "OpenTelemetry: stop forwarding agents you set up yourself through heed ([telemetry] proxy = false)",
+            .selection
+        ),
+        .init(
+            "telemetry.banner.hide",
+            "OpenTelemetry: put the forwarding banner away until heed starts again",
+            .selection
+        ),
+        .init(
+            "session.trace",
+            "a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back)",
+            .views, arguments: "[session]"
+        ),
+        .init("trace.turn.next", "trace: the next turn", .move),
+        .init("trace.turn.prev", "trace: the previous turn", .move),
+        .init("trace.span.next", "trace: the next span in the turn", .move),
+        .init("trace.span.prev", "trace: the previous span in the turn", .move),
         .init("standup.run", "standup: write a report for this org now", .selection),
         .init(
             "standup.copy",

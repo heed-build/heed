@@ -1,0 +1,8 @@
+{"resourceMetrics":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"claude-code"}}]},
+"scopeMetrics":[{"scope":{"name":"com.anthropic.claude_code"},"metrics":[
+{"name":"claude_code.cost.usage","unit":"USD","sum":{"aggregationTemporality":1,"isMonotonic":true,"dataPoints":[{"attributes":[{"key":"session.id","value":{"stringValue":"s9"}},{"key":"model","value":{"stringValue":"claude-sonnet-4-5"}}],"startTimeUnixNano":"1763030000000000000","timeUnixNano":"1763030060000000000","asDouble":0.042}]}},
+{"name":"claude_code.token.usage","unit":"tokens","sum":{"aggregationTemporality":"AGGREGATION_TEMPORALITY_DELTA","isMonotonic":true,"dataPoints":[
+{"attributes":[{"key":"session.id","value":{"stringValue":"s9"}},{"key":"model","value":{"stringValue":"claude-sonnet-4-5"}},{"key":"type","value":{"stringValue":"input"}}],"timeUnixNano":"1763030060000000000","asInt":"1500"},
+{"attributes":[{"key":"session.id","value":{"stringValue":"s9"}},{"key":"model","value":{"stringValue":"claude-sonnet-4-5"}},{"key":"type","value":{"stringValue":"cacheRead"}}],"timeUnixNano":"1763030060000000000","asInt":"9000"}]}},
+{"name":"claude_code.active_time.total","unit":"s","sum":{"aggregationTemporality":1,"dataPoints":[{"timeUnixNano":"1763030060000000000","asDouble":12.5}]}}
+]}]}]}

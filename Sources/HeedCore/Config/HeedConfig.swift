@@ -45,6 +45,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var usage = UsageSettings()
     /// `[log]`: how long the call log keeps each kind of call.
     public var log = CallRetention()
+    /// `[telemetry]`: heed's receiver for the agents' own OpenTelemetry, and how long it keeps what they send.
+    public var telemetry = TelemetrySettings()
     /// `[llm]`, and `llm` / `llm_model` in `[agents.<name>]`: heed's own model calls.
     public var llm = LLMSettings()
     /// `[decisions]`: who answers heed's typed questions (Settings › Decisions & Hunch).
@@ -116,6 +118,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.nudges == rhs.nudges,
             lhs.usage == rhs.usage,
             lhs.log == rhs.log,
+            lhs.telemetry == rhs.telemetry,
             lhs.llm == rhs.llm,
             lhs.decisions == rhs.decisions,
             lhs.hunch == rhs.hunch,
@@ -764,6 +767,14 @@ public enum ConfigLoader {
         if let days = integer(["log", "llm_days"], range: 1 ... 365) { config.log.llmDays = days }
         if let days = integer(["log", "decide_days"], range: 1 ... 365) { config.log.decideDays = days }
         if let rows = integer(["log", "max_rows"], range: 1000 ... 1_000_000) { config.log.maxRows = rows }
+        // [telemetry]
+        if let flag = bool(["telemetry", "enabled"]) { config.telemetry.enabled = flag }
+        if let port = integer(["telemetry", "port"], range: 1024 ... 65535) { config.telemetry.port = port }
+        if let days = integer(["telemetry", "days"], range: 1 ... 90) { config.telemetry.days = days }
+        if let rows = integer(["telemetry", "max_rows"], range: 1000 ... 2_000_000) { config.telemetry.maxRows = rows }
+        if let flag = bool(["telemetry", "tool_details"]) { config.telemetry.toolDetails = flag }
+        if let flag = bool(["telemetry", "prompts"]) { config.telemetry.prompts = flag }
+        if let flag = bool(["telemetry", "proxy"]) { config.telemetry.proxy = flag }
         // [llm]
         if let flag = bool(["llm", "enabled"]) { config.llm.enabled = flag }
         if let seconds = integer(["llm", "timeout_seconds"], range: 10 ... 900) { config.llm.timeoutSeconds = seconds }
@@ -1211,6 +1222,24 @@ public enum ConfigLoader {
     llm_days = 30
     decide_days = 30
     max_rows = 50000
+
+    [telemetry]
+    # The agents' own OpenTelemetry (Insights › OpenTelemetry, :trace): heed listens for OTLP/HTTP (JSON or protobuf)
+    # on 127.0.0.1 only, and starts claude and codex with their exporters pointed there. false: no receiver, no
+    # exporters, every agent as you set it up.
+    enabled = true
+    # An agent you already send telemetry from (OTEL_ variables in your shell, [otel] exporters in Codex's config) is
+    # pointed at heed too, and heed forwards every export unchanged to your collector, with your headers, which it never
+    # keeps. false: heed leaves such an agent alone. gRPC and Claude Code's settings env are always left alone.
+    proxy = true
+    port = 4318
+    # Kept this many days, and at most max_rows spans; pruned hourly.
+    days = 7
+    max_rows = 200000
+    # Ask Claude Code for each tool's details (the bash command, the file), so a span says what ran.
+    tool_details = true
+    # Ask the agents to include your prompts' text, so a turn reads by what you asked. It stays on this Mac.
+    prompts = false
 
     [llm]
     # heed's own short model calls (summaries, typed decisions), made headless through the agent CLIs you are logged

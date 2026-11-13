@@ -235,6 +235,7 @@ struct HistoryPage: View {
                 )
             }
         }
+        TelemetryCard(settings: config.telemetry)
         SettingsCard(title: "Call log", note: "How long the call log (:log) keeps each kind of call.") {
             days("log.shell_days", "shell_days", log.shellDays)
             days("log.github_read_days", "github_read_days", log.githubReadDays)
@@ -253,6 +254,58 @@ struct HistoryPage: View {
     private func days(_ id: String, _ key: String, _ value: Int) -> some View {
         SettingRow(id, unit: "days") {
             NumberField(path: ["log", key], value: value, unit: "days", range: 1 ... 365)
+        }
+    }
+}
+
+/// `[telemetry]`: the receiver, what it keeps, and per agent what heed adds to it (or why it leaves it alone).
+private struct TelemetryCard: View {
+    @Environment(AppModel.self) private var model
+    let settings: TelemetrySettings
+
+    var body: some View {
+        SettingsCard(
+            title: "OpenTelemetry",
+            note: "The agents' own spans, metrics and events (Insights › OpenTelemetry, :trace), received on "
+                + "127.0.0.1 only. An agent you already send telemetry from is forwarded on, unchanged, through heed."
+        ) {
+            SettingRow("telemetry.enabled") {
+                ConfigSwitch(path: ["telemetry", "enabled"], isOn: settings.enabled)
+            }
+            SettingRow("telemetry.proxy", indented: true) {
+                ConfigSwitch(path: ["telemetry", "proxy"], isOn: settings.proxy)
+            }
+            SettingRow("telemetry.port", indented: true) {
+                NumberField(
+                    path: ["telemetry", "port"], value: settings.port, range: 1024 ... 65535, width: 70
+                )
+            }
+            SettingRow("telemetry.days", unit: "days", indented: true) {
+                NumberField(path: ["telemetry", "days"], value: settings.days, unit: "days", range: 1 ... 90)
+            }
+            SettingRow("telemetry.max_rows", unit: "spans", indented: true) {
+                NumberField(
+                    path: ["telemetry", "max_rows"], value: settings.maxRows, unit: "spans",
+                    range: 1000 ... 2_000_000, step: 10000, width: 80
+                )
+            }
+            SettingRow("telemetry.tool_details", indented: true) {
+                ConfigSwitch(path: ["telemetry", "tool_details"], isOn: settings.toolDetails)
+            }
+            SettingRow("telemetry.prompts", indented: true) {
+                ConfigSwitch(path: ["telemetry", "prompts"], isOn: settings.prompts)
+            }
+            CardNote {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(TelemetryReceiverPill.state(model.telemetry).1)
+                    if let export = model.telemetry.export {
+                        ForEach(TelemetryExport.agents, id: \.self) { agent in
+                            Text("\(agent): \(export.summary(agent: agent))")
+                        }
+                        ForEach(model.telemetry.forwardingLines(), id: \.self) { Text($0) }
+                    }
+                }
+            }
         }
     }
 }

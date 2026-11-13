@@ -88,6 +88,9 @@ public struct AgentUsage: Codable, Hashable, Sendable {
     public var rateLimitResetsAt: Date?
     /// The last request counted, so one read again (the next hook reads the same transcript) is not counted twice.
     public var lastRequestID: String?
+    /// What the agent's own OpenTelemetry says the session cost so far (its requests' reported costs, summed). It
+    /// wins over `costUSD` and any estimate.
+    public var telemetryCostUSD: Double?
 
     public init(
         model: String? = nil, tokens: TokenCounts = TokenCounts(), costUSD: Double? = nil, contextTokens: Int? = nil,
@@ -103,7 +106,7 @@ public struct AgentUsage: Codable, Hashable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case model, tokens, costUSD, contextTokens, contextWindow, rateLimitResetsAt, lastRequestID
+        case model, tokens, costUSD, contextTokens, contextWindow, rateLimitResetsAt, lastRequestID, telemetryCostUSD
     }
 
     public init(from decoder: Decoder) throws {
@@ -115,6 +118,7 @@ public struct AgentUsage: Codable, Hashable, Sendable {
         contextWindow = try container.decodeIfPresent(Int.self, forKey: .contextWindow)
         rateLimitResetsAt = try container.decodeIfPresent(Date.self, forKey: .rateLimitResetsAt)
         lastRequestID = try container.decodeIfPresent(String.self, forKey: .lastRequestID)
+        telemetryCostUSD = try container.decodeIfPresent(Double.self, forKey: .telemetryCostUSD)
     }
 
     /// This usage with a report laid over it.
@@ -254,11 +258,11 @@ public struct UsageSettings: Equatable, Sendable {
         self.prices = prices
     }
 
-    /// The cost to show for `usage`: what the agent reported, else an estimate from the prices; nil when neither, or
-    /// costs are off.
+    /// The cost to show for `usage`: what the agent's OpenTelemetry reported, else what its hooks reported, else an
+    /// estimate from the prices; nil when none, or costs are off.
     public func cost(of usage: AgentUsage) -> Double? {
         guard showCost else { return nil }
-        return usage.costUSD ?? prices.estimate(usage)
+        return usage.telemetryCostUSD ?? usage.costUSD ?? prices.estimate(usage)
     }
 }
 

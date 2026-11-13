@@ -23,7 +23,7 @@ public extension Fixtures {
         /// A session from start to end: its worktree made, worked in, its PR, and what became of it.
         func life(
             _ id: String, _ repo: Repo, branch: String, startedAgo: Double, endedAgo: Double?, outcome: String?,
-            pr: Int? = nil, removed: Bool = true, saved: String? = nil, host: String? = nil
+            pr: Int? = nil, removed: Bool = true, saved: String? = nil, host: String? = nil, asked: Double? = nil
         ) -> [LoggedEvent] {
             let path = host == nil ? "\(wt)/\(repo.name)/\(branch)" : "/home/you/code/wt/\(branch)"
             var events = [
@@ -42,6 +42,12 @@ public extension Fixtures {
                 state(startedAgo * 0.5 + (endedAgo ?? 0) * 0.5, id, .working),
                 state(startedAgo * 0.2 + (endedAgo ?? 0) * 0.8, id, .done),
             ]
+            // A question its agent asked, and when you answered it (minutes after).
+            if let asked {
+                let at = startedAgo * 0.25 + (endedAgo ?? 0) * 0.75
+                events.append(event(at + asked, .questionAsked, session: id, repo: repo, host: host))
+                events.append(event(at, .questionAnswered, session: id, repo: repo, host: host))
+            }
             if let pr {
                 events.append(event(
                     startedAgo * 0.3 + (endedAgo ?? 0) * 0.7, .pullTracked, session: id, repo: repo, host: host,
@@ -97,7 +103,8 @@ public extension Fixtures {
             startedAgo: 190,
             endedAgo: 60,
             outcome: "merged",
-            pr: 2810
+            pr: 2810,
+            asked: 6
         )
         events += life(
             "h-fix-redirect-typos",
@@ -109,6 +116,7 @@ public extension Fixtures {
             pr: 1912
         )
         events.append(event(95, .sessionParked, session: "s6", repo: docsToolkit))
+        events.append(event(22, .questionAsked, session: "s2", repo: docsToolkit))
         events.append(event(14, .questionAnswered, session: "s2", repo: docsToolkit))
         events.append(event(
             145,
@@ -157,12 +165,19 @@ public extension Fixtures {
 
 public extension Fixtures {
     /// The dashboard's fake world: the timeline's events, and twelve weeks of invented work before them (weekdays
-    /// mostly, some weekends), so the heatmap and the shares have something to show. Deterministic.
+    /// mostly, some weekends): sessions started, worked, asked and answered, merged or not, and closed, so the
+    /// calendar, the bests and the scorecard have something to show. Something merged every day of the last two
+    /// weeks, the week before this one less than this one. Deterministic.
     static var dashboardEvents: [LoggedEvent] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Clock.now)
-        let repos = [docsToolkit, docsWebsite, editorRules, markgraph]
-        let agents = ["claude", "claude", "codex", "opencode"]
+        let repos = [docsToolkit, docsToolkit, docsWebsite, editorRules, markgraph, markgraph]
+        let agents = ["claude", "claude", "claude", "codex", "opencode"]
+        let titles = [
+            "Sequence arrowheads", "Gantt labels fit", "Snippet include cache", "Redirect map lint",
+            "Nav order from file", "Anchor ids survive moves", "Flowchart theme tokens", "Spec runner timeouts",
+            "Search index trims", "Table of contents depth", "Link checker retries", "Mermaid fence parsing",
+        ]
         var seed: UInt64 = 0x5EED
         func next(_ bound: Int) -> Int {
             seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
@@ -173,14 +188,20 @@ public extension Fixtures {
             guard let day = calendar.date(byAdding: .day, value: -back, to: today) else { continue }
             let weekday = calendar.component(.weekday, from: day)
             let weekend = weekday == 1 || weekday == 7
-            guard next(10) < (weekend ? 2 : 8) else { continue }
-            for index in 0 ..< 1 + next(3) {
+            let streak = back < 14
+            guard streak || next(10) < (weekend ? 2 : 8) else { continue }
+            // Two weeks ago, a swarm: five at once.
+            let count = back == 9 ? 5 : 1 + next(3)
+            for index in 0 ..< count {
                 let id = "d\(back)-\(index)"
                 let repo = repos[next(repos.count)]
                 let agent = agents[next(agents.count)]
-                let start = day.addingTimeInterval(TimeInterval(8 * 3600 + next(8) * 3600 + next(60) * 60))
+                let title = titles[next(titles.count)]
+                let hour = back == 9 ? 10 : 8 + next(8)
+                let start = day.addingTimeInterval(TimeInterval(hour * 3600 + next(60) * 60))
                 events.append(LoggedEvent(
-                    at: start, kind: .sessionStarted, session: id, repo: repo.slug, payload: ["agent": agent]
+                    at: start, kind: .sessionStarted, session: id, repo: repo.slug, text: title,
+                    payload: ["agent": agent]
                 ))
                 var at = start
                 for _ in 0 ..< 1 + next(4) {
@@ -196,14 +217,24 @@ public extension Fixtures {
                     at = at.addingTimeInterval(TimeInterval(5 + next(40)) * 60)
                 }
                 if next(3) == 0 {
+                    let waited = TimeInterval(2 + next(back < 7 ? 12 : 30)) * 60
+                    events.append(LoggedEvent(
+                        at: at.addingTimeInterval(-waited), kind: .questionAsked, session: id, repo: repo.slug
+                    ))
                     events.append(LoggedEvent(at: at, kind: .questionAnswered, session: id, repo: repo.slug))
                 }
-                if next(2) == 0 {
+                // The week before this one was quieter: only the streak's one merge a day.
+                let merged = (streak && index == 0) || (!(7 ..< 14).contains(back) && next(2) == 0)
+                if merged {
                     events.append(LoggedEvent(
                         at: at, kind: .pullMerged, session: id, repo: repo.slug,
                         subject: "\(repo.slug)#\(1000 + back * 3 + index)"
                     ))
                 }
+                let outcome = merged ? "merged" : (agent == "opencode" || next(3) == 0 ? "abandoned" : "closed")
+                events.append(LoggedEvent(
+                    at: at.addingTimeInterval(120), kind: .sessionClosed, session: id, repo: repo.slug, text: outcome
+                ))
             }
         }
         return events.sorted { $0.at > $1.at }

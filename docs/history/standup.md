@@ -4,7 +4,7 @@ description: Your own standup questions, answered on the days you choose, one re
 
 # Standup
 
-`U` in History (or `:standup`, `history.standup`) shows standup reports: your own questions answered from what the
+`U` in Insights (or `:standup`, `history.standup`) shows standup reports: your own questions answered from what the
 [Mindmap](mindmap.md) and the [ledger](ledger.md) hold. There is one report per Mindmap, so each org gets its own,
 and so does your personal work; nothing from one ever shows in another's.
 

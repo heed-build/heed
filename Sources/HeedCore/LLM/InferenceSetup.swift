@@ -79,7 +79,7 @@ public struct InferenceSetup: Equatable, Sendable {
 
     /// What needs a model call.
     public static let inferenceFeatures = [
-        "History's ledger summaries",
+        "Insights' ledger summaries",
         "Attention's thread summaries and drafted replies",
         "goal plans, edits, personas and walk-throughs",
         "finding new work's goal when the signals are unsure",

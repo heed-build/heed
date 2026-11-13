@@ -18,6 +18,7 @@ public enum CommandAliases {
         "prs",
         "watch",
         "repos",
+        "insights",
         "history",
         "timeline",
         "ledger",

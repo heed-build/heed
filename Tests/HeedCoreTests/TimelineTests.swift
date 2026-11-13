@@ -199,7 +199,7 @@ struct TimelineFixtureTests {
         let names = entries.compactMap { entry -> String? in
             if case let .item(item) = entry { item.command.name } else { nil }
         }
-        #expect(names == ["history.reopen", "timeline.kind", "history.timeline"])
+        #expect(names == ["history.reopen", "timeline.kind", "history.events"])
         let none = ContextMenus.timeline(id: "x", title: "t", kind: "prs", reopenable: false, onGitHub: true)
         #expect(!none
             .contains { if case let .item(item) = $0 { item.command.name == "history.reopen" } else { false } })

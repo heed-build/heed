@@ -18,10 +18,10 @@ enum ShotRegion: String, CaseIterable {
     case list, syncBanner
     case pipeline, delivery, promptPreview, reader
     case diffFiles, diffBody
-    case historyList, historyDetail
-    case timelineFilters, timelineList, timelineDetail
+    case historyFilters, historyList, historyDetail
     case ledgerList, ledgerDetail
-    case dashboardTiles, dashboardHeatmap, dashboardShares, dashboardRecent
+    case dashboardHeadline, dashboardTiles, dashboardShipped, dashboardBests, dashboardCalendar, dashboardAgents,
+         dashboardGoals
     case logList, logDetail, logUsage
     case pilotDetail, pilotActivity
     case attentionTabs, attentionList, attentionDetail, attentionCoverage, attentionSummary

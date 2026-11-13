@@ -67,7 +67,6 @@ struct DashboardTests {
         #expect(board.perDay.count == 7)
         // Yesterday 06:00–08:00, today 07:00–08:00.
         #expect(board.perDay[5] == 2 * 3600 && board.perDay[6] == 3600)
-        #expect(board.recent.map(\.id) == ["b", "a"])
         #expect(board.level(board.perDay[5]) == 4 && board.level(board.perDay[6]) == 2 && board.level(0) == 0)
     }
 
@@ -99,12 +98,117 @@ struct DashboardTests {
         #expect(noCost.tokens == 1200 && noCost.cost == nil)
     }
 
-    @Test func outcomesAreWords() {
-        let closed = HistoryEntry(session: session("c", agent: "claude", repo: "api"), closedAt: now, outcome: .merged)
-        var parked = session("p", agent: "claude", repo: "api")
-        parked.parked = true
-        #expect(Dashboard.outcome(closed.session, closed: closed, pulls: GitHubState()) == "merged")
-        #expect(Dashboard.outcome(parked, closed: nil, pulls: GitHubState()) == "parked")
+    @Test func theRangeIsSetAgainstTheOneBefore() {
+        let events = [
+            // This week: two merges, an hour of work; the week before: one merge, two hours.
+            event(2, .pullMerged, "a", subject: "acme/api#2"),
+            event(30, .pullMerged, "b", subject: "acme/api#3"),
+            event(24 * 9, .pullMerged, "c", subject: "acme/api#1"),
+            event(5, .state, "a", state: .working), event(4, .state, "a", state: .idle),
+            event(24 * 9, .state, "c", state: .working), event(24 * 9 - 2, .state, "c", state: .idle),
+            // Long ago: in neither.
+            event(24 * 30, .pullMerged, "z", subject: "acme/api#0"),
+        ]
+        let board = Dashboard.build(
+            events: events, sessions: [], closed: [], pulls: GitHubState(), days: 7, now: now, calendar: calendar
+        )
+        #expect(board.merged == 2 && board.mergedBefore == 1)
+        #expect(board.agentTime == 3600 && board.agentTimeBefore == 2 * 3600)
+        #expect(board.mergedPerDay.reduce(0, +) == 2 && board.mergedPerDay[6] == 1 && board.mergedPerDay[5] == 1)
+        #expect(DashboardWords.delta(Double(board.merged), Double(board.mergedBefore), percent: false) == "▲ 1")
+        #expect(DashboardWords.delta(board.agentTime, board.agentTimeBefore, percent: true) == "▼ 50%")
+        #expect(DashboardWords.delta(1, 0, percent: true) == nil && DashboardWords.delta(1, nil, percent: false) == nil)
+        let headline = board.headline
+        #expect(headline.lead + headline.figure + headline
+            .tail == "A good week: 2 PRs merged, 1 more than the week before.")
+        #expect(headline.detail.hasPrefix("Your agents worked 1 h 0 m."))
+        // The calendar is twelve weeks whatever the range, from a Monday to today.
+        #expect(calendar.component(.weekday, from: board.calendarStart) == 2)
+        #expect(board.calendar.count > 77 && board.calendar.count <= 84 && board.calendar.last == 3600)
+        #expect(board.calendar.reduce(0, +) == 3 * 3600)
+    }
+
+    @Test func streaksCountDaysInARowAndTodayWithoutOneDoesNotBreakIt() {
+        let today = calendar.startOfDay(for: now)
+        func day(_ back: Int) -> Date { calendar.date(byAdding: .day, value: -back, to: today)! }
+        let running: Set<Date> = [day(1), day(2), day(3), day(6)]
+        #expect(Dashboard.currentStreak(running, today: today, calendar: calendar) == 3)
+        #expect(Dashboard.currentStreak(running.union([today]), today: today, calendar: calendar) == 4)
+        #expect(Dashboard.currentStreak([day(2)], today: today, calendar: calendar) == 0)
+        let longest = Dashboard.longestStreak([day(10), day(9), day(8), day(3), day(2), day(1)], calendar: calendar)
+        #expect(longest.count == 3 && longest.from == day(10))
+        #expect(Dashboard.longestStreak([], calendar: calendar).count == 0)
+    }
+
+    @Test func mostAtOnceCountsOverlapsInsideTheWindowOnly() {
+        let intervals = [(at(10), at(5)), (at(8), at(6)), (at(7), at(6.5)), (at(6), at(1)), (at(30), at(20))]
+        let most = Dashboard.mostAtOnce(intervals, within: at(12) ... now)
+        #expect(most.count == 3 && most.at == at(7))
+        // One that ends as another starts does not overlap it.
+        #expect(Dashboard.mostAtOnce([(at(3), at(2)), (at(2), at(1))], within: at(5) ... now).count == 1)
+        #expect(Dashboard.mostAtOnce([(at(30), at(20))], within: at(12) ... now).count == 0)
+    }
+
+    @Test func waitsRunFromTheFirstQuestionToItsAnswer() {
+        let events = [
+            event(5, .questionAsked, "a"), event(4.9, .questionAsked, "a"), event(4.5, .questionAnswered, "a"),
+            event(3, .questionAsked, "b"), event(2.9, .questionAnswered, "b"),
+            // An answer with no question the log saw waited for nothing heed knows of.
+            event(2, .questionAnswered, "c"),
+            // Before the range.
+            event(24 * 8, .questionAsked, "d"), event(24 * 8 - 1, .questionAnswered, "d"),
+        ]
+        let waits = Dashboard.waits(events)
+        #expect(waits.map(\.session) == ["d", "a", "b"])
+        #expect(waits.map(\.wait) == [3600, 1800, 360])
+        let board = Dashboard.build(
+            events: events, sessions: [], closed: [], pulls: GitHubState(), days: 7, now: now, calendar: calendar
+        )
+        #expect(board.medianWait == (1800 + 360) / 2 && board.medianWaitBefore == 3600)
+        #expect(board.waited == 2160 && board.longestWait == 1800 && board.answered == 3)
+        #expect(Dashboard.median([3, 1, 2]) == 2 && Dashboard.median([]) == nil)
+    }
+
+    @Test func shippedTellsEachMergeWithItsTitleAgentAndHowLongItTook() {
+        let events = [
+            LoggedEvent(
+                at: at(10),
+                kind: .sessionStarted,
+                session: "a",
+                repo: "acme/api",
+                text: "Fix the toc",
+                payload: ["agent": "claude"]
+            ),
+            event(8, .pullMerged, "a", repo: "acme/api", subject: "acme/api#12"),
+            event(7, .pullMerged, "a", repo: "acme/api", subject: "acme/api#12"),
+            event(2, .pullMerged, nil, repo: "acme/web", subject: "acme/web#7"),
+            event(9, .sessionClosed, "a"),
+        ]
+        var closedEvent = events[4]
+        closedEvent.text = "merged"
+        let all = Array(events.prefix(4)) + [closedEvent, LoggedEvent(
+            at: at(6), kind: .sessionClosed, session: "x", text: "abandoned"
+        ), LoggedEvent(at: at(9.5), kind: .sessionStarted, session: "x", payload: ["agent": "codex"])]
+        var pulls = GitHubState()
+        pulls.pulls = [PullRequest(
+            ref: PullRef(repo: Repo(org: "acme", name: "web"), number: 7), title: "Web fix", url: "", state: .merged,
+            isDraft: false, headBranch: "fix", review: nil, checks: CheckSummary(), unresolvedThreads: 0, updatedAt: now
+        )]
+        let board = Dashboard.build(
+            events: all, sessions: [], closed: [], pulls: pulls, days: 7, now: now, calendar: calendar
+        )
+        #expect(board.shipped.map(\.ref) == ["acme/web#7", "acme/api#12"])
+        #expect(board.shipped.map(\.title) == ["Web fix", "Fix the toc"])
+        #expect(board.shipped[1].agent == "claude" && board.shipped[1].took == 2 * 3600)
+        #expect(board.shipped[1].pull == PullRef(repo: Repo(org: "acme", name: "api"), number: 12))
+        #expect(board.shipped[0].took == nil && board.fastest == 2 * 3600)
+        #expect(board.agents.map(\.agent) == ["claude", "codex"])
+        #expect(board.agents[0].merged == 1 && board.agents[1].abandoned == 1 && board.agents[1].ended == 1)
+        // Bests: the fastest merge and the busiest day (two merged today), both from this week.
+        #expect(board.bests.map(\.kind) == [.fastestMerge, .mostAtOnce, .mostInADay])
+        #expect(board.bests[0].value == "2 h" && board.bests[0].detail == "Fix the toc, today" && board.bests[0]
+            .current)
+        #expect(board.bests[1].value == "2 sessions")
     }
 }
 
@@ -128,5 +232,52 @@ struct DashboardFixtureTests {
         // The ledger's biggest entry is part of it.
         let toc = try #require(Fixtures.ledger.first { $0.id == "h-fix-toc-ordering" }?.usage)
         #expect(board.tokens >= toc.tokens.allInput + toc.tokens.output)
+    }
+}
+
+/// The dashboard's goals: those that moved in the range, and what the one closest to done still lacks.
+struct DashboardGoalsTests {
+    private let now = Date(timeIntervalSince1970: 1_800_000_000)
+    private func at(_ days: Double) -> Date { now.addingTimeInterval(-days * 86400) }
+
+    private func quality(_ score: Double?, done: Bool = false, missing: [String] = [], doneAt: Date? = nil)
+        -> GoalQuality
+    {
+        var quality = GoalQuality.empty
+        quality.confidence = score.map { GoalScore(value: $0, basis: "") }
+        quality.done = (done, missing)
+        quality.doneAt = doneAt
+        return quality
+    }
+
+    @Test func movedIsWhatCameInOrWasDoneInTheRange() {
+        let goals = [
+            HeedGoal(id: "nav", title: "One docs nav model", status: .done, createdAt: at(40)),
+            HeedGoal(id: "anchors", title: "Anchors survive page moves", createdAt: at(30)),
+            HeedGoal(id: "quiet", title: "Nothing happened", createdAt: at(30)),
+            HeedGoal(id: "gone", title: "Archived", status: .archived, createdAt: at(30)),
+        ]
+        let evidence = [
+            GoalEvidence(goal: "anchors", kind: .merged, at: at(1), source: "acme/docs#1"),
+            GoalEvidence(goal: "anchors", kind: .codeReview, at: at(2), source: "reviewer"),
+            GoalEvidence(goal: "anchors", kind: .pr, state: .inProgress, at: at(2), source: "acme/docs#2"),
+            GoalEvidence(goal: "quiet", kind: .merged, at: at(20), source: "acme/docs#0"),
+            GoalEvidence(goal: "gone", kind: .merged, at: at(1), source: "acme/docs#3"),
+        ]
+        let qualities = [
+            "nav": quality(10, done: true, doneAt: at(3)),
+            "anchors": quality(5.6, missing: ["2 criteria without evidence", "Docs 5.6 under 7"]),
+            "quiet": quality(8, missing: ["Perf – under 6"]),
+        ]
+        let moved = DashboardGoals.moved(
+            goals: goals, evidence: evidence, qualities: qualities, since: at(7), now: now
+        )
+        #expect(moved.map(\.id) == ["nav", "anchors"])
+        #expect(moved[0].done && moved[0].score == 10)
+        #expect(moved[1].steps == 2 && moved[1].merged == 1 && moved[1].score == 5.6)
+        // Next: the active goal closest to done that still lacks something.
+        let next = DashboardGoals.next(goals: goals, qualities: qualities)
+        #expect(next?.goal == "quiet" && next?.missing == ["Perf – under 6"])
+        #expect(DashboardGoals.next(goals: [], qualities: qualities) == nil)
     }
 }

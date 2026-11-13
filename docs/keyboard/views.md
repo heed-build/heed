@@ -17,15 +17,16 @@ Heed has six views, named along the top with their keys. Every view key starts w
 | `gp` | [Attention](../github/attention.md), on My PRs |
 | `gw` | [Watch](../github/watch.md) |
 | `gr` | [Repos](../worktrees/index.md) |
-| `gh` | [History](../history/index.md) |
+| `gh` | [Insights](../history/index.md), on its [dashboard](../history/dashboard.md) |
 
 Clicking a view's name works too, and `:attention`, `:watch` and the rest switch by name. The middle of the title bar
 shows what you are looking at: the session's branch and PR, or the item under the cursor. On narrow windows the view
 keys are hidden first, never the names.
 
-In History, `T`, `L` and `D` show its [timeline](../history/timeline.md), [ledger](../history/ledger.md) and
-[dashboard](../history/dashboard.md), from any of them; the History tab stays lit, and the tab strip under it says
-which one shows.
+In Insights, `D`, `L`, `M` and `U` show its [dashboard](../history/dashboard.md), [ledger](../history/ledger.md),
+[Mindmap](../history/mindmap.md) and [standups](../history/standup.md) from any of them, and the same key again
+[History](../history/index.md#history); the Insights tab stays lit, and the tab strip under it says which one shows.
+`view.history`, the name `gh` had before, still opens Insights.
 
 Some views have no key and no name along the top, and are reached by name:
 

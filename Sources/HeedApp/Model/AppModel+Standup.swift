@@ -57,7 +57,7 @@ extension AppModel {
     }
 
     private func notifyStandup(_ report: StandupReport) {
-        flash = "standup for \(MindmapInstance.title(report.instance)) is ready (History › Standup)"
+        flash = "standup for \(MindmapInstance.title(report.instance)) is ready (Insights › Standup)"
         let first = report.answers.first.map { "\($0.question) \($0.text)" } ?? ""
         Notifier.shared.announceStandup(
             instance: report.instance, title: "Standup for \(MindmapInstance.title(report.instance))",
@@ -65,7 +65,7 @@ extension AppModel {
         )
     }
 
-    /// A standup notification's Open: History › Standup on that org's report.
+    /// A standup notification's Open: Insights › Standup on that org's report.
     func showStandup(instance: String) {
         view = .standup
         standup.instance = instance

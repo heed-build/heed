@@ -412,7 +412,7 @@ extension SettingsCatalog {
         ) { .integer($0.summaryAwayHours) },
         global(
             "mindmap.enabled", .history, "Mindmap", "Mindmap",
-            "Group finished work into History's Mindmap: one per GitHub org, and one for your personal work, never "
+            "Group finished work into Insights' Mindmap: one per GitHub org, and one for your personal work, never "
                 + "mixed.",
             since: "0.36.0"
         ) { .bool($0.mindmap.enabled) },

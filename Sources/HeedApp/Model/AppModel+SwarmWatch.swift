@@ -434,7 +434,7 @@ extension AppModel {
                     + "--decision TEXT --follow-up TEXT."
             )
             say("swarm \(swarm.number) on \(goal.title) is done: its summary is on the goal's swarm "
-                + "(\(keyText(for: "goal.agents", in: "goals"))) and in History's ledger")
+                + "(\(keyText(for: "goal.agents", in: "goals"))) and in Insights' ledger")
         }
     }
 

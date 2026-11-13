@@ -10,8 +10,8 @@ Keep an eye on every agent.
 Heed is a native macOS app for working with coding agents. It runs agents and shells in real terminals, gives each
 task its own git worktree, and keeps the GitHub issues and pull requests around that task in view. It tells you which
 agent needs you, and it gets you there in a keystroke. Everything else that wants you, on GitHub or from an agent, is
-one feed: Attention. Work that outlives a session has a goal. What ended stays in History, with a timeline, a short
-summary of each piece of work and a dashboard.
+one feed: Attention. Work that outlives a session has a goal. What ended stays in Insights: a dashboard of what
+shipped, History with each piece of work's story, and a short summary of each.
 
 ![The Sessions view: sessions grouped by what they need, an agent and a shell side by side, the inspector on the right](images/shots/home/sessions.png)
 
@@ -53,6 +53,6 @@ Goals.
 | [GitHub](github/index.md) | Attention and its rules, pull requests watched until green and merged, and review feedback fed back to the agent. |
 | [Worktrees](worktrees/index.md) | Every worktree of every repo, set up before the agent starts, removed when quiet. |
 | [Goals](goals/index.md) | Work that outlives a session: `GOAL.md`, items on a board, reviewers and quality bars, personas, evaluations, the `heed goal` command and the GitHub mirror. |
-| [History](history/index.md) | What ended: outcomes, a timeline by day, a ledger of summaries, a dashboard, and reopening. |
+| [Insights](history/index.md) | A dashboard of what shipped, History with each piece of work's story, a ledger of summaries, and reopening. |
 | [Keyboard](keyboard/index.md) | Every key, how keys work, and how to change them. |
 | [Configuration](configuration/index.md) | `config.toml`, the Settings window, and every key with its default. |

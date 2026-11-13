@@ -429,6 +429,11 @@ public enum Commands {
         ),
         .init("goal.ask.ignore", "leave things like this on no goal, and heed learns to (an ignore rule)", .selection),
         .init(
+            "goal.unassigned.how",
+            "Unassigned: show or hide how heed puts work on goals (shown on its own only while nothing waits for you)",
+            .selection
+        ),
+        .init(
             "goal.attach.undo",
             "take heed's last attachment off again, and heed learns it (a never rule)",
             .selection

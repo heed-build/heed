@@ -2597,6 +2597,7 @@ final class AppModel {
         case "goal.undo": undoGoalEdit()
         case "goal.sharpen": sharpenGoal()
         case "goal.unassigned": showUnassigned()
+        case "goal.unassigned.how": toggleUnassignedHow()
         case "goal.ask.yes": answerGoalYes()
         case "goal.ask.no": answerGoalNo()
         case "goal.ask.move": answerGoalMove(command.arguments)

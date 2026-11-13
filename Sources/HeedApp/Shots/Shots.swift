@@ -638,6 +638,38 @@ enum Shots {
         Shot(id: "history/standup", keys: "ghU"),
         Shot(id: "history/mindmap-inside", keys: "ghMjl"),
         Shot(id: "history/ledger", keys: "ghL"),
+        // OpenTelemetry (T): the agents' own spans as an observability view, the wait going on now on top.
+        Shot(id: "history/telemetry", size: CGSize(width: 1600, height: 1000), keys: "ghT"),
+        // The span query: only bash calls that failed.
+        Shot(
+            id: "history/telemetry-query", size: CGSize(width: 1600, height: 1000),
+            keys: "ghT/tool:bash<Space>status:error<CR>"
+        ),
+        Shot(
+            id: "history/telemetry-tiles",
+            size: CGSize(width: 1600, height: 1000),
+            keys: "ghT",
+            crop: .telemetryTiles
+        ),
+        Shot(
+            id: "history/telemetry-panels", size: CGSize(width: 1600, height: 1000), keys: "ghT", crop: .telemetryPanels
+        ),
+        // The second span's trace, under the table.
+        Shot(
+            id: "history/telemetry-trace",
+            size: CGSize(width: 1600, height: 1000),
+            keys: "ghTjj",
+            crop: .telemetryTrace
+        ),
+        // A session's trace (t on Fix broken anchors): its last three turns, the run of dotnet test selected.
+        Shot(
+            id: "history/trace",
+            keys: "kll",
+            prepare: { $0.perform(CommandInvocation(name: "session.trace", arguments: ["s1"])) }
+        ),
+        Shot(id: "history/trace-detail", keys: "kll", crop: .traceDetail, prepare: { model in
+            model.perform(CommandInvocation(name: "session.trace", arguments: ["s1"]))
+        }),
         // The abandoned spike: its follow-up, the agent time an estimate.
         Shot(id: "history/ledger-detail", keys: "ghLjjj"),
     ]
@@ -975,7 +1007,7 @@ enum Shots {
         ),
         // History with advanced settings shown, tall enough for the call log's retention at its foot.
         Shot(
-            id: "configuration/settings-history", subject: .settings(.history), size: CGSize(width: 1080, height: 1300),
+            id: "configuration/settings-history", subject: .settings(.history), size: CGSize(width: 1080, height: 1750),
             prepare: { $0.settingsFilter.showAdvanced = true }
         ),
         // Orgs & repos at the Settings window's default width, a shot per tab, and at its minimum width on the longest

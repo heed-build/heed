@@ -113,7 +113,7 @@ public enum DefaultKeys {
             ("e", "history.events"),
             ("r", "timeline.repo"), ("w", "timeline.where"), ("K", "timeline.kind"), ("c", "timeline.gone"),
             ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"),
-            ("M", "history.mindmap"), ("U", "history.standup"),
+            ("M", "history.mindmap"), ("U", "history.standup"), ("T", "history.telemetry"),
         ],
         // Insights' ledger (L, :ledger); L again goes back to the dashboard.
         "ledger": [
@@ -122,6 +122,7 @@ public enum DefaultKeys {
                 "history.standup"
             ),
             ("R", "history.reopen"), ("<CR>", "history.reopen"), ("S", "ledger.summarize"), ("E", "ledger.edit"),
+            ("T", "history.telemetry"),
         ],
         // Insights' dashboard (gh, D, :dashboard), where Insights opens: j k move through what shipped, ↩ reads its PR.
         "dashboard": [
@@ -129,13 +130,29 @@ public enum DefaultKeys {
                 "U",
                 "history.standup"
             ),
-            ("R", "history.reopen"), ("r", "dashboard.range"),
+            ("R", "history.reopen"), ("r", "dashboard.range"), ("T", "history.telemetry"),
         ],
         // Insights' standup reports (U, :standup); U again goes back to the dashboard.
         "standup": [
             ("H", "history.list"), ("U", "history.standup"), ("L", "history.ledger"), ("D", "history.dashboard"),
             ("M", "history.mindmap"), ("y", "standup.copy"), ("Y", "standup.copy.all"), ("t", "standup.question"),
-            ("]o", "standup.org.next"), ("[o", "standup.org.prev"), ("S", "standup.run"),
+            ("]o", "standup.org.next"), ("[o", "standup.org.prev"), ("S", "standup.run"), ("T", "history.telemetry"),
+        ],
+        // Insights' OpenTelemetry (T, :telemetry): j k move through the spans, ↩ opens the span's session's trace; r a
+        // p
+        // m K narrow by range, agent, repo, model and kind, l stops and starts live updates; T again: the dashboard.
+        "telemetry": [
+            ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"),
+            ("U", "history.standup"), ("T", "history.telemetry"), ("<CR>", "telemetry.open"),
+            ("r", "telemetry.range"), ("a", "telemetry.agent"), ("p", "telemetry.repo"), ("m", "telemetry.model"),
+            ("K", "telemetry.kind"), ("l", "telemetry.live"),
+        ],
+        // A session's trace (t on a session, :trace): j k turns, h l spans in the turn; t or ⎋ goes back.
+        "trace": [
+            ("j", "trace.turn.next"), ("k", "trace.turn.prev"), ("<Down>", "trace.turn.next"),
+            ("<Up>", "trace.turn.prev"), ("h", "trace.span.prev"), ("l", "trace.span.next"),
+            ("<Left>", "trace.span.prev"), ("<Right>", "trace.span.next"), ("t", "session.trace"),
+            ("<Esc>", "session.trace"),
         ],
         // Insights' Mindmap (M, :mindmap): j k move among siblings, h l out and in; M again goes back to the dashboard.
         "mindmap": [
@@ -148,7 +165,7 @@ public enum DefaultKeys {
             ("p", "mindmap.pin"), (">", "mindmap.nest"), ("<", "mindmap.lift"), ("r", "mindmap.rename"),
             ("m", "mindmap.move"), ("J", "mindmap.join"), ("S", "mindmap.name"), ("<CR>", "mindmap.open"),
             ("s", "mindmap.session"), ("]l", "mindmap.link.next"), ("[l", "mindmap.link.prev"),
-            ("n", "mindmap.goal"),
+            ("n", "mindmap.goal"), ("T", "history.telemetry"),
         ],
         // Goals (gG): j k move through the goals, ⇥ to what belongs to the one under the cursor, ↩ opens.
         "goals": goals,
@@ -305,7 +322,7 @@ public enum DefaultKeys {
     static let sessions: [(String, String)] = [
         ("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path"),
         ("<CR>", "session.agent"), ("T", "sessions.sort"), ("zG", "sessions.group"), ("zR", "sessions.rows"),
-        ("R", "session.rename"), ("K", "session.kind"), ("X", "sessions.close.ready"),
+        ("R", "session.rename"), ("K", "session.kind"), ("X", "sessions.close.ready"), ("t", "session.trace"),
     ]
 
     /// A helper's split: steering, pausing, stopping, zooming and closing it; its permission asks; its close-out.

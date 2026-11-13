@@ -72,6 +72,13 @@ struct MainWindow: View {
                             HistoryPaneBar().shotRegion(.historyPaneBar)
                             StandupView()
                         }
+                    case .telemetry:
+                        VStack(spacing: 0) {
+                            HistoryPaneBar().shotRegion(.historyPaneBar)
+                            TelemetryView()
+                        }
+                    case .trace:
+                        TraceView()
                     case .goals:
                         GoalsView()
                     }
@@ -425,6 +432,13 @@ struct StatusBar: View {
         case .standup:
             let rows = model.standup.rows
             return "\(rows.isEmpty ? 0 : model.standup.cursor + 1)/\(rows.count)"
+        case .telemetry:
+            let rows = model.telemetry.board.rows
+            return TelemetryFilter.label(model.telemetry.filter.range)
+                + " · \(rows.isEmpty ? 0 : model.telemetry.cursor + 1)/\(rows.count) spans"
+        case .trace:
+            let turns = model.telemetry.trace?.turns.count ?? 0
+            return "turn \(turns == 0 ? 0 : model.telemetry.traceTurn + 1)/\(turns)"
         case .mindmap:
             let rows = model.mindmap.siblings
             return "\(rows.isEmpty ? 0 : model.mindmap.cursor + 1)/\(rows.count)"
@@ -553,6 +567,21 @@ struct StatusBar: View {
                 ("standup.org.next", "org"), ("standup.run", "write now"), ("history.list", "History"),
             ]
             .map { "\(model.keyText(for: $0.0, in: "standup")) \($0.1)" }.joined(separator: " · ")
+        case .normal where model.view == .telemetry:
+            "\(key("history.telemetry", in: "telemetry")) telemetry · \(key("session.filter", in: "telemetry")) filter spans · "
+                + "\(key("row.next", "row.prev", in: "telemetry")) span · "
+                + [
+                    ("telemetry.open", "its session's trace"), ("telemetry.range", "range"), (
+                        "telemetry.agent",
+                        "agent"
+                    ),
+                    ("telemetry.repo", "repo"), ("telemetry.kind", "kind"), ("telemetry.live", "live"),
+                ]
+                .map { "\(model.keyText(for: $0.0, in: "telemetry")) \($0.1)" }.joined(separator: " · ")
+        case .normal where model.view == .trace:
+            "\(key("trace.turn.next", "trace.turn.prev", in: "trace")) turn · "
+                + "\(key("trace.span.prev", "trace.span.next", in: "trace")) span · "
+                + "\(key("session.trace", in: "trace")) back"
         case .normal where model.view == .mindmap:
             [
                 ("mindmap.out", "out"), ("mindmap.in", "in"), ("mindmap.accept", "keep"), ("mindmap.move", "move"),

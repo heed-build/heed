@@ -45,6 +45,9 @@ public enum CommandAliases {
         Alias(name: "q", runs: "app.quit", arguments: nil),
         Alias(name: "quit", runs: "app.quit", arguments: nil),
         Alias(name: "update", runs: "update.check", arguments: nil),
+        Alias(name: "telemetry", runs: "history.telemetry", arguments: nil),
+        Alias(name: "otel", runs: "history.telemetry", arguments: nil),
+        Alias(name: "trace", runs: "session.trace", arguments: "[session]"),
     ] + views.map { Alias(name: $0, runs: "view \($0)", arguments: nil) }
 
     public static func resolve(_ line: String) -> CommandInvocation {
@@ -65,6 +68,8 @@ public enum CommandAliases {
         case "skip": return CommandInvocation(name: "tutor.skip")
         case "q", "quit": return CommandInvocation(name: "app.quit")
         case "update": return CommandInvocation(name: "update.check")
+        case "telemetry", "otel": return CommandInvocation(name: "history.telemetry")
+        case "trace": return CommandInvocation(name: "session.trace", arguments: args)
         default:
             if views.contains(typed.name) { return CommandInvocation(name: "view", arguments: [typed.name]) }
             if let current = Commands.renamed[typed.name] { return CommandInvocation(name: current, arguments: args) }

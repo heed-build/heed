@@ -3,7 +3,8 @@
 /// wherever you are.
 public enum HistoryPaneTabs {
     public struct Tab: Hashable, Sendable, Identifiable {
-        /// The view's name (`AppView`'s raw value): `history`, `ledger`, `dashboard`, `mindmap`, `standup`.
+        /// The view's name (`AppView`'s raw value): `history`, `ledger`, `dashboard`, `mindmap`, `standup`,
+        /// `telemetry`.
         public var pane: String
         public var title: String
         public var command: String
@@ -39,6 +40,7 @@ public enum HistoryPaneTabs {
         ("ledger", "Ledger", "history.ledger"),
         ("mindmap", "Mindmap", "history.mindmap"),
         ("standup", "Standup", "history.standup"),
+        ("telemetry", "OpenTelemetry", "history.telemetry"),
     ]
 
     public static func tabs(counts: Counts = Counts()) -> [Tab] {

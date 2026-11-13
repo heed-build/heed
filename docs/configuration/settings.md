@@ -174,7 +174,7 @@ as it is when you pick another org or repo, and when you quit and reopen heed.
 
 | Tab | What it holds |
 |---|---|
-| **General** | Color, issues, the setup new worktrees run, the goal tracker and mirroring, watching PRs, and a repo's tasks (shown here, edited in the file) |
+| **General** | Color, the setup new worktrees run, the goal tracker and mirroring, watching PRs, and a repo's tasks (shown here, edited in the file) |
 | **Get it green** | Whether get it green runs, when it stops, where its runs go, and the agents, models and efforts for its runs and for merge conflicts |
 | **Get it merged** | Whether and how PRs merge, what heed waits for before it merges (quiet time, gate checks, hold labels), and merging by hand (merge now, force merge) |
 | **Reviews** | Reviewers asked on each PR, AI reviewers whose review counts as an approval, self-review, and what Copilot is asked to fix |

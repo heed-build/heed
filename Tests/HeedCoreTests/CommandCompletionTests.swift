@@ -54,7 +54,6 @@ struct CommandCompletionTests {
         context.hosts = ["devbox"]
         context.agents = ["claude", "codex"]
         context.mergeRepos = ["acme/api"]
-        context.issueRepos = ["api"]
 
         #expect(CommandCompletions.candidates("view ", context).map(\.label) == CommandAliases.views)
         #expect(CommandCompletions.candidates("view w", context).map(\.line) == ["view watch"])
@@ -80,7 +79,6 @@ struct CommandCompletionTests {
         #expect(grace.first?.line == "settings.find grace")
         #expect(CommandCompletions.candidates("pilot.pause ", context).map(\.label).contains("forever"))
         #expect(CommandCompletions.candidates("merge.run ", context).map(\.label) == ["acme/api", "all"])
-        #expect(CommandCompletions.candidates("issues.repo ", context).map(\.label) == ["api"])
         #expect(CommandCompletions.candidates("tutor.hide ", context).map(\.label) == ["all"])
         #expect(CommandCompletions.candidates("tutor ", context).map(\.label).contains("tour"))
         #expect(CommandCompletions.candidates("tutor ", context).map(\.label).contains("sessions"))

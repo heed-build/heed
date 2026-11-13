@@ -19,7 +19,6 @@ status (upstream, ahead, behind, uncommitted changes) and its pull request.
 | `dd` | [Remove](removing.md) the worktree (asks first) |
 | `v` | Select rows, then `d` remove, `y` copy paths, `o` open or import |
 | `S` | The repo's detected [setup](setup.md): approve, edit or never |
-| `w` | Flip the repo between all issues and only yours ([Issues](../github/issues.md)) |
 | `r` | Refresh: rescan for repos |
 | `:repo.add <path>` | Add a repo outside the scanned folders; it is kept in `repo_paths` |
 | `:cleanup.rules` | Show the cleanup rules panel (it hides on narrow windows and with `zi`) |

@@ -6,9 +6,6 @@ public enum Fixtures {
     /// `resume` is `main` opening on the resume dialog (the app handles that name).
     public static let names = ["main", "empty", "resume", "pr-storm", "fresh-repos", "chats"]
 
-    /// What the fixtures' config would say about issues: docs-toolkit and the globex org show all of them.
-    public static let issueRules = IssueRules(orgs: ["globex": .all], repos: ["acme/docs-toolkit": .all])
-
     /// Org and repo overrides for Settings › Orgs & repos. Only markgraph's shows elsewhere: it asks for GitHub's
     /// auto-merge, which that repo does not allow, so its PR reads "Merging misconfigured".
     public static let pilotRules: PilotRules = {
@@ -29,7 +26,7 @@ public enum Fixtures {
 
     /// `[repos."org/name"]` tables the fake world's config.toml has beyond the overrides above.
     public static let repoConfigs: [String: HeedConfig.RepoConfig] = [
-        longNamedRepo.slug: HeedConfig.RepoConfig(color: nil, issues: nil, tasks: []),
+        longNamedRepo.slug: HeedConfig.RepoConfig(color: nil, tasks: []),
     ]
 
     /// Goal trackers: acme's goals mirror to acme/planning, docs-toolkit's to a tracker of its own.
@@ -919,27 +916,6 @@ public enum Fixtures {
                 author: nil,
                 updatedAt: ago(300),
                 assigned: true
-            ),
-            // Shown because docs-toolkit shows all issues, not because it involves you.
-            Issue(
-                repo: docsToolkit,
-                number: 2851,
-                title: "Support nested includes in snippets",
-                url: "",
-                body: "Snippets cannot include other snippets yet.",
-                labels: ["enhancement"],
-                author: "contributor",
-                updatedAt: ago(400)
-            ),
-            Issue(
-                repo: markgraph,
-                number: 12,
-                title: "Arrow heads render detached at small zoom",
-                url: "",
-                body: "",
-                labels: ["bug"],
-                author: "someone",
-                updatedAt: ago(900)
             ),
         ]
         let pulls = [

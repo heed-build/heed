@@ -82,7 +82,7 @@ case-insensitively.
 | `team:acme/docs-eng` | It came through that team: the team mentioned, or asked to review. `team:?` matches a team mention whose team heed could not work out |
 | `review` | A review was requested; `requested:me` of you yourself, `requested:team` of one of your teams |
 | `assigned` | Assigned to you, assignments from before included |
-| `ci`, `mine`, `changes`, `threads`, `mergeable`, `comment`, `subscribed`, `watching` | The reason it is there: CI failed, your PR, changes requested, unresolved threads, ready to merge (with merging off), ... |
+| `ci`, `mine`, `changes`, `threads`, `mergeable`, `comment`, `subscribed` | The reason it is there: CI failed, your PR, changes requested, unresolved threads, ready to merge (with merging off), ... |
 | `agent blocked\|asking\|limited` | An agent in one of those states; `agent` alone, any agent |
 | `proposals` | A goal with changes to its `GOAL.md` waiting for you ([Goals](../goals/items.md#in-attention)) |
 | `author maria`, `author me` | Who opened it |

@@ -123,7 +123,11 @@ public enum Commands {
             .views, arguments: "[filter]"
         ),
         .init("view.inbox", "Attention's Everything tab, where the inbox went", .views),
-        .init("view.issues", "issues", .views),
+        .init(
+            "view.issues",
+            "Attention's issues: assigned to you or mentioning you, where the Issues view went",
+            .views
+        ),
         .init("view.prs", "pull requests", .views),
         .init("view.watch", "watch: the PRs your sessions track, what heed does for each and has done", .views),
         .init("view.repos", "repos & worktrees", .views),
@@ -199,7 +203,7 @@ public enum Commands {
         .init("links.pick", "pick one of the session's PRs and issues to open in the browser", .views),
         .init("issue.add", "link an issue to the session (its URL, or the copied one)", .views, arguments: "[url]"),
         .init("issue.remove", "take an issue off the session", .views, arguments: "[url]"),
-        .init("open.reader", "read inbox item, issue or PR", .views),
+        .init("open.reader", "read the item, issue or PR", .views),
         .init("cleanup.rules", "show the cleanup rules (Repos, with its rules panel)", .views),
         .init("cleanup.sweep", "run the cleanup sweep now", .views),
         .init("inspector.toggle", "collapse / expand the inspector", .views),
@@ -723,8 +727,6 @@ public enum Commands {
         .init("github.sync", "sync GitHub now", .selection),
         .init("items.start", "start one session from the picked items", .selection),
         .init("items.add", "add the picked items to the current session", .selection),
-        .init("items.read", "mark read", .selection),
-        .init("items.filter", "cycle the filter chips", .selection),
         .init(
             "attention.done", "done: mark the thread read on GitHub; it comes back when something new happens",
             .selection
@@ -758,10 +760,6 @@ public enum Commands {
             "attention.coverage", "Coverage: what Attention has of each source against GitHub, and where it went",
             .selection
         ),
-        .init("issues.repo.next", "next repo in the Issues repo column", .selection),
-        .init("issues.repo.prev", "previous repo in the Issues repo column", .selection),
-        .init("issues.repo", "show one repo's issues (no name: every repo)", .selection, arguments: "[name]"),
-        .init("issues.visibility", "flip the repo under the cursor between all issues and only yours", .selection),
         .init("feedback.queue", "queue / unqueue the item", .selection),
         .init("feedback.send", "send queued feedback to the session", .selection),
         .init("feedback.mode", "pilot.green, by its former name", .selection),

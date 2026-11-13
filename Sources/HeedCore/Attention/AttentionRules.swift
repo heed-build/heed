@@ -227,14 +227,17 @@ public struct AttentionRules: Hashable, Sendable {
         "mergeable": [.readyToMerge],
         "comment": [.comment],
         "subscribed": [.subscribed],
-        "watching": [.watching],
         "proposals": [.goalProposals],
         "attach": [.goalAttach],
     ]
 
+    /// Words that are not rule inputs: not yet, or no longer. A line using one is a problem with this note, and the
+    /// other lines still apply.
     static let notYet: [String: String] = [
         "codeowner": "CODEOWNER is not a rule input yet",
         "quiet": "quiet hours are a setting, not a rule: [attention] quiet = \"22:00-08:00\"",
+        // Every open issue in a repo (`[repos.x] issues = "all"`) went with the Issues view; nothing is watching.
+        "watching": "watching is no longer a rule input: heed does not fetch every issue in a repo any more",
     ]
 
     static func parse(_ text: String, line: Int) -> Result<AttentionRule?, AttentionRuleProblem> {

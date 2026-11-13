@@ -217,65 +217,21 @@ struct ContextMenuTests {
 
     @Test func aRowTargetNamesItsViewAndARepoTargetItsRepo() {
         let repo = Repo(org: "o", name: "r")
-        #expect(CommandTarget.row(view: "inbox", id: "n1").row(in: "inbox") == "n1")
-        #expect(CommandTarget.row(view: "inbox", id: "n1").row(in: "issues") == nil)
+        #expect(CommandTarget.row(view: "attention", id: "n1").row(in: "attention") == "n1")
+        #expect(CommandTarget.row(view: "attention", id: "n1").row(in: "prs") == nil)
         #expect(CommandTarget.row(view: "repos", id: "/p").repos == nil)
         #expect(CommandTarget.repo(repo).repos == [repo])
         #expect(CommandTarget.tab("t").url == nil)
     }
 
-    @Test func inboxAndIssueRowsCountWhatTheyActOn() {
-        var facts = ContextMenus.ItemFacts(kind: .inbox, id: "n1", title: "r #4")
-        facts.unread = true
-        var menu = ContextMenus.item(facts)
-        #expect(commands(menu) == [
-            "open.reader", "open.browser", "open.repo", "items.start", "items.add", "items.read",
-        ])
-        #expect(items(menu).allSatisfy { $0.command.target == .row(view: "inbox", id: "n1") })
-        // No session selected to add to; already read.
-        #expect(item("items.add", in: menu)?.enabled == false)
-        #expect(item("items.start", in: menu)?.title == "Start a session from it")
-
-        facts.count = 3
-        facts.unread = false
-        facts.hasURL = false
-        facts.hasSession = true
-        menu = ContextMenus.item(facts)
-        #expect(item("items.start", in: menu)?.title == "Start a session from the 3 picked")
-        #expect(item("items.add", in: menu)?.enabled == true)
-        #expect(item("items.read", in: menu)?.enabled == false)
-        #expect(item("open.browser", in: menu) == nil)
-
-        var issue = ContextMenus.ItemFacts(kind: .issue, id: "i1", title: "r #5")
-        issue.allIssues = true
-        menu = ContextMenus.item(issue)
-        #expect(item("items.read", in: menu) == nil)
-        #expect(item("issues.visibility", in: menu)?.checked == true)
-        #expect(items(menu).allSatisfy { $0.command.target == .row(view: "issues", id: "i1") })
-    }
-
-    @Test func theIssuesRepoColumn() {
-        let repo = Repo(org: "o", name: "r")
-        let menu = ContextMenus.issueRepo(repo, allIssues: false)
-        #expect(commands(menu) == ["issues.repo", "issues.visibility", "open.repo"])
-        #expect(items(menu).allSatisfy { $0.command.target == .repo(repo) })
-        #expect(commands(ContextMenus.issueRepo(Repo(org: "local", name: "x"), allIssues: false))
-            == ["issues.repo", "issues.visibility"])
-        // The All row has no repo: it shows every repo's issues.
-        let all = ContextMenus.issueRepo(nil, allIssues: false)
-        #expect(commands(all) == ["issues.repo"])
-        #expect(item("issues.repo", in: all)?.command.target == nil)
-    }
-
     @Test func theReposColumnSetsARepoUp() {
         let repo = Repo(org: "o", name: "r")
-        let menu = ContextMenus.repo(repo, allIssues: true)
+        let menu = ContextMenus.repo(repo)
         #expect(menu.first == .header("o/r"))
-        #expect(commands(menu) == ["repo.setup", "issues.visibility", "open.repo"])
+        #expect(commands(menu) == ["repo.setup", "open.repo"])
         #expect(items(menu).allSatisfy { $0.command.target == .repo(repo) })
-        #expect(item("issues.visibility", in: menu)?.checked == true)
-        // A repo that is not on GitHub has nothing to sample.
-        #expect(commands(ContextMenus.repo(Repo(org: "local", name: "x"), allIssues: false)) == ["issues.visibility"])
+        // A repo that is not on GitHub has nothing to sample, and no page to open.
+        #expect(commands(ContextMenus.repo(Repo(org: "local", name: "x"))).isEmpty)
     }
 
     @Test func aWorktreeMenuNeverRemovesTheMainCheckout() {
@@ -317,10 +273,7 @@ struct ContextMenuTests {
         var worktree = ContextMenus.WorktreeFacts(id: "/w", title: "w")
         worktree.hasSession = true
         let menus = [
-            ContextMenus.item(.init(kind: .inbox, id: "a", title: "a")),
-            ContextMenus.item(.init(kind: .issue, id: "a", title: "a")),
-            ContextMenus.issueRepo(Repo(org: "o", name: "r"), allIssues: true), ContextMenus.worktree(worktree),
-            ContextMenus.repo(Repo(org: "o", name: "r"), allIssues: false),
+            ContextMenus.worktree(worktree), ContextMenus.repo(Repo(org: "o", name: "r")),
             ContextMenus.history(id: "h", title: "h", hasPrompt: true, onGitHub: true),
             ContextMenus.tab(id: "t", title: "t", zoomed: false, runLive: true),
         ]

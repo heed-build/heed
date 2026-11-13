@@ -17,4 +17,4 @@ description: Jumping to anything on screen by label with f.
 In Sessions the labels go on sessions and panes; in the other views (Attention, Watch, Repos, History, the call log
 and the rest) they go on the list's rows.
 
-![Hints on the Issues list](../images/shots/keyboard/hints-list.png)
+![Hints on Attention's issues](../images/shots/keyboard/hints-list.png)

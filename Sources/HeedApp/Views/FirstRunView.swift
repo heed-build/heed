@@ -30,7 +30,7 @@ struct FirstRunView: View {
             }
             step("GitHub", done: report.githubUser != nil) {
                 if let user = report.githubUser {
-                    Text("Signed in to gh as \(user). Inbox, issues and PRs sync through gh only.")
+                    Text("Signed in to gh as \(user). Attention and PRs sync through gh only.")
                         .foregroundStyle(Theme.fg2)
                 } else if let problem = report.githubProblem {
                     Text(problem.contains("auth login")

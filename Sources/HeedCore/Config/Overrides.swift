@@ -34,7 +34,7 @@ public enum OverrideScope: Hashable, Sendable {
 /// The tabs Settings › Orgs & repos splits an org's or repo's settings into, so no one tab is a long scroll: the
 /// org-wide basics, then the Pilot's settings by what they drive, then the text heed adds to its prompts.
 public enum OverrideTab: String, CaseIterable, Sendable, Identifiable {
-    /// Color, issues, new worktrees' setup, goal trackers, watching (and a repo's tasks).
+    /// Color, new worktrees' setup, goal trackers, watching (and a repo's tasks).
     case general
     /// Get it green and the agents and models its runs and merge-conflict runs use.
     case green
@@ -157,17 +157,6 @@ public enum Overrides {
                 }
             },
             fallback: { _ in .text("by name") }
-        ),
-        OverrideKey(
-            id: "issues", label: "Issues", detail: "All open issues, or only those assigned to you or mentioning you.",
-            kind: .choice(["all", "involved"]), repoOnly: false,
-            read: { config, scope in
-                switch scope {
-                case let .org(name): config.issues.orgs[name].map { .text($0.rawValue) }
-                case let .repo(repo): config.issues.repos[repo.slug].map { .text($0.rawValue) }
-                }
-            },
-            fallback: { .text($0.issues.fallback.rawValue) }
         ),
         OverrideKey(
             id: "setup", label: "Setup",
@@ -456,7 +445,7 @@ public enum Overrides {
 
     /// The groups the page lists keys under, in order, and the tab each is on.
     public static let groups: [(title: String, tab: OverrideTab, keys: [String])] = [
-        ("General", .general, ["color", "issues"]),
+        ("General", .general, ["color"]),
         ("New worktrees", .general, ["setup"]),
         ("Goals", .general, ["goals_tracker", "goals_mirror"]),
         ("Watching", .general, ["watch"]),
@@ -556,9 +545,9 @@ public enum Overrides {
     public static func configuredScopes(in config: HeedConfig) -> [OverrideScope] {
         // The goal mirror's tables hold orgs and repos in one: a repo is the key with a slash.
         let goals = Set(config.goals.mirror.trackers.keys).union(config.goals.mirror.mirrors.keys)
-        let orgs = Set(config.orgColors.keys).union(config.issues.orgs.keys).union(config.pilot.orgs.keys)
+        let orgs = Set(config.orgColors.keys).union(config.pilot.orgs.keys)
             .union(config.work.setup.orgs.keys).union(goals.filter { !$0.contains("/") })
-        let repos = Set(config.repos.keys).union(config.issues.repos.keys).union(config.pilot.repos.keys)
+        let repos = Set(config.repos.keys).union(config.pilot.repos.keys)
             .union(config.work.setup.repos.keys).union(goals.filter { $0.contains("/") })
         return orgs.sorted().map(OverrideScope.org) + repos.sorted().compactMap { slug in
             let parts = slug.split(separator: "/")

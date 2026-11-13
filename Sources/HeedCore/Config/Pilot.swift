@@ -202,7 +202,7 @@ public struct PilotOverrides: Hashable, Sendable {
     }
 }
 
-/// The levels, resolved per repo the way `IssueRules.visibility` is: the repo, then its org, then the defaults.
+/// The levels, resolved per repo: the repo, then its org, then the defaults.
 public struct PilotRules: Hashable, Sendable {
     public var defaults: PilotSettings
     public var orgs: [String: PilotOverrides]

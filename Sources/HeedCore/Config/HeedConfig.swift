@@ -24,14 +24,13 @@ public struct HeedConfig: Equatable, Sendable {
     public var ledger = LedgerSettings()
     /// `[keys.normal]`, `[keys.visual]`, ...: overrides laid over the defaults.
     public var keys: [Mode: [(String, String)]]
-    /// `[keys.repos]`, `[keys.inbox]`, ...: per-view overrides.
+    /// `[keys.repos]`, `[keys.attention]`, ...: per-view overrides.
     public var scopedKeys: [String: [(String, String)]]
     public var orgColors: [String: String]
     public var repos: [String: RepoConfig]
     public var cleanup: CleanupRule
     public var githubPollSeconds: Int
     public var tools = ToolSettings()
-    public var issues = IssueRules()
     /// `[pilot]`, with org and repo levels: watching PRs, get it green.
     public var pilot = PilotRules()
     /// `[hosts.<name>]`: machines heed drives over ssh, by name.
@@ -65,12 +64,11 @@ public struct HeedConfig: Equatable, Sendable {
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
-        public var issues: IssueVisibility?
         /// Pinned tasks (test, build, docs preview): name → command.
         public var tasks: [(String, String)]
 
         public static func == (lhs: RepoConfig, rhs: RepoConfig) -> Bool {
-            lhs.color == rhs.color && lhs.issues == rhs.issues && lhs.tasks.map(\.0) == rhs.tasks.map(\.0) && lhs.tasks
+            lhs.color == rhs.color && lhs.tasks.map(\.0) == rhs.tasks.map(\.0) && lhs.tasks
                 .map(\.1) == rhs.tasks
                 .map(\.1)
         }
@@ -107,7 +105,6 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.cleanup == rhs.cleanup,
             lhs.githubPollSeconds == rhs.githubPollSeconds,
             lhs.tools == rhs.tools,
-            lhs.issues == rhs.issues,
             lhs.pilot == rhs.pilot,
             lhs.hosts == rhs.hosts,
             lhs.updates == rhs.updates,
@@ -448,16 +445,18 @@ public enum ConfigLoader {
         if let zmx = string(["tools", "zmx"]) { config.tools.zmx = zmx }
         if let tailscale = string(["tools", "tailscale"]) { config.tools.tailscale = tailscale }
         if let path = strings(["tools", "path"]) { config.tools.path = path }
-        func visibility(_ path: [String]) -> IssueVisibility? {
-            guard let text = string(path) else { return nil }
-            guard let parsed = IssueVisibility(rawValue: text) else {
-                problems.append(ConfigProblem(path: path.joined(separator: "."), message: "expected all or involved"))
-                return nil
-            }
-            return parsed
+        /// `[issues] default`, `[orgs.x] issues` and `[repos."x/y"] issues` chose which issues the Issues view showed;
+        /// the view and every-issue-in-a-repo went. A file that still sets one loads as before. `"involved"` (the old
+        /// default, written uncommented into every config.toml) is what heed does now, so it passes in silence; any
+        /// other value says it no longer does anything.
+        func retiredIssues(_ path: [String]) {
+            guard let value = root.value(at: path), value.string?.lowercased() != "involved" else { return }
+            problems.append(ConfigProblem(
+                path: path.joined(separator: "."),
+                message: "no longer used: the Issues view is gone, and Attention lists the issues assigned to you or mentioning you"
+            ))
         }
-        // [issues]
-        if let fallback = visibility(["issues", "default"]) { config.issues.fallback = fallback }
+        retiredIssues(["issues", "default"])
 
         // [agents.<name>]: built-ins are overridden field by field; other names are custom agents.
         if let agents = root.value(at: ["agents"])?.table {
@@ -537,7 +536,7 @@ public enum ConfigLoader {
         if let orgs = root.value(at: ["orgs"])?.table {
             for org in orgs.keys {
                 if let color = string(["orgs", org, "color"]) { config.orgColors[org] = color }
-                if let issues = visibility(["orgs", org, "issues"]) { config.issues.orgs[org] = issues }
+                retiredIssues(["orgs", org, "issues"])
                 if let setup = strings(["orgs", org, "setup"]) { config.work.setup.orgs[org] = setup }
                 let pilot = pilotOverrides(["orgs", org])
                 if !pilot.isEmpty { config.pilot.orgs[org] = pilot }
@@ -604,12 +603,11 @@ public enum ConfigLoader {
         if let repos = root.value(at: ["repos"])?.table {
             for slug in repos.keys {
                 let repo = HeedConfig.RepoConfig(
-                    color: string(["repos", slug, "color"]), issues: visibility(["repos", slug, "issues"]),
-                    tasks: pairs(["repos", slug, "tasks"])
+                    color: string(["repos", slug, "color"]), tasks: pairs(["repos", slug, "tasks"])
                 )
                 config.repos[slug] = repo
                 if let setup = strings(["repos", slug, "setup"]) { config.work.setup.repos[slug] = setup }
-                if let issues = repo.issues { config.issues.repos[slug] = issues }
+                retiredIssues(["repos", slug, "issues"])
                 let pilot = pilotOverrides(["repos", slug])
                 if !pilot.isEmpty { config.pilot.repos[slug] = pilot }
                 if let tracker = string(["repos", slug, "goals_tracker"]) {
@@ -890,8 +888,13 @@ public enum ConfigLoader {
                 let entries = pairs(["keys", name])
                 if let mode = Mode(rawValue: name) {
                     config.keys[mode] = entries
-                } else if DefaultKeys.scoped[name] != nil || ["issues", "prs"].contains(name) {
+                } else if DefaultKeys.scoped[name] != nil || name == "prs" {
                     config.scopedKeys[name] = entries
+                } else if ["inbox", "issues"].contains(name) {
+                    problems.append(ConfigProblem(
+                        path: "keys.\(name)",
+                        message: "no longer used: the \(name == "inbox" ? "Inbox" : "Issues") view is gone; Attention's keys are [keys.attention]"
+                    ))
                 } else {
                     problems.append(ConfigProblem(path: "keys.\(name)", message: "not a mode or a view"))
                 }
@@ -1043,12 +1046,6 @@ public enum ConfigLoader {
     # Ask agents (claude, codex) to end their final message with a "heed-summary: ..." line, which then is the ledger's
     # summary (History, L). Off by default; per org and per repo too.
     summary_sign_off = false
-
-    [issues]
-    # Which issues the Issues view shows per repo: "involved" (assigned to you or mentioning you) or "all" open
-    # issues. Override per org ([orgs.<org>] issues = "all") or per repo ([repos."org/name"] issues = "involved");
-    # the most specific wins. w in Issues (I in Repos) flips the repo under the cursor.
-    default = "involved"
 
     [ui]
     # A menu bar item: an owl that shows how many sessions need you, with those sessions, Start work and Open Heed.
@@ -1305,7 +1302,6 @@ public enum ConfigLoader {
     # Org and repo colors: teal, pink, lime, orange, periwinkle, sky. Repos inherit their org's.
     # [orgs.acme]
     # color = "teal"
-    # issues = "all"
 
     # Setup per repo (or per org): commands each new worktree runs before its agent starts, joined with &&. Unset, heed
     # proposes what it detects (mise install when the repo uses mise, else its lockfiles' installs) and runs nothing
@@ -1341,7 +1337,7 @@ public enum ConfigLoader {
     global_activate = "<C-M-h>"
     # Shift+Escape leaves INSERT too; a plain Escape always goes to the terminal. [keys.insert] "<S-Esc>" = "" unbinds.
 
-    # Bindings per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.inbox], [keys.history],
+    # Bindings per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.attention], [keys.history],
     # [keys.diff], [keys.pr]), in vim notation, each naming a command (the same names : completes). "" unbinds.
     # [keys.normal]
     # "gC" = ""

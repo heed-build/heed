@@ -89,17 +89,16 @@ struct AttentionFeedTests {
         #expect(AttentionRules.reasonWords["mergeable"] == [.readyToMerge])
     }
 
-    @Test func closedPRsAndWatchedIssuesStayOutOfNeedsMe() {
+    @Test func closedPRsAndIssuesNotAboutYouStayOut() {
         var closed = pull(4)
         closed.state = .merged
-        let watched = Issue(
+        // Neither assigned nor mentioning you: one cached from when a repo could show every open issue.
+        let cached = Issue(
             repo: docs, number: 9, title: "Typo", url: "https://github.com/acme/docs/issues/9", body: "", labels: [],
             author: nil, updatedAt: ago(1)
         )
-        let items = AttentionFeed.items(github: GitHubState(issues: [watched], pulls: [closed]), sessions: [])
-        #expect(items.map(\.id) == ["acme/docs#9"])
-        #expect(items[0].reasons == [.watching] && !AttentionFilter.forYou.matches(items[0]))
-        #expect(AttentionFilter.issues.matches(items[0]))
+        let items = AttentionFeed.items(github: GitHubState(issues: [cached], pulls: [closed]), sessions: [])
+        #expect(items.isEmpty)
     }
 
     @Test func agentsThatNeedYouAreItemsAndSessionsLinkTheirThreads() {
@@ -174,7 +173,7 @@ struct AttentionFeedTests {
         #expect(!AttentionFilter.myPRs.matches(item(.pr, [.reviewRequested])))
         #expect(AttentionFilter.agents.matches(item(.agent, [.agentBlocked])))
         #expect(AttentionFilter.ci.matches(item(.ci, [.ciFailed])))
-        #expect(AttentionFilter.issues.matches(item(.issue, [.watching])))
+        #expect(AttentionFilter.issues.matches(item(.issue, [.mentionedBefore])))
         #expect(AttentionFilter.forYou.matches(item(.issue, [.subscribed])))
         #expect(!AttentionFilter.forYou.matches(item(.pr, [.yourPR])))
     }
@@ -257,10 +256,28 @@ struct ThreadDetailParsingTests {
 struct AttentionStoreTests {
     private let now = Date(timeIntervalSince1970: 2_000_000_000)
 
-    private func store() throws -> AttentionStore {
+    private func file() throws -> String {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-attention-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return try AttentionStore(path: dir.appendingPathComponent("attention.sqlite").path)
+        return dir.appendingPathComponent("attention.sqlite").path
+    }
+
+    private func store() throws -> AttentionStore {
+        try AttentionStore(path: file())
+    }
+
+    /// An item kept with a reason heed has since dropped (`watching`, when every issue of a repo could show) no longer
+    /// decodes: it is left out, and the rest still load.
+    @Test func aRowThatNoLongerDecodesIsSkipped() async throws {
+        let path = try file()
+        let store = try AttentionStore(path: path)
+        try await store.record([item("old", updated: now), item("kept", updated: now)], now: now)
+        let database = try SQLiteDatabase(path: path)
+        try database.run(
+            "UPDATE items SET item = replace(item, '\"mentioned\"', '\"watching\"') WHERE id = ?", [.text("old")]
+        )
+        database.close()
+        #expect(try await store.items(now: now).map(\.item.id) == ["kept"])
     }
 
     private func item(_ id: String, updated: Date, reasons: Set<AttentionReason> = [.mentioned]) -> AttentionItem {

@@ -136,7 +136,7 @@ extension AppModel {
 
     /// The Repos column's right-click menu on a repo.
     func repoMenu(_ repo: Repo) -> [MenuEntry] {
-        ContextMenus.repo(repo, allIssues: config.issues.visibility(repo) == .all)
+        ContextMenus.repo(repo)
     }
 
     /// Where a repo stands for merging and get it green, for the Repos view.

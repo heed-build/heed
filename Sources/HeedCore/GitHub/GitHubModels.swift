@@ -171,21 +171,6 @@ public struct InboxItem: Identifiable, Hashable, Sendable, Codable {
         subjectAPI = try container.decodeIfPresent(String.self, forKey: .subjectAPI)
         teams = try container.decodeIfPresent(Set<String>.self, forKey: .teams) ?? []
     }
-
-    /// `review requested`, `assigned to you`, `mentioned`, ...
-    public var reasonText: String {
-        switch reason {
-        case "review_requested": "review requested"
-        case "assign": "assigned to you"
-        case "mention", "team_mention": "mentioned"
-        case "author": "your thread"
-        case "ci_activity": "check failed"
-        case "comment": "comments"
-        case "state_change": "state changed"
-        case "subscribed": "subscribed"
-        default: reason.replacingOccurrences(of: "_", with: " ")
-        }
-    }
 }
 
 public struct Issue: Identifiable, Hashable, Sendable, Codable {
@@ -201,7 +186,7 @@ public struct Issue: Identifiable, Hashable, Sendable, Codable {
     public var updatedAt: Date
     /// When it was opened; nil in caches from before heed asked.
     public var createdAt: Date?
-    /// Assigned to you / mentions you. Neither: it is shown because its repo shows all issues.
+    /// Assigned to you / mentions you (the searches heed runs; one of them is always true).
     public var assigned = false
     public var mentioned = false
 
@@ -362,14 +347,6 @@ public enum WorkPrompt {
         }
         return lines.joined(separator: "\n")
     }
-
-    public static func from(inbox items: [InboxItem], instructions: String = "") -> String {
-        guard !items.isEmpty else { return "" }
-        let refs = items.map { item in
-            "- \(item.repo.name)\(item.number.map { "#\($0)" } ?? "") \(item.title) (\(item.reasonText))"
-        }
-        return (["Look into these:"] + refs + (instructions.isEmpty ? [] : ["", instructions])).joined(separator: "\n")
-    }
 }
 
 /// Links PRs to sessions: a PR whose head branch is one of a session's branches, in one of its repos, is tracked by
@@ -415,45 +392,5 @@ public enum BranchFollowing {
             session.record("now on \(branch) in \(worktree.repo.name)", at: now)
         }
         return session
-    }
-}
-
-/// Which issues the Issues view shows for a repo. Issues assigned to you or mentioning you always show.
-public enum IssueVisibility: String, CaseIterable, Sendable, Codable {
-    /// Every open issue.
-    case all
-    /// Only those assigned to you or mentioning you.
-    case involved
-}
-
-/// `[issues] default`, `[orgs.<org>] issues` and `[repos."org/name"] issues`: the most specific one wins.
-public struct IssueRules: Equatable, Sendable {
-    public var fallback: IssueVisibility
-    public var orgs: [String: IssueVisibility]
-    public var repos: [String: IssueVisibility]
-
-    public init(
-        fallback: IssueVisibility = .involved, orgs: [String: IssueVisibility] = [:],
-        repos: [String: IssueVisibility] = [:]
-    ) {
-        self.fallback = fallback
-        self.orgs = orgs
-        self.repos = repos
-    }
-
-    public func visibility(_ repo: Repo) -> IssueVisibility {
-        repos[repo.slug] ?? orgs[repo.org] ?? fallback
-    }
-
-    /// Search qualifiers for the repos that show all issues: `org:` for orgs set to all (a repo there set to
-    /// involved is dropped after fetching), `repo:` for the rest, including local repos when the fallback is all.
-    public func watchQualifiers(local: [Repo]) -> [String] {
-        let watchedOrgs = orgs.filter { $0.value == .all }.keys.sorted()
-        var repoSlugs = Set(repos.filter { $0.value == .all }.keys)
-        if fallback == .all {
-            repoSlugs.formUnion(local.filter { orgs[$0.org] == nil && repos[$0.slug] == nil }.map(\.slug))
-        }
-        let outside = repoSlugs.filter { slug in !watchedOrgs.contains { slug.hasPrefix("\($0)/") } }.sorted()
-        return watchedOrgs.map { "org:\($0)" } + outside.map { "repo:\($0)" }
     }
 }

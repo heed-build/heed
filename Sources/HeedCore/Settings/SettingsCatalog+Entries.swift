@@ -481,12 +481,6 @@ extension SettingsCatalog {
             "Seconds between gh syncs of the view on screen; the others refresh five times less often.",
             level: .advanced, since: "0.1.0"
         ) { .integer($0.githubPollSeconds) },
-        global(
-            "issues.default", .github, "GitHub", "Issues",
-            "For orgs and repos without their own setting: every open issue, or only yours (assigned or mentioning "
-                + "you).",
-            since: "0.1.0"
-        ) { .text($0.issues.fallback.rawValue) },
     ]
 
     static let attention: [SettingsEntry] = [
@@ -549,7 +543,7 @@ extension SettingsCatalog {
         // Bindings are edited in config.toml only; the entry is there so search and the counts know them.
         SettingsEntry(
             id: "keys.bindings", page: .keys, section: "Bindings", tab: nil, label: "Key bindings",
-            detail: "Per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.inbox], ...), in "
+            detail: "Per mode ([keys.normal], [keys.visual], ...) or per view ([keys.repos], [keys.attention], ...), in "
                 + "vim notation, each naming a command. \"\" unbinds. Edited in config.toml.",
             scope: .global, key: ["keys"], isTable: true, level: .advanced, impact: .none, since: "0.1.0",
             example: "normal = { \"<C-j>\" = \"row.next\" }",
@@ -831,14 +825,14 @@ extension SettingsCatalog {
             "merge_agent", "merge_model", "merge_effort", "self_review", "trusted_reviewers", "admin_merge", "setup",
         ]
         let since: [String: String] = [
-            "color": "0.1.0", "issues": "0.1.0", "setup": "0.10.0", "goals_tracker": "0.19.0",
+            "color": "0.1.0", "setup": "0.10.0", "goals_tracker": "0.19.0",
             "goals_mirror": "0.19.0", "agent": "0.9.0", "model": "0.9.0", "effort": "0.32.0", "merge_agent": "0.9.6",
             "merge_model": "0.9.6", "merge_effort": "0.32.0", "run_in": "0.9.6", "merge_now": "0.14.0",
             "force_merge": "0.14.0", "green_instructions": "0.9.5", "review_instructions": "0.9.5",
             "start_instructions": "0.9.5", "summary_instructions": "0.11.4", "summary_sign_off": "0.12.0",
         ]
         let examples: [String: String] = [
-            "color": "color = \"teal\"", "issues": "issues = \"all\"", "setup": "setup = [\"pnpm install\"]",
+            "color": "color = \"teal\"", "setup": "setup = [\"pnpm install\"]",
             "goals_tracker": "goals_tracker = \"acme/goals\"", "agent": "agent = \"codex\"",
             "model": "model = \"sonnet\"", "effort": "effort = \"high\"", "merge_agent": "merge_agent = \"codex\"",
             "merge_model": "merge_model = \"haiku\"", "merge_effort": "merge_effort = \"low\"",

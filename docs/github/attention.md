@@ -26,8 +26,9 @@ one. `T` switches the sort between recent first and weight then recent, `/` filt
 | Everything | All of it: every notification and every item the other tabs list. `:inbox` opens it |
 | Muted | What a rule ignores and what you muted, kept 30 days (quieter, after Everything) |
 
-`gi` (`:view.attention issues`) and `:view.attention ci` still narrow the list to issues, and to failed checks; the
-tab shows while you are on it. The names from before the tabs still work: `needs` is For you, `tagged` Mentions,
+`gi` (`:view.attention issues`, or `:issues`) and `:view.attention ci` still narrow the list to issues, and to failed
+checks; the tab shows while you are on it. The issues are the ones assigned to you or mentioning you: Attention does
+not list every issue in a repo. The names from before the tabs still work: `needs` is For you, `tagged` Mentions,
 `inbox` Everything.
 
 ![Muted: an ignore rule, and a thread muted earlier](../images/shots/github/attention-muted.png)
@@ -222,5 +223,5 @@ of Attention, for 30 days. The repo's `summary_instructions` are added to heed's
 Done, mute and a posted reply are GitHub writes, and show in the [call log](../reference/call-log.md) as such.
 Snoozing is local.
 
-The [Issues](issues.md) and [Pull requests](pull-requests.md) views are still there as `:issues` and `:prs`.
-`:inbox` opens [Everything](inbox.md).
+The [Pull requests](pull-requests.md) view is still there as `:prs`. `:inbox` (`:view.inbox`) opens Everything and
+`:issues` (`:view.issues`) the issues, where the Inbox and Issues views were.

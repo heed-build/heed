@@ -39,7 +39,7 @@ struct OverridesTests {
         var repo = PilotOverrides()
         repo.quietMinutes = 15
         config.pilot = PilotRules(orgs: ["acme": org], repos: ["acme/docs": repo])
-        config.issues.repos["acme/docs"] = .all
+        config.repos["acme/docs"] = HeedConfig.RepoConfig(color: "pink", tasks: [])
         let docs = OverrideScope.repo(Repo(org: "acme", name: "docs"))
         func key(_ id: String) -> OverrideKey { Overrides.keys.first { $0.id == id }! }
 
@@ -47,7 +47,7 @@ struct OverridesTests {
         #expect(Overrides.effective(key("reviewers"), at: docs, in: config) == (.list(["copilot"]), .org))
         #expect(Overrides.effective(key("green"), at: docs, in: config).source == .default)
         #expect(Overrides.effective(key("quiet_minutes"), at: .org("acme"), in: config) == (.integer(10), .org))
-        #expect(Set(Overrides.setKeys(at: docs, in: config)) == ["issues", "quiet_minutes"])
+        #expect(Set(Overrides.setKeys(at: docs, in: config)) == ["color", "quiet_minutes"])
         #expect(Set(Overrides.setKeys(at: .org("acme"), in: config)) == ["reviewers", "quiet_minutes"])
         #expect(!Overrides.keys(for: .org("acme")).contains { $0.id == "admin_merge" })
         #expect(Overrides.configuredScopes(in: config) == [.org("acme"), docs])
@@ -115,7 +115,7 @@ struct OverridesTests {
         #expect(perTab.flatMap(\.self) == Overrides.keys(for: repo).map(\.id))
         #expect(perTab.allSatisfy { !$0.isEmpty && $0.count <= 9 })
         #expect(Overrides.keys(for: repo, on: .general, in: config).map(\.id)
-            == ["color", "issues", "setup", "goals_tracker", "goals_mirror", "watch"])
+            == ["color", "setup", "goals_tracker", "goals_mirror", "watch"])
         #expect(Overrides.keys(for: repo, on: .reviews, in: config).map(\.id)
             == ["reviewers", "trusted_reviewers", "self_review", "copilot_comments", "copilot_conflicts"])
         // An org has no admin merge, so its merged tab is one shorter.
@@ -141,7 +141,7 @@ struct OverridesTests {
         green = "auto"
         merge_agent = "codex"
         quiet_minutes = 15
-        issues = "all"
+        color = "pink"
 
         [repos."acme/docs".tasks]
         test = "make test"
@@ -158,7 +158,7 @@ struct OverridesTests {
 
         #expect(Overrides.keys(for: docs, on: .green, in: config, onlyOverridden: true).map(\.id)
             == ["green", "merge_agent"])
-        #expect(Overrides.keys(for: docs, on: .general, in: config, onlyOverridden: true).map(\.id) == ["issues"])
+        #expect(Overrides.keys(for: docs, on: .general, in: config, onlyOverridden: true).map(\.id) == ["color"])
         // Inherited from the org is not overridden here.
         #expect(Overrides.keys(for: docs, on: .reviews, in: config, onlyOverridden: true).isEmpty)
         #expect(Overrides.keys(for: docs, on: .reviews, in: config).count == 5)

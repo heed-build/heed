@@ -4,7 +4,7 @@ import Observation
 
 /// The app's views, switched with `g` keys (`gs`, `gm`, `gi`, `gp`, `gr`, `gh`).
 enum AppView: String, CaseIterable, Identifiable {
-    case sessions, attention, goals, watch, inbox, issues, prs, repos, history, log
+    case sessions, attention, goals, watch, prs, repos, history, log
     /// History as a timeline (`history.timeline`): under History's tab, not one of its own.
     case timeline
     /// History's ledger (`history.ledger`): under History's tab too.
@@ -18,12 +18,12 @@ enum AppView: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// The views the title bar lists. Attention stands for Inbox, Issues and PRs (`gm`, `gi`, `gp` open it), which
-    /// are still there as `:inbox`, `:issues` and `:prs`; the call log is reached with `:log` only, the timeline,
-    /// ledger and dashboard from History.
+    /// The views the title bar lists. Attention stands for PRs too (`gp` opens it on My PRs), which is still there as
+    /// `:prs`; `:inbox` and `:issues` open Attention's Everything and its issues. The call log is reached with `:log`
+    /// only, the timeline, ledger and dashboard from History.
     static var tabs: [AppView] {
         allCases
-            .filter { ![.log, .timeline, .ledger, .dashboard, .mindmap, .standup, .inbox, .issues, .prs].contains($0) }
+            .filter { ![.log, .timeline, .ledger, .dashboard, .mindmap, .standup, .prs].contains($0) }
     }
 
     /// The tab that is lit while this view shows.
@@ -34,8 +34,6 @@ enum AppView: String, CaseIterable, Identifiable {
         case .sessions: "Sessions"
         case .attention: "Attention"
         case .goals: "Goals"
-        case .inbox: "Inbox"
-        case .issues: "Issues"
         case .prs: "PRs"
         case .watch: "Watch"
         case .repos: "Repos"
@@ -250,10 +248,6 @@ final class AppModel {
     }
 
     private(set) var picked: [AppView: Set<String>] = [:]
-    private(set) var inboxFilter: InboxFilter = .unread
-    private(set) var issueFilter: IssueFilter = .all
-    /// The repo picked in the Issues repo column; nil is all of them.
-    private(set) var issueRepo: Repo?
 
     // Resume on launch
     private(set) var resume: ResumeForm? {
@@ -477,7 +471,6 @@ final class AppModel {
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
         if isFixture {
-            config.issues = Fixtures.issueRules
             config.attention.rules = Fixtures.attentionRules
             attention.adoptFixtures()
             config.hosts = Fixtures.hosts
@@ -780,8 +773,6 @@ final class AppModel {
     /// The parts the window is showing now.
     private var frontParts: Set<GitHubPart> {
         switch view {
-        case .inbox: [.inbox]
-        case .issues: [.issues]
         case .attention: [.inbox, .issues, .pulls]
         // Sessions show their PRs' state; Repos and History their PR numbers.
         case .sessions, .prs, .watch, .repos, .history: [.pulls]
@@ -806,8 +797,8 @@ final class AppModel {
         let tracked = Array(Set(sessions.flatMap(\.trackedPRs)))
         do {
             let state = try await GitHub.sync(
-                parts: parts, tracked: tracked, previous: previous, issueRules: config.issues,
-                localRepos: repos.map(\.repo), refreshTeams: force && wanted.isEmpty, caller: "github.sync"
+                parts: parts, tracked: tracked, previous: previous, refreshTeams: force && wanted.isEmpty,
+                caller: "github.sync"
             )
             syncSchedule.fetched(parts, at: Date())
             commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
@@ -998,7 +989,6 @@ final class AppModel {
         configTable = (try? TOMLDocument(source))?.root ?? TOMLTable()
         guard let decoded else { return }
         let toolsChanged = decoded.tools != config.tools
-        let issuesChanged = decoded.issues != config.issues
         let pilotChanged = decoded.pilot != config.pilot
         config = decoded
         settings = decoded.work
@@ -1027,8 +1017,6 @@ final class AppModel {
         }
         updateOutsideWindow()
         if toolsChanged, !isFixture { Task { await detectTools() } }
-        // Repos that now show all issues need fetching; ones that no longer do are hidden by issueRows right away.
-        if issuesChanged, !isFixture, github.syncedAt != nil { Task { await syncGitHub(parts: [.issues]) } }
         // PRs nobody set by hand follow the new pilot settings.
         if pilotChanged { settlePilots() }
         configureLLM()
@@ -2103,19 +2091,6 @@ final class AppModel {
                 main: item.number.map { "#\($0)" } ?? item.kind.rawValue,
                 detail: item.title
             )
-        case .inbox:
-            let rows = inboxRows
-            guard rows.indices.contains(index) else { return nil }
-            let item = rows[index]
-            return TitleContext(
-                lead: item.repo.name,
-                main: item.number.map { "#\($0)" } ?? item.kind.rawValue,
-                detail: item.title
-            )
-        case .issues:
-            let rows = issueRows
-            guard rows.indices.contains(index) else { return nil }
-            return TitleContext(lead: rows[index].repo.name, main: "#\(rows[index].number)", detail: rows[index].title)
         case .prs:
             let rows = pullRows
             return rows.indices.contains(index) ? pullContext(rows[index].ref) : nil
@@ -2236,7 +2211,7 @@ final class AppModel {
         case .sessions:
             list.ordered
                 .map { HintTarget.session($0.id) } + (currentTab?.tree.panes.map { HintTarget.pane($0.id) } ?? [])
-        case .attention, .inbox, .issues, .prs, .watch: itemIDs(view).indices.map { HintTarget.row(view, $0) }
+        case .attention, .prs, .watch: itemIDs(view).indices.map { HintTarget.row(view, $0) }
         case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
         case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
         case .log: callLog.rows.indices.map { HintTarget.row(.log, $0) }
@@ -2414,7 +2389,7 @@ final class AppModel {
         if mode == .visual {
             visualAnchor = switch view {
             case .repos: repoCursor
-            case .attention, .inbox, .issues, .prs, .watch: itemCursor[view] ?? 0
+            case .attention, .prs, .watch: itemCursor[view] ?? 0
             default: nil
             }
         }
@@ -2527,10 +2502,6 @@ final class AppModel {
         case "filter.clear":
             filtering = false
             clearFilter(view)
-        case "issues.repo":
-            if case let .repo(repo) = command.target { pickIssueRepo(repo) } else {
-                pickIssueRepo(named: command.arguments.first)
-            }
         case "app.activate": activateHeed()
         case "pr.track": trackPull(command.arguments.first)
         case "pr.untrack": untrackPull(command.arguments.first)
@@ -2576,9 +2547,12 @@ final class AppModel {
         case "task.run": runTask(named: command.arguments.joined(separator: " ").nilIfEmpty)
         case "task.refresh": refreshTasks()
         case "view":
-            // The inbox is Attention's Everything now; `:view inbox` goes there.
+            // The inbox is Attention's Everything now, and the Issues view its issues; `:view inbox` and `:view issues`
+            // go there.
             if command.arguments.first == "inbox" {
                 openAttention("all")
+            } else if command.arguments.first == "issues" {
+                openAttention("issues")
             } else if let target = AppView(rawValue: command.arguments.first ?? "") {
                 view = target
             }
@@ -2761,7 +2735,7 @@ final class AppModel {
         case "attention.reader.down": scrollAttentionReader(1)
         case "attention.reader.up": scrollAttentionReader(-1)
         case "view.inbox": openAttention("all")
-        case "view.issues": view = .issues
+        case "view.issues": openAttention("issues")
         case "view.prs": view = .prs
         case "overlay.help": overlay = overlay == .help ? nil : .help
         case "tutor": openTutor(command.arguments)
@@ -2842,18 +2816,6 @@ final class AppModel {
         case "github.sync": Task { await syncGitHub() }
         case "items.start": startFromItems()
         case "items.add": addItemsToSession()
-        case "items.read": markItemsRead()
-        case "items.filter":
-            if view == .issues {
-                issueFilter = issueFilter.next
-                itemCursor[.issues] = 0
-            } else {
-                inboxFilter = inboxFilter.next
-                itemCursor[.inbox] = 0
-            }
-        case "issues.repo.next": cycleIssueRepo(by: 1)
-        case "issues.repo.prev": cycleIssueRepo(by: -1)
-        case "issues.visibility": toggleIssueVisibility()
         case "open.reader": openReader()
         case "open.browser": openInBrowser()
         case "open.repo": openRepo()
@@ -3026,7 +2988,6 @@ final class AppModel {
         context.currentAgent = currentSession?.agent
         context.catalogs = settings.agents.reduce(into: [:]) { $0[$1.name] = modelCatalog($1.name) }
         context.mergeRepos = mergeQueues.keys.sorted()
-        context.issueRepos = issueRepoCounts.map(\.repo.name)
         let choices = timeline.choices
         context.timelineRepos = choices.repos.map { String($0.split(separator: "/").last ?? "") }
         context.timelinePlaces = choices.places
@@ -3061,7 +3022,7 @@ final class AppModel {
         case .mindmap: setRow(mindmap.cursor + delta)
         case .standup: setRow(standup.cursor + delta)
         case .goals: setRow(goals.rowCursor + delta)
-        case .attention, .inbox, .issues, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
+        case .attention, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
         case .sessions: setCursor(cursor + delta)
         }
     }
@@ -3072,8 +3033,6 @@ final class AppModel {
         case .sessions: (list.ordered.map { sessionGroup($0).rawValue }, cursor)
         case .repos: (worktreeRows.map(\.repo.slug), repoCursor)
         case .attention: (attentionRows.map { AttentionView.section($0.item.updatedAt) }, cursor(in: .attention))
-        case .inbox: (inboxRows.map(\.repo.slug), cursor(in: .inbox))
-        case .issues: (issueRows.map(\.repo.slug), cursor(in: .issues))
         case .prs: (pullRows.map(\.ref.repo.slug), cursor(in: .prs))
         case .watch: (pilotRows.map(\.status.group.rawValue), cursor(in: .watch))
         case .history:
@@ -3103,7 +3062,7 @@ final class AppModel {
             return
         }
         if view == .watch { mergeQueueShown = nil }
-        if [.attention, .inbox, .issues, .prs, .watch].contains(view) {
+        if [.attention, .prs, .watch].contains(view) {
             let count = itemIDs(view).count
             guard count > 0 else { return }
             itemCursor[view] = min(max(index, 0), count - 1)
@@ -3893,7 +3852,7 @@ final class AppModel {
     // MARK: Repos view
 
     private func toggleRow() {
-        if [.attention, .inbox, .issues, .prs, .watch].contains(view) {
+        if [.attention, .prs, .watch].contains(view) {
             let ids = itemIDs(view)
             let index = itemCursor[view] ?? 0
             guard ids.indices.contains(index) else { return }
@@ -4446,61 +4405,6 @@ final class AppModel {
 
     // MARK: GitHub lists
 
-    var inboxRows: [InboxItem] {
-        let filter = filter(for: .inbox)
-        return github.inbox.filter {
-            inboxFilter.matches($0)
-                && FilterQuery.matches(
-                    filter,
-                    [$0.title, $0.kind.rawValue, $0.repo.slug, $0.reason, $0.number.map { "#\($0)" } ?? ""]
-                )
-        }
-    }
-
-    /// Issues the rules show (involving you, or in a repo showing all), narrowed by the chip and the repo column.
-    var shownIssues: [Issue] {
-        github.issues
-            .filter { ($0.involvesYou || config.issues.visibility($0.repo) == .all) && issueFilter.matches($0) }
-    }
-
-    /// The Issues repo column: repos with shown issues, most first, then by name.
-    var issueRepoCounts: [(repo: Repo, count: Int)] {
-        let counts = Dictionary(grouping: shownIssues, by: \.repo).mapValues(\.count)
-        return counts.map { ($0.key, $0.value) }.sorted {
-            $0.count != $1.count ? $0.count > $1.count
-                : $0.repo.name.localizedCaseInsensitiveCompare($1.repo.name) == .orderedAscending
-        }
-    }
-
-    var issueRows: [Issue] {
-        let filter = filter(for: .issues)
-        return shownIssues.filter {
-            (issueRepo == nil || $0.repo == issueRepo)
-                && FilterQuery.matches(filter, [$0.title, $0.repo.slug, "#\($0.number)", $0.author ?? ""] + $0.labels)
-        }
-    }
-
-    private func cycleIssueRepo(by delta: Int) {
-        let options: [Repo?] = [nil] + issueRepoCounts.map(\.repo)
-        let index = options.firstIndex(of: issueRepo) ?? 0
-        issueRepo = options[((index + delta) % options.count + options.count) % options.count]
-        itemCursor[.issues] = 0
-    }
-
-    /// `:issues.repo docs-toolkit`: by name or org/name; none shows every repo.
-    private func pickIssueRepo(named name: String?) {
-        view = .issues
-        guard let name else { return pickIssueRepo(nil) }
-        let key = name.lowercased()
-        guard let repo = issueRepoCounts.map(\.repo).first(where: {
-            $0.slug.lowercased() == key || $0.name.lowercased() == key
-        }) else {
-            flash = "no issues from a repo named \(name)"
-            return
-        }
-        pickIssueRepo(repo)
-    }
-
     /// `:session.open anchors`: the first session matching every word, as the filter matches.
     private func openSession(matching words: String) {
         guard !words.isEmpty else {
@@ -4611,41 +4515,6 @@ final class AppModel {
         flash = "\(pin ? "pinned" : "unpinned") \(changing.count) session\(changing.count == 1 ? "" : "s")"
     }
 
-    func pickIssueRepo(_ repo: Repo?) {
-        issueRepo = repo
-        itemCursor[.issues] = 0
-    }
-
-    /// `w` in Issues, `I` in Repos: the repo under the cursor flips between all issues and only yours.
-    private func toggleIssueVisibility() {
-        let named: Repo? = if case let .repo(repo) = commandTarget { repo } else { nil }
-        guard let repo = named ?? repoUnderCursorForIssues else {
-            flash = "no repo under the cursor"
-            return
-        }
-        let next: IssueVisibility = config.issues.visibility(repo) == .all ? .involved : .all
-        if isFixture {
-            config.issues.repos[repo.slug] = next
-        } else {
-            setConfig(["repos", repo.slug, "issues"], .string(next.rawValue))
-        }
-        flash = next == .all ? "\(repo.name): all open issues" : "\(repo.name): only issues involving you"
-    }
-
-    /// The repo `w` flips: the Issues row's (or the column's), the Repos row's.
-    private var repoUnderCursorForIssues: Repo? {
-        switch view {
-        case .issues:
-            let rows = issueRows
-            let index = cursor(in: .issues)
-            return rows.indices.contains(index) ? rows[index].repo : issueRepo
-        case .repos:
-            let rows = worktreeRows
-            return rows.indices.contains(repoCursor) ? rows[repoCursor].repo : nil
-        default: return nil
-        }
-    }
-
     var pullRows: [PullRequest] {
         let filter = filter(for: .prs)
         return github.pulls.filter {
@@ -4656,8 +4525,6 @@ final class AppModel {
     func itemIDs(_ view: AppView) -> [String] {
         switch view {
         case .attention: attentionRows.map(\.id)
-        case .inbox: inboxRows.map(\.id)
-        case .issues: issueRows.map(\.id)
         case .prs: pullRows.map(\.id)
         case .watch: pilotRows.map(\.id)
         default: []
@@ -4703,28 +4570,14 @@ final class AppModel {
     private var itemsPrompt: String {
         let ids = actionIDs(view)
         switch view {
-        case .issues:
-            let issues = github.issues.filter { ids.contains($0.id) }
-            return WorkPrompt.from(issues: issues, instructions: startInstructions(issues.map(\.repo)))
         case .attention:
             let items = attentionRows.map(\.item).filter { ids.contains($0.id) }
             return AttentionText.workPrompt(
                 items, issues: github.issues, instructions: startInstructions(items.compactMap(\.repo))
             )
-        case .inbox:
-            let items = inboxRows.filter { ids.contains($0.id) }
-            // Issues in the inbox get their full text when Issues has it.
-            let issues = items.compactMap { item in
-                github.issues.first { $0.repo == item.repo && $0.number == item.number }
-            }
-            let instructions = startInstructions(items.map(\.repo))
-            return issues.count == items.count ? WorkPrompt.from(issues: issues, instructions: instructions)
-                : WorkPrompt.from(inbox: items, instructions: instructions)
         default: return ""
         }
     }
-
-    var itemsPromptPreview: String { itemsPrompt }
 
     /// The `start_instructions` of the repos work starts from, each once.
     func startInstructions(_ repos: [Repo]) -> String {
@@ -4761,20 +4614,6 @@ final class AppModel {
         flash = "added to \(session.title)"
     }
 
-    private func markItemsRead() {
-        guard view == .inbox else { return }
-        let ids = actionIDs(.inbox)
-        guard !ids.isEmpty else { return }
-        commit(.inboxRead(ids))
-        clearPicks()
-        guard !isFixture else { return }
-        Task {
-            for id in ids {
-                try? await GitHub.markRead(threadID: id, caller: "inbox.markRead")
-            }
-        }
-    }
-
     private var urlUnderCursor: String? {
         if let url = commandTarget?.url { return url }
         if let issue = issueReader { return issue.url }
@@ -4782,8 +4621,6 @@ final class AppModel {
         let index = cursor(in: view)
         switch view {
         case .attention: return attentionSelected?.item.url
-        case .inbox: return inboxRows.indices.contains(index) ? inboxRows[index].url : nil
-        case .issues: return issueRows.indices.contains(index) ? issueRows[index].url : nil
         case .prs: return pullRows.indices.contains(index) ? pullRows[index].url : nil
         case .watch: return pilotRows.indices.contains(index) ? pilotRows[index].ref.url : nil
         case .sessions: return currentSession?.trackedPRs.first?.url
@@ -4896,8 +4733,6 @@ final class AppModel {
         case .sessions: return currentSession?.involvedRepos ?? []
         case .repos: return worktreeRows.indices.contains(repoCursor) ? [worktreeRows[repoCursor].repo] : []
         case .attention: return attentionSelected?.item.repo.map { [$0] } ?? []
-        case .inbox: return inboxRows.indices.contains(index) ? [inboxRows[index].repo] : []
-        case .issues: return issueRows.indices.contains(index) ? [issueRows[index].repo] : []
         case .prs: return pullRows.indices.contains(index) ? [pullRows[index].ref.repo] : []
         case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
         case .history: return selectedHistory?.session.repos ?? []
@@ -5054,7 +4889,7 @@ final class AppModel {
         return session.notes.isEmpty ? prs : prs + [nil]
     }
 
-    /// The PR under the cursor where `o` was pressed: a PRs row, a PR in the inbox, or the session's first PR.
+    /// The PR under the cursor where `o` was pressed: a PRs row, a PR in Attention, or the session's first PR.
     private var pullUnderCursor: PullRef? {
         let index = cursor(in: view)
         switch view {
@@ -5062,10 +4897,6 @@ final class AppModel {
         case .watch:
             let rows = pilotRows
             return rows.indices.contains(index) ? rows[index].ref : nil
-        case .inbox:
-            guard inboxRows.indices.contains(index), inboxRows[index].kind == .pr,
-                  let number = inboxRows[index].number else { return nil }
-            return PullRef(repo: inboxRows[index].repo, number: number)
         case .attention:
             guard let item = attentionSelected?.item, item.kind == .pr, let repo = item.repo,
                   let number = item.number else { return nil }
@@ -5133,37 +4964,18 @@ final class AppModel {
         }
     }
 
-    /// The issue under the cursor: an Issues row, or an issue in the inbox (with what the inbox knows of it when it
-    /// is not one assigned to you).
+    /// The issue under the cursor in Attention (with what Attention knows of it when the issue searches did not find
+    /// it).
     private var issueUnderCursor: Issue? {
-        let index = cursor(in: view)
-        switch view {
-        case .issues:
-            let rows = issueRows
-            return rows.indices.contains(index) ? rows[index] : nil
-        case .inbox:
-            let rows = inboxRows
-            guard rows.indices.contains(index), rows[index].kind == .issue, let number = rows[index].number
-            else { return nil }
-            let item = rows[index]
-            return github.issues.first { $0.repo == item.repo && $0.number == number }
-                ?? Issue(
-                    repo: item.repo, number: number, title: item.title,
-                    url: item.url ?? "https://github.com/\(item.repo.slug)/issues/\(number)", body: "", labels: [],
-                    author: nil, updatedAt: item.updatedAt
-                )
-        case .attention:
-            guard let item = attentionSelected?.item, item.kind == .issue, let repo = item.repo,
-                  let number = item.number else { return nil }
-            return github.issues.first { $0.repo == repo && $0.number == number }
-                ?? Issue(
-                    repo: repo, number: number, title: item.title,
-                    url: item.url ?? "https://github.com/\(repo.slug)/issues/\(number)",
-                    body: detail(of: item)?.body ?? "", labels: item.labels, author: item.author,
-                    updatedAt: item.updatedAt
-                )
-        default: return nil
-        }
+        guard view == .attention, let item = attentionSelected?.item, item.kind == .issue, let repo = item.repo,
+              let number = item.number else { return nil }
+        return github.issues.first { $0.repo == repo && $0.number == number }
+            ?? Issue(
+                repo: repo, number: number, title: item.title,
+                url: item.url ?? "https://github.com/\(repo.slug)/issues/\(number)",
+                body: detail(of: item)?.body ?? "", labels: item.labels, author: item.author,
+                updatedAt: item.updatedAt
+            )
     }
 
     private func togglePullOverlay() {
@@ -7003,7 +6815,7 @@ final class AppModel {
         case .standup: standup.setCursor(0)
         case .goals: goals.setCursor(0)
         case .repos: repoCursor = 0
-        case .attention, .inbox, .issues, .prs, .watch: itemCursor[view] = 0
+        case .attention, .prs, .watch: itemCursor[view] = 0
         }
     }
 
@@ -7020,7 +6832,7 @@ final class AppModel {
         case .standup: standup.rows.count
         case .goals: goals.rows.count
         case .repos: worktreeRows.count
-        case .attention, .inbox, .issues, .prs, .watch: itemIDs(view).count
+        case .attention, .prs, .watch: itemIDs(view).count
         }
     }
 
@@ -7136,14 +6948,6 @@ final class AppModel {
             return items(attentionRows.map(\.item).filter { ids.contains($0.id) }.compactMap { item in
                 item.repo.map { ($0, item.number.map { "\($0)" }.map { "\(item.repo!.name)#\($0)" } ?? $0.name) }
             })
-        case .inbox:
-            let ids = Set(actionIDs(.inbox))
-            return items(inboxRows.filter { ids.contains($0.id) }.map { item in
-                (item.repo, item.number.map { "\(item.repo.name)#\($0)" } ?? item.repo.name)
-            })
-        case .issues:
-            let ids = Set(actionIDs(.issues))
-            return items(issueRows.filter { ids.contains($0.id) }.map { ($0.repo, "\($0.repo.name)#\($0.number)") })
         case .prs:
             let ids = Set(actionIDs(.prs))
             return items(pullRows.filter { ids.contains($0.id) }.map {
@@ -7921,9 +7725,12 @@ final class AppModel {
         guard let lesson = Tutor.lesson(id) else { return }
         tutorWorld = world ?? lesson.world
         if !lesson.config.isEmpty, isFixture { applyConfig(source: lesson.config) }
-        // A view's lesson opens in that view; the inbox's in Attention's Everything, where the inbox went.
+        // A view's lesson opens in that view; the inbox's in Attention's Everything and the issues' in Attention's
+        // issues, where those views went.
         if id == "inbox" {
             openAttention("all")
+        } else if id == "issues" {
+            openAttention("issues")
         } else {
             view = AppView(rawValue: id) ?? .sessions
         }
@@ -8122,7 +7929,7 @@ final class AppModel {
         case .goals:
             state.cursor = goals.rowCursor
             state.rows = goals.rowCount
-        case .attention, .inbox, .issues, .prs, .watch:
+        case .attention, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count
         }
@@ -8196,7 +8003,8 @@ final class AppModel {
     /// A command's key as text for hints: as bound, else `:command` (what still runs it).
     func keyText(for command: String) -> String { keyLabel(for: command) ?? ":\(command)" }
 
-    /// The same, for a view's own panel: that view's bindings (`[keys.inbox]`) first, as they shadow NORMAL's there.
+    /// The same, for a view's own panel: that view's bindings (`[keys.attention]`) first, as they shadow NORMAL's
+    /// there.
     func keyText(for command: String, in scope: String) -> String {
         engine.scopedKeymaps[scope]?.keys(for: command).first.map(KeyCapText.of) ?? keyText(for: command)
     }
@@ -8387,9 +8195,9 @@ final class AppModel {
         }
     }
 
-    /// A click on a list row (Inbox, Issues, PRs, Watch, Repos, History) moves the cursor there; a double-click runs
-    /// what ↩ runs in that view, as you have it bound: the worktree's session in Repos, the reader for an inbox item,
-    /// issue or PR, reopen in History and its timeline, ledger and dashboard.
+    /// A click on a list row (Attention, PRs, Watch, Repos, History) moves the cursor there; a double-click runs
+    /// what ↩ runs in that view, as you have it bound: the worktree's session in Repos, the reader for an item, issue
+    /// or PR, reopen in History and its timeline, ledger and dashboard.
     func clickRow(_ list: AppView, _ index: Int, open: Bool = false) {
         guard clicksReachLists, view == list else { return }
         clickedOutsideTerminal()
@@ -8469,48 +8277,6 @@ final class AppModel {
         let before = engine.mode
         engine.enter(.insert)
         modeChanged(from: before)
-    }
-}
-
-/// The Issues chips (`t`).
-enum IssueFilter: String, CaseIterable {
-    case all = "All", assigned = "Assigned", mentioned = "Mentioned", watched = "Watched repos"
-
-    var next: IssueFilter {
-        let all = Self.allCases
-        return all[(all.firstIndex(of: self)! + 1) % all.count]
-    }
-
-    func matches(_ issue: Issue) -> Bool {
-        switch self {
-        case .all: true
-        case .assigned: issue.assigned
-        case .mentioned: issue.mentioned
-        case .watched: !issue.involvesYou
-        }
-    }
-}
-
-/// The inbox chips (`t`). CI is GitHub Actions telling you a workflow run finished (failed, mostly) on your branch.
-enum InboxFilter: String, CaseIterable {
-    case unread = "Unread", all = "All", prs = "PRs", issues = "Issues", review = "Review requested",
-         assigned = "Assigned", ci = "CI runs"
-
-    var next: InboxFilter {
-        let all = Self.allCases
-        return all[(all.firstIndex(of: self)! + 1) % all.count]
-    }
-
-    func matches(_ item: InboxItem) -> Bool {
-        switch self {
-        case .unread: item.unread
-        case .all: true
-        case .prs: item.kind == .pr
-        case .issues: item.kind == .issue
-        case .review: item.reason == "review_requested"
-        case .assigned: item.reason == "assign"
-        case .ci: item.kind == .ci || item.reason == "ci_activity"
-        }
     }
 }
 

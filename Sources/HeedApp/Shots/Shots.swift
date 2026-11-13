@@ -254,8 +254,8 @@ enum Shots {
         // The model field: h l step through the agent's models (Opus, two steps in), then its efforts (high).
         Shot(id: "start-work/model", keys: "o" + prompt + "<Esc>jjjjjlljlll", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
-        Shot(id: "start-work/from-github-picked", keys: ":issues<CR><Space>j<Space>", highlight: [.list, .pickedPanel]),
-        Shot(id: "start-work/from-github-dialog", keys: ":issues<CR><Space>j<Space>s", crop: .dialog),
+        Shot(id: "start-work/from-github-picked", keys: "gi<Space>j<Space>", highlight: [.list]),
+        Shot(id: "start-work/from-github-dialog", keys: "gi<Space>j<Space>s", crop: .dialog),
         Shot(id: "start-work/again", keys: "ghO", crop: .dialog),
         Shot(
             id: "start-work/on-a-host", keys: "o" + typed("Fix the flaky link checker in docs-toolkit") + "<C-n>",
@@ -369,7 +369,7 @@ enum Shots {
     ]
 
     static let github: [Shot] = [
-        Shot(id: "github/offline", keys: ":inbox<CR>", highlight: [.syncBanner], prepare: { model in
+        Shot(id: "github/offline", keys: "gm", highlight: [.syncBanner], prepare: { model in
             var state = model.github
             state.status = .offline("gh: could not resolve host api.github.com")
             model.commit(.githubSynced(state))
@@ -447,14 +447,10 @@ enum Shots {
             state.fetches = fetches
             model.commit(.githubSynced(state))
         }),
-        Shot(id: "github/inbox", keys: ":inbox<CR>", highlight: [.attentionTabs]),
-        Shot(id: "github/inbox-rows", size: short, keys: ":inbox<CR>", crop: .list),
-        Shot(id: "github/issues", keys: ":issues<CR>", highlight: [.issueRepos, .chips]),
-        Shot(id: "github/issue-rows", size: short, keys: ":issues<CR>", crop: .list),
         Shot(id: "github/prs", keys: ":prs<CR>"),
         Shot(id: "github/reader-pr", size: CGSize(width: 1440, height: 1600), keys: ":prs<CR>go"),
         Shot(
-            id: "github/reader-issue", size: CGSize(width: 1200, height: 1110), keys: ":issues<CR>go", crop: .reader
+            id: "github/reader-issue", size: CGSize(width: 1200, height: 1110), keys: "gigo", crop: .reader
         ),
         Shot(id: "github/feedback", keys: "go", prepare: withGreenInstructions),
         Shot(id: "github/delivery", keys: "go", crop: .delivery),
@@ -797,7 +793,7 @@ enum Shots {
         Shot(id: "keyboard/leader", keys: "g", crop: .leaderHints),
         Shot(id: "keyboard/view-tabs", crop: .viewTabs, cropPadding: 8),
         Shot(id: "keyboard/hints-sessions", keys: "f"),
-        Shot(id: "keyboard/hints-list", size: short, keys: ":issues<CR>f", crop: .list),
+        Shot(id: "keyboard/hints-list", size: short, keys: "gif", crop: .list),
         Shot(id: "keyboard/command-line", keys: ":vie", crop: .commandLine),
         Shot(id: "keyboard/visual", size: short, keys: "grvjj", crop: .worktreeTable),
     ]

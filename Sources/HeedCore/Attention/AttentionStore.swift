@@ -116,17 +116,21 @@ public actor AttentionStore {
         }
     }
 
-    /// Items seen since `since` (30 days by default), newest update first.
+    /// Items seen since `since` (30 days by default), newest update first. A row that no longer decodes (one kept
+    /// with a reason heed has since dropped, such as `watching`) is skipped, not an error for the rest.
     public func items(since: Date? = nil, now: Date = Date()) throws -> [StoredAttentionItem] {
         try database.query(
             "SELECT item, first_seen, last_seen FROM items WHERE last_seen >= ? ORDER BY updated_at DESC, id",
             [SQLiteValue(since ?? now.addingTimeInterval(-Self.retention))]
-        ) { row in
-            let item = try JSONDecoder.heed.decode(AttentionItem.self, from: row[0].data ?? Data())
+        ) { row -> StoredAttentionItem? in
+            guard let item = try? JSONDecoder.heed.decode(AttentionItem.self, from: row[0].data ?? Data()) else {
+                return nil
+            }
             return StoredAttentionItem(
                 item: item, firstSeen: row[1].date ?? .distantPast, lastSeen: row[2].date ?? .distantPast
             )
         }
+        .compactMap { $0 }
     }
 
     // MARK: Marks

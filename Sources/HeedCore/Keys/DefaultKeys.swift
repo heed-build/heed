@@ -95,7 +95,7 @@ public enum DefaultKeys {
             ("R", "session.rename"), ("K", "session.kind"), ("X", "sessions.close.ready"),
         ],
         "repos": [
-            ("o", "worktree.new"), ("r", "repo.scan"), ("w", "issues.visibility"), ("dd", "select.remove"),
+            ("o", "worktree.new"), ("r", "repo.scan"), ("dd", "select.remove"),
             ("<CR>", "select.open"), ("S", "setup.review"), ("M", "repo.setup"),
         ],
         // ↩ and a double-click reopen, as R does: there is nothing else in History to open.
@@ -238,15 +238,6 @@ public enum DefaultKeys {
         "swarmask": laid([
             ("i", "swarm.answer"), ("c", "swarm.controller"), ("A", "swarm.similar"),
         ] + (1 ... 9).map { ("\($0)", "swarm.answer.option \($0)") }, over: attention),
-        "inbox": [
-            ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("x", "items.read"),
-            ("t", "items.filter"), ("r", "github.sync"),
-        ],
-        "issues": [
-            ("<Space>", "select.toggle"), ("s", "items.start"), ("a", "items.add"), ("r", "github.sync"),
-            ("t", "items.filter"), ("<Tab>", "issues.repo.next"),
-            ("<S-Tab>", "issues.repo.prev"), ("w", "issues.visibility"),
-        ],
         "prs": [
             ("r", "github.sync"), ("<Space>", "select.toggle"),
         ],

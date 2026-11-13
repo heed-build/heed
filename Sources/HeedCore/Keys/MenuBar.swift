@@ -75,6 +75,7 @@ public enum MenuBar {
         "attention.reader.down": "scrolling Attention's reader: the mouse scrolls it",
         "attention.reader.up": "scrolling Attention's reader: the mouse scrolls it",
         "view.inbox": "the Inbox is Attention's Everything tab: View › Attention, then the tab",
+        "view.issues": "the Issues view is Attention's issues (gi): View › Attention, then the tab",
         "row.halfpage.up": "moving the cursor: the mouse clicks rows and scrolls",
         "group.next": "moving the cursor: the mouse clicks rows and scrolls",
         "group.prev": "moving the cursor: the mouse clicks rows and scrolls",
@@ -248,7 +249,6 @@ public enum MenuBar {
             return Menu("View", [
                 view("Sessions", "view.sessions", "sessions"),
                 view("Attention", "view.attention", "attention"),
-                view("Issues", "view.issues", "issues"),
                 view("Pull requests", "view.prs", "prs"),
                 view("Watch", "view.watch", "watch"),
                 view("Repos & worktrees", "view.repos", "repos"),
@@ -282,12 +282,9 @@ public enum MenuBar {
                     ("Done with everything new", "attention.done.new"), ("Fold Mentioned before", "attention.fold"),
                     ("Rewrite the summary", "attention.summarize"), ("Coverage", "attention.coverage"),
                 ], in: ["attention"]),
-                scoped("In the Inbox and Issues", [
+                scoped("In Attention and the issue reader", [
                     ("Start a session from it", "items.start"), ("Add it to this session", "items.add"),
-                    ("Mark read", "items.read"), ("Next filter", "items.filter"),
-                    ("Next repo", "issues.repo.next"), ("Previous repo", "issues.repo.prev"),
-                    ("Every repo's issues", "issues.repo"), ("All issues, or only yours", "issues.visibility"),
-                ], in: ["attention", "inbox", "issues", "issue"]),
+                ], in: ["attention", "issue"]),
                 scoped("In Repos", [
                     ("Start work in this repo", "worktree.new"), ("Open or import", "select.open"),
                     ("Copy path", "select.copy"), ("Pin its session", "select.pin"), ("Remove…", "select.remove"),

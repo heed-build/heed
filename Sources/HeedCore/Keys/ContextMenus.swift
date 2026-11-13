@@ -6,7 +6,7 @@ public enum CommandTarget: Hashable, Sendable {
     case issue(IssueRef)
     /// A get it green / get it merged run, by id.
     case run(String)
-    /// A row of a list view (`inbox`, `issues`, `repos`, `history`…), by its id: the cursor moves there first, and the
+    /// A row of a list view (`attention`, `prs`, `repos`, `history`…), by its id: the cursor moves there first, and the
     /// commands that act on the picked rows act on it alone unless it is one of them.
     case row(view: String, id: String)
     /// A repo, as the Issues repo column lists them.
@@ -548,59 +548,6 @@ public enum ContextMenus {
         return menu.entries
     }
 
-    /// An Inbox or Issues row. `count` is how many rows the item commands act on: the picked ones when the row clicked
-    /// is among them, else that row alone.
-    public struct ItemFacts: Sendable {
-        public enum Kind: Sendable { case inbox, issue }
-        public var kind: Kind
-        public var id: String
-        public var title: String
-        public var count = 1
-        /// A session is selected that `a` can add to.
-        public var hasSession = false
-        public var unread = false
-        /// Inbox items with a page on GitHub; CI notices have none of their own.
-        public var hasURL = true
-        /// The repo shows every open issue, not only yours (Issues).
-        public var allIssues = false
-
-        public init(kind: Kind, id: String, title: String) {
-            self.kind = kind
-            self.id = id
-            self.title = title
-        }
-    }
-
-    public static func item(_ facts: ItemFacts) -> [MenuEntry] {
-        let view = facts.kind == .inbox ? "inbox" : "issues"
-        let target = CommandTarget.row(view: view, id: facts.id)
-        func item(_ title: String, _ name: String, enabled: Bool = true, checked: Bool = false) -> MenuItem {
-            MenuItem(title, CommandInvocation(name: name, target: target), enabled: enabled, checked: checked)
-        }
-        let them = facts.count > 1 ? "the \(facts.count) picked" : "it"
-        var menu = Menu(header: facts.title)
-        menu.section([
-            item("Open", "open.reader"),
-            facts.hasURL ? item("Open in browser", "open.browser") : nil,
-            item("Open repo on GitHub", "open.repo"),
-        ])
-        menu.section([
-            item("Start a session from \(them)", "items.start"),
-            item("Add \(them) to this session", "items.add", enabled: facts.hasSession),
-        ])
-        switch facts.kind {
-        case .inbox:
-            menu.section([item(
-                facts.count > 1 ? "Mark \(them) read" : "Mark read",
-                "items.read",
-                enabled: facts.unread
-            )])
-        case .issue:
-            menu.section([item("All issues from its repo", "issues.visibility", checked: facts.allIssues)])
-        }
-        return menu.entries
-    }
-
     /// An Attention row. `count` is how many rows the actions act on (the picked ones when the row clicked is among
     /// them, else that row alone).
     public struct AttentionFacts: Sendable {
@@ -649,9 +596,8 @@ public enum ContextMenus {
         return menu.entries
     }
 
-    /// A repo in the Issues repo column; nil is its All row.
     /// A repo in the Repos view's column: its setup for get it merged and get it green first.
-    public static func repo(_ repo: Repo, allIssues: Bool) -> [MenuEntry] {
+    public static func repo(_ repo: Repo) -> [MenuEntry] {
         let target = CommandTarget.repo(repo)
         let onGitHub = repo.org != "local"
         var menu = Menu(header: repo.slug)
@@ -660,33 +606,8 @@ public enum ContextMenus {
                 nil,
         ])
         menu.section([
-            MenuItem(
-                "All issues, not only yours", CommandInvocation(name: "issues.visibility", target: target),
-                checked: allIssues
-            ),
             onGitHub ? MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target)) : nil,
         ])
-        return menu.entries
-    }
-
-    public static func issueRepo(_ repo: Repo?, allIssues: Bool) -> [MenuEntry] {
-        guard let repo else {
-            var menu = Menu(header: "Every repo")
-            menu.section([MenuItem("Show every repo's issues", CommandInvocation(name: "issues.repo"))])
-            return menu.entries
-        }
-        let target = CommandTarget.repo(repo)
-        var menu = Menu(header: repo.slug)
-        menu.section([
-            MenuItem("Show its issues", CommandInvocation(name: "issues.repo", target: target)),
-            MenuItem(
-                "All issues, not only yours", CommandInvocation(name: "issues.visibility", target: target),
-                checked: allIssues
-            ),
-        ])
-        if repo.org != "local" {
-            menu.section([MenuItem("Open repo on GitHub", CommandInvocation(name: "open.repo", target: target))])
-        }
         return menu.entries
     }
 
@@ -699,7 +620,6 @@ public enum ContextMenus {
         public var pinned = false
         public var isMain = false
         public var onGitHub = true
-        public var allIssues = false
 
         public init(id: String, title: String) {
             self.id = id
@@ -730,7 +650,6 @@ public enum ContextMenus {
                 checked: facts.pinned
             ) : nil,
             facts.onGitHub ? item("Open repo on GitHub", "open.repo") : nil,
-            item("All issues from this repo", "issues.visibility", checked: facts.allIssues),
         ])
         menu.section([
             item("Run the cleanup sweep…", "cleanup.sweep"),

@@ -393,6 +393,13 @@ final class AppModel {
     private(set) var lastTyped: [String: Date] = [:]
     /// PRs with queued feedback waiting for their agent to be idle.
     private var pendingDelivery: Set<PullRef> = []
+    /// Where each pane's agent takes messages besides its terminal, as its hooks said (`AgentInbox`); not kept across
+    /// launches: the next prompt or turn's end says it again.
+    @ObservationIgnored var inboxes: [String: AgentInbox] = [:]
+    /// Sends through those inboxes and reads what they answer.
+    @ObservationIgnored let channels = AgentChannels()
+    /// Deliveries on their way through a channel (`pr:<ref>`, `notes:<id>`), so a second trigger does not send twice.
+    @ObservationIgnored var sending: Set<String> = []
 
     /// Scoped key bindings follow what has focus: the diff, the PR overlay or reader, else the view (Goals'
     /// Unassigned pane has its own: y n m i answer there).
@@ -1159,6 +1166,7 @@ final class AppModel {
         }
         hookServer = server
         startControl()
+        startDeliveryReceipts()
         Task {
             for await message in server.messages {
                 receive(message)
@@ -1200,7 +1208,10 @@ final class AppModel {
     func receive(_ message: HookMessage) {
         // The agent a handoff stopped, on its way out: the session is the new agent's now.
         if let pane = message.pane, retiredPanes.contains(pane) { return }
-        if let pane = message.pane { lastHookAt[pane] = message.sentAt }
+        if let pane = message.pane {
+            lastHookAt[pane] = message.sentAt
+            noteInbox(message, pane: pane)
+        }
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
         // A reviewer's hooks: its turn over ends it, as a run's does.
         if let pane = message.pane, reviewPanes.contains(pane) {
@@ -1304,8 +1315,14 @@ final class AppModel {
             if state == .idle, pendingContinue.remove(session.id) != nil,
                let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout)
             {
-                TerminalSurfaces.shared.typeLine(settings.continuePrompt, paneID: paneID)
-                session.record("sent “\(settings.continuePrompt)”")
+                // Typed as soon as it is idle, as it always was (no typing grace), unless its channel takes it.
+                let prompt = settings.continuePrompt, id = session.id
+                Task { @MainActor in
+                    let outcome = await self.sendToAgent(prompt, pane: paneID, state: .idle, lastTyped: nil)
+                    guard outcome.sent, var sent = self.sessions.first(where: { $0.id == id }) else { return }
+                    sent.record("sent “\(prompt)”" + (outcome == .typed(fallback: nil) ? "" : " · \(outcome.summary)"))
+                    self.commit(.sessionUpserted(sent))
+                }
             }
         case let .title(title):
             session.title = title
@@ -1337,7 +1354,7 @@ final class AppModel {
         case let .lastMessage(text):
             guard text != session.lastMessage else { return }
             session.lastMessage = text
-        case .subagent, .subagentState, .subagentsEnded, .toolCall:
+        case .subagent, .subagentState, .subagentsEnded, .toolCall, .inbox:
             return
         }
         commit(.sessionUpserted(session))
@@ -4753,9 +4770,16 @@ final class AppModel {
             flash = "\(session.title) is waiting on you; answer it first"
             return
         }
-        TerminalSurfaces.shared.typeLine(prompt.replacingOccurrences(of: "\n", with: " "), paneID: paneID)
         clearPicks()
-        flash = "added to \(session.title)"
+        // Typed straight away as always (it queues in the agent's own prompt), unless its channel takes it.
+        let title = session.title
+        Task { @MainActor in
+            let outcome = await self.sendToAgent(
+                prompt, typed: prompt.replacingOccurrences(of: "\n", with: " "), pane: paneID, state: .idle,
+                lastTyped: nil
+            )
+            self.flash = outcome == .typed(fallback: nil) ? "added to \(title)" : "added to \(title) \(outcome.summary)"
+        }
     }
 
     private var urlUnderCursor: String? {
@@ -6199,23 +6223,36 @@ final class AppModel {
     /// `run_in = "session"`: typed into the session's own agent, once it is idle and you have left it alone (five
     /// minutes after your last keystroke; when you asked, 20 seconds).
     private func deliverInSession(_ ref: PullRef, prompt: String, explicit: Bool, session: Session) {
-        guard var pipeline = feedback[ref.description], let layout = layouts[session.id],
+        guard feedback[ref.description] != nil, let layout = layouts[session.id],
               let (_, paneID) = agentPane(in: layout)
         else {
             if explicit { flash = "\(session.title) has no agent pane to send to" }
             return
         }
-        switch Delivery.verdict(
-            state: session.state.state, lastTyped: lastTyped[session.id], typingGrace: explicit ? 20 : 300
-        ) {
-        case let .wait(reason):
-            pendingDelivery.insert(ref)
-            if explicit { flash = "waiting: \(reason); it goes once the agent is idle" }
-            logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(reason)")
-        case .deliver:
-            var session = session
-            TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
-            markSent(ref, pipeline: &pipeline, session: &session, to: session.agent, byYou: explicit)
+        // Through its channel when it has one (`sendToAgent`); one delivery at a time.
+        let key = "pr:\(ref.description)", id = session.id
+        guard sending.insert(key).inserted else { return }
+        Task { @MainActor in
+            defer { self.sending.remove(key) }
+            let outcome = await self.sendToAgent(
+                prompt, pane: paneID, state: session.state.state, lastTyped: self.lastTyped[id],
+                typingGrace: explicit ? 20 : 300
+            )
+            guard var pipeline = self.feedback[ref.description] else { return }
+            guard outcome.sent, var session = self.sessions.first(where: { $0.id == id }) else {
+                let reason = outcome.why ?? "not sent"
+                self.pendingDelivery.insert(ref)
+                if explicit { self.flash = "waiting: \(reason); it goes once the agent is idle" }
+                self.logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(reason)")
+                return
+            }
+            self.markSent(
+                ref,
+                pipeline: &pipeline,
+                session: &session,
+                to: outcome.target(session.agent),
+                byYou: explicit
+            )
         }
     }
 
@@ -6897,19 +6934,28 @@ final class AppModel {
             if explicit { flash = "\(session.title) has no agent pane to send to" }
             return
         }
-        // You asked for these: they wait out a short typing grace, not the five minutes auto-feed does.
-        switch Delivery.verdict(state: session.state.state, lastTyped: lastTyped[session.id], typingGrace: 20) {
-        case let .wait(reason):
-            pendingNotes.insert(id)
-            if explicit { flash = "waiting: \(reason); it goes once the agent is idle" }
-        case .deliver:
-            pendingNotes.remove(id)
-            let count = session.notes.count { $0.status == .queued }
-            TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
+        // You asked for these: they wait out a short typing grace, not the five minutes auto-feed does. Through the
+        // agent's channel when it has one (`sendToAgent`); one delivery at a time.
+        let key = "notes:\(id)"
+        guard sending.insert(key).inserted else { return }
+        let count = session.notes.count { $0.status == .queued }
+        Task { @MainActor in
+            defer { self.sending.remove(key) }
+            let outcome = await self.sendToAgent(
+                prompt, pane: paneID, state: session.state.state, lastTyped: self.lastTyped[id], typingGrace: 20
+            )
+            guard outcome.sent else {
+                self.pendingNotes.insert(id)
+                if explicit { self.flash = "waiting: \(outcome.why ?? "not sent"); it goes once the agent is idle" }
+                return
+            }
+            self.pendingNotes.remove(id)
+            guard var session = self.sessions.first(where: { $0.id == id }) else { return }
             SessionNotes.markSent(&session.notes)
-            session.record("sent \(count) note\(count == 1 ? "" : "s") to \(session.agent)")
-            commit(.sessionUpserted(session))
-            flash = "sent \(count) note\(count == 1 ? "" : "s") to \(session.agent)"
+            let words = "sent \(count) note\(count == 1 ? "" : "s") to \(outcome.target(session.agent))"
+            session.record(words)
+            self.commit(.sessionUpserted(session))
+            self.flash = words
         }
     }
 

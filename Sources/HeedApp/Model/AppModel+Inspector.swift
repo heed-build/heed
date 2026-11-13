@@ -29,20 +29,22 @@ extension AppModel {
         SessionContext.overlaps(of: session, sessions: sessions, worktrees: worktrees)
     }
 
-    /// Loose ends handed to the session's agent as one prompt, when it can take one; it waits for nobody, so a busy
-    /// agent says so and nothing is typed.
+    /// Loose ends handed to the session's agent as one prompt, when it can take one: through its channel, or typed;
+    /// it waits for nobody, so a busy agent without a channel says so and nothing is typed.
     func tackle(_ items: [MindNode.OpenItem], in session: Session) {
         guard !items.isEmpty else { return }
         guard let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout) else {
             return flash = "\(session.title) has no agent pane to hand them to"
         }
-        if case let .wait(reason) = Delivery.verdict(
-            state: session.state.state, lastTyped: lastTyped[session.id], typingGrace: 20
-        ) {
-            return flash = "not now: \(reason)"
+        let count = items.count, agent = session.agent
+        Task { @MainActor in
+            let outcome = await self.sendToAgent(
+                SessionContext.tackle(items), pane: paneID, state: session.state.state,
+                lastTyped: self.lastTyped[session.id], typingGrace: 20
+            )
+            guard outcome.sent else { return self.flash = "not now: \(outcome.why ?? "not sent")" }
+            self.flash = "handed \(count) loose end\(count == 1 ? "" : "s") to \(outcome.target(agent))"
         }
-        TerminalSurfaces.shared.typeLine(SessionContext.tackle(items), paneID: paneID)
-        flash = "handed \(items.count) loose end\(items.count == 1 ? "" : "s") to \(session.agent)"
     }
 
     /// A loose end marked done, on the node it lives on.

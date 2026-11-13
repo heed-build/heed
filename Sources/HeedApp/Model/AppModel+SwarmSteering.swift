@@ -181,8 +181,8 @@ extension AppModel {
         }
     }
 
-    /// Hands over what waits for agents: one thing per pane, into an idle agent you are not typing to. True when it
-    /// typed something.
+    /// Hands over what waits for agents: one thing per pane, through its agent's channel, or typed into an idle agent
+    /// you are not typing to. True when it handed something over.
     private func handOver(_ board: SwarmBoard) async -> Bool {
         let now = Clock.now
         let numbers = SwarmPlan.numbers(board.tasks)
@@ -191,10 +191,11 @@ extension AppModel {
         for item in SwarmDelivery.pending(board.steering, waiting: waitingAsks, numbers: numbers, now: now) {
             guard !typed.contains(item.to.raw), let target = paneOf(item.to, swarm: board.swarm) else { continue }
             if let last = handedAt[target.pane], now.timeIntervalSince(last) < 15 { continue }
-            guard Delivery.verdict(state: target.state, lastTyped: target.typed, now: now) == .deliver,
-                  TerminalSurfaces.shared.hasTerminal(paneID: target.pane)
+            // Through its agent's channel when it has one (`sendToAgent`), else typed into an idle agent.
+            guard inbox(forPane: target.pane) != nil || TerminalSurfaces.shared.hasTerminal(paneID: target.pane)
             else { continue }
-            TerminalSurfaces.shared.typeLine(item.line, paneID: target.pane)
+            let outcome = await sendToAgent(item.line, pane: target.pane, state: target.state, lastTyped: target.typed)
+            guard outcome.sent else { continue }
             typed.insert(item.to.raw)
             handedAt[target.pane] = now
             if target.worker { runStates[target.pane] = .working }
@@ -204,7 +205,7 @@ extension AppModel {
                     swarm: board.swarm.id,
                     row: row,
                     to: item.to,
-                    how: "typed into its pane",
+                    how: outcome == .typed(fallback: nil) ? "typed into its pane" : outcome.summary,
                     now: now
                 )
             }

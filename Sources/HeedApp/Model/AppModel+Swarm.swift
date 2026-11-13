@@ -440,18 +440,22 @@ extension AppModel {
         }
     }
 
-    /// Tells the lead, in its pane, that there is something to read: only when it is idle and you have not typed
-    /// there (`Delivery`). Otherwise it reads it in `heed goal plan show` when it next looks.
+    /// Tells the lead that there is something to read: through its channel, or in its pane only when it is idle and
+    /// you have not typed there (`Delivery`). Otherwise it reads it in `heed goal plan show` when it next looks.
     func nudgeLead(_ board: SwarmBoard, _ text: String) {
         guard let id = board.swarm.lead, let session = sessions.first(where: { $0.id == id }),
               let layout = layouts[id], let (_, paneID) = agentPane(in: layout),
-              TerminalSurfaces.shared.hasTerminal(paneID: paneID),
-              Delivery.verdict(state: session.state.state, lastTyped: lastTyped[id]) == .deliver
+              inbox(forPane: paneID) != nil || TerminalSurfaces.shared.hasTerminal(paneID: paneID)
         else { return }
-        TerminalSurfaces.shared.typeLine(text + " Run heed goal plan show.", paneID: paneID)
-        var told = session
-        told.record("told the lead: \(text)")
-        commit(.sessionUpserted(told))
+        Task { @MainActor in
+            let outcome = await self.sendToAgent(
+                text + " Run heed goal plan show.", pane: paneID, state: session.state.state,
+                lastTyped: self.lastTyped[id]
+            )
+            guard outcome.sent, var told = self.sessions.first(where: { $0.id == id }) else { return }
+            told.record("told the lead: \(text)" + (outcome == .typed(fallback: nil) ? "" : " · \(outcome.summary)"))
+            self.commit(.sessionUpserted(told))
+        }
     }
 
     // MARK: The plan

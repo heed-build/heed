@@ -51,6 +51,17 @@ extension SettingsCatalog {
                 + "you give it stays.", since: "0.38.0"
         ) { .bool($0.work.nameSessions) },
         global(
+            "sessions.claude_inbox", .general, "Sessions", "Send to Claude through its inbox",
+            "What heed sends a Claude session (feedback, notes, the continue prompt) goes to its cross-session inbox "
+                + "instead of being typed: it waits there while the agent works and can never approve a prompt. "
+                + "Without one, typed as before.", since: "0.42.0"
+        ) { .bool($0.work.channels.claudeInbox) },
+        global(
+            "sessions.codex_queue", .general, "Sessions", "Send to codex with codex queue",
+            "The same for codex sessions, through codex's shared app-server. Experimental: off by default.",
+            since: "0.42.0"
+        ) { .bool($0.work.channels.codexQueue) },
+        global(
             "sessions.persist", .general, "Sessions", "Persistent panes",
             "Panes run in zmx, so agents keep running when heed quits, restarts or updates, and come back as they "
                 + "were. Auto uses zmx when it is installed and passes its check (Tools).",

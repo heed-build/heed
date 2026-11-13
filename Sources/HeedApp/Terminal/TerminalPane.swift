@@ -115,6 +115,9 @@ final class TerminalSurfaces {
             HeedEnvironment.sessionID: sessionID,
             HeedEnvironment.socket: HeedEnvironment.defaultSocketPath(),
             HeedEnvironment.pane: pane.id,
+            // Never an inbox inherited from wherever heed was started: a Claude in this pane says its own.
+            "CLAUDE_CODE_MESSAGING_SOCKET": "",
+            "CLAUDE_CODE_MESSAGING_TOKEN": "",
         ]
         var command = autostartPanes.remove(pane.id) == nil ? nil : pane.command
         var withPath = environment

@@ -9,6 +9,10 @@ extension AppModel {
         let server = ControlServer { [weak self] request in
             await self?.control(request) ?? .failure("Heed is closing")
         }
+        // A permission hook the agent stopped (its own prompt was answered, the agent quit): it leaves the queue.
+        server.permissionGone = { [weak self] id in
+            Task { @MainActor in self?.resolvePermission(id, .pass) }
+        }
         do {
             try server.start()
         } catch {
@@ -41,6 +45,7 @@ extension AppModel {
         case .show: controlShow(request)
         case .goal: await controlGoal(request)
         case .memory: await controlMemory(request)
+        case .permission: await controlPermission(request)
         }
     }
 

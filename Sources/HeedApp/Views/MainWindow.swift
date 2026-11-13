@@ -130,6 +130,9 @@ struct MainWindow: View {
         .overlay {
             if model.overlay == .help { HelpOverlay() }
         }
+        .overlay {
+            if model.overlay == .approvals { ApprovalsView() }
+        }
         .overlay(alignment: .bottom) {
             if model.mode == .command { CommandLineView().padding(.bottom, 28) }
         }
@@ -203,8 +206,12 @@ struct TitleBar: View {
 
     @ViewBuilder private func status(compact: Bool) -> some View {
         syncStatus
-        if model.blockedCount > 0 {
-            Label { Text(compact ? "\(model.blockedCount)" : "\(model.blockedCount) blocked").fixedSize() }
+        // Permission asks are one pill that opens them all (gy); a blocked count only for what is not among them.
+        let summary = model.approvalSummary
+        if summary.asks > 0 { ApprovalPill(summary: summary, compact: compact) }
+        let blocked = model.blockedCount - (summary.asks > 0 ? model.blockedAsking : 0)
+        if blocked > 0 {
+            Label { Text(compact ? "\(blocked)" : "\(blocked) blocked").fixedSize() }
                 icon: { StateGlyph(state: .blocked) }
         }
         if model.askingCount > 0 {
@@ -497,6 +504,12 @@ struct StatusBar: View {
         case .normal where model.hostRootsChooser != nil: "j k move · space pick · a add a folder · w worktrees · ↩ save · ⎋ skip"
         case .normal where model.pathImport != nil: "⇥ complete · ⌃n ⌃p choose · ⌃w up a folder · ↩ import · ⎋ cancel"
         case .normal where model.filtering: "words match anywhere · ⌃w word · ⌃u clear · ↩ keep · ⎋ clear"
+        case .normal where model.overlay == .approvals:
+            "\(key("approvals.allow", in: "approvals")) allow · \(key("approvals.deny", in: "approvals")) deny · "
+                + "\(key("approvals.allow.all", in: "approvals")) \(key("approvals.deny.all", in: "approvals")) all · "
+                + "\(key("approvals.always", in: "approvals")) always here · "
+                + "\(key("approvals.deny.reason", in: "approvals")) deny with a reason · "
+                + "\(key("approvals.next", "approvals.prev", in: "approvals")) move · ⎋ close"
         case .normal where model.overlay == .diff:
             "\(key("row.next", "row.prev", in: "diff")) line · \(key("diff.hunk.next", in: "diff")) hunk · "
                 + "\(key("diff.file.next", in: "diff")) file · \(key("diff.scope.next", in: "diff")) scope · "

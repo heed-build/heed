@@ -196,6 +196,11 @@ grace_seconds = 30
 # One reminder if it still needs you this long after the notification, then nothing until it comes back; 0: none.
 reminder_minutes = 15
 
+[approvals]
+# How long an agent's permission hook (Claude Code, Codex) waits for your answer in heed (gy) before the agent
+# asks in its own pane, as it would without heed; 0 lets them always ask there. At most 240.
+wait_seconds = 120
+
 [attention]
 # Quiet hours: no notifications from start to end, local time, 24-hour ("22:00-07:00"); "" for none. What needed
 # you meanwhile is not notified when they end: Needs you and the Dock badge show it. macOS Focus applies as well.

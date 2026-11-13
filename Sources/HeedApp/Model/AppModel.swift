@@ -108,6 +108,8 @@ enum Overlay: Equatable {
     case diff
     /// Attention's Coverage, in its reader's place (`:attention.coverage`, or a click on the line at its foot).
     case coverage
+    /// What agents ask permission for, from every session (`gy`).
+    case approvals
 
     var name: String {
         switch self {
@@ -115,6 +117,7 @@ enum Overlay: Equatable {
         case .pr: "pr"
         case .diff: "diff"
         case .coverage: "coverage"
+        case .approvals: "approvals"
         }
     }
 }
@@ -140,6 +143,8 @@ final class AppModel {
     }
 
     private(set) var layouts: [String: SessionLayout] = [:]
+    /// Permission requests waiting on you (AppModel+Approvals).
+    let approvals = ApprovalsLive()
     private(set) var repos: [RepoRecord] = [] { didSet { if repos != oldValue { rebuildWorktreeRows() } } }
     private(set) var worktrees: [Worktree] = [] { didSet { if worktrees != oldValue { rebuildWorktreeRows() } } }
     private(set) var history: [HistoryEntry] = [] {
@@ -366,6 +371,11 @@ final class AppModel {
     let callLog: CallLogBrowser
 
     private(set) var overlay: Overlay? { didSet { updateScope() } }
+    /// Opens or closes the approvals modal (AppModel+Approvals), which lives outside this file.
+    func showApprovals(_ open: Bool) {
+        if open { overlay = .approvals } else if overlay == .approvals { overlay = nil }
+    }
+
     /// The PR open in the reader, over whatever view it was opened from.
     private(set) var reader: PullRef? {
         didSet {
@@ -406,7 +416,7 @@ final class AppModel {
     /// Scoped key bindings follow what has focus: the diff, the PR overlay or reader, else the view (Goals'
     /// Unassigned pane has its own: y n m i answer there).
     func updateScope() {
-        engine.scope = overlay == .diff ? "diff" : issueReader != nil ? "issue"
+        engine.scope = overlay == .approvals ? "approvals" : overlay == .diff ? "diff" : issueReader != nil ? "issue"
             : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope
             : view == .attention && attentionQuestion != nil ? "swarmask" : helperScope ?? view.rawValue
     }
@@ -1216,6 +1226,7 @@ final class AppModel {
             lastHookAt[pane] = message.sentAt
             noteInbox(message, pane: pane)
         }
+        settleApprovals(by: message)
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
         // A reviewer's hooks: its turn over ends it, as a run's does.
         if let pane = message.pane, reviewPanes.contains(pane) {
@@ -3054,6 +3065,10 @@ final class AppModel {
         case "setup.approve": approveSetup()
         case "setup.never": neverSetup()
         case "setup.edit": editSetup()
+        case "approvals.open", "approvals.next", "approvals.prev", "approvals.allow", "approvals.deny",
+             "approvals.deny.reason", "approvals.always", "approvals.allow.all", "approvals.deny.all",
+             "approvals.allow.read", "approvals.session":
+            _ = performApprovals(command)
         default:
             flash = "\(command.name): not built yet"
         }
@@ -8367,19 +8382,15 @@ final class AppModel {
         return view == .sessions && currentSession?.id == sessionID
     }
 
-    /// A notification's Allow: presses Return on the agent's permission prompt, only while the session is still
-    /// blocked and its screen shows a prompt where that means yes (`ScreenGuess.allowsWithReturn`). Otherwise Heed
-    /// comes forward on the session, so you answer it yourself.
+    /// A notification's Allow: the session's oldest ask in heed's approvals, answered through its hook; without one,
+    /// Return on the agent's prompt only where its screen shows that means yes (`ScreenGuess.allowsWithReturn`).
+    /// Otherwise Heed comes forward on the session, so you answer it yourself.
     func allowPermission(sessionID: String) {
-        guard let session = sessions.first(where: { $0.id == sessionID }), session.state.state == .blocked,
-              let layout = layouts[sessionID], let (_, paneID) = agentPane(in: layout),
-              let screen = TerminalSurfaces.shared.visibleText(paneID: paneID),
-              ScreenGuess.allowsWithReturn(agent: session.agent, screen: screen)
-        else { return show(sessionID: sessionID) }
-        TerminalSurfaces.shared.typeLine("", paneID: paneID)
-        var allowed = session
-        allowed.record("allowed from a notification")
-        commit(.sessionUpserted(allowed))
+        if let group = approvalGroups.first(where: { $0.answerable && $0.sessions.contains(sessionID) }) {
+            answer(group, PermissionAnswer(.allow))
+            return
+        }
+        if !allowOnScreen(sessionID: sessionID) { show(sessionID: sessionID) }
     }
 
     /// `[keys] global_activate` and Open Heed: the main window to the front, reopened if it was closed.

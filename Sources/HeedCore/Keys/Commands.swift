@@ -226,6 +226,23 @@ public enum Commands {
         .init("overlay.diff", "diff overlay: commits, staged, unstaged", .views),
         .init("overlay.help", "keys & states", .views),
         .init("overlay.close", "close overlay", .views),
+        .init("approvals.open", "what agents ask permission for, from every session, oldest first (toggle)", .views),
+        .init("approvals.next", "approvals: the next request", .selection),
+        .init("approvals.prev", "approvals: the request before", .selection),
+        .init("approvals.allow", "approvals: allow the selected request; the next one is selected", .selection),
+        .init(
+            "approvals.deny", "approvals: deny the selected request, telling the agent why when given", .selection,
+            arguments: "[reason]"
+        ),
+        .init("approvals.deny.reason", "approvals: deny the selected request with a reason you type", .selection),
+        .init(
+            "approvals.always", "approvals: allow, and save the agent's own allow rule in this repo (Claude Code)",
+            .selection
+        ),
+        .init("approvals.allow.all", "approvals: allow every request heed can answer", .selection),
+        .init("approvals.deny.all", "approvals: deny every request heed can answer", .selection),
+        .init("approvals.allow.read", "approvals: allow every read-only request inside its worktree", .selection),
+        .init("approvals.session", "approvals: go to the selected request's session", .selection),
         .init("pr.next", "next PR of this session", .views),
         .init("pr.prev", "previous PR of this session", .views),
         .init("pr.session", "jump from a PR to its session", .views),

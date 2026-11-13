@@ -445,6 +445,10 @@ private struct PaneView: View {
         VStack(spacing: 0) {
             // A pane on a host: a slim tinted strip saying where, how the link is, and how fast. Local panes have none.
             if let host = pane.location.hostName { RemotePaneStrip(host: host, path: pane.directory) }
+            // The agent waits on a permission: what it asks, answered here or with the rest (gy).
+            if pane.role == .agent, let id = model.currentSession?.id, let group = model.approval(forSession: id) {
+                ApprovalStrip(group: group)
+            }
             HStack(spacing: 8) {
                 Text("\(number)")
                     .font(Theme.mono(10.5, weight: active ? .bold : .regular))

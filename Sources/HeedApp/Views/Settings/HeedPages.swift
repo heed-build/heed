@@ -89,6 +89,14 @@ struct NotificationsPage: View {
                 )
             }
         }
+        SettingsCard(title: "Approvals") {
+            SettingRow("approvals.wait_seconds", unit: "s") {
+                NumberField(
+                    path: ["approvals", "wait_seconds"], value: model.config.approvals.waitSeconds, unit: "s",
+                    range: 0 ... PermissionHook.maxWait, step: 10
+                )
+            }
+        }
         SettingsCard(title: "Attention") {
             SettingRow("notifications.attention", label: "Notify for Attention items") {
                 ConfigSwitch(path: ["notifications", "attention"], isOn: notifications.attention)

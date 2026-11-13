@@ -644,6 +644,13 @@ public extension Tutor {
                 doneLine: "Agents report through hooks; a dotted ring means heed read the screen instead."
             ) { _, now, _ in now.needsYou },
             TutorStep(
+                "What they ask, in one place",
+                say: "The amber pill up top counts agents waiting on a permission. {approvals.open} lists them all, "
+                    + "oldest first; ⎋ closes, they keep waiting.",
+                keys: ["{approvals.open}", "⎋"], target: "dialog",
+                doneLine: "There, y allows the selected one and n denies it, and the next is selected; Y and N answer all."
+            ) { _, now, seen in seen.contains { $0.overlay == "approvals" } && now.overlay == nil },
+            TutorStep(
                 "Answer it",
                 say: "{mode.insert} types into its agent, as in any terminal. ⇧⎋ comes back.",
                 keys: ["{mode.insert}", "⇧⎋"], target: "panes",

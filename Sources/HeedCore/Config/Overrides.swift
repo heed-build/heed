@@ -216,7 +216,7 @@ public enum Overrides {
         pilot(
             "run_in",
             "Runs in",
-            "background (a run of its own) or session (the session's agent, once idle).",
+            "helper (an ACP agent in its own worktree, drawn in heed), background (a run of its own) or session (the session's agent, once idle).",
             .choice(RunIn.allCases.map(\.configName)),
             { $0.runIn.map { .text($0.configName) } },
             { .text($0.runIn.configName) }

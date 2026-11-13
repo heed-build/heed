@@ -107,7 +107,7 @@ struct RunsTests {
         #expect(own.runAgent(for: .merged) == (nil, nil, nil))
     }
 
-    @Test func runInDefaultsToBackgroundAndIsOverridable() {
+    @Test func runInDefaultsToHelperAndIsOverridable() {
         let (config, problems) = ConfigLoader.decode("""
         [orgs.o]
         run_in = "Session"
@@ -118,7 +118,8 @@ struct RunsTests {
         """)
         #expect(problems.map(\.path) == ["repos.o/x.run_in"])
         let pilot = config?.pilot ?? PilotRules()
-        #expect(pilot.defaults.runIn == .background)
+        #expect(pilot.defaults.runIn == .helper)
+        #expect(PilotRules().resolve(Repo(org: "a", name: "b")).runIn == .helper)
         #expect(pilot.resolve(Repo(org: "o", name: "other")).runIn == .session)
         #expect(pilot.resolve(Repo(org: "o", name: "r")).runIn == .background)
         #expect(pilot.resolve(Repo(org: "o", name: "x")).runIn == .session)

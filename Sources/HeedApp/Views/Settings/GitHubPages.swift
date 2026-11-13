@@ -113,7 +113,7 @@ private struct PilotGreen: View {
             SettingRow("pilot.run_in") {
                 SegmentedChoice(
                     path: ["pilot", "run_in"], value: pilot.runIn, options: RunIn.allCases.map { ($0, $0.rawValue) },
-                    name: \.configName, width: 200
+                    name: \.configName, width: 270
                 )
             }
             SettingRow("pilot.agent", defaultText: "the session's agent") {
@@ -139,6 +139,23 @@ private struct PilotGreen: View {
                     path: ["pilot", "pause"], options: ["30m", "1h", "4h", "1d", "forever"],
                     current: pilot.pause.map(PilotDuration.text) ?? "forever"
                 )
+            }
+        }
+        SettingsCard(title: "Helpers") {
+            SettingRow("helpers.agent", defaultText: "your default agent") {
+                MenuChoice(
+                    path: ["helpers", "agent"], value: model.config.helpers.agent ?? "",
+                    options: [("", "Your default agent")] + ACPAgents.known.map { ($0.agent, $0.agent) }, width: 180
+                )
+            }
+            SettingRow("helpers.command", defaultText: "the adapter heed knows") {
+                ConfigTextField(
+                    path: ["helpers", "command"], value: model.config.helpers.command ?? "",
+                    placeholder: "claude-agent-acp", emptyUnsets: true
+                )
+            }
+            SettingRow("helpers.spend_cap", defaultText: "$\(DollarsField.text(HelperSettings().spendCap))") {
+                DollarsField(path: ["helpers", "spend_cap"], value: model.config.helpers.spendCap)
             }
         }
         SettingsCard(title: "Merge conflicts") {
@@ -174,7 +191,7 @@ private struct PilotMerged: View {
             SettingRow("pilot.merge") {
                 SegmentedChoice(
                     path: ["pilot", "merge"], value: pilot.merge, options: MergeMode.allCases.map { ($0, $0.rawValue) },
-                    name: \.configName, width: 200
+                    name: \.configName, width: 270
                 )
             }
             SettingRow("pilot.merge_method", defaultText: "the first the repo allows") {

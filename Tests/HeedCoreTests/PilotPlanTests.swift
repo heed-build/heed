@@ -10,6 +10,8 @@ struct PilotPlanTests {
 
     private func settings(_ edit: (inout PilotSettings) -> Void = { _ in }) -> PilotSettings {
         var settings = PilotSettings(green: .ask)
+        // These are about background and session rounds; helpers (the default) have their own test.
+        settings.runIn = .background
         edit(&settings)
         return settings
     }
@@ -137,6 +139,7 @@ struct PilotPlanTests {
         var org = PilotOverrides()
         org.agent = "codex"
         org.greenInstructions = "Run the linter first."
+        org.runIn = .background
         var repoLevel = PilotOverrides(merge: .auto)
         repoLevel.model = "big-model"
         config.pilot = PilotRules(orgs: ["acme": org], repos: ["acme/site": repoLevel])
@@ -146,7 +149,7 @@ struct PilotPlanTests {
         let sources = PilotPlan.sources(for: repo, pipeline: pipeline, in: config)
         #expect(sources["agent"] == .init(key: "agent", value: "codex", origin: "org acme"))
         #expect(sources["model"]?.origin == "repo")
-        #expect(sources["run_in"]?.isDefault == true)
+        #expect(sources["run_in"]?.origin == "org acme")
         #expect(sources["run_timeout"]?.value == "30m")
         #expect(sources["green"] == .init(key: "green", value: "auto", origin: "this PR"))
         #expect(sources["merge"]?.origin == "repo")
@@ -154,7 +157,7 @@ struct PilotPlanTests {
         let settings = config.pilot.resolve(repo)
         let step = next(settings)
         #expect(PilotPlan.help(step, sources: sources) == """
-        run_in: background (default)
+        run_in: background (org acme)
         agent: codex (org acme)
         model: big-model (repo)
         effort: none (default)
@@ -176,6 +179,23 @@ struct PilotPlanTests {
         #expect(rows[1].origin == "this PR")
         #expect(rows[3].value == "codex big-model")
         #expect(rows[4].detail.hasPrefix("GitHub's auto-merge"))
+    }
+
+    @Test func aHelperRoundIsTheDefaultAndNamesTheHelpersAgent() {
+        let step = PilotPlan.next(
+            settings: PilotSettings(green: .ask), pipeline: nil, status: .failing(1), sessionAgent: "codex",
+            helperAgent: "claude", now: now
+        )
+        #expect(step == .helper(.init(goal: .green, agent: "claude", model: nil, timeout: 1800, instructions: 0)))
+        #expect(text(step) == "helper · claude via ACP · 30m")
+        #expect(PilotPlan.keys(for: step) == ["run_in", "run_timeout", "green_instructions"])
+        let rows = PilotPlan.rows(
+            settings: PilotSettings(green: .ask), pipeline: nil, status: .failing(1), sessionAgent: "codex",
+            helperAgent: "claude", sources: [:], now: now
+        )
+        #expect(rows[2].value == "a helper")
+        #expect(rows[2].detail.hasPrefix("claude over ACP in its own worktree"))
+        #expect(rows[3].value == "a helper, claude via ACP")
     }
 
     @Test func explainerRowsFollowTheState() {

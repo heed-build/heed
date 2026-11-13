@@ -24,7 +24,7 @@ enum TutorCheck {
         "issues": ["/a<CR>", "s", "<Esc><Esc><CR>"],
         "prs": ["<CR>", "<Space>", "s", "<Esc>"],
         "watch": ["gw", "j", "z?<Esc>", "zp", "vjzp", "zm", "gM", "<Esc>zw"],
-        "repos": ["G", "o<Esc><Esc>", "ddn", "gCn", "M<CR><CR><Esc>"],
+        "repos": ["G", "hj", "a<Esc>", "lo<Esc><Esc>", "Gddn", "gCn", "M<CR><CR><Esc>"],
         "history": ["j", "t", "TT", "LL", "DD", "MM", "UU", "R"],
         "log": ["t", "tt", "ttx"],
         "goals": [

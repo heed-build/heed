@@ -19,6 +19,9 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     /// Offer to trust a repo for agents (Claude Code, mise) the first time one starts there (`[worktrees]
     /// offer_trust`).
     public var offerTrust = true
+    /// What heed does with a repo once Add or clone added or cloned it (`[worktrees] after_add`): Repo setup, Start
+    /// work, or nothing more.
+    public var afterAdd: AfterAdd = .default
     /// On launch: ask which sessions to resume, resume them all, or none.
     public var resumeOnLaunch: ResumePolicy
     /// Typed into a resumed session that was mid-turn, once the agent is idle again. Empty turns it off.

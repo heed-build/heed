@@ -106,6 +106,7 @@ struct MainWindow: View {
         }
         .overlay {
             if let state = model.pathImport { PathImportView(state: state) }
+            if let form = model.addRepoDialog { AddRepoView(form: form) }
         }
         .overlay {
             if let confirmation = model.confirmation { ConfirmationView(confirmation: confirmation) }
@@ -396,6 +397,8 @@ struct StatusBar: View {
         case .attention, .prs, .watch:
             let count = model.itemIDs(model.view).count
             return "\(count == 0 ? 0 : model.cursor(in: model.view) + 1)/\(count)"
+        case .repos where model.reposFocus == .repos:
+            return "repo \(model.columnIndex + 1)/\(model.columnRepos.count + 1)"
         case .repos: return "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
         case .history: return "\(model.historyRows.isEmpty ? 0 : model.historyCursor + 1)/\(model.historyRows.count)"
         case .log: return "\(model.callLog.rows.isEmpty ? 0 : model.callLog.cursor + 1)/\(model.callLog.rows.count)"
@@ -490,10 +493,19 @@ struct StatusBar: View {
                 + "\(model.keyText(for: "pilot.green")) green · \(key("pr.prev", "pr.next", in: "pr")) PRs · "
                 + "\(key("pr.session", in: "pr")) session · ⎋ back"
         case .normal where model.repoSetup != nil: "j k move · h l change · space write or not · ↩ next · ⌫ back · ⎋ close"
+        case .normal where model.addRepoDialog != nil:
+            model.addRepoDialog?.currentTab == .folder
+                ? "⇥ complete · ⌃n ⌃p choose · ⌃w up a folder · ⇧⇥ the lists · ⌘↩ add · ⎋ cancel"
+                : "type to search · ⌃n ⌃p move · space pick · ⇥ next tab · ⌃r root · ⌃t then · ⌘↩ go · ⎋ cancel"
+        case .normal where model.view == .repos && model.reposFocus == .repos:
+            "\(key("row.next", "row.prev", in: "repos")) repo · \(key("repos.focus worktrees", in: "repos")) its worktrees · "
+                + "\(key("repo.add", in: "repos")) add or clone · \(key("repo.setup", in: "repos")) set up merging · "
+                + "\(key("open.repo", in: "repos")) GitHub · \(key("repo.reveal", in: "repos")) Finder · "
+                + "\(key("cleanup.run", in: "repos")) clean up worktrees"
         case .normal where model.view == .repos:
-            "\(key("worktree.new", in: "repos")) start work here · \(key("repo.setup", in: "repos")) set up merging · "
+            "\(key("repos.focus repos", in: "repos")) repos · \(key("repo.add", in: "repos")) add or clone · "
+                + "\(key("worktree.new", in: "repos")) start work here · \(key("select.open", in: "repos")) open / import · "
                 + "\(key("mode.visual", in: "repos")) select · \(key("select.remove", in: "repos")) remove · "
-                + "\(key("repo.scan", in: "repos")) rescan · "
                 + "\(key("session.filter", in: "repos")) filter"
         case .normal where model.view == .history:
             "\(key("row.next", "row.prev", in: "history")) move · \(key("session.filter", in: "history")) filter · "

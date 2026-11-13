@@ -35,7 +35,8 @@ public enum CommandAliases {
         Alias(name: "pr", runs: "open.reader pr", arguments: "<number>"),
         Alias(name: "track", runs: "pr.track", arguments: "<url>"),
         Alias(name: "import", runs: "session.import", arguments: "<path>"),
-        Alias(name: "wt sweep", runs: "cleanup.sweep", arguments: nil),
+        Alias(name: "wt clean", runs: "cleanup.run", arguments: nil),
+        Alias(name: "wt sweep", runs: "cleanup.run", arguments: nil),
         Alias(name: "help", runs: "overlay.help", arguments: nil),
         Alias(name: "back", runs: "tutor.back", arguments: nil),
         Alias(name: "skip", runs: "tutor.skip", arguments: nil),
@@ -55,7 +56,7 @@ public enum CommandAliases {
         case "pr": return CommandInvocation(name: "open.reader", arguments: ["pr"] + args)
         case "track": return CommandInvocation(name: "pr.track", arguments: args)
         case "import": return CommandInvocation(name: "session.import", arguments: args)
-        case "wt" where args.first == "sweep": return CommandInvocation(name: "cleanup.sweep")
+        case "wt" where args.first == "sweep" || args.first == "clean": return CommandInvocation(name: "cleanup.run")
         case "help": return CommandInvocation(name: "overlay.help")
         // The tutor's card offers these as :back and :skip.
         case "back": return CommandInvocation(name: "tutor.back")
@@ -64,6 +65,7 @@ public enum CommandAliases {
         case "update": return CommandInvocation(name: "update.check")
         default:
             if views.contains(typed.name) { return CommandInvocation(name: "view", arguments: [typed.name]) }
+            if let current = Commands.renamed[typed.name] { return CommandInvocation(name: current, arguments: args) }
             return typed
         }
     }

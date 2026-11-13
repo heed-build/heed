@@ -1,131 +1,109 @@
 import HeedCore
 import SwiftUI
 
-/// Repos & worktrees (design/screens/Repos.png): repos on the left, every added worktree in a table, cleanup rules on
-/// the right.
+/// Repos: the repo column on the left is a filter (All, then each repo, with how its main stands and what its setup
+/// lacks); on the right, cleanup up top, the picked repo's card with its actions, then its worktrees (all of them,
+/// grouped by repo, for All). The cleanup settings live in Settings › Worktrees › Cleanup.
 struct ReposView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                repoColumn.shotRegion(.repoColumn)
+        HStack(spacing: 0) {
+            repoColumn.shotRegion(.repoColumn)
+            VStack(spacing: 0) {
+                CleanupBar(plan: model.sweepPlan).shotRegion(.cleanupBar)
+                if let record = model.pickedRecord {
+                    RepoCard(record: record, summary: model.repoSummaries[record.id] ?? RepoSummary())
+                        .shotRegion(.repoCard)
+                }
+                if let (record, proposal) = setupUnderCursor {
+                    SetupBanner(record: record, proposal: proposal).shotRegion(.setupBanner)
+                }
                 table.shotRegion(.worktreeTable)
-                // The rules panel gives way first when the window is narrow; `zi` hides it outright.
-                if model.inspectorVisible, geometry.size.width >= 1240 { rules.shotRegion(.rulesPanel) }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.bg)
         }
     }
 
+    // MARK: The repo column
+
     private var repoColumn: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(title: "Repos").padding(.horizontal, 16).padding(.vertical, 14)
-            row(name: "All", count: model.worktreeRows.count, repo: nil)
+        let summaries = model.repoSummaries
+        let focused = model.reposFocus == .repos
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                SectionHeader(title: "Repos · \(model.sortedRepos.count)")
+                Spacer(minLength: 4)
+                RepoButton(label: "Add or clone", command: "repo.add", primary: true)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             ListScroll {
                 VStack(alignment: .leading, spacing: 0) {
+                    allRow(focused: focused)
                     ForEach(model.sortedRepos) { record in
-                        row(
-                            name: record.repo.name,
-                            count: model.worktreeRowCounts[record.id] ?? 0,
-                            repo: record.repo
+                        RepoColumnRow(
+                            record: record, count: model.worktreeRowCounts[record.repo.slug] ?? 0,
+                            summary: summaries[record.id] ?? RepoSummary(),
+                            picked: model.pickedRepo == record.repo, focused: focused
                         )
                     }
                 }
             }
             Spacer(minLength: 0)
             Theme.line.frame(height: 1)
-            VStack(alignment: .leading, spacing: 8) {
-                keyRow(model.keyText(for: "repo.setup", in: "repos"), "set up merging and green")
-                keyRow(model.keyText(for: "repo.scan", in: "repos"), "rescan roots for repos")
-                keyRow(model.keyText(for: "worktree.new", in: "repos"), "new worktree")
-                keyRow(model.keyText(for: "select.remove", in: "repos"), "remove worktree (asks)")
+            HStack(spacing: 6) {
+                Text("Found under \(model.settings.repoRoots.joined(separator: ", ")).")
+                    .lineLimit(1).truncationMode(.tail)
+                KeyCap(text: model.keyText(for: "repo.scan", in: "repos"))
+                Text("rescans").fixedSize()
             }
+            .font(Theme.ui(11.5))
+            .foregroundStyle(Theme.fg3)
             .padding(16)
+            .clickRuns(CommandInvocation(name: "repo.scan"))
         }
-        .frame(width: 260)
+        .frame(width: 290)
         .background(Theme.bg2)
         .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
     }
 
-    private func row(name: String, count: Int, repo: Repo?) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(spacing: 8) {
-                if let repo {
-                    OrgTile(org: repo.org, color: repo.color, size: 16)
-                }
-                Text(name).font(Theme.mono(12.5)).foregroundStyle(repo == nil ? Theme.fg : Theme.fg2)
-                    .lineLimit(1).truncationMode(.middle)
-                Spacer()
-                Text("\(count)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
-            }
-            // How get it merged and get it green stand for the repo, and the way to set them up.
-            if let repo, repo.org != "local" {
-                let readiness = model.setupStatus(for: repo)
-                HStack(alignment: .top, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        ReadinessText(line: readiness.merging)
-                        ReadinessText(line: readiness.green)
-                    }
-                    Spacer(minLength: 4)
-                    Text("Set up…")
-                        .font(Theme.ui(11.5, weight: .semibold))
-                        .foregroundStyle(Theme.ink)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.inverse))
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            model.perform(CommandInvocation(name: "repo.setup", target: .repo(repo)))
-                        }
-                        .help("Sample \(repo.slug)'s merged PRs and CI, then propose get it merged and get it green")
-                }
-                .padding(.leading, 24)
-            }
+    private func allRow(focused: Bool) -> some View {
+        let picked = model.pickedRepo == nil
+        return HStack(spacing: 8) {
+            Color.clear.frame(width: 16, height: 1)
+            Text("All worktrees").font(Theme.mono(12.5)).foregroundStyle(picked ? Theme.fg : Theme.fg2)
+            Spacer()
+            Text("\(model.allWorktreeRowCount)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 7)
-        .background(repo == nil ? Theme.bg3 : .clear)
+        .padding(.vertical, 9)
+        .background(picked ? Theme.bg3 : .clear)
+        .overlay(alignment: .leading) {
+            if picked, focused { Theme.block.frame(width: 2) }
+        }
         .contentShape(Rectangle())
-        .rightClickMenu { model.rightClickNamed() } _: { repo.map(model.repoMenu) ?? [] }
+        .onTapGesture { model.clickRepo(nil) }
     }
 
-    private func keyRow(_ key: String, _ label: String) -> some View {
-        HStack(spacing: 8) {
-            KeyCap(text: key)
-            Text(label).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-        }
-    }
+    // MARK: The worktree table
 
     private var table: some View {
         let rows = model.worktreeRows
         let selected = model.selectedRows
+        let groupStarts = model.pickedRepo == nil
+            ? Dictionary(uniqueKeysWithValues: RepoFilter.groups(rows).map { ($0.index, $0.repo) }) : [:]
         return VStack(spacing: 0) {
-            header
+            header(count: rows.count)
             if !rows.isEmpty {
                 ScrollViewReader { proxy in
                     ListScroll {
                         ListStack(spacing: 0) {
                             ForEach(Array(rows.enumerated()), id: \.element.id) { index, worktree in
-                                WorktreeRow(
-                                    worktree: worktree,
-                                    session: model.session(for: worktree),
-                                    number: index == model.repoCursor ? index + 1 : abs(index - model.repoCursor),
-                                    isCursor: index == model.repoCursor,
-                                    isSelected: selected.contains(worktree.id),
-                                    roots: model.settings.pathRoots,
-                                    query: model.filter(for: .repos),
-                                    pilot: model.session(for: worktree).flatMap { model.pilotStatus(of: $0) },
-                                    registration: model.registration(of: worktree),
-                                    hostColor: worktree.location.hostName.flatMap { model.config.hosts[$0]?.color }
-                                )
-                                .hint(model.hintLabel(for: .row(.repos, index)))
-                                .contentShape(Rectangle())
-                                .onTapGesture { model.clickRow(.repos, index) }
-                                .simultaneousGesture(TapGesture(count: 2).onEnded {
-                                    model.clickRow(.repos, index, open: true)
-                                })
-                                .rightClickMenu { model.rightClickRow(.repos, index) } _: {
-                                    model.rowMenu(.repos, index)
+                                VStack(spacing: 0) {
+                                    if let repo = groupStarts[index] { GroupHeader(repo: repo) }
+                                    row(worktree, index: index, selected: selected)
                                 }
                                 .id(worktree.id)
                             }
@@ -136,63 +114,95 @@ struct ReposView: View {
                     }
                 }
             }
-            if let (record, proposal) = setupUnderCursor {
-                SetupBanner(record: record, proposal: proposal).shotRegion(.setupBanner)
-            }
-            if model.config.cleanup.enabled { SweepBanner(plan: model.sweepPlan).shotRegion(.sweepBanner) }
-            if rows.isEmpty, model.repos.isEmpty {
-                EmptyState(
-                    title: "No repos found yet",
-                    detail: "Heed looks two levels deep in \(model.settings.repoRoots.joined(separator: ", ")) for git "
-                        + "repositories. Add the folder yours live in, or import a worktree from anywhere: its repo "
-                        + "comes with it. :repo.add <path> adds one repo.",
-                    actions: [
-                        .init("add the folder your repos are in", "settings.open", arguments: ["worktrees"]),
-                        .init("import a worktree by its path", "session.import.path"),
-                        .init("scan again", "repo.scan"),
-                    ]
-                )
-            } else if rows.isEmpty, model.worktreeCount == 0 {
-                EmptyState(
-                    title: "No worktrees yet",
-                    detail: "Start work makes one per task under \(model.settings.worktreeRoot), with its branch and "
-                        + "agent; worktrees you made yourself can be imported.",
-                    actions: [
-                        .init("start work in a repo", "worktree.new"), .init("import a worktree", "session.import"),
-                    ]
-                )
-            } else if rows.isEmpty {
-                Text("No worktrees match /\(model.filter(for: .repos)).")
-                    .foregroundStyle(Theme.fg2)
-                    .font(Theme.ui(12.5))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            if rows.isEmpty { empty }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.bg)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+        .padding(16)
+    }
+
+    private func row(_ worktree: Worktree, index: Int, selected: Set<String>) -> some View {
+        let session = model.session(for: worktree)
+        let isCursor = index == model.repoCursor && model.reposFocus == .worktrees
+        return WorktreeRow(
+            worktree: worktree,
+            session: session,
+            number: index == model.repoCursor ? index + 1 : abs(index - model.repoCursor),
+            isCursor: isCursor,
+            isSelected: selected.contains(worktree.id),
+            roots: model.settings.pathRoots,
+            query: model.filter(for: .repos),
+            pilot: session.flatMap { model.pilotStatus(of: $0) },
+            registration: model.registration(of: worktree),
+            hostColor: worktree.location.hostName.flatMap { model.config.hosts[$0]?.color },
+            age: model.worktreeAge(worktree),
+            openKey: model.keyText(for: "select.open", in: "repos")
+        )
+        .hint(model.hintLabel(for: .row(.repos, index)))
+        .contentShape(Rectangle())
+        .onTapGesture {
+            model.focusRepos("worktrees")
+            model.clickRow(.repos, index)
+        }
+        .simultaneousGesture(TapGesture(count: 2).onEnded {
+            model.focusRepos("worktrees")
+            model.clickRow(.repos, index, open: true)
+        })
+        .rightClickMenu { model.rightClickRow(.repos, index) } _: {
+            model.rowMenu(.repos, index)
+        }
+    }
+
+    @ViewBuilder private var empty: some View {
+        if model.repos.isEmpty {
+            EmptyState(
+                title: "No repos found yet",
+                detail: "Heed looks two levels deep in \(model.settings.repoRoots.joined(separator: ", ")) for git "
+                    + "repositories. Add or clone one, add the folder yours live in, or import a worktree from "
+                    + "anywhere: its repo comes with it.",
+                actions: [
+                    .init("add or clone a repo", "repo.add"),
+                    .init("add the folder your repos are in", "settings.open", arguments: ["worktrees"]),
+                    .init("import a worktree by its path", "session.import.path"),
+                    .init("scan again", "repo.scan"),
+                ]
+            )
+        } else if model.worktreeCount == 0 || (model.pickedRepo != nil && model.filter(for: .repos).isEmpty) {
+            EmptyState(
+                title: model.pickedRepo.map { "No worktrees in \($0.name) yet" } ?? "No worktrees yet",
+                detail: "Start work makes one per task under \(model.settings.worktreeRoot), with its branch and "
+                    + "agent; worktrees you made yourself can be imported.",
+                actions: [
+                    .init("start work in a repo", "worktree.new"), .init("import a worktree", "session.import"),
+                ]
+            )
+        } else {
+            Text("No worktrees match /\(model.filter(for: .repos)).")
+                .foregroundStyle(Theme.fg2)
+                .font(Theme.ui(12.5))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
     }
 
     /// The repo under the cursor, when heed has a setup to propose for it.
     private var setupUnderCursor: (RepoRecord, SetupProposal)? {
-        let rows = model.worktreeRows
-        guard rows.indices.contains(model.repoCursor) else { return nil }
-        let worktree = rows[model.repoCursor]
-        guard let record = model.repos.first(where: { $0.repo == worktree.repo && $0.location == worktree.location }),
+        guard let repo = model.reposUnderCursor.first,
+              let record = model.repos.first(where: { $0.repo == repo && $0.location.isLocal }),
               let proposal = model.setupProposal(for: record)
         else { return nil }
         return (record, proposal)
     }
 
-    private var header: some View {
+    private func header(count: Int) -> some View {
         HStack(spacing: 0) {
             Color.clear.frame(width: 64)
             Group {
-                Text("REPO").frame(width: 140, alignment: .leading)
-                Text("HOST").frame(width: 96, alignment: .leading)
-                Text("BRANCH").frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
-                Text("AGENT").frame(width: 90, alignment: .leading)
-                Text("STATUS").frame(width: 120, alignment: .leading)
+                Text("WORKTREE · \(count)").frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+                Text("SESSION").frame(width: 200, alignment: .leading)
+                Text("CHANGES").frame(width: 120, alignment: .leading)
                 Text("PR").frame(width: 110, alignment: .leading)
+                Text("TOUCHED").frame(width: 72, alignment: .leading)
             }
             .font(Theme.ui(10.5, weight: .semibold))
             .tracking(0.7)
@@ -203,55 +213,233 @@ struct ReposView: View {
         .frame(height: 34)
         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
     }
+}
 
-    private var rules: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                SectionHeader(title: "Auto cleanup rules")
-                Spacer()
-                KeyCap(text: model.keyText(for: "inspector.toggle"))
-            }
-            let rule = model.config.cleanup
-            ruleRow(
-                "Remove worktrees with no activity\(rule.enabled ? "" : " (off)")",
-                rule.enabled
-                    ? "Nothing for \(rule.idleDays)d: no agent output, keystrokes, commits or PR events."
-                    : "Off. Turn it on in Settings (\(model.keyText(for: "settings.open"))) or [cleanup] enabled; "
-                    + "\(model.keyText(for: "select.remove", in: "repos")) removes worktrees by hand."
-            )
-            ruleRow("Sweeps never remove dirty or unpushed work", "Always on. Skipped trees show a warning instead.")
-            ruleRow(
-                "Save work before removing",
-                "Always on. Kept as heed/archive/<branch>"
-                    + (rule.keepArchiveDays == 0 ? "." : " for \(rule.keepArchiveDays)d.") + " \(model.keyText(for: "history.reopen", in: "history")) in History brings it back."
-            )
-            ruleRow("Delete the local branch too\(rule.deleteBranch ? "" : " (off)")", "Remote branch is left alone.")
-            ruleRow(
-                "Ask before each sweep\(rule.askBeforeSweep ? " (on)" : " (off)")",
-                rule.askBeforeSweep
-                    ? "Sweeps run only with \(model.keyText(for: "cleanup.sweep"))."
-                    : "Sweeps run hourly; \(model.keyText(for: "cleanup.sweep")) runs one now."
-            )
-            Text("Edit in Settings (\(model.keyText(for: "settings.open"))) or config.toml [cleanup].")
-                .font(Theme.ui(11.5))
-                .foregroundStyle(Theme.fg3)
-            HStack(spacing: 8) {
-                KeyCap(text: model.keyText(for: "session.pin"))
-                Text("pinned sessions are never cleaned up").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
-            }
-            Spacer()
+/// A button for one of the view's commands, with its key: `Add or clone a`, `GitHub gR`.
+private struct RepoButton: View {
+    @Environment(AppModel.self) private var model
+    let label: String
+    let command: String
+    var arguments: [String] = []
+    var target: CommandTarget?
+    var primary = false
+    var scope = "repos"
+    /// The cap, when it is another command's key (`⌘,` for the cleanup settings).
+    var key: String?
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Text(label).font(Theme.ui(12.5, weight: primary ? .medium : .regular))
+                .foregroundStyle(primary ? Theme.ink : Theme.fg)
+            Text(key ?? model.keyText(for: command, in: scope)).font(Theme.mono(10.5))
+                .foregroundStyle(primary ? Theme.ink.opacity(0.7) : Theme.fg3)
         }
-        .padding(18)
-        .frame(width: 320)
-        .background(Theme.bg2)
-        .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
+        .fixedSize()
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 6).fill(primary ? Theme.inverse : Theme.bg2))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(primary ? .clear : Theme.keyCapBorder))
+        .clickRuns(CommandInvocation(name: command, arguments: arguments, target: target))
+    }
+}
+
+/// One repo in the column: its tile, name and worktree count, and a line on how it stands.
+private struct RepoColumnRow: View {
+    @Environment(AppModel.self) private var model
+    let record: RepoRecord
+    let count: Int
+    let summary: RepoSummary
+    let picked: Bool
+    let focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                OrgTile(org: record.repo.org, color: record.repo.color, size: 16)
+                Text(record.repo.name).font(Theme.mono(12.5)).foregroundStyle(picked ? Theme.fg : Theme.fg2)
+                    .lineLimit(1).truncationMode(.middle)
+                Spacer()
+                Text("\(count)").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3)
+            }
+            SummaryText(parts: summary.parts).font(Theme.mono(11)).lineLimit(1).truncationMode(.tail)
+                .padding(.leading, 24)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(picked ? Theme.bg3 : .clear)
+        .overlay(alignment: .leading) {
+            if picked, focused { Theme.block.frame(width: 2) }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { model.clickRepo(record.repo) }
+        .rightClickMenu { model.rightClickNamed() } _: { model.repoMenu(record.repo) }
+    }
+}
+
+/// A summary's parts joined with ` · `, each in its tone.
+private struct SummaryText: View {
+    let parts: [RepoSummary.Part]
+
+    var body: some View {
+        parts.enumerated().reduce(Text("")) { line, item in
+            let part = Text(item.element.text).foregroundColor(Self.color(item.element.tone))
+            return item.offset == 0 ? part : Text("\(line)\(Text(" · ").foregroundColor(Theme.fg3))\(part)")
+        }
     }
 
-    private func ruleRow(_ title: String, _ detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(title).font(Theme.ui(13, weight: .medium))
-            Text(detail).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
+    static func color(_ tone: RepoSummary.Tone) -> Color {
+        switch tone {
+        case .plain: Theme.fg2
+        case .good: Theme.done
+        case .warning: Theme.block
+        case .dim: Theme.fg3
         }
+    }
+}
+
+/// The picked repo: where it is, how main stands against origin, its remote and hosts, get it merged and get it green
+/// with Set up, and its actions.
+private struct RepoCard: View {
+    @Environment(AppModel.self) private var model
+    let record: RepoRecord
+    let summary: RepoSummary
+
+    var body: some View {
+        let repo = record.repo
+        let onGitHub = repo.org != "local"
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                OrgTile(org: repo.org, color: repo.color, size: 22)
+                Text(repo.name).font(Theme.mono(17, weight: .semibold)).lineLimit(1)
+                Text(record.location.hostName.map { "@\($0):\(record.path)" } ?? Paths.tilde(record.path))
+                    .font(Theme.mono(12)).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.head)
+                Spacer(minLength: 8)
+                if onGitHub { RepoButton(label: "GitHub", command: "open.repo", target: .repo(repo)) }
+                if record.location.isLocal {
+                    RepoButton(label: "Finder", command: "repo.reveal", target: .repo(repo))
+                }
+            }
+            HStack(spacing: 16) {
+                Text(summary.mainLong ?? "main: not read yet").foregroundStyle(Theme.fg2)
+                fact("remote", onGitHub ? repo.slug : "none")
+                if !summary.hosts.isEmpty {
+                    fact("also on", summary.hosts.map { "@\($0)" }.joined(separator: " "))
+                }
+                if let last = summary.lastWorked { fact("last worked", last) }
+            }
+            .font(Theme.ui(12.5))
+            if onGitHub {
+                let readiness = model.setupStatus(for: repo)
+                HStack(spacing: 16) {
+                    ReadinessText(line: readiness.merging)
+                    ReadinessText(line: readiness.green)
+                    RepoButton(
+                        label: readiness.merging.state == .notSetUp || readiness.green.state == .notSetUp
+                            ? "Set up" : "Set up again",
+                        command: "repo.setup", target: .repo(repo)
+                    )
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+    }
+
+    private func fact(_ label: String, _ value: String) -> some View {
+        HStack(spacing: 5) {
+            Text(label).foregroundStyle(Theme.fg3)
+            Text(value).font(Theme.mono(12)).foregroundStyle(Theme.fg)
+        }
+    }
+}
+
+/// Cleanup, up top: what it does under your settings, what it would do now, and the two buttons.
+private struct CleanupBar: View {
+    @Environment(AppModel.self) private var model
+    let plan: SweepPlan
+
+    var body: some View {
+        let rule = model.config.cleanup
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                StateGlyph(state: rule.enabled && !plan.skips.isEmpty ? .blocked : .idle)
+                Group {
+                    if rule.enabled {
+                        Text("Cleanup removes worktrees idle \(rule.idleDays) d")
+                            + Text(rule.askBeforeSweep ? ", when you say so" : ", hourly").foregroundColor(Theme.fg3)
+                    } else {
+                        Text("Cleanup is off") + Text(": worktrees stay until you remove them")
+                            .foregroundColor(Theme.fg3)
+                    }
+                }
+                .font(Theme.ui(12.5))
+                .lineLimit(1)
+                Text("dirty or unpushed work is never removed").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                RepoButton(
+                    label: "Cleanup settings",
+                    command: "cleanup.rules",
+                    key: model.keyText(for: "settings.open")
+                )
+                RepoButton(label: "Clean up worktrees", command: "cleanup.run")
+            }
+            if rule.enabled {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(plan.summary).font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                    ForEach(plan.skips.prefix(3), id: \.worktree.id) { skip in
+                        Text("kept \(skip.worktree.repo.name)/\(skip.worktree.branch ?? ""): \(skip.reason)")
+                            .foregroundStyle(Theme.block)
+                    }
+                    ForEach(plan.removals.prefix(3), id: \.worktree.id) { removal in
+                        Text(
+                            "would remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "") "
+                                + "(\(removal.idleText))"
+                        )
+                        .foregroundStyle(Theme.fg2)
+                    }
+                    ForEach(plan.chatRemovals.prefix(3), id: \.id) { removal in
+                        Text("would remove chat scratch folder \(removal.name) (closed \(removal.closedDays)d)")
+                            .foregroundStyle(Theme.fg2)
+                    }
+                    ForEach(plan.expired.prefix(3)) { archive in
+                        Text(
+                            "would drop \(archive.repo.name) \(archive.name) "
+                                + "(saved \(archive.archivedAt.formatted(.relative(presentation: .named))))"
+                        )
+                        .foregroundStyle(Theme.fg2)
+                    }
+                }
+                .font(Theme.mono(11.5))
+                .padding(.leading, 30)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+        .padding(.bottom, 12)
+    }
+}
+
+/// For All: where a repo's worktrees start.
+private struct GroupHeader: View {
+    let repo: Repo
+
+    var body: some View {
+        HStack(spacing: 6) {
+            OrgTile(org: repo.org, color: repo.color, size: 12)
+            Text(repo.name).font(Theme.mono(11.5, weight: .semibold)).foregroundStyle(Theme.fg2)
+            Spacer()
+        }
+        .padding(.leading, 64)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
+        .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
     }
 }
 
@@ -268,6 +456,9 @@ private struct WorktreeRow: View {
     let pilot: PilotStatus?
     var registration: WorktreeRegistration = .registered
     var hostColor: String?
+    var age: String?
+    /// ↩'s key: it imports a worktree with no session.
+    var openKey = "↩"
 
     var body: some View {
         HStack(spacing: 0) {
@@ -283,24 +474,21 @@ private struct WorktreeRow: View {
                 }
             }
             .frame(width: 34)
-            RepoChip(repo: worktree.repo, highlight: query).frame(width: 140, alignment: .leading)
-            HostChip(location: worktree.location, color: hostColor).frame(width: 96, alignment: .leading)
-            // The branch, and the worktree's path small below it.
+            // The branch (with its host, when it is on one), and the worktree's path small below it.
             VStack(alignment: .leading, spacing: 2) {
-                Highlighted(text: worktree.branch ?? "detached \(worktree.head)", query: query)
-                    .font(Theme.mono(12))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                HStack(spacing: 8) {
+                    Highlighted(text: worktree.branch ?? "detached \(worktree.head)", query: query)
+                        .font(Theme.mono(12))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if !worktree.location.isLocal { HostChip(location: worktree.location, color: hostColor) }
+                }
                 WorktreePath(path: worktree.path, roots: roots, query: query)
             }
-            .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
-            Text(session?.agent ?? "—").font(Theme.mono(12)).foregroundStyle(Theme.fg2).frame(
-                width: 90,
-                alignment: .leading
-            )
+            .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+            sessionCell.frame(width: 200, alignment: .leading)
             Group {
-                if registration != .registered {
-                    // Found on a host and not heed's yet (↩ registers it), or a host that does not answer.
+                if registration == .stale || registration == .missing {
                     RegistrationChip(registration: registration)
                 } else if let status = worktree.status {
                     WorktreeStatusLine(status: status, showUpstream: false)
@@ -316,23 +504,39 @@ private struct WorktreeRow: View {
                 if let pilot, pilot != .unwatched { PilotMark(status: pilot, compact: true) }
             }
             .frame(width: 110, alignment: .leading)
+            Text(age ?? "—").font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).frame(width: 72, alignment: .leading)
         }
         .padding(.trailing, 16)
         .frame(height: 48)
         .background(isSelected ? Theme.block.opacity(0.18) : isCursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
     }
+
+    /// `claude · blocked`, or what ↩ does for one with no session: import it.
+    @ViewBuilder private var sessionCell: some View {
+        if let session {
+            Text("\(session.agent) · \(session.state.state.rawValue)").font(Theme.ui(12.5))
+                .foregroundStyle(Theme.fg2).lineLimit(1)
+        } else {
+            HStack(spacing: 6) {
+                Text(registration == .discovered ? "found on the host" : "no session").font(Theme.ui(12.5))
+                    .foregroundStyle(Theme.fg3)
+                KeyCap(text: openKey)
+                Text("import").font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+            }
+        }
+    }
 }
 
 /// One readiness line on a repo: not set up in the dim colour, off plain, ok in green, a problem in amber.
-private struct ReadinessText: View {
+struct ReadinessText: View {
     let line: RepoSetupStatus.Line
 
     var body: some View {
         HStack(spacing: 5) {
             Circle().fill(color).frame(width: 6, height: 6)
-            Text(line.text).font(Theme.ui(11)).foregroundStyle(line.state == .notSetUp ? Theme.fg3 : color)
-                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            Text(line.text).font(Theme.ui(12)).foregroundStyle(line.state == .notSetUp ? Theme.fg3 : color)
+                .lineLimit(1)
         }
     }
 
@@ -367,51 +571,6 @@ private struct SetupBanner: View {
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
         .padding(.horizontal, 16)
-        .padding(.top, 16)
-    }
-}
-
-/// What the next sweep would do (design/screens/Repos.png).
-private struct SweepBanner: View {
-    @Environment(AppModel.self) private var model
-    let plan: SweepPlan
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            StateGlyph(state: plan.skips.isEmpty ? .idle : .blocked)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(plan.summary).font(Theme.ui(12.5))
-                ForEach(plan.skips.prefix(3), id: \.worktree.id) { skip in
-                    Text("kept \(skip.worktree.repo.name)/\(skip.worktree.branch ?? ""): \(skip.reason)")
-                        .font(Theme.mono(11.5))
-                        .foregroundStyle(Theme.block)
-                }
-                ForEach(plan.removals.prefix(3), id: \.worktree.id) { removal in
-                    Text(
-                        "would remove \(removal.worktree.repo.name)/\(removal.worktree.branch ?? "") (\(removal.idleText))"
-                    )
-                    .font(Theme.mono(11.5))
-                    .foregroundStyle(Theme.fg2)
-                }
-                ForEach(plan.chatRemovals.prefix(3), id: \.id) { removal in
-                    Text("would remove chat scratch folder \(removal.name) (closed \(removal.closedDays)d)")
-                        .font(Theme.mono(11.5))
-                        .foregroundStyle(Theme.fg2)
-                }
-                ForEach(plan.expired.prefix(3)) { archive in
-                    Text(
-                        "would drop \(archive.repo.name) \(archive.name) (saved \(archive.archivedAt.formatted(.relative(presentation: .named))))"
-                    )
-                    .font(Theme.mono(11.5))
-                    .foregroundStyle(Theme.fg2)
-                }
-            }
-            Spacer()
-            KeyCap(text: model.keyText(for: "cleanup.sweep"))
-            Text("run now").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-        }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
-        .padding(16)
+        .padding(.top, 12)
     }
 }

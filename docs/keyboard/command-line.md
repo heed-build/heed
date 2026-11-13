@@ -37,7 +37,7 @@ Short forms work too:
 | `:promote` | Turn the chat into work |
 | `:pr 2841` | Read pull request 2841 |
 | `:track <url>` | Track a pull request in this session (`gU` takes the URL on the clipboard) |
-| `:wt sweep` | Run the cleanup sweep |
+| `:wt clean` | Clean up worktrees now (`:wt sweep` and `:cleanup.sweep` still work) |
 | `:attention`, `:log`, … | Switch view; `:inbox` and `:issues` open [Attention](../github/attention.md#tabs) on Everything and on its issues |
 | `:import <path>` | Import the worktree at a path |
 | `:tutor [lesson]` | The [tutor](../getting-started/tutor.md)'s picker, or a lesson by name |
@@ -69,8 +69,8 @@ Everything you can do with the mouse, the menu bar or a global shortcut is a com
 | `:whatsnew.show` | [What's new](../configuration/whats-new.md): the features and new settings since the version you last opened |
 | `:nudges.hide [always]` | Hide the title bar's [settings worth a look](../configuration/whats-new.md#the-title-bar-pill) pill until the next launch; `always` turns the settings nudge off |
 | `:app.activate` | Bring the window to the front |
-| `:repo.add <path>` | Add a repo outside the scanned folders |
-| `:cleanup.rules` | Show the cleanup rules |
+| `:repo.add [path]` | Add or clone a repo: the dialog, or the repo at a path |
+| `:cleanup.rules` | The cleanup settings (Settings › Worktrees › Cleanup) |
 | `:view <name>` | Switch view by name |
 | `:pr.untrack [url]`, `:issue.remove [url]` | Stop tracking a PR, take an issue off the session |
 | `:overlay.pr` | The session's PR overlay |

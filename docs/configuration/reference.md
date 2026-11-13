@@ -27,6 +27,9 @@ default_prefix = "feature"
 # When heed first starts an agent in a repo, offer (once per repo) to trust it ahead of time: for Claude Code, so it
 # does not ask in every new worktree, and for mise when the repo's config sets [env]. Local repos only.
 offer_trust = true
+# After Add or clone (a in Repos) adds or clones a repo: open Repo setup for it (get it merged, get it green),
+# open Start work in it, or nothing more. The dialog's "then" starts on this.
+after_add = "setup"                # setup | start_work | add
 
 [worktrees.prefixes]
 fix = ["fix", "bug", "broken", "crash", "repair", "resolve"]
@@ -68,9 +71,9 @@ persist = "auto"
 enabled = false
 idle_days = 14
 delete_branch = true               # the local branch; the remote is left alone
-ask_before_sweep = false
+ask_before_sweep = false           # true: cleanup runs only when you press Clean up worktrees (gC)
 # Removing a worktree saves its commits (and uncommitted changes) as refs/heed/archive/<branch> first, so R in
-# History can bring it back. Sweeps drop those older than this many days; 0 keeps them.
+# History can bring it back. Cleanup drops those older than this many days; 0 keeps them.
 keep_archive_days = 90
 
 [github]

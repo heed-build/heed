@@ -204,8 +204,12 @@ public enum Commands {
         .init("issue.add", "link an issue to the session (its URL, or the copied one)", .views, arguments: "[url]"),
         .init("issue.remove", "take an issue off the session", .views, arguments: "[url]"),
         .init("open.reader", "read the item, issue or PR", .views),
-        .init("cleanup.rules", "show the cleanup rules (Repos, with its rules panel)", .views),
-        .init("cleanup.sweep", "run the cleanup sweep now", .views),
+        .init("cleanup.rules", "the cleanup settings (Settings › Worktrees › Cleanup)", .views),
+        .init(
+            "cleanup.run",
+            "clean up worktrees now: remove the ones idle past your cleanup settings (lists them and asks first)",
+            .views
+        ),
         .init("inspector.toggle", "collapse / expand the inspector", .views),
         .init(
             "inspector.tackle", "hand the session's loose end with this text to its agent (none: all of them)", .views,
@@ -820,7 +824,19 @@ public enum Commands {
         .init("diff.ask.now", "ask the agent about this hunk (or the selected lines) now", .selection),
         .init("diff.copy", "copy path:line (path:first-last for selected lines)", .selection),
         .init("diff.edit", "open the file in the editor", .selection),
-        .init("repo.add", "add a repo outside the scanned roots (kept in repo_paths)", .selection, arguments: "<path>"),
+        .init(
+            "repo.add",
+            "add or clone a repo: the dialog, or the repo at a path added (kept in repo_paths outside the roots)",
+            .selection,
+            arguments: "[path]"
+        ),
+        .init("repo.reveal", "show the repo's folder in Finder", .selection),
+        .init(
+            "repos.focus",
+            "Repos: between the repo column and the worktree table (repos, worktrees, or the other one)",
+            .selection,
+            arguments: "[repos|worktrees]"
+        ),
         .init("repo.scan", "refresh: rescan the repo roots", .selection),
         .init("worktree.new", "start work in the repo under the cursor", .selection),
         .init(
@@ -846,6 +862,16 @@ public enum Commands {
     public static let byName: [String: CommandSpec] = Dictionary(uniqueKeysWithValues: all.map { ($0.name, $0) })
 
     public static func spec(_ name: String) -> CommandSpec? { byName[name] }
+
+    /// Commands that were renamed, old name to new: config.toml bindings and `:` still take the old name.
+    public static let renamed: [String: String] = ["cleanup.sweep": "cleanup.run"]
+
+    /// A binding's command line with a renamed command's new name (`cleanup.sweep` runs `cleanup.run`).
+    public static func current(_ line: String) -> String {
+        let invocation = CommandInvocation(parsing: line)
+        guard let name = renamed[invocation.name] else { return line }
+        return ([name] + invocation.arguments).joined(separator: " ")
+    }
 
     /// Commands that only make sense as keys on the command line itself: `:` runs them but does not offer them.
     public static let keyOnly: Set<String> = ["command.submit", "command.complete", "command.complete.prev"]

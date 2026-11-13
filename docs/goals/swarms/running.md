@@ -111,7 +111,7 @@ ordinary item.
 
 ## What a worker leaves
 
-A worker's branch is `swarm/<goal>/<task>`, outside `heed/`, so the cleanup sweep never removes it: it holds the
+A worker's branch is `swarm/<goal>/<task>`, outside `heed/`, so cleanup never removes it: it holds the
 task's pull request. Its worktree is under `heed/<repo>/swarm-<goal>-<task>` in your worktree root and is kept when
 the worker ends, so a resumed or handed-over task carries on where it was. A worker on a task heed was quit during is
 recorded as interrupted at the next launch; the task then waits for you.

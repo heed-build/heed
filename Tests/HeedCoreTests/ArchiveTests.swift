@@ -208,7 +208,7 @@ struct ArchiveTests {
         let domain = Domain(archives: [ref("old", daysAgo: 120), ref("new", daysAgo: 3)])
         let plan = Sweep.plan(domain: domain, rule: CleanupRule(enabled: true), now: now)
         #expect(plan.expired.map(\.branch) == ["old"])
-        #expect(plan.summary == "The sweep drops 1 saved archive.")
+        #expect(plan.summary == "Cleanup drops 1 saved archive.")
         #expect(Sweep.plan(domain: domain, rule: CleanupRule(enabled: true, keepArchiveDays: 0), now: now)
             .expired.isEmpty)
         #expect(Sweep.plan(domain: domain, rule: CleanupRule(), now: now).expired.isEmpty)

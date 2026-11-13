@@ -269,6 +269,12 @@ extension SettingsCatalog {
             since: "0.10.0"
         ) { .bool($0.work.offerTrust) },
         global(
+            "worktrees.after_add", .worktrees, "Worktrees", "After adding a repo",
+            "What Add or clone does once a repo is added or cloned: Repo setup (get it merged and get it green), "
+                + "Start work in it, or nothing more. The dialog's \"then\" starts on this.",
+            since: "0.40.0"
+        ) { .text($0.work.afterAdd.rawValue) },
+        global(
             "worktrees.default_prefix", .worktrees, "Branch names", "Default prefix",
             "Branches get a prefix picked by the prompt's first word (\"Fix broken anchors\" → fix/broken-anchors), "
                 + "else this. Empty: no prefix.",
@@ -293,20 +299,21 @@ extension SettingsCatalog {
         ) { .bool($0.cleanup.enabled) },
         global(
             "cleanup.idle_days", .worktrees, "Cleanup", "Idle for",
-            "Days without activity before the sweep removes a worktree.", since: "0.1.0"
+            "Days without activity before cleanup removes a worktree.", since: "0.1.0"
         ) { .integer($0.cleanup.idleDays) },
         global(
             "cleanup.delete_branch", .worktrees, "Cleanup", "Delete the local branch too",
             "The remote branch is left alone.", since: "0.1.0"
         ) { .bool($0.cleanup.deleteBranch) },
         global(
-            "cleanup.ask_before_sweep", .worktrees, "Cleanup", "Ask before each sweep",
-            "The sweep lists what it would remove and waits for you.", since: "0.1.0"
+            "cleanup.ask_before_sweep", .worktrees, "Cleanup", "Ask before cleaning up",
+            "Cleanup lists what it would remove and waits for you: it runs only when you press Clean up worktrees.",
+            since: "0.1.0"
         ) { .bool($0.cleanup.askBeforeSweep) },
         global(
             "cleanup.keep_archive_days", .worktrees, "Saved work", "Keep saved work",
             "Removing a worktree saves its commits and changes as heed/archive/<branch> first; R in History brings "
-                + "it back. Sweeps drop older ones (0: keep them).",
+                + "it back. Cleanup drops older ones (0: keep them).",
             since: "0.12.0"
         ) { .integer($0.cleanup.keepArchiveDays) },
     ]

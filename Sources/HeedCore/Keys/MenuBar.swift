@@ -97,6 +97,7 @@ public enum MenuBar {
         "update.check": "the app menu's Check for Updates…",
         "app.activate": "brings the window forward, which clicking the menu bar has already done",
         "swarm.host": "the new swarm form's Where chips, which only that form shows",
+        "repos.focus": "moving between Repos' column and table: the mouse clicks either",
     ]
 
     /// An item whose command needs words the menu cannot know (`pr.track <url>`): it opens the command line with the
@@ -187,15 +188,16 @@ public enum MenuBar {
                 .separator,
                 item("Import a worktree…", "session.import"),
                 item("Import a worktree by path…", "session.import.path"),
-                item("Add a repo…", "repo.add"),
+                item("Add or clone a repo…", "repo.add"),
+                item("Show the repo in Finder", "repo.reveal"),
                 .separator,
                 item("Resume where you left off…", "resume"),
                 item("While you were away…", "summary"),
                 .separator,
                 item("Sync GitHub now", "github.sync"),
                 item("Rescan the repo roots", "repo.scan"),
-                item("Run the cleanup sweep", "cleanup.sweep"),
-                item("Cleanup rules", "cleanup.rules"),
+                item("Clean up worktrees…", "cleanup.run"),
+                item("Cleanup settings…", "cleanup.rules"),
                 .separator,
                 item("Edit config.toml", "config.edit"),
                 item("Find git and gh again", "tools.detect"),

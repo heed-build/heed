@@ -45,7 +45,7 @@ struct SweepTests {
         #expect(plan.skips.map(\.reason) == ["uncommitted changes", "never pushed"])
         #expect(plan.next?.worktree.branch == "fresh")
         #expect(plan.next?.days == 4)
-        #expect(plan.summary == "The sweep removes 1 worktree, skips 2 with unsaved work.")
+        #expect(plan.summary == "Cleanup removes 1 worktree, skips 2 with unsaved work.")
     }
 
     @Test func recentCommitsAndPRsCountAsActivity() {

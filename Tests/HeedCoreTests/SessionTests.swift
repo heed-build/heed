@@ -96,7 +96,11 @@ struct SessionListTests {
     }
 
     @Test func aliases() {
-        #expect(CommandAliases.resolve("wt sweep") == CommandInvocation(name: "cleanup.sweep"))
+        #expect(CommandAliases.resolve("wt sweep") == CommandInvocation(name: "cleanup.run"))
+        #expect(CommandAliases.resolve("wt clean") == CommandInvocation(name: "cleanup.run"))
+        // The old name still runs it, from : and from a binding in config.toml.
+        #expect(CommandAliases.resolve("cleanup.sweep") == CommandInvocation(name: "cleanup.run"))
+        #expect(Commands.current("cleanup.sweep") == "cleanup.run")
         #expect(CommandAliases.resolve("pr 2841") == CommandInvocation(name: "open.reader", arguments: ["pr", "2841"]))
         #expect(CommandAliases.resolve("inbox") == CommandInvocation(name: "view", arguments: ["inbox"]))
         #expect(CommandAliases.resolve("pane.zoom") == CommandInvocation(name: "pane.zoom"))

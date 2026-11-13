@@ -62,7 +62,7 @@ struct TutorTests {
             "goalsUnassigned", "goalReviewers", "goalReviewerDetail", "goalPersonas", "swarmPlan", "swarmSteering",
             "swarmMap",
             "goalEvaluations",
-            "goalFriction", "goalGuide", "goalSources",
+            "goalFriction", "goalGuide", "goalSources", "repoColumn", "addRepo",
         ]
         for lesson in [Tutor.tour] + Tutor.viewLessons {
             for step in lesson.steps {
@@ -82,6 +82,19 @@ struct TutorTests {
         #expect(observe(&tutor, state { $0.repoSetupOpen = true; $0.repoSetupStep = 2 }) == .none)
         #expect(observe(&tutor, state()) == .advanced)
         #expect(tutor.finished)
+    }
+
+    @Test func theReposLessonPicksARepoAndOpensAddOrClone() throws {
+        let lesson = try #require(Tutor.viewLessons.first { $0.id == "repos" })
+        let pick = try #require(lesson.steps.firstIndex { $0.title == "Pick a repo" })
+        var tutor = Tutor(lesson: lesson, step: pick, state: state())
+        // Moving to the column is not enough: a repo must be picked there.
+        #expect(observe(&tutor, state { $0.reposFocus = "repos" }) == .none)
+        #expect(observe(&tutor, state { $0.reposFocus = "repos"; $0.pickedRepo = "acme/docs-toolkit" }) == .advanced)
+        let add = try #require(lesson.steps.firstIndex { $0.title == "Add or clone" })
+        tutor = Tutor(lesson: lesson, step: add, state: state())
+        #expect(observe(&tutor, state { $0.addRepoOpen = true }) == .none)
+        #expect(observe(&tutor, state()) == .advanced)
     }
 
     @Test func twoModesNeedsInsertAndBack() {

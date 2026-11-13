@@ -652,7 +652,7 @@ public enum ContextMenus {
             facts.onGitHub ? item("Open repo on GitHub", "open.repo") : nil,
         ])
         menu.section([
-            item("Run the cleanup sweep…", "cleanup.sweep"),
+            item("Clean up worktrees…", "cleanup.run"),
             item("Setup for new worktrees…", "setup.review"),
             facts.onGitHub ? item("Set up merging and green…", "repo.setup") : nil,
         ])

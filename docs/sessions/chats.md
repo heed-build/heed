@@ -29,7 +29,7 @@ The Folder field, where Start work has the Worktree field, says where the agent 
 
 - **scratch** (the default): an empty folder Heed makes for this chat, named after the day and your prompt, under
   `~/Library/Application Support/Heed/chats` on this Mac or `~/.heed/chats` on a host. `i` edits its name. With
-  [cleanup](../worktrees/cleanup.md#chats-scratch-folders) on, the sweep removes it 30 days after the chat closes,
+  [cleanup](../worktrees/cleanup.md#chats-scratch-folders) on, it is removed 30 days after the chat closes,
   unless the chat is pinned.
 - **folder**: a folder you pick. `i` types its path. The agent works there with its normal permissions, and Heed never
   removes it.

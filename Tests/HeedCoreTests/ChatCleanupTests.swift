@@ -47,7 +47,7 @@ struct ChatCleanupTests {
     @Test func theSweepSaysWhatItRemoves() {
         let only = plan([closed("old", daysAgo: 90)])
         #expect(!only.isEmpty)
-        #expect(only.summary == "The sweep removes 1 chat scratch folder.")
+        #expect(only.summary == "Cleanup removes 1 chat scratch folder.")
     }
 
     @Test func onlyFoldersDirectlyUnderTheRootAreScratch() {

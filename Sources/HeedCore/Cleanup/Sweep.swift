@@ -103,7 +103,7 @@ public struct SweepPlan: Equatable, Sendable {
         if !expired.isEmpty {
             parts.append("drops \(expired.count) saved archive\(expired.count == 1 ? "" : "s")")
         }
-        return "The sweep " + parts.joined(separator: ", ") + "."
+        return "Cleanup " + parts.joined(separator: ", ") + "."
     }
 }
 
@@ -239,13 +239,13 @@ public enum Sweep {
                 _ = try await ProcessRunner.output(
                     on: record.location, "git",
                     ["-C", record.path, "worktree", "remove"] + (saved.wip == nil ? [] : ["--force"]) + [worktree.path],
-                    caller: "cleanup.sweep"
+                    caller: "cleanup.run"
                 )
                 if removal.deleteBranch, let branch = worktree.branch {
                     // Whatever was on it is pushed or in the archive, so -D only drops the local name.
                     _ = try? await ProcessRunner.output(
                         on: record.location, "git", ["-C", record.path, "branch", "-D", branch],
-                        caller: "cleanup.sweep"
+                        caller: "cleanup.run"
                     )
                 }
                 if !touchedRepos.contains(record) { touchedRepos.append(record) }

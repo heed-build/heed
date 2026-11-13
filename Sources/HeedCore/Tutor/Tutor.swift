@@ -25,6 +25,12 @@ public struct TutorState: Equatable, Sendable {
     public var repoSetupOpen = false
     public var repoSetupStep = 0
     public var importOpen = false
+    /// Repos › Add or clone is open, and how many repos it has picked.
+    public var addRepoOpen = false
+    public var addRepoPicked = 0
+    /// Which side of Repos has focus (`repos`, `worktrees`) and the repo the column picked (nil: All).
+    public var reposFocus = "worktrees"
+    public var pickedRepo: String?
     /// The hosts dialog (`gH`) is open.
     public var hostsOpen = false
     /// Sessions that run on a host.

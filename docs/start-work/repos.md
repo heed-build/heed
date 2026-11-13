@@ -76,3 +76,6 @@ it clones, and says so under the repo field, or why the clone failed.
 ![A repo heed has not seen, typed into the search](../images/shots/start-work/any-repo.png)
 
 ![It is picked, and cloned when the work starts](../images/shots/start-work/any-repo-picked.png)
+
+To clone or add repos without starting work, with your GitHub repos and your orgs' to pick from, use
+[Add or clone](../worktrees/repos.md#add-or-clone) in Repos (`a`).

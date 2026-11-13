@@ -763,6 +763,33 @@ public enum GitHub {
         }
     }
 
+    /// The repos an owner has on GitHub (`gh repo list`, read only), newest push first; the signed-in account's own
+    /// with no owner. The words why when gh could not answer.
+    public static func listRepos(owner: String?, caller: String) async -> Result<[RepoListing], Failure> {
+        do {
+            let result = try await gh(
+                RepoListing.listArguments(owner: owner), operation: "repo list", timeout: .seconds(30), caller: caller,
+                items: { RepoListing.parse(Data($0.utf8))?.count }
+            )
+            guard result.succeeded else { return .failure(Failure(description: explain(result))) }
+            guard let listings = RepoListing.parse(Data(result.stdout.utf8)) else {
+                return .failure(Failure(description: "gh repo list answered something heed cannot read"))
+            }
+            return .success(listings)
+        } catch {
+            return .failure(Failure(description: "\(error)"))
+        }
+    }
+
+    /// The orgs the signed-in account belongs to (`gh api user/orgs`, read only); empty when gh cannot say.
+    public static func orgs(caller: String) async -> [String] {
+        guard let result = try? await gh(
+            ["api", "user/orgs", "--jq", ".[].login"], operation: "user orgs", timeout: .seconds(20), caller: caller
+        ), result.succeeded else { return [] }
+        return result.stdout.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
     static func lookup(_ result: ProcessResult?) -> RepoEntry.Lookup {
         guard let result else { return .failed("gh did not answer") }
         if result.succeeded, let found = RepoEntry.parseView(result.stdout) { return .found(found) }

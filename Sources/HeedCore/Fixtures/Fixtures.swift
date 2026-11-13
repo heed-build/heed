@@ -268,8 +268,25 @@ public enum Fixtures {
                 repo: markgraph, path: "\(root)/wt/markgraph/gantt-labels", branch: "gantt-labels", head: "0000000",
                 isMain: false, status: WorktreeStatus(upstream: nil)
             ),
-            Worktree(repo: ingest, path: "\(root)/ingest", branch: "main", head: "0000000", isMain: true),
+            Worktree(
+                repo: ingest, path: "\(root)/ingest", branch: "main", head: "0000000", isMain: true,
+                status: WorktreeStatus(upstream: "origin/main")
+            ),
         ]
+        // The other repos' main checkouts, as a scan lists them: how each main stands against origin since the last
+        // fetch (the Repos column's status line).
+        for (repo, behind, changed) in [
+            (docsToolkit, 3, 0),
+            (docsWebsite, 0, 0),
+            (markgraph, 0, 0),
+            (editorRules, 12, 1),
+        ] {
+            var status = WorktreeStatus(changedFiles: changed, behind: behind, upstream: "origin/main")
+            status.files = nil
+            worktrees.append(Worktree(
+                repo: repo, path: "\(root)/\(repo.name)", branch: "main", head: "0000000", isMain: true, status: status
+            ))
+        }
         let detail = pullDetail
         var pipeline = PullFeedback(ref: detail.ref)
         pipeline.merge(detail)

@@ -410,6 +410,15 @@ public enum AgentIntegration {
         return data.map { String(decoding: $0, as: UTF8.self) } ?? "{}"
     }
 
+    /// The session's inbox, from the hook's environment: said when the session starts, and again with each prompt
+    /// and turn's end (so a heed restarted under a running agent learns it again), never on the busy tool events.
+    public static func claudeInbox(event: String, environment: [String: String]) -> [HookMessage.Kind] {
+        guard ["SessionStart", "UserPromptSubmit", "Stop"].contains(event),
+              let socket = ClaudeInbox.socket(from: environment)
+        else { return [] }
+        return [.inbox(socket: socket)]
+    }
+
     /// Maps one Claude Code hook call to what Heed should record. `input` is the hook's stdin JSON.
     public static func claudeHook(event: String, input: [String: Any]) -> [HookMessage.Kind] {
         if let subagent = subagentHook(event: event, input: input) { return subagent }

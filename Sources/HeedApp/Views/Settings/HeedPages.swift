@@ -33,6 +33,12 @@ struct GeneralPage: View {
             SettingRow("sessions.name_sessions") {
                 ConfigSwitch(path: ["sessions", "name_sessions"], isOn: work.nameSessions)
             }
+            SettingRow("sessions.claude_inbox") {
+                ConfigSwitch(path: ["sessions", "claude_inbox"], isOn: work.channels.claudeInbox)
+            }
+            SettingRow("sessions.codex_queue") {
+                ConfigSwitch(path: ["sessions", "codex_queue"], isOn: work.channels.codexQueue)
+            }
             SettingRow("sessions.persist") {
                 SegmentedChoice(
                     path: ["sessions", "persist"], value: model.settings.persist,

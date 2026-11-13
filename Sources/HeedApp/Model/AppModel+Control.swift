@@ -37,7 +37,7 @@ extension AppModel {
         switch request.method {
         case .sessions, .watch: ControlReply(sessions: controlSessions)
         case .start: await controlStart(request)
-        case .send: controlSend(request)
+        case .send: await controlSend(request)
         case .show: controlShow(request)
         case .goal: await controlGoal(request)
         case .memory: await controlMemory(request)
@@ -97,9 +97,9 @@ extension AppModel {
         return ControlReply(session: session.id)
     }
 
-    /// Types `text` into the session's agent pane and presses Return, only when the agent is idle or done and you
-    /// have not just typed there yourself.
-    private func controlSend(_ request: ControlRequest) -> ControlReply {
+    /// Hands `text` to the session's agent: through its channel when it has one (`sendToAgent`), else typed and
+    /// Return pressed, only when the agent is idle or done and you have not just typed there yourself.
+    private func controlSend(_ request: ControlRequest) async -> ControlReply {
         guard let id = request.session, let session = sessions.first(where: { $0.id == id }) else {
             return .failure("no session \(request.session ?? "")")
         }
@@ -109,15 +109,17 @@ extension AppModel {
         guard let layout = layouts[id], let (_, paneID) = agentPane(in: layout),
               TerminalSurfaces.shared.hasTerminal(paneID: paneID)
         else { return .failure("\(session.title) has no running agent pane: open it in Heed") }
-        if case let .wait(reason) = Delivery.verdict(state: session.state.state, lastTyped: lastTyped[id]) {
-            return .failure("not sent: \(reason)")
+        let outcome = await sendToAgent(text, pane: paneID, state: session.state.state, lastTyped: lastTyped[id])
+        guard outcome.sent else { return .failure("not sent: \(outcome.why ?? "unknown")") }
+        if var sent = sessions.first(where: { $0.id == id }) {
+            sent.record("sent \(text.count) characters from another app"
+                + (outcome == .typed(fallback: nil) ? "" : " · \(outcome.summary)"))
+            commit(.sessionUpserted(sent))
         }
-        TerminalSurfaces.shared.typeLine(text, paneID: paneID)
-        var sent = session
-        sent.record("sent \(text.count) characters from another app")
-        commit(.sessionUpserted(sent))
         if request.focus == true { show(sessionID: id) }
-        return ControlReply(session: id)
+        var reply = ControlReply(session: id)
+        reply.delivery = outcome.summary
+        return reply
     }
 
     private func controlShow(_ request: ControlRequest) -> ControlReply {

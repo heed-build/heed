@@ -275,6 +275,8 @@ public enum ConfigLoader {
         if let text = string(["sessions", "continue_prompt"]) { config.work.continuePrompt = text }
         if let flag = bool(["sessions", "shell_split"]) { config.work.shellSplit = flag }
         if let flag = bool(["sessions", "name_sessions"]) { config.work.nameSessions = flag }
+        if let flag = bool(["sessions", "claude_inbox"]) { config.work.channels.claudeInbox = flag }
+        if let flag = bool(["sessions", "codex_queue"]) { config.work.channels.codexQueue = flag }
         if let text = string(["sessions", "persist"]) {
             if let persist = PanePersistence(rawValue: text.lowercased()) {
                 config.work.persist = persist
@@ -962,6 +964,12 @@ public enum ConfigLoader {
     # Heed names each session from what it is doing: after its agent's first turn and when it opens a PR, on Apple's
     # on-device model where the Mac has it, else a model call. A title you give it (session.rename) stays.
     name_sessions = true
+    # What heed sends an agent (feedback, notes, the continue prompt, heed send) goes to a Claude session through its
+    # cross-session inbox instead of being typed into its pane: it queues there while the agent works, and can never
+    # approve a prompt. A session without one, or that refuses it, gets it typed as before.
+    claude_inbox = true
+    # The same for codex sessions, with `codex queue` (experimental: off until you turn it on).
+    codex_queue = false
     # Keep every pane's terminal alive in a zmx session, so agents keep running when heed quits, restarts or updates,
     # and come back as they were: auto (zmx when it is installed and works; Settings > General shows its check),
     # zmx, or none (panes end with heed).

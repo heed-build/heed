@@ -30,6 +30,9 @@ public struct WorkSettings: Hashable, Sendable, Codable {
     public var shellSplit = false
     /// Heed names sessions as their work goes (`[sessions] name_sessions`).
     public var nameSessions = true
+    /// How heed hands agents what it would otherwise type: Claude's inbox, codex's queue (`[sessions] claude_inbox`,
+    /// `codex_queue`).
+    public var channels = ChannelSettings()
     /// Whether panes outlive heed: `zmx` keeps each pane's terminal in a zmx session that heed reattaches to.
     public var persist: PanePersistence = .auto
     /// Which repos' sessions are asked to sign off with a summary (`[pilot] summary_sign_off`, per org and repo).

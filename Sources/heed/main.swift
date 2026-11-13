@@ -143,7 +143,9 @@ if arguments.first == "cleanup" {
 
 let kinds: [HookMessage.Kind]
 do {
-    kinds = try HookCommandLine.parse(arguments) { FileHandle.standardInput.readDataToEndOfFile() }
+    kinds = try HookCommandLine.parse(arguments, environment: environment) {
+        FileHandle.standardInput.readDataToEndOfFile()
+    }
 } catch {
     FileHandle.standardError.write(Data("\(error)\n".utf8))
     exit(2)

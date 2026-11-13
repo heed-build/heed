@@ -39,7 +39,7 @@ struct AttentionListingTests {
 
     @Test func everythingListsWhatTheOtherTabsLeaveOut() {
         let all = entries([
-            item("watch", [.watching], kind: .issue), item("mine", [.yourPR]), item("review", [.reviewRequested]),
+            item("old", [.mentionedBefore], kind: .issue), item("mine", [.yourPR]), item("review", [.reviewRequested]),
         ])
         #expect(AttentionListing.of(all, filter: .everything, seen: AttentionSeen(), now: now).rows.count == 3)
         #expect(AttentionListing.of(all, filter: .forYou, seen: AttentionSeen(), now: now).rows.map(\.id)

@@ -217,9 +217,10 @@ struct AttentionRulesTests {
             "any lower mention",
             "label lower",
             "ci branch:main lower # trailing comment",
+            "watching repo:acme/docs lower",
         ])
         #expect(rules.rules.map(\.line) == [1, 23])
-        #expect(rules.problems.map(\.line) == Array(4 ... 22))
+        #expect(rules.problems.map(\.line) == Array(4 ... 22) + [24])
         let byLine = Dictionary(uniqueKeysWithValues: rules.problems.map { ($0.line, $0.message) })
         #expect(byLine[4]?.contains("no action") == true)
         #expect(byLine[5]?.contains("nothing to match") == true)
@@ -231,6 +232,8 @@ struct AttentionRulesTests {
         #expect(byLine[17]?.contains("CODEOWNER") == true)
         #expect(byLine[21]?.contains("conditions come first") == true)
         #expect(byLine[22] == "label needs a value")
+        // A word heed no longer has: that line is a problem that says so, and the other lines still apply.
+        #expect(byLine[24]?.contains("watching is no longer a rule input") == true)
         #expect(rules.problems.first?
             .description == "line 4: no action: end it with boost n, lower, ignore, pin or notify")
     }

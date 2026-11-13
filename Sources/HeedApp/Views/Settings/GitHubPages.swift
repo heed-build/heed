@@ -14,12 +14,6 @@ struct GitHubPage: View {
                     range: 15 ... 3600, step: 15
                 )
             }
-            SettingRow("issues.default") {
-                SegmentedChoice(
-                    path: ["issues", "default"], value: model.config.issues.fallback,
-                    options: [(.all, "All issues"), (.involved, "Only yours")], name: \.rawValue, width: 200
-                )
-            }
         }
     }
 }

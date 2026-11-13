@@ -78,6 +78,29 @@ struct ConfigTests {
         #expect(config?.insertEscape == "<C-\\>")
     }
 
+    /// The Issues view's settings went with it. A file that still has them loads: `"involved"` (the old default,
+    /// written into every config.toml) is what heed does now and passes quietly; anything else says it does nothing.
+    /// So do `[keys.inbox]` and `[keys.issues]`, whose views are gone.
+    @Test func theIssuesViewsSettingsStillLoad() throws {
+        let (config, problems) = ConfigLoader.decode("""
+        [issues]
+        default = "involved"
+        [orgs.globex]
+        color = "pink"
+        issues = "all"
+        [repos."globex/noisy"]
+        issues = "involved"
+        [repos."employer/x"]
+        issues = "sometimes"
+        [keys.inbox]
+        x = "items.read"
+        """)
+        let loaded = try #require(config)
+        #expect(loaded.orgColors == ["globex": "pink"])
+        #expect(problems.map(\.path).sorted() == ["keys.inbox", "orgs.globex.issues", "repos.employer/x.issues"])
+        #expect(problems.allSatisfy { $0.message.hasPrefix("no longer used") })
+    }
+
     @Test func valuesOverrideAndCustomAgentsAppear() throws {
         let (decoded, problems) = ConfigLoader.decode("""
         [worktrees]

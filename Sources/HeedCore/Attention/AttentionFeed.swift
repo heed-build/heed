@@ -31,7 +31,8 @@ public enum AttentionFeed {
             let fresh = now.timeIntervalSince(issue.createdAt ?? issue.updatedAt) < AttentionReason.freshMention
             if issue.assigned { reasons.insert(fresh ? .assigned : .assignedBefore) }
             if issue.mentioned { reasons.insert(fresh ? .mentioned : .mentionedBefore) }
-            if reasons.isEmpty { reasons.insert(.watching) }
+            // Neither: an issue cached from when a repo could show every open issue. Nothing about it wants you.
+            if reasons.isEmpty { continue }
             add(AttentionItem(
                 id: AttentionItem.threadID(issue.repo, issue.number), kind: .issue, repo: issue.repo,
                 number: issue.number, title: issue.title, url: issue.url.isEmpty ? nil : issue.url, reasons: reasons,

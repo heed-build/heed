@@ -29,8 +29,6 @@ public struct CompletionContext: Sendable {
     public var catalogs: [String: AgentModelCatalog] = [:]
     /// Repos with a merge queue (`owner/name`).
     public var mergeRepos: [String] = []
-    /// Repos with issues, by name.
-    public var issueRepos: [String] = []
     /// The current session's tracked PRs and linked issues, as URLs.
     public var pulls: [String] = []
     public var issues: [String] = []
@@ -143,7 +141,6 @@ public enum CommandCompletions {
         case "attention.snooze": snoozeDurations.map { ($0.0, $0.1) }
         case "merge.run": context.mergeRepos.map { ($0, "") } + [("all", "every queue")]
         case "merge.queue": context.mergeRepos.map { ($0, "") }
-        case "issues.repo": context.issueRepos.map { ($0, "") }
         case "pr.untrack": context.pulls.map { ($0, "") }
         case "issue.remove": context.issues.map { ($0, "") }
         case "tutor": ([Tutor.tour] + Tutor.viewLessons).map { ($0.id, $0.title) }

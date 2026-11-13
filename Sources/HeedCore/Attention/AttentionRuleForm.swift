@@ -2,7 +2,7 @@ import Foundation
 
 /// A reason word of the rule grammar (`mention`, `review`, `ci`, ...): the reasons it stands for, and a few words.
 public enum AttentionReasonWord: String, CaseIterable, Hashable, Sendable {
-    case mention, review, assigned, ci, mine, changes, threads, mergeable, comment, subscribed, watching, proposals
+    case mention, review, assigned, ci, mine, changes, threads, mergeable, comment, subscribed, proposals
     case attach
 
     public var reasons: Set<AttentionReason> { AttentionRules.reasonWords[rawValue] ?? [] }
@@ -20,7 +20,6 @@ public enum AttentionReasonWord: String, CaseIterable, Hashable, Sendable {
         case .mergeable: "Ready to merge"
         case .comment: "New comments"
         case .subscribed: "Subscribed"
-        case .watching: "Watched repo's issues"
         case .proposals: "Goal proposals"
         case .attach: "Which goal? questions"
         }
@@ -39,7 +38,6 @@ public enum AttentionReasonWord: String, CaseIterable, Hashable, Sendable {
         case .mergeable: "PRs ready to merge"
         case .comment: "new comments"
         case .subscribed: "threads you are subscribed to"
-        case .watching: "issues in repos you watch"
         case .proposals: "goal proposals"
         case .attach: "which-goal questions"
         }

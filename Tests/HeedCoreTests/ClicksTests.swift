@@ -22,7 +22,7 @@ struct ClicksTests {
     @Test func aDoubleClickElsewhereRunsTheViewsOwnReturnOrOpensTheReader() {
         #expect(engine().normalCommand(for: enter, scope: "repos")?.name == "select.open")
         #expect(engine().normalCommand(for: enter, scope: "sessions")?.name == "session.agent")
-        #expect(engine().normalCommand(for: enter, scope: "inbox")?.name == "open.reader")
+        #expect(engine().normalCommand(for: enter, scope: "prs")?.name == "open.reader")
         #expect(engine().normalCommand(for: enter, scope: nil)?.name == "open.reader")
     }
 

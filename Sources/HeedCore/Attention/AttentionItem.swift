@@ -44,8 +44,6 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     case goalMirror
     /// One of your open PRs (or one a session tracks), whether or not anything about it wants you: My PRs lists it.
     case yourPR
-    /// An open issue in a repo whose issues you watch (`[repos.x] issues = "all"`): the Issues filter lists it.
-    case watching
     /// An open issue the search says mentions you, or is assigned to you, with no notification saying so and opened
     /// more than 14 days ago: an old ask, listed under Tagged and Issues and folded out of Needs me.
     case mentionedBefore
@@ -56,7 +54,7 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
     /// Reasons that alone do not put an item in the feed: they keep it listed under My PRs, Issues or Tagged.
     public var passive: Bool { Self.passiveReasons.contains(self) }
 
-    static let passiveReasons: Set<AttentionReason> = [.yourPR, .watching, .mentionedBefore, .assignedBefore]
+    static let passiveReasons: Set<AttentionReason> = [.yourPR, .mentionedBefore, .assignedBefore]
 
     /// A reason that goes on asking until you act (a review request, an assignment, changes requested, an agent's
     /// question): For you lists it under Waiting on you once nothing is new. The rest (comments, a state change, a
@@ -98,7 +96,6 @@ public enum AttentionReason: String, Hashable, Sendable, Codable, CaseIterable, 
         case .swarmAsk: "swarm asks"
         case .goalMirror: "from GitHub"
         case .yourPR: "your PR"
-        case .watching: "watching"
         case .mentionedBefore: "mentioned before"
         case .assignedBefore: "assigned before"
         case .subscribed: "subscribed"

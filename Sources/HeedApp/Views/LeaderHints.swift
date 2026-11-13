@@ -48,7 +48,7 @@ struct LeaderHints: View {
         }
     }
 
-    /// "jump to pinned session 3", "switch view: inbox", or the command's summary.
+    /// "jump to pinned session 3", "switch view: watch", or the command's summary.
     static func describe(_ line: String) -> String {
         let invocation = CommandInvocation(parsing: line)
         let summary = Commands.spec(invocation.name)?.summary ?? invocation.name

@@ -168,7 +168,7 @@ struct ScopedKeyTests {
         // The reader and the browser keep their own keys there.
         #expect(press(&engine, "go").last == .run(CommandInvocation(name: "overlay.item")))
         #expect(press(&engine, "gB").last == .run(CommandInvocation(name: "open.browser")))
-        engine.scope = "inbox"
+        engine.scope = "attention"
         #expect(press(&engine, "<CR>") == [.run(CommandInvocation(name: "open.reader"))])
         #expect(Commands.spec("session.agent") != nil)
     }
@@ -177,7 +177,7 @@ struct ScopedKeyTests {
         // x is "done with it" wherever it is bound, o is always starting work (a goal's board: on the card's item), and
         // the GitHub views read with ↩.
         #expect(DefaultKeys.normal.contains { $0 == ("x", "session.close") })
-        #expect(DefaultKeys.scoped["inbox"]?.contains { $0 == ("x", "items.read") } == true)
+        #expect(DefaultKeys.scoped["attention"]?.contains { $0 == ("x", "attention.done") } == true)
         #expect(DefaultKeys.scoped["pr"]?.contains { $0 == ("x", "feedback.dismiss") } == true)
         for (scope, table) in DefaultKeys.scoped {
             for (keys, command) in table where keys == "o" {

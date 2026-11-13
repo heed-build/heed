@@ -3,7 +3,7 @@ import Foundation
 /// What the tutor can see of the app after each key: enough to tell whether a step was done, nothing more.
 public struct TutorState: Equatable, Sendable {
     public var mode: Mode = .normal
-    /// `sessions`, `inbox`, `issues`, `prs`, `repos`, `history`.
+    /// `sessions`, `attention`, `prs`, `repos`, `history`.
     public var view = "sessions"
     /// The row the cursor is on in the current view's list.
     public var cursor = 0
@@ -123,7 +123,7 @@ public enum TutorWorld: String, CaseIterable, Sendable {
 }
 
 /// One thing to do. `say` and `keys` take `{command}` placeholders, drawn as that command's key in your keymap
-/// (`{view.inbox}` → `gm`); anything else in `keys` is shown as written.
+/// (`{view.attention}` → `gm`); anything else in `keys` is shown as written.
 public struct TutorStep: Sendable {
     public let title: String
     public let say: String

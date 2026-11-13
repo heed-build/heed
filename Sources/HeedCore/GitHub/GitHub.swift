@@ -18,16 +18,14 @@ public enum GitHub {
 
     // MARK: Sync
 
-    /// A sync of `parts` (all of them by default): notifications, your open PRs (plus `tracked` ones), and issues
-    /// (those involving you, plus every open one in repos `rules` shows all of), fetched concurrently. The parts not
+    /// A sync of `parts` (all of them by default): notifications, your open PRs (plus `tracked` ones), and the issues
+    /// assigned to you or mentioning you, fetched concurrently. The parts not
     /// asked for keep their `previous` data; the login is fetched once, and again on a full sync. Throws only when gh
     /// itself is unusable (missing, signed out, offline).
     public static func sync(
         parts: Set<GitHubPart> = Set(GitHubPart.allCases),
         tracked: [PullRef],
         previous: GitHubState,
-        issueRules: IssueRules = IssueRules(),
-        localRepos: [Repo] = [],
         refreshTeams: Bool = false,
         now: Date = Date(),
         caller: String
@@ -38,12 +36,7 @@ public enum GitHub {
             previous: previous.inbox, lastFetch: previous.fetches.notifications?.at, now: now, caller: caller
         ) }
         async let pulls = fetch(parts.contains(.pulls)) { try await pullRequests(tracked: tracked, caller: caller) }
-        async let issues = fetch(parts.contains(.issues)) { try await self.issues(
-            rules: issueRules,
-            local: localRepos,
-            caller: caller
-        )
-        }
+        async let issues = fetch(parts.contains(.issues)) { try await self.issues(caller: caller) }
         let login = try await viewer ?? previous.viewer
         let fetchedInbox = try await inbox
         let fetchedPulls = try await pulls
@@ -215,24 +208,17 @@ public enum GitHub {
     /// How many issues one search reads at most (four pages of 50), newest update first.
     public static let issueSearchCap = 200
 
-    /// Issues assigned to you or mentioning you, anywhere, plus every open issue in the repos `rules` shows all of.
-    public static func issues(rules: IssueRules, local: [Repo], caller: String) async throws -> Fetched<[Issue]> {
+    /// Issues assigned to you or mentioning you, anywhere.
+    public static func issues(caller: String) async throws -> Fetched<[Issue]> {
         let base = "is:open is:issue archived:false"
         async let assigned = search("\(base) assignee:@me", caller: caller)
         async let mentioned = search("\(base) mentions:@me", caller: caller)
-        var watched: [SearchResult] = []
-        for query in watchQueries(base: base, qualifiers: rules.watchQualifiers(local: local)) {
-            try await watched.append(search(query, caller: caller))
-        }
         let mine = try await assigned
         let mentions = try await mentioned
-        let merged = mergeIssues(
-            assigned: mine.issues, mentioned: mentions.issues,
-            watched: watched.flatMap(\.issues).filter { rules.visibility($0.repo) == .all }
-        )
+        let merged = mergeIssues(assigned: mine.issues, mentioned: mentions.issues)
         let now = Date()
         return Fetched(
-            value: merged, hidden: mine.hidden + mentions.hidden + watched.map(\.hidden).reduce(0, +),
+            value: merged, hidden: mine.hidden + mentions.hidden,
             fetches: GitHubFetches(mentions: mentions.fetch(at: now), assigned: mine.fetch(at: now))
         )
     }
@@ -284,30 +270,9 @@ public enum GitHub {
         return (search?["issueCount"] as? Int, next)
     }
 
-    /// GitHub caps a search query at 256 characters, so qualifiers are split over several queries (at most 8).
-    static func watchQueries(base: String, qualifiers: [String], limit: Int = 230) -> [String] {
-        var queries: [String] = []
-        var current: [String] = []
-        for qualifier in qualifiers {
-            let candidate = ([base] + current + [qualifier]).joined(separator: " ")
-            if candidate.count > limit, !current.isEmpty {
-                queries.append(([base] + current).joined(separator: " "))
-                current = []
-            }
-            current.append(qualifier)
-        }
-        if !current.isEmpty { queries.append(([base] + current).joined(separator: " ")) }
-        return Array(queries.prefix(8))
-    }
-
     /// One entry per issue, flagged with how it involves you; newest first.
-    static func mergeIssues(assigned: [Issue], mentioned: [Issue], watched: [Issue]) -> [Issue] {
+    static func mergeIssues(assigned: [Issue], mentioned: [Issue]) -> [Issue] {
         var byID: [String: Issue] = [:]
-        for var issue in watched {
-            issue.assigned = false
-            issue.mentioned = false
-            byID[issue.id] = issue
-        }
         for issue in mentioned {
             var merged = byID[issue.id] ?? issue
             merged.mentioned = true

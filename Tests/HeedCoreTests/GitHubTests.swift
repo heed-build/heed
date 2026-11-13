@@ -17,9 +17,24 @@ struct GitHubParsingTests {
         #expect(items[0].kind == .pr)
         #expect(items[0].number == 2845)
         #expect(items[0].url == "https://github.com/acme/docs-toolkit/pull/2845")
-        #expect(items[0].reasonText == "review requested")
+        #expect(items[0].reason == "review_requested")
         #expect(items[1].kind == .ci)
         #expect(items[1].url == "https://github.com/acme/docs-toolkit/actions")
+    }
+
+    @Test func mergingFlagsHowAnIssueInvolvesYou() {
+        func issue(_ number: Int, age: TimeInterval) -> HeedCore.Issue {
+            HeedCore.Issue(
+                repo: Repo(org: "globex", name: "markgraph"), number: number, title: "#\(number)", url: "", body: "",
+                labels: [], author: nil, updatedAt: Date(timeIntervalSince1970: 1_000_000 - age)
+            )
+        }
+        let merged = GitHub.mergeIssues(
+            assigned: [issue(1, age: 10)], mentioned: [issue(1, age: 10), issue(2, age: 5)]
+        )
+        #expect(merged.map(\.number) == [2, 1])
+        #expect(merged.first { $0.number == 1 }.map { $0.assigned && $0.mentioned } == true)
+        #expect(merged.first { $0.number == 2 }.map { !$0.assigned && $0.mentioned } == true)
     }
 
     @Test func pullSearchSkipsSAMLHiddenNodesAndCountsThem() {

@@ -59,21 +59,6 @@ extension AppModel {
         case .watch:
             let rows = pilotRows
             return rows.indices.contains(index) ? pullMenu(rows[index].ref, place: .watch) : []
-        case .inbox:
-            let rows = inboxRows
-            guard rows.indices.contains(index) else { return [] }
-            let row = rows[index]
-            var facts = itemFacts(.inbox, id: row.id, title: row.number.map { "\(row.repo.name) #\($0)" } ?? row.title)
-            facts.unread = row.unread
-            facts.hasURL = row.url != nil
-            return ContextMenus.item(facts)
-        case .issues:
-            let rows = issueRows
-            guard rows.indices.contains(index) else { return [] }
-            let row = rows[index]
-            var facts = itemFacts(.issue, id: row.id, title: "\(row.repo.name) #\(row.number)")
-            facts.allIssues = config.issues.visibility(row.repo) == .all
-            return ContextMenus.item(facts)
         case .repos:
             let rows = worktreeRows
             guard rows.indices.contains(index) else { return [] }
@@ -86,7 +71,6 @@ extension AppModel {
             facts.pinned = session?.pinned ?? false
             facts.isMain = row.isMain
             facts.onGitHub = row.repo.org != "local"
-            facts.allIssues = config.issues.visibility(row.repo) == .all
             return ContextMenus.worktree(facts)
         case .history:
             let rows = historyRows
@@ -149,20 +133,6 @@ extension AppModel {
         case .sessions:
             return []
         }
-    }
-
-    /// An Inbox or Issues row: the picked rows when it is one of them, else it alone (see `actionIDs`).
-    private func itemFacts(_ kind: ContextMenus.ItemFacts.Kind, id: String, title: String) -> ContextMenus.ItemFacts {
-        var facts = ContextMenus.ItemFacts(kind: kind, id: id, title: title)
-        let picked = pickedIDs(kind == .inbox ? .inbox : .issues)
-        facts.count = picked.contains(id) ? picked.count : 1
-        facts.hasSession = currentSession != nil
-        return facts
-    }
-
-    /// A repo in the Issues repo column (nil: its All row).
-    func issueRepoMenu(_ repo: Repo?) -> [MenuEntry] {
-        ContextMenus.issueRepo(repo, allIssues: repo.map { config.issues.visibility($0) == .all } ?? false)
     }
 
     /// A tab of the current session.

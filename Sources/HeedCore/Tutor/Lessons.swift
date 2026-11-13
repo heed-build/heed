@@ -183,10 +183,12 @@ public extension Tutor {
                 doneLine: "Read, here and on GitHub."
             ) { start, now, _ in now.unread < start.unread },
         ]),
+        // The Issues view is Attention's issues now (gi); the lesson keeps its id, so progress and `:tutor issues`
+        // hold.
         TutorLesson(id: "issues", title: "Issues", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(
                 "Find one",
-                say: "{session.filter} filters issues like everything else: type a word from a title, ↩ keeps it.",
+                say: "These are the issues assigned to you or mentioning you, in Attention. {session.filter} filters them like everything else: type a word from a title, ↩ keeps it.",
                 keys: ["{session.filter}", "↩"], target: "statusBar",
                 doneLine: "Every word you type must match somewhere in the row."
             ) { _, now, _ in !now.filtering && !now.filter.isEmpty },

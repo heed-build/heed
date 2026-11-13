@@ -102,7 +102,7 @@ struct TutorTests {
         #expect(tutor.withNudge("i is the one here.").nudge == "That was j. i is the one here.")
         // g of ga is not wrong yet; a key that moved something is wandering.
         #expect(observe(&tutor, state(), key: "g", pending: true) == .none)
-        #expect(observe(&tutor, state { $0.view = "inbox" }, key: "m") == .none)
+        #expect(observe(&tutor, state { $0.view = "attention" }, key: "m") == .none)
         #expect(tutor.nudge == nil)
     }
 
@@ -115,7 +115,7 @@ struct TutorTests {
 
     @Test func viewsStepWantsTwoViewsAndHome() {
         var tutor = Tutor(lesson: Tutor.tour, step: 6, state: state())
-        #expect(observe(&tutor, state { $0.view = "inbox" }) == .none)
+        #expect(observe(&tutor, state { $0.view = "attention" }) == .none)
         #expect(observe(&tutor, state { $0.view = "sessions" }) == .none)
         #expect(observe(&tutor, state { $0.view = "prs" }) == .none)
         #expect(observe(&tutor, state { $0.view = "sessions" }) == .advanced)

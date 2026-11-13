@@ -31,10 +31,6 @@ struct MainWindow: View {
                         }
                     case .attention:
                         AttentionView()
-                    case .inbox:
-                        InboxView()
-                    case .issues:
-                        IssuesView()
                     case .prs:
                         PullRequestsView()
                     case .watch:
@@ -212,18 +208,17 @@ struct TitleBar: View {
         if let count = model.nudgePill { NudgePillView(count: count, compact: compact) }
     }
 
-    /// For you's New in Attention; unread inbox items; PRs that need you.
+    /// For you's New in Attention; PRs that need you.
     private func badge(_ view: AppView) -> Int {
         switch view {
         case .attention: model.attentionNewCount
-        case .inbox: model.github.inbox.count(where: \.unread)
         case .prs: model.github.pullsNeedingAttention
         default: 0
         }
     }
 
     @ViewBuilder private var syncStatus: some View {
-        if [.attention, .inbox, .issues, .prs].contains(model.view) {
+        if [.attention, .prs].contains(model.view) {
             Group {
                 if model.syncing {
                     Text("syncing…")
@@ -271,7 +266,7 @@ struct TitleBar: View {
         return max(advance, 6)
     }()
 
-    /// The views as names with their key (`Inbox 7 gm`); narrow windows drop the keys, never the names.
+    /// The views as names with their key (`Attention 7 gm`); narrow windows drop the keys, never the names.
     private func views(compact: Bool) -> some View {
         viewTabs(compact: compact).shotRegion(.viewTabs)
     }
@@ -398,7 +393,7 @@ struct StatusBar: View {
 
     private var position: String {
         switch model.view {
-        case .attention, .inbox, .issues, .prs, .watch:
+        case .attention, .prs, .watch:
             let count = model.itemIDs(model.view).count
             return "\(count == 0 ? 0 : model.cursor(in: model.view) + 1)/\(count)"
         case .repos: return "\(model.worktreeRows.isEmpty ? 0 : model.repoCursor + 1)/\(model.worktreeRows.count)"
@@ -498,7 +493,7 @@ struct StatusBar: View {
         case .normal where model.view == .repos:
             "\(key("worktree.new", in: "repos")) start work here · \(key("repo.setup", in: "repos")) set up merging · "
                 + "\(key("mode.visual", in: "repos")) select · \(key("select.remove", in: "repos")) remove · "
-                + "\(key("repo.scan", in: "repos")) rescan · \(key("issues.visibility", in: "repos")) issues · "
+                + "\(key("repo.scan", in: "repos")) rescan · "
                 + "\(key("session.filter", in: "repos")) filter"
         case .normal where model.view == .history:
             "\(key("row.next", "row.prev", in: "history")) move · \(key("session.filter", in: "history")) filter · "
@@ -578,8 +573,6 @@ struct StatusBar: View {
                 ]
                 .map { "\(model.keyText(for: $0.0, in: "attention")) \($0.1)" }.joined(separator: " · ")
                 + " · \(key("session.filter", in: "attention")) filter"
-        case .normal where model.view == .inbox: "↩ read · space pick · v range · s start session · a add · x mark read · t unread/all · / filter"
-        case .normal where model.view == .issues: "↩ read · space pick · s start session · t filter · ⇥ repo · w all/yours · / filter"
         case .normal where model.view == .prs:
             "\(key("open.reader", in: "prs")) open · \(pilotHints) · \(key("mode.visual", in: "prs")) select · "
                 + "\(key("pr.session", in: "prs")) session · \(key("github.sync", in: "prs")) sync"

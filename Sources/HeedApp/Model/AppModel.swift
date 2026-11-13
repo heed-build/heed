@@ -13,6 +13,12 @@ enum AppView: String, CaseIterable, Identifiable {
     case mindmap
     /// Insights' standup reports (`history.standup`): under Insights' tab too.
     case standup
+    /// Autopilot's Can do (`autopilot.cando`): where Autopilot's tab (`gw`) opens. Autopilot's Now is `watch`.
+    case autopilot
+    /// Autopilot's Where (`autopilot.where`): repos by capability.
+    case autopilotWhere = "where"
+    /// Autopilot's Done (`autopilot.done`): what heed did, by day.
+    case autopilotDone = "done"
 
     var id: String { rawValue }
 
@@ -21,17 +27,39 @@ enum AppView: String, CaseIterable, Identifiable {
     /// only. History stands for Insights: its ledger, dashboard, Mindmap and standups are tabs inside it.
     static var tabs: [AppView] {
         allCases
-            .filter { ![.log, .ledger, .dashboard, .mindmap, .standup, .prs].contains($0) }
+            .filter {
+                ![.log, .ledger, .dashboard, .mindmap, .standup, .prs, .autopilot, .autopilotWhere, .autopilotDone]
+                    .contains($0)
+            }
     }
 
     /// The tab that is lit while this view shows.
-    var tab: AppView { [.ledger, .dashboard, .mindmap, .standup].contains(self) ? .history : self }
+    var tab: AppView {
+        if [.ledger, .dashboard, .mindmap, .standup].contains(self) { return .history }
+        if isAutopilot { return .watch }
+        return self
+    }
 
-    /// What the title bar calls it: History's tab is the whole of Insights.
-    var tabTitle: String { self == .history ? HistoryPaneTabs.area : title }
+    /// One of Autopilot's views: Can do, Where, Now (`watch`) or Done.
+    var isAutopilot: Bool { [.autopilot, .autopilotWhere, .watch, .autopilotDone].contains(self) }
 
-    /// What a click on its title-bar tab runs: Insights opens on its dashboard.
-    var tabCommand: String { self == .history ? "view.insights" : command }
+    /// What the title bar calls it: History's tab is the whole of Insights, Watch's the whole of Autopilot.
+    var tabTitle: String {
+        switch self {
+        case .history: HistoryPaneTabs.area
+        case .watch: AutopilotTabs.area
+        default: title
+        }
+    }
+
+    /// What a click on its title-bar tab runs: Insights opens on its dashboard, Autopilot on Can do.
+    var tabCommand: String {
+        switch self {
+        case .history: "view.insights"
+        case .watch: "view.autopilot"
+        default: command
+        }
+    }
 
     var title: String {
         switch self {
@@ -39,7 +67,10 @@ enum AppView: String, CaseIterable, Identifiable {
         case .attention: "Attention"
         case .goals: "Goals"
         case .prs: "PRs"
-        case .watch: "Watch"
+        case .watch: "Now"
+        case .autopilot: "Can do"
+        case .autopilotWhere: "Where"
+        case .autopilotDone: "Done"
         case .repos: "Repos"
         case .history: "History"
         case .log: "Log"
@@ -57,6 +88,10 @@ enum AppView: String, CaseIterable, Identifiable {
         case .dashboard: "history.dashboard"
         case .mindmap: "history.mindmap"
         case .standup: "history.standup"
+        case .autopilot: "autopilot.cando"
+        case .autopilotWhere: "autopilot.where"
+        case .watch: "autopilot.now"
+        case .autopilotDone: "autopilot.done"
         default: "view.\(rawValue)"
         }
     }
@@ -310,6 +345,8 @@ final class AppModel {
 
     /// Insights' History: the work that ended with its stories, the filters and the cursor.
     let historyBrowser: HistoryBrowser
+    /// Where you are in Autopilot (`gw`).
+    let autopilotBrowser = AutopilotBrowser()
     /// Insights' ledger: its entries and cursor.
     let ledger: LedgerBrowser
     /// Insights' dashboard: the range's numbers.
@@ -713,6 +750,13 @@ final class AppModel {
         Sweep.plan(domain: currentDomain, rule: config.cleanup, lastCommit: lastCommits, now: Clock.now)
     }
 
+    /// What the sweep would remove with cleanup on, whether it is on or not: Autopilot's nudge. No IO.
+    var sweepPlanIfOn: SweepPlan {
+        var rule = config.cleanup
+        rule.enabled = true
+        return Sweep.plan(domain: currentDomain, rule: rule, lastCommit: lastCommits, now: Clock.now)
+    }
+
     /// Sweeps hourly unless config asks to be asked first; `gs` always runs one now.
     private func startSweepSchedule() {
         sweepTask?.cancel()
@@ -788,7 +832,7 @@ final class AppModel {
         switch view {
         case .attention: [.inbox, .issues, .pulls]
         // Sessions show their PRs' state; Repos and History their PR numbers.
-        case .sessions, .prs, .watch, .repos, .history: [.pulls]
+        case .sessions, .prs, .watch, .repos, .history, .autopilot, .autopilotWhere, .autopilotDone: [.pulls]
         // Goals show their sessions' PRs, merged or not.
         case .goals: [.pulls]
         case .log, .ledger, .dashboard, .mindmap, .standup: []
@@ -1079,6 +1123,20 @@ final class AppModel {
     /// The text config.toml has at `path`, refused or not; nil when it has none there, or not text.
     func configValue(_ path: [String]) -> String? {
         configTable.value(at: path)?.string
+    }
+
+    /// Autopilot's switches: written to config.toml like Settings' (the watcher reloads it), or in the fake world,
+    /// where nothing is written, applied to the config in memory as reading the file back would.
+    func writeAutopilot(_ writes: [AutopilotSwitch.Write]) {
+        if isFixture {
+            AutopilotSwitch.apply(writes, to: &config)
+            settings = config.work
+            settlePilots()
+            return
+        }
+        for write in writes {
+            if let value = write.value { setConfig(write.path, value) } else { unsetConfig(write.path) }
+        }
     }
 
     func setConfig(_ path: [String], _ value: TOMLValue, multiline: Bool = false) {
@@ -2110,6 +2168,8 @@ final class AppModel {
         case .watch:
             let rows = pilotRows
             return rows.indices.contains(index) ? pullContext(rows[index].ref) : nil
+        case .autopilotDone: return autopilotDoneSelected?.ref.map { pullContext($0) } ?? nil
+        case .autopilot, .autopilotWhere: return nil
         case .repos:
             guard worktreeRows.indices.contains(repoCursor) else { return nil }
             let worktree = worktreeRows[repoCursor]
@@ -2262,6 +2322,8 @@ final class AppModel {
             list.ordered
                 .map { HintTarget.session($0.id) } + (currentTab?.tree.panes.map { HintTarget.pane($0.id) } ?? [])
         case .attention, .prs, .watch: itemIDs(view).indices.map { HintTarget.row(view, $0) }
+        case .autopilotDone: autopilotDoneLines.indices.map { HintTarget.row(.autopilotDone, $0) }
+        case .autopilot, .autopilotWhere: []
         case .repos: worktreeRows.indices.map { HintTarget.row(.repos, $0) }
         case .history: historyRows.indices.map { HintTarget.row(.history, $0) }
         case .log: callLog.rows.indices.map { HintTarget.row(.log, $0) }
@@ -2612,6 +2674,8 @@ final class AppModel {
                 openAttention("issues")
             } else if command.arguments.first == "insights" {
                 view = .dashboard
+            } else if ["autopilot", "watch"].contains(command.arguments.first) {
+                performAutopilot(CommandInvocation(name: "view.autopilot"))
             } else if command.arguments.first == "timeline" {
                 showEveryEvent()
             } else if let target = AppView(rawValue: command.arguments.first ?? "") {
@@ -2776,7 +2840,10 @@ final class AppModel {
                 callLog.copy(call)
                 flash = "copied: \(call.command)"
             }
-        case "view.watch": view = .watch
+        case "view.autopilot", "view.watch", "autopilot.cando", "autopilot.where", "autopilot.now", "autopilot.done",
+             "autopilot.move", "autopilot.on", "autopilot.ask", "autopilot.off", "autopilot.everywhere",
+             "autopilot.open", "autopilot.settings", "autopilot.what", "autopilot.repo":
+            performAutopilot(command)
         case "view.repos": view = .repos
         case "view.sessions": view = .sessions
         case "view.attention": openAttention(command.arguments.first)
@@ -3083,6 +3150,13 @@ final class AppModel {
         case .standup: setRow(standup.cursor + delta)
         case .goals: setRow(goals.rowCursor + delta)
         case .attention, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
+        case .autopilotDone: setRow(autopilotBrowser.doneCursor + delta)
+        case .autopilot, .autopilotWhere:
+            performAutopilot(CommandInvocation(
+                name: "autopilot.move",
+                arguments: [delta < 0 ? "k" : "j"],
+                count: abs(delta)
+            ))
         case .sessions: setCursor(cursor + delta)
         }
     }
@@ -3094,7 +3168,11 @@ final class AppModel {
         case .repos: (worktreeRows.map(\.repo.slug), repoCursor)
         case .attention: (attentionRows.map { AttentionView.section($0.item.updatedAt) }, cursor(in: .attention))
         case .prs: (pullRows.map(\.ref.repo.slug), cursor(in: .prs))
-        case .watch: (pilotRows.map(\.status.group.rawValue), cursor(in: .watch))
+        // Now's cards are its groups.
+        case .watch: (pilotRows.map { AutopilotNow.section(of: autopilotPull($0))?.rawValue ?? "" }, cursor(in: .watch))
+        case .autopilotDone:
+            (autopilotDays.flatMap { day in day.entries.map { _ in day.title } }, autopilotBrowser.doneCursor)
+        case .autopilot, .autopilotWhere: ([], 0)
         // A day is a group: { and } go from day to day.
         case .history: (historyRows.map { Calendar.current.startOfDay(for: $0.at).description }, historyCursor)
         // A run of calls from one caller (a sync, a repo refresh) is a group.
@@ -3138,6 +3216,12 @@ final class AppModel {
             standup.setCursor(index)
         } else if view == .goals {
             goals.setCursor(index)
+        } else if view == .autopilotDone {
+            autopilotBrowser.setDoneCursor(index, count: autopilotDoneLines.count)
+        } else if view == .autopilotWhere {
+            autopilotBrowser.setRow(index, rows: autopilotRepos.count)
+        } else if view == .autopilot {
+            autopilotBrowser.setCard(index)
         } else if view == .repos, reposFocus == .repos {
             pickRepo(RepoFilter.repo(at: index, in: columnRepos))
         } else if view == .repos {
@@ -4802,6 +4886,9 @@ final class AppModel {
         case .attention: return attentionSelected?.item.repo.map { [$0] } ?? []
         case .prs: return pullRows.indices.contains(index) ? [pullRows[index].ref.repo] : []
         case .watch: return pilotRows.indices.contains(index) ? [pilotRows[index].ref.repo] : []
+        case .autopilotWhere: return autopilotWhereRepo.map { [$0] } ?? []
+        case .autopilotDone: return autopilotDoneSelected?.ref.map { [$0.repo] } ?? []
+        case .autopilot: return []
         case .history:
             if case let .event(item) = historyBrowser.selected, selectedHistory == nil {
                 return item.repository.map { [$0] } ?? []
@@ -4965,6 +5052,7 @@ final class AppModel {
         case .watch:
             let rows = pilotRows
             return rows.indices.contains(index) ? rows[index].ref : nil
+        case .autopilotDone: return autopilotDoneSelected?.ref
         case .attention:
             guard let item = attentionSelected?.item, item.kind == .pr, let repo = item.repo,
                   let number = item.number else { return nil }
@@ -5283,7 +5371,7 @@ final class AppModel {
         let order = PilotStatus.Group.allCases
         let filter = filter(for: .watch)
         let refs = Set(sessions.flatMap(\.trackedPRs))
-        return refs.map { ref in
+        let sorted = refs.map { ref in
             PilotRow(
                 ref: ref, pull: github.pull(ref), status: pilotStatus(for: ref), effective: pilot(for: ref),
                 session: sessions.first { $0.trackedPRs.contains(ref) }
@@ -5299,6 +5387,17 @@ final class AppModel {
             if left != right { return left < right }
             return ($0.pull?.updatedAt ?? .distantPast) > ($1.pull?.updatedAt ?? .distantPast)
         }
+        // Autopilot's Now: by card (stalled, green, merge, Copilot, not watched), merged and closed ones gone to Done.
+        let byRef = Dictionary(sorted.map { ($0.ref, $0) }) { first, _ in first }
+        return AutopilotNow.ordered(sorted.map(autopilotPull)).compactMap { byRef[$0.ref] }
+    }
+
+    /// A PR as Now sorts it.
+    func autopilotPull(_ row: PilotRow) -> AutopilotPull {
+        let asked = feedback[row.ref.description]?.items.contains { $0.copilotAskedAt != nil && $0.status != .resolved }
+        return AutopilotPull(
+            ref: row.ref, status: row.status, merge: row.effective.merge, copilotAsked: asked == true
+        )
     }
 
     /// The one line that says what the pilot is doing for a PR: the inspector's PR card, the Watch view's detail.
@@ -6093,7 +6192,7 @@ final class AppModel {
                   var pipeline = feedback[ref.description],
                   var session = sessions.first(where: { $0.id == sessionID })
             else { return }
-            markSent(ref, pipeline: &pipeline, session: &session, to: target)
+            markSent(ref, pipeline: &pipeline, session: &session, to: target, byYou: explicit)
         }
     }
 
@@ -6116,7 +6215,7 @@ final class AppModel {
         case .deliver:
             var session = session
             TerminalSurfaces.shared.typeLine(prompt, paneID: paneID)
-            markSent(ref, pipeline: &pipeline, session: &session, to: session.agent)
+            markSent(ref, pipeline: &pipeline, session: &session, to: session.agent, byYou: explicit)
         }
     }
 
@@ -6129,14 +6228,21 @@ final class AppModel {
         return pullDetails[ref.description]?.state.flatMap(PullRequest.State.init(rawValue:))
     }
 
-    /// The queued items went out: the pipeline counts a round, the session and the pilot log say where to.
-    func markSent(_ ref: PullRef, pipeline: inout PullFeedback, session: inout Session, to target: String) {
+    /// The queued items went out: the pipeline counts a round, the session and the pilot log say where to, and the log
+    /// says `(by you)` when you sent them (Autopilot counts those apart from what heed sent).
+    func markSent(
+        _ ref: PullRef, pipeline: inout PullFeedback, session: inout Session, to target: String, byYou: Bool = false
+    ) {
         pendingDelivery.remove(ref)
         let count = pipeline.queued.count
         pipeline.markSent(at: pullDetails[ref.description]?.headSHA)
         session.record("sent \(count) feedback item\(count == 1 ? "" : "s") for #\(ref.number) to \(target)")
         commit([.feedbackChanged(pipeline), .sessionUpserted(session)])
-        logPilot(ref, .sent, "sent \(count) item\(count == 1 ? "" : "s") to \(target) (round \(pipeline.rounds))")
+        logPilot(
+            ref, .sent,
+            "sent \(count) item\(count == 1 ? "" : "s") to \(target) (round \(pipeline.rounds))" +
+                (byYou ? " (by you)" : "")
+        )
         flash = "sent \(count) item\(count == 1 ? "" : "s") to \(target)"
     }
 
@@ -6886,6 +6992,9 @@ final class AppModel {
         case .goals: goals.setCursor(0)
         case .repos: repoCursor = 0
         case .attention, .prs, .watch: itemCursor[view] = 0
+        case .autopilot: autopilotBrowser.setCard(0)
+        case .autopilotWhere: autopilotBrowser.setRow(0, rows: autopilotRepos.count)
+        case .autopilotDone: autopilotBrowser.setDoneCursor(0, count: autopilotDoneLines.count)
         }
     }
 
@@ -6902,6 +7011,9 @@ final class AppModel {
         case .goals: goals.rows.count
         case .repos: worktreeRows.count
         case .attention, .prs, .watch: itemIDs(view).count
+        case .autopilot: Capability.allCases.count
+        case .autopilotWhere: autopilotRepos.count
+        case .autopilotDone: autopilotDoneLines.count
         }
     }
 
@@ -7010,8 +7122,12 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
-        case .log, .ledger, .dashboard, .mindmap, .standup, .goals:
+        case .log, .ledger, .dashboard, .mindmap, .standup, .goals, .autopilot, .autopilotDone:
             return nil
+        case .autopilotWhere:
+            return autopilotWhereRepo.map { repo in
+                StartContext(repos: [StartContext.id(repo, .local)], label: repo.name)
+            }
         case .attention:
             let ids = Set(actionIDs(.attention))
             return items(attentionRows.map(\.item).filter { ids.contains($0.id) }.compactMap { item in
@@ -7998,6 +8114,15 @@ final class AppModel {
         case .attention, .prs, .watch:
             state.cursor = cursor(in: view)
             state.rows = itemIDs(view).count
+        case .autopilot:
+            state.cursor = autopilotBrowser.card
+            state.rows = Capability.allCases.count
+        case .autopilotWhere:
+            state.cursor = autopilotBrowser.row * AutopilotBrowser.whereColumns.count + autopilotBrowser.column
+            state.rows = autopilotRepos.count
+        case .autopilotDone:
+            state.cursor = autopilotBrowser.doneCursor
+            state.rows = autopilotDoneLines.count
         }
         state.overlay = issueReader != nil ? "issue" : reader != nil ? "reader" : overlay.map(\.name)
         state.helpOpen = overlay == .help

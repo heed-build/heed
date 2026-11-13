@@ -17,6 +17,7 @@ public enum CommandAliases {
         "issues",
         "prs",
         "watch",
+        "autopilot",
         "repos",
         "insights",
         "history",

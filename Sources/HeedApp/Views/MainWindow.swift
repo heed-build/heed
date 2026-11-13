@@ -35,6 +35,21 @@ struct MainWindow: View {
                         PullRequestsView()
                     case .watch:
                         WatchView()
+                    case .autopilot:
+                        VStack(spacing: 0) {
+                            AutopilotPaneBar()
+                            AutopilotCanDoView()
+                        }
+                    case .autopilotWhere:
+                        VStack(spacing: 0) {
+                            AutopilotPaneBar()
+                            AutopilotWhereView()
+                        }
+                    case .autopilotDone:
+                        VStack(spacing: 0) {
+                            AutopilotPaneBar()
+                            AutopilotDoneView()
+                        }
                     case .log:
                         CallLogView()
                     case .ledger:
@@ -413,6 +428,14 @@ struct StatusBar: View {
         case .goals:
             let goals = model.goals
             return "\(goals.rowCount == 0 ? 0 : goals.rowCursor + 1)/\(goals.rowCount)"
+        case .autopilot:
+            return model.autopilotBrowser.capability.title
+        case .autopilotWhere:
+            let repo = model.autopilotWhereRepo?.name ?? "no repo"
+            return "\(repo) · \(model.autopilotBrowser.whereCapability.title.lowercased())"
+        case .autopilotDone:
+            let lines = model.autopilotDoneLines
+            return "\(lines.isEmpty ? 0 : model.autopilotBrowser.doneCursor + 1)/\(lines.count)"
         case .sessions: return "\(model.list.ordered.isEmpty ? 0 : model.cursor + 1)/\(model.list.ordered.count)"
         }
     }
@@ -573,8 +596,32 @@ struct StatusBar: View {
             "\(key("open.reader", in: "prs")) open · \(pilotHints) · \(key("mode.visual", in: "prs")) select · "
                 + "\(key("pr.session", in: "prs")) session · \(key("github.sync", in: "prs")) sync"
         case .normal where model.view == .watch:
-            "\(key("open.reader", in: "watch")) open · \(pilotHints) · \(key("mode.visual", in: "watch")) select · "
-                + "\(key("merge.run", in: "watch")) merge now · \(key("merge.queue", in: "watch")) queue"
+            "\(key("row.next", "row.prev", in: "watch")) item · \(key("autopilot.open", in: "watch")) read · "
+                + "\(key("pilot.retry", in: "watch")) round · \(pilotHints) · "
+                + "\(key("pilot.copilot", in: "watch")) Copilot · \(key("merge.queue", in: "watch")) queue · "
+                + "\(key("autopilot.cando", in: "watch")) what it does"
+        case .normal where model.view == .autopilot:
+            "h j k l move · "
+                + [
+                    ("autopilot.on", "turn on here"), ("autopilot.everywhere", "everywhere"),
+                    ("autopilot.open", "what it did"), ("autopilot.settings", "settings"),
+                    ("autopilot.where", "where"), ("autopilot.now", "now"), ("autopilot.done", "done"),
+                ]
+                .map { "\(model.keyText(for: $0.0, in: "autopilot")) \($0.1)" }.joined(separator: " · ")
+        case .normal where model.view == .autopilotWhere:
+            "h j k l cell · "
+                + [
+                    ("autopilot.on", "on"), ("autopilot.ask", "ask first"), ("autopilot.off", "off"),
+                    ("autopilot.open", "that repo in Repos"), ("repo.setup", "set up merging"),
+                    ("autopilot.cando", "what it does"),
+                ]
+                .map { "\(model.keyText(for: $0.0, in: "where")) \($0.1)" }.joined(separator: " · ")
+        case .normal where model.view == .autopilotDone:
+            "\(key("row.next", "row.prev", in: "done")) move · "
+                + [("autopilot.open", "open"), ("autopilot.what", "what"), ("autopilot.repo", "repo")]
+                .map { "\(model.keyText(for: $0.0, in: "done")) \($0.1)" }.joined(separator: " · ")
+                + " · \(key("group.prev", "group.next", in: "done")) day · "
+                + "\(key("autopilot.cando", in: "done")) what it does"
         case .normal:
             "\(key("session.agent", in: "sessions")) agent · \(key("mode.insert", in: "sessions")) insert · "
                 + "\(key("work.start", in: "sessions")) start work · \(key("session.pin", in: "sessions")) pin · "

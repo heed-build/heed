@@ -65,7 +65,7 @@ struct MenuBarTests {
             #expect(item(name, facts)?.enabled == false, "\(name)")
         }
         #expect(item("work.start", facts)?.enabled == true)
-        #expect(item("view.watch", facts)?.enabled == true)
+        #expect(item("view.autopilot", facts)?.enabled == true)
     }
 
     @Test func aSessionsItemsActOnItAsItsRightClickMenuDoes() {

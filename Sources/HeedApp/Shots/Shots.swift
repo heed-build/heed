@@ -113,8 +113,8 @@ enum Shots {
         ),
         Shot(id: "landing/keys", chrome: false, keys: "?"),
         Shot(id: "landing/prs", chrome: false, keys: ":prs<CR>"),
-        Shot(id: "landing/green", chrome: false, keys: "gw"),
-        Shot(id: "landing/merged", chrome: false, keys: "gw/anchors<CR>"),
+        Shot(id: "landing/green", chrome: false, keys: "gwN"),
+        Shot(id: "landing/merged", chrome: false, keys: "gwN/anchors<CR>"),
         Shot(id: "landing/worktrees", chrome: false, keys: "gr4jvj"),
         Shot(id: "landing/resume", chrome: false, prepare: { $0.showResumeForFixture() }),
         Shot(id: "landing/hosts", chrome: false, keys: "G"),
@@ -344,28 +344,36 @@ enum Shots {
     ]
 
     static let pilot: [Shot] = [
-        // The Watch view: watched PRs by state, the selected PR's items and timeline, the pilot's activity.
-        Shot(id: "watch/view", keys: "gw"),
-        Shot(id: "watch/stalled", keys: "gw", crop: .list),
-        Shot(id: "watch/visual", keys: "gwjjvj", crop: .list),
-        Shot(id: "watch/paused", keys: "gwjjvjzp", crop: .list),
-        Shot(id: "watch/detail", keys: "gw", crop: .pilotDetail),
+        // Autopilot: what heed can do (Can do, where gw opens), where it is on, what it does now, what it did.
+        Shot(id: "autopilot/can-do", keys: "gw"),
+        Shot(id: "autopilot/can-do-cleanup", keys: "gwjl", crop: .autopilotDetail),
+        Shot(id: "autopilot/tabs", keys: "gw", crop: .autopilotBar),
+        Shot(id: "autopilot/where", keys: "gwW"),
+        Shot(id: "autopilot/where-merge", keys: "gwWjjl", crop: .autopilotFooter),
+        Shot(id: "autopilot/now", keys: "gwN"),
+        Shot(id: "autopilot/done", keys: "gwD"),
+        Shot(id: "autopilot/done-merge", keys: "gwDtt", crop: .autopilotDone),
+        // Now: the PRs by card, stalled first; the selected PR's checklist, merge rules and timeline.
+        Shot(id: "watch/stalled", keys: "gwN", crop: .list),
+        Shot(id: "watch/visual", keys: "gwNjjvj", crop: .list),
+        Shot(id: "watch/paused", keys: "gwNjjvjzp", crop: .list),
+        Shot(id: "watch/detail", keys: "gwN", crop: .pilotDetail),
         // The green PR's checklist, and the conflicting one's.
-        Shot(id: "watch/green", keys: "gw/moved<CR>", crop: .pilotDetail),
-        Shot(id: "watch/conflict", keys: "gw/spec<CR>", crop: .pilotDetail),
-        // Get it merged: a repo's merge queue with its runs, and the queues above the activity.
-        Shot(id: "watch/merge-queue", keys: "gw/moved<CR>gM", crop: .pilotDetail),
-        Shot(id: "watch/queues", keys: "gw", crop: .pilotActivity),
-        Shot(id: "watch/heed", keys: "gw/anchors<CR>", crop: .pilotDetail),
+        Shot(id: "watch/green", keys: "gwN/moved<CR>", crop: .pilotDetail),
+        Shot(id: "watch/conflict", keys: "gwN/spec<CR>", crop: .pilotDetail),
+        // Get it merged: a repo's merge queue with its runs, and the queues over the activity on Now's right.
+        Shot(id: "watch/merge-queue", keys: "gwN/moved<CR>gM", crop: .pilotDetail),
+        Shot(id: "watch/queues", keys: "gwN", crop: .pilotActivity),
+        Shot(id: "watch/heed", keys: "gwN/anchors<CR>", crop: .pilotDetail),
         Shot(id: "watch/inspector", crop: .inspector),
         // `z?`: what heed will do for the PR, and what holds it back.
-        Shot(id: "watch/explain", keys: "gw/anchors<CR>z?", crop: .dialog),
+        Shot(id: "watch/explain", keys: "gwN/anchors<CR>z?", crop: .dialog),
         Shot(id: "watch/prs", keys: ":prs<CR>", crop: .list),
         // Merging ahead of time: a PR ready to merge with merging off, merge now's confirmation, and a repo whose
         // merge settings cannot work.
-        Shot(id: "watch/ready", keys: "gw/backpressure<CR>", crop: .pilotDetail),
-        Shot(id: "watch/merge-now", keys: "gw/backpressure<CR>zM", crop: .confirm),
-        Shot(id: "watch/misconfigured", keys: "gw/arrowheads<CR>", crop: .pilotDetail),
+        Shot(id: "watch/ready", keys: "gwN/backpressure<CR>", crop: .pilotDetail),
+        Shot(id: "watch/merge-now", keys: "gwN/backpressure<CR>zM", crop: .confirm),
+        Shot(id: "watch/misconfigured", keys: "gwN/arrowheads<CR>", crop: .pilotDetail),
     ]
 
     static let github: [Shot] = [

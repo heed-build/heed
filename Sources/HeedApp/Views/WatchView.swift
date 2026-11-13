@@ -64,7 +64,9 @@ struct PilotMark: View {
     }
 }
 
-/// `gw`: the watched PRs by state, the selected PR's items and timeline, and what the pilot has been doing.
+/// Autopilot's Now (`N`, the view that was Watch): the PRs heed works on, by card (stalled first, with why and the
+/// key out; then green, merge, Copilot, and the ones not watched), the PR under the cursor's detail, and on the right
+/// what the other capabilities are doing now and the pilot's activity.
 struct WatchView: View {
     @Environment(AppModel.self) private var model
 
@@ -72,74 +74,112 @@ struct WatchView: View {
         let rows = model.pilotRows
         let cursor = model.cursor(in: .watch)
         let picked = model.pickedIDs(.watch)
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    HStack(spacing: 8) {
-                        SectionHeader(title: "Watch")
-                        Text(summary(rows)).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
-                        Spacer()
-                        FilterPill(view: .watch)
-                    }
-                    .padding(.horizontal, 16)
-                    .frame(height: 44)
-                    .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
-                    SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
-                    ListBody(
-                        count: rows.count,
-                        cursor: cursor,
-                        ids: rows.map(\.id),
-                        empty: model.filter(for: .watch).isEmpty
-                            ? "No PRs to watch yet. A session's PR shows here once it is open on the session's "
-                            + "branch (\(model.keyText(for: "pr.track")) tracks one by hand); heed then follows its "
-                            + "checks and reviews. \(model.keyText(for: "pilot.watch")) stops or starts watching one."
-                            : "Nothing matches /\(model.filter(for: .watch)).",
-                        hintView: .watch
-                    ) { index in
-                        VStack(alignment: .leading, spacing: 0) {
-                            if index == 0 || rows[index - 1].status.group != rows[index].status.group {
-                                let group = rows[index].status.group
-                                SectionHeader(
-                                    title: "\(group.rawValue) · \(rows.count { $0.status.group == group })",
-                                    tint: group == .needsYou ? Theme.block : group == .stalled ? Theme.err : Theme.fg3
+        let sections = rows.map { AutopilotNow.section(of: model.autopilotPull($0)) }
+        VStack(spacing: 0) {
+            AutopilotPaneBar()
+            GeometryReader { geometry in
+                HStack(spacing: 0) {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 8) {
+                            Text(summary(rows)).font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                            Spacer()
+                            FilterPill(view: .watch)
+                        }
+                        .padding(.horizontal, 16)
+                        .frame(height: 36)
+                        SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
+                        ListBody(
+                            count: rows.count,
+                            cursor: cursor,
+                            ids: rows.map(\.id),
+                            empty: model.filter(for: .watch).isEmpty
+                                ? "Nothing in flight. A session's PR shows here once it is open on the session's "
+                                + "branch (\(model.keyText(for: "pr.track")) tracks one by hand); heed then follows its "
+                                + "checks and reviews. \(model.keyText(for: "pilot.watch")) stops or starts watching one."
+                                : "Nothing matches /\(model.filter(for: .watch)).",
+                            hintView: .watch
+                        ) { index in
+                            VStack(alignment: .leading, spacing: 0) {
+                                if let section = sections[index], index == 0 || sections[index - 1] != section {
+                                    NowCardHeader(section: section, count: sections.count { $0 == section })
+                                        .padding(.top, index == 0 ? 10 : 16)
+                                }
+                                PilotRowView(
+                                    row: rows[index], section: sections[index], index: index, cursor: cursor,
+                                    isPicked: picked.contains(rows[index].id)
                                 )
-                                .padding(.horizontal, 16)
-                                .padding(.top, 14)
-                                .padding(.bottom, 6)
+                                .shotRegion(sections[index] == .stalled ? .autopilotStalled : nil)
                             }
-                            PilotRowView(
-                                row: rows[index], index: index, cursor: cursor,
-                                isPicked: picked.contains(rows[index].id)
-                            )
                         }
                     }
+                    .frame(width: geometry.size.width >= 1100 ? 460 : geometry.size.width * 0.45)
+                    .frame(height: geometry.size.height, alignment: .top)
+                    .clipped()
+                    .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
+                    Group {
+                        if let repo = model.mergeQueueShown {
+                            MergeQueueView(repo: repo).shotRegion(.pilotDetail)
+                        } else if rows.indices.contains(cursor) {
+                            PilotDetail(row: rows[cursor]).shotRegion(.pilotDetail)
+                        } else {
+                            Spacer()
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: geometry.size.height, alignment: .top)
+                    .clipped()
+                    if model.inspectorVisible, geometry.size.width >= 1240 {
+                        PilotActivity().frame(height: geometry.size.height, alignment: .top).clipped()
+                            .shotRegion(.pilotActivity)
+                    }
                 }
-                .frame(width: geometry.size.width >= 1100 ? 440 : geometry.size.width * 0.45)
-                .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
-                if let repo = model.mergeQueueShown {
-                    MergeQueueView(repo: repo).shotRegion(.pilotDetail)
-                } else if rows.indices.contains(cursor) {
-                    PilotDetail(row: rows[cursor]).shotRegion(.pilotDetail)
-                } else {
-                    Spacer()
-                }
-                if model.inspectorVisible, geometry.size.width >= 1240 {
-                    PilotActivity().shotRegion(.pilotActivity)
-                }
+                // Sized to what it is given: a list taller than the window must not grow the row (shots draw it
+                // unscrolled).
+                .frame(width: geometry.size.width, height: geometry.size.height)
             }
         }
     }
 
     private func summary(_ rows: [AppModel.PilotRow]) -> String {
         let watched = rows.count { $0.status != .unwatched }
-        let stuck = rows.count(where: \.status.needsYou)
-        return "\(watched) watched" + (stuck > 0 ? " · \(stuck) need you" : "")
+        let stalled = rows.count { AutopilotNow.section(of: model.autopilotPull($0)) == .stalled }
+        return "\(watched) watched" + (stalled > 0 ? " · \(stalled) stalled" : "")
+    }
+}
+
+/// A card's head in Now: the capability's icon and name and how many PRs it has; stalled in amber, saying heed stopped.
+private struct NowCardHeader: View {
+    let section: AutopilotNow.Section
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if let capability = section.capability {
+                CapabilityTile(capability: capability, size: 26)
+                Text(section.title).font(Theme.ui(13.5, weight: .semibold))
+            } else if section == .stalled {
+                Text("STALLED · \(count)").font(Theme.ui(11.5, weight: .bold)).tracking(0.6)
+                    .foregroundStyle(Theme.block)
+                Text("heed stopped here and says why").font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+            } else {
+                Image(systemName: "eye.slash").font(.system(size: 11)).foregroundStyle(Theme.fg3)
+                    .frame(width: 26, height: 26)
+                Text(section.title).font(Theme.ui(13.5, weight: .semibold)).foregroundStyle(Theme.fg2)
+            }
+            Spacer()
+            if section != .stalled {
+                Text("\(count) PR\(count == 1 ? "" : "s")").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 6)
     }
 }
 
 private struct PilotRowView: View {
     @Environment(AppModel.self) private var model
     let row: AppModel.PilotRow
+    let section: AutopilotNow.Section?
     let index: Int
     let cursor: Int
     let isPicked: Bool
@@ -152,6 +192,9 @@ private struct PilotRowView: View {
                     RepoChip(repo: row.ref.repo)
                     Text(verbatim: "#\(row.ref.number)").font(Theme.mono(12)).foregroundStyle(Theme.fg2)
                     Spacer(minLength: 4)
+                    if section == .green, let pipeline = model.feedback[row.ref.description], pipeline.rounds > 0 {
+                        RoundPips(rounds: pipeline.rounds, of: pipeline.maxRounds)
+                    }
                     PilotMark(status: row.status)
                 }
                 Text(row.title).font(Theme.ui(13)).lineLimit(1)
@@ -172,11 +215,22 @@ private struct PilotRowView: View {
                 .font(Theme.mono(11))
                 if let swarm = model.swarmPulls[row.ref.description] { SwarmPullLine(pull: swarm) }
                 // Stalled says why, and the way out.
-                if case let .stalled(rounds) = row.status {
+                if section == .stalled {
                     HStack(spacing: 6) {
-                        Text("\(rounds) rounds without a new approval").foregroundStyle(Theme.err)
-                        KeyCap(text: model.keyText(for: "pilot.retry"))
-                        Text("another round").foregroundStyle(Theme.fg3)
+                        Text(AutopilotNow.why(row.status)).foregroundStyle(Theme.block)
+                        if case .stalled = row.status {
+                            KeyCap(text: model.keyText(for: "pilot.retry"))
+                            Text("one more round").foregroundStyle(Theme.fg3)
+                        }
+                    }
+                    .font(Theme.ui(11.5))
+                } else if section == .merge, let plan = model.mergePlan(row.ref) {
+                    Text("next run: " + MergeQueueView.describe(plan)).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                        .lineLimit(1)
+                } else if section == .unwatched {
+                    HStack(spacing: 6) {
+                        KeyCap(text: model.keyText(for: "pilot.watch"))
+                        Text("watches it").foregroundStyle(Theme.fg3)
                     }
                     .font(Theme.ui(11.5))
                 }
@@ -184,8 +238,24 @@ private struct PilotRowView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
-        .background(isPicked ? Theme.block.opacity(0.18) : index == cursor ? Theme.bg3 : .clear)
+        .background(isPicked ? Theme.block.opacity(0.18) : index == cursor ? Theme.bg3
+            : section == .stalled ? Theme.block.opacity(0.06) : .clear)
         .opacity(row.status == .unwatched ? 0.6 : 1)
+    }
+}
+
+/// Get it green's rounds so far, of the most it sends without a new approval.
+struct RoundPips: View {
+    let rounds: Int
+    let of: Int
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0 ..< max(of, 1), id: \.self) { index in
+                Capsule().fill(index < rounds ? Theme.busy : Theme.line).frame(width: 14, height: 4)
+            }
+        }
+        .help("round \(rounds) of \(of)")
     }
 }
 
@@ -300,43 +370,108 @@ private struct PilotDetail: View {
     }
 }
 
-/// Everything the pilot did lately, across PRs.
+/// Now's right column: what the capabilities that are not about one PR are doing (merge queues, cleanup, summaries,
+/// goal asks), then everything the pilot did lately, across PRs.
 private struct PilotActivity: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                SectionHeader(title: "Activity")
+                SectionHeader(title: "Also now")
                 Spacer()
                 KeyCap(text: model.keyText(for: "inspector.toggle"))
             }
             .padding(.horizontal, 16)
-            .frame(height: 44)
+            .frame(height: 40)
             .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
             ListScroll {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 14) {
                     let queues = model.mergeQueues
                     if !queues.isEmpty {
-                        SectionHeader(title: "Merge queues")
-                        ForEach(queues.keys.sorted(), id: \.self) { repo in
-                            MergeQueueLine(repo: repo, count: queues[repo]?.count ?? 0)
+                        NowSideCard(capability: .merge, note: "\(queues.count) queue\(queues.count == 1 ? "" : "s")") {
+                            ForEach(queues.keys.sorted(), id: \.self) { repo in
+                                MergeQueueLine(repo: repo, count: queues[repo]?.count ?? 0)
+                            }
                         }
-                        Theme.line.frame(height: 1).padding(.vertical, 6)
                     }
+                    cleanup
+                    summaries
+                    goals
+                    Theme.line.frame(height: 1)
+                    SectionHeader(title: "Activity")
                     if model.pilotLog.isEmpty {
                         Text("The pilot has not done anything yet.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
-                    ForEach(model.pilotLog.prefix(80)) { event in
+                    ForEach(model.pilotLog.prefix(60)) { event in
                         PilotEventRow(event: event, showPR: true)
                     }
                 }
                 .padding(16)
             }
         }
-        .frame(width: 320)
+        .frame(width: 330)
         .background(Theme.bg2)
         .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
+    }
+
+    @ViewBuilder private var cleanup: some View {
+        let on = model.config.cleanup.enabled
+        let plan = on ? model.sweepPlan : model.sweepPlanIfOn
+        let count = plan.removals.count
+        NowSideCard(capability: .cleanup, note: on ? "hourly" : "off") {
+            Text(count == 0 ? "Nothing idle enough to remove on the next run."
+                : "\(count) worktree\(count == 1 ? "" : "s") \(on ? "go" : "would go") on the next run: idle "
+                + "\(model.config.cleanup.idleDays)+ days, work pushed.")
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
+            if !on { KeyHint("autopilot.cando", ["cleanup"], scope: "watch", label: "turn on in Can do") }
+        }
+    }
+
+    @ViewBuilder private var summaries: some View {
+        let progress = model.attention.summaryProgress
+        let mode = model.config.attention.summaries
+        NowSideCard(capability: .summaries, note: mode == .ahead ? "ahead" : mode == .open ? "on open" : "off") {
+            Text(progress.map { "writing \($0.done) of \($0.total) catch-ups ahead" }
+                ?? "None in flight: written after a sync, for For you's New.")
+                .font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+        }
+    }
+
+    @ViewBuilder private var goals: some View {
+        let asks = model.goals.attach.asks
+        if !asks.isEmpty {
+            NowSideCard(capability: .goals, note: "\(asks.count) ask\(asks.count == 1 ? "" : "s")") {
+                ForEach(asks.prefix(3), id: \.id) { ask in
+                    Text(ask.subject.title).font(Theme.ui(12)).lineLimit(1)
+                }
+                Text("Attention and Goals › Unassigned answer them: y n m i.").font(Theme.ui(11.5))
+                    .foregroundStyle(Theme.fg3)
+            }
+        }
+    }
+}
+
+/// A small card on Now's right: a capability's icon and name, a note, and what it is doing.
+private struct NowSideCard<Content: View>: View {
+    let capability: Capability
+    let note: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                CapabilityTile(capability: capability, size: 24)
+                Text(capability.title).font(Theme.ui(13, weight: .semibold))
+                Spacer()
+                Text(note).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+            }
+            content
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
     }
 }
 

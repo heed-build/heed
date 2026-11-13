@@ -57,7 +57,8 @@ struct TutorTests {
     @Test func everySpotlightTargetIsARegionName() {
         let regions: Set<String> = [
             "panes", "sidebar", "needsYou", "dialog", "viewTabs", "statusBar", "list", "reader", "pipeline",
-            "worktreeTable", "confirm", "historyList", "diffBody", "pilotDetail", "attentionTabs", "logList",
+            "worktreeTable", "confirm", "historyList", "diffBody", "pilotDetail", "autopilotCards", "autopilotDetail",
+            "autopilotMatrix", "autopilotDone", "attentionTabs", "logList",
             "logUsage", "goalsList", "goalsOverview", "goalsDoc", "sessionGoal", "goalProposals", "goalsBoard",
             "goalsUnassigned", "goalReviewers", "goalReviewerDetail", "goalPersonas", "swarmPlan", "swarmSteering",
             "swarmMap",

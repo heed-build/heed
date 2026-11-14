@@ -9,6 +9,11 @@ approve it, and a team of agents works the plan's tasks side by side, each in a 
 something next to Goals: it is a goal in swarm mode. It reuses the goal's `GOAL.md`, its items and board, its
 evidence, reviewers and done rule, the GitHub mirror and `heed goal`.
 
+A goal [split in the wizard](../split.md) already has a plan of parts, each on an agent. A part is a swarm task (its owner the
+part's agent, its estimate, what it waits for and when it is done) with a repo, a size and context beside it; the
+wizard's Go step, still to come, hands them to the swarm as its plan. A swarm's goal opens on the same board, live, once its plan is approved
+([the goal's page](../split.md#the-goals-page)).
+
 The goal outlives the swarm. A goal has at most one swarm going at a time; when it ends the goal carries on as a
 normal goal, and a follow-up swarm is the next run on the same goal. Old runs stay readable with their plans and
 steering.

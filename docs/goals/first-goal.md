@@ -77,12 +77,16 @@ it" drops the criterion). `d` defines it with an agent: the same read-only agent
 proposes checks it could run, which join the list. **Looks right** (`⌘↩`) writes the criteria into `GOAL.md`'s
 **Done when**, each with its check after it, as `(check: test RedirectTargetsTests)`.
 
-## 4–6. Split, How careful, Go
+## 4. Split
 
-These three steps have no screen in the wizard yet. Each says what it will do, and `↩` opens the goal's page that
-does it today: the [swarm's plan](swarms/plan.md) for Split, the [reviewers and their bars](quality.md) for How
-careful, and the goal's overview for Go. `⌘↩` counts the step as done; after Go the wizard is finished and the goal
-opens on its page.
+The plan's parts on your agents, by fit and what they have left, with the lead's moves on top: see
+[Split it across your agents](split.md). `⌘↩` moves on.
+
+## 5–6. How careful, Go
+
+These two steps have no screen in the wizard yet. Each says what it will do, and `↩` opens the goal's page that
+does it today: the [reviewers and their bars](quality.md) for How careful, and the goal's overview for Go. `⌘↩`
+counts the step as done; after Go the wizard is finished and the goal opens on [its page](split.md#the-goals-page).
 
 ![A step without a screen yet](../images/shots/goals/wizard-later.png)
 

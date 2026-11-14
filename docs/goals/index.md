@@ -13,7 +13,9 @@ it, and its `GOAL.md` says what the goal is, what it is not, when it is done, wh
 ## A new goal, step by step
 
 `n` in Goals makes a goal and walks it through the new-goal wizard: talk the plan through, have a panel of personas
-read it, and say what done looks like, before any work starts. [Your first goal](first-goal.md) walks through it. A
+read it, say what done looks like, and [split it across your agents](split.md), before any work starts. [Your first
+goal](first-goal.md) walks through it. Once split, the goal opens on [its page](split.md#the-goals-page): the same
+board, live, with one next step for you on top. A
 goal made another way (`:goal.new` with a title, or from a session) opens on its overview as below, and
 `:goal.wizard` walks it through the wizard whenever you like.
 

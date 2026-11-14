@@ -102,6 +102,7 @@ toc:
     children:
       - file: index.md
       - file: first-goal.md
+      - file: split.md
       - file: items.md
       - file: sources.md
       - file: attach.md

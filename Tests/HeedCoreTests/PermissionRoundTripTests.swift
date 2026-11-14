@@ -121,7 +121,7 @@ struct PermissionRoundTripTests {
         let server = heed.server(path)
         try server.start()
         defer { server.stop() }
-        let slow = Task { try await onThread { PermissionHook.exchange(Self.ask("slow"), socket: path, ceiling: 1.5) } }
+        let slow = Task { try await onThread { PermissionHook.exchange(Self.ask("slow"), socket: path, ceiling: 4) } }
         try await eventually { heed.queued.value == 1 }
         let started = ContinuousClock.now
         let answers = try await withThrowingTaskGroup(of: (String, PermissionAnswer).self) { group in
@@ -137,7 +137,8 @@ struct PermissionRoundTripTests {
             }
             return try await group.reduce(into: [:]) { $0[$1.0] = $1.1 }
         }
-        #expect(ContinuousClock.now - started < .seconds(1))
+        // Held up behind the unanswered ask, they would take its whole 4 s; a loaded CI machine needs more than 1 s.
+        #expect(ContinuousClock.now - started < .seconds(3))
         #expect(answers.count == 40)
         #expect(answers.allSatisfy { $0.value == PermissionAnswer(.deny, message: $0.key) })
         #expect(heed.queued.value == 41)

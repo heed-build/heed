@@ -200,7 +200,24 @@ struct SessionPanelInviteTests {
         let relevant = SessionPanelInvites.relevant(
             Self.library, repos: ["acme/docs-toolkit", "acme/docs-website"], for: .beforePR
         ).map(\.id)
-        #expect(relevant == ["docs-site-maintainer", "skeptic", "your-team-s-style"])
+        #expect(relevant == ["docs-site-maintainer", "skeptic", "purist"])
+    }
+
+    @Test func outOfTheBoxTheSkepticAndThePuristJoinSessionsAndNoOneElse() {
+        let fresh = PersonaLibrary(files: [:])
+        #expect(SessionPanelInvites.relevant(fresh, repos: ["acme/x"]).map(\.id) == ["skeptic", "purist"])
+        #expect(SessionPanelInvites.relevant(fresh, repos: ["acme/x"], for: .beforePR).map(\.id)
+            == ["skeptic", "purist"])
+        // A default, not a file: nothing is written until you edit one.
+        #expect(fresh.entries.filter(\.hasFile).isEmpty)
+        let joining = fresh.personas.filter(SessionPanelInvites.joinsSessions).map(\.id)
+        #expect(joining == ["skeptic", "purist"])
+        #expect(fresh.entry("ux")?.persona.joins == [.goalPanels])
+        // Turned off, or its join switched off in Settings, it stops looking.
+        var skeptic = BuiltInPersonas.persona(PanelInvites.skeptic)
+        skeptic.joins = [.goalPanels]
+        let edited = PersonaLibrary(files: [skeptic.id: skeptic])
+        #expect(SessionPanelInvites.relevant(edited, repos: ["acme/x"]).map(\.id) == ["purist"])
     }
 
     @Test func atMostThree() {
@@ -208,7 +225,12 @@ struct SessionPanelInviteTests {
     }
 
     @Test func askingByHandAlwaysGetsSomeone() {
-        let empty = PersonaLibrary(files: [:])
+        // With nobody joining sessions (heed's two turned off), asking still gets the Skeptic.
+        var skeptic = BuiltInPersonas.persona(PanelInvites.skeptic)
+        skeptic.joins = [.goalPanels]
+        var purist = BuiltInPersonas.persona(PanelInvites.purist)
+        purist.on = false
+        let empty = PersonaLibrary(files: [skeptic.id: skeptic, purist.id: purist])
         #expect(SessionPanelInvites.relevant(empty, repos: ["acme/x"]).isEmpty)
         #expect(SessionPanelInvites.asked(empty, repos: ["acme/x"]).map(\.id) == ["skeptic"])
         #expect(SessionPanelInvites.asked(Self.library, repos: ["acme/x"], picked: ["Your team's style"]).map(\.id)

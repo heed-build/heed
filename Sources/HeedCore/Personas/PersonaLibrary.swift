@@ -168,8 +168,17 @@ public enum BuiltInPersonas {
         let detail = details[seat.id]
         return Persona(
             name: seat.name, skepticalAbout: detail?.skeptical ?? [], asksFirst: detail.map { [$0.asks] } ?? [],
-            notes: seat.brief, who: seat.role, scope: .everywhere, joins: [.goalPanels], source: .builtIn
+            notes: seat.brief, who: seat.role, scope: .everywhere, joins: joins(seat.id), source: .builtIn
         )
+    }
+
+    /// The built-ins that look at sessions out of the box: the Skeptic and the Purist join sessions (before a PR and
+    /// at every milestone) as well as goal panels, so a fresh library has someone to offer; the rest join goal panels
+    /// only. Offers only ask, and a look costs nothing until you say yes.
+    public static let inSessions: Set<String> = [PanelInvites.skeptic.id, PanelInvites.purist.id]
+
+    public static func joins(_ id: String) -> Set<PersonaJoin> {
+        inSessions.contains(id) ? [.goalPanels, .beforePR, .everyPlan] : [.goalPanels]
     }
 
     /// Every seat PanelInvites knows, in its order: the four who always sit, then each signal's.

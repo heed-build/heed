@@ -354,6 +354,11 @@ public enum SessionPanelInvites {
             if lhs.scope.narrowness != rhs.scope.narrowness { return lhs.scope.narrowness > rhs.scope.narrowness }
             let left = sources.firstIndex(of: lhs.source) ?? 0, right = sources.firstIndex(of: rhs.source) ?? 0
             if left != right { return left < right }
+            // heed's own in the panel's order: the Skeptic before the Purist.
+            if lhs.source == .builtIn, rhs.source == .builtIn {
+                let order = BuiltInPersonas.seats.map(\.id)
+                return (order.firstIndex(of: lhs.id) ?? 0) < (order.firstIndex(of: rhs.id) ?? 0)
+            }
             return lhs.name.lowercased() < rhs.name.lowercased()
         }
         return Array(ranked.prefix(limit))

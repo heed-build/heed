@@ -1,7 +1,8 @@
 import Foundation
 
 /// Personas in sessions in the fake world: the anchors session (`s1`, acme) with three personas that join sessions
-/// (the Skeptic before a PR, Docs-site maintainer, and your team's style), an offer after a lot got built, the panel's
+/// (Docs-site maintainer, your team's style, and the Skeptic, who joins sessions by default), an offer after a lot got
+/// built, the panel's
 /// verdict, and a PR held with a concern. The calls answer from the scripted text below, read by the real parser.
 /// Invented, as every fixture is.
 public enum SessionPanelFixtures {
@@ -10,17 +11,15 @@ public enum SessionPanelFixtures {
     public static let style = Persona(
         name: "Your team's style", knows: ["how acme names tests", "acme's review habits"],
         skepticalAbout: ["tests named after a bug number"], asksFirst: ["Would a reviewer here name it this way?"],
-        who: "how acme writes and names its tests", scope: .org("acme"), joins: [.everyPlan], source: .learned,
+        who: "how acme writes and names its tests", scope: .org("acme"), joins: [.beforePR, .everyPlan],
+        source: .learned,
         evidence: ["212 review comments on test names in a year"]
     )
 
-    /// The library's files for the session shots: the Settings fixture's, the Skeptic joining before a PR, and your
-    /// team's style.
+    /// The library's files for the session shots: the Settings fixture's and your team's style. The Skeptic joins
+    /// sessions by default, with no file.
     public static var files: [String: String] {
         var files = PersonaLibraryFixtures.files
-        var skeptic = BuiltInPersonas.persona(PanelInvites.skeptic)
-        skeptic.joins = [.goalPanels, .beforePR]
-        files[skeptic.id] = skeptic.render()
         files[style.id] = style.render()
         return files
     }

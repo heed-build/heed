@@ -300,9 +300,9 @@ struct SessionPanelPopover: View {
         let cursor = model.sessionPanel.row == index
         return HStack(alignment: .top, spacing: 10) {
             PersonaTile(name: name, id: verdict.seat, size: 26)
+            // The full line; the short form is the foot line's.
             (Text(name + " ").fontWeight(.semibold).foregroundColor(Theme.fg)
-                + Text(verdict.quote).foregroundColor(Theme.fg)
-                + Text(verdict.fix.map { "  \($0)" } ?? "").foregroundColor(Theme.fg3))
+                + Text(verdict.quote).foregroundColor(Theme.fg))
                 .font(Theme.ui(12.5))
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)

@@ -75,7 +75,7 @@ struct ContextMenuTests {
         #expect(menu.first == .header("Fix it"))
         #expect(commands(menu) == [
             "session.agent", "overlay.diff", "session.pin", "session.park", "work.again", "goal.attach", "goal.new",
-            "session.close", "session.delete",
+            "goal.promote", "session.close", "session.delete",
         ])
         #expect(item("session.agent", in: menu)?.title == "Type into its agent")
         // Every item acts on the session clicked.

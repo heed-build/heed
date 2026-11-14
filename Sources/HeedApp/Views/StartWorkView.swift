@@ -47,6 +47,15 @@ struct StartWorkView: View {
                 Text(form.promotion != nil ? "Promote chat" : form.chat == nil ? "Start work" : "New chat")
                     .font(Theme.ui(15, weight: .semibold))
                 Spacer()
+                if form.showsSizeCard {
+                    // What Just a session would start, since its fields wait behind the card.
+                    HStack(spacing: 5) {
+                        Image(systemName: "folder").font(.system(size: 10))
+                        Text(([form.selectedRepos.first.map { $0.split(separator: "/").last.map(String.init) ?? $0 }]
+                                + [form.agent?.name, "new worktree"]).compactMap(\.self).joined(separator: " · "))
+                    }
+                    .font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).lineLimit(1).padding(.trailing, 8)
+                }
                 KeyCap(text: "⎋")
                 Text(form.editing ? "normal" : "cancel").foregroundStyle(Theme.fg2)
             }
@@ -55,22 +64,12 @@ struct StartWorkView: View {
 
             if let promotion = form.promotion { promotionNote(promotion, form).padding(.horizontal, 20) }
             promptBox(form, cap: promptCap).padding(.horizontal, 20).padding(.bottom, 16)
-            if form.fields.contains(.kind) { section("Kind", .kind, form) { kindField(form) } }
-            section("Repo", .repo, form) { repoField(form) }
-            if form.chat != nil {
-                section("Folder", .worktree, form) { folderField(form) }
+            if form.showsSizeCard, let sizing = form.sizing {
+                // Bigger than one session: three ways on in place of the fields (j or ⇥ brings them back).
+                SizeCard(form: form, sizing: sizing)
             } else {
-                section("Worktree", .worktree, form) { worktreeField(form) }
+                fields(form)
             }
-            section("Agent", .agent, form) { agentField(form) }
-            if form.fields.contains(.model) || form.fields.contains(.effort) {
-                section("Model", form.fields.contains(.model) ? .model : .effort, form, also: .effort) {
-                    modelField(form)
-                }
-            }
-            section("Options", .options, form) { optionsField(form) }
-            commandPreview(form)
-            actions(form)
             footer(form)
         }
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
@@ -80,6 +79,25 @@ struct StartWorkView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.5), radius: 30)
+    }
+
+    @ViewBuilder private func fields(_ form: StartWorkForm) -> some View {
+        if form.fields.contains(.kind) { section("Kind", .kind, form) { kindField(form) } }
+        section("Repo", .repo, form) { repoField(form) }
+        if form.chat != nil {
+            section("Folder", .worktree, form) { folderField(form) }
+        } else {
+            section("Worktree", .worktree, form) { worktreeField(form) }
+        }
+        section("Agent", .agent, form) { agentField(form) }
+        if form.fields.contains(.model) || form.fields.contains(.effort) {
+            section("Model", form.fields.contains(.model) ? .model : .effort, form, also: .effort) {
+                modelField(form)
+            }
+        }
+        section("Options", .options, form) { optionsField(form) }
+        commandPreview(form)
+        actions(form)
     }
 
     private func promptBox(_ form: StartWorkForm, cap: CGFloat) -> some View {
@@ -538,7 +556,7 @@ struct StartWorkView: View {
             .opacity(model.startingWork ? 0.5 : 1)
             .disabled(model.startingWork)
             HStack(spacing: 6) {
-                Text(model.startingWork ? "Starting…" : label).fontWeight(.semibold)
+                Text(model.startingWork ? "Starting…" : form.waitingForSize ? "Sizing…" : label).fontWeight(.semibold)
                 KeyCap(text: "⌘↩")
             }
             .foregroundStyle(Theme.ink)
@@ -564,7 +582,10 @@ struct StartWorkView: View {
                 .padding(.horizontal, 12)
                 .frame(maxHeight: .infinity)
                 .background(form.editing ? Theme.done : Theme.inverse)
-            Text(form.editing
+            Text(form.showsSizeCard
+                ? "⌘↩ goal · ⌥↩ session · ⌃↩ chat · " +
+                (form.editing ? "⎋ then j the fields" : "j the fields · ⎋ cancel")
+                : form.editing
                 ? "⇥ next field · ⌃n ⌃p cycle guess · ⌘V paste · ⎋ then j k h l"
                 : "j k field · h l choose · space toggle · i edit · ⌘↩ start · ⎋ cancel")
                 .foregroundStyle(Theme.fg3)

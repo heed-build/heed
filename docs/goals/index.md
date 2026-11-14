@@ -152,6 +152,29 @@ links. `'g` jumps from a session to its goal.
 
 ![The goal in the inspector](../images/shots/goals/inspector.png)
 
+## From a session
+
+A session can grow past what it set out to do. heed notices when it has opened two PRs or more, works in a second repo
+(its own or a PR's), or its agent says it found work it did not start ("that's a change in docs-website", "a separate
+PR", "out of scope"). A quiet line at the foot of its panes says so:
+
+![A session growing into a goal: the line at the foot of its panes](../images/shots/sessions/growing.png)
+
+`gP` (or **Make it a goal** on the line, or right-click › **Make it a goal…**) shows what the goal would be: its
+statement from the session's prompt, the session's merged PRs counted as its first parts, done, and what the agent
+found, as planned parts. The session stays on the goal as its first part; nothing restarts.
+
+![Make it a goal: what the goal would be](../images/shots/sessions/make-it-a-goal.png)
+
+| Key | |
+|---|---|
+| `↩` or `⌘↩` | Make the goal and open its plan step |
+| `x` | Not now: the line goes for this session (`gP` still works) |
+| `⎋` | Close |
+
+A chat, a session already on a goal and one you said not now for never show the line. A task that looks big before it
+starts gets the same offer in [Start work](../start-work/sizing.md).
+
 ## Agents read the goal
 
 When a session or chat on a goal starts or resumes, its agent is told which goal the work belongs to, to read the

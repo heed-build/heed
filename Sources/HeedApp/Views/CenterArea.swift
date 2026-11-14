@@ -40,7 +40,21 @@ struct CenterArea: View {
                 if model.helpers.listOpen { SessionHelperList(line: line) }
                 SessionHelperLineView(line: line).id(session.id)
             }
+            // Growing into a goal: its own quiet line under the helpers' (gP makes it a goal, ✕ not now).
+            if model.view == .sessions, let session = model.currentSession,
+               let growth = model.goalGrowth(for: session)
+            {
+                GrowthLine(growth: growth).id(session.id)
+            }
         }
+        .overlay(alignment: .bottomTrailing) {
+            if model.view == .sessions, let promotion = model.goalPromotion,
+               promotion.session == model.currentSession?.id
+            {
+                PromotionPopover(promotion: promotion).padding(.trailing, 16).padding(.bottom, 40)
+            }
+        }
+        .onChange(of: model.currentSession?.id) { model.closePromotionIfMoved() }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.pane)
     }

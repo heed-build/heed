@@ -27,13 +27,13 @@ This page is generated from the code (`mise run shots`).
 | `session.attention` | `ga` | next session needing you |
 | `session.park` | `zz` | park session |
 | `session.close` | `x` | close session, keep worktree |
-| `session.delete` | `dd` (sessions), `dd` (sessionshelper), `dd` (sessionshelpers) | delete session and its worktrees (asks first) |
-| `session.import` `[path]` | `Iw` (sessions), `Iw` (sessionshelper), `Iw` (sessionshelpers) | import a worktree Heed does not manage yet as a session |
-| `session.import.path` | `Ip` (sessions), `Ip` (sessionshelper), `Ip` (sessionshelpers) | import the worktree at a path (any repo, anywhere) |
+| `session.delete` | `dd` (sessions), `dd` (sessionshelper), `dd` (sessionshelpers), `dd` (sessionspromote) | delete session and its worktrees (asks first) |
+| `session.import` `[path]` | `Iw` (sessions), `Iw` (sessionshelper), `Iw` (sessionshelpers), `Iw` (sessionspromote) | import a worktree Heed does not manage yet as a session |
+| `session.import.path` | `Ip` (sessions), `Ip` (sessionshelper), `Ip` (sessionshelpers), `Ip` (sessionspromote) | import the worktree at a path (any repo, anywhere) |
 | `session.pin` | `m` | pin / unpin session |
-| `session.rename` `[title]` | `R` (sessions), `R` (sessionshelper), `R` (sessionshelpers) | give the session your title, which heed keeps (no title: the command line opens with it) |
+| `session.rename` `[title]` | `R` (sessions), `R` (sessionshelper), `R` (sessionshelpers), `R` (sessionspromote) | give the session your title, which heed keeps (no title: the command line opens with it) |
 | `session.autoname` |  | let heed name the session again, from what it is doing |
-| `session.kind` `[kind]` | `K` (sessions), `K` (sessionshelper), `K` (sessionshelpers) | what the work is: feat, fix, refactor, docs, chore or plan (no argument: the next) |
+| `session.kind` `[kind]` | `K` (sessions), `K` (sessionshelper), `K` (sessionshelpers), `K` (sessionspromote) | what the work is: feat, fix, refactor, docs, chore or plan (no argument: the next) |
 | `session.back` | `''` | back to previous session |
 | `session.agent` | `<CR>` (sessions), `<CR>` (sessionshelper) | INSERT into the session's agent pane (the focused pane when it has none) |
 | `session.open` `<words>` |  | go to the session matching these words |
@@ -141,10 +141,10 @@ This page is generated from the code (`mise run shots`).
 | `inspector.copy` `<path>` |  | copy a path to the pasteboard |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
 | `sidebar.titles` | `zt` | show session titles / worktree names in the sidebar rows |
-| `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions), `zG` (sessionshelper), `zG` (sessionshelpers) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
-| `sessions.sort` `[attention|touched|idle|started|size]` | `T` (sessions), `T` (sessionshelper), `T` (sessionshelpers) | sort the sessions: attention, you recent first, idle longest, started, size (no argument: next) |
-| `sessions.rows` `[one|two]` | `zR` (sessions), `zR` (sessionshelper), `zR` (sessionshelpers) | one line or two per session in the sidebar |
-| `sessions.close.ready` | `X` (sessions), `X` (sessionshelpers) | close every session in Can close (its PRs merged or closed, nothing left open), after asking |
+| `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions), `zG` (sessionshelper), `zG` (sessionshelpers), `zG` (sessionspromote) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
+| `sessions.sort` `[attention|touched|idle|started|size]` | `T` (sessions), `T` (sessionshelper), `T` (sessionshelpers), `T` (sessionspromote) | sort the sessions: attention, you recent first, idle longest, started, size (no argument: next) |
+| `sessions.rows` `[one|two]` | `zR` (sessions), `zR` (sessionshelper), `zR` (sessionshelpers), `zR` (sessionspromote) | one line or two per session in the sidebar |
+| `sessions.close.ready` | `X` (sessions), `X` (sessionshelpers), `X` (sessionspromote) | close every session in Can close (its PRs merged or closed, nothing left open), after asking |
 | `config.edit` |  | open config.toml in $EDITOR |
 | `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |
 | `tutor.hide` `[all]` |  | hide the title bar's tutor reminder for this lesson (all: every reminder) |
@@ -181,7 +181,7 @@ This page is generated from the code (`mise run shots`).
 | `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup), `D` (telemetry) | Insights' dashboard: what shipped, agent time, your bests, goals; where Insights opens |
 | `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup), `U` (telemetry) | Insights' standup: your questions answered per org (again: back to the dashboard) |
 | `history.telemetry` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (standup), `T` (telemetry) | Insights' OpenTelemetry: the agents' own spans, latency, waits and cost (again: back to the dashboard) |
-| `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (sessionshelpers), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
+| `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (sessionshelpers), `t` (sessionspromote), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
 | `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 
 ## Modes
@@ -248,6 +248,9 @@ This page is generated from the code (`mise run shots`).
 | `dashboard.range` `[days]` | `r` (dashboard) | dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w) |
 | `goal.new` `[title]` | `n` (goals) | new goal: a title and what it is (on a session: from its prompt, and the session on it) |
 | `goal.attach` `<goal>` |  | put the session or chat on a goal (no goal: the command line opens to pick one) |
+| `goal.promote` | `gP`, `<Esc>` (sessionspromote) | make the session a goal: what it becomes, its merged PRs done, then its plan step (again or ⎋: close) |
+| `goal.promote.go` | `<CR>` (sessionspromote), `<D-CR>` (sessionspromote) | Make it a goal: the goal made with the session on it as part 1, its plan step opens |
+| `goal.promote.dismiss` | `x` (sessionspromote) | not now: the session's "growing into a goal" line goes away |
 | `goal.detach` | `x` (goaldoc), `x` (goals) | take the session or chat off its goal |
 | `goal.archive` | `a` (goaldoc), `a` (goals) | archive the goal (again: bring it back) |
 | `goal.open` | `<CR>` (goaldoc), `<CR>` (goalevals), `<CR>` (goalpersonas), `<CR>` (goalplan), `<CR>` (goalreviewers), `<CR>` (goals), `<CR>` (unassigned) | Goals: what belongs to the goal; on a session or chat, go to it |

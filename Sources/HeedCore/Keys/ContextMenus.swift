@@ -189,6 +189,7 @@ public enum ContextMenus {
         }
         guard let goal = facts.goal else {
             return [item("Put on a goal…", "goal.attach"), item("New goal from this session…", "goal.new")]
+                + (facts.chat ? [] : [item("Make it a goal…", "goal.promote")])
         }
         return [
             item("Go to its goal, \(goal)", "goal.jump"), item("Move to another goal…", "goal.attach"),

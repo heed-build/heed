@@ -21,7 +21,7 @@ public enum DefaultKeys {
         ("x", "session.close"), ("m", "session.pin"), ("''", "session.back"),
         ("'1", "pin.jump 1"), ("'2", "pin.jump 2"), ("'3", "pin.jump 3"), ("'4", "pin.jump 4"), ("'5", "pin.jump 5"),
         ("'6", "pin.jump 6"), ("'7", "pin.jump 7"), ("'8", "pin.jump 8"), ("'9", "pin.jump 9"),
-        ("gG", "view.goals"), ("'g", "goal.jump"),
+        ("gG", "view.goals"), ("'g", "goal.jump"), ("gP", "goal.promote"),
         ("gh", "view.insights"), ("gr", "view.repos"), ("gw", "view.autopilot"), ("gM", "merge.queue"), (
             "gH",
             "host.open"
@@ -100,6 +100,17 @@ public enum DefaultKeys {
         // gW with more than one helper on the session's PRs: their list over the helper line. j k move, ↩ watches
         // the row, gO takes it over, x takes a finished one off the line, ⎋ (or gW) closes it.
         "sessionshelpers": laid(menu + [("x", "helper.dismiss")], over: sessions),
+        // gP on a session growing into a goal: Make it a goal's popover over the line. ↩ or ⌘↩ makes it, x: not now
+        // (the line goes for this session), ⎋ closes.
+        "sessionspromote": laid(
+            [
+                ("<CR>", "goal.promote.go"),
+                ("<D-CR>", "goal.promote.go"),
+                ("x", "goal.promote.dismiss"),
+                ("<Esc>", "goal.promote"),
+            ],
+            over: sessions
+        ),
         "repos": [
             ("o", "worktree.new"), ("r", "repo.scan"), ("dd", "select.remove"),
             ("<CR>", "select.open"), ("S", "setup.review"), ("M", "repo.setup"),

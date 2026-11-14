@@ -5,9 +5,12 @@ public struct StartWorkSettings: Equatable, Sendable {
     /// Ask the on-device model (Apple's Foundation Models, where the Mac has them) to improve the repo, branch name
     /// and prefix guesses as you type. Where it is not available Start work guesses as it always did.
     public var smartGuesses = true
+    /// Size a longer prompt as you type (`TaskSizer`): bigger than one session offers a goal, a session or a chat.
+    public var sizeCheck = true
 
-    public init(smartGuesses: Bool = true) {
+    public init(smartGuesses: Bool = true, sizeCheck: Bool = true) {
         self.smartGuesses = smartGuesses
+        self.sizeCheck = sizeCheck
     }
 }
 

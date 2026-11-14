@@ -292,6 +292,7 @@ public enum ConfigLoader {
         }
         // [start_work]
         if let flag = bool(["start_work", "smart_guesses"]) { config.startWork.smartGuesses = flag }
+        if let flag = bool(["start_work", "size_check"]) { config.startWork.sizeCheck = flag }
         // [sessions]
         if let agent = string(["sessions", "default_agent"]) { config.work.defaultAgent = agent }
         if let policy = string(["sessions", "resume_on_launch"]) {
@@ -997,6 +998,9 @@ public enum ConfigLoader {
     # names none, the branch name's words, and the prefix when the first word picks none. On this Mac only, never sent
     # anywhere; your own picks and typing always win. Elsewhere, or false: the rules above alone.
     smart_guesses = true
+    # Size a longer prompt as you type (a decision first, then one cheap model call when it looks big): a task bigger
+    # than one session offers a goal, a session or a chat. Small tasks never see it. Uses [decisions] and [llm].
+    size_check = true
 
     [sessions]
     default_agent = "claude"

@@ -615,6 +615,48 @@ public extension Tutor {
                     + "a set, heed proposes the source itself: {goal.source.accept} takes it."
             ) { start, now, _ in now.goalSources > start.goalSources && now.goalNextStep != "work" },
         ]),
+        TutorLesson(id: "first-goal", title: "Plan a goal", minutes: 3, world: .mondayMorning, steps: [
+            TutorStep(
+                "The wizard",
+                say: "{goal.new} in Goals makes a goal and walks it through six steps before any work starts. "
+                    + ":goal.wizard walks one you have: open Goals and run it on the goal under the cursor.",
+                keys: ["{view.goals}", ":goal.wizard↩"], target: "goalWizard",
+                doneLine: "Step 1, Plan: a big model reads the goal (and its repos) and asks one question at a time."
+            ) { _, now, _ in now.wizardStep == "plan" && now.wizardTurns >= 1 },
+            TutorStep(
+                "Answer with a pick",
+                say: "{wizard.pick 1} picks heed's first option; {wizard.answer} types an answer of your own.",
+                keys: ["{wizard.pick 1}"], target: "wizardPlan",
+                doneLine: "The plan on the right is a new version, saved in GOAL.md too, and the meters moved."
+            ) { start, now, _ in now.wizardAnswers > start.wizardAnswers && now.wizardTurns > start.wizardTurns },
+            TutorStep(
+                "Good enough",
+                say: "Stop when the meters say it is complete enough, or whenever you like: {wizard.next}.",
+                keys: ["{wizard.next}"], target: "wizardPanel",
+                doneLine: "Step 2, the panel: personas read the plan. The Skeptic argues not to do it at all."
+            ) { _, now, _ in now.wizardStep == "panel" && now.wizardRounds > 0 },
+            TutorStep(
+                "TL;DR",
+                say: "{goal.tldr} on any step (and t on a goal's page) shows where the goal stands: each step, what is "
+                    + "settled and what is still open.",
+                keys: ["{goal.tldr}"], target: "tldr",
+                doneLine: "{tldr.copy} copies it as markdown. It is written again only when something changed."
+            ) { _, now, _ in now.tldrOpen },
+            TutorStep(
+                "Take the fixes",
+                say: "Close it, then {wizard.next}: worth it, take the fixes. They go into the plan and the panel reads "
+                    + "it again.",
+                keys: ["{goal.tldr}", "{wizard.next}"], target: "wizardPanel",
+                doneLine: "Round 2. {wizard.smaller} goes smaller, {wizard.talk} talks to one, {wizard.drop} drops it."
+            ) { _, now, _ in !now.tldrOpen && now.wizardRounds >= 2 },
+            TutorStep(
+                "What done looks like",
+                say: "Nothing left to fix: {wizard.next} moves on to the criteria, each with how it is checked.",
+                keys: ["{wizard.next}"], target: "wizardDone",
+                doneLine: "A vague one gets measurable replacements. {wizard.next} writes them into GOAL.md's Done when; "
+                    + "Split, How careful and Go open on the goal's page for now."
+            ) { _, now, _ in now.wizardStep == "done" && now.wizardCriteria > 0 },
+        ]),
         TutorLesson(id: "log", title: "Call log", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(
                 "One kind at a time",

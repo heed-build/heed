@@ -729,8 +729,21 @@ enum Shots {
         Shot(id: "history/ledger-detail", keys: "ghLjjj"),
     ]
 
+    /// The new-goal wizard on the designs' goal (`WizardFixtures`): each built step, a step that hands over to the
+    /// goal's page, the meters, the TL;DR over the wizard and over a goal's page.
+    static let wizard: [Shot] = [
+        Shot(id: "goals/wizard-plan", prepare: { $0.loadWizardFixture(.plan) }),
+        Shot(id: "goals/wizard-meters", crop: .wizardMeters, cropPadding: 16, prepare: { $0.loadWizardFixture(.plan) }),
+        Shot(id: "goals/wizard-rail", crop: .wizardRail, cropPadding: 0, prepare: { $0.loadWizardFixture(.done) }),
+        Shot(id: "goals/wizard-panel", prepare: { $0.loadWizardFixture(.panel) }),
+        Shot(id: "goals/wizard-done", prepare: { $0.loadWizardFixture(.done) }),
+        Shot(id: "goals/wizard-later", prepare: { $0.loadWizardFixture(.split) }),
+        Shot(id: "goals/wizard-tldr", keys: "T", prepare: { $0.loadWizardFixture(.split) }),
+        Shot(id: "goals/wizard-tldr-page", keys: "gGjt", crop: .tldr, cropPadding: 16),
+    ]
+
     /// Goals (`gG`), on the fake world's goals (`GoalFixtures`).
-    static let goals: [Shot] = [
+    static let goals: [Shot] = wizard + [
         Shot(id: "goals/goals", keys: "gG"),
         // The goal with three versions: what is on it, its PRs and where its work was left.
         Shot(id: "goals/overview", keys: "gGj<Tab>", crop: .goalsOverview, cropPadding: 0),

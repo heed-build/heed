@@ -54,6 +54,7 @@ This page is generated from the code (`mise run shots`).
 | `trace.turn.prev` | `k` (trace), `<Up>` (trace) | trace: the previous turn |
 | `trace.span.next` | `l` (trace), `<Right>` (trace) | trace: the next span in the turn |
 | `trace.span.prev` | `h` (trace), `<Left>` (trace) | trace: the previous span in the turn |
+| `wizard.row` `<delta>` | `j` (wizarddone), `k` (wizarddone), `<Down>` (wizarddone), `<Up>` (wizarddone), `j` (wizardinvite), `k` (wizardinvite), `<Down>` (wizardinvite), `<Up>` (wizardinvite), `j` (wizardlater), `k` (wizardlater), `<Down>` (wizardlater), `<Up>` (wizardlater), `j` (wizardpanel), `k` (wizardpanel), `<Down>` (wizardpanel), `<Up>` (wizardpanel), `j` (wizardplan), `k` (wizardplan), `<Down>` (wizardplan), `<Up>` (wizardplan) | wizard: the persona or criterion below (1) or above (-1) |
 
 ## Panes & tabs
 
@@ -183,6 +184,8 @@ This page is generated from the code (`mise run shots`).
 | `history.telemetry` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (standup), `T` (telemetry) | Insights' OpenTelemetry: the agents' own spans, latency, waits and cost (again: back to the dashboard) |
 | `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (sessionshelpers), `t` (sessionspromote), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
 | `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
+| `goal.wizard` `[goal]` |  | Goals: walk the goal through the new-goal wizard (plan, panel, done looks like, …); where it was left, it resumes |
+| `goal.tldr` | `t` (goaldoc), `t` (goals), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (wizardchat), `T` (wizarddone), `T` (wizardlater), `T` (wizardpanel), `T` (wizardplan) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
 
 ## Modes
 
@@ -461,3 +464,18 @@ This page is generated from the code (`mise run shots`).
 | `select.pin` | `m` (VISUAL) | pin selected |
 | `select.copy` | `y` (VISUAL) | copy paths |
 | `select.open` | `o` (VISUAL), `<CR>` (repos) | open the worktree's session, importing it when it has none |
+| `wizard.leave` | `<Esc>` (wizarddone), `<Esc>` (wizardlater), `<Esc>` (wizardpanel), `<Esc>` (wizardplan) | wizard: back to the goals; it keeps its place |
+| `wizard.next` | `<D-CR>` (wizarddone), `<D-CR>` (wizardlater), `<D-CR>` (wizardpanel), `<D-CR>` (wizardplan) | wizard: on to the next step (Plan: good enough; Panel: worth it, take the fixes; Done looks like: looks right) |
+| `wizard.step` `<step>` | `H` (wizarddone), `L` (wizarddone), `H` (wizardlater), `L` (wizardlater), `H` (wizardpanel), `L` (wizardpanel), `H` (wizardplan), `L` (wizardplan) | wizard: show a step already reached (prev, next, or a name) |
+| `wizard.pick` `<n>` | `1` (wizarddone), `2` (wizarddone), `3` (wizarddone), `1` (wizardplan), `2` (wizardplan), `3` (wizardplan), `4` (wizardplan), `5` (wizardplan), `6` (wizardplan), `7` (wizardplan), `8` (wizardplan), `9` (wizardplan) | wizard: Plan answers with option n; Done looks like highlights replacement n |
+| `wizard.answer` | `i` (wizardchat), `i` (wizardplan) | wizard: type an answer (Plan), or a message to the persona you talk to |
+| `wizard.smaller` | `-` (wizardpanel) | wizard: Panel: make the plan smaller, and the panel reads it again |
+| `wizard.talk` | `<Esc>` (wizardchat), `i` (wizardpanel) | wizard: Panel: talk to the persona under the cursor (again: close) |
+| `wizard.drop` | `x` (wizardpanel) | wizard: Panel: don't do it: archive the goal with the reason |
+| `wizard.invite` `[persona]` | `<Esc>` (wizardinvite), `+` (wizardpanel) | wizard: Panel: invite another persona (the picker; with a name, that one) |
+| `wizard.invite.pick` | `<CR>` (wizardinvite) | wizard: invite the persona under the cursor in the picker |
+| `wizard.use` | `<CR>` (wizarddone) | wizard: Done looks like: use the highlighted replacement for the criterion |
+| `wizard.define` `[n]` | `d` (wizarddone) | wizard: Done looks like: an agent reads the repo and proposes a check for the criterion |
+| `wizard.later` | `<CR>` (wizardlater) | wizard: a step heed has no screen for yet: open the goal's page that does it |
+| `tldr.copy` | `y` (tldr) | TL;DR: copy it as markdown |
+| `tldr.act` | `d` (tldr) | TL;DR: do the first open point's action |

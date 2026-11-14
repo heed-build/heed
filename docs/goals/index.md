@@ -12,7 +12,12 @@ it, and its `GOAL.md` says what the goal is, what it is not, when it is done, wh
 
 ## A new goal, step by step
 
-A new goal opens on its overview with a **Next step** card: what to do now, why it matters, and its key or button.
+`n` in Goals makes a goal and walks it through the new-goal wizard: talk the plan through, have a panel of personas
+read it, and say what done looks like, before any work starts. [Your first goal](first-goal.md) walks through it. A
+goal made another way (`:goal.new` with a title, or from a session) opens on its overview as below, and
+`:goal.wizard` walks it through the wizard whenever you like.
+
+A goal made without the wizard opens on its overview with a **Next step** card: what to do now, why it matters, and its key or button.
 Beside it are all the first steps, each ticked off by what is true of the goal, never by a click:
 
 1. **Sharpen it** (`w`). A model suggests what the goal is and what it is not; each suggestion waits in `GOAL.md` for

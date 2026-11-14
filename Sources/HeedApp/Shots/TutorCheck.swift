@@ -51,6 +51,7 @@ enum TutorCheck {
             "E",
             ":goal.source.add prs acme/docs-toolkit<CR>",
         ],
+        "first-goal": ["gG:goal.wizard<CR>", "1", "<D-CR>", "T", "T<D-CR>", "<D-CR>"],
         "hosts": [
             "gH<Esc>",
             "@dev<CR>gg",

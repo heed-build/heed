@@ -78,6 +78,8 @@ extension AppModel {
     /// `↩` in Goals: from a goal to what is on it; on a session or chat, there.
     func openGoalRow() {
         guard view == .goals else { return }
+        // A goal still in the new-goal wizard opens there, where it was left.
+        if resumeWizardIfUnfinished() { return }
         guard goals.focus == .links, let link = goals.selectedLink else {
             guard goals.selected != nil else { return say("no goal yet: n makes one") }
             if goals.links.isEmpty { return say("nothing is on this goal yet: 'g… :goal.attach from a session") }
@@ -159,6 +161,8 @@ extension AppModel {
             title: session?.title ?? "", statement: session.map { GoalsBrowser.firstParagraph($0.prompt) } ?? "",
             session: session?.id, tracker: tracker, mirror: mirror
         )
+        // Made from Goals itself (n), not from a session: it goes through the wizard.
+        goals.form?.wizard = view == .goals && session == nil
         textInputActive = true
     }
 
@@ -205,6 +209,12 @@ extension AppModel {
             case let .success(goal):
                 view = .goals
                 goals.point(to: goal.id)
+                // From n in Goals: the wizard, starting from what you wrote; its plan replaces the item planner's.
+                if form.wizard {
+                    mirrorNewGoal(goal, tracker: form.tracker, on: form.mirror)
+                    let ask = form.statement.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return startWizard(goal.id, firstMessage: ask.isEmpty ? form.title : ask)
+                }
                 // A new goal lands on its overview, where the next-steps card says what to do first.
                 goals.show(.overview)
                 say("goal \(goal.title) made" + (session.map { ", \($0.title) on it" } ?? ""))

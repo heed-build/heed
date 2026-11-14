@@ -327,7 +327,7 @@ public enum DefaultKeys {
             ("t", "approvals.deny.reason"), ("gS", "approvals.session"), ("gy", "approvals.open"),
             ("<Esc>", "overlay.close"),
         ],
-    ]
+    ].merging(WizardKeys.scoped) { own, _ in own }
 
     /// Autopilot's Now (N): the PRs heed works on, stalled first; h l move between the helpers' live tiles above
     /// them (↩ opens one in a split, j k go back to the PRs). A asks Copilot (C is Can do, as in every Autopilot
@@ -374,7 +374,8 @@ public enum DefaultKeys {
     /// Views whose own bindings work in VISUAL too, ahead of VISUAL's: in the diff, `a`, `A` and `y` act on the
     /// selected lines.
     /// The keys of Goals' list and overview: what acts on the goal, and what every view of Goals shares.
-    static let goals: [(String, String)] = goalActions + goalShared + [("F", "swarm.followup")]
+    /// `t`: the goal's TL;DR (`T` is the swarm's map here; in the wizard, where no pane key applies, `T` is the TL;DR).
+    static let goals: [(String, String)] = goalActions + goalShared + [("F", "swarm.followup"), ("t", "goal.tldr")]
 
     /// Lowercase actions on the goal itself. They apply only where the goal is what you are on: the list, the overview
     /// and GOAL.md (where `y` is the first GOAL.md change's yes instead; on the list and overview it is the proposed

@@ -1056,7 +1056,7 @@ public enum Commands {
         .init("select.pin", "pin selected", .selection),
         .init("select.copy", "copy paths", .selection),
         .init("select.open", "open the worktree's session, importing it when it has none", .selection),
-    ]
+    ] + WizardKeys.commands
 
     public static let byName: [String: CommandSpec] = Dictionary(uniqueKeysWithValues: all.map { ($0.name, $0) })
 

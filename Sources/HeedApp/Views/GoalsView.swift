@@ -9,7 +9,24 @@ struct GoalsView: View {
 
     var body: some View {
         let goals = model.goals
-        GeometryReader { geometry in
+        ZStack(alignment: .top) {
+            if let wizard = goals.wizard.current {
+                GoalWizardView(wizard: wizard)
+            } else {
+                list
+            }
+            if let goal = goals.wizard.tldr {
+                Color.black.opacity(0.55).ignoresSafeArea()
+                    .onTapGesture { model.perform(CommandInvocation(name: "goal.tldr")) }
+                WizardTLDRView(goal: goal).padding(.horizontal, 32).padding(.top, 60)
+            }
+        }
+    }
+
+    /// The goals and the goal under the cursor, as Goals is outside the wizard.
+    private var list: some View {
+        let goals = model.goals
+        return GeometryReader { geometry in
             HStack(spacing: 0) {
                 GoalList()
                     .frame(width: geometry.size.width < 1000 ? 260 : 320)

@@ -64,6 +64,10 @@ Personas look at a session's work only when something happened that is worth a l
 While the agent works, the only sign of them is a faint stack of tiles on the session's sidebar row: up to three
 personas whose scope covers its repos and that join sessions (**before a PR** or **every session's plan**), the most
 relevant first (a repo's before an org's before everywhere, then learned and from your repos before yours and heed's).
+Out of the box the Skeptic and the Purist join sessions (before a PR and every session's plan), so a fresh library has
+someone to offer; heed's other built-ins join goal panels only. It is a default, not a file: their **Joins** switches
+show it, and turning one off writes the built-in's file saying so. An offer only asks: nothing is called until you
+say yes.
 
 ![A session's row with the faint stack of the personas who may look](../images/shots/sessions/personas-quiet.png)
 
@@ -117,8 +121,8 @@ its own. The hold only applies when the agent asks permission for the command: a
 allowed to run without asking never reaches the hook.
 
 **Asking by hand**: `gL` on a session with nothing offered asks now. Right-click a session (or the Session menu) for
-**Ask the panel…**: the relevant personas, or only one of those in scope. With nobody joining sessions in its scope,
-asking still gets the Skeptic (and your team's style when heed has one).
+**Ask the panel…**: the relevant personas, or only one of those in scope. With nobody joining sessions in its scope (the
+Skeptic and the Purist switched off), asking still gets the Skeptic (and your team's style when heed has one).
 
 **Settings › Personas › In sessions** (`s` on the library) has the milestones' switches and thresholds, who looks,
 and when it offers: **ask me** (the line), **look without asking**, or **never**. `j` `k` move over the milestones,

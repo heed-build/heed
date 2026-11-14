@@ -384,6 +384,8 @@ final class AppModel {
     let dashboard: DashboardBrowser
     /// Goals: the goals, what is on each, and the cursor.
     let goals: GoalsBrowser
+    /// Settings › Personas: the library page and its sheets.
+    let personaUI = PersonaLibraryBrowser()
     /// Hunch: its checkpoints, the training set and runs (AppModel+Hunch).
     let hunch: HunchModel
     /// Insights' Mindmap: one per org and one for personal work (AppModel+Mindmap).
@@ -3149,6 +3151,11 @@ final class AppModel {
              "define.use",
              "define.later", "define.close", "page.move", "page.fold", "page.steer", "page.pick", "page.answer":
             _ = performSplit(command)
+        case "personas.open", "personas.move", "personas.toggle", "personas.try", "personas.edit", "personas.share",
+             "personas.join", "personas.add", "personas.pick", "personas.read", "personas.repo", "personas.describe",
+             "personas.overlap", "personas.drafted", "personas.define", "personas.answer", "personas.option",
+             "personas.next", "personas.save", "personas.close":
+            _ = performPersonas(command)
         default:
             flash = "\(command.name): not built yet"
         }

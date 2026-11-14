@@ -257,7 +257,9 @@ extension AppModel {
     /// `persona.use <persona>`: a library persona copied onto the goal; the next derivation can name it.
     func usePersona(_ words: [String]) {
         guard let goal = goals.selected else { return say("no goal here") }
-        let library = goals.personas.library
+        // The library's files that are on and in scope for the goal's repos: never one walled into another org.
+        let scope = goalRepoSlugs(goal.id)
+        let library = goals.personas.library.filter { $0.value.on && $0.value.scope.applies(to: scope) }
         guard !words.isEmpty else {
             return library.isEmpty ? say("the library is empty: L shares a persona into it")
                 : openCommandLine("persona.use ")
@@ -299,19 +301,21 @@ extension AppModel {
         let refs = PersonaDerivation.refs(doc: doc, items: items, evidence: evidence, quality: quality)
         let signature = PersonaDerivation.signature(doc: doc, items: items, evidence: evidence, quality: quality)
         let known = Array(Set((goals.personas.files[goal.id] ?? [:]).values.map(\.name)
-                + goals.personas.library.values.map(\.name))).sorted()
+                + personaLibrary.offered(for: goalRepoSlugs(goal.id)).map(\.name))).sorted()
         let inputs = PersonaDerivation.inputs(
             title: goal.title, doc: doc?.render() ?? "", refs: refs, evidence: evidence, known: known
         )
         let summarizer = summarizer
         let version = goal.version
+        let scope = goalRepoSlugs(goal.id)
         goals.run { ops in
             let answer = try await summarizer.summarize(kind: .goalPersonas, inputs: inputs, caller: "goals.personas")
             let needs = PersonaDerivation.parse(answer, refs: refs)
             guard !needs.isEmpty else { return 0 }
+            // A library persona of that name is copied only when it is on and in scope for the goal's repos.
             try await ops.derived(
                 PersonaDerivation(needs: needs, signature: signature, goalVersion: version), goal: goal.id,
-                now: Clock.now
+                now: Clock.now, scope: scope
             )
             return needs.count
         } done: { [weak self] result in

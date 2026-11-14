@@ -45,14 +45,21 @@ public extension GoalOps {
     }
 
     /// A new derivation: recorded, and a file for each persona the goal has none of yet: the library's when it has
-    /// one of that name (copied), else the model's draft. Files you have are never written over.
-    func derived(_ derivation: PersonaDerivation, goal: String, now: Date) throws {
+    /// one of that name (copied) that is on and in scope for the goal's repos (`scope`, `org/name` slugs; nil: no
+    /// scope check), else the model's draft. Files you have are never written over.
+    func derived(_ derivation: PersonaDerivation, goal: String, now: Date, scope: [String]? = nil) throws {
         guard try store.goal(goal) != nil else { throw GoalOpError.unknownGoal(goal) }
         try store.addQuality(QualityRecord(goal: goal, at: now, entry: .personas(derivation)))
         let have = try personaTexts(goal: goal)
+        let library = try libraryTexts()
         for need in derivation.needs where have[need.id] == nil {
-            let text = try libraryTexts()[need.id] ?? need.persona.render()
-            try writePersona(text, id: need.id, goal: goal)
+            let shared = library[need.id].flatMap { text -> String? in
+                guard let scope else { return text }
+                guard let persona = Persona.parse(text), persona.on,
+                      persona.scope.applies(to: scope) else { return nil }
+                return text
+            }
+            try writePersona(shared ?? need.persona.render(), id: need.id, goal: goal)
         }
     }
 
@@ -114,6 +121,43 @@ public extension GoalOps {
         }
         try writePersona(text, id: id, goal: goal)
         return persona
+    }
+
+    // MARK: The library (Settings › Personas)
+
+    /// A library persona's file as it is on disk; nil when it has none (a built-in not edited yet).
+    func libraryText(_ id: String) throws -> String? { try libraryTexts()[id] }
+
+    /// Writes a persona into the library: a new one, one turned on or off, a built-in edited.
+    func saveLibrary(_ persona: Persona) throws {
+        try writeLibrary(persona.render(), id: persona.id)
+    }
+
+    /// Saves your edit of a library persona's file. A file that renames it moves to the new name's file.
+    @discardableResult
+    func saveLibrary(text: String, id: String) throws -> Persona {
+        guard let persona = Persona.parse(text) else { throw PersonaError.noName }
+        if persona.id != id { try removeLibrary(id) }
+        try writeLibrary(text.hasSuffix("\n") ? text : text + "\n", id: persona.id)
+        return persona
+    }
+
+    func removeLibrary(_ id: String) throws {
+        guard files.writes else {
+            memoryLibrary[id] = nil
+            return
+        }
+        let url = files.libraryPersona(id)
+        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+    }
+
+    private func writeLibrary(_ text: String, id: String) throws {
+        guard files.writes else {
+            memoryLibrary[id] = text
+            return
+        }
+        try FileManager.default.createDirectory(at: files.library, withIntermediateDirectories: true)
+        try text.write(to: files.libraryPersona(id), atomically: true, encoding: .utf8)
     }
 
     // MARK: Files

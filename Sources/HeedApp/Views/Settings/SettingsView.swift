@@ -59,76 +59,82 @@ struct SettingsView: View {
             .background(Theme.bg2)
             .frame(width: 220)
             Theme.line.frame(width: 1)
-            ScrollViewReader { proxy in
-                ListScroll {
-                    VStack(alignment: .leading, spacing: 22) {
-                        let unmatched = SettingsCatalog.problems(model.configProblems).unmatched
-                        if !unmatched.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                ForEach(unmatched, id: \.description) { problem in
-                                    Text("config.toml: \(problem.description)")
+            if search == nil, tree.page == .personas, tree.kept == nil {
+                // Personas lays out its own list and detail, each scrolling on its own.
+                PersonasPage().frame(minHeight: 0, maxHeight: .infinity, alignment: .top).clipped()
+            } else {
+                ScrollViewReader { proxy in
+                    ListScroll {
+                        VStack(alignment: .leading, spacing: 22) {
+                            let unmatched = SettingsCatalog.problems(model.configProblems).unmatched
+                            if !unmatched.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    ForEach(unmatched, id: \.description) { problem in
+                                        Text("config.toml: \(problem.description)")
+                                    }
                                 }
+                                .font(Theme.ui(12))
+                                .foregroundStyle(Theme.err)
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(RoundedRectangle(cornerRadius: 6).fill(Theme.err.opacity(0.1)))
                             }
-                            .font(Theme.ui(12))
-                            .foregroundStyle(Theme.err)
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(Theme.err.opacity(0.1)))
+                            if let search {
+                                SettingsSearchPane(search: search).id("top")
+                                    .environment(\.settingsMarkedRow, resultCursor)
+                            } else if let kept = tree.kept, !kept.contains(.page(tree.page)) {
+                                NothingModified(page: kept.isEmpty ? nil : tree.page).id("top")
+                            } else {
+                                SettingsPageHeader(page: tree.page).id("top")
+                                SettingsPageBody(page: tree.page).environment(\.settingsPage, tree.page)
+                                    .environment(\.settingsMarkedRow, flashed)
+                            }
                         }
-                        if let search {
-                            SettingsSearchPane(search: search).id("top")
-                                .environment(\.settingsMarkedRow, resultCursor)
-                        } else if let kept = tree.kept, !kept.contains(.page(tree.page)) {
-                            NothingModified(page: kept.isEmpty ? nil : tree.page).id("top")
-                        } else {
-                            SettingsPageHeader(page: tree.page).id("top")
-                            SettingsPageBody(page: tree.page).environment(\.settingsPage, tree.page)
-                                .environment(\.settingsMarkedRow, flashed)
+                        .padding(24)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .coordinateSpace(name: Self.scrollSpace)
+                    .onPreferenceChange(SectionOffsetsKey.self) { offsets in
+                        let shown = Self.inView(offsets, sections: tree.page.sections)
+                        if shown != inView { inView = shown }
+                    }
+                    .onPreferenceChange(SettingsSearchSpotsKey.self) { found in
+                        let ordered = found.sorted { $0.minY < $1.minY }
+                        if ordered.map(\.key) != spots.map(\.key) { spots = ordered }
+                    }
+                    .onChange(of: scrollTarget) {
+                        guard let target = scrollTarget else { return }
+                        withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(target, anchor: .top) }
+                        scrollTarget = nil
+                    }
+                    .onChange(of: tree.page) { proxy.scrollTo("top", anchor: .top) }
+                    .onChange(of: resultCursor) {
+                        guard let key = resultCursor else { return }
+                        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(key, anchor: .center) }
+                    }
+                    .onChange(of: model.settingsQuery) {
+                        resultCursor = nil
+                        proxy.scrollTo("top", anchor: .top)
+                    }
+                    // A row opened from the search: its section first (in case the row is not drawn there), then the
+                    // row,
+                    // once the page is laid out; then the flash fades.
+                    .onChange(of: flashed) {
+                        guard let key = flashed else { return }
+                        let section = spotSection
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(80))
+                            if let section { proxy.scrollTo(section, anchor: .top) }
+                            withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(key, anchor: .center) }
+                            try? await Task.sleep(for: .milliseconds(1400))
+                            if flashed == key { flashed = nil }
                         }
                     }
-                    .padding(24)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .coordinateSpace(name: Self.scrollSpace)
-                .onPreferenceChange(SectionOffsetsKey.self) { offsets in
-                    let shown = Self.inView(offsets, sections: tree.page.sections)
-                    if shown != inView { inView = shown }
-                }
-                .onPreferenceChange(SettingsSearchSpotsKey.self) { found in
-                    let ordered = found.sorted { $0.minY < $1.minY }
-                    if ordered.map(\.key) != spots.map(\.key) { spots = ordered }
-                }
-                .onChange(of: scrollTarget) {
-                    guard let target = scrollTarget else { return }
-                    withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(target, anchor: .top) }
-                    scrollTarget = nil
-                }
-                .onChange(of: tree.page) { proxy.scrollTo("top", anchor: .top) }
-                .onChange(of: resultCursor) {
-                    guard let key = resultCursor else { return }
-                    withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(key, anchor: .center) }
-                }
-                .onChange(of: model.settingsQuery) {
-                    resultCursor = nil
-                    proxy.scrollTo("top", anchor: .top)
-                }
-                // A row opened from the search: its section first (in case the row is not drawn there), then the row,
-                // once the page is laid out; then the flash fades.
-                .onChange(of: flashed) {
-                    guard let key = flashed else { return }
-                    let section = spotSection
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(80))
-                        if let section { proxy.scrollTo(section, anchor: .top) }
-                        withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(key, anchor: .center) }
-                        try? await Task.sleep(for: .milliseconds(1400))
-                        if flashed == key { flashed = nil }
-                    }
-                }
+                // A page taller than the window starts at its top (shots draw it unscrolled, cut at the foot).
+                .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+                .clipped()
             }
-            // A page taller than the window starts at its top (shots draw it unscrolled, cut at the foot).
-            .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
-            .clipped()
         }
         // Sized by the window, not by the page: the page scrolls inside it.
         .frame(

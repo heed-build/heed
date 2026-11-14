@@ -27,6 +27,7 @@ A red `!` says `config.toml` has a value there heed refused.
 | | **Notifications** | [Notifications](../outside-the-window/notifications.md) when a session needs you (asking, blocked, the grace, the reminder), Attention notifications, quiet hours, once for both, and heed's own [nudges](whats-new.md): what's new after an update, and how often it points at settings worth a look |
 | | **Updates** | Whether heed checks for [updates](updates.md), and whether it asks before installing |
 | **Agents** | **Agents** | Each agent's own settings, in two tabs (see below) |
+| | **Personas** | The [persona library](../agents/personas.md): heed's own and yours, on or off, where each applies and what it joins; Add a persona from your repos |
 | | **Model calls** | Where heed's [model calls and decisions](inference.md) stand and one click to set them up, the switch for every model call, which agent takes them, a **Test**, the limits (timeout, at once, back off, daily calls and dollars), whether the inspector shows a cost and your prices, and the reminder on launch |
 | | **Decisions & Hunch** | The decider and its **Test**, [finding new work's goal](../goals/attach.md) with its two thresholds and `attach.rules`, [Hunch](local-learning.md) (its model, what it keeps, learning from your corrections, how often the Mindmap placed work right) and [screen snapshots](../agents/screen-snapshots.md) |
 | **Work** | **Worktrees** | Where worktrees go, the repo roots, offering to trust repos for agents, what happens after [adding a repo](../worktrees/repos.md#add-or-clone), branch prefixes, Start work's [smart guesses](../start-work/repos.md#smart-guesses), the [cleanup](../worktrees/cleanup.md) settings, and how long [saved work](../worktrees/removing.md#saved-first) is kept |
@@ -146,6 +147,15 @@ plan and resume arguments, its command line flags, profiles and screen patterns,
 part in heed's [model calls](../agents/model-calls.md): whether it takes part, its login, its model, and a **Test**.
 ⌘1 and ⌘2 turn to a tab, and the tab stays as it is for every agent. `:settings.open agents codex model-calls` opens
 codex on its Model calls tab.
+
+## Personas
+
+The [persona library](../agents/personas.md): every persona heed asks for a view, its last seven verdicts, on or off.
+The one under the cursor shows on the right with its evidence and what it joins; `t` tries it on a recent merged PR,
+`e` edits its file, `a` adds one from your repos. It holds no `config.toml` settings: the library is files in
+`~/Library/Application Support/Heed/personas/`, so search and Only modified pass it by.
+
+![Settings › Personas](../images/shots/settings/personas.png)
 
 ## Pilot
 

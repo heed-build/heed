@@ -331,7 +331,7 @@ public enum DefaultKeys {
             ("t", "approvals.deny.reason"), ("gS", "approvals.session"), ("gy", "approvals.open"),
             ("<Esc>", "overlay.close"),
         ],
-    ].merging(WizardKeys.scoped) { own, _ in own }
+    ].merging(WizardKeys.scoped) { own, _ in own }.merging(PersonaKeys.scoped) { own, _ in own }
 
     /// Autopilot's Now (N): the PRs heed works on, stalled first; h l move between the helpers' live tiles above
     /// them (↩ opens one in a split, j k go back to the PRs). A asks Copilot (C is Can do, as in every Autopilot

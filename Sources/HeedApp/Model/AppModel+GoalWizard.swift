@@ -388,11 +388,11 @@ extension AppModel {
     func readPanel(_ goal: String) {
         guard var wizard = goals.wizard.wizard(of: goal), let plan = wizard.plan.current else { return }
         if wizard.panel.seats.isEmpty {
-            let library = Array(goals.personas.library.values)
+            // Who sits comes from the library (Settings › Personas), for the goal's repos.
             wizard.panel.seats = PanelInvites.invite(
                 plan: plan, statement: wizard.plan.turns.first?.text ?? "",
                 repos: planRepos(goal).map { URL(fileURLWithPath: $0).lastPathComponent },
-                teamStyle: PanelInvites.teamStyle(in: library)
+                library: personaLibrary, scope: goalRepoSlugs(goal)
             )
             let seats = wizard.panel.seats
             change(goal) { $0.panel.seats = seats }
@@ -545,7 +545,9 @@ extension AppModel {
             return
         }
         let offered = PanelInvites.candidates(
-            library: Array(goals.personas.library.values).sorted { $0.name < $1.name }, seated: wizard.panel.seats
+            library: personaLibrary.offered(for: goalRepoSlugs(goal)).filter { $0.source != .builtIn }
+                .sorted { $0.name < $1.name },
+            seated: wizard.panel.seats
         )
         if words.isEmpty {
             guard !offered.isEmpty else { return say("everyone heed knows is on the panel") }

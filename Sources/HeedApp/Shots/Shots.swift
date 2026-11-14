@@ -10,7 +10,7 @@ enum Shots {
         hosts +
         github +
         worktrees
-        + diff + history + goals + log + keyboard + outside + configuration
+        + diff + history + goals + log + keyboard + outside + configuration + personaShots
 
     /// Types a sentence (spaces become <Space>).
     static func typed(_ text: String) -> String {
@@ -1008,6 +1008,54 @@ enum Shots {
     green = "auto"
     max_rounds = 5
     """
+
+    /// Settings › Personas: the library with Docs-site maintainer under the cursor, Add a persona with acme's repos
+    /// read,
+    /// and Docs-site maintainer being defined with an agent, tried on a PR.
+    static let personaShots: [Shot] = [
+        Shot(
+            id: "settings/personas", subject: .settings(.personas), size: CGSize(width: 1440, height: 900),
+            prepare: { model in
+                model.loadPersonaLibraryFixture()
+                model.personaUI.setCursor(11, count: 13)
+            }
+        ),
+        Shot(
+            id: "settings/personas-add", subject: .settings(.personas), size: CGSize(width: 1440, height: 900),
+            prepare: { model in
+                model.loadPersonaLibraryFixture()
+                model.personaUI.adding = Shots.addingPersonas()
+            }
+        ),
+        Shot(
+            id: "settings/personas-define", subject: .settings(.personas), size: CGSize(width: 1440, height: 900),
+            prepare: { model in
+                model.loadPersonaLibraryFixture()
+                model.personaUI.adding = Shots.addingPersonas()
+                model.personaUI.defining = [PersonaLibraryFixtures.definition] + Shots.addingPersonas()
+                    .pickedProposals.dropFirst().map { proposal in
+                        PersonaDefinition(start: proposal.persona, agent: "claude", via: "claude via ACP", repo: nil)
+                    }
+            }
+        ),
+    ]
+
+    /// Add a persona with acme's three repos read and five people proposed, the strongest three picked.
+    @MainActor static func addingPersonas() -> PersonaLibraryBrowser.Adding {
+        let now = Clock.now
+        var adding = PersonaLibraryBrowser.Adding(
+            repos: PersonaLibraryFixtures.repos + ["globex/markgraph"], looking: Set(PersonaLibraryFixtures.repos)
+        )
+        adding.done = Set(PersonaDigest.Step.allCases)
+        adding.digest = PersonaLibraryFixtures.digest(now: now)
+        adding.proposals = PersonaProposals.parse(
+            PersonaLibraryFixtures.proposals, repos: PersonaLibraryFixtures.repos,
+            library: PersonaLibrary(files: [:]).personas, now: now
+        )
+        adding.picked = Set(adding.proposals.filter { $0.strength >= 70 }.map(\.id))
+        adding.cost = PersonaCalls.Cost(model: "haiku", dollars: 0.004, seconds: 9)
+        return adding
+    }
 
     static let configuration: [Shot] = [
         Shot(id: "configuration/problem", keys: "", crop: .statusBar, cropPadding: 0, prepare: { model in

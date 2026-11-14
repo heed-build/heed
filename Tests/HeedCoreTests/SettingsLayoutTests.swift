@@ -111,8 +111,8 @@ struct SettingsLayoutTests {
             .section(.notifications, "Approvals"), .section(.notifications, "Attention"),
             .section(.notifications, "Quiet hours"), .section(.notifications, "Nudges"), .page(.updates),
         ])
-        // 5 groups, 16 pages, 5 sections.
-        #expect(lines.count == 5 + 16 + 5)
+        // 5 groups, 17 pages, 5 sections.
+        #expect(lines.count == 5 + 17 + 5)
         // A page with one section lists none.
         #expect(SettingsTree(page: .github).children(of: .page(.github)).isEmpty)
     }

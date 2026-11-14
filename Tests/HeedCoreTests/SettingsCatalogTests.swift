@@ -90,7 +90,8 @@ struct SettingsCatalogTests {
     @Test func idsAreUniqueAndEveryPageHasEntries() {
         let ids = SettingsCatalog.entries.map(\.id)
         #expect(Set(ids).count == ids.count)
-        for page in SettingsPage.allCases {
+        // Personas is the library's files, not config.toml's: it has no entries of its own.
+        for page in SettingsPage.allCases where page != .personas {
             #expect(!SettingsCatalog.entries(on: page).isEmpty, "\(page) has no entries")
         }
         for entry in SettingsCatalog.entries {

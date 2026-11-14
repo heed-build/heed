@@ -65,7 +65,9 @@ or `⌘S` saves it. A file that changes the name moves to the new name's file.
 
 `p` copies (publishes) the persona into the shared library, `~/Library/Application Support/Heed/personas/`, and
 `:persona.use <name>` copies one from the library onto another goal. When the model names a persona the library has,
-the goal gets the library's file instead of a new draft.
+the goal gets the library's file instead of a new draft. Only a library persona that is on and in scope for the goal's
+repos is offered or copied: one scoped to another org never is. The library is Settings ›
+[Personas](../agents/personas.md), where you add personas from your repos and choose what they join.
 
 ## Putting one to work
 

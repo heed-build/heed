@@ -366,7 +366,7 @@ public enum SettingsGroup: String, CaseIterable, Sendable, Identifiable {
 /// The pages, in tree order.
 public enum SettingsPage: String, CaseIterable, Sendable, Identifiable {
     case general, notifications, updates
-    case agents, modelCalls, decisions
+    case agents, personas, modelCalls, decisions
     case worktrees, goals, history
     case github, pilot, orgsAndRepos, attention
     case hosts, tools, keys
@@ -379,6 +379,7 @@ public enum SettingsPage: String, CaseIterable, Sendable, Identifiable {
         case .notifications: "Notifications"
         case .updates: "Updates"
         case .agents: "Agents"
+        case .personas: "Personas"
         case .modelCalls: "Model calls"
         case .decisions: "Decisions & Hunch"
         case .worktrees: "Worktrees"
@@ -397,7 +398,7 @@ public enum SettingsPage: String, CaseIterable, Sendable, Identifiable {
     public var group: SettingsGroup {
         switch self {
         case .general, .notifications, .updates: .heed
-        case .agents, .modelCalls, .decisions: .agents
+        case .agents, .personas, .modelCalls, .decisions: .agents
         case .worktrees, .goals, .history: .work
         case .github, .pilot, .orgsAndRepos, .attention: .github
         case .hosts, .tools, .keys: .machine

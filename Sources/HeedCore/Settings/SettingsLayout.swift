@@ -12,7 +12,7 @@ public extension SettingsPage {
         case .general: ["Sessions", "Outside the window"]
         case .notifications: ["Sessions", "Approvals", "Attention", "Quiet hours", "Nudges"]
         case .updates: ["Updates"]
-        case .agents, .pilot, .orgsAndRepos, .hosts: []
+        case .agents, .personas, .pilot, .orgsAndRepos, .hosts: []
         case .modelCalls: ["Set up", "Model calls", "Limits", "Usage", "Reminder"]
         case .decisions: ["Decisions", "Finding new work's goal", "Hunch", "Local decisions"]
         case .worktrees: ["Worktrees", "Branch names", "Start work", "Cleanup", "Saved work"]
@@ -41,6 +41,8 @@ public extension SettingsPage {
         case .notifications: "When heed taps you on the shoulder: notifications, quiet hours, and its own nudges."
         case .updates: "New versions of heed, signed by its key and notarized by Apple."
         case .agents: "Each agent heed starts: how it runs, what it starts on, and its part in heed's model calls."
+        case .personas: "The people heed asks for a view: in goal panels, and in sessions when you invite them. One "
+            + "library, heed's own and yours."
         case .modelCalls: "heed's own short calls (summaries, drafted replies, goal plans) through an agent CLI you are "
             + "logged in to. No API keys: your logins are used as they are."
         case .decisions: "Who answers heed's typed questions: Apple's on-device model, Hunch, a model call, or no one."

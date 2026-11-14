@@ -58,6 +58,7 @@ This page is generated from the code (`mise run shots`).
 | `go.row` `<delta>` | `j` (wizardgo), `k` (wizardgo), `<Down>` (wizardgo), `<Up>` (wizardgo) | wizard: Go: the row below (1) or above (-1) |
 | `split.move` `<h|j|k|l>` | `h` (splitfold), `l` (splitfold), `j` (splitfold), `k` (splitfold), `<Left>` (splitfold), `<Right>` (splitfold), `<Down>` (splitfold), `<Up>` (splitfold), `h` (wizardsplit), `l` (wizardsplit), `j` (wizardsplit), `k` (wizardsplit), `<Left>` (wizardsplit), `<Right>` (wizardsplit), `<Down>` (wizardsplit), `<Up>` (wizardsplit) | Split: the board's cursor: h l the part before or after in time, j k the agent below or above |
 | `page.move` `<h|j|k|l>` | `h` (goalpage), `l` (goalpage), `j` (goalpage), `k` (goalpage) | the goal's page: h l the part before or after in time, j k the agent below or above (without a part: the goals) |
+| `personas.move` `<1|-1>` | `j` (personaadd), `k` (personaadd), `<Down>` (personaadd), `<Up>` (personaadd), `j` (personas), `k` (personas) | Personas: the persona below (1) or above (-1) |
 
 ## Panes & tabs
 
@@ -189,6 +190,7 @@ This page is generated from the code (`mise run shots`).
 | `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 | `goal.wizard` `[goal]` |  | Goals: walk the goal through the new-goal wizard (plan, panel, done looks like, …); where it was left, it resumes |
 | `goal.tldr` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpage), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (splitdefine), `T` (splitfold), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (unassigned), `T` (wizardcareful), `T` (wizardchat), `T` (wizarddone), `T` (wizardgo), `T` (wizardpanel), `T` (wizardplan), `T` (wizardsplit) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
+| `personas.open` |  | Settings › Personas: the people heed asks for a view, in one library |
 
 ## Modes
 
@@ -507,3 +509,21 @@ This page is generated from the code (`mise run shots`).
 | `page.steer` | `s` (goalpage) | the goal's page: steer the running part: its live helper or worker opens |
 | `page.pick` `<n>` |  | the goal's page: answer your next step with option n |
 | `page.answer` | `i` (goalpage) | the goal's page: type an answer to your next step |
+| `personas.toggle` | `<Space>` (personas) | Personas: turn the persona under the cursor on or off |
+| `personas.try` | `t` (personadefine), `t` (personas) | Personas: try the persona on a recent merged PR in its scope (a cheap model call); defining one: another PR |
+| `personas.edit` | `e` (personas) | Personas: edit the persona's file in place (again, ⎋ or ⌘S: save it) |
+| `personas.share` | `p` (personas) | Personas: copy the persona's file, to send to a teammate |
+| `personas.join` `<panels|pr|plans>` |  | Personas: what the persona joins on its own, on or off |
+| `personas.add` | `a` (personas) | Personas: add one: heed reads your repos and proposes the people they serve (a cheap model call) |
+| `personas.pick` | `<Space>` (personaadd) | Add a persona: pick the proposal under the cursor (again: unpick) |
+| `personas.read` | `r` (personaadd) | Add a persona: read the repos picked again and propose again |
+| `personas.repo` `<repo>` |  | Add a persona: look at a repo, or not |
+| `personas.describe` | `i` (personaadd) | Add a persona: describe one in your words; heed drafts it |
+| `personas.overlap` `<sharpen|keep>` | `s` (personaadd), `b` (personaadd) | Add a persona: a proposal that overlaps one you have: sharpen that one, or keep both |
+| `personas.drafted` | `<M-CR>` (personaadd) | Add a persona: add the picked as drafted, into the library |
+| `personas.define` | `<D-CR>` (personaadd) | Add a persona: define the picked with an agent: an ACP session per persona that reads the repo and writes nothing |
+| `personas.answer` | `i` (personadefine) | defining a persona: type an answer to its agent |
+| `personas.option` `<n>` | `1` (personadefine), `2` (personadefine), `3` (personadefine) | defining a persona: answer with option n |
+| `personas.next` | `n` (personadefine) | defining a persona: the next picked persona |
+| `personas.save` | `<D-CR>` (personadefine) | defining a persona: save it into the library |
+| `personas.close` | `<Esc>` (personaadd), `<Esc>` (personadefine) | Personas: close Add a persona, or the persona being defined (nothing saved) |

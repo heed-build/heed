@@ -516,6 +516,16 @@ public enum Commands {
             "goal.attach", "put the session or chat on a goal (no goal: the command line opens to pick one)",
             .selection, arguments: "<goal>"
         ),
+        .init(
+            "goal.promote",
+            "make the session a goal: what it becomes, its merged PRs done, then its plan step (again or ⎋: close)",
+            .selection
+        ),
+        .init(
+            "goal.promote.go", "Make it a goal: the goal made with the session on it as part 1, its plan step opens",
+            .selection
+        ),
+        .init("goal.promote.dismiss", "not now: the session's \"growing into a goal\" line goes away", .selection),
         .init("goal.detach", "take the session or chat off its goal", .selection),
         .init("goal.archive", "archive the goal (again: bring it back)", .selection),
         .init("goal.open", "Goals: what belongs to the goal; on a session or chat, go to it", .selection),

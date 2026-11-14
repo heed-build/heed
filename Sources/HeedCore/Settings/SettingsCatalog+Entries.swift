@@ -309,6 +309,12 @@ extension SettingsCatalog {
             since: "0.13.0"
         ) { .bool($0.startWork.smartGuesses) },
         global(
+            "start_work.size_check", .worktrees, "Start work", "Size the task",
+            "A longer prompt is sized as you type; one bigger than one session offers a goal (⌘↩), a session (⌥↩) or "
+                + "a chat (⌃↩). Small tasks start as before.",
+            since: "0.42.0"
+        ) { .bool($0.startWork.sizeCheck) },
+        global(
             "cleanup.enabled", .worktrees, "Cleanup", "Remove idle worktrees",
             "No agent output, keystrokes, commits or PR events for idle days. Dirty or unpushed work is never "
                 + "removed.",

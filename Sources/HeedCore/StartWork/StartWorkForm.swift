@@ -29,6 +29,10 @@ public struct StartWorkForm: Sendable {
         case cancel
         /// The key means nothing here (it is swallowed anyway: nothing behind the dialog reacts to it).
         case ignored
+        /// ⌘↩ on a longer prompt not sized yet: the app sizes it now, then starts or shows the card (`sized`).
+        case sizeFirst
+        /// Make it a goal (⌘↩ on the sizing card): the app makes the goal and opens its wizard.
+        case goal(StartGoal)
     }
 
     public private(set) var field: Field = .prompt
@@ -56,6 +60,16 @@ public struct StartWorkForm: Sendable {
     public var hints = StartWorkHints()
     /// A question is out to the model: the dialog shows it, subtly.
     public var thinking = false
+    /// `[start_work] size_check`, and the app can ask: longer prompts are sized (`TaskSizer`).
+    public var sizeCheck = false
+    /// The latest sizing; the card shows while it says goal (`showsSizeCard`).
+    public internal(set) var sizing: TaskSizing?
+    /// The prompt (`TaskSizer.key`) sized last, with or without an answer: ⌘↩ does not wait for it again.
+    public internal(set) var sizedPrompt: String?
+    /// ⌘↩ is waiting for the size of the prompt: the next answer starts the work or shows the card.
+    public internal(set) var waitingForSize = false
+    /// The sizing the card was put away for (⌥↩, or moving to the fields): it does not come back for that prompt.
+    var sizingSetAside: String?
     /// What Start work guessed, before you changed anything: recorded with what you chose (`StartWorkOutcome`).
     public private(set) var guessedRepo: String?
     public private(set) var guessedName = ""
@@ -394,7 +408,12 @@ public struct StartWorkForm: Sendable {
 
     public mutating func handle(_ stroke: KeyStroke) -> Outcome {
         error = nil
+        if showsSizeCard, let outcome = answerSizeCard(stroke) { return outcome }
         if stroke == KeyStroke("CR", .command) {
+            if let key = sizeQuestion, sizedPrompt != key, !waitingForSize, canStart {
+                waitingForSize = true
+                return .sizeFirst
+            }
             guard canStart else {
                 error = cannotStart
                 return .handled

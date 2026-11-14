@@ -140,7 +140,21 @@ public struct TLDRInputs: Hashable, Sendable {
                 + (unchecked == 0 ? "all checkable" : "\(unchecked) vague"),
             detail: Checkability.kinds(criteria)
         ))
-        for step in [WizardStep.split, .careful, .go] {
+        if let split = wizard.split, split.drafted {
+            let schedule = SplitSchedule.make(split.parts)
+            let agents = Set(split.active.compactMap(\.agent)).count
+            steps.append(WizardStepSummary(
+                step: .split,
+                headline: "\(split.active.count) part\(split.active.count == 1 ? "" : "s") · \(agents) agent"
+                    + (agents == 1 ? "" : "s"),
+                detail: "\(SplitSchedule.text(schedule.makespan)) together · \(SplitSchedule.text(schedule.alone)) alone"
+            ))
+        } else {
+            steps.append(WizardStepSummary(
+                step: .split, headline: wizard.state(of: .split) == .done ? "done" : "not yet", detail: "not split yet"
+            ))
+        }
+        for step in [WizardStep.careful, .go] {
             steps.append(WizardStepSummary(
                 step: step, headline: wizard.state(of: step) == .done ? "done" : "not yet",
                 detail: step.built ? "" : "on the goal's page for now"

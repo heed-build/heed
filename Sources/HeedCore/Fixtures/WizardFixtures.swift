@@ -213,6 +213,10 @@ public enum WizardFixtures {
             "proposed": true}, \
             {"text": "old links feel fast", "check": "none"}], "notTheGoal": ["search index", "renaming headings"]}
             """
+        case "wizard split":
+            text = SplitFixtures.splitJSON(small: !request.call.prompt.contains("Schema v2"))
+        case "wizard split part":
+            text = SplitFixtures.halvesJSON
         case "wizard replacements":
             text = "{\"replacements\": [\(replacements.map { "\"\($0)\"" }.joined(separator: ", "))]}"
         default:

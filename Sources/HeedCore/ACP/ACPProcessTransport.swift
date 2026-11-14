@@ -14,6 +14,10 @@ public final class ACPProcessTransport: ACPTransport, @unchecked Sendable {
     private var buffer = Data()
     private var errorTail: [String] = []
     private var ended = false
+    /// Left when the agent's stderr reaches its end: its output's end waits for that (briefly), so the reason it gives
+    /// for ending has the last lines it wrote there. The two pipes are read on their own queues, in no set order.
+    private let errorsDone = DispatchGroup()
+    private var errorsEnded = false
 
     /// Starts `executable` with `arguments` in `directory`. Throws when it does not start.
     public init(
@@ -36,6 +40,7 @@ public final class ACPProcessTransport: ACPTransport, @unchecked Sendable {
             self?.readErrors(data)
         }
         // Normally its output's end finishes the lines; this is for a child that keeps the pipe open after it exits.
+        errorsDone.enter()
         process.terminationHandler = { [weak self] _ in
             DispatchQueue.global().asyncAfter(deadline: .now() + 1) { self?.finish() }
         }
@@ -71,7 +76,11 @@ public final class ACPProcessTransport: ACPTransport, @unchecked Sendable {
             lock.unlock()
             if let line = String(data: rest, encoding: .utf8), !line.isEmpty { sink.yield(line) }
             output.fileHandleForReading.readabilityHandler = nil
-            finish()
+            let errorsDone = errorsDone
+            DispatchQueue.global().async { [weak self] in
+                _ = errorsDone.wait(timeout: .now() + 1)
+                self?.finish()
+            }
             return
         }
         lock.lock()
@@ -91,6 +100,11 @@ public final class ACPProcessTransport: ACPTransport, @unchecked Sendable {
     private func readErrors(_ data: Data) {
         guard !data.isEmpty else {
             errors.fileHandleForReading.readabilityHandler = nil
+            lock.lock()
+            let first = !errorsEnded
+            errorsEnded = true
+            lock.unlock()
+            if first { errorsDone.leave() }
             return
         }
         guard let text = String(data: data, encoding: .utf8) else { return }

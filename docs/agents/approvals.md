@@ -102,6 +102,25 @@ it in the pane, its turn ended, or its hook went away. `wait_seconds = 0` keeps 
 wait_seconds = 120
 ```
 
+### When heed is slow or restarts
+
+A hook never holds its agent up for longer than it says, and never loses an answer you gave:
+
+- heed says it has a request as soon as it is in the list. A hook that hears nothing within 2 seconds (heed is not
+  running, or too busy to take it) lets the agent ask in its pane at once.
+- Once heed has it, the hook waits for your answer, at most `wait_seconds`, and never past its own limit (290
+  seconds, under the agent's 300 second hook timeout), however the reply comes in.
+- If the connection drops while it waits (heed restarting, a hiccup), the hook connects again and sends the same
+  request for up to 5 seconds. heed keeps each request by its id: the request is not listed twice, an answer you
+  already gave goes back at once, and no request is answered twice. A hook that does not come back within that time
+  has stopped waiting, and its request leaves the list.
+- Many agents asking at once are each answered on their own: a request nobody has answered holds up no other.
+
+When a request goes back to the agent's pane for one of these reasons, heed says why on the pane's strip and on the
+request in the list ("heed did not take the request in time", "the hook waited as long as it may", "nobody answered in
+heed within wait_seconds"), and the [call log](../reference/call-log.md) records it as a decision from
+`approvals.fallback`.
+
 ### Always in this repo
 
 `a` allows the request and saves the allow rule Claude Code offered with it (its `permission_suggestions`) to the

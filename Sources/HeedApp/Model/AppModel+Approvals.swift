@@ -13,7 +13,8 @@ final class ApprovalsLive {
     /// Blocked sessions whose prompt heed just pressed Return on: not shown again until their next hook moves them on,
     /// so a second y never presses Return on whatever came next.
     var pressed: [String: Date] = [:]
-    @ObservationIgnored var waiters: [String: CheckedContinuation<PermissionAnswer, Never>] = [:]
+    /// The hooks waiting on each ask and the answers given, by ask id: a hook back after a drop rejoins its ask.
+    @ObservationIgnored let broker = PermissionBroker()
 }
 
 /// One place to answer what agents ask (`gy`): the modal, its keys, and the round trip to the hook that waits.
@@ -62,33 +63,67 @@ extension AppModel {
     // MARK: The round trip
 
     /// A permission hook's ask: kept in the queue until you answer it, the hook goes away, the agent moves on, or
-    /// `[approvals] wait_seconds` pass (then a pass, and the agent asks in its pane). Suspends; never blocks.
+    /// `[approvals] wait_seconds` pass (then a pass, and the agent asks in its pane). The hook hears a receipt as soon
+    /// as the ask is queued. The same ask again (its hook lost the connection and came back) joins the first, or gets
+    /// the answer already given. Suspends; never blocks.
     func controlPermission(_ request: ControlRequest) async -> ControlReply {
         guard var ask = request.permission else { return .failure("permission needs an ask") }
         let pass = ControlReply(permission: .pass, permissionID: ask.id)
         // Only a session heed runs, and only the one the hook ran in.
         guard request.session == ask.session, sessions.contains(where: { $0.id == ask.session }) else { return pass }
+        if let fallback = request.fallback {
+            permissionFellBack(ask, fallback)
+            return ControlReply(permissionID: ask.id)
+        }
         let wait = config.approvals.waitSeconds
         guard wait > 0, !isFixture, !PermissionAsk.isQuestion(tool: ask.tool) else { return pass }
-        ask.channel = .hook
-        if let earlier = approvals.waiters.removeValue(forKey: ask.id) { earlier.resume(returning: .pass) }
-        approvals.queue.add(ask)
         let id = ask.id
-        let answer = await withCheckedContinuation { continuation in
-            approvals.waiters[id] = continuation
+        let broker = approvals.broker
+        switch broker.join(id) {
+        case let .answered(answer): return ControlReply(permission: answer, permissionID: id)
+        case .rejoined: break
+        case .new:
+            ask.channel = .hook
+            approvals.queue.add(ask)
             Task { [weak self] in
                 try? await Task.sleep(for: .seconds(wait))
-                self?.resolvePermission(id, .pass)
+                guard let self, broker.isOpen(id) else { return }
+                permissionFellBack(ask, .heedWait)
             }
         }
-        return ControlReply(permission: answer, permissionID: id)
+        ControlServer.receipt(id)
+        return await ControlReply(permission: broker.wait(id), permissionID: id)
     }
 
     /// Answers one hook ask, once: the queue lets go of it and its hook hears the answer.
     func resolvePermission(_ id: String, _ answer: PermissionAnswer) {
         approvals.queue.remove([id])
-        approvals.waiters.removeValue(forKey: id)?.resume(returning: answer)
+        approvals.broker.resolve(id, answer)
         clampApprovalCursor()
+    }
+
+    /// The connection a hook waited on closed. It may come back (heed's side of a hiccup): only when no hook has
+    /// rejoined the ask a moment later has the agent stopped waiting, and the ask leaves the queue.
+    func permissionHookLeft(_ id: String) {
+        guard approvals.broker.detach(id) else { return }
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(PermissionHook.rejoinWait + 1))
+            guard let self, approvals.broker.abandoned(id),
+                  let ask = approvals.queue.asks.first(where: { $0.id == id })
+            else { return }
+            permissionFellBack(ask, .hookLeft)
+        }
+    }
+
+    /// The ask went back to the agent's pane: answered with a pass, the reason kept for its session's screen ask
+    /// and written to the call log.
+    func permissionFellBack(_ ask: PermissionAsk, _ reason: PermissionFallback) {
+        let open = approvals.broker.isOpen(ask.id) || approvals.queue.asks.contains { $0.id == ask.id }
+        resolvePermission(ask.id, .pass)
+        // Heed's own reasons count only for an ask still open; the hook's always do (heed may never have seen it).
+        guard open || reason.reportedByHook else { return }
+        approvals.queue.fellBack(ask.session, reason)
+        CallLog.record(reason.logged(ask, at: Clock.now))
     }
 
     /// A hook message that shows an ask was answered elsewhere (in the pane, the turn moved on): it leaves the queue.

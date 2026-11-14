@@ -263,7 +263,8 @@ struct ApprovalStrip: View {
                 stripButton("Allow") { model.answer(group, PermissionAnswer(.allow)) }
                 stripButton("Deny") { model.answer(group, PermissionAnswer(.deny)) }
             } else {
-                Text("answer in the pane below").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                Text("answer in the pane below" + (ask.fellBack.map { " · \($0.text)" } ?? ""))
+                    .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
             }
             KeyHint("approvals.open") {
                 Text(model.approvalGroups.count > 1 ? "all \(model.approvalGroups.count)" : "approvals")
@@ -349,6 +350,7 @@ enum ApprovalText {
         var parts: [String] = []
         if let why = group.first.why { parts.append("\"\(why)\".") }
         if group.deniedBefore { parts.append("It asked this before and you said no.") }
+        if let fellBack = group.first.fellBack { parts.append("It asks in its pane: \(fellBack.text).") }
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 

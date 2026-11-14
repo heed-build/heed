@@ -313,6 +313,7 @@ public struct HelperRun: Identifiable, Hashable, Sendable {
         case .agentThought, .userMessage, .other:
             return
         case let .toolCall(call):
+            let call = local(call)
             var tool = HelperTool(
                 id: call.id, title: call.title ?? "a tool call", kind: call.kind ?? .other,
                 status: call.status ?? .pending, paths: call.paths ?? []
@@ -325,6 +326,7 @@ public struct HelperRun: Identifiable, Hashable, Sendable {
             }
             recount()
         case let .toolCallUpdate(call):
+            let call = local(call)
             guard let index = toolIndex(call.id), case var .tool(tool) = feed[index].body else {
                 // An update for a call heed never saw announced is the call.
                 var call = call
@@ -354,6 +356,8 @@ public struct HelperRun: Identifiable, Hashable, Sendable {
 
     /// The agent asks before running a tool call.
     public mutating func ask(_ request: ACPPermissionRequest, id: JSONValue, at time: Date) {
+        var request = request
+        request.toolCall = local(request.toolCall)
         let title = request.toolCall.title ?? toolIndex(request.toolCall.id).flatMap { index -> String? in
             if case let .tool(tool) = feed[index].body { return tool.title }
             return nil
@@ -383,6 +387,43 @@ public struct HelperRun: Identifiable, Hashable, Sendable {
         feed.append(HelperEntry(id: "\(id)-\(feed.count)", at: time, body: body))
     }
 
+    /// A path as the feed shows it: relative to the helper's worktree when it is in it. Claude Code's adapter names
+    /// every file absolutely (`Edit /Users/…/get-it-green-fix/src/a.cs`), in titles, locations and diffs alike, and
+    /// on macOS a worktree under /tmp or /var comes back as /private/….
+    public func local(_ path: String) -> String {
+        for root in roots {
+            if path == root { return "." }
+            if path.hasPrefix(root + "/") { return String(path.dropFirst(root.count + 1)) }
+        }
+        return path
+    }
+
+    /// A tool call with its paths, its diffs' paths and the paths in its title made relative to the worktree.
+    func local(_ call: ACPToolCall) -> ACPToolCall {
+        guard !roots.isEmpty else { return call }
+        var call = call
+        call.paths = call.paths?.map(local)
+        call.content = call.content?.map { item in
+            if case let .diff(path, old, new) = item { return .diff(path: local(path), oldText: old, newText: new) }
+            return item
+        }
+        if var title = call.title {
+            for root in roots {
+                title = title.replacingOccurrences(of: root + "/", with: "")
+            }
+            call.title = title
+        }
+        return call
+    }
+
+    /// The worktree as an agent may spell it, longest first.
+    private var roots: [String] {
+        let trimmed = worktree.hasSuffix("/") ? String(worktree.dropLast()) : worktree
+        guard trimmed.hasPrefix("/"), trimmed.count > 1 else { return [] }
+        let other = trimmed.hasPrefix("/private/") ? String(trimmed.dropFirst("/private".count)) : "/private" + trimmed
+        return [trimmed, other].sorted { $0.count > $1.count }
+    }
+
     private func toolIndex(_ id: String) -> Int? {
         feed.lastIndex { entry in
             if case let .tool(tool) = entry.body { return tool.id == id }
@@ -395,11 +436,25 @@ public struct HelperRun: Identifiable, Hashable, Sendable {
             switch item {
             case let .diff(path, old, new): tool.diffs.append(HelperDiff(path: path, oldText: old, newText: new))
             case let .text(text):
-                let lines = text.split(whereSeparator: \.isNewline).prefix(4)
+                let lines = Self.unfenced(text).split(whereSeparator: \.isNewline).prefix(4)
                 if !lines.isEmpty { tool.output = lines.joined(separator: "\n") }
             case .terminal: break
             }
         }
+    }
+
+    /// Text without the Markdown code fence it came in: Claude Code's adapter sends a tool's output as
+    /// "```\n…\n```", and the fence lines are no output of the tool's.
+    static func unfenced(_ text: String) -> String {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        guard let first = lines.first, first.trimmingCharacters(in: .whitespaces).hasPrefix("```") else { return text }
+        lines.removeFirst()
+        if let last = lines.lastIndex(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }),
+           lines[last].trimmingCharacters(in: .whitespaces) == "```"
+        {
+            lines.removeSubrange(last...)
+        }
+        return lines.joined(separator: "\n")
     }
 
     /// The files, from every diff in the feed: lines added and removed per path, as reported. Once it is done, git's

@@ -18,6 +18,9 @@
   a state change, not when a PR event arrives. Attention is asked for (badge, `ga`, a notification), never taken.
 
 - Read `PLAN.md` first; the brief is `design/BRIEF.md`, the boards `design/screens/*.png`.
+- `mise run live` (`HEED_LIVE=1`) runs the live checks in `Tests/HeedCoreTests/Live`: helpers, approvals and
+  OpenTelemetry against real Claude Code on haiku, in throwaway repos. They call a model, so `mise run test` and CI skip
+  them; turn what they capture into a scrubbed fixture under `Fixtures/live` when the agents change.
 - `mise run test` and `mise run lint` before committing. Core logic goes in `HeedCore` with tests; the app layer
   stays thin.
 - Never block the main actor: no `Process.waitUntilExit`, file or network IO on it.

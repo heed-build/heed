@@ -22,7 +22,10 @@ agent asks before running something (`session/request_permission`), heed shows t
 answers the agent offers.
 
 heed offers the agent neither its file system nor terminals: the agent reads, edits and runs commands in its own
-worktree itself, and asks heed's permission the way it is set up to.
+worktree itself, and asks heed's permission the way it is set up to. Claude's adapter starts its session in Claude
+Code's auto mode unless `permissions.defaultMode` in your Claude settings names another, so a claude helper asks only
+what auto mode leaves to you. Files are named relative to the helper's worktree (`src/a.cs`), though the agent reports
+them in full.
 
 ## Which agent
 

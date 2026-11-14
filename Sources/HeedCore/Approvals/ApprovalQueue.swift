@@ -8,6 +8,8 @@ public struct ApprovalQueue: Equatable, Sendable {
     public private(set) var asks: [PermissionAsk] = []
     /// What you answered lately, by `PermissionAsk.key`: "asked before and you said no".
     public private(set) var answered: [Answered] = []
+    /// Why a session's last hook ask went back to its pane, by session: shown on its screen ask while it is blocked.
+    public private(set) var fallbacks: [String: PermissionFallback] = [:]
 
     public struct Answered: Equatable, Sendable {
         public var key: String
@@ -24,8 +26,9 @@ public struct ApprovalQueue: Equatable, Sendable {
 
     public var isEmpty: Bool { asks.isEmpty }
 
-    /// Adds a hook ask; one with the same id replaces it.
+    /// Adds a hook ask; one with the same id replaces it. A new ask clears its session's last fallback.
     public mutating func add(_ ask: PermissionAsk) {
+        fallbacks[ask.session] = nil
         if let index = asks.firstIndex(where: { $0.id == ask.id }) { asks[index] = ask } else { asks.append(ask) }
     }
 
@@ -35,6 +38,11 @@ public struct ApprovalQueue: Equatable, Sendable {
         let gone = asks.filter { ids.contains($0.id) }
         asks.removeAll { ids.contains($0.id) }
         return gone
+    }
+
+    /// The session's hook ask went back to its pane, for this reason.
+    public mutating func fellBack(_ session: String, _ reason: PermissionFallback) {
+        fallbacks[session] = reason
     }
 
     /// Remembers an answer to these asks (a pass is not an answer).
@@ -75,7 +83,11 @@ public struct ApprovalQueue: Equatable, Sendable {
     public func screenAsks(_ sessions: [Session], now: Date) -> [PermissionAsk] {
         let hooked = Set(asks.map(\.session))
         return sessions.filter { $0.state.state == .blocked && !hooked.contains($0.id) }
-            .map { PermissionAsk.screen($0, now: now) }
+            .map { session in
+                var ask = PermissionAsk.screen(session, now: now)
+                ask.fellBack = fallbacks[session.id]
+                return ask
+            }
     }
 
     /// Everything waiting, as groups, oldest first. `roots` gives a session's worktrees, for the risk tags.

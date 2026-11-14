@@ -36,17 +36,89 @@ public enum PermissionHook {
         )
     }
 
-    /// Sends `ask` to heed and waits for the answer; `.pass` on anything but an answer to this ask.
+    /// How long a hook waits for heed's receipt before it lets the agent ask in its pane: heed is not there or too
+    /// busy to take the ask.
+    public static let receiptWait: TimeInterval = 2
+    /// How long a hook tries to get back to heed when its connection drops after a receipt (heed restarting, a
+    /// hiccup), re-sending the same ask, before the agent asks in its pane.
+    public static let rejoinWait: TimeInterval = 5
+
+    /// Sends `ask` to heed and waits for the answer; `.pass` on anything but an answer to this ask. When the hook
+    /// gives up on its own (no receipt, its ceiling, heed gone), it tells heed why, so heed can show it.
     public static func wait(
-        for ask: PermissionAsk, socket: String = HeedControl.socketPath(), ceiling: TimeInterval = ceiling
+        for ask: PermissionAsk, socket: String = HeedControl.socketPath(), ceiling: TimeInterval = ceiling,
+        receiptWait: TimeInterval = receiptWait, rejoinWait: TimeInterval = rejoinWait
     ) -> PermissionAnswer {
-        guard let client = try? ControlClient(path: socket) else { return .pass }
-        client.readTimeout(ceiling)
+        let outcome = exchange(
+            ask, socket: socket, ceiling: ceiling, receiptWait: receiptWait, rejoinWait: rejoinWait
+        )
+        if let fallback = outcome.fallback, fallback != .notRunning {
+            report(fallback, for: ask, socket: socket)
+        }
+        return outcome.answer
+    }
+
+    /// The round trip itself, never longer than `ceiling` all told: connect, send the ask, wait for heed's receipt
+    /// (up to `receiptWait`), then for the answer. A connection that drops after a receipt is made again and the same
+    /// ask re-sent (heed keeps answers by ask id, so it is neither asked twice nor answered twice), for up to
+    /// `rejoinWait` after the drop.
+    public static func exchange(
+        _ ask: PermissionAsk, socket: String, ceiling: TimeInterval, receiptWait: TimeInterval = receiptWait,
+        rejoinWait: TimeInterval = rejoinWait
+    ) -> (answer: PermissionAnswer, fallback: PermissionFallback?) {
+        let clock = ContinuousClock()
+        let deadline = clock.now + .seconds(ceiling)
         let request = ControlRequest(method: .permission, session: ask.session, pane: ask.pane, permission: ask)
-        guard let reply = try? client.call(request), reply.ok, reply.permissionID == ask.id,
-              let answer = reply.permission
-        else { return .pass }
-        return answer
+        // Set when a connection that had a receipt dropped: the rejoin window runs from then.
+        var lostAt: ContinuousClock.Instant?
+        while true {
+            let window = lostAt.map { $0 + .seconds(rejoinWait) } ?? clock.now + .seconds(receiptWait)
+            let receiptBy = min(window, deadline)
+            guard clock.now < receiptBy else {
+                return (.pass, lostAt == nil ? .noReceipt : clock.now >= deadline ? .ceiling : .lostHeed)
+            }
+            var received = false
+            do {
+                let client = try ControlClient(path: socket, deadline: receiptBy)
+                let id = try client.send(request)
+                while true {
+                    let reply = try client.next()
+                    if reply.received == ask.id, !received {
+                        received = true
+                        lostAt = nil
+                        client.deadline = deadline
+                    }
+                    guard reply.id == id else { continue }
+                    guard reply.ok, reply.permissionID == ask.id, let answer = reply.permission else { return (
+                        .pass,
+                        nil
+                    ) }
+                    return (answer, nil)
+                }
+            } catch ControlClientError.notRunning {
+                // Heed is not there: at once the first time; while rejoining, try again until the window closes.
+                guard lostAt != nil else { return (.pass, .notRunning) }
+                Thread.sleep(forTimeInterval: 0.1)
+            } catch ControlClientError.timedOut {
+                if received || clock.now >= deadline { return (.pass, .ceiling) }
+                return (.pass, lostAt == nil ? .noReceipt : .lostHeed)
+            } catch {
+                // The connection dropped. Rejoin when heed had the ask (or already lost it once); before any receipt,
+                // heed is not taking asks.
+                if received { lostAt = clock.now } else if lostAt == nil { return (.pass, .lostHeed) }
+                if !received { Thread.sleep(forTimeInterval: 0.1) }
+            }
+        }
+    }
+
+    /// Tells heed this ask fell back to the agent's pane, and why: one line on a new connection, never waited on for
+    /// more than a moment.
+    static func report(_ fallback: PermissionFallback, for ask: PermissionAsk, socket: String) {
+        let deadline = ContinuousClock.now + .milliseconds(500)
+        guard let client = try? ControlClient(path: socket, deadline: deadline) else { return }
+        _ = try? client.send(ControlRequest(
+            method: .permission, session: ask.session, pane: ask.pane, permission: ask, fallback: fallback
+        ))
     }
 
     /// What the hook prints for `answer` (the agent's `hookSpecificOutput`); nil for a pass, which prints nothing.
@@ -73,5 +145,45 @@ public enum PermissionHook {
         }
         let output = ["hookSpecificOutput": ["hookEventName": "PermissionRequest", "decision": decision]]
         return try? JSONSerialization.data(withJSONObject: output, options: [.sortedKeys, .withoutEscapingSlashes])
+    }
+}
+
+/// Why a permission ask went back to the agent's own pane instead of being answered in heed.
+public enum PermissionFallback: String, Codable, Sendable, CaseIterable {
+    /// Heed was not running.
+    case notRunning
+    /// Heed did not say it had the ask within `PermissionHook.receiptWait`: it is not taking asks, or too busy.
+    case noReceipt
+    /// The connection to heed dropped and the hook could not get back within `PermissionHook.rejoinWait`.
+    case lostHeed
+    /// The hook waited as long as it may (`PermissionHook.ceiling`).
+    case ceiling
+    /// Nobody answered in heed within `[approvals] wait_seconds`.
+    case heedWait
+    /// The hook went away without coming back: the agent stopped waiting on it.
+    case hookLeft
+
+    /// Why, in words for the approvals and the pane's strip.
+    public var text: String {
+        switch self {
+        case .notRunning: "heed was not running"
+        case .noReceipt: "heed did not take the request in time"
+        case .lostHeed: "the hook lost heed and could not get back"
+        case .ceiling: "the hook waited as long as it may"
+        case .heedWait: "nobody answered in heed within wait_seconds"
+        case .hookLeft: "the agent stopped waiting on heed"
+        }
+    }
+
+    /// The hook gave up on its own and says so; the rest heed decides itself.
+    public var reportedByHook: Bool { [.notRunning, .noReceipt, .lostHeed, .ceiling].contains(self) }
+
+    /// The call log's row for an ask that fell back.
+    public func logged(_ ask: PermissionAsk, at: Date) -> LoggedCall {
+        LoggedCall(
+            at: at, kind: .decide, caller: "approvals.fallback", command: "ask in the pane", duration: 0,
+            operation: "fallback \(rawValue)", agent: ask.agent,
+            detail: ["ask": ask.id, "session": ask.session, "tool": ask.tool, "reason": text]
+        )
     }
 }

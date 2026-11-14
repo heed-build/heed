@@ -49,6 +49,8 @@ public struct PermissionAsk: Codable, Hashable, Sendable, Identifiable {
     /// For a helper ask: the answers its agent offered (allow once, allow always, reject); what is sent back is one of
     /// their ids.
     public var options: [ACPPermissionRequest.Option]
+    /// For a screen ask: why its hook ask went back to the pane, when heed knows.
+    public var fellBack: PermissionFallback?
 
     public init(
         id: String, session: String, pane: String? = nil, agent: String, subagent: String? = nil, tool: String,

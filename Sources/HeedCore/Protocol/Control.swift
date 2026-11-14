@@ -27,7 +27,8 @@ public enum HeedControl {
 /// - `goal`: `goal` (a `heed goal` command), `session` (the calling pane's session, when there is one) and `pane`.
 ///   Answered with `goal` in the reply.
 /// - `permission`: `permission` (a permission hook's ask), `session` and `pane`. Answered once you answer it in heed,
-///   or with a pass when heed will not (`PermissionHook`).
+///   or with a pass when heed will not (`PermissionHook`). Heed first sends a line with only `received` (the ask's id)
+///   as soon as the ask is in its queue. With `fallback` set it is a notice that the hook gave up, answered at once.
 public struct ControlRequest: Codable, Equatable, Sendable {
     public enum Method: String, Codable, Sendable {
         case sessions, watch, start, send, show, goal, memory, permission
@@ -47,12 +48,16 @@ public struct ControlRequest: Codable, Equatable, Sendable {
     public var pane: String?
     /// `permission`: what the agent's permission hook asks.
     public var permission: PermissionAsk?
+    /// `permission`, sent after the hook gave up: why the agent asks in its pane instead (nothing is answered).
+    public var fallback: PermissionFallback?
 
     public init(
         id: Int? = nil, method: Method, session: String? = nil, directory: String? = nil, agent: String? = nil,
         prompt: String? = nil, arguments: [String]? = nil, text: String? = nil, focus: Bool? = nil,
-        goal: GoalCommand? = nil, pane: String? = nil, permission: PermissionAsk? = nil
+        goal: GoalCommand? = nil, pane: String? = nil, permission: PermissionAsk? = nil,
+        fallback: PermissionFallback? = nil
     ) {
+        self.fallback = fallback
         self.permission = permission
         self.pane = pane
         self.id = id
@@ -138,12 +143,15 @@ public struct ControlReply: Codable, Equatable, Sendable {
     /// `permission`: the answer, and the id of the ask it answers.
     public var permission: PermissionAnswer?
     public var permissionID: String?
+    /// `permission`: a receipt, before the answer and without an `id`: heed has this ask (its id) in its queue.
+    public var received: String?
 
     public init(
         id: Int? = nil, ok: Bool = true, error: String? = nil, session: String? = nil,
         sessions: [ControlSession]? = nil, event: String? = nil, goal: GoalReply? = nil, memory: String? = nil,
-        permission: PermissionAnswer? = nil, permissionID: String? = nil
+        permission: PermissionAnswer? = nil, permissionID: String? = nil, received: String? = nil
     ) {
+        self.received = received
         self.permission = permission
         self.permissionID = permissionID
         self.memory = memory
@@ -180,13 +188,15 @@ public enum ControlCoding {
 
 /// Serves the control socket. Requests go to `handler` (the app's, on the main actor) and its reply is written back;
 /// `publish` sends the session list to every watcher when it differs from the last one sent. Reading and writing
-/// happen on a private queue.
+/// happen on a private queue that never waits on a handler: each request is its own task, so a slow one (a permission
+/// ask waiting on you) holds up no other connection, and the accept loop never waits on any.
 public final class ControlServer: @unchecked Sendable {
     public typealias Handler = @Sendable (ControlRequest) async -> ControlReply
 
     public let path: String
     private let handler: Handler
-    private let queue = DispatchQueue(label: "heed.control")
+    /// User-initiated: a reply is someone waiting (a hook holding up its agent, a command in a terminal).
+    private let queue = DispatchQueue(label: "heed.control", qos: .userInitiated)
     private var listener: Int32 = -1
     private var acceptSource: DispatchSourceRead?
     private var clients: [Int32: (source: DispatchSourceRead, pending: Data, serial: Int)] = [:]
@@ -230,7 +240,9 @@ public final class ControlServer: @unchecked Sendable {
             throw HookServerError.system("bind", errno)
         }
         chmod(path, 0o600)
-        guard listen(fd, 16) == 0 else {
+        // As deep as the system allows: on macOS a full backlog refuses a connection, which a hook reads as heed not
+        // running, so a burst of asks must not fill it.
+        guard listen(fd, SOMAXCONN) == 0 else {
             close(fd)
             throw HookServerError.system("listen", errno)
         }
@@ -313,11 +325,38 @@ public final class ControlServer: @unchecked Sendable {
         }
         let handler = handler
         let serial = clients[fd]?.serial
-        if request.method == .permission, let id = request.permission?.id { waitingAsks[fd] = id }
-        Task { [weak self] in
-            var reply = await handler(request)
+        if request.method == .permission, request.fallback == nil, let id = request.permission?.id {
+            waitingAsks[fd] = id
+        }
+        let interim = Interim { [weak self] reply in self?.interim(reply, to: fd, serial: serial) }
+        // Its own high priority rather than whatever the queue's thread passes on: when the cooperative pool is busy
+        // (a loaded machine, many tasks queued at the default priority) the reply still goes first, so an answer is
+        // never held back past a hook's ceiling behind work nobody is waiting on.
+        Task(priority: .high) { [weak self] in
+            var reply = await ControlServer.$current.withValue(interim) { await handler(request) }
             reply.id = request.id
             self?.answer(request, with: reply, to: fd, serial: serial)
+        }
+    }
+
+    /// Lets a handler send a line before its reply, on the connection whose request it handles.
+    struct Interim: Sendable {
+        let send: @Sendable (ControlReply) -> Void
+    }
+
+    @TaskLocal static var current: Interim?
+
+    /// From inside a `permission` handler: tells the hook that asked that heed has its ask (`received`), before the
+    /// answer. Does nothing outside a handler.
+    public static func receipt(_ askID: String) {
+        current?.send(ControlReply(received: askID))
+    }
+
+    private func interim(_ reply: ControlReply, to fd: Int32, serial: Int?) {
+        queue.async { [self] in
+            guard let client = clients[fd], client.serial == serial, let data = try? ControlCoding.line(reply)
+            else { return }
+            send(data, to: fd)
         }
     }
 
@@ -359,54 +398,103 @@ public final class ControlServer: @unchecked Sendable {
     }
 }
 
-/// A blocking client for one-shot requests (`heed sessions`) and watches (`heed watch`).
+/// A blocking client for one-shot requests (`heed sessions`), watches (`heed watch`) and a permission hook's wait. With
+/// a `deadline`, nothing it does (connecting, writing, each read, however the reply comes in pieces) goes past it: it
+/// throws `timedOut` there.
 public final class ControlClient {
     private let fd: Int32
     private var pending = Data()
     private var nextID = 1
+    /// When every call gives up; nil waits as long as heed takes.
+    public var deadline: ContinuousClock.Instant?
 
-    public init(path: String = HeedControl.socketPath()) throws {
+    public init(path: String = HeedControl.socketPath(), deadline: ContinuousClock.Instant? = nil) throws {
+        self.deadline = deadline
+        // A refusal while the socket is there is a full backlog (heed busy accepting a burst), not heed gone: with a
+        // deadline, try again (on a fresh socket) for a moment.
+        let retryUntil = deadline.map { min($0, ContinuousClock.now + .milliseconds(500)) }
+        while true {
+            let (fd, code) = try Self.connect(path, deadline: deadline)
+            if let fd {
+                self.fd = fd
+                return
+            }
+            guard code == ECONNREFUSED, let retryUntil, ContinuousClock.now < retryUntil,
+                  FileManager.default.fileExists(atPath: path)
+            else { throw ControlClientError.notRunning(path, code) }
+            Thread.sleep(forTimeInterval: 0.01)
+        }
+    }
+
+    /// A connected, non-blocking socket, or the errno that refused it.
+    private static func connect(
+        _ path: String, deadline: ContinuousClock.Instant?
+    ) throws -> (fd: Int32?, code: Int32) {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw HookServerError.system("socket", errno) }
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+        // Non-blocking throughout: every wait is a poll bounded by the deadline.
+        _ = fcntl(fd, F_SETFL, O_NONBLOCK)
         var address = HookServer.address(path)
         let connected = withUnsafePointer(to: &address) {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+                Darwin.connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
             }
         }
-        guard connected == 0 else {
-            let code = errno
-            close(fd)
-            throw ControlClientError.notRunning(path, code)
+        guard connected != 0 else { return (fd, 0) }
+        var code = errno
+        if code == EINPROGRESS || code == EAGAIN || code == EINTR {
+            do {
+                try wait(fd, for: Int16(POLLOUT), until: deadline)
+            } catch {
+                close(fd)
+                throw error
+            }
+            var failure: Int32 = 0
+            var size = socklen_t(MemoryLayout<Int32>.size)
+            getsockopt(fd, SOL_SOCKET, SO_ERROR, &failure, &size)
+            if failure == 0 { return (fd, 0) }
+            code = failure
         }
-        var on: Int32 = 1
-        setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
-        self.fd = fd
+        close(fd)
+        return (nil, code)
     }
 
     deinit { close(fd) }
 
-    /// Reads give up after `seconds` (the call then throws), for a caller that must not wait forever.
-    public func readTimeout(_ seconds: TimeInterval) {
-        var timeout = timeval(tv_sec: Int(seconds), tv_usec: Int32((seconds - seconds.rounded(.down)) * 1_000_000))
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
+    /// Sends `request` and waits for its reply (events and receipts that arrive first are skipped).
+    public func call(_ request: ControlRequest) throws -> ControlReply {
+        let id = try send(request)
+        while true {
+            let reply = try next()
+            if reply.id == id { return reply }
+        }
     }
 
-    /// Sends `request` and waits for its reply (events that arrive first are skipped).
-    public func call(_ request: ControlRequest) throws -> ControlReply {
+    /// Writes `request` with the next id, returned: its reply is the line that echoes it.
+    @discardableResult
+    public func send(_ request: ControlRequest) throws -> Int {
         var request = request
         request.id = nextID
         nextID += 1
         let data = try ControlCoding.line(request)
-        let written = data.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
-        guard written == data.count else { throw ControlClientError.closed }
-        while true {
-            let reply = try next()
-            if reply.id == request.id { return reply }
+        var offset = 0
+        while offset < data.count {
+            let written = data.withUnsafeBytes { write(fd, $0.baseAddress! + offset, $0.count - offset) }
+            if written > 0 {
+                offset += written
+            } else if written < 0, errno == EAGAIN || errno == EINTR {
+                try waitFor(Int16(POLLOUT))
+            } else {
+                throw ControlClientError.closed
+            }
         }
+        return request.id ?? 0
     }
 
-    /// The next line from heed: a reply or an event. Throws when heed closes the connection.
+    /// The next line from heed: a reply, a receipt or an event. Throws when heed closes the connection, or at the
+    /// deadline.
     public func next() throws -> ControlReply {
         while true {
             if let newline = pending.firstIndex(of: 0x0A) {
@@ -416,9 +504,35 @@ public final class ControlClient {
             }
             var buffer = [UInt8](repeating: 0, count: 65536)
             let count = buffer.withUnsafeMutableBytes { read(fd, $0.baseAddress, $0.count) }
-            if count < 0, errno == EINTR { continue }
+            if count < 0, errno == EAGAIN || errno == EINTR {
+                try waitFor(Int16(POLLIN))
+                continue
+            }
             guard count > 0 else { throw ControlClientError.closed }
             pending.append(contentsOf: buffer[0 ..< count])
+        }
+    }
+
+    private func waitFor(_ events: Int16) throws {
+        try Self.wait(fd, for: events, until: deadline)
+    }
+
+    /// Waits until `fd` is ready for `events`, or throws `timedOut` at `deadline`.
+    private static func wait(_ fd: Int32, for events: Int16, until deadline: ContinuousClock.Instant?) throws {
+        while true {
+            var timeout: Int32 = -1
+            if let deadline {
+                let left = ContinuousClock.now.duration(to: deadline)
+                guard left > .zero else { throw ControlClientError.timedOut }
+                let (seconds, attoseconds) = left.components
+                // Rounded up, so a poll never wakes just before the deadline and spins.
+                let milliseconds = seconds * 1000 + (attoseconds + 999_999_999_999_999) / 1_000_000_000_000_000
+                timeout = Int32(clamping: milliseconds)
+            }
+            var poller = pollfd(fd: fd, events: events, revents: 0)
+            let ready = poll(&poller, 1, timeout)
+            if ready > 0 { return }
+            if ready < 0, errno != EINTR { throw ControlClientError.closed }
         }
     }
 }
@@ -426,11 +540,13 @@ public final class ControlClient {
 public enum ControlClientError: Error, CustomStringConvertible {
     case notRunning(String, Int32)
     case closed
+    case timedOut
 
     public var description: String {
         switch self {
         case let .notRunning(path, code): "Heed is not running (\(path): \(String(cString: strerror(code))))"
         case .closed: "Heed closed the connection"
+        case .timedOut: "Heed did not answer in time"
         }
     }
 }

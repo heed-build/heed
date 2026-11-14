@@ -356,10 +356,15 @@ struct PermissionHookTests {
         try server.start()
         defer { server.stop() }
         let ask = ask
-        let started = Date()
-        #expect(try await onThread { PermissionHook.wait(for: ask, socket: path, ceiling: 0.3) } == .pass)
-        // Well under the server's 3 s answer: the hook gave up at its ceiling (CI machines can be slow to get there).
-        #expect(Date().timeIntervalSince(started) < 2.9)
+        // Timed on the hook's own thread: how long the hook took, not how long the test took to be resumed.
+        let (answer, took) = try await onThread {
+            let started = ContinuousClock.now
+            let answer = PermissionHook.wait(for: ask, socket: path, ceiling: 0.3)
+            return (answer, ContinuousClock.now - started)
+        }
+        #expect(answer == .pass)
+        // The hook gave up at its ceiling, a hard deadline, well before the server's 3 s answer.
+        #expect(took < .milliseconds(800))
         try await Task.sleep(for: .milliseconds(200))
         #expect(gone.ids == ["ask-1"])
     }

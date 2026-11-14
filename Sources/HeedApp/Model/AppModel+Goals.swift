@@ -176,13 +176,6 @@ extension AppModel {
         }
         goals.form = nil
         textInputActive = false
-        // Started as a swarm: the swarm form takes over with what was typed; the goal is made when it starts.
-        if form.swarm {
-            newSwarm([], from: form.session.map { .session($0) })
-            goals.swarmForm?.title = form.title
-            goals.swarmForm?.statement = form.statement
-            return
-        }
         createGoal(form)
     }
 

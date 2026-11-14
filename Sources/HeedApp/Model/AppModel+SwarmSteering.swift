@@ -67,8 +67,12 @@ extension AppModel {
             let timeouts = SwarmLadder.Timeouts(peer: Double(board.swarm.settings.stuck.waitingOnPeer) * 60)
             switch SwarmLadder.due(question, rows: board.steering, now: now, timeouts: timeouts) {
             case .none: continue
-            case let .escalate(step, why):
+            case let .escalate(next, reason):
                 let id = question.id
+                // Go's Ask me: every question: the controller's step goes to you.
+                let mine = next == .controller && board.swarm.settings.askEverything
+                let step: SwarmAuthority.Answerer = mine ? .you : next
+                let why = mine ? reason + "; you asked to see every question" : reason
                 let moved = await goalOp { try await $0.escalate(
                     swarm: board.swarm.id,
                     question: id,
@@ -80,6 +84,12 @@ extension AppModel {
                 if step == .controller, !controllerBusy.contains(id) {
                     await runController(question, board: board, mode: .onItsOwn)
                 }
+            case .askController where board.swarm.settings.askEverything:
+                let id = question.id
+                let moved = await goalOp { try await $0.escalate(
+                    swarm: board.swarm.id, question: id, to: .you, why: "you asked to see every question", now: now
+                ) }
+                wrote = wrote || moved != nil
             case .askController:
                 guard !controllerBusy.contains(question.id) else { continue }
                 await runController(question, board: board, mode: .onItsOwn)

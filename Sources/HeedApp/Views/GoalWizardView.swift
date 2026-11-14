@@ -1,8 +1,7 @@
 import HeedCore
 import SwiftUI
 
-/// The new-goal wizard, over the whole of Goals: the six-step rail on the left, the step on the right. Steps 1–3 have
-/// screens; Split, How careful and Go show what the goal's page does for them until theirs exist (`WizardLaterStep`).
+/// The new-goal wizard, over the whole of Goals: the six-step rail on the left, the step on the right.
 struct GoalWizardView: View {
     @Environment(AppModel.self) private var model
     let wizard: GoalWizard
@@ -19,7 +18,8 @@ struct GoalWizardView: View {
                 case .panel: WizardPanelStep(wizard: wizard)
                 case .done: WizardDoneStep(wizard: wizard)
                 case .split: WizardSplitStep(wizard: wizard)
-                case .careful, .go: WizardLaterStep(wizard: wizard)
+                case .careful: WizardCarefulStep(wizard: wizard)
+                case .go: WizardGoStep(wizard: wizard)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -921,55 +921,6 @@ private struct ReplacementSide: View {
     private func short(_ text: String) -> String {
         let words = text.split(separator: " ")
         return words.count > 5 ? words.suffix(4).joined(separator: " ") : text
-    }
-}
-
-// MARK: Steps 4–6
-
-/// A step heed has no wizard screen for yet: what it will do, and the goal's page that does it today.
-private struct WizardLaterStep: View {
-    @Environment(AppModel.self) private var model
-    let wizard: GoalWizard
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StepHeader(title: wizard.step.title, subtitle: subtitle)
-            Text(detail).font(Theme.ui(14)).foregroundStyle(Theme.fg2).frame(maxWidth: 640, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack(spacing: 12) {
-                WizardButton(label: place, icon: "arrow.up.right", command: "wizard.later", scope: "wizardlater")
-                WizardButton(label: "Done here, on", command: "wizard.next", scope: "wizardlater")
-            }
-            Spacer()
-        }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 26)
-    }
-
-    private var subtitle: String {
-        switch wizard.step {
-        case .careful: "how much checking the work gets"
-        default: "start it"
-        }
-    }
-
-    private var detail: String {
-        switch wizard.step {
-        case .careful:
-            "The wizard's choice of Quick, Standard or Thorough comes in a later heed. Today the goal's reviewers and "
-                + "their bars decide how careful the work is."
-        default:
-            "Starting from the wizard comes in a later heed. Today the goal's page starts the work: a session, or a "
-                + "swarm."
-        }
-    }
-
-    private var place: String {
-        switch wizard.step.fallback {
-        case .swarm: "Open the swarm plan"
-        case .reviewers: "Open the reviewers"
-        default: "Open the goal's page"
-        }
     }
 }
 

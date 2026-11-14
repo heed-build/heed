@@ -61,6 +61,7 @@ struct HelperGlyph: View {
         case .green: "✓"
         case .conflict: "⇄"
         case .review: "☺"
+        case .part: "◆"
         }
     }
 
@@ -69,6 +70,7 @@ struct HelperGlyph: View {
         case .green: Theme.busy
         case .conflict: Theme.ask
         case .review: Color(hex: 0x5BC8D8)
+        case .part: Theme.done
         }
     }
 }
@@ -423,6 +425,8 @@ private struct HelperSide: View {
 
     private var then: String {
         switch helper.kind {
+        case .part:
+            "It opens the part's PR itself; the swarm tracks it, and the goal's page shows where it is."
         case .review:
             "heed shows you the comments it drafted. Nothing is posted until you send it."
         case .green, .conflict:
@@ -536,6 +540,7 @@ struct HelperCloseOutView: View {
         case .green: return "#\(helper.ref.number) is ready on the helper's branch"
         case .conflict: return "#\(helper.ref.number)'s conflict is resolved on the helper's branch"
         case .review: return "Your review of #\(helper.ref.number) is drafted"
+        case .part: return "\(helper.headline) is done"
         }
     }
 

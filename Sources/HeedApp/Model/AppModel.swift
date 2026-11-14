@@ -1879,6 +1879,8 @@ final class AppModel {
     }
 
     var liveWorkers: [String: LiveWorker] = [:]
+    /// Swarm workers that run as helpers (Go's Who works): the helper's id to its worker's.
+    var partHelperWorkers: [String: String] = [:]
     /// Workers whose kept worktree on a host was found gone when their task went back to them: a run takes it instead.
     var goneWorktrees: Set<String> = []
     /// Every pane a worker used since launch: its late hooks are nobody's news.
@@ -3135,8 +3137,10 @@ final class AppModel {
             _ = performApprovals(command)
         case "goal.wizard", "goal.tldr", "wizard.leave", "wizard.next", "wizard.step", "wizard.row", "wizard.pick",
              "wizard.answer", "wizard.smaller", "wizard.talk", "wizard.drop", "wizard.invite", "wizard.invite.pick",
-             "wizard.use", "wizard.define", "wizard.later", "tldr.copy", "tldr.act":
+             "wizard.use", "wizard.define", "careful.details", "tldr.copy", "tldr.act":
             _ = performWizard(command)
+        case "careful.pick", "go.row", "go.pick", "go.step", "go.start", "go.save":
+            _ = performGo(command)
         case "split.move", "split.fold", "split.agent", "split.shift", "split.split", "split.waits", "split.size",
              "split.later",
              "split.note", "split.define", "split.balance", "split.resplit", "define.answer", "define.pick",
@@ -5487,7 +5491,16 @@ final class AppModel {
     /// A PR's pilot settings: its repo's, with get it merged as its swarm says when it is a swarm's PR.
     func pilotSettings(for ref: PullRef) -> PilotSettings {
         var settings = config.pilot.resolve(ref.repo)
-        if let merge = swarmPulls[ref.description]?.merge { settings.merge = merge.mode(repo: settings.merge) }
+        guard let pull = swarmPulls[ref.description] else { return settings }
+        settings.merge = pull.merge.mode(repo: settings.merge)
+        // How careful, on a swarm Go started: Quick asks Copilot and trusts its review; a part that waits for you
+        // is never merged by heed.
+        if let care = pull.care {
+            let plan = CarePlan.of(care, profile: nil)
+            settings.reviewers += plan.pilotReviewers.filter { !settings.reviewers.contains($0) }
+            settings.trustedReviewers += plan.trustedReviewers.filter { !settings.trustedReviewers.contains($0) }
+        }
+        if pull.waitsForYou { settings.merge = .off }
         return settings
     }
 
@@ -8438,6 +8451,8 @@ final class AppModel {
         state.wizardRounds = wizard?.panel.rounds.count ?? 0
         state.wizardCriteria = wizard?.criteria.criteria.count ?? 0
         state.wizardParts = wizard?.split?.active.count ?? 0
+        state.wizardCare = wizard?.careful?.rawValue ?? ""
+        state.goalsStarted = goals.wizard.startedCount
         state.tldrOpen = goals.wizard.tldr != nil
         return state
     }

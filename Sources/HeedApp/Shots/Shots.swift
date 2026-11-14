@@ -729,16 +729,15 @@ enum Shots {
         Shot(id: "history/ledger-detail", keys: "ghLjjj"),
     ]
 
-    /// The new-goal wizard on the designs' goal (`WizardFixtures`): each built step, a step that hands over to the
-    /// goal's page, the meters, the TL;DR over the wizard and over a goal's page.
+    /// The new-goal wizard on the designs' goal (`WizardFixtures`): each step, the meters, the TL;DR over the wizard
+    /// (at Go, where it says where the goal is going) and over a goal's page.
     static let wizard: [Shot] = [
         Shot(id: "goals/wizard-plan", prepare: { $0.loadWizardFixture(.plan) }),
         Shot(id: "goals/wizard-meters", crop: .wizardMeters, cropPadding: 16, prepare: { $0.loadWizardFixture(.plan) }),
         Shot(id: "goals/wizard-rail", crop: .wizardRail, cropPadding: 0, prepare: { $0.loadWizardFixture(.done) }),
         Shot(id: "goals/wizard-panel", prepare: { $0.loadWizardFixture(.panel) }),
         Shot(id: "goals/wizard-done", prepare: { $0.loadWizardFixture(.done) }),
-        Shot(id: "goals/wizard-later", prepare: { $0.loadWizardFixture(.careful) }),
-        Shot(id: "goals/wizard-tldr", keys: "T", prepare: { $0.loadWizardFixture(.careful) }),
+        Shot(id: "goals/wizard-tldr", keys: "T", prepare: { $0.loadSplitFixture(.go) }),
         Shot(id: "goals/wizard-tldr-page", keys: "gGjT", crop: .tldr, cropPadding: 16),
     ] + split
 
@@ -755,7 +754,12 @@ enum Shots {
             model.loadSplitFixture(.complex, part: "migrate")
             model.perform(CommandInvocation(name: "split.define"))
         }),
+        // Steps 5 and 6 on the complex goal: How careful with heed's suggestion, Go with its defaults.
+        Shot(id: "goals/careful", prepare: { $0.loadSplitFixture(.careful) }),
+        Shot(id: "goals/go", prepare: { $0.loadSplitFixture(.go) }),
         Shot(id: "goals/page-building", prepare: { $0.loadSplitFixture(.page) }),
+        // The goal in the list once it went: its row reads as its page does.
+        Shot(id: "goals/page-list", crop: .goalsList, cropPadding: 0, prepare: { $0.loadSplitFixture(.page) }),
         Shot(id: "goals/page-next", crop: .goalPageNext, cropPadding: 8, prepare: { $0.loadSplitFixture(.page) }),
     ]
 
@@ -840,7 +844,7 @@ enum Shots {
         Shot(id: "goals/lenses", keys: "gGjX", crop: .goalLenses, cropPadding: 8),
         // Swarms (S): the diagrams goal's lead drafted v2 and asks two things; the anchors goal's plan is approved.
         Shot(id: "goals/swarm-new", crop: .swarmForm, cropPadding: 24, prepare: { model in
-            model.perform(CommandInvocation(name: "swarm.new"))
+            model.openNewSwarmForm([])
             model.goals.swarmForm?.title = "Diagram export to SVG"
             model.goals.swarmForm?.statement = "Every diagram type exports to SVG that matches the canvas, with "
                 + "fonts embedded."
@@ -854,7 +858,7 @@ enum Shots {
         }),
         // The same form running the swarm on @devbox: its repos there, its lead and workers in zmx.
         Shot(id: "goals/swarm-new-host", crop: .swarmForm, cropPadding: 24, prepare: { model in
-            model.perform(CommandInvocation(name: "swarm.new"))
+            model.openNewSwarmForm([])
             model.perform(CommandInvocation(name: "swarm.host", arguments: ["devbox"]))
             model.goals.swarmForm?.title = "Anchors in the docs build"
             model.goals.swarmForm?.statement = "Every anchor survives a page move, checked on the big docs build."
@@ -865,7 +869,7 @@ enum Shots {
         }),
         // What is wrong shows under its field: ⌘↩ pressed with no title and no repo, ⌘↩ greyed with the reason.
         Shot(id: "goals/swarm-new-errors", crop: .swarmForm, cropPadding: 24, prepare: { model in
-            model.perform(CommandInvocation(name: "swarm.new"))
+            model.openNewSwarmForm([])
             model.goals.swarmForm?.title = ""
             model.goals.swarmForm?.statement = "Reports render in under a second on the big fixtures."
             model.goals.swarmForm?.repos = []
@@ -874,7 +878,7 @@ enum Shots {
         }),
         // Any repo, typed: one heed has not seen is checked on GitHub, and cloned where the swarm runs on ⌘↩.
         Shot(id: "goals/swarm-new-repo", crop: .swarmForm, cropPadding: 24, prepare: { model in
-            model.perform(CommandInvocation(name: "swarm.new"))
+            model.openNewSwarmForm([])
             model.goals.swarmForm?.title = "Faster report rendering"
             model.goals.swarmForm?.statement = "Reports render in under a second on the big fixtures."
             model.goals.swarmForm?.repos = ["globex/markgraph"]

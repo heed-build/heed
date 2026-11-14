@@ -161,9 +161,13 @@ extension AppModel {
         // a pane on that host in it, wherever the session runs.
         let onGoal = goals.snapshot.links(of: goal.id).filter { $0.kind == .session }.sorted { $0.at > $1.at }
             .map(\.target)
-        guard let session = ([swarm.lead].compactMap(\.self) + onGoal).lazy.compactMap({ id in
+        let holder = ([swarm.lead].compactMap(\.self) + onGoal).lazy.compactMap { id in
             self.sessions.first { $0.id == id && self.layouts[id] != nil }
-        }).first else {
+        }.first
+        // Go's Who works: a helper needs no tab, on this Mac; a handover or a return goes to a terminal as before.
+        let asHelper = swarm.settings.runsAsHelper(task.id) && back == nil && handoff == nil
+            && SwarmPlace.location(of: task, swarm: swarm.settings, previous: nil, carriesOn: false).isLocal
+        if !asHelper, holder == nil {
             return await fail("no open session on the goal to hold its tab: reopen the lead's")
         }
         // A task handed over or taken back carries on in its last worker's worktree, where that is.
@@ -202,7 +206,6 @@ extension AppModel {
         let (worktree, reuse, base) = made
         let stackedOn = reuse ? previous?.stackedOn : start.stackedOn
         let setup = reuse ? [] : settings.setup.commands(for: record.repo) ?? []
-        guard var layout = layouts[session.id] else { return await fail("its session is gone") }
         // Cursor reads hooks only from the worktree's .cursor/hooks.json, as for a session's worktree: here only.
         if agent.name == "cursor", location.isLocal {
             try? AgentIntegration.installCursorHooks(worktree: worktree, heed: integration.heedBinary)
@@ -226,6 +229,16 @@ extension AppModel {
             stackedOn: stackedOn.map { id in (numbers[id] ?? "", tasks.first { $0.id == id }?.title ?? id) },
             numbers: numbers, handoff: handoff
         )
+        if asHelper {
+            return await startWorkerHelper(
+                swarm: swarm, goal: goal, task: task, number: number, owner: owner, record: record, branch: branch,
+                base: base, stackedOn: stackedOn, worktree: worktree, setup: setup, session: holder?.id,
+                prompt: prompt, now: now
+            )
+        }
+        guard let session = holder, var layout = layouts[session.id] else {
+            return await fail("its session is gone")
+        }
         let agentSession = UUID().uuidString.lowercased()
         let command = agent.launchCommand(
             prompt: prompt,
@@ -347,6 +360,11 @@ extension AppModel {
     /// The worker's tab closed and its pane let go; what it cost.
     private func closeWorker(_ id: String) -> (LiveWorker, Double?)? {
         guard let live = liveWorkers.removeValue(forKey: id) else { return nil }
+        // A helper worker: its helper stops with it (unless it ended its turn already).
+        if let helper = partHelperWorkers.first(where: { $0.value == id })?.key {
+            partHelperWorkers[helper] = nil
+            if helpers.run(helper)?.phase.isLive == true { stopHelper(helper, why: "its swarm stopped it") }
+        }
         quietTurns.forget(pane: live.paneID)
         forgetHunchReading(pane: live.paneID)
         lastHookAt[live.paneID] = nil

@@ -15,6 +15,9 @@ struct SwarmPull: Hashable {
     var hold: String?
     /// The swarm's get it merged setting, which its PRs follow (`SwarmSettings.Merge`).
     var merge: SwarmSettings.Merge = .repo
+    /// The level the swarm went with (Go): who the pilot asks to review, and whether this PR waits for you.
+    var care: CareLevel?
+    var waitsForYou = false
 }
 
 /// A task's worker taken back to its PR: who, the PR, the items it gets, the few words that say what, and what to do
@@ -75,7 +78,8 @@ extension AppModel {
                 guard let ref = facts[row.slot.task]?.ref else { continue }
                 next[ref.description] = SwarmPull(
                     ref: ref, swarm: swarm.id, number: swarm.number, goal: swarm.goal, task: row.slot.task,
-                    position: row.slot.position, label: row.label, hold: row.hold, merge: swarm.settings.merge
+                    position: row.slot.position, label: row.label, hold: row.hold, merge: swarm.settings.merge,
+                    care: swarm.settings.care, waitsForYou: swarm.settings.waitsForYou(row.slot.task)
                 )
             }
         }

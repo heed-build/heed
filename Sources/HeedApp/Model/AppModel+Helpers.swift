@@ -531,7 +531,7 @@ extension AppModel {
     }
 
     /// One prompt turn; its end is read by why it was cancelled, if it was.
-    private func runTurn(_ id: String, _ text: String) {
+    func runTurn(_ id: String, _ text: String) {
         guard let client = helpers.clients[id], let session = helpers.sessionIDs[id] else { return }
         helpers.update(id) {
             $0.phase = .working
@@ -587,6 +587,7 @@ extension AppModel {
     /// heed pushes and replies at once; otherwise the close-out waits for you.
     private func finishTurn(_ id: String) {
         guard let helper = helpers.run(id) else { return }
+        if helper.kind == .part { return partHelperEnded(id, failed: nil) }
         let base = helpers.bases[id] ?? "HEAD"
         let threads = HelperPrompt.threads(helpers.items[id] ?? [])
         guard !isFixture else {
@@ -628,7 +629,7 @@ extension AppModel {
 
     // MARK: What the agent sends
 
-    private func helperEvent(_ id: String, _ event: ACPEvent) {
+    func helperEvent(_ id: String, _ event: ACPEvent) {
         switch event {
         case let .update(_, update):
             helpers.update(id) { $0.apply(update, at: Clock.now) }
@@ -858,7 +859,11 @@ extension AppModel {
 
     /// The helper in the PR's history (`PilotRun`): started, and how it ended.
     private func recordRun(_ id: String, outcome: PilotRun.Outcome?) {
-        guard let helper = helpers.run(id) else { return }
+        // A part's helper has no PR yet: its story is its swarm's, not a PR's history.
+        guard let helper = helpers.run(id), helper.kind != .part else {
+            if case let .failed(why)? = outcome { partHelperEnded(id, failed: why) }
+            return
+        }
         var run = PilotRun(
             id: id, ref: helper.ref, sessionID: helper.sessionID ?? "", goal: helper.kind.goal, agent: helper.agent,
             model: nil, startedAt: helper.startedAt, items: helpers.items[id]?.count ?? 0, prBranch: helper.prBranch,
@@ -869,6 +874,99 @@ extension AppModel {
             run.outcome = outcome
         }
         commit(.runUpdated(run))
+    }
+
+    // MARK: A part's helper
+
+    /// A swarm task's worker as a helper (Go's Who works): the part's agent over ACP (else the helpers' agent) in the
+    /// worktree the swarm made for it, the repo's setup, then one turn on the worker's prompt. Its asks join the
+    /// approvals and its feed shows in Now, as any helper's; its turn's end ends the worker (`partHelperEnded`).
+    /// Returns its id, or why it could not start.
+    func startPartHelper(
+        agent: String, record: RepoRecord, title: String, branch: String, worktree: String, setup: [String],
+        sessionID: String?, worker: String, prompt: String
+    ) async -> Result<String, PartHelperError> {
+        guard let adapter = ACPAgents.adapter(for: agent)
+            ?? ACPAgents.chosen(config.helpers, defaultAgent: settings.defaultAgent)
+        else { return .failure(PartHelperError("heed knows no ACP way to \(agent): [helpers] agent")) }
+        let (executable, pathVariable) = await ToolLocator.shared.executable(adapter.executable)
+        guard let executable else {
+            return .failure(PartHelperError("\(adapter.executable) is not installed" +
+                    (adapter.install.map { ": \($0)" } ?? "")))
+        }
+        var helper = HelperRun(
+            kind: .part, ref: PullRef(repo: record.repo, number: 0), title: title, agent: adapter.agent,
+            adapter: adapter.title, sessionID: sessionID, prBranch: branch, branch: branch, worktree: worktree,
+            startedAt: Clock.now, cap: config.helpers.spendCap
+        )
+        let id = helper.id
+        helper.append(.note("building \(title) in \(worktree)"), at: Clock.now)
+        helpers.runs.insert(helper, at: 0)
+        helpers.records[id] = record
+        partHelperWorkers[id] = worker
+        for command in setup {
+            helpers.update(id) { $0.append(.note("setting up: \(command)"), at: Clock.now) }
+            let result = try? await ProcessRunner.run(
+                "/bin/sh", ["-c", command], in: worktree, timeout: .seconds(600), caller: "helper.setup"
+            )
+            if result?.succeeded != true { return partHelperFailed(id, "its setup failed: \(command)") }
+        }
+        helpers.bases[id] = await HelperGit.head(worktree)
+        let client: ACPClient
+        do {
+            var environment = ProcessInfo.processInfo.environment
+            environment["PATH"] = pathVariable
+            let transport = try ACPProcessTransport(
+                executable: executable, arguments: adapter.arguments, directory: worktree, environment: environment
+            )
+            client = ACPClient(transport: transport)
+        } catch {
+            return partHelperFailed(id, "\(adapter.executable) did not start: \(error)")
+        }
+        helpers.clients[id] = client
+        await client.start()
+        Task { [weak self] in
+            for await event in client.events {
+                self?.helperEvent(id, event)
+            }
+        }
+        do {
+            _ = try await client.initialize(clientVersion: appVersion)
+            helpers.sessionIDs[id] = try await client.newSession(cwd: worktree)
+            helpers.update(id) { $0.phase = .working }
+        } catch {
+            await client.close()
+            return partHelperFailed(id, "\(error)")
+        }
+        runTurn(id, prompt)
+        return .success(id)
+    }
+
+    struct PartHelperError: Error {
+        var text: String
+        init(_ text: String) { self.text = text }
+    }
+
+    private func partHelperFailed(_ id: String, _ why: String) -> Result<String, PartHelperError> {
+        partHelperWorkers[id] = nil
+        helpers.update(id) {
+            $0.phase = .failed(why)
+            $0.endedAt = Clock.now
+            $0.append(.note(why), at: Clock.now)
+        }
+        return .failure(PartHelperError(why))
+    }
+
+    /// A part's helper finished its turn (or failed): its swarm worker ends with it, so the scheduler moves on, and
+    /// the helper stays in the list, done.
+    func partHelperEnded(_ id: String, failed why: String?) {
+        helpers.update(id) {
+            $0.endedAt = $0.endedAt ?? Clock.now
+            if $0.closeOut == nil,
+               why == nil { $0.closeOut = HelperCloseOut(summary: "Its turn ended; its PR is the swarm's.") }
+        }
+        guard let worker = partHelperWorkers.removeValue(forKey: id) else { return }
+        endWorker(worker, why.map { .failed($0) } ?? .turnOver)
     }
 
     /// What heed tells a session about a helper: always a band over its panes, and through its agent's own channel

@@ -60,8 +60,6 @@ final class GoalsBrowser {
         var tracker = ""
         /// It mirrors from the start (the org's or repo's `goals_mirror`, else `[goals] mirror`).
         var mirror = false
-        /// Start it as a swarm: ⌘↩ goes on to the new swarm form instead of making the goal now.
-        var swarm = false
         /// Made with `n` in Goals: once made, it goes through the new-goal wizard.
         var wizard = false
         /// ⌘↩ was pressed: what is missing shows under its field from now on.

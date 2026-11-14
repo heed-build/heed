@@ -40,7 +40,12 @@ struct GoalsView: View {
                             UnassignedPane()
                         } else if let goal = goals.selected {
                             switch goals.pane {
-                            case .overview, .unassigned: GoalOverviewPane(goal: goal).shotRegion(.goalsOverview)
+                            case .overview, .unassigned:
+                                if let page = model.goalPage(goal.id) {
+                                    GoalBoardPage(goal: goal, page: page).shotRegion(.goalPage)
+                                } else {
+                                    GoalOverviewPane(goal: goal).shotRegion(.goalsOverview)
+                                }
                             case .doc: GoalDocPane(goal: goal).shotRegion(.goalsDoc)
                             case .board: GoalBoardPane(goal: goal).shotRegion(.goalsBoard)
                             case .reviewers: GoalReviewersPane(goal: goal)

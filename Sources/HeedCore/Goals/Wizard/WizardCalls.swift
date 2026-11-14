@@ -163,6 +163,48 @@ public struct WizardCalls: Sendable {
         return (DoneDraft.parseReplacements(answer.text), answer.cost)
     }
 
+    // MARK: Split
+
+    static let splitSystem = """
+    You split an agreed software plan into parts that coding agents can each finish in one go, in parallel where the \
+    work allows. Each part is one pull request in one repo: a short title (at most six words), the repo it is in \
+    (one of the repos listed, or null), its size (XS under 45 minutes, S under 90, M under 3 hours, L longer), an \
+    estimate ("2h 30m"), the ids of the parts it must wait for (after), one to three done-when lines a machine can \
+    check (at most twelve words each, taken from the goal's criteria where they fit), and its context: folders, \
+    files, PRs or decisions its agent starts from. Put reviews and walk-throughs last. Use as few parts as the plan \
+    needs: two to four for a small plan, at most sixteen. Reply with only JSON: {"parts": [{"id": "short-id", \
+    "title": "...", "repo": "...", "size": "M", "estimate": "2h", "after": ["short-id"], "doneWhen": ["..."], \
+    "context": ["..."]}]}.
+    """
+
+    /// The agreed plan and its done-when, split into parts (`SplitDraft`); assignment puts them on agents after.
+    public func split(
+        plan: WizardPlan, criteria: [String], repos: [String], goal: String, version: Int?
+    ) async throws -> (SplitDraft, WizardCost) {
+        let prompt = "# The plan\n" + PlanTalk.render(plan) + "\n\n# Done when\n"
+            + criteria.map { "- \($0)" }.joined(separator: "\n")
+            + "\n\n# Repos\n" + (repos.isEmpty ? "(none named)" : repos.map { "- \($0)" }.joined(separator: "\n"))
+        let answer = try await ask(Self.splitSystem, prompt, step: .split, operation: "wizard split")
+        do {
+            return try (SplitDraft.parse(answer.text, goal: goal, fromPlan: version), answer.cost)
+        } catch {
+            throw LLMError.unparseable(agent: answer.cost.agent, text: answer.text)
+        }
+    }
+
+    /// One part split in two (`s`): the halves, the second after the first.
+    public func split(part: SplitPart, plan: WizardPlan?, goal: String) async throws -> ([SplitPart], WizardCost) {
+        let prompt = (plan.map { "# The plan\n" + PlanTalk.render($0) + "\n\n" } ?? "")
+            + "# Split this part in two smaller parts, the second after the first\n" + part.title
+            + "\nrepo: \(part.repo ?? "null") · estimate \(SwarmEstimate.text(part.minutes))\n"
+            + part.task.doneWhen.map { "done when: \($0)" }.joined(separator: "\n")
+        let answer = try await ask(Self.splitSystem, prompt, step: .split, operation: "wizard split part")
+        guard let draft = try? SplitDraft.parse(answer.text, goal: goal), !draft.parts.isEmpty else {
+            throw LLMError.unparseable(agent: answer.cost.agent, text: answer.text)
+        }
+        return (Array(draft.parts.prefix(2)), answer.cost)
+    }
+
     // MARK: TL;DR
 
     public func tldr(_ inputs: TLDRInputs, now: Date) async throws -> (WizardTLDR, WizardCost) {

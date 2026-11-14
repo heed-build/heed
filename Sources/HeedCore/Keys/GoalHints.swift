@@ -84,6 +84,31 @@ public enum GoalHints {
                 Hint("wizard.next", "done here"),
                 Hint("goal.tldr", "tl;dr"),
             ], "")
+        // Split: h l time, j k agent, ↩ folds a part out; folded, its actions; defining, the conversation's keys.
+        case "wizardsplit":
+            ([
+                Hint("split.move l", "time", key: "h l"), Hint("split.move j", "agent", key: "j k"),
+                Hint("split.fold", "part"), Hint("split.agent", "agent"), Hint("split.balance", "balance"),
+                Hint("wizard.next", "next"),
+            ], "")
+        case "splitfold":
+            ([
+                Hint("split.fold", "fold in", key: "⎋"), Hint("split.define", "define with an agent"),
+                Hint("split.agent", "agent"), Hint("split.split", "split"), Hint("split.waits", "waits on"),
+                Hint("split.size", "size"), Hint("split.later", "later"), Hint("split.note", "tell it"),
+            ], "")
+        case "splitdefine":
+            ([
+                Hint("define.answer", "answer"), Hint("define.pick 1", "pick", key: "1 2"),
+                Hint("define.use", "use this definition"), Hint("define.later", "later"),
+                Hint("define.close", "close"),
+            ], "")
+        case "goalpage":
+            ([
+                Hint("page.answer", "your next step"), Hint("page.move l", "time", key: "h l"),
+                Hint("page.move j", "agent", key: "j k"), Hint("page.fold", "part"), Hint("page.steer", "steer"),
+                Hint("goal.tldr", "tl;dr"),
+            ], "")
         case "wizardchat":
             ([Hint("wizard.answer", "message"), Hint("wizard.talk", "close")], "")
         case "wizardinvite":

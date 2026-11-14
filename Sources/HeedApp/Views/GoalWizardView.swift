@@ -18,7 +18,8 @@ struct GoalWizardView: View {
                 case .plan: WizardPlanStep(wizard: wizard)
                 case .panel: WizardPanelStep(wizard: wizard)
                 case .done: WizardDoneStep(wizard: wizard)
-                case .split, .careful, .go: WizardLaterStep(wizard: wizard)
+                case .split: WizardSplitStep(wizard: wizard)
+                case .careful, .go: WizardLaterStep(wizard: wizard)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -95,7 +96,7 @@ struct StepDot: View {
 // MARK: Shared pieces
 
 /// A step's title and its quiet subtitle.
-private struct StepHeader<Trailing: View>: View {
+struct StepHeader<Trailing: View>: View {
     @Environment(AppModel.self) private var model
     let title: String
     let subtitle: String
@@ -122,7 +123,7 @@ extension StepHeader where Trailing == EmptyView {
 }
 
 /// What a step's calls cost: a dot, the model, the dollars (≈ when estimated or partly unknown).
-private struct CostLine: View {
+struct CostLine: View {
     let wizard: GoalWizard
     let step: WizardStep
     var extra: [String] = []
@@ -144,7 +145,7 @@ private struct CostLine: View {
 }
 
 /// A primary action: a light button with its key.
-private struct PrimaryAction: View {
+struct PrimaryAction: View {
     let label: String
     let command: String
     var arguments: [String] = []
@@ -155,7 +156,7 @@ private struct PrimaryAction: View {
     }
 }
 
-private struct WizardButton: View {
+struct WizardButton: View {
     @Environment(AppModel.self) private var model
     let label: String
     var icon: String?
@@ -185,7 +186,7 @@ private struct WizardButton: View {
 }
 
 /// "heed is thinking…", or what went wrong.
-private struct BusyLine: View {
+struct BusyLine: View {
     @Environment(AppModel.self) private var model
     let goal: String
 
@@ -947,7 +948,6 @@ private struct WizardLaterStep: View {
 
     private var subtitle: String {
         switch wizard.step {
-        case .split: "who does which part"
         case .careful: "how much checking the work gets"
         default: "start it"
         }
@@ -955,9 +955,6 @@ private struct WizardLaterStep: View {
 
     private var detail: String {
         switch wizard.step {
-        case .split:
-            "The wizard's own board for this comes in a later heed. Today a swarm splits the plan: its lead proposes "
-                + "the parts and who takes each, and you steer it."
         case .careful:
             "The wizard's choice of Quick, Standard or Thorough comes in a later heed. Today the goal's reviewers and "
                 + "their bars decide how careful the work is."

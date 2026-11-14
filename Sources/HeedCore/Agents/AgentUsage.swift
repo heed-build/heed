@@ -59,6 +59,8 @@ public struct UsageReport: Codable, Equatable, Sendable {
     public var contextWindow: Int?
     /// When the rate limit the agent ran into (or is closest to) lifts.
     public var rateLimitResetsAt: Date?
+    /// How much of that window is used, 0–100, when the agent says (codex's `used_percent`).
+    public var rateLimitUsedPercent: Double?
 
     public init(
         model: String? = nil, totals: TokenCounts? = nil, costUSD: Double? = nil, requests: [RequestUsage]? = nil,
@@ -86,6 +88,8 @@ public struct AgentUsage: Codable, Hashable, Sendable {
     public var contextTokens: Int?
     public var contextWindow: Int?
     public var rateLimitResetsAt: Date?
+    /// How much of the rate-limit window is used, 0–100, as the agent last said (codex); the Split board's quota ring.
+    public var rateLimitUsedPercent: Double?
     /// The last request counted, so one read again (the next hook reads the same transcript) is not counted twice.
     public var lastRequestID: String?
     /// What the agent's own OpenTelemetry says the session cost so far (its requests' reported costs, summed). It
@@ -107,6 +111,7 @@ public struct AgentUsage: Codable, Hashable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case model, tokens, costUSD, contextTokens, contextWindow, rateLimitResetsAt, lastRequestID, telemetryCostUSD
+        case rateLimitUsedPercent
     }
 
     public init(from decoder: Decoder) throws {
@@ -119,6 +124,7 @@ public struct AgentUsage: Codable, Hashable, Sendable {
         rateLimitResetsAt = try container.decodeIfPresent(Date.self, forKey: .rateLimitResetsAt)
         lastRequestID = try container.decodeIfPresent(String.self, forKey: .lastRequestID)
         telemetryCostUSD = try container.decodeIfPresent(Double.self, forKey: .telemetryCostUSD)
+        rateLimitUsedPercent = try container.decodeIfPresent(Double.self, forKey: .rateLimitUsedPercent)
     }
 
     /// This usage with a report laid over it.
@@ -141,6 +147,7 @@ public struct AgentUsage: Codable, Hashable, Sendable {
         if let tokens = report.contextTokens { next.contextTokens = tokens }
         if let window = report.contextWindow { next.contextWindow = window }
         if let resets = report.rateLimitResetsAt { next.rateLimitResetsAt = resets }
+        if let used = report.rateLimitUsedPercent { next.rateLimitUsedPercent = used }
         return next
     }
 
@@ -452,6 +459,9 @@ public enum UsageTranscripts {
                     .max(by: { ($0["used_percent"] as? Double ?? 0) < ($1["used_percent"] as? Double ?? 0) })
                 {
                     report.rateLimitResetsAt = codexReset(fullest, at: at) ?? report.rateLimitResetsAt
+                    if let used = (fullest["used_percent"] as? NSNumber)?.doubleValue {
+                        report.rateLimitUsedPercent = used
+                    }
                 }
             }
         }

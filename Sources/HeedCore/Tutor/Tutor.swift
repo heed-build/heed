@@ -101,6 +101,8 @@ public struct TutorState: Equatable, Sendable {
     public var wizardAnswers = 0
     public var wizardRounds = 0
     public var wizardCriteria = 0
+    /// Parts on the open wizard's Split board.
+    public var wizardParts = 0
     public var tldrOpen = false
 
     public init() {}

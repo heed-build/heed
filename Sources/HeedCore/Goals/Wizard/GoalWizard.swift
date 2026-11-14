@@ -1,7 +1,7 @@
 import Foundation
 
-/// The six steps a new goal walks through before work starts, in order. Steps 1–3 are built here; Split, How careful
-/// and Go are later parts: until each is `built`, reaching it hands over to the goal's page as it is today
+/// The six steps a new goal walks through before work starts, in order. Steps 1–4 are built; How careful and Go are
+/// later parts: until each is `built`, reaching it hands over to the goal's page as it is today
 /// (`fallback`), and the wizard keeps its place there so a later version picks it up.
 public enum WizardStep: String, Hashable, Sendable, Codable, CaseIterable, Comparable {
     case plan, panel, done, split, careful, go
@@ -24,8 +24,8 @@ public enum WizardStep: String, Hashable, Sendable, Codable, CaseIterable, Compa
     /// says so here, and the wizard stops handing it to the goal's page.
     public var built: Bool {
         switch self {
-        case .plan, .panel, .done: true
-        case .split, .careful, .go: false
+        case .plan, .panel, .done, .split: true
+        case .careful, .go: false
         }
     }
 
@@ -33,8 +33,7 @@ public enum WizardStep: String, Hashable, Sendable, Codable, CaseIterable, Compa
     /// (How careful), the goal's overview (Go).
     public var fallback: WizardFallback {
         switch self {
-        case .plan, .panel, .done: .none
-        case .split: .swarm
+        case .plan, .panel, .done, .split: .none
         case .careful: .reviewers
         case .go: .overview
         }
@@ -109,6 +108,8 @@ public struct GoalWizard: Hashable, Sendable, Codable {
     public var plan: PlanConversation
     public var panel: PanelState
     public var criteria: DoneDraft
+    /// Step 4: the parts and who does each; nil until the split call ran.
+    public var split: SplitDraft?
     public var costs: [WizardCost]
     /// The TL;DR as last written, with what it was written from.
     public var tldr: WizardTLDR?

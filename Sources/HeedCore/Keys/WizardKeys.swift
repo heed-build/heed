@@ -51,7 +51,7 @@ public enum WizardKeys {
         ),
         .init("tldr.copy", "TL;DR: copy it as markdown", .selection),
         .init("tldr.act", "TL;DR: do the first open point's action", .selection),
-    ]
+    ] + SplitKeys.commands
 
     /// Keys every step shares: ⌘↩ on, H L between the steps reached, j k rows, T the TL;DR, ⎋ out.
     static let shared: [(String, String)] = [
@@ -68,7 +68,7 @@ public enum WizardKeys {
         "wizardchat",
         "wizardinvite",
         "tldr",
-    ]
+    ] + SplitKeys.scopes
 
     public static let scoped: [String: [(String, String)]] = [
         // Plan: 1 2 3 pick heed's option, i types an answer, ⌘↩ good enough.
@@ -80,7 +80,7 @@ public enum WizardKeys {
         // Done looks like: j k criteria, 1 2 3 a replacement, ↩ uses it, d defines it with an agent, ⌘↩ looks right.
         "wizarddone": shared + [("<CR>", "wizard.use"), ("d", "wizard.define")]
             + (1 ... 3).map { ("\($0)", "wizard.pick \($0)") },
-        // Split, How careful, Go until they have screens: ↩ opens the goal's page that does it today.
+        // How careful and Go until they have screens: ↩ opens the goal's page that does it today.
         "wizardlater": shared + [("<CR>", "wizard.later")],
         // Talking to one persona: i types, ⎋ closes the chat.
         "wizardchat": [("i", "wizard.answer"), ("<Esc>", "wizard.talk"), ("T", "goal.tldr")],
@@ -91,5 +91,5 @@ public enum WizardKeys {
         ],
         // The TL;DR: y copies it as markdown, d does the first open point, T or ⎋ closes.
         "tldr": [("y", "tldr.copy"), ("d", "tldr.act"), ("T", "goal.tldr"), ("<Esc>", "goal.tldr"), ("q", "goal.tldr")],
-    ]
+    ].merging(SplitKeys.scoped) { own, _ in own }
 }

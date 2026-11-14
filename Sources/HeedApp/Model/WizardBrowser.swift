@@ -17,6 +17,14 @@ final class WizardBrowser {
             case chat
             /// Why not (Panel's Don't do it).
             case dropReason
+            /// Split: what to tell a part's agent before it starts.
+            case note
+            /// Split: the numbers of the parts a part waits on.
+            case waits
+            /// Defining a part: an answer to its agent.
+            case define
+            /// The goal's page: an answer to your next step.
+            case nextStep
         }
 
         var kind: Kind
@@ -50,6 +58,30 @@ final class WizardBrowser {
     /// The TL;DR being written now, by goal.
     var writing: Set<String> = []
 
+    // MARK: Split and the goal's page
+
+    /// The part under the board's cursor, and whether it is folded out.
+    var part: String?
+    var folded = false
+    /// The part the pointer is over: its one-line preview.
+    var hover: String?
+    /// Your agents and their records, as the board reads them (gathered off the main actor).
+    var fleet: [FleetAgent] = []
+    var records: [AgentRecord] = []
+    /// Defining a part with an agent, while the split under the board shows.
+    var defining: PartDefinition?
+    /// Definitions put off with Later, by part: `d` comes back to them.
+    var parkedDefinitions: [String: PartDefinition] = [:]
+    /// The defining agent's connection, its session, the reply it streams, what it read and where.
+    @ObservationIgnored var defineClient: ACPClient?
+    @ObservationIgnored var defineSession: String?
+    @ObservationIgnored var defineBuffer = ""
+    @ObservationIgnored var definePaths: [String] = []
+    @ObservationIgnored var defineRoot: String?
+    /// The goal's page: the part under its cursor and whether it is folded out.
+    var pagePart: String?
+    var pageFolded = false
+
     /// The wizard that shows.
     var current: GoalWizard? { open.flatMap { wizards[$0] } }
 
@@ -76,7 +108,8 @@ final class WizardBrowser {
         case .plan: "wizardplan"
         case .panel: "wizardpanel"
         case .done: "wizarddone"
-        case .split, .careful, .go: "wizardlater"
+        case .split: defining != nil ? "splitdefine" : folded ? "splitfold" : "wizardsplit"
+        case .careful, .go: "wizardlater"
         }
     }
 
@@ -110,5 +143,8 @@ final class WizardBrowser {
         chat = nil
         inviting = nil
         typing = nil
+        part = nil
+        folded = false
+        hover = nil
     }
 }

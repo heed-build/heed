@@ -186,6 +186,10 @@ public enum DefaultKeys {
         ],
         // Goals (gG): j k move through the goals, ⇥ to what belongs to the one under the cursor, ↩ opens.
         "goals": goals,
+        // A goal's page with a board (its overview, for a goal split into parts): h l j k move over the parts once one
+        // is under the cursor (without one, they do what they do in the list), ↩ folds it out, s steers it, i answers
+        // your next step (SplitKeys.page).
+        "goalpage": laid(SplitKeys.page, over: goals),
         // A goal's board (B): h l columns, j k cards, H L move the card, a adds one (n as well: it is new there),
         // s or o starts work on it, D is done, - splits it.
         "goalboard": paneWith([
@@ -397,7 +401,7 @@ public enum DefaultKeys {
     /// Every view of Goals, by key scope: the list and overview, and each pane of a goal.
     public static let goalScopes = [
         "goals", "goalboard", "goaldoc", "goalreviewers", "goalpersonas", "goalevals", "goalplan", "goalagents",
-        "goalmap", "unassigned",
+        "goalmap", "unassigned", "goalpage",
     ]
 
     /// The capitals that switch a goal's pane. They work the same in every view of Goals, and no pane may bind one of

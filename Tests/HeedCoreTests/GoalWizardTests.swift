@@ -40,9 +40,9 @@ struct GoalWizardTests {
         #expect(r5 == nil)
     }
 
-    @Test func onlyTheFirstThreeStepsAreBuiltAndTheRestFallBack() {
-        #expect(WizardStep.allCases.filter(\.built) == [.plan, .panel, .done])
-        #expect(WizardStep.split.fallback == .swarm)
+    @Test func theFirstFourStepsAreBuiltAndTheRestFallBack() {
+        #expect(WizardStep.allCases.filter(\.built) == [.plan, .panel, .done, .split])
+        #expect(WizardStep.split.fallback == WizardFallback.none)
         #expect(WizardStep.careful.fallback == .reviewers)
         #expect(WizardStep.go.fallback == .overview)
         #expect(WizardStep(word: "3") == .done)
@@ -421,7 +421,10 @@ struct GoalWizardTests {
         #expect(inputs.steps[1].headline == "3 of 7 happy")
         #expect(inputs.steps[1].detail == "Skeptic overruled: worth it")
         #expect(inputs.steps[2].headline == "5 criteria · 1 vague")
-        #expect(inputs.steps[3].detail == "on the goal's page for now")
+        #expect(inputs.steps[3].detail == "not split yet")
+        #expect(inputs.steps[4].detail == "on the goal's page for now")
+        let split = TLDRInputs.build(SplitFixtures.wizard(SplitFixtures.complexID), doc: nil, goalVersion: 1)
+        #expect(split.steps[3].headline == "15 parts · 5 agents")
         #expect(inputs.open.first?.action == .define(criterion: 4))
         #expect(inputs.open.contains { $0.text.hasPrefix("The Skeptic still says") && $0.action == nil })
         // Worth it: the other doubts were answered by the fixes; only the overruled Skeptic stays open.

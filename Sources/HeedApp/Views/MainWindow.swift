@@ -498,7 +498,7 @@ struct StatusBar: View {
             done: goals.pane == .agents && board.flatMap(model.summaryShown) != nil,
             sourceProposal: goals.sources.proposal != nil
         )
-        let scope = goals.scope
+        let scope = goals.scope == "goals" && goals.focus == .goals && model.pageShows ? "goalpage" : goals.scope
         let (hints, tail) = GoalHints.hints(scope: scope, context)
         let line = hints.map { "\($0.key ?? model.keyText(for: $0.command, in: scope)) \($0.label)" }
             .joined(separator: " · ")

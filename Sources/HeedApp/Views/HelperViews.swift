@@ -948,6 +948,15 @@ struct SessionHelperLineView: View {
                     .clickRuns(CommandInvocation(name: "helper.dismiss"))
                     .help("Take the finished helpers off the line")
             }
+            if line.asks {
+                // What it asks is in the approvals with every other agent's: gy answers it there.
+                HStack(spacing: 6) {
+                    Text("answer").foregroundStyle(Theme.block)
+                    KeyCap(text: model.keyText(for: "approvals.open"))
+                }
+                .font(Theme.ui(11.5))
+                .clickRuns(CommandInvocation(name: "approvals.open"))
+            }
             HStack(spacing: 6) {
                 Text(hint).foregroundStyle(Theme.fg3)
                 KeyCap(text: model.keyText(for: "helper.watch"))

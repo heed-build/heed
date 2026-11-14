@@ -18,13 +18,21 @@ final class ApprovalsLive {
 
 /// One place to answer what agents ask (`gy`): the modal, its keys, and the round trip to the hook that waits.
 extension AppModel {
-    /// Everything waiting, oldest first: hook asks heed can answer, and blocked sessions it can only point at.
+    /// Everything waiting, oldest first: hook asks heed can answer, helpers' asks, and blocked sessions it can only
+    /// point at.
     var approvalGroups: [ApprovalGroup] {
         let queue = approvals.queue
         let now = Clock.now
         let pressed = approvals.pressed.filter { now.timeIntervalSince($0.value) < 15 }.keys
         let screen = queue.screenAsks(sessions.filter { !pressed.contains($0.id) }, now: now)
-        return queue.groups(screen: screen) { [sessions, worktrees] id in
+        let runs = helpers.runs
+        return queue.groups(screen: screen, helpers: ApprovalQueue.helperAsks(
+            runs,
+            now: now
+        )) { [sessions, worktrees] id in
+            if id.hasPrefix("helper:") {
+                return runs.first { id == "helper:\($0.id)" }.map { [$0.worktree] } ?? []
+            }
             guard let session = sessions.first(where: { $0.id == id }) else { return [] }
             return session.worktreePaths + [session.directory].compactMap(\.self)
                 + worktrees.filter { session.owns($0) }.map(\.path)
@@ -103,6 +111,9 @@ extension AppModel {
             case .hook:
                 resolvePermission(ask.id, answer)
                 markAnswered(ask.session, answer)
+            case .helper:
+                guard let helper = ask.helperID else { continue }
+                if !settleHelperAsk(helper, askID: ask.id, answer) { answered = false }
             case .screen:
                 if answer.decision == .allow, allowOnScreen(sessionID: ask.session) { continue }
                 answered = false
@@ -156,10 +167,18 @@ extension AppModel {
                 flash = "\(group.first.agent) asks in its pane: answer it there (gS)"
                 return true
             }
+            guard group.takesReason else {
+                flash = "a helper's agent hears only allow or deny: n denies it"
+                return true
+            }
             openCommandLine("approvals.deny ")
         case "approvals.always":
             guard let group = selectedApproval else { return true }
             guard group.canAlways else {
+                if group.first.channel == .helper {
+                    flash = "the helper's agent offered no always for this one: y allows it once"
+                    return true
+                }
                 flash = group.first.agent == "claude"
                     ? "claude offered no rule to save for this one: y allows it once"
                     : "\(group.first.agent) takes no saved rule from heed: y allows it once"
@@ -172,9 +191,21 @@ extension AppModel {
         case "approvals.session":
             guard let group = selectedApproval else { return true }
             showApprovals(false)
+            if let helper = group.first.helperID { return openHelperFromApprovals(helper) }
             show(sessionID: group.first.session)
         default: return false
         }
+        return true
+    }
+
+    /// `gS` on a helper's ask: the helper in its split, under its session's panes, else under Autopilot's tiles.
+    private func openHelperFromApprovals(_ id: String) -> Bool {
+        if let session = helpers.run(id)?.sessionID, sessions.contains(where: { $0.id == session }) {
+            show(sessionID: session)
+        } else {
+            view = .watch
+        }
+        openHelper(id)
         return true
     }
 

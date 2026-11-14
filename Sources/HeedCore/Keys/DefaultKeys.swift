@@ -374,8 +374,7 @@ public enum DefaultKeys {
     /// Views whose own bindings work in VISUAL too, ahead of VISUAL's: in the diff, `a`, `A` and `y` act on the
     /// selected lines.
     /// The keys of Goals' list and overview: what acts on the goal, and what every view of Goals shares.
-    /// `t`: the goal's TL;DR (`T` is the swarm's map here; in the wizard, where no pane key applies, `T` is the TL;DR).
-    static let goals: [(String, String)] = goalActions + goalShared + [("F", "swarm.followup"), ("t", "goal.tldr")]
+    static let goals: [(String, String)] = goalActions + goalShared + [("F", "swarm.followup")]
 
     /// Lowercase actions on the goal itself. They apply only where the goal is what you are on: the list, the overview
     /// and GOAL.md (where `y` is the first GOAL.md change's yes instead; on the list and overview it is the proposed
@@ -391,6 +390,8 @@ public enum DefaultKeys {
     static let goalShared: [(String, String)] = [
         ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"),
         ("M", "goal.mirror"), ("Y", "goal.mirror.yes"), ("K", "goal.mirror.no"),
+        // T: the goal's TL;DR, the same key as in the new-goal wizard.
+        ("T", "goal.tldr"),
     ] + goalPanes
 
     /// Every view of Goals, by key scope: the list and overview, and each pane of a goal.
@@ -404,7 +405,7 @@ public enum DefaultKeys {
     public static let goalPanes: [(String, String)] = [
         ("E", "goal.doc"), ("B", "goal.board"), ("R", "goal.reviewers"), ("P", "goal.personas"),
         ("X", "goal.evaluations"), ("U", "goal.unassigned"), ("S", "goal.swarm"), ("W", "goal.agents"),
-        ("T", "goal.map"),
+        ("V", "goal.map"),
     ]
 
     /// Goals' list keys with `overrides` laid over (an empty command drops the key): GOAL.md, where the goal is the

@@ -119,7 +119,7 @@ limits.
 
 ## The map
 
-`T` on a goal (`:goal.map`) draws its swarm as a map: the goal and its lead on the left, the plan's phases as columns,
+`V` on a goal (`:goal.map`) draws its swarm as a map: the goal and its lead on the left, the plan's phases as columns,
 each task a card coloured by its state (done, working, asking, blocked, stuck, waiting), and an edge for every task it
 waits for. A task that waits for nothing hangs off the goal. A small plan is drawn larger to fill the pane; a large one
 is never shrunk below its own size, so its cards stay readable: it scrolls both ways, and moving the cursor with the

@@ -43,6 +43,7 @@ toc:
   - folder: start-work
     children:
       - file: index.md
+      - file: sizing.md
       - file: repos.md
       - file: branch-names.md
       - file: agent-and-options.md

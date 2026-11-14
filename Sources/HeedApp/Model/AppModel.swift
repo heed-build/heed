@@ -253,6 +253,8 @@ final class AppModel {
     let attention = AttentionModel()
     /// The helpers heed runs on your behalf over ACP, and what their splits show (AppModel+Helpers).
     let helpers = HelpersModel()
+    /// Personas in sessions: offers, looks, held PRs and the popover.
+    let sessionPanel = SessionPanelModel()
     private var hookServer: HookServer?
     /// The control socket (`HeedControl`): editors and scripts start, type into and follow sessions through it.
     var controlServer: ControlServer?
@@ -452,7 +454,8 @@ final class AppModel {
         engine.scope = overlay == .approvals ? "approvals" : overlay == .diff ? "diff" : issueReader != nil ? "issue"
             : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope
             : view == .attention && attentionQuestion != nil ? "swarmask"
-            : view == .sessions && goalPromotion != nil ? "sessionspromote" : helperScope ?? view.rawValue
+            : view == .sessions && goalPromotion != nil ? "sessionspromote"
+            : panelPopoverScope ?? helperScope ?? panelOfferScope ?? view.rawValue
         if engine.scope == "goals", goals.focus == .goals, pageShows { engine.scope = "goalpage" }
     }
 
@@ -619,6 +622,7 @@ final class AppModel {
         }
         updateScope()
         if !isFixture { loadInferenceSetup() }
+        if !isFixture { sessionPanel.load() }
         // Whether helpers can run (their ACP adapter on the PATH): said on the proposal and in Now before one starts.
         if !isFixture { Task { _ = await helperAvailability() } }
         tutorRecord = tutorProgress
@@ -1552,6 +1556,9 @@ final class AppModel {
         }
         if !replacingDomain, sessionsChanged || githubChanged { noticeNaming(before: before, after: after) }
         if !replacingDomain, sessionsChanged { noticeTurnEnds(before: before, after: after) }
+        if !replacingDomain, sessionsChanged || after.worktrees != before.worktrees {
+            noticeSessionPanel(before: before, after: after)
+        }
         if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
         if !replacingDomain, githubChanged { tickSwarms() }
         if !replacingDomain, sessionsChanged { noticeGoalAttach(before: before, after: after) }
@@ -3156,6 +3163,9 @@ final class AppModel {
              "personas.overlap", "personas.drafted", "personas.define", "personas.answer", "personas.option",
              "personas.next", "personas.save", "personas.close":
             _ = performPersonas(command)
+        case _ where command.name.hasPrefix("panel.")
+            || ["personas.sessions", "personas.signal", "personas.signal.toggle"].contains(command.name):
+            _ = performSessionPanel(command)
         default:
             flash = "\(command.name): not built yet"
         }

@@ -353,6 +353,9 @@ struct SessionRow: View {
                         place.layoutPriority(1)
                         if let kind { WorkKindBadge(kind: kind) }
                         if let size = WorkSize.of(lines: pending.lines, files: pending.files) { SizeBars(size: size) }
+                        // The personas who may look at its work, faint: nothing else while the agent works.
+                        let panel = model.panelAvatars(for: session)
+                        if !panel.isEmpty { PersonaStack(personas: panel, size: 14, faint: true) }
                         Spacer(minLength: 4)
                         if let host = session.host { HostChip(location: .host(host), color: hostColor) }
                         idleAge

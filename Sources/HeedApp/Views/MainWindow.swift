@@ -538,6 +538,18 @@ struct StatusBar: View {
                 + "\(key("helper.takeover", in: "sessionshelpers")) take it over · "
                 + "\(key("helper.dismiss", in: "sessionshelpers")) dismiss a finished one · "
                 + "\(key("helper.menu.close", in: "sessionshelpers")) close"
+        case .normal where model.panelPopoverScope == "sessionspanelchat":
+            "\(key("panel.say", in: "sessionspanelchat")) type to them · \(key("panel.talk", in: "sessionspanelchat")) close"
+        case .normal where model.panelPopoverScope == "sessionspanelpr":
+            "\(key("panel.pr open", in: "sessionspanelpr")) let it open · "
+                + "\(key("panel.pr concern", in: "sessionspanelpr")) send the concern first · "
+                + "\(key("panel.pr hold", in: "sessionspanelpr")) hold the PR"
+        case .normal where model.panelPopoverScope == "sessionspanel":
+            "\(key("panel.send", in: "sessionspanel")) send to \(model.currentSession?.agent ?? "the agent") · "
+                + "\(key("panel.talk", in: "sessionspanel")) talk to one · "
+                + "\(key("panel.dismiss", in: "sessionspanel")) dismiss"
+        case .normal where model.panelOfferScope != nil && model.helperScope == nil:
+            "\(model.keyText(for: "panel.ask")) ask the panel · \(key("panel.notnow", in: "sessionsoffer")) not now"
         case .normal where model.overlay == .diff:
             "\(key("row.next", "row.prev", in: "diff")) line · \(key("diff.hunk.next", in: "diff")) hunk · "
                 + "\(key("diff.file.next", in: "diff")) file · \(key("diff.scope.next", in: "diff")) scope · "

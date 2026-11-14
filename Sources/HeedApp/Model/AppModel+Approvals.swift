@@ -75,8 +75,14 @@ extension AppModel {
             permissionFellBack(ask, fallback)
             return ControlReply(permissionID: ask.id)
         }
-        let wait = config.approvals.waitSeconds
-        guard wait > 0, !isFixture, !PermissionAsk.isQuestion(tool: ask.tool) else { return pass }
+        guard config.approvals.waitSeconds > 0, !isFixture,
+              !PermissionAsk.isQuestion(tool: ask.tool) else { return pass }
+        // A PR the agent opens waits for the panel first (Personas in sessions); then on as it would have, within
+        // what the hook may still wait.
+        let asked = Date()
+        if let answer = await panelGate(ask) { return ControlReply(permission: answer, permissionID: ask.id) }
+        let wait = PRHold(ask: ask, since: asked, until: asked).approvalsWait(config.approvals.waitSeconds, now: Date())
+        guard wait > 0 else { return pass }
         let id = ask.id
         let broker = approvals.broker
         switch broker.join(id) {

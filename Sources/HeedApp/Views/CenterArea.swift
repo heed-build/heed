@@ -34,17 +34,28 @@ struct CenterArea: View {
                     }
                 }
             }
-            // Helpers on the session's PRs: one line at the foot of its panes (never typed in); gW watches the one,
-            // or lists them over the line.
-            if let session = model.currentSession, let line = model.helperLine(for: session) {
-                if model.helpers.listOpen { SessionHelperList(line: line) }
-                SessionHelperLineView(line: line).id(session.id)
-            }
-            // Growing into a goal: its own quiet line under the helpers' (gP makes it a goal, ✕ not now).
-            if model.view == .sessions, let session = model.currentSession,
-               let growth = model.goalGrowth(for: session)
-            {
-                GrowthLine(growth: growth).id(session.id)
+            // The lines at the foot of the session's panes, most urgent first (`SessionFoot`): helpers on its PRs
+            // (never typed in; gW watches the one, or lists them over the line), the panel's (an offer, a verdict, a
+            // held PR; gL), and growing into a goal (gP makes it a goal, ✕ not now).
+            if let session = model.currentSession {
+                let helpers = model.helperLine(for: session)
+                let panel = model.view == .sessions ? model.panelLine(for: session) : nil
+                let growth = model.view == .sessions ? model.goalGrowth(for: session) : nil
+                ForEach(
+                    SessionFoot.order(helpers: helpers, panel: panel?.urgency, growth: growth != nil), id: \.self
+                ) { line in
+                    switch line {
+                    case .helpers:
+                        if let helpers {
+                            if model.helpers.listOpen { SessionHelperList(line: helpers) }
+                            SessionHelperLineView(line: helpers).id(session.id)
+                        }
+                    case .panel:
+                        if let panel { SessionPanelLineView(session: session, line: panel).id(session.id) }
+                    case .growth:
+                        if let growth { GrowthLine(growth: growth).id(session.id) }
+                    }
+                }
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -52,9 +63,19 @@ struct CenterArea: View {
                promotion.session == model.currentSession?.id
             {
                 PromotionPopover(promotion: promotion).padding(.trailing, 16).padding(.bottom, 40)
+            } else if model.view == .sessions, let session = model.currentSession,
+                      model.sessionPanel.open == session.id, let look = model.panelLook(session.id)
+            {
+                SessionPanelPopover(
+                    session: session, look: look, held: model.sessionPanel.holds[session.id]?.look != nil
+                )
+                .padding(.trailing, 16).padding(.bottom, 56)
             }
         }
-        .onChange(of: model.currentSession?.id) { model.closePromotionIfMoved() }
+        .onChange(of: model.currentSession?.id) {
+            model.closePromotionIfMoved()
+            model.panelSessionMoved()
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.pane)
     }

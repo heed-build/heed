@@ -181,6 +181,19 @@ enum Shots {
         // Make it a goal; gP shows what the goal would be.
         Shot(id: "sessions/growing", crop: .center, prepare: growingSession),
         Shot(id: "sessions/make-it-a-goal", keys: "gP", crop: .center, prepare: growingSession),
+        // Personas in sessions: quiet (a faint stack on the row), an offer after a lot got built, the verdict and its
+        // popover (gL), and a PR held for the panel with a concern.
+        Shot(id: "sessions/personas-quiet", size: CGSize(width: 1440, height: 640), crop: .sidebar, prepare: {
+            $0.loadSessionPanelFixture(.quiet)
+        }),
+        Shot(id: "sessions/personas-offer", crop: .center, prepare: { $0.loadSessionPanelFixture(.offer) }),
+        Shot(
+            id: "sessions/personas-verdict",
+            keys: "gL",
+            crop: .center,
+            prepare: { $0.loadSessionPanelFixture(.verdict) }
+        ),
+        Shot(id: "sessions/personas-pr", keys: "gL", crop: .center, prepare: { $0.loadSessionPanelFixture(.pr) }),
         Shot(id: "sessions/task-picker", keys: "!", crop: .picker, prepare: withDiscoveredTasks),
         // run_in = "background", the older way: only the page that documents it shows it.
         Shot(id: "sessions/run-tab", keys: "4j", crop: .center, prepare: { $0.loadBackgroundRunFixture() }),
@@ -1018,6 +1031,13 @@ enum Shots {
             prepare: { model in
                 model.loadPersonaLibraryFixture()
                 model.personaUI.setCursor(11, count: 13)
+            }
+        ),
+        Shot(
+            id: "settings/personas-sessions", subject: .settings(.personas), size: CGSize(width: 1440, height: 900),
+            prepare: { model in
+                model.loadSessionPanelFixture(.quiet)
+                model.personaUI.inSessions = true
             }
         ),
         Shot(

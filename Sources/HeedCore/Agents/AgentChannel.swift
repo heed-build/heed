@@ -22,12 +22,15 @@ public enum DeliveryChannel: String, Hashable, Sendable, Codable {
     case claudeInbox = "claude-inbox"
     case codexQueue = "codex-queue"
     case typed
+    /// A helper's ACP session: a prompt of its own (`HelperMail`).
+    case acp
 
     public var label: String {
         switch self {
         case .claudeInbox: "Claude's inbox"
         case .codexQueue: "codex's queue"
         case .typed: "typed into its pane"
+        case .acp: "its ACP session"
         }
     }
 }

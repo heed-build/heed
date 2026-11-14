@@ -524,6 +524,16 @@ struct StatusBar: View {
                 + "\(key("approvals.always", in: "approvals")) always here · "
                 + "\(key("approvals.deny.reason", in: "approvals")) deny with a reason · "
                 + "\(key("approvals.next", "approvals.prev", in: "approvals")) move · ⎋ close"
+        case .normal where model.otherMenuItem != nil:
+            "\(key("helper.menu.next", "helper.menu.prev", in: "attentionother")) move · "
+                + "\(key("helper.menu.pick", in: "attentionother")) do it · "
+                + "\(key("helper.menu.close", in: "attentionother")) close · the actions' own keys work too"
+        case .normal where model.view == .sessions && model.helpers.listOpen:
+            "\(key("helper.menu.next", "helper.menu.prev", in: "sessionshelpers")) move · "
+                + "\(key("helper.menu.pick", in: "sessionshelpers")) watch · "
+                + "\(key("helper.takeover", in: "sessionshelpers")) take it over · "
+                + "\(key("helper.dismiss", in: "sessionshelpers")) dismiss a finished one · "
+                + "\(key("helper.menu.close", in: "sessionshelpers")) close"
         case .normal where model.overlay == .diff:
             "\(key("row.next", "row.prev", in: "diff")) line · \(key("diff.hunk.next", in: "diff")) hunk · "
                 + "\(key("diff.file.next", in: "diff")) file · \(key("diff.scope.next", in: "diff")) scope · "

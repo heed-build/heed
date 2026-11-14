@@ -275,14 +275,6 @@ public enum Fixtures {
             }
             layouts[session.id] = SessionLayout(tabs: tabs(for: session, root: root))
         }
-        // s5's PR has a get it green run working in the background, in a tab next to its agent tab.
-        if var layout = layouts["s5"] {
-            layout.tabs.append(PaneTab(id: "s5-helper-tab", title: "get it green", tree: .leaf(PaneSpec(
-                id: "s5-helper", role: .helper, title: "get it green",
-                directory: "\(root)/wt/editor-rules/bump-spec-tests"
-            ))))
-            layouts["s5"] = layout
-        }
         // Worktrees made outside Heed, with no session yet: what `I` in Sessions imports.
         worktrees += [
             Worktree(
@@ -368,6 +360,27 @@ public enum Fixtures {
             mergeRuns: mergeRuns, registeredWorktrees: [remoteWorktrees[0].id], runs: runs
         )
     }()
+
+    /// The fake world with s5's PR getting it green the older way, `run_in = "background"`: a codex run working in a
+    /// tab of its own beside the session's agent tab. Only the shots of the page that documents that mode use it.
+    public static func withBackgroundRun(_ domain: Domain) -> Domain {
+        var domain = domain
+        guard var layout = domain.layouts["s5"] else { return domain }
+        layout.tabs.append(PaneTab(id: "s5-helper-tab", title: "get it green", tree: .leaf(PaneSpec(
+            id: "s5-helper", role: .helper, title: "get it green",
+            directory: "/Users/you/code/wt/editor-rules/bump-spec-tests"
+        ))))
+        domain.layouts["s5"] = layout
+        let ref = PullRef(repo: editorRules, number: 412)
+        let run = PilotRun(
+            id: "r4", ref: ref, sessionID: "s5", goal: .green, agent: "codex", model: "gpt-5-codex",
+            startedAt: Clock.now.addingTimeInterval(-3 * 60), items: 2, prBranch: "bump-spec-tests",
+            branch: Runs.branch(.green, prBranch: "bump-spec-tests"),
+            worktree: "~/code/wt/heed/editor-rules/get-it-green-bump-spec-tests", startSHA: nil
+        )
+        domain.runs.insert(run, at: 0)
+        return domain
+    }
 
     /// The pilot's other states: #2852 paused, ingest#31 not watched (set by hand), markgraph#418 stuck after three
     /// rounds, and a morning of activity.
@@ -478,7 +491,8 @@ public enum Fixtures {
     }()
 
     /// The merge queues' runs: docs-website turned green and got auto-merge, docs-toolkit holds #2841 on lint.
-    /// Get it green runs: one working on s5's PR, and s1's history (pushed, nothing to change, timed out).
+    /// Get it green runs: s1's history (pushed, nothing to change, timed out). s5's PR gets it green as a helper
+    /// (`specHelper`); `withBackgroundRun` is the older way, for the page that still documents it.
     static let runs: [PilotRun] = {
         let now = Clock.now
         func ago(_ minutes: Double) -> Date { now.addingTimeInterval(-minutes * 60) }
@@ -502,17 +516,6 @@ public enum Fixtures {
         }
         let anchors = PullRef(repo: docsToolkit, number: 2841)
         return [
-            run(
-                "r4",
-                PullRef(repo: editorRules, number: 412),
-                "s5",
-                agent: "codex",
-                model: "gpt-5-codex",
-                started: 3,
-                minutes: nil,
-                items: 2,
-                outcome: nil
-            ),
             run(
                 "r3",
                 anchors,

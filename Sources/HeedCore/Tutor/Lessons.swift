@@ -142,8 +142,9 @@ public extension Tutor {
         TutorLesson(id: "attention", title: "Attention", minutes: 4, world: .mondayMorning, steps: [
             TutorStep(
                 "Heed's next step",
-                say: "Each row's last line is heed's next step for it, and the reader proposes it on top: {helper.do} "
-                    + "does it. {helper.other} proposes another step instead: press it.",
+                say: "A row ends with heed's next step for it (▶ merge it), and the reader proposes it on top: "
+                    + "{helper.do} does it. {helper.other} opens Other, its other steps and what else you can do: "
+                    + "press it.",
                 keys: ["{helper.other}"], target: "nextStep",
                 doneLine: "{helper.always} does it and turns it on for the repo, so heed does it by itself from now on."
             ) { start, now, _ in now.otherSteps > start.otherSteps },

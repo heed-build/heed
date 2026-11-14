@@ -453,7 +453,7 @@ private struct AttentionRow: View {
     let isPicked: Bool
     /// Beside the reader: one line of reasons and preview under the title.
     var compact = true
-    /// heed's next step for it, when it has one: the row's last line.
+    /// heed's next step for it, when it has one: its short mark on the reasons line.
     var nextStep: NextStep?
 
     var body: some View {
@@ -479,12 +479,17 @@ private struct AttentionRow: View {
                     HStack(spacing: 6) {
                         tags(limit: 2)
                         previewText.lineLimit(1)
+                        Spacer(minLength: 6)
+                        stepChip
                     }
                 } else {
                     previewText.lineLimit(2)
-                    FlowLayout(spacing: 5) { tags(limit: nil) }
+                    HStack(alignment: .top, spacing: 6) {
+                        FlowLayout(spacing: 5) { tags(limit: nil) }
+                        Spacer(minLength: 6)
+                        stepChip
+                    }
                 }
-                if let step = nextStep { NextStepLine(step: step) }
             }
         }
         .padding(.leading, 8)
@@ -495,6 +500,15 @@ private struct AttentionRow: View {
         }
         .background(isPicked ? Theme.block.opacity(0.16) : index == cursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
+    }
+
+    /// heed's next step, short and on the right (`▶ merge it`), only when heed would act; the reader says it in full.
+    @ViewBuilder private var stepChip: some View {
+        if let chip = nextStep?.chip {
+            let helping = if case .helping = nextStep { true } else { false }
+            Text(chip).font(Theme.ui(11.5, weight: .medium)).foregroundStyle(helping ? Theme.busy : Theme.fg2)
+                .lineLimit(1).fixedSize()
+        }
     }
 
     /// Why it is here: pinned, the boosted reason with its weight, the others (at most `limit` in all), teams, and
@@ -571,11 +585,16 @@ private struct AttentionReader: View {
                     repo: repo, kind: item.kind == .pr ? .pr : .issue, number: number,
                     title: conversation?.title ?? item.title,
                     author: conversation?.author?.login ?? item.author, openedAt: conversation?.createdAt,
-                    chips: chips(conversation), actions: actions
+                    chips: chips(conversation)
                 )
-                if let step = model.proposedStep(for: item), model.visibleHelper == nil {
+                // heed's proposal, with the item's other steps and actions under Other (.); with no step to take (or
+                // a helper's split open), a slim line of the actions instead.
+                if let step = model.proposedStep(for: item), step.actionable, model.visibleHelper == nil {
                     NextStepProposal(item: item, step: step)
+                } else {
+                    ReaderActionsLine(item: item, step: model.proposedStep(for: item))
                 }
+                if model.otherMenuItem?.id == item.id { OtherMenuView(item: item) }
                 why
                 SummaryCard(item: item)
                 if let draft = model.attention.draft, draft.id == item.id {
@@ -642,30 +661,6 @@ private struct AttentionReader: View {
         if let size = item.size { chips.append(ThreadHeader.Chip(text: "\(size) lines changed")) }
         if entry.muted { chips.append(ThreadHeader.Chip(text: "muted", tint: Theme.fg3)) }
         return chips
-    }
-
-    private var actions: [ThreadHeader.Action] {
-        let item = entry.item
-        var actions = [
-            ThreadHeader.Action(
-                command: "open.reader",
-                label: item.kind == .pr ? "Review" : "Read",
-                scope: "attention"
-            ),
-            ThreadHeader.Action(command: "attention.reply", label: "Reply", scope: "attention"),
-        ]
-        actions.append(item.session != nil
-            ? ThreadHeader.Action(command: "attention.session", label: "Session", scope: "attention")
-            : ThreadHeader.Action(command: "items.start", label: "Start session", scope: "attention"))
-        actions += [
-            ThreadHeader.Action(command: "attention.done", label: "Done", scope: "attention"),
-            ThreadHeader.Action(command: "attention.snooze", label: "Snooze", scope: "attention"),
-        ]
-        if item.notificationID != nil {
-            actions.append(ThreadHeader.Action(command: "attention.mute", label: "Mute", scope: "attention"))
-        }
-        if item.url != nil { actions.append(ThreadHeader.Action(command: "open.browser", label: "GitHub")) }
-        return actions
     }
 
     private func card(_ title: String, @ViewBuilder _ content: () -> some View) -> some View {

@@ -85,15 +85,52 @@ extension AppModel {
         }
     }
 
-    /// `.`: the proposal moves to the item's next other step, and back to heed's own after the last.
+    /// `.`: Other, a small menu of the item's other next steps and what else you can do with it; again closes it.
     func otherNextStep() {
-        guard view == .attention, let item = attentionSelected?.item else { return }
-        let others = NextStep.others(item, proposed: nextStep(for: item))
-        guard !others.isEmpty else { return flash = "no other step for this" }
-        let pick = ((helpers.proposal[item.id] ?? 0) + 1) % (others.count + 1)
-        helpers.proposal[item.id] = pick
+        guard view == .attention, let item = attentionSelected?.item, item.repo != nil, item.number != nil,
+              item.kind == .pr || item.kind == .issue
+        else { return flash = "no other step for this" }
+        if helpers.otherMenu == item.id { return helpers.otherMenu = nil }
+        helpers.otherMenu = item.id
+        helpers.otherRow = 0
         helpers.otherSteps += 1
-        flash = pick == 0 ? "back to heed's own step" : "other step \(pick) of \(others.count): \(others[pick - 1].title)"
+    }
+
+    /// A command's key as it works in `scope` with no menu over it: Other lists Attention's keys while its own `↩`
+    /// shadows the reader's.
+    func keyText(for command: String, asIn scope: String) -> String {
+        KeyLabels.label(
+            for: command, keymaps: engine.keymaps, scoped: engine.scopedKeymaps, scope: scope, mode: mode
+        )?.text ?? ":\(command)"
+    }
+
+    /// The Other menu's rows for an item.
+    func otherMenuEntries(for item: AttentionItem) -> [OtherMenu.Entry] {
+        OtherMenu.entries(item, own: nextStep(for: item), proposed: proposedStep(for: item))
+    }
+
+    /// The item Other is open for, when it is the one under the cursor.
+    var otherMenuItem: AttentionItem? {
+        guard view == .attention, let item = attentionSelected?.item, helpers.otherMenu == item.id else { return nil }
+        return item
+    }
+
+    /// A row of Other: propose that step (heed's own again, or another), or run that action.
+    func pickOther(_ entry: OtherMenu.Entry, for item: AttentionItem) {
+        helpers.otherMenu = nil
+        switch entry {
+        case .own:
+            helpers.proposal[item.id] = 0
+            flash = "back to heed's own step"
+        case let .step(step):
+            let others = NextStep.others(item, proposed: nextStep(for: item))
+            guard let index = others.firstIndex(of: step) else { return }
+            helpers.proposal[item.id] = index + 1
+            flash = "proposed instead: \(step.title)"
+        case let .action(action):
+            perform(CommandInvocation(name: action.command))
+        }
+        updateScope()
     }
 
     /// Get it green from Attention: every new item of the PR queued, then sent (a helper, by default).
@@ -128,8 +165,11 @@ extension AppModel {
         }
     }
 
-    /// The scope helper keys take while a helper's split shows: over Attention's, over Now's, or on their own.
+    /// The scope helper keys take while a helper's split shows: over Attention's, over Now's, or on their own. A
+    /// small menu open (Other, the session's helpers) goes first.
     var helperScope: String? {
+        if otherMenuItem != nil { return "attentionother" }
+        if view == .sessions, helpers.listOpen { return "sessionshelpers" }
         guard visibleHelper != nil else { return nil }
         switch view {
         case .attention: return "attentionhelper"
@@ -138,16 +178,29 @@ extension AppModel {
         }
     }
 
-    /// The helper a band on the session is about: one working on a PR the session tracks.
-    func helperNotice(for session: Session) -> (helper: HelperRun, text: String)? {
-        let notice = helpers.notices[session.id]
-        if let notice, let helper = helpers.run(notice.helperID), !isClosedOut(helper) || notice.at > Clock.now - 3600 {
-            return (helper, notice.text)
-        }
-        guard let helper = helpers.runs.first(where: {
-            session.trackedPRs.contains($0.ref) && !isClosedOut($0)
-        }) else { return nil }
-        return (helper, HelperPrompt.workingNote(helper))
+    /// The session's helper line: every helper on its PRs, what needs you first, finished ones until seen.
+    func helperLine(for session: Session) -> SessionHelperLine? {
+        SessionHelperLine.of(
+            helpers.runs, tracked: session.trackedPRs, sessionID: session.id, leftAt: helpers.leftAt[session.id],
+            dismissed: helpers.dismissed
+        )
+    }
+
+    /// The helper the sidebar's row and `gO` are about: the first on the session's line that is live or waits for
+    /// its close-out.
+    func sessionHelper(for session: Session) -> HelperRun? {
+        helperLine(for: session)?.entries.lazy.compactMap { self.helpers.run($0.id) }
+            .first { $0.phase.isLive || $0.phase.awaitsCloseOut }
+    }
+
+    /// The session shown in Sessions changed: the one left counts as looked at now (its finished helpers are seen),
+    /// and the helper list closes.
+    func noteSessionShown() {
+        let now = view == .sessions ? currentSession?.id : nil
+        guard now != helpers.lookingAt else { return }
+        if let left = helpers.lookingAt { helpers.leftAt[left] = Clock.now }
+        helpers.lookingAt = now
+        if helpers.listOpen { helpers.listOpen = false }
     }
 
     private func isClosedOut(_ helper: HelperRun) -> Bool {
@@ -164,12 +217,23 @@ extension AppModel {
     // MARK: Commands
 
     func performHelper(_ command: CommandInvocation) {
+        // A click on a menu's row (or its Take it over) names the row.
+        if let row = command.arguments.first.flatMap(Int.init) {
+            if otherMenuItem != nil { helpers.otherRow = row } else if helpers.listOpen { helpers.listRow = row }
+        }
         switch command.name {
         case "helper.do": doNextStep(always: false)
         case "helper.always": doNextStep(always: true)
         case "helper.other": otherNextStep()
         case "helper.watch": watchHelper()
         case "helper.takeover": takeOverHelper()
+        case "helper.menu.next": moveMenu(by: 1)
+        case "helper.menu.prev": moveMenu(by: -1)
+        case "helper.menu.pick": pickMenu()
+        case "helper.menu.close":
+            helpers.otherMenu = nil
+            helpers.listOpen = false
+        case "helper.dismiss": dismissHelpers()
         case "helper.tile.next": moveTile(by: 1)
         case "helper.tile.prev": moveTile(by: -1)
         default:
@@ -201,16 +265,76 @@ extension AppModel {
         }
     }
 
-    /// `gW` (Watch it): the session's helper, in a split under its panes; again closes it.
+    /// `gW` (Watch it): the session's helper, in a split under its panes; with more than one on its PRs, their list
+    /// over the helper line. Again closes either.
     private func watchHelper() {
-        if view == .sessions, let shown = visibleHelper {
-            helpers.shown = nil
-            helpers.hidden.insert(shown.id)
+        if view == .sessions {
+            if helpers.listOpen { return helpers.listOpen = false }
+            if let shown = visibleHelper {
+                helpers.shown = nil
+                helpers.hidden.insert(shown.id)
+                return
+            }
+            if let session = currentSession, let line = helperLine(for: session) {
+                guard line.entries.count == 1 else {
+                    helpers.listOpen = true
+                    helpers.listRow = 0
+                    return
+                }
+                return openHelper(line.entries[0].id)
+            }
+        }
+        guard let helper = helpers.active.first else { return flash = "no helper at work" }
+        openHelper(helper.id)
+    }
+
+    /// `j` `k` in the open menu.
+    private func moveMenu(by step: Int) {
+        if let item = otherMenuItem {
+            let count = otherMenuEntries(for: item).count
+            helpers.otherRow = min(max(helpers.otherRow + step, 0), max(count - 1, 0))
+        } else if view == .sessions, helpers.listOpen, let session = currentSession {
+            let count = helperLine(for: session)?.entries.count ?? 0
+            helpers.listRow = min(max(helpers.listRow + step, 0), max(count - 1, 0))
+        }
+    }
+
+    /// `↩` in the open menu: Other's row, or the session list's helper (watched).
+    private func pickMenu() {
+        if let item = otherMenuItem {
+            let entries = otherMenuEntries(for: item)
+            guard entries.indices.contains(helpers.otherRow) else { return }
+            return pickOther(entries[helpers.otherRow], for: item)
+        }
+        guard view == .sessions, helpers.listOpen, let entry = selectedListEntry else { return }
+        helpers.listOpen = false
+        openHelper(entry.id)
+    }
+
+    /// The row under the cursor in the session's helper list.
+    var selectedListEntry: SessionHelperLine.Entry? {
+        guard helpers.listOpen, let session = currentSession,
+              let entries = helperLine(for: session)?.entries, entries.indices.contains(helpers.listRow)
+        else { return nil }
+        return entries[helpers.listRow]
+    }
+
+    /// `x` in the list (a finished helper there), or the line's ✕ (every finished one on it): off the line.
+    private func dismissHelpers() {
+        if helpers.listOpen {
+            guard let entry = selectedListEntry, entry.standing == .finished else {
+                return flash = "only a finished helper leaves the line"
+            }
+            helpers.dismissed.insert(entry.id)
+            let count = currentSession.flatMap { helperLine(for: $0) }?.entries.count ?? 0
+            if count == 0 { helpers.listOpen = false }
+            helpers.listRow = min(helpers.listRow, max(count - 1, 0))
             return
         }
-        let helper = currentSession.flatMap { helperNotice(for: $0)?.helper } ?? helpers.active.first
-        guard let helper else { return flash = "no helper at work" }
-        openHelper(helper.id)
+        guard let finished = currentSession.flatMap({ helperLine(for: $0) })?.finished, !finished.isEmpty else {
+            return flash = "no finished helper on this session"
+        }
+        helpers.dismissed.formUnion(finished.map(\.id))
     }
 
     /// Now's live tiles: `h` `l` move between them; `j` back in the list leaves them.
@@ -674,9 +798,14 @@ extension AppModel {
 
     /// `gO` (Take it over): the helper stops, its worktree and branch stay, and the session is told where they are.
     func takeOverHelper() {
-        guard let session = currentSession, let helper = helperNotice(for: session)?.helper ?? visibleHelper else {
-            return flash = "no helper on this session's PRs"
+        let picked = selectedListEntry.flatMap { helpers.run($0.id) }
+        guard let session = currentSession,
+              let helper = picked ?? visibleHelper ?? sessionHelper(for: session)
+        else { return flash = "no helper on this session's PRs" }
+        guard helper.phase.isLive || helper.phase.awaitsCloseOut else {
+            return flash = "the helper is \(helper.phase.text): nothing to take over"
         }
+        helpers.listOpen = false
         if helper.phase.isLive { cancelTurn(helper.id, .stop("you took it over")) }
         let id = helper.id
         Task { [weak self] in
@@ -753,14 +882,23 @@ enum DollarsText {
 extension AppModel {
     /// The fake world's helpers (`Fixtures.helpers`), for shots and the tutor: the anchors PR's helper at work
     /// (or, `done`, waiting for its close-out), a review and a conflict. Its session was told. No agent runs.
-    func loadHelperFixture(done: Bool = false) {
+    func loadHelperFixture(done: Bool = false, line: Bool = false) {
         var runs = Fixtures.helpers(now: Clock.now)
         if done { runs[0] = Fixtures.anchorsHelperDone(now: Clock.now) }
+        if line { runs += Fixtures.sessionLineHelpers(now: Clock.now) }
         helpers.runs = runs
         helpers.availability = .ready(ACPAgents.adapter(for: "claude")!, path: "/opt/homebrew/bin/claude-agent-acp")
         helpers.notices["s1"] = HelpersModel.SessionNotice(
             helperID: runs[0].id, text: HelperPrompt.workingNote(runs[0]), at: Clock.now
         )
         updateScope()
+    }
+
+    /// The fake world's own get it green is a helper, as `run_in = "helper"` (the default) has it: bump-spec-tests'
+    /// PR at work, when the world has that session.
+    func adoptFixtureHelpers() {
+        guard sessions.contains(where: { $0.id == "s5" }) else { return }
+        helpers.runs = [Fixtures.specHelper(now: Clock.now)]
+        helpers.availability = .ready(ACPAgents.adapter(for: "claude")!, path: "/opt/homebrew/bin/claude-agent-acp")
     }
 }

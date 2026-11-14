@@ -9,10 +9,6 @@ struct CenterArea: View {
     var body: some View {
         VStack(spacing: 0) {
             TabStrip().shotRegion(.tabStrip)
-            // A helper on one of the session's PRs: a band says so (never typed in); Watch it opens it below.
-            if let session = model.currentSession, let notice = model.helperNotice(for: session) {
-                SessionHelperBand(helper: notice.helper, text: notice.text, sessionID: session.id)
-            }
             GeometryReader { geometry in
                 VStack(spacing: 0) {
                     if let tab = model.currentTab {
@@ -34,8 +30,15 @@ struct CenterArea: View {
                         Theme.line.frame(height: 1)
                         HelperSplit(helper: helper)
                             .frame(height: (geometry.size.height * (model.helpers.zoomed ? 0.85 : 0.5)).rounded())
+                            .clipped()
                     }
                 }
+            }
+            // Helpers on the session's PRs: one line at the foot of its panes (never typed in); gW watches the one,
+            // or lists them over the line.
+            if let session = model.currentSession, let line = model.helperLine(for: session) {
+                if model.helpers.listOpen { SessionHelperList(line: line) }
+                SessionHelperLineView(line: line).id(session.id)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

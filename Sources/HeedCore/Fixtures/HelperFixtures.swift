@@ -139,6 +139,60 @@ public extension Fixtures {
         return run
     }
 
+    /// More on the anchors session's PRs, for its helper line: one getting docs-website#1920 green, two steps in, and
+    /// one that pushed to #2836 a few minutes ago (not seen yet).
+    static func sessionLineHelpers(now: Date) -> [HelperRun] {
+        let started = now.addingTimeInterval(-95)
+        var website = HelperRun(
+            id: "helper-1920", kind: .green, ref: PullRef(repo: docsWebsite, number: 1920),
+            title: "Redirects for moved pages", agent: "claude", adapter: "claude via ACP", sessionID: "s1",
+            prBranch: "moved-page-redirects", branch: "heed/get-it-green/moved-page-redirects",
+            worktree: Paths.home + "/code/wt/heed/docs-website/get-it-green-moved-page-redirects", startedAt: started,
+            cap: 0.5
+        )
+        website.phase = .working
+        website.apply(.plan([
+            ACPPlanEntry(content: "Read the failing link check", status: .completed),
+            ACPPlanEntry(content: "Point the moved pages at their new anchors", status: .inProgress),
+            ACPPlanEntry(content: "Run the link check", status: .pending),
+        ]), at: started)
+        var pushed = HelperRun(
+            id: "helper-2836", kind: .green, ref: PullRef(repo: docsToolkit, number: 2836),
+            title: "Redirect checker: first pass", agent: "claude", adapter: "claude via ACP", sessionID: "s1",
+            prBranch: "redirect-checker", branch: "heed/get-it-green/redirect-checker",
+            worktree: Paths.home + "/code/wt/heed/docs-toolkit/get-it-green-redirect-checker",
+            startedAt: now.addingTimeInterval(-900), cap: 0.5
+        )
+        pushed.closeOut = HelperCloseOut(did: ["lint fix"], summary: "lint passes", commits: 1, pushedSHA: "a3f9c1d")
+        pushed.phase = .closed("pushed a3f9c1d")
+        pushed.endedAt = now.addingTimeInterval(-240)
+        return [website, pushed]
+    }
+
+    /// The fake world's own get it green, as a helper (`run_in = "helper"`, the default): bump-spec-tests' PR,
+    /// editor-rules#412, its lint fixed and its spec tests running.
+    static func specHelper(now: Date) -> HelperRun {
+        let started = now.addingTimeInterval(-180)
+        var run = HelperRun(
+            id: "helper-412-green", kind: .green, ref: PullRef(repo: editorRules, number: 412),
+            title: "Bump spec tests to 0.17", agent: "claude", adapter: "claude via ACP", sessionID: "s5",
+            prBranch: "bump-spec-tests", branch: "heed/get-it-green/bump-spec-tests",
+            worktree: Paths.home + "/code/wt/heed/editor-rules/get-it-green-bump-spec-tests", startedAt: started,
+            cap: 0.5
+        )
+        run.phase = .working
+        run.apply(.plan([
+            ACPPlanEntry(content: "Fix the lint warning in rules.yaml", status: .completed),
+            ACPPlanEntry(content: "Run the spec tests", status: .inProgress),
+            ACPPlanEntry(content: "Commit, for heed to push", status: .pending),
+        ]), at: started)
+        run.apply(.toolCall(ACPToolCall(
+            id: "g1", title: "npm run spec", kind: .execute, status: .inProgress
+        )), at: started.addingTimeInterval(150))
+        run.apply(.usage(used: 9100, size: 200_000, cost: 0.03, currency: "USD"), at: started.addingTimeInterval(160))
+        return run
+    }
+
     /// Resolving editor-rules#412's conflict with main.
     static func conflictHelper(now: Date) -> HelperRun {
         let started = now.addingTimeInterval(-70)

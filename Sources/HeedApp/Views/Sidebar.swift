@@ -165,9 +165,7 @@ struct Sidebar: View {
                                             .contentShape(Rectangle())
                                             .onTapGesture { model.open(run: run) }
                                             .help("Go to the run's tab")
-                                    } else if let helper = model.helperNotice(for: session)?.helper,
-                                              helper.phase.isLive || helper.phase.awaitsCloseOut
-                                    {
+                                    } else if let helper = model.sessionHelper(for: session) {
                                         // A helper on its PR: no tab of its own; a click watches it under the panes.
                                         HelperChildRow(helper: helper)
                                             .clickRuns(CommandInvocation(

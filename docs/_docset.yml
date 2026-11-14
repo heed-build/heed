@@ -59,6 +59,7 @@ toc:
       - file: screen-reading.md
       - file: custom-agents.md
       - file: helpers.md
+      - file: personas.md
       - file: models.md
       - file: model-calls.md
       - file: screen-snapshots.md

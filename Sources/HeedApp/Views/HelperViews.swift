@@ -708,9 +708,7 @@ struct NextStepProposal: View {
             if step.capability != nil, let repo = item.repo {
                 CommandButton(label: "Always in \(repo.name)", command: "helper.always", scope: scope)
             }
-            if !NextStep.others(item, proposed: model.nextStep(for: item)).isEmpty {
-                CommandButton(label: "Other", command: "helper.other", scope: scope)
-            }
+            CommandButton(label: "Other", command: "helper.other", scope: scope)
         }
         .padding(16)
         .background(RoundedRectangle(cornerRadius: 10).fill(Theme.busy.opacity(0.05)))
@@ -729,24 +727,80 @@ struct NextStepProposal: View {
     private var scope: String { model.helperScope ?? "attention" }
 }
 
-/// The line a row of Attention carries under its title: `next: start a review`, `▶ heed is getting it green`.
-struct NextStepLine: View {
-    let step: NextStep
+/// The reader's actions when heed has no step to propose (or a helper's split is open): one slim line, each with its
+/// key, so they stay a click away. Why there is nothing to do leads it.
+struct ReaderActionsLine: View {
+    @Environment(AppModel.self) private var model
+    let item: AttentionItem
+    let step: NextStep?
 
     var body: some View {
-        HStack(spacing: 5) {
-            if case .helping = step { Text("▶").foregroundStyle(Theme.busy) }
-            Text(step.rowLine).foregroundStyle(color).lineLimit(1)
+        HStack(spacing: 12) {
+            if case let .nothing(why) = step {
+                Text("\(why) · nothing to do").font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1).fixedSize()
+            }
+            FlowLayout(spacing: 4) {
+                ForEach(OtherMenu.actions(item), id: \.self) { action in
+                    HStack(spacing: 5) {
+                        Text(action.label).foregroundStyle(Theme.fg2)
+                        KeyCap(text: key(action))
+                    }
+                    .font(Theme.ui(12))
+                    .padding(.horizontal, 7)
+                    .frame(height: 22)
+                    .clickRuns(CommandInvocation(name: action.command))
+                }
+            }
         }
-        .font(Theme.ui(12))
+        .padding(.vertical, 2)
+        .shotRegion(.nextStep)
     }
 
-    private var color: Color {
-        switch step {
-        case .helping: Theme.busy
-        case .nothing: Theme.fg3
-        default: Theme.fg2
+    private func key(_ action: OtherMenu.Action) -> String {
+        model.keyText(for: action.command, asIn: action.scope ?? "attention")
+    }
+}
+
+/// Other (`.`): the item's other next steps (picking one proposes it), then what else you can do with it, each with
+/// its key. `j` `k` move, `↩` or a click does the row, `⎋` or `.` closes it.
+struct OtherMenuView: View {
+    @Environment(AppModel.self) private var model
+    let item: AttentionItem
+
+    var body: some View {
+        let entries = model.otherMenuEntries(for: item)
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
+                let on = index == model.helpers.otherRow
+                HStack(spacing: 10) {
+                    Text(entry.label).font(Theme.ui(12.5, weight: on ? .semibold : .regular))
+                        .foregroundStyle(isStep(entry) ? Theme.busy : Theme.fg)
+                    Spacer(minLength: 16)
+                    if case let .action(action) = entry {
+                        KeyCap(text: model.keyText(for: action.command, asIn: action.scope ?? "attention"))
+                    }
+                }
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(on ? Theme.bg3 : .clear)
+                .contentShape(Rectangle())
+                .clickRuns(CommandInvocation(name: "helper.menu.pick", arguments: ["\(index)"]))
+                if index + 1 < entries.count, isStep(entry), !isStep(entries[index + 1]) {
+                    Theme.line.frame(height: 1).padding(.vertical, 3)
+                }
+            }
         }
+        .padding(.vertical, 6)
+        .frame(width: 320, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.line))
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .shotRegion(.otherMenu)
+    }
+
+    private func isStep(_ entry: OtherMenu.Entry) -> Bool {
+        if case .action = entry { return false }
+        return true
     }
 }
 
@@ -875,56 +929,130 @@ struct HelperTiles: View {
 
 // MARK: Sessions
 
-/// The band over a session's panes while a helper works on its PR: what heed told it, Watch it and Take it over.
-/// Nothing is typed into the session.
-struct SessionHelperBand: View {
+/// The one line at the foot of a session's panes while helpers work on its PRs, however many: what needs you
+/// first, then what works, then what waits, and finished runs until you have seen them. Quiet by default, amber when
+/// one needs you, lit briefly when a run moves a step or finishes. A click (or `gW`) watches the one run, or lists
+/// them. Nothing is typed into the session.
+struct SessionHelperLineView: View {
     @Environment(AppModel.self) private var model
-    let helper: HelperRun
-    let text: String
-    let sessionID: String
+    let line: SessionHelperLine
+    @State private var lit = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            HelperGlyph(kind: helper.kind, size: 28)
-            (Text(headline).font(Theme.ui(13, weight: .semibold)).foregroundStyle(Theme.fg)
-                + Text(detail).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2))
-                .lineLimit(2)
-            Spacer(minLength: 12)
-            CommandButton(label: model.visibleHelper?.id == helper.id ? "Hide it" : "Watch it", command: "helper.watch")
-            if helper.phase.isLive || helper.phase.awaitsCloseOut {
-                CommandButton(label: "Take it over", command: "helper.takeover")
+        HStack(spacing: 10) {
+            sentence.lineLimit(1).truncationMode(.tail)
+            Spacer(minLength: 8)
+            if !line.finished.isEmpty {
+                Image(systemName: "xmark").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.fg3)
+                    .frame(width: 18, height: 18)
+                    .clickRuns(CommandInvocation(name: "helper.dismiss"))
+                    .help("Take the finished helpers off the line")
+            }
+            HStack(spacing: 6) {
+                Text(hint).foregroundStyle(Theme.fg3)
+                KeyCap(text: model.keyText(for: "helper.watch"))
+            }
+            .font(Theme.ui(11.5))
+        }
+        .font(Theme.ui(12))
+        .padding(.horizontal, 12)
+        .frame(height: 28)
+        .background(line.needsYou ? Theme.block.opacity(0.09) : lit ? Theme.busy.opacity(0.14) : Theme.bg2)
+        .overlay(alignment: .top) { (line.needsYou ? Theme.block.opacity(0.55) : Theme.line).frame(height: 1) }
+        .contentShape(Rectangle())
+        .clickRuns(CommandInvocation(name: "helper.watch"))
+        .onChange(of: line.signature) {
+            guard !ShotMode.active else { return }
+            withAnimation(.easeIn(duration: 0.15)) { lit = true }
+            Task {
+                try? await Task.sleep(for: .seconds(1.2))
+                withAnimation(.easeOut(duration: 0.6)) { lit = false }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Theme.busy.opacity(0.07)))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Theme.busy.opacity(0.45)))
-        .padding(.horizontal, 10)
-        .padding(.top, 8)
-        .shotRegion(.sessionBand)
+        .shotRegion(.helperLine)
     }
 
-    private var headline: String {
-        if case .closed = helper.phase { return "heed: " }
-        switch helper.kind {
-        case .green: return "A helper is getting your PR #\(helper.ref.number) green"
-        case .conflict: return "A helper is resolving your PR #\(helper.ref.number)'s conflict"
-        case .review: return "A helper is reviewing #\(helper.ref.number)"
+    /// The parts, each in its standing's colour, joined by dots.
+    private var sentence: Text {
+        line.parts.enumerated().reduce(Text("")) { text, part in
+            let piece = Text(part.element.text).foregroundStyle(color(part.element.standing))
+                .fontWeight(part.element.standing == nil ? .semibold : .regular)
+            return part.offset == 0 ? piece : text + Text(" · ").foregroundStyle(Theme.fg3) + piece
         }
     }
 
-    private var detail: String {
-        if case .closed = helper.phase { return text + delivery }
-        var parts = [" · in its own worktree"]
-        if let progress = helper.planProgress { parts.append("step \(progress.step) of \(progress.of)") }
-        if helper.phase.awaitsCloseOut { parts.append("done: waiting for your close-out") }
-        if helper.permission != nil { parts.append("asks you") }
-        return parts.joined(separator: " · ") + delivery
+    private func color(_ standing: SessionHelperLine.Standing?) -> Color {
+        switch standing {
+        case nil: line.needsYou ? Theme.block : Theme.fg2
+        case .needsYou: Theme.block
+        case .working: Theme.fg2
+        case .waiting: Theme.fg3
+        case .finished: Theme.done
+        }
     }
 
-    /// How the session's agent got heed's note, once it was sent.
-    private var delivery: String {
-        guard let outcome = model.helpers.notices[sessionID]?.outcome else { return "" }
-        return outcome.sent ? " · its agent was told \(outcome.summary)" : " · shown here only"
+    private var hint: String {
+        if line.entries.count > 1 { return model.helpers.listOpen ? "close" : "list" }
+        return model.visibleHelper?.id == line.entries.first?.id ? "hide" : "watch"
+    }
+}
+
+/// `gW` with more than one helper on the session's PRs: one row per run over the helper line, Watch (`↩`) and Take
+/// it over (`gO`) on the row under the cursor, `x` takes a finished one off the line.
+struct SessionHelperList: View {
+    @Environment(AppModel.self) private var model
+    let line: SessionHelperLine
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(line.entries.enumerated()), id: \.element.id) { index, entry in
+                row(entry, index: index, on: index == model.helpers.listRow)
+            }
+        }
+        .padding(.vertical, 4)
+        .background(Theme.bg2)
+        .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+        .shotRegion(.helperList)
+    }
+
+    private func row(_ entry: SessionHelperLine.Entry, index: Int, on: Bool) -> some View {
+        let run = model.helpers.run(entry.id)
+        return HStack(spacing: 10) {
+            HelperGlyph(kind: entry.kind, size: 20)
+            Text(verbatim: entry.headline).font(Theme.ui(12.5, weight: .medium)).foregroundStyle(Theme.fg)
+                .lineLimit(1)
+            Text(entry.status).font(Theme.ui(12)).lineLimit(1)
+                .foregroundStyle(entry.standing == .needsYou ? Theme.block
+                    : entry.standing == .finished ? Theme.done : Theme.fg2)
+            if entry.standing == .finished, let delivery = delivery(entry) {
+                Text(delivery).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            if on {
+                CommandButton(
+                    label: "Watch", command: "helper.menu.pick", arguments: ["\(index)"], scope: "sessionshelpers"
+                )
+                if let run, run.phase.isLive || run.phase.awaitsCloseOut {
+                    CommandButton(label: "Take it over", command: "helper.takeover", arguments: ["\(index)"])
+                }
+                if entry.standing == .finished {
+                    CommandButton(label: "Dismiss", command: "helper.dismiss", scope: "sessionshelpers")
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 34)
+        .background(on ? Theme.bg3 : .clear)
+        .overlay(alignment: .leading) { if on { Theme.busy.frame(width: 2) } }
+        .contentShape(Rectangle())
+        .clickRuns(CommandInvocation(name: "helper.menu.pick", arguments: ["\(index)"]))
+    }
+
+    /// How the session's agent got heed's note about this one: through its channel, or the line only.
+    private func delivery(_ entry: SessionHelperLine.Entry) -> String? {
+        guard let session = model.currentSession, let notice = model.helpers.notices[session.id],
+              notice.helperID == entry.id, let outcome = notice.outcome
+        else { return nil }
+        return outcome.sent ? "its agent was told \(outcome.summary)" : "shown here only"
     }
 }

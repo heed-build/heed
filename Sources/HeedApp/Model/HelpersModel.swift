@@ -29,7 +29,19 @@ final class HelpersModel {
     var proposal: [String: Int] = [:]
     /// How many times `.` moved a proposal (what the tutor checks).
     var otherSteps = 0
-    /// What each session was told about a helper, by session id (the band over its panes). Never typed in.
+    /// The proposal's Other menu (`.`): the item it is open for, and the row under its cursor.
+    var otherMenu: String?
+    var otherRow = 0
+    /// The session's helper list (`gW` with more than one): open, and the row under its cursor.
+    var listOpen = false
+    var listRow = 0
+    /// The session shown in Sessions now, and when you last left each one: a finished helper is seen once you
+    /// leave its session after it finished (`SessionHelperLine.seen`).
+    var lookingAt: String?
+    var leftAt: [String: Date] = [:]
+    /// Finished helpers you took off their session's line.
+    var dismissed: Set<String> = []
+    /// What each session was told about a helper, by session id (its helper line). Never typed in.
     var notices: [String: SessionNotice] = [:]
     /// Whether helpers can run, as last looked up (nil: not yet).
     var availability: ACPAgents.Availability?
@@ -54,7 +66,7 @@ final class HelpersModel {
         case stop(String)
     }
 
-    /// The band on a session: what heed told it, and the helper it is about.
+    /// What heed told a session about a helper, and how it got there.
     struct SessionNotice: Equatable {
         var helperID: String
         var text: String

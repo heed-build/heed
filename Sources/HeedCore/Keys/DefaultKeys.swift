@@ -97,6 +97,9 @@ public enum DefaultKeys {
         // ↩ on a session types into its agent; go, gB and gl still read or open its PRs and issues.
         "sessions": sessions,
         "sessionshelper": laid(helper, over: sessions),
+        // gW with more than one helper on the session's PRs: their list over the helper line. j k move, ↩ watches
+        // the row, gO takes it over, x takes a finished one off the line, ⎋ (or gW) closes it.
+        "sessionshelpers": laid(menu + [("x", "helper.dismiss")], over: sessions),
         "repos": [
             ("o", "worktree.new"), ("r", "repo.scan"), ("dd", "select.remove"),
             ("<CR>", "select.open"), ("S", "setup.review"), ("M", "repo.setup"),
@@ -255,6 +258,8 @@ public enum DefaultKeys {
         // something, p pauses it, zx stops it, zo zooms it, ⎋ closes the split; y Y n answer what it asks; once done,
         // ⌘↩ pushes and replies, P pushes only, X twice throws it away, gd shows its diff.
         "attentionhelper": laid(helper, over: attention),
+        // The proposal's Other (.): j k move, ↩ does the row, ⎋ or . closes it. The actions' own keys work as ever.
+        "attentionother": laid(menu, over: attention),
         "watchhelper": laid(helper, over: watch),
         // Attention with a swarm's question under the cursor: 1…9 pick an option, i types an answer, c asks the
         // controller, A makes your next answer the answer to similar questions too; y takes the controller's
@@ -333,6 +338,12 @@ public enum DefaultKeys {
         ("i", "helper.steer"), ("p", "helper.pause"), ("zx", "helper.stop"), ("zo", "helper.zoom"),
         ("<Esc>", "helper.close"), ("y", "helper.allow"), ("Y", "helper.allow.always"), ("n", "helper.deny"),
         ("<D-CR>", "helper.push"), ("P", "helper.push.only"), ("X", "helper.throwaway"), ("gd", "helper.diff"),
+    ]
+
+    /// A small menu's keys: Other in Attention's reader, the session's helpers.
+    static let menu: [(String, String)] = [
+        ("j", "helper.menu.next"), ("k", "helper.menu.prev"), ("<Down>", "helper.menu.next"),
+        ("<Up>", "helper.menu.prev"), ("<CR>", "helper.menu.pick"), ("<Esc>", "helper.menu.close"),
     ]
 
     /// Attention's own keys. heed's goal asks have one key each; on other items m pins as before. D does heed's next

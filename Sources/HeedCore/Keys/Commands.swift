@@ -903,8 +903,26 @@ public enum Commands {
             "helper.always", "do heed's next step, and from now on always in this repo (turns its Autopilot "
                 + "capability on)", .selection
         ),
-        .init("helper.other", "propose the item's next other step instead (and back to heed's own)", .selection),
-        .init("helper.watch", "Watch it: the helper on the session's PR, in a split under its panes", .selection),
+        .init(
+            "helper.other", "Other: a small menu of the item's other next steps and what else you can do with it",
+            .selection
+        ),
+        .init(
+            "helper.watch", "Watch it: the helper on the session's PR in a split under its panes; with more than "
+                + "one, the list of them", .selection
+        ),
+        .init("helper.menu.next", "the next row of the open menu (Other, or the session's helpers)", .selection),
+        .init("helper.menu.prev", "the previous row of the open menu", .selection),
+        .init(
+            "helper.menu.pick", "do the menu's row: propose that step, run that action, or watch that helper",
+            .selection
+        ),
+        .init("helper.menu.close", "close the menu", .selection),
+        .init(
+            "helper.dismiss",
+            "take a finished helper off the session's line (all of them, outside the list)",
+            .selection
+        ),
         .init(
             "helper.takeover", "Take it over: stop the helper and hand its branch to your session as a note",
             .selection

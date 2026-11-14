@@ -65,12 +65,11 @@ other two ways, a background tab or the session's own agent, which stay for agen
 ## Where you see it
 
 - **Attention:** once you approve heed's next step for a PR, the helper opens in a split under the reader. Its row
-  says `▶ heed is getting it green`.
+  says `▶ heed is on it`, right on its reasons line.
 - **Autopilot › Now:** a live tile per helper above the PRs: what it does now, its plan as pips, the files it touched,
   its last tool calls, and what it asks. `h` `l` move between tiles, `↩` opens one in a split.
-- **Sessions:** a session tracking the PR gets a band over its panes, *A helper is getting your PR #2841 green*, with
-  **Watch it** (`gW`, the helper in a split under the panes) and **Take it over** (`gO`). A row under the session in
-  the sidebar says the same.
+- **Sessions:** a session tracking the PR gets one line at the foot of its panes, just above the status bar (below).
+  A row under the session in the sidebar says the same.
 
 ![A helper under Attention's reader: its plan, its story with a diff, and a permission it asks](../images/shots/attention/helper.png)
 
@@ -86,6 +85,34 @@ files it changed and what happens once it is done. The steer box is at the foot.
 | `zo` | Zoom: the split takes the whole column |
 | `y`, `Y`, `n` | Allow what it asks once, allow it from now on (when the agent offers that), deny it |
 | `⎋` | Close the split; the helper keeps working |
+
+### The session's helper line
+
+However many helpers work on a session's PRs, the session gets one line for them at the foot of its panes. With
+one, the line is that helper: *▶ A helper is getting #2841 green · step 3 of 5*. With more, it counts them and says
+where each stands, what needs you first, then what works, then what waits:
+
+```
+▶ 3 helpers on this session's PRs · #2841 needs your OK · #1920 step 2 of 3 · ✓ #2836 pushed a3f9c1d · pull b…
+```
+
+![Three helpers on the session's PRs, on one line](../images/shots/sessions/helper-lines.png)
+
+The line is quiet by default and turns amber only when one needs you: it asks permission, or it is done and waits
+for your close-out. It lights up briefly when a helper moves to its next step or finishes. A finished helper stays on
+the line (*✓ #2841 pushed a3f9c1d · pull before your next change*) until you have seen it: you looked at the session
+after it finished (it goes once you leave the session), or you took it off with the ✕ on the line.
+
+| Key | |
+|---|---|
+| `gW` | With one helper, watch it: the helper in a split under the panes (again hides it). With more, the list of them over the line |
+| `gO` | Take it over: the helper the line leads with, or the list's row under the cursor |
+
+In the list, one row per helper: `j` `k` move, `↩` (**Watch**) opens the row's helper in the split, `gO` (**Take it
+over**) takes it over, `x` takes a finished one off the line, and `⎋` or `gW` closes the list. A click on a row
+watches it.
+
+![gW with three helpers: the list over the line](../images/shots/sessions/helper-list.png)
 
 ## Close-out
 
@@ -104,14 +131,15 @@ verdict).
 | `gd` | The whole diff |
 
 Once it pushed, your session is told in words: *heed pushed a3f9c1d to fix-anchors-redirects: lint fix + a
-301-chain test. Pull before your next change.* The note is always the band over the session, and it reaches the
+301-chain test. Pull before your next change.* The note is always on the session's helper line, and it reaches the
 agent through its own [channel](messages.md) when it has one (Claude's inbox, codex's queue). It is never typed: an
-agent without a channel gets the band only, and the band says which it was. Either way the session's events record
-it. With get it green on **Auto** for the repo (Autopilot's **Always**), heed
-pushes and replies as soon as a helper is done and has changed something.
+agent without a channel gets the line only, and the helper's row in the list (`gW`) says which it was. Either way the
+session's events record it. With get it green on **Auto** for the repo (Autopilot's **Always**), heed pushes and
+replies as soon as a helper is done and has changed something.
 
 **Take it over** (`gO` on the session) stops the helper and leaves its worktree and branch where they are, and the
-session's band says where they are and how to merge them in.
+session's helper line says where its branch is (`#2841 taken over · heed/get-it-green/… is yours`), and the
+session's agent is told how to merge it in.
 
 ## What helpers never do
 

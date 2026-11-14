@@ -231,7 +231,7 @@ Get it green never types into your session's agent. By default each round (heed 
 agent heed starts over ACP in a worktree of its own, drawn in heed (in Attention under the reader, in Autopilot › Now
 as a live tile, and under the session's panes with `gW`), which pushes and replies only once you approve its close-out.
 One helper per PR at a time; what queues meanwhile goes once you close it out. The session tracking the PR is told on a
-band over its panes, never typed into.
+line at the foot of its panes, never typed into.
 
 ### In a background tab instead
 

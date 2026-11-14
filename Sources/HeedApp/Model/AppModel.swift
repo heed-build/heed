@@ -321,7 +321,10 @@ final class AppModel {
     // Cursors
     private(set) var cursor = 0 {
         // Leaving the session the list held in place lets it settle into its group.
-        didSet { if !rebuildingList, let held = heldSession, currentSession?.id != held { rebuildList() } }
+        didSet {
+            if !rebuildingList, let held = heldSession, currentSession?.id != held { rebuildList() }
+            noteSessionShown()
+        }
     }
 
     private var rebuildingList = false
@@ -346,6 +349,7 @@ final class AppModel {
     // Chrome
     var view: AppView = .sessions {
         didSet {
+            noteSessionShown()
             updateScope()
             if view != oldValue { viewChangedForSync() }
             if view == .attention, oldValue != .attention {
@@ -591,7 +595,12 @@ final class AppModel {
             self?.observeTutorNow()
         }
         applyGoalPointers()
-        if isFixture { adoptFixtureRuns() } else { interruptRuns() }
+        if isFixture {
+            adoptFixtureRuns()
+            adoptFixtureHelpers()
+        } else {
+            interruptRuns()
+        }
         historyBrowser.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty }
         telemetry.context = { [weak self] in self?.telemetryContext ?? TelemetryContext() }
         dashboard.attach(log: nil) { [weak self] in self?.currentDomain ?? .empty } goals: { [weak self] in
@@ -2923,7 +2932,8 @@ final class AppModel {
         case "helper.do", "helper.always", "helper.other", "helper.watch", "helper.takeover", "helper.steer",
              "helper.pause", "helper.stop", "helper.zoom", "helper.close", "helper.allow", "helper.allow.always",
              "helper.deny", "helper.push", "helper.push.only", "helper.throwaway", "helper.diff", "helper.tile.next",
-             "helper.tile.prev":
+             "helper.tile.prev", "helper.menu.next", "helper.menu.prev", "helper.menu.pick", "helper.menu.close",
+             "helper.dismiss":
             performHelper(command)
         case "view.autopilot", "view.watch", "autopilot.cando", "autopilot.where", "autopilot.now", "autopilot.done",
              "autopilot.move", "autopilot.on", "autopilot.ask", "autopilot.off", "autopilot.everywhere",
@@ -5535,6 +5545,8 @@ final class AppModel {
         }
         if mentionsRun, let run = workingRun(for: ref) {
             parts.append("a \(run.agent) run is on it (\(RunRow.duration(run)))")
+        } else if mentionsRun, helpers.live(on: ref) != nil {
+            parts.append("a helper is on it")
         }
         if case let .stuck(reason) = pilotStatus(for: ref) { parts.append("stuck: \(reason)") }
         if pendingDelivery.contains(ref),
@@ -5578,6 +5590,9 @@ final class AppModel {
            let run = runs.first(where: { $0.id == live.runID })
         {
             return "\(run.goal == .green ? "getting it green" : "getting it merged") · a \(run.agent) run is on it"
+        }
+        if let helper = helpers.live(on: pick.ref) {
+            return "\(helper.kind == .conflict ? "getting it merged" : "getting it green") · a helper is on it"
         }
         return WatchLabel.text(
             status: pick.status, effective: pilot(for: pick.ref), agent: session.agent, agentState: session.state.state
@@ -6135,6 +6150,14 @@ final class AppModel {
     }
 
     /// A fixture's run tabs, as if heed had started them: working on their session's first PR.
+    /// The older way, for the page that still documents it (`run_in = "background"`): s5's PR has a codex run in a
+    /// tab of its own, and no helper.
+    func loadBackgroundRunFixture() {
+        helpers.runs = []
+        replace(with: Fixtures.withBackgroundRun(currentDomain))
+        adoptFixtureRuns()
+    }
+
     private func adoptFixtureRuns() {
         for (sessionID, layout) in layouts {
             guard let ref = sessions.first(where: { $0.id == sessionID })?.trackedPRs.first else { continue }

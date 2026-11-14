@@ -16,7 +16,7 @@ enum ShotRegion: String, CaseIterable {
     case tutorBanner, tutorCard, tutorReminder, inferenceReminder, nudgePill
     case repoColumn, worktreeTable, repoCard, cleanupBar, setupBanner, addRepo
     case list, syncBanner
-    case helperSplit, helperCloseOut, helperTiles, nextStep, sessionBand
+    case helperSplit, helperCloseOut, helperTiles, nextStep, helperLine, helperList, otherMenu
     case pipeline, delivery, promptPreview, reader
     case diffFiles, diffBody
     case historyFilters, historyList, historyDetail
@@ -193,7 +193,10 @@ struct ListScroll<Content: View>: View {
 
     var body: some View {
         if ShotMode.active {
-            content.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).clipped()
+            // minWidth and minHeight 0: a list longer than its room is cut off, not let out past it (which pushed
+            // what is beside it off the window).
+            content.frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .topLeading)
+                .clipped()
         } else {
             ScrollView(axes) { content }
         }

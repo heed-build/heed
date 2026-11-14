@@ -167,21 +167,29 @@ enum Shots {
         Shot(id: "sessions/insert-after", keys: "i", crop: .panes),
         Shot(id: "sessions/split", keys: "<C-w>v", highlight: [.panes]),
         Shot(id: "sessions/tab-strip", crop: .tabStrip, cropPadding: 6),
-        // A helper on the session's PR: the band says so (nothing typed in); gW watches it under the panes.
-        Shot(id: "sessions/helper-band", crop: .sessionBand, prepare: { $0.loadHelperFixture() }),
+        // Helpers on the session's PRs: one line at the foot of its panes (nothing typed in). One helper: the line is
+        // that run, and gW watches it under the panes. Three: the line counts them, what needs you first, and gW
+        // lists them over it.
+        Shot(id: "sessions/helper-line", crop: .helperLine, prepare: { $0.loadHelperFixture() }),
+        Shot(id: "sessions/helper-lines", crop: .helperLine, prepare: { $0.loadHelperFixture(line: true) }),
+        Shot(id: "sessions/helper-list", keys: "gW", crop: .center, prepare: { $0.loadHelperFixture(line: true) }),
         Shot(id: "sessions/helper-watch", keys: "gW", prepare: { $0.loadHelperFixture() }),
         Shot(id: "sessions/helper-row", size: CGSize(width: 1440, height: 640), crop: .sidebar, prepare: {
             $0.loadHelperFixture()
         }),
         Shot(id: "sessions/task-picker", keys: "!", crop: .picker, prepare: withDiscoveredTasks),
-        Shot(id: "sessions/run-tab", keys: "4j", crop: .center),
+        // run_in = "background", the older way: only the page that documents it shows it.
+        Shot(id: "sessions/run-tab", keys: "4j", crop: .center, prepare: { $0.loadBackgroundRunFixture() }),
         Shot(id: "sessions/run-reader", crop: .dialog, prepare: { $0.runReader = $0.runs.first { !$0.isRunning } }),
         Shot(id: "sessions/tab-strip-insert", keys: "i", crop: .tabStrip, cropPadding: 6),
         Shot(id: "sessions/zoom", keys: "<C-w>z", highlight: [.panes]),
         // Tall enough for the anchors session's subagents, and its usage line and agent events under them.
         Shot(id: "sessions/inspector", size: CGSize(width: 1440, height: 1140), crop: .inspector, cropPadding: 0),
         // bump-spec-tests: its PR's card with the get it green run working on it.
-        Shot(id: "sessions/run-card", keys: "4j", crop: .inspector, cropPadding: 0),
+        Shot(
+            id: "sessions/run-card", keys: "4j", crop: .inspector, cropPadding: 0,
+            prepare: { $0.loadBackgroundRunFixture() }
+        ),
         Shot(id: "sessions/links-picker", keys: "gB", crop: .picker),
         Shot(id: "sessions/close-confirm", keys: "x", crop: .confirm),
         Shot(id: "sessions/delete-confirm", keys: "dd", crop: .confirm),
@@ -419,6 +427,8 @@ enum Shots {
         Shot(id: "attention/next-steps", size: CGSize(width: 1440, height: 1000), keys: "gm", crop: .attentionList),
         Shot(id: "attention/next-step", keys: "gp/2841<CR>"),
         Shot(id: "attention/next-step-review", keys: "gm/2845<CR>", crop: .nextStep),
+        // Other (.): the item's other steps and the actions, each with its key.
+        Shot(id: "attention/other", keys: "gp/2841<CR>.", crop: .attentionDetail),
         // Once approved: the helper in a split under the reader, its plan, story, diffs and the permission it asks.
         Shot(id: "attention/helper", size: CGSize(width: 1440, height: 1000), keys: "gp/2841<CR>", prepare: {
             $0.loadHelperFixture()

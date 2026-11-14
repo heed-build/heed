@@ -78,11 +78,19 @@ public enum GoalHints {
                 Hint("wizard.next", "split it"),
                 Hint("goal.tldr", "tl;dr"),
             ], "")
-        case "wizardlater":
+        case "wizardcareful":
             ([
-                Hint("wizard.later", "open the goal's page"),
-                Hint("wizard.next", "done here"),
+                Hint("careful.pick 1", "pick", key: "1 2 3"),
+                Hint("careful.details", "the details"),
+                Hint("wizard.next", "go on"),
                 Hint("goal.tldr", "tl;dr"),
+            ], "")
+        case "wizardgo":
+            ([
+                Hint("go.row 1", "row", key: "j k"),
+                Hint("go.step 1", "choice", key: "h l"),
+                Hint("go.start", "start"),
+                Hint("go.save", "save"),
             ], "")
         // Split: h l time, j k agent, ↩ folds a part out; folded, its actions; defining, the conversation's keys.
         case "wizardsplit":

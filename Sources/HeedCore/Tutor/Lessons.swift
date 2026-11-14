@@ -661,9 +661,24 @@ public extension Tutor {
                     + "parts, each on one of your agents.",
                 keys: ["{wizard.next}"], target: "wizardSplit",
                 doneLine: "Rows are your agents, with their week and, where heed knows it, their quota. {split.fold} "
-                    + "folds a part out; {split.define} defines it with its agent. How careful and Go open on the "
-                    + "goal's page for now."
+                    + "folds a part out; {split.define} defines it with its agent."
             ) { _, now, _ in now.wizardStep == "split" && now.wizardParts > 0 },
+            TutorStep(
+                "How careful",
+                say: "{wizard.next} on to How careful: what has to pass before a part merges. heed suggests a level "
+                    + "and says why; {careful.pick 3} picks Thorough.",
+                keys: ["{wizard.next}", "{careful.pick 3}"], target: "wizardCareful",
+                doneLine: "Thorough: CI, cheap code and test reviewers, strangers walking the docs, and you on every "
+                    + "part. {careful.details} shows the bars and reviewers behind it."
+            ) { _, now, _ in now.wizardStep == "careful" && now.wizardCare == "thorough" },
+            TutorStep(
+                "Go",
+                say: "{wizard.next} on to Go: every choice has a default, and the right side says what happens. "
+                    + "{go.start} starts the first parts.",
+                keys: ["{wizard.next}", "{go.start}"], target: "wizardGo",
+                doneLine: "The split is the swarm's approved plan now, and this is the goal's page: the same board, "
+                    + "live, with one next step for you. Anything that needs you lands in Attention."
+            ) { start, now, _ in now.goalsStarted > start.goalsStarted },
         ]),
         TutorLesson(id: "log", title: "Call log", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(

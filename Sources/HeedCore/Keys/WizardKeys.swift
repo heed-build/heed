@@ -45,10 +45,29 @@ public enum WizardKeys {
             arguments: "[n]"
         ),
         .init(
-            "wizard.later",
-            "wizard: a step heed has no screen for yet: open the goal's page that does it",
+            "careful.pick", "wizard: How careful: pick Quick (1), Standard (2) or Thorough (3)", .selection,
+            arguments: "<1|2|3>"
+        ),
+        .init(
+            "careful.details",
+            "wizard: How careful: the goal's reviewers, bars and lenses behind each level (the wizard keeps its place)",
             .selection
         ),
+        .init("go.row", "wizard: Go: the row below (1) or above (-1)", .move, arguments: "<delta>"),
+        .init("go.pick", "wizard: Go: option n on the row under the cursor", .selection, arguments: "<n>"),
+        .init(
+            "go.step",
+            "wizard: Go: the next (1) or previous (-1) option on the row",
+            .selection,
+            arguments: "<delta>"
+        ),
+        .init(
+            "go.start",
+            "wizard: Go: start it: the split becomes the swarm's approved plan, its first parts start, the goal's "
+                + "page shows",
+            .selection
+        ),
+        .init("go.save", "wizard: Go: save it, start later; the wizard waits at Go", .selection),
         .init("tldr.copy", "TL;DR: copy it as markdown", .selection),
         .init("tldr.act", "TL;DR: do the first open point's action", .selection),
     ] + SplitKeys.commands
@@ -64,7 +83,8 @@ public enum WizardKeys {
         "wizardplan",
         "wizardpanel",
         "wizarddone",
-        "wizardlater",
+        "wizardcareful",
+        "wizardgo",
         "wizardchat",
         "wizardinvite",
         "tldr",
@@ -80,8 +100,15 @@ public enum WizardKeys {
         // Done looks like: j k criteria, 1 2 3 a replacement, ↩ uses it, d defines it with an agent, ⌘↩ looks right.
         "wizarddone": shared + [("<CR>", "wizard.use"), ("d", "wizard.define")]
             + (1 ... 3).map { ("\($0)", "wizard.pick \($0)") },
-        // How careful and Go until they have screens: ↩ opens the goal's page that does it today.
-        "wizardlater": shared + [("<CR>", "wizard.later")],
+        // How careful: 1 2 3 pick a level, Q its details (Reviewers), ⌘↩ on with it.
+        "wizardcareful": shared + [("Q", "careful.details")] + (1 ... 3).map { ("\($0)", "careful.pick \($0)") },
+        // Go: j k rows, h l or 1 2 3 the row's option, ⌘↩ starts, S saves for later.
+        "wizardgo": [
+            ("<D-CR>", "go.start"), ("H", "wizard.step prev"), ("L", "wizard.step next"), ("T", "goal.tldr"),
+            ("<Esc>", "wizard.leave"), ("j", "go.row 1"), ("k", "go.row -1"), ("<Down>", "go.row 1"),
+            ("<Up>", "go.row -1"), ("h", "go.step -1"), ("l", "go.step 1"), ("<Left>", "go.step -1"),
+            ("<Right>", "go.step 1"), ("S", "go.save"),
+        ] + (1 ... 3).map { ("\($0)", "go.pick \($0)") },
         // Talking to one persona: i types, ⎋ closes the chat.
         "wizardchat": [("i", "wizard.answer"), ("<Esc>", "wizard.talk"), ("T", "goal.tldr")],
         // The + picker: j k, ↩ invites, ⎋ closes.

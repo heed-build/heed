@@ -30,6 +30,24 @@ public struct CriterionCheck: Hashable, Sendable, Codable {
 
     public static let none = CriterionCheck(.none)
 
+    /// A check as a model wrote it, made fit for a row: what it says in brackets about the target not existing yet
+    /// ("(not yet written)", "(no CI configuration exists yet)") makes it proposed and leaves the target; nothing
+    /// checking it has no target. Real claude output wrote both (live checks, 2026-11-14).
+    static func tidy(_ check: CriterionCheck) -> CriterionCheck {
+        var check = check
+        guard check.kind != .none else { return .none }
+        var target = check.target
+        while target.hasSuffix(")"), let open = target.range(of: " (", options: .backwards) {
+            let note = target[open.upperBound...].lowercased()
+            guard ["not yet", "no ", "doesn't", "does not", "to be", "missing", "new"].contains(where: note.contains)
+            else { break }
+            check.proposed = true
+            target = String(target[..<open.lowerBound]).trimmingCharacters(in: .whitespaces)
+        }
+        check.target = target
+        return check
+    }
+
     /// `test RedirectTargetsTests`, `ci docs build · anchors`, `command make check`; proposed ones say so.
     public var label: String {
         guard kind != .none else { return "nothing checks this yet" }
@@ -228,7 +246,7 @@ public struct DoneDraft: Hashable, Sendable, Codable {
                     kind, GoalDoc.oneLine(dict["target"] as? String ?? ""), proposed: dict["proposed"] as? Bool ?? false
                 )
             }
-            return DoneCriterion(GoalDoc.oneLine(line), check: check)
+            return DoneCriterion(GoalDoc.oneLine(line), check: CriterionCheck.tidy(check))
         }
         .filter { !$0.text.isEmpty }
         guard !criteria.isEmpty else { return nil }

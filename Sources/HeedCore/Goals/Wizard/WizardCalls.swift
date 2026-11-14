@@ -130,9 +130,11 @@ public struct WizardCalls: Sendable {
 
     static let doneSystem = """
     You write what done looks like for an agreed software plan: a one-sentence statement of the outcome, three to six \
-    done-when criteria each checkable by a machine, and what is not the goal. For each criterion say how it is \
-    checked: test (name the test), ci (name the CI step), command (the command line) or none when nothing can check \
-    it yet; proposed true when the test or step does not exist yet. Reply with only JSON: {"statement": "...", \
+    done-when criteria each checkable by a machine and at most twelve words, and at most four things that are not the \
+    goal, a few words each. For each criterion say how it is checked: test (target: the test's name only), ci (the \
+    CI step's name), command (the command line) or none when nothing can check it yet (target empty); proposed true \
+    when the test or step does not exist yet, rather than saying so in the target. Reply with only JSON: \
+    {"statement": "...", \
     "criteria": [{"text": "...", "check": "test|ci|command|none", "target": "...", "proposed": false}], \
     "notTheGoal": ["..."]}.
     """

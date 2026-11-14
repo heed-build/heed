@@ -883,8 +883,8 @@ extension AppModel {
     /// approvals and its feed shows in Now, as any helper's; its turn's end ends the worker (`partHelperEnded`).
     /// Returns its id, or why it could not start.
     func startPartHelper(
-        agent: String, record: RepoRecord, title: String, branch: String, worktree: String, setup: [String],
-        sessionID: String?, worker: String, prompt: String
+        agent: String, model: String?, record: RepoRecord, title: String, branch: String, worktree: String,
+        setup: [String], sessionID: String?, worker: String, prompt: String
     ) async -> Result<String, PartHelperError> {
         guard let adapter = ACPAgents.adapter(for: agent)
             ?? ACPAgents.chosen(config.helpers, defaultAgent: settings.defaultAgent)
@@ -932,7 +932,20 @@ extension AppModel {
         }
         do {
             _ = try await client.initialize(clientVersion: appVersion)
-            helpers.sessionIDs[id] = try await client.newSession(cwd: worktree)
+            let session = try await client.newSession(cwd: worktree)
+            helpers.sessionIDs[id] = session
+            // The part's model, where the adapter takes one as a session config option (claude's does); else the
+            // agent's default, and the feed says so.
+            if let model {
+                do {
+                    try await client.setModel(sessionID: session, model: model)
+                    helpers.update(id) { $0.append(.note("on \(model)"), at: Clock.now) }
+                } catch {
+                    helpers.update(id) {
+                        $0.append(.note("its adapter took no model (\(error)): on the agent's default"), at: Clock.now)
+                    }
+                }
+            }
             helpers.update(id) { $0.phase = .working }
         } catch {
             await client.close()
@@ -940,6 +953,28 @@ extension AppModel {
         }
         runTurn(id, prompt)
         return .success(id)
+    }
+
+    /// Mail for a part's helper (an answer, a message from you or the lead), over ACP: a prompt now when it is between
+    /// turns, the next prompt when it is at work, or, when you sent it, its turn cancelled and this the next
+    /// (`HelperMail`). What happened is the delivery's outcome, recorded like any hand-over.
+    func mailPartHelper(_ id: String, _ line: String, urgent: Bool) -> DeliveryOutcome {
+        guard let helper = helpers.run(id) else { return .failed("its helper is gone") }
+        let route = HelperMail.route(helper.phase, urgent: urgent, connected: helpers.clients[id] != nil)
+        switch route {
+        case .promptNow:
+            helpers.update(id) { $0.append(.steer(line), at: Clock.now) }
+            runTurn(id, HelperMail.prompt([line]))
+        case .steerNow:
+            helpers.update(id) { $0.append(.steer(line), at: Clock.now) }
+            cancelTurn(id, .steer(line))
+        case .afterTurn:
+            helpers.update(id) { $0.append(.note("after this turn: \(line)"), at: Clock.now) }
+            partHelperMail[id, default: []].append(line)
+        case .wait:
+            break
+        }
+        return HelperMail.outcome(route)
     }
 
     struct PartHelperError: Error {
@@ -960,6 +995,18 @@ extension AppModel {
     /// A part's helper finished its turn (or failed): its swarm worker ends with it, so the scheduler moves on, and
     /// the helper stays in the list, done.
     func partHelperEnded(_ id: String, failed why: String?) {
+        // Mail that waited for its turn to end is its next turn; so is mail still to be handed (the steering pass
+        // prompts it, as it is between turns now). Only then does the worker end.
+        if why == nil, case .done? = helpers.run(id)?.phase, helpers.clients[id] != nil {
+            if let mail = partHelperMail.removeValue(forKey: id), !mail.isEmpty {
+                return runTurn(id, HelperMail.prompt(mail))
+            }
+            if let worker = partHelperWorkers[id], let live = liveWorkers[worker], workerHasMail(live) {
+                Task { await tickSteering() }
+                return
+            }
+        }
+        partHelperMail[id] = nil
         helpers.update(id) {
             $0.endedAt = $0.endedAt ?? Clock.now
             if $0.closeOut == nil,

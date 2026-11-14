@@ -200,7 +200,8 @@ extension AppModel {
     ) async {
         let id = UUID().uuidString.lowercased()
         let started = await startPartHelper(
-            agent: owner.agent, record: record, title: "\(number) \(task.title)", branch: branch, worktree: worktree,
+            agent: owner.agent, model: owner.model, record: record, title: "\(number) \(task.title)", branch: branch,
+            worktree: worktree,
             setup: setup, sessionID: session, worker: id, prompt: prompt
         )
         let worker = SwarmWorker(

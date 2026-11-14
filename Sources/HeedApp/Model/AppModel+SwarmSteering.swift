@@ -201,10 +201,17 @@ extension AppModel {
         for item in SwarmDelivery.pending(board.steering, waiting: waitingAsks, numbers: numbers, now: now) {
             guard !typed.contains(item.to.raw), let target = paneOf(item.to, swarm: board.swarm) else { continue }
             if let last = handedAt[target.pane], now.timeIntervalSince(last) < 15 { continue }
-            // Through its agent's channel when it has one (`sendToAgent`), else typed into an idle agent.
-            guard inbox(forPane: target.pane) != nil || TerminalSurfaces.shared.hasTerminal(paneID: target.pane)
+            // A helper worker over ACP (`HelperMail`); else through its agent's channel when it has one
+            // (`sendToAgent`), else typed into an idle agent.
+            let helper = target.pane.hasPrefix("helper:") ? String(target.pane.dropFirst("helper:".count)) : nil
+            guard helper != nil || inbox(forPane: target.pane) != nil
+                || TerminalSurfaces.shared.hasTerminal(paneID: target.pane)
             else { continue }
-            let outcome = await sendToAgent(item.line, pane: target.pane, state: target.state, lastTyped: target.typed)
+            let outcome = if let helper {
+                mailPartHelper(helper, item.line, urgent: HelperMail.urgent(item.row))
+            } else {
+                await sendToAgent(item.line, pane: target.pane, state: target.state, lastTyped: target.typed)
+            }
             guard outcome.sent else { continue }
             typed.insert(item.to.raw)
             handedAt[target.pane] = now

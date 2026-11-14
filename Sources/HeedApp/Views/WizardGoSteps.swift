@@ -146,10 +146,7 @@ struct WizardGoStep: View {
                 Spacer(minLength: 0)
                 Theme.line.frame(height: 1)
                 HStack(spacing: 12) {
-                    PrimaryAction(
-                        label: "Start \(forecast?.pulls ?? 0) part\(forecast?.pulls == 1 ? "" : "s")",
-                        command: "go.start", scope: "wizardgo"
-                    )
+                    PrimaryAction(label: Self.startLabel(forecast), command: "go.start", scope: "wizardgo")
                     WizardButton(label: "Save, start later", command: "go.save", scope: "wizardgo")
                     BusyLine(goal: goal)
                     Spacer()
@@ -167,6 +164,18 @@ struct WizardGoStep: View {
                 .shotRegion(.goWhatHappens)
         }
         .shotRegion(.wizardGo)
+    }
+}
+
+extension WizardGoStep {
+    /// What ⌘↩ starts now, as the right side says it: `Start 4 parts` when they all start at once, else `Start · 2
+    /// now, 15 in all`.
+    static func startLabel(_ forecast: GoForecast?) -> String {
+        guard let forecast else { return "Start" }
+        if forecast.startNow == forecast.pulls {
+            return "Start \(forecast.pulls) part\(forecast.pulls == 1 ? "" : "s")"
+        }
+        return "Start · \(forecast.startNow) now, \(forecast.pulls) in all"
     }
 }
 

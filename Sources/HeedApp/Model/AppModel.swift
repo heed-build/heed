@@ -1881,6 +1881,8 @@ final class AppModel {
     var liveWorkers: [String: LiveWorker] = [:]
     /// Swarm workers that run as helpers (Go's Who works): the helper's id to its worker's.
     var partHelperWorkers: [String: String] = [:]
+    /// Mail for a part's helper that waits for its turn to end (`HelperMail.afterTurn`), by helper.
+    var partHelperMail: [String: [String]] = [:]
     /// Workers whose kept worktree on a host was found gone when their task went back to them: a run takes it instead.
     var goneWorktrees: Set<String> = []
     /// Every pane a worker used since launch: its late hooks are nobody's news.

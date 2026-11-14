@@ -451,6 +451,7 @@ final class AppModel {
             : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope
             : view == .attention && attentionQuestion != nil ? "swarmask"
             : view == .sessions && goalPromotion != nil ? "sessionspromote" : helperScope ?? view.rawValue
+        if engine.scope == "goals", goals.focus == .goals, pageShows { engine.scope = "goalpage" }
     }
 
     // Diff overlay
@@ -3136,6 +3137,12 @@ final class AppModel {
              "wizard.answer", "wizard.smaller", "wizard.talk", "wizard.drop", "wizard.invite", "wizard.invite.pick",
              "wizard.use", "wizard.define", "wizard.later", "tldr.copy", "tldr.act":
             _ = performWizard(command)
+        case "split.move", "split.fold", "split.agent", "split.shift", "split.split", "split.waits", "split.size",
+             "split.later",
+             "split.note", "split.define", "split.balance", "split.resplit", "define.answer", "define.pick",
+             "define.use",
+             "define.later", "define.close", "page.move", "page.fold", "page.steer", "page.pick", "page.answer":
+            _ = performSplit(command)
         default:
             flash = "\(command.name): not built yet"
         }
@@ -8430,6 +8437,7 @@ final class AppModel {
         state.wizardAnswers = wizard?.plan.answers ?? 0
         state.wizardRounds = wizard?.panel.rounds.count ?? 0
         state.wizardCriteria = wizard?.criteria.criteria.count ?? 0
+        state.wizardParts = wizard?.split?.active.count ?? 0
         state.tldrOpen = goals.wizard.tldr != nil
         return state
     }

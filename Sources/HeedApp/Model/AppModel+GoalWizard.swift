@@ -105,17 +105,20 @@ extension AppModel {
     }
 
     /// What the step that shows needs and has not had: heed's next question, the panel's read, the draft.
-    private func continueWizard(_ goal: String) {
+    func continueWizard(_ goal: String) {
         guard let wizard = goals.wizard.wizard(of: goal), goals.wizard.busy[goal] == nil else { return }
         switch wizard.step {
         case .plan: if wizard.plan.open == nil, !wizard.state(of: .plan).isDone { runPlanTurn(goal) }
         case .panel: if wizard.panel.rounds.isEmpty { readPanel(goal) }
         case .done: if !wizard.criteria.drafted { draftDone(goal) }
+        case .split:
+            refreshFleet()
+            if wizard.split?.drafted != true { runSplit(goal) }
         default: break
         }
     }
 
-    private func change(_ goal: String, _ edit: (inout GoalWizard) -> Void) {
+    func change(_ goal: String, _ edit: (inout GoalWizard) -> Void) {
         guard var wizard = goals.wizard.wizard(of: goal) else { return }
         edit(&wizard)
         wizard.updatedAt = Clock.now
@@ -125,12 +128,12 @@ extension AppModel {
         observeTutorNow()
     }
 
-    private func busy(_ goal: String, _ what: String?) {
+    func busy(_ goal: String, _ what: String?) {
         goals.wizard.busy[goal] = what
         if what != nil { goals.wizard.problem[goal] = nil }
     }
 
-    private func failed(_ goal: String, _ error: Error) {
+    func failed(_ goal: String, _ error: Error) {
         busy(goal, nil)
         let text = "\(error)"
         goals.wizard.problem[goal] = text
@@ -138,7 +141,7 @@ extension AppModel {
     }
 
     /// The step's calls through heed's model calls; scripted in the fake world.
-    private var wizardCalls: WizardCalls {
+    var wizardCalls: WizardCalls {
         if isFixture { return WizardCalls(run: WizardFixtures.calls) }
         return WizardCalls { [weak self] request in
             guard let self else { throw LLMError.disabled }
@@ -297,10 +300,12 @@ extension AppModel {
     }
 
     func submitWizardTyping() {
-        guard let goal = goals.wizard.open, let typing = goals.wizard.typing else { return }
+        guard let typing = goals.wizard.typing else { return }
         let text = typing.text.trimmingCharacters(in: .whitespacesAndNewlines)
         goals.wizard.typing = nil
         textInputActive = false
+        if submitSplitTyping(typing.kind, text) { return updateScope() }
+        guard let goal = goals.wizard.open else { return }
         switch typing.kind {
         case .answer:
             guard !text.isEmpty else { return }
@@ -312,6 +317,8 @@ extension AppModel {
             sendToPersona(goal, text)
         case .dropReason:
             dropGoal(goal, reason: text)
+        case .note, .waits, .define, .nextStep:
+            break
         }
         updateScope()
     }
@@ -344,7 +351,10 @@ extension AppModel {
             guard wizard.criteria.drafted else { return draftDone(goal) }
             writeDoneWhen(goal)
             advance(goal)
-        case .split, .careful, .go:
+        case .split:
+            guard wizard.split?.drafted == true else { return runSplit(goal) }
+            advance(goal)
+        case .careful, .go:
             advance(goal)
         }
     }
@@ -797,7 +807,7 @@ extension AppModel {
         guard isFixture else { return }
         let fixture = WizardFixtures.goal()
         var wizard = WizardFixtures.wizard(at: step)
-        if step == .split {
+        if step >= .split {
             wizard.tldr = WizardTLDR.plain(
                 TLDRInputs.build(wizard, doc: nil, goalVersion: fixture.goal.version), at: Clock.now
             )

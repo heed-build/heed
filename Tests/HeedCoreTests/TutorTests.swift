@@ -64,7 +64,7 @@ struct TutorTests {
             "swarmMap",
             "goalEvaluations",
             "goalFriction", "goalGuide", "goalSources", "repoColumn", "addRepo", "nextStep", "goalWizard", "wizardPlan",
-            "wizardPanel", "wizardDone", "tldr",
+            "wizardPanel", "wizardDone", "tldr", "wizardSplit",
         ]
         for lesson in [Tutor.tour] + Tutor.viewLessons {
             for step in lesson.steps {

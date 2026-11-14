@@ -615,7 +615,7 @@ public extension Tutor {
                     + "a set, heed proposes the source itself: {goal.source.accept} takes it."
             ) { start, now, _ in now.goalSources > start.goalSources && now.goalNextStep != "work" },
         ]),
-        TutorLesson(id: "first-goal", title: "Plan a goal", minutes: 3, world: .mondayMorning, steps: [
+        TutorLesson(id: "first-goal", title: "Plan a goal", minutes: 4, world: .mondayMorning, steps: [
             TutorStep(
                 "The wizard",
                 say: "{goal.new} in Goals makes a goal and walks it through six steps before any work starts. "
@@ -653,9 +653,17 @@ public extension Tutor {
                 "What done looks like",
                 say: "Nothing left to fix: {wizard.next} moves on to the criteria, each with how it is checked.",
                 keys: ["{wizard.next}"], target: "wizardDone",
-                doneLine: "A vague one gets measurable replacements. {wizard.next} writes them into GOAL.md's Done when; "
-                    + "Split, How careful and Go open on the goal's page for now."
+                doneLine: "A vague one gets measurable replacements; {wizard.define} defines one with an agent."
             ) { _, now, _ in now.wizardStep == "done" && now.wizardCriteria > 0 },
+            TutorStep(
+                "Split it",
+                say: "{wizard.next} writes the criteria into GOAL.md's Done when, and a cheap call splits the plan into "
+                    + "parts, each on one of your agents.",
+                keys: ["{wizard.next}"], target: "wizardSplit",
+                doneLine: "Rows are your agents, with their week and, where heed knows it, their quota. {split.fold} "
+                    + "folds a part out; {split.define} defines it with its agent. How careful and Go open on the "
+                    + "goal's page for now."
+            ) { _, now, _ in now.wizardStep == "split" && now.wizardParts > 0 },
         ]),
         TutorLesson(id: "log", title: "Call log", minutes: 2, world: .mondayMorning, steps: [
             TutorStep(

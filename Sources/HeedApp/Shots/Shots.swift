@@ -737,9 +737,26 @@ enum Shots {
         Shot(id: "goals/wizard-rail", crop: .wizardRail, cropPadding: 0, prepare: { $0.loadWizardFixture(.done) }),
         Shot(id: "goals/wizard-panel", prepare: { $0.loadWizardFixture(.panel) }),
         Shot(id: "goals/wizard-done", prepare: { $0.loadWizardFixture(.done) }),
-        Shot(id: "goals/wizard-later", prepare: { $0.loadWizardFixture(.split) }),
-        Shot(id: "goals/wizard-tldr", keys: "T", prepare: { $0.loadWizardFixture(.split) }),
+        Shot(id: "goals/wizard-later", prepare: { $0.loadWizardFixture(.careful) }),
+        Shot(id: "goals/wizard-tldr", keys: "T", prepare: { $0.loadWizardFixture(.careful) }),
         Shot(id: "goals/wizard-tldr-page", keys: "gGjT", crop: .tldr, cropPadding: 16),
+    ] + split
+
+    /// Step 4 Split and the goal's page (`SplitFixtures`): the complex goal's board with a part selected, the small
+    /// goal's, a part's hover and fold-out, defining it with its agent, and the complex goal building.
+    static let split: [Shot] = [
+        Shot(id: "goals/split", prepare: { $0.loadSplitFixture(.complex, part: "migrate") }),
+        Shot(id: "goals/split-small", prepare: { $0.loadSplitFixture(.small, part: "docs") }),
+        Shot(id: "goals/split-hover", crop: .splitBoard, cropPadding: 8, prepare: {
+            $0.loadSplitFixture(.complex, hover: "online")
+        }),
+        Shot(id: "goals/split-fold", prepare: { $0.loadSplitFixture(.complex, part: "migrate", folded: true) }),
+        Shot(id: "goals/split-define", prepare: { model in
+            model.loadSplitFixture(.complex, part: "migrate")
+            model.perform(CommandInvocation(name: "split.define"))
+        }),
+        Shot(id: "goals/page-building", prepare: { $0.loadSplitFixture(.page) }),
+        Shot(id: "goals/page-next", crop: .goalPageNext, cropPadding: 8, prepare: { $0.loadSplitFixture(.page) }),
     ]
 
     /// Goals (`gG`), on the fake world's goals (`GoalFixtures`).

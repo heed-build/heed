@@ -290,6 +290,11 @@ enum Shots {
                 asks(model)
                 model.select(sessionID: "s3")
             }, fixture: "approvals"),
+            // A helper's ACP permission among the hooks' asks, selected: answered here or in its split, once.
+            Shot(id: "agents/approvals-helper", keys: "gy4j", prepare: { model in
+                asks(model)
+                model.loadHelperFixture()
+            }, fixture: "approvals"),
         ]
     }()
 

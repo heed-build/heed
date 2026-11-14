@@ -69,7 +69,7 @@ struct ApprovalsView: View {
                 ApprovalButton(label: "Allow all read only", command: "approvals.allow.read")
             }
             Spacer()
-            Text("each answer goes back through the agent's own hook · ⎋ closes, they keep waiting")
+            Text("each answer goes back through the agent's own hook or helper · ⎋ closes, they keep waiting")
                 .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
         }
         .padding(.horizontal, 22)
@@ -126,7 +126,8 @@ private struct ApprovalDetail: View {
                 ForEach(group.tags, id: \.self) { RiskTag(tag: $0) }
                 Text(ApprovalText.context(
                     group,
-                    title: model.sessions.first { $0.id == ask.session }?.title,
+                    title: ask.helper.map { "\($0.headline): \($0.title)" }
+                        ?? model.sessions.first { $0.id == ask.session }?.title,
                     in: model
                 ))
                 .font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
@@ -154,14 +155,21 @@ private struct ApprovalDetail: View {
                     primary: true
                 )
                 ApprovalButton(label: group.answerable ? "Deny" : "Answer in its pane", command: "approvals.deny")
-                if group.answerable { ApprovalButton(label: "Deny and tell it why", command: "approvals.deny.reason") }
+                if group.takesReason {
+                    ApprovalButton(label: "Deny and tell it why", command: "approvals.deny.reason")
+                }
                 if group.canAlways {
                     ApprovalButton(
-                        label: "Always in \(ApprovalText.repo(of: ask, in: model) ?? "this repo")",
+                        // A helper's agent names its own always ("Always Allow"); a hook's is saved in the repo.
+                        label: ask.options.first { $0.kind == .allowAlways }?.name
+                            ?? "Always in \(ApprovalText.repo(of: ask, in: model) ?? "this repo")",
                         command: "approvals.always"
                     )
                 }
-                ApprovalButton(label: "Open its session", command: "approvals.session")
+                ApprovalButton(
+                    label: ask.channel == .helper ? "Watch the helper" : "Open its session",
+                    command: "approvals.session"
+                )
             }
         }
         .padding(22)
@@ -255,7 +263,8 @@ struct ApprovalStrip: View {
                 stripButton("Allow") { model.answer(group, PermissionAnswer(.allow)) }
                 stripButton("Deny") { model.answer(group, PermissionAnswer(.deny)) }
             } else {
-                Text("answer in the pane below").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                Text("answer in the pane below" + (ask.fellBack.map { " · \($0.text)" } ?? ""))
+                    .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
             }
             KeyHint("approvals.open") {
                 Text(model.approvalGroups.count > 1 ? "all \(model.approvalGroups.count)" : "approvals")
@@ -290,6 +299,11 @@ enum ApprovalText {
     /// `ingest · codex`, `docs-toolkit · claude ×2`, `markgraph · Explore · claude`.
     static func who(_ group: ApprovalGroup, in model: AppModel) -> String {
         let ask = group.first
+        if let helper = ask.helper, ask.channel == .helper {
+            // `docs-toolkit #2841 · helper · claude`: the PR it works on, then who.
+            let agents = group.asks.count
+            return "\(helper.repo) #\(helper.number) · \(ask.agent)" + (agents > 1 ? " ×\(agents)" : "")
+        }
         let session = model.sessions.first { $0.id == ask.session }
         let place = ask.cwd.map { ($0 as NSString).lastPathComponent }
             ?? session.map { $0.branch.isEmpty ? $0.title : $0.branch } ?? ask.session
@@ -336,10 +350,12 @@ enum ApprovalText {
         var parts: [String] = []
         if let why = group.first.why { parts.append("\"\(why)\".") }
         if group.deniedBefore { parts.append("It asked this before and you said no.") }
+        if let fellBack = group.first.fellBack { parts.append("It asks in its pane: \(fellBack.text).") }
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
     static func repo(of ask: PermissionAsk, in model: AppModel) -> String? {
-        model.sessions.first { $0.id == ask.session }?.repos.first?.name
+        if let helper = ask.helper { return helper.repo }
+        return model.sessions.first { $0.id == ask.session }?.repos.first?.name
     }
 }

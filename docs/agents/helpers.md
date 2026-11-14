@@ -19,7 +19,7 @@ standard input and output. heed is the client. It starts the agent in the helper
 (`session/new`), prompts it (`session/prompt`) and draws the `session/update` notifications that stream back: the
 agent's messages, its tool calls and their diffs, its plan, and its token use and cost when it reports them. When the
 agent asks before running something (`session/request_permission`), heed shows the question in the helper with the
-answers the agent offers.
+answers the agent offers, and in [approvals](approvals.md#a-helpers-asks) (`gy`) with every other agent's.
 
 heed offers the agent neither its file system nor terminals: the agent reads, edits and runs commands in its own
 worktree itself, and asks heed's permission the way it is set up to. Claude's adapter starts its session in Claude
@@ -87,6 +87,8 @@ files it changed and what happens once it is done. The steer box is at the foot.
 | `zx` | Stop it. Its close-out keeps what it did |
 | `zo` | Zoom: the split takes the whole column |
 | `y`, `Y`, `n` | Allow what it asks once, allow it from now on (when the agent offers that), deny it |
+
+What it asks is also in the approvals (`gy`), with every other agent's: answered there or here, it is answered once.
 | `⎋` | Close the split; the helper keeps working |
 
 ### The session's helper line
@@ -102,7 +104,8 @@ where each stands, what needs you first, then what works, then what waits:
 ![Three helpers on the session's PRs, on one line](../images/shots/sessions/helper-lines.png)
 
 The line is quiet by default and turns amber only when one needs you: it asks permission, or it is done and waits
-for your close-out. It lights up briefly when a helper moves to its next step or finishes. A finished helper stays on
+for your close-out. While one asks permission, the line says **answer** `gy`: the approvals have its request with
+every other agent's, and `gW` still watches it. It lights up briefly when a helper moves to its next step or finishes. A finished helper stays on
 the line (*✓ #2841 pushed a3f9c1d · pull before your next change*) until you have seen it: you looked at the session
 after it finished (it goes once you leave the session), or you took it off with the ✕ on the line.
 

@@ -28,6 +28,9 @@ selected, so pressing `y` again answers the next. `Y` and `N` answer all of them
 | `j` `k` | Move between requests |
 | `⎋` | Close; they keep waiting |
 
+[Helpers](helpers.md) ask here too: what a helper heed started over ACP waits on is a row like any other, its agent
+`helper · claude` and its place the PR it works on.
+
 Questions are not approvals. An agent asking you something (Claude's questions and its plan to approve, Codex asking
 you to choose) stays **asking** in its session and in Attention › Waiting on you, and never shows here.
 
@@ -55,6 +58,20 @@ words show it.
 
 `r` allows read-only requests only when they are inside their worktree: a read of `~/.ssh` is left for you.
 
+## A helper's asks
+
+A helper asks over ACP (`session/request_permission`), offering its own answers: allow once, allow always, reject.
+heed shows the request as the agent describes its tool call (the command, the files with their diffs, the page),
+tagged the same way against the helper's worktree, and answers with the option the agent offered: `y` its allow once,
+`n` its reject, `a` its allow always (offered only when the agent offers one, under the agent's own name for it).
+`Y`, `N` and `r` take helpers' asks with the rest. `t` is not offered: ACP carries no reason with a deny. `gS` opens
+the helper in its split.
+
+![A helper's ask among the hooks' asks](../images/shots/agents/approvals-helper.png)
+
+The helper's split asks the same request: answered in either place, it is answered once, and leaves both. When the
+helper's turn is cancelled (you pause, steer or stop it), ends, or its agent goes away, its ask leaves the list.
+
 ## On the waiting agent's pane
 
 The waiting agent's pane gets a slim amber strip on top: what it asks, Allow and Deny for this one, and the key for all
@@ -72,6 +89,7 @@ session that asked, on that hook's own connection.
 |---|---|
 | claude | Its `PermissionRequest` hook waits for your answer and returns it as the hook's decision (allow, or deny with a reason) |
 | codex | The same: its `PermissionRequest` hook waits and returns `allow` or `deny` with a reason |
+| helpers | Over ACP: the option its agent offered for your answer goes back on the helper's own connection |
 | opencode, cursor, pi, gemini | Shown as a request when the session is blocked, but answered in its pane: `y` presses Return there only where heed reads the prompt on screen as one where Return means yes, else its session opens. `n` opens the session; `t` and `a` are not offered |
 
 A hook waits for you at most `[approvals] wait_seconds` (120 by default, at most 240). Then, or when heed is not
@@ -83,6 +101,25 @@ it in the pane, its turn ended, or its hook went away. `wait_seconds = 0` keeps 
 [approvals]
 wait_seconds = 120
 ```
+
+### When heed is slow or restarts
+
+A hook never holds its agent up for longer than it says, and never loses an answer you gave:
+
+- heed says it has a request as soon as it is in the list. A hook that hears nothing within 2 seconds (heed is not
+  running, or too busy to take it) lets the agent ask in its pane at once.
+- Once heed has it, the hook waits for your answer, at most `wait_seconds`, and never past its own limit (290
+  seconds, under the agent's 300 second hook timeout), however the reply comes in.
+- If the connection drops while it waits (heed restarting, a hiccup), the hook connects again and sends the same
+  request for up to 5 seconds. heed keeps each request by its id: the request is not listed twice, an answer you
+  already gave goes back at once, and no request is answered twice. A hook that does not come back within that time
+  has stopped waiting, and its request leaves the list.
+- Many agents asking at once are each answered on their own: a request nobody has answered holds up no other.
+
+When a request goes back to the agent's pane for one of these reasons, heed says why on the pane's strip and on the
+request in the list ("heed did not take the request in time", "the hook waited as long as it may", "nobody answered in
+heed within wait_seconds"), and the [call log](../reference/call-log.md) records it as a decision from
+`approvals.fallback`.
 
 ### Always in this repo
 

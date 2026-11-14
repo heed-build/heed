@@ -564,7 +564,10 @@ extension AppModel {
             helpers.update(id) { $0.phase = .stopped(why) }
             finishTurn(id)
         case nil:
-            helpers.update(id) { $0.phase = .done(stop) }
+            helpers.update(id) {
+                $0.withdrawPermission()
+                $0.phase = .done(stop)
+            }
             finishTurn(id)
         }
     }
@@ -642,8 +645,8 @@ extension AppModel {
             guard let helper = helpers.run(id), helper.phase.isLive else { return }
             let why = "its agent exited" + (reason.map { ": \($0)" } ?? "")
             helpers.update(id) {
+                $0.withdrawPermission()
                 $0.phase = .failed(why)
-                $0.permission = nil
                 $0.append(.note(why), at: Clock.now)
             }
             recordRun(id, outcome: .failed(why))
@@ -653,20 +656,33 @@ extension AppModel {
     // MARK: Steering
 
     private func answerHelper(_ id: String, _ kind: ACPPermissionRequest.Option.Kind) {
-        guard let helper = helpers.run(id), let permission = helper.permission else {
-            return flash = "the helper is not asking anything"
+        guard let askID = helpers.run(id)?.askID else { return flash = "the helper is not asking anything" }
+        let answer = switch kind {
+        case .allowOnce: PermissionAnswer(.allow)
+        case .allowAlways: PermissionAnswer(.allow, always: true)
+        case .rejectOnce, .rejectAlways: PermissionAnswer(.deny)
         }
-        let option = permission.option(kind)
-            ?? permission.option(kind == .rejectOnce ? .rejectAlways : .allowOnce)
-        guard let option else { return flash = "the agent offered no such answer" }
-        let answer = switch option.kind {
-        case .allowOnce: "allowed"
-        case .allowAlways: "allowed always"
-        case .rejectOnce, .rejectAlways: "denied"
+        settleHelperAsk(id, askID: askID, answer)
+    }
+
+    /// Answers the permission a helper waits on, once, from its split or from the approvals: the helper lets go of
+    /// it (so both places follow) and its agent hears the option picked. False when it no longer asks that (answered
+    /// already, withdrawn) or its agent offered no such answer.
+    @discardableResult
+    func settleHelperAsk(_ id: String, askID: String, _ answer: PermissionAnswer) -> Bool {
+        var settled = HelperRun.Settled.stale
+        helpers.update(id) { settled = $0.settle(askID, answer) }
+        switch settled {
+        case .stale:
+            return false
+        case .noOption:
+            flash = "the agent offered no such answer"
+            return false
+        case let .send(requestID, optionID, _):
+            guard let client = helpers.clients[id] else { return true }
+            Task { await client.answerPermission(requestID, optionID: optionID) }
+            return true
         }
-        helpers.update(id) { $0.answered(answer) }
-        guard let client = helpers.clients[id] else { return }
-        Task { await client.answerPermission(permission.requestID, optionID: option.id) }
     }
 
     /// `p`: a working helper's turn is cancelled and it waits; a paused one carries on.

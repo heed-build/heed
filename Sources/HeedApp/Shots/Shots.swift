@@ -177,6 +177,10 @@ enum Shots {
         Shot(id: "sessions/helper-row", size: CGSize(width: 1440, height: 640), crop: .sidebar, prepare: {
             $0.loadHelperFixture()
         }),
+        // A session growing into a goal: three PRs, a second repo and work it found, so a line at its foot offers
+        // Make it a goal; gP shows what the goal would be.
+        Shot(id: "sessions/growing", crop: .center, prepare: growingSession),
+        Shot(id: "sessions/make-it-a-goal", keys: "gP", crop: .center, prepare: growingSession),
         Shot(id: "sessions/task-picker", keys: "!", crop: .picker, prepare: withDiscoveredTasks),
         // run_in = "background", the older way: only the page that documents it shows it.
         Shot(id: "sessions/run-tab", keys: "4j", crop: .center, prepare: { $0.loadBackgroundRunFixture() }),
@@ -208,6 +212,27 @@ enum Shots {
     }.joined(separator: "\n")
 
     /// The fake world's chats, added to `main`: in the sidebar's Chats group (one asking, in Needs you) and History.
+    static let bigPrompt = "Make anchors survive page moves everywhere: redirects resolve to the right heading, the "
+        + "build fails on a broken anchor, the docs site keeps old links working, and the sample site proves it."
+
+    /// The ingest session reworked into one growing into a goal: s1's three PRs (one merged), a second repo through
+    /// them, and its agent naming work it did not start. On no goal, unlike s1.
+    static func growingSession(_ model: AppModel) {
+        guard var session = model.sessions.first(where: { $0.id == "s3" }) else { return }
+        session.title = "Fix broken anchors in redirects"
+        session.prompt = "Make a page that moves keep every inbound anchor working."
+        let toolkit = Repo(org: "acme", name: "docs-toolkit"), website = Repo(org: "acme", name: "docs-website")
+        session.repos = [toolkit]
+        session.trackedPRs = [
+            PullRef(repo: toolkit, number: 2841), PullRef(repo: website, number: 1920),
+            PullRef(repo: toolkit, number: 2836),
+        ]
+        session.lastMessage = "The redirects are fixed, but the website vendors its own slug code, so its old links "
+            + "still break. That's a change in docs-website, and the sample site should prove both."
+        model.commit(.sessionUpserted(session))
+        model.select(sessionID: session.id)
+    }
+
     static func withChats(_ model: AppModel) {
         var changes: [DomainChange] = Fixtures.chats.flatMap { session, layout in
             [DomainChange.sessionUpserted(session), .layoutChanged(session: session.id, layout)]
@@ -245,6 +270,19 @@ enum Shots {
 
     static let startWork: [Shot] = [
         Shot(id: "start-work/dialog", keys: "o" + prompt, crop: .dialog),
+        // A longer prompt sized as bigger than one session: the card in place of the fields.
+        Shot(id: "start-work/size-card", crop: .dialog, prepare: { model in
+            model.openStartWork(prompt: bigPrompt)
+            model.clickStartWork { form in
+                form.sizeCheck = true
+                let key = TaskSizer.key(bigPrompt)
+                _ = form.sized(TaskSizing(
+                    prompt: key, kind: .goal, goal: 0.8,
+                    facts: TaskSizeFacts(parts: 4, repos: 2, atOnce: 3, hours: 10, title: "Anchors survive page moves"),
+                    model: "claude-haiku-4-5", seconds: 1.8, cost: 0.0012
+                ), for: key)
+            }
+        }),
         // The kind row: h l pick what the work is, and the name's prefix follows.
         Shot(id: "start-work/kind", keys: "o" + prompt + "<Esc>jl", crop: .dialog),
         // A CI log pasted: kept beside the prompt as a file; a linked issue with its title.

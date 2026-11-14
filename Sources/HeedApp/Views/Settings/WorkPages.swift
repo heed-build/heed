@@ -45,6 +45,9 @@ struct WorktreesPage: View {
             ) {
                 ConfigSwitch(path: ["start_work", "smart_guesses"], isOn: model.config.startWork.smartGuesses)
             }
+            SettingRow("start_work.size_check") {
+                ConfigSwitch(path: ["start_work", "size_check"], isOn: model.config.startWork.sizeCheck)
+            }
         }
         SettingsCard(title: "Cleanup") {
             SettingRow("cleanup.enabled") {

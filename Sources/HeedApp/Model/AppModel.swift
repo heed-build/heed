@@ -219,6 +219,12 @@ final class AppModel {
     var startOutcomeCount: Int?
     /// Asks the on-device model while Start work is open with smart guesses on; nil otherwise.
     @ObservationIgnored var startWorkAdvice: StartWorkAdviceScheduler?
+    /// Sizes Start work's longer prompts (`[start_work] size_check`); nil while sizing is off or cannot run.
+    @ObservationIgnored var startWorkSizer: TaskSizeScheduler?
+    /// Make it a goal's popover on a growing session (`goal.promote`); nil while closed.
+    var goalPromotion: GoalPromotion? { didSet { updateScope() } }
+    /// Sessions whose "growing into a goal" line was put away (`x`): kept in UserDefaults, except in the fake world.
+    var promotionsSetAside: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "promotionsSetAside") ?? [])
     /// Each local repo's README's first line, by record id, read once per run.
     @ObservationIgnored var readmeAbout: [String: String] = [:]
     @ObservationIgnored var screenSampler = ScreenSampler()
@@ -443,7 +449,8 @@ final class AppModel {
     func updateScope() {
         engine.scope = overlay == .approvals ? "approvals" : overlay == .diff ? "diff" : issueReader != nil ? "issue"
             : (overlay == .pr || reader != nil) ? "pr" : view == .goals ? goals.scope
-            : view == .attention && attentionQuestion != nil ? "swarmask" : helperScope ?? view.rawValue
+            : view == .attention && attentionQuestion != nil ? "swarmask"
+            : view == .sessions && goalPromotion != nil ? "sessionspromote" : helperScope ?? view.rawValue
     }
 
     // Diff overlay
@@ -523,6 +530,7 @@ final class AppModel {
                 StartWorkPanelController.shared.close()
             }
             adviseStartWork()
+            sizeStartWork()
         }
     }
 
@@ -2774,6 +2782,9 @@ final class AppModel {
         case "goal.guide": toggleGoalGuide()
         case "goal.jump": jumpToGoal()
         case "goal.new": newGoal(command.arguments, from: command.target)
+        case "goal.promote": promoteToGoal(from: command.target)
+        case "goal.promote.go": confirmPromotion()
+        case "goal.promote.dismiss": setPromotionAside(from: command.target)
         case "goal.attach": attachGoal(command.arguments)
         case "goal.detach": detachGoal()
         case "goal.archive": archiveGoal()
@@ -7261,6 +7272,7 @@ final class AppModel {
         form.cloneRoot = cloneRoot(.local)
         startWork = form
         prepareStartWorkSmarts()
+        prepareStartWorkSize()
         adviseStartWork()
     }
 
@@ -7356,7 +7368,7 @@ final class AppModel {
         return result
     }
 
-    private func handleStartWork(_ stroke: KeyStroke) {
+    func handleStartWork(_ stroke: KeyStroke) {
         guard var form = startWork else { return }
         if stroke == KeyStroke("v", .command), let text = NSPasteboard.general.string(forType: .string) {
             form.paste(text)
@@ -7373,10 +7385,21 @@ final class AppModel {
             startWork = nil
         case let .start(plan):
             startWork = form
-            let typed = form.typedRepos
-            guard typed.isEmpty || isFixture || tutor != nil else { return cloneStartWorkRepos(typed) }
-            begin(plan)
+            proceed(plan)
+        case .sizeFirst:
+            startWork = form
+            sizeStartWork(now: true)
+        case let .goal(goal):
+            startWork = nil
+            makeGoal(goal)
         }
+    }
+
+    /// Starts the dialog's plan: the typed repos cloned first, if any.
+    func proceed(_ plan: StartWorkPlan) {
+        let typed = startWork?.typedRepos ?? []
+        guard typed.isEmpty || isFixture || tutor != nil else { return cloneStartWorkRepos(typed) }
+        begin(plan)
     }
 
     /// A repo typed into Start work's search that heed does not know: asked of GitHub (or looked at on disk) once
@@ -8546,6 +8569,12 @@ final class AppModel {
         change(&form)
         startWork = form
         lookUpStartWorkLinks()
+    }
+
+    /// A click on the sizing card's options: exactly their keys (⌘↩ ⌥↩ ⌃↩).
+    func clickStartWorkKey(_ stroke: KeyStroke) {
+        guard startWork != nil, !startingWork else { return }
+        handleStartWork(stroke)
     }
 
     /// The Start button: exactly ⌘↩.

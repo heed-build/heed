@@ -187,7 +187,8 @@ extension AppModel {
         textInputActive = false
     }
 
-    private func createGoal(_ form: GoalsBrowser.Form) {
+    /// `wizard`: the goal's wizard opens on it once made (`goal.wizard`), where heed has one.
+    func createGoal(_ form: GoalsBrowser.Form, wizard: Bool = false) {
         let session = form.session.flatMap { id in sessions.first { $0.id == id } }
         let now = Clock.now
         goals.run { ops in
@@ -209,6 +210,7 @@ extension AppModel {
                 say("goal \(goal.title) made" + (session.map { ", \($0.title) on it" } ?? ""))
                 planGoal(goal: goal.id)
                 mirrorNewGoal(goal, tracker: form.tracker, on: form.mirror)
+                if wizard { openGoalWizard(goal.id) }
             case let .failure(error): say("no goal made: \(error)")
             }
         }

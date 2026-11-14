@@ -56,6 +56,7 @@ enum Shots {
         Shot(id: "getting-started/empty", size: CGSize(width: 1440, height: 760), crop: .sidebar, fixture: "empty"),
         // The tour on its fourth step: the banner, the spotlight on what needs you, the card, the TUTOR pill.
         Shot(id: "getting-started/tutor", prepare: { $0.beginTutor(lesson: "tour", step: 3) }),
+        Shot(id: "landing/tutor", chrome: false, prepare: { $0.beginTutor(lesson: "tour", step: 3) }),
         // The title bar's reminder, until the tour is done.
         Shot(id: "getting-started/tutor-reminder", crop: .titleBar, prepare: { $0.tutorReminderInShots = true }),
         // Every terminal of a session exited: delete it, close it, or keep it.
@@ -131,6 +132,27 @@ enum Shots {
         Shot(id: "landing/goals", chrome: false, keys: "gGj"),
         // A swarm's map: the goal and its lead, phases as columns, tasks by state, one of them stuck.
         Shot(id: "landing/swarms", chrome: false, keys: "gGjVlj", prepare: { $0.loadWatchFixture() }),
+        // The new landing page (docs/heed-landing-new.html): one real screenshot per act, each the fallback of a future
+        // clip.
+        // Autopilot's Done tab: what heed took off your hands.
+        Shot(id: "landing/autopilot-done", chrome: false, keys: "gwD"),
+        // The goal wizard's Panel step and the Split board, lead on top.
+        Shot(id: "landing/panel", chrome: false, prepare: { $0.loadWizardFixture(.panel) }),
+        Shot(id: "landing/split", chrome: false, prepare: { $0.loadSplitFixture(.complex, part: "migrate") }),
+        // A second opinion offered in a session, quiet until a milestone.
+        Shot(
+            id: "landing/persona",
+            chrome: false,
+            size: CGSize(width: 1440, height: 900),
+            crop: .center,
+            prepare: { $0.loadSessionPanelFixture(.offer) }
+        ),
+        // Memory: the mindmap, a standup, the insights dashboard and OpenTelemetry.
+        Shot(id: "landing/mindmap", chrome: false, keys: "ghM"),
+        Shot(id: "landing/standup", chrome: false, keys: "ghU"),
+        Shot(id: "landing/insights", chrome: false, keys: "gh"),
+        Shot(id: "landing/telemetry", chrome: false, size: CGSize(width: 1600, height: 1000), keys: "ghT"),
+        Shot(id: "landing/helper", chrome: false, keys: "gwNl", prepare: { $0.loadHelperFixture() }),
     ]
 
     /// The docs' home page.
@@ -314,6 +336,7 @@ enum Shots {
         // The model field: h l step through the agent's models (Opus, two steps in), then its efforts (high).
         Shot(id: "start-work/model", keys: "o" + prompt + "<Esc>jjjjjlljlll", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
+        Shot(id: "landing/anywhere", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
         Shot(id: "start-work/from-github-picked", keys: "gi<Space>j<Space>", highlight: [.list]),
         Shot(id: "start-work/from-github-dialog", keys: "gi<Space>j<Space>s", crop: .dialog),
         Shot(id: "start-work/again", keys: "ghHO", crop: .dialog),
@@ -330,6 +353,7 @@ enum Shots {
         let asks: @MainActor (AppModel) -> Void = { $0.approvals.queue = ApprovalQueue(asks: Fixtures.approvalAsks()) }
         return [
             Shot(id: "agents/approvals", keys: "gy", prepare: asks, fixture: "approvals"),
+            Shot(id: "landing/approvals", chrome: false, keys: "gy", prepare: asks, fixture: "approvals"),
             Shot(id: "agents/approvals-next", keys: "gyy", crop: .dialog, prepare: asks, fixture: "approvals"),
             Shot(id: "agents/approvals-pill", crop: .titleBar, cropPadding: 0, prepare: asks, fixture: "approvals"),
             Shot(id: "agents/approvals-strip", crop: .panes, prepare: { model in

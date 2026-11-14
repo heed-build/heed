@@ -55,9 +55,9 @@ public struct GoalGrowth: Hashable, Sendable {
         "should also",
     ]
 
-    /// The sentences of the agent's last message that name work it found and did not start, at most three, each cut
-    /// to 64 characters.
-    public static func found(in message: String?) -> [String] {
+    /// The sentences of the agent's last message that name work it found and did not start, at most three: what a
+    /// model call summarises (`FoundWork`).
+    public static func foundSentences(in message: String?) -> [String] {
         guard let message, !message.isEmpty else { return [] }
         var sentences: [String] = []
         var current = ""
@@ -69,14 +69,82 @@ public struct GoalGrowth: Hashable, Sendable {
             }
         }
         sentences.append(current)
-        return sentences
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "-*•"))) }
-            .filter { sentence in
-                let lower = sentence.lowercased()
-                return markers.contains { lower.contains($0) }
-            }
-            .prefix(3)
-            .map { $0.count > 64 ? String($0.prefix(63)) + "…" : $0 }
+        return Array(
+            sentences
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: "-*•"))) }
+                .filter { sentence in markers.contains { sentence.lowercased().contains($0) } }
+                .prefix(3)
+        )
+    }
+
+    /// What was found, short, without a model: per sentence the clause that names it ("its old links still break",
+    /// "a change in docs-website"), or what follows "Follow-up:"; at most 48 characters each.
+    public static func found(in message: String?) -> [String] {
+        foundSentences(in: message).map(clause)
+    }
+
+    static func clause(_ sentence: String) -> String {
+        var text = sentence.trimmingCharacters(in: CharacterSet(charactersIn: ".!? "))
+        // "Out of scope: the theme" names the work after the colon.
+        if let colon = text.firstIndex(of: ":") {
+            let head = text[..<colon].lowercased()
+            let tail = text[text.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+            if markers.contains(where: { head.contains($0) }), !tail.isEmpty { text = tail }
+        }
+        let clauses = text.split(whereSeparator: { ",;:".contains($0) }).map {
+            $0.trimmingCharacters(in: .whitespaces)
+        }
+        var picked = clauses.first { clause in markers.contains { clause.lowercased().contains($0) } }
+            ?? clauses.first ?? text
+        for lead in ["so ", "but ", "and ", "then ", "that's ", "that is ", "this is ", "it's ", "which "]
+            where picked.lowercased().hasPrefix(lead)
+        {
+            picked = String(picked.dropFirst(lead.count))
+        }
+        picked = picked.trimmingCharacters(in: .whitespaces)
+        return picked.count > 48 ? String(picked.prefix(47)) + "…" : picked
+    }
+}
+
+/// What a session found, as short noun phrases ("the website's vendored slug copy", "a sample-site proof"), from one
+/// cheap model call when there is one; `GoalGrowth.found`'s clauses stand in until it answers, or when it cannot.
+public enum FoundWork {
+    public typealias Run = @Sendable (LLMRequest) async throws -> LLMResponse
+
+    static let system = """
+    You turn what a coding agent said it found and did not start into short noun phrases, one per piece of work, of \
+    at most six words each, lowercase unless a name, no period: "the website's vendored slug copy", "a sample-site \
+    proof". Only work it names; at most three. Reply with only the JSON the schema asks for.
+    """
+
+    static let schema = """
+    {"type":"object","properties":{"items":{"type":"array","items":{"type":"string"},"maxItems":3}},\
+    "required":["items"],"additionalProperties":false}
+    """
+
+    /// The call: you pressed gP, so it goes first.
+    public static func request(_ sentences: [String]) -> LLMRequest {
+        LLMRequest(
+            call: LLMCall(system: system, prompt: sentences.joined(separator: "\n"), schema: schema),
+            priority: .interactive, caller: "goal.promote", operation: "name found work"
+        )
+    }
+
+    /// The phrases from the call's JSON, one line each and at most 48 characters; nil when there are none.
+    public static func read(_ json: Data?) -> [String]? {
+        guard let json, let object = try? JSONSerialization.jsonObject(with: json) as? [String: Any],
+              let items = object["items"] as? [String]
+        else { return nil }
+        let phrases = items.map { GoalDoc.oneLine($0).trimmingCharacters(in: CharacterSet(charactersIn: ". ")) }
+            .filter { !$0.isEmpty }.prefix(3)
+            .map { $0.count > 48 ? String($0.prefix(47)) + "…" : $0 }
+        return phrases.isEmpty ? nil : Array(phrases)
+    }
+
+    /// The phrases for `sentences`, or nil (no sentences, the call failed, nothing usable).
+    public static func summarise(_ sentences: [String], run: Run) async -> [String]? {
+        guard !sentences.isEmpty, let response = try? await run(request(sentences)) else { return nil }
+        return read(response.json)
     }
 }
 

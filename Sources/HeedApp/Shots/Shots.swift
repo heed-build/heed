@@ -215,18 +215,13 @@ enum Shots {
     static let bigPrompt = "Make anchors survive page moves everywhere: redirects resolve to the right heading, the "
         + "build fails on a broken anchor, the docs site keeps old links working, and the sample site proves it."
 
-    /// The ingest session reworked into one growing into a goal: s1's three PRs (one merged), a second repo through
-    /// them, and its agent naming work it did not start. On no goal, unlike s1.
+    /// The anchors session (claude, docs-toolkit, three PRs, one merged, a second repo through them) taken off its
+    /// goal, its agent naming the work it found and did not start: so it is growing into one.
     static func growingSession(_ model: AppModel) {
-        guard var session = model.sessions.first(where: { $0.id == "s3" }) else { return }
-        session.title = "Fix broken anchors in redirects"
-        session.prompt = "Make a page that moves keep every inbound anchor working."
-        let toolkit = Repo(org: "acme", name: "docs-toolkit"), website = Repo(org: "acme", name: "docs-website")
-        session.repos = [toolkit]
-        session.trackedPRs = [
-            PullRef(repo: toolkit, number: 2841), PullRef(repo: website, number: 1920),
-            PullRef(repo: toolkit, number: 2836),
-        ]
+        var goals = model.goals.snapshot
+        goals.links.removeAll { $0.target == "s1" }
+        model.goals.apply(goals)
+        guard var session = model.sessions.first(where: { $0.id == "s1" }) else { return }
         session.lastMessage = "The redirects are fixed, but the website vendors its own slug code, so its old links "
             + "still break. That's a change in docs-website, and the sample site should prove both."
         model.commit(.sessionUpserted(session))

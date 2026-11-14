@@ -46,9 +46,8 @@ struct GoalGrowthTests {
         #expect(repos.signs == ["2nd repo"])
         let foundWork = try #require(growth(session(last: found)))
         #expect(foundWork.signs == ["found work it didn't start"])
-        // Both sentences name work left: the website's links still break, and a change in another repo.
-        #expect(foundWork.found.count == 2)
-        #expect(foundWork.found.last?.hasPrefix("That's a change in docs-website") == true)
+        // Both sentences name work left, each as the clause that says it.
+        #expect(foundWork.found == ["its old links still break", "a change in docs-website"])
     }
 
     @Test func chatsSessionsOnAGoalAndOnesSetAsideNeverGrow() {
@@ -58,15 +57,26 @@ struct GoalGrowthTests {
         #expect(growth(session(pulls: [pull(1), pull(2)], repos: [], chat: true)) == nil)
     }
 
-    @Test func foundWorkIsTheSentencesThatSayItAtMostThree() {
+    @Test func foundWorkIsTheClauseThatSaysItAtMostThree() {
         #expect(GoalGrowth.found(in: nil).isEmpty)
         #expect(GoalGrowth.found(in: "All green. Merged.").isEmpty)
         let many = "A follow-up: the slugs. Out of scope: the theme. Not started: search. Another PR for tests. Done."
-        #expect(GoalGrowth.found(in: many) == [
-            "A follow-up: the slugs.", "Out of scope: the theme.", "Not started: search.",
-        ])
+        #expect(GoalGrowth.foundSentences(in: many).count == 3)
+        #expect(GoalGrowth.found(in: many) == ["the slugs", "the theme", "search"])
         let long = "This still needs " + String(repeating: "x", count: 100)
-        #expect(GoalGrowth.found(in: long).first?.count == 64)
+        #expect(GoalGrowth.found(in: long).first?.count == 48)
+    }
+
+    @Test func aModelNamesFoundWorkAndAFailureLeavesTheClauses() async {
+        let json = #"{"items": ["the website's vendored slug copy.", " a sample-site proof ", ""]}"#
+        let named = await FoundWork.summarise(["x"]) { request in
+            #expect(request.call.schema != nil)
+            return LLMResponse(text: json, json: Data(json.utf8), agent: "claude")
+        }
+        #expect(named == ["the website's vendored slug copy", "a sample-site proof"])
+        #expect(await FoundWork.summarise([]) { _ in throw LLMError.disabled } == nil)
+        #expect(await FoundWork.summarise(["x"]) { _ in throw LLMError.disabled } == nil)
+        #expect(FoundWork.read(Data(#"{"items": []}"#.utf8)) == nil)
     }
 }
 

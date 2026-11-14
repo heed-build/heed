@@ -139,7 +139,7 @@ struct GrowthLine: View {
             Spacer(minLength: 8)
             HStack(spacing: 6) {
                 Text("Make it a goal").foregroundStyle(Theme.fg)
-                KeyCap(text: model.keyText(for: "goal.promote", in: "sessions"))
+                KeyCap(text: model.keyText(for: "goal.promote", asIn: "sessions"))
             }
             .font(Theme.ui(11.5))
             .clickRuns(CommandInvocation(name: "goal.promote"))
@@ -181,9 +181,9 @@ struct PromotionPopover: View {
                 }
             }
             HStack(spacing: 8) {
-                button("Open the plan step", key: "⌘↩", primary: true, command: "goal.promote.go")
-                button("Not now", key: "x", command: "goal.promote.dismiss")
-                button("Cancel", key: "⎋", command: "goal.promote")
+                button("Open the plan step", primary: true, command: "goal.promote.go")
+                button("Not now", command: "goal.promote.dismiss")
+                button("Cancel", command: "goal.promote")
             }
             .padding(.top, 2)
         }
@@ -204,10 +204,11 @@ struct PromotionPopover: View {
         }
     }
 
-    private func button(_ label: String, key: String, primary: Bool = false, command: String) -> some View {
+    /// Its key as the keymap has it in the popover's scope (↩, x, ⎋ by default).
+    private func button(_ label: String, primary: Bool = false, command: String) -> some View {
         HStack(spacing: 6) {
             Text(label).fontWeight(primary ? .semibold : .regular)
-            KeyCap(text: key)
+            KeyCap(text: model.keyText(for: command, in: "sessionspromote"))
         }
         .font(Theme.ui(12.5))
         .foregroundStyle(primary ? Theme.ink : Theme.fg)

@@ -101,6 +101,24 @@ extension AppModel {
         goalPromotion = GoalPromotion.draft(session, growth: goalGrowth(for: session)) { [github] ref in
             github.pull(ref).map { ($0.state, $0.title) }
         }
+        nameFoundWork(of: session)
+    }
+
+    /// What the session found, named by a cheap model call while the popover shows its clauses; never in the fake
+    /// world. An answer for a popover since closed or moved is dropped.
+    private func nameFoundWork(of session: Session) {
+        let sentences = GoalGrowth.foundSentences(in: session.lastMessage)
+        guard !isFixture, !sentences.isEmpty else { return }
+        let run: FoundWork.Run = { [weak self] request in
+            guard let self else { throw LLMError.disabled }
+            return try await runLLM(request)
+        }
+        Task { [weak self] in
+            guard let named = await FoundWork.summarise(sentences, run: run), let self,
+                  goalPromotion?.session == session.id
+            else { return }
+            goalPromotion?.found = named
+        }
     }
 
     /// `goal.promote.go`: the goal made with the session on it (its merged PRs done, what it found planned), and its
@@ -132,7 +150,7 @@ extension AppModel {
         goalPromotion = nil
         promotionsSetAside.insert(id)
         if !isFixture { UserDefaults.standard.set(promotionsSetAside.sorted(), forKey: "promotionsSetAside") }
-        say("not now: \(keyText(for: "goal.promote", in: "sessions")) still makes it a goal")
+        say("not now: \(keyText(for: "goal.promote", asIn: "sessions")) still makes it a goal")
     }
 
     /// The popover belongs to the session it was opened on: moving to another closes it.

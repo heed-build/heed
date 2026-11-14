@@ -55,6 +55,8 @@ This page is generated from the code (`mise run shots`).
 | `trace.span.next` | `l` (trace), `<Right>` (trace) | trace: the next span in the turn |
 | `trace.span.prev` | `h` (trace), `<Left>` (trace) | trace: the previous span in the turn |
 | `wizard.row` `<delta>` | `j` (wizarddone), `k` (wizarddone), `<Down>` (wizarddone), `<Up>` (wizarddone), `j` (wizardinvite), `k` (wizardinvite), `<Down>` (wizardinvite), `<Up>` (wizardinvite), `j` (wizardlater), `k` (wizardlater), `<Down>` (wizardlater), `<Up>` (wizardlater), `j` (wizardpanel), `k` (wizardpanel), `<Down>` (wizardpanel), `<Up>` (wizardpanel), `j` (wizardplan), `k` (wizardplan), `<Down>` (wizardplan), `<Up>` (wizardplan) | wizard: the persona or criterion below (1) or above (-1) |
+| `split.move` `<h|j|k|l>` | `h` (splitfold), `l` (splitfold), `j` (splitfold), `k` (splitfold), `<Left>` (splitfold), `<Right>` (splitfold), `<Down>` (splitfold), `<Up>` (splitfold), `h` (wizardsplit), `l` (wizardsplit), `j` (wizardsplit), `k` (wizardsplit), `<Left>` (wizardsplit), `<Right>` (wizardsplit), `<Down>` (wizardsplit), `<Up>` (wizardsplit) | Split: the board's cursor: h l the part before or after in time, j k the agent below or above |
+| `page.move` `<h|j|k|l>` | `h` (goalpage), `l` (goalpage), `j` (goalpage), `k` (goalpage) | the goal's page: h l the part before or after in time, j k the agent below or above (without a part: the goals) |
 
 ## Panes & tabs
 
@@ -107,15 +109,15 @@ This page is generated from the code (`mise run shots`).
 | `view.mindmap` |  | Insights' Mindmap: the work grouped into campaigns, one Mindmap per org |
 | `view.goals` | `gG` | goals: long-running work, what belongs to each goal, and its GOAL.md |
 | `goal.overview` |  | Goals: back to the goal's overview from any of its panes |
-| `goal.doc` | `E` (goalagents), `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalmap), `E` (goalpersonas), `E` (goalplan), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
-| `goal.board` | `B` (goalagents), `B` (goalboard), `B` (goaldoc), `B` (goalevals), `B` (goalmap), `B` (goalpersonas), `B` (goalplan), `B` (goalreviewers), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
-| `goal.unassigned` | `U` (goalagents), `U` (goalboard), `U` (goaldoc), `U` (goalevals), `U` (goalmap), `U` (goalpersonas), `U` (goalplan), `U` (goalreviewers), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
-| `goal.reviewers` | `R` (goalagents), `R` (goalboard), `R` (goaldoc), `R` (goalevals), `R` (goalmap), `R` (goalpersonas), `R` (goalplan), `R` (goalreviewers), `R` (goals), `R` (unassigned) | Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview) |
-| `goal.personas` | `P` (goalagents), `P` (goalboard), `P` (goaldoc), `P` (goalevals), `P` (goalmap), `P` (goalpersonas), `P` (goalplan), `P` (goalreviewers), `P` (goals), `P` (unassigned) | Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview) |
-| `goal.evaluations` | `X` (goalagents), `X` (goalboard), `X` (goaldoc), `X` (goalevals), `X` (goalmap), `X` (goalpersonas), `X` (goalplan), `X` (goalreviewers), `X` (goals), `X` (unassigned) | Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview) |
-| `goal.swarm` | `S` (goalagents), `S` (goalboard), `S` (goaldoc), `S` (goalevals), `S` (goalmap), `S` (goalpersonas), `S` (goalplan), `S` (goalreviewers), `S` (goals), `S` (unassigned) | Goals: the goal's swarm: its plan by phase, the lead's questions, versions and steering (again: the overview) |
-| `goal.agents` | `W` (goalagents), `W` (goalboard), `W` (goaldoc), `W` (goalevals), `W` (goalmap), `W` (goalpersonas), `W` (goalplan), `W` (goalreviewers), `W` (goals), `W` (unassigned) | Goals: the swarm's agents: what each does and for how long, stuck or not, its notes and activity, and what needs you; once done, its summary (again: the overview) |
-| `goal.map` | `V` (goalagents), `V` (goalboard), `V` (goaldoc), `V` (goalevals), `V` (goalmap), `V` (goalpersonas), `V` (goalplan), `V` (goalreviewers), `V` (goals), `V` (unassigned) | Goals: the swarm as a map: phases as columns, tasks as cards by state, dependencies as edges (again: the overview) |
+| `goal.doc` | `E` (goalagents), `E` (goalboard), `E` (goaldoc), `E` (goalevals), `E` (goalmap), `E` (goalpage), `E` (goalpersonas), `E` (goalplan), `E` (goalreviewers), `E` (goals), `E` (unassigned) | Goals: the goal's GOAL.md and its versions (again: the overview) |
+| `goal.board` | `B` (goalagents), `B` (goalboard), `B` (goaldoc), `B` (goalevals), `B` (goalmap), `B` (goalpage), `B` (goalpersonas), `B` (goalplan), `B` (goalreviewers), `B` (goals), `B` (unassigned) | Goals: the goal as a board, its items by column (again: the overview) |
+| `goal.unassigned` | `U` (goalagents), `U` (goalboard), `U` (goaldoc), `U` (goalevals), `U` (goalmap), `U` (goalpage), `U` (goalpersonas), `U` (goalplan), `U` (goalreviewers), `U` (goals), `U` (unassigned) | Goals › Unassigned: how heed put new work on goals, its asks, and goals it suggests (again: the overview) |
+| `goal.reviewers` | `R` (goalagents), `R` (goalboard), `R` (goaldoc), `R` (goalevals), `R` (goalmap), `R` (goalpage), `R` (goalpersonas), `R` (goalplan), `R` (goalreviewers), `R` (goals), `R` (unassigned) | Goals: the goal's reviewers, their scores and objections, and its quality bars (again: the overview) |
+| `goal.personas` | `P` (goalagents), `P` (goalboard), `P` (goaldoc), `P` (goalevals), `P` (goalmap), `P` (goalpage), `P` (goalpersonas), `P` (goalplan), `P` (goalreviewers), `P` (goals), `P` (unassigned) | Goals: who the goal needs, why now, how much of their work they have looked at (again: the overview) |
+| `goal.evaluations` | `X` (goalagents), `X` (goalboard), `X` (goaldoc), `X` (goalevals), `X` (goalmap), `X` (goalpage), `X` (goalpersonas), `X` (goalplan), `X` (goalreviewers), `X` (goals), `X` (unassigned) | Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview) |
+| `goal.swarm` | `S` (goalagents), `S` (goalboard), `S` (goaldoc), `S` (goalevals), `S` (goalmap), `S` (goalpage), `S` (goalpersonas), `S` (goalplan), `S` (goalreviewers), `S` (goals), `S` (unassigned) | Goals: the goal's swarm: its plan by phase, the lead's questions, versions and steering (again: the overview) |
+| `goal.agents` | `W` (goalagents), `W` (goalboard), `W` (goaldoc), `W` (goalevals), `W` (goalmap), `W` (goalpage), `W` (goalpersonas), `W` (goalplan), `W` (goalreviewers), `W` (goals), `W` (unassigned) | Goals: the swarm's agents: what each does and for how long, stuck or not, its notes and activity, and what needs you; once done, its summary (again: the overview) |
+| `goal.map` | `V` (goalagents), `V` (goalboard), `V` (goaldoc), `V` (goalevals), `V` (goalmap), `V` (goalpage), `V` (goalpersonas), `V` (goalplan), `V` (goalreviewers), `V` (goals), `V` (unassigned) | Goals: the swarm as a map: phases as columns, tasks as cards by state, dependencies as edges (again: the overview) |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
@@ -185,7 +187,7 @@ This page is generated from the code (`mise run shots`).
 | `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (sessionshelpers), `t` (sessionspromote), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
 | `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 | `goal.wizard` `[goal]` |  | Goals: walk the goal through the new-goal wizard (plan, panel, done looks like, …); where it was left, it resumes |
-| `goal.tldr` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (unassigned), `T` (wizardchat), `T` (wizarddone), `T` (wizardlater), `T` (wizardpanel), `T` (wizardplan) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
+| `goal.tldr` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpage), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (splitdefine), `T` (splitfold), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (unassigned), `T` (wizardchat), `T` (wizarddone), `T` (wizardlater), `T` (wizardpanel), `T` (wizardplan), `T` (wizardsplit) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
 
 ## Modes
 
@@ -249,16 +251,16 @@ This page is generated from the code (`mise run shots`).
 | `standup.org.next` | `]o` (standup) | standup: the next org's reports (personal last) |
 | `standup.org.prev` | `[o` (standup) | standup: the previous org's reports |
 | `dashboard.range` `[days]` | `r` (dashboard) | dashboard: the next range (7 days, 4 weeks, 12 weeks), or one in days or weeks (2w) |
-| `goal.new` `[title]` | `n` (goals) | new goal: a title and what it is (on a session: from its prompt, and the session on it) |
+| `goal.new` `[title]` | `n` (goalpage), `n` (goals) | new goal: a title and what it is (on a session: from its prompt, and the session on it) |
 | `goal.attach` `<goal>` |  | put the session or chat on a goal (no goal: the command line opens to pick one) |
 | `goal.promote` | `gP`, `<Esc>` (sessionspromote) | make the session a goal: what it becomes, its merged PRs done, then its plan step (again or ⎋: close) |
 | `goal.promote.go` | `<CR>` (sessionspromote), `<D-CR>` (sessionspromote) | Make it a goal: the goal made with the session on it as part 1, its plan step opens |
 | `goal.promote.dismiss` | `x` (sessionspromote) | not now: the session's "growing into a goal" line goes away |
-| `goal.detach` | `x` (goaldoc), `x` (goals) | take the session or chat off its goal |
-| `goal.archive` | `a` (goaldoc), `a` (goals) | archive the goal (again: bring it back) |
+| `goal.detach` | `x` (goaldoc), `x` (goalpage), `x` (goals) | take the session or chat off its goal |
+| `goal.archive` | `a` (goaldoc), `a` (goalpage), `a` (goals) | archive the goal (again: bring it back) |
 | `goal.open` | `<CR>` (goaldoc), `<CR>` (goalevals), `<CR>` (goalpersonas), `<CR>` (goalplan), `<CR>` (goalreviewers), `<CR>` (goals), `<CR>` (unassigned) | Goals: what belongs to the goal; on a session or chat, go to it |
-| `goal.focus` | `<Tab>` (goalagents), `<S-Tab>` (goalagents), `<Tab>` (goaldoc), `<S-Tab>` (goaldoc), `<Tab>` (goalevals), `<S-Tab>` (goalevals), `<Tab>` (goalpersonas), `<S-Tab>` (goalpersonas), `<Tab>` (goalplan), `<S-Tab>` (goalplan), `<Tab>` (goalreviewers), `<S-Tab>` (goalreviewers), `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
-| `goal.edit` | `e` (goaldoc), `e` (goals) | edit the goal's GOAL.md in place; each save is a new version |
+| `goal.focus` | `<Tab>` (goalagents), `<S-Tab>` (goalagents), `<Tab>` (goaldoc), `<S-Tab>` (goaldoc), `<Tab>` (goalevals), `<S-Tab>` (goalevals), `<Tab>` (goalpage), `<S-Tab>` (goalpage), `<Tab>` (goalpersonas), `<S-Tab>` (goalpersonas), `<Tab>` (goalplan), `<S-Tab>` (goalplan), `<Tab>` (goalreviewers), `<S-Tab>` (goalreviewers), `<Tab>` (goals), `<S-Tab>` (goals) | Goals: between the goals and what belongs to the goal |
+| `goal.edit` | `e` (goaldoc), `e` (goalpage), `e` (goals) | edit the goal's GOAL.md in place; each save is a new version |
 | `goal.restore` `<version>` |  | make one of the goal's GOAL.md versions current again (as a new version) |
 | `goal.item.add` `[title]` | `a` (goalboard), `n` (goalboard) | Goals: add an item to the goal (on the board: in the column under the cursor) |
 | `goal.item.done` | `D` (goalboard) | Goals: the item under the cursor is done (its card to Done) |
@@ -272,28 +274,28 @@ This page is generated from the code (`mise run shots`).
 | `goal.proposal.reject` | `n` (goaldoc) | GOAL.md: no to the first change waiting (or the one clicked) |
 | `goal.proposal.edit` `[text]` | `c` (goaldoc) | GOAL.md: reword the first change waiting, then accept it (no text: the command line) |
 | `goal.undo` | `u` (goaldoc) | GOAL.md: take back the last change heed made on its own |
-| `goal.sharpen` | `w` (goaldoc), `w` (goals) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
+| `goal.sharpen` | `w` (goaldoc), `w` (goalpage), `w` (goals) | GOAL.md: ask a model to sharpen the goal; what it suggests waits for you |
 | `goal.guide` |  | Goals: hide the goal's next-steps card (it comes back if a step it ticked off goes back), or show it again |
 | `goal.ask.yes` | `y` (attention), `y` (attentionother), `y` (swarmask), `y` (unassigned) | yes: on the goal heed proposed (on a suggested goal: make it) |
 | `goal.ask.no` | `n` (attention), `n` (attentionother), `n` (swarmask), `n` (unassigned) | no: not on that goal, and heed learns it (on a suggested goal: drop it) |
 | `goal.ask.move` `<goal>` | `m` (attention), `m` (attentionhelper), `m` (attentionother), `m` (swarmask), `m` (unassigned) | on another goal instead, and heed learns it was not the one it proposed |
 | `goal.ask.ignore` | `i` (attention), `i` (attentionother), `i` (unassigned) | leave things like this on no goal, and heed learns to (an ignore rule) |
 | `goal.unassigned.how` | `g?` (unassigned) | Unassigned: show or hide how heed puts work on goals (shown on its own only while nothing waits for you) |
-| `goal.attach.undo` | `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
+| `goal.attach.undo` | `u` (goalpage), `u` (goals), `u` (unassigned) | take heed's last attachment off again, and heed learns it (a never rule) |
 | `goal.attach.find` |  | look for the session's goal now: rules, signals, the model when unsure |
 | `goal.bar` `<lens> <bar|off|auto>` |  | pin a quality bar for the goal: a lens and 0–10, off to drop the lens, auto for the profile's |
 | `goal.bars.accept` | `y` (goalreviewers) | Reviewers: these quality bars are right for the goal (recorded as yours; the first steps tick off on it) |
-| `goal.mirror` | `M` (goalagents), `M` (goalboard), `M` (goaldoc), `M` (goalevals), `M` (goalmap), `M` (goalpersonas), `M` (goalplan), `M` (goalreviewers), `M` (goals), `M` (unassigned) | mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop |
+| `goal.mirror` | `M` (goalagents), `M` (goalboard), `M` (goaldoc), `M` (goalevals), `M` (goalmap), `M` (goalpage), `M` (goalpersonas), `M` (goalplan), `M` (goalreviewers), `M` (goals), `M` (unassigned) | mirror the goal to GitHub (its tracker checked first; heed keeps it up to date); again: stop |
 | `goal.tracker` `[org/name|none]` |  | the repo the goal mirrors to on GitHub, checked read-only first (none: no tracker) |
 | `goal.mirror.sync` |  | sync the goal's GitHub issues now and read them back |
 | `goal.mirror.open` |  | open the goal's meta issue on GitHub (on a card: its sub-issue) |
-| `goal.mirror.yes` | `Y` (goalagents), `Y` (goalboard), `Y` (goaldoc), `Y` (goalevals), `Y` (goalmap), `Y` (goalpersonas), `Y` (goalplan), `Y` (goalreviewers), `Y` (goals), `Y` (unassigned) | a colleague's change on GitHub: yes, the item follows it |
-| `goal.mirror.no` | `K` (goalagents), `K` (goalboard), `K` (goaldoc), `K` (goalevals), `K` (goalmap), `K` (goalpersonas), `K` (goalreviewers), `K` (goals), `K` (unassigned) | a colleague's change on GitHub: no, heed puts the sub-issue back |
+| `goal.mirror.yes` | `Y` (goalagents), `Y` (goalboard), `Y` (goaldoc), `Y` (goalevals), `Y` (goalmap), `Y` (goalpage), `Y` (goalpersonas), `Y` (goalplan), `Y` (goalreviewers), `Y` (goals), `Y` (unassigned) | a colleague's change on GitHub: yes, the item follows it |
+| `goal.mirror.no` | `K` (goalagents), `K` (goalboard), `K` (goaldoc), `K` (goalevals), `K` (goalmap), `K` (goalpage), `K` (goalpersonas), `K` (goalreviewers), `K` (goals), `K` (unassigned) | a colleague's change on GitHub: no, heed puts the sub-issue back |
 | `goal.source.add` `[query]` |  | a GitHub query the goal's items come from, one item per PR or issue (prs org/repo, issues org/repo, label <name>, reviews, milestone <title> org/repo, or a search); none: the source dialog |
 | `goal.source.remove` `[id]` |  | take a source off the goal (its items stay, marked) |
 | `goal.source.edit` `<id> [query]` |  | change a source's query and rule (its items stay; none: the source dialog) |
 | `goal.source.rule` `<id> <rule>` |  | what done means for a source's items: merged, closed, reviewed (by you) or green |
-| `goal.source.accept` | `y` (goals) | yes to the source heed proposes for the goal |
+| `goal.source.accept` | `y` (goalpage), `y` (goals) | yes to the source heed proposes for the goal |
 | `goal.source.dismiss` |  | no to the source heed proposes (not proposed again) |
 | `goal.source.sync` |  | sync the goal's sources with GitHub now |
 | `goal.reopen` |  | not done yet: undo heed marking the goal done (held until something new) |
@@ -327,12 +329,12 @@ This page is generated from the code (`mise run shots`).
 | `swarm.diff` | `d` (goalplan) | the plan version under the cursor's whole diff against the one before (again: short) |
 | `swarm.restore` `[version]` | `u` (goalplan) | make a plan version current again, as a new version |
 | `swarm.map.move` `<h|j|k|l>` | `h` (goalmap), `l` (goalmap), `j` (goalmap), `k` (goalmap), `<Left>` (goalmap), `<Right>` (goalmap), `<Down>` (goalmap), `<Up>` (goalmap) | the swarm map's cursor: h l between columns, j k between the cards of one |
-| `swarm.followup` | `F` (goalagents), `F` (goaldoc), `F` (goalmap), `F` (goalplan), `F` (goals) | start a follow-up swarm on the goal: the last one's team and limits, its follow-ups for the lead (the form first) |
+| `swarm.followup` | `F` (goalagents), `F` (goaldoc), `F` (goalmap), `F` (goalpage), `F` (goalplan), `F` (goals) | start a follow-up swarm on the goal: the last one's team and limits, its follow-ups for the lead (the form first) |
 | `swarm.summary` |  | the swarm's end-of-build summary: written again from its record, and the lead asked to write its part |
 | `swarm.stuck` `<estimate|errors|quiet|peer|you> <value>` |  | when the goal's swarm counts a worker as stuck: estimate (×), errors, quiet, peer and you (minutes) |
 | `swarm.merge` `<off|auto|heed|repo>` |  | get it merged for the goal's swarm's PRs: off, auto, heed, or repo (each PR's repo says; the default). In merge order either way |
 | `swarm.rule.delete` `[rule number]` |  | delete one of the goal's repeat rules: the controller stops answering with it |
-| `review.recheck` `[reviewer]` | `r` (goaldoc), `r` (goalreviewers), `r` (goals) | re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs) |
+| `review.recheck` `[reviewer]` | `r` (goaldoc), `r` (goalpage), `r` (goalreviewers), `r` (goals) | re-check: the reviewer under the cursor looks again now (elsewhere in Goals: every reviewer the goal needs) |
 | `review.accept` | `A` (goalreviewers) | accept the risk of the objection under the cursor (again: open it) |
 | `review.fix` | `s` (goalreviewers) | start a session to fix the objection under the cursor: Start work, filled in |
 | `review.why` | `c` (goalreviewers) | ask the reviewer why: a chat seeded with its review |
@@ -464,9 +466,9 @@ This page is generated from the code (`mise run shots`).
 | `select.pin` | `m` (VISUAL) | pin selected |
 | `select.copy` | `y` (VISUAL) | copy paths |
 | `select.open` | `o` (VISUAL), `<CR>` (repos) | open the worktree's session, importing it when it has none |
-| `wizard.leave` | `<Esc>` (wizarddone), `<Esc>` (wizardlater), `<Esc>` (wizardpanel), `<Esc>` (wizardplan) | wizard: back to the goals; it keeps its place |
-| `wizard.next` | `<D-CR>` (wizarddone), `<D-CR>` (wizardlater), `<D-CR>` (wizardpanel), `<D-CR>` (wizardplan) | wizard: on to the next step (Plan: good enough; Panel: worth it, take the fixes; Done looks like: looks right) |
-| `wizard.step` `<step>` | `H` (wizarddone), `L` (wizarddone), `H` (wizardlater), `L` (wizardlater), `H` (wizardpanel), `L` (wizardpanel), `H` (wizardplan), `L` (wizardplan) | wizard: show a step already reached (prev, next, or a name) |
+| `wizard.leave` | `<Esc>` (wizarddone), `<Esc>` (wizardlater), `<Esc>` (wizardpanel), `<Esc>` (wizardplan), `<Esc>` (wizardsplit) | wizard: back to the goals; it keeps its place |
+| `wizard.next` | `<D-CR>` (splitfold), `<D-CR>` (wizarddone), `<D-CR>` (wizardlater), `<D-CR>` (wizardpanel), `<D-CR>` (wizardplan), `<D-CR>` (wizardsplit) | wizard: on to the next step (Plan: good enough; Panel: worth it, take the fixes; Done looks like: looks right) |
+| `wizard.step` `<step>` | `H` (splitfold), `L` (splitfold), `H` (wizarddone), `L` (wizarddone), `H` (wizardlater), `L` (wizardlater), `H` (wizardpanel), `L` (wizardpanel), `H` (wizardplan), `L` (wizardplan), `H` (wizardsplit), `L` (wizardsplit) | wizard: show a step already reached (prev, next, or a name) |
 | `wizard.pick` `<n>` | `1` (wizarddone), `2` (wizarddone), `3` (wizarddone), `1` (wizardplan), `2` (wizardplan), `3` (wizardplan), `4` (wizardplan), `5` (wizardplan), `6` (wizardplan), `7` (wizardplan), `8` (wizardplan), `9` (wizardplan) | wizard: Plan answers with option n; Done looks like highlights replacement n |
 | `wizard.answer` | `i` (wizardchat), `i` (wizardplan) | wizard: type an answer (Plan), or a message to the persona you talk to |
 | `wizard.smaller` | `-` (wizardpanel) | wizard: Panel: make the plan smaller, and the panel reads it again |
@@ -479,3 +481,23 @@ This page is generated from the code (`mise run shots`).
 | `wizard.later` | `<CR>` (wizardlater) | wizard: a step heed has no screen for yet: open the goal's page that does it |
 | `tldr.copy` | `y` (tldr) | TL;DR: copy it as markdown |
 | `tldr.act` | `d` (tldr) | TL;DR: do the first open point's action |
+| `split.fold` | `<CR>` (splitfold), `<Esc>` (splitfold), `<CR>` (wizardsplit) | Split: fold the part under the cursor out (again: in) |
+| `split.agent` `[agent]` | `a` (splitfold), `a` (wizardsplit) | Split: the part on the next agent who should do it (with a name, that agent); it stays where you put it |
+| `split.shift` `<1|-1>` | `J` (splitfold), `K` (splitfold), `J` (wizardsplit), `K` (wizardsplit) | Split: move the part to the agent's row below (1) or above (-1) |
+| `split.split` | `s` (splitfold), `s` (wizardsplit) | Split: split the part in two (a cheap model call) |
+| `split.waits` | `w` (splitfold), `w` (wizardsplit) | Split: what the part waits on: type part numbers (empty: nothing) |
+| `split.size` | `Z` (splitfold), `Z` (wizardsplit) | Split: the part's size, round from XS to L; its estimate follows |
+| `split.later` | `p` (splitfold), `p` (wizardsplit) | Split: put the part off (Later), or bring it back |
+| `split.note` | `i` (splitfold), `i` (wizardsplit) | Split: tell the part's agent something before it starts |
+| `split.define` | `d` (splitfold), `d` (wizardsplit) | Split: define the part with its agent: an ACP session that reads the repo and writes nothing |
+| `split.balance` `[credits|speed|fewest]` | `b` (splitfold), `b` (wizardsplit) | Split: balance for the credits you have, speed, or the fewest agents (round) |
+| `split.resplit` | `r` (splitfold), `r` (wizardsplit) | Split: split the plan again (a cheap model call); your changes go |
+| `define.answer` | `i` (splitdefine) | defining a part: type an answer to its agent |
+| `define.pick` `<n>` | `1` (splitdefine), `2` (splitdefine), `3` (splitdefine) | defining a part: answer the agent's question with option n |
+| `define.use` | `<D-CR>` (splitdefine) | defining a part: use this definition: the part takes its done when, estimate and context |
+| `define.later` | `p` (splitdefine) | defining a part: put it off; d on the part comes back to the conversation |
+| `define.close` | `<Esc>` (splitdefine) | defining a part: close it; nothing changes |
+| `page.fold` | `<CR>` (goalpage), `<Esc>` (goalpage) | the goal's page: fold the part out (again: in); without a part, open the goal |
+| `page.steer` | `s` (goalpage) | the goal's page: steer the running part: its live helper or worker opens |
+| `page.pick` `<n>` |  | the goal's page: answer your next step with option n |
+| `page.answer` | `i` (goalpage) | the goal's page: type an answer to your next step |

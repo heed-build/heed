@@ -158,6 +158,30 @@ public enum MenuBar {
         "wizard.later": "the step's Open the goal's page button",
         "tldr.copy": "the TL;DR's Copy as markdown",
         "tldr.act": "the TL;DR's first open point's action, and the button for it",
+        // Split and the goal's page act on the part under the board's cursor: its fold-out's buttons, the board's
+        // clicks and drags, and the status bar's hints offer them.
+        "split.move": "moving the board's cursor: a click on a part",
+        "split.fold": "a click on a part folds it out",
+        "split.agent": "a click on an agent in the part's fold-out, or on who should do it",
+        "split.shift": "dragging a part to another agent's row",
+        "split.split": "the fold-out's Split button",
+        "split.waits": "the fold-out's Waits on button",
+        "split.size": "the fold-out's Size button",
+        "split.later": "the fold-out's Later button",
+        "split.note": "the fold-out's Tell its agent field, and + context",
+        "split.define": "the fold-out's Define button",
+        "split.balance": "Split's Balance for buttons",
+        "split.resplit": "Split's Re-split button",
+        "define.answer": "a click in the defining conversation's answer field",
+        "define.pick": "a click on the agent's option",
+        "define.use": "the Use this definition button",
+        "define.later": "the defining pane's Later button",
+        "define.close": "the defining pane's Close button",
+        "page.move": "moving the goal's page's cursor: a click on a part",
+        "page.fold": "a click on a part of the goal's page",
+        "page.steer": "the fold-out's Steer button",
+        "page.pick": "a click on your next step's option",
+        "page.answer": "your next step's answer button",
     ]
 
     /// An item whose command needs words the menu cannot know (`pr.track <url>`): it opens the command line with the

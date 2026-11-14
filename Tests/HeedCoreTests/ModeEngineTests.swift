@@ -212,7 +212,7 @@ struct ScopedKeyTests {
         // a archive, x detach, e edit, n new, w sharpen, u undo, r re-check act on the goal: only on the list, the
         // overview and GOAL.md. A pane binds the key to its own row's meaning or leaves it unbound.
         let built = Keymaps.build()
-        let onTheGoal: Set = ["goals", "goaldoc"]
+        let onTheGoal: Set = ["goals", "goaldoc", "goalpage"]
         let actions = Set(DefaultKeys.goalActions.map(\.1))
         // A pane may bind an action to its own row where it means just that there (Reviewers re-checks its reviewers,
         // Unassigned takes back its last attach).

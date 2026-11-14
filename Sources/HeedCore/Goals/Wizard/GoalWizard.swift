@@ -1,8 +1,7 @@
 import Foundation
 
-/// The six steps a new goal walks through before work starts, in order. Steps 1–4 are built; How careful and Go are
-/// later parts: until each is `built`, reaching it hands over to the goal's page as it is today
-/// (`fallback`), and the wizard keeps its place there so a later version picks it up.
+/// The six steps a new goal walks through before work starts, in order. Every step has its own screen (`built`); a
+/// step without one would hand over to the goal's page (`fallback`), and the wizard keep its place there.
 public enum WizardStep: String, Hashable, Sendable, Codable, CaseIterable, Comparable {
     case plan, panel, done, split, careful, go
 
@@ -24,18 +23,16 @@ public enum WizardStep: String, Hashable, Sendable, Codable, CaseIterable, Compa
     /// says so here, and the wizard stops handing it to the goal's page.
     public var built: Bool {
         switch self {
-        case .plan, .panel, .done, .split: true
-        case .careful, .go: false
+        case .plan, .panel, .done, .split, .careful, .go: true
         }
     }
 
-    /// Where a step that is not built yet goes on the goal's page today: the swarm's plan (Split), Reviewers' bars
-    /// (How careful), the goal's overview (Go).
+    /// Where a step that is not built goes on the goal's page: nowhere, now that every step is. How careful's details
+    /// (`Q`) are Reviewers' bars all the same.
     public var fallback: WizardFallback {
         switch self {
-        case .plan, .panel, .done, .split: .none
+        case .plan, .panel, .done, .split, .go: .none
         case .careful: .reviewers
-        case .go: .overview
         }
     }
 
@@ -110,6 +107,12 @@ public struct GoalWizard: Hashable, Sendable, Codable {
     public var criteria: DoneDraft
     /// Step 4: the parts and who does each; nil until the split call ran.
     public var split: SplitDraft?
+    /// Step 5: the level you picked; nil: heed's suggestion, until you pick one.
+    public var careful: CareLevel?
+    /// Step 6: the choices as you set them; nil: their defaults.
+    public var go: GoChoices?
+    /// The swarm Go started (`<goal>/swarm-<n>`), once it did.
+    public var swarm: String?
     public var costs: [WizardCost]
     /// The TL;DR as last written, with what it was written from.
     public var tldr: WizardTLDR?

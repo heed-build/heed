@@ -101,6 +101,16 @@ public actor ACPClient {
         return reason
     }
 
+    /// `session/set_config_option` for the session's model (`ACP.modelConfigID`): the model a part names, before its
+    /// first prompt. Throws what the agent answered when it has no such option or does not know the model (an agent
+    /// without config options answers method not found); the session keeps the agent's default then.
+    public func setModel(sessionID: String, model: String, timeout: Duration = .seconds(30)) async throws {
+        _ = try await request(
+            ACP.Method.sessionSetConfigOption,
+            ACP.configOptionParams(sessionID: sessionID, configID: ACP.modelConfigID, value: model), timeout: timeout
+        )
+    }
+
     /// `session/cancel`: the turn under way stops; its `prompt` answers `cancelled`.
     public func cancel(sessionID: String) async {
         try? await notify(ACP.Method.sessionCancel, ACP.cancelParams(sessionID: sessionID))

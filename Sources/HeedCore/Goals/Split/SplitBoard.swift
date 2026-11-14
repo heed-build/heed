@@ -256,6 +256,16 @@ public enum PartState: Hashable, Sendable {
     }
 
     public var isDone: Bool { self == .done }
+
+    /// A part whose PR is open and not merged, on a Thorough goal, shows as under review (its review is a step of its
+    /// own there); on the other levels, and once it is done, asking or blocked, it stays what it was.
+    public func reviewing(prOpen: Bool, care: CareLevel?) -> PartState {
+        guard prOpen, care.map({ CarePlan.of($0, profile: nil).reviewParts }) == true else { return self }
+        switch self {
+        case .done, .asking, .blocked: return self
+        case .planned, .waiting, .running, .review: return .review
+        }
+    }
 }
 
 /// The goal's way from plan to done, as the bar across its page: planned, panel, split, building (n of m), reviewed,

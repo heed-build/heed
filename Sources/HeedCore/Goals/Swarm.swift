@@ -219,6 +219,15 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
     public var host: String?
     /// Get it merged for its PRs.
     public var merge: Merge
+    /// Every question an agent asks comes to you: the controller answers none (Go's Ask me: every question).
+    public var askEverything = false
+    /// The level of care it was started with (Go, from How careful); nil: a swarm from before the wizard.
+    public var care: CareLevel?
+    /// Tasks whose worker runs as a helper (an agent over ACP, in heed); nil or absent: a terminal in the lead's
+    /// session, as every swarm's worker before Go.
+    public var helpers: [String]?
+    /// Tasks whose PR waits for you before it merges, whatever the merge setting (How careful's "you").
+    public var waitForYou: [String]?
 
     public init(
         repos: [String] = [], lead: GoalItem.Owner = GoalItem.Owner(agent: "claude"), workers: [Worker] = [],
@@ -236,7 +245,7 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case repos, lead, workers, limits, autonomy, stuck, merge, host
+        case repos, lead, workers, limits, autonomy, stuck, merge, host, askEverything, care, helpers, waitForYou
     }
 
     /// Settings stored before stuck detection (or the merge setting) read with their defaults; before hosts, on this
@@ -251,7 +260,17 @@ public struct SwarmSettings: Hashable, Sendable, Codable {
         stuck = try values.decodeIfPresent(SwarmStuck.Settings.self, forKey: .stuck) ?? .defaults
         merge = try values.decodeIfPresent(Merge.self, forKey: .merge) ?? .repo
         host = try values.decodeIfPresent(String.self, forKey: .host)
+        askEverything = try values.decodeIfPresent(Bool.self, forKey: .askEverything) ?? false
+        care = try values.decodeIfPresent(CareLevel.self, forKey: .care)
+        helpers = try values.decodeIfPresent([String].self, forKey: .helpers)
+        waitForYou = try values.decodeIfPresent([String].self, forKey: .waitForYou)
     }
+
+    /// The task's worker runs as a helper.
+    public func runsAsHelper(_ task: String) -> Bool { helpers?.contains(task) ?? false }
+
+    /// The task's PR waits for you before it merges.
+    public func waitsForYou(_ task: String) -> Bool { waitForYou?.contains(task) ?? false }
 
     /// Where the lead runs, and the workers whose task names no host.
     public var location: Location { host.map(Location.host) ?? .local }

@@ -515,16 +515,20 @@ extension AppModel {
         var states: [String: PartState] = [:]
         if let board {
             let schedule = swarmSchedule(board)
+            // A Thorough goal's parts with an open PR show as under review.
+            let facts = board.swarm.settings.care == .thorough ? swarmFacts(board, tasks: runTasks(board)) : [:]
             for part in draft.active {
                 let live = liveWorker(on: part.id)
                 let map = SwarmMap.state(
                     schedule?.states[part.id], worker: live.flatMap { runStates[$0.paneID] },
                     stuck: stuckSignal(part.id, board: board)?.strong == true
                 )
+                var prOpen = false
+                if case .open? = facts[part.id]?.pr { prOpen = true }
                 states[part.id] = PartState.of(
                     schedule?.states[part.id] == nil ? nil : map, startedAt: live?.startedAt, minutes: part.minutes,
                     now: Clock.now
-                )
+                ).reviewing(prOpen: prOpen, care: board.swarm.settings.care)
             }
         }
         let numbers = splitNumbers(draft)
@@ -583,6 +587,11 @@ extension AppModel {
     func steerPagePart() {
         guard let id = goals.wizard.pagePart else { return say("no part here: h l pick one") }
         if isFixture { return say("steering opens its worker; nothing runs in the fake world") }
+        // A helper worker: its helper, in a split, where its steer box is.
+        if let live = liveWorker(on: id), live.paneID.hasPrefix("helper:") {
+            view = .watch
+            return openHelper(String(live.paneID.dropFirst("helper:".count)))
+        }
         guard let live = liveWorker(on: id),
               let index = layouts[live.sessionID]?.tabs.firstIndex(where: { $0.id == live.tabID })
         else { return say("nothing works on it now") }
@@ -608,7 +617,7 @@ extension AppModel {
 
 extension AppModel {
     enum SplitFixture {
-        case complex, small, page
+        case complex, small, careful, go, page
     }
 
     /// Shots: the complex or small goal at Split (a part under the cursor, folded out, or hovered), or the complex
@@ -616,12 +625,12 @@ extension AppModel {
     func loadSplitFixture(_ variant: SplitFixture, part: String? = nil, folded: Bool = false, hover: String? = nil) {
         guard isFixture else { return }
         let id = variant == .small ? SplitFixtures.smallID : SplitFixtures.complexID
-        var wizard = SplitFixtures.wizard(id, now: Clock.now)
-        if variant == .page {
-            wizard.advance(at: Clock.now)
-            wizard.advance(at: Clock.now)
-            wizard.advance(at: Clock.now)
-        }
+        var wizard = variant == .page ? SplitFixtures.started(id, now: Clock.now) : SplitFixtures.wizard(
+            id,
+            now: Clock.now
+        )
+        if variant == .careful || variant == .go { wizard.advance(at: Clock.now) }
+        if variant == .go { wizard.advance(at: Clock.now) }
         goals.loadWizardFixture(SplitFixtures.goal(id, now: Clock.now), wizard: wizard)
         refreshFleet()
         view = .goals

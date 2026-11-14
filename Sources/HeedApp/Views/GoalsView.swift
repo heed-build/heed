@@ -104,7 +104,7 @@ private struct GoalList: View {
                         GoalRow(
                             goal: goal, links: goals.snapshot.links(of: goal.id),
                             swarm: goals.snapshot.activeSwarm(of: goal.id), progress: goals.progress(of: goal),
-                            next: goals.shownGuide(of: goal)?.next,
+                            next: goals.shownGuide(of: goal)?.next, page: model.pageRow(goal),
                             isCursor: index == goals.cursor,
                             focused: goals.focus == .goals && goals.pane != .unassigned
                         )
@@ -148,6 +148,8 @@ private struct GoalRow: View {
     /// How far it is, and its next step while its card shows.
     let progress: GoalProgress
     let next: GoalGuide.Step?
+    /// A goal with a page (it went through Go): its row reads as the page does.
+    let page: AppModel.PageRow?
     let isCursor: Bool
     let focused: Bool
 
@@ -160,9 +162,20 @@ private struct GoalRow: View {
                     .font(Theme.ui(13, weight: .semibold))
                     .foregroundStyle(goal.status == .archived ? Theme.fg3 : Theme.fg)
                     .lineLimit(1)
-                Text(subline).font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
-                Text(progress.line).font(Theme.mono(11)).foregroundStyle(Theme.fg2).lineLimit(1)
-                if let next {
+                Text(page?.subline ?? subline).font(Theme.mono(11)).foregroundStyle(Theme.fg3).lineLimit(1)
+                Text(page?.progress ?? progress.line).font(Theme.mono(11)).foregroundStyle(Theme.fg2).lineLimit(1)
+                if let page {
+                    if let next = page.next {
+                        // The page's one next step: `i` answers it there.
+                        HStack(spacing: 6) {
+                            Text("next").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                            KeyCap(text: model.keyText(for: "page.answer", in: "goalpage"))
+                            Text(next.title.replacingOccurrences(of: "Your next step: ", with: ""))
+                                .font(Theme.ui(11.5)).foregroundStyle(Theme.block).lineLimit(1)
+                        }
+                        .padding(.top, 1)
+                    }
+                } else if let next {
                     // Not a button: the row's key acts on the goal under the cursor, which may be another.
                     HStack(spacing: 6) {
                         Text("next").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
@@ -665,21 +678,15 @@ struct GoalFormView: View {
                     + "first. Mirroring publishes, so it is off unless ticked.")
                     .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 18) {
-                    let swarm = form?.swarm == true
-                    HStack(spacing: 6) {
-                        Image(systemName: swarm ? "checkmark.square.fill" : "square")
-                            .foregroundStyle(swarm ? Theme.block : Theme.fg3)
-                        Text("start as a swarm").font(Theme.ui(12.5))
+                    if form?.wizard == true {
+                        // A goal with lanes is a swarm: the wizard splits it across agents, and Go starts them.
+                        Text("then the wizard: plan, panel, done, split, go")
+                            .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                            .help("Split puts its parts on your agents; Go starts them as a swarm")
                     }
-                    .clickable()
-                    .onTapGesture { model.goals.form?.swarm.toggle() }
-                    .help("A lead agent drafts a plan for the goal and a team works on it once you approve")
                     Spacer()
                     KeyHint(keys: "<Esc>", label: "cancel")
-                    ConfirmHint(
-                        keys: "<D-CR>", label: form?.swarm == true ? "on to the swarm" : "create",
-                        blocking: notes.blocking
-                    )
+                    ConfirmHint(keys: "<D-CR>", label: "create", blocking: notes.blocking)
                 }
             }
             .padding(22)

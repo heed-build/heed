@@ -4,6 +4,11 @@ description: "A swarm's end-of-build summary: what got built, its PRs in merge o
 
 # The summary
 
+:::{note}
+New goals go through the [wizard](../first-goal.md), whose [Go](../go.md) step starts their swarm; this page is the
+reference for the swarm machinery Go runs.
+:::
+
 When a swarm is done (every task merged, in merge order), heed writes its end-of-build summary from the run's record,
 and asks the lead to write its part. The summary is on the swarm's agents pane (`W`), on the goal's page, and in
 History's ledger; its decisions go into `GOAL.md`.

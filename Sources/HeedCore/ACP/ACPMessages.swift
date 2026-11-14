@@ -15,7 +15,12 @@ public enum ACP {
         public static let sessionCancel = "session/cancel"
         public static let sessionUpdate = "session/update"
         public static let requestPermission = "session/request_permission"
+        public static let sessionSetConfigOption = "session/set_config_option"
     }
+
+    /// The id of the session config option that picks the model (ACP v1's session config options; claude's adapter
+    /// offers it as a select of aliases and model ids).
+    public static let modelConfigID = "model"
 
     /// The `initialize` request: v1, and no client capabilities. heed does not offer the agent its file system or
     /// terminals (`fs/*`, `terminal/*`): the agent reads, writes and runs in its own worktree itself, and asks
@@ -40,6 +45,11 @@ public enum ACP {
     }
 
     public static func cancelParams(sessionID: String) -> JSONValue { ["sessionId": .string(sessionID)] }
+
+    /// `session/set_config_option`: one of the session's config options to a value.
+    public static func configOptionParams(sessionID: String, configID: String, value: String) -> JSONValue {
+        ["sessionId": .string(sessionID), "configId": .string(configID), "value": .string(value)]
+    }
 
     /// The answer to `session/request_permission`: the option picked, or `cancelled` (the turn was cancelled, or
     /// the helper stopped).

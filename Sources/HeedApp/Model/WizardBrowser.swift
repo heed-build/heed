@@ -78,12 +78,17 @@ final class WizardBrowser {
     @ObservationIgnored var defineBuffer = ""
     @ObservationIgnored var definePaths: [String] = []
     @ObservationIgnored var defineRoot: String?
+    /// Go: the row under the cursor (Who works … Merge).
+    var goRow = 0
     /// The goal's page: the part under its cursor and whether it is folded out.
     var pagePart: String?
     var pageFolded = false
 
     /// The wizard that shows.
     var current: GoalWizard? { open.flatMap { wizards[$0] } }
+
+    /// Goals Go started.
+    var startedCount: Int { wizards.values.count { $0.swarm != nil } }
 
     func wizard(of goal: String) -> GoalWizard? { wizards[goal] }
 
@@ -109,7 +114,8 @@ final class WizardBrowser {
         case .panel: "wizardpanel"
         case .done: "wizarddone"
         case .split: defining != nil ? "splitdefine" : folded ? "splitfold" : "wizardsplit"
-        case .careful, .go: "wizardlater"
+        case .careful: "wizardcareful"
+        case .go: "wizardgo"
         }
     }
 
@@ -146,5 +152,6 @@ final class WizardBrowser {
         part = nil
         folded = false
         hover = nil
+        goRow = 0
     }
 }

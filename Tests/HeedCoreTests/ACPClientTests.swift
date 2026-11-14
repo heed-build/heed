@@ -266,3 +266,77 @@ struct ACPProcessTests {
         #expect(reason?.contains("bye") == true)
     }
 }
+
+/// A part's helper over ACP: its model as a session config option, and mail routed as `HelperMail` says, against the
+/// fake agent.
+struct HelperMailTests {
+    private func reply(_ message: JSONValue, _ result: JSONValue) -> String {
+        JSONValue.object(["jsonrpc": "2.0", "id": message["id"] ?? .null, "result": result]).text
+    }
+
+    // MARK: A part's helper
+
+    @Test func thePartsModelIsASessionConfigOptionAndAnAgentWithoutOneSaysSo() async throws {
+        let agent = FakeAgent()
+        agent.respond = { [reply] message in
+            guard message["method"]?.string == "session/set_config_option" else { return [] }
+            if message["params"]?["value"]?.string == "nope" {
+                return [JSONValue.object([
+                    "jsonrpc": "2.0", "id": message["id"] ?? .null,
+                    "error": ["code": -32602, "message": "Invalid value for config option model: nope"],
+                ]).text]
+            }
+            return [reply(message, ["configOptions": []])]
+        }
+        let client = ACPClient(transport: agent)
+        await client.start()
+        try await client.setModel(sessionID: "s1", model: "sonnet")
+        let set = try #require(agent.sent.first { $0["method"]?.string == "session/set_config_option" })
+        #expect(set["params"] == ["sessionId": "s1", "configId": "model", "value": "sonnet"])
+        await #expect(throws: ACPError.self) { try await client.setModel(sessionID: "s1", model: "nope") }
+    }
+
+    /// Mail for a helper at work waits for its turn, then is the next prompt; yours cancels the turn and goes at
+    /// once: what the app does with `HelperMail`'s routes, against the fake agent.
+    @Test func mailForAHelperIsItsNextPromptOrCancelsTheTurnWhenYours() async throws {
+        let agent = FakeAgent()
+        agent.respond = { [reply] message in
+            switch message["method"]?.string {
+            case "session/prompt": [reply(message, ["stopReason": "end_turn"])]
+            default: []
+            }
+        }
+        let client = ACPClient(transport: agent)
+        await client.start()
+        // At work: an answer from the lead waits for the turn.
+        #expect(HelperMail.route(.working, urgent: false, connected: true) == .afterTurn)
+        #expect(HelperMail.outcome(.afterTurn) == .queued(.acp, "the next prompt, after its turn"))
+        var mail = ["The lead answered your question: batch it."]
+        _ = try await client.prompt(sessionID: "s1", text: "Build part 4")
+        // The turn ended: the mail is the next prompt.
+        #expect(HelperMail.route(.done(.endTurn), urgent: false, connected: true) == .promptNow)
+        _ = try await client.prompt(sessionID: "s1", text: HelperMail.prompt(mail))
+        mail.removeAll()
+        let prompts = agent.sent.filter { $0["method"]?.string == "session/prompt" }
+        #expect(prompts.count == 2)
+        let text = prompts.last?["params"]?["prompt"]?.array?.first?["text"]?.string ?? ""
+        #expect(text.hasPrefix("The lead answered your question: batch it."))
+        // Yours while it works: cancel, then the next prompt.
+        #expect(HelperMail.route(.asking, urgent: true, connected: true) == .steerNow)
+        #expect(HelperMail.outcome(.steerNow) == .delivered(.acp))
+        await client.cancel(sessionID: "s1")
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(agent.sent.contains { $0["method"]?.string == "session/cancel" })
+    }
+
+    @Test func mailWaitsForAHelperThatIsStartingOrGone() {
+        #expect(HelperMail.route(.starting, urgent: true, connected: true) == .wait("it is starting"))
+        #expect(HelperMail.route(.working, urgent: false, connected: false) == .wait("its agent is gone"))
+        #expect(HelperMail.outcome(.wait("it is starting")).sent == false)
+        #expect(HelperMail.route(.paused, urgent: false, connected: true) == .promptNow)
+        let you = SwarmSteer(swarm: "g/swarm-1", goal: "g", at: Date(), actor: .you, kind: .message, text: "stop")
+        let lead = SwarmSteer(swarm: "g/swarm-1", goal: "g", at: Date(), actor: .lead, kind: .message, text: "go")
+        #expect(HelperMail.urgent(you))
+        #expect(!HelperMail.urgent(lead))
+    }
+}

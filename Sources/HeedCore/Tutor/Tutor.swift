@@ -103,6 +103,10 @@ public struct TutorState: Equatable, Sendable {
     public var wizardCriteria = 0
     /// Parts on the open wizard's Split board.
     public var wizardParts = 0
+    /// How careful's level, as picked (empty: heed's suggestion still).
+    public var wizardCare = ""
+    /// Goals Go started: their swarm runs.
+    public var goalsStarted = 0
     public var tldrOpen = false
 
     public init() {}

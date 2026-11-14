@@ -54,7 +54,8 @@ This page is generated from the code (`mise run shots`).
 | `trace.turn.prev` | `k` (trace), `<Up>` (trace) | trace: the previous turn |
 | `trace.span.next` | `l` (trace), `<Right>` (trace) | trace: the next span in the turn |
 | `trace.span.prev` | `h` (trace), `<Left>` (trace) | trace: the previous span in the turn |
-| `wizard.row` `<delta>` | `j` (wizarddone), `k` (wizarddone), `<Down>` (wizarddone), `<Up>` (wizarddone), `j` (wizardinvite), `k` (wizardinvite), `<Down>` (wizardinvite), `<Up>` (wizardinvite), `j` (wizardlater), `k` (wizardlater), `<Down>` (wizardlater), `<Up>` (wizardlater), `j` (wizardpanel), `k` (wizardpanel), `<Down>` (wizardpanel), `<Up>` (wizardpanel), `j` (wizardplan), `k` (wizardplan), `<Down>` (wizardplan), `<Up>` (wizardplan) | wizard: the persona or criterion below (1) or above (-1) |
+| `wizard.row` `<delta>` | `j` (wizardcareful), `k` (wizardcareful), `<Down>` (wizardcareful), `<Up>` (wizardcareful), `j` (wizarddone), `k` (wizarddone), `<Down>` (wizarddone), `<Up>` (wizarddone), `j` (wizardinvite), `k` (wizardinvite), `<Down>` (wizardinvite), `<Up>` (wizardinvite), `j` (wizardpanel), `k` (wizardpanel), `<Down>` (wizardpanel), `<Up>` (wizardpanel), `j` (wizardplan), `k` (wizardplan), `<Down>` (wizardplan), `<Up>` (wizardplan) | wizard: the persona or criterion below (1) or above (-1) |
+| `go.row` `<delta>` | `j` (wizardgo), `k` (wizardgo), `<Down>` (wizardgo), `<Up>` (wizardgo) | wizard: Go: the row below (1) or above (-1) |
 | `split.move` `<h|j|k|l>` | `h` (splitfold), `l` (splitfold), `j` (splitfold), `k` (splitfold), `<Left>` (splitfold), `<Right>` (splitfold), `<Down>` (splitfold), `<Up>` (splitfold), `h` (wizardsplit), `l` (wizardsplit), `j` (wizardsplit), `k` (wizardsplit), `<Left>` (wizardsplit), `<Right>` (wizardsplit), `<Down>` (wizardsplit), `<Up>` (wizardsplit) | Split: the board's cursor: h l the part before or after in time, j k the agent below or above |
 | `page.move` `<h|j|k|l>` | `h` (goalpage), `l` (goalpage), `j` (goalpage), `k` (goalpage) | the goal's page: h l the part before or after in time, j k the agent below or above (without a part: the goals) |
 
@@ -187,7 +188,7 @@ This page is generated from the code (`mise run shots`).
 | `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (sessionshelpers), `t` (sessionspromote), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
 | `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 | `goal.wizard` `[goal]` |  | Goals: walk the goal through the new-goal wizard (plan, panel, done looks like, …); where it was left, it resumes |
-| `goal.tldr` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpage), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (splitdefine), `T` (splitfold), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (unassigned), `T` (wizardchat), `T` (wizarddone), `T` (wizardlater), `T` (wizardpanel), `T` (wizardplan), `T` (wizardsplit) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
+| `goal.tldr` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpage), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (splitdefine), `T` (splitfold), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (unassigned), `T` (wizardcareful), `T` (wizardchat), `T` (wizarddone), `T` (wizardgo), `T` (wizardpanel), `T` (wizardplan), `T` (wizardsplit) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
 
 ## Modes
 
@@ -299,8 +300,8 @@ This page is generated from the code (`mise run shots`).
 | `goal.source.dismiss` |  | no to the source heed proposes (not proposed again) |
 | `goal.source.sync` |  | sync the goal's sources with GitHub now |
 | `goal.reopen` |  | not done yet: undo heed marking the goal done (held until something new) |
-| `swarm.new` `[title]` |  | new swarm: a goal, where it works, its lead and team, its limits; the lead drafts a plan for you to approve |
-| `swarm.start` |  | swarm this goal: a lead drafts a plan for its work (the form first) |
+| `swarm.new` `[title]` |  | new swarm: a new goal through the wizard (a goal with lanes is a swarm; Go starts it); same as n in Goals |
+| `swarm.start` |  | swarm this goal: its wizard, where Split puts its parts on agents and Go starts them |
 | `swarm.stop` |  | stop the goal's swarm: nothing more starts, its plan and steering stay readable |
 | `swarm.pause` |  | pause the goal's swarm (again: resume): nothing more starts, workers at work finish their turn |
 | `swarm.approve` | `A` (goalplan) | approve the swarm's plan (or the change waiting for you): its tasks become items |
@@ -466,9 +467,9 @@ This page is generated from the code (`mise run shots`).
 | `select.pin` | `m` (VISUAL) | pin selected |
 | `select.copy` | `y` (VISUAL) | copy paths |
 | `select.open` | `o` (VISUAL), `<CR>` (repos) | open the worktree's session, importing it when it has none |
-| `wizard.leave` | `<Esc>` (wizarddone), `<Esc>` (wizardlater), `<Esc>` (wizardpanel), `<Esc>` (wizardplan), `<Esc>` (wizardsplit) | wizard: back to the goals; it keeps its place |
-| `wizard.next` | `<D-CR>` (splitfold), `<D-CR>` (wizarddone), `<D-CR>` (wizardlater), `<D-CR>` (wizardpanel), `<D-CR>` (wizardplan), `<D-CR>` (wizardsplit) | wizard: on to the next step (Plan: good enough; Panel: worth it, take the fixes; Done looks like: looks right) |
-| `wizard.step` `<step>` | `H` (splitfold), `L` (splitfold), `H` (wizarddone), `L` (wizarddone), `H` (wizardlater), `L` (wizardlater), `H` (wizardpanel), `L` (wizardpanel), `H` (wizardplan), `L` (wizardplan), `H` (wizardsplit), `L` (wizardsplit) | wizard: show a step already reached (prev, next, or a name) |
+| `wizard.leave` | `<Esc>` (wizardcareful), `<Esc>` (wizarddone), `<Esc>` (wizardgo), `<Esc>` (wizardpanel), `<Esc>` (wizardplan), `<Esc>` (wizardsplit) | wizard: back to the goals; it keeps its place |
+| `wizard.next` | `<D-CR>` (splitfold), `<D-CR>` (wizardcareful), `<D-CR>` (wizarddone), `<D-CR>` (wizardpanel), `<D-CR>` (wizardplan), `<D-CR>` (wizardsplit) | wizard: on to the next step (Plan: good enough; Panel: worth it, take the fixes; Done looks like: looks right) |
+| `wizard.step` `<step>` | `H` (splitfold), `L` (splitfold), `H` (wizardcareful), `L` (wizardcareful), `H` (wizarddone), `L` (wizarddone), `H` (wizardgo), `L` (wizardgo), `H` (wizardpanel), `L` (wizardpanel), `H` (wizardplan), `L` (wizardplan), `H` (wizardsplit), `L` (wizardsplit) | wizard: show a step already reached (prev, next, or a name) |
 | `wizard.pick` `<n>` | `1` (wizarddone), `2` (wizarddone), `3` (wizarddone), `1` (wizardplan), `2` (wizardplan), `3` (wizardplan), `4` (wizardplan), `5` (wizardplan), `6` (wizardplan), `7` (wizardplan), `8` (wizardplan), `9` (wizardplan) | wizard: Plan answers with option n; Done looks like highlights replacement n |
 | `wizard.answer` | `i` (wizardchat), `i` (wizardplan) | wizard: type an answer (Plan), or a message to the persona you talk to |
 | `wizard.smaller` | `-` (wizardpanel) | wizard: Panel: make the plan smaller, and the panel reads it again |
@@ -478,7 +479,12 @@ This page is generated from the code (`mise run shots`).
 | `wizard.invite.pick` | `<CR>` (wizardinvite) | wizard: invite the persona under the cursor in the picker |
 | `wizard.use` | `<CR>` (wizarddone) | wizard: Done looks like: use the highlighted replacement for the criterion |
 | `wizard.define` `[n]` | `d` (wizarddone) | wizard: Done looks like: an agent reads the repo and proposes a check for the criterion |
-| `wizard.later` | `<CR>` (wizardlater) | wizard: a step heed has no screen for yet: open the goal's page that does it |
+| `careful.pick` `<1|2|3>` | `1` (wizardcareful), `2` (wizardcareful), `3` (wizardcareful) | wizard: How careful: pick Quick (1), Standard (2) or Thorough (3) |
+| `careful.details` | `Q` (wizardcareful) | wizard: How careful: the goal's reviewers, bars and lenses behind each level (the wizard keeps its place) |
+| `go.pick` `<n>` | `1` (wizardgo), `2` (wizardgo), `3` (wizardgo) | wizard: Go: option n on the row under the cursor |
+| `go.step` `<delta>` | `h` (wizardgo), `l` (wizardgo), `<Left>` (wizardgo), `<Right>` (wizardgo) | wizard: Go: the next (1) or previous (-1) option on the row |
+| `go.start` | `<D-CR>` (wizardgo) | wizard: Go: start it: the split becomes the swarm's approved plan, its first parts start, the goal's page shows |
+| `go.save` | `S` (wizardgo) | wizard: Go: save it, start later; the wizard waits at Go |
 | `tldr.copy` | `y` (tldr) | TL;DR: copy it as markdown |
 | `tldr.act` | `d` (tldr) | TL;DR: do the first open point's action |
 | `split.fold` | `<CR>` (splitfold), `<Esc>` (splitfold), `<CR>` (wizardsplit) | Split: fold the part under the cursor out (again: in) |

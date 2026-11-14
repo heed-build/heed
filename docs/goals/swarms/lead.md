@@ -4,6 +4,11 @@ description: "How a swarm's lead keeps the plan with heed goal: plan show, plan 
 
 # The lead and heed goal
 
+:::{note}
+New goals go through the [wizard](../first-goal.md), whose [Go](../go.md) step starts their swarm; this page is the
+reference for the swarm machinery Go runs.
+:::
+
 A swarm's lead keeps the plan with the same `heed goal` command every agent on a goal has ([heed goal](../cli.md)),
 taught by the **Leading a swarm** section of the `heed-goal` skill. Codex and other agents without the plugin get the
 same rules in their first prompt.

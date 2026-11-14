@@ -20,8 +20,30 @@ extension AppModel {
 
     // MARK: The form
 
-    /// `swarm.new`: the new swarm form, for a new goal (words: its title).
+    /// `swarm.new`: a new goal, through the wizard: a goal with lanes is a swarm, and Go starts it. Words: its title,
+    /// made at once; without, the new goal dialog (filled from the session, as `goal.new` fills it).
     func newSwarm(_ words: [String], from target: CommandTarget? = nil) {
+        var session: Session?
+        if case let .session(id) = target { session = sessions.first { $0.id == id } } else if view == .sessions {
+            session = currentSession
+        }
+        let repo = session?.repos.first?.slug
+        let tracker = config.goals.mirror.tracker(for: repo) ?? ""
+        var form = GoalsBrowser.Form(
+            title: words.isEmpty ? session?.title ?? "" : words.joined(separator: " "),
+            statement: session.map { GoalsBrowser.firstParagraph($0.prompt) } ?? "", session: session?.id,
+            tracker: tracker, mirror: !tracker.isEmpty && config.goals.mirror.mirrors(for: repo)
+        )
+        form.wizard = true
+        if !words.isEmpty { return createGoal(form) }
+        goals.swarmForm = nil
+        goals.form = form
+        textInputActive = true
+    }
+
+    /// The new swarm form, for a new goal (words: its title): no command opens it since Go starts swarms; kept for
+    /// the reference pages' shots and the swarms already made with it.
+    func openNewSwarmForm(_ words: [String], from target: CommandTarget? = nil) {
         var session: Session?
         if case let .session(id) = target { session = sessions.first { $0.id == id } } else if view == .sessions {
             session = currentSession
@@ -33,12 +55,19 @@ extension AppModel {
         openSwarmForm(form)
     }
 
-    /// `swarm.start`: swarm the goal under the cursor; the form first.
+    /// `swarm.start`: swarm the goal under the cursor: its wizard, where Split puts its parts on agents and Go starts
+    /// them.
     func startSwarmOnGoal() {
         guard let goal = goals.selected else { return say("no goal here: n makes one, :swarm.new a swarm") }
         if let active = goals.snapshot.activeSwarm(of: goal.id) {
             return say("\(goal.title) has swarm \(active.number) going (\(active.stateLine)): :swarm.stop first")
         }
+        startWizard(goal.id, firstMessage: nil)
+    }
+
+    /// The new swarm form on the goal under the cursor (the reference pages' shots).
+    func openSwarmFormOnGoal() {
+        guard let goal = goals.selected else { return }
         // Where its sessions work, this Mac's repos first.
         let onGoal = goals.snapshot.links(of: goal.id).compactMap { link in
             (sessions + history.map(\.session)).first { $0.id == link.target }

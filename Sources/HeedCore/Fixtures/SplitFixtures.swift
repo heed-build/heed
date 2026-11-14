@@ -280,7 +280,8 @@ public enum SplitFixtures {
         let title = small ? "Sequence diagrams read cleanly" : "Schema v2 without downtime"
         let statement = small ? "labels overlap lifelines in sequence diagrams" : "move the store to schema v2 online"
         let at = Date(timeIntervalSince1970: now.timeIntervalSince1970.rounded(.down) - 3600)
-        let doc = GoalDoc.new(title: title, statement: statement)
+        // Done looks like wrote its criteria into GOAL.md, as the wizard does.
+        let doc = wizard(id, now: now).criteria.apply(to: GoalDoc.new(title: title, statement: statement))
         let goal = HeedGoal(id: id, title: title, createdAt: at, version: 1)
         return GoalFixture(
             goal: goal, versions: [GoalVersion(goal: id, number: 1, at: at, text: doc.render(), note: "plan")],
@@ -378,8 +379,25 @@ public enum SplitFixtures {
 
     // MARK: The goal building
 
-    /// The complex goal seven hours into building: parts before now done, those under way running, part 7 asking
-    /// you, the rest waiting.
+    /// The complex goal seven hours into building, Thorough: parts that ended over an hour and a half ago done, those
+    /// that ended
+    /// since under review, those under way running, part 7 asking you, the rest waiting.
+    /// The level the complex goal goes with: other code depends on the engine and the SDKs.
+    public static let care = CareLevel.thorough
+    public static let profile = GoalProfile(stakes: .publicAPI, userFacing: true)
+
+    /// The goal's wizard past Go: Thorough, the defaults, started as its first swarm.
+    public static func started(_ id: String, now: Date = Clock.now) -> GoalWizard {
+        var wizard = wizard(id, now: now)
+        wizard.careful = id == complexID ? care : .standard
+        wizard.go = GoChoices()
+        wizard.advance(at: now)
+        wizard.advance(at: now)
+        wizard.advance(at: now)
+        wizard.swarm = "\(id)/swarm-1"
+        return wizard
+    }
+
     public static func page(now: Date = Clock.now) -> GoalPage {
         let draft = complex()
         let numbers = Dictionary(draft.parts.enumerated().map { ($0.element.id, $0.offset + 1) }) { first, _ in first }
@@ -387,8 +405,11 @@ public enum SplitFixtures {
         let hours = 7.2
         var states: [String: PartState] = [:]
         for (id, slot) in schedule.slots {
-            if slot.end <= hours {
+            if slot.end <= hours - 1.5 {
                 states[id] = .done
+            } else if slot.end <= hours {
+                // Thorough: a part that ended in the last hour and a half has its PR open, under review.
+                states[id] = PartState.running(progress: 1).reviewing(prOpen: true, care: care)
             } else if slot.start < hours {
                 states[id] = .running(progress: (hours - slot.start) / slot.hours)
             } else {
@@ -396,10 +417,7 @@ public enum SplitFixtures {
             }
         }
         states["\(complexID)/edit-flows"] = .asking
-        var wizard = wizard(complexID, now: now)
-        wizard.advance(at: now)
-        wizard.advance(at: now)
-        wizard.advance(at: now)
+        let wizard = started(complexID, now: now)
         let done = states.values.count { $0 == .done }
         return GoalPage(
             draft: draft, states: states, startedAt: now.addingTimeInterval(-hours * 3600), now: now,

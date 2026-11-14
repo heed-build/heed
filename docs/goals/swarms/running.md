@@ -4,6 +4,11 @@ description: "A swarm that runs: workers start on ready tasks in tabs of the lea
 
 # Running
 
+:::{note}
+New goals go through the [wizard](../first-goal.md), whose [Go](../go.md) step starts their swarm; this page is the
+reference for the swarm machinery Go runs.
+:::
+
 Once you approve the plan, heed starts workers on the tasks that are ready, up to the swarm's limit on agents at
 once. Each worker is the task's agent in a tab of the lead's session, in a worktree of its own on the task's branch,
 with heed's hooks: its state, its usage and its end are heed's to see, as for a get it green run. Workers commit,

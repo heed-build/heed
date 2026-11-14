@@ -47,6 +47,7 @@ enum ShotRegion: String, CaseIterable {
     case swarmAgents, swarmAgent, swarmNeedsYou, swarmDigest, swarmMap, swarmSummary, swarmRules
     case goalWizard, wizardRail, wizardPlan, wizardMeters, wizardPanel, wizardDone, wizardReplacements, tldr
     case wizardSplit, splitBoard, splitWho, splitFold, splitDefine, goalPage, goalPageNext
+    case wizardCareful, wizardGo, goWhatHappens
 }
 
 struct ShotRegionKey: PreferenceKey {

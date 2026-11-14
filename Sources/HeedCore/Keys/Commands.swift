@@ -636,10 +636,14 @@ public enum Commands {
         .init("goal.reopen", "not done yet: undo heed marking the goal done (held until something new)", .selection),
         .init(
             "swarm.new",
-            "new swarm: a goal, where it works, its lead and team, its limits; the lead drafts a plan for you to approve",
+            "new swarm: a new goal through the wizard (a goal with lanes is a swarm; Go starts it); same as n in Goals",
             .selection, arguments: "[title]"
         ),
-        .init("swarm.start", "swarm this goal: a lead drafts a plan for its work (the form first)", .selection),
+        .init(
+            "swarm.start",
+            "swarm this goal: its wizard, where Split puts its parts on agents and Go starts them",
+            .selection
+        ),
         .init(
             "swarm.stop", "stop the goal's swarm: nothing more starts, its plan and steering stay readable", .selection
         ),

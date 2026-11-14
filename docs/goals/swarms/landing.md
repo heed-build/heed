@@ -4,6 +4,11 @@ description: "A swarm that lands: its PRs merge in a merge order, dependencies f
 
 # Landing
 
+:::{note}
+New goals go through the [wizard](../first-goal.md), whose [Go](../go.md) step starts their swarm; this page is the
+reference for the swarm machinery Go runs.
+:::
+
 Once every task has its pull request, a swarm is **landing**. Its PRs merge in a **merge order**: what a task waits
 for merges first, and otherwise the plan's order. heed shows that order everywhere the swarm's PRs are, holds a PR
 back while what it waits for is unmerged, moves a stacked PR on once the PR it stacks on merged, and ends the swarm

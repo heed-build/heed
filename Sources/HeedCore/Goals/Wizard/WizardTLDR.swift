@@ -108,8 +108,12 @@ public struct TLDRInputs: Hashable, Sendable {
         return !doc.goal.isEmpty || !doc.doneWhen.isEmpty
     }
 
-    /// The inputs for a goal from its wizard and its `GOAL.md`.
-    public static func build(_ wizard: GoalWizard, doc: GoalDoc?, goalVersion: Int) -> TLDRInputs {
+    /// The inputs for a goal from its wizard and its `GOAL.md`. `care`: the level's plan (picked, else suggested);
+    /// `fleet` prices the parts; `now` (else when the swarm started) dates the end.
+    public static func build(
+        _ wizard: GoalWizard, doc: GoalDoc?, goalVersion: Int, care: CarePlan? = nil, fleet: [FleetAgent] = [],
+        now: Date? = nil
+    ) -> TLDRInputs {
         let plan = wizard.plan.current ?? doc.map(WizardPlan.read)
         var steps: [WizardStepSummary] = []
         let heedTurns = wizard.plan.turns.count { $0.role == .heed }
@@ -154,12 +158,21 @@ public struct TLDRInputs: Hashable, Sendable {
                 step: .split, headline: wizard.state(of: .split) == .done ? "done" : "not yet", detail: "not split yet"
             ))
         }
-        for step in [WizardStep.careful, .go] {
-            steps.append(WizardStepSummary(
-                step: step, headline: wizard.state(of: step) == .done ? "done" : "not yet",
-                detail: step.built ? "" : "on the goal's page for now"
-            ))
-        }
+        let level = wizard.careful ?? care?.level
+        steps.append(WizardStepSummary(
+            step: .careful,
+            headline: level.map { wizard.careful == nil ? "\($0.title), suggested" : $0.title } ?? "not yet",
+            detail: level.map { $0.checks.map(\.title).joined(separator: " · ") } ?? ""
+        ))
+        let choices = wizard.go ?? GoChoices()
+        steps.append(WizardStepSummary(
+            step: .go,
+            headline: wizard.swarm != nil ? "started" : wizard.state(of: .go) == .now ? "ready" : "not yet",
+            detail: wizard.split?.drafted == true
+                ?
+                "\(choices.who.title) · \(choices.atOnce) at once · $\(Int(choices.budget)) · \(choices.merge.title)" :
+                ""
+        ))
 
         var settled: [String] = []
         if let plan, !plan.summary.isEmpty { settled.append(plan.summary) }
@@ -201,8 +214,22 @@ public struct TLDRInputs: Hashable, Sendable {
         }
         return TLDRInputs(
             title: plan?.title ?? doc?.title ?? wizard.goal, steps: steps, settled: Array(settled.prefix(6)),
-            open: Array(open.prefix(5)), going: nil, fingerprint: wizard.fingerprint + "@\(goalVersion)",
-            completed: wizard.completed.count
+            open: Array(open.prefix(5)), going: going(wizard, care: care, fleet: fleet, now: now),
+            fingerprint: wizard.fingerprint + "@\(goalVersion)", completed: wizard.completed.count
+        )
+    }
+
+    /// Where it's going, once the split exists: Go's forecast (hours at the chosen pace, the extra and the reviews,
+    /// the agents, the end) and the longest chain by agent.
+    static func going(_ wizard: GoalWizard, care: CarePlan?, fleet: [FleetAgent], now: Date?) -> WizardGoing? {
+        guard let split = wizard.split, split.drafted else { return nil }
+        let forecast = GoForecast.of(
+            draft: split, choices: wizard.go ?? GoChoices(), care: care, fleet: fleet, now: now ?? wizard.updatedAt
+        )
+        let schedule = SplitSchedule.make(split.parts)
+        return WizardGoing(
+            hours: forecast.hours, dollars: forecast.extra, agents: Set(split.active.compactMap(\.agent)).count,
+            endsAt: now.map { _ in forecast.endsAt }, chain: schedule.chain.compactMap { split.part($0)?.agent }
         )
     }
 

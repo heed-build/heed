@@ -67,8 +67,12 @@ extension AppModel {
             let timeouts = SwarmLadder.Timeouts(peer: Double(board.swarm.settings.stuck.waitingOnPeer) * 60)
             switch SwarmLadder.due(question, rows: board.steering, now: now, timeouts: timeouts) {
             case .none: continue
-            case let .escalate(step, why):
+            case let .escalate(next, reason):
                 let id = question.id
+                // Go's Ask me: every question: the controller's step goes to you.
+                let mine = next == .controller && board.swarm.settings.askEverything
+                let step: SwarmAuthority.Answerer = mine ? .you : next
+                let why = mine ? reason + "; you asked to see every question" : reason
                 let moved = await goalOp { try await $0.escalate(
                     swarm: board.swarm.id,
                     question: id,
@@ -80,6 +84,12 @@ extension AppModel {
                 if step == .controller, !controllerBusy.contains(id) {
                     await runController(question, board: board, mode: .onItsOwn)
                 }
+            case .askController where board.swarm.settings.askEverything:
+                let id = question.id
+                let moved = await goalOp { try await $0.escalate(
+                    swarm: board.swarm.id, question: id, to: .you, why: "you asked to see every question", now: now
+                ) }
+                wrote = wrote || moved != nil
             case .askController:
                 guard !controllerBusy.contains(question.id) else { continue }
                 await runController(question, board: board, mode: .onItsOwn)
@@ -191,10 +201,17 @@ extension AppModel {
         for item in SwarmDelivery.pending(board.steering, waiting: waitingAsks, numbers: numbers, now: now) {
             guard !typed.contains(item.to.raw), let target = paneOf(item.to, swarm: board.swarm) else { continue }
             if let last = handedAt[target.pane], now.timeIntervalSince(last) < 15 { continue }
-            // Through its agent's channel when it has one (`sendToAgent`), else typed into an idle agent.
-            guard inbox(forPane: target.pane) != nil || TerminalSurfaces.shared.hasTerminal(paneID: target.pane)
+            // A helper worker over ACP (`HelperMail`); else through its agent's channel when it has one
+            // (`sendToAgent`), else typed into an idle agent.
+            let helper = target.pane.hasPrefix("helper:") ? String(target.pane.dropFirst("helper:".count)) : nil
+            guard helper != nil || inbox(forPane: target.pane) != nil
+                || TerminalSurfaces.shared.hasTerminal(paneID: target.pane)
             else { continue }
-            let outcome = await sendToAgent(item.line, pane: target.pane, state: target.state, lastTyped: target.typed)
+            let outcome = if let helper {
+                mailPartHelper(helper, item.line, urgent: HelperMail.urgent(item.row))
+            } else {
+                await sendToAgent(item.line, pane: target.pane, state: target.state, lastTyped: target.typed)
+            }
             guard outcome.sent else { continue }
             typed.insert(item.to.raw)
             handedAt[target.pane] = now

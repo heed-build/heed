@@ -2,9 +2,8 @@ import AppKit
 import Foundation
 import HeedCore
 
-/// The new-goal wizard (`goal.wizard`, and `n` in Goals): steps 1–3 here, Split, How careful and Go handed to the
-/// goal's
-/// page until they have screens (`WizardStep.built`, `wizard.later`), and the TL;DR (`goal.tldr`). The pure parts are
+/// The new-goal wizard (`goal.wizard`, and `n` in Goals): steps 1–3 here (Split in `AppModel+GoalSplit`, How careful
+/// and Go in `AppModel+GoalGo`), and the TL;DR (`goal.tldr`). The pure parts are
 /// in HeedCore (`GoalWizard`, `PlanTalk`, `PanelInvites`, `DoneDraft`, `TLDRInputs`); this runs the model calls off the
 /// main actor and saves the wizard after every change, so leaving and coming back resumes it.
 extension AppModel {
@@ -27,7 +26,7 @@ extension AppModel {
         case "wizard.invite.pick": pickInvite()
         case "wizard.use": useReplacement()
         case "wizard.define": defineCriterion(words.first.flatMap(Int.init))
-        case "wizard.later": openLaterStep()
+        case "careful.details": openLaterStep()
         case "tldr.copy": copyTLDR()
         case "tldr.act": actOnTLDR()
         default: return false
@@ -75,11 +74,6 @@ extension AppModel {
                 goals.wizard.resetCursors()
                 updateScope()
                 observeTutorNow()
-                if !(known ?? wizard).step.built {
-                    say(
-                        "\((known ?? wizard).step.title) has no screen in the wizard yet: ↩ opens the goal's page for it"
-                    )
-                }
                 continueWizard(goal)
             case let .failure(error): say("no wizard: \(error)")
             }
@@ -114,7 +108,8 @@ extension AppModel {
         case .split:
             refreshFleet()
             if wizard.split?.drafted != true { runSplit(goal) }
-        default: break
+        case .careful, .go:
+            if goals.wizard.fleet.isEmpty { refreshFleet() }
         }
     }
 
@@ -354,8 +349,11 @@ extension AppModel {
         case .split:
             guard wizard.split?.drafted == true else { return runSplit(goal) }
             advance(goal)
-        case .careful, .go:
+        case .careful:
+            if wizard.careful == nil { change(goal) { $0.careful = careSuggestion(goal).level } }
             advance(goal)
+        case .go:
+            startGoal()
         }
     }
 
@@ -367,8 +365,6 @@ extension AppModel {
             goals.wizard.open = nil
             goals.show(.overview)
             say("the wizard is done: this is the goal's page")
-        } else if !wizard.step.built {
-            say("\(wizard.step.title) has no screen in the wizard yet: ↩ opens the goal's page that does it")
         }
         continueWizard(goal)
     }
@@ -692,19 +688,15 @@ extension AppModel {
         }
     }
 
-    // MARK: Steps 4–6, until they have screens
+    // MARK: How careful's details
 
-    /// `wizard.later`: the goal's page that does the step today: the swarm's plan (Split), Reviewers' bars (How
-    /// careful), the overview (Go). The wizard keeps its place.
+    /// `careful.details` (`Q`): the goal's Reviewers, where the bars, lenses and reviewers behind each level are. The
+    /// wizard keeps its place.
     func openLaterStep() {
         guard let wizard = goals.wizard.current else { return }
         goals.wizard.open = nil
-        switch wizard.step.fallback {
-        case .swarm: goals.show(.plan)
-        case .reviewers: goals.show(.reviewers)
-        case .overview, .none: goals.show(.overview)
-        }
-        say("\(wizard.step.title) on the goal's page; :goal.wizard comes back to the wizard")
+        goals.show(.reviewers)
+        say("\(wizard.step.title): the bars and reviewers behind it; :goal.wizard comes back to the wizard")
     }
 
     // MARK: TL;DR
@@ -717,7 +709,10 @@ extension AppModel {
         let doc = goals.snapshot.docs[goal]
         let version = goals.snapshot.goal(goal)?.version ?? 1
         if let wizard = goals.wizard.wizard(of: goal) {
-            return TLDRInputs.build(wizard, doc: doc, goalVersion: version)
+            return TLDRInputs.build(
+                wizard, doc: doc, goalVersion: version, care: carePlan(goal), fleet: goals.wizard.fleet,
+                now: goStartedAt(goal) ?? Clock.now
+            )
         }
         var loose = GoalWizard(goal: goal, at: .distantPast)
         if let doc {
@@ -733,9 +728,11 @@ extension AppModel {
     /// The TL;DR that shows: the cached one while it is fresh, else heed's own while the model writes.
     func shownTLDR(_ goal: String) -> WizardTLDR {
         let inputs = tldrInputs(goal)
-        if let cached = goals.wizard.wizard(of: goal)?.tldr ?? goals.wizard.looseTLDRs[goal],
+        if var cached = goals.wizard.wizard(of: goal)?.tldr ?? goals.wizard.looseTLDRs[goal],
            cached.fresh(for: inputs)
         {
+            // Where it's going is heed's numbers, from now: never the cached ones.
+            cached.going = inputs.going
             return cached
         }
         return WizardTLDR.plain(inputs, at: Clock.now)

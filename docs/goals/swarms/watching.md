@@ -4,6 +4,11 @@ description: "Watching a swarm: the agents pane, each worker's activity, the stu
 
 # Watching
 
+:::{note}
+New goals go through the [wizard](../first-goal.md), whose [Go](../go.md) step starts their swarm; this page is the
+reference for the swarm machinery Go runs.
+:::
+
 A running swarm has several agents at work at once, each in a tab of its own. You do not have to open those tabs to
 know how it goes: the agents pane shows what every agent is doing, for how long and whether it looks stuck, the map
 shows the whole swarm at a glance, and "since you last looked" says what changed while you were away. heed watches the

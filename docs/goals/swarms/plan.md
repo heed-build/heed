@@ -4,6 +4,11 @@ description: "A swarm's plan: tasks by phase with owner, estimate, what they wai
 
 # The plan
 
+:::{note}
+New goals go through the [wizard](../first-goal.md), whose [Go](../go.md) step starts their swarm; this page is the
+reference for the swarm machinery Go runs.
+:::
+
 `S` on a goal opens its swarm: the plan on the left, and on the right what the lead asks, a change waiting for you,
 every version of the plan and the steering log.
 

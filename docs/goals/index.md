@@ -13,8 +13,8 @@ it, and its `GOAL.md` says what the goal is, what it is not, when it is done, wh
 ## A new goal, step by step
 
 `n` in Goals makes a goal and walks it through the new-goal wizard: talk the plan through, have a panel of personas
-read it, say what done looks like, and [split it across your agents](split.md), before any work starts. [Your first
-goal](first-goal.md) walks through it. Once split, the goal opens on [its page](split.md#the-goals-page): the same
+read it, say what done looks like, [split it across your agents](split.md), choose [how careful and go](go.md). [Your first
+goal](first-goal.md) walks through it. Once it went, the goal opens on [its page](split.md#the-goals-page): the same
 board, live, with one next step for you on top. A
 goal made another way (`:goal.new` with a title, or from a session) opens on its overview as below, and
 `:goal.wizard` walks it through the wizard whenever you like.
@@ -32,7 +32,7 @@ Beside it are all the first steps, each ticked off by what is true of the goal, 
    said they are right (`y` in Reviewers) or pinned one (`:goal.bar`). If heed moves them after that, it asks you to
    look again.
 5. **Mirror it to GitHub** (`M`), optional: it is listed but never the next step.
-6. **Start the work** (`B`, then `s` on an item, or `:swarm.start`). Done once a session, chat or run is on the goal,
+6. **Start the work** (`B`, then `s` on an item, or `:swarm.start`, which opens the wizard). Done once a session, chat or run is on the goal,
    or it has a swarm.
 
 ![A new goal's next-steps card](../images/shots/goals/guided-card.png)

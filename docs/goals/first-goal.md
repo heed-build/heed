@@ -82,13 +82,17 @@ proposes checks it could run, which join the list. **Looks right** (`⌘↩`) wr
 The plan's parts on your agents, by fit and what they have left, with the lead's moves on top: see
 [Split it across your agents](split.md). `⌘↩` moves on.
 
-## 5–6. How careful, Go
+## 5. How careful
 
-These two steps have no screen in the wizard yet. Each says what it will do, and `↩` opens the goal's page that
-does it today: the [reviewers and their bars](quality.md) for How careful, and the goal's overview for Go. `⌘↩`
-counts the step as done; after Go the wizard is finished and the goal opens on [its page](split.md#the-goals-page).
+Quick, Standard or Thorough: what has to pass before a part merges, on the goal's own reviewers, evaluations and
+merge rules. heed suggests one and says why; `1` `2` `3` pick, `Q` shows the details. See
+[How careful, and Go](go.md).
 
-![A step without a screen yet](../images/shots/goals/wizard-later.png)
+## 6. Go
+
+Who works (helpers, sessions or a mix), how many at once, when you are asked, the budget and who merges, each with a
+default, and what that comes to. `⌘↩` starts it as the goal's swarm, and the goal opens on
+[its page](split.md#the-goals-page); `S` saves it to start later.
 
 ## TL;DR
 

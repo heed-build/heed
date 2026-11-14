@@ -4,6 +4,12 @@ description: "Swarms: a goal worked by several agents at once. A lead agent draf
 
 # Swarms
 
+:::{note}
+New goals go through the [wizard](../first-goal.md): a goal with lanes is a swarm, and its [Go](../go.md) step starts
+it. `:swarm.new` and `:swarm.start` open the wizard now. These pages stay as the reference for the machinery Go runs,
+and for swarms made with the form before.
+:::
+
 A swarm is a burst of parallel work on a goal: a lead agent breaks the goal into a plan, you read it, change it and
 approve it, and a team of agents works the plan's tasks side by side, each in a worktree of its own. A swarm is not
 something next to Goals: it is a goal in swarm mode. It reuses the goal's `GOAL.md`, its items and board, its
@@ -11,7 +17,7 @@ evidence, reviewers and done rule, the GitHub mirror and `heed goal`.
 
 A goal [split in the wizard](../split.md) already has a plan of parts, each on an agent. A part is a swarm task (its owner the
 part's agent, its estimate, what it waits for and when it is done) with a repo, a size and context beside it; the
-wizard's Go step, still to come, hands them to the swarm as its plan. A swarm's goal opens on the same board, live, once its plan is approved
+wizard's [Go](../go.md) step hands them to the swarm as its first plan, approved. A swarm's goal opens on the same board, live, once its plan is approved
 ([the goal's page](../split.md#the-goals-page)).
 
 The goal outlives the swarm. A goal has at most one swarm going at a time; when it ends the goal carries on as a
@@ -29,11 +35,13 @@ swarm writes its end-of-build summary, from which one key starts a follow-up ([T
 
 ## Starting one
 
-There are three ways in:
+A swarm starts from the wizard's [Go](../go.md) step. The ways in:
 
-- `n` in Goals, with **start as a swarm** ticked: ⌘↩ goes on to the swarm form with the title and goal you typed.
-- `:swarm.new` (on a session: from its prompt) opens the swarm form for a new goal.
-- `:swarm.start`, or **Swarm this goal** in an empty swarm pane, swarms the goal under the cursor.
+- `n` in Goals: a new goal, through the wizard.
+- `:swarm.new` (on a session: from its prompt): the same, filled from what you have.
+- `:swarm.start`, or **Swarm this goal** in an empty swarm pane: the wizard on the goal under the cursor.
+
+Before Go, a swarm started from this form, which Go now fills in for you; it is kept here for the swarms made with it:
 
 ![The new swarm form](../../images/shots/goals/swarm-new.png)
 

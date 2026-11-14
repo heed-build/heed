@@ -4,6 +4,11 @@ description: "Steering a swarm: agents' questions and who may answer them, the e
 
 # Steering
 
+:::{note}
+New goals go through the [wizard](../first-goal.md), whose [Go](../go.md) step starts their swarm; this page is the
+reference for the swarm machinery Go runs.
+:::
+
 Once a swarm runs, its agents ask what they cannot decide, tell each other what they need, and say what they are
 doing. heed decides who may answer each question, walks it up a ladder until someone does, answers what is within its
 own authority through your deciders, and brings you only what is yours. Every step is a row in the swarm's steering

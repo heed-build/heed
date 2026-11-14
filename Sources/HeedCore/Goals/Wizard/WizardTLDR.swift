@@ -86,6 +86,27 @@ public struct TLDRInputs: Hashable, Sendable {
     public var going: WizardGoing?
     /// Changes when anything here could: the wizard's fingerprint and the GOAL.md version.
     public var fingerprint: String
+    /// Steps finished, for news since the TL;DR was last opened.
+    public var completed = 0
+
+    /// What you have seen, to keep when the TL;DR opens.
+    public var seen: TLDRSeen { TLDRSeen(completed: completed, open: open.map(\.text)) }
+
+    /// What the TL;DR's entry shows: news since `seen` (a step finished, an open point you have not seen), how many
+    /// points are open, and whether one needs you (it has something to do).
+    public func badge(since seen: TLDRSeen?) -> TLDRBadge {
+        let known = Set(seen?.open ?? [])
+        let news = seen == nil || completed > (seen?.completed ?? 0) || open.contains { !known.contains($0.text) }
+        return TLDRBadge(news: news, open: open.count, needsYou: open.contains { $0.action != nil })
+    }
+
+    /// There is something to summarise: the wizard's first plan, or a goal that says what it is or when it is done.
+    /// Before that the TL;DR's entry does not show.
+    public static func available(_ wizard: GoalWizard?, doc: GoalDoc?) -> Bool {
+        if let wizard { return !wizard.plan.versions.isEmpty }
+        guard let doc else { return false }
+        return !doc.goal.isEmpty || !doc.doneWhen.isEmpty
+    }
 
     /// The inputs for a goal from its wizard and its `GOAL.md`.
     public static func build(_ wizard: GoalWizard, doc: GoalDoc?, goalVersion: Int) -> TLDRInputs {
@@ -166,7 +187,8 @@ public struct TLDRInputs: Hashable, Sendable {
         }
         return TLDRInputs(
             title: plan?.title ?? doc?.title ?? wizard.goal, steps: steps, settled: Array(settled.prefix(6)),
-            open: Array(open.prefix(5)), going: nil, fingerprint: wizard.fingerprint + "@\(goalVersion)"
+            open: Array(open.prefix(5)), going: nil, fingerprint: wizard.fingerprint + "@\(goalVersion)",
+            completed: wizard.completed.count
         )
     }
 
@@ -188,6 +210,24 @@ public struct TLDRInputs: Hashable, Sendable {
     one key word each. Rewrite each open point as one short actionable sentence, in the same order and count. Only \
     facts from the input. Reply with only JSON: {"settled": ["..."], "open": ["..."]}.
     """
+}
+
+/// What the TL;DR showed when you last opened it: how many steps were finished, and its open points.
+public struct TLDRSeen: Hashable, Sendable, Codable {
+    public var completed: Int
+    public var open: [String]
+
+    public init(completed: Int, open: [String]) {
+        self.completed = completed
+        self.open = open
+    }
+}
+
+/// The TL;DR's entry in the rail: a dot or count when there is news, amber when an open point needs you.
+public struct TLDRBadge: Hashable, Sendable {
+    public var news: Bool
+    public var open: Int
+    public var needsYou: Bool
 }
 
 /// The TL;DR as written, cached until what it was written from changes.

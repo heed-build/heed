@@ -93,7 +93,7 @@ struct WizardTLDRView: View {
                 KeyHint("tldr.copy", scope: "tldr", label: "Copy as markdown", color: Theme.fg, font: Theme.ui(13.5))
                 Spacer()
                 Text("opens from any step with \(model.keyText(for: "goal.tldr", in: "wizardplan")) · and from the "
-                    + "goal's page with \(model.keyText(for: "goal.tldr", in: "goals"))")
+                    + "goal's page")
                     .font(Theme.ui(12)).foregroundStyle(Theme.fg3).lineLimit(1)
             }
             .padding(.horizontal, 28).padding(.vertical, 16)

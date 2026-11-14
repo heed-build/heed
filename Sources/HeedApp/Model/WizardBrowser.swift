@@ -45,6 +45,8 @@ final class WizardBrowser {
     var tldr: String?
     /// TL;DRs of goals that never went through the wizard, by goal (not kept across launches).
     var looseTLDRs: [String: WizardTLDR] = [:]
+    /// What the TL;DR of a goal that never went through the wizard showed when you last opened it.
+    var looseSeen: [String: TLDRSeen] = [:]
     /// The TL;DR being written now, by goal.
     var writing: Set<String> = []
 

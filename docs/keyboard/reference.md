@@ -115,7 +115,7 @@ This page is generated from the code (`mise run shots`).
 | `goal.evaluations` | `X` (goalagents), `X` (goalboard), `X` (goaldoc), `X` (goalevals), `X` (goalmap), `X` (goalpersonas), `X` (goalplan), `X` (goalreviewers), `X` (goals), `X` (unassigned) | Goals: stranger walks of the goal, their friction logs and scores, by lens (again: the overview) |
 | `goal.swarm` | `S` (goalagents), `S` (goalboard), `S` (goaldoc), `S` (goalevals), `S` (goalmap), `S` (goalpersonas), `S` (goalplan), `S` (goalreviewers), `S` (goals), `S` (unassigned) | Goals: the goal's swarm: its plan by phase, the lead's questions, versions and steering (again: the overview) |
 | `goal.agents` | `W` (goalagents), `W` (goalboard), `W` (goaldoc), `W` (goalevals), `W` (goalmap), `W` (goalpersonas), `W` (goalplan), `W` (goalreviewers), `W` (goals), `W` (unassigned) | Goals: the swarm's agents: what each does and for how long, stuck or not, its notes and activity, and what needs you; once done, its summary (again: the overview) |
-| `goal.map` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (unassigned) | Goals: the swarm as a map: phases as columns, tasks as cards by state, dependencies as edges (again: the overview) |
+| `goal.map` | `V` (goalagents), `V` (goalboard), `V` (goaldoc), `V` (goalevals), `V` (goalmap), `V` (goalpersonas), `V` (goalplan), `V` (goalreviewers), `V` (goals), `V` (unassigned) | Goals: the swarm as a map: phases as columns, tasks as cards by state, dependencies as edges (again: the overview) |
 | `overlay.pr` |  | PR overlay for this session (toggle) |
 | `overlay.item` | `go` | open the PR or issue under the cursor; in Sessions, the session's PR (toggle) |
 | `overlay.diff` | `gd` | diff overlay: commits, staged, unstaged |
@@ -185,7 +185,7 @@ This page is generated from the code (`mise run shots`).
 | `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (sessionshelpers), `t` (sessionspromote), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
 | `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 | `goal.wizard` `[goal]` |  | Goals: walk the goal through the new-goal wizard (plan, panel, done looks like, …); where it was left, it resumes |
-| `goal.tldr` | `t` (goaldoc), `t` (goals), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (wizardchat), `T` (wizarddone), `T` (wizardlater), `T` (wizardpanel), `T` (wizardplan) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
+| `goal.tldr` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (unassigned), `T` (wizardchat), `T` (wizarddone), `T` (wizardlater), `T` (wizardpanel), `T` (wizardplan) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
 
 ## Modes
 

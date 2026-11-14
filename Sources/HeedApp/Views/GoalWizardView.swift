@@ -55,9 +55,13 @@ private struct WizardRail: View {
                 .clickRuns(step <= wizard.reach && state != .now
                     ? CommandInvocation(name: "wizard.step", arguments: [step.rawValue]) : nil)
             }
+            if let badge = model.tldrBadge(wizard.goal) {
+                TLDRRailEntry(badge: badge)
+                    .padding(.top, 14)
+                    .overlay(alignment: .top) { Theme.line.frame(height: 1).padding(.horizontal, 8) }
+                    .padding(.top, 6)
+            }
             Spacer()
-            KeyHint("goal.tldr", scope: model.goals.scope, label: "tl;dr", font: Theme.mono(11))
-                .padding(.horizontal, 8)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 22)
@@ -92,6 +96,7 @@ struct StepDot: View {
 
 /// A step's title and its quiet subtitle.
 private struct StepHeader<Trailing: View>: View {
+    @Environment(AppModel.self) private var model
     let title: String
     let subtitle: String
     @ViewBuilder var trailing: Trailing
@@ -99,8 +104,12 @@ private struct StepHeader<Trailing: View>: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 14) {
             Text(title).font(Theme.ui(22, weight: .bold)).foregroundStyle(Theme.fg).lineLimit(1)
+                .layoutPriority(1)
             Text(subtitle).font(Theme.ui(13)).foregroundStyle(Theme.fg3).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 8)
+            if let goal = model.goals.wizard.open, model.tldrBadge(goal) != nil {
+                TLDRChip(goal: goal).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+            }
             trailing
         }
     }
@@ -446,6 +455,9 @@ private struct WizardPanelStep: View {
                     }
                 }
                 Spacer(minLength: 8)
+                if model.tldrBadge(wizard.goal) != nil {
+                    TLDRChip(goal: wizard.goal).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+                }
                 HStack(spacing: 8) {
                     Text("invited:").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                     ForEach(reasons, id: \.self) { why in
@@ -961,5 +973,70 @@ private struct WizardLaterStep: View {
         case .reviewers: "Open the reviewers"
         default: "Open the goal's page"
         }
+    }
+}
+
+// MARK: The TL;DR's entries
+
+/// The TL;DR as a seventh item under the rail's steps: its icon, its name, news since you last opened it (a dot, or
+/// the open points' count, amber when one needs you), and its key.
+private struct TLDRRailEntry: View {
+    @Environment(AppModel.self) private var model
+    let badge: TLDRBadge
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "text.alignleft")
+                .font(.system(size: 11, weight: .semibold)).foregroundStyle(Theme.fg2)
+                .frame(width: 24, height: 24)
+                .background(RoundedRectangle(cornerRadius: 5).fill(Theme.chip))
+            Text("TL;DR").font(Theme.ui(14)).foregroundStyle(Theme.fg).lineLimit(1)
+            if badge.news { TLDRNews(badge: badge) }
+            Spacer(minLength: 0)
+            KeyCap(text: model.keyText(for: "goal.tldr", in: model.goals.scope))
+        }
+        .padding(.horizontal, 8)
+        .frame(height: 40)
+        .contentShape(Rectangle())
+        .clickRuns(CommandInvocation(name: "goal.tldr"))
+        .help(badge.news ? "The TL;DR has news since you last opened it" : "The goal's TL;DR")
+    }
+}
+
+/// News on the TL;DR: the open points' count, amber when one needs you; a dot when none is open.
+struct TLDRNews: View {
+    let badge: TLDRBadge
+
+    var body: some View {
+        let color = badge.needsYou ? Theme.block : Theme.fg2
+        if badge.open > 0 {
+            Text("\(badge.open)").font(Theme.mono(10, weight: .bold)).foregroundStyle(Theme.ink)
+                .padding(.horizontal, 5).frame(minWidth: 16, minHeight: 16)
+                .background(Capsule().fill(color))
+        } else {
+            Circle().fill(color).frame(width: 7, height: 7)
+        }
+    }
+}
+
+/// A quiet TL;DR chip beside a title: the wizard's steps and the goal's page.
+struct TLDRChip: View {
+    @Environment(AppModel.self) private var model
+    let goal: String
+
+    var body: some View {
+        let badge = model.tldrBadge(goal)
+        HStack(spacing: 6) {
+            Image(systemName: "text.alignleft").font(.system(size: 10, weight: .semibold))
+            Text("TL;DR").font(Theme.ui(12))
+            if let badge, badge.news { TLDRNews(badge: badge) }
+            KeyCap(text: model.keyText(for: "goal.tldr", in: model.goals.scope))
+        }
+        .foregroundStyle(Theme.fg2)
+        .padding(.leading, 8).padding(.trailing, 4).frame(height: 24)
+        .background(RoundedRectangle(cornerRadius: 4).fill(Theme.bg2))
+        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
+        .fixedSize()
+        .clickRuns(CommandInvocation(name: "goal.tldr"))
     }
 }

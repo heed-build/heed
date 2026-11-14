@@ -130,7 +130,7 @@ enum Shots {
         // A goal's overview: its numbers, its items by stage, what is on it, its reviewers and where it waits on you.
         Shot(id: "landing/goals", chrome: false, keys: "gGj"),
         // A swarm's map: the goal and its lead, phases as columns, tasks by state, one of them stuck.
-        Shot(id: "landing/swarms", chrome: false, keys: "gGjTlj", prepare: { $0.loadWatchFixture() }),
+        Shot(id: "landing/swarms", chrome: false, keys: "gGjVlj", prepare: { $0.loadWatchFixture() }),
     ]
 
     /// The docs' home page.
@@ -739,7 +739,7 @@ enum Shots {
         Shot(id: "goals/wizard-done", prepare: { $0.loadWizardFixture(.done) }),
         Shot(id: "goals/wizard-later", prepare: { $0.loadWizardFixture(.split) }),
         Shot(id: "goals/wizard-tldr", keys: "T", prepare: { $0.loadWizardFixture(.split) }),
-        Shot(id: "goals/wizard-tldr-page", keys: "gGjt", crop: .tldr, cropPadding: 16),
+        Shot(id: "goals/wizard-tldr-page", keys: "gGjT", crop: .tldr, cropPadding: 16),
     ]
 
     /// Goals (`gG`), on the fake world's goals (`GoalFixtures`).
@@ -943,7 +943,7 @@ enum Shots {
         Shot(id: "goals/swarm-since", keys: "gGjW", crop: .swarmDigest, cropPadding: 8, prepare: {
             $0.loadWatchFixture()
         }),
-        Shot(id: "goals/swarm-map", keys: "gGjTlj", prepare: { $0.loadWatchFixture() }),
+        Shot(id: "goals/swarm-map", keys: "gGjVlj", prepare: { $0.loadWatchFixture() }),
         Shot(id: "goals/swarm-escalation", keys: "gGjS<Tab><Tab>", crop: .swarmSteering, cropPadding: 8, prepare: {
             $0.loadWatchFixture()
         }),

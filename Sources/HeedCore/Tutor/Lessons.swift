@@ -637,7 +637,7 @@ public extension Tutor {
             ) { _, now, _ in now.wizardStep == "panel" && now.wizardRounds > 0 },
             TutorStep(
                 "TL;DR",
-                say: "{goal.tldr} on any step (and t on a goal's page) shows where the goal stands: each step, what is "
+                say: "{goal.tldr} on any step, and on a goal's page, shows where the goal stands: each step, what is "
                     + "settled and what is still open.",
                 keys: ["{goal.tldr}"], target: "tldr",
                 doneLine: "{tldr.copy} copies it as markdown. It is written again only when something changed."

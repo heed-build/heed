@@ -280,6 +280,7 @@ struct GoalHeader: View {
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
                 if goal.status != .active { PullWord(state: goal.status.rawValue) }
+                if model.tldrBadge(goal.id) != nil { TLDRChip(goal: goal.id) }
                 Spacer(minLength: 12)
                 if model.binds("goal.sharpen", in: scope) {
                     KeyHint("goal.sharpen", scope: scope, label: "sharpen", color: Theme.fg2)

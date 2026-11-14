@@ -44,7 +44,7 @@ enum TutorCheck {
             "y",
             "S",
             "w",
-            "T",
+            "V",
             ":goal.new Faster search<CR>",
             "w",
             "yyyy",

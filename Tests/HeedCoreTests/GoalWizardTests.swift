@@ -89,6 +89,18 @@ struct GoalWizardTests {
         await #expect(throws: GoalOpError.unknownGoal("nope")) { try await ops.startWizard(goal: "nope", now: t0) }
     }
 
+    @Test func tIsTheTLDREverywhereInGoalsAndVTheMap() {
+        for scope in DefaultKeys.goalScopes {
+            let keys = DefaultKeys.scoped[scope] ?? []
+            #expect(keys.filter { $0.0 == "T" }.map(\.1) == ["goal.tldr"], "T in \(scope)")
+            #expect(keys.filter { $0.0 == "V" }.map(\.1) == ["goal.map"], "V in \(scope)")
+            #expect(!keys.contains { $0.0 == "t" && $0.1 == "goal.tldr" }, "t in \(scope)")
+        }
+        for scope in ["wizardplan", "wizardpanel", "wizarddone", "wizardlater", "wizardchat", "tldr"] {
+            #expect(DefaultKeys.scoped[scope]?.contains { $0 == ("T", "goal.tldr") } == true, "T in \(scope)")
+        }
+    }
+
     // MARK: Plan
 
     @Test func pickingAnOptionAnswersTheOpenQuestion() {
@@ -429,6 +441,28 @@ struct GoalWizardTests {
         #expect(!tldr.fresh(for: TLDRInputs.build(wizard, doc: nil, goalVersion: 4)))
     }
 
+    @Test func theTLDRShowsOnceThereIsAPlanAndSaysWhatIsNew() {
+        let empty = GoalWizard(goal: "g", at: t0)
+        #expect(!TLDRInputs.available(empty, doc: GoalDoc(title: "T", goal: "x")))
+        #expect(TLDRInputs.available(WizardFixtures.wizard(at: .plan), doc: nil))
+        #expect(!TLDRInputs.available(nil, doc: GoalDoc(title: "T")))
+        #expect(TLDRInputs.available(nil, doc: GoalDoc(title: "T", goal: "Search is faster")))
+
+        let atPanel = TLDRInputs.build(WizardFixtures.wizard(at: .panel), doc: nil, goalVersion: 1)
+        #expect(atPanel.badge(since: nil).news)
+        let seen = atPanel.seen
+        #expect(!atPanel.badge(since: seen).news)
+        #expect(atPanel.badge(since: seen).open == 4)
+        #expect(atPanel.badge(since: seen).needsYou)
+        // A step finished, or a new open point: news again.
+        let atSplit = TLDRInputs.build(WizardFixtures.wizard(at: .split), doc: nil, goalVersion: 1)
+        #expect(atSplit.badge(since: seen).news)
+        var sameSteps = seen
+        sameSteps.completed = atSplit.completed
+        #expect(atSplit.badge(since: sameSteps).news)
+        #expect(!atSplit.badge(since: atSplit.seen).news)
+    }
+
     @Test func theModelsTLDRKeepsHeedsActionsAndFallsBackToHeedsWords() {
         let inputs = TLDRInputs.build(WizardFixtures.wizard(at: .split), doc: nil, goalVersion: 1)
         let written = WizardTLDR.parse("""
@@ -478,5 +512,65 @@ private actor Captured {
         self.arguments = arguments
         self.stdin = stdin
         self.directory = directory
+    }
+}
+
+/// What real Claude Code (haiku) answered the wizard in the live checks (`LiveWizardTests`), scrubbed, read as heed
+/// reads it.
+struct RecordedWizardTests {
+    private func text(_ name: String) throws -> String {
+        try String(decoding: RecordedAgentTests.fixture(name), as: UTF8.self)
+    }
+
+    @Test func aRealPlanTurnReadsAsAQuestionOptionsAPlanAndItsCost() async throws {
+        let stdout = try text("claude-wizard-plan.json")
+        let talker = PlanTalker(agent: "claude", command: "claude", model: "haiku") { _, _, _ in stdout }
+        var conversation = PlanConversation()
+        conversation.answer("duplicate headings get the same anchor. fix it in slugger")
+        let turn = try await talker.turn(title: "Unique anchors", statement: "", conversation: conversation, repos: [])
+        #expect(turn.reply.question.hasSuffix("Where should the uniqueness state live?"))
+        #expect(turn.reply.options.count == 3)
+        #expect(turn.reply.plan.title == "Unique anchors in slugger")
+        #expect(turn.reply.plan.steps.count == 5)
+        #expect(!turn.reply.plan.risks.isEmpty && !turn.reply.plan.outOfScope.isEmpty)
+        #expect(turn.reply.plan.audience.hasPrefix("Developers"))
+        #expect(!turn.reply.complete)
+        #expect(turn.cost.model == "claude-haiku-5-5")
+        #expect(turn.cost.dollars.map { $0 > 0 && $0 < 0.01 } == true)
+    }
+
+    @Test func aRealPanelReadsAsAVerdictPerSeat() throws {
+        let seats = PanelInvites.invite(signals: [.publicPackage, .behaviourChange])
+        let verdicts = try PanelVerdict.parse(text("claude-wizard-panel.txt"), seats: seats)
+        #expect(verdicts.map(\.seat) == seats.map(\.id))
+        #expect(verdicts.first { $0.seat == "adversary" }?.kind == .not)
+        #expect(verdicts.first { $0.seat == "scope-keeper" }?.fix == nil)
+        #expect(verdicts.allSatisfy { !$0.quote.isEmpty })
+    }
+
+    @Test func aRealDraftsTargetsAreTidied() throws {
+        let draft = try #require(try DoneDraft.parse(text("claude-wizard-done.txt"), fromPlan: 1))
+        #expect(draft.criteria.count == 5)
+        // Claude said "(not yet written)" in the target instead of only proposed: the note goes, proposed stays.
+        #expect(draft.criteria[0].check == CriterionCheck(
+            .test, "slugger: duplicate headings get suffixed anchors", proposed: true
+        ))
+        #expect(draft.criteria[3].check == CriterionCheck(.ci, "CI test step", proposed: true))
+        // "none" with a target: nothing checks it, so no target.
+        #expect(draft.criteria[4].check == .none)
+        #expect(!draft.criteria.contains { $0.check.target.contains("(") })
+        #expect(draft.notTheGoal.count == 5)
+    }
+
+    @Test func tidyingLeavesARealTargetAlone() {
+        #expect(CriterionCheck.tidy(CriterionCheck(.command, "make check (fast)")) == CriterionCheck(
+            .command,
+            "make check (fast)"
+        ))
+        #expect(CriterionCheck.tidy(CriterionCheck(.test, "XTests (to be written)")) == CriterionCheck(
+            .test,
+            "XTests",
+            proposed: true
+        ))
     }
 }

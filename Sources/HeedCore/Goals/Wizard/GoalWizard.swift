@@ -112,6 +112,8 @@ public struct GoalWizard: Hashable, Sendable, Codable {
     public var costs: [WizardCost]
     /// The TL;DR as last written, with what it was written from.
     public var tldr: WizardTLDR?
+    /// What the TL;DR showed when you last opened it, for its entry's news.
+    public var tldrSeen: TLDRSeen?
     /// "Don't do it": why, once the goal was archived from the panel.
     public var dropped: String?
     public var startedAt: Date
@@ -193,6 +195,7 @@ public struct GoalWizard: Hashable, Sendable, Codable {
     public var fingerprint: String {
         var copy = self
         copy.tldr = nil
+        copy.tldrSeen = nil
         copy.updatedAt = .distantPast
         copy.costs = []
         let encoder = JSONEncoder()

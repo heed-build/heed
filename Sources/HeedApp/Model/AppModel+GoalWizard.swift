@@ -741,6 +741,12 @@ extension AppModel {
         guard let goal = tldrGoal else { return say("no goal here") }
         goals.wizard.tldr = goal
         let inputs = tldrInputs(goal)
+        let seen = inputs.seen
+        if goals.wizard.wizard(of: goal) != nil {
+            if goals.wizard.wizard(of: goal)?.tldrSeen != seen { change(goal) { $0.tldrSeen = seen } }
+        } else {
+            goals.wizard.looseSeen[goal] = seen
+        }
         let cached = goals.wizard.wizard(of: goal)?.tldr ?? goals.wizard.looseTLDRs[goal]
         guard cached?.fresh(for: inputs) != true, !goals.wizard.writing.contains(goal) else { return }
         let calls = wizardCalls
@@ -755,6 +761,13 @@ extension AppModel {
                 goals.wizard.looseTLDRs[goal] = written
             }
         }
+    }
+
+    /// The TL;DR's entry for a goal: nil until there is something to summarise, else its news and open points.
+    func tldrBadge(_ goal: String) -> TLDRBadge? {
+        let wizard = goals.wizard.wizard(of: goal)
+        guard TLDRInputs.available(wizard, doc: goals.snapshot.docs[goal]) else { return nil }
+        return tldrInputs(goal).badge(since: wizard?.tldrSeen ?? goals.wizard.looseSeen[goal])
     }
 
     /// `tldr.copy`: the TL;DR as markdown on the clipboard.

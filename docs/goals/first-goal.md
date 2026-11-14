@@ -88,7 +88,11 @@ opens on its page.
 
 ## TL;DR
 
-`T` on any step of the wizard, and `t` on a goal's page (where `T` is the swarm's map), opens the goal's TL;DR: each
+Once there is something to summarise (the wizard's first plan, or a goal that says what it is), a **TL;DR** entry
+sits under the rail's steps and a **TL;DR** chip beside each step's title and the goal's title on its page. When it
+has news since you last opened it (a step finished, a new open point), the entry shows how many points are open, amber
+when one of them needs you, or a dot when none is open. A click, or `T` on any step of the wizard and on a goal's
+page, opens the goal's TL;DR: each
 step with a summary, what is **settled**, and what is still **open**, numbered, each with what to do about it. `d`
 does the first open point (define a vague criterion, back to the panel), `y` copies the whole TL;DR as markdown, and
 `T` or `⎋` closes it. A cheap model writes it from heed's facts; it is written again only when something it was

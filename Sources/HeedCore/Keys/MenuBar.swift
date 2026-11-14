@@ -188,6 +188,27 @@ public enum MenuBar {
         "page.steer": "the fold-out's Steer button",
         "page.pick": "a click on your next step's option",
         "page.answer": "your next step's answer button",
+        // Settings › Personas lives in the Settings window, whose own page, rows, buttons and switches offer these.
+        "personas.open": "Settings › Personas in the Settings window's tree",
+        "personas.move": "a click on a persona, or on a proposal",
+        "personas.toggle": "the switch on each persona's row",
+        "personas.try": "the Try it on a PR button",
+        "personas.edit": "the Edit button",
+        "personas.share": "the Share button",
+        "personas.join": "the switches under Joins",
+        "personas.add": "the Add a persona button",
+        "personas.pick": "a click on a proposal",
+        "personas.read": "Add a persona reads on its own as it opens",
+        "personas.repo": "a click on a repo under Look at",
+        "personas.describe": "a click in the Or describe one field",
+        "personas.overlap": "the overlap's sharpen and keep both buttons",
+        "personas.drafted": "the Add as drafted button",
+        "personas.define": "the Define with an agent button",
+        "personas.answer": "a click in the defining conversation's answer field",
+        "personas.option": "a click on the agent's option",
+        "personas.next": "the Next button",
+        "personas.save": "the Save persona button",
+        "personas.close": "the Close button",
     ]
 
     /// An item whose command needs words the menu cannot know (`pr.track <url>`): it opens the command line with the

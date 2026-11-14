@@ -26,7 +26,9 @@ public struct PanelSeat: Hashable, Sendable, Codable, Identifiable {
     public static func from(_ persona: Persona, why: String = "you invited") -> PanelSeat {
         PanelSeat(
             id: persona.id, name: persona.name,
-            role: persona.knows.first ?? persona.skepticalAbout.first.map { "skeptical about \($0)" } ?? "your persona",
+            role: persona.who.isEmpty
+                ? persona.knows.first ?? persona.skepticalAbout.first.map { "skeptical about \($0)" } ?? "your persona"
+                : persona.who,
             why: why, brief: persona.brief
         )
     }
@@ -233,12 +235,35 @@ public enum PanelInvites {
 
     /// The panel: the four who always sit, then each signal's in a fixed order, then your team's style when heed has
     /// learned one (a library persona). No one sits twice.
-    public static func invite(signals: Set<Signal>, teamStyle: Persona? = nil) -> [PanelSeat] {
+    ///
+    /// With the library (Settings › Personas), for work in `scope` (`org/name` slugs): a built-in turned off does not
+    /// sit, an edited one sits as edited, and one a library persona sharpens for this scope sits as that one; then the
+    /// library's own personas that join goal panels, on and in scope. A persona scoped to another org never sits.
+    public static func invite(
+        signals: Set<Signal>, teamStyle: Persona? = nil, library: PersonaLibrary? = nil, scope: [String] = []
+    ) -> [PanelSeat] {
         var panel = [skeptic, purist, scopeKeeper, ux]
         for signal in Signal.allCases where signals.contains(signal) {
             for seat in seats(for: signal) where !panel.contains(where: { $0.id == seat.id }) {
                 panel.append(seat)
             }
+        }
+        var teamStyle = teamStyle
+        if let library {
+            panel = panel.compactMap { seat in
+                if let sharper = library
+                    .sharpened(seat.id, for: scope) { return PanelSeat.from(sharper, why: seat.why) }
+                guard let entry = library.entry(seat.id) else { return seat }
+                guard entry.persona.on else { return nil }
+                return entry.hasFile ? PanelSeat.from(entry.persona, why: seat.why) : seat
+            }
+            for persona in library.offered(for: scope)
+                where persona.source != .builtIn && persona.sharpens == nil && persona.joins.contains(.goalPanels)
+                && !panel.contains(where: { $0.id == persona.id })
+            {
+                panel.append(PanelSeat.from(persona, why: "touches \(persona.scope.label)"))
+            }
+            teamStyle = teamStyle ?? library.teamStyle(for: scope)
         }
         if let teamStyle, !panel.contains(where: { $0.id == teamStyle.id }) {
             panel.append(PanelSeat.from(teamStyle, why: "your team's style"))
@@ -247,11 +272,12 @@ public enum PanelInvites {
     }
 
     /// The panel for a plan.
-    public static func invite(plan: WizardPlan, statement: String, repos: [String], teamStyle: Persona? = nil)
-        -> [PanelSeat]
-    {
+    public static func invite(
+        plan: WizardPlan, statement: String, repos: [String], teamStyle: Persona? = nil,
+        library: PersonaLibrary? = nil, scope: [String] = []
+    ) -> [PanelSeat] {
         let text = ([statement, PlanTalk.render(plan)] + repos).joined(separator: "\n")
-        return invite(signals: signals(in: text), teamStyle: teamStyle)
+        return invite(signals: signals(in: text), teamStyle: teamStyle, library: library, scope: scope)
     }
 
     /// The library persona that is your team's style, if heed has one: named "team style", "our style" or "house

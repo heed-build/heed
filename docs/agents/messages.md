@@ -89,5 +89,5 @@ channel, else typed under the typing rules, recorded on the session either way. 
 retries a message that waits.
 
 [Helpers](helpers.md) tell a session about the work they do on its PR this way, with typing ruled out
-(`mayType: false`): the note goes through the agent's channel or not at all, and the band over the session's panes
-shows it in every case.
+(`mayType: false`): the note goes through the agent's channel or not at all, and the helper line at the foot of the
+session's panes shows it in every case.

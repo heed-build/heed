@@ -53,7 +53,7 @@ as soon as you have looked. Leaving Attention moves what you read to Waiting on 
 
 Each row says what it is (`PR`, `IS`, `AG`, ...), its repo and number, its title and age; under that why it is there
 (`review requested`, `tagged you`, `agent blocked`, ...), its weight when a [rule](attention-rules.md) boosted it
-(`▲▲`), and a preview. For a thread with something new, the preview is the first line of its
+(`▲▲`), a preview, and on the right [heed's next step](#heeds-next-step) when heed would act on it (`▶ merge it`). For a thread with something new, the preview is the first line of its
 [catch-up summary](#catch-up-summaries) once that is written and up to date, else the newest comment. For one with
 nothing new since you looked it is *nothing new since you looked*.
 
@@ -140,8 +140,8 @@ it.
 ## The reader
 
 The right side follows the cursor. An issue or a PR shows in full: where it is and who opened it, its title, chips
-for why it is there and its state, its actions as buttons with their keys, the [rule](attention-rules.md) that
-matched, the [catch-up summary](#catch-up-summaries) card, then the thread as GitHub renders it, the same cards as the
+for why it is there and its state, [heed's next step](#heeds-next-step) for it (the item's other steps and what
+else you can do with it are under its **Other**), the [rule](attention-rules.md) that matched, the [catch-up summary](#catch-up-summaries) card, then the thread as GitHub renders it, the same cards as the
 [reader](reading.md), with the comments you read folded. Until the thread has loaded its last three comments stand in.
 An agent or one of heed's goal items shows its card with what you can do, as before.
 
@@ -172,11 +172,12 @@ list and reader to change the split; heed keeps it.
 
 ## Heed's next step
 
-Each issue and PR has one next step heed has worked out, and one key for it. The row says it under its title
-(`next: start a review`, or `▶ heed is getting it green` once a helper is on it), and the reader proposes it at the top:
-*Heed's next step: get it green and merge it*, with the steps it will take.
+Each issue and PR has one next step heed has worked out, and one key for it. The row says it short, on the right of
+its reasons (`▶ merge it`, `▶ review`, `▶ green + merge`, `▶ set up`, `▶ start`, or `▶ heed is on it` while a helper
+works), only when heed would act: not when it waits on others or there is nothing to do. The reader proposes it in
+full at the top: *Heed's next step: get it green and merge it*, with the steps it will take.
 
-![Attention's rows, each with its next step](../images/shots/attention/next-steps.png)
+![Attention's rows, each with its next step on the right](../images/shots/attention/next-steps.png)
 
 ![The reader's proposal for your PR: get it green and merge it](../images/shots/attention/next-step.png)
 
@@ -195,7 +196,12 @@ Each issue and PR has one next step heed has worked out, and one key for it. The
 |---|---|
 | `D` | Do heed's next step |
 | `Y` | **Always in the repo:** do it, and turn the step's Autopilot capability on for the repo (get it green on auto, or merging), so heed does it by itself from now on. Steps that are yours to send each time (a review, a reply) have no Always |
-| `.` | **Other:** propose the item's next other step instead (a reply, a review, Start work); again goes back to heed's own |
+| `.` | **Other:** a small menu of the item's other next steps (picking one proposes it instead; heed's own is first once you moved off it) and what else you can do with it, each with its key: Review or Read (`↩`), Reply (`R`), its session (`gS`) or Start a session (`s`), Done (`x`), Snooze (`Z`), Mute (`M`) and GitHub (`gB`). `j` `k` move, `↩` or a click does the row, `⎋` or `.` closes it |
+
+The keys work as ever without opening Other. An item with nothing for heed to do shows a slim line of the same
+actions instead of the proposal, so they stay a click away, and so does one with a helper's split open.
+
+![Other: the item's other steps, then what else you can do with it](../images/shots/attention/other.png)
 
 `↩` still opens the reader, as before. Once you approve a step that a helper does, the helper opens in a split under
 the reader: see [Helpers](../agents/helpers.md).

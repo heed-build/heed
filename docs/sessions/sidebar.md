@@ -54,10 +54,11 @@ of its screen. Click it to go to the run's tab. The rail leaves it out.
 
 A [helper](../agents/helpers.md) on one of the session's PRs gets the same kind of row (`↳ helper getting #2841 green`,
 how long, its agent and what it does now); it has no tab, so a click watches it in a split under the session's panes
-(`gW`). The session itself gets a band over its panes saying what the helper does, with **Watch it** and **Take it
-over** (`gO`). Nothing is typed into the session.
+(`gW`). The session itself gets one line at the foot of its panes for all the helpers on its PRs, however many: what
+needs you first, amber only then, and a finished one until you have seen it. `gW` watches the one helper, or lists
+them when there are more; `gO` takes one over. Nothing is typed into the session.
 
-![A helper on the session's PR: the band over its panes](../images/shots/sessions/helper-band.png)
+![One helper on the session's PR: the line at the foot of its panes](../images/shots/sessions/helper-line.png)
 
 ![Watch it: the helper in a split under the session's panes](../images/shots/sessions/helper-watch.png)
 

@@ -329,10 +329,24 @@ public enum SwarmLead {
         var lines = [
             "You lead swarm \(swarm.number) on the goal \(title). Its GOAL.md is \(path).",
             "",
-            "Draft the plan: the tasks that reach the goal, for a team of \(workers), within \(settings.limits.line). "
-                + "Each task works in its own worktree; there is no file ownership, overlaps are sorted out at merge.",
-            "",
         ]
+        if let approved = swarm.approved {
+            // Go started it: the plan is the owner's, approved, and its first tasks are starting.
+            lines += [
+                "The plan is approved already (v\(approved), from the owner's split): read it with heed goal plan "
+                    + "show. Do not draft another. Brief the workers as their tasks start, check each task on the "
+                    + "longest chain before what waits for it starts, and propose a change only when the work shows "
+                    + "the plan is wrong. A team of \(workers), within \(settings.limits.line).",
+                "",
+            ]
+        } else {
+            lines += [
+                "Draft the plan: the tasks that reach the goal, for a team of \(workers), within "
+                    + "\(settings.limits.line). Each task works in its own worktree; there is no file ownership, "
+                    + "overlaps are sorted out at merge.",
+                "",
+            ]
+        }
         // A follow-up swarm starts from what the last one left.
         if let previous, !previous.followUps.isEmpty || !previous.outcome.isEmpty {
             lines += ["This swarm follows up on the goal's last one. It ended: \(previous.outcome)"]
@@ -346,8 +360,10 @@ public enum SwarmLead {
         }
         lines += [
             "",
-            "Once the plan is proposed and your questions are asked, stop and wait: the owner reads it in heed and "
-                + "answers, asks for a re-plan or approves.",
+            swarm.approved == nil
+                ? "Once the plan is proposed and your questions are asked, stop and wait: the owner reads it in heed "
+                + "and answers, asks for a re-plan or approves."
+                : "Between your moves, wait: heed hands you questions and workers' notes as they come.",
         ]
         return lines.joined(separator: "\n")
     }

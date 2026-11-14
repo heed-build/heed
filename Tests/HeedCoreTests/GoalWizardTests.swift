@@ -40,11 +40,11 @@ struct GoalWizardTests {
         #expect(r5 == nil)
     }
 
-    @Test func theFirstFourStepsAreBuiltAndTheRestFallBack() {
-        #expect(WizardStep.allCases.filter(\.built) == [.plan, .panel, .done, .split])
+    @Test func everyStepIsBuiltAndHowCarefulsDetailsAreReviewers() {
+        #expect(WizardStep.allCases.filter { !$0.built }.isEmpty)
         #expect(WizardStep.split.fallback == WizardFallback.none)
         #expect(WizardStep.careful.fallback == .reviewers)
-        #expect(WizardStep.go.fallback == .overview)
+        #expect(WizardStep.go.fallback == WizardFallback.none)
         #expect(WizardStep(word: "3") == .done)
         #expect(WizardStep(word: "How careful") == .careful)
         #expect(WizardStep(word: "nope") == nil)
@@ -96,7 +96,7 @@ struct GoalWizardTests {
             #expect(keys.filter { $0.0 == "V" }.map(\.1) == ["goal.map"], "V in \(scope)")
             #expect(!keys.contains { $0.0 == "t" && $0.1 == "goal.tldr" }, "t in \(scope)")
         }
-        for scope in ["wizardplan", "wizardpanel", "wizarddone", "wizardlater", "wizardchat", "tldr"] {
+        for scope in ["wizardplan", "wizardpanel", "wizarddone", "wizardcareful", "wizardgo", "wizardchat", "tldr"] {
             #expect(DefaultKeys.scoped[scope]?.contains { $0 == ("T", "goal.tldr") } == true, "T in \(scope)")
         }
     }
@@ -422,7 +422,7 @@ struct GoalWizardTests {
         #expect(inputs.steps[1].detail == "Skeptic overruled: worth it")
         #expect(inputs.steps[2].headline == "5 criteria · 1 vague")
         #expect(inputs.steps[3].detail == "not split yet")
-        #expect(inputs.steps[4].detail == "on the goal's page for now")
+        #expect(inputs.steps[4].headline == "not yet")
         let split = TLDRInputs.build(SplitFixtures.wizard(SplitFixtures.complexID), doc: nil, goalVersion: 1)
         #expect(split.steps[3].headline == "15 parts · 5 agents")
         #expect(inputs.open.first?.action == .define(criterion: 4))

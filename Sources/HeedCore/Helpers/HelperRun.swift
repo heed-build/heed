@@ -10,13 +10,17 @@ public enum HelperKind: String, Hashable, Sendable, Codable, CaseIterable {
     /// Someone else's PR: read against its issue, its tests run, review comments drafted. Nothing is posted until you
     /// send it.
     case review
+    /// A part of a goal Go started, as its swarm's worker: it builds the part in its own worktree and opens its PR.
+    /// Its PR does not exist yet (its ref's number is 0); the swarm tracks the PR it opens.
+    case part
 
-    /// `Getting #2841 green`.
+    /// `Getting #2841 green`, `Building a part`.
     public func title(_ number: Int) -> String {
         switch self {
         case .green: "Getting #\(number) green"
         case .conflict: "Resolving #\(number)'s conflict"
         case .review: "Reviewing #\(number) for you"
+        case .part: "Building a part"
         }
     }
 
@@ -29,6 +33,7 @@ public enum HelperKind: String, Hashable, Sendable, Codable, CaseIterable {
         case .green: RunGoal.green.slug
         case .conflict: RunGoal.merged.slug
         case .review: "review"
+        case .part: "part"
         }
     }
 }
@@ -259,7 +264,7 @@ public struct HelperRun: Identifiable, Hashable, Sendable {
     }
 
     /// `Getting #2841 green`.
-    public var headline: String { kind.title(ref.number) }
+    public var headline: String { kind == .part ? "Part: \(title)" : kind.title(ref.number) }
 
     /// `3 of 5`, when the agent sends a plan: the step under way (or the last done), and how many there are.
     public var planProgress: (step: Int, of: Int)? {

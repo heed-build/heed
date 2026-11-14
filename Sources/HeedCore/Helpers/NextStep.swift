@@ -48,6 +48,7 @@ public enum NextStep: Hashable, Sendable {
             case .green: "heed is getting it green"
             case .conflict: "heed is resolving the conflict"
             case .review: "heed is reviewing it"
+            case .part: "a helper is building it"
             }
         case let .nothing(why): "\(why) · nothing to do"
         default: "next: \(title)"

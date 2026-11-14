@@ -62,6 +62,8 @@ final class GoalsBrowser {
         var mirror = false
         /// Start it as a swarm: ⌘↩ goes on to the new swarm form instead of making the goal now.
         var swarm = false
+        /// Made with `n` in Goals: once made, it goes through the new-goal wizard.
+        var wizard = false
         /// ⌘↩ was pressed: what is missing shows under its field from now on.
         var tried = false
 
@@ -120,6 +122,8 @@ final class GoalsBrowser {
     let attach = AttachBrowser()
     /// Personas: who the goal needs, their files and spawns.
     let personas = PersonaBrowser()
+    /// The new-goal wizard: each goal's place in it, and the one open (`WizardBrowser`).
+    let wizard = WizardBrowser()
     /// The open sessions' and chats' ids and the running reviewers', for personas' coverage (set by the app).
     @ObservationIgnored var liveTargets: () -> Set<String> = { [] }
     /// Set here and in `GoalsBrowser+Swarm`.
@@ -253,6 +257,7 @@ final class GoalsBrowser {
         apply(snapshot)
         loadVersions()
         if let fresh = try? await ops.mirrors() { mirrors = fresh }
+        if let fresh = try? await ops.wizards() { wizard.replace(all: fresh) }
         await reloadAttach()
         await personas.reload(ops)
         await reloadBoard()
@@ -519,9 +524,10 @@ final class GoalsBrowser {
         moves += 1
     }
 
-    /// The key scope: the board and GOAL.md have keys of their own.
+    /// The key scope: the board and GOAL.md have keys of their own; the wizard and the TL;DR theirs, over any pane.
     var scope: String {
-        switch pane {
+        if let scope = wizard.scope { return scope }
+        return switch pane {
         case .board: "goalboard"
         case .doc: "goaldoc"
         case .overview: "goals"

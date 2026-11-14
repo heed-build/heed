@@ -50,6 +50,51 @@ public enum GoalHints {
     /// that are not the scope's own.
     public static func hints(scope: String, _ context: Context) -> (hints: [Hint], tail: String) {
         switch scope {
+        // The new-goal wizard, step by step, as the designs' status bars read.
+        case "wizardplan":
+            ([
+                Hint("wizard.pick 1", "pick", key: "1 2 3"),
+                Hint("wizard.answer", "answer"),
+                Hint("wizard.next", "good enough"),
+                Hint("goal.tldr", "tl;dr"),
+            ], "")
+        case "wizardpanel":
+            (
+                [
+                    Hint("wizard.next", "take the fixes"),
+                    Hint("wizard.smaller", "smaller"),
+                    Hint("wizard.talk", "talk to one"),
+                    Hint("wizard.drop", "drop"),
+                    Hint("wizard.invite", "invite"),
+                    Hint("goal.tldr", "tl;dr"),
+                ],
+                ""
+            )
+        case "wizarddone":
+            ([
+                Hint("wizard.row 1", "criterion", key: "j k"),
+                Hint("wizard.use", "pick"),
+                Hint("wizard.define", "define with an agent"),
+                Hint("wizard.next", "split it"),
+                Hint("goal.tldr", "tl;dr"),
+            ], "")
+        case "wizardlater":
+            ([
+                Hint("wizard.later", "open the goal's page"),
+                Hint("wizard.next", "done here"),
+                Hint("goal.tldr", "tl;dr"),
+            ], "")
+        case "wizardchat":
+            ([Hint("wizard.answer", "message"), Hint("wizard.talk", "close")], "")
+        case "wizardinvite":
+            ([Hint("wizard.invite.pick", "invite"), Hint("wizard.invite", "close")], "j k persona")
+        case "tldr":
+            ([
+                Hint("goal.tldr", "tl;dr"),
+                Hint("tldr.act", "do the first open point"),
+                Hint("tldr.copy", "copy"),
+                Hint("goal.tldr", "back", key: "⎋"),
+            ], "")
         case "goalplan" where context.running:
             ([
                 Hint("goal.focus", context.focus == "versions" ? "goals" : "next"), Hint("swarm.task.pause", "pause"),

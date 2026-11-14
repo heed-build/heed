@@ -34,7 +34,7 @@ struct TutorTests {
         #expect(Tutor.tour.steps.first?.title == "Two modes")
         #expect(Tutor.viewLessons.map(\.id) == [
             "sessions", "start-work", "attention", "inbox", "issues", "prs", "watch", "repos", "history", "goals",
-            "log", "agents", "hosts",
+            "first-goal", "log", "agents", "hosts",
             "diff",
         ])
         for lesson in Tutor.viewLessons {
@@ -63,7 +63,8 @@ struct TutorTests {
             "goalsUnassigned", "goalReviewers", "goalReviewerDetail", "goalPersonas", "swarmPlan", "swarmSteering",
             "swarmMap",
             "goalEvaluations",
-            "goalFriction", "goalGuide", "goalSources", "repoColumn", "addRepo", "nextStep",
+            "goalFriction", "goalGuide", "goalSources", "repoColumn", "addRepo", "nextStep", "goalWizard", "wizardPlan",
+            "wizardPanel", "wizardDone", "tldr",
         ]
         for lesson in [Tutor.tour] + Tutor.viewLessons {
             for step in lesson.steps {

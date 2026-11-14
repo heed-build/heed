@@ -141,6 +141,23 @@ public enum MenuBar {
         "view.dashboard": "where Insights opens: View › Insights",
         "view.timeline": "the timeline is History with every event: In Insights has History: every event",
         "history.timeline": "the timeline's former key; In Insights has History: every event",
+        // The new-goal wizard's own keys act on the step that shows: its buttons and the status bar's hints offer them.
+        "wizard.leave": "the wizard's ⎋; its rail's steps are clickable",
+        "wizard.next": "the step's primary button (Good enough, Worth it, Looks right)",
+        "wizard.step": "a click on a reached step in the wizard's rail",
+        "wizard.row": "moving the wizard's cursor: the mouse clicks a persona or a criterion",
+        "wizard.pick": "a click on heed's option, or on a replacement",
+        "wizard.answer": "a click in the wizard's answer field",
+        "wizard.smaller": "the panel's Go smaller button",
+        "wizard.talk": "the panel's Talk to one button",
+        "wizard.drop": "the panel's Don't do it button",
+        "wizard.invite": "the panel's + button",
+        "wizard.invite.pick": "a click on a persona in the + picker",
+        "wizard.use": "the Use button beside the replacements",
+        "wizard.define": "the Define the vague one button, and Or define it with an agent",
+        "wizard.later": "the step's Open the goal's page button",
+        "tldr.copy": "the TL;DR's Copy as markdown",
+        "tldr.act": "the TL;DR's first open point's action, and the button for it",
     ]
 
     /// An item whose command needs words the menu cannot know (`pr.track <url>`): it opens the command line with the
@@ -398,7 +415,8 @@ public enum MenuBar {
                     ("Previous org", "standup.org.prev"), ("Write a report now", "standup.run"),
                 ], in: ["standup"]),
                 scoped("In Goals", [
-                    ("New goal…", "goal.new"), ("Overview", "goal.overview"), (
+                    ("New goal…", "goal.new"), ("Walk it through the wizard", "goal.wizard"), ("TL;DR", "goal.tldr"),
+                    ("Overview", "goal.overview"), (
                         "Next steps: hide or show",
                         "goal.guide"
                     ),

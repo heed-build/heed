@@ -1,7 +1,7 @@
 import HeedCore
 import SwiftUI
 
-/// The swarm as a map (`goal.map`, `T`; deck p09): the goal and its lead on the left, the plan's phases as columns,
+/// The swarm as a map (`goal.map`, `V`; deck p09): the goal and its lead on the left, the plan's phases as columns,
 /// each task a card coloured by its state, and an edge for every "after". Over it the swarm's numbers in a line, under
 /// it the map's keys; what changed and what needs you are the agents pane's (`W`). h l move between columns, j k
 /// between cards. The graph is drawn at its own size or larger, never smaller: a plan too large for the pane scrolls,

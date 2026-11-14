@@ -2523,6 +2523,7 @@ final class AppModel {
         if goals.swarmForm != nil || goals.planDraft != nil, answerSwarmText(stroke) { return true }
         if goals.spawnTyping, answerSpawnText(stroke) { return true }
         if goals.personas.draft != nil, answerPersonaText(stroke) { return true }
+        if goals.wizard.typing != nil, answerWizardText(stroke) { return true }
         if filtering {
             if stroke == KeyStroke("v", .command) {
                 if let text = NSPasteboard.general.string(forType: .string) { pasteFilter(text) }
@@ -3131,6 +3132,10 @@ final class AppModel {
              "approvals.deny.reason", "approvals.always", "approvals.allow.all", "approvals.deny.all",
              "approvals.allow.read", "approvals.session":
             _ = performApprovals(command)
+        case "goal.wizard", "goal.tldr", "wizard.leave", "wizard.next", "wizard.step", "wizard.row", "wizard.pick",
+             "wizard.answer", "wizard.smaller", "wizard.talk", "wizard.drop", "wizard.invite", "wizard.invite.pick",
+             "wizard.use", "wizard.define", "wizard.later", "tldr.copy", "tldr.act":
+            _ = performWizard(command)
         default:
             flash = "\(command.name): not built yet"
         }
@@ -8419,6 +8424,13 @@ final class AppModel {
         state.goalAsks = goals.attach.asks.count
         state.goalSources = goals.snapshot.sources.values.reduce(0) { $0 + $1.sources.count }
         state.goalAccepted = goals.reviewers.reduce(0) { $0 + $1.objections.count { $0.state == .acceptedRisk } }
+        let wizard = goals.wizard.current
+        state.wizardStep = wizard?.step.rawValue ?? ""
+        state.wizardTurns = wizard?.plan.turns.count { $0.role == .heed } ?? 0
+        state.wizardAnswers = wizard?.plan.answers ?? 0
+        state.wizardRounds = wizard?.panel.rounds.count ?? 0
+        state.wizardCriteria = wizard?.criteria.criteria.count ?? 0
+        state.tldrOpen = goals.wizard.tldr != nil
         return state
     }
 

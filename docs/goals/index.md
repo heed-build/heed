@@ -12,7 +12,12 @@ it, and its `GOAL.md` says what the goal is, what it is not, when it is done, wh
 
 ## A new goal, step by step
 
-A new goal opens on its overview with a **Next step** card: what to do now, why it matters, and its key or button.
+`n` in Goals makes a goal and walks it through the new-goal wizard: talk the plan through, have a panel of personas
+read it, and say what done looks like, before any work starts. [Your first goal](first-goal.md) walks through it. A
+goal made another way (`:goal.new` with a title, or from a session) opens on its overview as below, and
+`:goal.wizard` walks it through the wizard whenever you like.
+
+A goal made without the wizard opens on its overview with a **Next step** card: what to do now, why it matters, and its key or button.
 Beside it are all the first steps, each ticked off by what is true of the goal, never by a click:
 
 1. **Sharpen it** (`w`). A model suggests what the goal is and what it is not; each suggestion waits in `GOAL.md` for
@@ -77,10 +82,11 @@ bars ([Quality bars](quality.md)). It shows `–` until there is something to co
 | `X` | Stranger walks of the goal, their friction logs and scores ([Evaluations](evaluations.md)); again, the overview |
 | `M` | Mirror the goal to GitHub for colleagues to follow; again, stop ([GitHub mirror](github.md)) |
 | `S` | The goal's swarm: its plan, the lead's questions, versions and steering ([Swarms](swarms/index.md)); again, the overview |
-| `W` `T` | The swarm's agents and its map, once its plan is approved; again, the overview |
+| `W` `V` | The swarm's agents and its map (view it), once its plan is approved; again, the overview |
+| `T` | The goal's TL;DR: where it stands, what is settled and what is still open ([Your first goal](first-goal.md#tldr)) |
 | `U` | Unassigned: how heed put new work on goals, and its asks ([How work finds its goal](attach.md)) |
 
-The capitals that open a goal's panes, `E` `B` `R` `P` `X` `U` `S` `W` `T`, work the same from every pane of Goals, and no
+The capitals that open a goal's panes, `E` `B` `R` `P` `X` `U` `S` `W` `V`, and `T` for the TL;DR, work the same from every pane of Goals, and no
 pane uses one for anything else. In a pane, a lowercase key acts on the thing under the cursor and means the same
 wherever it applies: `s` starts a session on it, `c` a chat about it, `e` edits it, `x` drops it, `a` adds one (on the
 board and in a swarm's plan), `r` does it again, and `y` and `n` answer a change waiting for you.

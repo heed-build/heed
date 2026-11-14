@@ -94,6 +94,14 @@ public struct TutorState: Equatable, Sendable {
     public var goalAccepted = 0
     /// Item sources on all goals.
     public var goalSources = 0
+    /// The new-goal wizard that shows: its step (`WizardStep`'s raw value, empty when none shows), heed's turns and
+    /// your answers in Plan, the panel's rounds, the criteria drafted; and whether the TL;DR is open.
+    public var wizardStep = ""
+    public var wizardTurns = 0
+    public var wizardAnswers = 0
+    public var wizardRounds = 0
+    public var wizardCriteria = 0
+    public var tldrOpen = false
 
     public init() {}
 }

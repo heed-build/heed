@@ -11,7 +11,8 @@ import Foundation
 /// readers and writers, and a migration only when they need a column. Issue refs for the GitHub mirror have their
 /// columns already: `goals.tracker_repo`/`tracker_issue` (the meta issue) and `goal_items.issue_number` (sub-issues);
 /// migration 2 adds `goal_mirrors`, the mirror's own state per goal; migration 3 swarm runs, their plan versions and
-/// their steering log; migration 4 `goal_sources`, each goal's item sources.
+/// their steering log; migration 4 `goal_sources`, each goal's item sources; migration 5 `goal_wizards`, each goal's
+/// walk through the new-goal wizard.
 public final class GoalStore {
     let database: SQLiteDatabase
 
@@ -160,6 +161,14 @@ public final class GoalStore {
         // sync.
         SQLiteMigration(sql: """
         CREATE TABLE goal_sources (
+            goal TEXT PRIMARY KEY REFERENCES goals (id),
+            data TEXT NOT NULL
+        );
+        """),
+        // A goal's walk through the new-goal wizard (`GoalWizard`): its step, the plan conversation, the panel, the
+        // criteria and the TL;DR, so leaving the wizard and coming back resumes it.
+        SQLiteMigration(sql: """
+        CREATE TABLE goal_wizards (
             goal TEXT PRIMARY KEY REFERENCES goals (id),
             data TEXT NOT NULL
         );
@@ -351,11 +360,11 @@ public final class GoalStore {
         return decoder
     }()
 
-    private static func json(_ value: some Encodable) throws -> SQLiteValue {
+    static func json(_ value: some Encodable) throws -> SQLiteValue {
         try .text(String(decoding: encoder.encode(value), as: UTF8.self))
     }
 
-    private static func decode<T: Decodable>(_ type: T.Type, _ value: SQLiteValue) -> T? {
+    static func decode<T: Decodable>(_ type: T.Type, _ value: SQLiteValue) -> T? {
         value.text.flatMap { try? decoder.decode(type, from: Data($0.utf8)) }
     }
 

@@ -327,7 +327,7 @@ public enum DefaultKeys {
             ("t", "approvals.deny.reason"), ("gS", "approvals.session"), ("gy", "approvals.open"),
             ("<Esc>", "overlay.close"),
         ],
-    ]
+    ].merging(WizardKeys.scoped) { own, _ in own }
 
     /// Autopilot's Now (N): the PRs heed works on, stalled first; h l move between the helpers' live tiles above
     /// them (↩ opens one in a split, j k go back to the PRs). A asks Copilot (C is Can do, as in every Autopilot
@@ -390,6 +390,8 @@ public enum DefaultKeys {
     static let goalShared: [(String, String)] = [
         ("<CR>", "goal.open"), ("<Tab>", "goal.focus"), ("<S-Tab>", "goal.focus"),
         ("M", "goal.mirror"), ("Y", "goal.mirror.yes"), ("K", "goal.mirror.no"),
+        // T: the goal's TL;DR, the same key as in the new-goal wizard.
+        ("T", "goal.tldr"),
     ] + goalPanes
 
     /// Every view of Goals, by key scope: the list and overview, and each pane of a goal.
@@ -403,7 +405,7 @@ public enum DefaultKeys {
     public static let goalPanes: [(String, String)] = [
         ("E", "goal.doc"), ("B", "goal.board"), ("R", "goal.reviewers"), ("P", "goal.personas"),
         ("X", "goal.evaluations"), ("U", "goal.unassigned"), ("S", "goal.swarm"), ("W", "goal.agents"),
-        ("T", "goal.map"),
+        ("V", "goal.map"),
     ]
 
     /// Goals' list keys with `overrides` laid over (an empty command drops the key): GOAL.md, where the goal is the

@@ -403,3 +403,43 @@ struct SessionPanelConfigTests {
         #expect(decoded.problems.map(\.path) == ["personas.offers"])
     }
 }
+
+struct SessionPanelMenuTests {
+    @Test func aSessionsMenuAsksThePanelOrOnePersona() throws {
+        var facts = ContextMenus.SessionFacts(id: "s", title: "Fix it")
+        facts.panelPersonas = ["Skeptic", "Docs-site maintainer"]
+        let menu = ContextMenus.session(facts)
+        let found = menu
+            .compactMap { if case let .submenu(title, items) = $0, title == "Ask the panel…" { items } else { nil } }
+        let items = try #require(found.first)
+        #expect(items.map(\.title) == ["The relevant personas", "Only Skeptic", "Only Docs-site maintainer"])
+        #expect(items.map(\.command.name) == ["panel.ask", "panel.ask", "panel.ask"])
+        #expect(items[2].command.arguments == ["Docs-site maintainer"])
+        #expect(items.allSatisfy { $0.command.target == .session("s") })
+        // A chat has no diff to look at.
+        facts.chat = true
+        #expect(!ContextMenus.session(facts)
+            .contains { if case .submenu("Ask the panel…", _) = $0 { true } else { false } })
+    }
+
+    @Test func gLAsksThePanelAndTheOfferHasItsOwnKeys() {
+        #expect(DefaultKeys.normal.contains { $0 == ("gL", "panel.ask") })
+        let offer = DefaultKeys.scoped["sessionsoffer"] ?? []
+        #expect(offer.contains { $0 == ("x", "panel.notnow") })
+        let pr = DefaultKeys.scoped["sessionspanelpr"] ?? []
+        #expect(pr.contains { $0 == ("h", "panel.pr hold") })
+    }
+}
+
+struct SessionPanelFixtureTests {
+    @Test func theFakeWorldsLookReadsAndNamesItsPersonaOnce() {
+        let library = SessionPanelFixtures.library()
+        let repos = ["acme/docs-toolkit", "acme/docs-website"]
+        let look = SessionPanelFixtures.look(
+            SessionPanelFixtures.built(at: start), library: library, repos: repos
+        )
+        #expect(look.verdicts.count == 3)
+        #expect(look.topLine == "team style: test names describe the bug, not the behaviour")
+        #expect(SessionPanelInvites.relevant(library, repos: repos).count == 3)
+    }
+}

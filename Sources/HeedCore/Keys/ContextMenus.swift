@@ -173,7 +173,9 @@ public enum ContextMenus {
         ])
         if facts.chat { menu.section([item("Promote to work…", "chat.promote")]) }
         menu.submenu("Hand off to…", handoffItems(facts.handoffAgents, target: target))
-        if repo { menu.submenu("Ask the panel…", panelItems(facts.panelPersonas, target: target)) }
+        if repo, !facts.panelPersonas.isEmpty {
+            menu.submenu("Ask the panel…", panelItems(facts.panelPersonas, target: target))
+        }
         menu.section(goalItems(facts, target: target))
         menu.section(repo ? [
             item("Close, keep worktree", "session.close"),

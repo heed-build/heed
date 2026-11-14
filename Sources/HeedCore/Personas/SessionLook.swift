@@ -48,7 +48,9 @@ public struct SessionLook: Hashable, Sendable, Codable {
     public var topLine: String? {
         guard let top else { return nil }
         let who = seat(top.seat).map { Self.short($0.name) } ?? top.seat
-        return "\(who): " + Self.words(top.fix ?? top.quote, limit: 9)
+        let words = Self.words(top.fix ?? top.quote, limit: 12)
+        // A fix that names its persona already ("team style: …") is not named twice.
+        return words.lowercased().hasPrefix(who + ":") ? words : "\(who): " + words
     }
 
     /// "Your team's style" → "team style", "Docs-site maintainer" → "docs-site maintainer".

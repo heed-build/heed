@@ -135,8 +135,18 @@ struct SessionPanelLineView: View {
         case let .offer(milestone):
             let personas = model.panelAvatars(for: session)
             PersonaStack(personas: personas, size: 22)
-            lead(milestone.kind.title, details: milestone.details.joined(separator: " · "))
-            Spacer(minLength: 8)
+            // The agent's words go first when the line is short of room; the counts stay.
+            ViewThatFits(in: .horizontal) {
+                lead(milestone.kind.title, details: milestone.details.joined(separator: " · ")).fixedSize()
+                lead(
+                    milestone.kind.title,
+                    details: milestone.details.filter { !$0.hasPrefix("\u{201C}") }
+                        .joined(separator: " · ")
+                )
+                .fixedSize()
+                lead(milestone.kind.title, details: "")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Text("Ask \(personas.count) persona\(personas.count == 1 ? "" : "s") for a look?")
                 .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).lineLimit(1).fixedSize()
             PanelButton(
@@ -487,7 +497,7 @@ struct PersonasInSessions: View {
             )
         case .saysDone: ("checkmark", "\"done\", \"ready for review\" in its turn's end", nil)
         case .beforePR: (
-                "arrow.triangle.pull", "holds gh pr create for up to \(settings.holdSeconds / 60) min",
+                "arrow.triangle.branch", "holds gh pr create for up to \(settings.holdSeconds / 60) min",
                 "asks first"
             )
         case .secondRepo: ("folder", "the session starts changing another repo", nil)
@@ -499,7 +509,8 @@ struct PersonasInSessions: View {
                 .frame(width: 30, height: 30)
                 .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg3))
             VStack(alignment: .leading, spacing: 2) {
-                Text(kind.title).font(Theme.ui(14, weight: .semibold)).foregroundStyle(Theme.fg)
+                Text(kind == .beforePR ? "Before a PR opens" : kind.title).font(Theme.ui(14, weight: .semibold))
+                    .foregroundStyle(Theme.fg)
                 Text(detail).font(Theme.ui(12)).foregroundStyle(Theme.fg2).lineLimit(1)
             }
             Spacer(minLength: 8)

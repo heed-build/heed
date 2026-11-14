@@ -362,6 +362,7 @@ struct SettingsPageBody: View {
         case .notifications: NotificationsPage()
         case .updates: UpdatesPage()
         case .agents: AgentsPage()
+        case .personas: PersonasPage()
         case .modelCalls: ModelCallsPage()
         case .decisions: DecisionsPage()
         case .worktrees: WorktreesPage()

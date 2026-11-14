@@ -54,6 +54,22 @@ public enum NextStep: Hashable, Sendable {
         }
     }
 
+    /// The row's short mark, right-aligned on its reasons line (`▶ merge it`): only when heed would act. Nil when
+    /// there is nothing to do or heed waits on others.
+    public var chip: String? {
+        switch self {
+        case .review: "▶ review"
+        case .draftReply: "▶ reply"
+        case let .getGreen(_, merge): merge ? "▶ green + merge" : "▶ get it green"
+        case .resolveConflict: "▶ resolve"
+        case .merge: "▶ merge it"
+        case .setUpAutopilot: "▶ set up"
+        case .startWork: "▶ start"
+        case .helping: "▶ heed is on it"
+        case .nothing: nil
+        }
+    }
+
     /// The one button's word: `Review it`, `Draft it`, `Do it`.
     public var button: String? {
         switch self {

@@ -52,7 +52,7 @@ What happens: how many parts start now and on how many agents, how long it takes
 beyond what you pay already against the budget (≥ when some agents cannot be priced), the PRs and their repos, and
 your agents, with a ring where heed knows what is left of one's limit.
 
-`⌘↩` starts it. The level goes on the goal, the split becomes the goal's swarm with its parts as the first plan
+`⌘↩` starts it (the button says how many parts start now, and how many there are in all). The level goes on the goal, the split becomes the goal's swarm with its parts as the first plan
 version, approved, and running: its lead starts and briefs, and the first parts start on their agents as helpers or
 terminals per Who works. A part on GitHub's Copilot agent works on GitHub either way. `S` saves it for later: the
 wizard waits at Go, and `↩` on the goal comes back to it.
@@ -66,9 +66,22 @@ wizard waits at Go, and `↩` on the goal comes back to it.
 
 A goal with lanes is a swarm: Go fills in what [the swarm form](swarms/index.md) used to ask (repos from the parts,
 the lead from the split, a worker seat per agent, limits from At once, the time and the budget, the merge mode) and
-the [swarm machinery](swarms/index.md) runs it from there. A helper worker's permission asks join the
-[approvals](../agents/approvals.md), and its feed shows in Autopilot's Now; `s` on its part on the goal's page opens
-it.
+the [swarm machinery](swarms/index.md) runs it from there.
+
+### Parts on helpers
+
+A helper worker's permission asks join the [approvals](../agents/approvals.md), and its feed shows in Autopilot's
+Now; `s` on its part on the goal's page opens it.
+
+- **Its model.** The part's model goes to the helper's session as ACP's `model` session config option
+  (`session/set_config_option`) before its first prompt. Claude's adapter (`claude-agent-acp`) takes it, aliases or
+  model ids. An adapter without the option keeps its own default, and the helper's feed says so.
+- **What it is told.** An answer its `heed goal ask` is waiting on, it reads itself. Anything else for it (an answer
+  it stopped waiting for, a message from the lead or another part) goes over ACP: a prompt at once when it is between
+  turns, else the next prompt once its turn ends (ACP cannot add to a turn under way). A message from you is urgent:
+  its turn is cancelled and your words start the next, as the helper's steer box does. Each hand-over is in the
+  swarm's steering log with how it went (through its ACP session, or queued there for the next prompt). A helper
+  whose turn ends with mail waiting goes on with it instead of ending.
 
 ## In the list
 

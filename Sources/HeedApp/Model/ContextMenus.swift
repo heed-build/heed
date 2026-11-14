@@ -24,6 +24,8 @@ extension AppModel {
         facts.chat = session.isChat
         facts.scratch = session.chat?.kind == .scratch && session.location.isLocal
         facts.goal = goals.bySession[id]?.title
+        facts.panelPersonas = session.isChat ? []
+            : SessionPanelInvites.choices(personaLibrary, repos: session.involvedRepos.map(\.slug)).map(\.name)
         return facts
     }
 

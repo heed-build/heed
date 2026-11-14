@@ -97,6 +97,29 @@ command = ""
 # no cost is stopped by [pilot] run_timeout only.
 spend_cap = 0.5
 
+[personas]
+# Personas in sessions: quiet by default. Nothing while the agent works; heed offers a look by the personas whose
+# scope covers the session's repo (and that join sessions, Settings › Personas) only when one of these happens,
+# once each. They read the agent's plan or last message and the diff; they never type into the session.
+# A lot got built: this many files, or lines, changed since the last look.
+built = true
+built_files = 10
+built_lines = 300
+# The agent says it's done ("done", "ready for review") at its turn's end.
+says_done = true
+# Before a PR opens: the agent's gh pr create is held (through its permission hook) for up to hold_seconds while
+# the panel looks; with a concern you choose: let it open, send the concern first, or hold the PR. Then it goes
+# on as it would have. At most 180.
+before_pr = true
+hold_seconds = 120
+# The session starts changing another repo.
+second_repo = false
+# Hours of work since the panel last looked.
+long = false
+long_hours = 4
+# At a milestone: "ask" (a line at the session's foot), "look" (without asking) or "never".
+offers = "ask"
+
 [github]
 # How often the view on screen refreshes from GitHub; the others refresh five times less often.
 poll_seconds = 60

@@ -31,6 +31,10 @@ final class PersonaLibraryBrowser {
     }
 
     var filter: PersonaSource?
+    /// The page shows when personas look at sessions (Settings › Personas › In sessions), and the milestone under
+    /// its cursor.
+    var inSessions = false
+    var signal = 0
     private(set) var cursor = 0
     /// The persona file under the cursor, as it is being edited, while it is.
     var draft: String?
@@ -57,6 +61,7 @@ final class PersonaLibraryBrowser {
     var scope: String {
         if !defining.isEmpty { return "personadefine" }
         if adding != nil { return "personaadd" }
+        if inSessions { return "personasessions" }
         return "personas"
     }
 

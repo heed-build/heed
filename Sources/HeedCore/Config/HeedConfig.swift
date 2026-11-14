@@ -67,6 +67,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var goals = GoalSettings()
     /// `[helpers]`: the agent helpers run over ACP, and what one may spend.
     public var helpers = HelperSettings()
+    /// `[personas]`: when the library's personas look at a session's work.
+    public var personas = SessionPanelSettings()
 
     public struct RepoConfig: Equatable, Sendable {
         public var color: String?
@@ -128,6 +130,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.local == rhs.local,
             lhs.startWork == rhs.startWork,
             lhs.goals == rhs.goals,
+            lhs.personas == rhs.personas,
         ]
         return !same.contains(false)
     }
@@ -287,6 +290,29 @@ public enum ConfigLoader {
                 problems.append(ConfigProblem(
                     path: "helpers.spend_cap",
                     message: "expected a number of dollars, 0 or more"
+                ))
+            }
+        }
+        // [personas]
+        for (key, path) in [
+            ("built", \SessionPanelSettings.built), ("says_done", \.saysDone), ("before_pr", \.beforePR),
+            ("second_repo", \.secondRepo), ("long", \.long),
+        ] as [(String, WritableKeyPath<SessionPanelSettings, Bool>)] {
+            if let flag = bool(["personas", key]) { config.personas[keyPath: path] = flag }
+        }
+        if let files = integer(["personas", "built_files"], range: 1 ... 1000) { config.personas.builtFiles = files }
+        if let lines = integer(["personas", "built_lines"], range: 1 ... 100_000) { config.personas.builtLines = lines }
+        if let seconds = integer(["personas", "hold_seconds"], range: 0 ... SessionPanelSettings.maxHold) {
+            config.personas.holdSeconds = seconds
+        }
+        if let hours = integer(["personas", "long_hours"], range: 1 ... 168) { config.personas.longHours = hours }
+        if let text = string(["personas", "offers"]) {
+            if let offers = SessionPanelSettings.Offers(rawValue: text) {
+                config.personas.offers = offers
+            } else {
+                problems.append(ConfigProblem(
+                    path: "personas.offers",
+                    message: "expected \"ask\", \"look\" or \"never\""
                 ))
             }
         }
@@ -1047,6 +1073,29 @@ public enum ConfigLoader {
     # Dollars one helper may spend before heed stops it, from what its agent reports; 0: no cap. An agent that reports
     # no cost is stopped by [pilot] run_timeout only.
     spend_cap = 0.5
+
+    [personas]
+    # Personas in sessions: quiet by default. Nothing while the agent works; heed offers a look by the personas whose
+    # scope covers the session's repo (and that join sessions, Settings › Personas) only when one of these happens,
+    # once each. They read the agent's plan or last message and the diff; they never type into the session.
+    # A lot got built: this many files, or lines, changed since the last look.
+    built = true
+    built_files = 10
+    built_lines = 300
+    # The agent says it's done ("done", "ready for review") at its turn's end.
+    says_done = true
+    # Before a PR opens: the agent's gh pr create is held (through its permission hook) for up to hold_seconds while
+    # the panel looks; with a concern you choose: let it open, send the concern first, or hold the PR. Then it goes
+    # on as it would have. At most 180.
+    before_pr = true
+    hold_seconds = 120
+    # The session starts changing another repo.
+    second_repo = false
+    # Hours of work since the panel last looked.
+    long = false
+    long_hours = 4
+    # At a milestone: "ask" (a line at the session's foot), "look" (without asking) or "never".
+    offers = "ask"
 
     [github]
     # How often the view on screen refreshes from GitHub; the others refresh five times less often.

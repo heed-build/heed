@@ -26,7 +26,55 @@ extension SettingsCatalog {
     // MARK: Global settings
 
     static let globalEntries: [SettingsEntry] = general + notifications + updates + modelCalls + decisions
-        + worktrees + goals + history + github + pilot + helpers + attention + tools + keys
+        + personas + worktrees + goals + history + github + pilot + helpers + attention + tools + keys
+
+    /// Settings › Personas › In sessions: when the library's personas look at a session's work.
+    static let personas: [SettingsEntry] = [
+        global(
+            "personas.built", .personas, "In sessions", "A lot got built",
+            "Offer a look once files or lines changed since the last look pass built_files or built_lines.",
+            since: "0.42.0"
+        ) { .bool($0.personas.built) },
+        global(
+            "personas.built_files", .personas, "In sessions", "Files", "Files changed since the last look.",
+            level: .advanced, since: "0.42.0"
+        ) { .integer($0.personas.builtFiles) },
+        global(
+            "personas.built_lines", .personas, "In sessions", "Lines", "Lines changed since the last look.",
+            level: .advanced, since: "0.42.0"
+        ) { .integer($0.personas.builtLines) },
+        global(
+            "personas.says_done", .personas, "In sessions", "The agent says it's done",
+            "Offer a look when the agent's turn ends on \"done\" or \"ready for review\".", since: "0.42.0"
+        ) { .bool($0.personas.saysDone) },
+        global(
+            "personas.before_pr", .personas, "In sessions", "Before a PR opens",
+            "Hold the agent's gh pr create (through its permission hook) while the panel looks; with a concern, you "
+                + "choose: let it open, send the concern first, or hold the PR.",
+            since: "0.42.0"
+        ) { .bool($0.personas.beforePR) },
+        global(
+            "personas.hold_seconds", .personas, "In sessions", "Hold for",
+            "How long a PR waits for the panel and your choice before it goes on as it would have. At most 180.",
+            level: .advanced, since: "0.42.0"
+        ) { .integer($0.personas.holdSeconds) },
+        global(
+            "personas.second_repo", .personas, "In sessions", "A second repo",
+            "Offer a look when the session starts changing another repo.", since: "0.42.0"
+        ) { .bool($0.personas.secondRepo) },
+        global(
+            "personas.long", .personas, "In sessions", "Long without a look",
+            "Offer a look after long_hours of work since the panel last looked.", since: "0.42.0"
+        ) { .bool($0.personas.long) },
+        global(
+            "personas.long_hours", .personas, "In sessions", "Hours", "Hours of work since the panel last looked.",
+            level: .advanced, since: "0.42.0"
+        ) { .integer($0.personas.longHours) },
+        global(
+            "personas.offers", .personas, "In sessions", "When it offers",
+            "At a milestone: ask (a line at the session's foot), look (without asking) or never.", since: "0.42.0"
+        ) { .text($0.personas.offers.rawValue) },
+    ]
 
     static let general: [SettingsEntry] = [
         global(

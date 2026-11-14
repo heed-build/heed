@@ -27,15 +27,15 @@ This page is generated from the code (`mise run shots`).
 | `session.attention` | `ga` | next session needing you |
 | `session.park` | `zz` | park session |
 | `session.close` | `x` | close session, keep worktree |
-| `session.delete` | `dd` (sessions), `dd` (sessionshelper), `dd` (sessionshelpers), `dd` (sessionspromote) | delete session and its worktrees (asks first) |
-| `session.import` `[path]` | `Iw` (sessions), `Iw` (sessionshelper), `Iw` (sessionshelpers), `Iw` (sessionspromote) | import a worktree Heed does not manage yet as a session |
-| `session.import.path` | `Ip` (sessions), `Ip` (sessionshelper), `Ip` (sessionshelpers), `Ip` (sessionspromote) | import the worktree at a path (any repo, anywhere) |
+| `session.delete` | `dd` (sessions), `dd` (sessionshelper), `dd` (sessionshelpers), `dd` (sessionsoffer), `dd` (sessionspanel), `dd` (sessionspanelchat), `dd` (sessionspanelpr), `dd` (sessionspromote) | delete session and its worktrees (asks first) |
+| `session.import` `[path]` | `Iw` (sessions), `Iw` (sessionshelper), `Iw` (sessionshelpers), `Iw` (sessionsoffer), `Iw` (sessionspanel), `Iw` (sessionspanelchat), `Iw` (sessionspanelpr), `Iw` (sessionspromote) | import a worktree Heed does not manage yet as a session |
+| `session.import.path` | `Ip` (sessions), `Ip` (sessionshelper), `Ip` (sessionshelpers), `Ip` (sessionsoffer), `Ip` (sessionspanel), `Ip` (sessionspanelchat), `Ip` (sessionspanelpr), `Ip` (sessionspromote) | import the worktree at a path (any repo, anywhere) |
 | `session.pin` | `m` | pin / unpin session |
-| `session.rename` `[title]` | `R` (sessions), `R` (sessionshelper), `R` (sessionshelpers), `R` (sessionspromote) | give the session your title, which heed keeps (no title: the command line opens with it) |
+| `session.rename` `[title]` | `R` (sessions), `R` (sessionshelper), `R` (sessionshelpers), `R` (sessionsoffer), `R` (sessionspanel), `R` (sessionspanelchat), `R` (sessionspanelpr), `R` (sessionspromote) | give the session your title, which heed keeps (no title: the command line opens with it) |
 | `session.autoname` |  | let heed name the session again, from what it is doing |
-| `session.kind` `[kind]` | `K` (sessions), `K` (sessionshelper), `K` (sessionshelpers), `K` (sessionspromote) | what the work is: feat, fix, refactor, docs, chore or plan (no argument: the next) |
+| `session.kind` `[kind]` | `K` (sessions), `K` (sessionshelper), `K` (sessionshelpers), `K` (sessionsoffer), `K` (sessionspanel), `K` (sessionspanelchat), `K` (sessionspanelpr), `K` (sessionspromote) | what the work is: feat, fix, refactor, docs, chore or plan (no argument: the next) |
 | `session.back` | `''` | back to previous session |
-| `session.agent` | `<CR>` (sessions), `<CR>` (sessionshelper) | INSERT into the session's agent pane (the focused pane when it has none) |
+| `session.agent` | `<CR>` (sessions), `<CR>` (sessionshelper), `<CR>` (sessionsoffer), `<CR>` (sessionspanelchat) | INSERT into the session's agent pane (the focused pane when it has none) |
 | `session.open` `<words>` |  | go to the session matching these words |
 | `pin.jump` `<1-9>` | `'1`, `'2`, `'3`, `'4`, `'5`, `'6`, `'7`, `'8`, `'9` | jump to pinned session |
 | `work.start` | `o` | start work |
@@ -59,6 +59,8 @@ This page is generated from the code (`mise run shots`).
 | `split.move` `<h|j|k|l>` | `h` (splitfold), `l` (splitfold), `j` (splitfold), `k` (splitfold), `<Left>` (splitfold), `<Right>` (splitfold), `<Down>` (splitfold), `<Up>` (splitfold), `h` (wizardsplit), `l` (wizardsplit), `j` (wizardsplit), `k` (wizardsplit), `<Left>` (wizardsplit), `<Right>` (wizardsplit), `<Down>` (wizardsplit), `<Up>` (wizardsplit) | Split: the board's cursor: h l the part before or after in time, j k the agent below or above |
 | `page.move` `<h|j|k|l>` | `h` (goalpage), `l` (goalpage), `j` (goalpage), `k` (goalpage) | the goal's page: h l the part before or after in time, j k the agent below or above (without a part: the goals) |
 | `personas.move` `<1|-1>` | `j` (personaadd), `k` (personaadd), `<Down>` (personaadd), `<Up>` (personaadd), `j` (personas), `k` (personas) | Personas: the persona below (1) or above (-1) |
+| `panel.row` `<1|-1>` | `j` (sessionspanel), `k` (sessionspanel), `<Down>` (sessionspanel), `<Up>` (sessionspanel), `j` (sessionspanelpr), `k` (sessionspanelpr), `<Down>` (sessionspanelpr), `<Up>` (sessionspanelpr) | the panel's popover: the persona below (1) or above (-1) |
+| `personas.signal` `<1|-1>` | `j` (personasessions), `k` (personasessions) | Personas in sessions: the milestone below (1) or above (-1) |
 
 ## Panes & tabs
 
@@ -146,10 +148,10 @@ This page is generated from the code (`mise run shots`).
 | `inspector.copy` `<path>` |  | copy a path to the pasteboard |
 | `sidebar.toggle` | `zs` | collapse / expand the sessions sidebar |
 | `sidebar.titles` | `zt` | show session titles / worktree names in the sidebar rows |
-| `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions), `zG` (sessionshelper), `zG` (sessionshelpers), `zG` (sessionspromote) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
-| `sessions.sort` `[attention|touched|idle|started|size]` | `T` (sessions), `T` (sessionshelper), `T` (sessionshelpers), `T` (sessionspromote) | sort the sessions: attention, you recent first, idle longest, started, size (no argument: next) |
-| `sessions.rows` `[one|two]` | `zR` (sessions), `zR` (sessionshelper), `zR` (sessionshelpers), `zR` (sessionspromote) | one line or two per session in the sidebar |
-| `sessions.close.ready` | `X` (sessions), `X` (sessionshelpers), `X` (sessionspromote) | close every session in Can close (its PRs merged or closed, nothing left open), after asking |
+| `sessions.group` `[status|campaign|repo|none]` | `zG` (sessions), `zG` (sessionshelper), `zG` (sessionshelpers), `zG` (sessionsoffer), `zG` (sessionspanel), `zG` (sessionspanelchat), `zG` (sessionspanelpr), `zG` (sessionspromote) | group the sessions by status, campaign, repo or not at all (no argument: the next) |
+| `sessions.sort` `[attention|touched|idle|started|size]` | `T` (sessions), `T` (sessionshelper), `T` (sessionshelpers), `T` (sessionsoffer), `T` (sessionspanel), `T` (sessionspanelchat), `T` (sessionspanelpr), `T` (sessionspromote) | sort the sessions: attention, you recent first, idle longest, started, size (no argument: next) |
+| `sessions.rows` `[one|two]` | `zR` (sessions), `zR` (sessionshelper), `zR` (sessionshelpers), `zR` (sessionsoffer), `zR` (sessionspanel), `zR` (sessionspanelchat), `zR` (sessionspanelpr), `zR` (sessionspromote) | one line or two per session in the sidebar |
+| `sessions.close.ready` | `X` (sessions), `X` (sessionshelpers), `X` (sessionsoffer), `X` (sessionspanel), `X` (sessionspanelchat), `X` (sessionspanelpr), `X` (sessionspromote) | close every session in Can close (its PRs merged or closed, nothing left open), after asking |
 | `config.edit` |  | open config.toml in $EDITOR |
 | `tutor` `[lesson]` | `<D-T>`, `<D-T>` (INSERT) | the tutor: pick a lesson, or start one by name (tour, sessions, prs…) |
 | `tutor.hide` `[all]` |  | hide the title bar's tutor reminder for this lesson (all: every reminder) |
@@ -186,11 +188,12 @@ This page is generated from the code (`mise run shots`).
 | `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup), `D` (telemetry) | Insights' dashboard: what shipped, agent time, your bests, goals; where Insights opens |
 | `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup), `U` (telemetry) | Insights' standup: your questions answered per org (again: back to the dashboard) |
 | `history.telemetry` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (standup), `T` (telemetry) | Insights' OpenTelemetry: the agents' own spans, latency, waits and cost (again: back to the dashboard) |
-| `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (sessionshelpers), `t` (sessionspromote), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
+| `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (sessionshelpers), `t` (sessionsoffer), `t` (sessionspanel), `t` (sessionspanelchat), `t` (sessionspanelpr), `t` (sessionspromote), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
 | `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 | `goal.wizard` `[goal]` |  | Goals: walk the goal through the new-goal wizard (plan, panel, done looks like, …); where it was left, it resumes |
 | `goal.tldr` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpage), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (splitdefine), `T` (splitfold), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (unassigned), `T` (wizardcareful), `T` (wizardchat), `T` (wizarddone), `T` (wizardgo), `T` (wizardpanel), `T` (wizardplan), `T` (wizardsplit) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
 | `personas.open` |  | Settings › Personas: the people heed asks for a view, in one library |
+| `personas.sessions` | `s` (personas), `s` (personasessions), `<Esc>` (personasessions) | Settings › Personas: the library, or when personas look at sessions |
 
 ## Modes
 
@@ -527,3 +530,13 @@ This page is generated from the code (`mise run shots`).
 | `personas.next` | `n` (personadefine) | defining a persona: the next picked persona |
 | `personas.save` | `<D-CR>` (personadefine) | defining a persona: save it into the library |
 | `personas.close` | `<Esc>` (personaadd), `<Esc>` (personadefine) | Personas: close Add a persona, or the persona being defined (nothing saved) |
+| `panel.ask` `[persona…]` | `gL` | ask the panel for a look at the session's work: yes to its offer, open its verdict, or ask now (a cheap model call); with names, only those personas |
+| `panel.notnow` | `x` (sessionsoffer) | the panel's offer: not now (the next milestone offers again) |
+| `panel.never` | `N` (sessionsoffer) | the panel's offer: never in this session (you can still ask) |
+| `panel.send` | `<CR>` (sessionspanel) | the panel's verdict: send its concerns to the agent (its inbox, else typed under the usual rules) |
+| `panel.talk` | `i` (sessionspanel), `<Esc>` (sessionspanelchat) | the panel's verdict: talk to the persona under the cursor (again: close the chat) |
+| `panel.say` | `i` (sessionspanelchat) | talking to a persona: type to it |
+| `panel.dismiss` | `x` (sessionspanel) | the panel's verdict: dismiss it |
+| `panel.close` | `<Esc>` (sessionspanel), `<Esc>` (sessionspanelpr) | close the panel's popover |
+| `panel.pr` `<open|concern|hold>` | `<CR>` (sessionspanelpr), `s` (sessionspanelpr), `h` (sessionspanelpr) | a PR held for the panel: let it open, send the concern first, or hold the PR |
+| `personas.signal.toggle` | `<Space>` (personasessions) | Personas in sessions: the milestone under the cursor on or off |

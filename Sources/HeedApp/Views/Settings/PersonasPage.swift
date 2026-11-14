@@ -14,6 +14,28 @@ struct PersonasPage: View {
         let ui = model.personaUI
         let rows = model.personaRows
         let selected = model.selectedLibraryEntry
+        Group {
+            if ui.inSessions {
+                // In sessions (s): when personas look at a session's work.
+                VStack(alignment: .leading, spacing: 14) {
+                    PersonasHeader()
+                    PersonasInSessions()
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 22)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } else {
+                library(ui: ui, rows: rows, selected: selected)
+            }
+        }
+        .onAppear(perform: listen)
+        .onDisappear(perform: stopListening)
+    }
+
+    private func library(
+        ui: PersonaLibraryBrowser, rows: [PersonaLibrary.Entry], selected: PersonaLibrary.Entry?
+    ) -> some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 14) {
                 PersonasHeader()
@@ -60,8 +82,6 @@ struct PersonasPage: View {
                 PersonaSheetBackdrop { AddPersonaSheet() }
             }
         }
-        .onAppear(perform: listen)
-        .onDisappear(perform: stopListening)
     }
 
     /// Keys while the page shows, in the Settings window only: the scope's bindings, or a field's ⎋ and ⌘S.
@@ -165,6 +185,19 @@ private struct PersonasHeader: View {
             Text("the people heed asks for a view: in goal panels, and in sessions when you invite them")
                 .font(Theme.ui(13)).foregroundStyle(Theme.fg2).lineLimit(1).truncationMode(.tail)
             Spacer(minLength: 12)
+            // The library, or when they look at sessions.
+            HStack(spacing: 8) {
+                Image(systemName: model.personaUI.inSessions ? "person.2" : "rectangle.stack")
+                    .font(.system(size: 12, weight: .medium))
+                Text(model.personaUI.inSessions ? "Library" : "In sessions").font(Theme.ui(13.5))
+                KeyCap(text: model.keyText(for: "personas.sessions", in: "personas"))
+            }
+            .foregroundStyle(Theme.fg)
+            .padding(.horizontal, 12)
+            .frame(height: 32)
+            .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
+            .fixedSize()
+            .clickRuns(CommandInvocation(name: "personas.sessions"))
             HStack(spacing: 8) {
                 Image(systemName: "star").font(.system(size: 12, weight: .semibold))
                 Text("Add a persona").font(Theme.ui(13.5, weight: .semibold))

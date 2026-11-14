@@ -5,13 +5,16 @@ import Foundation
 /// session's asking state (`PermissionAsk.isQuestion`).
 ///
 /// A hook ask (`channel == .hook`) came from the agent's own permission hook, which waits for heed's answer; a screen
-/// ask is a blocked session heed knows only from its state, answered in its pane.
+/// ask is a blocked session heed knows only from its state, answered in its pane; a helper ask is a helper's ACP
+/// `session/request_permission` (`HelperApprovals`), answered with one of the options its agent offered.
 public struct PermissionAsk: Codable, Hashable, Sendable, Identifiable {
     public enum Channel: String, Codable, Sendable {
         /// The agent's permission hook is waiting on heed's answer (Claude Code, Codex).
         case hook
         /// Only the session's state says it waits: answered in its pane.
         case screen
+        /// A helper asks over ACP: answered with one of its agent's own options, from here or from its split.
+        case helper
     }
 
     /// Made by the hook that asked; the answer goes back on that hook's own connection.
@@ -41,12 +44,17 @@ public struct PermissionAsk: Codable, Hashable, Sendable, Identifiable {
     /// Allow rules the agent offered to save with a yes (Claude's `permission_suggestions`): what "always" sends back.
     public var rules: [PermissionRule]
     public var channel: Channel
+    /// For a helper ask: the helper and its PR.
+    public var helper: HelperOrigin?
+    /// For a helper ask: the answers its agent offered (allow once, allow always, reject); what is sent back is one of
+    /// their ids.
+    public var options: [ACPPermissionRequest.Option]
 
     public init(
         id: String, session: String, pane: String? = nil, agent: String, subagent: String? = nil, tool: String,
         command: String? = nil, paths: [String] = [], patch: String? = nil, url: String? = nil, why: String? = nil,
         mode: String? = nil, cwd: String? = nil, askedAt: Date, rules: [PermissionRule] = [],
-        channel: Channel = .hook
+        channel: Channel = .hook, helper: HelperOrigin? = nil, options: [ACPPermissionRequest.Option] = []
     ) {
         self.id = id
         self.session = session
@@ -64,6 +72,8 @@ public struct PermissionAsk: Codable, Hashable, Sendable, Identifiable {
         self.askedAt = askedAt
         self.rules = rules
         self.channel = channel
+        self.helper = helper
+        self.options = options
     }
 
     /// Tools that ask you something rather than for permission: never approvals.
@@ -233,6 +243,26 @@ public struct PermissionAsk: Codable, Hashable, Sendable, Identifiable {
                 return PermissionRule(toolName: tool, ruleContent: rule["ruleContent"] as? String)
             }
         }
+    }
+}
+
+/// The helper a helper ask came from: its id, and the PR it works on.
+public struct HelperOrigin: Codable, Hashable, Sendable {
+    public var id: String
+    /// `docs-toolkit`.
+    public var repo: String
+    public var number: Int
+    /// `Getting #2841 green`.
+    public var headline: String
+    /// The PR's title.
+    public var title: String
+
+    public init(id: String, repo: String, number: Int, headline: String, title: String) {
+        self.id = id
+        self.repo = repo
+        self.number = number
+        self.headline = headline
+        self.title = title
     }
 }
 

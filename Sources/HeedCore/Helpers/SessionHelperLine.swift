@@ -29,6 +29,8 @@ public struct SessionHelperLine: Hashable, Sendable {
         public var status: String
         /// `A helper is getting #2841 green`.
         public var headline: String
+        /// It waits on a permission: answered in the approvals (`gy`) as well as in its split.
+        public var asks = false
 
         /// `#2841 step 3 of 5`, `✓ #2841 pushed a3f9c1d · pull before your next change`.
         public var text: String { (standing == .finished ? "✓ " : "") + "#\(number) \(status)" }
@@ -60,6 +62,9 @@ public struct SessionHelperLine: Hashable, Sendable {
 
     /// One of its runs waits on you: the line turns amber.
     public var needsYou: Bool { entries.contains { $0.standing == .needsYou } }
+
+    /// One of its runs waits on a permission: the line points at the approvals.
+    public var asks: Bool { entries.contains(where: \.asks) }
 
     /// Finished runs still on the line.
     public var finished: [Entry] { entries.filter { $0.standing == .finished } }
@@ -117,7 +122,8 @@ public struct SessionHelperLine: Hashable, Sendable {
         }
         let headline = "A helper is " + run.headline.prefix(1).lowercased() + run.headline.dropFirst()
         return Entry(
-            id: run.id, number: run.ref.number, kind: run.kind, standing: standing, status: status, headline: headline
+            id: run.id, number: run.ref.number, kind: run.kind, standing: standing, status: status, headline: headline,
+            asks: run.permission != nil && run.phase.isLive
         )
     }
 

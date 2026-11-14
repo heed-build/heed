@@ -151,10 +151,12 @@ public struct ACPToolCall: Hashable, Sendable, Codable {
     public var paths: [String]?
     /// The tool's raw input, when it is a command to run: what a permission request shows.
     public var command: String?
+    /// The page, when the tool fetches one (its raw input's `url`).
+    public var url: String?
 
     public init(
         id: String, title: String? = nil, kind: ACPToolKind? = nil, status: ACPToolStatus? = nil,
-        content: [ACPToolContent]? = nil, paths: [String]? = nil, command: String? = nil
+        content: [ACPToolContent]? = nil, paths: [String]? = nil, command: String? = nil, url: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -163,6 +165,7 @@ public struct ACPToolCall: Hashable, Sendable, Codable {
         self.content = content
         self.paths = paths
         self.command = command
+        self.url = url
     }
 
     init?(_ value: JSONValue) {
@@ -175,6 +178,7 @@ public struct ACPToolCall: Hashable, Sendable, Codable {
         paths = value["locations"]?.array.map { $0.compactMap { $0["path"]?.string } }
         let input = value["rawInput"]
         command = input?["command"]?.string ?? input?["command"]?.array?.compactMap(\.string).joined(separator: " ")
+        url = input?["url"]?.string
     }
 }
 

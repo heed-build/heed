@@ -132,16 +132,21 @@ public struct HelperPermission: Hashable, Sendable {
     public var command: String?
     public var kind: ACPToolKind
     public var options: [ACPPermissionRequest.Option]
+    /// The tool call it asks about, whole: its paths, diffs and raw input, for the approvals (`PermissionAsk`).
+    public var call: ACPToolCall?
+    public var askedAt: Date?
 
     public init(
         requestID: JSONValue, title: String, command: String? = nil, kind: ACPToolKind = .other,
-        options: [ACPPermissionRequest.Option]
+        options: [ACPPermissionRequest.Option], call: ACPToolCall? = nil, askedAt: Date? = nil
     ) {
         self.requestID = requestID
         self.title = title
         self.command = command
         self.kind = kind
         self.options = options
+        self.call = call
+        self.askedAt = askedAt
     }
 
     public func option(_ kind: ACPPermissionRequest.Option.Kind) -> ACPPermissionRequest.Option? {
@@ -364,7 +369,7 @@ public struct HelperRun: Identifiable, Hashable, Sendable {
         } ?? "a tool call"
         permission = HelperPermission(
             requestID: id, title: title, command: request.toolCall.command, kind: request.toolCall.kind ?? .other,
-            options: request.options
+            options: request.options, call: request.toolCall, askedAt: time
         )
         phase = .asking
         append(.permission(title: request.toolCall.command ?? title, answer: nil), at: time)

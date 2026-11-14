@@ -51,10 +51,10 @@ public enum PersonaKeys {
 
     public static let scoped: [String: [(String, String)]] = [
         // The library: j k move (the arrows stay the Settings tree's), space turns on or off, a adds, t tries on a
-        // PR, e edits the file, p shares it.
+        // PR, e edits the file, p shares it, s shows when they look at sessions.
         "personas": [
             ("j", "personas.move 1"), ("k", "personas.move -1"), ("<Space>", "personas.toggle"), ("a", "personas.add"),
-            ("t", "personas.try"), ("e", "personas.edit"), ("p", "personas.share"),
+            ("t", "personas.try"), ("e", "personas.edit"), ("p", "personas.share"), ("s", "personas.sessions"),
         ],
         // Add a persona: j k move, space picks, i describes one, r reads again, s sharpens the one it overlaps, b keeps
         // both, ⌘↩ defines the picked with an agent, ⌥↩ adds them as drafted, ⎋ closes.

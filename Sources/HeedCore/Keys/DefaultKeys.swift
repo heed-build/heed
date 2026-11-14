@@ -21,7 +21,7 @@ public enum DefaultKeys {
         ("x", "session.close"), ("m", "session.pin"), ("''", "session.back"),
         ("'1", "pin.jump 1"), ("'2", "pin.jump 2"), ("'3", "pin.jump 3"), ("'4", "pin.jump 4"), ("'5", "pin.jump 5"),
         ("'6", "pin.jump 6"), ("'7", "pin.jump 7"), ("'8", "pin.jump 8"), ("'9", "pin.jump 9"),
-        ("gG", "view.goals"), ("'g", "goal.jump"), ("gP", "goal.promote"),
+        ("gG", "view.goals"), ("'g", "goal.jump"), ("gP", "goal.promote"), ("gL", "panel.ask"),
         ("gh", "view.insights"), ("gr", "view.repos"), ("gw", "view.autopilot"), ("gM", "merge.queue"), (
             "gH",
             "host.open"
@@ -332,6 +332,7 @@ public enum DefaultKeys {
             ("<Esc>", "overlay.close"),
         ],
     ].merging(WizardKeys.scoped) { own, _ in own }.merging(PersonaKeys.scoped) { own, _ in own }
+        .merging(PanelKeys.scoped) { own, _ in own }
 
     /// Autopilot's Now (N): the PRs heed works on, stalled first; h l move between the helpers' live tiles above
     /// them (↩ opens one in a split, j k go back to the PRs). A asks Copilot (C is Can do, as in every Autopilot
@@ -423,7 +424,7 @@ public enum DefaultKeys {
         laid(overrides, over: goalShared)
     }
 
-    private static func laid(_ overrides: [(String, String)], over base: [(String, String)]) -> [(String, String)] {
+    static func laid(_ overrides: [(String, String)], over base: [(String, String)]) -> [(String, String)] {
         let replaced = Set(overrides.map(\.0))
         return base.filter { !replaced.contains($0.0) } + overrides.filter { !$0.1.isEmpty }
     }

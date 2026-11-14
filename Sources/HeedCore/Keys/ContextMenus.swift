@@ -106,6 +106,8 @@ public enum ContextMenus {
         public var scratch = false
         /// The title of the goal it is on, if any.
         public var goal: String?
+        /// The library's personas that may look at its work (`panel.ask <name>`), on and in its scope.
+        public var panelPersonas: [String] = []
 
         public init(id: String, title: String) {
             self.id = id
@@ -171,6 +173,7 @@ public enum ContextMenus {
         ])
         if facts.chat { menu.section([item("Promote to work…", "chat.promote")]) }
         menu.submenu("Hand off to…", handoffItems(facts.handoffAgents, target: target))
+        if repo { menu.submenu("Ask the panel…", panelItems(facts.panelPersonas, target: target)) }
         menu.section(goalItems(facts, target: target))
         menu.section(repo ? [
             item("Close, keep worktree", "session.close"),
@@ -864,6 +867,15 @@ public enum ContextMenus {
     }
 
     /// `agent.switch <name>` for each agent, acting on what the menu is about.
+    /// Ask the panel…: the relevant ones (`gL`), or one persona of those that may look.
+    static func panelItems(_ personas: [String], target: CommandTarget) -> [MenuItem] {
+        [MenuItem("The relevant personas", CommandInvocation(name: "panel.ask", target: target))]
+            + personas.map { MenuItem(
+                "Only \($0)",
+                CommandInvocation(name: "panel.ask", arguments: [$0], target: target)
+            ) }
+    }
+
     static func handoffItems(_ agents: [String], target: CommandTarget) -> [MenuItem] {
         agents.map { MenuItem($0, CommandInvocation(name: "agent.switch", arguments: [$0], target: target)) }
     }

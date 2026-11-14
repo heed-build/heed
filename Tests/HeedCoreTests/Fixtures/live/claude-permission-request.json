@@ -1,0 +1,30 @@
+{
+  "session_id": "f89fdf04-a22a-42f4-a6b2-17dfe59a3a4f",
+  "transcript_path": "/Users/you/.claude/projects/-private-tmp-heed-live-perm-repo/f89fdf04-a22a-42f4-a6b2-17dfe59a3a4f.jsonl",
+  "cwd": "/private/tmp/heed-live-perm/repo",
+  "prompt_id": "6b1a57c6-f22f-48f1-a8d4-e5d0e69c0ed2",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "touch allowed.txt",
+    "description": "Create empty file allowed.txt"
+  },
+  "permission_suggestions": [
+    {
+      "type": "addDirectories",
+      "directories": [
+        "/private/tmp/heed-live-perm/repo"
+      ],
+      "destination": "session"
+    },
+    {
+      "type": "setMode",
+      "mode": "acceptEdits",
+      "destination": "session"
+    }
+  ]
+}

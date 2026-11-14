@@ -32,6 +32,10 @@ run = "open $BUILD_DIR/Heed.app"
 description = "Swift Testing suite"
 run = "swift test --quiet"
 
+[tasks.live]
+description = "The live checks: heed's helper, approvals and OpenTelemetry against real Claude Code on haiku (calls a model)"
+run = "swift build --product heed && HEED_LIVE=1 swift test --filter HeedCoreTests.Live"
+
 [tasks.fmt]
 description = "Format Swift sources"
 run = "swiftformat Sources Tests Package.swift"

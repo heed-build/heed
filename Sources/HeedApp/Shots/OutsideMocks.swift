@@ -72,7 +72,7 @@ struct MenuMock: View {
             .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.white.opacity(0.12)))
             .shadow(color: .black.opacity(0.4), radius: 16)
             .padding(.trailing, 110)
-            .shotRegion(.dialog)
+            .shotRegion(.menuBarMenu)
             Spacer()
         }
         .background(LinearGradient(
@@ -109,5 +109,157 @@ struct DockMock: View {
         .background(LinearGradient(
             colors: [Color(hex: 0x2B3440), Color(hex: 0x1A1F26)], startPoint: .top, endPoint: .bottom
         ))
+    }
+}
+
+/// A right-click menu as macOS draws it, from the entries the real one is built from (the offscreen renderer draws no
+/// AppKit menu): the thing it is about greyed at the top, each command with its key where macOS puts shortcuts.
+struct ContextMenuMock: View {
+    @Environment(AppModel.self) private var model
+    let entries: [MenuEntry]
+    /// The menu bar's menu: keys shown wherever they work, as that menu does.
+    var menuBar = false
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            LinearGradient(
+                colors: [Color(hex: 0x2B3440), Color(hex: 0x1A1F26)], startPoint: .top, endPoint: .bottom
+            )
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in line(entry) }
+            }
+            .padding(.vertical, 6)
+            .frame(width: menuBar ? 430 : 330)
+            .background(RoundedRectangle(cornerRadius: 9).fill(Color(hex: 0x2A2E35)))
+            .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.white.opacity(0.12)))
+            .shadow(color: .black.opacity(0.4), radius: 16)
+            .shotRegion(.contextMenu)
+            .padding(30)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder private func line(_ entry: MenuEntry) -> some View {
+        switch entry {
+        case let .header(title):
+            Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.white.opacity(0.45))
+                .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 4)
+        case .separator:
+            Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1).padding(.vertical, 5).padding(.horizontal, 10)
+        case let .item(item):
+            HStack(spacing: 8) {
+                Text(item.checked ? "✓" : " ").frame(width: 10)
+                Text(item.title).lineLimit(1)
+                Spacer(minLength: 20)
+                Text(RightClickMenu.key(for: item.keyCommand, model, anywhere: menuBar))
+                    .foregroundStyle(Color.white.opacity(0.45))
+            }
+            .font(.system(size: 13))
+            .foregroundStyle(item.enabled ? Color.white : Color.white.opacity(0.35))
+            .padding(.horizontal, 10).padding(.vertical, 4)
+        case let .submenu(title, _):
+            HStack {
+                Text(title).padding(.leading, 18)
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 10))
+            }
+            .font(.system(size: 13)).foregroundStyle(Color.white)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+        }
+    }
+}
+
+/// A notification banner as macOS draws one, top right of a desktop: the session, why it needs you, and the Open and
+/// Allow actions heed adds.
+struct NotificationBannerMock: View {
+    let title: String
+    let body_: String
+    var actions = ["Open", "Allow"]
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            LinearGradient(
+                colors: [Color(hex: 0x2B3440), Color(hex: 0x1A1F26)], startPoint: .top, endPoint: .bottom
+            )
+            HStack(alignment: .top, spacing: 10) {
+                if let image = MenuBarMock.owl {
+                    Image(nsImage: image).renderingMode(.template).resizable().frame(width: 20, height: 20)
+                        .padding(8).background(RoundedRectangle(cornerRadius: 9).fill(Color(hex: 0x3A4250)))
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text("Heed").font(.system(size: 12, weight: .semibold))
+                        Spacer()
+                        Text("now").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.5))
+                    }
+                    Text(title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                    Text(body_).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.75)).lineLimit(2)
+                }
+                VStack(spacing: 4) {
+                    ForEach(actions, id: \.self) { action in
+                        Text(action).font(.system(size: 12, weight: .medium)).frame(width: 64, height: 22)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.16)))
+                    }
+                }
+            }
+            .foregroundStyle(.white)
+            .padding(12)
+            .frame(width: 400)
+            .background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: 0x2F343C)))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Color.white.opacity(0.12)))
+            .shadow(color: .black.opacity(0.4), radius: 16)
+            .shotRegion(.notificationBanner)
+            .padding(20)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Sparkle's update window as it asks: the new version, the notes of each release since the one you have, and the
+/// three answers.
+struct UpdatePromptMock: View {
+    var body: some View {
+        ZStack {
+            Color(hex: 0x1A1F26)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 14) {
+                    if let image = MenuBarMock.owl {
+                        Image(nsImage: image).renderingMode(.template).resizable().frame(width: 34, height: 34)
+                            .padding(10).background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: 0x3A4250)))
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("A new version of Heed is available!").font(.system(size: 14, weight: .bold))
+                        Text("Heed 0.43.0 is now available, you have 0.42.0. Would you like to install it now?")
+                            .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.7))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Text("Release Notes:").font(.system(size: 12, weight: .semibold))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("0.43.0").font(.system(size: 12, weight: .semibold))
+                    Text("· Settings has a search that finds a setting by its key.")
+                    Text("· Autopilot's Now lists what each PR waits for.")
+                    Text("0.42.1").font(.system(size: 12, weight: .semibold)).padding(.top, 4)
+                    Text("· Fixes a sidebar that kept a closed session's row.")
+                }
+                .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.85))
+                .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.25)))
+                HStack(spacing: 8) {
+                    Text("Skip This Version")
+                    Spacer()
+                    Text("Remind Me Later").padding(.horizontal, 10).padding(.vertical, 4)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.16)))
+                    Text("Install Update").padding(.horizontal, 10).padding(.vertical, 4)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color(hex: 0x2F6FEB)))
+                }
+                .font(.system(size: 12))
+            }
+            .foregroundStyle(.white)
+            .padding(20).frame(width: 480)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: 0x2A2E35)))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.white.opacity(0.12)))
+            .shotRegion(.dialog)
+        }
     }
 }

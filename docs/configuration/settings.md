@@ -16,7 +16,7 @@ section to scroll to it; the section at the top of the page is the one marked. C
 tree focused, ↑ and ↓ move, ← folds (or goes up a level) and → unfolds (or goes down one). What is folded stays
 folded when you quit and reopen heed.
 
-![The tree with Agents, GitHub and Machine folded: a folded group keeps its count](../images/shots/configuration/settings-tree.png)
+![The Settings sidebar with Agents, GitHub and Machine folded: a folded group keeps its count, and the page shown lists its sections](../images/shots/configuration/settings-tree.png)
 
 `● 3` beside a page says three of its settings differ from heed's defaults; groups add their pages up, folded or not.
 A red `!` says `config.toml` has a value there heed refused.
@@ -57,12 +57,14 @@ Each section is a card of rows: what the setting is and does on the left, its co
 mean something while another is on sit indented under it, and hide while it is off (unless you set one: nothing set is
 ever out of sight).
 
-![Notifications with three settings changed, quiet hours refused](../images/shots/configuration/modified.png)
+![Notifications, Sessions: Blocked and Grace changed, each with an amber bar, its default and ↺](../images/shots/configuration/modified.png)
 
 A setting changed from heed's default has an amber bar, says what the default is, and ↺ puts it back (removes the key
 from `config.toml`); ↺ is dim on a setting at its default. A value `config.toml` has that heed refused has a red bar,
 the reason and a line it would take; heed uses its default meanwhile, and ↺ removes the value. Problems that belong to
 no setting (a syntax error, a key heed no longer reads) show at the top of Settings, as well as in the status bar.
+
+![Notifications, Quiet hours: the refused value with a red bar, the reason and the line heed would take](../images/shots/configuration/modified-refused.png)
 
 ## Show advanced and Only modified
 
@@ -73,7 +75,7 @@ lines) is hidden, and a card that hides some says how many at its foot, `2 advan
 switch on, for every page. An advanced setting you changed, or one `config.toml` has a value heed refused for, always
 shows: nothing set or broken is out of sight. The tree's counts include hidden settings.
 
-![Model calls with Show advanced off: the limits card shows the timeout, which is changed, and hides two](../images/shots/configuration/settings-advanced.png)
+![Model calls, Limits, with Show advanced off: the timeout, which is changed, shows, and the card says how many it hides](../images/shots/configuration/settings-advanced.png)
 
 **Only modified** keeps what differs from heed's defaults, and what heed refused. The tree keeps the groups, pages and
 sections with a change; each page only its changed rows, with the default to compare and ↺; Agents and Orgs & repos
@@ -82,7 +84,7 @@ The page's line says how many, and **Reset all** puts all of them back: it asks 
 them from `config.toml`, as each row's ↺ would. With nothing changed anywhere, the page says so. Show advanced has no
 say while Only modified is on: every change shows, advanced or not.
 
-![Only modified: the tree keeps four pages; Notifications shows its two changes and the refused quiet hours](../images/shots/configuration/settings-modified.png)
+![The tree under Only modified: it keeps Notifications, Agents, Model calls and Autopilot with their counts, and the refused Quiet hours](../images/shots/configuration/settings-modified.png)
 
 `:settings.advanced` and `:settings.modified` flip the switches from anywhere (and open Settings to show it).
 
@@ -95,7 +97,7 @@ text: its name, its description, or its key as `config.toml` writes it (`grace_s
 matches that way, or when you name the place outright: `model` finds what mentions models, not every setting on Model
 calls; `model calls`, `limits` or `pilot` list that page or section whole.
 
-![Searching for "model": the tree keeps the pages with matches and counts them, the pane lists them by page](../images/shots/configuration/settings-search.png)
+![Searching for "model": the tree keeps the pages with matches and counts them](../images/shots/configuration/settings-search.png)
 
 While the field has words, the tree keeps the pages with matches, each with how many; their groups are open (the
 folds come back as they were when the field is empty). The pane says how many settings match and lists them as their
@@ -139,7 +141,7 @@ Model calls), then each agent with what it is and how many of its settings are c
 | `○` | Not installed (dimmed) |
 | `!` | Broken, and why: logged out, its own command not found, its last test failed |
 
-![Agents: claude changes three settings; pi and opencode are logged out](../images/shots/configuration/agents.png)
+![The agent list: claude changes three settings and codex one, cursor and gemini are not installed, pi and opencode are logged out](../images/shots/configuration/agents.png)
 
 For the selected agent, its status line (`installed · logged in · full hooks · 3 modified`) and two tabs, each with its
 count. **Sessions**: its command, prompt delivery, the [model and effort](../agents/models.md) its sessions start on,
@@ -155,7 +157,7 @@ The one under the cursor shows on the right with its evidence and what it joins;
 `e` edits its file, `a` adds one from your repos. It holds no `config.toml` settings: the library is files in
 `~/Library/Application Support/Heed/personas/`, so search and Only modified pass it by.
 
-![Settings › Personas](../images/shots/settings/personas.png)
+![Settings › Personas: the library on the left, one row per persona with its on/off switch](../images/shots/settings/personas-list.png)
 
 ## Autopilot
 
@@ -169,7 +171,7 @@ on a tab; the link at its foot leads to the same tab of Orgs & repos.
 The same two panes as Agents: every org and repo heed knows, from the repo list and from `config.toml` (ones you have
 not cloned here say so). A marked one, `● 3`, overrides three settings.
 
-![Orgs & repos: acme/docs-toolkit overrides five settings and inherits three from its org](../images/shots/configuration/orgs-repos.png)
+![The Orgs & repos list: each org and repo with the count of settings it overrides, and ones not cloned here say so](../images/shots/configuration/orgs-repos.png)
 
 For the selected org or repo, each setting shows the value that applies and where it comes from: `default` (heed's,
 or `[pilot]`), `org` or `repo`. Overridden rows are marked. Changing a value writes the override
@@ -190,13 +192,13 @@ as it is when you pick another org or repo, and when you quit and reopen heed.
 | **Reviews** | Reviewers asked on each PR, AI reviewers whose review counts as an approval, self-review, and what Copilot is asked to fix |
 | **Instructions** | Extra instructions for get it green, self-review, Start work and summaries, and signing off with a summary |
 
-![Orgs & repos, Get it green](../images/shots/configuration/orgs-repos-green.png)
+![Orgs & repos, Get it green: each row says where its value comes from, default or repo](../images/shots/configuration/orgs-repos-green.png)
 
-![Orgs & repos, Get it merged](../images/shots/configuration/orgs-repos-merged.png)
+![Orgs & repos, Get it merged: what heed merges, waits for and does by hand](../images/shots/configuration/orgs-repos-merged.png)
 
-![Orgs & repos, Reviews](../images/shots/configuration/orgs-repos-reviews.png)
+![Orgs & repos, Reviews: the reviewers asked, and what Copilot is asked to fix](../images/shots/configuration/orgs-repos-reviews.png)
 
-![Orgs & repos, Instructions](../images/shots/configuration/orgs-repos-instructions.png)
+![Orgs & repos, Instructions: the extra instructions for each kind of run](../images/shots/configuration/orgs-repos-instructions.png)
 
 `:settings.open colors <tab>` opens the page on a tab (`general`, `green`, `merged`, `reviews`, `instructions`), and
 the links that lead here land on the right one: `:setup.edit` and the link under Goals › GitHub mirror on General, the
@@ -212,7 +214,7 @@ With [Only modified](#show-advanced-and-only-modified) on, the list keeps the or
 (or have a value heed refused), the tabs only those holding an override at the selected one, and each tab only its
 overridden rows:
 
-![Only modified: acme/docs-toolkit shows General and Get it merged, with its three merge overrides](../images/shots/configuration/orgs-repos-only-modified.png)
+![Only modified: the list keeps the orgs and repos that override something](../images/shots/configuration/orgs-repos-only-modified.png)
 
 An override a repo inherits from its org is not one of its own: it shows on the org.
 
@@ -226,7 +228,7 @@ it:
 
 ## Hosts
 
-![Settings › Hosts: devbox and its settings, as config.toml has them](../images/shots/configuration/settings-hosts.png)
+![Settings › Hosts, @devbox: its settings, as config.toml has them](../images/shots/configuration/settings-hosts.png)
 
 Hosts are added and checked in `gH`, which reads `~/.ssh/config` and your tailnet; this page lists what
 `config.toml` says about each, and which values are the defaults. Change one in the file (**Edit in config.toml**).

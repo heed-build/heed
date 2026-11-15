@@ -25,6 +25,8 @@ At the top, scrolling:
   - **heed**: its background runs on the PR as small blocks, oldest first (green pushed, grey no change, red timed out
     or failed, blue running; click one to open it), and its two switches, green and merge, as they are.
 
+![The inspector's Pull requests section: three PR cards, the open one with its check bar, its review state and its get it green and merge switches, the merged one shrunk to its title](../images/shots/sessions/inspector-prs.png)
+
   A line at the bottom shows only when you are the next step: **items for the agent** (review comments, failing checks
   and your notes, waiting because green is on ask: click it for the [PR overlay](../github/review-feedback.md), where
   you pick which ones go), or **ready to merge** (click it, or `zM`, to merge).
@@ -60,6 +62,8 @@ A session's issues come from three places:
 - the issues its PRs close, as GitHub reports them;
 - `heed issue add <url>` from the agent, or `gI` (`:issue.add <url>`; the copied URL when you give none).
   `:issue.remove` takes one off.
+
+![The inspector's Issues section: docs-website#88, Old links to moved pages](../images/shots/sessions/inspector-issues.png)
 
 A PR with a [run](../autopilot/green-and-merged.md#runs) working on it says so on its card: the agent and model, the round, how long,
 and the key to its tab (`gb`), with the last line of the run's screen under it. Click the box to go to the tab.

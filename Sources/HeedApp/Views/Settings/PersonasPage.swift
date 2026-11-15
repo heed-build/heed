@@ -63,6 +63,7 @@ struct PersonasPage: View {
             .padding(.top, 22)
             .padding(.bottom, 12)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .shotRegion(.settingsSection, item: "list")
             Theme.line.frame(width: 1)
             Group {
                 if let selected {
@@ -74,6 +75,7 @@ struct PersonasPage: View {
             .frame(width: 360)
             .frame(maxHeight: .infinity, alignment: .top)
             .background(Theme.bg2.opacity(0.5))
+            .shotRegion(.settingsSection, item: "detail")
         }
         .overlay {
             if !ui.defining.isEmpty {
@@ -295,6 +297,7 @@ private struct PersonaRow: View {
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(cursor ? Theme.paneActive : .clear, lineWidth: 1.5))
         .contentShape(Rectangle())
         .onTapGesture { model.clickLibraryPersona(entry.id) }
+        .shotRegion(.settingsRow, item: entry.id)
     }
 }
 

@@ -130,6 +130,7 @@ struct WatchView: View {
                     .frame(height: geometry.size.height, alignment: .top)
                     .clipped()
                     .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
+                    .shotRegion(.autopilotNow)
                     Group {
                         if let repo = model.mergeQueueShown {
                             MergeQueueView(repo: repo).shotRegion(.pilotDetail)
@@ -348,6 +349,7 @@ private struct PilotDetail: View {
                             .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
                 }
+                .shotRegion(.pilotChecklist)
                 MergeSection(ref: row.ref, mode: row.effective.merge)
                 if let pipeline, !pipeline.items.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {

@@ -14,6 +14,8 @@ Each row shows:
 - **Checks**: one segment per check, green passed, red failed, blue running, with the failing one named.
 - **Review**: approved, changes requested, or waiting, and how many review threads are unresolved.
 
+![One row of PRs: the number, repo chip and PR number, the title with the session's branch under it, the check bar with the failing check named, the review state, and what heed does for it](../images/shots/github/pr-row.png)
+
 | Key | |
 |---|---|
 | `go`, `↩` | [Read](reading.md) it in the app |

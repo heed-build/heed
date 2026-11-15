@@ -429,6 +429,10 @@ struct SplitBoardView<Fold: View>: View {
             )
         )
         .opacity(state == .done ? 0.85 : 1)
+        // Before the offset, which moves the drawing and not the frame; shots place it with padding instead.
+        .shotRegion(.splitPart, item: part.id)
+        .padding(.leading, ShotMode.active ? rect.x : 0)
+        .padding(.top, ShotMode.active ? rect.y : 0)
         .contentShape(Rectangle())
         .onHover { inside in
             if inside { hover = part.id } else if hover == part.id { hover = nil }
@@ -442,7 +446,9 @@ struct SplitBoardView<Fold: View>: View {
                     model.dropSplitPart(part.id, on: rows[row].id)
                 }
             })
-        .offset(x: rect.x + offset.width, y: rect.y + offset.height)
+        .offset(
+            x: ShotMode.active ? 0 : rect.x + offset.width, y: ShotMode.active ? 0 : rect.y + offset.height
+        )
         .zIndex(dragging?.id == part.id ? 5 : 0)
     }
 

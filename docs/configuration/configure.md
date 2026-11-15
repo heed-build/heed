@@ -10,6 +10,8 @@ does for you, and that you have not decided on yet. The badge on the button coun
 none left, the badge goes away. You can also open it from the app menu (**Heed › Configure…**, under Settings…) and
 with `:settings.configure`.
 
+![The top of the Settings sidebar: the search field, then Configure… with its 12 gaps badge](../images/shots/configuration/configure-button.png)
+
 Configure… has three steps. Nothing is written to `config.toml` until you click **Apply** on the last one. Close it
 (✕ or esc) and nothing changes.
 

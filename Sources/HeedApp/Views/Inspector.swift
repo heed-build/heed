@@ -38,11 +38,13 @@ struct Inspector: View {
                             if pulls.isEmpty { emptyLinks(session) }
                             ForEach(pulls, id: \.self) { link in linkRow(link, session: session) }
                         }
+                        .shotRegion(.inspectorPR)
                         if !issues.isEmpty {
                             section {
                                 SectionHeader(title: "Issues")
                                 ForEach(issues, id: \.self) { link in linkRow(link, session: session) }
                             }
+                            .shotRegion(.inspectorIssues)
                         }
                         if !session.notes.isEmpty {
                             // Notes on its diff before it has a PR: the PR overlay's last tab sends them.

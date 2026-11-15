@@ -72,6 +72,8 @@ Every repo against each capability: on (●), asks you first (◐) or off (○),
 why it cannot work, such as *auto-merge off on GitHub* for a repo set to `merge = "auto"` that does not allow it. The
 last column is the strongest thing heed saw that would help that repo.
 
+![Where it's on, in a capability's detail: docs-toolkit and editor-rules on, ingest and markgraph asking first, docs-website off](../images/shots/autopilot/can-do-where.png)
+
 ![Where: every repo against each capability, each cell on, ask first or off, and the strongest help heed saw for each repo on the right](../images/shots/autopilot/where.png)
 
 `h` `j` `k` `l` move over the cells; the footer explains the one under the cursor. `y` turns it on, `a` makes it ask
@@ -97,6 +99,8 @@ to the PRs.
 Under them, what the pilot is doing, by card: **Stalled** first (heed stopped and says why, with the key out: `zr` one more round),
 then **Green** (PRs being fixed, with the rounds used so far), **Merge** (PRs with merging on, with what the next run of
 their queue does), **Copilot** (PRs Copilot was asked about) and **Not watched**. Merged and closed PRs move to Done.
+
+![Now's list: 6 watched and 1 stalled, markgraph #418 stalled first with zr one more round, then the Green card with two PRs and the start of the Merge card](../images/shots/autopilot/now-list.png)
 
 ![Now: the PRs by card, the PR under the cursor, and what else is running](../images/shots/autopilot/now.png)
 

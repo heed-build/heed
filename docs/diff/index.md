@@ -10,6 +10,8 @@ highlights.
 
 ![The diff overlay: files on the left, the hunks of the current file on the right](../images/shots/diff/overlay.png)
 
+![The diff's left side: the branch's commits, then its files with their status, whether each is staged, and the lines added and removed](../images/shots/diff/files.png)
+
 | Key | |
 |---|---|
 | `⇥` / `⇧⇥` | Scope: **all**, **committed**, **staged**, **unstaged** |

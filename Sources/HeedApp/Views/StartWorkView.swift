@@ -65,11 +65,12 @@ struct StartWorkView: View {
 
             if let promotion = form.promotion { promotionNote(promotion, form).padding(.horizontal, 20) }
             promptBox(form, cap: promptCap).padding(.horizontal, 20).padding(.bottom, 16)
+                .shotRegion(.startWorkPrompt)
             if form.showsSizeCard, let sizing = form.sizing {
                 // Bigger than one session: three ways on in place of the fields (j or ⇥ brings them back).
                 SizeCard(form: form, sizing: sizing)
             } else {
-                fields(form)
+                VStack(spacing: 0) { fields(form) }.shotRegion(.startWorkChips)
             }
             footer(form)
         }

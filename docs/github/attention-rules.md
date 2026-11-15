@@ -28,7 +28,11 @@ by the bot dependabot.") with the line it is in `config.toml` and how many items
 a rule up or down (the first match wins), change it, or remove it (Undo brings it back). Before you save, it shows
 what the edited rules would have changed over the items of the last 30 days.
 
+![Try before you save: the rules in use, with Save to config.toml and Revert](../images/shots/configuration/attention-rules-try.png)
+
 ![Settings › Attention: the rules in plain words, a rule being added, and what the edit would change](../images/shots/configuration/attention-rules.png)
+
+![The rules, in order: each in plain words with its line from config.toml, its action, how many of the last 30 days' items it decided, and edit, move and remove](../images/shots/configuration/attention-rules-list.png)
 
 ### Building a rule
 

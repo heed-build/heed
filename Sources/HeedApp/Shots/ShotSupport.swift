@@ -6,6 +6,9 @@ import SwiftUI
 @MainActor
 enum ShotMode {
     static var active = false
+    /// Which one of a repeated element the shot is about (a settings section's title, a setting's key, a session's
+    /// title): views that repeat mark only the one whose key matches, with `shotRegion(_:item:)`.
+    static var item: String?
 }
 
 /// The parts of the UI a shot can crop to or highlight. Views mark them with `.shotRegion(_:)`.
@@ -48,6 +51,10 @@ enum ShotRegion: String, CaseIterable {
     case goalWizard, wizardRail, wizardPlan, wizardMeters, wizardPanel, wizardDone, wizardReplacements, tldr
     case wizardSplit, splitBoard, splitWho, splitFold, splitDefine, goalPage, goalPageNext
     case wizardCareful, wizardGo, goWhatHappens
+    case settingsTabs, settingsSection, settingsRow
+    case sessionRow, sessionFoot, prRow, inspectorPR, inspectorIssues, approvalRow, attentionRow
+    case startWorkChips, startWorkPrompt, splitPart, pilotChecklist, diffNote
+    case contextMenu, menuBarMenu, notificationBanner, hostStrip
 }
 
 struct ShotRegionKey: PreferenceKey {
@@ -62,6 +69,11 @@ extension View {
     func shotRegion(_ region: ShotRegion) -> some View {
         // transform, not set: a region inside another (panes inside center) must survive the outer one.
         transformAnchorPreference(key: ShotRegionKey.self, value: .bounds) { value, anchor in value[region] = anchor }
+    }
+
+    /// One of several: a region only when the shot's `item` is this view's key.
+    func shotRegion(_ region: ShotRegion, item key: String) -> some View {
+        shotRegion(ShotMode.active && ShotMode.item == key ? region : nil)
     }
 
     /// The same, for a view that is a region only sometimes (one sidebar group of several).

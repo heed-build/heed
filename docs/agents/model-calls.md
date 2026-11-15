@@ -77,6 +77,8 @@ at once, the back-off after a failure, and the daily caps.
 
 ![Settings › Agents: claude's part in model calls, after a test](../images/shots/agents/model-calls.png)
 
+![Claude's Model calls card: the switch, its login, the model, and a Test that answered Hello! in 2.9 s](../images/shots/agents/model-calls-card.png)
+
 The same in config.toml:
 
 ```toml

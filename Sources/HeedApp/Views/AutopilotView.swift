@@ -266,6 +266,7 @@ private struct CapabilityDetail: View {
                         }
                     }
                 }
+                .shotRegion(.autopilotMatrix)
                 if let nudge {
                     Text(nudge.text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg)
                         .fixedSize(horizontal: false, vertical: true)

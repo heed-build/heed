@@ -149,6 +149,7 @@ struct SettingsCard<Content: View>: View {
             body().environment(\.settingsCardTitle, title)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .shotRegion(.settingsSection, item: title)
         .id(title)
         .background(GeometryReader { geometry in
             Color.clear.preference(
@@ -271,6 +272,7 @@ struct SettingRow<Control: View>: View {
                 }
             }
             .opacity(isDimmed ? 0.55 : 1)
+            .shotRegion(.settingsRow, item: ids[0])
             .settingsSearchRow(ids, target: target)
             .settingsLine(.shown)
         } else {

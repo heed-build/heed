@@ -43,6 +43,7 @@ struct ScopeList: View {
             }
         }
         .padding(.trailing, 12)
+        .shotRegion(.settingsSection, item: "list")
     }
 
     private func row(_ item: Item) -> some View {

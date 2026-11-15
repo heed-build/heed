@@ -113,6 +113,7 @@ private struct ApprovalRow: View {
         .padding(.vertical, 11)
         .background(selected ? Theme.selected : Color.clear)
         .overlay(alignment: .leading) { if selected { Theme.block.frame(width: 3) } }
+        .shotRegion(.approvalRow, item: group.id)
     }
 }
 

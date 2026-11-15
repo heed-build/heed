@@ -58,6 +58,7 @@ struct SettingsView: View {
             }
             .background(Theme.bg2)
             .frame(width: 220)
+            .shotRegion(.settingsTabs)
             Theme.line.frame(width: 1)
             if search == nil, tree.page == .personas, tree.kept == nil {
                 // Personas lays out its own list and detail, each scrolling on its own.
@@ -147,6 +148,8 @@ struct SettingsView: View {
         )
         .background(Theme.bg)
         .foregroundStyle(Theme.fg)
+        // Shots never draw a scroller, which this Mac may show always and another never.
+        .scrollIndicators(ShotMode.active ? .never : .automatic)
         // ⌘F while the Settings window is key: the search field (the main window never sees Settings' keys).
         .background {
             Button("") { searchFocusRequest += 1 }

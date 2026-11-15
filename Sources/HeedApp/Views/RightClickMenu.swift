@@ -132,7 +132,7 @@ enum RightClickMenu {
 
     /// The key that runs the command where the menu opened. One that only works elsewhere (VISUAL's `y`, the PR
     /// overlay's `C`) would mislead here, so the menu shows the `:name` that does work, as it does for an unbound one.
-    private static func key(for command: String, _ model: AppModel, anywhere: Bool = false) -> String {
+    static func key(for command: String, _ model: AppModel, anywhere: Bool = false) -> String {
         guard let label = model.keyBinding(for: command), anywhere || label.context == nil else { return ":\(command)" }
         return label.text
     }

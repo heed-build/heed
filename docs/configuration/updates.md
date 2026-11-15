@@ -13,6 +13,8 @@ app and opens it again. `:update`, or **Heed › Check for Updates…**, looks r
 Panes keep running through an update only with [persistent panes](../sessions/zmx.md); without them, updating is
 quitting.
 
+![The update window: Heed 0.43.0 is available, the release notes of each release since yours, and Skip This Version, Remind Me Later and Install Update](../images/shots/configuration/updates-prompt.png)
+
 ## What is checked
 
 An update is installed only if all of these hold:
@@ -36,6 +38,8 @@ install = "ask"                    # ask | auto
 - `install = "auto"`: a new version downloads in the background and is installed when you quit Heed.
 
 Settings › Updates sets both.
+
+![Settings › Updates: Check for updates and how updates install](../images/shots/configuration/updates-settings.png)
 
 After an update, the first time you open heed it shows **New in heed X**: the features and new settings since the
 version you had. See [What's new and nudges](whats-new.md).

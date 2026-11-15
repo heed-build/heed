@@ -21,9 +21,13 @@ A session tracks the pull requests that are part of its work. A tracked PR shows
   with the `:pr.track` to add it.
 - **By hand.** `gU`, or `heed pr add <url>` from inside a pane (see [The heed CLI](../reference/cli.md)).
 
+![The session's Pull requests in the inspector: each tracked PR with its checks and review](../images/shots/sessions/inspector-prs.png)
+
 | Key | |
 |---|---|
 | `gU` | Track a pull request by URL (or `:pr.track <url>`) |
 | `:pr.untrack [url]` | Stop tracking one (the overlay's PR, or the session's only one); no rule adds it back |
 | `h` / `l` (or `←` / `→`, `[p` / `]p`) | In the PR overlay, the session's previous / next PR |
 | `gS` | From a pull request, jump to its session |
+
+![The command line with :track and a PR's URL typed](../images/shots/github/track-command.png)

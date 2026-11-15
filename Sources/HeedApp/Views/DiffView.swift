@@ -17,7 +17,7 @@ struct DiffOverlayView: View {
                 VStack(spacing: 0) {
                     header
                     HStack(spacing: 0) {
-                        if geometry.size.width >= 900 { sidebar }
+                        if geometry.size.width >= 900 { sidebar.shotRegion(.diffFiles) }
                         content
                     }
                     footer
@@ -417,6 +417,7 @@ private struct NoteBox: View {
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg3))
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
+        .shotRegion(.diffNote)
     }
 }
 

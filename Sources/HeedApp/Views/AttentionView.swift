@@ -500,6 +500,7 @@ private struct AttentionRow: View {
         }
         .background(isPicked ? Theme.block.opacity(0.16) : index == cursor ? Theme.bg3 : .clear)
         .overlay(alignment: .bottom) { Theme.line.opacity(0.6).frame(height: 1) }
+        .shotRegion(.attentionRow, item: "\(item.number ?? 0)")
     }
 
     /// heed's next step, short and on the right (`▶ merge it`), only when heed would act; the reader says it in full.

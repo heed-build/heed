@@ -11,6 +11,8 @@ Two shortcuts work whichever app is in front:
 | `⌃⌥Space` | [Start work](../start-work/from-anywhere.md) in a floating panel over the app you are in |
 | `⌃⌥H` | Heed to the front, reopening its window if it was closed |
 
+![The Start work panel floating over another app's window, with the prompt typed and the repo, worktree and agent below it](../images/shots/start-work/panel.png)
+
 ```toml
 [keys]
 global_start_work = "<C-M-Space>"

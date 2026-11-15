@@ -17,6 +17,8 @@ messages and answers, and a nudge to a swarm's lead. Each one goes the best way 
 Where each went is on the session's activity ("sent 2 notes to claude, through Claude's inbox"), in the status line,
 in the Autopilot log for a PR's rounds, and in a swarm's rows. A message typed as always says nothing more.
 
+![The PR overlay's Delivery card: 3 queued go to fix-anchors-redirects as one prompt, once it is idle, and now working, waiting](../images/shots/agents/messages-queued.png)
+
 The one thing heed still types whatever the agent is: **Allow** on a permission notification presses Return on the
 prompt. No channel can answer a prompt, by design.
 

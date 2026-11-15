@@ -829,7 +829,11 @@ public enum Commands {
         .init("mindmap.more", "Mindmap: draw one level more to the right", .selection),
         .init("mindmap.org.next", "Mindmap: the next org's Mindmap (personal last)", .selection),
         .init("mindmap.org.prev", "Mindmap: the previous org's Mindmap", .selection),
-        .init("mindmap.accept", "Mindmap: keep the suggested placement as it is", .selection),
+        .init(
+            "mindmap.accept",
+            "Mindmap: keep the suggested placement as it is, or the decisions an agent proposed",
+            .selection
+        ),
         .init("mindmap.done", "Mindmap: mark the node's first open follow-up done", .selection),
         .init("mindmap.pin", "Mindmap: pin the node's first decision so it shows above it (again: unpin)", .selection),
         .init("mindmap.nest", "Mindmap: put the node in a new group with its next sibling", .selection),

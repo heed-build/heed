@@ -39,6 +39,9 @@ public struct MindNode: Codable, Hashable, Sendable, Identifiable {
     /// The ledger id of a piece of work.
     public var entry: String?
     public var decisions: [Decision]
+    /// Decisions an agent proposed (`heed memory note`): shown on the node, told to no session, until you keep them
+    /// (`y`), when they join `decisions`.
+    public var proposals: [Decision] = []
     public var open: [OpenItem]
     public var madeBy: MadeBy
     /// Placed by heed but not sure enough to stand on its own: waits for `y` (or a move).
@@ -173,4 +176,33 @@ public struct MindNode: Codable, Hashable, Sendable, Identifiable {
 
     /// Decisions nothing replaced.
     public var standing: [Decision] { decisions.filter { $0.supersededBy == nil } }
+}
+
+extension MindNode {
+    private enum CodingKeys: String, CodingKey {
+        case id, parent, kind, title, intent, stage, synopsis, synopsisStale, entry, decisions, proposals, open,
+             madeBy, suggested, placement, createdAt, updatedAt
+    }
+
+    /// Nodes kept before proposals existed have none.
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        parent = try values.decodeIfPresent(String.self, forKey: .parent)
+        kind = try values.decode(Kind.self, forKey: .kind)
+        title = try values.decode(String.self, forKey: .title)
+        intent = try values.decodeIfPresent(String.self, forKey: .intent)
+        stage = try values.decodeIfPresent(Stage.self, forKey: .stage)
+        synopsis = try values.decodeIfPresent(String.self, forKey: .synopsis)
+        synopsisStale = try values.decode(Bool.self, forKey: .synopsisStale)
+        entry = try values.decodeIfPresent(String.self, forKey: .entry)
+        decisions = try values.decode([Decision].self, forKey: .decisions)
+        proposals = try values.decodeIfPresent([Decision].self, forKey: .proposals) ?? []
+        open = try values.decode([OpenItem].self, forKey: .open)
+        madeBy = try values.decode(MadeBy.self, forKey: .madeBy)
+        suggested = try values.decode(Bool.self, forKey: .suggested)
+        placement = try values.decodeIfPresent(Placement.self, forKey: .placement)
+        createdAt = try values.decode(Date.self, forKey: .createdAt)
+        updatedAt = try values.decode(Date.self, forKey: .updatedAt)
+    }
 }

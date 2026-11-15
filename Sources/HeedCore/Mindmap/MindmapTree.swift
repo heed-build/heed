@@ -192,6 +192,19 @@ public struct MindmapTree: Hashable, Sendable {
         markStale(above: id, now: now)
     }
 
+    /// `y` on a node with proposals: the decisions agents proposed there join its decisions, so sessions are told
+    /// them. How many were kept.
+    @discardableResult
+    public mutating func acceptProposals(in id: String, now: Date) -> Int {
+        guard let proposals = nodes[id]?.proposals, !proposals.isEmpty else { return 0 }
+        for proposal in proposals where !(nodes[id]?.decisions.contains { $0.text == proposal.text } ?? true) {
+            nodes[id]?.decisions.append(proposal)
+        }
+        nodes[id]?.proposals = []
+        nodes[id]?.updatedAt = now
+        return proposals.count
+    }
+
     /// `p`: pins a decision so it shows on every node above it; again unpins.
     public mutating func togglePin(_ text: String, in id: String, now: Date) {
         guard let index = nodes[id]?.decisions.firstIndex(where: { $0.text == text }) else { return }

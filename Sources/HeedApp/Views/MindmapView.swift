@@ -276,6 +276,19 @@ private struct MindmapDetail: View {
                         }
                     }
                 }
+                if !node.proposals.isEmpty {
+                    section("Proposed by agents · \(node.proposals.count) · "
+                        + "\(model.keyText(for: "mindmap.accept", in: "mindmap")) keeps them")
+                    {
+                        ForEach(node.proposals, id: \.self) { decision in
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(decision.text).font(Theme.ui(12.5)).foregroundStyle(Theme.ask)
+                                Text(source(decision.source) + " · told to no session until you keep it")
+                                    .font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
+                            }
+                        }
+                    }
+                }
                 if !open.isEmpty {
                     section("Open · \(open.count)") {
                         ForEach(open, id: \.self) { item in
@@ -316,7 +329,7 @@ private struct MindmapDetail: View {
                     hint("mindmap.session", "session here")
                     hint("mindmap.in", "in")
                     hint("mindmap.out", "out")
-                    if node.suggested { hint("mindmap.accept", "keep") }
+                    if node.suggested || !node.proposals.isEmpty { hint("mindmap.accept", "keep") }
                     hint("mindmap.move", "move")
                     hint("mindmap.nest", "group")
                     hint("mindmap.rename", "rename")

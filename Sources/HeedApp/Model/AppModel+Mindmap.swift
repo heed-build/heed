@@ -191,6 +191,14 @@ extension AppModel {
         case "mindmap.org.next": mindmap.cycleInstance(by: 1)
         case "mindmap.org.prev": mindmap.cycleInstance(by: -1)
         case "mindmap.accept":
+            // Decisions an agent proposed first: they reach sessions only once you keep them.
+            if let node, !node.proposals.isEmpty {
+                let count = node.proposals.count
+                change { $0.acceptProposals(in: node.id, now: now) }
+                return say(
+                    "kept \(count == 1 ? "the proposed decision" : "\(count) proposed decisions") on \(node.title)"
+                )
+            }
             guard let node, node.suggested || node.unconfirmed else { return say("nothing to confirm here") }
             change { $0.accept(node.id, now: now) }
             say("kept where heed put it")

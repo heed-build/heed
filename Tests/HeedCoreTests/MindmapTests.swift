@@ -486,12 +486,37 @@ struct MemoryCommandTests {
         #expect(MemoryQuery.search("index sibling", in: tree, ledger: ledger).hasPrefix("nothing"))
     }
 
-    @Test func aNoteIsKeptOnTheCampaignOnce() {
-        var (tree, _) = world()
-        #expect(MemoryQuery
-            .note("Cache the toc", on: "work:e1", session: "s9", in: &tree, now: t0) == "kept on Docs nav")
-        #expect(tree["nav"]?.decisions.map(\.source) == ["s9"])
-        #expect(MemoryQuery.note("Cache the toc", on: "nav", session: "s9", in: &tree, now: t0).hasPrefix("already"))
+    @Test func anAgentsNoteIsProposedOnTheCampaignOnce() {
+        var (tree, ledger) = world()
+        #expect(MemoryQuery.note("Cache the toc", on: "work:e1", session: "s9", in: &tree, now: t0)
+            .hasPrefix("proposed on Docs nav"))
+        #expect(tree["nav"]?.proposals.map(\.source) == ["s9"])
+        #expect(tree["nav"]?.decisions.isEmpty == true)
+        #expect(MemoryQuery.note("Cache the toc", on: "nav", session: "s9", in: &tree, now: t0)
+            .hasPrefix("already proposed"))
+        // Told to no session, shown by no query, until you keep it.
+        let brief = MemoryBrief.text(for: "nav", in: tree, ledger: ledger, instance: "acme") ?? ""
+        #expect(!brief.contains("Cache the toc"))
+        #expect(!MemoryQuery.show("nav", in: tree, ledger: ledger, instance: "acme").contains("Cache the toc"))
+        #expect(MemoryQuery.search("cache", in: tree, ledger: ledger).hasPrefix("nothing"))
+        #expect(tree.acceptProposals(in: "nav", now: t0) == 1)
+        #expect(tree["nav"]?.proposals.isEmpty == true && tree["nav"]?.decisions.map(\.text) == ["Cache the toc"])
+        #expect(MemoryBrief.text(for: "nav", in: tree, ledger: ledger, instance: "acme")?.contains("Cache the toc")
+            == true)
+        #expect(MemoryQuery.note("Cache the toc", on: "nav", session: "s9", in: &tree, now: t0)
+            .hasPrefix("already kept"))
+    }
+
+    @Test func nodesKeptBeforeProposalsStillRead() throws {
+        let node = MindNode(id: "n", kind: .campaign, title: "Nav", createdAt: t0)
+        var object = try #require(
+            JSONSerialization.jsonObject(with: JSONEncoder.heed.encode(node)) as? [String: Any]
+        )
+        #expect(object["proposals"] != nil)
+        object["proposals"] = nil
+        let old = try JSONSerialization.data(withJSONObject: object)
+        let read = try JSONDecoder.heed.decode(MindNode.self, from: old)
+        #expect(read == node)
     }
 
     @Test func heedsPluginCarriesTheMemorySkill() {

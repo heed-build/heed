@@ -94,8 +94,12 @@ another's. The brief a session is told mentions it; claude sessions on a goal al
 ```sh
 heed memory show                    # the campaign this work continues: what it is for, decisions, what is open
 heed memory search toc order        # decisions, follow-ups and campaigns that mention every word
-heed memory note "Cache the toc"    # a decision kept on the campaign, for the sessions after this one
+heed memory note "Cache the toc"    # a decision proposed on the campaign, for you to keep
 ```
+
+A note is a proposal: the campaign shows it under **Proposed by agents**, and no session is told it (not in its brief,
+not by `heed memory show` or `search`) until you keep it with `y` on the campaign. Then it is one of the campaign's
+decisions like any other. Decisions heed reads from your work's summaries are kept as before.
 
 ## Keys
 
@@ -105,7 +109,7 @@ heed memory note "Cache the toc"    # a decision kept on the campaign, for the s
 | `h` `l` | Out to what holds it, in to what it holds |
 | `-` `=` | Draw one level less or more to the right |
 | `[o` `]o` | The previous or next org's Mindmap |
-| `y` | Keep a suggested placement |
+| `y` | Keep a suggested placement, or the decisions an agent proposed on the node |
 | `m` | Move it into a campaign or group, by title (`:mindmap.move top` to the top) |
 | `>` `<` | Group it with the next one; lift it out |
 | `r` | Rename |

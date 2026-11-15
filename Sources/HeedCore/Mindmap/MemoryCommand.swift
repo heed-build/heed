@@ -5,14 +5,15 @@ import Foundation
 ///
 /// - `show`: the session's campaign: what it is for, its synopsis, the decisions that stand, what is open, its PRs.
 /// - `search <words>`: campaigns, decisions and open follow-ups that mention every word, in this Mindmap only.
-/// - `note <text>`: a decision, kept on the session's campaign (and its source is this session).
+/// - `note <text>`: a decision proposed on the session's campaign (its source is this session); it is told to
+///   sessions once you keep it in the Mindmap.
 public enum MemoryCommandLine {
     public static let verbs = ["show", "search", "note"]
 
     public static let usage = """
     usage: heed memory show                what heed keeps about the work this session continues
            heed memory search <words>      decisions, follow-ups and campaigns that mention all of the words
-           heed memory note <decision>     keep a decision on this session's campaign
+           heed memory note <decision>     propose a decision on this session's campaign, for the user to keep
     Run it from a heed session's shell: it reads that session's own Mindmap (its org's, or personal).
     """
 
@@ -95,15 +96,19 @@ public enum MemoryQuery {
         return lines.prefix(maxResults).joined(separator: "\n")
     }
 
-    /// `note`: the decision kept on the campaign, its source the session.
+    /// `note`: the decision proposed on the campaign, its source the session. It is told to no session until the
+    /// user keeps it in heed's Mindmap (`MindmapTree.acceptProposals`).
     public static func note(_ text: String, on id: String, session: String, in tree: inout MindmapTree, now: Date)
         -> String
     {
         guard var node = MemoryBrief.anchor(of: id, in: tree) else { return "nothing kept for this work yet" }
         guard !node.decisions.contains(where: { $0.text == text }) else { return "already kept on \(node.title)" }
-        node.decisions.append(MindNode.Decision(text: text, source: session))
+        guard !node.proposals.contains(where: { $0.text == text }) else {
+            return "already proposed on \(node.title): it waits for the user to keep it in heed's Mindmap"
+        }
+        node.proposals.append(MindNode.Decision(text: text, source: session))
         node.updatedAt = now
         tree.upsert(node)
-        return "kept on \(node.title)"
+        return "proposed on \(node.title): it joins the decisions once the user keeps it in heed's Mindmap"
     }
 }

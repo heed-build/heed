@@ -198,7 +198,8 @@ public enum HeedPlugin {
             "",
             "- `heed memory show`: the campaign this work continues: what it is for, its decisions, what is open.",
             "- `heed memory search <words>`: decisions, follow-ups and campaigns that mention all of the words.",
-            "- `heed memory note <decision>`: keep a decision on this campaign for the sessions after you.",
+            "- `heed memory note <decision>`: propose a decision on this campaign; once the user keeps it, the "
+                + "sessions after you are told it.",
             "",
             "Keep to decisions that still stand unless the work shows one is wrong; then say so, and note the new one.",
             "",

@@ -235,7 +235,7 @@ line at the foot of its panes, never typed into.
 
 ### In a background tab instead
 
-`run_in = "background"` (per org and repo too, or **Runs in** on the Pilot page) keeps the way rounds ran before
+`run_in = "background"` (per org and repo too, or **Runs in** on the Autopilot page) keeps the way rounds ran before
 helpers, for an agent heed has no ACP adapter for. Each round is a **run** in the background:
 
 - **Where:** a worktree of its own (`<worktree_root>/heed/<repo>/get-it-green-<branch>`) on a branch of its own,
@@ -275,7 +275,7 @@ one takes you to its tab.
 
 ### In the session instead
 
-`run_in = "session"` (per org and repo too, or **Runs in** on the Pilot page) sends each round to the session's own
+`run_in = "session"` (per org and repo too, or **Runs in** on the Autopilot page) sends each round to the session's own
 agent instead, as one prompt typed into its pane. It waits until that agent is idle or done, never while it works,
 is blocked or asks, and until you have not typed in it for five minutes (20 seconds after `zg`). A Claude session gets
 it through its [inbox](../agents/messages.md) instead, which holds it until the agent can read it; the five minutes
@@ -325,7 +325,7 @@ the PRs view's **Watch** column, and by the PR number in Repos.
 ## Settings
 
 The settings live in `[pilot]` (the pilot is what does the watching and the merging). `[pilot]` sets the
-defaults; an org or a repo overrides any of them. Settings ▸ Pilot edits the defaults, and Settings ▸ Orgs & repos
+defaults; an org or a repo overrides any of them. Settings ▸ Autopilot edits the defaults, and Settings ▸ Orgs & repos
 the overrides, on its Get it green, Get it merged and Reviews tabs.
 
 ```toml
@@ -376,7 +376,7 @@ merge = "auto"
 ### Extra instructions
 
 heed's prompts can carry instructions of your own, set in `[pilot]` and per org or repo like any other setting
-(Settings ▸ Pilot ▸ Extra instructions):
+(Settings ▸ Autopilot ▸ Extra instructions):
 
 | Key | Added |
 |---|---|

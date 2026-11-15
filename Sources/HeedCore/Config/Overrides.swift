@@ -32,7 +32,7 @@ public enum OverrideScope: Hashable, Sendable {
 }
 
 /// The tabs Settings › Orgs & repos splits an org's or repo's settings into, so no one tab is a long scroll: the
-/// org-wide basics, then the Pilot's settings by what they drive, then the text heed adds to its prompts.
+/// org-wide basics, then the Autopilot's settings by what they drive, then the text heed adds to its prompts.
 public enum OverrideTab: String, CaseIterable, Sendable, Identifiable {
     /// Color, new worktrees' setup, goal trackers, watching (and a repo's tasks).
     case general

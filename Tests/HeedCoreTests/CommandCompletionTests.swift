@@ -69,7 +69,7 @@ struct CommandCompletionTests {
         #expect(CommandCompletions.candidates("settings.open k", context).map(\.label).first == "keys")
         // Orgs & repos opens on a tab.
         #expect(CommandCompletions.candidates("settings.open colors m", context).map(\.label) == ["colors merged"])
-        // So do the Pilot and an agent.
+        // So do the Autopilot and an agent.
         #expect(CommandCompletions.candidates("settings.open pilot m", context).map(\.label) == ["pilot merged"])
         #expect(CommandCompletions.candidates("settings.open mo", context).map(\.label).first == "model-calls")
         // Settings' search offers the settings' names, with where each is.

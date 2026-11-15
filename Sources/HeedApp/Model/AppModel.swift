@@ -3682,7 +3682,7 @@ final class AppModel {
         didSet { if !isFixture { UserDefaults.standard.set(orgRepoTab.rawValue, forKey: "orgRepoTab") } }
     }
 
-    /// The tab Settings › Pilot shows, kept between launches like `orgRepoTab`.
+    /// The tab Settings › Autopilot shows, kept between launches like `orgRepoTab`.
     var pilotTab: SettingsTab = ShotMode.active
         ? .green
         : UserDefaults.standard.string(forKey: "pilotTab").flatMap(SettingsTab.init(rawValue:))
@@ -5670,7 +5670,7 @@ final class AppModel {
     /// The pilot's events for one PR, newest first.
     func pilotTimeline(_ ref: PullRef) -> [PilotEvent] { pilotLog.filter { $0.ref == ref } }
 
-    /// What the pilot commands act on: the PR overlay's or reader's PR; in the Pilot and PRs views the picked rows
+    /// What the pilot commands act on: the PR overlay's or reader's PR; in the Autopilot and PRs views the picked rows
     /// (VISUAL) or the one under the cursor; in Sessions the session's PRs that are still open (a merged or closed
     /// one has nothing left to watch, green or merge).
     var pilotTargets: [PullRef] {

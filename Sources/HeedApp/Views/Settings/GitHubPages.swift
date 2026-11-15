@@ -1,7 +1,7 @@
 import HeedCore
 import SwiftUI
 
-// Settings › GitHub: GitHub and Pilot (Orgs & repos and Attention have their own files).
+// Settings › GitHub: GitHub and Autopilot (Orgs & repos and Attention have their own files).
 
 struct GitHubPage: View {
     @Environment(AppModel.self) private var model
@@ -63,7 +63,8 @@ struct PilotPage: View {
     }
 }
 
-/// Search's matches on Pilot: each tab holding one, its cards with only the matching rows, under `Pilot › Reviews`.
+/// Search's matches on Autopilot: each tab holding one, its cards with only the matching rows, under `Autopilot ›
+/// Reviews`.
 struct PilotSearchResults: View {
     @Environment(AppModel.self) private var model
     let search: SettingsSearch

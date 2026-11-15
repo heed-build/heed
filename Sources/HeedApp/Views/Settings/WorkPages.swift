@@ -1,7 +1,7 @@
 import HeedCore
 import SwiftUI
 
-// Settings › Work: Worktrees, Goals, History.
+// Settings › Work: Worktrees, Goals, Insights.
 
 struct WorktreesPage: View {
     @Environment(AppModel.self) private var model

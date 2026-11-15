@@ -56,6 +56,9 @@ public struct HookMessage: Codable, Equatable, Sendable {
         /// Where the agent takes messages besides its terminal (Claude's cross-session inbox socket, from its hook's
         /// environment): heed hands it what it would otherwise type (`AgentChannels`).
         case inbox(socket: String)
+        /// A tool call brought GitHub content in (`OriginNote`), with the note heed gave Claude's auto mode about
+        /// where it came from, or none when heed did not know enough yet. Never changes the session's state.
+        case origin(OriginReport)
     }
 
     public var session: String

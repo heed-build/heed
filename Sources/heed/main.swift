@@ -165,7 +165,13 @@ let socketPath = environment[HeedEnvironment.socket] ?? HeedEnvironment.defaultS
 let pane = environment[HeedEnvironment.pane]
 let token = environment[HeedEnvironment.token]
 let agent = HookCommandLine.agent(arguments)
-let lines = kinds.compactMap {
+// Where a tool result came from, for Claude's auto mode: read from the facts heed keeps beside its socket, never asked
+// for here, so the hook stays fast (`OriginNote`).
+let origin = agent == "claude" && arguments.dropFirst(2).first == "PostToolUse"
+    ? hookInput.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }.flatMap { input in
+        OriginNote.report(input: input) { OriginBook.read(OriginBook.path(forSocket: socketPath)) }
+    } : nil
+let lines = (kinds + (origin.map { [.origin($0)] } ?? [])).compactMap {
     try? HookMessage(
         session: session, pane: pane, kind: $0, agent: agent, token: token,
         cause: environment[Cause.environment].flatMap { Cause.isID($0) ? $0 : nil }
@@ -201,6 +207,8 @@ if !lines.isEmpty, !send(data, to: socketPath) {
     let outcome = HookSpool.append(data, to: spool) ? "kept in \(spool) for its next launch" : "message dropped"
     FileHandle.standardError.write(Data("heed: app not reachable at \(socketPath), \(outcome)\n".utf8))
 }
+
+if let note = origin?.note { FileHandle.standardOutput.write(OriginNote.hookOutput(note)) }
 
 // The ask goes to heed's queue, and this hook waits for your answer there; a pass prints nothing, so the agent asks.
 if permissionHook, let input = hookInput,

@@ -6,6 +6,17 @@ import Testing
 struct PermissionRoundTripTests {
     private static func path() -> String { "/tmp/heed-trip-\(UUID().uuidString.prefix(8)).sock" }
 
+    /// Blocks the calling thread until `condition` holds; for code that runs on its own thread.
+    private static func block(until condition: () -> Bool) throws {
+        let until = ContinuousClock.now + .seconds(30)
+        while !condition() {
+            guard ContinuousClock.now < until else { throw BlockTimeout() }
+            Thread.sleep(forTimeInterval: 0.005)
+        }
+    }
+
+    private struct BlockTimeout: Error {}
+
     private static func ask(_ id: String = "ask-1") -> PermissionAsk {
         PermissionAsk(id: id, session: "s1", agent: "claude", tool: "Bash", command: "npm test", askedAt: Date())
     }
@@ -70,20 +81,26 @@ struct PermissionRoundTripTests {
     @Test func aHookRejoinsAHeedThatRestartedAndGetsItsAnswer() async throws {
         let path = Self.path()
         let first = FakeHeed { _ in nil }
+        let second = FakeHeed { _ in PermissionAnswer(.deny, message: "after the restart") }
         let before = first.server(path)
+        let after = second.server(path)
         try before.start()
+        defer { after.stop() }
         let ask = Self.ask()
         let hook = Task { try await onThread { PermissionHook.exchange(ask, socket: path, ceiling: 5) } }
-        try await eventually { first.queued.value == 1 }
-        // Heed goes away with the ask received, and comes back a moment later.
-        before.stop()
-        try await Task.sleep(for: .milliseconds(300))
-        let second = FakeHeed { _ in PermissionAnswer(.deny, message: "after the restart") }
-        let after = second.server(path)
-        try after.start()
-        defer { after.stop() }
+        // The restart runs on its own thread, not on the cooperative pool: the hook's ceiling is wall-clock, and on a
+        // loaded machine (a whole suite of tests holding the pool) a `Task.sleep` here can resume past it, which is
+        // the test being late rather than heed losing the ask.
+        try await onThread {
+            // Heed goes away with the ask received (its receipt written: `queued` rises before that), and comes back a
+            // moment later.
+            try Self.block(until: { first.receipted.value == 1 })
+            before.stop()
+            Thread.sleep(forTimeInterval: 0.3)
+            try after.start()
+        }
         let outcome = try await hook.value
-        #expect(outcome.answer == PermissionAnswer(.deny, message: "after the restart"))
+        #expect(outcome.answer == PermissionAnswer(.deny, message: "after the restart"), "\(outcome)")
         #expect(second.queued.value == 1)
     }
 
@@ -261,6 +278,10 @@ struct PermissionBrokerTests {
 private final class FakeHeed: Sendable {
     let broker = PermissionBroker()
     let queued = Box(0)
+    /// Asks whose receipt has been handed to the server's connection queue. `queued` rises before the receipt is
+    /// written, so a test that stops the server on `queued` alone can cut the connection before the hook has a
+    /// receipt, and the hook (rightly) does not rejoin a heed that never confirmed the ask.
+    let receipted = Box(0)
     private let answer: @Sendable (PermissionAsk) async -> PermissionAnswer?
 
     init(answer: @escaping @Sendable (PermissionAsk) async -> PermissionAnswer?) {
@@ -284,6 +305,7 @@ private final class FakeHeed: Sendable {
                 }
             }
             ControlServer.receipt(ask.id)
+            receipted.update { $0 += 1 }
             return await ControlReply(permission: broker.wait(ask.id), permissionID: ask.id)
         }
         server.permissionGone = { [broker] id in _ = broker.detach(id) }

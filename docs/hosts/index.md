@@ -9,52 +9,43 @@ Agents on your other machines appear in the same window as the ones on this Mac.
 ![Hosts: sessions on other machines beside the ones on this Mac](../images/shots/landing/hosts.png)
 
 A host is a machine Heed reaches over ssh: a devbox, a GPU box, a build runner. Heed uses your own ssh: your
-`~/.ssh/config`, keys, agent and jump hosts, or your [tailnet](tailscale.md). It never reads a key, and it shares one
-connection per host, so its calls are fast.
+`~/.ssh/config`, keys, agent and jump hosts, or your [tailnet](tailscale.md). Heed never reads a key, and Heed shares one connection per host, so calls are fast.
 
-Heed finds the repos and worktrees on your hosts and shows them next to the ones on this Mac, and runs sessions there:
-the agent runs on the host, in a [zmx](../sessions/zmx.md) session when the host has zmx, so a dropped connection, a
-closed lid or a restarted Heed never stops it.
+Heed finds the repos and worktrees on your hosts and shows them next to the ones on this Mac. Heed also runs sessions there. The agent runs on the host, in a [zmx](../sessions/zmx.md) session when the host has zmx, so a dropped connection, a closed lid or a restarted Heed never stops the agent.
 
 ## Adding a host
 
 `gH` opens the hosts: the ones Heed has, and the ones in `~/.ssh/config` or on your [tailnet](tailscale.md) it could
-add. `↩` on one from your ssh config adds it to `config.toml`; `↩` on one Heed has checks it again. The checks say
-how it answers:
+add. `↩` on a host from your ssh config adds the host to `config.toml`; `↩` on a host Heed has checks the host again. The checks say how the host answers:
 
 ![The hosts, with @devbox's checks: connected, its platform, git, zmx, agents and repos](../images/shots/hosts/picker.png)
 
 | Check | Means |
 |---|---|
-| connected in 24 ms | It answers, through your ssh agent, without a prompt |
+| connected in 24 ms | The host answers, through your ssh agent, without a prompt |
 | ssh needs your key | Your key is locked or not loaded: `ssh-add`, then `↩` |
 | host key not known yet | Connect once in a terminal to check and accept its key |
 | host key changed | The key does not match `known_hosts`: blocked until you find out why |
-| offline | It does not answer; what Heed saw of it last stays, marked stale |
+| offline | The host does not answer; what Heed saw of the host last stays, marked stale |
 
 ![A host that wants your key](../images/shots/hosts/picker-auth.png)
 
 ### Where its projects are
 
 Heed looks for repos on a host in its `repo_roots`, `~/code` unless you say otherwise. When you add a host, or check
-one whose `repo_roots` you have not set, heed asks where your projects are after its first check answers. It looks in
-the usual folders under the host's home (`~/Projects`, `~/code`, `~/src`, `~/dev`, `~/repos`, `~/git`, `~/work`,
-`~/Developer`, `~/workspace`, `~/go/src`) and in any other folder there that holds a git checkout, and lists the ones it
-found with how many repos each holds:
+one whose `repo_roots` you have not set, heed asks where your projects are after the host's first check answers. Heed looks in the usual folders under the host's home (`~/Projects`, `~/code`, `~/src`, `~/dev`, `~/repos`, `~/git`, `~/work`,
+`~/Developer`, `~/workspace`, `~/go/src`) and in any other folder there that holds a git checkout. Heed lists the folders it found with how many repos each holds:
 
 ![Where are your projects on @devbox: ~/Projects, ~/code and ~/experiments picked, ~/src empty](../images/shots/hosts/roots.png)
 
-The folders holding repos start picked; `space` picks or drops one, `a` adds one by hand (a folder under `~`), and `w`
-changes where heed puts the worktrees it makes there (`~/code/wt` unless config already says). `↩` writes both to
-`config.toml` as `[hosts.<name>] repo_roots` and `worktree_root`, and looks for repos again. `⎋` leaves config as it
-is; heed does not ask again on its own. `⌃r` in `gH` (or `:host.roots devbox`) asks any time.
+The folders holding repos start picked. `space` picks or drops a folder, `a` adds a folder by hand (a folder under `~`), and `w` changes where heed puts the worktrees it makes there (`~/code/wt` unless config already says). `↩` writes both settings to `config.toml` as `[hosts.<name>] repo_roots` and `worktree_root`, and looks for repos again. `⎋` leaves config as it is, and heed does not ask again on its own. `⌃r` in `gH` (or `:host.roots devbox`) asks any time.
 
 A host's checks say where heed looks and how many repos it found there, or that it found none:
 
 | Check | Means |
 |---|---|
-| 12 repos under ~/Projects | Found by the last scan |
-| no repos under ~/code | Nothing there: `⌃r` chooses the folders your projects are in |
+| 12 repos under ~/Projects | The last scan found them |
+| no repos under ~/code | Nothing there: `⌃r` lets you choose the folders your projects are in |
 
 A host in `config.toml`:
 

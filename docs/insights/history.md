@@ -5,26 +5,22 @@ description: "History: the sessions and chats that ended, by day, each with its 
 # History
 
 `H` (or `:history`, `history.list`) shows History: the sessions and chats that ended, grouped by day,
-newest first, each day's header saying what it came to (`2 merged · 1 abandoned · 2 questions answered`).
+newest first. Each day's header says what the day came to (`2 merged · 1 abandoned · 2 questions answered`).
 
 ![History: the filter column, the work that ended by day with its story under each, and the selected one in full](../images/shots/history/history.png)
 
 A row is a piece of work: how it ended, its title and PR, repo, agent, how long it was open and its outcome in words.
-The line under it is its story, from heed's event log: started, PR opened, you answered, merged, worktree removed,
-each with its time. A chat that ended is a quiet line of its own, and so is anything that belongs to no session (a
-worktree made by hand). Events of a session that is still open stay in Sessions until it ends.
+The line under a row is its story, from heed's event log: started, PR opened, you answered, merged, worktree removed, each with its time. A chat that ended gets a quiet line of its own. So does anything that belongs to no session (a worktree made by hand). Events of a session that is still open stay in Sessions until the session ends.
 
 | Outcome | |
 |---|---|
-| merged | Its pull request was merged |
-| closed | Closed by you, with a pull request |
-| abandoned | Closed without one |
-| cleaned up | Its worktree was removed by cleanup |
+| merged | Its PR merged |
+| closed | You closed it, with a PR |
+| abandoned | Closed without a PR |
+| cleaned up | Cleanup removed its worktree |
 | promoted | A [chat](../sessions/chats.md) that became work (`:promote`) |
 
-The detail on the right tells the work under the cursor in full: its prompt, what happened as a timeline, how long
-its agent worked (from the states its hooks reported; `about` when some were read from the screen), the
-[ledger](ledger.md)'s summary when there is one, and the agent's resume command. Heed keeps the prompt, the agent's
+The detail on the right shows the work under the cursor in full. It holds the prompt, what happened as a timeline, and how long the agent worked (from the states its hooks reported; `about` when heed read some from the screen). It also holds the [ledger](ledger.md)'s summary when there is one, and the agent's resume command. Heed keeps the prompt, the agent's
 session id, the story and the agent's last message; the transcript belongs to the agent.
 
 ![A piece of work in full: its prompt, what happened, the ledger's summary and the resume command](../images/shots/history/detail.png)
@@ -51,17 +47,16 @@ Each takes a name on the command line too: `:history.outcome merged`, `:timeline
 
 ## Every event
 
-`e` unfolds every event of the last 30 days as its own line, on one vertical rule per day: what the timeline was
-(`:timeline` and `history.timeline` open History this way). `e` again folds them back into their work.
+`e` unfolds every event of the last 30 days as its own line, on one vertical rule per day. This is what the timeline was (`:timeline` and `history.timeline` open History this way). `e` again folds them back into their work.
 
 ![Every event as its own line](../images/shots/history/every-event.png)
 
 | Line | When |
 |---|---|
 | Session started, ended, parked, reopened | A session's life; ended says how (merged, closed, abandoned, cleaned up) |
-| Worktree created, removed | A worktree appeared or went, here or on a host |
-| PR tracked, merged | A session started following a PR, and the PR merged |
-| You answered | A question an agent asked was answered |
+| Worktree created, removed | A worktree appeared or went away, here or on a host |
+| PR tracked, merged | A session started following a PR; the PR merged |
+| You answered | You answered a question an agent asked |
 | Chat started, closed | A [chat](../sessions/chats.md)'s life |
 
 A solid ring is something that still exists. A **dashed ring** and a **struck-through name** mark a worktree that no
@@ -72,5 +67,4 @@ longer does. When heed [saved its work](../worktrees/removing.md#saved-first) be
 
 ![A removed worktree's session in full: the work it saved, in its story](../images/shots/history/every-event-detail.png)
 
-`R` (or `↩`) reopens the work under the cursor, or the session of the event under it, as [Reopening](reopening.md)
-describes; `O` starts a new session from its prompt. Right-click a line for the same.
+`R` (or `↩`) reopens the work under the cursor, or the session of the event under the cursor, as [Reopening](reopening.md) describes. `O` starts a new session from the work's prompt. Right-click a line for the same actions.

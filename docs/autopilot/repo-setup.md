@@ -5,10 +5,10 @@ description: "The setup wizard: heed reads how a repo merges and how its CI fail
 # Setting up a repo
 
 Get it merged and get it green have a dozen settings per repo. The setup wizard reads the repo's own history and
-proposes them, each with the reason, so you start from what the repo already does rather than from defaults.
+proposes the settings, each with the reason. You start from what the repo already does rather than from defaults.
 
-Pick a repo in the [Repos view](../worktrees/repos.md) (`gr`): its card says where it stands, and has a **Set up** button
-(the repo column says **not set up** or **merging ⚠** until it is):
+Pick a repo in the [Repos view](../worktrees/repos.md) (`gr`). The repo's card says where the repo stands and has a **Set up** button
+(the repo column says **not set up** or **merging ⚠** until the repo is set up):
 
 ![A repo's card in Repos: its merging and green status, and Set up](../images/shots/github/repo-setup-repos.png)
 
@@ -16,14 +16,14 @@ Pick a repo in the [Repos view](../worktrees/repos.md) (`gr`): its card says whe
   **⚠** and what is wrong, such as auto-merge turned on in heed while the repo does not allow it.
 - **green: ask · 3 rounds**, with the run agent and model when set.
 
-`M` in Repos (`:repo.setup`, or `:repo.setup org/name`) opens the wizard for the repo under the cursor; the button and a
-right-click on a repo (or on one of its worktrees) open it for that repo. `⎋` closes it at any step without writing.
+`M` in Repos (`:repo.setup`, or `:repo.setup org/name`) opens the wizard for the repo under the cursor. The button and a
+right-click on a repo (or on one of its worktrees) open the wizard for that repo. `⎋` closes the wizard at any step without writing.
 
 ## 1. Sample
 
 heed reads, with `gh`, and changes nothing:
 
-- the repo's settings: the merge buttons it allows, auto-merge, a merge queue, branch protection and rulesets on the
+- the repo's settings: the merge buttons the repo allows, auto-merge, a merge queue, branch protection and rulesets on the
   default branch (required checks and approvals, linear history, up-to-date branches), and your permission;
 - its last 30 merged PRs into the default branch: who wrote, reviewed and merged each, the head commit's checks, labels
   taken off before the merge, whether auto-merge or a queue merged it, and the merge commit;
@@ -34,14 +34,14 @@ heed reads, with `gh`, and changes nothing:
 
 ![Sampling: settings read, merged PRs on their way](../images/shots/github/repo-setup-1-sampling.png)
 
-A sample is two GraphQL queries (about 18 points of the 5,000 an hour) and up to 30 REST calls. Each is a row in the
+A sample is two GraphQL queries (about 18 points of the 5,000 an hour) and up to 30 REST calls. Each call is a row in the
 [call log](../reference/call-log.md) (`:log`), under the caller `repo.setup`.
 
 ![Sampled: what was read, and what it cost](../images/shots/github/repo-setup-1-sample.png)
 
 ## 2. Propose
 
-Each setting shows the proposed value with the others a click (or `h` `l`) away, what applies now, and why:
+Each setting shows the proposed value, with the other values a click (or `h` `l`) away, what applies now, and why:
 
 ![The proposal: get it merged and get it green, each with why](../images/shots/github/repo-setup-2-propose.png)
 
@@ -51,7 +51,7 @@ Each setting shows the proposed value with the others a click (or `h` `l`) away,
 | `merge_method` | the only method the repo allows, else what the merged PRs used (merge commits, or one commit) |
 | `trusted_reviewers` | bots that reviewed at least a fifth of the PRs, and Copilot when a ruleset asks it to review |
 | `gate_checks` | with required checks: the others that passed on most PRs and never failed at merge (on when they ran on nine in ten) |
-| `hold_labels` | labels named like a hold, and labels taken off before merging; a hold label merged PRs still carried is turned off |
+| `hold_labels` | labels named like a hold, and labels taken off before merging; heed turns off a hold label that merged PRs still carried |
 | `quiet_minutes` | how soon after the last push or review a quarter of the PRs merged (5 to 30) |
 | `merge_now` | `auto` with auto-merge (GitHub decides), else `ask` |
 | `force_merge` | only for admins: `ask` when merged PRs went past the required approvals, else `off` |
@@ -63,25 +63,25 @@ Each setting shows the proposed value with the others a click (or `h` `l`) away,
 Flaky workflows and what failed CI runs failed on are listed under get it green. Re-running a flaky check instead of
 sending it to the agent comes later.
 
-A setting is ticked when it changes something; space writes it or leaves it out, and on a list (reviewers, checks,
+A setting is ticked when it changes something. Space writes the setting or leaves it out, and on a list (reviewers, checks,
 labels) turns one item on or off.
 
 ## 3. Validate
 
 heed replays its merge rules (`merge = "heed"`, see [Get it green and merged](green-and-merged.md)) over the sampled PRs as they were just before
-they merged, and says which would have been held and why. It checks the settings against the repo's: a method the repo
+they merged, and says which would have been held and why. heed then checks the settings against the repo's own settings. It checks a method the repo
 allows, auto-merge allowed for `auto`, linear history against merge commits, a merge queue, required approvals a
 trusted AI review does not satisfy, up-to-date branches, and admin rights for `force_merge`.
 
 ![Validation: the replay, and the settings against GitHub's](../images/shots/github/repo-setup-3-validate.png)
 
-heed never changes GitHub's settings. A check that fails says what to change there; `o` (or **open in GitHub**) opens
-the settings page it is about.
+heed never changes GitHub's settings. A check that fails says what to change in GitHub. `o` (or **open in GitHub**) opens
+the settings page that the check is about.
 
 ## 4. Write
 
-The exact lines are shown before anything is written. `↩` writes them under `[repos."org/name"]` in `config.toml`,
+heed shows the exact lines before it writes anything. `↩` writes them under `[repos."org/name"]` in `config.toml`,
 in place: comments, order and every other key stay as they are. The config reloads as after any edit, and Settings ›
-Orgs & repos shows them.
+Orgs & repos shows the new lines.
 
 ![The lines to write](../images/shots/github/repo-setup-4-write.png)

@@ -4,14 +4,11 @@ description: "Where Insights opens: what shipped, agent time against the range b
 
 # Dashboard
 
-`gh` opens Insights here (so do `D` in any Insights view, `:dashboard` and `history.dashboard`). It sums up the last
-week against the week before; `r` steps the range to four weeks, then twelve, then back (`:dashboard.range 14` or `2w`
-for any other). `H` goes to [History](history.md).
+`gh` opens Insights here (so do `D` in any Insights view, `:dashboard` and `history.dashboard`). The dashboard sums up the last week against the week before. `r` steps the range to four weeks, then twelve, then back (`:dashboard.range 14` or `2w` for any other). `H` goes to [History](history.md).
 
 ![The dashboard: the week in a sentence, four numbers, what shipped, your bests, twelve weeks, your agents and goals](../images/shots/history/dashboard.png)
 
-The sentence at the top says how many PRs merged against the range before, how long your agents worked, how long they
-waited on your answers in all, and how many days in a row something merged.
+The sentence at the top says how many PRs merged against the range before. It also gives how long your agents worked, how long they waited on your answers in all, and how many days in a row had a merge.
 
 | Tile | From |
 |---|---|
@@ -22,22 +19,15 @@ waited on your answers in all, and how many days in a row something merged.
 
 ![The four numbers: 12 PRs merged, about 44 h of agent time, a median answer of 7 m and the reported cost per merged PR, each with its line](../images/shots/history/dashboard-tiles.png)
 
-**Shipped** shows the PRs merged in the range as cards, edged in their repo's colour, with the agent, how long from the
-session's start to the merge, and the day; `j` `k` move through them, `↩` reads the PR, `gB` opens it in the browser
-and `R` reopens its session when it is in History.
+**Shipped** shows the PRs merged in the range as cards, edged in their repo's colour. Each card names the agent, the time from the session's start to the merge, and the day. `j` `k` move through the cards, `↩` reads the PR, `gB` opens the PR in the browser, and `R` reopens its session when the session is in History.
 
 ![Shipped: the cursor on a card](../images/shots/history/dashboard-shipped.png)
 
-**Your best** keeps what heed's log has seen since it began: the fastest merge, the most sessions open at once, the
-longest run of days with a merge, the busiest day; and whether anyone waited long for you this range.
+**Your best** keeps what heed's log has seen since it began: the fastest merge, the most sessions open at once, the longest run of days with a merge, and the busiest day. It also says whether anyone waited long for you this range.
 
 ![Your best](../images/shots/history/dashboard-bests.png)
 
-The **12 weeks** calendar is agent time per day, a column per week and Monday at the top, whatever the range: one
-colour, stronger is more, and each day says its date and time when you point at it. **Your agents** sets what each
-agent's sessions that ended came to (merged, in green, and abandoned, in red, of those that ended) beside its working
-time; **Where the time went** splits that time by repo. **Goals that moved** lists the [goals](../goals/index.md) that
-had evidence come in or were done in the range, with their score now, and **Next up** says what the goal closest to
+The **12 weeks** calendar shows agent time per day, a column per week with Monday at the top, whatever the range. It uses one colour, and a stronger colour means more time. Each day shows its date and time when you point at it. **Your agents** sets what each agent's sessions that ended came to (merged, in green, and abandoned, in red, of those that ended) beside its working time. **Where the time went** splits that time by repo. **Goals that moved** lists the [goals](../goals/index.md) that had evidence come in or were done in the range, with their score now. **Next up** says what the goal closest to
 done still needs.
 
 ![The 12 weeks calendar: a square for each day, a column per week with Monday at the top, and stronger amber for more agent time](../images/shots/history/dashboard-calendar.png)

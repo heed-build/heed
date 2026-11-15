@@ -10,9 +10,7 @@ Insights shows what your work amounted to, and the story of each piece of work t
 ![Insights: what shipped, and the work that ended, by day](../images/shots/landing/history.png)
 
 `gh` opens Insights on its [dashboard](dashboard.md): what shipped this week, agent time set against the week before,
-your bests and the goals that moved. A strip of tabs under the title bar names every Insights view with its key and how
-much is in each: Dashboard `D`, History `H`, Ledger `L`, Mindmap `M`, Standup `U` and OpenTelemetry `T`. The same keys
-work in every one of them; a view's own key again comes back to the dashboard, and a click on a tab opens it.
+your bests and the goals that moved. A strip of tabs under the title bar names every Insights view with its key and how much the view holds: Dashboard `D`, History `H`, Ledger `L`, Mindmap `M`, Standup `U` and OpenTelemetry `T`. The same keys work in every view. A view's own key again returns to the dashboard, and a click on a tab opens that view.
 
 ![Insights' tabs: Dashboard, History, Ledger, Mindmap, Standup and OpenTelemetry, each with its key](../images/shots/history/pane-tabs.png)
 

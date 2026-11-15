@@ -4,8 +4,7 @@ description: A short summary of each piece of work, written by a cheap model, ke
 
 # Ledger
 
-`L` in Insights (or `:ledger`, `history.ledger`) shows the ledger: one entry per session or chat, newest first, with a
-short summary of what the work did and where it stands. It stays after the worktree is removed. `L` again goes back to
+`L` in Insights (or `:ledger`, `history.ledger`) shows the ledger: one entry per session or chat, newest first. Each entry has a short summary of what the work did and where it stands, and the entry stays after the worktree is removed. `L` again goes back to
 History.
 
 ![The ledger: entries on the left, the selected one's summary, decisions, follow-ups and facts on the right](../images/shots/history/ledger.png)
@@ -22,9 +21,9 @@ History.
 | Agent time | The states the agent's hooks reported (`≈` when some were read from the screen) |
 | Model, tokens, cost | What the agent reported for the session |
 
-The model reads the work's commits and diff against its base branch, its pull request (description, reviews, review
-threads), heed's timeline of the session, and the agent's last message. Your `summary_instructions` (Settings › Autopilot › Instructions,
-or per org and repo) are added to heed's prompt. Summaries and the ledger stay in `heed.sqlite` on this Mac.
+The model reads the work's commits and diff against its base branch, its PR (description, reviews, review
+threads), heed's timeline of the session, and the agent's last message.
+heed adds your `summary_instructions` (Settings › Autopilot › Instructions, or per org and repo) to its prompt. Summaries and the ledger stay in `heed.sqlite` on this Mac.
 
 ![An abandoned spike's entry: its summary, one follow-up, its facts with the agent time marked as an estimate, its files, and the keys](../images/shots/history/ledger-detail.png)
 
@@ -41,8 +40,8 @@ include = ["summary", "decisions", "follow_ups", "files"]
 |---|---|
 | `pr_opened` | The session starts tracking a PR |
 | `pr_merged` | One of its PRs merges |
-| `worktree_removed` | Before its worktree is removed: the removal waits for the summary, 30 seconds at most |
-| `idle` | Nothing happened in the session for `idle_hours`, and nothing was written since |
+| `worktree_removed` | Before heed removes its worktree: the removal waits for the summary, 30 seconds at most |
+| `idle` | The session had no activity for `idle_hours`, and heed wrote no summary since |
 | `chat_closed` | A chat closes (off by default) |
 
 Settings › Insights › Ledger has the same switches. With model calls off (`[llm] enabled = false`) nothing is
@@ -59,16 +58,13 @@ An edited summary says so, and stays until you write it again.
 
 ## The agent's own summary
 
-Off by default: with `summary_sign_off` on, heed asks the agent at launch to end its final message with one line that
-starts with `heed-summary:`. When the session's last message has one, that line is the summary, marked "the agent's
-own sign-off", and the model only writes what else the entry includes (decisions, follow-ups); with nothing else to
-write, no model is called at all. It works with model calls off too.
+This is off by default. With `summary_sign_off` on, heed asks the agent at launch to end its final message with one line that starts with `heed-summary:`. When the session's last message has that line, it becomes the summary, marked "the agent's own sign-off". The model then writes only what else the entry includes (decisions, follow-ups). With nothing else to write, heed calls no model at all. The sign-off works with model calls off too.
 
 ```toml
 [pilot]
 summary_sign_off = true        # or under [orgs.<name>] and [repos."org/name"]
 ```
 
-claude gets it as `--append-system-prompt`, codex as `developer_instructions` (`-c`); other agents are not asked.
+claude gets the request as `--append-system-prompt`, codex as `developer_instructions` (`-c`). heed does not ask other agents.
 Settings › Autopilot › Instructions has the switch, and Orgs & repos › Instructions the per-org and per-repo ones.
 

@@ -4,28 +4,43 @@ description: A session is an agent, its terminals, its worktree and the pull req
 
 # Sessions
 
-A session is one task: an agent working in a git worktree, the terminals around it, and the pull requests it opens.
+A session is one task: an agent working in a git worktree, the terminals around it, and the PRs it opens.
 
-![A session: its row in the sidebar, its panes, and the inspector with its worktree and pull requests](../images/shots/concepts/session.png)
+![A session: its row in the sidebar, its panes, and the inspector with its worktree and PRs](../images/shots/concepts/session.png)
 
 A session has:
 
-- **A prompt and a title.** What you asked for, kept for History and for starting again.
-- **An agent.** claude, codex, cursor, pi, opencode, gemini or your own, with its own session id so it can resume.
-- **One worktree per repo.** Usually one repo; a cross-repo session gets a worktree in each, on the same branch.
+- **A prompt and a title.** The prompt is what you asked for. heed keeps it for [History](../insights/history.md) and for starting again. The title starts as the prompt's first words, and heed renames it as the work changes. See [The sidebar](../sessions/sidebar.md).
+- **An agent.** claude, codex, cursor, pi, opencode, gemini, or your own. The session keeps the agent's own session id, so the agent can resume.
+- **One worktree per repo.** Most sessions touch one repo. A cross-repo session gets a worktree in each, on the same branch.
 - **Panes and tabs.** The agent's terminal, and any shells or tasks you open beside it.
-- **Tracked pull requests.** Picked up from what the agent opens, or added by URL.
-- **A state.** Working, blocked, asking, done… See [Agent states](agent-states.md).
+- **Tracked PRs.** heed picks up the PRs the agent opens, and you can add one by URL. See [Tracking PRs](../github/tracking-prs.md).
+- **A state.** The state is working, blocked, asking, done and so on. See [Agent states](agent-states.md).
 
 ![The session's panes: the agent's terminal and a shell beside it](../images/shots/concepts/session-panes.png)
 
-![The inspector with the session's worktrees, pull requests and agent events](../images/shots/concepts/session-inspector.png)
+The [inspector](../sessions/inspector.md) shows the rest of the session: its worktrees, its PRs and its agent events.
 
-A [chat](../sessions/chats.md) is a session with no repo: its agent works in a folder instead of a worktree, and it
-has no pull requests.
+![The inspector with the session's worktrees, PRs and agent events](../images/shots/concepts/session-inspector.png)
 
-Heed keeps a record of each session (its prompt, timeline, outcome and the agent's last message); the agent keeps its
-own transcript. The [ledger](../insights/ledger.md) keeps a short summary of the work after its worktree is gone.
+## Sessions without a repo
 
-Closing a session keeps its worktree; deleting it removes the worktree too, after saving any work not pushed. Either
-way it moves to [History](../insights/index.md), where it can be reopened.
+A [chat](../sessions/chats.md) is a session with no repo. Its agent works in a folder instead of a worktree, and the
+chat has no PRs.
+
+## What heed keeps
+
+heed keeps a record of each session: its prompt, its timeline, its outcome and the agent's last message. The agent
+keeps its own transcript. After the worktree is gone, the [ledger](../insights/ledger.md) keeps a short summary of the
+work.
+
+## How a session ends
+
+| Key | What happens |
+|---|---|
+| `zz` | Park: the session leaves your way and the agent keeps running |
+| `x` | Close: the agent and panes stop, and the worktree stays |
+| `dd` | Delete: heed removes the worktree after saving any work not pushed |
+
+Closing and deleting both move the session to [History](../insights/index.md), where `R` reopens it. See
+[Pin, park, close, delete](../sessions/pin-park-close-delete.md).

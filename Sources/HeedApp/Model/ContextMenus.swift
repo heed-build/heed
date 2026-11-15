@@ -20,6 +20,7 @@ extension AppModel {
         facts.pinned = session.pinned
         facts.parked = session.parked
         facts.hasPrompt = !session.prompt.isEmpty
+        facts.agentless = resumeOffer(for: session) != nil
         facts.handoffAgents = handoffAgents(for: session)
         facts.chat = session.isChat
         facts.scratch = session.chat?.kind == .scratch && session.location.isLocal

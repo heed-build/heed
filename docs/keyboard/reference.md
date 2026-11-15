@@ -46,6 +46,9 @@ This page is generated from the code (`mise run shots`).
 | `chat.new` `[prompt]` | `gc` | start a chat: an agent in a scratch folder or one you pick, no repo or worktree |
 | `chat.promote` |  | turn this chat into work: pick a repo, heed makes a worktree and hands the agent the chat |
 | `agent.switch` `[agent] [model] [effort]` | `gA` | hand the session to another agent: stop its agent, start that one on a handoff prompt |
+| `agent.resume` | `gu` (sessions), `gu` (sessionshelper), `gu` (sessionshelpers), `gu` (sessionsoffer), `gu` (sessionspanel), `gu` (sessionspanelchat), `gu` (sessionspanelpr), `gu` (sessionspromote) | resume the agent's conversation in a session whose agent is not running (the banner over its panes) |
+| `agent.fresh` | `gf` (sessions), `gf` (sessionshelper), `gf` (sessionshelpers), `gf` (sessionsoffer), `gf` (sessionspanel), `gf` (sessionspanelchat), `gf` (sessionspanelpr), `gf` (sessionspromote) | start the agent again from the session's original prompt, as the banner over its panes offers |
+| `agent.resume.dismiss` | `gq` (sessions), `gq` (sessionshelper), `gq` (sessionshelpers), `gq` (sessionsoffer), `gq` (sessionspanel), `gq` (sessionspanelchat), `gq` (sessionspanelpr), `gq` (sessionspromote) | hide the "agent is not running" banner for this session until heed restarts |
 | `view.insights` | `gh` | Insights: the dashboard first, then History, the ledger, the Mindmap and standups |
 | `view.history` |  | Insights, as view.insights does (the name it had before) |
 | `view.autopilot` | `gw` | Autopilot: what heed can do on its own (Can do first), where it is on, what it does now, what it did |

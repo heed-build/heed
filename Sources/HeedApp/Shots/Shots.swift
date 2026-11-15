@@ -298,6 +298,10 @@ enum Shots {
         }),
         // A session growing into a goal: three PRs, a second repo and work it found, so a line at its foot offers
         // Make it a goal; gP shows what the goal would be.
+        // Launched with "Start empty", or the agent exited and the shell lives on: the banner over the panes offers to
+        // pick its conversation up again, and the row says so.
+        Shot(id: "sessions/resume-later", prepare: resumeLater),
+        Shot(id: "sessions/resume-banner", crop: .resumeBanner, cropPadding: 0, prepare: resumeLater),
         Shot(id: "sessions/growing", crop: .growthLine, cropPadding: 0, prepare: growingSession),
         Shot(id: "sessions/make-it-a-goal", keys: "gP", crop: .promotion, cropPadding: 0, prepare: growingSession),
         // Personas in sessions: quiet (a faint stack on the row), an offer after a lot got built, the verdict and its
@@ -369,6 +373,21 @@ enum Shots {
             + "still break. That's a change in docs-website, and the sample site should prove both."
         model.commit(.sessionUpserted(session))
         model.select(sessionID: session.id)
+    }
+
+    /// Every session's agent is running except the first's and the third's: they came back as plain shells.
+    static func resumeLater(_ model: AppModel) {
+        model.agentPresence.tracking = true
+        let ids = model.sessions.map(\.id)
+        for session in model.sessions {
+            model.conversationOnDisk[session.id] = true
+            let panes = model.layouts[session.id]?.tabs.flatMap(\.tree.panes).map(\.id) ?? []
+            if [ids.first, ids.dropFirst(2).first].contains(session.id) { continue }
+            for pane in panes {
+                model.agentPresence.started(pane)
+            }
+        }
+        if let first = ids.first { model.select(sessionID: first) }
     }
 
     static func withChats(_ model: AppModel) {

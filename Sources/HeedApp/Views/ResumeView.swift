@@ -169,3 +169,35 @@ struct ResumeView: View {
         .overlay(alignment: .top) { Theme.line.frame(height: 1) }
     }
 }
+
+/// The slim strip across the top of a session's panes when its agent is not running but its conversation can be
+/// picked up (`ResumeBanner`): Resume, Start fresh, Dismiss, each with its key. The family of the approval strip, in
+/// heed's working blue because it asks for nothing urgent.
+struct ResumeBannerStrip: View {
+    @Environment(AppModel.self) private var model
+    let offer: ResumeBanner.Offer
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Text("\(offer.agent) isn't running here.")
+                .font(Theme.ui(12.5, weight: .semibold)).foregroundStyle(Theme.busy).lineLimit(1)
+                .layoutPriority(1)
+            action("agent.resume", "Resume its conversation", weight: .semibold)
+            action("agent.fresh", "Start fresh", weight: .regular)
+            Spacer(minLength: 8)
+            action("agent.resume.dismiss", "Dismiss", weight: .regular, color: Theme.fg3)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 30)
+        .background(Theme.busy.opacity(0.10))
+        .overlay(alignment: .bottom) { Theme.busy.opacity(0.4).frame(height: 1) }
+        .shotRegion(.resumeBanner)
+    }
+
+    private func action(_ command: String, _ title: String, weight: Font.Weight, color: Color = Theme.fg) -> some View {
+        KeyHint(command, target: .session(offer.sessionID), scope: "sessions", spacing: 6) {
+            Text(title).font(Theme.ui(12, weight: weight)).foregroundStyle(color).fixedSize()
+        }
+        .fixedSize()
+    }
+}

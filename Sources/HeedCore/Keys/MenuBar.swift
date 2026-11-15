@@ -106,6 +106,7 @@ public enum MenuBar {
         "row.last": "moving the cursor: the mouse clicks rows and scrolls",
         "goal.item.column": "moving the board's cursor: the mouse clicks a card in any column",
         "goal.promote.go": "the Make it a goal popover's own keys (gP), and its buttons",
+        "agent.resume.dismiss": "the banner's own Dismiss and its key (gq); the banner is the menu's reason to exist",
         "goal.promote.dismiss": "the Make it a goal popover's own keys (gP), and the line's ✕",
         "row.halfpage.down": "moving the cursor: the mouse clicks rows and scrolls",
         "attention.reader.down": "scrolling Attention's reader: the mouse scrolls it",
@@ -336,6 +337,8 @@ public enum MenuBar {
                 : .submenu("Hand off to…", ContextMenus.handoffItems(agents, target: sessionTarget ?? .session("")))
             return Menu("Session", [
                 session("Type into its agent", "session.agent"),
+                session("Resume its agent", "agent.resume"),
+                session("Start its agent fresh", "agent.fresh"),
                 item("Type into the focused pane", "mode.insert", enabled: facts.panes > 0),
                 .separator,
                 session("Pin", "session.pin", checked: facts.session?.pinned ?? false),

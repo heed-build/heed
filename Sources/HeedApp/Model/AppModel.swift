@@ -332,6 +332,12 @@ final class AppModel {
         didSet { if resume == nil, oldValue != nil { showPendingAwaySummary() } }
     }
 
+    // The resume banner (ResumeBanner): which panes have an agent running, whether each session's agent still has
+    // its conversation (checked off the main actor), and the sessions whose banner you dismissed until heed restarts.
+    var agentPresence = AgentPresence()
+    var conversationOnDisk: [String: Bool] = [:]
+    var resumeBannerDismissed: Set<String> = []
+
     /// Resumed sessions that were mid-turn: they get the continue prompt once their agent reports idle.
     private var pendingContinue: Set<String> = []
 
@@ -605,6 +611,7 @@ final class AppModel {
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
+        agentPresence.tracking = !isFixture
         if isFixture {
             config.attention.rules = Fixtures.attentionRules
             attention.adoptFixtures()
@@ -705,7 +712,9 @@ final class AppModel {
             interruptSwarmWorkers()
         }
         await receiveSpooled()
+        noteLivePanes(in: cached)
         await offerResume(domain: cached)
+        checkConversations()
         startAwayTracking()
         startNudges()
         startGitHubSync()
@@ -838,6 +847,8 @@ final class AppModel {
             let previous = session.state
             session.state = next
             if next.state == .exited { setSubagents(nil, of: id) }
+            if let pane = panes[id] { agentPresence.observed(next.state, in: pane) }
+            if next.state == .exited { checkConversations(of: [id]) }
             session.activity = "\(next.state.rawValue) · " + (next.reason == Self.fromHunch ? "Hunch" : "guessed")
             changes.append(.sessionUpserted(session))
             recordScreen(of: session, from: previous)
@@ -1055,7 +1066,7 @@ final class AppModel {
     }
 
     /// Starts each chosen session's agent pane on its resume (or fresh) command, now, even off screen.
-    private func resumeSessions(_ chosen: [ResumeCandidate]) {
+    func resumeSessions(_ chosen: [ResumeCandidate]) {
         guard !isFixture else {
             flash = "fixture: no IO"
             return
@@ -1065,10 +1076,11 @@ final class AppModel {
             else { continue }
             guard let (tabIndex, paneID) = agentPane(in: layout) else { continue }
             layout.tabs[tabIndex].tree = layout.tabs[tabIndex].tree.updating(paneID) { $0.command = candidate.command }
-            session.record(candidate.mode == .startFresh ? "relaunched · started fresh" : "resumed after restart")
+            session.record(candidate.startsFresh ? "relaunched · started fresh" : "resumed after restart")
             session.state = ObservedState(.idle, source: .guessed, reason: "resuming")
             commit([.layoutChanged(session: session.id, layout), .sessionUpserted(session)])
             TerminalSurfaces.shared.autostartPanes.insert(paneID)
+            agentPresence.started(paneID)
             if let pane = layout.tabs[tabIndex].tree.panes.first(where: { $0.id == paneID }) {
                 TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
             }
@@ -1374,6 +1386,7 @@ final class AppModel {
             commit(.sessionUpserted(session))
         }
         guard let kind = throughSubagents(message, session: session) else { return }
+        noteAgent(kind, pane: message.pane, session: session)
         switch kind {
         case .state, .guess, .atPrompt:
             var next: ObservedState = switch kind {
@@ -1441,6 +1454,8 @@ final class AppModel {
             Task { await refreshIssueInfo(force: [issue]) }
         case let .agentSession(id, _):
             session.agentSessionID = id
+            conversationOnDisk[session.id] = nil
+            checkConversations(of: [session.id])
         case let .notify(text):
             flash = "\(session.title): \(text)"
             return
@@ -2780,6 +2795,9 @@ final class AppModel {
                 to: command.arguments.first, model: command.arguments.dropFirst().first,
                 effort: command.arguments.dropFirst(2).first
             )
+        case "agent.resume": resumeAgent(command.target, fresh: false)
+        case "agent.fresh": resumeAgent(command.target, fresh: true)
+        case "agent.resume.dismiss": dismissResumeBanner(command.target)
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "", chat: currentSession?.isChat == true)
         case "chat.promote": promoteChat()
         case "chat.new": openStartWork(prompt: command.arguments.joined(separator: " "), fromCursor: false, chat: true)
@@ -7919,6 +7937,7 @@ final class AppModel {
         guard var layout = layouts[sessionID], layout.removePane(paneID) else { return }
         commit(.layoutChanged(session: sessionID, layout))
         TerminalSurfaces.shared.close(paneID: paneID)
+        agentPresence.forget(paneID)
         if layout.tabs.isEmpty { sessionEmptied(sessionID) }
     }
 

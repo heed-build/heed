@@ -67,6 +67,8 @@ final class TerminalSurfaces {
     var onPaneClick: ((String) -> Void)?
     /// A pane's terminal ended: its shell exited (`exit`, ⌃D) or its command finished.
     var onPaneExited: ((String) -> Void)?
+    /// A pane's terminal started its command (an agent, a resume, a task): whatever it ran is running.
+    var onCommandStarted: ((String) -> Void)?
     private var exitsWired = false
     /// `[sessions] persist`: with zmx, a pane's terminal attaches to its zmx session instead of starting a shell.
     var persist: PanePersistence = .none
@@ -158,6 +160,7 @@ final class TerminalSurfaces {
                 process = launch?.commandLine(quotedFor: .posix)
             }
         }
+        if command != nil { onCommandStarted?(pane.id) }
         let view = makeTerminalView(pane: pane, environment: withPath, command: process, starts: command != nil)
         #if HEED_GHOSTTY
             let paneID = pane.id

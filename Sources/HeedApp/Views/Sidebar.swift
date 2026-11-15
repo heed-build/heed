@@ -139,6 +139,7 @@ struct Sidebar: View {
                                         hostColor: session.host.flatMap { model.config.hosts[$0]?.color },
                                         hostLink: session.host.map { model.hostStatus($0) },
                                         subagents: model.liveSubagents(of: session).count,
+                                        agentless: model.resumeOffer(for: session) != nil,
                                         pending: model.pendingChanges(of: session),
                                         goal: model.goals.bySession[session.id]?.title,
                                         showsTitle: model.sidebarShowsTitles,
@@ -301,6 +302,8 @@ struct SessionRow: View {
     var hostLink: HostStatus?
     /// Subagents its agent has running, appended to the agent's line.
     var subagents = 0
+    /// Its agent is not running but can be resumed (`ResumeBanner`): the agent's line says so.
+    var agentless = false
     /// Commits ahead and files changed over its worktrees: the `↑N` and `~N` chips.
     var pending = PendingChanges()
     /// The title of the goal it is on.
@@ -383,7 +386,7 @@ struct SessionRow: View {
                     // whatever the state says. How long you have been away sits at its end.
                     // The agent's line gives way to the marks at its end.
                     HStack(spacing: 6) {
-                        agentLine
+                        (agentless ? Text("agent not running · resume") : agentLine)
                             .font(Theme.ui(11.5))
                             .foregroundStyle(Theme.fg3)
                             .lineLimit(1)

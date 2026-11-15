@@ -82,6 +82,20 @@ public enum Commands {
             arguments: "[agent] [model] [effort]"
         ),
         .init(
+            "agent.resume",
+            "resume the agent's conversation in a session whose agent is not running (the banner over its panes)",
+            .move
+        ),
+        .init(
+            "agent.fresh",
+            "start the agent again from the session's original prompt, as the banner over its panes offers",
+            .move
+        ),
+        .init(
+            "agent.resume.dismiss", "hide the \"agent is not running\" banner for this session until heed restarts",
+            .move
+        ),
+        .init(
             "view.insights",
             "Insights: the dashboard first, then History, the ledger, the Mindmap and standups",
             .move

@@ -98,6 +98,8 @@ public enum ContextMenus {
         public var pinned = false
         public var parked = false
         public var hasPrompt = false
+        /// Its agent is not running and could be resumed: the banner over its panes (`ResumeBanner`).
+        public var agentless = false
         /// The agents it can be handed to (`agent.switch`): every configured one but its own.
         public var handoffAgents: [String] = []
         /// A chat: no repo, worktree or branch, so nothing that reads one (diff, PRs, the pilot, the repo) applies.
@@ -163,6 +165,9 @@ public enum ContextMenus {
         ])
         if repo, facts.pulls > 0 {
             menu.section(pilotItems(facts.pilot, open: facts.openPulls > 0, target: target))
+        }
+        if facts.agentless {
+            menu.section([item("Resume its agent", "agent.resume"), item("Start its agent fresh", "agent.fresh")])
         }
         menu.section([
             item(facts.pinned ? "Unpin" : "Pin", "session.pin"),

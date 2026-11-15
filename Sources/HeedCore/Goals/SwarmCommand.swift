@@ -6,8 +6,8 @@ public enum SwarmCommandLine {
     public static let usage = """
     usage: heed swarm [--goal <id>] [--json] <command>
 
-    The goal's active swarm. From a worker's tab the sender is its task, from the lead's pane the lead, from a
-    terminal outside heed the owner.
+    The goal's active swarm. From a worker's tab the sender is its task, from the lead's pane the lead. The owner
+    answers, steers and approves in heed.
 
       send <to> <text>                       a message: to a task (its number, 2.1, or id), lead, or @all (the
                                              lead and every task at work). heed types it into the agent's pane once

@@ -32,6 +32,11 @@ extension AppModel {
             // A waiting `heed goal ask` reads its question every few seconds: that is no news.
             let polling = command.verb == .ask && command.question != nil
             if reply.exit == .ok, reply.outcome != "read", !polling { flash = "goal: \(reply.message)" }
+            // `plan approve` from outside heed's panes: the approving is yours, here.
+            if command.verb == .planApprove, reply.outcome == "held" {
+                let plan = reply.goal.map { "\($0)'s plan" } ?? "a plan"
+                flash = "a command line asks to approve \(plan): A in the plan pane approves it"
+            }
             if reply.exit == .ok { steeringCommandDone(command, reply: reply) }
             return ControlReply(goal: reply)
         case let .app(.spawn(spawn), goal):

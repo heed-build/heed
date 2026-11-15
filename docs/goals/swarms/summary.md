@@ -39,7 +39,7 @@ heed swarm summary --outcome "Anchors survive page moves: ids come from heading 
 ```
 
 `--decision` and `--follow-up` repeat. The newest summary counts; writing it again rewrites it everywhere. Only the
-lead writes it (or you, from a terminal outside heed). `:swarm.summary` assembles it again and asks the lead again.
+lead writes it. `:swarm.summary` assembles it again and asks the lead again.
 
 ## Where it goes
 

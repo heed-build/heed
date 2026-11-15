@@ -66,7 +66,8 @@ A goal that is a set of PRs or issues on GitHub gets its items from a query ([It
 | `show` | `GOAL.md`, the items with their stages and columns, the quality bars and scores, what waits for you |
 
 A swarm's lead keeps the plan with `plan show`, `plan propose --file <path|->` and `ask <question> --option …`;
-`plan approve` is yours, from a terminal outside heed ([A swarm's lead](#a-swarms-lead)). `ask` waits for its
+`plan approve` is yours, in heed: `A` in the plan pane ([A swarm's lead](#a-swarms-lead)). From a terminal it says so
+and exits 5. `ask` waits for its
 answer and prints it (exit 6 when none came before its timeout); `heed swarm send`, `note` and `answer` carry
 messages, progress notes and answers between a swarm's agents ([Steering](swarms/steering.md)).
 
@@ -101,7 +102,7 @@ same rules in their first prompt.
 | `heed swarm answer <n> <text>` | Answer a worker's scope question heed typed into the lead's pane |
 | `heed swarm send <to> <text>` | A message to a task, or `@all` |
 | `heed swarm summary [--outcome <text>] [--decision <text>]… [--follow-up <text>]…` | The end-of-build summary, once the swarm is done ([The summary](swarms/summary.md)) |
-| `heed goal plan approve` | Approves the plan: only from a terminal outside heed, never from a pane or a background run |
+| `heed goal plan approve` | The plan is yours to approve, in heed's plan pane (`A`): from a terminal outside heed it says so and exits 5, and a pane or a background run is refused. A command line cannot show it is you |
 
 Before you approve a plan, every proposal is the new draft. After, a small change applies and a structural one waits
 for you ([Approving](swarms/plan.md#approving)). `--json` on any of them answers as JSON.
@@ -168,7 +169,7 @@ on a host keep the plan, ask and send this way ([On a host](swarms/running.md#on
 
 | | |
 |---|---|
-| Who may call | heed's own panes there (they carry its session); a shell heed did not start is refused, so `plan approve` stays yours on this Mac |
+| Who may call | heed's own panes there (they carry its session and token); a shell heed did not start is refused, and `plan approve` stays yours, in heed |
 | How long it waits | A minute; `heed goal ask` as long as a question can wait |
 | When heed is away | `heed` gives up and exits 3; a call heed finds later than its caller waits is not answered |
 

@@ -63,7 +63,7 @@ Item ids are `<goal>/<slug>` or just `<slug>`. [Agents keep the goal](../goals/c
 | `source add\|list\|remove` | A GitHub query the goal's items come from |
 | `propose <section> <text>` | A change to what the goal is: it waits for you |
 | `review request <kind>` | Ask the goal's reviewer of that kind to look again |
-| `plan show\|propose\|approve` | A swarm's plan. Only you approve it, from a terminal outside heed |
+| `plan show\|propose\|approve` | A swarm's plan. Only you approve it, in heed (`A` in the plan pane); `approve` from a terminal says so and exits 5 |
 | `ask <question>` | A question for the lead, a peer, heed's controller or you, and wait for the answer |
 
 | Exit code | Means |
@@ -73,7 +73,7 @@ Item ids are `<goal>/<slug>` or just `<slug>`. [Agents keep the goal](../goals/c
 | 2 | The command line is wrong, and the usage was printed |
 | 3 | heed is not running, or not reachable from here |
 | 4 | No goal: the session is on none, and no `--goal` was given |
-| 5 | Held for you in Attention: the goal is over its spawn cap |
+| 5 | Held for you in heed: the goal is over its spawn cap (in Attention), or a plan waits for your approval in its plan pane |
 | 6 | `ask` waited its timeout and no answer came: the question stays open |
 
 ## `heed swarm`

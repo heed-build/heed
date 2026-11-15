@@ -154,6 +154,17 @@ struct GoalControlTests {
         #expect(try await reply(run("show --goal nope", ops))?.exit == .refused)
     }
 
+    /// From outside heed's panes the caller is not known to be you: what it adds counts as an agent's.
+    @Test func outsideHeedsPanesAddsAsAnAgentWould() async throws {
+        let (ops, goal) = try await world()
+        let added = try #require(try await reply(run("item add Profile the build --goal \(goal.id)", ops, caller: nil)))
+        let item = try #require(try await ops.snapshot().item(added.item ?? ""))
+        #expect(item.source != .you)
+        let source = try await reply(run("source add prs acme/web --goal \(goal.id)", ops, caller: nil))
+        #expect(source?.sources?.first.map { _ in true } == true)
+        #expect(try await ops.snapshot().sources(of: goal.id).sources.allSatisfy { $0.origin == .agent })
+    }
+
     @Test func recordsApplyAndScopeWaits() async throws {
         let (ops, goal) = try await world()
         let before = try await ops.snapshot().goal(goal.id)?.version ?? 0

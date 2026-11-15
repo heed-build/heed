@@ -376,8 +376,9 @@ public enum GoalControl {
             return try await .reply(show(goal, snapshot: snapshot, ops: ops, files: files, table: table))
         case .itemAdd:
             let parent = try command.parent.map { try item($0, goal: goal.id, snapshot: snapshot).id }
+            // A command line outside heed's panes is not known to be you: its items count as a session's.
             let source: GoalItem.Source = command.bySubagent != nil ? .subagent
-                : caller.map { $0.isChat ? .chat : .session } ?? .you
+                : caller.map { $0.isChat ? .chat : .session } ?? .session
             let added = try await ops.addItem(
                 goal: goal.id, title: command.text ?? "", source: source, parent: parent,
                 links: caller.map { [GoalItem.Link($0.itemLinkKind, $0.session)] } ?? [],
@@ -420,7 +421,7 @@ public enum GoalControl {
         case .questionAdd:
             let added = try await ops.addItem(
                 goal: goal.id, title: command.text ?? "", kind: .question,
-                source: caller.map { $0.isChat ? .chat : .session } ?? .you,
+                source: caller.map { $0.isChat ? .chat : .session } ?? .session,
                 links: caller.map { [GoalItem.Link($0.itemLinkKind, $0.session)] } ?? [],
                 reason: "asked in \(from)", now: now
             )
@@ -522,7 +523,7 @@ public enum GoalControl {
             }
             let rule = command.rule.flatMap(ItemSource.Rule.init(rawValue:)) ?? parsed.rule
             let added = try await ops.addSource(goal: goal.id, ItemSource(
-                query: parsed.query, label: parsed.label, rule: rule, origin: caller == nil ? .you : .agent,
+                query: parsed.query, label: parsed.label, rule: rule, origin: .agent,
                 addedAt: now
             ), now: now)
             return GoalReply(

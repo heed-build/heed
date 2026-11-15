@@ -816,7 +816,21 @@ struct SwarmSteeringControlTests {
         #expect(await run(GoalCommand(.ask, question: 999), ops, caller: workerA)?.exit == .refused)
     }
 
-    @Test func messagesAndNotesFromPanesAndFromYou() async throws {
+    /// A command line outside heed's panes may be anyone on this Mac: it never answers, overrules or sums up as you.
+    @Test func outsideHeedsPanesIsNeverYou() async throws {
+        let (ops, swarm) = try await world()
+        let asked = try #require(await run(
+            GoalCommand(.ask, text: "Which cache?", options: ["A", "B"], to: "you"), ops, caller: workerB
+        ))
+        let id = try #require(asked.question)
+        let answered = await run(GoalCommand(.swarmAnswer, text: "A", question: id), ops, caller: nil)
+        let board = try await ops.board(of: swarm.id)
+        #expect(answered?.exit != .ok || board.steering.allSatisfy { $0.actor != .you })
+        #expect(board.questions.first { $0.id == id }?.answer?.actor != .you)
+        #expect(await run(GoalCommand(.swarmSummary, text: "done"), ops, caller: nil)?.exit == .refused)
+    }
+
+    @Test func messagesAndNotesFromPanesNeverFromOutside() async throws {
         let (ops, swarm) = try await world()
         let sent = await run(
             GoalCommand(.swarmSend, text: "The parser returns spans now", to: "1.2"),
@@ -827,15 +841,16 @@ struct SwarmSteeringControlTests {
         #expect(sent?.message == "sent to task 1.2: heed types it into its pane once its agent is idle")
         #expect(await run(GoalCommand(.swarmSend, text: "x", to: "@all"), ops, caller: lead)?.message
             == "sent to everyone (2 at work): heed types it into each pane once its agent is idle")
-        #expect(await run(GoalCommand(.swarmSend, text: "x", to: "lead"), ops, caller: nil)?.outcome == "sent")
+        // From outside heed's panes nobody in particular sends: yours go from heed itself.
+        #expect(await run(GoalCommand(.swarmSend, text: "x", to: "lead"), ops, caller: nil)?.exit == .refused)
         #expect(await run(GoalCommand(.swarmSend, text: "x", to: "1.1"), ops, caller: workerA)?.exit == .refused)
         #expect(await run(GoalCommand(.swarmSend, text: "x", to: "9.9"), ops, caller: workerA)?.exit == .refused)
         #expect(await run(GoalCommand(.swarmNote, text: "parsing"), ops, caller: workerA)?.outcome == "noted")
         #expect(await run(GoalCommand(.swarmNote, text: "parsing"), ops, caller: nil)?.exit == .refused)
         let board = try await ops.board(of: swarm.id)
         let rows = board.steering.filter { $0.kind == .message || $0.kind == .note }
-        #expect(rows.map(\.actor) == [.agent, .lead, .you, .agent])
-        #expect(rows.map(\.from) == ["task:faster-builds/a", "lead", "you", "task:faster-builds/a"])
+        #expect(rows.map(\.actor) == [.agent, .lead, .agent])
+        #expect(rows.map(\.from) == ["task:faster-builds/a", "lead", "task:faster-builds/a"])
     }
 }
 

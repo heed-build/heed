@@ -154,7 +154,7 @@ public enum GoalCommandLine {
                                              a plan as JSON (tasks with id, title, phase, owner, estimate, after,
                                              doneWhen, host; scope for GOAL.md changes): before approval the draft,
                                              after it small changes apply and structural ones wait
-      plan approve                           approve the plan (the owner, from a terminal; never an agent)
+      plan approve                           the owner approves the plan in heed (A in the plan pane)
       ask <question> [--option <a> [--effect <what a changes>]]... [--to lead|you|<task>]
           [--timeout <minutes>|--no-wait]
                                              a question, and wait for its answer (printed on stdout). heed decides

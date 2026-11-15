@@ -168,12 +168,12 @@ public struct SwarmAnswerView: Codable, Equatable, Sendable {
 }
 
 /// `heed goal plan …`, `heed goal ask` and `heed swarm …`: the goal's active swarm, through `GoalOps`. The lead
-/// proposes and asks; workers ask, message and note; approving is the owner's, from a terminal, never from a pane or a
-/// background run.
+/// proposes and asks; workers ask, message and note; approving is the owner's, in heed, never from a command line.
 public enum SwarmControl {
-    /// Who a caller is in the swarm: a worker's task, the lead, you (a terminal outside heed), or another session.
-    static func address(_ caller: GoalCaller?, swarm: GoalSwarm, fromRun: Bool) -> SwarmAddress? {
-        guard let caller else { return fromRun ? nil : .you }
+    /// Who a caller is in the swarm: a worker's task, the lead, or another session. A command line outside heed's
+    /// panes is no one in the swarm (nil): heed cannot tell it is you, so it never speaks as you.
+    static func address(_ caller: GoalCaller?, swarm: GoalSwarm, fromRun _: Bool) -> SwarmAddress? {
+        guard let caller else { return nil }
         if let task = caller.worker { return .task(task) }
         if caller.session == swarm.lead { return .lead }
         return .session(caller.session)
@@ -253,16 +253,14 @@ public enum SwarmControl {
                 GoalReply("moot", message: "the plan already says so" + also, goal: goal.id, plan: view)
             }
         case .planApprove:
+            // The owner approves in heed, where the plan is in front of them: a command line, in a pane or not, cannot
+            // show it is them. From outside heed's panes it waits for them there.
             guard caller == nil, command.fromRun != true else {
-                return .refused(
-                    "approving a plan is the owner's: in heed (A in the plan pane), or heed goal plan approve from a "
-                        + "terminal outside heed", goal: goal.id
-                )
+                return .refused("approving a plan is the owner's: in heed, A in the plan pane", goal: goal.id)
             }
-            let version = try await ops.approvePlan(swarm: swarm.id, now: now)
             return GoalReply(
-                "applied", message: "approved plan v\(version.number): its tasks are on the goal's board",
-                goal: goal.id, version: version.number
+                "held", exit: .waiting,
+                message: "approving a plan is yours, in heed: the plan pane shows it, A approves it", goal: goal.id
             )
         case .ask:
             return try await ask(
@@ -276,6 +274,9 @@ public enum SwarmControl {
                 now: now
             )
         case .swarmSend:
+            guard address != nil || command.fromRun == true else {
+                return .refused("messages are a pane's: you send yours in heed's plan pane", goal: goal.id)
+            }
             let board = try await ops.board(of: swarm.id)
             let tasks = board.tasks
             guard let word = command.to, let to = SwarmAddress.parse(word, tasks: tasks) else {
@@ -322,7 +323,7 @@ public enum SwarmControl {
     }
 
     /// `swarm summary`: the lead's end-of-build summary, on the goal's newest swarm run (done, or landing its last
-    /// PRs). Only the lead writes it, or you from a terminal outside heed.
+    /// PRs). Only the lead writes it.
     static func summary(
         _ command: GoalCommand, goal: HeedGoal, caller: GoalCaller?, ops: GoalOps, now: Date
     ) async throws -> GoalReply {
@@ -331,7 +332,7 @@ public enum SwarmControl {
             return .refused(GoalOpError.noSwarm(goal.id).description, goal: goal.id)
         }
         let address = address(caller, swarm: swarm, fromRun: command.fromRun == true)
-        guard address == .lead || address == .you else {
+        guard address == .lead else {
             return .refused("the summary is the lead's to write", goal: goal.id)
         }
         try await ops.writeSummary(

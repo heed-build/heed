@@ -649,7 +649,13 @@ struct SwarmControlTests {
         var fromRun = GoalCommand(.planApprove, goal: "faster-builds")
         fromRun.fromRun = true
         #expect(await run(fromRun, ops, caller: nil)?.exit == .refused)
-        #expect(await run(GoalCommand(.planApprove, goal: "faster-builds"), ops, caller: nil)?.outcome == "applied")
+        // From outside heed's panes it is not known to be you: it waits for you in heed, approved by nothing here.
+        let outside = await run(GoalCommand(.planApprove, goal: "faster-builds"), ops, caller: nil)
+        #expect(outside?.outcome == "held")
+        #expect(outside?.exit == .waiting)
+        #expect(try await ops.activeSwarm(of: "faster-builds")?.approved == nil)
+        // You, in heed's plan pane.
+        _ = try await ops.approvePlan(swarm: swarm.id, now: now)
 
         let show = await run(GoalCommand(.planShow), ops, caller: lead)
         let text = show.map { $0.rendered(json: false) } ?? ""

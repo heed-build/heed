@@ -70,7 +70,7 @@ the [swarm machinery](swarms/index.md) runs it from there.
 
 ### Parts on helpers
 
-A helper worker's permission asks join the [approvals](../agents/approvals.md), and its feed shows in Autopilot's
+A helper worker's permission asks join the [approvals](../autopilot/approvals.md), and its feed shows in Autopilot's
 Now; `s` on its part on the goal's page opens it.
 
 - **Its model.** The part's model goes to the helper's session as ACP's `model` session config option

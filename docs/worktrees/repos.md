@@ -25,7 +25,7 @@ Picking a repo (a click, or `h` then `j` `k`) narrows the worktrees to it and sh
 
 The card has the repo's path, main against origin at length (`main ↓3 behind origin · clean`), its remote, the hosts it
 is also on, when you last worked there, and where get it merged and get it green stand, with **Set up** (`M`, see
-[Setting up a repo](../github/repo-setup.md)). Its buttons open the repo on GitHub (`gR`) and its folder in Finder
+[Setting up a repo](../autopilot/repo-setup.md)). Its buttons open the repo on GitHub (`gR`) and its folder in Finder
 (`⌘O`).
 
 ## Add or clone
@@ -53,7 +53,7 @@ The footer picks the root to clone into (one of `repo_roots`, `⌃r` cycles them
 (or `↩`) clones each picked repo that is not on this Mac with `gh repo clone` into the root, adds the ones that are, then
 picks the first in the column and does the **then**:
 
-- **set it up** (the default): [Repo setup](../github/repo-setup.md) for get it merged and get it green.
+- **set it up** (the default): [Repo setup](../autopilot/repo-setup.md) for get it merged and get it green.
 - **start work**: Start work, with the repo picked.
 - **just add it**: nothing more.
 

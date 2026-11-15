@@ -66,7 +66,7 @@ A goal that is a set of PRs or issues on GitHub gets its items from a query ([It
 | `show` | `GOAL.md`, the items with their stages and columns, the quality bars and scores, what waits for you |
 
 A swarm's lead keeps the plan with `plan show`, `plan propose --file <path|->` and `ask <question> --option …`;
-`plan approve` is yours, from a terminal outside heed ([The lead and heed goal](swarms/lead.md)). `ask` waits for its
+`plan approve` is yours, from a terminal outside heed ([A swarm's lead](#a-swarms-lead)). `ask` waits for its
 answer and prints it (exit 6 when none came before its timeout); `heed swarm send`, `note` and `answer` carry
 messages, progress notes and answers between a swarm's agents ([Steering](swarms/steering.md)).
 
@@ -84,6 +84,57 @@ command says so with exit code 5.
 spawn_concurrent = 2
 spawn_per_day = 6
 ```
+
+## A swarm's lead
+
+New goals go through the [wizard](first-goal.md), whose [Go](go.md) step starts their swarm; this section is the reference for the swarm machinery Go runs.
+
+A swarm's lead keeps the plan with the same `heed goal` command every agent on a goal has (above),
+taught by the **Leading a swarm** section of the `heed-goal` skill. Codex and other agents without the plugin get the
+same rules in their first prompt.
+
+| Command | What it does |
+|---|---|
+| `heed goal plan show` | The plan: tasks by phase with their ids, the questions and their answers, your re-plan feedback, a change waiting for you or one you said no to |
+| `heed goal plan propose --file <path\|-> [--note <text>]` | A plan as JSON; `-` reads it on stdin |
+| `heed goal ask <question> [--option <a> [--effect <text>]]… [--to lead\|you\|<task>]` | A question, and wait for its answer (9 minutes by default; exit 6 when none came). Who may answer is by what it is about ([Steering](swarms/steering.md)) |
+| `heed swarm answer <n> <text>` | Answer a worker's scope question heed typed into the lead's pane |
+| `heed swarm send <to> <text>` | A message to a task, or `@all` |
+| `heed swarm summary [--outcome <text>] [--decision <text>]… [--follow-up <text>]…` | The end-of-build summary, once the swarm is done ([The summary](swarms/summary.md)) |
+| `heed goal plan approve` | Approves the plan: only from a terminal outside heed, never from a pane or a background run |
+
+Before you approve a plan, every proposal is the new draft. After, a small change applies and a structural one waits
+for you ([Approving](swarms/plan.md#approving)). `--json` on any of them answers as JSON.
+
+### The plan's JSON
+
+```json
+{
+  "note": "first draft",
+  "tasks": [
+    {"id": "offsets", "title": "Arrowhead offsets per zoom level", "phase": "Measure", "owner": "claude",
+     "estimate": "20m", "doneWhen": ["a table of offsets from 50% to 400% zoom"]},
+    {"id": "snap", "title": "Snap arrowheads to the lifeline", "phase": "Fix", "owner": "codex:o4",
+     "estimate": "45m", "after": ["offsets"], "doneWhen": ["arrowheads meet the lifeline at every zoom"],
+     "host": "devbox"}
+  ],
+  "scope": [{"section": "not-the-goal", "text": "new diagram types"}]
+}
+```
+
+- `id` names a task in `after`. An id of an item already on the goal takes that item into the plan. Without an id a
+  task keeps the id of the current plan's task with the same title, or gets one from its title.
+- `phase` is the phase it is in; without one, the phase of the task before it.
+- `owner` is an agent, `agent:model`, or `{"agent": …, "model": …, "effort": …}`.
+- `estimate` is minutes, or `15m`, `1h 30m`, `1.5h`.
+- `doneWhen` is one check or a list: what evidence must show for the task to be done.
+- `host` is where its worker runs when not where the swarm does: a host's name (`devbox`), or `local` for your Mac
+  ([On a host](swarms/running.md#on-a-host)). A host you do not have stalls the task when it would start, saying so.
+- `scope` lists changes the goal would need (sections `goal`, `not-the-goal`, `done-when`, `question`, `decision`):
+  each becomes a `GOAL.md` proposal that waits for you, never an edit.
+
+A plan is refused, with why, when a task has no title, two tasks have one id, a task waits for something that is
+neither a task nor an item, or tasks wait for each other in a circle.
 
 ## For agents and scripts
 

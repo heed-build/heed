@@ -14,7 +14,7 @@ description: Jumping to anything on screen by label with f.
 | `F` | Jump and act: a pane enters INSERT, a list row opens |
 | `⎋` | Cancel |
 
-In Sessions the labels go on sessions and panes; in the other views (Attention, Watch, Repos, History, the call log
+In Sessions the labels go on sessions and panes; in the other views (Attention, Autopilot, Repos, Insights, the call log
 and the rest) they go on the list's rows.
 
 ![Hints on Attention's issues](../images/shots/keyboard/hints-list.png)

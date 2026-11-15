@@ -26,7 +26,7 @@ heed/archive/old-spike". The refs are ordinary git refs in the repo's main check
 `git diff heed/archive/old-spike heed/archive/old-spike-wip`, or `git branch old-spike heed/archive/old-spike` to
 bring a branch back by hand. Removing the same branch again replaces them.
 
-[Reopening](../history/reopening.md) the session uses them when the branch is gone. [Cleanup](cleanup.md) drops them
+[Reopening](../insights/reopening.md) the session uses them when the branch is gone. [Cleanup](cleanup.md) drops them
 after `keep_archive_days` (90 by default).
 
 ## Never removed

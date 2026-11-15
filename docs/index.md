@@ -1,61 +1,63 @@
 ---
 navigation_title: Home
-description: Keep an eye on every agent. A keyboard-first macOS command center for agentic coding.
+description: A native macOS app for coding agents. You lead, heed follows through.
 ---
 
-# Heed
+# heed
 
-Keep an eye on every agent.
+heed is a native macOS app for coding agents. It watches your agents and everything that happens to their work, and
+calls you in when a decision is yours. [Getting started](getting-started/index.md) installs it and walks through a first
+session.
 
-Heed is a native macOS app for working with coding agents. It runs agents and shells in real terminals, gives each
-task its own git worktree, and keeps the GitHub issues and pull requests around that task in view. It tells you which
-agent needs you, and it gets you there in a keystroke. Everything else that wants you, on GitHub or from an agent, is
-one feed: Attention. Work that outlives a session has a goal. What ended stays in Insights: a dashboard of what
-shipped, History with each piece of work's story, and a short summary of each.
+The docs follow the five acts of a day with heed. After them come the reference sections, for when you know what you
+are looking for.
 
-![The Sessions view: sessions grouped by what they need, an agent and a shell side by side, the inspector on the right](images/shots/home/sessions.png)
+## 1. Start
 
-## Goals
+![Start work: a sentence, and the repo, branch, worktree and agent heed picked for it](images/shots/landing/start-work.png)
 
-Some work outlives one session: a feature, a migration, a cleanup. A [goal](goals/index.md) holds it. Its sessions,
-chats and PRs belong to it, and its `GOAL.md` says what the goal is, what it is not and when it is done. `gG` opens
-Goals.
+Press `⌃⌥Space` in any app, or `o` in heed, and say what you want. heed picks the repo, the worktree, the branch and
+the agent, and shows why. [Start work](start-work/index.md) covers the dialog and its guesses.
 
-- New work finds its goal on its own, and heed asks with one key when it is unsure
-  ([How work finds its goal](goals/attach.md)).
-- Items move across a board on evidence: a session on one, a review, a PR, a merge
-  ([Items and the board](goals/items.md)).
-- What the work records goes into `GOAL.md` as a new version you can undo; a change to what the goal is waits for you.
-- Reviewers score the work against bars that fit the goal, and stranger walks time a first run; heed marks the goal
-  done when every criterion and bar is met ([Quality bars](goals/quality.md)).
-- Agents (claude and codex) read the goal first and keep it with `heed goal` ([Agents keep the goal](goals/cli.md));
-  colleagues can follow it on GitHub, one issue with a sub-issue per item ([GitHub mirror](goals/github.md)).
+## 2. Sessions
 
-## Also in Heed
+![Sessions: every agent in its own terminal, grouped by what needs you](images/shots/landing/main.png)
 
-- [Autopilot](github/autopilot.md) (`gw`) shows everything heed can do on its own (get PRs green, merge them, hand
-  conflicts to Copilot, clean up worktrees, put work on its goal, name sessions), where each is on, what it is doing
-  now, and what it took off your hands this week.
-- Start work guesses the repo and the branch name, with Apple's on-device model where it is available
-  ([Smart guesses](start-work/repos.md#smart-guesses)).
-- PRs that could merge say **Ready to merge**, and `zM` merges one now; the setup wizard proposes a repo's merge and
-  green settings from its own history ([Setting up a repo](github/repo-setup.md)).
-- Every command is in the menu bar and the right-click menus, with its key beside it; key hints are buttons, tabs drag
-  and panes resize ([The mouse](keyboard/mouse.md)).
-- Other apps and scripts drive Heed through its [control socket](reference/cli.md#the-control-socket).
+Every agent runs in its own Ghostty terminal and its own worktree. heed shows what each agent is doing and takes you
+to the agent that needs you. [Sessions](sessions/index.md) is the main view. [Repos](worktrees/index.md) lists the
+worktrees, [Diff](diff/index.md) shows what an agent changed, and [Hosts](hosts/index.md) brings agents on other
+machines into the same window.
 
-## Where to go next
+## 3. GitHub and Autopilot
+
+![Autopilot: the PRs heed is getting green, and what it did this week](images/shots/landing/green.png)
+
+[GitHub](github/index.md) gathers everything that wants you into Attention, and feeds review comments back to the agent
+that wrote the code. [Autopilot](autopilot/index.md) gets PRs green, merges them by your rules, and answers
+permission asks with one key.
+
+## 4. Goals and personas
+
+![Goals: work that outlives one session, with its items on a board](images/shots/landing/goals.png)
+
+A [goal](goals/index.md) holds work that outlives a session. heed splits a goal across your agents, and a lead agent
+keeps the plan. [Personas](personas/index.md) read the plan and look in on sessions.
+
+## 5. Insights
+
+![Insights: what shipped, what ended, and each piece of work's story](images/shots/landing/history.png)
+
+[Insights](insights/index.md) shows what the work amounted to: a dashboard, History with each piece of work's story,
+a ledger of summaries, and a Mindmap of campaigns.
+
+## Reference
 
 | | |
 |---|---|
-| [Getting started](getting-started/index.md) | Install Heed, see what the first run finds, learn the keys with the tutor, and walk through a first session. |
 | [Concepts](concepts/index.md) | Sessions, agent states, worktrees and modes: the four ideas the rest builds on. |
-| [Sessions](sessions/index.md) | The main view: moving around, typing into agents, panes and tabs, and chats. |
-| [Start work](start-work/index.md) | From a sentence to a running agent in its own worktree. |
-| [Agents](agents/index.md) | The agents Heed runs, how they report their state, and Heed's own model calls through them. |
-| [GitHub](github/index.md) | Attention and its rules, pull requests watched until green and merged, and review feedback fed back to the agent. |
-| [Worktrees](worktrees/index.md) | Every worktree of every repo, set up before the agent starts, removed when quiet. |
-| [Goals](goals/index.md) | Work that outlives a session: `GOAL.md`, items on a board, reviewers and quality bars, personas, evaluations, the `heed goal` command and the GitHub mirror. |
-| [Insights](history/index.md) | A dashboard of what shipped, History with each piece of work's story, a ledger of summaries, and reopening. |
+| [Agents](agents/index.md) | How heed starts each agent, how each agent reports its state, and how heed talks to it. |
 | [Keyboard](keyboard/index.md) | Every key, how keys work, and how to change them. |
+| [Outside the window](outside-the-window/index.md) | The menu bar, the Dock, notifications and global shortcuts. |
 | [Configuration](configuration/index.md) | `config.toml`, the Settings window, and every key with its default. |
+| [Reference](reference/index.md) | The `heed` command line, files, environment variables, the call log and a glossary. |
+| [Troubleshooting](troubleshooting.md) | What to check when something does not work. |

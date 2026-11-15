@@ -26,13 +26,13 @@ Custom agents take no part: Heed knows how to call each built-in headless, not a
 - **Summaries**: where a piece of work stands, written from its git history, its pull request, Heed's timeline and the
   agent's last message, and a handoff brief for an agent taking work over. Heed's prompts for them are built in; add
   your own with `summary_instructions` in `[pilot]`, per org or per repo, like the
-  [other instructions](../github/watch.md#extra-instructions).
+  [other instructions](../autopilot/green-and-merged.md#extra-instructions).
 - **Decisions**: typed questions about a session or a PR (pick one of some options, place it on a scale, or how
   likely something is true), answered with probabilities and a confidence. Each one writes a `decide` row in `:log`
   with what it was about, so what you do next can be compared with it. The confidence is the model's own and
   uncalibrated: Heed never takes an action that cannot be undone on it.
 
-Today they write the [ledger](../history/ledger.md)'s summaries, and in [Attention](../github/attention.md) a
+Today they write the [ledger](../insights/ledger.md)'s summaries, and in [Attention](../github/attention.md) a
 [catch-up summary](../github/attention.md#catch-up-summaries) of what is new in a thread since you last looked
 (ahead for New, on open for the rest, per `[attention] summaries`), a drafted reply (shown in full before anything is posted) and a suggested weight for items no
 [rule](../github/attention-rules.md) matched. With `[llm] enabled = false`, none of that happens and the rest of Heed

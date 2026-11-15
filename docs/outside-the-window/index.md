@@ -5,7 +5,9 @@ description: "Heed when it is not in front: the menu bar, the Dock, notification
 
 # Outside the window
 
-Agents keep working while you are in another app. Heed lets you know when one needs you, and gets you back in a key.
+Agents keep working while you are in another app. heed tells you when one needs you, and gets you back in a key.
+
+![The menu bar owl, counting what needs you](../images/shots/outside/menu-bar.png)
 
 - [The menu bar](menu-bar.md): an owl that counts what needs you.
 - [The Dock](dock.md): the same count, as a badge.

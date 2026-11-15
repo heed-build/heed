@@ -89,3 +89,5 @@ you turn it on.
 
 Only your progress is kept between launches: which lessons are done, and the step you were on, so quitting mid-lesson
 resumes there. The world is never saved.
+
+**Next:** [Your first session](first-session.md).

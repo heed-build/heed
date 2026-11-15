@@ -26,5 +26,5 @@ Both ask before doing anything, and say exactly what will happen. `y` or `↩` g
 Deleting never loses work: uncommitted changes and unpushed commits are [saved first](../worktrees/removing.md#saved-first)
 as `refs/heed/archive/<branch>`, and the dialog says so for each worktree.
 
-Closed and deleted sessions stay in [History](../history/index.md), where `R` reopens them (recreating the worktree
+Closed and deleted sessions stay in [History](../insights/index.md), where `R` reopens them (recreating the worktree
 from its branch, or from what was saved when the branch is gone).

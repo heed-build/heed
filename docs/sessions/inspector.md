@@ -11,8 +11,8 @@ parts at the bottom stay put, each kept small, and each shows only when it has s
 
 At the top, scrolling:
 
-- **Summary**: what the session is about, a few sentences from its [ledger](../history/ledger.md) entry while that is
-  fresh, else from what its agent said last. Under it, the [Mindmap](../history/mindmap.md) campaign its work sits in
+- **Summary**: what the session is about, a few sentences from its [ledger](../insights/ledger.md) entry while that is
+  fresh, else from what its agent said last. Under it, the [Mindmap](../insights/mindmap.md) campaign its work sits in
   and that campaign's stage, and its goal as a pill (click it to go there; right-click to move it to another goal or
   take it off).
 - **Pull requests**, open first, then merged, then closed, each newest first. A merged or closed one shrinks to its
@@ -61,7 +61,7 @@ A session's issues come from three places:
 - `heed issue add <url>` from the agent, or `gI` (`:issue.add <url>`; the copied URL when you give none).
   `:issue.remove` takes one off.
 
-A PR with a [run](../github/watch.md#runs) working on it says so on its card: the agent and model, the round, how long,
+A PR with a [run](../autopilot/green-and-merged.md#runs) working on it says so on its card: the agent and model, the round, how long,
 and the key to its tab (`gb`), with the last line of the run's screen under it. Click the box to go to the tab.
 
 ![A PR card with a get it green run working on it](../images/shots/sessions/run-card.png)

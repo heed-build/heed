@@ -1,8 +1,9 @@
 ---
+navigation_title: Lanes and swarms (reference)
 description: "Swarms: a goal worked by several agents at once. A lead agent drafts a plan, you change and approve it, and workers run its tasks side by side."
 ---
 
-# Swarms
+# Lanes and swarms (reference)
 
 :::{note}
 New goals go through the [wizard](../first-goal.md): a goal with lanes is a swarm, and its [Go](../go.md) step starts
@@ -92,7 +93,7 @@ field. The new goal dialog and the plan pane's editor work the same way.
 The lead is a real session: heed starts it with Start work's machinery in the swarm's first repo, on the goal
 (attached with origin `swarm`, never asked about), with the chosen agent and model, and with the `heed-goal` skill.
 Its first prompt tells it to read `GOAL.md`, draft the plan with `heed goal plan propose` and ask what it cannot
-decide with `heed goal ask` ([The lead and heed goal](lead.md)). While a swarm is going, the lead plans the goal
+decide with `heed goal ask` ([A swarm's lead](../cli.md#a-swarms-lead)). While a swarm is going, the lead plans the goal
 instead of the cheap-model planner, which comes back when the swarm ends.
 
 The lead never changes the goal or the limits, and never approves its own plan. When the plan needs the goal to

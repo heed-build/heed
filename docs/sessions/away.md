@@ -17,7 +17,7 @@ Below it, each day, newest first (Today, Yesterday, then the weekday and date), 
 | Kind | What it lists |
 |---|---|
 | Merged | Pull requests that merged, by their title |
-| Runs | [Get it green and get it merged](../github/watch.md) runs that ended: the agent, how it ended (pushed commits, no changes, timed out, failed) and how long it took |
+| Runs | [Get it green and get it merged](../autopilot/green-and-merged.md) runs that ended: the agent, how it ended (pushed commits, no changes, timed out, failed) and how long it took |
 | Finished | Sessions whose agent finished its turn and is done |
 | New reviews | Reviews on your pull requests (approved, changes requested, commented) and review threads that arrived |
 | Closed | Sessions that were closed, with how they ended |

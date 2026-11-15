@@ -38,3 +38,5 @@ Repos does the same when it found no repositories, and History, Autopilot, Atten
 Everything lives in `~/.config/heed/config.toml`, written with comments the first time Heed opens. Saving it applies
 the change right away. Settings (`⌘,`) edits the same file, except key bindings, which live only in the file. See
 [Configuration](../configuration/index.md).
+
+**Next:** [The tutor](tutor.md).

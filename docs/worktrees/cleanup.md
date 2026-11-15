@@ -55,7 +55,7 @@ also drops the saved work older than `keep_archive_days`, in every repo, and its
 
 ## What runs leave behind
 
-Get it green [runs](../github/watch.md#runs) work in worktrees of their own, on `heed/get-it-green/…` (or
+Get it green [runs](../autopilot/green-and-merged.md#runs) work in worktrees of their own, on `heed/get-it-green/…` (or
 `heed/get-it-merged/…`) branches, and remove both when they end. Anything left over (heed quit mid-run, a removal
 failed) is removed by every cleanup and at launch, whether or not cleanup is on, as long as it is safe: no uncommitted
 changes, and no commits that are not on the pull request's branch. `heed cleanup runs` does the same from a

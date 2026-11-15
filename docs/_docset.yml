@@ -25,6 +25,15 @@ toc:
       - file: agent-states.md
       - file: worktrees.md
       - file: modes.md
+  - folder: start-work
+    children:
+      - file: index.md
+      - file: sizing.md
+      - file: repos.md
+      - file: branch-names.md
+      - file: agent-and-options.md
+      - file: from-anywhere.md
+      - file: from-github.md
   - folder: sessions
     children:
       - file: index.md
@@ -40,41 +49,6 @@ toc:
       - file: away.md
       - file: zmx.md
       - file: filtering.md
-  - folder: start-work
-    children:
-      - file: index.md
-      - file: sizing.md
-      - file: repos.md
-      - file: branch-names.md
-      - file: agent-and-options.md
-      - file: from-anywhere.md
-      - file: from-github.md
-      - file: again.md
-  - folder: agents
-    children:
-      - file: index.md
-      - file: hooks.md
-      - file: messages.md
-      - file: approvals.md
-      - file: screen-reading.md
-      - file: custom-agents.md
-      - file: helpers.md
-      - file: personas.md
-      - file: models.md
-      - file: model-calls.md
-      - file: screen-snapshots.md
-  - folder: github
-    children:
-      - file: index.md
-      - file: attention.md
-      - file: attention-rules.md
-      - file: pull-requests.md
-      - file: reading.md
-      - file: review-feedback.md
-      - file: autopilot.md
-      - file: watch.md
-      - file: repo-setup.md
-      - file: tracking-prs.md
   - folder: worktrees
     children:
       - file: index.md
@@ -83,22 +57,31 @@ toc:
       - file: importing.md
       - file: removing.md
       - file: cleanup.md
-  - folder: hosts
-    children:
-      - file: index.md
   - folder: diff
     children:
       - file: index.md
       - file: reviewing.md
-  - folder: history
+  - folder: hosts
     children:
       - file: index.md
-      - file: dashboard.md
-      - file: ledger.md
-      - file: mindmap.md
-      - file: standup.md
-      - file: opentelemetry.md
-      - file: reopening.md
+      - file: tailscale.md
+      - file: sessions.md
+  - folder: github
+    children:
+      - file: index.md
+      - file: attention.md
+      - file: attention-rules.md
+      - file: pull-requests.md
+      - file: reading.md
+      - file: review-feedback.md
+      - file: tracking-prs.md
+  - folder: autopilot
+    children:
+      - file: index.md
+      - file: green-and-merged.md
+      - file: repo-setup.md
+      - file: approvals.md
+      - file: helpers.md
   - folder: goals
     children:
       - file: index.md
@@ -112,7 +95,6 @@ toc:
       - file: reviewers.md
       - file: evaluations.md
       - file: cli.md
-      - file: personas.md
       - file: github.md
       - folder: swarms
         children:
@@ -123,7 +105,31 @@ toc:
           - file: steering.md
           - file: watching.md
           - file: summary.md
-          - file: lead.md
+  - folder: personas
+    children:
+      - file: index.md
+      - file: in-sessions.md
+      - file: goal-panels.md
+  - folder: insights
+    children:
+      - file: index.md
+      - file: dashboard.md
+      - file: history.md
+      - file: ledger.md
+      - file: mindmap.md
+      - file: standup.md
+      - file: opentelemetry.md
+      - file: reopening.md
+  - folder: agents
+    children:
+      - file: index.md
+      - file: hooks.md
+      - file: messages.md
+      - file: screen-reading.md
+      - file: custom-agents.md
+      - file: models.md
+      - file: model-calls.md
+      - file: screen-snapshots.md
   - folder: keyboard
     children:
       - file: index.md
@@ -160,4 +166,5 @@ toc:
       - file: files.md
       - file: call-log.md
       - file: environment.md
+      - file: glossary.md
   - file: troubleshooting.md

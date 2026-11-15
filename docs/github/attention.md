@@ -183,13 +183,13 @@ full at the top: *Heed's next step: get it green and merge it*, with the steps i
 
 | The item | Heed's next step | What `D` does |
 |---|---|---|
-| Someone else's PR that asks your review | **Start a review** | a [helper](../agents/helpers.md) reads it against its issue, runs its tests and drafts comments; nothing is posted until you send it |
+| Someone else's PR that asks your review | **Start a review** | a [helper](../autopilot/helpers.md) reads it against its issue, runs its tests and drafts comments; nothing is posted until you send it |
 | An issue that tags you | **Draft a reply** | a reply drafted from the thread (as `R`); you read it before anything is posted |
 | Your issue where you spoke last | **Nothing to do** | nothing: heed waits for someone else to answer |
 | Your PR with failing checks or review comments | **Get it green** (and merge it, when merging is on) | a helper fixes them in its own worktree and pushes once you approve |
 | Your PR that conflicts with its base | **Resolve the conflict** | a helper merges the base in, in its own worktree |
 | Your green PR | **Merge it** | merges now by the repo's rules (as `zM`) |
-| Your PR in a repo without Autopilot | **Set up Autopilot** | the [repo setup](repo-setup.md): samples merged PRs and CI and proposes settings you approve |
+| Your PR in a repo without Autopilot | **Set up Autopilot** | the [repo setup](../autopilot/repo-setup.md): samples merged PRs and CI and proposes settings you approve |
 | An issue assigned to you | **Start work** | [Start work](../start-work/from-github.md) on it |
 
 | Key | |
@@ -204,7 +204,7 @@ actions instead of the proposal, so they stay a click away, and so does one with
 ![Other: the item's other steps, then what else you can do with it](../images/shots/attention/other.png)
 
 `↩` still opens the reader, as before. Once you approve a step that a helper does, the helper opens in a split under
-the reader: see [Helpers](../agents/helpers.md).
+the reader: see [Helpers](../autopilot/helpers.md).
 
 ![The proposal on a PR that asks your review](../images/shots/attention/next-step-review.png)
 

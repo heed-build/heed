@@ -10,7 +10,7 @@ with the thing under the mouse.
 
 A key hint is a button too: click `zg green` beside a PR, `x done` in Attention or a row of the `?` overlay, and it runs
 what the key runs, on what it sits beside. The pointer turns to a hand over it and its tooltip names the command
-(`:pilot.green`). So do the filter chips of the [call log](../reference/call-log.md) and [History](../history/index.md#filters), the PR overlay's tabs,
+(`:pilot.green`). So do the filter chips of the [call log](../reference/call-log.md) and [History](../insights/history.md#filters), the PR overlay's tabs,
 its Green modes and the checkbox on a feedback item (it queues or unqueues the item, as `space` does). A row of `:`'s
 completions takes the line as `⇥` would, a double-click runs it; a key listed after a pending `g` presses the rest. In
 History and the ledger, `↩` and a double-click reopen, as `R` does; on the dashboard they read the PR.
@@ -44,7 +44,7 @@ works in every mode like the other [Mac shortcuts](mac-shortcuts.md).
 | Help | Keys & states (`?`), the [tutor](../getting-started/tutor.md) and its steps, the getting-started checks, these docs |
 
 The menus act on what you are looking at, as a key would: the selected session, or the PR in front (the one open in the
-PR overlay or the reader, or the row under the cursor in PRs and Watch). An item is greyed when it cannot run there,
+PR overlay or the reader, or the row under the cursor in PRs and Autopilot). An item is greyed when it cannot run there,
 by the same rules as the right-click menus: no pilot items without an open PR, no diff for a chat, no *Stop run* without
 a run. A view's own submenu (the call log's filters, the diff's hunks) is greyed outside that view. A check mark shows
 what is on: the view you are on, a pinned or parked session, watching, get it green, get it merged, paused, the sidebar
@@ -78,16 +78,16 @@ from its prompt** (`O`), and closing is **Close**, or **Delete with its scratch 
 
 A right-click on a **PR card** acts on that PR alone, not on every PR of the session: open it here (the PR overlay) or
 in the browser, go to its session, watch it, get it green, get it merged, pause it, give it one more round, ask Copilot
-or its [reviewers](../github/watch.md) (`zv`), see what heed will do, or stop tracking it (`:pr.untrack`).
+or its [reviewers](../autopilot/green-and-merged.md) (`zv`), see what heed will do, or stop tracking it (`:pr.untrack`).
 
 An **issue** opens in the [reader](../github/reading.md) or the browser, or comes off the session (`:issue.remove`). A
 **run** goes to its tab or stops while it works, and opens in the reader once it ended.
 
-## PRs and Watch
+## PRs and Autopilot
 
-A right-click on a row in [PRs](../github/pull-requests.md) or Autopilot's [Now](../github/autopilot.md#now) offers that PR: open it,
+A right-click on a row in [PRs](../github/pull-requests.md) or Autopilot's [Now](../autopilot/index.md#now) offers that PR: open it,
 open it in the browser or its repo on GitHub, go to its session, and the pilot's items for it alone. In Now it also
-runs or shows the PR's [merge queue](../github/watch.md) (`R`, `gM`).
+runs or shows the PR's [merge queue](../autopilot/green-and-merged.md) (`R`, `gM`).
 
 ## Attention
 
@@ -106,10 +106,10 @@ session, opens its repo on GitHub, cleans up worktrees (`gC`), reviews the repo'
 setup (`S`), or removes it (`dd`, which asks first; never offered for the repo's own checkout). Selected worktrees
 (VISUAL) work as picked rows do above.
 
-A piece of work in [History](../history/index.md#history) reopens (`R`), starts again from its prompt (`O`), or opens
+A piece of work in [History](../insights/history.md) reopens (`R`), starts again from its prompt (`O`), or opens
 its repo on GitHub; an event on its own line reopens its session, shows only its kind, or folds every event back
-(`e`). A row of the [ledger](../history/ledger.md) reopens its session (`R`), opens its repo on GitHub, writes the
-summary again (`S`) or edits it (`E`). A PR the [dashboard](../history/dashboard.md) shows as shipped is read (`↩`),
+(`e`). A row of the [ledger](../insights/ledger.md) reopens its session (`R`), opens its repo on GitHub, writes the
+summary again (`S`) or edits it (`E`). A PR the [dashboard](../insights/dashboard.md) shows as shipped is read (`↩`),
 opened in the browser (`gB`), or its session reopened (`R`).
 
 ## Goals

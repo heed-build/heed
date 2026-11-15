@@ -5,7 +5,7 @@ description: "Get it green and get it merged: the rules, the merge queue, runs, 
 # Get it green and merged
 
 The PRs your sessions track are watched: heed follows their checks and reviews, sends what holds them back to their
-agent (**green**) and merges them once they are (**merge**). [Autopilot](autopilot.md)'s **Now** (`gw` then `N`) shows
+agent (**green**) and merges them once they are (**merge**). [Autopilot](index.md)'s **Now** (`gw` then `N`) shows
 them as heed works on them; this page is how each part works and how it is set.
 
 ![Autopilot's Now: PRs by card, the selected PR's checklist and timeline, and what else is running](../images/shots/autopilot/now.png)
@@ -77,7 +77,7 @@ Each PR has three levels, each needing the one before:
 | Level | Off | On |
 |---|---|---|
 | **Watch** | only the PR's summary from the regular sync | heed follows it: fetches its review threads and checks as they change, and shows its state everywhere |
-| **Green** | items are shown, nothing is sent | `ask`: you queue items to send; `auto`: they go to the agent once it is idle (see [review feedback](review-feedback.md)) |
+| **Green** | items are shown, nothing is sent | `ask`: you queue items to send; `auto`: they go to the agent once it is idle (see [review feedback](../github/review-feedback.md)) |
 | **Merge** | nothing is merged | `auto`: heed turns on GitHub's auto-merge, and GitHub merges once its requirements are met; `heed`: heed merges once [its rules](#heed-merges) hold (see [below](#get-it-merged)) |
 
 Watching only reads from GitHub, so it is on by default.
@@ -145,7 +145,7 @@ With merging off, heed still checks whether a PR it has fetched could be merged:
 date when the repo requires it, its required checks passed, approved (or no review required), nothing else blocking it
 on GitHub, no open threads, none of `hold_labels`, quiet for `quiet_minutes`, and GitHub's auto-merge not already on.
 When every one holds, its card, its sidebar row and the PRs view say **Ready to merge**, and it shows in
-[Attention](attention.md) as *ready to merge*. Two things to do from there, by key or by click:
+[Attention](../github/attention.md) as *ready to merge*. Two things to do from there, by key or by click:
 
 - **merge now** (`zM`, `:pilot.merge.now`): `gh pr merge` with the PR's method, on the head commit heed checked.
   `merge_now = "ask"` (the default) first shows the PR, the method and anything not met; `"auto"` merges at once. It
@@ -173,7 +173,7 @@ the base branch requires linear history, and `admin_merge` where you are not an 
 Settings come from three levels and a choice made on the PR, so it is not always plain what the next round will be.
 Every PR card, in the inspector and in Now's middle pane, says it in one line under the pilot's:
 
-- `next  helper · claude via ACP · 30m`: a [helper](../agents/helpers.md) (the default), with the agent it runs
+- `next  helper · claude via ACP · 30m`: a [helper](helpers.md) (the default), with the agent it runs
   over ACP and how long it may work.
 - `next  background run · codex · 30m · 1 instruction`: a [run](#in-a-background-tab-instead) of its own, with the agent and model it
   starts, how long it may work, and how many lines of `green_instructions` it gets.
@@ -203,7 +203,7 @@ from, amber when it is not the default. Below them, **what holds it back**: the 
 
 | Key | |
 |---|---|
-| `↩` | Read the PR ([PR overlay](review-feedback.md)) |
+| `↩` | Read the PR ([PR overlay](../github/review-feedback.md)) |
 | `zw` | Watch or stop watching |
 | `zg` | Cycle green: off, ask, auto |
 | `zm` | Cycle merging: off, auto, heed |
@@ -227,7 +227,7 @@ never set follow the settings.
 ## Runs
 
 Get it green never types into your session's agent. By default each round (heed sending on its own with
-`green = "auto"`, `zg` with items queued, or `D` on the PR in Attention) goes to a [helper](../agents/helpers.md): an
+`green = "auto"`, `zg` with items queued, or `D` on the PR in Attention) goes to a [helper](helpers.md): an
 agent heed starts over ACP in a worktree of its own, drawn in heed (in Attention under the reader, in Autopilot › Now
 as a live tile, and under the session's panes with `gW`), which pushes and replies only once you approve its close-out.
 One helper per PR at a time; what queues meanwhile goes once you close it out. The session tracking the PR is told on a
@@ -386,7 +386,7 @@ heed's prompts can carry instructions of your own, set in `[pilot]` and per org 
 | `summary_instructions` | to what heed asks for when its [model calls](../agents/model-calls.md) summarize work |
 
 `summary_sign_off`, beside them, asks the agent itself for a one-line summary at the end of its work: see
-[The agent's own summary](../history/ledger.md#the-agents-own-summary).
+[The agent's own summary](../insights/ledger.md#the-agents-own-summary).
 
 They add to a prompt and never replace it: what heed relies on stays as it is, such as the push command a run is
 given and the `APPROVE` line it reads from the self-review. They are not a stand-in for the repo's own `AGENTS.md` or

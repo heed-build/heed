@@ -245,7 +245,7 @@ struct SessionLookTests {
 
     static let answer = """
     {"verdicts": [
-      {"persona": "your-team-s-style", "verdict": "concern", "quote": "RedirectBug2841Tests describes the bug; name it after the behaviour, like AnchorLookupTests.", "fix": "test names describe the bug, not the behaviour"},
+      {"persona": "your-team-s-style", "verdict": "concern", "quote": "RedirectBug2841Tests describes the bug; name it after the behaviour, like AnchorLookupTests.", "fix": "name tests after the behaviour, not the bug"},
       {"persona": "Docs-site maintainer", "verdict": "happy", "quote": "Server rules only, no chains. Old URLs keep working.", "fix": null},
       {"persona": "skeptic", "verdict": "ok", "quote": "Scope stayed small."}
     ]}
@@ -266,7 +266,7 @@ struct SessionLookTests {
         #expect(look.count(.concern) == 1)
         #expect(look.count(.not) == 0)
         #expect(look.worried)
-        #expect(look.topLine == "team style: test names describe the bug, not the behaviour")
+        #expect(look.topLine == "team style: name tests after the behaviour, not the bug")
         #expect(look.model == "haiku")
     }
 
@@ -274,7 +274,7 @@ struct SessionLookTests {
         let message = try #require(try await Self.look().message)
         #expect(message.hasPrefix("From heed, the panel looked at your work (a lot got built):"))
         #expect(message.contains("Your team's style (concern): RedirectBug2841Tests"))
-        #expect(message.contains("Suggested: test names describe the bug"))
+        #expect(message.contains("Suggested: name tests after the behaviour"))
         #expect(!message.contains("Docs-site maintainer"))
         var happy = try await Self.look()
         happy.verdicts = happy.verdicts.filter { $0.kind == .happy }
@@ -649,7 +649,7 @@ struct SessionPanelFixtureTests {
             SessionPanelFixtures.built(at: start), library: library, repos: repos
         )
         #expect(look.verdicts.count == 3)
-        #expect(look.topLine == "team style: test names describe the bug, not the behaviour")
+        #expect(look.topLine == "team style: name tests after the behaviour, not the bug")
         #expect(SessionPanelInvites.relevant(library, repos: repos).count == 3)
     }
 }

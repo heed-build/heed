@@ -7,24 +7,59 @@ struct GoalWizardView: View {
     let wizard: GoalWizard
 
     var body: some View {
-        HStack(spacing: 0) {
-            WizardRail(wizard: wizard)
-                .frame(width: 232)
-                .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
-                .shotRegion(.wizardRail)
-            Group {
-                switch wizard.step {
-                case .plan: WizardPlanStep(wizard: wizard)
-                case .panel: WizardPanelStep(wizard: wizard)
-                case .done: WizardDoneStep(wizard: wizard)
-                case .split: WizardSplitStep(wizard: wizard)
-                case .careful: WizardCarefulStep(wizard: wizard)
-                case .go: WizardGoStep(wizard: wizard)
+        VStack(spacing: 0) {
+            WizardCrumb(wizard: wizard)
+            HStack(spacing: 0) {
+                WizardRail(wizard: wizard)
+                    .frame(width: 232)
+                    .overlay(alignment: .trailing) { Theme.line.frame(width: 1) }
+                    .shotRegion(.wizardRail)
+                Group {
+                    switch wizard.step {
+                    case .plan: WizardPlanStep(wizard: wizard)
+                    case .panel: WizardPanelStep(wizard: wizard)
+                    case .done: WizardDoneStep(wizard: wizard)
+                    case .split: WizardSplitStep(wizard: wizard)
+                    case .careful: WizardCarefulStep(wizard: wizard)
+                    case .go: WizardGoStep(wizard: wizard)
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .shotRegion(.goalWizard)
+        .rightClickMenu { true } _: {
+            ContextMenus.wizard(
+                title: model.goals.snapshot.goal(wizard.goal)?.title ?? "New goal",
+                tldr: model.tldrBadge(wizard.goal) != nil
+            )
+        }
+    }
+}
+
+// MARK: The breadcrumb
+
+/// Over the whole wizard, as the goal's pages have it: `Goals › <goal or New goal> › <step>`. The wizard is a part of
+/// the Goals overview, so "Goals" goes back there (⎋; the wizard keeps its place). One slim line, no tabs.
+private struct WizardCrumb: View {
+    let wizard: GoalWizard
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let title = model.goals.snapshot.goal(wizard.goal)?.title ?? ""
+        HStack(spacing: 12) {
+            CrumbLine(crumb: [
+                PaneCrumb("Goals", runs: CommandInvocation(name: "wizard.leave")),
+                PaneCrumb(title.isEmpty ? "New goal" : title),
+                PaneCrumb(wizard.step.title),
+            ])
+            .help("Goals: back to the list; the wizard keeps its place")
+            Spacer(minLength: 12)
+        }
+        .padding(.horizontal, 20)
+        .frame(height: 30)
+        .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+        .axID("wizard-crumb")
     }
 }
 
@@ -36,9 +71,6 @@ private struct WizardRail: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            SectionHeader(title: wizard.finished ? "Goal" : "New goal")
-                .padding(.horizontal, 8)
-                .padding(.bottom, 10)
             ForEach(WizardStep.allCases, id: \.self) { step in
                 let state = wizard.state(of: step)
                 HStack(spacing: 12) {
@@ -65,7 +97,8 @@ private struct WizardRail: View {
             Spacer()
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 22)
+        .padding(.top, 14)
+        .padding(.bottom, 22)
         .frame(maxHeight: .infinity, alignment: .topLeading)
     }
 }

@@ -977,6 +977,7 @@ enum Shots {
     static let wizard: [Shot] = [
         Shot(id: "goals/wizard-plan", crop: .wizardPlan, cropPadding: 0, prepare: { $0.loadWizardFixture(.plan) }),
         Shot(id: "goals/wizard-scene", prepare: { $0.loadWizardFixture(.plan) }),
+        Shot(id: "goals/wizard-discard", keys: "D", prepare: { $0.loadWizardFixture(.plan) }),
         Shot(id: "goals/wizard-meters", crop: .wizardMeters, cropPadding: 16, prepare: { $0.loadWizardFixture(.plan) }),
         Shot(id: "goals/wizard-rail", crop: .wizardRail, cropPadding: 0, prepare: { $0.loadWizardFixture(.done) }),
         Shot(id: "goals/wizard-panel", crop: .wizardPanel, cropPadding: 0, prepare: { $0.loadWizardFixture(.panel) }),

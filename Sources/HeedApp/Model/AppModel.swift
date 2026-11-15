@@ -6100,7 +6100,7 @@ final class AppModel {
     func startReviewRun(
         runID: String, goal: String, reviewer: String, session sessionID: String, record: RepoRecord, branch: String,
         repo: Repo, agentName: String, model: String?, basis: ReviewBasis, pull: PullRef? = nil,
-        prompt: (String) -> String
+        prompt: (String) -> Prompt
     ) async -> String? {
         guard let session = sessions.first(where: { $0.id == sessionID }) else { return "its session is gone" }
         guard let agent = settings.agent(agentName) else { return "no agent \(agentName)" }

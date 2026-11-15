@@ -421,7 +421,7 @@ extension AppModel {
         let reviewer = state.config
         let known = state.objections
         let sandboxed = RunSandbox.isSandboxed(agent: agentName)
-        let prompt: (String) -> String = { folder in
+        let prompt: (String) -> Prompt = { folder in
             ReviewRun.prompt(
                 config: reviewer, goalTitle: goal.title, doc: doc, bar: bar, changed: changed, folder: folder,
                 known: known, sandboxed: sandboxed
@@ -472,7 +472,7 @@ extension AppModel {
     /// why it could not start.
     private func runHeadlessReview(
         runID: String, goal: String, reviewer: String, target: ReviewTarget, agentName: String, model: String?,
-        basis: ReviewBasis, prompt: (String) -> String
+        basis: ReviewBasis, prompt: (String) -> Prompt
     ) async -> String? {
         guard let agent = settings.agent(agentName) else { return "no agent \(agentName)" }
         guard target.record.location.isLocal else { return "\(target.repo.slug) is not cloned on this Mac" }

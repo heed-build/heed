@@ -484,17 +484,17 @@ struct EvaluationRunTests {
             lens: .dxFirstRun, steps: ["Read the README", "Install it"], clone: "/tmp/heed-walk-x/search",
             folder: "/runs/2", known: [friction("Flags overlap", .med), friction("Gone", .low, .fixed)]
         )
-        #expect(prompt.contains("1. Read the README\n2. Install it"))
-        #expect(prompt.contains("no prior context"))
-        #expect(prompt.contains("README"))
-        #expect(prompt.contains("/runs/2/evaluation.json"))
-        #expect(!prompt.contains(".heed/evaluation.json"))
-        #expect(prompt.contains("reaches only package registries"))
-        #expect(prompt.contains("- [med] Flags overlap"))
-        #expect(!prompt.contains("Gone"))
-        #expect(prompt.contains("Never push"))
+        #expect(prompt.display.contains("1. Read the README\n2. Install it"))
+        #expect(prompt.display.contains("no prior context"))
+        #expect(prompt.display.contains("README"))
+        #expect(prompt.display.contains("/runs/2/evaluation.json"))
+        #expect(!prompt.display.contains(".heed/evaluation.json"))
+        #expect(prompt.display.contains("reaches only package registries"))
+        #expect(prompt.display.contains("- [med] Flags overlap"))
+        #expect(!prompt.display.contains("Gone"))
+        #expect(prompt.display.contains("Never push"))
         #expect(EvaluationRun.prompt(lens: .docsWalk, steps: ["a"], clone: "/c", folder: "/r", known: [])
-            .contains("the docs in"))
+            .display.contains("the docs in"))
     }
 
     @Test func walksRunHeadlessAndCannotPush() throws {

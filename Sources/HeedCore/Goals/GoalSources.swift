@@ -4,8 +4,15 @@ import Foundation
 /// changes its scope.
 public enum GoalPlanner {
     /// What the model reads: the goal's GOAL.md and the items it has.
+    /// An item a source found (an issue, a PR) has its author's title, fenced.
     public static func inputs(title: String, doc text: String, items: [GoalItem]) -> SummaryInputs {
-        SummaryInputs(title: title, goal: text, known: items.map(\.title))
+        SummaryInputs(quoting: .owner(title), goal: text, known: items.map { item in
+            guard let sourced = item.sourced else { return .owner(item.title) }
+            return Prompt(ExternalText(
+                item.title, source: sourced.kind == .pr ? .pullTitle : .issueTitle,
+                author: ExternalText.Author(login: sourced.author, trust: .stranger)
+            ))
+        })
     }
 
     /// The `- ` lines of the answer, as titles: numbered lines and `*` bullets too, at most eight, no repeats.

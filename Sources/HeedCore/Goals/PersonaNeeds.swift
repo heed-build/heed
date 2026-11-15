@@ -144,15 +144,19 @@ public struct PersonaDerivation: Hashable, Sendable, Codable {
     public static func inputs(
         title: String, doc: String, refs: [String: PersonaRef], evidence: [GoalEvidence], known: [String]
     ) -> SummaryInputs {
-        var lines = refs.keys.sorted().map { handle in "\(handle): \(refs[handle]!.label)" }
-        let failing = evidence.filter { $0.state == .issue }.map { entry in
+        var lines: [Prompt] = refs.keys.sorted().map { handle in .owner("\(handle): \(refs[handle]!.label)") }
+        // What failed says what a check, a run or a reviewer printed: fenced as its output.
+        let failing: [Prompt] = evidence.filter { $0.state == .issue }.map { entry in
             let handle = entry.item
                 .map { "item:" + ($0.split(separator: "/", maxSplits: 1).last.map(String.init) ?? $0) }
-            return "failing \(entry.kind.rawValue)" + (handle.map { " on \($0)" } ?? "") + ": \(entry.text) (\(entry.source))"
+            let said = ExternalText(entry.text, source: .ciLog, author: .unknown)
+            return "failing \(owner: entry.kind.rawValue)" + .owner(handle.map { " on \($0)" } ?? "")
+                + ": \(said) (\(name: entry.source))"
         }
         lines += failing
         return SummaryInputs(
-            title: "Who \(title) needs", timeline: lines, goal: doc, known: known.map { "persona: " + $0 }
+            quoting: .owner("Who \(title) needs"), timeline: lines, goal: doc,
+            known: known.map { .owner("persona: " + $0) }
         )
     }
 

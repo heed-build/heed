@@ -22,7 +22,7 @@ extension AppModel {
         }
     }
 
-    /// Hands `text` to the agent in `pane`. `typed`: what is typed when it comes to that, when it must differ (one
+    /// Hands `prompt` to the agent in `pane`. `typed`: what is typed when it comes to that, when it must differ (one
     /// line). `typingGrace`: as `Delivery.verdict`'s. `mayType` false: its channel or nothing, never the pane (a
     /// helper's notice). Returns where it ended up; `.waiting` means nothing was sent. The prompt is rendered here,
     /// where it leaves heed: other people's text fenced, and control characters stripped before it is typed.
@@ -30,7 +30,6 @@ extension AppModel {
         _ prompt: Prompt, typed: Prompt? = nil, pane: String, state: AgentState, lastTyped: Date?,
         typingGrace: TimeInterval = 20, mayType: Bool = true
     ) async -> DeliveryOutcome {
-        let text = prompt.text
         let inbox = inbox(forPane: pane)
         switch Delivery.route(
             state: state, lastTyped: lastTyped, inbox: inbox, settings: settings.channels, now: Clock.now,
@@ -43,7 +42,7 @@ extension AppModel {
             TerminalSurfaces.shared.typeLine(typed ?? prompt, paneID: pane)
             return .typed(fallback: nil)
         case let .channel(inbox):
-            let result = await channels.send(text, to: inbox)
+            let result = await channels.send(prompt, to: inbox)
             let resolved = Delivery.resolve(
                 result, via: inbox, state: state, lastTyped: lastTyped, now: Clock.now, typingGrace: typingGrace
             )

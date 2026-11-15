@@ -90,8 +90,8 @@ struct StandupTests {
         let inputs = StandupInputs.make(
             instance: "acme", tree: tree, ledger: ["e1": recent, "e2": old], from: wednesday(0), now: wednesday(9)
         )
-        #expect(inputs.known.first == "work [Docs nav] fix toc (active): Index order wins")
-        #expect(!inputs.known.contains { $0.contains("old work") })
+        #expect(inputs.known.first?.display == "work [Docs nav] fix toc (active): Index order wins")
+        #expect(!inputs.known.contains { $0.display.contains("old work") })
         #expect(inputs.title == "Standup for acme")
     }
 

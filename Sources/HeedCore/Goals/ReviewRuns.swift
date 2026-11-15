@@ -183,7 +183,7 @@ public enum ReviewRun {
     public static func prompt(
         config: ReviewerConfig, goalTitle: String, doc: String, bar: Double?, changed: [String], folder: String,
         known: [Objection], sandboxed: Bool = true
-    ) -> String {
+    ) -> Prompt {
         var lines: [String] = []
         if let persona = config.persona {
             // A persona reviews as itself: who it is comes first, the instructions are its brief.
@@ -223,7 +223,8 @@ public enum ReviewRun {
                 + "\"files\": <how many files you read>}. high: it must change before the goal is done; med: it "
                 + "should; low: worth knowing. End your reply with the same JSON."
         )
-        return lines.joined(separator: "\n")
+        // The goal, its reviewer and heed's own record: your words and heed's, nobody else's.
+        return .owner(lines.joined(separator: "\n"))
     }
 
     /// Why a run left no review, from what it left: no file, or a file that is not a review.
@@ -344,9 +345,10 @@ public extension ReviewRun {
     /// to ask (`dontAsk`), codex `exec` in its sandbox with its last message to a file. Nil for agents with no such
     /// mode: they need a session's tab. The first word is the executable, then the command's own fixed arguments.
     static func headless(
-        agent: String, command: String, prompt: String, model: String?, worktree: String, folder: String
+        agent: String, command: String, prompt: Prompt, model: String?, worktree: String, folder: String
     ) -> [String]? {
         let command = command.split(separator: " ").map(String.init)
+        let prompt = prompt.argument
         let limits = restrictions(agent: agent, worktree: worktree, folder: folder)
         switch agent {
         case "claude":

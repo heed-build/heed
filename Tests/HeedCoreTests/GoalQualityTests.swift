@@ -482,16 +482,16 @@ struct ReviewRunTests {
                 objection("Format", .low, .acceptedRisk),
             ]
         )
-        #expect(prompt.contains("implementation reviewer for the goal \"Faster search\""))
-        #expect(prompt.contains("The bar for this goal is 7.5 out of 10"))
-        #expect(prompt.contains("- acme/x#1 changed"))
-        #expect(prompt.contains("- [med] Index grows"))
-        #expect(prompt.contains("- [low] Format (accepted)"))
-        #expect(!prompt.contains("Old thing"))
-        #expect(prompt.contains("/runs/1/review.json"))
-        #expect(!prompt.contains(".heed/review.json"))
-        #expect(prompt.contains("sandbox") && prompt.contains("has no network"))
-        #expect(prompt.contains("never edit files, commit or push"))
+        #expect(prompt.display.contains("implementation reviewer for the goal \"Faster search\""))
+        #expect(prompt.display.contains("The bar for this goal is 7.5 out of 10"))
+        #expect(prompt.display.contains("- acme/x#1 changed"))
+        #expect(prompt.display.contains("- [med] Index grows"))
+        #expect(prompt.display.contains("- [low] Format (accepted)"))
+        #expect(!prompt.display.contains("Old thing"))
+        #expect(prompt.display.contains("/runs/1/review.json"))
+        #expect(!prompt.display.contains(".heed/review.json"))
+        #expect(prompt.display.contains("sandbox") && prompt.display.contains("has no network"))
+        #expect(prompt.display.contains("never edit files, commit or push"))
     }
 }
 

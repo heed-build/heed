@@ -101,8 +101,8 @@ struct SessionNamingTests {
             others: [mine, session("b", title: "Theirs")]
         )
         #expect(question.others == ["Theirs"])
-        #expect(question.inputs.known == ["Theirs"])
-        #expect(question.inputs.pullRequest == "PR: Add release")
+        #expect(question.inputs.known.map(\.display) == ["Theirs"])
+        #expect(question.inputs.pullRequest?.display == "PR: Add release")
     }
 
     @Test func namingFieldsSurviveTheStoreAndOldSessionsReadAsThePrompts() throws {

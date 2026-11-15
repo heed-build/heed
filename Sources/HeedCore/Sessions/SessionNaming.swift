@@ -66,11 +66,13 @@ public enum SessionNaming {
 
         /// The question as a summary's inputs, for a model call.
         public var inputs: SummaryInputs {
-            SummaryInputs(
-                title: title, repo: repo, branch: branch,
-                pullRequest: pullTitles.isEmpty ? nil : pullTitles.map { "PR: \($0)" }.joined(separator: "\n"),
-                timeline: ["Prompt: \(prompt.prefix(1200))"], lastMessage: lastMessage.map { String($0.suffix(1500)) },
-                known: others
+            // A PR's title is its author's, fenced.
+            let pulls: [Prompt] = pullTitles.map { "PR: \(ExternalText($0, source: .pullTitle, author: .unknown))" }
+            return SummaryInputs(
+                quoting: .owner(title), repo: repo, branch: branch,
+                pullRequest: pullTitles.isEmpty ? nil : pulls.joined(separator: "\n"),
+                timeline: [.owner("Prompt: \(prompt.prefix(1200))")],
+                lastMessage: lastMessage.map { String($0.suffix(1500)) }, known: others.map(Prompt.owner)
             )
         }
     }

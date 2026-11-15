@@ -34,16 +34,20 @@ struct LiveSandboxTests {
             + steps.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
             + "\nThen reply with the word done."
         let words = try #require(ReviewRun.headless(
-            agent: "claude", command: "claude", prompt: prompt, model: Live.model, worktree: worktree, folder: folder
+            agent: "claude", command: "claude", prompt: .owner(prompt), model: Live.model, worktree: worktree,
+            folder: folder
         ))
         // The test runner's own Claude Code and heed variables go too, as for every live check.
         let own = ProcessInfo.processInfo.environment.keys.filter {
             ($0.hasPrefix("CLAUDE") && !$0.hasSuffix("_TOKEN")) || $0.hasPrefix("HEED_") || $0.hasPrefix("OTEL_")
         }
         let claude = try Live.which("claude")
-        let line = RunSandbox.environment(present: Array(ProcessInfo.processInfo.environment.keys), folder: folder)
-            .flatMap { $0 == "/usr/bin/env" ? ["/usr/bin/env"] + own.sorted().flatMap { ["-u", $0] } : [$0] }
-            + [claude] + words.dropFirst()
+        let line: [String] = RunSandbox.environment(
+            present: Array(ProcessInfo.processInfo.environment.keys),
+            folder: folder
+        )
+        .flatMap { $0 == "/usr/bin/env" ? ["/usr/bin/env"] + own.sorted().flatMap { ["-u", $0] } : [$0] }
+        + [claude] + words.dropFirst()
         let result = try await ProcessRunner.run(
             line[0], Array(line.dropFirst()), in: worktree, timeout: .seconds(240), caller: "live.sandbox"
         )

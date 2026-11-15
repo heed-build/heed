@@ -118,10 +118,11 @@ public actor AgentChannels {
     }
 
     /// Hands `text` to the agent at `inbox` and says what came of it.
-    public func send(_ text: String, to inbox: AgentInbox) async -> ChannelResult {
+    /// Renders `prompt` here, where it leaves heed; for codex's queue, as an argument that never starts with `-`.
+    public func send(_ prompt: Prompt, to inbox: AgentInbox) async -> ChannelResult {
         switch inbox {
-        case let .claude(socket): await sendClaude(text, to: socket)
-        case let .codex(thread): await queueCodex(text, thread: thread)
+        case let .claude(socket): await sendClaude(prompt.text, to: socket)
+        case let .codex(thread): await queueCodex(prompt.argument, thread: thread)
         }
     }
 

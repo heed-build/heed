@@ -448,18 +448,18 @@ struct PersonaSpawnTests {
             config: config, goalTitle: "Faster builds", doc: "# Faster builds", bar: nil, changed: [],
             folder: "/tmp/run", known: []
         )
-        #expect(prompt.hasPrefix("You review the goal \"Faster builds\" as Cache and CI specialist"))
-        #expect(prompt.contains("Who you are:\nYou are Cache and CI specialist."))
-        #expect(!prompt.contains("custom reviewer"))
+        #expect(prompt.display.hasPrefix("You review the goal \"Faster builds\" as Cache and CI specialist"))
+        #expect(prompt.display.contains("Who you are:\nYou are Cache and CI specialist."))
+        #expect(!prompt.display.contains("custom reviewer"))
         // Read-only, as every reviewer.
-        #expect(prompt.contains("never edit files, commit or push"))
+        #expect(prompt.display.contains("never edit files, commit or push"))
         // A reviewer without a persona reads as before.
         let plain = ReviewRun.prompt(
             config: ReviewerConfig(id: "custom", kind: .custom, instructions: "Look at caches."),
             goalTitle: "Faster builds", doc: "", bar: nil, changed: [], folder: "/tmp/run", known: []
         )
-        #expect(plain.hasPrefix("You are the custom reviewer"))
-        #expect(plain.contains("Instructions:\nLook at caches."))
+        #expect(plain.display.hasPrefix("You are the custom reviewer"))
+        #expect(plain.display.contains("Instructions:\nLook at caches."))
     }
 
     @Test func oldReviewerRecordsStillDecode() throws {

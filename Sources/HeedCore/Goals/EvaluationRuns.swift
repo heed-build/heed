@@ -217,9 +217,10 @@ public enum EvaluationRun {
 
     /// The headless command line of a walk, in the clone; nil for agents with no headless mode.
     public static func headless(
-        agent: String, command: String, prompt: String, model: String?, clone: String, folder: String
+        agent: String, command: String, prompt: Prompt, model: String?, clone: String, folder: String
     ) -> [String]? {
         let command = command.split(separator: " ").map(String.init)
+        let prompt = prompt.argument
         let limits = restrictions(agent: agent, clone: clone, folder: folder)
         switch agent {
         case "claude":
@@ -238,7 +239,7 @@ public enum EvaluationRun {
     public static func prompt(
         lens: EvaluationLens, steps: [String], clone: String, folder: String, known: [Objection],
         network: RunSandbox.Network = .packages
-    ) -> String {
+    ) -> Prompt {
         var lines = [
             "You are a stranger evaluating a project you have never seen. \(lens.persona)",
             "",
@@ -275,7 +276,8 @@ public enum EvaluationRun {
                 + "\"step\": <its number>, \"area\": \"a word or two\", \"finding\": \"one sentence\", "
                 + "\"suggestion\": \"what would have helped\"}]}. End your reply with the same JSON.",
         ]
-        return lines.joined(separator: "\n")
+        // The goal's walk draft and heed's own record: your words and heed's, nobody else's.
+        return .owner(lines.joined(separator: "\n"))
     }
 
     /// The walk a run left: its `evaluation.json`, else the JSON in its last message; else why there is none.

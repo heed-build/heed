@@ -57,7 +57,7 @@ public struct SummaryInputs: Hashable, Sendable {
     /// A goal's GOAL.md, for the goal kinds.
     public var goal: String?
     /// What is known already (a goal's items), one per line.
-    public var known: [String]
+    public var known: [Prompt]
 
     /// Inputs that are all heed's or yours.
     public init(
@@ -66,7 +66,7 @@ public struct SummaryInputs: Hashable, Sendable {
     ) {
         self.init(
             quoting: .owner(title), repo: repo, branch: branch, git: git, pullRequest: pullRequest.map(Prompt.owner),
-            timeline: timeline.map(Prompt.owner), lastMessage: lastMessage, goal: goal, known: known
+            timeline: timeline.map(Prompt.owner), lastMessage: lastMessage, goal: goal, known: known.map(Prompt.owner)
         )
     }
 
@@ -74,7 +74,7 @@ public struct SummaryInputs: Hashable, Sendable {
     public init(
         quoting title: Prompt, repo: String? = nil, branch: String? = nil, git: String? = nil,
         pullRequest: Prompt? = nil, timeline: [Prompt] = [], lastMessage: String? = nil, goal: String? = nil,
-        known: [String] = []
+        known: [Prompt] = []
     ) {
         self.title = title
         self.repo = repo
@@ -116,7 +116,7 @@ public struct SummaryInputs: Hashable, Sendable {
         section("Timeline", timeline.joined(separator: "\n"))
         section("The agent's last message", lastMessage)
         section("GOAL.md", goal)
-        section("Already known", known.map { "- " + $0 }.joined(separator: "\n"))
+        section("Already known", known.map { item -> Prompt in "- \(item)" }.joined(separator: "\n"))
         return parts.joined(separator: "\n").cacheableText
     }
 }

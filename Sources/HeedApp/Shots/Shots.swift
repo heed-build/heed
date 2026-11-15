@@ -304,6 +304,8 @@ enum Shots {
         Shot(id: "sessions/resume-banner", crop: .resumeBanner, cropPadding: 0, prepare: resumeLater),
         Shot(id: "sessions/growing", crop: .growthLine, cropPadding: 0, prepare: growingSession),
         Shot(id: "sessions/make-it-a-goal", keys: "gP", crop: .promotion, cropPadding: 0, prepare: growingSession),
+        // ↩ on it asks the agent for a handoff first and waits, with the agent's live state; s starts without it.
+        Shot(id: "sessions/make-it-a-goal-waiting", crop: .promotion, cropPadding: 0, prepare: handoffWaiting),
         // Personas in sessions: quiet (a faint stack on the row), an offer after a lot got built, the verdict and its
         // popover (gL), and a PR held for the panel with a concern.
         Shot(id: "sessions/personas-quiet", size: CGSize(width: 1440, height: 640), crop: .sidebar, prepare: {
@@ -394,6 +396,21 @@ enum Shots {
             }
         }
         if let first = ids.first { model.select(sessionID: first) }
+    }
+
+    /// Make it a goal after ↩: the agent asked for its handoff, working, so the ask waits for it to be readable.
+    static func handoffWaiting(_ model: AppModel) {
+        growingSession(model)
+        guard var session = model.sessions.first(where: { $0.id == "s1" }) else { return }
+        session.state = ObservedState(.working)
+        model.commit(.sessionUpserted(session))
+        model.promoteToGoal(from: nil)
+        var ask = HandoffAsk.begin(
+            session: session.id, agent: session.agent, state: .working, hasAgentPane: true, host: nil, timeout: 180,
+            now: Clock.now
+        )
+        ask?.delivered(.delivered(.claudeInbox))
+        model.promotionHandoff = ask
     }
 
     static func withChats(_ model: AppModel) {
@@ -1001,6 +1018,8 @@ enum Shots {
     /// (at Go, where it says where the goal is going) and over a goal's page.
     static let wizard: [Shot] = [
         Shot(id: "goals/wizard-plan", crop: .wizardPlan, cropPadding: 0, prepare: { $0.loadWizardFixture(.plan) }),
+        // A goal made from a session with a handoff: the agent's handoff above the planner's first question.
+        Shot(id: "goals/wizard-plan-handoff", crop: .wizardPlan, cropPadding: 0, prepare: { $0.loadHandoffFixture() }),
         Shot(id: "goals/wizard-scene", prepare: { $0.loadWizardFixture(.plan) }),
         Shot(id: "goals/wizard-discard", keys: "D", prepare: { $0.loadWizardFixture(.plan) }),
         Shot(id: "goals/wizard-meters", crop: .wizardMeters, cropPadding: 16, prepare: { $0.loadWizardFixture(.plan) }),

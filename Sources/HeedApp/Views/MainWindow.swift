@@ -539,6 +539,9 @@ struct StatusBar: View {
             "\(key("helper.menu.next", "helper.menu.prev", in: "attentionother")) move · "
                 + "\(key("helper.menu.pick", in: "attentionother")) do it · "
                 + "\(key("helper.menu.close", in: "attentionother")) close · the actions' own keys work too"
+        case .normal where model.view == .sessions && model.promotionHandoff?.isOpen == true:
+            "\(key("goal.promote.skip", in: "sessionspromote")) start without it · "
+                + "\(key("goal.promote", in: "sessionspromote")) cancel"
         case .normal where model.view == .sessions && model.goalPromotion != nil:
             "\(key("goal.promote.go", in: "sessionspromote")) open the plan step · "
                 + "\(key("goal.promote.dismiss", in: "sessionspromote")) not now · "

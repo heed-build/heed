@@ -293,6 +293,9 @@ private struct WizardPlanStep: View {
                 ScrollViewReader { proxy in
                     ListScroll {
                         VStack(alignment: .leading, spacing: 18) {
+                            if let handoff = SessionHandoff.read(from: model.goals.snapshot.docs[wizard.goal]) {
+                                HandoffCard(handoff: handoff)
+                            }
                             ForEach(Array(wizard.plan.turns.enumerated()), id: \.offset) { index, turn in
                                 PlanTurnView(turn: turn, open: index == wizard.plan.turns.count - 1)
                                     .id(index)
@@ -316,6 +319,47 @@ private struct WizardPlanStep: View {
                 .background(Theme.bg2.opacity(0.4))
                 .overlay(alignment: .leading) { Theme.line.frame(width: 1) }
         }
+    }
+}
+
+/// What the session's agent handed over when its work became a goal, above the conversation the planner starts from
+/// it: each section's first lines. It lives in GOAL.md's Handoff section, so `e` edits it there.
+private struct HandoffCard: View {
+    @Environment(AppModel.self) private var model
+    let handoff: SessionHandoff
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "arrow.turn.down.right").font(.system(size: 10))
+                Text("handoff from the session").font(Theme.mono(11.5, weight: .semibold))
+                Spacer()
+                Text("the planner starts from it · edit in GOAL.md").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                KeyCap(text: model.keyText(for: "wizard.handoff.edit", in: "wizardplan"))
+            }
+            .foregroundStyle(Theme.fg2)
+            ForEach(handoff.filled, id: \.self) { section in
+                let items = section == .work ? [handoff.work] : SessionHandoff.items(handoff[section])
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(section.heading.lowercased()).font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                        .frame(width: 74, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 3) {
+                        ForEach(Array(items.prefix(3).enumerated()), id: \.offset) { _, item in
+                            Text(item).font(Theme.ui(13)).foregroundStyle(Theme.fg).lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        if items.count > 3 {
+                            Text("+ \(items.count - 3) more").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: 720, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg2))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
+        .shotRegion(.handoffCard)
     }
 }
 

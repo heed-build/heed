@@ -226,7 +226,16 @@ final class AppModel {
     /// Sizes Start work's longer prompts (`[start_work] size_check`); nil while sizing is off or cannot run.
     @ObservationIgnored var startWorkSizer: TaskSizeScheduler?
     /// Make it a goal's popover on a growing session (`goal.promote`); nil while closed.
-    var goalPromotion: GoalPromotion? { didSet { updateScope() } }
+    var goalPromotion: GoalPromotion? {
+        didSet {
+            updateScope()
+            if goalPromotion == nil { endHandoffAsk() }
+        }
+    }
+
+    /// Make it a goal asking the session's agent for a handoff, while the popover waits for it; nil otherwise.
+    var promotionHandoff: HandoffAsk?
+    @ObservationIgnored var handoffTask: Task<Void, Never>?
     /// Sessions whose "growing into a goal" line was put away (`x`): kept in UserDefaults, except in the fake world.
     var promotionsSetAside: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "promotionsSetAside") ?? [])
     /// Each local repo's README's first line, by record id, read once per run.
@@ -2868,6 +2877,7 @@ final class AppModel {
         case "goal.new": newGoal(command.arguments, from: command.target)
         case "goal.promote": promoteToGoal(from: command.target)
         case "goal.promote.go": confirmPromotion()
+        case "goal.promote.skip": skipHandoff()
         case "goal.promote.dismiss": setPromotionAside(from: command.target)
         case "goal.attach": attachGoal(command.arguments)
         case "goal.detach": detachGoal()
@@ -3231,7 +3241,7 @@ final class AppModel {
         case "goal.wizard", "goal.tldr", "wizard.leave", "wizard.discard", "wizard.next", "wizard.step", "wizard.row",
              "wizard.pick",
              "wizard.answer", "wizard.smaller", "wizard.talk", "wizard.drop", "wizard.invite", "wizard.invite.pick",
-             "wizard.use", "wizard.define", "careful.details", "tldr.copy", "tldr.act":
+             "wizard.use", "wizard.define", "wizard.handoff.edit", "careful.details", "tldr.copy", "tldr.act":
             _ = performWizard(command)
         case "careful.pick", "go.row", "go.pick", "go.step", "go.start", "go.save":
             _ = performGo(command)

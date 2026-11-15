@@ -125,6 +125,14 @@ struct GoalsPage: View {
                 )
             }
         }
+        SettingsCard(title: "From a session") {
+            SettingRow("goals.handoff_timeout", unit: "seconds") {
+                NumberField(
+                    path: ["goals", "handoff_timeout"], value: goals.handoffTimeout, unit: "seconds",
+                    range: 0 ... 3600, step: 30
+                )
+            }
+        }
         SettingsCard(title: "GitHub mirror") {
             SettingRow("goals.tracker", defaultText: "none") {
                 ConfigTextField(path: ["goals", "tracker"], value: mirror.tracker, placeholder: "org/name", width: 200)

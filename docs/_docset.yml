@@ -119,6 +119,7 @@ toc:
       - file: mindmap.md
       - file: standup.md
       - file: opentelemetry.md
+      - file: audit.md
       - file: reopening.md
   - folder: agents
     children:

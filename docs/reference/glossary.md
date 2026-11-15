@@ -48,6 +48,8 @@ Each term means one thing, everywhere in the docs. The page that explains a term
 | **Campaign** | What a run of work was for. The Mindmap groups pieces of work into campaigns. [Mindmap](../insights/mindmap.md) |
 | **Mindmap** | The ledger's work grouped into areas and campaigns, one Mindmap per org. [Mindmap](../insights/mindmap.md) |
 | **Standup** | A report that answers your own questions from a Mindmap, on the days you choose. [Standup](../insights/standup.md) |
+| **Audit** | What heed and your agents did outside this Mac (pushes, merges, comments, reviews, publishes), each with its cause, and the grants heed gave for good. [Audit](../insights/audit.md) |
+| **Cause** | What started an action: you and a key, an Autopilot rule, a helper, a PR event, and the session it ran in. [Audit](../insights/audit.md#the-cause) |
 
 ## Decisions
 

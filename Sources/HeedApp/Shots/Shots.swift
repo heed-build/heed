@@ -131,6 +131,116 @@ enum Shots {
         Shot(id: "landing/goals", chrome: false, keys: "gGj"),
         // A swarm's map: the goal and its lead, phases as columns, tasks by state, one of them stuck.
         Shot(id: "landing/swarms", chrome: false, keys: "gGjVlj", prepare: { $0.loadWatchFixture() }),
+        // The new landing page (docs/heed-landing-new.html): one real screenshot per act, each the fallback of a future
+        // clip.
+        // Autopilot's Done tab: what heed took off your hands.
+        Shot(id: "landing/autopilot-done", chrome: false, keys: "gwD"),
+        // The goal wizard's Panel step and the Split board, lead on top.
+        // Memory: the mindmap, a standup, the insights dashboard and OpenTelemetry.
+        // Feature tiles: each shot is the element its tile names, not the window around it.
+        Shot(id: "landing/t-sizing", chrome: false, crop: .sizeCard, cropPadding: 10, prepare: { model in
+            model.openStartWork(prompt: bigPrompt)
+            model.clickStartWork { form in
+                form.sizeCheck = true
+                let key = TaskSizer.key(bigPrompt)
+                _ = form.sized(TaskSizing(
+                    prompt: key, kind: .goal, goal: 0.8,
+                    facts: TaskSizeFacts(parts: 4, repos: 2, atOnce: 3, hours: 10, title: "Anchors survive page moves"),
+                    model: "claude-haiku-4-5", seconds: 1.8, cost: 0.0012
+                ), for: key)
+            }
+        }),
+        Shot(
+            id: "landing/t-states",
+            chrome: false,
+            size: CGSize(width: 1440, height: 640),
+            keys: "2j",
+            crop: .sidebar,
+            cropPadding: 0
+        ),
+        Shot(
+            id: "landing/t-hosts",
+            chrome: false,
+            crop: .dialog,
+            prepare: { $0.perform(CommandInvocation(name: "host.open")) }
+        ),
+        Shot(id: "landing/t-tabs", chrome: false, crop: .tabStrip, cropPadding: 6),
+        Shot(id: "landing/t-resume", chrome: false, crop: .dialog, prepare: { $0.showResumeForFixture() }),
+        Shot(id: "landing/t-diff", chrome: false, keys: "gd", crop: .diffBody, cropPadding: 0),
+        Shot(
+            id: "landing/t-chats",
+            chrome: false,
+            size: CGSize(width: 1440, height: 1240),
+            crop: .sidebar,
+            cropPadding: 0,
+            prepare: withChats
+        ),
+        Shot(id: "landing/t-attention", chrome: false, keys: "gm3j", crop: .attentionDetail, cropPadding: 0),
+        Shot(id: "landing/t-rail", chrome: false, crop: .inspector, cropPadding: 0),
+        Shot(id: "landing/t-green", chrome: false, keys: "gwN/moved<CR>", crop: .pilotDetail, cropPadding: 0),
+        Shot(id: "landing/t-merged", chrome: false, keys: "gwN/anchors<CR>", crop: .pilotDetail, cropPadding: 0),
+        Shot(id: "landing/t-helper", chrome: false, crop: .helperLine, prepare: { $0.loadHelperFixture() }),
+        Shot(id: "landing/t-done", chrome: false, keys: "gwD", crop: .autopilotDone, cropPadding: 0),
+        Shot(
+            id: "landing/t-panel",
+            chrome: false,
+            crop: .wizardPanel,
+            cropPadding: 0,
+            prepare: { $0.loadWizardFixture(.panel) }
+        ),
+        Shot(
+            id: "landing/t-split",
+            chrome: false,
+            crop: .splitBoard,
+            cropPadding: 0,
+            prepare: { $0.loadSplitFixture(.complex, part: "migrate") }
+        ),
+        Shot(
+            id: "landing/t-offer",
+            chrome: false,
+            crop: .panelLine,
+            cropPadding: 10,
+            prepare: { $0.loadSessionPanelFixture(.offer) }
+        ),
+        Shot(
+            id: "landing/t-verdict",
+            chrome: false,
+            keys: "gL",
+            crop: .panelPopover,
+            cropPadding: 10,
+            prepare: { $0.loadSessionPanelFixture(.verdict) }
+        ),
+        Shot(id: "landing/t-mindmap", chrome: false, keys: "ghM", crop: .mindmapColumns, cropPadding: 0),
+        Shot(id: "landing/t-standup", chrome: false, keys: "ghU", crop: .standupDetail, cropPadding: 0),
+        Shot(id: "landing/t-insights", chrome: false, keys: "ghj", crop: .dashboardShipped, cropPadding: 0),
+        Shot(id: "landing/t-costs", chrome: false, keys: "gh", crop: .dashboardTiles, cropPadding: 0),
+        Shot(id: "landing/t-history", chrome: false, keys: "ghL", crop: .ledgerList, cropPadding: 0),
+        Shot(
+            id: "landing/t-otel-panels",
+            chrome: false,
+            size: CGSize(width: 1600, height: 1000),
+            keys: "ghT",
+            crop: .telemetryPanels,
+            cropPadding: 0
+        ),
+        Shot(
+            id: "landing/t-otel",
+            chrome: false,
+            size: CGSize(width: 1600, height: 1000),
+            keys: "ghT",
+            crop: .telemetryTiles,
+            cropPadding: 0
+        ),
+        Shot(id: "landing/t-keys", chrome: false, keys: "?", crop: .help, cropPadding: 0),
+        Shot(
+            id: "landing/t-tutor",
+            chrome: false,
+            crop: .tutorCard,
+            cropPadding: 10,
+            prepare: { $0.beginTutor(lesson: "tour", step: 3) }
+        ),
+        Shot(id: "landing/t-repos", chrome: false, keys: "gra", crop: .addRepo, cropPadding: 0),
+        Shot(id: "landing/t-worktrees", chrome: false, keys: "gr", crop: .cleanupBar, cropPadding: 6),
     ]
 
     /// The docs' home page.
@@ -314,6 +424,29 @@ enum Shots {
         // The model field: h l step through the agent's models (Opus, two steps in), then its efforts (high).
         Shot(id: "start-work/model", keys: "o" + prompt + "<Esc>jjjjjlljlll", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
+        // Round 2: the acts' own media. The Start work panel, the Split board in its window, and Autopilot's tabs.
+        Shot(id: "landing/a-start", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
+        Shot(id: "landing/a-split", chrome: false, prepare: { $0.loadSplitFixture(.complex, part: "migrate") }),
+        Shot(id: "landing/a-can", chrome: false, keys: "gw", crop: .autopilotCards, cropPadding: 0),
+        Shot(id: "landing/a-where", chrome: false, keys: "gwW", crop: .autopilotMatrix, cropPadding: 0),
+        Shot(
+            id: "landing/a-now",
+            chrome: false,
+            keys: "gwNl",
+            crop: .helperTiles,
+            cropPadding: 0,
+            prepare: { $0.loadHelperFixture() }
+        ),
+        Shot(id: "landing/m-brief", chrome: false, keys: "ghM", crop: .mindmapDetail, cropPadding: 0),
+        Shot(id: "landing/t-wt", chrome: false, keys: "gr", crop: .worktreeTable, cropPadding: 0),
+        Shot(id: "landing/t-zmx", chrome: false, crop: .dialog, prepare: { $0.showFirstRun(report: firstRunReport) }),
+        Shot(id: "landing/t-anywhere", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
+        Shot(
+            id: "landing/t-guesses",
+            subject: .panel,
+            size: CGSize(width: 1100, height: 700),
+            keys: "o" + prompt + "<Esc>jj"
+        ),
         Shot(id: "start-work/from-github-picked", keys: "gi<Space>j<Space>", highlight: [.list]),
         Shot(id: "start-work/from-github-dialog", keys: "gi<Space>j<Space>s", crop: .dialog),
         Shot(id: "start-work/again", keys: "ghHO", crop: .dialog),
@@ -330,6 +463,14 @@ enum Shots {
         let asks: @MainActor (AppModel) -> Void = { $0.approvals.queue = ApprovalQueue(asks: Fixtures.approvalAsks()) }
         return [
             Shot(id: "agents/approvals", keys: "gy", prepare: asks, fixture: "approvals"),
+            Shot(
+                id: "landing/t-approvals",
+                chrome: false,
+                keys: "gyy",
+                crop: .dialog,
+                prepare: asks,
+                fixture: "approvals"
+            ),
             Shot(id: "agents/approvals-next", keys: "gyy", crop: .dialog, prepare: asks, fixture: "approvals"),
             Shot(id: "agents/approvals-pill", crop: .titleBar, cropPadding: 0, prepare: asks, fixture: "approvals"),
             Shot(id: "agents/approvals-strip", crop: .panes, prepare: { model in

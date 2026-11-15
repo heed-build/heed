@@ -13,14 +13,17 @@ cd "$root"
 # and the workflow's prefix: input must agree with it, and nothing but this check would notice if they drifted.
 path_prefix=""
 landing="docs/heed-landing.html"
+landing_new="docs/heed-landing-new.html"
 workflow=".github/workflows/docs.yml"
 expected_base="/"
 [[ -n "$path_prefix" ]] && expected_base="/$path_prefix/"
-actual_base="$(grep -o '<base href="[^"]*"' "$landing" | sed 's/<base href="//; s/"$//')"
-if [[ "$actual_base" != "$expected_base" ]]; then
-  echo "docs: $landing has <base href=\"$actual_base\"> but the site builds for \"$expected_base\"" >&2
-  exit 1
-fi
+for page in "$landing" "$landing_new"; do
+  actual_base="$(grep -o '<base href="[^"]*"' "$page" | sed 's/<base href="//; s/"$//')"
+  if [[ "$actual_base" != "$expected_base" ]]; then
+    echo "docs: $page has <base href=\"$actual_base\"> but the site builds for \"$expected_base\"" >&2
+    exit 1
+  fi
+done
 if [[ -z "$path_prefix" ]] && grep -q 'prefix:' "$workflow"; then
   echo "docs: $workflow has a prefix: input but path_prefix is empty" >&2
   exit 1

@@ -205,6 +205,15 @@ public struct MindmapTree: Hashable, Sendable {
         return proposals.count
     }
 
+    /// `N` on a node with proposals: the decisions agents proposed there are dropped, told to no session. How many.
+    @discardableResult
+    public mutating func declineProposals(in id: String, now: Date) -> Int {
+        guard let count = nodes[id]?.proposals.count, count > 0 else { return 0 }
+        nodes[id]?.proposals = []
+        nodes[id]?.updatedAt = now
+        return count
+    }
+
     /// `p`: pins a decision so it shows on every node above it; again unpins.
     public mutating func togglePin(_ text: String, in id: String, now: Date) {
         guard let index = nodes[id]?.decisions.firstIndex(where: { $0.text == text }) else { return }

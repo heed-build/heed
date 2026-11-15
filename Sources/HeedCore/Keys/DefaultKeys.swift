@@ -178,7 +178,10 @@ public enum DefaultKeys {
                 "history.dashboard"
             ),
             ("h", "mindmap.out"), ("l", "mindmap.in"), ("-", "mindmap.less"), ("=", "mindmap.more"),
-            ("]o", "mindmap.org.next"), ("[o", "mindmap.org.prev"), ("y", "mindmap.accept"), ("x", "mindmap.done"),
+            ("]o", "mindmap.org.next"), ("[o", "mindmap.org.prev"), ("y", "mindmap.accept"), ("N", "mindmap.decline"), (
+                "x",
+                "mindmap.done"
+            ),
             ("p", "mindmap.pin"), (">", "mindmap.nest"), ("<", "mindmap.lift"), ("r", "mindmap.rename"),
             ("m", "mindmap.move"), ("J", "mindmap.join"), ("S", "mindmap.name"), ("<CR>", "mindmap.open"),
             ("s", "mindmap.session"), ("]l", "mindmap.link.next"), ("[l", "mindmap.link.prev"),

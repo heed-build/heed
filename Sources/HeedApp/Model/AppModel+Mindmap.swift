@@ -202,6 +202,11 @@ extension AppModel {
             guard let node, node.suggested || node.unconfirmed else { return say("nothing to confirm here") }
             change { $0.accept(node.id, now: now) }
             say("kept where heed put it")
+        case "mindmap.decline":
+            guard let node, !node.proposals.isEmpty else { return say("no proposed decision here") }
+            let count = node.proposals.count
+            change { $0.declineProposals(in: node.id, now: now) }
+            say("dropped \(count == 1 ? "the proposed decision" : "\(count) proposed decisions") on \(node.title)")
         case "mindmap.done":
             guard let node, let item = mindmap.shown.stillOpen(under: node.id).first else {
                 return say("nothing open here")

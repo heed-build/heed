@@ -98,7 +98,7 @@ heed memory note "Cache the toc"    # a decision proposed on the campaign, for y
 ```
 
 A note is a proposal: the campaign shows it under **Proposed by agents**, and no session is told it (not in its brief,
-not by `heed memory show` or `search`) until you keep it with `y` on the campaign. Then it is one of the campaign's
+not by `heed memory show` or `search`) until you keep it with `y` on the campaign (`N` drops it). Then it is one of the campaign's
 decisions like any other. Decisions heed reads from your work's summaries are kept as before.
 
 ## Keys
@@ -110,6 +110,7 @@ decisions like any other. Decisions heed reads from your work's summaries are ke
 | `-` `=` | Draw one level less or more to the right |
 | `[o` `]o` | The previous or next org's Mindmap |
 | `y` | Keep a suggested placement, or the decisions an agent proposed on the node |
+| `N` | Drop the decisions an agent proposed on the node |
 | `m` | Move it into a campaign or group, by title (`:mindmap.move top` to the top) |
 | `>` `<` | Group it with the next one; lift it out |
 | `r` | Rename |

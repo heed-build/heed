@@ -2930,7 +2930,8 @@ final class AppModel {
             view = view == .mindmap ? .dashboard : .mindmap
             if view == .mindmap, !isFixture { Task { await refreshLooseEnds(mindmap.instance) } }
         case "mindmap.in", "mindmap.out", "mindmap.less", "mindmap.more", "mindmap.org.next", "mindmap.org.prev",
-             "mindmap.accept", "mindmap.done", "mindmap.pin", "mindmap.nest", "mindmap.lift", "mindmap.rename",
+             "mindmap.accept", "mindmap.decline", "mindmap.done", "mindmap.pin", "mindmap.nest", "mindmap.lift",
+             "mindmap.rename",
              "mindmap.move", "mindmap.join", "mindmap.name", "mindmap.open", "mindmap.session", "mindmap.link.next",
              "mindmap.link.prev", "mindmap.goal":
             performMindmap(command)

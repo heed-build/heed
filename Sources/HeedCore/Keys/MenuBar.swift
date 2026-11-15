@@ -469,7 +469,10 @@ public enum MenuBar {
                         "Rename…",
                         "mindmap.rename"
                     ),
-                    ("Follow-up done", "mindmap.done"), ("Pin the decision", "mindmap.pin"),
+                    ("Drop proposed decisions", "mindmap.decline"), ("Follow-up done", "mindmap.done"), (
+                        "Pin the decision",
+                        "mindmap.pin"
+                    ),
                     ("Name campaigns now", "mindmap.name"), ("Ledger entry", "mindmap.open"),
                     ("Start a session here…", "mindmap.session"), ("Next link", "mindmap.link.next"),
                     ("Previous link", "mindmap.link.prev"), ("Make a goal of it", "mindmap.goal"),

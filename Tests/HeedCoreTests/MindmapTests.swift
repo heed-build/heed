@@ -507,6 +507,18 @@ struct MemoryCommandTests {
             .hasPrefix("already kept"))
     }
 
+    @Test func aDeclinedProposalIsGoneAndToldToNoSession() {
+        var (tree, ledger) = world()
+        _ = MemoryQuery.note("Cache the toc", on: "nav", session: "s9", in: &tree, now: t0)
+        _ = MemoryQuery.note("Drop the sidebar", on: "nav", session: "s9", in: &tree, now: t0)
+        #expect(tree.declineProposals(in: "nav", now: t0) == 2)
+        #expect(tree["nav"]?.proposals.isEmpty == true && tree["nav"]?.decisions.isEmpty == true)
+        #expect(tree.declineProposals(in: "nav", now: t0) == 0)
+        #expect(tree.acceptProposals(in: "nav", now: t0) == 0)
+        #expect(MemoryBrief.text(for: "nav", in: tree, ledger: ledger, instance: "acme")?.contains("Cache") != true)
+        #expect(DefaultKeys.scoped["mindmap"]?.contains { $0.0 == "N" && $0.1 == "mindmap.decline" } == true)
+    }
+
     @Test func nodesKeptBeforeProposalsStillRead() throws {
         let node = MindNode(id: "n", kind: .campaign, title: "Nav", createdAt: t0)
         var object = try #require(

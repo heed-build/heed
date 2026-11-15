@@ -365,6 +365,7 @@ This page is generated from the code (`mise run shots`).
 | `mindmap.org.next` | `]o` (mindmap) | Mindmap: the next org's Mindmap (personal last) |
 | `mindmap.org.prev` | `[o` (mindmap) | Mindmap: the previous org's Mindmap |
 | `mindmap.accept` | `y` (mindmap) | Mindmap: keep the suggested placement as it is, or the decisions an agent proposed |
+| `mindmap.decline` | `N` (mindmap) | Mindmap: drop the decisions an agent proposed on the node |
 | `mindmap.done` | `x` (mindmap) | Mindmap: mark the node's first open follow-up done |
 | `mindmap.pin` | `p` (mindmap) | Mindmap: pin the node's first decision so it shows above it (again: unpin) |
 | `mindmap.nest` | `>` (mindmap) | Mindmap: put the node in a new group with its next sibling |

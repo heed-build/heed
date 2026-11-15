@@ -278,7 +278,8 @@ private struct MindmapDetail: View {
                 }
                 if !node.proposals.isEmpty {
                     section("Proposed by agents · \(node.proposals.count) · "
-                        + "\(model.keyText(for: "mindmap.accept", in: "mindmap")) keeps them")
+                        + "\(model.keyText(for: "mindmap.accept", in: "mindmap")) keeps them, "
+                        + "\(model.keyText(for: "mindmap.decline", in: "mindmap")) drops them")
                     {
                         ForEach(node.proposals, id: \.self) { decision in
                             VStack(alignment: .leading, spacing: 1) {
@@ -330,6 +331,7 @@ private struct MindmapDetail: View {
                     hint("mindmap.in", "in")
                     hint("mindmap.out", "out")
                     if node.suggested || !node.proposals.isEmpty { hint("mindmap.accept", "keep") }
+                    if !node.proposals.isEmpty { hint("mindmap.decline", "drop") }
                     hint("mindmap.move", "move")
                     hint("mindmap.nest", "group")
                     hint("mindmap.rename", "rename")

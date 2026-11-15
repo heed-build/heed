@@ -757,6 +757,17 @@ public enum Fixtures {
         return DiffParser.parse(text, repo: docsToolkit, staged: ["src/Acme.Markdown/Redirects/RedirectFile.cs"])
     }()
 
+    /// The reader's PR with Copilot's review of its head commit as well: a bot that reviews docs-toolkit and is not
+    /// among its trusted_reviewers, which heed suggests trusting.
+    public static let botReviewedDetail: PullDetail = {
+        var detail = pullDetail
+        detail.reviews.append(PullDetail.Review(
+            author: "copilot-pull-request-reviewer", state: "COMMENTED",
+            submittedAt: Clock.now.addingTimeInterval(-40 * 60), commit: detail.headSHA, trust: .bot
+        ))
+        return detail
+    }()
+
     /// design/screens/Reader.png.
     static let pullDetail: PullDetail = {
         var detail = PullDetail(

@@ -6922,17 +6922,17 @@ final class AppModel {
         let verdict = HeedMerge.verdict(
             detail, settings: pilotSettings(for: ref), selfReview: feedback[ref.description]?.selfReview, now: Clock.now
         )
-        // Checked again on the detail it merges: a rule that no longer holds, the author's or a reviewer's trust
-        // among them, holds the PR, and `--admin` is only ever tried on a verdict that held.
-        if let blocker = verdict.blocker {
-            return record(ref, .held, "held", "\(blocker.name): \(blocker.detail)", false)
+        let adminRetry: Bool
+        switch HeedMerge.attempt(verdict, adminMerge: admin) {
+        case let .hold(reason): return record(ref, .held, "held", reason, false)
+        case let .merge(retry): adminRetry = retry
         }
         if isFixture { return record(ref, .merged, "merged", "\(method) (fixture: nothing merged)", true) }
         var used = method
         do {
             try await GitHub.merge(ref, method: method, head: detail.headSHA, caller: "heedMerge")
         } catch {
-            guard admin, verdict.isGreen else { return record(ref, .held, "merge refused", "\(error)", false) }
+            guard adminRetry else { return record(ref, .held, "merge refused", "\(error)", false) }
             do {
                 try await GitHub.merge(ref, method: method, head: detail.headSHA, admin: true, caller: "heedMerge")
                 used = "\(method), --admin"

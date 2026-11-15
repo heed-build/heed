@@ -568,8 +568,14 @@ private struct MergeSection: View {
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             Text(suggestion.text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
                                 .fixedSize(horizontal: false, vertical: true)
-                            KeyHint("pilot.reviewers.trust", [suggestion.login], target: .pull(ref), label: "trust")
-                            KeyHint("pilot.reviewers.dismiss", [suggestion.login], target: .pull(ref), label: "dismiss")
+                            KeyHint(
+                                "pilot.reviewers.trust", [suggestion.login], target: .pull(ref), scope: "watch",
+                                label: "trust"
+                            )
+                            KeyHint(
+                                "pilot.reviewers.dismiss", [suggestion.login], target: .pull(ref), scope: "watch",
+                                label: "dismiss"
+                            )
                         }
                     }
                 } else if let detail {

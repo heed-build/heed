@@ -148,6 +148,19 @@ public enum HeedMerge {
         return (.wait, "waiting for a review of \(short)")
     }
 
+    /// What heed does with a PR when it comes to merge it: the rules are checked again on the detail it merges, and
+    /// any that no longer holds (the author's or a reviewer's trust among them) holds the PR. `--admin` on a refused
+    /// merge is offered only with `admin_merge` and a verdict that held.
+    public enum Attempt: Hashable, Sendable {
+        case hold(String)
+        case merge(adminRetry: Bool)
+    }
+
+    public static func attempt(_ verdict: GreenVerdict, adminMerge: Bool) -> Attempt {
+        if let blocker = verdict.blocker { return .hold("\(blocker.name): \(blocker.detail)") }
+        return .merge(adminRetry: adminMerge && verdict.isGreen)
+    }
+
     /// The comment heed leaves on a PR it merged: each rule and what it found.
     public static func comment(_ verdict: GreenVerdict, method: String) -> String {
         "Merged by [heed](https://heed.build) (\(method)) because every merge rule held:\n\n"

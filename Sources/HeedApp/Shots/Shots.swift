@@ -616,6 +616,10 @@ enum Shots {
         Shot(id: "watch/merge-queue", keys: "gwN/moved<CR>gM", crop: .pilotDetail),
         Shot(id: "watch/queues", keys: "gwN", crop: .pilotActivity),
         Shot(id: "watch/heed", keys: "gwN/anchors<CR>", crop: .pilotDetail),
+        // A bot that reviewed the PR and is not trusted yet: heed asks whether to trust its approvals (zT, zD).
+        Shot(id: "watch/trust-reviewer", size: tall, keys: "gwN/anchors<CR>", crop: .pilotDetail, prepare: { model in
+            model.commit(.pullDetailFetched(Fixtures.botReviewedDetail))
+        }),
         Shot(id: "watch/inspector", crop: .inspector),
         // `z?`: what heed will do for the PR, and what holds it back.
         Shot(id: "watch/explain", keys: "gwN/anchors<CR>z?", crop: .dialog),

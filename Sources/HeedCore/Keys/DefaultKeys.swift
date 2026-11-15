@@ -339,9 +339,11 @@ public enum DefaultKeys {
 
     /// Autopilot's Now (N): the PRs heed works on, stalled first; h l move between the helpers' live tiles above
     /// them (↩ opens one in a split, j k go back to the PRs). A asks Copilot (C is Can do, as in every Autopilot
-    /// view), R runs the PR's merge queue, ↩ reads the PR.
+    /// view), R runs the PR's merge queue, ↩ reads the PR. zT trusts the bot heed suggests for the PR's repo's
+    /// trusted_reviewers, zD stops suggesting it.
     static let watch: [(String, String)] = [
         ("r", "github.sync"), ("<Space>", "select.toggle"), ("R", "merge.run"), ("A", "pilot.copilot"),
+        ("zT", "pilot.reviewers.trust"), ("zD", "pilot.reviewers.dismiss"),
         ("<CR>", "autopilot.open"), ("h", "helper.tile.prev"), ("l", "helper.tile.next"),
         ("<Left>", "helper.tile.prev"), ("<Right>", "helper.tile.next"),
     ] + AutopilotTabs.keys

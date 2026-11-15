@@ -256,6 +256,22 @@ struct HeedMergeTests {
         #expect(blocker(detail(authorTrust: .collaborator)) == nil)
     }
 
+    @Test func theMergeItselfChecksTheRulesAgainAndRetriesWithAdminOnlyWhenTheyHeld() {
+        func attempt(_ detail: PullDetail, admin: Bool) -> HeedMerge.Attempt {
+            HeedMerge.attempt(
+                HeedMerge.verdict(detail, settings: PilotSettings(), selfReview: nil, now: now), adminMerge: admin
+            )
+        }
+        #expect(attempt(detail(), admin: true) == .merge(adminRetry: true))
+        #expect(attempt(detail(), admin: false) == .merge(adminRetry: false))
+        let outside = attempt(detail(authorTrust: .stranger), admin: true)
+        #expect(outside == .hold(
+            "Author: @me isn't a collaborator: heed doesn't merge it on its own; merge it by hand (zM)"
+        ))
+        #expect(attempt(detail(reviews: [approval("eve", trust: .stranger)]), admin: true)
+            == .hold("Reviewed after push: @eve approved abc1234, but isn't a collaborator"))
+    }
+
     @Test func trustedAuthorsAreMergedToo() {
         var settings = PilotSettings()
         settings.trustedAuthors = ["dependabot[bot]"]

@@ -152,11 +152,13 @@ A **trusted reviewer** (`trusted_reviewers`, e.g. `copilot-pull-request-reviewer
 commit in three cases. The reviewer approved the commit, or left a comment review none of whose threads is still open.
 Otherwise the reviewer left no review at all, but every gate check, its review check among them, passed on that commit.
 
-When a bot reviews a repo's PRs (GitHub says it is a bot, its login ends in `[bot]`, or it is Copilot's reviewer) and
-is not in that repo's `trusted_reviewers`, the **Merge** section of a PR heed merges asks in Now:
-*copilot-pull-request-reviewer reviews here: trust its approvals?* **trust** (`:pilot.reviewers.trust`) adds it to
-`trusted_reviewers` under `[repos."org/name"]`, as `name[bot]` for a bot; **dismiss** (`:pilot.reviewers.dismiss`)
-stops asking about it for that repo. heed never adds one by itself. `zv` mentions the first one too.
+When a bot reviews a repo's PRs (GitHub says the reviewer is a bot, its login ends in `[bot]`, or the reviewer is
+Copilot's) and is not in that repo's `trusted_reviewers`, the **Merge** section of a PR heed merges asks in Now:
+*copilot-pull-request-reviewer reviews here: trust its approvals?* `zT` (`:pilot.reviewers.trust`) adds the bot to
+`trusted_reviewers` under `[repos."org/name"]`, as `name[bot]`; `zD` (`:pilot.reviewers.dismiss`) stops heed asking
+about the bot for that repo. heed never adds a reviewer by itself. `zv` mentions the first suggestion too.
+
+![A bot that reviews the repo, suggested for trusted_reviewers under the merge rules](../images/shots/watch/trust-reviewer.png)
 
 #### Gate checks by app
 
@@ -259,6 +261,7 @@ from, amber when it is not the default. Below the rows, **what holds it back** l
 | `zp` | Pause or resume |
 | `z?` | What heed will do for the PR, and what holds it back |
 | `zv` | Ask the PR's reviewers now |
+| `zT` `zD` | In Now: trust the bot heed suggests for `trusted_reviewers`, or stop suggesting it |
 | `gb` | Go to the session's running run |
 | `zx` | Stop the session's running run |
 | `v` | Select several, then `zp` pauses or resumes them all |

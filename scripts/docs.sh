@@ -12,12 +12,13 @@ cd "$root"
 # The sub-path GitHub Pages serves from; empty at the domain root (heed.build). The landing page's <base href>
 # and the workflow's prefix: input must agree with it, and nothing but this check would notice if they drifted.
 path_prefix=""
-landing="docs/heed-landing.html"
-landing_new="docs/heed-landing-new.html"
+# docs/heed-landing-new.html is published as index.html, docs/heed-landing.html as index-old.html.
+landing="docs/heed-landing-new.html"
+landing_old="docs/heed-landing.html"
 workflow=".github/workflows/docs.yml"
 expected_base="/"
 [[ -n "$path_prefix" ]] && expected_base="/$path_prefix/"
-for page in "$landing" "$landing_new"; do
+for page in "$landing" "$landing_old"; do
   actual_base="$(grep -o '<base href="[^"]*"' "$page" | sed 's/<base href="//; s/"$//')"
   if [[ "$actual_base" != "$expected_base" ]]; then
     echo "docs: $page has <base href=\"$actual_base\"> but the site builds for \"$expected_base\"" >&2

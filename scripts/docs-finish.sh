@@ -32,9 +32,9 @@ logo="$(sed -n 's/^  icon:[[:space:]]*//p' "$root/docs/_docset.yml" | head -n1)"
 [[ -n "$logo" ]] || { echo "docs: docs/_docset.yml has no branding icon: for the header logo" >&2; exit 1; }
 python3 -I "$root/scripts/docs-pages.py" "$out" "$root/docs" "$prefix" "$logo"
 
-cp "$root/docs/heed-landing.html" "$out/index.html"
-# The page being tried beside it, at /index-new.html; same <base href>, checked in scripts/docs.sh.
-cp "$root/docs/heed-landing-new.html" "$out/index-new.html"
+cp "$root/docs/heed-landing-new.html" "$out/index.html"
+# The previous landing page, kept beside it at /index-old.html; same <base href>, checked in scripts/docs.sh.
+cp "$root/docs/heed-landing.html" "$out/index-old.html"
 cp "$root/docs/robots.txt" "$out/robots.txt"
 cp "$root/install.sh" "$out/install.sh"
 # docs-builder copies images, not fonts; the landing page and the theme need these.

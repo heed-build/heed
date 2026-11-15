@@ -132,9 +132,13 @@ A **trusted AI reviewer** (`trusted_reviewers`, e.g. `copilot-pull-request-revie
 commit in three cases. The reviewer approved the commit, or left a comment review none of whose threads is still open. Otherwise the reviewer left no review
 at all, but its review check, named in `gate_checks`, passed on that commit.
 
-The **self-review** is a command you choose, such as `claude -p`. heed passes the command a prompt with the PR's description and
-diff (`gh pr diff`, nothing is checked out) on stdin, and merges when the command's first line is `APPROVE`. `REQUEST_CHANGES:
-<why>` holds the PR with that reason. The self-review runs last, once every other rule holds, and once per head commit.
+The **self-review** is a command you choose, such as `claude -p`. heed passes the command a prompt with the PR's
+description and diff (`gh pr diff`, nothing is checked out) on stdin, in an empty folder of its own. For `claude` heed
+turns the agent's tools off (`--tools '' --strict-mcp-config`), and for `pi` too (`--no-tools`); a command that names
+`--tools` itself, and any other command, runs as written. The first line of the answer, with markdown such as `**` or
+`#` trimmed, must be exactly `APPROVE` to merge. `REQUEST_CHANGES: <why>` holds the PR with that reason, and any other
+line holds the PR as a refusal that quotes the line. The self-review runs last, once every other rule holds, and once
+per head commit.
 
 After merging, heed comments on the PR with each rule and what heed found. When GitHub refuses the merge (branch
 protection), heed holds the PR with GitHub's reason. `admin_merge = true` under `[repos."org/name"]`, and only there, retries

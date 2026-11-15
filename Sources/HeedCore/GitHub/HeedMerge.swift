@@ -129,7 +129,8 @@ public struct SelfReview: Hashable, Sendable, Codable {
         let by = detail.body.author
         return """
         You are reviewing a pull request just before it is merged. Read its description and diff. Answer with APPROVE \
-        on the first line when it is safe to merge, or REQUEST_CHANGES: <the reason, in one line> when it is not. \
+        alone on the first line when it is safe to merge, or REQUEST_CHANGES: <the reason, in one line> when it is \
+        not. \
         Look for bugs, missing tests, leftover debugging and anything the description promises that the diff does \
         not do.\(instructions.isEmpty ? "" : "\n\n\(owner: instructions)")
 
@@ -142,17 +143,21 @@ public struct SelfReview: Hashable, Sendable, Codable {
     }
 
     /// Runs the `self_review` command with the prompt on stdin (through the shell, so `claude -p` and pipes work),
-    /// with the PATH tool detection found, for up to ten minutes.
+    /// with the PATH tool detection found, in an empty folder of its own, with its agent's tools off (`noTools`), for
+    /// up to ten minutes.
     public static func run(_ command: String, prompt: Prompt) async throws -> String {
-        let file = FileManager.default.temporaryDirectory
-            .appendingPathComponent("heed-self-review-\(UUID().uuidString).txt")
+        let scratch = FileManager.default.temporaryDirectory
+            .appendingPathComponent("heed-self-review-\(UUID().uuidString)", isDirectory: true)
+        let work = scratch.appendingPathComponent("work", isDirectory: true)
+        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: scratch) }
+        let file = scratch.appendingPathComponent("prompt.txt")
         try prompt.text.write(to: file, atomically: true, encoding: .utf8)
-        defer { try? FileManager.default.removeItem(at: file) }
         let tool = String(command.split(separator: " ").first ?? "")
         let path = await ToolLocator.shared.executable(tool).pathVariable
         let result = try await ProcessRunner.run(
-            "/bin/sh", ["-c", "\(command) < \(ShellQuote.quote(file.path))"], environment: ["PATH": path],
-            timeout: .seconds(600), caller: "merge.command"
+            "/bin/sh", ["-c", "\(noTools(command)) < \(ShellQuote.quote(file.path))"], in: work.path,
+            environment: ["PATH": path], timeout: .seconds(600), caller: "merge.command"
         )
         guard result.succeeded else {
             throw ProcessError(command: command, result: result, reason: "exit \(result.status)")
@@ -160,19 +165,48 @@ public struct SelfReview: Hashable, Sendable, Codable {
         return result.stdout
     }
 
-    /// APPROVE on the first non-empty line approves; anything else is a refusal, with what it said.
+    /// The command with its agent's tools turned off, the flags `LLMDialect` uses for the same agent, right after the
+    /// executable: `claude` gets `--tools '' --strict-mcp-config`, `pi` `--no-tools --no-extensions --no-mcp`. A
+    /// command that names its tools itself, and any other command, runs as written.
+    public static func noTools(_ command: String) -> String {
+        let trimmed = command.trimmingCharacters(in: .whitespaces)
+        let space = trimmed.firstIndex(of: " ") ?? trimmed.endIndex
+        let executable = String(trimmed[..<space])
+        let rest = String(trimmed[space...])
+        let flags: String
+        switch (executable as NSString).lastPathComponent {
+        case "claude":
+            guard !rest.contains("--tools") else { return command }
+            flags = " --tools '' --strict-mcp-config"
+        case "pi":
+            guard !rest.contains("--no-tools"), !rest.contains("--tools") else { return command }
+            flags = " --no-tools --no-extensions --no-mcp"
+        default:
+            return command
+        }
+        return executable + flags + rest
+    }
+
+    /// The first non-empty line, markdown emphasis and headings trimmed, is the verdict: exactly `APPROVE` approves,
+    /// `REQUEST_CHANGES: <why>` refuses with its reason, and anything else is a refusal too, saying what it was.
     public static func parse(_ output: String, sha: String, at: Date) -> SelfReview {
         let lines = output.split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         let first = lines.first ?? ""
-        let word = first.uppercased().trimmingCharacters(in: CharacterSet(charactersIn: "*`#: "))
-        if word.hasPrefix("APPROVE") {
+        let markdown = CharacterSet(charactersIn: "*`#_>").union(.whitespaces)
+        let word = first.trimmingCharacters(in: markdown)
+        if word == "APPROVE" {
             return SelfReview(sha: sha, approved: true, summary: "approved", at: at)
         }
-        var reason = first
-        if let colon = first.firstIndex(of: ":"), first.uppercased().hasPrefix("REQUEST_CHANGES") {
-            reason = first[first.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+        let reason: String
+        if word.hasPrefix("REQUEST_CHANGES") {
+            let after = word.dropFirst("REQUEST_CHANGES".count).trimmingCharacters(in: markdown)
+            let text = after.hasPrefix(":") ? String(after.dropFirst()).trimmingCharacters(in: markdown) : after
+            reason = text.isEmpty ? "changes requested, no reason given" : text
+        } else if first.isEmpty {
+            reason = "no answer"
+        } else {
+            reason = "the answer did not start with APPROVE or REQUEST_CHANGES: \(first)"
         }
-        if reason.isEmpty { reason = lines.dropFirst().first ?? "no answer" }
         return SelfReview(sha: sha, approved: false, summary: String(reason.prefix(300)), at: at)
     }
 }

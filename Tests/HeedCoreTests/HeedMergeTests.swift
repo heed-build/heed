@@ -126,6 +126,44 @@ struct HeedMergeTests {
         #expect(extra.display.contains("not do.\n\nFlag API changes without a changelog entry.\n\nPR #"))
     }
 
+    @Test func theSelfReviewRunsWithoutTools() {
+        #expect(SelfReview.noTools("claude -p") == "claude --tools '' --strict-mcp-config -p")
+        #expect(SelfReview.noTools("/opt/homebrew/bin/claude -p --model haiku")
+            == "/opt/homebrew/bin/claude --tools '' --strict-mcp-config -p --model haiku")
+        #expect(SelfReview.noTools("claude") == "claude --tools '' --strict-mcp-config")
+        #expect(SelfReview.noTools("pi -p") == "pi --no-tools --no-extensions --no-mcp -p")
+        // Tools named by you, and agents heed has no flags for, run as written.
+        #expect(SelfReview.noTools("claude -p --tools Read") == "claude -p --tools Read")
+        #expect(SelfReview.noTools("my-review.sh") == "my-review.sh")
+    }
+
+    @Test func theSelfReviewRunsInAnEmptyFolderWithThePromptOnStdin() async throws {
+        let echoed = try await SelfReview.run("cat", prompt: "APPROVE")
+        #expect(echoed == "APPROVE")
+        let folder = try await SelfReview.run("pwd; ls -A", prompt: "x")
+        let lines = folder.split(separator: "\n")
+        #expect(lines.first?.hasSuffix("/work") == true)
+        #expect(lines.count == 1)
+    }
+
+    @Test func onlyAnExactVerdictLineCounts() {
+        func approved(_ output: String) -> Bool { SelfReview.parse(output, sha: head, at: now).approved }
+        #expect(approved("APPROVE"))
+        #expect(approved("## APPROVE\nfine"))
+        #expect(approved("`APPROVE`"))
+        #expect(!approved("APPROVED"))
+        #expect(!approved("APPROVE."))
+        #expect(!approved("Approve"))
+        #expect(!approved("I APPROVE of this"))
+        #expect(!approved("APPROVE: but"))
+        #expect(!approved("Looks fine.\nAPPROVE"))
+        let other = SelfReview.parse("Looks fine.\nAPPROVE", sha: head, at: now)
+        #expect(other.summary == "the answer did not start with APPROVE or REQUEST_CHANGES: Looks fine.")
+        #expect(SelfReview.parse("**REQUEST_CHANGES**: no tests", sha: head, at: now).summary == "no tests")
+        #expect(SelfReview.parse("REQUEST_CHANGES", sha: head, at: now).summary
+            == "changes requested, no reason given")
+    }
+
     @Test func theCommentSaysWhy() {
         let verdict = HeedMerge.verdict(detail(), settings: PilotSettings(), selfReview: nil, now: now)
         let comment = HeedMerge.comment(verdict, method: "squash")

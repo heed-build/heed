@@ -75,8 +75,9 @@ extension AppModel {
     func controlPermission(_ request: ControlRequest) async -> ControlReply {
         guard var ask = request.permission else { return .failure("permission needs an ask") }
         let pass = ControlReply(permission: .pass, permissionID: ask.id)
-        // Only a session heed runs, and only the one the hook ran in.
-        guard request.session == ask.session, sessions.contains(where: { $0.id == ask.session }) else { return pass }
+        // Only a session heed runs, and only the pane the hook ran in (its token's, `ControlCaller`).
+        guard request.session == ask.session, request.pane == ask.pane,
+              sessions.contains(where: { $0.id == ask.session }) else { return pass }
         if let fallback = request.fallback {
             permissionFellBack(ask, fallback)
             return ControlReply(permissionID: ask.id)

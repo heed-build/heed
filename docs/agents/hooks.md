@@ -178,6 +178,9 @@ show_cost = true
 
 ## Inside a pane
 
-Every pane gets the session's id, the socket's path and its own pane id in its environment (`HEED_SESSION_ID`,
-`HEED_SOCKET`, `HEED_PANE_ID`), and `HEED_BIN` points at the helper. Run outside a Heed pane, the hook does nothing.
+Every pane gets the session's id, the socket's path, its own pane id and its token in its environment
+(`HEED_SESSION_ID`, `HEED_SOCKET`, `HEED_PANE_ID`, `HEED_SESSION_TOKEN`), and `HEED_BIN` points at the helper. Heed
+takes a hook's message only with the token of the pane it names, so a hook reports for its own pane and no other. The
+hook commands heed hands Claude Code and Codex name the helper by its path and heed's sockets in the command line,
+so nothing in a repo's environment changes where they report. Run outside a Heed pane, the hook does nothing.
 See [The heed CLI](../reference/cli.md).

@@ -11,6 +11,7 @@ description: The environment variables Heed sets in its panes, and the ones it r
 | `HEED_SESSION_ID` | The session the pane belongs to |
 | `HEED_SOCKET` | The socket to report to |
 | `HEED_PANE_ID` | The pane |
+| `HEED_SESSION_TOKEN` | Who the pane is, as heed vouches for it: its session and pane, signed by heed. Every hook message and `heed` command from the pane carries it, and heed takes the session and pane from it, so a process speaks only for the pane it runs in |
 | `HEED_BIN` | The bundled `heed` helper |
 | `HEED_PROMPT` | Your prompt, while an agent starts with one; the start line reads it and unsets it |
 | `PATH` | The PATH Heed found (see [Finding git and gh](../configuration/tools.md)), with the helper first |
@@ -29,11 +30,13 @@ description: The environment variables Heed sets in its panes, and the ones it r
 | `XDG_CONFIG_HOME` | Where `heed/config.toml` lives, if set |
 | `OTEL_*` (not `*_HEADERS`), `CLAUDE_CODE_ENABLE_TELEMETRY` | In heed's environment and your login shell's: where claude exported before, which heed then forwards to |
 | `CODEX_HOME` | Where Codex's `config.toml` is, for its `[otel]` exporters |
+| `HEED_CONTROL` | Where `heed sessions`, `heed goal` and the other control commands look for heed's control socket. Agents' hooks do not read it: their command lines name heed's own `heed` and sockets, so a repo's config cannot point them anywhere else |
 
 ## Read by the heed script on a host
 
 | Variable | |
 |---|---|
+| `HEED_SESSION_ID`, `HEED_PANE_ID`, `HEED_SESSION_TOKEN` | The pane a hook or `heed goal` runs in, written into each line of the event log; heed takes a line only when its token is the pane's |
 | `HEED_CALL_TIMEOUT` | How many seconds `heed goal` and `heed swarm` on a [host](../hosts/sessions.md) wait for heed on your Mac to answer. The default is 60, and 1800 for `ask`. After that the command prints that heed did not answer and exits 3 |
 
 ## Development

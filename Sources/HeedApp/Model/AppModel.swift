@@ -258,6 +258,8 @@ final class AppModel {
     private var hookServer: HookServer?
     /// The control socket (`HeedControl`): editors and scripts start, type into and follow sessions through it.
     var controlServer: ControlServer?
+    /// Who started each session over the control socket (`ControlSend`): a pane's session, or something outside heed.
+    @ObservationIgnored var controlStarters: [String: ControlCaller] = [:]
     /// Where the per-run hook files live. Screenshots show a made-up home, never the real one. Its `telemetry` is set
     /// once the receiver listens (AppModel+Telemetry).
     var integration = ShotMode.active
@@ -563,6 +565,7 @@ final class AppModel {
             sessionsView = .standard
             sidebarShowsTitles = true
         }
+        if !isFixture { PaneTokens.preload() }
         callLog = CallLogBrowser(fixture: isFixture)
         historyBrowser = HistoryBrowser(fixture: isFixture)
         ledger = LedgerBrowser(fixture: isFixture)
@@ -1267,8 +1270,10 @@ final class AppModel {
         }
     }
 
-    /// One message from an agent's hook, applied to its session.
+    /// One message from an agent's hook, applied to its session. Only from the pane it says it is from: its token
+    /// must be heed's for that session and pane (`SessionKeys`).
     func receive(_ message: HookMessage) {
+        guard PaneTokens.keys.verifies(message.token, session: message.session, pane: message.pane) else { return }
         // The agent a handoff stopped, on its way out: the session is the new agent's now.
         if let pane = message.pane, retiredPanes.contains(pane) { return }
         if let pane = message.pane {
@@ -8543,8 +8548,10 @@ final class AppModel {
     }
 
     /// A notification's Allow: the asks it was posted for (`shown`), answered through their hook while they still wait,
-    /// and no other (`NotificationAllow`); posted for none, Return on the agent's prompt only where its screen shows that
-    /// means yes (`ScreenGuess.allowsWithReturn`). Otherwise Heed comes forward on the session, so you answer it yourself.
+    /// and no other (`NotificationAllow`); posted for none, Return on the agent's prompt only where its screen shows
+    /// that
+    /// means yes (`ScreenGuess.allowsWithReturn`). Otherwise Heed comes forward on the session, so you answer it
+    /// yourself.
     func allowPermission(sessionID: String, shown: [String]) {
         switch NotificationAllow.action(shown: shown, waiting: waitingAskIDs(session: sessionID)) {
         case let .answer(ids):

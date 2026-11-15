@@ -11,7 +11,7 @@ extension AppModel {
         Task { [weak self] in
             guard let self else { return }
             let text = await call.answer(
-                call: { [weak self] request in await self?.controlGoal(request) },
+                call: { [weak self] request in await self?.control(request) },
                 sleep: { try? await Task.sleep(for: .seconds($0)) }, clock: { Date() }
             )
             await HostCall.send(text, for: call, to: host)

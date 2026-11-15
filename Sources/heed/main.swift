@@ -66,7 +66,7 @@ if arguments.first == "memory" {
 if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
     do {
         let request = try ControlCommandLine.parse(
-            arguments, directory: FileManager.default.currentDirectoryPath
+            arguments, directory: FileManager.default.currentDirectoryPath, environment: environment
         )
         let client = try ControlClient()
         let reply = try client.call(request)
@@ -163,8 +163,11 @@ guard let session = environment[HeedEnvironment.sessionID], !session.isEmpty els
 
 let socketPath = environment[HeedEnvironment.socket] ?? HeedEnvironment.defaultSocketPath()
 let pane = environment[HeedEnvironment.pane]
+let token = environment[HeedEnvironment.token]
 let agent = HookCommandLine.agent(arguments)
-let lines = kinds.compactMap { try? HookMessage(session: session, pane: pane, kind: $0, agent: agent).encodedLine() }
+let lines = kinds.compactMap {
+    try? HookMessage(session: session, pane: pane, kind: $0, agent: agent, token: token).encodedLine()
+}
 
 func send(_ data: Data, to path: String) -> Bool {
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -199,7 +202,7 @@ if !lines.isEmpty, !send(data, to: socketPath) {
 // The ask goes to heed's queue, and this hook waits for your answer there; a pass prints nothing, so the agent asks.
 if permissionHook, let input = hookInput,
    let ask = PermissionHook.ask(arguments, input: input, environment: environment),
-   let output = PermissionHook.output(PermissionHook.wait(for: ask), for: ask)
+   let output = PermissionHook.output(PermissionHook.wait(for: ask, token: token), for: ask)
 {
     FileHandle.standardOutput.write(output)
 }

@@ -115,6 +115,8 @@ final class TerminalSurfaces {
             HeedEnvironment.sessionID: sessionID,
             HeedEnvironment.socket: HeedEnvironment.defaultSocketPath(),
             HeedEnvironment.pane: pane.id,
+            // Who this pane is, as heed vouches for it: its hooks and `heed` commands carry it.
+            HeedEnvironment.token: PaneTokens.token(session: sessionID, pane: pane.id),
             // Never an inbox inherited from wherever heed was started: a Claude in this pane says its own.
             "CLAUDE_CODE_MESSAGING_SOCKET": "",
             "CLAUDE_CODE_MESSAGING_TOKEN": "",
@@ -135,7 +137,8 @@ final class TerminalSurfaces {
             // On a host: ssh there and attach to the pane's zmx session in its worktree (always zmx: a remote agent
             // must outlive the link). A live session is reattached as it is, with nothing started again.
             process = RemotePane.command(
-                host: host, pane: pane.id, directory: pane.directory, sessionID: sessionID, zmx: hostZmx[host],
+                host: host, pane: pane.id, directory: pane.directory, sessionID: sessionID,
+                token: environment[HeedEnvironment.token], zmx: hostZmx[host],
                 command: command, shell: PaneShell(name: hostShells[host])
             )
         } else {

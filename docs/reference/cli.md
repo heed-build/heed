@@ -22,8 +22,10 @@ its next launch. It never slows an agent down: whatever happens, it gives up aft
 | `heed tools` | Where `git` and `gh` are found (see [Finding git and gh](../configuration/tools.md)) |
 | `heed cleanup runs [path]` | Removes what get it green and get it merged runs left behind (`heed/get-it-green/*`, `heed/get-it-merged/*` branches and their worktrees) in the repo at `path` or here, when nothing would be lost and no run touched it in the last hour |
 
-It reads `HEED_SESSION_ID` and `HEED_SOCKET` from the environment, which every Heed pane sets; run elsewhere, it does
-nothing. `heed tools` and `heed cleanup runs` work anywhere.
+It reads `HEED_SESSION_ID`, `HEED_SESSION_TOKEN` and `HEED_SOCKET` from the environment, which every Heed pane sets;
+run elsewhere, it does nothing. Heed takes a message only with the pane's own token, so a hook reports for the pane it
+runs in and no other. The hooks heed gives agents name heed's own `heed` and sockets in their command lines.
+`heed tools` and `heed cleanup runs` work anywhere.
 
 ## The control socket
 
@@ -35,15 +37,17 @@ work anywhere while Heed runs:
 |---|---|
 | `heed sessions` | Every session, one per line: id, state (or "needs you"), agent, title, folder |
 | `heed watch` | The session list as JSON lines: now, then each time it changes |
-| `heed start [--agent <name>] [--dir <path>] [--arg <word>]... [--focus] "<prompt>"` | Starts an agent on the prompt in `path` (here by default): as work in that worktree when Heed knows it, else as a chat in the folder, with each `--arg` added to its command line (an editor's MCP config, say). It starts off screen; `--focus` brings Heed forward on it. A worktree that already has a session is refused with that session's id |
-| `heed send <session> "<text>"` | Hands the text to the session's agent: through its [inbox](../agents/messages.md) when it has one, else typed with Return pressed, only while the agent is idle or done and you have not just typed there; otherwise it says why and sends nothing |
+| `heed start [--agent <name>] [--dir <path>] [--focus] "<prompt>"` | Starts an agent on the prompt in `path` (here by default): as work in that worktree when Heed knows it, else as a chat in the folder, with the command line its [agent config](../agents/custom-agents.md) gives. It starts off screen; `--focus` brings Heed forward on it. A worktree that already has a session is refused with that session's id |
+| `heed send <session> "<text>"` | Hands the text to the session's agent: through its [inbox](../agents/messages.md) when it has one, else typed with Return pressed, only while the agent is idle or done and you have not just typed there; otherwise it says why and sends nothing. From a heed pane it reaches the pane's own session, the sessions on its session's goals and the sessions it started; from outside heed's panes, the sessions `heed start` started from outside |
 | `heed show [--focus] <session>` | Shows the session in Heed's window; `--focus` also brings Heed forward |
 | `heed memory show\|search\|note` | What heed's [Mindmap](../insights/mindmap.md#heed-memory) keeps about the work the calling session continues, from its own org's Mindmap only |
 | `heed goal <command>` | The goal the calling session is on: read it, record decisions, questions and items, check criteria with evidence, propose scope changes, spawn work. See [Agents keep the goal](../goals/cli.md) |
 | `heed swarm send\|note\|answer` | A swarm's agents: messages to a task, the lead or `@all`, progress notes, answers to questions heed handed them (method `goal` too). See [Steering](../goals/swarms/steering.md) |
 
 Each line on the socket is one JSON object. A request has a `method` (`sessions`, `watch`, `start`, `send`, `show`, `goal`), an
-`id` its reply echoes, and the fields the command takes (`directory`, `agent`, `prompt`, `arguments`, `session`, `text`, `focus`, `goal`). A
+`id` its reply echoes, and the fields the command takes (`directory`, `agent`, `prompt`, `session`, `text`, `focus`, `goal`), and from a heed pane
+its `token` (`HEED_SESSION_TOKEN`): who is asking. A request that names a session without that session's token is
+refused; one with neither comes from outside heed's panes, which is nobody in particular and never you. A
 reply has `ok`, and `error`, `session`, `sessions` or `goal` (`send`'s also says how it went, in `delivery`). After answering `watch`, Heed sends `{"event":"sessions",…}` each
 time a session's state, title or group changes.
 

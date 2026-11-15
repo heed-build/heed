@@ -95,12 +95,14 @@ struct ControlTests {
         #expect(start == ControlRequest(
             method: .start, directory: "/w", agent: "codex", prompt: "fix the build", focus: true
         ))
-        let words = try ControlCommandLine.parse(
-            ["start", "--dir", "/x", "--arg", "--mcp-config", "--arg", "/m.json", "go"], directory: "/w"
-        )
+        let words = try ControlCommandLine.parse(["start", "--dir", "/x", "go"], directory: "/w")
         #expect(words.directory == "/x")
-        #expect(words.arguments == ["--mcp-config", "/m.json"])
+        #expect(words.arguments == nil)
         #expect(words.prompt == "go")
+        // The agent's command line is its config's: no words for it from here.
+        #expect(throws: HookCommandLine.UsageError.self) {
+            try ControlCommandLine.parse(["start", "--arg", "--mcp-config", "go"], directory: "/w")
+        }
         let send = try ControlCommandLine.parse(["send", "s1", "look", "again"], directory: "/w")
         #expect(send.session == "s1")
         #expect(send.text == "look again")

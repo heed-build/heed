@@ -504,7 +504,7 @@ struct HostCallTests {
         process.arguments = [bin.appendingPathComponent("heed").path, "goal", "plan", "propose", "--file", plan.path]
         process.environment = [
             "HOME": home.path, "PATH": "/usr/bin:/bin", "HEED_SESSION_ID": "s1", "HEED_PANE_ID": "p1",
-            "HEED_CALL_TIMEOUT": "20",
+            "HEED_SESSION_TOKEN": "t.o.k", "HEED_CALL_TIMEOUT": "20",
         ]
         let out = Pipe()
         let err = Pipe()
@@ -521,6 +521,7 @@ struct HostCallTests {
         }
         let found = try #require(call)
         #expect(found.session == "s1" && found.pane == "p1")
+        #expect(found.token == "t.o.k")
         #expect(found.arguments == ["goal", "plan", "propose", "--file", plan.path])
         #expect(found.input == #"{"tasks": [{"title": "Profile"}]}"#)
         #expect(!found.isStale(now: Date()))

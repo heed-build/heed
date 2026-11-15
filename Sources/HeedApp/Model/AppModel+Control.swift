@@ -38,21 +38,31 @@ extension AppModel {
         controlServer.publish(controlSessions)
     }
 
+    /// One request, from the pane its token names or from outside heed's panes (`ControlCaller`). A request that names
+    /// a session it cannot vouch for is refused (a permission ask gets a pass: the agent asks in its pane).
     func control(_ request: ControlRequest) async -> ControlReply {
+        guard let (caller, request) = ControlCaller.of(request, keys: PaneTokens.keys) else {
+            if request.method == .permission, let ask = request.permission {
+                return ControlReply(permission: .pass, permissionID: ask.id)
+            }
+            return .failure("heed does not know this pane: run it in the pane heed started (\(HeedEnvironment.token))")
+        }
         switch request.method {
-        case .sessions, .watch: ControlReply(sessions: controlSessions)
-        case .start: await controlStart(request)
-        case .send: await controlSend(request)
-        case .show: controlShow(request)
-        case .goal: await controlGoal(request)
-        case .memory: await controlMemory(request)
-        case .permission: await controlPermission(request)
+        case .sessions, .watch: return ControlReply(sessions: controlSessions)
+        case .start: return await controlStart(request, caller: caller)
+        case .send: return await controlSend(request, caller: caller)
+        case .show: return controlShow(request)
+        case .goal: return await controlGoal(request)
+        case .memory: return await controlMemory(request)
+        case .permission: return await controlPermission(request)
         }
     }
 
     /// Starts `agent` on `prompt` in `directory`: as work in that worktree when heed knows it, else as a chat in the
     /// folder. A worktree that already has a session is refused with that session's id, so the caller can send to it.
-    private func controlStart(_ request: ControlRequest) async -> ControlReply {
+    /// The agent's command line is its config's: a request may not add words to it.
+    private func controlStart(_ request: ControlRequest, caller: ControlCaller) async -> ControlReply {
+        if let refusal = ControlStart.refusal(request) { return .failure(refusal) }
         guard let directory = request.directory, !directory.isEmpty else { return .failure("start needs a directory") }
         let path = Self.canonical(Paths.expand(directory))
         var isDirectory: ObjCBool = false
@@ -70,13 +80,11 @@ extension AppModel {
                 return ControlReply(ok: false, error: "\(existing.title) already works there", session: existing.id)
             }
             changes = Import.session(
-                for: worktree, agent: agent, resume: nil, integration: integration, prompt: prompt,
-                arguments: request.arguments ?? []
+                for: worktree, agent: agent, resume: nil, integration: integration, prompt: prompt
             )
         } else {
             var plan = StartWorkPlan(prompt: prompt, repos: [], name: "", agent: agent, integration: integration)
             plan.chat = ChatPlan(kind: .folder, name: path)
-            plan.arguments = request.arguments ?? []
             do {
                 changes = try await StartWork.execute(plan, settings: settings, hosts: config.hosts)
             } catch {
@@ -94,6 +102,7 @@ extension AppModel {
             }
         }
         commit(changes)
+        controlStarters[session.id] = caller
         // Started now, on or off screen; heed comes forward only when asked.
         for pane in panes {
             TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
@@ -104,10 +113,17 @@ extension AppModel {
     }
 
     /// Hands `text` to the session's agent: through its channel when it has one (`sendToAgent`), else typed and
-    /// Return pressed, only when the agent is idle or done and you have not just typed there yourself.
-    private func controlSend(_ request: ControlRequest) async -> ControlReply {
+    /// Return pressed, only when the agent is idle or done and you have not just typed there yourself. Only to a
+    /// session the caller may reach (`ControlSend`).
+    private func controlSend(_ request: ControlRequest, caller: ControlCaller) async -> ControlReply {
         guard let id = request.session, let session = sessions.first(where: { $0.id == id }) else {
             return .failure("no session \(request.session ?? "")")
+        }
+        guard ControlSend.allows(caller, target: id, links: goals.snapshot.links, starters: controlStarters) else {
+            return .failure(
+                "\(session.title) is not this caller's to type into: a pane reaches its own session, the sessions on "
+                    + "its goals and the ones it started; from outside heed, the sessions heed start started"
+            )
         }
         guard let text = request.text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return .failure("nothing to send")

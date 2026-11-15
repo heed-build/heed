@@ -27,7 +27,9 @@ public enum MemoryCommandLine {
             throw UsageError(description: "heed memory: run it from a heed session's shell (no HEED_SESSION_ID)")
         }
         if verb != "show", words.count < 2 { throw UsageError(description: usage) }
-        return ControlRequest(method: .memory, session: session, arguments: words)
+        let pane = environment[HeedEnvironment.pane].flatMap { $0.isEmpty ? nil : $0 }
+        let token = environment[HeedEnvironment.token].flatMap { $0.isEmpty ? nil : $0 }
+        return ControlRequest(method: .memory, session: session, arguments: words, pane: pane, token: token)
     }
 }
 

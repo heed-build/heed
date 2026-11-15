@@ -20,9 +20,11 @@ public enum HeedControl {
 /// One request. Which fields count depends on the method:
 /// - `sessions`: none.
 /// - `watch`: none; the connection then receives events.
-/// - `start`: `directory` (an existing folder), `prompt`, `agent` (the default agent when nil), `arguments` (more
-///   words for the agent's command line, such as an editor's MCP config), `focus`.
-/// - `send`: `session`, `text`. Typed into the agent's pane with Return, only while it is idle or done.
+/// - `start`: `directory` (an existing folder), `prompt`, `agent` (the default agent when nil), `focus`. The agent's
+///   command line is the one its config gives: a request that adds words to it (`arguments`) is refused.
+/// - `send`: `session`, `text`. Typed into the agent's pane with Return, only while it is idle or done. A pane may send
+///   to its own session, to a session on a goal its session is on, and to one it started; something outside heed's
+///   panes only to a session started from outside (`ControlSend`).
 /// - `show`: `session`, `focus`. Heed shows the session; it comes to the front only with `focus`.
 /// - `goal`: `goal` (a `heed goal` command), `session` (the calling pane's session, when there is one) and `pane`.
 ///   Answered with `goal` in the reply.
@@ -50,13 +52,17 @@ public struct ControlRequest: Codable, Equatable, Sendable {
     public var permission: PermissionAsk?
     /// `permission`, sent after the hook gave up: why the agent asks in its pane instead (nothing is answered).
     public var fallback: PermissionFallback?
+    /// The calling pane's token (`HEED_SESSION_TOKEN`), when it runs in one of heed's panes: who the caller is
+    /// (`ControlCaller`). Without one, the caller is outside heed's panes.
+    public var token: String?
 
     public init(
         id: Int? = nil, method: Method, session: String? = nil, directory: String? = nil, agent: String? = nil,
         prompt: String? = nil, arguments: [String]? = nil, text: String? = nil, focus: Bool? = nil,
         goal: GoalCommand? = nil, pane: String? = nil, permission: PermissionAsk? = nil,
-        fallback: PermissionFallback? = nil
+        fallback: PermissionFallback? = nil, token: String? = nil
     ) {
+        self.token = token
         self.fallback = fallback
         self.permission = permission
         self.pane = pane
@@ -558,33 +564,37 @@ public enum ControlCommandLine {
     public static let usage = """
     usage: heed sessions                                  (every session: id, state, needs you, title)
            heed watch                                     (the session list as JSON lines, each time it changes)
-           heed start [--agent <name>] [--dir <path>] [--arg <word>]... [--focus] "<prompt>"
+           heed start [--agent <name>] [--dir <path>] [--focus] "<prompt>"
            heed send <session> "<text>"                   (its inbox, else typed while its agent is idle)
            heed show [--focus] <session>
            heed goal <command>                            (the goal this session is on: heed goal --help)
     Talks to the app over \(HeedControl.defaultSocketPath()) (or $\(HeedControl.socketVariable)).
     """
 
-    /// The request a command line makes; `directory` is where `start` runs when `--dir` is not given.
-    public static func parse(_ arguments: [String], directory: String) throws -> ControlRequest {
+    /// The request a command line makes; `directory` is where `start` runs when `--dir` is not given. From a heed pane
+    /// it carries the pane's token (in `environment`), so heed knows who sends.
+    public static func parse(
+        _ arguments: [String], directory: String, environment: [String: String] = [:]
+    ) throws -> ControlRequest {
         guard let verb = arguments.first, let method = ControlRequest.Method(rawValue: verb), method != .goal else {
             throw HookCommandLine.UsageError(description: usage)
         }
         var request = ControlRequest(method: method)
+        request.token = environment[HeedEnvironment.token].flatMap { $0.isEmpty ? nil : $0 }
         var words: [String] = []
         var rest = arguments.dropFirst()
         while let word = rest.popFirst() {
             switch word {
             case "--focus": request.focus = true
-            case "--agent", "--dir", "--arg":
+            case "--arg":
+                throw HookCommandLine.UsageError(
+                    description: "heed start takes no agent arguments: the agent's command line is its config's"
+                )
+            case "--agent", "--dir":
                 guard let value = rest.popFirst() else {
                     throw HookCommandLine.UsageError(description: "\(word) needs a value\n\(usage)")
                 }
-                switch word {
-                case "--agent": request.agent = value
-                case "--dir": request.directory = value
-                default: request.arguments = (request.arguments ?? []) + [value]
-                }
+                if word == "--agent" { request.agent = value } else { request.directory = value }
             default: words.append(word)
             }
         }
@@ -621,5 +631,37 @@ public enum ControlCommandLine {
                 session.title, session.directory.map { Paths.tilde($0) } ?? "",
             ].joined(separator: "\t")
         }.joined(separator: "\n")
+    }
+}
+
+/// What a control `start` may ask for: a prompt and a folder, never words for the agent's command line (its config
+/// says what that is).
+public enum ControlStart {
+    /// Why heed will not start what `request` asks; nil when it may.
+    public static func refusal(_ request: ControlRequest) -> String? {
+        guard let arguments = request.arguments, !arguments.isEmpty else { return nil }
+        return "start takes no agent arguments: the agent's command line is its config's"
+    }
+}
+
+/// Which sessions a control `send` may type into. A pane may reach its own session, a session on a goal its session is
+/// on (a lead and the sessions working its goal), and a session it started over the socket; something outside heed's
+/// panes may reach only a session started from outside (an editor typing into the session it started). Anything else
+/// is yours to type into, in heed.
+public enum ControlSend {
+    /// `starters`: who started each session over the control socket.
+    public static func allows(
+        _ caller: ControlCaller, target: String, links: [GoalLink], starters: [String: ControlCaller]
+    ) -> Bool {
+        let starter = starters[target]
+        switch caller {
+        case .outside:
+            return starter == .outside
+        case let .pane(pane):
+            if target == pane.session || starter?.session == pane.session { return true }
+            let sessionLinks = links.filter { $0.kind == .session || $0.kind == .chat }
+            let mine = Set(sessionLinks.filter { $0.target == pane.session }.map(\.goal))
+            return sessionLinks.contains { $0.target == target && mine.contains($0.goal) }
+        }
     }
 }

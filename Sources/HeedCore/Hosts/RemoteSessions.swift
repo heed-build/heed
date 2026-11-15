@@ -11,7 +11,8 @@ public enum HostSetup {
 
     /// The hook every agent on the host calls (`$HEED_BIN`), with heed's own arguments (`hook claude Stop`,
     /// `state working`, ...) and the agent's payload on stdin. It writes one line to the event log: the time, the
-    /// session and pane, then the arguments and the payload, base64, so nothing in them can break the line. POSIX sh
+    /// session and pane, the arguments and the payload, base64, so nothing in them can break the line, and the pane's
+    /// token (`HEED_SESSION_TOKEN`), which is what heed takes the session and pane from. POSIX sh
     /// and coreutils only: there is nothing to compile for the host.
     public static let hookScript = #"""
     #!/bin/sh
@@ -23,7 +24,8 @@ public enum HostSetup {
     fi
     args=""
     for a in "$@"; do args="$args$(printf '%s' "$a" | base64 | tr -d '\n') "; done
-    printf '%s\t%s\t%s\t%s\t%s\n' "$(date +%s)" "${HEED_SESSION_ID:-}" "${HEED_PANE_ID:-}" "$args" "$payload" >>"$log"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date +%s)" "${HEED_SESSION_ID:-}" "${HEED_PANE_ID:-}" "$args" "$payload" \
+      "${HEED_SESSION_TOKEN:-}" >>"$log"
     """#
 
     /// `heed` on the host (`~/.heed/bin/heed`, first on the PATH of heed's panes there): `heed goal …` and `heed swarm
@@ -103,10 +105,13 @@ public enum HostSetup {
 
 /// The event log's lines, back into heed's hook messages.
 public enum HostEvents {
-    /// One line of `~/.heed/events.log`; nil for a line that is not one (a partial write, something else).
+    /// One line of `~/.heed/events.log`; nil for a line that is not one (a partial write, something else). The sixth
+    /// field is the pane's token; a line without one (an older hook) carries none, and heed does not take it.
     public static func messages(fromLine line: String) -> [HookMessage] {
         let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
-        guard fields.count == 5, let seconds = TimeInterval(fields[0]), !fields[1].isEmpty else { return [] }
+        guard fields.count == 5 || fields.count == 6, let seconds = TimeInterval(fields[0]), !fields[1].isEmpty
+        else { return [] }
+        let token = fields.count == 6 && !fields[5].isEmpty ? fields[5] : nil
         let args = fields[3].split(separator: " ").compactMap { Data(base64Encoded: String($0)) }
             .map { String(decoding: $0, as: UTF8.self) }
         let payload = Data(base64Encoded: fields[4]) ?? Data()
@@ -114,7 +119,9 @@ public enum HostEvents {
         let pane = fields[2].isEmpty ? nil : fields[2]
         let at = Date(timeIntervalSince1970: seconds)
         return kinds.map {
-            HookMessage(session: fields[1], pane: pane, kind: $0, sentAt: at, agent: HookCommandLine.agent(args))
+            HookMessage(
+                session: fields[1], pane: pane, kind: $0, sentAt: at, agent: HookCommandLine.agent(args), token: token
+            )
         }
     }
 }
@@ -127,6 +134,8 @@ public struct HostCall: Hashable, Sendable {
     /// The session and pane it came from (heed's pane environment there); empty from a shell heed did not start.
     public var session: String
     public var pane: String?
+    /// The pane's token (`HEED_SESSION_TOKEN` there), which heed takes the session and pane from.
+    public var token: String?
     /// The command line after `heed` (`goal plan propose --file plan.json`).
     public var arguments: [String]
     /// The file `--file` named, read on the host (or stdin for `-`).
@@ -135,7 +144,7 @@ public struct HostCall: Hashable, Sendable {
     /// The call a line of `~/.heed/events.log` holds, if it holds one: `heed-hook call <id> <input> <arguments…>`.
     public init?(line: String) {
         let fields = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
-        guard fields.count == 5 else { return nil }
+        guard fields.count == 5 || fields.count == 6 else { return nil }
         // An empty argument is written as nothing between two spaces: kept, so the input keeps its place.
         let args = fields[3].split(separator: " ", omittingEmptySubsequences: false).dropLast()
             .map { Data(base64Encoded: String($0)).map { String(decoding: $0, as: UTF8.self) } }
@@ -147,12 +156,16 @@ public struct HostCall: Hashable, Sendable {
         self.id = id
         session = fields[1]
         pane = fields[2].isEmpty ? nil : fields[2]
+        token = fields.count == 6 && !fields[5].isEmpty ? fields[5] : nil
         arguments = Array(rest)
         input = args[2]
             .flatMap { $0.isEmpty ? nil : Data(base64Encoded: $0).map { String(decoding: $0, as: UTF8.self) } }
     }
 
-    public init(id: String, session: String, pane: String?, arguments: [String], input: String? = nil) {
+    public init(
+        id: String, session: String, pane: String?, arguments: [String], input: String? = nil, token: String? = nil
+    ) {
+        self.token = token
         self.id = id
         self.session = session
         self.pane = pane
@@ -197,6 +210,7 @@ public struct HostCall: Hashable, Sendable {
         }
         var environment = [HeedEnvironment.sessionID: session]
         if let pane { environment[HeedEnvironment.pane] = pane }
+        if let token { environment[HeedEnvironment.token] = token }
         let request: ControlRequest
         do {
             request = try GoalCommandLine.request(arguments, environment: environment, read: { _ in input ?? "" })
@@ -247,7 +261,7 @@ public enum RemotePane {
     /// written in it, since the host's login shell reads it. The prompt rides in the environment (`HEED_PROMPT`); the
     /// line puts `~/.heed/bin` first on the agent's PATH, for heed's `heed` there (`HostSetup.heedScript`).
     public static func command(
-        host: String, pane: String, directory: String, sessionID: String, zmx: String?,
+        host: String, pane: String, directory: String, sessionID: String, token: String? = nil, zmx: String?,
         command: ShellCommand? = nil, shell: PaneShell = .posix,
         controlDirectory: String = Remote.controlDirectory()
     ) -> String {
@@ -259,7 +273,8 @@ public enum RemotePane {
         let environment = [
             "HEED_SESSION_ID=\(ShellQuote.quote(sessionID))", "HEED_PANE_ID=\(ShellQuote.quote(pane))",
             "HEED_BIN=\"$HOME/.heed/bin/heed-hook\"",
-        ] + (launch?.environment ?? [:]).sorted { $0.key < $1.key }.map { "\($0.key)=\(shell.quote($0.value))" }
+        ] + (token.map { ["HEED_SESSION_TOKEN=\(ShellQuote.quote($0))"] } ?? []) + (launch?.environment ?? [:])
+            .sorted { $0.key < $1.key }.map { "\($0.key)=\(shell.quote($0.value))" }
         let process = launch?.commandLine(quotedFor: shell)
         let run = zmx.map { path in
             "ZMX_DIR=\"$HOME/.heed/zmx\" ZMX_NO_DETACH_KEY=1 \(Remote.word(path)) attach \(Zmx.sessionName(pane: pane))"

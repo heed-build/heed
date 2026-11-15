@@ -5,6 +5,9 @@ public enum HeedEnvironment {
     public static let sessionID = "HEED_SESSION_ID"
     public static let socket = "HEED_SOCKET"
     public static let pane = "HEED_PANE_ID"
+    /// The pane's token (`SessionKeys`): what heed takes the session and pane from. Every message from a pane carries
+    /// it; one without it, or with another pane's, is not taken.
+    public static let token = "HEED_SESSION_TOKEN"
     /// Absolute path of the bundled `heed`, for hooks that should not depend on PATH.
     public static let binary = "HEED_BIN"
 
@@ -62,8 +65,14 @@ public struct HookMessage: Codable, Equatable, Sendable {
     /// The agent whose hook sent it (`heed hook <agent> …`): the one actually running in the pane, which may not be
     /// the one the session started with (you quit it and started another there).
     public var agent: String?
+    /// The pane's token (`HEED_SESSION_TOKEN`): heed takes a message only when it vouches for `session` and `pane`.
+    public var token: String?
 
-    public init(session: String, pane: String? = nil, kind: Kind, sentAt: Date = Date(), agent: String? = nil) {
+    public init(
+        session: String, pane: String? = nil, kind: Kind, sentAt: Date = Date(), agent: String? = nil,
+        token: String? = nil
+    ) {
+        self.token = token
         self.session = session
         self.pane = pane
         self.kind = kind
@@ -100,7 +109,9 @@ public enum HookCommandLine {
            heed tools                       (where git and gh are found, as the app finds them)
            heed cleanup runs [path]         (remove what get it green runs left behind, when safe)
            heed sessions|watch|start|send|show  (the running app's control socket: heed start -h)
-    Reads \(HeedEnvironment.sessionID) and \(HeedEnvironment.socket) from the environment (set in every Heed pane).
+    Reads \(HeedEnvironment.sessionID), \(HeedEnvironment.token) and \(HeedEnvironment
+        .socket) from the environment (set in
+    every Heed pane).
     """
 
     public struct UsageError: Error, Equatable, CustomStringConvertible {

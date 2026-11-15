@@ -202,7 +202,11 @@ public enum GoalCommandLine {
             }
         }
         let pane = environment[HeedEnvironment.pane].flatMap { $0.isEmpty ? nil : $0 }
-        return ControlRequest(method: .goal, session: session, goal: command, pane: session == nil ? nil : pane)
+        let token = environment[HeedEnvironment.token].flatMap { $0.isEmpty ? nil : $0 }
+        return ControlRequest(
+            method: .goal, session: session, goal: command, pane: session == nil ? nil : pane,
+            token: session == nil ? nil : token
+        )
     }
 
     /// A file's text, or stdin's for `-`.

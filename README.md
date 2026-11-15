@@ -213,3 +213,7 @@ itself off.
 
 `mise run build` copies `build/Heed.app` to `$HEED_DEPLOY_DIR` (set in `mise.local.toml`, not committed). Skipped,
 never failed, when the share is not mounted.
+
+## License
+
+heed is free and open source under the [MIT license](LICENSE).

@@ -361,7 +361,12 @@ public enum DefaultKeys {
 
     static let sessions: [(String, String)] = [
         ("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path"),
-        ("<CR>", "session.agent"), ("T", "sessions.sort"), ("zG", "sessions.group"), ("zR", "sessions.rows"),
+        ("<CR>", "session.agent"), ("T", "sessions.sort"),
+        // The banner over a session whose agent is not running: pick its conversation up, start over, or leave it.
+        ("gu", "agent.resume"), ("gf", "agent.fresh"), ("gq", "agent.resume.dismiss"), ("zG", "sessions.group"), (
+            "zR",
+            "sessions.rows"
+        ),
         ("R", "session.rename"), ("K", "session.kind"), ("X", "sessions.close.ready"), ("t", "session.trace"),
     ]
 

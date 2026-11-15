@@ -61,6 +61,20 @@ public struct ResumeCandidate: Identifiable, Hashable, Sendable {
 public enum Resume {
     /// The sessions worth offering on launch: every non-parked session with an agent. `hasSession` answers whether
     /// the agent still has a session id (nil when unknown); it does file IO, so call this off the main actor.
+    /// One session's candidate, for resuming (or starting fresh) later than the launch dialog: `hasSession` false makes
+    /// it a fresh start from the original prompt, as it does there.
+    public static func candidate(
+        for session: Session, domain: Domain, settings: WorkSettings, integration: IntegrationFiles?,
+        hasSession: (Session) -> Bool?
+    ) -> ResumeCandidate? {
+        var one = session
+        one.parked = false
+        return candidates(
+            domain: Domain(sessions: [one], layouts: domain.layouts.filter { $0.key == session.id }),
+            settings: settings, integration: integration, hasSession: hasSession
+        ).first
+    }
+
     public static func candidates(
         domain: Domain, settings: WorkSettings, integration: IntegrationFiles?,
         hasSession: (Session) -> Bool? = { _ in nil }

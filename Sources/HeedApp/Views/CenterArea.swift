@@ -9,6 +9,10 @@ struct CenterArea: View {
     var body: some View {
         VStack(spacing: 0) {
             TabStrip().shotRegion(.tabStrip)
+            // Its agent is not running, and its conversation can be picked up again.
+            if let session = model.currentSession, let offer = model.resumeBanner(for: session) {
+                ResumeBannerStrip(offer: offer).id(session.id)
+            }
             GeometryReader { geometry in
                 VStack(spacing: 0) {
                     if let tab = model.currentTab {

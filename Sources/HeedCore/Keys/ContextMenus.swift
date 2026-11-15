@@ -232,6 +232,17 @@ public enum ContextMenus {
         return menu.entries
     }
 
+    /// The new-goal wizard: back to the goals, the TL;DR, and discarding the goal.
+    public static func wizard(title: String, tldr: Bool) -> [MenuEntry] {
+        var menu = Menu(header: title)
+        menu.section([
+            MenuItem("Back to Goals", CommandInvocation(name: "wizard.leave")),
+            tldr ? MenuItem("TL;DR", CommandInvocation(name: "goal.tldr")) : nil,
+        ].compactMap(\.self))
+        menu.section([MenuItem("Discard this goal…", CommandInvocation(name: "wizard.discard"))])
+        return menu.entries
+    }
+
     /// A reviewer in the goal's Reviewers pane.
     public static func reviewer(goal: String, id: String, title: String, running: Bool) -> [MenuEntry] {
         let target = CommandTarget.row(view: "goals", id: "\(goal)/\(id)")

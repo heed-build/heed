@@ -424,6 +424,21 @@ enum Shots {
         // The model field: h l step through the agent's models (Opus, two steps in), then its efforts (high).
         Shot(id: "start-work/model", keys: "o" + prompt + "<Esc>jjjjjlljlll", crop: .dialog),
         Shot(id: "start-work/panel", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
+        // Round 2: the acts' own media. The Start work panel, the Split board in its window, and Autopilot's tabs.
+        Shot(id: "landing/a-start", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
+        Shot(id: "landing/a-split", chrome: false, prepare: { $0.loadSplitFixture(.complex, part: "migrate") }),
+        Shot(id: "landing/a-can", chrome: false, keys: "gw", crop: .autopilotCards, cropPadding: 0),
+        Shot(id: "landing/a-where", chrome: false, keys: "gwW", crop: .autopilotMatrix, cropPadding: 0),
+        Shot(
+            id: "landing/a-now",
+            chrome: false,
+            keys: "gwNl",
+            crop: .helperTiles,
+            cropPadding: 0,
+            prepare: { $0.loadHelperFixture() }
+        ),
+        Shot(id: "landing/m-brief", chrome: false, keys: "ghM", crop: .mindmapDetail, cropPadding: 0),
+        Shot(id: "landing/t-wt", chrome: false, keys: "gr", crop: .worktreeTable, cropPadding: 0),
         Shot(id: "landing/t-anywhere", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
         Shot(
             id: "landing/t-guesses",

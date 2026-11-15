@@ -248,15 +248,20 @@ struct ClaudeInboxSocketTests {
         }
     }
 
+    /// A `cc-socks` folder, as Claude Code makes one, in a folder of its own.
     static func directory() throws -> String {
-        let path = "/tmp/heed-inbox-\(UUID().uuidString.prefix(8))"
+        let path = "/tmp/heed-inbox-\(UUID().uuidString.prefix(8))/cc-socks"
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
         return path
     }
 
+    static func remove(_ directory: String) {
+        try? FileManager.default.removeItem(atPath: (directory as NSString).deletingLastPathComponent)
+    }
+
     @Test func aRealInboxGetsTheLineAndItsReceiptComesBack() async throws {
         let directory = try Self.directory()
-        defer { try? FileManager.default.removeItem(atPath: directory) }
+        defer { Self.remove(directory) }
         let inbox = try FakeInbox(directory: directory, hold: true)
         let channels = AgentChannels(transport: LiveChannelTransport(), receiptWindow: .seconds(2))
         let result = await channels.send("rebase on main", to: .claude(socket: inbox.path))
@@ -270,7 +275,7 @@ struct ClaudeInboxSocketTests {
 
     @Test func aQuietInboxTookItAndAMissingOneIsUnreachable() async throws {
         let directory = try Self.directory()
-        defer { try? FileManager.default.removeItem(atPath: directory) }
+        defer { Self.remove(directory) }
         let inbox = try FakeInbox(directory: directory, hold: false)
         let channels = AgentChannels(transport: LiveChannelTransport(), receiptWindow: .milliseconds(200))
         #expect(await channels.send("hello", to: .claude(socket: inbox.path)) == .accepted)

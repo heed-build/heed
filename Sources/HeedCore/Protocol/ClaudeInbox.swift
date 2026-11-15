@@ -19,12 +19,33 @@ public enum ClaudeInbox {
     /// What heed's messages start with, so the agent (and you, reading its transcript) know who sent them.
     public static let prefix = "From heed, the app your user runs this session in: "
 
-    /// The hook environment's inbox socket, when it names one.
+    /// The hook environment's inbox socket, when it names one Claude Code would make (`accepts`).
     public static func socket(from environment: [String: String]) -> String? {
         guard let path = environment["CLAUDE_CODE_MESSAGING_SOCKET"]?.trimmingCharacters(in: .whitespaces),
-              path.hasPrefix("/")
+              accepts(path)
         else { return nil }
         return path
+    }
+
+    /// Whether `path` is where Claude Code puts a session's inbox: `<pid>.sock` (or its own short hex names) in a
+    /// `cc-socks` folder, or `cc-socks-<uid>` when the first is too long a path (`$XDG_RUNTIME_DIR`,
+    /// `$CLAUDE_CODE_TMPDIR` or `/tmp`, then `/tmp/cc-socks-<uid>`; Claude Code 2.1.319). Absolute, nothing to resolve
+    /// (no `..`, no `//`), short enough for a Unix socket. heed writes to it and binds its reply socket beside it, so
+    /// nothing else is taken.
+    public static func accepts(_ path: String) -> Bool {
+        guard path.hasPrefix("/"), path.utf8.count <= 103, !path.contains("//"),
+              (path as NSString).standardizingPath == path
+        else { return false }
+        let parts = path.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
+        guard parts.count >= 3, !parts.contains(".."), !parts.contains("."), let name = parts.last else { return false }
+        let folder = parts[parts.count - 2]
+        let folderOK = folder == "cc-socks"
+            || (folder.hasPrefix("cc-socks-") && folder.dropFirst(9).allSatisfy(\.isASCII)
+                && !folder.dropFirst(9).isEmpty && folder.dropFirst(9).allSatisfy(\.isNumber))
+        return folderOK && name.range(
+            of: #"^([0-9]+(-[0-9a-f]{8})?|[0-9a-f]{1,16})\.sock$"#,
+            options: .regularExpression
+        ) != nil
     }
 
     /// The line that delivers `text`, replies (receipts) going to `replyTo`.
@@ -105,6 +126,7 @@ public actor AgentChannels {
     }
 
     private func sendClaude(_ text: String, to socket: String) async -> ChannelResult {
+        guard ClaudeInbox.accepts(socket) else { return .unreachable("not where Claude Code keeps an inbox") }
         var reply = ClaudeInbox.replySocket(beside: socket)
         if let path = reply, await !transport.listen(at: path) { reply = nil }
         startReading()
@@ -284,9 +306,11 @@ public final class LineListener: @unchecked Sendable {
 
     deinit { stop() }
 
-    /// Binds the socket (mode 0600), replacing a stale one of the same name.
+    /// Binds the socket (mode 0600), replacing a stale socket of the same name; anything else there is left alone (and
+    /// the bind fails).
     public func start() throws {
-        if FileManager.default.fileExists(atPath: path) { unlink(path) }
+        var status = stat()
+        if lstat(path, &status) == 0, status.st_mode & S_IFMT == S_IFSOCK { unlink(path) }
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw HookServerError.system("socket", errno) }
         var address = HookServer.address(path)

@@ -11,6 +11,7 @@ extension AppModel {
     func noteInbox(_ message: HookMessage, pane: String) {
         switch message.kind {
         case let .inbox(socket):
+            guard ClaudeInbox.accepts(socket) else { return }
             inboxes[pane] = .claude(socket: socket)
         case let .agentSession(id, agent) where agent == "codex":
             inboxes[pane] = .codex(thread: id)

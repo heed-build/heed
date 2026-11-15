@@ -395,8 +395,12 @@ public final class CallLog: Sendable {
     /// The log in effect: the task's own (tests), else the installed one.
     public static var active: CallLog? { current ?? installed.withLock { $0 } }
 
-    /// Records a call in the active log, if there is one.
-    public static func record(_ call: LoggedCall) { active?.record(call) }
+    /// Records a call in the active log, if there is one, with the cause of the work in progress (`Cause.current`).
+    public static func record(_ call: LoggedCall) {
+        var call = call
+        if let cause = Cause.current, call.detail["cause"] == nil { call.detail["cause"] = cause.id }
+        active?.record(call)
+    }
 
     public func record(_ call: LoggedCall) {
         let schedule = pending.withLock { state in

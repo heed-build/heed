@@ -166,7 +166,10 @@ let pane = environment[HeedEnvironment.pane]
 let token = environment[HeedEnvironment.token]
 let agent = HookCommandLine.agent(arguments)
 let lines = kinds.compactMap {
-    try? HookMessage(session: session, pane: pane, kind: $0, agent: agent, token: token).encodedLine()
+    try? HookMessage(
+        session: session, pane: pane, kind: $0, agent: agent, token: token,
+        cause: environment[Cause.environment].flatMap { Cause.isID($0) ? $0 : nil }
+    ).encodedLine()
 }
 
 func send(_ data: Data, to path: String) -> Bool {

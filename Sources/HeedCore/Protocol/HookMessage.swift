@@ -67,12 +67,15 @@ public struct HookMessage: Codable, Equatable, Sendable {
     public var agent: String?
     /// The pane's token (`HEED_SESSION_TOKEN`): heed takes a message only when it vouches for `session` and `pane`.
     public var token: String?
+    /// The cause the pane was started with (`HEED_CAUSE`), for Audit; heed checks it against the pane's own.
+    public var cause: String?
 
     public init(
         session: String, pane: String? = nil, kind: Kind, sentAt: Date = Date(), agent: String? = nil,
-        token: String? = nil
+        token: String? = nil, cause: String? = nil
     ) {
         self.token = token
+        self.cause = cause
         self.session = session
         self.pane = pane
         self.kind = kind

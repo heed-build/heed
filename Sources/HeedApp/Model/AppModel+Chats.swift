@@ -3,21 +3,21 @@ import HeedCore
 
 /// Chats: the glue that must live on the model.
 extension AppModel {
-    /// Claude Code asks to trust every new folder, and a scratch chat's folder is new every time. Claude also accepts a
-    /// trusted parent folder outside a git repo, so heed trusts the chats root it owns, once, before the first claude
-    /// chat there (`[worktrees] offer_trust` off leaves it alone). A picked folder is yours to trust. Says so when it
-    /// did.
-    func trustChatsRoot(for plan: StartWorkPlan) async -> String? {
+    /// Claude Code asks to trust every new folder, and a scratch chat's folder is new every time: heed trusts the one
+    /// it just made, before the first claude pane starts in it (`[worktrees] offer_trust` off leaves it alone). Never
+    /// the chats root itself, so a repo cloned there gets the offer like any other; a picked folder is yours to trust.
+    /// Says so when it did.
+    func trustScratchChat(for plan: StartWorkPlan, changes: [DomainChange]) async -> String? {
         guard settings.offerTrust, let chat = plan.chat, chat.kind == .scratch, chat.location.isLocal,
               plan.agent?.name == "claude"
         else { return nil }
+        let folders = changes.compactMap { change -> String? in
+            if case let .sessionUpserted(session) = change { session.chat?.path } else { nil }
+        }
+        guard let folder = folders.first else { return nil }
         let root = Chats.localRoot
-        let trusted = await Task.detached { () -> Bool in
-            if ClaudeTrust.isTrusted(root) { return false }
-            try? FileManager.default.createDirectory(atPath: root, withIntermediateDirectories: true)
-            return (try? ClaudeTrust.trust(root)) != nil
-        }.value
-        return trusted ? "trusted \(Paths.abbreviate(root)) for Claude Code" : nil
+        let trusted = await Task.detached { (try? ClaudeTrust.trustScratchChat(folder, root: root)) ?? false }.value
+        return trusted ? "trusted \(Paths.abbreviate(folder)) for Claude Code" : nil
     }
 
     /// What promoting `chat` hands over, read off the main actor: the claude transcript (and whether `--resume` can

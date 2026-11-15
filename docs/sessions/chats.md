@@ -39,9 +39,10 @@ The Folder field, where Start work has the Worktree field, says where the agent 
 The same field picks where the chat runs: **this Mac** or one of your [hosts](../hosts/index.md). The agent and
 options are the same as for Start work. A chat has no setup step, tasks or worktree files, because it has no repo.
 
-The first time you start a scratch chat with Claude Code, Heed marks the chats folder as trusted in `~/.claude.json`, so
-Claude does not ask about each new scratch folder. Heed made the folder, so this is not a surprise. `[worktrees]
-offer_trust = false` turns this off. A folder you pick is yours to trust.
+When you start a scratch chat with Claude Code, Heed marks the chat's new folder as trusted in `~/.claude.json`, so
+Claude does not ask in it. Heed made the folder, so this is not a surprise. It trusts each chat's own folder, never the
+chats folder itself: a git repository there is offered like any other repo (and trust an earlier Heed gave the chats
+folder is taken back). `[worktrees] offer_trust = false` turns this off. A folder you pick is yours to trust.
 
 ## In a chat
 

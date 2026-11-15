@@ -49,16 +49,43 @@ public enum ClaudeTrust {
         try Data(edited.utf8).write(to: file, options: .atomic)
     }
 
-    /// `source` with `projects[root].hasTrustDialogAccepted` set to true, changed in place: an existing value replaced,
-    /// a missing key, entry or `projects` added at the top of its object in the file's own indentation. Falls back to
-    /// rewriting the whole document only when the text cannot be edited in place.
-    public static func trusting(_ root: String, in source: String) throws -> String {
+    /// Takes back trust heed gave `root` (`hasTrustDialogAccepted` set to false, the rest of the file untouched).
+    /// False when it was not trusted, and the file is left alone.
+    @discardableResult
+    public static func untrust(_ root: String, file: URL = defaultFile()) throws -> Bool {
+        guard isTrusted(root, file: file), let data = try? Data(contentsOf: file) else { return false }
+        let edited = try trusting(root, in: String(decoding: data, as: UTF8.self), value: false)
+        try Data(edited.utf8).write(to: file, options: .atomic)
+        return true
+    }
+
+    /// Trusts a scratch chat's folder that heed just made under `root`, so Claude does not ask in it: that folder
+    /// only, never one that is a git repository (that one is offered like any repo). The chats root itself is not
+    /// trusted, so a repo cloned into it is not trusted along with it; trust heed gave the root before is taken back.
+    /// True when it trusted `path`.
+    public static func trustScratchChat(
+        _ path: String, root: String, file: URL = defaultFile(), home: String = NSHomeDirectory()
+    ) throws -> Bool {
+        let rootPath = URL(fileURLWithPath: root).standardizedFileURL.path
+        if isTrusted(rootPath, file: file) { try untrust(rootPath, file: file) }
+        let folder = URL(fileURLWithPath: path).standardizedFileURL.path
+        guard Chats.isScratch(folder, root: rootPath),
+              !FileManager.default.fileExists(atPath: folder + "/.git"), !isTrusted(folder, file: file)
+        else { return false }
+        try trust(folder, file: file, home: home)
+        return true
+    }
+
+    /// `source` with `projects[root].hasTrustDialogAccepted` set to `value` (true by default), changed in place: an
+    /// existing value replaced, a missing key, entry or `projects` added at the top of its object in the file's own
+    /// indentation. Falls back to rewriting the whole document only when the text cannot be edited in place.
+    public static func trusting(_ root: String, in source: String, value: Bool = true) throws -> String {
         guard let data = source.data(using: .utf8),
               (try? JSONSerialization.jsonObject(with: data)) is [String: Any]
         else { throw TrustError.unreadable("not a JSON object") }
-        if let edited = JSONText.setting(["projects", root, "hasTrustDialogAccepted"], to: "true", in: source),
-           isTrusted(root, json: edited)
-        {
+        if let edited = JSONText.setting(
+            ["projects", root, "hasTrustDialogAccepted"], to: value ? "true" : "false", in: source
+        ), isTrusted(root, json: edited) == value {
             return edited
         }
         // Rewritten whole: keys in sorted order, but still valid and with everything in it.
@@ -67,7 +94,7 @@ public enum ClaudeTrust {
         }
         var projects = object["projects"] as? [String: Any] ?? [:]
         var entry = projects[root] as? [String: Any] ?? [:]
-        entry["hasTrustDialogAccepted"] = true
+        entry["hasTrustDialogAccepted"] = value
         projects[root] = entry
         object["projects"] = projects
         let out = try JSONSerialization.data(

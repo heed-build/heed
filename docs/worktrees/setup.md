@@ -83,6 +83,11 @@ first time, as `~/.claude.json.heed-backup`). Your home folder is never trusted 
 A repo whose mise config sets `[env]` is not loaded until mise trusts it; the same offer, for any agent, runs
 `mise trust` for its main checkout, which covers its worktrees too.
 
+The offer says what trusting turns on, read from the repo: the hooks in its `.claude/settings.json` (with their
+commands, and its status line or key helper command) and the MCP servers there and in `.mcp.json`, for Claude; the
+variables mise's `[env]` sets (by name, never their values), the files `_.source`, `_.file` and `_.path` name, a value
+that runs a command, and mise's `[hooks]`. A file heed cannot read is named, to look at before you trust.
+
 ```toml
 [worktrees]
 offer_trust = true      # false: never offer

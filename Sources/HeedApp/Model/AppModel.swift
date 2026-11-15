@@ -3798,6 +3798,8 @@ final class AppModel {
         var record: RepoRecord
         var claude: Bool
         var mise: Bool
+        /// What trusting turns on, read off the main actor.
+        var preview = TrustPreview()
     }
 
     /// Repos whose trust was offered already, by main checkout path.
@@ -3814,7 +3816,9 @@ final class AppModel {
         let claude = plan.agent?.name == "claude"
             ? await Task.detached { !ClaudeTrust.isTrusted(path) }.value : false
         let mise = await MiseTrust.needsTrust(path)
-        return claude || mise ? TrustOffer(record: record, claude: claude, mise: mise) : nil
+        guard claude || mise else { return nil }
+        let preview = await Task.detached { TrustPreview.read(root: path, claude: claude, mise: mise) }.value
+        return TrustOffer(record: record, claude: claude, mise: mise, preview: preview)
     }
 
     /// Asks once; `then` runs whatever the answer.
@@ -3824,8 +3828,13 @@ final class AppModel {
         if offer.claude {
             lines.append("Claude Code will otherwise ask in every new worktree")
             lines.append("Sets hasTrustDialogAccepted for \(Paths.abbreviate(offer.record.path)) in ~/.claude.json")
+            lines += offer.preview.claudeLines
         }
-        if offer.mise { lines.append("mise trust for its config, which sets [env]") }
+        if offer.mise {
+            lines.append("mise trust for its config, which sets [env]")
+            lines += offer.preview.miseLines
+        }
+        if let unreadable = offer.preview.unreadableLine { lines.append(unreadable) }
         lines.append("Asked once per repo; [worktrees] offer_trust = false stops asking")
         let path = offer.record.path
         trustOffered.insert(path)
@@ -7527,10 +7536,10 @@ final class AppModel {
                     flash = "setting up @\(host)…"
                     try await HostSetup.install(on: host, files: hostFiles)
                 }
-                let trusted = await trustChatsRoot(for: plan)
                 // A persona's session or chat goes on its goal first, so it launches told about the goal.
                 let plan = await withAttachments(preparePersonaLaunch(plan))
                 let changes = try await StartWork.execute(plan, settings: self.settings, hosts: hosts)
+                let trusted = await trustScratchChat(for: plan, changes: changes)
                 for case let .layoutChanged(_, layout) in changes {
                     for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
                         TerminalSurfaces.shared.autostartPanes.insert(pane.id)

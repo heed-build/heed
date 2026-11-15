@@ -53,7 +53,9 @@ heed makes a cause where it starts something, and the work carries it:
 | PR event | Feedback heed sent on its own when it arrived on a PR |
 | Session | The session or run the action happened in, and the prompt heed gave its agent |
 
-Agents' panes carry their cause in `HEED_CAUSE`, so their hooks name it with each tool call.
+Agents' panes carry their cause in `HEED_CAUSE`, so their hooks name it with each tool call. When heed told Claude's
+auto mode where a tool result came from ([Hooks](../agents/hooks.md#where-a-tool-result-came-from)), that note is a step
+of its own in the chain, "Told auto mode: …", above what the agent in that pane does next.
 
 The detail shows:
 

@@ -1,0 +1,9 @@
+# heed's intro sting (about 1.5 s): the owl in its pill, typing its name. Recorded once into intro.mov, which
+# heed.reelpreset uses as every film's intro. Re-record with: mise run reels brand/intro
+Open intro.html
+Output intro.mov
+# Chromium, not WebKit: reel's WebKit capture does not advance CSS animations. A tiling window manager must let it float.
+Set Browser chromium
+Set Viewport 1280x720
+Set Cursor off
+Sleep 1.3s

@@ -70,6 +70,11 @@ printf '%s\n' "$out" | grep -q '^tutor-check: [0-9][0-9]* problems*$' \
   || { echo "tutor-check did not run: no summary line" >&2; exit 1; }
 """
 
+[tasks.reels]
+description = "Record heed's films (docs/reels/*.reel) with reel on a throwaway world: every one, or the names given (hero, brand/intro)"
+depends = ["bundle"]
+run = "scripts/reels.sh"
+
 [tasks.deploy]
 description = "Copy build/Heed.app to HEED_DEPLOY_DIR (set it in mise.local.toml)"
 run = "scripts/deploy.sh"

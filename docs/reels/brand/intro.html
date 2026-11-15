@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>heed intro</title>
+<style>
+@font-face{font-family:"JetBrains Mono";font-weight:400;src:url(../../fonts/jetbrains-mono-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-weight:700;src:url(../../fonts/jetbrains-mono-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Bricolage Grotesque";font-weight:200 800;src:url(../../fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2")}
+html,body{margin:0;height:100%;background:#0e0f11}
+:root{--ink:#0e0f11;--line:#2a2e33;--iv:#dfe3e8;--fg:#eceef0;--fg2:#aab0b8;--fg3:#8a919a;--amber:#f0a53a;--amb2:#ffe19a}
+body{display:flex;align-items:center;justify-content:center;flex-direction:column;overflow:hidden;color:var(--fg);
+ background:radial-gradient(60% 45% at 80% 0%,rgba(240,165,58,.10),transparent 70%),#0e0f11;
+ font:17px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+h1{font-family:"Bricolage Grotesque",-apple-system,sans-serif;font-weight:800;letter-spacing:-.025em;line-height:1.1;margin:0;text-align:center}
+.ao{overflow:visible}
+.ao .lid{transform-box:fill-box;transform-origin:50% 0;transform:scaleY(0)}
+.ao .glow{opacity:.55}
+.ao .breathe{transform-origin:32px 55px}
+.ao .tilt{transform-origin:32px 56px}
+.ao .look,.ao .pup{transform-box:fill-box;transform-origin:center}
+@keyframes blink{0%,91%,100%{transform:scaleY(0)}94%,96%{transform:scaleY(1)}}
+@keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.02,.985)}}
+@keyframes scan{0%,100%{transform:translateX(-2.6px)}50%{transform:translateX(2.6px)}}
+@keyframes tilt{0%,30%,100%{transform:rotate(0)}48%,84%{transform:rotate(-9deg)}}
+@keyframes up{0%,30%,100%{transform:translate(0,0)}48%,84%{transform:translate(-1px,-2px)}}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+@keyframes wide{0%,100%{transform:scale(1)}50%{transform:scale(1.16)}}
+@keyframes zf{0%{opacity:0;transform:translate(0,4px)}30%{opacity:1}100%{opacity:0;transform:translate(-3px,-6px)}}
+@keyframes pblink{0%,90%,100%{transform:scaleY(1)}93%,96%{transform:scaleY(.08)}}
+@keyframes sway{0%,100%{transform:rotate(-2.5deg)}50%{transform:rotate(3deg)}}
+@keyframes glance{0%,20%{transform:translateX(0)}30%,55%{transform:translateX(-1.6px)}65%,85%{transform:translateX(1.6px)}100%{transform:translateX(0)}}
+.ao.hd .breathe,.ao.hd .tilt{transform-origin:32px 42px}
+.ao.idle .lid{animation:blink 4.2s infinite}
+.ao.idle .breathe,.ao.sleeping .breathe,.ao.full .breathe{animation:breathe 4s ease-in-out infinite}
+.ao.working .look{animation:scan 1.7s ease-in-out infinite}
+.ao.working .lid{animation:blink 5s infinite}
+.ao.asking .tilt{animation:tilt 3.6s ease-in-out infinite}
+.ao.asking .look{animation:up 3.6s ease-in-out infinite}
+.ao.asking .lid{animation:blink 5s 1s infinite}
+.ao.blocked .glow{animation:pulse 1.2s ease-in-out infinite}
+.ao.blocked .look{animation:wide 1.2s ease-in-out infinite}
+.ao.sleeping .lid{transform:scaleY(1)}
+.ao.sleeping .glow{opacity:0}
+.ao.sleeping .breathe{animation-duration:5.5s}
+.ao.sleeping .z{animation:zf 3s ease-out infinite;transform-box:fill-box}
+.ao.sleeping .z2{animation-delay:1.4s}
+.ao.full .look{animation:glance 6s ease-in-out infinite}
+.ao.full .pup{animation:pblink 4.6s infinite}
+.ao.full .twig{transform-box:view-box;transform-origin:46px 55.2px;animation:sway 3.6s ease-in-out infinite}
+.ao.full .glow{animation:pulse 4s ease-in-out infinite;opacity:.4}
+@keyframes caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+@keyframes typ{0%{width:0;animation-timing-function:steps(4,end)}28%,100%{width:4ch}}
+.tw{display:flex;align-items:flex-end;font:700 64px/1 "JetBrains Mono",ui-monospace,Menlo,monospace;letter-spacing:-.02em}
+.tw .ty{display:block;overflow:hidden;white-space:nowrap}
+.tw.type .ty{animation:typ 7s infinite}
+.tw.type .ty{width:4ch}
+.tw .cr{display:block;width:.09em;height:.8em;margin-left:.07em;background:var(--cur);animation:caret 1.1s steps(1) infinite}
+.stc{display:flex;flex-direction:column;align-items:center;gap:10px}
+.stc .ti{width:190px;height:190px;border-radius:22.5%;display:flex;align-items:center;justify-content:center}
+.gl{display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px}
+@media (prefers-reduced-motion:reduce){.ao *,.ao,.tw *{animation:none!important}}
+
+@keyframes syncLook{0%{transform:translateX(1.7px)}27%{transform:translateX(1.7px)}33%{transform:translateX(0)}62%{transform:translateX(0)}68%{transform:translateX(-1.3px)}78%{transform:translateX(-1.3px)}84%,100%{transform:translateX(0)}}
+.ao.full.sync .look{animation:syncLook 7s ease-in-out infinite}
+.hpill{display:inline-flex;align-items:center;gap:.06em;vertical-align:middle;padding:.04em .36em .08em .1em;border-radius:999px;border:1.5px solid rgba(240,165,58,.5);background:rgba(240,165,58,.09);animation:breatheGlow 4.2s ease-in-out infinite;margin:0 .04em;position:relative;top:-.04em}
+.hpill svg.ao{width:1.02em;height:1.02em;flex:none}
+.hpill .tw{font-size:.74em!important;padding-bottom:0!important;color:var(--amber)!important;--cur:#f0a53a}
+.hpill .tw.type .ty{animation:typOnce 1.1s steps(4,end) .5s both!important;width:4ch}
+.hpill .tw .cr{height:.7em}
+@keyframes typOnce{from{width:0}to{width:4ch}}
+@keyframes breatheGlow{0%,100%{box-shadow:0 0 0 0 rgba(240,165,58,0),0 0 22px rgba(240,165,58,.10)}50%{box-shadow:0 0 0 7px rgba(240,165,58,.05),0 0 44px rgba(240,165,58,.30)}}
+.cr{--cur:#f0a53a}
+.tw{color:var(--iv)}
+
+.scene{display:flex;flex-direction:column;align-items:center;animation:in .45s cubic-bezier(.2,.8,.2,1) .05s both}
+@keyframes in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+.hpill{font-size:150px}
+.hpill .tw.type .ty{animation:typOnce .55s steps(4,end) .45s both!important}
+</style></head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="gSd" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="64"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#b4bac3"/></linearGradient><radialGradient id="rGd"><stop offset="0" stop-color="#ffb23a" stop-opacity=".55"/><stop offset="1" stop-color="#ffb23a" stop-opacity="0"/></radialGradient><radialGradient id="rId" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#ffeeb8"/><stop offset=".55" stop-color="#f0a53a"/><stop offset="1" stop-color="#b8710c"/></radialGradient><linearGradient id="gAd" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="64"><stop offset="0" stop-color="#ffe19a"/><stop offset="1" stop-color="#f0a53a"/></linearGradient></defs></svg>
+<div class="scene"><span class="hpill"><svg class="ao full sync" width="46" height="46" viewBox="0 0 64 64" aria-hidden="true"><g class="breathe"><path d="M16 6L24.5 12.5Q32 9.5 39.5 12.5L48 6L50 19C54 24 54 31 50 35C54 41 52 50 46 52L18 52C12 50 10 41 14 35C10 31 10 24 14 19Z" fill="rgba(255,255,255,.07)"/><path d="M16 6L24.5 12.5Q32 9.5 39.5 12.5L48 6L50 19C54 24 54 31 50 35C54 41 52 50 46 52L18 52C12 50 10 41 14 35C10 31 10 24 14 19Z" fill="none" stroke="url(#gSd)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 36Q17 46 22 49M46 36Q47 46 42 49" fill="none" stroke="url(#gSd)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/><path d="M26.5 41L29.5 44L32 41L34.5 44L37.5 41" fill="none" stroke="url(#gSd)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".55"/><circle class="glow" cx="25" cy="22.5" r="12" fill="url(#rGd)"/><circle cx="25" cy="22.5" r="6.4" fill="none" stroke="url(#gSd)" stroke-width="2.2"/><g class="look"><g class="pup"><circle cx="25" cy="22.5" r="4.4" fill="url(#rId)"/><circle cx="25" cy="22.5" r="1.9" fill="#0f1114"/><circle cx="26.3" cy="21" r=".9" fill="#fff"/></g></g><circle class="glow" cx="39" cy="22.5" r="12" fill="url(#rGd)"/><circle cx="39" cy="22.5" r="6.4" fill="none" stroke="url(#gSd)" stroke-width="2.2"/><g class="look"><g class="pup"><circle cx="39" cy="22.5" r="4.4" fill="url(#rId)"/><circle cx="39" cy="22.5" r="1.9" fill="#0f1114"/><circle cx="40.3" cy="21" r=".9" fill="#fff"/></g></g><polygon points="29.5,28.5 34.5,28.5 32,33.5" fill="url(#gAd)"/><path d="M24 52V55M28.5 52V55.5M35.5 52V55.5M40 52V55" fill="none" stroke="url(#gSd)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><path d="M3 57L61 54" fill="none" stroke="url(#gSd)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><g class="twig"><path d="M46 55.2L53 47.5" fill="none" stroke="url(#gSd)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M53 47.5C55 44 59 43.5 60.5 44.5C60 48 57 50 53 47.5Z" fill="url(#gAd)" opacity=".9"/></g></svg><div class="tw type"><span class="ty">heed</span><i class="cr"></i></div></span></div>
+</body></html>

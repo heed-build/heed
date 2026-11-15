@@ -119,6 +119,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await exit(TutorCheck.run()) }
             return
         }
+        if WorldSeed.requested {
+            NSApp.setActivationPolicy(.accessory)
+            Task { await exit(WorldSeed.run()) }
+            return
+        }
         if ShotRunner.requested {
             NSApp.setActivationPolicy(.accessory)
             Task {

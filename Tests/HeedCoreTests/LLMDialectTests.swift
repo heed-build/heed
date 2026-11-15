@@ -171,6 +171,37 @@ struct LLMDialectTests {
         #expect(!invocation.arguments.contains("--bare"))
     }
 
+    @Test func eachTierNamesItsModelPerAgent() {
+        // claude: aliases; every other agent's standard and strong are its own default (nil), cheap is detected.
+        #expect(LLMTier.cheap.model(for: .claude) == "haiku")
+        #expect(LLMTier.standard.model(for: .claude) == "sonnet")
+        #expect(LLMTier.strong.model(for: .claude) == "opus")
+        #expect(LLMTier.cheap.model(for: .gemini) == "flash-lite")
+        for dialect in LLMDialect.allCases where dialect != .claude {
+            #expect(LLMTier.standard.model(for: dialect) == nil, "\(dialect) standard")
+            #expect(LLMTier.strong.model(for: dialect) == nil, "\(dialect) strong")
+        }
+        #expect(LLMTier.strong.model(agent: "claude") == "opus")
+        #expect(LLMTier.strong.model(agent: "codex") == nil)
+        #expect(LLMTier.standard.model(agent: "my-agent") == nil)
+        #expect(PlanTalk.strongest(agent: "claude") == LLMTier.strong.model(agent: "claude"))
+    }
+
+    @Test func aTierGoesToTheCLIAsItsModel() {
+        let call = LLMCall(system: "S", prompt: "P")
+        for tier in LLMTier.allCases {
+            let model = tier.model(for: .claude)
+            let arguments = LLMDialect.claude.invocation(call, model: model, scratch: "/tmp/x", tier: tier).arguments
+            #expect(arguments.contains("--model"))
+            #expect(arguments[arguments.firstIndex(of: "--model")! + 1] == model)
+        }
+        // codex: the cheap calls keep reasoning low; a higher tier lifts it, and names no model it does not know.
+        let cheap = LLMDialect.codex.invocation(call, model: "small", scratch: "/tmp/x").arguments
+        #expect(cheap.contains("model_reasoning_effort=\"low\"") && cheap.contains("small"))
+        let standard = LLMDialect.codex.invocation(call, model: nil, scratch: "/tmp/x", tier: .standard).arguments
+        #expect(standard.contains("model_reasoning_effort=\"medium\"") && !standard.contains("-m"))
+    }
+
     @Test func codexWritesItsSchemaToAFile() {
         let call = LLMCall(system: "S", prompt: "P", schema: "{}")
         let invocation = LLMDialect.codex.invocation(call, model: nil, scratch: "/tmp/x")

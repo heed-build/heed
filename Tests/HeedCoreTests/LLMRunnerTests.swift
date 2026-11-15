@@ -354,6 +354,47 @@ struct LLMRunnerTests {
         #expect(LLMRunner.key(LLMCall(system: "ab", prompt: "")) != LLMRunner.key(LLMCall(system: "a", prompt: "b")))
     }
 
+    @Test func theCacheKeyIncludesTheTier() {
+        let call = LLMCall(system: "a", prompt: "b")
+        #expect(LLMRunner.key(call, tier: .cheap) == LLMRunner.key(call))
+        #expect(LLMRunner.key(call, tier: .cheap) != LLMRunner.key(call, tier: .standard))
+        #expect(LLMRunner.key(call, tier: .standard) != LLMRunner.key(call, tier: .strong))
+    }
+
+    @Test func theSameCallAtAnotherTierIsNotAnsweredFromTheCache() async throws {
+        let fake = try FakeCLI()
+        let runner = runner([fake.agent("claude")])
+        var standard = ask("same", cached: true)
+        standard.tier = .standard
+        _ = try await runner.run(ask("same", cached: true))
+        _ = try await runner.run(standard)
+        let again = try await runner.run(standard)
+        #expect(fake.calls == ["same", "same"])
+        #expect(again.fromCache)
+    }
+
+    @Test func aTierPicksTheModelAndTheCallLogSaysWhat() async throws {
+        let fakes = try [FakeCLI(), FakeCLI()]
+        let log = try log()
+        let claude = runner([fakes[0].agent("claude")])
+        var request = ask("q")
+        for (tier, model) in [(LLMTier.cheap, "haiku"), (.standard, "sonnet"), (.strong, "opus")] {
+            request.tier = tier
+            _ = try await CallLog.$current.withValue(log) { try await claude.run(request) }
+            let row = try #require(try await rows(log).first { $0.detail["tier"]?.hasPrefix(tier.rawValue) == true })
+            #expect(row.command.contains("--model \(model)"))
+            #expect(row.detail["tier"] == "\(tier.rawValue): \(model)")
+        }
+        // codex has no standard model heed knows: its own default, and the log says so.
+        let codex = runner([fakes[1].agent("codex")])
+        request.tier = .standard
+        _ = try await CallLog.$current.withValue(log) { try await codex.run(request) }
+        let row = try #require(try await rows(log)
+            .first { $0.agent == "codex" && $0.detail["tier"]?.hasPrefix("standard") == true })
+        #expect(!row.command.contains(" -m "))
+        #expect(row.detail["tier"] == "standard: no standard model known for codex, its own default")
+    }
+
     // MARK: The daily cap
 
     @Test func backgroundCallsStopAtTheDailyCallCapUntilTomorrow() async throws {

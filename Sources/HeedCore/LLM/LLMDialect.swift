@@ -227,7 +227,10 @@ public enum LLMDialect: String, Sendable, CaseIterable {
     }
 
     /// The headless call in `scratch` (an empty temporary directory): tools off, nothing saved, `model` when given.
-    public func invocation(_ call: LLMCall, model: String?, scratch: String) -> Invocation {
+    /// A tier above `cheap` also lifts codex's reasoning effort, which the cheap calls keep low.
+    public func invocation(
+        _ call: LLMCall, model: String?, scratch: String, tier: LLMTier = .cheap
+    ) -> Invocation {
         let model = model.flatMap { $0.isEmpty ? nil : $0 }
         switch self {
         case .claude:
@@ -243,7 +246,7 @@ public enum LLMDialect: String, Sendable, CaseIterable {
         case .codex:
             var arguments = [
                 "exec", "--json", "--ephemeral", "-s", "read-only", "--skip-git-repo-check", "-C", scratch,
-                "-c", "model_reasoning_effort=\"low\"",
+                "-c", "model_reasoning_effort=\"\(tier == .cheap ? "low" : "medium")\"",
             ]
             if let model { arguments += ["-m", model] }
             var files: [String: String] = [:]

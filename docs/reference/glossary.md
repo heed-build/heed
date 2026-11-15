@@ -56,4 +56,5 @@ Each term means one thing, everywhere in the docs. The page that explains a term
 | Term | Meaning |
 |---|---|
 | **Decider (System 1)** | The fast, small model that makes heed's quick calls (which repo, which branch, what next): Apple's on-device model, Hunch, or a model call. [Inference and decisions](../configuration/inference.md) |
+| **Model tier** | How much model a heed call is worth: cheap (haiku for claude, the default), standard (sonnet) or strong (opus). The session panel's `look_model` picks one. [Model tiers](../agents/model-calls.md#model-tiers) |
 | **Hunch** | A small model on your Mac that learns from your corrections. [Inference and decisions](../configuration/inference.md#hunch) |

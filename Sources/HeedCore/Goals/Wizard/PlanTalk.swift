@@ -28,10 +28,7 @@ public struct PlanReply: Hashable, Sendable {
 public enum PlanTalk {
     /// The strongest model to ask for, by agent; nil leaves the agent's own default (codex's is its strongest).
     public static func strongest(agent: String) -> String? {
-        switch agent {
-        case "claude": "opus"
-        default: nil
-        }
+        LLMTier.strong.model(agent: agent)
     }
 
     /// The folders a turn reads: the goal's sessions' worktrees first, then the main checkout of each repo the ask
@@ -148,7 +145,9 @@ public enum PlanTalk {
 
     /// The command line for one turn: the agent headless and read-only in `repos[0]`, the other repos added, the prompt
     /// on stdin. Nil for an agent heed cannot run this way (the turn then says so).
-    public static func invocation(agent: String, command: String, model: String?, repos: [String]) -> [String]? {
+    public static func invocation(
+        agent: String, command: String, model: String?, repos: [String], system: String = PlanTalk.system
+    ) -> [String]? {
         let words = command.split(separator: " ").map(String.init)
         guard let executable = words.first else { return nil }
         let extra = repos.dropFirst()
@@ -180,7 +179,7 @@ public enum PlanTalk {
     }
 
     /// What goes on stdin: codex has no system prompt flag, so ours goes in front.
-    public static func stdin(agent: String, prompt: String) -> String {
+    public static func stdin(agent: String, prompt: String, system: String = PlanTalk.system) -> String {
         agent == "claude" ? prompt : system + "\n\n---\n\n" + prompt
     }
 
@@ -240,24 +239,39 @@ public struct PlanTalker: Sendable {
         }
     }
 
-    public func turn(
-        title: String, statement: String, conversation: PlanConversation, repos: [String]
-    ) async throws -> PlanTurnResult {
-        guard let arguments = PlanTalk.invocation(agent: agent, command: command, model: model, repos: repos) else {
-            throw Failure.unsupported(agent)
+    /// What one headless read-only run answered: the text, the model that ran and what it cost (read from the agent's
+    /// own report, else estimated from `[usage.prices]`).
+    public struct Answer: Equatable, Sendable {
+        public var text: String
+        public var model: String?
+        public var dollars: Double?
+        public var estimated: Bool
+
+        public init(text: String, model: String? = nil, dollars: Double? = nil, estimated: Bool = false) {
+            self.text = text
+            self.model = model
+            self.dollars = dollars
+            self.estimated = estimated
         }
-        let weakest = conversation.completeness.map { $0.weakest.gap }
-        let prompt = PlanTalk.prompt(
-            title: title, statement: statement, turns: conversation.turns, plan: conversation.current, repos: repos,
-            weakest: weakest
-        )
+    }
+
+    /// Whether this agent can run headless and read-only here (claude and codex).
+    public var canRead: Bool {
+        PlanTalk.invocation(agent: agent, command: command, model: model, repos: []) != nil
+    }
+
+    /// One run of the agent, headless and read-only in `repos` (the first is its working directory), with `system` as
+    /// its instructions and `prompt` on stdin. The run every feature that needs a model to read the code shares: the
+    /// goal wizard's planner, and the session panel's strong look.
+    public func read(system: String, prompt: String, repos: [String]) async throws -> Answer {
+        guard let arguments = PlanTalk.invocation(
+            agent: agent, command: command, model: model, repos: repos, system: system
+        ) else { throw Failure.unsupported(agent) }
         let stdout = try await exec(
-            arguments, PlanTalk.stdin(agent: agent, prompt: prompt), repos.first ?? NSTemporaryDirectory()
+            arguments, PlanTalk.stdin(agent: agent, prompt: prompt, system: system),
+            repos.first ?? NSTemporaryDirectory()
         )
         let output = try PlanTalk.output(agent: agent, stdout: stdout)
-        guard let reply = PlanTalk.parse(output.text, fallbackTitle: conversation.current?.title ?? title) else {
-            throw Failure.unreadable(output.text)
-        }
         let usedModel = output.model ?? model
         var dollars = output.cost
         var estimated = false
@@ -265,9 +279,26 @@ public struct PlanTalker: Sendable {
             dollars = prices.estimate(AgentUsage(model: usedModel, tokens: tokens))
             estimated = dollars != nil
         }
+        return Answer(text: output.text, model: usedModel, dollars: dollars, estimated: estimated)
+    }
+
+    public func turn(
+        title: String, statement: String, conversation: PlanConversation, repos: [String]
+    ) async throws -> PlanTurnResult {
+        let weakest = conversation.completeness.map { $0.weakest.gap }
+        let prompt = PlanTalk.prompt(
+            title: title, statement: statement, turns: conversation.turns, plan: conversation.current, repos: repos,
+            weakest: weakest
+        )
+        let answer = try await read(system: PlanTalk.system, prompt: prompt, repos: repos)
+        guard let reply = PlanTalk.parse(answer.text, fallbackTitle: conversation.current?.title ?? title) else {
+            throw Failure.unreadable(answer.text)
+        }
         return PlanTurnResult(
             reply: reply,
-            cost: WizardCost(step: .plan, agent: agent, model: usedModel, dollars: dollars, estimated: estimated)
+            cost: WizardCost(
+                step: .plan, agent: agent, model: answer.model, dollars: answer.dollars, estimated: answer.estimated
+            )
         )
     }
 }

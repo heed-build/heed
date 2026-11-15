@@ -32,6 +32,10 @@ run = "open $BUILD_DIR/Heed.app"
 description = "Swift Testing suite"
 run = "swift test --quiet"
 
+[tasks.text-check]
+description = "Fail when other people's text or a Prompt is interpolated into a plain String (rebuilds heed's sources; CI runs it)"
+run = "scripts/text-check.sh"
+
 [tasks.live]
 description = "The live checks: heed's helper, approvals, OpenTelemetry and the goal wizard against real Claude Code on haiku (calls a model)"
 run = "swift build --product heed && HEED_LIVE=1 swift test --filter HeedCoreTests.Live"

@@ -23,6 +23,9 @@
   them; turn what they capture into a scrubbed fixture under `Fixtures/live` when the agents change.
 - `mise run test` and `mise run lint` before committing. Core logic goes in `HeedCore` with tests; the app layer
   stays thin.
+- Text other people wrote (PR and issue text, comments, checks) is `ExternalText`, and what leaves heed for an agent
+  is a `Prompt` (`Sources/HeedCore/Domain/Prompt.swift`). `mise run text-check` (CI runs it) fails when either is
+  interpolated into a plain String; run it after changing a prompt.
 - Never block the main actor: no `Process.waitUntilExit`, file or network IO on it.
 - All libghostty calls live in `Sources/HeedTerminal`.
 - Keys: add a command to `Commands.all`, bind it in `DefaultKeys`, handle it in `AppModel.perform`. Never handle a key

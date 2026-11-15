@@ -35,6 +35,10 @@ jobs:
       - name: Test
         run: mise run test
 
+      # Rebuilds heed's own sources to see every warning again: other people's text in a plain String fails here.
+      - name: Text check
+        run: mise run text-check
+
       # main's .build, for the next run to build on (see the setup action); pull requests only read it.
       - name: Save .build
         if: github.ref == 'refs/heads/main'

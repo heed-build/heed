@@ -87,6 +87,15 @@ struct StartWorkTests {
         let none = BranchPrefixes(prefixes: ["fix": ["fix"]], defaultPrefix: "")
         #expect(StartWork
             .branchName(for: "Sequence diagram arrowheads", prefixes: none) == "sequence-diagram-arrowheads")
+        // Dots alone, or at a word's ends, never start the name with `-`.
+        #expect(StartWork.branchName(for: "... tidy the .env loader.", prefixes: none) == "tidy-env-loader")
+        #expect(StartWork.branchName(for: "... tidy", prefixes: none) == "tidy")
+        // References go, and a very long word is read once.
+        #expect(StartWork.branchName(for: "Fix acme/docs#12 and #7 anchors") == "fix/anchors")
+        let started = Date()
+        #expect(StartWork.branchName(for: String(repeating: "x", count: 200_000) + "#a fix", prefixes: none)
+            .hasPrefix("xxxx"))
+        #expect(Date().timeIntervalSince(started) < 5)
         #expect(WorkSettings(worktreeRoot: "/wt")
             .worktreePath(repo: Repo(org: "o", name: "r"), name: "fix/a-b") == "/wt/r/fix-a-b")
     }

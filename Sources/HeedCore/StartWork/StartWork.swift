@@ -372,6 +372,9 @@ public enum StartWork {
                 }
                 return String(word).replacingOccurrences(of: ".", with: "-")
             }
+            // A word of dots (`...`), or one starting or ending in one (`.env`), keeps its letters and digits: a name
+            // never starts with `-`, which git would read as an option.
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "-")) }
             .filter { !$0.isEmpty && !stopWords.contains($0) }
     }
 
@@ -380,9 +383,11 @@ public enum StartWork {
     /// Repos ranked for a prompt: named in it (strongest), words in common with the repo name, where recent sessions
     /// ran, and how many worktrees each already has (the repos you work in most). Every guess says why.
     /// Links and `org/repo#12` references point at an issue or PR, not at where the work happens: they do not count.
+    /// A reference starts where a run of name characters does (or at its `#`), so a long run with no `#` in it is
+    /// read once rather than once from each of its characters.
     static func referencesRemoved(_ text: String) -> String {
         text.replacingOccurrences(of: #"https?://\S+"#, with: " ", options: .regularExpression)
-            .replacingOccurrences(of: #"[\w.\-/]*#\d+"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"(?<![\w.\-/])[\w.\-/]*+#\d+|#\d+"#, with: " ", options: .regularExpression)
     }
 
     /// "just now", "2 hours ago": how long before `now` (a date after it counts as now).

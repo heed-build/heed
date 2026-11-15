@@ -42,7 +42,9 @@ works as before.
 
 - In an empty temporary directory, removed afterwards, with the agent's tools off and its session not saved
   (claude: `--tools "" --no-session-persistence --setting-sources ""`, and a short `--system-prompt` of Heed's own;
-  codex: `--ephemeral -s read-only`; pi: `--no-session --no-tools`).
+  codex: `--ephemeral -s read-only`; pi: `--no-session --no-tools`; cursor: `--mode ask`; gemini: `--approval-mode
+  plan` and a policy file of Heed's that denies every tool; opencode: an `opencode.json` in that directory that denies
+  every permission). gemini and opencode get the text on stdin, not on their command line.
 - By the agent's executable as Heed found it, the first word of its `command`, without your shell: an alias or a shell
   function of that name does not apply here (in panes it does). When detection does not find it, set
   `[tools] path` or the agent's `command` to where it is.

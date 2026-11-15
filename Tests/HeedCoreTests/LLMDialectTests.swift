@@ -187,7 +187,40 @@ struct LLMDialectTests {
         #expect(system.hasPrefix("S\n\n") && system.contains(#"{"type":"object"}"#))
         #expect(pi.arguments.contains("--no-session") && pi.arguments.contains("--no-tools"))
         let opencode = LLMDialect.opencode.invocation(call, model: nil, scratch: "/tmp/x")
-        #expect(opencode.arguments.last?.hasSuffix("---\n\nP") == true && opencode.stdin == nil)
+        #expect(opencode.stdin?.hasSuffix("---\n\nP") == true)
+    }
+
+    @Test func everyCallRunsWithoutTools() throws {
+        let call = LLMCall(system: "S", prompt: "P")
+        let claude = LLMDialect.claude.invocation(call, model: nil, scratch: "/tmp/x").arguments
+        #expect(claude[claude.firstIndex(of: "--tools")! + 1] == "")
+        let codex = LLMDialect.codex.invocation(call, model: nil, scratch: "/tmp/x").arguments
+        #expect(codex[codex.firstIndex(of: "-s")! + 1] == "read-only")
+        #expect(LLMDialect.pi.invocation(call, model: nil, scratch: "/tmp/x").arguments.contains("--no-tools"))
+        let cursor = LLMDialect.cursor.invocation(call, model: nil, scratch: "/tmp/x").arguments
+        #expect(cursor[cursor.firstIndex(of: "--mode")! + 1] == "ask")
+
+        // gemini: plan mode, and a policy of heed's that denies every tool; the input on stdin, not on the command line.
+        let gemini = LLMDialect.gemini.invocation(call, model: "flash-lite", scratch: "/tmp/x")
+        let mode = try #require(gemini.arguments.firstIndex(of: "--approval-mode"))
+        #expect(gemini.arguments[mode + 1] == "plan")
+        let policy = try #require(gemini.arguments.firstIndex(of: "--policy").map { gemini.arguments[$0 + 1] })
+        #expect(policy == "/tmp/x/heed-no-tools.toml")
+        let rule = try #require(gemini.files["heed-no-tools.toml"])
+        #expect(rule.contains(#"toolName = "*""#) && rule.contains(#"decision = "deny""#))
+        #expect(!gemini.arguments.contains("-p") && !gemini.arguments.contains { $0.contains("P") && $0 != "plan" })
+        #expect(gemini.stdin == "S\n\n---\n\nP")
+
+        // opencode: its scratch folder's config denies every permission; the input on stdin.
+        let opencode = LLMDialect.opencode.invocation(call, model: nil, scratch: "/tmp/x")
+        let config = try #require(opencode.files["opencode.json"])
+        let permission = try #require(
+            (JSONSerialization
+                .jsonObject(with: Data(config.utf8)) as? [String: Any])?["permission"] as? [String: String]
+        )
+        #expect(permission == ["*": "deny"])
+        #expect(opencode.arguments == ["run", "--format", "json", "--dir", "/tmp/x"])
+        #expect(opencode.stdin == "S\n\n---\n\nP")
     }
 
     @Test func rateLimitMessagesAreRecognised() {

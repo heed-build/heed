@@ -56,7 +56,8 @@ public struct LLMOutputError: Error, Equatable, Sendable, CustomStringConvertibl
 
 /// How heed calls one agent CLI headless: its free login check, how to find a cheap model, the call's arguments, and
 /// how to read its output. Flags checked against each CLI's `--help` on 2026-10-22 (claude 2.1, codex 0.163, pi 1.3,
-/// opencode 1.19); gemini and cursor-agent were not installed, so theirs follow their docs and are untested.
+/// opencode 1.19); gemini's against its 0.68 package source on 2026-11-15; cursor-agent was not installed, so its
+/// follow its docs and are untested. Every call runs with its tools off, or read only where a CLI cannot turn them off.
 public enum LLMDialect: String, Sendable, CaseIterable {
     case claude, codex, gemini, opencode, pi, cursor
 
@@ -253,13 +254,22 @@ public enum LLMDialect: String, Sendable, CaseIterable {
             let prompt = call.system + "\n\n---\n\n" + call.prompt
             return Invocation(arguments: arguments + ["-"], stdin: prompt, files: files)
         case .gemini:
-            var arguments = ["-o", "json"]
+            // gemini has no flag that turns tools off: plan mode is read only, and a policy of heed's own (on the
+            // user tier, which replaces the user's policy files for this call) denies every tool, MCP ones too.
+            // Headless (stdin is not a terminal), it reads the input from stdin.
+            var arguments = ["-o", "json", "--approval-mode", "plan", "--policy", "\(scratch)/\(Self.geminiPolicyFile)"]
             if let model { arguments += ["-m", model] }
-            return Invocation(arguments: arguments + ["-p", call.combined], stdin: nil)
+            return Invocation(
+                arguments: arguments, stdin: call.combined, files: [Self.geminiPolicyFile: Self.geminiPolicy]
+            )
         case .opencode:
+            // opencode has no flag either: the scratch folder's own opencode.json denies every permission, which
+            // turns every tool off (checked with `opencode debug agent build` there). `run` reads the input from stdin.
             var arguments = ["run", "--format", "json", "--dir", scratch]
             if let model { arguments += ["-m", model] }
-            return Invocation(arguments: arguments + [call.combined], stdin: nil)
+            return Invocation(
+                arguments: arguments, stdin: call.combined, files: ["opencode.json": Self.opencodeConfig]
+            )
         case .pi:
             var arguments = [
                 "-p", "--mode", "json", "--no-session", "--no-tools", "--no-extensions", "--no-skills",
@@ -273,6 +283,21 @@ public enum LLMDialect: String, Sendable, CaseIterable {
             return Invocation(arguments: arguments + [call.combined], stdin: nil)
         }
     }
+
+    static let geminiPolicyFile = "heed-no-tools.toml"
+
+    /// A gemini policy that denies every tool, in every mode.
+    static let geminiPolicy = """
+    [[rule]]
+    toolName = "*"
+    decision = "deny"
+    priority = 999
+    denyMessage = "this call runs no tools"
+
+    """
+
+    /// An opencode project config that denies every permission, so no tool is offered to the model.
+    static let opencodeConfig = #"{"$schema":"https://opencode.ai/config.json","permission":{"*":"deny"}}"# + "\n"
 
     /// Reads the CLI's output. Throws with the CLI's own message when it reports an error.
     public func parse(_ stdout: String, schema: Bool) throws -> LLMOutput {

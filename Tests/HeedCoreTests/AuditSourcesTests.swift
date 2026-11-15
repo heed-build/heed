@@ -225,4 +225,12 @@ struct AuditSourcesTests {
         #expect(rows.contains { $0.action.tag == .publish && $0.action.approval?.by == .you })
         #expect(book.grantRows(before: Fixtures.auditBefore).count == 3)
     }
+
+    @Test func anApprovalSaysWhatWasDoneAndByWhom() {
+        typealias Approval = AuditAction.Approval
+        #expect(Approval(by: .you, detail: "denied").text == "Denied by you in approvals")
+        #expect(Approval(by: .notification, detail: "allowed once").text == "Allowed once by you from a notification")
+        #expect(Approval(by: .rule, detail: "Bash(git push:*)").text == "Allowed by an Always rule: Bash(git push:*)")
+        #expect(Approval(by: .agent, detail: "its own mode").text == "Allowed without asking heed: its own mode")
+    }
 }

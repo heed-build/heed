@@ -55,12 +55,14 @@ public struct AuditAction: Codable, Hashable, Sendable, Identifiable {
             self.detail = detail
         }
 
+        /// `Denied by you in approvals`, `Allowed once by you from a notification`, `Allowed by an Always rule: …`.
         public var text: String {
-            switch by {
-            case .you: "you in approvals: \(detail)"
-            case .notification: "you from a notification: \(detail)"
-            case .rule: "an Always rule: \(detail)"
-            case .agent: "the agent's own settings: \(detail)"
+            let done = detail.prefix(1).uppercased() + detail.dropFirst()
+            return switch by {
+            case .you: "\(done) by you in approvals"
+            case .notification: "\(done) by you from a notification"
+            case .rule: "Allowed by an Always rule: \(detail)"
+            case .agent: "Allowed without asking heed: \(detail)"
             }
         }
     }

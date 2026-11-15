@@ -244,8 +244,8 @@ private struct ActionDetail: View {
                 section("Cause") { CauseChain(row: row) }
                 section("Command") { CommandBlock(text: action.command) }
                 if let approval = action.approval {
-                    section("Allowed by") {
-                        Text(approval.text + (action.outcome == .held ? ": it did not run" : ""))
+                    section("Approval") {
+                        Text(approval.text + (action.outcome == .held ? "; it did not run" : ""))
                             .font(Theme.ui(12.5))
                             .foregroundStyle(action.outcome == .held ? Theme.block : Theme.fg)
                     }

@@ -160,7 +160,7 @@ extension AppModel {
             agent: message.agent ?? session.agent, repo: session.repos.first?.slug, cause: base
         ) else { return }
         action.approval = takeAuditApproval(session: session.id, command: action.command)
-            ?? .init(by: .rule, detail: "no ask reached heed: an Always rule or the agent's own mode allowed it")
+            ?? .init(by: .agent, detail: "an Always rule or the agent's own mode")
         audit.record(action)
     }
 

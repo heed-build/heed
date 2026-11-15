@@ -776,11 +776,11 @@ public enum Fixtures {
                         "-    var exists = anchors.Contains(target);",
                         "+    var exists = anchors.Contains(target, StringComparer.Ordinal);",
                     ],
-                    replies: 0, url: nil
+                    replies: 0, url: nil, trust: .collaborator
                 ),
                 ReviewThread(
                     id: "T2", isResolved: false, path: "tests/Redirects/AnchorTests.cs", line: 12, author: "reviewer",
-                    body: "Please cover the moved-page case.", diff: [], replies: 0, url: nil
+                    body: "Please cover the moved-page case.", diff: [], replies: 0, url: nil, trust: .collaborator
                 ),
             ],
             failingChecks: [PullDetail.FailingCheck(
@@ -881,7 +881,8 @@ public enum Fixtures {
                 )
                 arrows.threads = [ReviewThread(
                     id: "A1", isResolved: false, path: "Arrow.cs", line: 57, author: "reviewer",
-                    body: "Arrowheads still detach below 50% zoom.", diff: [], replies: 0, url: nil
+                    body: "Arrowheads still detach below 50% zoom.", diff: [], replies: 0, url: nil,
+                    trust: .collaborator
                 )]
                 arrows.repoAllowsAutoMerge = false
                 arrows.autoMergeEnabled = false

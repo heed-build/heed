@@ -246,7 +246,7 @@ public extension Domain {
             }
             let before = feedback[detail.ref.description]
             var pipeline = before ?? PullFeedback(ref: detail.ref)
-            pipeline.merge(detail)
+            pipeline.merge(detail, viewer: github.viewer)
             feedback[detail.ref.description] = pipeline
             pilotLog = PilotEvent.log(
                 pilotLog,

@@ -249,6 +249,15 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
         return !text.author.trust.isCollaborator
     }
 
+    /// The line under a comment from outside while it waits for you: `not sent automatically: @x isn't a
+    /// collaborator`.
+    public var outsideNote: String? {
+        guard fromOutside, status == .new else { return nil }
+        let who = text.author.handle
+        return "not sent automatically: " +
+            (text.author.trust == .bot ? "\(who) is a bot" : "\(who) isn't a collaborator")
+    }
+
     /// The most hunk lines a note keeps (and its prompt quotes): the ones around the line it is on.
     public static let noteHunkLimit = 20
 
@@ -457,8 +466,9 @@ public struct PullFeedback: Hashable, Sendable, Codable {
 
     /// Folds a fresh look at the PR into the pipeline: new threads and failing checks arrive as New (queued when
     /// auto-feed is on), resolved threads and passing checks become Resolved, and sent items whose PR got a new head
-    /// commit become Addressed.
-    public mutating func merge(_ detail: PullDetail, now: Date = Date()) {
+    /// commit become Addressed. A thread queues by itself only when its author can write to the repo, or is you
+    /// (`viewer`); one from a bot or anyone else stays New until you queue it.
+    public mutating func merge(_ detail: PullDetail, viewer: String? = nil, now: Date = Date()) {
         if detail.approvals > approvalsSeen {
             approvalsSeen = detail.approvals
             rounds = 0
@@ -489,9 +499,12 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         }
         let initial: FeedbackItem.Status = autoFeed == .auto ? .queued : .new
         for thread in detail.threads where !thread.isResolved && !items.contains(where: { $0.id == thread.id }) {
+            let yours = viewer.map { $0.lowercased() == thread.author.lowercased() } ?? false
+            let body = yours ? thread.body.trusted(.owner) : thread.body
+            let status: FeedbackItem.Status = body.author.trust.isCollaborator ? initial : .new
             items.append(FeedbackItem(
-                id: thread.id, kind: .review(location: thread.location, author: thread.author), text: thread.body,
-                status: initial
+                id: thread.id, kind: .review(location: thread.location, author: thread.author), text: body,
+                status: status
             ))
         }
         let base = detail.baseBranch.isEmpty ? "the base branch" : detail.baseBranch

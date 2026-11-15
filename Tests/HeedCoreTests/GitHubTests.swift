@@ -193,7 +193,8 @@ struct FeedbackTests {
             body: "Anchor lookup is case sensitive.",
             diff: [],
             replies: 0,
-            url: nil
+            url: nil,
+            trust: .collaborator
         )
     }
 

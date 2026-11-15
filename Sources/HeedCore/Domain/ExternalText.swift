@@ -97,6 +97,11 @@ public struct ExternalText: Hashable, Sendable {
 
     public var isEmpty: Bool { display.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
+    /// The same text by the same author, trusted as `trust`: your own comment, known by your login.
+    func trusted(_ trust: Trust) -> ExternalText {
+        ExternalText(raw, source: source, author: Author(login: author.login, trust: trust))
+    }
+
     /// The same text, cut: provenance kept.
     public func prefix(_ count: Int) -> ExternalText {
         ExternalText(String(display.prefix(count)), source: source, author: author)

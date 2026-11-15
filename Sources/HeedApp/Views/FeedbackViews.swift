@@ -375,6 +375,9 @@ private struct FeedbackRow: View {
                 Text(item.text.display).font(Theme.ui(13))
                     .foregroundStyle(item.status == .resolved ? Theme.fg3 : Theme.fg)
                     .lineLimit(3)
+                if let note = item.outsideNote {
+                    Text(note).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                }
                 if let log = item.logPath {
                     Text("failed log: \(Paths.abbreviate(log))").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                         .lineLimit(1).truncationMode(.head)

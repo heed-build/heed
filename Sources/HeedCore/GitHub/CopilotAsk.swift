@@ -8,7 +8,7 @@ public enum CopilotAsk {
 
     /// The items Copilot should be asked about now. A conflict (not merely behind) when `copilotConflicts`, review
     /// threads that are new or queued when `copilotComments`; none asked about before. `everything` is `C`: both kinds,
-    /// whatever the settings say.
+    /// whatever the settings say. A comment from outside the repo (`fromOutside`) goes to Copilot only by `C`.
     public static func items(
         _ pipeline: PullFeedback,
         settings: PilotSettings,
@@ -20,7 +20,8 @@ public enum CopilotAsk {
             case let .conflict(_, behind):
                 return (everything || settings.copilotConflicts) && !behind && item.status != .resolved
             case .review:
-                return (everything || settings.copilotComments) && (item.status == .new || item.status == .queued)
+                return (everything || (settings.copilotComments && !item.fromOutside))
+                    && (item.status == .new || item.status == .queued)
             case .check, .note, .rebase:
                 return false
             }

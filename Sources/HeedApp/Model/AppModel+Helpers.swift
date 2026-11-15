@@ -133,10 +133,13 @@ extension AppModel {
         updateScope()
     }
 
-    /// Get it green from Attention: every new item of the PR queued, then sent (a helper, by default).
+    /// Get it green from Attention: every new item of the PR queued, then sent (a helper, by default). A comment
+    /// from outside the repo is left for you to queue on its own (`space` in the PR overlay).
     private func getItGreen(_ ref: PullRef) {
         var pipeline = feedback[ref.description] ?? PullFeedback(ref: ref)
-        for index in pipeline.items.indices where pipeline.items[index].status == .new {
+        for index in pipeline.items.indices
+            where pipeline.items[index].status == .new && !pipeline.items[index].fromOutside
+        {
             pipeline.items[index].status = .queued
         }
         commit(.feedbackChanged(pipeline))

@@ -45,7 +45,8 @@ Merge conflicts and review comments can go to GitHub's Copilot coding agent inst
 work spends Copilot's budget rather than your agent's tokens. Two options, off by default, per org and per repo too:
 
 - `copilot_conflicts`: a PR that conflicts with its base.
-- `copilot_comments`: new review comments.
+- `copilot_comments`: new review comments from people who can write to the repo (see
+  [Who wrote it](../github/review-feedback.md#who-wrote-it)); `C` asks about the others too.
 
 With get it green on (`ask` or `auto`), heed asks on the PR, once per conflict and per comment. When both have
 something, one comment asks for both:

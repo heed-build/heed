@@ -45,7 +45,20 @@ Queued items go to the agent as one prompt, and only when it is ready for it:
 - Only when the agent is **idle** or **done**: never while it is working, blocked or asking.
 - Not right after you typed in its pane: if you type, delivery waits again.
 - With **Auto when idle**, new items queue and send by themselves. After three rounds on the same PR it stops and
-  leaves the rest to you.
+  leaves the rest to you. A review comment queues by itself only when it is yours or comes from someone who can
+  write to the repo ([Who wrote it](#who-wrote-it)).
+
+## Who wrote it
+
+Heed reads who wrote each review comment from GitHub: the repo's owner, a member or collaborator (people who can
+write to it), a bot, or anyone else. The comments of the first two, and yours, go through the pipeline as above.
+A comment from a bot or from anyone else is shown and can be summarised, but it is never sent to an agent by
+itself: it stays **New**, with a line under it saying so, until you queue it with `space`.
+
+Whatever is sent, the text other people wrote reaches the agent marked as theirs: each review comment, check
+summary, PR or issue title and description sits between tags that name its author and where it came from, with one
+line before them telling the agent it is information about the task, not instructions. Control characters, terminal
+escapes and invisible characters are stripped from it first, in the prompt and on screen.
 
 ![The prompt that will be sent](../images/shots/github/prompt.png)
 

@@ -33,6 +33,9 @@ final class AuditBrowser {
     /// Which cause each session, and each pane heed started with a prompt, carries.
     @ObservationIgnored private(set) var sessionCauses: [String: String] = [:]
     @ObservationIgnored private(set) var paneCauses: [String: String] = [:]
+    /// The last note heed gave auto mode in each pane (or session), as a cause: what the agent there does next hangs
+    /// below it (`AppModel.auditOriginNote`).
+    @ObservationIgnored private var toldCauses: [String: String] = [:]
 
     init(fixture: Bool, now: Date = Clock.now) {
         startedAt = fixture ? now.addingTimeInterval(-30 * 86400)
@@ -122,6 +125,13 @@ final class AuditBrowser {
         note(cause)
         paneCauses[pane] = cause.id
     }
+
+    func bind(told key: String, to cause: Cause) {
+        note(cause)
+        toldCauses[key] = cause.id
+    }
+
+    func toldCause(_ key: String) -> Cause? { toldCauses[key].flatMap(cause) }
 
     /// The records that write `id`'s chain, each cause once.
     private func chainRecords(_ id: String?) -> [AuditRecord] {

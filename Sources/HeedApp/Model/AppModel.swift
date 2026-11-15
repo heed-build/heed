@@ -1387,7 +1387,7 @@ final class AppModel {
                 // Typed as soon as it is idle, as it always was (no typing grace), unless its channel takes it.
                 let prompt = settings.continuePrompt, id = session.id
                 Task { @MainActor in
-                    let outcome = await self.sendToAgent(prompt, pane: paneID, state: .idle, lastTyped: nil)
+                    let outcome = await self.sendToAgent(.owner(prompt), pane: paneID, state: .idle, lastTyped: nil)
                     guard outcome.sent, var sent = self.sessions.first(where: { $0.id == id }) else { return }
                     sent.record("sent “\(prompt)”" + (outcome == .typed(fallback: nil) ? "" : " · \(outcome.summary)"))
                     self.commit(.sessionUpserted(sent))
@@ -4881,7 +4881,7 @@ final class AppModel {
         }
     }
 
-    private var itemsPrompt: String {
+    private var itemsPrompt: Prompt {
         let ids = actionIDs(view)
         switch view {
         case .attention:
@@ -4908,7 +4908,7 @@ final class AppModel {
         guard !prompt.isEmpty else { return }
         clearPicks()
         issueReader = nil
-        openStartWork(prompt: prompt)
+        openStartWork(prompt: prompt.text)
     }
 
     private func addItemsToSession() {
@@ -4928,7 +4928,7 @@ final class AppModel {
         let title = session.title
         Task { @MainActor in
             let outcome = await self.sendToAgent(
-                prompt, typed: prompt.replacingOccurrences(of: "\n", with: " "), pane: paneID, state: .idle,
+                prompt, typed: prompt.oneLine, pane: paneID, state: .idle,
                 lastTyped: nil
             )
             self.flash = outcome == .typed(fallback: nil) ? "added to \(title)" : "added to \(title) \(outcome.summary)"
@@ -5397,13 +5397,13 @@ final class AppModel {
         guard let ref = feedbackPull else { return }
         let detail = pullDetails[ref.description]
         let pipeline = feedback[ref.description]
-        var prompt = "Continue PR \(ref.repo.name)#\(ref.number): \(detail?.title.display ?? "")"
+        var prompt: Prompt = "Continue PR \(name: ref.repo.name)#\(ref.number): \(detail?.title)"
         if let open = pipeline?.items.filter({ $0.status != .resolved }), !open.isEmpty {
-            prompt += "\n" + open.map { "- " + $0.promptLine }.joined(separator: "\n")
+            prompt += "\n" + open.map { "- \($0.promptLine)" }.joined(separator: "\n")
         }
         reader = nil
         overlay = nil
-        openStartWork(prompt: prompt)
+        openStartWork(prompt: prompt.text)
     }
 
     /// Fetches a PR's detail off the main actor; the merge into its pipeline happens in `commit`. Reports checks that
@@ -5945,7 +5945,7 @@ final class AppModel {
     /// and a tab running the configured agent (and model) there on the feedback. The tab is appended without being
     /// selected: nothing takes your focus. Returns what it was sent to, or nil when it could not start (recorded as a
     /// failed run).
-    private func startRun(_ ref: PullRef, prompt: String, items: Int, sessionID: String) async -> String? {
+    private func startRun(_ ref: PullRef, prompt: Prompt, items: Int, sessionID: String) async -> String? {
         guard let session = sessions.first(where: { $0.id == sessionID }) else { return nil }
         let goal = Runs.goal(for: pilotStatus(for: ref)) ?? .green
         let chosen = pilotSettings(for: ref).runAgent(for: goal)
@@ -6451,7 +6451,7 @@ final class AppModel {
     }
 
     /// `run_in = "helper"`: one helper per PR at a time; the next round waits for it to be closed out.
-    private func deliverToHelper(_ ref: PullRef, prompt: String, explicit: Bool) {
+    private func deliverToHelper(_ ref: PullRef, prompt: Prompt, explicit: Bool) {
         guard let pipeline = feedback[ref.description] else { return }
         if let helper = helpers.current(on: ref) {
             pendingDelivery.insert(ref)
@@ -6496,7 +6496,7 @@ final class AppModel {
 
     /// `run_in = "session"`: typed into the session's own agent, once it is idle and you have left it alone (five
     /// minutes after your last keystroke; when you asked, 20 seconds).
-    private func deliverInSession(_ ref: PullRef, prompt: String, explicit: Bool, session: Session) {
+    private func deliverInSession(_ ref: PullRef, prompt: Prompt, explicit: Bool, session: Session) {
         guard feedback[ref.description] != nil, let layout = layouts[session.id],
               let (_, paneID) = agentPane(in: layout)
         else {
@@ -7238,7 +7238,8 @@ final class AppModel {
         guard let file = currentDiffFile, let session = currentSession, let layout = layouts[session.id],
               let (tabIndex, paneID) = agentPane(in: layout)
         else { return }
-        TerminalSurfaces.shared.typeText(diffCursor.question(in: file), paneID: paneID)
+        // Your question on the session's own diff.
+        TerminalSurfaces.shared.typeText(.owner(diffCursor.question(in: file)), paneID: paneID)
         diffCursor.clearSelection()
         overlay = nil
         updateLayout { $0.activeTab = tabIndex }
@@ -7705,7 +7706,7 @@ final class AppModel {
         // A new id of its own: the old agent's may still be taken (handing back to an agent the session had before).
         let agentSession = UUID().uuidString.lowercased()
         let command = agent.launchCommand(
-            prompt: prompt,
+            prompt: .owner(prompt),
             extraArguments: files.map {
                 AgentIntegration.launchArguments(
                     agent: agent, sessionID: agentSession, files: $0,

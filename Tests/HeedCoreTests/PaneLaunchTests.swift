@@ -201,10 +201,10 @@ struct PaneLaunchTests {
         var piped = stub
         piped.prompt = .stdin
         piped.command = "stubagent --stdin"
-        let argument = stub.launchCommand(prompt: prompt, extraArguments: ["--settings", path])
+        let argument = stub.launchCommand(prompt: .owner(prompt), extraArguments: ["--settings", path])
         return try [
             ("argument", argument, ["function", "--settings", path, prompt, ""]),
-            ("stdin", piped.launchCommand(prompt: prompt), ["function", "--stdin", prompt]),
+            ("stdin", piped.launchCommand(prompt: .owner(prompt)), ["function", "--stdin", prompt]),
             (
                 "setup", #require(WorktreeSetup.paneCommand(setup: ["true"], then: argument)),
                 ["function", "--settings", path, prompt, ""]
@@ -255,7 +255,7 @@ struct PaneLaunchTests {
     /// A setup that fails says so, names the agent, and still leaves a login shell in the pane.
     @Test func aFailedSetupLeavesAShell() async throws {
         guard canRun else { return }
-        let agent = stub.launchCommand(prompt: prompt)
+        let agent = stub.launchCommand(prompt: .owner(prompt))
         let command = try #require(WorktreeSetup.paneCommand(setup: ["sh -c 'exit 3'"], then: agent))
         for shell in shells {
             let home = try Home(for: shell)

@@ -87,6 +87,9 @@ public struct ThreadAuthor: Hashable, Sendable, Codable {
         self.avatarURL = avatarURL
         self.isBot = isBot
     }
+
+    /// As the author of other people's text.
+    public var author: ExternalText.Author { ExternalText.Author(login: login, trust: isBot ? .bot : .stranger) }
 }
 
 /// One reaction and how many gave it.

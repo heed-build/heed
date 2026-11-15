@@ -97,13 +97,13 @@ struct SwarmHandbackTests {
             task: task, number: "1.2", swarm: swarm([]), pr: ref, branch: "swarm/g/cache", base: "main",
             items: [rebase, review], instructions: "Keep commits small."
         )
-        #expect(prompt.contains("swarm 1's task 1.2 Cache tiles (item g/cache)"))
-        #expect(prompt.contains(ref.url))
-        #expect(prompt.contains("- " + rebase.promptLine))
-        #expect(prompt.contains("- " + review.promptLine))
-        #expect(prompt.contains("Push to swarm/g/cache only"))
-        #expect(prompt.contains("never to main, and never merge"))
-        #expect(prompt.hasSuffix("Keep commits small."))
+        #expect(prompt.display.contains("swarm 1's task 1.2 Cache tiles (item g/cache)"))
+        #expect(prompt.display.contains(ref.url))
+        #expect(prompt.display.contains("- " + rebase.promptLine.display))
+        #expect(prompt.display.contains("- " + review.promptLine.display))
+        #expect(prompt.display.contains("Push to swarm/g/cache only"))
+        #expect(prompt.display.contains("never to main, and never merge"))
+        #expect(prompt.display.hasSuffix("Keep commits small."))
     }
 }
 

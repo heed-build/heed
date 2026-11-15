@@ -74,7 +74,7 @@ public enum HelperGit {
 public extension GitHub {
     /// A PR's branches, title, description and who it is from, for a review helper: `gh pr view`.
     static func pullForReview(_ ref: PullRef, caller: String) async throws -> (
-        head: String, base: String, title: String, body: String, authorship: PullAuthorship?
+        head: String, base: String, title: ExternalText, body: ExternalText, authorship: PullAuthorship?
     ) {
         let result = try await gh(
             [
@@ -86,9 +86,12 @@ public extension GitHub {
         guard result.succeeded, let json = JSONValue.parse(result.stdout), let head = json["headRefName"]?.string else {
             throw Failure(description: explain(result))
         }
+        let authorship = PullAuthorship.parse(result.stdout)
+        let author = authorship?.by ?? .unknown
         return (
-            head, json["baseRefName"]?.string ?? "main", json["title"]?.string ?? "",
-            json["body"]?.string ?? "", PullAuthorship.parse(result.stdout)
+            head, json["baseRefName"]?.string ?? "main",
+            ExternalText(json["title"]?.string ?? "", source: .pullTitle, author: author),
+            ExternalText(json["body"]?.string ?? "", source: .pullBody, author: author), authorship
         )
     }
 

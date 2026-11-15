@@ -59,10 +59,11 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
 
     /// The command line that starts the agent on `prompt`, run by your login shell as the pane's process
     /// (`PaneLaunch`). The agent is called by its `command` as configured, never a resolved path, so an alias or
-    /// function of that name in your shell applies. The prompt is `"$HEED_PROMPT"` on the line, never the text itself.
+    /// function of that name in your shell applies. The prompt is `"$HEED_PROMPT"` on the line, never the text itself,
+    /// and never starts with `-` there (`Prompt.argument`), so the agent cannot read it as an option.
     /// `prefix`: words before the command (a sandboxed run's `/usr/bin/env -u …`).
     public func launchCommand(
-        prompt text: String, planFirst: Bool = false, extraArguments: [String] = [],
+        prompt: Prompt, planFirst: Bool = false, extraArguments: [String] = [],
         environment: [String: String] = [:],
         model: String? = nil, effort: String? = nil, prefix: [String] = []
     ) -> ShellCommand {
@@ -71,8 +72,9 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
         words += modelWords(model: model, effort: effort)
         if planFirst, let planArguments { words.append(.raw(planArguments)) }
         let agent = ShellCommand.Simple(environment: Self.assignments(environment), words: words)
-        guard !text.isEmpty else { return ShellCommand([.run([agent])]) }
-        switch prompt {
+        let text = prompt.argument
+        guard !prompt.isEmpty, !text.isEmpty else { return ShellCommand([.run([agent])]) }
+        switch self.prompt {
         case .argument:
             let prompt = (promptFlag.map { [ShellCommand.Word.raw($0)] } ?? []) + [ShellCommand.Word([.prompt(text)])]
             return ShellCommand([.run([ShellCommand.Simple(environment: agent.environment, words: words + prompt)])])
@@ -116,7 +118,7 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     /// The command line that resumes session `id`, or nil when this agent cannot resume.
     /// `prompt`, when given, goes last as the resumed session's next message (claude takes it as its query).
     public func resumeCommand(
-        id: String, extraArguments: [String] = [], environment: [String: String] = [:], prompt: String? = nil
+        id: String, extraArguments: [String] = [], environment: [String: String] = [:], prompt: Prompt? = nil
     ) -> ShellCommand? {
         guard let resumeArguments else { return nil }
         // `{id}` is quoted for the shell wherever it sits; the rest is typed as configured.
@@ -126,7 +128,7 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
             if !part.isEmpty { resume.append(.raw(part)) }
         }
         let words: [ShellCommand.Word] = [.raw(command)] + extraArguments.map(ShellCommand.Word.text)
-            + [ShellCommand.Word(resume)] + (prompt.map { [ShellCommand.Word.text($0)] } ?? [])
+            + [ShellCommand.Word(resume)] + (prompt.map { [ShellCommand.Word.text($0.argument)] } ?? [])
         return ShellCommand(environment: Self.assignments(environment), words: words)
     }
 

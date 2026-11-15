@@ -223,12 +223,12 @@ extension AppModel {
                 task: task, number: number, swarm: swarm, pr: back.ref, branch: branch, base: base, items: back.items,
                 instructions: pilotSettings(for: back.ref).greenInstructions
             )
-        } ?? SwarmWork.prompt(
+        } ?? .owner(SwarmWork.prompt(
             task: task, number: number, swarm: swarm, goal: goal.title, doc: doc,
             branch: branch, base: base,
             stackedOn: stackedOn.map { id in (numbers[id] ?? "", tasks.first { $0.id == id }?.title ?? id) },
             numbers: numbers, handoff: handoff
-        )
+        ))
         if asHelper {
             return await startWorkerHelper(
                 swarm: swarm, goal: goal, task: task, number: number, owner: owner, record: record, branch: branch,

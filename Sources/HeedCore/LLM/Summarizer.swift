@@ -41,26 +41,40 @@ public enum SummaryKind: String, Sendable, CaseIterable {
 }
 
 /// What a summary is written from: git, the PR, heed's own timeline and the agent's last message. Each part is cut to
-/// `limit` characters (its end kept: the latest matters most), so a call stays small.
+/// `limit` characters (its end kept: the latest matters most), so a call stays small. The title, the PR and the
+/// timeline are prompts, so a thread's description and comments go in fenced as other people's text.
 public struct SummaryInputs: Hashable, Sendable {
-    public var title: String
+    public var title: Prompt
     public var repo: String?
     public var branch: String?
     /// `git log --oneline` and `git diff --stat`, as text.
     public var git: String?
-    /// The PR's title, state, checks and review, as text.
-    public var pullRequest: String?
-    /// heed's timeline for it, oldest first, one event per line.
-    public var timeline: [String]
+    /// The PR's title, state, checks and review.
+    public var pullRequest: Prompt?
+    /// heed's timeline for it (or a thread's comments), oldest first, one event per line.
+    public var timeline: [Prompt]
     public var lastMessage: String?
     /// A goal's GOAL.md, for the goal kinds.
     public var goal: String?
     /// What is known already (a goal's items), one per line.
     public var known: [String]
 
+    /// Inputs that are all heed's or yours.
     public init(
         title: String, repo: String? = nil, branch: String? = nil, git: String? = nil, pullRequest: String? = nil,
         timeline: [String] = [], lastMessage: String? = nil, goal: String? = nil, known: [String] = []
+    ) {
+        self.init(
+            quoting: .owner(title), repo: repo, branch: branch, git: git, pullRequest: pullRequest.map(Prompt.owner),
+            timeline: timeline.map(Prompt.owner), lastMessage: lastMessage, goal: goal, known: known
+        )
+    }
+
+    /// Inputs with other people's text in them: a thread's title, description and comments.
+    public init(
+        quoting title: Prompt, repo: String? = nil, branch: String? = nil, git: String? = nil,
+        pullRequest: Prompt? = nil, timeline: [Prompt] = [], lastMessage: String? = nil, goal: String? = nil,
+        known: [String] = []
     ) {
         self.title = title
         self.repo = repo
@@ -80,13 +94,22 @@ public struct SummaryInputs: Hashable, Sendable {
         return "…" + text.suffix(limit - 1)
     }
 
+    /// A prompt's parts cut as `cut` cuts text, by what they hold: the latest kept.
+    static func cut(_ prompt: Prompt) -> Prompt {
+        prompt.suffix(limit)
+    }
+
     /// The input as the model reads it: the parts that are there, under headings.
     var prompt: String {
-        var parts = ["Work: \(title)"]
-        if let repo { parts.append("Repo: \(repo)" + (branch.map { ", branch \($0)" } ?? "")) }
+        var parts: [Prompt] = ["Work: \(title)"]
+        if let repo { parts.append("Repo: \(name: repo)" + (branch.map { ", branch \(name: $0)" } ?? "")) }
         func section(_ name: String, _ text: String?) {
             guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return }
-            parts.append("\n## \(name)\n\(Self.cut(text))")
+            parts.append("\n## \(owner: name)\n\(owner: Self.cut(text))")
+        }
+        func section(_ name: String, _ prompt: Prompt?) {
+            guard let prompt = prompt?.trimmed, !prompt.isEmpty else { return }
+            parts.append("\n## \(owner: name)\n\(Self.cut(prompt))")
         }
         section("Git", git)
         section("Pull request", pullRequest)
@@ -94,7 +117,7 @@ public struct SummaryInputs: Hashable, Sendable {
         section("The agent's last message", lastMessage)
         section("GOAL.md", goal)
         section("Already known", known.map { "- " + $0 }.joined(separator: "\n"))
-        return parts.joined(separator: "\n")
+        return parts.joined(separator: "\n").cacheableText
     }
 }
 

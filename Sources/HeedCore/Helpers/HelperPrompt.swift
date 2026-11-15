@@ -53,22 +53,22 @@ public struct HelperCloseOut: Hashable, Sendable {
 /// The prompts a helper starts with, and how its last message is read back.
 public enum HelperPrompt {
     /// What every helper is told about where it is and what it may not do.
-    static func preamble(branch: String, prBranch: String) -> String {
-        "You are a helper heed started on the user's behalf, in a git worktree of your own on the branch \(branch), "
-            + "which starts from \(prBranch) (the pull request's branch). Work only in this worktree. Do not push, "
+    static func preamble(branch: String, prBranch: String) -> Prompt {
+        "You are a helper heed started on the user's behalf, in a git worktree of your own on the branch "
+            + "\(name: branch), which starts from \(name: prBranch) (the pull request's branch). Work only in this worktree. Do not push, "
             + "and do not post anything to GitHub: heed shows the user what you did and pushes and replies once they "
             + "approve. Commit your changes on this branch with clear messages. Keep a short plan as you go."
     }
 
     /// How to end: the lines heed reads back.
-    static let signOffGreen = """
+    static let signOffGreen: Prompt = """
     When you are done, end your final message with one line per thing you did, and one reply for each review \
     comment you addressed, exactly like this:
     heed-did: <what you did, in a few words>
     heed-reply <item number>: <your reply to that review comment, one or two sentences>
     """
 
-    static let signOffReview = """
+    static let signOffReview: Prompt = """
     When you are done, end your final message with your review, exactly like this:
     heed-did: <what you checked, in a few words> (one line each)
     heed-comment <path>:<line>: <a review comment on that line>
@@ -76,19 +76,19 @@ public enum HelperPrompt {
     """
 
     /// Get it green: the PR's queued feedback (its numbered items, each review comment's thread kept by number).
-    public static func green(feedback: String, branch: String, prBranch: String) -> String {
+    public static func green(feedback: Prompt, branch: String, prBranch: String) -> Prompt {
         preamble(branch: branch, prBranch: prBranch) + "\n\n" + feedback + "\n\n" + signOffGreen
     }
 
     /// A review of someone else's PR: read it against its issue, run its tests, draft comments. `runTests` is false
     /// for a PR from someone outside the repo: the helper has no sandbox, so it reads the code and runs none of it.
     public static func review(
-        ref: PullRef, title: String, body: String, base: String, branch: String, prBranch: String,
+        ref: PullRef, title: ExternalText, body: ExternalText, base: String, branch: String, prBranch: String,
         instructions: String = "", runTests: Bool = true
-    ) -> String {
+    ) -> Prompt {
         var text = preamble(branch: branch, prBranch: prBranch)
-            + "\n\nReview pull request #\(ref.number) in \(ref.repo.slug), \"\(title)\", for the user. Read its "
-            + "change (git diff origin/\(base)...HEAD) against what it says it does and the issue it links, "
+            + "\n\nReview pull request #\(ref.number) in \(name: ref.repo.slug), \"\(title)\", for the user. Read its "
+            + "change (git diff origin/\(name: base)...HEAD) against what it says it does and the issue it links, "
             + (runTests ? "run its tests, " : "")
             + "and draft review comments where something is wrong, unclear or missing. Change no files and "
             + "make no commits."
@@ -96,18 +96,18 @@ public enum HelperPrompt {
             text += " It is from someone outside the repo: read its code, but run none of it (no tests, builds, "
                 + "installs or scripts from it)."
         }
-        if !body.isEmpty { text += "\n\nIts description:\n" + body }
-        if !instructions.isEmpty { text += "\n\n" + instructions }
+        if !body.isEmpty { text += "\n\nIts description:\n\(body)" }
+        if !instructions.isEmpty { text += "\n\n\(owner: instructions)" }
         return text + "\n\n" + signOffReview
     }
 
     /// Steering while it works, or after its turn ended (Keep going).
-    public static func steer(_ text: String) -> String {
-        text + "\n\n(From the user, through heed. Carry on, and end with the heed lines as before.)"
+    public static func steer(_ text: String) -> Prompt {
+        "\(owner: text)\n\n(From the user, through heed. Carry on, and end with the heed lines as before.)"
     }
 
     /// Resuming after a pause.
-    public static let resume = "Carry on where you stopped. End with the heed lines as before."
+    public static let resume: Prompt = "Carry on where you stopped. End with the heed lines as before."
 
     /// Reads a helper's last message: its heed lines, and the rest as the summary. `threads` maps a get it green
     /// item number (1-based) to its review thread and where it is.

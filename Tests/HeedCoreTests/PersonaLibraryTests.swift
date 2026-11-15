@@ -252,11 +252,11 @@ struct PersonaDigestTests {
     @Test func theTextIsCompact() {
         let digest = PersonaLibraryFixtures.digest(now: now)
         let text = digest.render()
-        #expect(text.count <= PersonaDigest.limit + 2)
-        #expect(text.contains("# acme/docs-website"))
-        #expect(text.contains("CODEOWNERS: /config @acme/docs-infra"))
-        #expect(text.contains("review comments: 38, most on redirects/ (38)"))
-        #expect(digest.render(limit: 500).count <= 502)
+        #expect(text.display.count <= PersonaDigest.limit + 2)
+        #expect(text.display.contains("# acme/docs-website"))
+        #expect(text.display.contains("CODEOWNERS: /config @acme/docs-infra"))
+        #expect(text.display.contains("review comments: 38, most on redirects/ (38)"))
+        #expect(digest.render(limit: 500).display.count <= 502)
     }
 
     @Test func readsGitHubsAnswers() {

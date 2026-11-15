@@ -245,20 +245,24 @@ public enum Ledger {
 
     /// What the model reads for `session`.
     public static func inputs(session: Session, git: String?, pulls: [PullDetail]) -> SummaryInputs {
-        let pull = pulls.map { detail in
-            var lines = ["#\(detail.ref.number) \(detail.title.display) (\(detail.state?.lowercased() ?? "open"))"]
-            if !detail.body.isEmpty { lines.append(detail.body.display) }
+        let pull = pulls.map { detail -> Prompt in
+            var lines: [Prompt] = [
+                "#\(detail.ref.number) \(detail.title) (\(name: detail.state?.lowercased() ?? "open"))",
+            ]
+            if !detail.body.isEmpty { lines.append(Prompt(detail.body)) }
             lines += detail.reviews.compactMap { review in
-                review.state.isEmpty ? nil : "\(review.author): \(review.state.lowercased())"
+                review.state.isEmpty ? nil : "\(name: review.author): \(name: review.state.lowercased())"
             }
-            lines += detail.threads.prefix(10)
-                .map { "- \($0.author) on \($0.path)\($0.isResolved ? " (resolved)" : ""): \($0.body.display)" }
+            lines += detail.threads.prefix(10).map { thread in
+                "- \(name: thread.author) on \(name: thread.path)\(thread.isResolved ? " (resolved)" : ""): "
+                    + "\(thread.body)"
+            }
             return lines.joined(separator: "\n")
         }.joined(separator: "\n\n")
         return SummaryInputs(
-            title: session.title, repo: session.repos.first?.slug, branch: session.isChat ? nil : session.branch,
-            git: git, pullRequest: pull.isEmpty ? nil : pull,
-            timeline: session.timeline.map { "\($0.at.formatted(.iso8601)) \($0.text)" },
+            quoting: .owner(session.title), repo: session.repos.first?.slug,
+            branch: session.isChat ? nil : session.branch, git: git, pullRequest: pull.isEmpty ? nil : pull,
+            timeline: session.timeline.map { .owner("\($0.at.formatted(.iso8601)) \($0.text)") },
             lastMessage: session.lastMessage
         )
     }

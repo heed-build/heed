@@ -17,7 +17,7 @@ struct RunsTests {
         #expect(Runs.title(.green, ref: ref, pullCount: 1) == "get it green")
         #expect(Runs.title(.merged, ref: ref, pullCount: 2) == "get it merged #12")
         let prompt = Runs.prompt("Fix lint", prBranch: "fix-a", branch: "heed/get-it-green/fix-a")
-        #expect(prompt.contains("git push origin HEAD:fix-a") && prompt.hasSuffix("Fix lint"))
+        #expect(prompt.display.contains("git push origin HEAD:fix-a") && prompt.display.hasSuffix("Fix lint"))
     }
 
     @Test func aRunsRootIsExpandedHereAndLeftForTheHost() {

@@ -125,17 +125,17 @@ struct WorkPromptTests {
 
     @Test func severalIssuesBecomeOnePromptWithClosesLines() {
         let prompt = WorkPrompt.from(issues: [issue(2830, "Anchors lost"), issue(2833, "Redirect loop")])
-        #expect(prompt.contains("- docs-toolkit#2830 Anchors lost"))
-        #expect(prompt.contains("Closes acme/docs-toolkit#2833"))
-        #expect(!WorkPrompt.from(issues: [issue(1, "x")], closesLines: false).contains("Closes"))
+        #expect(prompt.display.contains("- docs-toolkit#2830 Anchors lost"))
+        #expect(prompt.display.contains("Closes acme/docs-toolkit#2833"))
+        #expect(!WorkPrompt.from(issues: [issue(1, "x")], closesLines: false).display.contains("Closes"))
     }
 
     @Test func startInstructionsGoBeforeTheClosesLines() {
         let one = WorkPrompt.from(issues: [issue(1, "x")], instructions: "Write a failing test first.")
-        #expect(one.hasSuffix("Body 1\n\nWrite a failing test first.\n\nCloses acme/docs-toolkit#1"))
+        #expect(one.display.hasSuffix("Body 1\n\nWrite a failing test first.\n\nCloses acme/docs-toolkit#1"))
         let two = WorkPrompt.from(issues: [issue(1, "x"), issue(2, "y")], instructions: "Keep it small.")
-        #expect(two.contains("- docs-toolkit#2 y\n\nKeep it small.\n\nCloses"))
-        #expect(!WorkPrompt.from(issues: [issue(1, "x")]).contains("\n\n\n"))
+        #expect(two.display.contains("- docs-toolkit#2 y\n\nKeep it small.\n\nCloses"))
+        #expect(!WorkPrompt.from(issues: [issue(1, "x")]).display.contains("\n\n\n"))
     }
 
     @Test func pullsAreTrackedByBranch() {
@@ -212,16 +212,16 @@ struct FeedbackTests {
         feedback.merge(detail(threads: [thread("t1")], failing: ["lint"]))
         #expect(feedback.queued.count == 2)
         let prompt = feedback.prompt() ?? ""
-        #expect(prompt.hasPrefix("Review feedback on PR #2841"))
-        #expect(prompt.contains("1) RedirectFile.cs:88 (@reviewer): Anchor lookup is case sensitive."))
-        #expect(prompt.contains("2) check lint failed: lint broke"))
+        #expect(prompt.display.hasPrefix("Review feedback on PR #2841"))
+        #expect(prompt.display.contains("1) RedirectFile.cs:88 (@reviewer): Anchor lookup is case sensitive."))
+        #expect(prompt.display.contains("2) check lint failed: lint broke"))
     }
 
     @Test func greenInstructionsFollowTheItems() {
         var feedback = PullFeedback(ref: ref, autoFeed: .auto)
         feedback.merge(detail(threads: [thread("t1")]))
         let prompt = feedback.prompt(instructions: "Resolve the threads you addressed.") ?? ""
-        #expect(prompt.hasSuffix("case sensitive.\n\nResolve the threads you addressed."))
+        #expect(prompt.display.hasSuffix("case sensitive.\n\nResolve the threads you addressed."))
         #expect(feedback.prompt() == feedback.prompt(instructions: ""))
     }
 

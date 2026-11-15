@@ -155,7 +155,7 @@ extension AppModel {
         return nil
     }
 
-    private func spawnPrompt(_ item: GoalItem, goal: HeedGoal) -> String {
+    private func spawnPrompt(_ item: GoalItem, goal: HeedGoal) -> Prompt {
         item.workPrompt(goal: goal.title, doc: Paths.tilde(goals.files.doc(goal.id).path))
     }
 
@@ -165,7 +165,7 @@ extension AppModel {
         _ spawn: GoalSpawn, item: GoalItem, goal: HeedGoal, agent: AgentProfile, records: [RepoRecord]
     ) async -> GoalReply {
         var plan = StartWorkPlan(
-            prompt: spawnPrompt(item, goal: goal), repos: records,
+            prompt: spawnPrompt(item, goal: goal).text, repos: records,
             name: StartWork.branchName(for: item.title, prefixes: settings.prefixes), agent: agent,
             integration: integration
         )
@@ -252,7 +252,7 @@ extension AppModel {
             }
         }
         let prompt = spawnPrompt(item, goal: goal) +
-            (folder.map { "\n\n" + GoalSpawnRun.sandboxNote(folder: $0) } ?? "")
+            (folder.map { "\n\n\(owner: GoalSpawnRun.sandboxNote(folder: $0))" } ?? "")
         let words = GoalSpawnRun.headless(
             agent: agent.name, command: agent.command, prompt: prompt, worktree: worktree, instructions: told,
             sandbox: folder

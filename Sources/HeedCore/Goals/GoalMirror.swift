@@ -516,8 +516,14 @@ public enum GoalMirrorBack {
         -> SummaryInputs
     {
         SummaryInputs(
-            title: "Comments on \(issue), the GitHub issue that mirrors the goal \(title)",
-            timeline: comments.map { "@\($0.author): \(GoalDoc.oneLine($0.body))" }, goal: text
+            quoting: "Comments on \(name: issue), the GitHub issue that mirrors the goal \(owner: title)",
+            timeline: comments.map { comment in
+                let said = ExternalText(
+                    GoalDoc.oneLine(comment.body), source: .comment,
+                    author: ExternalText.Author(login: comment.author, trust: .stranger)
+                )
+                return "@\(name: comment.author): \(said)"
+            }, goal: text
         )
     }
 

@@ -76,7 +76,10 @@ struct AttentionSummariesTests {
         #expect(input.state == "open" && !input.stateChanged)
 
         let inputs = CatchUp.inputs(for: item(), conversation: conversation, input: input)
-        #expect(inputs.timeline == ["maria commented: One more question", "ci-bot commented: Checks pass"])
+        #expect(inputs.timeline.map(\.display) == [
+            "maria commented: One more question",
+            "ci-bot commented: Checks pass",
+        ])
         // Neither the old comments nor the description go to the model.
         #expect(!inputs.prompt.contains("Old question") && !inputs.prompt.contains("My answer"))
         #expect(!inputs.prompt.contains("Validates"))

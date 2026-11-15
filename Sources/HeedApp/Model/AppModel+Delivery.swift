@@ -24,11 +24,13 @@ extension AppModel {
 
     /// Hands `text` to the agent in `pane`. `typed`: what is typed when it comes to that, when it must differ (one
     /// line). `typingGrace`: as `Delivery.verdict`'s. `mayType` false: its channel or nothing, never the pane (a
-    /// helper's notice). Returns where it ended up; `.waiting` means nothing was sent.
+    /// helper's notice). Returns where it ended up; `.waiting` means nothing was sent. The prompt is rendered here,
+    /// where it leaves heed: other people's text fenced, and control characters stripped before it is typed.
     func sendToAgent(
-        _ text: String, typed: String? = nil, pane: String, state: AgentState, lastTyped: Date?,
+        _ prompt: Prompt, typed: Prompt? = nil, pane: String, state: AgentState, lastTyped: Date?,
         typingGrace: TimeInterval = 20, mayType: Bool = true
     ) async -> DeliveryOutcome {
+        let text = prompt.text
         let inbox = inbox(forPane: pane)
         switch Delivery.route(
             state: state, lastTyped: lastTyped, inbox: inbox, settings: settings.channels, now: Clock.now,
@@ -38,7 +40,7 @@ extension AppModel {
             return .waiting(reason)
         case .type:
             guard mayType else { return .waiting("its agent has no channel heed may use, and this is never typed") }
-            TerminalSurfaces.shared.typeLine(typed ?? text, paneID: pane)
+            TerminalSurfaces.shared.typeLine(typed ?? prompt, paneID: pane)
             return .typed(fallback: nil)
         case let .channel(inbox):
             let result = await channels.send(text, to: inbox)
@@ -48,7 +50,7 @@ extension AppModel {
             if resolved.forget, inboxes[pane] == inbox { inboxes[pane] = nil }
             if resolved.typeNow {
                 guard mayType else { return .failed("\(inbox.channel.label) did not take it, and this is never typed") }
-                TerminalSurfaces.shared.typeLine(typed ?? text, paneID: pane)
+                TerminalSurfaces.shared.typeLine(typed ?? prompt, paneID: pane)
             }
             return resolved.outcome
         }
@@ -58,7 +60,7 @@ extension AppModel {
     /// typed when it is idle and you are not typing there (unless `mayType` is false). Recorded on the session when
     /// sent; `.waiting` and `.failed` mean it was not sent, and nothing retries it.
     @discardableResult
-    func notify(session id: String, text: String, mayType: Bool = true) async -> DeliveryOutcome {
+    func notify(session id: String, text: Prompt, mayType: Bool = true) async -> DeliveryOutcome {
         guard let session = sessions.first(where: { $0.id == id }) else { return .failed("no session \(id)") }
         guard let layout = layouts[id], let (_, pane) = agentPane(in: layout) else {
             return .failed("\(session.title) has no agent pane")
@@ -67,7 +69,7 @@ extension AppModel {
             text, pane: pane, state: session.state.state, lastTyped: lastTyped[id], mayType: mayType
         )
         if outcome.sent, var told = sessions.first(where: { $0.id == id }) {
-            told.record("told \(told.agent): \(text.prefix(80)) · \(outcome.summary)")
+            told.record("told \(told.agent): \(text.display.prefix(80)) · \(outcome.summary)")
             commit(.sessionUpserted(told))
         }
         return outcome

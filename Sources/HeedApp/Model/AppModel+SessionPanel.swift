@@ -223,7 +223,7 @@ extension AppModel {
         guard let message = look.message else { return say("everyone is happy: nothing to send") }
         let id = session.id
         Task {
-            let outcome = await notify(session: id, text: message)
+            let outcome = await notify(session: id, text: .owner(message))
             if outcome.sent { sessionPanel.change(id) { $0.look?.sent = true } }
             say("the panel's concerns: \(outcome.summary)")
         }

@@ -138,6 +138,14 @@ public struct AttentionItem: Identifiable, Hashable, Sendable, Codable {
     /// A GitHub thread, rather than one of heed's own (an agent, a goal).
     public var onGitHub: Bool { kind != .agent && kind != .goal }
 
+    /// Its title as text from whoever opened it, for a prompt.
+    public var titleText: ExternalText {
+        ExternalText(
+            title, source: kind == .pr ? .pullTitle : .issueTitle,
+            author: ExternalText.Author(login: author, trust: authorIsBot ? .bot : .stranger)
+        )
+    }
+
     /// `org/name#12` for an issue or PR (lowercased), `agent:<session>`, or `<kind>:<notification id>`.
     public var id: String
     public var kind: Kind
@@ -276,6 +284,15 @@ public struct ThreadDetail: Hashable, Sendable, Codable {
 
         /// A bot by its account type, or by its login (`dependabot[bot]`).
         public var byBot: Bool { isBot || author.hasSuffix("[bot]") }
+
+        /// What it says, as its author's.
+        public var said: ExternalText {
+            ExternalText(
+                text,
+                source: .comment,
+                author: ExternalText.Author(login: author, trust: byBot ? .bot : .stranger)
+            )
+        }
     }
 
     public var url: String
@@ -306,6 +323,13 @@ public struct ThreadDetail: Hashable, Sendable, Codable {
         self.body = body
         self.comments = comments
         self.updatedAt = updatedAt
+    }
+
+    /// The description as text from whoever opened it.
+    public var bodyText: ExternalText {
+        ExternalText(
+            body, source: .issueBody, author: ExternalText.Author(login: author, trust: authorIsBot ? .bot : .stranger)
+        )
     }
 
     /// Who spoke last: the last comment's author, else whoever opened it.

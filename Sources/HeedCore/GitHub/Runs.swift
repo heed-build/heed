@@ -162,10 +162,11 @@ public enum Runs {
     }
 
     /// The run's prompt: where it is and how to push, then what to fix.
-    public static func prompt(_ feedback: String, prBranch: String, branch: String) -> String {
-        "You are in a worktree of your own on the branch \(branch), which tracks \(prBranch) (the pull request's "
-            + "branch). Fix what is listed below, commit, and push to the pull request with: "
-            + "git push origin HEAD:\(prBranch)\nThen stop: this worktree is removed when you are done.\n\n" + feedback
+    public static func prompt(_ feedback: Prompt, prBranch: String, branch: String) -> Prompt {
+        "You are in a worktree of your own on the branch \(name: branch), which tracks \(name: prBranch) (the pull "
+            + "request's branch). Fix what is listed below, commit, and push to the pull request with: "
+            + "git push origin HEAD:\(name: prBranch)\nThen stop: this worktree is removed when you are done.\n\n"
+            + feedback
     }
 
     /// Whether a run may start on its own (autopilot's auto-feed, not you sending it): on a PR from you or someone

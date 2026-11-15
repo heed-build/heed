@@ -24,7 +24,7 @@ struct HunkNoteTests {
             "  Lowercase it once.\n", path: "src/File.cs", line: 77, repo: repo, lines: hunk, id: "note:1"
         )
         #expect(note.status == .queued)
-        #expect(note.text == "Lowercase it once.")
+        #expect(note.text.display == "Lowercase it once.")
         #expect(note.kind == .note(path: "src/File.cs", line: 77, repo: repo))
         #expect(note.hunk == [" {", "-old()", "+new()"])
         #expect(note.noteLocation == "src/File.cs:77")
@@ -46,10 +46,10 @@ struct HunkNoteTests {
         var pipeline = PullFeedback(ref: ref, items: [
             FeedbackItem(id: "t1", kind: .review(location: "A.cs:3", author: "rev"), text: "Rename", status: .queued),
         ])
-        #expect(pipeline.prompt() == "Review feedback on PR #7: address each item, run the tests, then push. "
+        #expect(pipeline.prompt()?.display == "Review feedback on PR #7: address each item, run the tests, then push. "
             + "1) A.cs:3 (@rev): Rename")
         pipeline.items.append(.note("Test it", path: "B.cs", line: 4, repo: repo, lines: lines(1), id: "note:1"))
-        #expect(pipeline.prompt() == "Review feedback on PR #7: address each item, run the tests, then push. "
+        #expect(pipeline.prompt()?.display == "Review feedback on PR #7: address each item, run the tests, then push. "
             + "1) A.cs:3 (@rev): Rename\n2) B.cs:4 (you): Test it\n```diff\n+line 0\n```")
     }
 
@@ -72,8 +72,10 @@ struct HunkNoteTests {
             .note("Two", path: "b", line: 2, repo: repo, lines: [], id: "note:2"),
         ]
         notes[1].status = .new
-        #expect(SessionNotes.prompt(notes) == "Feedback on your changes: address each item, then run the tests. "
-            + "1) a:1 (you): One")
+        #expect(
+            SessionNotes.prompt(notes)?.display == "Feedback on your changes: address each item, then run the tests. "
+                + "1) a:1 (you): One"
+        )
         SessionNotes.markSent(&notes)
         #expect(notes.map(\.status) == [.sent, .new])
         #expect(SessionNotes.prompt(notes) == nil)

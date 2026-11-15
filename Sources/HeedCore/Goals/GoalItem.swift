@@ -502,20 +502,24 @@ public enum BoardDrag {
 
 public extension GoalItem {
     /// What Start work opens with for this item: the item, its goal, and where the goal is written down.
-    /// A PR a source found starts a review of it, drafted for you to post; an issue, work on it.
-    func workPrompt(goal: String, doc path: String) -> String {
-        let tail = "This is one item of the goal \(goal); its GOAL.md is \(path)."
+    /// A PR a source found starts a review of it, drafted for you to post; an issue, work on it. A found item's title
+    /// is its author's, fenced.
+    func workPrompt(goal: String, doc path: String) -> Prompt {
+        let tail: Prompt = "This is one item of the goal \(owner: goal); its GOAL.md is \(owner: path)."
         if let sourced, let ref = PullRef(slug: sourced.ref) {
+            let author = ExternalText.Author(login: sourced.author, trust: .stranger)
             if sourced.kind == .pr {
-                let by = sourced.author.map { " by @\($0)" } ?? ""
-                return "Review PR \(ref) “\(title)”\(by): \(sourced.url)\n\n"
-                    + "Check it out with `gh pr checkout \(ref.number) --repo \(ref.repo.slug)`, read the change, and "
-                    + "draft your review for the user: do not post it, approve or comment on GitHub yourself; the user "
-                    + "reads your draft and posts it.\n\n" + HelperPrompt.signOffReview + "\n\n\(tail)"
+                let by: Prompt = sourced.author.map { " by @\(name: $0)" } ?? ""
+                let title = ExternalText(title, source: .pullTitle, author: author)
+                return "Review PR \(name: ref.description) “\(title)”\(by): \(name: sourced.url)\n\n"
+                    + "Check it out with `gh pr checkout \(ref.number) --repo \(name: ref.repo.slug)`, read the change, "
+                    + "and draft your review for the user: do not post it, approve or comment on GitHub yourself; the "
+                    + "user reads your draft and posts it.\n\n" + HelperPrompt.signOffReview + "\n\n\(tail)"
             }
-            return "\(title)\n\nIssue \(sourced.ref): \(sourced.url)\n\n\(tail)"
+            let title = ExternalText(title, source: .issueTitle, author: author)
+            return "\(title)\n\nIssue \(name: sourced.ref): \(name: sourced.url)\n\n\(tail)"
         }
-        let what = kind == .question ? "Find out: \(title)" : title
+        let what: Prompt = kind == .question ? "Find out: \(owner: title)" : .owner(title)
         return "\(what)\n\n\(tail)"
     }
 

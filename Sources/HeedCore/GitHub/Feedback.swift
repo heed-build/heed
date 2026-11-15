@@ -216,7 +216,8 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     /// The thread id, or `check:<name>`.
     public var id: String
     public var kind: Kind
-    public var text: String
+    /// A review comment or a check's summary as its author wrote it; your note, or heed's own words, as `.note`.
+    public var text: ExternalText
     public var status: Status
     public var sentAt: Date?
     public var resolvedAt: Date?
@@ -229,11 +230,23 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     /// For a note: the hunk it is on, as diff lines (`+`, `-`, or a space first), at most `noteHunkLimit` of them.
     public var hunk: [String]?
 
-    public init(id: String, kind: Kind, text: String, status: Status = .new) {
+    public init(id: String, kind: Kind, text: ExternalText, status: Status = .new) {
         self.id = id
         self.kind = kind
         self.text = text
         self.status = status
+    }
+
+    /// Your note, or heed's own words (a conflict, a rebase).
+    public init(id: String, kind: Kind, text: String, status: Status = .new) {
+        self.init(id: id, kind: kind, text: ExternalText(text, source: .note, author: .you), status: status)
+    }
+
+    /// A review comment by someone who cannot write to the repo, or a bot (or heed does not know): shown, and sent
+    /// to an agent only by hand, never on its own.
+    public var fromOutside: Bool {
+        guard case .review = kind else { return false }
+        return !text.author.trust.isCollaborator
     }
 
     /// The most hunk lines a note keeps (and its prompt quotes): the ones around the line it is on.
@@ -271,27 +284,30 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
     }
 
     /// One line of the prompt: `RedirectFile.cs:88 Anchor lookup is case sensitive…` or `lint: docs/redirects.md:41
-    /// line too long`.
-    public var promptLine: String {
-        let first = text.split(separator: "\n").first.map(String.init) ?? text
-        let short = first.count > 160 ? String(first.prefix(159)) + "…" : first
+    /// line too long`, the review comment or the check's summary fenced as someone else's.
+    public var promptLine: Prompt {
+        let short = text.firstLine(limit: 160)
         switch kind {
-        case let .review(location, author): return "\(location) (@\(author)): \(short)"
+        case let .review(location, author): return "\(name: location) (@\(name: author)): \(short)"
         case let .note(path, line, _):
-            // Your words in full, then the hunk they are about.
-            let quoted = (hunk ?? []).isEmpty ? "" : "\n```diff\n" + (hunk ?? []).joined(separator: "\n") + "\n```"
-            return "\(path):\(line) (you): \(text)" + quoted
+            // Your words in full, then the hunk they are about (the session's own diff).
+            let hunk = hunk ?? []
+            let quoted: Prompt = hunk.isEmpty ? "" : "\n```diff\n\(owner: hunk.joined(separator: "\n"))\n```"
+            return "\(name: path):\(line) (you): \(owner: text.display)" + quoted
         case let .check(name):
-            return "check \(name) failed: \(short)" + (logPath.map { " (the failed log is in \($0))" } ?? "")
+            return "check \(name: name) failed: \(short)"
+                + (logPath.map { " (the failed log is in \(owner: $0))" } ?? "")
         case let .rebase(onto, parent, past):
-            return "#\(parent), which this PR stacked on, merged into \(onto), so this PR now goes against \(onto): "
-                + "rebase it onto origin/\(onto) without #\(parent)'s commits (git fetch origin && git rebase --onto "
-                + "origin/\(onto) \(past)), resolve any conflicts, run the tests and git push --force-with-lease to "
-                + "this PR's branch only, never to \(onto)"
+            return "#\(parent), which this PR stacked on, merged into \(name: onto), so this PR now goes against "
+                + "\(name: onto): rebase it onto origin/\(name: onto) without #\(parent)'s commits (git fetch origin && "
+                + "git rebase --onto origin/\(name: onto) \(name: past)), resolve any conflicts, run the tests and git "
+                + "push --force-with-lease to this PR's branch only, never to \(name: onto)"
         case let .conflict(base, behind):
             return behind
-                ? "the branch is behind \(base), which the repo requires to be current: rebase on \(base) and push"
-                : "the branch conflicts with \(base): rebase on \(base), resolve the conflicts, run the tests and push"
+                ? "the branch is behind \(name: base), which the repo requires to be current: rebase on \(name: base) "
+                + "and push"
+                : "the branch conflicts with \(name: base): rebase on \(name: base), resolve the conflicts, run the "
+                + "tests and push"
         }
     }
 }
@@ -474,8 +490,7 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         let initial: FeedbackItem.Status = autoFeed == .auto ? .queued : .new
         for thread in detail.threads where !thread.isResolved && !items.contains(where: { $0.id == thread.id }) {
             items.append(FeedbackItem(
-                id: thread.id, kind: .review(location: thread.location, author: thread.author),
-                text: thread.body.display,
+                id: thread.id, kind: .review(location: thread.location, author: thread.author), text: thread.body,
                 status: initial
             ))
         }
@@ -496,19 +511,19 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             items.append(FeedbackItem(
                 id: "check:\(check.name)",
                 kind: .check(name: check.name),
-                text: check.summary.display,
+                text: check.summary,
                 status: initial
             ))
         }
     }
 
     /// The one prompt the queued items become, then `instructions` (the repo's `green_instructions`).
-    public func prompt(instructions: String = "") -> String? {
+    public func prompt(instructions: String = "") -> Prompt? {
         let queued = queued
         guard !queued.isEmpty else { return nil }
-        let prompt = "Review feedback on PR #\(ref.number): address each item, run the tests, then push. "
+        let prompt: Prompt = "Review feedback on PR #\(ref.number): address each item, run the tests, then push. "
             + FeedbackItem.numbered(queued)
-        return instructions.isEmpty ? prompt : prompt + "\n\n" + instructions
+        return instructions.isEmpty ? prompt : prompt + "\n\n\(owner: instructions)"
     }
 
     /// Marks the queued items sent at `sha`, counting a round.
@@ -524,9 +539,14 @@ public struct PullFeedback: Hashable, Sendable, Codable {
 
 extension FeedbackItem {
     /// `1) … 2) …`: on one line, or a line each when one of them quotes a hunk.
-    static func numbered(_ items: [FeedbackItem]) -> String {
-        let lines = items.enumerated().map { "\($0.offset + 1)) \($0.element.promptLine)" }
-        return lines.joined(separator: lines.contains { $0.contains("\n") } ? "\n" : " ")
+    static func numbered(_ items: [FeedbackItem]) -> Prompt {
+        let lines: [Prompt] = items.enumerated().map { "\($0.offset + 1)) \($0.element.promptLine)" }
+        // Only a note runs over lines (your words in full, its hunk); every other item is one line.
+        let quotes = items.contains { item in
+            guard case .note = item.kind else { return false }
+            return !(item.hunk ?? []).isEmpty || item.text.display.contains("\n")
+        }
+        return lines.joined(separator: quotes ? "\n" : " ")
     }
 }
 
@@ -534,7 +554,7 @@ extension FeedbackItem {
 /// the overlay, or `⌘↩` as you queue one), and moved into the PR's pipeline once the session tracks one.
 public enum SessionNotes {
     /// The one prompt the queued notes become.
-    public static func prompt(_ notes: [FeedbackItem]) -> String? {
+    public static func prompt(_ notes: [FeedbackItem]) -> Prompt? {
         let queued = notes.filter { $0.status == .queued }
         guard !queued.isEmpty else { return nil }
         return "Feedback on your changes: address each item, then run the tests. " + FeedbackItem.numbered(queued)

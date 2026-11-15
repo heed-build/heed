@@ -39,7 +39,7 @@ extension AppModel {
         let count = items.count, agent = session.agent
         Task { @MainActor in
             let outcome = await self.sendToAgent(
-                SessionContext.tackle(items), pane: paneID, state: session.state.state,
+                .owner(SessionContext.tackle(items)), pane: paneID, state: session.state.state,
                 lastTyped: self.lastTyped[session.id], typingGrace: 20
             )
             guard outcome.sent else { return self.flash = "not now: \(outcome.why ?? "not sent")" }

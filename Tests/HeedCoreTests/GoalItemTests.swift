@@ -680,12 +680,12 @@ struct GoalVersionDiffTests {
 
     @Test func anItemsWorkPromptNamesItsGoalAndFile() {
         let work = GoalItem(id: "g/a", goal: "g", title: "Cache tokens", source: .you, createdAt: now)
-        #expect(work.workPrompt(goal: "Quick search", doc: "~/goals/g/GOAL.md")
+        #expect(work.workPrompt(goal: "Quick search", doc: "~/goals/g/GOAL.md").display
             == "Cache tokens\n\nThis is one item of the goal Quick search; its GOAL.md is ~/goals/g/GOAL.md.")
         var question = work
         question.kind = .question
         question.title = "Do synonyms need a table?"
-        #expect(question.workPrompt(goal: "Q", doc: "d").hasPrefix("Find out: Do synonyms need a table?"))
+        #expect(question.workPrompt(goal: "Q", doc: "d").display.hasPrefix("Find out: Do synonyms need a table?"))
         #expect(Board.Column(word: "explore") == .toExplore && Board.Column(word: "Verify") == .verify)
         #expect(Board.Column(word: "w") == .working && Board.Column(word: "") == nil && Board.Column(word: "x") == nil)
     }

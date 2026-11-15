@@ -336,21 +336,24 @@ public struct PullRequest: Identifiable, Hashable, Sendable, Codable {
 /// Builds the one prompt Start work gets when it starts from several inbox items or issues. `instructions` (the
 /// repo's `start_instructions`) go after the issue text, before the `Closes` lines.
 public enum WorkPrompt {
-    public static func from(issues: [Issue], closesLines: Bool = true, instructions: String = "") -> String {
+    public static func from(issues: [Issue], closesLines: Bool = true, instructions: String = "") -> Prompt {
         guard !issues.isEmpty else { return "" }
-        let extra = instructions.isEmpty ? [] : ["", instructions]
+        let extra: [Prompt] = instructions.isEmpty ? [] : ["", .owner(instructions)]
         if issues.count == 1, let issue = issues.first {
-            var lines = ["\(issue.title) (\(issue.repo.name)#\(issue.number))", "", String(issue.body.prefix(1500))]
+            var lines: [Prompt] = [
+                "\(issue.titleText) (\(name: issue.repo.name)#\(issue.number))", "",
+                issue.body.isEmpty ? "" : Prompt(issue.bodyText.prefix(1500)),
+            ]
             lines += extra
-            if closesLines { lines += ["", "Closes \(issue.repo.slug)#\(issue.number)"] }
+            if closesLines { lines += ["", "Closes \(name: issue.repo.slug)#\(issue.number)"] }
             return lines.joined(separator: "\n")
         }
-        var lines = ["Work on these together. They look related; open one PR that addresses all of them."]
-        lines += issues.map { "- \($0.repo.name)#\($0.number) \($0.title)" }
+        var lines: [Prompt] = ["Work on these together. They look related; open one PR that addresses all of them."]
+        lines += issues.map { "- \(name: $0.repo.name)#\($0.number) \($0.titleText)" }
         lines += extra
         if closesLines {
             lines.append("")
-            lines += issues.map { "Closes \($0.repo.slug)#\($0.number)" }
+            lines += issues.map { "Closes \(name: $0.repo.slug)#\($0.number)" }
         }
         return lines.joined(separator: "\n")
     }

@@ -195,45 +195,51 @@ public struct PersonaDigest: Hashable, Sendable {
     public static let limit = 12000
 
     /// The text the model reads, each repo's sections cut to a few lines; the whole at most `limit` characters.
-    public func render(limit: Int = limit) -> String {
+    /// The repos' docs, review comments and issue titles are other people's text, fenced.
+    public func render(limit: Int = limit) -> Prompt {
         let share = max(1500, limit / max(reads.count, 1))
         let text = reads.map { Self.render($0, limit: share) }.joined(separator: "\n\n")
-        return text.count <= limit ? text : String(text.prefix(limit)) + "\n…"
+        return text.prefixed(limit, mark: "\n…")
     }
 
-    static func render(_ reads: RepoReads, limit: Int) -> String {
-        var lines = ["# \(reads.repo)"]
-        for name in reads.docs.keys.sorted() {
-            let text = GoalDoc.oneLine(reads.docs[name] ?? "")
-            lines.append("\(name): \(text.prefix(name.lowercased().hasPrefix("readme") ? 900 : 400))")
+    static func render(_ reads: RepoReads, limit: Int) -> Prompt {
+        var lines: [Prompt] = ["# \(name: reads.repo)"]
+        for file in reads.docs.keys.sorted() {
+            let text = ExternalText(GoalDoc.oneLine(reads.docs[file] ?? ""), source: .repoFile, author: .unknown)
+            lines.append("\(name: file): \(text.prefix(file.lowercased().hasPrefix("readme") ? 900 : 400))")
         }
         if !reads.docFiles.isEmpty {
-            lines.append("docs/: " + reads.docFiles.prefix(25).joined(separator: ", "))
+            lines.append("docs/: \(name: reads.docFiles.prefix(25).joined(separator: ", "))")
         }
         if !reads.owners.isEmpty {
-            lines.append("CODEOWNERS: " + reads.owners.prefix(15).joined(separator: "; "))
+            lines
+                .append(
+                    "CODEOWNERS: \(ExternalText(reads.owners.prefix(15).joined(separator: "; "), source: .repoFile, author: .unknown))"
+                )
         }
         if !reads.reviewComments.isEmpty {
             let folders = Self.top(reads.reviewComments.map { RepoReads.folder($0.path) }, 6)
-            lines.append("review comments: \(reads.reviewComments.count), most on " + folders.joined(separator: ", "))
+            lines.append(
+                "review comments: \(reads.reviewComments.count), most on \(name: folders.joined(separator: ", "))"
+            )
             for comment in reads.reviewComments.prefix(20) {
-                lines.append("- \(comment.path): \(GoalDoc.oneLine(comment.body).prefix(140))")
+                let said = ExternalText(GoalDoc.oneLine(comment.body), source: .review, author: .unknown).prefix(140)
+                lines.append("- \(name: comment.path): \(said)")
             }
         }
         if !reads.issues.isEmpty {
             let labels = Self.top(reads.issues.flatMap(\.labels), 12)
-            lines.append("issues: \(reads.issues.count)" + (labels.isEmpty ? "" : ", labels " + labels.joined(
-                separator: ", "
-            )))
+            let named = labels.joined(separator: ", ")
+            lines.append("issues: \(reads.issues.count)" + (labels.isEmpty ? "" : ", labels \(name: named)"))
             for issue in reads.issues.prefix(15) {
-                lines.append("- \(issue.title.prefix(100))")
+                lines.append("- \(ExternalText(issue.title, source: .issueTitle, author: .unknown).prefix(100))")
             }
         }
         if !reads.requiredChecks.isEmpty {
-            lines.append("required checks: " + reads.requiredChecks.joined(separator: ", "))
+            lines.append("required checks: \(name: reads.requiredChecks.joined(separator: ", "))")
         }
         if !reads.workflows.isEmpty {
-            lines.append("CI workflows: " + reads.workflows.prefix(10).joined(separator: ", "))
+            lines.append("CI workflows: \(name: reads.workflows.prefix(10).joined(separator: ", "))")
         }
         if !reads.merges.isEmpty {
             let byMerger = Dictionary(grouping: reads.merges, by: \.mergedBy)
@@ -243,13 +249,11 @@ public struct PersonaDigest: Hashable, Sendable {
             lines.append("who merges what (last \(reads.merges.count) merged PRs):")
             for (person, merges) in people.prefix(8) {
                 let folders = Self.top(merges.flatMap { $0.paths.map(RepoReads.folder) }, 3)
-                lines.append("- \(person): \(merges.count)" + (folders.isEmpty ? "" : ", in " + folders.joined(
-                    separator: ", "
-                )))
+                let named = folders.joined(separator: ", ")
+                lines.append("- \(name: person): \(merges.count)" + (folders.isEmpty ? "" : ", in \(name: named)"))
             }
         }
-        let text = lines.joined(separator: "\n")
-        return text.count <= limit ? text : String(text.prefix(limit)) + "\n…"
+        return lines.joined(separator: "\n").prefixed(limit, mark: "\n…")
     }
 
     /// The most common values, most first (ties by name).

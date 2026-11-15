@@ -122,29 +122,31 @@ public struct SelfReview: Hashable, Sendable, Codable {
 
     /// The prompt, then the diff, on the command's stdin. `instructions` (the repo's `review_instructions`) add to
     /// what to look for; the answer's first line stays APPROVE or REQUEST_CHANGES, which heed reads.
-    public static func prompt(_ detail: PullDetail, diff: String, instructions: String = "") -> String {
+    /// The diff is the PR author's, fenced like the description.
+    public static func prompt(_ detail: PullDetail, diff: String, instructions: String = "") -> Prompt {
         let limit = 200_000
         let cut = diff.count > limit ? String(diff.prefix(limit)) + "\n[diff cut at \(limit) characters]" : diff
+        let by = detail.body.author
         return """
         You are reviewing a pull request just before it is merged. Read its description and diff. Answer with APPROVE \
         on the first line when it is safe to merge, or REQUEST_CHANGES: <the reason, in one line> when it is not. \
         Look for bugs, missing tests, leftover debugging and anything the description promises that the diff does \
-        not do.\(instructions.isEmpty ? "" : "\n\n" + instructions)
+        not do.\(instructions.isEmpty ? "" : "\n\n\(owner: instructions)")
 
-        PR #\(detail.ref.number): \(detail.title.display)
+        PR #\(detail.ref.number): \(detail.title)
 
-        \(detail.body.display)
+        \(detail.body)
 
-        \(cut)
+        \(ExternalText(cut, source: .diff, author: by))
         """
     }
 
     /// Runs the `self_review` command with the prompt on stdin (through the shell, so `claude -p` and pipes work),
     /// with the PATH tool detection found, for up to ten minutes.
-    public static func run(_ command: String, prompt: String) async throws -> String {
+    public static func run(_ command: String, prompt: Prompt) async throws -> String {
         let file = FileManager.default.temporaryDirectory
             .appendingPathComponent("heed-self-review-\(UUID().uuidString).txt")
-        try prompt.write(to: file, atomically: true, encoding: .utf8)
+        try prompt.text.write(to: file, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(at: file) }
         let tool = String(command.split(separator: " ").first ?? "")
         let path = await ToolLocator.shared.executable(tool).pathVariable

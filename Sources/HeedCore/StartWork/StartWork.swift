@@ -268,15 +268,17 @@ public struct StartWorkPlan: Hashable, Sendable {
                 )
             } ?? []
             let told = Handoff.promotionResumed(promotion, task: prompt, branch: name, instructions: instructions)
-            return agent.resumeCommand(id: id, extraArguments: hooks, environment: env, prompt: told)
+            return agent.resumeCommand(id: id, extraArguments: hooks, environment: env, prompt: .owner(told))
         }
         let extra = (integration.map {
             AgentIntegration.launchArguments(agent: agent, sessionID: sessionID, files: $0, signOff: signOff)
         } ?? []) + arguments
         let text = promotion.map { Handoff.promotion($0, task: prompt, branch: name, instructions: instructions) }
             ?? prompt
+        // What you typed in Start work (its prompt is yours, fences and all, once it is in the form).
         return agent.launchCommand(
-            prompt: text, planFirst: planFirst, extraArguments: extra, environment: env, model: model, effort: effort
+            prompt: .owner(text), planFirst: planFirst, extraArguments: extra, environment: env, model: model,
+            effort: effort
         )
     }
 
@@ -731,7 +733,9 @@ public enum Reopen {
                 command = resume
                 session.record("reopened", at: now)
             } else {
-                command = agent.launchCommand(prompt: session.prompt, extraArguments: hooks(false), environment: env)
+                command = agent.launchCommand(
+                    prompt: .owner(session.prompt), extraArguments: hooks(false), environment: env
+                )
                 session.record("reopened · started fresh", at: now)
             }
         } else {

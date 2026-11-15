@@ -356,8 +356,8 @@ private struct PilotDetail: View {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 Text(item.status.rawValue).font(Theme.mono(10.5)).foregroundStyle(Theme.fg3)
                                     .frame(width: 70, alignment: .leading)
-                                Text(item.copilotAskedAt == nil ? item.promptLine
-                                    : "\(item.text) Copilot was asked \(Clock.relative(item.copilotAskedAt!))")
+                                Text(item.copilotAskedAt == nil ? item.promptLine.display
+                                    : "\(item.text.display) Copilot was asked \(Clock.relative(item.copilotAskedAt!))")
                                     .font(Theme.ui(12.5)).lineLimit(2)
                             }
                         }

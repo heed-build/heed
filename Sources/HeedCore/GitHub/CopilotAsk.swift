@@ -41,7 +41,7 @@ public enum CopilotAsk {
         if !reviews.isEmpty {
             text += ":\n\n" + reviews.enumerated().map { index, item in
                 guard case let .review(location, author) = item.kind else { return "" }
-                let first = item.text.split(separator: "\n").first.map(String.init) ?? item.text
+                let first = item.text.firstLine().display
                 return "\(index + 1). `\(location)` (@\(author)): \(first)"
             }.joined(separator: "\n") + "\n\n"
         } else {

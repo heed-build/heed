@@ -161,7 +161,8 @@ extension AppModel {
                 ? StartContext(repos: [ref.repo.slug], label: "\(ref.repo.name)#\(ref.number)") : nil
         }
         openStartWork(
-            prompt: item.workPrompt(goal: goal.title, doc: Paths.tilde(goals.files.doc(goal.id).path)), context: context
+            prompt: item.workPrompt(goal: goal.title, doc: Paths.tilde(goals.files.doc(goal.id).path)).text,
+            context: context
         )
     }
 

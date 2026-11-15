@@ -96,7 +96,7 @@ public enum Import {
                 session.record("imported · resumed \(agent.name) session", at: now)
             } else {
                 command = agent.launchCommand(
-                    prompt: prompt, extraArguments: hooks(false) + arguments, environment: env
+                    prompt: .owner(prompt), extraArguments: hooks(false) + arguments, environment: env
                 )
                 session.record(
                     prompt.isEmpty ? "imported · \(agent.name) started fresh" : "started by another app",

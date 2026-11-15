@@ -492,7 +492,7 @@ extension AppModel {
         let started = Clock.now
         Task {
             do {
-                _ = try await client.prompt(sessionID: session, text: text)
+                _ = try await client.prompt(sessionID: session, text: .owner(text))
                 let reply = ui.defineBuffer
                 ui.edit(id: id) { definition in
                     definition.received(reply)

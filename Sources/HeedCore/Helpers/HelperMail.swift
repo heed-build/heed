@@ -39,9 +39,9 @@ public enum HelperMail {
     }
 
     /// Mail held for a helper's next turn, as one prompt: each line, then how to carry on.
-    public static func prompt(_ lines: [String]) -> String {
-        lines.joined(separator: "\n\n")
-            + "\n\n(From the swarm, through heed. Carry on with your part, and end as before.)"
+    public static func prompt(_ lines: [String]) -> Prompt {
+        "\(owner: lines.joined(separator: "\n\n"))\n\n(From the swarm, through heed. Carry on with your part, and end "
+            + "as before.)"
     }
 
     /// A message to the worker is urgent when you sent it.

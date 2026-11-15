@@ -91,9 +91,9 @@ public actor ACPClient {
     }
 
     /// `session/prompt`: returns when the turn ends, however long it works (updates arrive as `events` meanwhile).
-    public func prompt(sessionID: String, text: String) async throws -> ACPStopReason {
+    public func prompt(sessionID: String, text: Prompt) async throws -> ACPStopReason {
         let result = try await request(
-            ACP.Method.sessionPrompt, ACP.promptParams(sessionID: sessionID, text: text), timeout: nil
+            ACP.Method.sessionPrompt, ACP.promptParams(sessionID: sessionID, text: text.text), timeout: nil
         )
         guard let reason = result["stopReason"]?.string.flatMap(ACPStopReason.init(rawValue:)) else {
             throw ACPError.badResponse(ACP.Method.sessionPrompt)

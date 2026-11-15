@@ -113,9 +113,12 @@ public struct PersonaTrial: Hashable, Sendable {
     "happy|concern|not", "quote": "...", "lines": ["path:41, 88"]}.
     """
 
-    public static func prompt(_ persona: Persona, pull: PullSample) -> String {
+    /// The PR's title and diff are its author's, fenced.
+    public static func prompt(_ persona: Persona, pull: PullSample) -> Prompt {
         let diff = pull.diff.count <= diffLimit ? pull.diff : String(pull.diff.prefix(diffLimit)) + "\n… (cut)"
-        return "# The persona\n\(persona.brief)\n\n# PR #\(pull.number) in \(pull.repo): \(pull.title)\n\n\(diff)"
+        let title = ExternalText(pull.title, source: .pullTitle, author: .unknown)
+        return "# The persona\n\(owner: persona.brief)\n\n# PR #\(pull.number) in \(name: pull.repo): \(title)\n\n"
+            + "\(ExternalText(diff, source: .diff, author: .unknown))"
     }
 
     /// The model's answer, against the PR: lines that name a file the diff does not change are dropped.
@@ -205,11 +208,13 @@ public struct PersonaCalls: Sendable {
     ) async throws -> ([PersonaProposal], Cost) {
         let repos = digest.reads.map(\.repo)
         let known = library.map { "- \($0.id): \($0.name)" + ($0.who.isEmpty ? "" : ", \($0.who)") }
-        var prompt = "# Known personas\n" + known.joined(separator: "\n") + "\n\n# The repositories\n"
+        var prompt: Prompt = "# Known personas\n\(owner: known.joined(separator: "\n"))\n\n# The repositories\n"
             + digest.render()
-        if let describe { prompt = "# The developer describes\n\(describe)\n\n" + prompt }
+        if let describe { prompt = "# The developer describes\n\(owner: describe)\n\n" + prompt }
         let response = try await run(LLMRequest(
-            call: LLMCall(system: describe == nil ? Self.proposeSystem : Self.describeSystem, prompt: prompt),
+            call: LLMCall(
+                system: describe == nil ? Self.proposeSystem : Self.describeSystem, prompt: prompt.cacheableText
+            ),
             priority: .interactive, caller: Self.caller, operation: describe == nil ? "propose personas" :
                 "describe a persona"
         ))
@@ -223,7 +228,7 @@ public struct PersonaCalls: Sendable {
     /// The persona's verdict on a PR.
     public func trial(_ persona: Persona, pull: PullSample) async throws -> (PersonaTrial, Cost) {
         let response = try await run(LLMRequest(
-            call: LLMCall(system: PersonaTrial.system, prompt: PersonaTrial.prompt(persona, pull: pull)),
+            call: LLMCall(system: PersonaTrial.system, prompt: PersonaTrial.prompt(persona, pull: pull).cacheableText),
             priority: .interactive, caller: Self.caller, operation: "try a persona on a PR"
         ))
         guard let trial = PersonaTrial.parse(response.text, pull: pull) else {

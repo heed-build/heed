@@ -22,12 +22,12 @@ struct AttentionActionsTests {
             comments: [.init(author: "writer", text: "Fine by us.", at: now)], updatedAt: now
         )
         let inputs = AttentionText.inputs(for: item("acme/guides#77"), detail: detail)
-        #expect(inputs.title == "Archive the old guides" && inputs.repo == "acme/guides#77")
+        #expect(inputs.title.display == "Archive the old guides" && inputs.repo == "acme/guides#77")
         let thread = inputs.pullRequest ?? ""
-        #expect(thread.contains("Why it is here: team mention"))
-        #expect(thread.contains("Through the team: acme/docs-eng"))
-        #expect(thread.contains("Opened by maintainer") && thread.contains("Proposal: archive them."))
-        #expect(inputs.timeline == ["writer: Fine by us."])
+        #expect(thread.display.contains("Why it is here: team mention"))
+        #expect(thread.display.contains("Through the team: acme/docs-eng"))
+        #expect(thread.display.contains("Opened by maintainer") && thread.display.contains("Proposal: archive them."))
+        #expect(inputs.timeline.map(\.display) == ["writer: Fine by us."])
         #expect(AttentionText.inputs(for: item("x"), detail: nil).timeline.isEmpty)
     }
 
@@ -44,7 +44,7 @@ struct AttentionActionsTests {
         )
         // One issue heed has the text of: its whole text.
         let whole = AttentionText.workPrompt([item("acme/guides#77")], issues: [issue])
-        #expect(whole.contains("The whole text.") && whole.contains("Closes acme/guides#77"))
+        #expect(whole.display.contains("The whole text.") && whole.display.contains("Closes acme/guides#77"))
         // Several, or one not known: a list, agents left out.
         let list = AttentionText.workPrompt(
             [
@@ -54,7 +54,7 @@ struct AttentionActionsTests {
             ],
             issues: [issue], instructions: "Keep redirects."
         )
-        #expect(list == """
+        #expect(list.display == """
         Look into these:
         - guides#77 Archive the old guides (team mention)
         - guides#81 Archive the old guides (review requested)

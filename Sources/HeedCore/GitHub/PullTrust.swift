@@ -11,30 +11,39 @@ public struct PullAuthorship: Hashable, Sendable {
     public var association: String?
     /// From a fork.
     public var crossRepository: Bool
+    /// A GitHub App or bot account opened it.
+    public var isBot: Bool
 
-    public init(author: String?, association: String?, crossRepository: Bool) {
+    public init(author: String?, association: String?, crossRepository: Bool, isBot: Bool = false) {
         self.author = author
         self.association = association
         self.crossRepository = crossRepository
+        self.isBot = isBot
     }
 
-    /// The associations that can write to the repo.
-    public static let writers: Set<String> = ["OWNER", "MEMBER", "COLLABORATOR"]
+    /// Who opened it, as the author of its title and description: trust from the association, as everywhere else
+    /// (`ExternalText.Trust`).
+    public var by: ExternalText.Author {
+        ExternalText.Author(login: author, trust: .from(association: association, isBot: isBot))
+    }
 
-    /// Yours (`viewer` is your login), or from someone who can write to the repo on one of its own branches.
+    /// Yours (`viewer` is your login), or from someone who can write to the repo (`Trust.isCollaborator`) on one of
+    /// its own branches.
     public func trusted(viewer: String?) -> Bool {
         if let viewer, let author, author.lowercased() == viewer.lowercased() { return true }
-        guard !crossRepository, let association else { return false }
-        return Self.writers.contains(association.uppercased())
+        guard !crossRepository else { return false }
+        return by.trust.isCollaborator
     }
 
     /// From `gh pr view --json author,authorAssociation,isCrossRepository`; nil when it is not that.
     public static func parse(_ json: String) -> PullAuthorship? {
         guard let value = JSONValue.parse(json), value["isCrossRepository"] != nil || value["authorAssociation"] != nil
         else { return nil }
+        let login = value["author"]?["login"]?.string
         return PullAuthorship(
-            author: value["author"]?["login"]?.string, association: value["authorAssociation"]?.string,
-            crossRepository: value["isCrossRepository"]?.bool ?? true
+            author: login, association: value["authorAssociation"]?.string,
+            crossRepository: value["isCrossRepository"]?.bool ?? true,
+            isBot: value["author"]?["is_bot"]?.bool == true || (login?.hasSuffix("[bot]") ?? false)
         )
     }
 

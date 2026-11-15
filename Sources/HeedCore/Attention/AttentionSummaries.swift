@@ -139,30 +139,45 @@ public enum CatchUp {
     public static func inputs(
         for item: AttentionItem, conversation: ThreadConversation, input: CatchUpInput
     ) -> SummaryInputs {
-        var header = [
-            "\(conversation.kind == .pr ? "Pull request" : "Issue") #\(conversation.number): \(conversation.title)",
-            "Why it is in their Attention: " + item.orderedReasons.map(\.text).joined(separator: ", "),
-            "State: \(input.state)" +
-                (input.stateChanged ? " (was \(input.previousState ?? "") when they looked)" : ""),
+        let by = conversation.author?.author ?? .unknown
+        let title = ExternalText(
+            conversation.title,
+            source: conversation.kind == .pr ? .pullTitle : .issueTitle,
+            author: by
+        )
+        var header: [Prompt] = [
+            "\(conversation.kind == .pr ? "Pull request" : "Issue") #\(conversation.number): \(title)",
+            "Why it is in their Attention: \(owner: item.orderedReasons.map(\.text).joined(separator: ", "))",
+            "State: \(name: input.state)" +
+                (input.stateChanged ? " (was \(name: input.previousState ?? "") when they looked)" : ""),
         ]
-        if let author = conversation.author?.login { header.append("Opened by \(author)") }
-        var timeline: [String] = []
+        if let author = conversation.author?.login { header.append("Opened by \(name: author)") }
+        var timeline: [Prompt] = []
         if let since = input.since {
             header.append(
-                "They last looked at \(ISO8601DateFormatter().string(from: since)). Only what came after follows: "
+                "They last looked at \(owner: ISO8601DateFormatter().string(from: since)). Only what came after follows: "
                     + (input.comments.isEmpty ? "no new comments." : "\(input.comments.count) new.")
             )
         } else {
             header.append("They never looked at this thread, or nothing is new since: the whole thread follows.")
             let body = ThreadText.plain(conversation.bodyHTML)
-            if !body.isEmpty { header.append("\nDescription:\n\(body)") }
+            if !body.isEmpty {
+                header
+                    .append(
+                        "\nDescription:\n\(ExternalText(body, source: conversation.kind == .pr ? .pullBody : .issueBody, author: by))"
+                    )
+            }
         }
         for comment in input.comments {
-            let text = comment.minimizedReason.map { "(hidden as \($0))" } ?? ThreadText.plain(comment.bodyHTML)
-            timeline.append("\(comment.author?.login ?? "ghost") \(comment.verb): \(text)")
+            let said = ExternalText(
+                ThreadText.plain(comment.bodyHTML), source: .comment, author: comment.author?.author ?? .unknown
+            )
+            let text: Prompt = comment.minimizedReason.map { reason -> Prompt in "(hidden as \(name: reason))" }
+                ?? Prompt(said)
+            timeline.append("\(name: comment.author?.login ?? "ghost") \(owner: comment.verb): \(text)")
         }
         return SummaryInputs(
-            title: conversation.title, repo: item.place, branch: item.branch,
+            quoting: Prompt(title), repo: item.place, branch: item.branch,
             pullRequest: header.joined(separator: "\n"), timeline: timeline
         )
     }

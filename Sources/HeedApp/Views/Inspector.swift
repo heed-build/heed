@@ -60,7 +60,7 @@ struct Inspector: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(note.noteLocation ?? "").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
                                             .lineLimit(1).truncationMode(.head)
-                                        Text(note.text).font(Theme.ui(12))
+                                        Text(note.text.display).font(Theme.ui(12))
                                             .foregroundStyle(note.status == .queued ? Theme.fg : Theme.fg3).lineLimit(2)
                                     }
                                 }

@@ -80,7 +80,7 @@ struct GreenVerdictTests {
         pipeline.merge(detail(mergeable: "CONFLICTING", state: "DIRTY"))
         let item = pipeline.items.first { $0.id == "conflict" }
         #expect(item?.status == .new)
-        #expect(item?.promptLine.contains("rebase on main, resolve the conflicts") == true)
+        #expect(item?.promptLine.display.contains("rebase on main, resolve the conflicts") == true)
         // Unknown keeps it; merging cleanly resolves it.
         pipeline.merge(detail(mergeable: "UNKNOWN", state: "UNKNOWN"))
         #expect(pipeline.items.first { $0.id == "conflict" }?.status == .new)
@@ -89,14 +89,15 @@ struct GreenVerdictTests {
 
         var behind = PullFeedback(ref: ref)
         behind.merge(detail(state: "BEHIND"))
-        #expect(behind.items.first?.promptLine.contains("behind main") == true)
+        #expect(behind.items.first?.promptLine.display.contains("behind main") == true)
     }
 
     @Test func aFailedCheckPointsAtItsLog() {
         var item = FeedbackItem(id: "check:lint", kind: .check(name: "lint"), text: "line too long")
-        #expect(item.promptLine == "check lint failed: line too long")
+        #expect(item.promptLine.display == "check lint failed: line too long")
         item.logPath = "/tmp/heed/logs/x.log"
-        #expect(item.promptLine == "check lint failed: line too long (the failed log is in /tmp/heed/logs/x.log)")
+        #expect(item.promptLine
+            .display == "check lint failed: line too long (the failed log is in /tmp/heed/logs/x.log)")
     }
 
     @Test func jobsAndLogLines() {

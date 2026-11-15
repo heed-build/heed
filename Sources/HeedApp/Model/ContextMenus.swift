@@ -183,7 +183,7 @@ extension AppModel {
 
     /// A feedback item in the PR overlay or reader, or one of the session's own notes.
     func feedbackMenu(_ item: FeedbackItem) -> [MenuEntry] {
-        let line = item.promptLine
+        let line = item.promptLine.display
         var facts = ContextMenus.FeedbackFacts(id: item.id, title: line.count > 60 ? line.prefix(59) + "…" : line)
         facts.queueable = item.status == .new || item.status == .queued
         facts.queued = item.status == .queued

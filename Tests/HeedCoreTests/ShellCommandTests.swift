@@ -89,14 +89,14 @@ struct ShellCommandTests {
         let home = ProcessInfo.processInfo.environment["HOME"] ?? NSHomeDirectory()
         let env = "a 'b' \"c\" $d \\e"
         let launch = stub.launchCommand(
-            prompt: prompt, extraArguments: ["--settings", path], environment: ["STUB_ENV": env], model: "m'1"
+            prompt: .owner(prompt), extraArguments: ["--settings", path], environment: ["STUB_ENV": env], model: "m'1"
         )
         var piped = stub
         piped.prompt = .stdin
         piped.command = "stubagent --stdin"
         let cases: [(name: String, command: ShellCommand, expected: String)] = try [
             ("prompt", launch, printed(["--settings", path, "--model", "m'1", prompt], env: env)),
-            ("stdin", piped.launchCommand(prompt: prompt), printed([], stdin: prompt)),
+            ("stdin", piped.launchCommand(prompt: .owner(prompt)), printed([], stdin: prompt)),
             (
                 "resume", #require(stub.resumeCommand(id: "a b'c", extraArguments: ["--settings", path])),
                 printed(["--settings", path, "--resume", "a b'c"])
@@ -169,7 +169,7 @@ struct ShellCommandTests {
         var piped = stub
         piped.prompt = .stdin
         for agent in [stub, piped] {
-            let line = agent.launchCommand(prompt: prompt, environment: ["STUB_ENV": "x"])
+            let line = agent.launchCommand(prompt: .owner(prompt), environment: ["STUB_ENV": "x"])
             let command = try #require(WorktreeSetup.paneCommand(setup: ["sh -c 'exit 3'"], then: line))
             for shell in shells {
                 let result = try await type(command.rendered(for: shell.kind), into: shell, bin: bin, prompt: prompt)
@@ -204,7 +204,7 @@ struct ShellCommandTests {
         guard let fish = shells.first(where: { $0.kind == .fish }) else { return }
         let bin = try stubs()
         defer { try? FileManager.default.removeItem(atPath: bin) }
-        let line = stub.launchCommand(prompt: prompt).posix
+        let line = stub.launchCommand(prompt: .owner(prompt)).posix
         let result = try await type(line, into: fish, bin: bin)
         #expect(result.stdout != printed([prompt]))
     }
@@ -232,7 +232,7 @@ struct ShellCommandTests {
                 for text in ["", "go", prompt] {
                     for (plan, model) in [(false, nil), (true, "m'1"), (true, "")] {
                         let line = agent.launchCommand(
-                            prompt: text, planFirst: plan, extraArguments: ["--settings", path, "-c", "a=b c"],
+                            prompt: .owner(text), planFirst: plan, extraArguments: ["--settings", path, "-c", "a=b c"],
                             environment: env, model: model
                         )
                         let before = Legacy.launch(

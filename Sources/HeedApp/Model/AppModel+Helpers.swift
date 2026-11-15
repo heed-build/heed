@@ -413,7 +413,7 @@ extension AppModel {
                 _ = await startHelper(
                     .review,
                     ref: ref,
-                    title: pull.title.isEmpty ? title : pull.title,
+                    title: pull.title.isEmpty ? title : pull.title.display,
                     headBranch: pull.head,
                     items: [],
                     sessionID: nil,
@@ -435,7 +435,7 @@ extension AppModel {
     /// logged, and kept on the helper).
     func startHelper(
         _ kind: HelperKind, ref: PullRef, title: String? = nil, headBranch: String? = nil, items: [FeedbackItem],
-        sessionID: String?, trusted: Bool = true, prompt: @escaping (_ branch: String, _ prBranch: String) -> String
+        sessionID: String?, trusted: Bool = true, prompt: @escaping (_ branch: String, _ prBranch: String) -> Prompt
     ) async -> String? {
         let availability = await helperAvailability()
         guard case let .ready(adapter, executable) = availability else {
@@ -551,7 +551,7 @@ extension AppModel {
     }
 
     /// One prompt turn; its end is read by why it was cancelled, if it was.
-    func runTurn(_ id: String, _ text: String) {
+    func runTurn(_ id: String, _ text: Prompt) {
         guard let client = helpers.clients[id], let session = helpers.sessionIDs[id] else { return }
         helpers.update(id) {
             $0.phase = .working
@@ -904,7 +904,7 @@ extension AppModel {
     /// Returns its id, or why it could not start.
     func startPartHelper(
         agent: String, model: String?, record: RepoRecord, title: String, branch: String, worktree: String,
-        setup: [String], sessionID: String?, worker: String, prompt: String
+        setup: [String], sessionID: String?, worker: String, prompt: Prompt
     ) async -> Result<String, PartHelperError> {
         guard let adapter = ACPAgents.adapter(for: agent)
             ?? ACPAgents.chosen(config.helpers, defaultAgent: settings.defaultAgent)
@@ -1043,7 +1043,7 @@ extension AppModel {
         helpers.notices[sessionID] = HelpersModel.SessionNotice(helperID: helperID, text: text, at: Clock.now)
         guard !isFixture else { return }
         Task {
-            let outcome = await notify(session: sessionID, text: text, mayType: false)
+            let outcome = await notify(session: sessionID, text: .owner(text), mayType: false)
             if helpers.notices[sessionID]?.helperID == helperID, helpers.notices[sessionID]?.text == text {
                 helpers.notices[sessionID]?.outcome = outcome
             }

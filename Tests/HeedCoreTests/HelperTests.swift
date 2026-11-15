@@ -175,15 +175,23 @@ struct HelperPromptTests {
 
     @Test func promptsSayWhereItIsAndThatItNeverPushes() {
         let green = HelperPrompt.green(feedback: "1) lint failed", branch: "heed/get-it-green/f", prBranch: "f")
-        #expect(green.contains("heed/get-it-green/f") && green.contains("Do not push"))
-        #expect(green.contains("1) lint failed") && green
-            .hasSuffix("heed-reply <item number>: <your reply to that review comment, one or two sentences>"))
+        #expect(green.display.contains("heed/get-it-green/f") && green.display.contains("Do not push"))
+        #expect(green.display.contains("1) lint failed") && green
+            .display.hasSuffix("heed-reply <item number>: <your reply to that review comment, one or two sentences>"))
         let ref = PullRef(repo: Repo(org: "acme", name: "markgraph"), number: 418)
+        let by = ExternalText.Author(login: "someone", trust: .stranger)
         let review = HelperPrompt.review(
-            ref: ref, title: "Arrowheads", body: "Fixes #400", base: "main", branch: "heed/review/a", prBranch: "a"
-        )
+            ref: ref, title: ExternalText("Arrowheads", source: .pullTitle, author: by),
+            body: ExternalText("Fixes #400", source: .pullBody, author: by), base: "main", branch: "heed/review/a",
+            prBranch: "a"
+        ).rendered(nonce: "n1")
         #expect(review.contains("git diff origin/main...HEAD") && review.contains("Fixes #400"))
         #expect(review.contains("heed-verdict:") && review.contains("Change no files"))
+        // The PR's title and description are its author's, fenced.
+        #expect(review
+            .contains("<external author=\"@someone\" trust=\"stranger\" source=\"pull body\" id=\"n1\">Fixes #400"))
+        #expect(review
+            .contains("\"<external author=\"@someone\" trust=\"stranger\" source=\"pull title\" id=\"n1\">Arrowheads"))
         let items = [
             FeedbackItem(id: "check:lint", kind: .check(name: "lint"), text: "x"),
             FeedbackItem(id: "PRRT_a", kind: .review(location: "Redirects.cs:88", author: "r"), text: "y"),

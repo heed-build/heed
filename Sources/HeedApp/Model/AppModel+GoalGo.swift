@@ -196,7 +196,7 @@ extension AppModel {
     func startWorkerHelper(
         swarm: GoalSwarm, goal: HeedGoal, task: SwarmTask, number: String, owner: GoalItem.Owner, record: RepoRecord,
         branch: String, base: String, stackedOn: String?, worktree: String, setup: [String], session: String?,
-        prompt: String, now: Date
+        prompt: Prompt, now: Date
     ) async {
         let id = UUID().uuidString.lowercased()
         let started = await startPartHelper(

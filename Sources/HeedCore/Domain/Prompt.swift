@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// What heed hands an agent or a model: text written in heed's code, your own words, and other people's text, kept
@@ -56,7 +57,8 @@ public struct Prompt: Hashable, Sendable, ExpressibleByStringInterpolation {
         /// Your own words, as typed.
         public mutating func appendInterpolation(owner text: String) { self.text(text) }
 
-        /// A name from elsewhere (a branch, a path, a repo, a login), kept to letters, digits and `._-/+@#=,:~`.
+        /// A name from elsewhere (a branch, a path, a repo, a login), kept to letters, digits, spaces and
+        /// `._-/+@#=,:~()[]`.
         public mutating func appendInterpolation(name text: String) { self.text(Prompt.name(text)) }
 
         private mutating func text(_ text: String) {
@@ -70,6 +72,89 @@ public struct Prompt: Hashable, Sendable, ExpressibleByStringInterpolation {
     }
 
     public var isEmpty: Bool { parts.isEmpty }
+
+    /// Without whitespace and newlines at either end.
+    public var trimmed: Prompt {
+        var parts = parts
+        if case let .text(first)? = parts.first {
+            let kept = String(first.drop { $0.isWhitespace || $0.isNewline })
+            if kept.isEmpty { parts.removeFirst() } else { parts[0] = .text(kept) }
+        }
+        if case let .text(last)? = parts.last {
+            var kept = last
+            while let end = kept.last, end.isWhitespace || end.isNewline {
+                kept.removeLast()
+            }
+            if kept.isEmpty { parts.removeLast() } else { parts[parts.count - 1] = .text(kept) }
+        }
+        return Prompt(parts: parts)
+    }
+
+    /// The last `count` characters (other people's text counted as shown), with `…` first when cut.
+    public func suffix(_ count: Int) -> Prompt {
+        func length(_ part: Part) -> Int {
+            switch part {
+            case let .text(text): text.count
+            case let .external(text): text.display.count
+            }
+        }
+        guard parts.map(length).reduce(0, +) > count else { return self }
+        var left = count - 1
+        var kept: [Part] = []
+        for part in parts.reversed() {
+            guard left > 0 else { break }
+            let size = length(part)
+            if size <= left {
+                kept.insert(part, at: 0)
+                left -= size
+                continue
+            }
+            switch part {
+            case let .text(text): kept.insert(.text(String(text.suffix(left))), at: 0)
+            case let .external(text): kept.insert(.external(text.suffix(left)), at: 0)
+            }
+            left = 0
+        }
+        return Prompt(parts: [.text("…")]) + Prompt(parts: kept)
+    }
+
+    /// The first `count` characters (other people's text counted as shown), with `mark` after when cut.
+    public func prefixed(_ count: Int, mark: String) -> Prompt {
+        func length(_ part: Part) -> Int {
+            switch part {
+            case let .text(text): text.count
+            case let .external(text): text.display.count
+            }
+        }
+        guard parts.map(length).reduce(0, +) > count else { return self }
+        var left = count
+        var kept: [Part] = []
+        for part in parts {
+            guard left > 0 else { break }
+            let size = length(part)
+            if size <= left {
+                kept.append(part)
+                left -= size
+                continue
+            }
+            switch part {
+            case let .text(text): kept.append(.text(String(text.prefix(left))))
+            case let .external(text): kept.append(.external(text.prefix(left)))
+            }
+            left = 0
+        }
+        return Prompt(parts: kept) + .owner(mark)
+    }
+
+    /// On one line: every line break a space, in your words and in other people's.
+    public var oneLine: Prompt {
+        Prompt(parts: parts.map { part in
+            switch part {
+            case let .text(text): .text(text.replacingOccurrences(of: "\n", with: " "))
+            case let .external(text): .external(text.oneLine)
+            }
+        })
+    }
 
     /// Whether any of it is other people's text.
     public var hasExternal: Bool { parts.contains { if case .external = $0 { true } else { false } } }
@@ -94,6 +179,31 @@ public struct Prompt: Hashable, Sendable, ExpressibleByStringInterpolation {
 
     /// The prompt as an agent or a model gets it, fenced with a fresh random id.
     public var text: String { rendered(nonce: Self.nonce()) }
+
+    /// For a model call heed caches: the id is a digest of the prompt itself, so the same prompt renders the same
+    /// (and an identical call is answered from the cache). The content cannot contain its own digest, and cannot
+    /// close a fence anyway (`defuse`).
+    public var cacheableText: String {
+        var hash = SHA256()
+        for part in parts {
+            switch part {
+            case let .text(text): hash.update(data: Data(("t" + text + "\u{0}").utf8))
+            case let .external(text):
+                hash.update(data: Data(("e" + text.display + "\u{0}" + text.source.rawValue + "\u{0}").utf8))
+            }
+        }
+        return rendered(nonce: hash.finalize().prefix(4).map { String(format: "%02x", $0) }.joined())
+    }
+
+    /// For heed's own UI: other people's text as shown (`ExternalText.display`), without fences or the notice.
+    public var display: String {
+        parts.map { part in
+            switch part {
+            case let .text(text): text
+            case let .external(text): text.display
+            }
+        }.joined()
+    }
 
     /// For typing into a terminal: `text` with every control character but `\n` and `\t` stripped, your words too.
     public var typed: String { ExternalText.strip(text) }
@@ -136,9 +246,10 @@ public struct Prompt: Hashable, Sendable, ExpressibleByStringInterpolation {
         return pattern.stringByReplacingMatches(in: text, range: range, withTemplate: "‹$1")
     }
 
-    /// A name, kept to letters, digits and `._-/+@#=,:~`: what branches, paths, repos and logins are made of.
+    /// A name, kept to letters, digits, spaces and `._-/+@#=,:~()[]`: what branches, paths, repos and logins
+    /// (`dependabot[bot]`) are made of.
     static func name(_ text: String) -> String {
-        let allowed = Set("._-/+@#=,:~")
+        let allowed = Set("._-/+@#=,:~ ()[]")
         return String(String.UnicodeScalarView(text.unicodeScalars.filter { scalar in
             scalar.properties.isAlphabetic || scalar.properties.numericType != nil
                 || (scalar.isASCII && allowed.contains(Character(scalar)))

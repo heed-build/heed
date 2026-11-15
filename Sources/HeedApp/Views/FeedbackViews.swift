@@ -233,7 +233,7 @@ struct FeedbackPanel: View {
             if let prompt = pipeline.prompt(instructions: model.pilotSettings(for: ref).greenInstructions) {
                 VStack(alignment: .leading, spacing: 6) {
                     SectionHeader(title: "Prompt that will be sent")
-                    Text(prompt).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).lineLimit(10)
+                    Text(prompt.display).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).lineLimit(10)
                 }
                 .padding(14)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Theme.pane))
@@ -327,7 +327,7 @@ struct NotesPanel: View {
                         if let prompt = SessionNotes.prompt(session.notes) {
                             VStack(alignment: .leading, spacing: 6) {
                                 SectionHeader(title: "Prompt that will be sent")
-                                Text(prompt).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).lineLimit(10)
+                                Text(prompt.display).font(Theme.mono(11.5)).foregroundStyle(Theme.fg2).lineLimit(10)
                             }
                             .padding(14)
                             .background(RoundedRectangle(cornerRadius: 8).fill(Theme.pane))
@@ -372,7 +372,8 @@ private struct FeedbackRow: View {
                 case let .rebase(onto, parent, _):
                     Text("rebase · onto \(onto) after #\(parent)").font(Theme.mono(11.5)).foregroundStyle(Theme.ask)
                 }
-                Text(item.text).font(Theme.ui(13)).foregroundStyle(item.status == .resolved ? Theme.fg3 : Theme.fg)
+                Text(item.text.display).font(Theme.ui(13))
+                    .foregroundStyle(item.status == .resolved ? Theme.fg3 : Theme.fg)
                     .lineLimit(3)
                 if let log = item.logPath {
                     Text("failed log: \(Paths.abbreviate(log))").font(Theme.mono(11)).foregroundStyle(Theme.fg3)

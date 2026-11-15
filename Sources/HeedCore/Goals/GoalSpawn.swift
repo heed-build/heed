@@ -56,14 +56,16 @@ public enum GoalSpawnCap {
 public enum GoalSpawnRun {
     /// The words that run `agent` headless on `prompt` in `worktree`; nil for agents that only run in a pane.
     /// Edits are allowed (the worktree is the run's own); claude's shell is limited to `heed goal` and git status, so
-    /// a run that needs more stops and says so instead of acting unattended.
+    /// a run that needs more stops and says so instead of acting unattended. The prompt never starts with `-`
+    /// (`Prompt.argument`), so neither CLI reads it as an option.
     /// `sandbox`: the run's folder, for a spawn on someone else's issue or PR (`GoalItem.fromSomeoneElse`): its shell
     /// sandboxed with no network and writes only to its worktree and that folder (`RunSandbox`); the same tools.
     public static func headless(
-        agent: String, command: String, prompt: String, worktree: String, instructions: [String],
+        agent: String, command: String, prompt: Prompt, worktree: String, instructions: [String],
         sandbox folder: String? = nil
     ) -> [String]? {
         let command = command.split(separator: " ").map(String.init)
+        let prompt = prompt.argument
         let shell = ["Bash(heed goal *)", "Bash(git status *)", "Bash(git diff *)"]
         switch agent {
         case "claude":

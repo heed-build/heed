@@ -510,8 +510,9 @@ struct GoalSourceCommandTests {
             )
         )
         let prompt = item.workPrompt(goal: "Review PRs", doc: "~/g/GOAL.md")
-        #expect(prompt.hasPrefix("Review PR acme/widgets#12 “Cache templates” by @tess"))
-        #expect(prompt.contains("gh pr checkout 12 --repo acme/widgets") && prompt.contains("Cache templates"))
+        #expect(prompt.display.hasPrefix("Review PR acme/widgets#12 “Cache templates” by @tess"))
+        #expect(prompt.display.contains("gh pr checkout 12 --repo acme/widgets") && prompt.display
+            .contains("Cache templates"))
     }
 
     @Test func aSourcesMenuOffersItsRules() {

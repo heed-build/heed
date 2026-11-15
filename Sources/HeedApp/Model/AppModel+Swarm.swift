@@ -478,7 +478,7 @@ extension AppModel {
         else { return }
         Task { @MainActor in
             let outcome = await self.sendToAgent(
-                text + " Run heed goal plan show.", pane: paneID, state: session.state.state,
+                .owner(text + " Run heed goal plan show."), pane: paneID, state: session.state.state,
                 lastTyped: self.lastTyped[id]
             )
             guard outcome.sent, var told = self.sessions.first(where: { $0.id == id }) else { return }

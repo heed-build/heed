@@ -210,7 +210,7 @@ extension AppModel {
             let outcome = if let helper {
                 mailPartHelper(helper, item.line, urgent: HelperMail.urgent(item.row))
             } else {
-                await sendToAgent(item.line, pane: target.pane, state: target.state, lastTyped: target.typed)
+                await sendToAgent(.owner(item.line), pane: target.pane, state: target.state, lastTyped: target.typed)
             }
             guard outcome.sent else { continue }
             typed.insert(item.to.raw)

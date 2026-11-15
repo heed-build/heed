@@ -71,22 +71,23 @@ public extension Handoff {
     static func swarmReturn(
         task: SwarmTask, number: String, swarm: GoalSwarm, pr: PullRef, branch: String, base: String,
         items: [FeedbackItem], instructions: String = ""
-    ) -> String {
-        var lines = [
-            "You are back on swarm \(swarm.number)'s task \(number) \(task.title) (item \(task.id)), in the worktree "
-                + "you worked in, on the branch \(branch). Your pull request \(pr.url) goes against \(base).",
+    ) -> Prompt {
+        var lines: [Prompt] = [
+            "You are back on swarm \(swarm.number)'s task \(owner: number) \(owner: task.title) (item "
+                + "\(owner: task.id)), in the worktree you worked in, on the branch \(name: branch). Your pull request "
+                + "\(name: pr.url) goes against \(name: base).",
             "",
             "It needs you again:",
         ]
-        lines += items.map { "- " + $0.promptLine }
+        lines += items.map { "- \($0.promptLine)" }
         lines += [
             "",
             "Fetch first (git fetch origin): the pull request may have moved since you left. Run the tests after "
-                + "resolving anything. Push to \(branch) only (git push --force-with-lease after a rebase), never "
-                + "to \(base), and never merge. Then stop: heed sees the push.",
+                + "resolving anything. Push to \(name: branch) only (git push --force-with-lease after a rebase), "
+                + "never to \(name: base), and never merge. Then stop: heed sees the push.",
         ]
         let extra = instructions.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !extra.isEmpty { lines += ["", extra] }
+        if !extra.isEmpty { lines += ["", .owner(extra)] }
         return lines.joined(separator: "\n")
     }
 }

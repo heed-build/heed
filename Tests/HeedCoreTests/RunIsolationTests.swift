@@ -217,9 +217,9 @@ struct HelperIsolationTests {
     @Test func itsPromptAsksToRunTestsOnlyOnYourWork() {
         func prompt(_ runTests: Bool) -> String {
             HelperPrompt.review(
-                ref: ref, title: "T", body: "", base: "main", branch: "heed/review/x", prBranch: "x",
-                runTests: runTests
-            )
+                ref: ref, title: ExternalText("T", source: .pullTitle, author: .unknown), body: .empty(.pullBody),
+                base: "main", branch: "heed/review/x", prBranch: "x", runTests: runTests
+            ).display
         }
         #expect(prompt(true).contains("run its tests"))
         #expect(!prompt(false).contains("run its tests"))
@@ -245,9 +245,9 @@ struct GoalRunIsolationTests {
 
     @Test func aPRItemsReviewIsDraftedNotPosted() {
         let prompt = prItem(author: "tess").workPrompt(goal: "Review PRs", doc: "~/g/GOAL.md")
-        #expect(!prompt.contains("leave your review on GitHub"))
-        #expect(prompt.contains("do not post it, approve or comment on GitHub yourself"))
-        #expect(prompt.contains("heed-verdict:") && prompt.contains("heed-comment"))
+        #expect(!prompt.display.contains("leave your review on GitHub"))
+        #expect(prompt.display.contains("do not post it, approve or comment on GitHub yourself"))
+        #expect(prompt.display.contains("heed-verdict:") && prompt.display.contains("heed-comment"))
     }
 
     @Test func someoneElsesItemIsKnownAsSuch() {

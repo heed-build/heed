@@ -13,7 +13,7 @@ public struct ExternalText: Hashable, Sendable {
     public enum Source: String, Hashable, Sendable, Codable, CaseIterable {
         case comment, review, thread, pullTitle = "pull title", pullBody = "pull body", issueTitle = "issue title"
         case issueBody = "issue body", checkSummary = "check summary", ciLog = "ci log"
-        case commitMessage = "commit message", branchName = "branch name", repoFile = "repo file"
+        case commitMessage = "commit message", branchName = "branch name", repoFile = "repo file", diff
         /// Your own note on a hunk, typed in heed.
         case note
     }
@@ -102,11 +102,21 @@ public struct ExternalText: Hashable, Sendable {
         ExternalText(String(display.prefix(count)), source: source, author: author)
     }
 
+    /// The same text, its end kept.
+    public func suffix(_ count: Int) -> ExternalText {
+        ExternalText(String(display.suffix(count)), source: source, author: author)
+    }
+
     /// The first line, cut to `limit` characters with `…` when longer.
     public func firstLine(limit: Int = .max) -> ExternalText {
         let first = display.split(separator: "\n", omittingEmptySubsequences: false).first.map(String.init) ?? ""
         let short = first.count > limit ? String(first.prefix(limit - 1)) + "…" : first
         return ExternalText(short, source: source, author: author)
+    }
+
+    /// On one line: every line break a space.
+    public var oneLine: ExternalText {
+        ExternalText(display.replacingOccurrences(of: "\n", with: " "), source: source, author: author)
     }
 
     /// The lines, each its own text.

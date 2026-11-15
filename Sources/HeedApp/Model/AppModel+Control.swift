@@ -131,7 +131,12 @@ extension AppModel {
         guard let layout = layouts[id], let (_, paneID) = agentPane(in: layout),
               TerminalSurfaces.shared.hasTerminal(paneID: paneID)
         else { return .failure("\(session.title) has no running agent pane: open it in Heed") }
-        let outcome = await sendToAgent(text, pane: paneID, state: session.state.state, lastTyped: lastTyped[id])
+        let outcome = await sendToAgent(
+            .owner(text),
+            pane: paneID,
+            state: session.state.state,
+            lastTyped: lastTyped[id]
+        )
         guard outcome.sent else { return .failure("not sent: \(outcome.why ?? "unknown")") }
         if var sent = sessions.first(where: { $0.id == id }) {
             sent.record("sent \(text.count) characters from another app"

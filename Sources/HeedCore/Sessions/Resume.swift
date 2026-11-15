@@ -89,7 +89,9 @@ public enum Resume {
                 let fresh = integration.map {
                     AgentIntegration.launchArguments(agent: agent, sessionID: session.id, files: $0, signOff: signOff)
                 } ?? []
-                let command = agent.launchCommand(prompt: session.prompt, extraArguments: fresh, environment: env)
+                let command = agent.launchCommand(
+                    prompt: .owner(session.prompt), extraArguments: fresh, environment: env
+                )
                 let active = [.working, .blocked, .asking, .limited].contains(session.state.state)
                 return ResumeCandidate(
                     session: session, mode: active ? .startFresh : .leftClosed, command: command, paneCount: panes,

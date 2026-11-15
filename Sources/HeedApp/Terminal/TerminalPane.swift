@@ -211,9 +211,9 @@ final class TerminalSurfaces {
 
     /// Types a line into a pane's running program (the continue prompt to an agent), never to start one. No-op for
     /// placeholder panes.
-    func typeLine(_ text: String, paneID: String) {
+    func typeLine(_ prompt: Prompt, paneID: String) {
         #if HEED_GHOSTTY
-            (views[paneID] as? GhosttySurfaceView)?.typeLine(text)
+            (views[paneID] as? GhosttySurfaceView)?.typeLine(prompt)
         #endif
     }
 
@@ -229,10 +229,10 @@ final class TerminalSurfaces {
     /// Whether the pane has a terminal now: typing into one that does not goes nowhere.
     func hasTerminal(paneID: String) -> Bool { views[paneID] != nil }
 
-    /// Types text into a pane without pressing Return.
-    func typeText(_ text: String, paneID: String) {
+    /// Types a prompt into a pane without pressing Return.
+    func typeText(_ prompt: Prompt, paneID: String) {
         #if HEED_GHOSTTY
-            (views[paneID] as? GhosttySurfaceView)?.typeText(text)
+            (views[paneID] as? GhosttySurfaceView)?.typeText(prompt)
         #endif
     }
 

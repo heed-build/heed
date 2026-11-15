@@ -1,5 +1,6 @@
 import AppKit
 import GhosttyKit
+import HeedCore
 
 /// What a terminal surface starts with.
 public struct TerminalLaunch: Sendable {
@@ -97,16 +98,18 @@ public final class GhosttySurfaceView: NSView, @preconcurrency NSTextInputClient
     }
 
     /// Types `text` without pressing Return, leaving it for the user to finish.
-    public func typeText(_ text: String) {
+    public func typeText(_ prompt: Prompt) {
         guard let surface else { return }
+        let text = prompt.typed
         text.withCString { ghostty_surface_text(surface, $0, UInt(text.utf8.count)) }
     }
 
-    /// Types `text` and presses Return, as if the user did: used to send the continue prompt to a resumed agent. Never
-    /// to
-    /// start one: a shell that is still starting can lose or garble what is typed (`PaneLaunch`).
-    public func typeLine(_ text: String) {
+    /// Types `prompt` and presses Return, as if the user did: used to send the continue prompt to a resumed agent.
+    /// Never to start one: a shell that is still starting can lose or garble what is typed (`PaneLaunch`). What is
+    /// typed is `Prompt.typed`: no escape or control character but newlines and tabs reaches the terminal.
+    public func typeLine(_ prompt: Prompt) {
         guard let surface else { return }
+        let text = prompt.typed
         text.withCString { ghostty_surface_text(surface, $0, UInt(text.utf8.count)) }
         for action in [GHOSTTY_ACTION_PRESS, GHOSTTY_ACTION_RELEASE] {
             var key = ghostty_input_key_s()

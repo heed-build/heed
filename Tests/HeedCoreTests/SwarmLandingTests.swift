@@ -259,9 +259,9 @@ struct SwarmLandingRetargetTests {
         #expect(item.id == "rebase:412" && item.status == .queued)
         #expect(SwarmLanding.rebaseItem(move, past: "c412", queued: false).status == .new)
         let line = item.promptLine
-        #expect(line.contains("git rebase --onto origin/main c412"))
-        #expect(line.contains("--force-with-lease to this PR's branch only, never to main"))
-        #expect(!line.contains("push --force "))
+        #expect(line.display.contains("git rebase --onto origin/main c412"))
+        #expect(line.display.contains("--force-with-lease to this PR's branch only, never to main"))
+        #expect(!line.display.contains("push --force "))
     }
 
     @Test func theRebaseIsResolvedOnceANewHeadMergesCleanly() {

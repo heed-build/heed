@@ -200,6 +200,18 @@ public actor EventLog {
         SQLiteMigration(sql: """
         CREATE INDEX events_subject ON events (subject, at) WHERE kind IN ('tool.call', 'file.change');
         """),
+        // Audit (`AuditRecord`): append-only, each row chained to the one before by its hash (`AuditChain`).
+        SQLiteMigration(sql: """
+        CREATE TABLE audit (
+            id INTEGER PRIMARY KEY,
+            at REAL NOT NULL,
+            kind TEXT NOT NULL,
+            body TEXT NOT NULL,
+            prev TEXT NOT NULL,
+            hash TEXT NOT NULL
+        );
+        CREATE INDEX audit_at ON audit (at);
+        """),
     ]
 
     // MARK: Writing

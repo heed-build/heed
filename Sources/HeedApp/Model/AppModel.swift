@@ -3210,7 +3210,8 @@ final class AppModel {
              "approvals.deny.reason", "approvals.always", "approvals.allow.all", "approvals.deny.all",
              "approvals.allow.read", "approvals.session":
             _ = performApprovals(command)
-        case "goal.wizard", "goal.tldr", "wizard.leave", "wizard.next", "wizard.step", "wizard.row", "wizard.pick",
+        case "goal.wizard", "goal.tldr", "wizard.leave", "wizard.discard", "wizard.next", "wizard.step", "wizard.row",
+             "wizard.pick",
              "wizard.answer", "wizard.smaller", "wizard.talk", "wizard.drop", "wizard.invite", "wizard.invite.pick",
              "wizard.use", "wizard.define", "careful.details", "tldr.copy", "tldr.act":
             _ = performWizard(command)

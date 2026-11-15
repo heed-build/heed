@@ -13,6 +13,12 @@ public enum WizardKeys {
         ),
         .init("wizard.leave", "wizard: back to the goals; it keeps its place", .selection),
         .init(
+            "wizard.discard",
+            "wizard: discard this goal: deleted for good when nothing is attached to it, else archived (a in the "
+                + "Goals list brings it back); asks first",
+            .selection
+        ),
+        .init(
             "wizard.next",
             "wizard: on to the next step (Plan: good enough; Panel: worth it, take the fixes; Done looks like: looks "
                 + "right)",
@@ -72,11 +78,12 @@ public enum WizardKeys {
         .init("tldr.act", "TL;DR: do the first open point's action", .selection),
     ] + SplitKeys.commands
 
-    /// Keys every step shares: ⌘↩ on, H L between the steps reached, j k rows, T the TL;DR, ⎋ out.
+    /// Keys every step shares: ⌘↩ on, H L between the steps reached, j k rows, T the TL;DR, D discards the goal, ⎋ out.
     static let shared: [(String, String)] = [
         ("<D-CR>", "wizard.next"), ("H", "wizard.step prev"), ("L", "wizard.step next"),
         ("j", "wizard.row 1"), ("k", "wizard.row -1"), ("<Down>", "wizard.row 1"), ("<Up>", "wizard.row -1"),
         ("T", "goal.tldr"), ("<Esc>", "wizard.leave"),
+        ("D", "wizard.discard"),
     ]
 
     public static let scopes = [
@@ -105,7 +112,10 @@ public enum WizardKeys {
         // Go: j k rows, h l or 1 2 3 the row's option, ⌘↩ starts, S saves for later.
         "wizardgo": [
             ("<D-CR>", "go.start"), ("H", "wizard.step prev"), ("L", "wizard.step next"), ("T", "goal.tldr"),
-            ("<Esc>", "wizard.leave"), ("j", "go.row 1"), ("k", "go.row -1"), ("<Down>", "go.row 1"),
+            ("<Esc>", "wizard.leave"), ("D", "wizard.discard"), ("j", "go.row 1"), ("k", "go.row -1"), (
+                "<Down>",
+                "go.row 1"
+            ),
             ("<Up>", "go.row -1"), ("h", "go.step -1"), ("l", "go.step 1"), ("<Left>", "go.step -1"),
             ("<Right>", "go.step 1"), ("S", "go.save"),
         ] + (1 ... 3).map { ("\($0)", "go.pick \($0)") },

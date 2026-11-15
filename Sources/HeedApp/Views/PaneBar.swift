@@ -12,6 +12,26 @@ struct PaneCrumb {
     }
 }
 
+/// A breadcrumb, `Goals › title › pane`: the parts with a command are clickable, the last is where you are.
+struct CrumbLine: View {
+    let crumb: [PaneCrumb]
+
+    var body: some View {
+        HStack(spacing: 7) {
+            ForEach(Array(crumb.enumerated()), id: \.offset) { index, part in
+                if index > 0 { Text("›").foregroundStyle(Theme.fg3) }
+                let last = index == crumb.count - 1
+                Text(part.text)
+                    .foregroundStyle(last ? Theme.fg : Theme.fg2)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .clickRuns(last ? nil : part.runs)
+            }
+        }
+        .font(Theme.ui(13, weight: .medium))
+    }
+}
+
 /// One tab of a pane bar's strip.
 struct PaneBarTab: Identifiable {
     var id: String
@@ -62,20 +82,7 @@ struct PaneBar<Trailing: View>: View {
         }
     }
 
-    private var crumbs: some View {
-        HStack(spacing: 7) {
-            ForEach(Array(crumb.enumerated()), id: \.offset) { index, part in
-                if index > 0 { Text("›").foregroundStyle(Theme.fg3) }
-                let last = index == crumb.count - 1
-                Text(part.text)
-                    .foregroundStyle(last ? Theme.fg : Theme.fg2)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .clickRuns(last ? nil : part.runs)
-            }
-        }
-        .font(Theme.ui(13, weight: .medium))
-    }
+    private var crumbs: some View { CrumbLine(crumb: crumb) }
 
     private func strip(keys: Bool) -> some View {
         HStack(spacing: 4) {

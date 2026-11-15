@@ -233,6 +233,26 @@ struct ScopedKeyTests {
         }
     }
 
+    @Test func everyWizardStepShowsHowToLeaveAndDiscardsOnCapitalD() throws {
+        let built = Keymaps.build()
+        let steps = ["wizardplan", "wizardpanel", "wizarddone", "wizardsplit", "wizardcareful", "wizardgo"]
+        for scope in steps {
+            let keymap = try #require(built.scoped[scope], "\(scope)")
+            #expect(GoalHints.hints(scope: scope, .init()).hints.first?.command == "wizard.leave", "\(scope)")
+            #expect(try keymap.lookup(KeyNotation.parse("<Esc>")) == .command("wizard.leave"), "\(scope)")
+            #expect(try keymap.lookup(KeyNotation.parse("D")) == .command("wizard.discard"), "\(scope)")
+        }
+        // Where ⎋ closes something else, the hint says what.
+        for (scope, label) in [
+            ("wizardchat", "close the chat"),
+            ("wizardinvite", "close the picker"),
+            ("tldr", "close the TL;DR"),
+        ] {
+            let esc = GoalHints.hints(scope: scope, .init()).hints.first { $0.key == "⎋" }
+            #expect(esc?.label == label, "\(scope)")
+        }
+    }
+
     @Test func goalStatusBarHintsAreBoundInTheirPane() throws {
         // Every hint the status bar shows in a Goals pane is a key of that pane: the map does not offer `a archive`.
         // A new Goals scope without hints of its own gets the list's, which it does not bind, and fails here.

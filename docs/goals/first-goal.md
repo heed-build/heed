@@ -7,10 +7,28 @@ description: "The new-goal wizard: talk the plan through with a big model, have 
 `n` in Goals asks for a title and what you want, then walks the new goal through six steps before any work starts:
 **Plan**, **Panel**, **Done looks like**, **Split**, **How careful** and **Go**. The rail on the left shows where you
 are: a check on the steps done, a ring on the one you are on. `H` and `L` go back and forth between the steps you
-reached, `⌘↩` moves on, and `⎋` leaves the wizard. Leaving keeps its place: `↩` on the goal in the list, or
-`:goal.wizard`, comes back to where you were. `:goal.wizard` also walks a goal you made another way.
+reached, `⌘↩` moves on. The wizard is a part of the Goals overview, and the line over it says so: `Goals › your
+goal › the step`.
 
 ![The wizard's rail, three steps done](../images/shots/goals/wizard-rail.png)
+
+## Leaving, and discarding the goal
+
+`⎋` (or a click on **Goals** in that line) goes back to the Goals list, and the status bar always shows it as
+`⎋ goals`. Leaving keeps the wizard's place: `↩` on the goal in the list, or `:goal.wizard`, comes back to where you
+were. `:goal.wizard` also walks a goal you made another way. Inside a chat with a persona, the invite picker or the
+TL;DR, `⎋` closes that first, and the status bar says so.
+
+`D` discards the goal from any step, and asks first, saying what will happen:
+
+- A goal with nothing attached (no sessions, chats or PRs, no swarm, no GitHub issue, and Go was never pressed) is
+  **deleted for good**: the goal, its wizard and its `GOAL.md`.
+- Any other goal is **archived**, and `a` brings it back in the Goals list.
+
+![The wizard with its breadcrumb, and the confirmation that D asks](../images/shots/goals/wizard-discard.png)
+
+The same is in the right-click menu on the wizard and in the Goal menu of the menu bar. `x` on the Panel step is the
+other way out: it archives with a reason.
 
 ## 1. Plan: talk it through
 

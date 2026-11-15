@@ -14,6 +14,7 @@ extension AppModel {
         case "goal.wizard": openWizard(words)
         case "goal.tldr": toggleTLDR()
         case "wizard.leave": leaveWizard()
+        case "wizard.discard": confirmDiscard()
         case "wizard.next": wizardNext()
         case "wizard.step": showWizardStep(words.first ?? "next")
         case "wizard.row": goals.wizard.moveRow(Int(words.first ?? "") ?? 1)
@@ -96,6 +97,42 @@ extension AppModel {
         textInputActive = false
         let step = goals.wizard.wizard(of: goal)?.step.title ?? ""
         say("the wizard waits at \(step): ↩ on the goal or :goal.wizard comes back")
+    }
+
+    /// `wizard.discard`: asks, saying what will happen: a goal nothing is attached to is deleted for good, any other
+    /// is archived (`a` in the Goals list brings it back).
+    func confirmDiscard() {
+        guard let goal = goals.wizard.open else { return }
+        let title = goals.snapshot.goal(goal)?.title ?? goal
+        let facts = GoalDiscard(goal: goal, in: goals.snapshot, wizard: goals.wizard.wizard(of: goal))
+        let deleting = facts.outcome == .delete
+        let now = Clock.now
+        ask(Confirmation(
+            title: deleting ? "Delete \(title)?" : "Archive \(title)?",
+            lines: deleting
+                ? ["deletes the goal, its wizard and its GOAL.md for good: it has nothing attached"]
+                : [
+                    "archives the goal: it has \(facts.attached) attached",
+                    "a brings it back in the Goals list",
+                ],
+            accept: deleting ? "Delete" : "Archive", destructive: deleting
+        ) { [weak self] in
+            guard let self else { return }
+            goals.run { ops in
+                try await ops.discard(goal: goal, now: now)
+            } done: { [weak self] result in
+                guard let self else { return }
+                switch result {
+                case let .success(outcome):
+                    goals.wizard.open = nil
+                    goals.wizard.resetCursors()
+                    textInputActive = false
+                    updateScope()
+                    say(outcome == .delete ? "\(title) deleted" : "\(title) archived: a brings it back")
+                case let .failure(error): say("not discarded: \(error)")
+                }
+            }
+        })
     }
 
     /// What the step that shows needs and has not had: heed's next question, the panel's read, the draft.

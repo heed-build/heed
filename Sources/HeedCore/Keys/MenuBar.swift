@@ -497,6 +497,7 @@ public enum MenuBar {
                     ),
                     ("GOAL.md and versions", "goal.doc"), ("Edit GOAL.md", "goal.edit"),
                     ("Restore a version…", "goal.restore"), ("Archive or bring back", "goal.archive"),
+                    ("Discard this goal (in the wizard)…", "wizard.discard"),
                     ("Open", "goal.open"), ("Goals or what is on one", "goal.focus"),
                     ("Take off the goal", "goal.detach"), ("Board", "goal.board"),
                     ("Sharpen the goal…", "goal.sharpen"), ("Plan its items now", "goal.plan"),

@@ -76,6 +76,7 @@ public enum SplitKeys {
         ("<CR>", "split.fold"), ("J", "split.shift 1"), ("K", "split.shift -1"),
         ("d", "split.define"), ("a", "split.agent"), ("s", "split.split"), ("w", "split.waits"), ("Z", "split.size"),
         ("p", "split.later"), ("i", "split.note"), ("b", "split.balance"), ("r", "split.resplit"),
+        ("D", "wizard.discard"),
     ]
 
     public static let scoped: [String: [(String, String)]] = [

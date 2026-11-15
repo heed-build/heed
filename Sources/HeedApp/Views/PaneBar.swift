@@ -107,7 +107,8 @@ struct HistoryPaneBar: View {
         let tabs = HistoryPaneTabs.tabs(
             counts: .init(
                 sessions: model.history.count, ledger: model.ledger.entries.count,
-                open: model.mindmap.shown.roots.reduce(0) { $0 + model.mindmap.shown.stillOpen(under: $1.id).count }
+                open: model.mindmap.shown.roots.reduce(0) { $0 + model.mindmap.shown.stillOpen(under: $1.id).count },
+                audit: model.audit.weekCount()
             )
         )
         PaneBar(

@@ -182,14 +182,15 @@ This page is generated from the code (`mise run shots`).
 | `hunch.screen` |  | have Hunch read the agent pane under the cursor now: working, waiting for input, stuck or done |
 | `app.activate` |  | bring Heed's window to the front, as the global shortcut does |
 | `welcome` |  | show the getting-started checks again |
-| `history.list` | `H` (dashboard), `H` (history), `H` (ledger), `H` (mindmap), `H` (standup), `H` (telemetry) | Insights' History: the work that ended, by day, each with its story (again: the dashboard) |
+| `history.list` | `H` (audit), `H` (dashboard), `H` (history), `H` (ledger), `H` (mindmap), `H` (standup), `H` (telemetry) | Insights' History: the work that ended, by day, each with its story (again: the dashboard) |
 | `history.timeline` |  | History with every event as its own line (again: folded), as history.events |
-| `history.ledger` | `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (standup), `L` (telemetry) | Insights' ledger: a summary of each piece of work (again: back to the dashboard) |
-| `history.dashboard` | `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup), `D` (telemetry) | Insights' dashboard: what shipped, agent time, your bests, goals; where Insights opens |
-| `history.standup` | `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup), `U` (telemetry) | Insights' standup: your questions answered per org (again: back to the dashboard) |
-| `history.telemetry` | `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (standup), `T` (telemetry) | Insights' OpenTelemetry: the agents' own spans, latency, waits and cost (again: back to the dashboard) |
+| `history.ledger` | `L` (audit), `L` (dashboard), `L` (history), `L` (ledger), `L` (mindmap), `L` (standup), `L` (telemetry) | Insights' ledger: a summary of each piece of work (again: back to the dashboard) |
+| `history.dashboard` | `D` (audit), `D` (dashboard), `D` (history), `D` (ledger), `D` (mindmap), `D` (standup), `D` (telemetry) | Insights' dashboard: what shipped, agent time, your bests, goals; where Insights opens |
+| `history.standup` | `U` (audit), `U` (dashboard), `U` (history), `U` (ledger), `U` (mindmap), `U` (standup), `U` (telemetry) | Insights' standup: your questions answered per org (again: back to the dashboard) |
+| `history.telemetry` | `T` (audit), `T` (dashboard), `T` (history), `T` (ledger), `T` (mindmap), `T` (standup), `T` (telemetry) | Insights' OpenTelemetry: the agents' own spans, latency, waits and cost (again: back to the dashboard) |
+| `history.audit` | `A` (audit), `A` (dashboard), `A` (history), `A` (ledger), `A` (mindmap), `A` (standup), `A` (telemetry) | Insights' Audit: what heed and your agents did outside this Mac, and why (again: back to the dashboard) |
 | `session.trace` `[session]` | `t` (sessions), `t` (sessionshelper), `t` (sessionshelpers), `t` (sessionsoffer), `t` (sessionspanel), `t` (sessionspanelchat), `t` (sessionspanelpr), `t` (sessionspromote), `t` (trace), `<Esc>` (trace) | a session's trace from its agent's OpenTelemetry: its last turns, span by span (again: back) |
-| `history.mindmap` | `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
+| `history.mindmap` | `M` (audit), `M` (dashboard), `M` (history), `M` (ledger), `M` (mindmap), `M` (standup), `M` (telemetry) | Insights' Mindmap: the work grouped into campaigns, per org (again: back to the dashboard) |
 | `goal.wizard` `[goal]` |  | Goals: walk the goal through the new-goal wizard (plan, panel, done looks like, …); where it was left, it resumes |
 | `goal.tldr` | `T` (goalagents), `T` (goalboard), `T` (goaldoc), `T` (goalevals), `T` (goalmap), `T` (goalpage), `T` (goalpersonas), `T` (goalplan), `T` (goalreviewers), `T` (goals), `T` (splitdefine), `T` (splitfold), `T` (tldr), `<Esc>` (tldr), `q` (tldr), `T` (unassigned), `T` (wizardcareful), `T` (wizardchat), `T` (wizarddone), `T` (wizardgo), `T` (wizardpanel), `T` (wizardplan), `T` (wizardsplit) | the goal's TL;DR: each step's summary, what is settled, what is still open (toggle) |
 | `personas.open` |  | Settings › Personas: the people heed asks for a view, in one library |
@@ -241,6 +242,10 @@ This page is generated from the code (`mise run shots`).
 | `timeline.repo` `[name]` | `r` (history) | History: every repo, or the next one |
 | `timeline.where` `[local|host]` | `w` (history) | History: everywhere, this Mac, or a host |
 | `timeline.gone` | `c` (history) | History: show or hide removed worktrees |
+| `audit.grants` | `<Tab>` (audit) | Audit: the grants heed gave for good (Always rules, trust), or the actions again |
+| `audit.revoke` | `d` (audit) | Audit: take back the grant under the cursor (asks first) |
+| `audit.session` | `<CR>` (audit) | Audit: the session the action under the cursor came from |
+| `audit.export` |  | Audit: write its record to a JSON lines file you pick |
 | `telemetry.range` `[range]` | `r` (telemetry) | OpenTelemetry: the next range (15 m, 1 h, 6 h, 24 h, 7 d), or one named (30m) |
 | `telemetry.agent` `[agent]` | `a` (telemetry) | OpenTelemetry: only the next agent, then all again (or the one named) |
 | `telemetry.repo` `[repo]` | `p` (telemetry) | OpenTelemetry: only the next repo, then all again (or the one named) |

@@ -466,6 +466,7 @@ extension AppModel {
             worktree: path, startedAt: Clock.now, cap: config.helpers.spendCap
         )
         let id = helper.id
+        noteHelperCause(id, kind.title(ref.number), sessionID: sessionID)
         helper.append(.note("making its worktree from \(prBranch)"), at: Clock.now)
         helpers.runs.insert(helper, at: 0)
         helpers.items[id] = items
@@ -556,6 +557,7 @@ extension AppModel {
     /// One prompt turn; its end is read by why it was cancelled, if it was.
     func runTurn(_ id: String, _ text: Prompt) {
         guard let client = helpers.clients[id], let session = helpers.sessionIDs[id] else { return }
+        auditPrompt(text, pane: "helper:\(id)", session: helpers.run(id)?.sessionID)
         helpers.update(id) {
             $0.phase = .working
             $0.closeOut = nil
@@ -686,6 +688,7 @@ extension AppModel {
         case .allowAlways: PermissionAnswer(.allow, always: true)
         case .rejectOnce, .rejectAlways: PermissionAnswer(.deny)
         }
+        if answer.always { recordHelperAlways(id) }
         settleHelperAsk(id, askID: askID, answer)
     }
 
@@ -774,52 +777,59 @@ extension AppModel {
         guard !isFixture else { return flash = "fixture: nothing pushed or posted" }
         let record = helpers.records[id]
         flash = helper.kind == .review ? "posting the review…" : "pushing to \(helper.prBranch)…"
+        let cause = helperCloseOutCause(id)
         Task {
-            do {
-                var what: [String] = []
-                if helper.kind == .review {
-                    guard replies else { return flash = "a review has nothing to push: ⌘↩ posts it" }
-                    try await GitHub.review(
-                        helper.ref, verdict: closeOut.verdict, body: HelperPrompt.reviewBody(closeOut),
-                        caller: "helper.review"
-                    )
-                    what.append("posted the review")
-                } else {
-                    guard closeOut.hasChanges else { return flash = "nothing to push: it changed nothing" }
-                    let sha = try await HelperGit.push(
-                        worktree: helper.worktree, prBranch: helper.prBranch,
-                        message: closeOut.did.first ?? helper.headline
-                    )
-                    helpers.update(id) { $0.closeOut?.pushedSHA = sha }
-                    what.append("pushed \(sha.prefix(7))")
-                    if replies {
-                        var posted = 0
-                        for reply in closeOut.replies {
-                            guard let thread = reply.threadID else { continue }
-                            try await GitHub.replyToThread(thread, body: reply.text, caller: "helper.reply")
-                            posted += 1
-                        }
-                        if posted > 0 { what.append("replied on \(posted) thread\(posted == 1 ? "" : "s")") }
-                    }
-                    if let sessionID = helper.sessionID {
-                        notifySession(
-                            sessionID,
-                            helperID: id,
-                            HelperPrompt.pushedNote(helper, sha: sha, did: closeOut.did)
-                        )
-                    }
-                }
-                finish(
-                    id,
-                    how: what.joined(separator: ", "),
-                    record: record,
-                    outcome: helper.kind == .review
-                        ? .noChanges : .pushed(max(closeOut.commits, 1))
+            await Cause.$current.withValue(cause) { await pushCloseOut(id, helper, closeOut, record, replies: replies) }
+        }
+    }
+
+    private func pushCloseOut(
+        _ id: String, _ helper: HelperRun, _ closeOut: HelperCloseOut, _ record: RepoRecord?, replies: Bool
+    ) async {
+        do {
+            var what: [String] = []
+            if helper.kind == .review {
+                guard replies else { return flash = "a review has nothing to push: ⌘↩ posts it" }
+                try await GitHub.review(
+                    helper.ref, verdict: closeOut.verdict, body: HelperPrompt.reviewBody(closeOut),
+                    caller: "helper.review"
                 )
-            } catch {
-                flash = "\(helper.headline): \(error)"
-                helpers.update(id) { $0.append(.note("close-out failed: \(error)"), at: Clock.now) }
+                what.append("posted the review")
+            } else {
+                guard closeOut.hasChanges else { return flash = "nothing to push: it changed nothing" }
+                let sha = try await HelperGit.push(
+                    worktree: helper.worktree, prBranch: helper.prBranch,
+                    message: closeOut.did.first ?? helper.headline
+                )
+                helpers.update(id) { $0.closeOut?.pushedSHA = sha }
+                what.append("pushed \(sha.prefix(7))")
+                if replies {
+                    var posted = 0
+                    for reply in closeOut.replies {
+                        guard let thread = reply.threadID else { continue }
+                        try await GitHub.replyToThread(thread, body: reply.text, caller: "helper.reply")
+                        posted += 1
+                    }
+                    if posted > 0 { what.append("replied on \(posted) thread\(posted == 1 ? "" : "s")") }
+                }
+                if let sessionID = helper.sessionID {
+                    notifySession(
+                        sessionID,
+                        helperID: id,
+                        HelperPrompt.pushedNote(helper, sha: sha, did: closeOut.did)
+                    )
+                }
             }
+            finish(
+                id,
+                how: what.joined(separator: ", "),
+                record: record,
+                outcome: helper.kind == .review
+                    ? .noChanges : .pushed(max(closeOut.commits, 1))
+            )
+        } catch {
+            flash = "\(helper.headline): \(error)"
+            helpers.update(id) { $0.append(.note("close-out failed: \(error)"), at: Clock.now) }
         }
     }
 

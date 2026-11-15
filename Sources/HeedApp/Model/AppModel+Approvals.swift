@@ -151,8 +151,12 @@ extension AppModel {
     /// Answers `group`: every hook ask in it hears `answer`; a screen ask is answered in its pane where heed can
     /// tell what Return does there (allow only), else its session opens.
     @discardableResult
-    func answer(_ group: ApprovalGroup, _ answer: PermissionAnswer, openUnanswerable: Bool = true) -> Bool {
+    func answer(
+        _ group: ApprovalGroup, _ answer: PermissionAnswer, openUnanswerable: Bool = true,
+        by: AuditAction.Approval.By = .you
+    ) -> Bool {
         approvals.queue.record(answer.decision, for: group.asks, at: Clock.now)
+        auditAnswer(group, answer, by: by)
         var answered = true
         for ask in group.asks {
             switch ask.channel {

@@ -33,6 +33,9 @@ extension AppModel {
         writeAutopilot([AutopilotSwitch.Write(
             ["repos", repo.slug, "trusted_reviewers"], .array(list.map(TOMLValue.string))
         )])
+        recordTrustedLogin(
+            .trustedReviewer, login: suggestion.entry, repo: repo, why: "heed suggested it: it reviews PRs there"
+        )
         flash = "\(suggestion.entry) trusted in \(repo.slug): its approvals count for heed's merges"
     }
 

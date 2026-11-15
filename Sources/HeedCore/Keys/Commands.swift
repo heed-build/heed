@@ -439,6 +439,19 @@ public enum Commands {
             .views
         ),
         .init(
+            "history.audit",
+            "Insights' Audit: what heed and your agents did outside this Mac, and why (again: back to the dashboard)",
+            .views
+        ),
+        .init(
+            "audit.grants",
+            "Audit: the grants heed gave for good (Always rules, trust), or the actions again",
+            .selection
+        ),
+        .init("audit.revoke", "Audit: take back the grant under the cursor (asks first)", .selection),
+        .init("audit.session", "Audit: the session the action under the cursor came from", .selection),
+        .init("audit.export", "Audit: write its record to a JSON lines file you pick", .selection),
+        .init(
             "telemetry.range",
             "OpenTelemetry: the next range (15 m, 1 h, 6 h, 24 h, 7 d), or one named (30m)",
             .selection,

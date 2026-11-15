@@ -47,6 +47,7 @@ public enum CommandAliases {
         Alias(name: "update", runs: "update.check", arguments: nil),
         Alias(name: "telemetry", runs: "history.telemetry", arguments: nil),
         Alias(name: "otel", runs: "history.telemetry", arguments: nil),
+        Alias(name: "audit", runs: "history.audit", arguments: nil),
         Alias(name: "trace", runs: "session.trace", arguments: "[session]"),
     ] + views.map { Alias(name: $0, runs: "view \($0)", arguments: nil) }
 
@@ -69,6 +70,7 @@ public enum CommandAliases {
         case "q", "quit": return CommandInvocation(name: "app.quit")
         case "update": return CommandInvocation(name: "update.check")
         case "telemetry", "otel": return CommandInvocation(name: "history.telemetry")
+        case "audit": return CommandInvocation(name: "history.audit")
         case "trace": return CommandInvocation(name: "session.trace", arguments: args)
         default:
             if views.contains(typed.name) { return CommandInvocation(name: "view", arguments: [typed.name]) }

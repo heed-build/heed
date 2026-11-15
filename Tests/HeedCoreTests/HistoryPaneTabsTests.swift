@@ -3,10 +3,12 @@ import Testing
 
 @Suite struct HistoryPaneTabsTests {
     @Test func tabsNameEveryInsightsViewOnceWithItsCount() {
-        let tabs = HistoryPaneTabs.tabs(counts: .init(sessions: 12, ledger: 5, open: 3))
-        #expect(tabs.map(\.pane) == ["dashboard", "history", "ledger", "mindmap", "standup", "telemetry"])
-        #expect(tabs.map(\.title) == ["Dashboard", "History", "Ledger", "Mindmap", "Standup", "OpenTelemetry"])
-        #expect(tabs.map(\.count) == [0, 12, 5, 3, 0, 0])
+        let tabs = HistoryPaneTabs.tabs(counts: .init(sessions: 12, ledger: 5, open: 3, audit: 7))
+        #expect(tabs.map(\.pane) == ["dashboard", "history", "ledger", "mindmap", "standup", "telemetry", "audit"])
+        #expect(tabs.map(\.title) == [
+            "Dashboard", "History", "Ledger", "Mindmap", "Standup", "OpenTelemetry", "Audit",
+        ])
+        #expect(tabs.map(\.count) == [0, 12, 5, 3, 0, 0, 7])
         #expect(HistoryPaneTabs.area == "Insights" && HistoryPaneTabs.home == "dashboard")
     }
 
@@ -30,7 +32,7 @@ import Testing
         }
         #expect(keys == [
             "history.list": "H", "history.ledger": "L", "history.dashboard": "D", "history.mindmap": "M",
-            "history.standup": "U", "history.telemetry": "T",
+            "history.standup": "U", "history.telemetry": "T", "history.audit": "A",
         ])
     }
 

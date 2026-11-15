@@ -61,6 +61,8 @@ final class TerminalSurfaces {
     /// Panes whose command should start when their terminal is created: only those Start work just made. A pane
     /// restored from the cache opens a plain shell, so a relaunch never starts a second agent (resume is step 5).
     var autostartPanes: Set<String> = []
+    /// The cause a pane's agent starts under (`HEED_CAUSE`), from Audit; set by the app.
+    var causeFor: ((_ pane: String, _ session: String) -> String?)?
     /// A left click in a pane's terminal (the model focuses it and enters INSERT).
     var onPaneClick: ((String) -> Void)?
     /// A pane's terminal ended: its shell exited (`exit`, ⌃D) or its command finished.
@@ -123,6 +125,8 @@ final class TerminalSurfaces {
         ]
         var command = autostartPanes.remove(pane.id) == nil ? nil : pane.command
         var withPath = environment
+        // What its agent does outside this Mac is recorded with the cause its hooks name.
+        if let cause = causeFor?(pane.id, sessionID) { withPath[Cause.environment] = cause }
         withPath["PATH"] = searchPath
         // A zmx session starts `$SHELL`: your login shell, not the one heed was started in.
         let login = PaneShell.loginShellPath() ?? "/bin/zsh"

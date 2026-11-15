@@ -261,7 +261,7 @@ public enum MenuBar {
         /// The PR in front is open, or the session has an open PR.
         var openPull: Bool { facts.pull.map(\.open) ?? (hasRepo && (facts.session?.openPulls ?? 0) > 0) }
         var anyPull: Bool { facts.pull != nil || hasRepo && (facts.session?.pulls ?? 0) > 0 }
-        var historyViews: Set<String> { ["history", "ledger", "dashboard", "mindmap", "standup", "telemetry"] }
+        var historyViews: Set<String> { ["history", "ledger", "dashboard", "mindmap", "standup", "telemetry", "audit"] }
 
         func item(
             _ title: String, _ name: String, _ arguments: [String] = [], enabled: Bool = true, checked: Bool = false,
@@ -392,6 +392,7 @@ public enum MenuBar {
                 view("Mindmap", "view.mindmap", "mindmap"),
                 view("Standup", "view.standup", "standup"),
                 view("OpenTelemetry", "history.telemetry", "telemetry"),
+                view("Audit", "history.audit", "audit"),
                 view("Goals", "view.goals", "goals"),
                 view("Call log", "view.log", "log"),
                 item("Hosts", "host.open"),
@@ -433,7 +434,7 @@ public enum MenuBar {
                     ("History: where", "timeline.where"), ("History: removed worktrees", "timeline.gone"),
                     ("Dashboard: next range", "dashboard.range"), ("Ledger: summarize now", "ledger.summarize"),
                     ("Ledger: edit the summary", "ledger.edit"), ("Mindmap", "history.mindmap"),
-                    ("Standup", "history.standup"),
+                    ("Standup", "history.standup"), ("Audit", "history.audit"),
                 ], in: historyViews),
                 scoped("In OpenTelemetry", [
                     ("Its session's trace", "telemetry.open"), ("Next range", "telemetry.range"),
@@ -447,6 +448,10 @@ public enum MenuBar {
                         "telemetry.banner.hide"
                     ),
                 ], in: ["telemetry"]),
+                scoped("In Audit", [
+                    ("Grants, or the actions again", "audit.grants"), ("Revoke the grant…", "audit.revoke"),
+                    ("Go to its session", "audit.session"), ("Export…", "audit.export"),
+                ], in: ["audit"]),
                 scoped("In a trace", [
                     ("Next turn", "trace.turn.next"), ("Previous turn", "trace.turn.prev"),
                     ("Next span", "trace.span.next"), ("Previous span", "trace.span.prev"),

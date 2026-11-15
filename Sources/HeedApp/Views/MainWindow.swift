@@ -77,6 +77,11 @@ struct MainWindow: View {
                             HistoryPaneBar().shotRegion(.historyPaneBar)
                             TelemetryView()
                         }
+                    case .audit:
+                        VStack(spacing: 0) {
+                            HistoryPaneBar().shotRegion(.historyPaneBar)
+                            AuditView()
+                        }
                     case .trace:
                         TraceView()
                     case .goals:
@@ -438,6 +443,10 @@ struct StatusBar: View {
             let rows = model.telemetry.board.rows
             return TelemetryFilter.label(model.telemetry.filter.range)
                 + " · \(rows.isEmpty ? 0 : model.telemetry.cursor + 1)/\(rows.count) spans"
+        case .audit:
+            let audit = model.audit
+            return (audit.section == .actions ? "actions" : "grants")
+                + " · \(audit.currentCount == 0 ? 0 : audit.currentCursor + 1)/\(audit.currentCount)"
         case .trace:
             let turns = model.telemetry.trace?.turns.count ?? 0
             return "turn \(turns == 0 ? 0 : model.telemetry.traceTurn + 1)/\(turns)"
@@ -633,6 +642,15 @@ struct StatusBar: View {
         case .normal where model.goals.spawnTyping: "type the reviewer's instructions · ⌘↩ spawn · ⎋ cancel"
         case .normal where model.goals.personas.draft != nil: "edit the persona's file · ⎋ or ⌘S save"
         case .normal where model.view == .goals: goalHints
+        case .normal where model.view == .audit:
+            [
+                ("audit.grants", model.audit.section == .actions ? "grants" : "actions"),
+                model.audit.section == .grants ? ("audit.revoke", "revoke") : ("open.browser", "on GitHub"),
+                ("audit.session", "its session"),
+                ("audit.export", "export"),
+            ]
+            .map { "\(model.keyText(for: $0.0, in: "audit")) \($0.1)" }.joined(separator: " · ")
+            + " · \(key("session.filter", in: "audit")) search"
         case .normal where model.view == .ledger:
             [
                 ("ledger.summarize", "write again"),

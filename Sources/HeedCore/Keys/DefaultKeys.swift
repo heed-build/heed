@@ -127,7 +127,7 @@ public enum DefaultKeys {
             ("e", "history.events"),
             ("r", "timeline.repo"), ("w", "timeline.where"), ("K", "timeline.kind"), ("c", "timeline.gone"),
             ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"),
-            ("M", "history.mindmap"), ("U", "history.standup"), ("T", "history.telemetry"),
+            ("M", "history.mindmap"), ("U", "history.standup"), ("T", "history.telemetry"), ("A", "history.audit"),
         ],
         // Insights' ledger (L, :ledger); L again goes back to the dashboard.
         "ledger": [
@@ -136,7 +136,7 @@ public enum DefaultKeys {
                 "history.standup"
             ),
             ("R", "history.reopen"), ("<CR>", "history.reopen"), ("S", "ledger.summarize"), ("E", "ledger.edit"),
-            ("T", "history.telemetry"),
+            ("T", "history.telemetry"), ("A", "history.audit"),
         ],
         // Insights' dashboard (gh, D, :dashboard), where Insights opens: j k move through what shipped, ↩ reads its PR.
         "dashboard": [
@@ -144,25 +144,36 @@ public enum DefaultKeys {
                 "U",
                 "history.standup"
             ),
-            ("R", "history.reopen"), ("r", "dashboard.range"), ("T", "history.telemetry"),
+            ("R", "history.reopen"), ("r", "dashboard.range"), ("T", "history.telemetry"), ("A", "history.audit"),
         ],
         // Insights' standup reports (U, :standup); U again goes back to the dashboard.
         "standup": [
             ("H", "history.list"), ("U", "history.standup"), ("L", "history.ledger"), ("D", "history.dashboard"),
             ("M", "history.mindmap"), ("y", "standup.copy"), ("Y", "standup.copy.all"), ("t", "standup.question"),
-            ("]o", "standup.org.next"), ("[o", "standup.org.prev"), ("S", "standup.run"), ("T", "history.telemetry"),
+            ("]o", "standup.org.next"), ("[o", "standup.org.prev"), ("S", "standup.run"), ("T", "history.telemetry"), (
+                "A",
+                "history.audit"
+            ),
         ],
         // Insights' OpenTelemetry (T, :telemetry): j k move through the spans, ↩ opens the span's session's trace; r a
         // p
         // m K narrow by range, agent, repo, model and kind, l stops and starts live updates; T again: the dashboard.
         "telemetry": [
             ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"),
-            ("U", "history.standup"), ("T", "history.telemetry"), ("<CR>", "telemetry.open"),
+            ("U", "history.standup"), ("T", "history.telemetry"), ("A", "history.audit"), ("<CR>", "telemetry.open"),
             ("r", "telemetry.range"), ("a", "telemetry.agent"), ("p", "telemetry.repo"), ("m", "telemetry.model"),
             ("K", "telemetry.kind"), ("l", "telemetry.live"), ("P", "telemetry.proxy.off"), (
                 "x",
                 "telemetry.banner.hide"
             ),
+        ],
+        // Insights' Audit (A, :audit): j k move through what heed and the agents did outside this Mac, ⇥ switches to
+        // the grants and back, d takes back the grant under the cursor, ↩ goes to the action's session; A again: the
+        // dashboard.
+        "audit": [
+            ("H", "history.list"), ("L", "history.ledger"), ("D", "history.dashboard"), ("M", "history.mindmap"),
+            ("U", "history.standup"), ("T", "history.telemetry"), ("A", "history.audit"), ("<Tab>", "audit.grants"),
+            ("d", "audit.revoke"), ("<CR>", "audit.session"),
         ],
         // A session's trace (t on a session, :trace): j k turns, h l spans in the turn; t or ⎋ goes back.
         "trace": [
@@ -185,7 +196,7 @@ public enum DefaultKeys {
             ("p", "mindmap.pin"), (">", "mindmap.nest"), ("<", "mindmap.lift"), ("r", "mindmap.rename"),
             ("m", "mindmap.move"), ("J", "mindmap.join"), ("S", "mindmap.name"), ("<CR>", "mindmap.open"),
             ("s", "mindmap.session"), ("]l", "mindmap.link.next"), ("[l", "mindmap.link.prev"),
-            ("n", "mindmap.goal"), ("T", "history.telemetry"),
+            ("n", "mindmap.goal"), ("T", "history.telemetry"), ("A", "history.audit"),
         ],
         // Goals (gG): j k move through the goals, ⇥ to what belongs to the one under the cursor, ↩ opens.
         "goals": goals,

@@ -4,7 +4,7 @@
 public enum HistoryPaneTabs {
     public struct Tab: Hashable, Sendable, Identifiable {
         /// The view's name (`AppView`'s raw value): `history`, `ledger`, `dashboard`, `mindmap`, `standup`,
-        /// `telemetry`.
+        /// `telemetry`, `audit`.
         public var pane: String
         public var title: String
         public var command: String
@@ -19,11 +19,14 @@ public enum HistoryPaneTabs {
         public var ledger = 0
         /// Follow-ups still open in the Mindmap shown.
         public var open = 0
+        /// Outward actions Audit recorded in the last 7 days.
+        public var audit = 0
 
-        public init(sessions: Int = 0, ledger: Int = 0, open: Int = 0) {
+        public init(sessions: Int = 0, ledger: Int = 0, open: Int = 0, audit: Int = 0) {
             self.sessions = sessions
             self.ledger = ledger
             self.open = open
+            self.audit = audit
         }
     }
 
@@ -41,6 +44,7 @@ public enum HistoryPaneTabs {
         ("mindmap", "Mindmap", "history.mindmap"),
         ("standup", "Standup", "history.standup"),
         ("telemetry", "OpenTelemetry", "history.telemetry"),
+        ("audit", "Audit", "history.audit"),
     ]
 
     public static func tabs(counts: Counts = Counts()) -> [Tab] {
@@ -49,6 +53,7 @@ public enum HistoryPaneTabs {
             case "history": counts.sessions
             case "ledger": counts.ledger
             case "mindmap": counts.open
+            case "audit": counts.audit
             default: 0
             }
             return Tab(pane: pane.pane, title: pane.title, command: pane.command, count: count)

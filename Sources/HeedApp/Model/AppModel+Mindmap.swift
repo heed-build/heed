@@ -194,6 +194,7 @@ extension AppModel {
             // Decisions an agent proposed first: they reach sessions only once you keep them.
             if let node, !node.proposals.isEmpty {
                 let count = node.proposals.count
+                recordMemoryGrants(node.proposals.map(\.text), node: node.id, title: node.title, instance: instance)
                 change { $0.acceptProposals(in: node.id, now: now) }
                 return say(
                     "kept \(count == 1 ? "the proposed decision" : "\(count) proposed decisions") on \(node.title)"

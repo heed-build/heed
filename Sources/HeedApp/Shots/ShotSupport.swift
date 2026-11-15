@@ -25,6 +25,7 @@ enum ShotRegion: String, CaseIterable {
     case diffFiles, diffBody
     case historyFilters, historyList, historyDetail
     case ledgerList, ledgerDetail
+    case auditList, auditDetail, auditGrants
     case dashboardHeadline, dashboardTiles, dashboardShipped, dashboardBests, dashboardCalendar, dashboardAgents,
          dashboardGoals
     case logList, logDetail, logUsage

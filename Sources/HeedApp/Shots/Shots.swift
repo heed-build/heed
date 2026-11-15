@@ -916,6 +916,19 @@ enum Shots {
             crop: .ledgerList,
             cropPadding: 0
         ),
+        // Audit (A): what heed and the agents did outside this Mac, the push held after a stranger's comment on top.
+        Shot(id: "history/audit", keys: "ghA"),
+        Shot(
+            id: "history/audit-list", size: CGSize(width: 1440, height: 620), keys: "ghA", crop: .auditList,
+            cropPadding: 0
+        ),
+        Shot(id: "history/audit-detail", keys: "ghA", crop: .auditDetail, cropPadding: 0),
+        // Autopilot's merge of the anchors fix, on mira's approval.
+        Shot(id: "history/audit-merge", keys: "ghAjjj", crop: .auditDetail, cropPadding: 0),
+        // A release on a watched repo that nothing in heed explains.
+        Shot(id: "history/audit-outside", keys: "ghAjjjjj", crop: .auditDetail, cropPadding: 0),
+        // The grants: the Always rule, the trusted bot, and a rule found in a repo's settings before Audit.
+        Shot(id: "history/audit-grants", keys: "ghA<Tab>"),
         // OpenTelemetry (T): the agents' own spans as an observability view, the wait going on now on top.
         Shot(id: "history/telemetry", size: CGSize(width: 1600, height: 1000), keys: "ghT"),
         // The span query: only bash calls that failed.

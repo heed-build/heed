@@ -15,6 +15,8 @@ enum AppView: String, CaseIterable, Identifiable {
     case standup
     /// Insights' OpenTelemetry (`history.telemetry`): the agents' own spans, under Insights' tab too.
     case telemetry
+    /// Insights' Audit (`history.audit`): what heed and the agents did outside this Mac, and why.
+    case audit
     /// A session's trace (`session.trace`), from its agent's OpenTelemetry: under Sessions' tab.
     case trace
     /// Autopilot's Can do (`autopilot.cando`): where Autopilot's tab (`gw`) opens. Autopilot's Now is `watch`.
@@ -33,7 +35,7 @@ enum AppView: String, CaseIterable, Identifiable {
         allCases
             .filter {
                 ![
-                    .log, .ledger, .dashboard, .mindmap, .standup, .telemetry, .trace, .prs, .autopilot,
+                    .log, .ledger, .dashboard, .mindmap, .standup, .telemetry, .audit, .trace, .prs, .autopilot,
                     .autopilotWhere, .autopilotDone,
                 ]
                 .contains($0)
@@ -42,7 +44,7 @@ enum AppView: String, CaseIterable, Identifiable {
 
     /// The tab that is lit while this view shows.
     var tab: AppView {
-        if [.ledger, .dashboard, .mindmap, .standup, .telemetry].contains(self) { return .history }
+        if [.ledger, .dashboard, .mindmap, .standup, .telemetry, .audit].contains(self) { return .history }
         if self == .trace { return .sessions }
         if isAutopilot { return .watch }
         return self
@@ -87,6 +89,7 @@ enum AppView: String, CaseIterable, Identifiable {
         case .mindmap: "Mindmap"
         case .standup: "Standup"
         case .telemetry: "OpenTelemetry"
+        case .audit: "Audit"
         case .trace: "Trace"
         }
     }
@@ -99,6 +102,7 @@ enum AppView: String, CaseIterable, Identifiable {
         case .mindmap: "history.mindmap"
         case .standup: "history.standup"
         case .telemetry: "history.telemetry"
+        case .audit: "history.audit"
         case .trace: "session.trace"
         case .autopilot: "autopilot.cando"
         case .autopilotWhere: "autopilot.where"
@@ -307,6 +311,7 @@ final class AppModel {
             if filters[.ledger] != oldValue[.ledger] { ledger.setSearch(filters[.ledger] ?? "") }
             if filters[.goals] != oldValue[.goals] { goals.setSearch(filters[.goals] ?? "") }
             if filters[.telemetry] != oldValue[.telemetry] { telemetry.setQuery(filters[.telemetry] ?? "") }
+            if filters[.audit] != oldValue[.audit] { audit.setSearch(filters[.audit] ?? "") }
         }
     }
 
@@ -400,6 +405,11 @@ final class AppModel {
     let standup: StandupModel
     /// Insights' OpenTelemetry and sessions' traces (AppModel+Telemetry).
     let telemetry: TelemetryBrowser
+    /// Insights' Audit: what heed and the agents did outside this Mac, and the grants heed gave (AppModel+Audit).
+    let audit: AuditBrowser
+    /// Answers to outward asks, by session, until the agent's call shows what ran.
+    @ObservationIgnored var auditApprovals: [String: [(command: String, approval: AuditAction.Approval)]] = [:]
+    @ObservationIgnored var auditReleaseTask: Task<Void, Never>?
     @ObservationIgnored var telemetryServer: TelemetryServer?
     /// The `[telemetry]` the receiver runs with now; nil before it was started.
     @ObservationIgnored var telemetrySettingsRunning: TelemetrySettings?
@@ -588,6 +598,7 @@ final class AppModel {
         mindmap = MindmapModel(fixture: isFixture)
         standup = StandupModel(fixture: isFixture)
         telemetry = TelemetryBrowser(fixture: isFixture)
+        audit = AuditBrowser(fixture: isFixture)
         let built = Keymaps.build()
         engine = ModeEngine(keymaps: built.keymaps, scoped: built.scoped)
         keyProblems = built.problems
@@ -680,6 +691,7 @@ final class AppModel {
             self?.dashboardGoals ?? .init()
         }
         startLedger(log: log)
+        startAudit(log: log)
         startMindmap()
         startStandup()
         if !isFixture { await attention.open(beside: file) }
@@ -920,7 +932,7 @@ final class AppModel {
         case .sessions, .prs, .watch, .repos, .history, .autopilot, .autopilotWhere, .autopilotDone: [.pulls]
         // Goals show their sessions' PRs, merged or not.
         case .goals: [.pulls]
-        case .log, .ledger, .dashboard, .mindmap, .standup, .telemetry, .trace: []
+        case .log, .ledger, .dashboard, .mindmap, .standup, .telemetry, .audit, .trace: []
         }
     }
 
@@ -1295,6 +1307,7 @@ final class AppModel {
         }
         settleApprovals(by: message)
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
+        if case let .toolCall(call) = message.kind { auditToolCall(call, message: message, session: session) }
         // A reviewer's hooks: its turn over ends it, as a run's does.
         if let pane = message.pane, reviewPanes.contains(pane) {
             guard let id = liveReviews.first(where: { $0.value.paneID == pane })?.key else { return }
@@ -1574,6 +1587,7 @@ final class AppModel {
         }
         if !replacingDomain, sessionsChanged || githubChanged { noticeNaming(before: before, after: after) }
         if !replacingDomain, sessionsChanged { noticeTurnEnds(before: before, after: after) }
+        if !replacingDomain, sessionsChanged { noticeAuditSessions(before: before, after: after) }
         if !replacingDomain, sessionsChanged || after.worktrees != before.worktrees {
             noticeSessionPanel(before: before, after: after)
         }
@@ -2308,6 +2322,13 @@ final class AppModel {
         case .telemetry:
             guard let row = telemetry.selected else { return nil }
             return TitleContext(lead: "span", main: row.title, detail: row.label)
+        case .audit:
+            if audit.section == .grants {
+                guard let row = audit.selectedGrant else { return nil }
+                return TitleContext(lead: "grant", main: row.grant.subject, detail: row.grant.kind.label)
+            }
+            guard let row = audit.selected else { return nil }
+            return TitleContext(lead: "audit", main: row.action.what, detail: row.trigger)
         case .trace:
             guard let trace = telemetry.trace else { return nil }
             return TitleContext(lead: "trace", main: trace.title, detail: trace.agent)
@@ -2446,6 +2467,7 @@ final class AppModel {
         case .mindmap: mindmap.siblings.indices.map { HintTarget.row(.mindmap, $0) }
         case .standup: standup.rows.indices.map { HintTarget.row(.standup, $0) }
         case .telemetry: telemetry.board.rows.indices.map { HintTarget.row(.telemetry, $0) }
+        case .audit: (0 ..< audit.currentCount).map { HintTarget.row(.audit, $0) }
         case .trace: []
         case .goals: (0 ..< goals.rowCount).map { HintTarget.row(.goals, $0) }
         }
@@ -2674,6 +2696,8 @@ final class AppModel {
     // MARK: Commands
 
     func perform(_ command: CommandInvocation) {
+        // What you run is the cause of whatever it starts, unless it runs under one already (an Autopilot rule's).
+        if Cause.current == nil { return Cause.$current.withValue(keyCause(command)) { perform(command) } }
         let count = command.count ?? 1
         // A right-click names what it acts on; keys leave it to the cursor. A session is selected first, so a list
         // that regrouped while the menu was open still acts on the session clicked.
@@ -2928,6 +2952,16 @@ final class AppModel {
         case "history.ledger": view = view == .ledger ? .dashboard : .ledger
         case "history.list": view = view == .history ? .dashboard : .history
         case "history.standup": view = view == .standup ? .dashboard : .standup
+        case "history.audit": view = view == .audit ? .dashboard : .audit
+        case "audit.grants":
+            guard view == .audit else { return flash = "\(keyText(for: "history.audit")) opens Audit first" }
+            audit.toggleSection()
+        case "audit.revoke": revokeSelectedGrant()
+        case "audit.export": exportAudit()
+        case "audit.session":
+            guard let id = audit.selected?.action.session else { return flash = "no session behind it" }
+            guard sessions.contains(where: { $0.id == id }) else { return flash = "its session is closed" }
+            show(sessionID: id)
         case "history.telemetry":
             view = view == .telemetry ? .dashboard : .telemetry
             if view == .telemetry { telemetry.reload() }
@@ -3211,6 +3245,7 @@ final class AppModel {
         case .mindmap: mindmap.siblings.map(\.id)
         case .standup: standup.rows.map(\.id)
         case .telemetry: telemetry.board.rows.map(\.id)
+        case .audit: audit.rowIDs
         case .sessions, .goals: []
         default: itemIDs(list)
         }
@@ -3318,6 +3353,7 @@ final class AppModel {
         case .mindmap: setRow(mindmap.cursor + delta)
         case .standup: setRow(standup.cursor + delta)
         case .telemetry: setRow(telemetry.cursor + delta)
+        case .audit: setRow(audit.currentCursor + delta)
         case .trace: telemetry.moveTurn(delta)
         case .goals: setRow(goals.rowCursor + delta)
         case .attention, .prs, .watch: setRow((itemCursor[view] ?? 0) + delta)
@@ -3352,6 +3388,10 @@ final class AppModel {
         case .dashboard: (dashboard.board.shipped.map(\.repo), dashboard.cursor)
         case .mindmap: (mindmap.siblings.map(\.kind.rawValue), mindmap.cursor)
         case .standup, .telemetry, .trace: ([], 0)
+        case .audit:
+            audit.section == .actions
+                ? (audit.rows.map { Calendar.current.startOfDay(for: $0.action.at).description }, audit.cursor)
+                : (audit.grantRows.map(\.grant.kind.rawValue), audit.grantCursor)
         // Active, done and archived goals are groups.
         case .goals: goals.focus == .goals ? (goals.rows.map(\.status.rawValue), goals.cursor) : ([], 0)
         }
@@ -3387,6 +3427,8 @@ final class AppModel {
             standup.setCursor(index)
         } else if view == .telemetry {
             telemetry.setCursor(index)
+        } else if view == .audit {
+            audit.setCursor(index)
         } else if view == .goals {
             goals.setCursor(index)
         } else if view == .autopilotDone {
@@ -3864,12 +3906,18 @@ final class AppModel {
                     if offer.claude {
                         do {
                             try await Task.detached { try ClaudeTrust.trust(path) }.value
+                            self?.recordTrustGrant(.claudeTrust, path: path, repo: name)
                         } catch {
                             problems.append("\(error)")
                         }
                     }
                     if offer.mise {
-                        do { try await MiseTrust.trust(path) } catch { problems.append("mise trust: \(error)") }
+                        do {
+                            try await MiseTrust.trust(path)
+                            self?.recordTrustGrant(.miseTrust, path: path, repo: name)
+                        } catch {
+                            problems.append("mise trust: \(error)")
+                        }
                     }
                     self?.flash = problems.first ?? "trusted \(name)"
                     next()
@@ -4962,6 +5010,7 @@ final class AppModel {
         case .sessions: return currentSession?.trackedPRs.first?.url
         case .dashboard: return dashboard.selected?.pull?.url
         case .history: return selectedHistory?.session.trackedPRs.last?.url
+        case .audit: return audit.section == .actions ? audit.selected?.action.url : nil
         default: return nil
         }
     }
@@ -5088,7 +5137,7 @@ final class AppModel {
             return selectedHistory?.session.repos ?? []
         case .dashboard: return dashboard.selected?.pull.map { [$0.repo] } ?? []
         case .standup, .trace: return []
-        case .telemetry: return []
+        case .telemetry, .audit: return []
         case .mindmap:
             return (mindmap.focused?.entry.flatMap { ledger.entries[$0] }?.repos ?? []).compactMap { slug in
                 let parts = slug.split(separator: "/", maxSplits: 1)
@@ -6030,8 +6079,9 @@ final class AppModel {
             try? AgentIntegration.installCursorHooks(worktree: worktree, heed: heed)
         }
         let agentSession = UUID().uuidString.lowercased()
+        let runPrompt = Runs.prompt(prompt, prBranch: prBranch, branch: branch)
         let command = agent.launchCommand(
-            prompt: Runs.prompt(prompt, prBranch: prBranch, branch: branch),
+            prompt: runPrompt,
             extraArguments: files.map { AgentIntegration.launchArguments(
                 agent: agent,
                 sessionID: agentSession,
@@ -6045,6 +6095,7 @@ final class AppModel {
             role: .helper, title: goal.rawValue, directory: worktree,
             command: WorktreeSetup.paneCommand(setup: setup, then: command, report: true), location: session.location
         )
+        auditPrompt(runPrompt, pane: pane.id, session: session.id)
         let tab = PaneTab(title: Runs.title(goal, ref: ref, pullCount: session.trackedPRs.count), tree: .leaf(pane))
         layout.tabs.append(tab)
         commit(.layoutChanged(session: session.id, layout))
@@ -6157,8 +6208,9 @@ final class AppModel {
             .map { AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: $0) } ?? []
         let sandboxed = RunSandbox.isSandboxed(agent: agent.name)
         let present = record.location.isLocal ? Array(ProcessInfo.processInfo.environment.keys) : []
+        let reviewPrompt = prompt(folder)
         let command = agent.launchCommand(
-            prompt: prompt(folder),
+            prompt: reviewPrompt,
             extraArguments: ReviewRun.restrictions(
                 agent: agent.name, worktree: worktree, folder: folder, hooks: files != nil
             ) + (agent.name == "claude" ? RunSandbox.withoutSettings(integrationArguments) : integrationArguments),
@@ -6171,6 +6223,7 @@ final class AppModel {
             role: .helper, title: title, directory: worktree,
             command: WorktreeSetup.paneCommand(setup: [], then: command, report: true), location: session.location
         )
+        auditPrompt(reviewPrompt, pane: pane.id, session: session.id)
         let tab = PaneTab(title: title, tree: .leaf(pane))
         layout.tabs.append(tab)
         commit(.layoutChanged(session: session.id, layout))
@@ -6370,6 +6423,14 @@ final class AppModel {
         else {
             if explicit { flash = "nothing queued (space queues an item)" }
             return
+        }
+        // Audit: feedback heed sends on its own is caused by what arrived on the PR.
+        if !explicit, Cause.current?.trigger != .pullEvent {
+            let items = pipeline.queued.count
+            return withCause(
+                .pullEvent, "\(items) new item\(items == 1 ? "" : "s") of feedback on #\(ref.number)",
+                session: sessions.first { $0.trackedPRs.contains(ref) }, authors: prompt.authors
+            ) { deliver(ref, explicit: explicit) }
         }
         // A merged or closed PR has nothing left to fix.
         if let state = pullState(ref), state != .open {
@@ -6928,6 +6989,30 @@ final class AppModel {
         case let .merge(retry): adminRetry = retry
         }
         if isFixture { return record(ref, .merged, "merged", "\(method) (fixture: nothing merged)", true) }
+        // Audit: Autopilot merges on the PR's author and the approvals on its head commit.
+        let approvals = detail.reviews.filter { $0.state == "APPROVED" && $0.commit == detail.headSHA }
+        let authors = [detail.author.map { ExternalText.Author(login: $0, trust: detail.authorTrust) }]
+            .compactMap(\.self) + approvals.map { ExternalText.Author(login: $0.author, trust: $0.trust) }
+        let why = verdict.rules.first { $0.name == "Reviewed after push" }?.detail ?? "every merge rule held"
+        await withCause(
+            .autopilot, "merge = \"heed\": every merge rule held · \(why)",
+            session: sessions.first { $0.trackedPRs.contains(ref) }, authors: authors
+        ) {
+            await heedMergeCall(
+                ref,
+                method: method,
+                detail: detail,
+                verdict: verdict,
+                adminRetry: adminRetry,
+                record: record
+            )
+        }
+    }
+
+    private func heedMergeCall(
+        _ ref: PullRef, method: String, detail: PullDetail, verdict: GreenVerdict, adminRetry: Bool,
+        record: (PullRef, PilotEvent.Kind?, String, String, Bool) -> Void
+    ) async {
         var used = method
         do {
             try await GitHub.merge(ref, method: method, head: detail.headSHA, caller: "heedMerge")
@@ -7334,6 +7419,7 @@ final class AppModel {
         case .mindmap: mindmap.setCursor(0)
         case .standup: standup.setCursor(0)
         case .telemetry: telemetry.setCursor(0)
+        case .audit: audit.setCursor(0)
         case .trace: break
         case .goals: goals.setCursor(0)
         case .repos: repoCursor = 0
@@ -7355,6 +7441,7 @@ final class AppModel {
         case .mindmap: mindmap.siblings.count
         case .standup: standup.rows.count
         case .telemetry: telemetry.board.rows.count
+        case .audit: audit.currentCount
         case .trace: telemetry.trace?.turns.count ?? 0
         case .goals: goals.rows.count
         case .repos: worktreeRows.count
@@ -7471,7 +7558,8 @@ final class AppModel {
                     label: entry.session.worktreeName
                 )
             }
-        case .log, .ledger, .dashboard, .mindmap, .standup, .telemetry, .trace, .goals, .autopilot, .autopilotDone:
+        case .log, .ledger, .dashboard, .mindmap, .standup, .telemetry, .audit, .trace, .goals, .autopilot,
+             .autopilotDone:
             return nil
         case .autopilotWhere:
             return autopilotWhereRepo.map { repo in
@@ -8469,6 +8557,9 @@ final class AppModel {
         case .telemetry:
             state.cursor = telemetry.cursor
             state.rows = telemetry.board.rows.count
+        case .audit:
+            state.cursor = audit.currentCursor
+            state.rows = audit.currentCount
         case .trace:
             state.cursor = telemetry.traceTurn
             state.rows = telemetry.trace?.turns.count ?? 0
@@ -8643,7 +8734,7 @@ final class AppModel {
         switch NotificationAllow.action(shown: shown, waiting: waitingAskIDs(session: sessionID)) {
         case let .answer(ids):
             let asks = approvals.queue.asks.filter { ids.contains($0.id) }
-            answer(ApprovalGroup(asks: asks, tags: []), PermissionAnswer(.allow))
+            answer(ApprovalGroup(asks: asks, tags: []), PermissionAnswer(.allow), by: .notification)
         case .screen:
             if !allowOnScreen(sessionID: sessionID) { show(sessionID: sessionID) }
         case .show:

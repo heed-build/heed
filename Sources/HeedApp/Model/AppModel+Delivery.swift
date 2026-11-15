@@ -31,6 +31,8 @@ extension AppModel {
         typingGrace: TimeInterval = 20, mayType: Bool = true
     ) async -> DeliveryOutcome {
         let inbox = inbox(forPane: pane)
+        let session = layouts.first { $0.value.tabs.contains { $0.tree.panes.contains { $0.id == pane } } }?.key
+        auditPrompt(prompt, pane: pane, session: session)
         switch Delivery.route(
             state: state, lastTyped: lastTyped, inbox: inbox, settings: settings.channels, now: Clock.now,
             typingGrace: typingGrace

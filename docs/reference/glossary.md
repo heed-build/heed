@@ -53,5 +53,5 @@ Each term means one thing, everywhere in the docs. The page that explains a term
 
 | Term | Meaning |
 |---|---|
-| **Decider** | What answers heed's typed questions: Apple's on-device model, Hunch, or a model call. [Inference and decisions](../configuration/inference.md) |
+| **Decider (System 1)** | The fast, small model that makes heed's quick calls (which repo, which branch, what next): Apple's on-device model, Hunch, or a model call. [Inference and decisions](../configuration/inference.md) |
 | **Hunch** | A small model on your Mac that learns from your corrections. [Inference and decisions](../configuration/inference.md#hunch) |

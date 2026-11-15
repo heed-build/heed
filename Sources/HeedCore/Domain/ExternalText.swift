@@ -175,8 +175,10 @@ public struct ExternalText: Hashable, Sendable {
             case 0x200B, 0x200C, 0x2060 ... 0x2064, 0xFEFF, 0x180E, 0x00AD:
                 break
             case 0x200D:
-                // A joiner between emoji (a family, a profession) is part of the picture; anywhere else it hides.
-                if let previous = out.last, previous.properties.isEmoji, previous.value > 0x7F { out.append(scalar) }
+                // A joiner between emoji (a family, a profession) is part of the picture; anywhere else it hides. The
+                // emoji may end in its presentation selector, U+FE0F (the rainbow flag, a heart on fire).
+                let emoji = out.last?.value == 0xFE0F ? out.dropLast().last : out.last
+                if let emoji, emoji.properties.isEmoji, emoji.value > 0x7F { out.append(scalar) }
             case 0xE0000 ... 0xE007F:
                 // Tag characters only spell a subdivision flag (England's) after a black flag.
                 if inFlag { out.append(scalar) }

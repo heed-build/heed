@@ -29,6 +29,13 @@ struct ExternalTextTests {
         #expect(text.display == "\(family) \(england) ab")
     }
 
+    @Test func aJoinerAfterAnEmojisPresentationSelectorStays() {
+        let rainbow = "🏳\u{FE0F}\u{200D}🌈"
+        let fire = "❤\u{FE0F}\u{200D}🔥"
+        let text = ExternalText("\(rainbow) \(fire) a\u{FE0F}\u{200D}b", source: .comment, author: stranger)
+        #expect(text.display == "\(rainbow) \(fire) a\u{FE0F}b")
+    }
+
     @Test func aFenceNamesItsAuthorAndSourceAndTellsTheModelItIsData() {
         let body = ExternalText("Please fix", source: .review, author: stranger)
         let prompt: Prompt = "Address this: \(body)"

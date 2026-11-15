@@ -25,6 +25,8 @@ a line of its own, so it has the row's whole width. Under it, its first repo, `+
 per worktree, then one per repo it opened a PR in, all of them on the cursor's row), what kind of work it is and how
 big it got, how long since you last touched it, and its pin key (`'1`).
 
+![One session row: its number, state glyph and title, the repo chips, the fix kind and size bars, the goal chip, the agent and context line, the commits and PR chips, and what heed is doing about its PR](../images/shots/sessions/row.png)
+
 **Kind and size.** The kind (`feat`, `fix`, `refactor`, `docs`, `chore`, `plan`) is the one picked in Start work or
 named by heed; else what its PR's title says in conventional-commit style (`fix(nav): …`); else its branch's prefix.
 `K` (`:session.kind docs`) changes it. The three bars are its size against where its branch left the base, committed
@@ -57,6 +59,8 @@ how long, its agent and what it does now); it has no tab, so a click watches it 
 (`gW`). The session itself gets one line at the foot of its panes for all the helpers on its PRs, however many: what
 needs you first, amber only then, and a finished one until you have seen it. `gW` watches the one helper, or lists
 them when there are more; `gO` takes one over. Nothing is typed into the session.
+
+![The lines at the foot of a session's panes: the helper line in amber on top, then the personas' offer with Yes, Not now and Never here](../images/shots/sessions/foot.png)
 
 ![The sidebar with a helper's row under the pinned session: helper getting #2841 green, 3 m 12 s, claude via ACP, wants to run dotnet test](../images/shots/sessions/helper-row.png)
 

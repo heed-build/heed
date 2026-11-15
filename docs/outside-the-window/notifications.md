@@ -24,6 +24,10 @@ time there is something to say, not when Heed starts; System Settings › Notifi
   ("Still blocked: …"), then nothing until it moves on and comes back. `reminder_minutes = 0` sends none. A session
   you were looking at when it would have notified counts as notified: it gets the reminder if you leave it waiting.
 - **Open** (or clicking the notification) brings Heed forward on the session.
+![A Heed notification: the session's title, Blocked: Bash(dotnet publish), and the Open and Allow buttons](../images/shots/outside/notification.png)
+
+![A notification for a session that is asking: the title, Asking: 3 questions waiting, and only Open](../images/shots/outside/notification-asking.png)
+
 - **Allow**, on a Claude permission prompt, answers it with yes without leaving the app you are in. While Claude's
   permission hook waits in heed's [approvals](../autopilot/approvals.md), Allow answers that request through the hook.
   Once Claude asks in its pane instead, Heed presses Return only while the session is still blocked and its screen

@@ -46,6 +46,8 @@ reason, a Bash call's description), and says so when the same request was asked 
 Requests that are exactly the same (the same command from two sessions, say) are one row, "(2 agents)", and one answer
 goes to all of them.
 
+![One request in the approvals dialog: how long it waited, Run a command, the session and agent, and the network tag](../images/shots/agents/approvals-row.png)
+
 Each row has tags, read from the tool and its command. They are kept honest and simple: a tag is only shown when the
 words show it.
 

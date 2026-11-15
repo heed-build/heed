@@ -33,6 +33,8 @@ found, and `z?` (`:pilot.why`) lists them for the PR you are on (see [What heed 
 | Threads resolved | no review thread is open |
 | No changes requested | no reviewer is waiting on changes |
 
+![The Green list for a PR where every rule holds: Open, Ready for review, No conflicts, Up to date, Checks pass, Threads resolved and No changes requested, each ticked with what heed found](../images/shots/autopilot/checklist.png)
+
 ![The green checklist for a PR: which rules hold, and which one holds it back](../images/shots/watch/green.png)
 
 What holds a PR back goes to its agent as an item, the same way review comments do: a failing check, and a conflict

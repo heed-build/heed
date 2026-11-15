@@ -23,6 +23,8 @@ Changed words within a line are highlighted, so a one-character fix stands out i
 
 `a` opens a comment box under the line. Everything you type goes into it until you queue or cancel:
 
+![The comment box under a hunk: Feedback on this hunk with the file and line and 2 queued, the typed note, and the keys to queue, queue and send, add a line or cancel](../images/shots/diff/note-box.png)
+
 ![A note being written under a line of the diff](../images/shots/diff/note.png)
 
 | Key | |

@@ -14,6 +14,8 @@ Heed searches your login shell's PATH and the usual install locations. If it sti
 it: `[tools] git = "/opt/homebrew/bin/git"`. `heed tools` in a terminal shows what Heed finds and why. See
 [Finding git and gh](configuration/tools.md).
 
+![Attention with the offline banner under the tabs, saying gh could not resolve host api.github.com](images/shots/github/offline.png)
+
 ## Some pull requests or issues are missing
 
 Items in orgs your `gh` token is not authorized for (SAML single sign-on) are counted in the title bar ("· 49 hidden")
@@ -37,11 +39,15 @@ decision, and why nothing was posted, goes to the event log in `heed.sqlite`. Se
 `:log` opens the [call log](reference/call-log.md): every command Heed ran and every GitHub call, with how long it
 took and how it ended. `x` shows only the failed ones, `s` the slow ones.
 
+![The status bar's problem line when config.toml has a value heed refused](images/shots/configuration/problem.png)
+
 ## The ledger or Attention has no summaries
 
 They come from Heed's [model calls](agents/model-calls.md), through an agent CLI you are logged in to. Settings ›
 Agents shows which agents take part, and **Test** makes one call to see what goes wrong; `:log` lists every model call
 as `llm`.
+
+![A catch-up summary that failed: claude rate limited](images/shots/github/attention-summary-failed.png)
 
 ## The Start work panel closes right away, or tiles
 

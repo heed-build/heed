@@ -55,6 +55,8 @@ A part you placed yourself (a drag, `a`, `J` `K`) stays where you put it when as
 
 ## A part: hover, fold out, steer
 
+![One part on the board: its number, its title Migrate the…, its repo and its size pips, outlined as selected](../images/shots/goals/split-part.png)
+
 Pointing at a part shows a one-line preview: its repo, estimate, what it waits for and when it is done.
 
 ![Hovering a part](../images/shots/goals/split-hover.png)

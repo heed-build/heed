@@ -30,7 +30,13 @@ works the way Heed uses it (`zmx version`, then listing Heed's own sessions). It
 because of it. With `auto`, a zmx that is missing or fails its check leaves panes as plain shells. With `zmx`, Heed
 uses it whenever it is there, and says how to install it when it is not.
 
+![Settings › Tools, the zmx row: its path field, /opt/homebrew/bin/zmx 0.8.1 works, and Panes run in zmx: agents outlive heed](../images/shots/configuration/tools-zmx.png)
+
 The setting applies to panes opened from then on; panes already open keep going as they are until they close.
+
+![The strip over a session on a host: @devbox, its path, and the link line in green, connected with zmx, so the session outlives the link](../images/shots/sessions/host-strip.png)
+
+![A session row for a session on @devbox: its title, repo chip, host chip and state](../images/shots/sessions/row-host.png)
 
 ## What changes
 

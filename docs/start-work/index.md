@@ -10,6 +10,10 @@ starts the agent on your words.
 
 ![The Start work dialog: the prompt, the guessed repo, the worktree name, the agent, options and the command it will run](../images/shots/start-work/dialog.png)
 
+![The Start work prompt box with the typed prompt, Fix broken anchors in the redirect pages](../images/shots/start-work/prompt.png)
+
+![The Start work fields: the kind chips, the repo guesses with their percentages, the worktree name, the agents, the model and the options, and the command Heed will run](../images/shots/start-work/chips.png)
+
 The dialog has its own small modes, like Heed itself:
 
 - **Typing** (INSERT, the default): keys go into the prompt or the worktree name. `⇥` moves to the next field.

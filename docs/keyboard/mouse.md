@@ -33,6 +33,8 @@ menus register no shortcuts of their own, because Heed's keys are sequences (`gd
 and a menu that claimed `o` would take it from your terminals. The one exception is `⌘N` for **Start work**, which
 works in every mode like the other [Mac shortcuts](mac-shortcuts.md).
 
+![The Session menu in the menu bar: Type into its agent, Pin with a check mark, Park, goal, task, issue and close items, each with its key or :name on the right, greyed where it cannot run](../images/shots/keyboard/menu-bar-session.png)
+
 | Menu | What is in it |
 |---|---|
 | File | Start work (`⌘N`), the floating panel, a new chat, importing a worktree, adding or cloning a repo, resume and *While you were away…*, syncing GitHub, rescanning repos, cleaning up worktrees and the cleanup settings, `config.toml`, finding git and gh again |
@@ -57,6 +59,8 @@ the command line's own keys, closing an overlay (`⎋`), and the app menu's own 
 ## Sessions
 
 Right-click a session in the sidebar, or in the collapsed rail:
+
+![The right-click menu of a session: its title greyed on top, then Type into its agent, the PR overlay and diff, get it green, get it merged, pin, park, hand off, goal and close, each with its key on the right](../images/shots/keyboard/menu-session.png)
 
 | Item | Key |
 |---|---|
@@ -88,6 +92,8 @@ An **issue** opens in the [reader](../github/reading.md) or the browser, or come
 A right-click on a row in [PRs](../github/pull-requests.md) or Autopilot's [Now](../autopilot/index.md#now) offers that PR: open it,
 open it in the browser or its repo on GitHub, go to its session, and the pilot's items for it alone. In Now it also
 runs or shows the PR's [merge queue](../autopilot/green-and-merged.md) (`R`, `gM`).
+
+![The right-click menu of a PR: open it, the diff, the pilot's items with check marks for what is on, and each command's key on the right](../images/shots/keyboard/menu-pr.png)
 
 ## Attention
 

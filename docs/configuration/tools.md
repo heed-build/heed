@@ -25,6 +25,8 @@ path = []    # directories searched first, for git, gh and agent commands
 A configured value that does not work is reported, and detection carries on. The first-run screen and Settings show
 what was found and where from; `:tools.detect` looks again.
 
+![Settings › Tools, Found: git and gh, each with its path, its version and where heed found it](../images/shots/configuration/tools-found.png)
+
 ## From a terminal
 
 `heed tools` prints the same report. `env -i HOME=$HOME heed tools` shows what an app opened from the Finder would find.

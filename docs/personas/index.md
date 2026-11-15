@@ -25,6 +25,8 @@ milestones ([Personas in sessions](in-sessions.md)). `:personas.open` (or
 
 Every row is one persona:
 
+![One row: the D tile, Docs-site maintainer who owns docs-website, its first question, from your repos, its scope acme/docs-website, its last verdicts and the on switch](../images/shots/settings/personas-row.png)
+
 | Part | What it says |
 |---|---|
 | Tile | Its letter, in its tint: the same tint wherever heed draws it |
@@ -47,6 +49,8 @@ style". heed does not learn one on its own yet, so it is there only when you add
 The right side says who they are, what they ask first, what they are skeptical about and what they may and may not do;
 the **evidence**, why this persona (for one from your repos: the CODEOWNERS line, the review comments, the required
 check that pointed at it); and what it **joins** on its own:
+
+![The persona under the cursor: who they are, what they ask first and are skeptical about, the evidence, and what it joins, with Try it on a PR, Edit and Share](../images/shots/settings/personas-detail.png)
 
 | Join | What it does |
 |---|---|

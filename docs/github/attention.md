@@ -11,6 +11,8 @@ you and failed CI is one row with three reasons.
 
 ![Attention: the tabs, For you in its sections, and the line at the foot](../images/shots/github/attention.png)
 
+![One Attention row: the unread dot, a PR mark, the repo and number, the title, the age, the reason review requested, a preview, and heed's next step on the right](../images/shots/github/attention-row.png)
+
 ## Tabs
 
 The tabs over the list each carry a count. `t` goes to the next one, and after Everything to Muted; a click opens

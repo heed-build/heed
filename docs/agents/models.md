@@ -17,6 +17,8 @@ appears for agents that take a reasoning effort at launch, with that model's lev
 
 ![Settings › Agents: claude's own model and effort](../images/shots/agents/model-pickers.png)
 
+![Starting: claude's model and effort lists, opus and high set](../images/shots/agents/model-pickers-card.png)
+
 ## What each agent takes
 
 | Agent | Model | Effort | Levels |
@@ -50,4 +52,6 @@ effort = "high"      # its reasoning effort
 A custom agent takes a model and an effort when it says how: `model_flag` and `effort_flag` (a flag the level
 follows, or arguments with `{level}` in them). See [Custom agents](custom-agents.md).
 
-![Settings › Autopilot › Get it green: runs on codex with a listed model, conflicts on a custom id](../images/shots/agents/model-custom.png)
+![Settings › Autopilot › Get it green: runs on codex with a listed model and a high effort](../images/shots/agents/model-custom.png)
+
+![Settings › Autopilot › Merge conflicts: runs on claude with a custom model id](../images/shots/agents/model-custom-conflicts.png)

@@ -2,5 +2,8 @@
 # heed.reelpreset uses as every film's intro. Re-record with: mise run reels brand/intro
 Open intro.html
 Output intro.mov
-Set Viewport 1920x1080
-Sleep 1.6s
+# Chromium, not WebKit: reel's WebKit capture does not advance CSS animations. A tiling window manager must let it float.
+Set Browser chromium
+Set Viewport 1280x720
+Set Cursor off
+Sleep 1.3s

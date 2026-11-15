@@ -1,6 +1,7 @@
 # The landing page's hero clip: a thought, an agent at work, a permission answered, a pull request that is reviewed,
 # fixed, goes green and merges, and what heed remembers. All of it on a throwaway world (demo/): invented names, a
-# scripted agent, a fake gh. Needs a Heed.app (HEED_APP, default build/Heed.app) with the accessibility ids.
+# scripted agent, a fake gh. Needs a Heed.app with the accessibility ids: scripts/reels.sh (mise run reels) leaves its
+# path in out/heed-app, since a reel's terminal does not inherit the environment.
 # Record: mise run reels hero. It takes the mouse and keyboard.
 Import heed.reelpreset
 
@@ -9,7 +10,7 @@ Screen terminal as term
   Set Columns 110
   Set WorkingDirectory //
   Set WaitTimeout 3m
-  Type@0ms "docs/reels/demo/world.sh /tmp/heed-demo >/dev/null && docs/reels/demo/launch.sh ${HEED_APP:-build/Heed.app} /tmp/heed-demo >/dev/null && . /tmp/heed-demo/env.sh && clear"
+  Type@0ms "docs/reels/demo/world.sh /tmp/heed-demo >/dev/null && docs/reels/demo/launch.sh $(cat docs/reels/out/heed-app) /tmp/heed-demo >/dev/null && . /tmp/heed-demo/env.sh && clear"
   Key return
   Wait exit as launched
   Wait for answered
@@ -29,6 +30,7 @@ Screen terminal as term
 
 # heed itself, driven with real keys.
 Attach net.nullean.heed.demo as app
+  Set WaitTimeout 3m
   Wait #view-tab-sessions as shown
   Sleep 1s
   Key o
@@ -50,6 +52,7 @@ Attach net.nullean.heed.demo as app
   Sleep 3s
 
 Output out/hero.mp4
+Set WaitTimeout 3m
 Set Layout app
 Set Size 1440x900
 Intro@crossfade,ease-out,400ms 1.5s

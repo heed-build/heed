@@ -16,6 +16,9 @@ export HEED_APP="${HEED_APP:-$root/build/Heed.app}"
 reel="${REEL:-reel}"
 [ -d "$HEED_APP" ] || { echo "reels: no app at $HEED_APP (mise run bundle, or set HEED_APP)" >&2; exit 1; }
 
+mkdir -p docs/reels/out
+printf '%s\n' "$HEED_APP" >docs/reels/out/heed-app
+
 names=()
 if [ $# -gt 0 ]; then
   for name in "$@"; do names+=("docs/reels/${name%.reel}.reel"); done

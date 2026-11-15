@@ -18,12 +18,14 @@ fi
 copy="$root/Heed-demo.app"
 rm -rf "$copy"
 ditto "$app" "$copy"
-/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier net.nullean.heed.demo" "$copy/Contents/Info.plist"
-codesign --force --sign - "$copy/Contents/Helpers/heed" >/dev/null 2>&1
-codesign --force --deep --sign - "$copy" >/dev/null 2>&1
+codesign_copy() {
+  codesign --force --sign - "$copy/Contents/Helpers/heed" >/dev/null 2>&1
+  codesign --force --deep --sign - "$copy" >/dev/null 2>&1
+}
 
-# The helper on PATH for cues (cue, demo-agent) and a seeded history: the ledger and the acme Mindmap, dated from now.
+# The helper on PATH for cues (cue, demo-agent).
 ln -sf "$copy/Contents/Helpers/heed" "$root/bin/heed"
+
 # The tutor's title bar reminder hidden, as `:tutor.hide all` does: it is kept in the app's preferences. Preferences go
 # through cfprefsd, which ignores CFFIXED_USER_HOME, so they live in ~/Library/Preferences/net.nullean.heed.demo.plist:
 # the copy's own domain (never Heed's), wiped on every launch so each take starts alike.
@@ -31,9 +33,19 @@ defaults delete net.nullean.heed.demo >/dev/null 2>&1 || true
 progress="$(printf '%s' '{"done":[],"lastStep":0,"hidden":["all"]}' | xxd -p | tr -d '\n')"
 defaults write net.nullean.heed.demo tutorProgress -data "$progress"
 
+# A seeded history (the ledger and the acme Mindmap, dated from now), written by a first, short run under a bundle id
+# of its own, so a reel that waits for the app to open does not attach to it.
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier net.nullean.heed.demo.seed" "$copy/Contents/Info.plist"
+codesign_copy
 env HOME="$home" CFFIXED_USER_HOME="$home" HEED_SEED_WORLD=1 "$copy/Contents/MacOS/Heed" >"$root/seed.log" 2>&1
 
-env HOME="$home" CFFIXED_USER_HOME="$home" XDG_CONFIG_HOME="$home/.config" DEMO_ROOT="$root" \
-  PATH="$root/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin" \
-  nohup "$copy/Contents/MacOS/Heed" >"$root/heed.log" 2>&1 &
-echo $!
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier net.nullean.heed.demo" "$copy/Contents/Info.plist"
+codesign_copy
+
+# Through LaunchServices, so it comes to the front as a launched app does (a film's real keys go to the front app; heed
+# itself never takes focus). The environment is the world's.
+open -n --stdout "$root/heed.log" --stderr "$root/heed.log" \
+  --env HOME="$home" --env CFFIXED_USER_HOME="$home" --env XDG_CONFIG_HOME="$home/.config" --env DEMO_ROOT="$root" \
+  --env PATH="$root/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin" "$copy"
+sleep 1
+pgrep -f "$copy/Contents/MacOS/Heed" | head -1

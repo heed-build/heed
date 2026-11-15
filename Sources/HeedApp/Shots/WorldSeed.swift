@@ -1,7 +1,8 @@
 import Foundation
 import HeedCore
 
-/// `HEED_SEED_WORLD=1`: writes the fake world's ledger and the `acme` Mindmap (campaigns, decisions, work placed in them,
+/// `HEED_SEED_WORLD=1`: writes the fake world's ledger and the `acme` Mindmap (campaigns, decisions, work placed in
+/// them,
 /// as `Fixtures` draws them, every name invented) into this Heed's own stores, dated from now, and quits. Used by
 /// `docs/reels/demo/launch.sh` so a film starts with a believable history and no model call writes it. Run against a
 /// throwaway home (`CFFIXED_USER_HOME`), never a real one.

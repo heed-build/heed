@@ -21,6 +21,27 @@ turns, or the one you choose in [Settings › Model calls](../configuration/infe
 
 Custom agents take no part: Heed knows how to call each built-in headless, not an arbitrary command.
 
+## Model tiers
+
+A call asks for a **tier**, and each agent's dialect says which model that is. **cheap** is what every call used until now
+and is still the default; a feature that wants more reads says so (the session panel's `look_model`, see
+[Personas in sessions](../personas/in-sessions.md)).
+
+| Tier | claude | codex | gemini, opencode, pi, cursor |
+|---|---|---|---|
+| `cheap` | `haiku` | the detected "fast and affordable" one | detected, as in the table above |
+| `standard` | `sonnet` | its own default, at medium reasoning (cheap calls keep it low) | its own default |
+| `strong` | `opus` | its own default | its own default |
+
+Where heed knows no model for a tier it passes none, so the agent runs its own default, and the call's `:log` row says
+so (`tier: standard: no standard model known for codex, its own default`); a model that was named shows as
+`tier: standard: sonnet`. `llm_model` in `[agents.<name>]` replaces the **cheap** model only. The cache keeps a tier's
+answers apart: the same call at another tier is a new call.
+
+A tier above `cheap` still runs with tools off. A feature that needs a model to read the code asks for more than a tier:
+the session panel's `strong` look runs your default agent headless and read-only in the session's worktree instead, the
+way the [goal wizard's plan](../goals/first-goal.md) does, on claude's `opus`.
+
 ## What they are for
 
 - **Summaries**: where a piece of work stands, written from its git history, its pull request, Heed's timeline and the

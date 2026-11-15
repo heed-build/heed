@@ -321,6 +321,12 @@ enum Shots {
             keys: "gL", crop: .panelPopover, cropPadding: 0,
             prepare: { $0.loadSessionPanelFixture(.verdict) }
         ),
+        // ↩ reads the persona under the cursor in full, in place; j moves to the next (the first is the concern).
+        Shot(
+            id: "sessions/personas-reasoning",
+            keys: "gLj<CR>", crop: .panelPopover, cropPadding: 0,
+            prepare: { $0.loadSessionPanelFixture(.verdict) }
+        ),
         Shot(
             id: "sessions/personas-pr",
             keys: "gL",

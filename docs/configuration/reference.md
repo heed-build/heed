@@ -119,6 +119,12 @@ long = false
 long_hours = 4
 # At a milestone: "ask" (a line at the session's foot), "look" (without asking) or "never".
 offers = "ask"
+# The model that reads the work, for a look and for a chat with one persona: "cheap" (what heed's short model calls use:
+# haiku for claude), "standard" (the next step up: sonnet for claude, the agent's own default for the others) or
+# "strong" (claude's opus; the others' own default). strong also lets the personas read the code around the diff:
+# it runs your default agent (claude or codex) headless and read-only in the session's worktree, as the goal wizard's
+# plan does, instead of a call with tools off. Dearer and slower; the verdict shows the model and the cost.
+look_model = "standard"
 
 [github]
 # How often the view on screen refreshes from GitHub; the others refresh five times less often.

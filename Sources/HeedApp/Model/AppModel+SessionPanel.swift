@@ -13,14 +13,17 @@ extension AppModel {
         case "panel.ask": askPanel(words, target: command.target)
         case "panel.notnow": offerAnswered(never: false)
         case "panel.never": offerAnswered(never: true)
-        case "panel.send": sendPanelVerdict()
+        case "panel.send": sendPanelVerdict(all: words.first == "all")
+        case "panel.open": sessionPanel.expanded.toggle()
         case "panel.talk": talkToPanelPersona()
         case "panel.say":
             guard sessionPanel.chat != nil else { return true }
             sessionPanel.typing = ""
             textInputActive = true
         case "panel.dismiss": dismissPanelVerdict()
-        case "panel.close": closePanel()
+        case "panel.close":
+            // ⎋ closes the innermost thing: the reasoning read in place, then the popover.
+            if sessionPanel.expanded { sessionPanel.expanded = false } else { closePanel() }
         case "panel.row":
             let count = panelPopoverRows
             sessionPanel.row = count == 0 ? 0 : min(max(sessionPanel.row + (Int(words.first ?? "") ?? 1), 0), count - 1)
@@ -80,11 +83,30 @@ extension AppModel {
     }
 
     var sessionLookCalls: SessionLookCalls {
-        if isFixture { return SessionLookCalls(run: SessionPanelFixtures.calls) }
-        return SessionLookCalls { [weak self] request in
+        if isFixture { return SessionLookCalls(run: SessionPanelFixtures.calls, read: SessionPanelFixtures.read) }
+        return SessionLookCalls(run: { [weak self] request in
             guard let self else { throw LLMError.disabled }
             return try await runLLM(request)
-        }
+        }, read: panelReader())
+    }
+
+    /// The strong look's run: the same headless, read-only run as the goal wizard's planner, by your default agent on
+    /// its strongest model. nil when that agent cannot run that way (only claude and codex can): the look is then
+    /// made at standard.
+    private func panelReader() -> SessionLookCalls.Read? {
+        let name = settings.defaultAgent
+        guard let agent = settings.agent(name) else { return nil }
+        let talker = PlanTalker(
+            agent: name, command: agent.command, model: LLMTier.strong.model(agent: name),
+            prices: config.usage.prices, exec: headlessExec(caller: SessionLookCalls.caller)
+        )
+        guard talker.canRead else { return nil }
+        return { system, prompt, repos in try await talker.read(system: system, prompt: prompt, repos: repos) }
+    }
+
+    /// The folders a strong look reads: the session's own worktrees on this Mac (a remote session has none here).
+    func panelReadRepos(_ session: Session) -> [String] {
+        session.host == nil ? session.worktreePaths : []
     }
 
     // MARK: Milestones
@@ -151,6 +173,7 @@ extension AppModel {
             if sessionPanel.open == id { return closePanel() }
             sessionPanel.open = id
             sessionPanel.row = 0
+            sessionPanel.expanded = false
             return
         }
         if let offer = sessionPanel.records[id]?.offer {
@@ -181,6 +204,8 @@ extension AppModel {
         let owned = worktrees.filter { session.owns($0) }
         let task = session.prompt.isEmpty ? session.title : session.prompt
         let calls = sessionLookCalls
+        let tier = config.personas.lookModel
+        let repos = panelReadRepos(session)
         let fixture = isFixture
         let (diff, stat) = fixture ? ("", DiffStat(files: 14, added: 612, removed: 88)) : await SessionDiff.read(owned)
         defer {
@@ -190,8 +215,11 @@ extension AppModel {
         do {
             let look = try await calls.look(
                 milestone: milestone, task: task, lastTurn: session.lastMessage, diff: diff, stat: stat, seats: seats,
-                now: Clock.now
+                now: Clock.now, tier: tier, repos: repos
             )
+            if tier == .strong, look.tier != .strong {
+                say("the panel read the diff only (a strong look needs claude or codex, and a worktree on this Mac)")
+            }
             let work = SessionWork.of(session, worktrees: worktrees, turnEnded: false)
             if sessionPanel.records[id] == nil { sessionPanel.records[id] = .start(work, at: Clock.now) }
             sessionPanel.change(id) { $0.looked(look, work: work) }
@@ -216,16 +244,21 @@ extension AppModel {
 
     // MARK: The verdict
 
-    /// Send to the agent: the concerns, through its inbox (typed only under the usual rules). Personas never type.
-    private func sendPanelVerdict() {
+    /// Send to the agent: the full reasoning of the persona under the cursor, or of all of them, through its inbox
+    /// (typed only under the usual rules). Personas never type.
+    private func sendPanelVerdict(all: Bool) {
         guard let session = panelSubject(commandTarget), let look = panelLook(session.id) else { return }
         guard sessionPanel.holds[session.id] == nil else { return choosePR("concern") }
-        guard let message = look.message else { return say("everyone is happy: nothing to send") }
+        let seat = look.verdicts.indices.contains(sessionPanel.row) ? look.verdicts[sessionPanel.row].seat : nil
+        guard let message = all ? look.message(everyone: true) : seat.flatMap({ look.message(seat: $0) }) else {
+            return say("nothing to send")
+        }
         let id = session.id
+        let what = all ? "the panel's reasoning" : look.seat(seat ?? "")?.name ?? "the persona"
         Task {
             let outcome = await notify(session: id, text: .owner(message))
             if outcome.sent { sessionPanel.change(id) { $0.look?.sent = true } }
-            say("the panel's concerns: \(outcome.summary)")
+            say("\(what): \(outcome.summary)")
         }
         closePanel()
     }
@@ -239,6 +272,7 @@ extension AppModel {
 
     func closePanel() {
         sessionPanel.open = nil
+        sessionPanel.expanded = false
         sessionPanel.chat = nil
         endPanelTyping()
     }
@@ -262,7 +296,12 @@ extension AppModel {
         else { return }
         var chat = PersonaChat(seat: seat)
         let verdict = look.verdicts[sessionPanel.row]
-        chat.lines.append(.init(fromYou: false, text: verdict.quote + (verdict.fix.map { " (\($0))" } ?? "")))
+        // It opens with what it said: the full reasoning when it gave one, else its line.
+        chat.lines.append(.init(
+            fromYou: false,
+            text: verdict.reasoning.map { verdict.quote + "\n\n" + $0 }
+                ?? verdict.quote + (verdict.fix.map { " (\($0))" } ?? "")
+        ))
         sessionPanel.chat = chat
         sessionPanel.typing = ""
         textInputActive = true
@@ -279,11 +318,13 @@ extension AppModel {
         sessionPanel.chat = chat
         sessionPanel.replying = true
         let calls = sessionLookCalls
+        let tier = config.personas.lookModel
+        let repos = panelReadRepos(session)
         let task = session.prompt.isEmpty ? session.title : session.prompt
         Task {
             defer { sessionPanel.replying = false }
             do {
-                let reply = try await calls.reply(chat, look: look, task: task)
+                let reply = try await calls.reply(chat, look: look, task: task, tier: tier, repos: repos)
                 guard sessionPanel.chat?.seat.id == chat.seat.id else { return }
                 sessionPanel.chat?.lines.append(.init(fromYou: false, text: reply))
             } catch {

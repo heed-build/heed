@@ -16,6 +16,9 @@ public struct LLMRequest: Sendable {
     public var caller: String
     /// What was asked for, in a few words, for the call log.
     public var operation: String?
+    /// How much model the call is worth. Cheap is the default; a higher tier asks each agent for its next step up
+    /// (`LLMTier`), and an agent with none known runs its own default and says so in the call log.
+    public var tier: LLMTier
     /// Only this agent (Settings' Test); nil: round-robin over every usable agent.
     public var agent: String?
     /// Answer an identical earlier call from the cache, and keep this answer for the next.
@@ -26,13 +29,15 @@ public struct LLMRequest: Sendable {
 
     public init(
         call: LLMCall, priority: Priority = .background, caller: String, operation: String? = nil,
-        agent: String? = nil, cached: Bool = true, onStart: (@Sendable (String, String?) -> Void)? = nil
+        agent: String? = nil, tier: LLMTier = .cheap, cached: Bool = true,
+        onStart: (@Sendable (String, String?) -> Void)? = nil
     ) {
         self.call = call
         self.priority = priority
         self.caller = caller
         self.operation = operation
         self.agent = agent
+        self.tier = tier
         self.cached = cached
         self.onStart = onStart
     }
@@ -312,7 +317,7 @@ public actor LLMRunner {
     public func run(_ request: LLMRequest) async throws -> LLMResponse {
         guard settings.enabled else { throw LLMError.disabled }
         guard request.cached else { return try await queued(request, ticket: reserve(request.priority)) }
-        let key = Self.key(request.call)
+        let key = Self.key(request.call, tier: request.tier)
         if var hit = cache[key] {
             hit.fromCache = true
             return hit
@@ -334,8 +339,8 @@ public actor LLMRunner {
     }
 
     /// The cache key: everything that shapes the answer.
-    static func key(_ call: LLMCall) -> String {
-        let text = [call.system, call.prompt, call.schema ?? ""].joined(separator: "\u{0}")
+    static func key(_ call: LLMCall, tier: LLMTier = .cheap) -> String {
+        let text = [call.system, call.prompt, call.schema ?? "", tier.rawValue].joined(separator: "\u{0}")
         return SHA256.hash(data: Data(text.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
@@ -490,11 +495,13 @@ public actor LLMRunner {
     private func call(_ agent: AgentProfile, _ request: LLMRequest, skipped: [String]) async throws -> LLMResponse {
         let dialect = LLMDialect.of(agent)!
         let status = await status(agent)
-        let model = settings.model(for: agent.name) ?? status.detectedModel
+        // `llm_model` and the detected model are the cheap tier's; the others name theirs (`LLMTier`).
+        let model = request.tier == .cheap
+            ? settings.model(for: agent.name) ?? status.detectedModel : request.tier.model(for: dialect)
         let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("heed-llm-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: scratch) }
-        let invocation = dialect.invocation(request.call, model: model, scratch: scratch.path)
+        let invocation = dialect.invocation(request.call, model: model, scratch: scratch.path, tier: request.tier)
         for (name, content) in invocation.files {
             try? content.write(to: scratch.appendingPathComponent(name), atomically: true, encoding: .utf8)
         }
@@ -571,6 +578,7 @@ public actor LLMRunner {
         }
 
         var detail = ["prompt": LoggedCall.truncated(request.call.prompt) ?? "", "priority": "\(request.priority)"]
+        detail["tier"] = request.tier.note(agent: agent.name, model: model)
         if !skipped.isEmpty { detail["skipped"] = skipped.joined(separator: "; ") }
         if let text = output?.text { detail["response"] = LoggedCall.truncated(text) }
         CallLog.record(LoggedCall(

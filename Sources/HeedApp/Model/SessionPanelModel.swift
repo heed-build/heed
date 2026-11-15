@@ -21,6 +21,8 @@ final class SessionPanelModel {
     var open: String?
     /// The persona under the popover's cursor.
     var row = 0
+    /// The persona under the cursor shows its full reasoning, in place (↩, or a click).
+    var expanded = false
     /// Talking to one persona, and what you are typing to it.
     var chat: PersonaChat?
     var typing: String?

@@ -74,6 +74,12 @@ extension SettingsCatalog {
             "personas.offers", .personas, "In sessions", "When it offers",
             "At a milestone: ask (a line at the session's foot), look (without asking) or never.", since: "0.42.0"
         ) { .text($0.personas.offers.rawValue) },
+        global(
+            "personas.look_model", .personas, "In sessions", "Model",
+            "The model that reads the work, for a look and a chat with one persona: cheap, standard (claude: sonnet) "
+                + "or strong (claude: opus; also reads the code around the diff, in the session's worktree).",
+            since: "0.46.0"
+        ) { .text($0.personas.lookModel.rawValue) },
     ]
 
     static let general: [SettingsEntry] = [

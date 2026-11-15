@@ -31,6 +31,9 @@ public struct SessionPanelSettings: Hashable, Sendable {
     public var long = false
     public var longHours = 4
     public var offers: Offers = .ask
+    /// `look_model`: the model tier the look and a persona's chat run at. `strong` runs headless and read-only in the
+    /// session's worktree, so the personas can read the code around the diff.
+    public var lookModel: LLMTier = .standard
 
     public init() {}
 

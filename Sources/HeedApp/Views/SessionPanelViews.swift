@@ -221,20 +221,37 @@ struct SessionPanelLineView: View {
     }
 }
 
-/// The verdict's popover over the line (gL): each persona's line, Send to the agent, Talk to one, Dismiss; on a held
-/// PR, Let it open, Send the concern first, Hold the PR.
+/// The verdict's popover over the line (gL): each persona's headline; ↩ (or a click) reads the one under the cursor in
+/// full, in place, and j k move between personas; Send this one, Send all, Talk to one, Dismiss; on a held PR, Let it
+/// open, Send the concern first, Hold the PR. The rows scroll when the reasoning needs more room than the window has.
 struct SessionPanelPopover: View {
     @Environment(AppModel.self) private var model
     let session: Session
     let look: SessionLook
     let held: Bool
+    /// The rows' height as drawn, so the scroll area is as tall as they are up to `maxRows`.
+    @State private var rowsHeight: CGFloat = 0
+
+    static let maxRows: CGFloat = 420
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             header
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(Array(look.verdicts.enumerated()), id: \.offset) { index, verdict in
-                    row(verdict, index: index)
+            if ShotMode.active {
+                // Snapshots cannot draw a scroll view: the rows, as tall as they are.
+                rows
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        rows.background(GeometryReader { geometry in
+                            Color.clear.onAppear { rowsHeight = geometry.size.height }
+                                .onChange(of: geometry.size.height) { rowsHeight = geometry.size.height }
+                        })
+                    }
+                    .scrollIndicators(rowsHeight > Self.maxRows ? .automatic : .never)
+                    .frame(height: rowsHeight > 0 ? min(rowsHeight, Self.maxRows) : nil)
+                    .onChange(of: model.sessionPanel.row) { scroll(proxy) }
+                    .onChange(of: model.sessionPanel.expanded) { scroll(proxy) }
                 }
             }
             if let chat = model.sessionPanel.chat {
@@ -254,11 +271,23 @@ struct SessionPanelPopover: View {
             }
         }
         .padding(16)
-        .frame(width: 560, alignment: .leading)
+        .frame(width: 640, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
         .shadow(color: .black.opacity(0.45), radius: 18)
         .shotRegion(.panelPopover)
+    }
+
+    private var rows: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(Array(look.verdicts.enumerated()), id: \.offset) { index, verdict in
+                row(verdict, index: index).id(index)
+            }
+        }
+    }
+
+    private func scroll(_ proxy: ScrollViewProxy) {
+        withAnimation(.easeOut(duration: 0.12)) { proxy.scrollTo(model.sessionPanel.row, anchor: .center) }
     }
 
     private var holdText: String {
@@ -286,9 +315,11 @@ struct SessionPanelPopover: View {
         }
     }
 
+    /// The model, how long it took and what it cost; a look that read the code says so.
     private var meta: String {
         if held, let diff = look.diff { return "diff +\(diff.added) −\(diff.removed) · \(diff.files) files" }
         var parts = [look.model ?? "model"]
+        if look.tier == .strong { parts.append("read the code") }
         if look.seconds > 0 { parts.append("\(Int(look.seconds.rounded())) s") }
         if let dollars = look.dollars { parts.append(String(format: "$%.3f", dollars)) }
         return parts.joined(separator: " · ")
@@ -298,22 +329,64 @@ struct SessionPanelPopover: View {
         let seat = look.seat(verdict.seat)
         let name = seat?.name ?? verdict.seat
         let cursor = model.sessionPanel.row == index
-        return HStack(alignment: .top, spacing: 10) {
-            PersonaTile(name: name, id: verdict.seat, size: 26)
-            // The full line; the short form is the foot line's.
-            (Text(name + " ").fontWeight(.semibold).foregroundColor(Theme.fg)
-                + Text(verdict.quote).foregroundColor(Theme.fg))
-                .font(Theme.ui(12.5))
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            PanelVerdictGlyph(kind: verdict.kind)
+        let open = cursor && model.sessionPanel.expanded
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                PersonaTile(name: name, id: verdict.seat, size: 26)
+                // The headline; the short form is the foot line's.
+                (Text(name + (open ? " · " : " ")).fontWeight(.semibold).foregroundColor(Theme.fg)
+                    + Text(verdict.quote).foregroundColor(Theme.fg).fontWeight(open ? .semibold : .regular))
+                    .font(Theme.ui(12.5))
+                    .lineLimit(open ? nil : 3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if verdict.hasDetail, !open {
+                    Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(Theme.fg3).padding(.top, 5)
+                }
+                PanelVerdictGlyph(kind: verdict.kind)
+            }
+            if open { detail(verdict) }
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: 4).fill(cursor ? Theme.selected.opacity(0.7) : .clear))
         .contentShape(Rectangle())
-        .onTapGesture { model.sessionPanel.row = index }
+        .onTapGesture {
+            // A click reads the persona; a click on the one being read folds it.
+            if cursor { model.sessionPanel.expanded.toggle() } else {
+                model.sessionPanel.row = index
+                model.sessionPanel.expanded = true
+            }
+        }
+    }
+
+    /// What it said in full, under its headline and indented past its tile: the reasoning, what would change its
+    /// mind, and its fix. A one-line verdict from before heed asked for more says so.
+    private func detail(_ verdict: PanelVerdict) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if let reasoning = verdict.reasoning {
+                Text(reasoning).font(Theme.ui(13)).foregroundStyle(Theme.fg).lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("This look has only a one-line verdict; the next one asks for the reasoning.")
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+            }
+            if let change = verdict.change { field("WOULD CHANGE ITS MIND", change) }
+            if let fix = verdict.fix { field("SUGGESTED", fix) }
+        }
+        .padding(.leading, 36)
+        .padding(.trailing, 4)
+        .padding(.bottom, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func field(_ label: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label).font(Theme.ui(10, weight: .semibold)).tracking(0.8).foregroundStyle(Theme.fg3)
+            Text(text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     @ViewBuilder private var buttons: some View {
@@ -331,11 +404,28 @@ struct SessionPanelPopover: View {
                     label: "Hold the PR", key: model.keyText(for: "panel.pr hold", in: "sessionspanelpr"),
                     command: CommandInvocation(name: "panel.pr", arguments: ["hold"])
                 )
+                Spacer(minLength: 8)
+                PanelButton(
+                    label: model.sessionPanel.expanded ? "Fold" : "Read it",
+                    key: model.keyText(for: "panel.open", in: "sessionspanelpr"),
+                    command: CommandInvocation(name: "panel.open")
+                )
             } else {
                 PanelButton(
-                    label: "Send to \(session.agent)", key: model.keyText(for: "panel.send", in: "sessionspanel"),
-                    primary: look.worried, command: CommandInvocation(name: "panel.send")
+                    label: model.sessionPanel.expanded ? "Fold" : "Read it",
+                    key: model.keyText(for: "panel.open", in: "sessionspanel"),
+                    primary: !model.sessionPanel.expanded, command: CommandInvocation(name: "panel.open")
                 )
+                PanelButton(
+                    label: "Send this one", key: model.keyText(for: "panel.send", in: "sessionspanel"),
+                    command: CommandInvocation(name: "panel.send")
+                )
+                .help("Send the persona under the cursor's reasoning to \(session.agent)")
+                PanelButton(
+                    label: "Send all", key: model.keyText(for: "panel.send all", in: "sessionspanel"),
+                    command: CommandInvocation(name: "panel.send", arguments: ["all"])
+                )
+                .help("Send every persona's reasoning to \(session.agent)")
                 PanelButton(
                     label: "Talk to one", key: model.keyText(for: "panel.talk", in: "sessionspanel"),
                     command: CommandInvocation(name: "panel.talk")
@@ -455,6 +545,23 @@ struct PersonasInSessions: View {
             }
             .padding(3)
             .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg2))
+            section("MODEL", symbol: "cpu")
+            HStack(spacing: 2) {
+                ForEach(LLMTier.allCases, id: \.self) { tier in
+                    let on = settings.lookModel == tier
+                    Text(tier.label)
+                        .font(Theme.ui(12.5, weight: on ? .semibold : .regular))
+                        .foregroundStyle(on ? Theme.ink : Theme.fg2)
+                        .padding(.horizontal, 12).frame(height: 26)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(on ? Theme.inverse : .clear))
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.setConfig(["personas", "look_model"], .string(tier.rawValue)) }
+                }
+            }
+            .padding(3)
+            .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg2))
+            Text("Reads the work, for a look and for a chat with one persona. " + settings.lookModel.summary)
+                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).fixedSize(horizontal: false, vertical: true)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "checkmark.shield").font(.system(size: 10.5))
                 Text(

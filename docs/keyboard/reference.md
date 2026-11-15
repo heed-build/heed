@@ -545,7 +545,8 @@ This page is generated from the code (`mise run shots`).
 | `panel.ask` `[persona…]` | `gL` | ask the panel for a look at the session's work: yes to its offer, open its verdict, or ask now (a cheap model call); with names, only those personas |
 | `panel.notnow` | `x` (sessionsoffer) | the panel's offer: not now (the next milestone offers again) |
 | `panel.never` | `N` (sessionsoffer) | the panel's offer: never in this session (you can still ask) |
-| `panel.send` | `<CR>` (sessionspanel) | the panel's verdict: send its concerns to the agent (its inbox, else typed under the usual rules) |
+| `panel.open` | `<CR>` (sessionspanel), `<Space>` (sessionspanel), `<Space>` (sessionspanelpr) | the panel's verdict: read the persona under the cursor's full reasoning in place (again: fold it) |
+| `panel.send` `[all]` | `s` (sessionspanel), `S` (sessionspanel) | the panel's verdict: send the full reasoning of the persona under the cursor to the agent, or of every persona with `all` (its inbox, else typed under the usual rules) |
 | `panel.talk` | `i` (sessionspanel), `<Esc>` (sessionspanelchat) | the panel's verdict: talk to the persona under the cursor (again: close the chat) |
 | `panel.say` | `i` (sessionspanelchat) | talking to a persona: type to it |
 | `panel.dismiss` | `x` (sessionspanel) | the panel's verdict: dismiss it |

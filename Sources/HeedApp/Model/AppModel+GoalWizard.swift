@@ -191,8 +191,15 @@ extension AppModel {
         guard let agent = settings.agent(name) else { return nil }
         let model = PlanTalk.strongest(agent: name)
         return PlanTalker(
-            agent: name, command: agent.command, model: model, prices: config.usage.prices
-        ) { arguments, stdin, directory in
+            agent: name, command: agent.command, model: model, prices: config.usage.prices,
+            exec: headlessExec(caller: "goals.wizard.plan")
+        )
+    }
+
+    /// Runs a headless agent command (arguments, stdin, working directory) off the main actor and returns its stdout:
+    /// the run `PlanTalker` is given, shared with the session panel's strong look.
+    func headlessExec(caller: String) -> PlanTalker.Exec {
+        { arguments, stdin, directory in
             let file = FileManager.default.temporaryDirectory.appendingPathComponent("heed-plan-\(UUID().uuidString)")
             try stdin.write(to: file, atomically: true, encoding: .utf8)
             defer { try? FileManager.default.removeItem(at: file) }
@@ -200,7 +207,7 @@ extension AppModel {
             let result = try await ProcessRunner.run(
                 path ?? arguments[0], Array(arguments.dropFirst()), in: directory,
                 environment: ["PATH": pathVariable], timeout: .seconds(Int64(PlanTalk.timeout)), input: file,
-                caller: "goals.wizard.plan"
+                caller: caller
             )
             guard result.succeeded || !result.stdout.isEmpty else {
                 throw LLMOutputError(result.stderr.split(whereSeparator: \.isNewline).first.map(String.init)

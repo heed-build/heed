@@ -8542,15 +8542,19 @@ final class AppModel {
         return view == .sessions && currentSession?.id == sessionID
     }
 
-    /// A notification's Allow: the session's oldest ask in heed's approvals, answered through its hook; without one,
-    /// Return on the agent's prompt only where its screen shows that means yes (`ScreenGuess.allowsWithReturn`).
-    /// Otherwise Heed comes forward on the session, so you answer it yourself.
-    func allowPermission(sessionID: String) {
-        if let group = approvalGroups.first(where: { $0.answerable && $0.sessions.contains(sessionID) }) {
-            answer(group, PermissionAnswer(.allow))
-            return
+    /// A notification's Allow: the asks it was posted for (`shown`), answered through their hook while they still wait,
+    /// and no other (`NotificationAllow`); posted for none, Return on the agent's prompt only where its screen shows that
+    /// means yes (`ScreenGuess.allowsWithReturn`). Otherwise Heed comes forward on the session, so you answer it yourself.
+    func allowPermission(sessionID: String, shown: [String]) {
+        switch NotificationAllow.action(shown: shown, waiting: waitingAskIDs(session: sessionID)) {
+        case let .answer(ids):
+            let asks = approvals.queue.asks.filter { ids.contains($0.id) }
+            answer(ApprovalGroup(asks: asks, tags: []), PermissionAnswer(.allow))
+        case .screen:
+            if !allowOnScreen(sessionID: sessionID) { show(sessionID: sessionID) }
+        case .show:
+            show(sessionID: sessionID)
         }
-        if !allowOnScreen(sessionID: sessionID) { show(sessionID: sessionID) }
     }
 
     /// `[keys] global_activate` and Open Heed: the main window to the front, reopened if it was closed.

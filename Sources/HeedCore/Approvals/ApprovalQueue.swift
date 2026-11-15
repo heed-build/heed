@@ -199,3 +199,22 @@ private extension Array where Element: Hashable {
         return filter { seen.insert($0).inserted }
     }
 }
+
+/// What a notification's Allow does: it answers the asks the notification was posted for, while they still wait, and
+/// never another (an ask that came since, or another agent's in the same group). With none posted (the agent asked in
+/// its pane, not through its hook) it presses Return on that prompt, unless an ask reached heed since; then it only
+/// shows the session.
+public enum NotificationAllow {
+    public enum Action: Equatable, Sendable {
+        case answer([String])
+        case screen
+        case show
+    }
+
+    /// `shown`: the session's waiting asks when the notification was posted; `waiting`: the session's waiting asks now.
+    public static func action(shown: [String], waiting: [String]) -> Action {
+        guard !shown.isEmpty else { return waiting.isEmpty ? .screen : .show }
+        let still = shown.filter(waiting.contains)
+        return still.isEmpty ? .show : .answer(still)
+    }
+}

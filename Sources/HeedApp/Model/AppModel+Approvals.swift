@@ -60,6 +60,12 @@ extension AppModel {
         approvalGroups.first { $0.sessions.contains(id) }
     }
 
+    /// The session's asks waiting in heed's queue now, through its hook: what a notification about it is posted for,
+    /// and all its Allow may answer.
+    func waitingAskIDs(session: String) -> [String] {
+        approvals.queue.asks.filter { $0.session == session && $0.channel == .hook }.map(\.id)
+    }
+
     // MARK: The round trip
 
     /// A permission hook's ask: kept in the queue until you answer it, the hook goes away, the agent moves on, or

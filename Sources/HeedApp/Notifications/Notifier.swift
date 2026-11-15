@@ -142,8 +142,12 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         case let .one(entry):
             identifier = Self.identifier(entry.id)
             // Allow presses Return in the session's own agent pane, so only a session's prompt gets it.
-            content.categoryIdentifier = entry.kind == .session && entry.state == .blocked && entry.agent == "claude"
-                ? Self.blockedCategory : Self.sessionCategory
+            let blocked = entry.kind == .session && entry.state == .blocked && entry.agent == "claude"
+            content.categoryIdentifier = blocked ? Self.blockedCategory : Self.sessionCategory
+            // Allow answers what this notice is about, and only that: the asks waiting now.
+            if blocked, let session = notice.session {
+                content.userInfo["asks"] = model?.waitingAskIDs(session: session) ?? []
+            }
             shown[entry.id] = entry.kind
         case .summary:
             identifier = "heed.summary"
@@ -178,6 +182,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let action = response.actionIdentifier
         let session = response.notification.request.content.userInfo["session"] as? String ?? ""
         let standup = response.notification.request.content.userInfo["standup"] as? String
+        let shown = response.notification.request.content.userInfo["asks"] as? [String] ?? []
         await MainActor.run {
             if let standup, let model = self.model,
                action == Self.open || action == UNNotificationDefaultActionIdentifier
@@ -186,7 +191,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             }
             guard let model = self.model, !session.isEmpty else { return }
             if action == Self.allow {
-                model.allowPermission(sessionID: session)
+                model.allowPermission(sessionID: session, shown: shown)
             } else if action == Self.open || action == UNNotificationDefaultActionIdentifier {
                 model.show(sessionID: session)
             }

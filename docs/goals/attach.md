@@ -13,7 +13,7 @@ suggests, and what it learnt from you. While nothing waits for you there (no ask
 below show on top of it, as cards; otherwise they fold to a line, so what needs you comes first. `g?`
 (`:goal.unassigned.how`) shows or hides them either way.
 
-![Unassigned: decisions with their reasons, an ask, and a suggested goal](../images/shots/goals/unassigned.png)
+![Unassigned: decisions with their reasons on the left; on the right a suggested goal for a chat with its keys, and what heed learns from you](../images/shots/goals/unassigned.png)
 
 ## 1. Signals: free, local, instant
 

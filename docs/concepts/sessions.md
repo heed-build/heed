@@ -17,6 +17,10 @@ A session has:
 - **Tracked pull requests.** Picked up from what the agent opens, or added by URL.
 - **A state.** Working, blocked, asking, done… See [Agent states](agent-states.md).
 
+![The session's panes: the agent's terminal and a shell beside it](../images/shots/concepts/session-panes.png)
+
+![The inspector with the session's worktrees, pull requests and agent events](../images/shots/concepts/session-inspector.png)
+
 A [chat](../sessions/chats.md) is a session with no repo: its agent works in a folder instead of a worktree, and it
 has no pull requests.
 

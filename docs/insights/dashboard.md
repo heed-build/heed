@@ -20,6 +20,8 @@ waited on your answers in all, and how many days in a row something merged.
 | Your median answer | From an agent asking (`question.asked`) to your answer, the median of the range |
 | Reported cost per merged PR | What the agents of the range's sessions reported spending, over the PRs merged. Only where an agent reported a cost; without one, the tile counts the questions you answered |
 
+![The four numbers: 12 PRs merged, about 44 h of agent time, a median answer of 7 m and the reported cost per merged PR, each with its line](../images/shots/history/dashboard-tiles.png)
+
 **Shipped** shows the PRs merged in the range as cards, edged in their repo's colour, with the agent, how long from the
 session's start to the merge, and the day; `j` `k` move through them, `↩` reads the PR, `gB` opens it in the browser
 and `R` reopens its session when it is in History.
@@ -37,6 +39,12 @@ agent's sessions that ended came to (merged, in green, and abandoned, in red, of
 time; **Where the time went** splits that time by repo. **Goals that moved** lists the [goals](../goals/index.md) that
 had evidence come in or were done in the range, with their score now, and **Next up** says what the goal closest to
 done still needs.
+
+![The 12 weeks calendar: a square for each day, a column per week with Monday at the top, and stronger amber for more agent time](../images/shots/history/dashboard-calendar.png)
+
+![Your agents: claude, opencode and codex with their merged against ended PRs and working time, and where the time went by repo](../images/shots/history/dashboard-agents.png)
+
+![Goals that moved this week with their scores, and the next thing the goal closest to done needs](../images/shots/history/dashboard-goals.png)
 
 Everything comes from heed's event log and goals on this Mac; nothing is estimated where nothing was recorded. A new
 install starts empty and fills as you work.

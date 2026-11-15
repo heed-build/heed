@@ -33,7 +33,7 @@ the PR and the build are done. Hover a mark for the evidence behind it. A click 
 
 ## The board
 
-![A goal as a board](../images/shots/goals/board.png)
+![A goal as a board: five columns from To explore to Done with a card for each item, and on the right the criteria and the changes to GOAL.md that wait for you](../images/shots/goals/board.png)
 
 `B` shows the goal as five columns: **To explore** (questions and what nobody has planned), **Planned**, **Working**
 (a session on it, something being built), **Verify** (a PR, or built work under review) and **Done** (merged, or a

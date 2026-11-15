@@ -84,15 +84,17 @@ enum Shots {
             keys: "o" + typed("Fix broken anchors in the redirect pages"),
             crop: .dialog
         ),
-        Shot(id: "getting-started/first-session-2-working", highlight: [.panes]),
+        Shot(id: "getting-started/first-session-2-working", crop: .panes, cropPadding: 0),
         Shot(id: "getting-started/first-session-3-blocked", keys: "j", highlight: [.sidebar, .panes]),
-        Shot(id: "getting-started/first-session-4-insert", keys: "ji", highlight: [.panes]),
+        Shot(id: "getting-started/first-session-4-insert", keys: "ji", crop: .panes, cropPadding: 0),
         Shot(id: "getting-started/first-session-5-feedback", keys: "go", highlight: [.pipeline]),
-        Shot(id: "getting-started/first-session-6-history", keys: "ghH", highlight: [.historyList]),
+        Shot(id: "getting-started/first-session-6-history", keys: "ghH", crop: .historyList, cropPadding: 0),
     ]
 
     static let concepts: [Shot] = [
         Shot(id: "concepts/session", highlight: [.tabStrip, .panes, .inspector]),
+        Shot(id: "concepts/session-inspector", crop: .inspector, cropPadding: 0),
+        Shot(id: "concepts/session-panes", crop: .panes, cropPadding: 0),
         Shot(id: "concepts/states", size: CGSize(width: 1440, height: 640), crop: .sidebar),
         Shot(id: "concepts/worktrees", keys: "gr", crop: .worktreeTable),
         Shot(id: "concepts/mode-normal", crop: .statusBar, cropPadding: 0),
@@ -250,6 +252,11 @@ enum Shots {
 
     static let sessions: [Shot] = [
         Shot(id: "sessions/anatomy", highlight: [.sidebar, .center, .inspector]),
+        Shot(id: "sessions/anatomy-title-bar", crop: .titleBar, cropPadding: 0),
+        Shot(id: "sessions/anatomy-status-bar", crop: .statusBar, cropPadding: 0),
+        Shot(id: "sessions/anatomy-inspector", crop: .inspector, cropPadding: 0),
+        Shot(id: "sessions/anatomy-center", crop: .center, cropPadding: 0),
+        Shot(id: "sessions/anatomy-sidebar", crop: .sidebar, cropPadding: 0),
         Shot(id: "sessions/sidebar", size: CGSize(width: 1440, height: 640), crop: .sidebar),
         Shot(id: "sessions/watching", size: CGSize(width: 1440, height: 1000), keys: "jjj", crop: .sidebar),
         Shot(id: "sessions/rail", size: CGSize(width: 1440, height: 640), keys: "zs", crop: .rail),
@@ -289,21 +296,32 @@ enum Shots {
         }),
         // A session growing into a goal: three PRs, a second repo and work it found, so a line at its foot offers
         // Make it a goal; gP shows what the goal would be.
-        Shot(id: "sessions/growing", crop: .center, prepare: growingSession),
-        Shot(id: "sessions/make-it-a-goal", keys: "gP", crop: .center, prepare: growingSession),
+        Shot(id: "sessions/growing", crop: .growthLine, cropPadding: 0, prepare: growingSession),
+        Shot(id: "sessions/make-it-a-goal", keys: "gP", crop: .promotion, cropPadding: 0, prepare: growingSession),
         // Personas in sessions: quiet (a faint stack on the row), an offer after a lot got built, the verdict and its
         // popover (gL), and a PR held for the panel with a concern.
         Shot(id: "sessions/personas-quiet", size: CGSize(width: 1440, height: 640), crop: .sidebar, prepare: {
             $0.loadSessionPanelFixture(.quiet)
         }),
-        Shot(id: "sessions/personas-offer", crop: .center, prepare: { $0.loadSessionPanelFixture(.offer) }),
+        Shot(
+            id: "sessions/personas-offer",
+            crop: .panelLine,
+            cropPadding: 0,
+            prepare: { $0.loadSessionPanelFixture(.offer) }
+        ),
+        Shot(id: "sessions/personas-scene", prepare: { $0.loadSessionPanelFixture(.offer) }),
         Shot(
             id: "sessions/personas-verdict",
-            keys: "gL",
-            crop: .center,
+            keys: "gL", crop: .panelPopover, cropPadding: 0,
             prepare: { $0.loadSessionPanelFixture(.verdict) }
         ),
-        Shot(id: "sessions/personas-pr", keys: "gL", crop: .center, prepare: { $0.loadSessionPanelFixture(.pr) }),
+        Shot(
+            id: "sessions/personas-pr",
+            keys: "gL",
+            crop: .panelPopover,
+            cropPadding: 0,
+            prepare: { $0.loadSessionPanelFixture(.pr) }
+        ),
         Shot(id: "sessions/task-picker", keys: "!", crop: .picker, prepare: withDiscoveredTasks),
         // run_in = "background", the older way: only the page that documents it shows it.
         Shot(id: "sessions/run-tab", keys: "4j", crop: .center, prepare: { $0.loadBackgroundRunFixture() }),
@@ -568,14 +586,20 @@ enum Shots {
         Shot(id: "autopilot/can-do", keys: "gw"),
         Shot(id: "autopilot/can-do-cleanup", keys: "gwjl", crop: .autopilotDetail),
         Shot(id: "autopilot/tabs", keys: "gw", crop: .autopilotBar),
-        Shot(id: "autopilot/where", keys: "gwW"),
+        Shot(id: "autopilot/where", keys: "gwW", crop: .autopilotMatrix, cropPadding: 0),
         Shot(id: "autopilot/where-merge", keys: "gwWjjl", crop: .autopilotFooter),
         Shot(id: "autopilot/now", keys: "gwN"),
         // Now's helpers at work, live, one tile each; ↩ on a tile opens it in a split.
         Shot(id: "autopilot/now-helpers", keys: "gwNl", prepare: { $0.loadHelperFixture() }),
-        Shot(id: "autopilot/now-helpers-tiles", keys: "gwNl", crop: .helperTiles, prepare: { $0.loadHelperFixture() }),
+        Shot(
+            id: "autopilot/now-helpers-tiles",
+            keys: "gwNl",
+            crop: .helperTiles,
+            cropPadding: 0,
+            prepare: { $0.loadHelperFixture() }
+        ),
         Shot(id: "autopilot/now-helper-open", keys: "gwNll<CR>", prepare: { $0.loadHelperFixture() }),
-        Shot(id: "autopilot/done", keys: "gwD"),
+        Shot(id: "autopilot/done", keys: "gwD", crop: .autopilotDone, cropPadding: 0),
         Shot(id: "autopilot/done-merge", keys: "gwDtt", crop: .autopilotDone),
         // Now: the PRs by card, stalled first; the selected PR's checklist, merge rules and timeline.
         Shot(id: "watch/stalled", keys: "gwN", crop: .list),
@@ -820,6 +844,28 @@ enum Shots {
     /// Insights (`gh`): the dashboard first; D from there is History, every other view a capital away.
     static let history: [Shot] = [
         Shot(id: "history/dashboard", keys: "gh"),
+        Shot(
+            id: "history/dashboard-calendar",
+            size: CGSize(width: 1440, height: 1100),
+            keys: "gh",
+            crop: .dashboardCalendar,
+            cropPadding: 0
+        ),
+        Shot(
+            id: "history/dashboard-goals",
+            size: CGSize(width: 1440, height: 1100),
+            keys: "gh",
+            crop: .dashboardGoals,
+            cropPadding: 0
+        ),
+        Shot(
+            id: "history/dashboard-agents",
+            size: CGSize(width: 1440, height: 1100),
+            keys: "gh",
+            crop: .dashboardAgents,
+            cropPadding: 0
+        ),
+        Shot(id: "history/dashboard-tiles", keys: "gh", crop: .dashboardTiles, cropPadding: 0),
         // Four weeks: r steps the range on from a week.
         Shot(id: "history/dashboard-weeks", keys: "ghr"),
         // What shipped, the cursor on the second card.
@@ -836,10 +882,15 @@ enum Shots {
         Shot(id: "history/every-event-worktrees", keys: "ghHeKK"),
         Shot(id: "history/every-event-detail", keys: "ghHeKK/flowchart<CR>", crop: .historyDetail),
         Shot(id: "history/mindmap", keys: "ghM"),
+        Shot(id: "history/mindmap-detail", keys: "ghM", crop: .mindmapDetail, cropPadding: 0),
+        Shot(id: "history/mindmap-columns", keys: "ghM", crop: .mindmapColumns, cropPadding: 0),
         Shot(id: "history/mindmap-work", keys: "ghMljl"),
         Shot(id: "history/standup", keys: "ghU"),
+        Shot(id: "history/standup-detail", keys: "ghU", crop: .standupDetail, cropPadding: 0),
+        Shot(id: "history/standup-list", keys: "ghU", crop: .standupList, cropPadding: 0),
         Shot(id: "history/mindmap-inside", keys: "ghMjl"),
         Shot(id: "history/ledger", keys: "ghL"),
+        Shot(id: "history/ledger-list", keys: "ghL", crop: .ledgerList, cropPadding: 0),
         // OpenTelemetry (T): the agents' own spans as an observability view, the wait going on now on top.
         Shot(id: "history/telemetry", size: CGSize(width: 1600, height: 1000), keys: "ghT"),
         // The span query: only bash calls that failed.
@@ -880,38 +931,50 @@ enum Shots {
             model.perform(CommandInvocation(name: "session.trace", arguments: ["s1"]))
         }),
         // The abandoned spike: its follow-up, the agent time an estimate.
-        Shot(id: "history/ledger-detail", keys: "ghLjjj"),
+        Shot(id: "history/ledger-detail", keys: "ghLjjj", crop: .ledgerDetail, cropPadding: 0),
     ]
 
     /// The new-goal wizard on the designs' goal (`WizardFixtures`): each step, the meters, the TL;DR over the wizard
     /// (at Go, where it says where the goal is going) and over a goal's page.
     static let wizard: [Shot] = [
-        Shot(id: "goals/wizard-plan", prepare: { $0.loadWizardFixture(.plan) }),
+        Shot(id: "goals/wizard-plan", crop: .wizardPlan, cropPadding: 0, prepare: { $0.loadWizardFixture(.plan) }),
+        Shot(id: "goals/wizard-scene", prepare: { $0.loadWizardFixture(.plan) }),
         Shot(id: "goals/wizard-meters", crop: .wizardMeters, cropPadding: 16, prepare: { $0.loadWizardFixture(.plan) }),
         Shot(id: "goals/wizard-rail", crop: .wizardRail, cropPadding: 0, prepare: { $0.loadWizardFixture(.done) }),
-        Shot(id: "goals/wizard-panel", prepare: { $0.loadWizardFixture(.panel) }),
-        Shot(id: "goals/wizard-done", prepare: { $0.loadWizardFixture(.done) }),
-        Shot(id: "goals/wizard-tldr", keys: "T", prepare: { $0.loadSplitFixture(.go) }),
+        Shot(id: "goals/wizard-panel", crop: .wizardPanel, cropPadding: 0, prepare: { $0.loadWizardFixture(.panel) }),
+        Shot(id: "goals/wizard-done", crop: .wizardDone, cropPadding: 0, prepare: { $0.loadWizardFixture(.done) }),
+        Shot(id: "goals/wizard-tldr", keys: "T", crop: .tldr, cropPadding: 0, prepare: { $0.loadSplitFixture(.go) }),
         Shot(id: "goals/wizard-tldr-page", keys: "gGjT", crop: .tldr, cropPadding: 16),
     ] + split
 
     /// Step 4 Split and the goal's page (`SplitFixtures`): the complex goal's board with a part selected, the small
     /// goal's, a part's hover and fold-out, defining it with its agent, and the complex goal building.
     static let split: [Shot] = [
-        Shot(id: "goals/split", prepare: { $0.loadSplitFixture(.complex, part: "migrate") }),
+        Shot(
+            id: "goals/split",
+            crop: .splitBoard,
+            cropPadding: 8,
+            prepare: { $0.loadSplitFixture(.complex, part: "migrate") }
+        ),
         Shot(id: "goals/split-small", prepare: { $0.loadSplitFixture(.small, part: "docs") }),
         Shot(id: "goals/split-hover", crop: .splitBoard, cropPadding: 8, prepare: {
             $0.loadSplitFixture(.complex, hover: "online")
         }),
-        Shot(id: "goals/split-fold", prepare: { $0.loadSplitFixture(.complex, part: "migrate", folded: true) }),
-        Shot(id: "goals/split-define", prepare: { model in
+        Shot(
+            id: "goals/split-fold",
+            crop: .splitFold,
+            cropPadding: 0,
+            prepare: { $0.loadSplitFixture(.complex, part: "migrate", folded: true) }
+        ),
+        Shot(id: "goals/split-define", crop: .splitDefine, cropPadding: 0, prepare: { model in
             model.loadSplitFixture(.complex, part: "migrate")
             model.perform(CommandInvocation(name: "split.define"))
         }),
         // Steps 5 and 6 on the complex goal: How careful with heed's suggestion, Go with its defaults.
-        Shot(id: "goals/careful", prepare: { $0.loadSplitFixture(.careful) }),
-        Shot(id: "goals/go", prepare: { $0.loadSplitFixture(.go) }),
-        Shot(id: "goals/page-building", prepare: { $0.loadSplitFixture(.page) }),
+        Shot(id: "goals/careful", crop: .wizardCareful, cropPadding: 0, prepare: { $0.loadSplitFixture(.careful) }),
+        Shot(id: "goals/go", crop: .wizardGo, cropPadding: 0, prepare: { $0.loadSplitFixture(.go) }),
+        Shot(id: "goals/go-scene", prepare: { $0.loadSplitFixture(.go) }),
+        Shot(id: "goals/page-building", crop: .goalPage, cropPadding: 0, prepare: { $0.loadSplitFixture(.page) }),
         // The goal in the list once it went: its row reads as its page does.
         Shot(id: "goals/page-list", crop: .goalsList, cropPadding: 0, prepare: { $0.loadSplitFixture(.page) }),
         Shot(id: "goals/page-next", crop: .goalPageNext, cropPadding: 8, prepare: { $0.loadSplitFixture(.page) }),
@@ -946,18 +1009,18 @@ enum Shots {
             id: "goals/guided-sharpened", keys: "gG:goal.new<Space>Faster<Space>search<CR>",
             then: ["w", "y", "y", "y", "y", "E"], crop: .goalGuide, cropPadding: 8
         ),
-        Shot(id: "goals/board", keys: "gGjB"),
+        Shot(id: "goals/board", keys: "gGjB", crop: .goalsBoard, cropPadding: 0),
         Shot(id: "goals/proposals", keys: "gGjE", crop: .goalProposals, cropPadding: 8),
         Shot(id: "goals/session-chip", keys: "", crop: .sidebar, cropPadding: 0),
         Shot(id: "goals/inspector", keys: "", crop: .inspectorGoal, cropPadding: 8),
         // Unassigned: what heed decided about new work lately, its ask, and a goal it suggests.
-        Shot(id: "goals/unassigned", keys: "gGU"),
+        Shot(id: "goals/unassigned", keys: "gGU", crop: .goalsUnassigned, cropPadding: 0),
         // The cursor on the suggested goal, its keys showing.
         Shot(id: "goals/suggestion", keys: "gGUj", crop: .goalsUnassigned, cropPadding: 0),
         // heed's ask in Attention, answered with one key.
         Shot(id: "goals/attach-ask", keys: "gm/z-order<CR>", crop: .attentionDetail),
         // Reviewers (R): the implementation reviewer under the cursor, its objections and why its score is what it is.
-        Shot(id: "goals/reviewers", keys: "gGjR<Tab>j"),
+        Shot(id: "goals/reviewers", keys: "gGjR<Tab>j", crop: .goalReviewerList, cropPadding: 0),
         Shot(id: "goals/reviewer-detail", keys: "gGjR<Tab>j<Tab>", crop: .goalReviewerDetail, cropPadding: 8),
         Shot(id: "goals/how-happy", keys: "gGj", crop: .goalHappy, cropPadding: 8),
         // The goal mirrored to GitHub: its tracker, meta issue, last sync and a colleague's change waiting.
@@ -992,7 +1055,7 @@ enum Shots {
         Shot(id: "goals/persona-table", keys: "gGjP<Tab>", crop: .goalPersonaList, cropPadding: 8),
         Shot(id: "goals/persona-file", keys: "gGjP<Tab>", crop: .goalPersonaFile, cropPadding: 8),
         // Evaluations (X): the DX evaluator's two walks, its friction log, and the lens picker.
-        Shot(id: "goals/evaluations", keys: "gGjX<Tab>"),
+        Shot(id: "goals/evaluations", keys: "gGjX<Tab>", crop: .goalEvaluations, cropPadding: 0),
         Shot(id: "goals/walk", keys: "gGjX", crop: .goalEvaluator, cropPadding: 8),
         Shot(id: "goals/friction", keys: "gGjX<Tab>", crop: .goalFriction, cropPadding: 8),
         Shot(id: "goals/lenses", keys: "gGjX", crop: .goalLenses, cropPadding: 8),
@@ -1039,7 +1102,7 @@ enum Shots {
             model.goals.swarmForm?.limits = SwarmSettings.Limits(agents: 3, hours: 3, dollars: 30)
             model.setSwarmRepoEntry("globex/report-engine")
         }),
-        Shot(id: "goals/swarm-plan", keys: "gGS"),
+        Shot(id: "goals/swarm-plan", keys: "gGS", crop: .swarmPlan, cropPadding: 0),
         Shot(id: "goals/swarm-questions", keys: "gGS", crop: .swarmQuestions, cropPadding: 8),
         Shot(id: "goals/swarm-approved", keys: "gGjS"),
         Shot(id: "goals/swarm-diff", keys: "gGjS<Tab>j", crop: .swarmVersions, cropPadding: 8),
@@ -1105,7 +1168,14 @@ enum Shots {
         // Watching: the agents pane with 2.2 stuck on the same build error (heed nudged it, then asked for it and the
         // controller answered), what changed since you last looked, the map, the steering log of that escalation,
         // and the done swarm's end-of-build summary.
-        Shot(id: "goals/swarm-agents", keys: "gGjW", prepare: { $0.loadWatchFixture() }),
+        Shot(
+            id: "goals/swarm-agents",
+            keys: "gGjW",
+            crop: .swarmAgents,
+            cropPadding: 0,
+            prepare: { $0.loadWatchFixture() }
+        ),
+        Shot(id: "goals/swarm-agents-scene", keys: "gGjW", prepare: { $0.loadWatchFixture() }),
         // 2.1's worker on @devbox (k from the stuck 2.2): the chip on its row and over its detail.
         Shot(id: "goals/swarm-agents-remote", keys: "gGjWk", prepare: { $0.loadWatchFixture(.remote) }),
         Shot(id: "goals/swarm-stuck", keys: "gGjW", crop: .swarmAgent, cropPadding: 8, prepare: {
@@ -1118,11 +1188,23 @@ enum Shots {
         Shot(id: "goals/swarm-since", keys: "gGjW", crop: .swarmDigest, cropPadding: 8, prepare: {
             $0.loadWatchFixture()
         }),
-        Shot(id: "goals/swarm-map", keys: "gGjVlj", prepare: { $0.loadWatchFixture() }),
+        Shot(
+            id: "goals/swarm-map",
+            keys: "gGjVlj",
+            crop: .swarmMap,
+            cropPadding: 0,
+            prepare: { $0.loadWatchFixture() }
+        ),
         Shot(id: "goals/swarm-escalation", keys: "gGjS<Tab><Tab>", crop: .swarmSteering, cropPadding: 8, prepare: {
             $0.loadWatchFixture()
         }),
-        Shot(id: "goals/swarm-summary", keys: "gGjW", prepare: { $0.loadSummaryFixture() }),
+        Shot(
+            id: "goals/swarm-summary",
+            keys: "gGjW",
+            crop: .swarmSummary,
+            cropPadding: 0,
+            prepare: { $0.loadSummaryFixture() }
+        ),
     ]
 
     /// `:log`, the call log, on the fake world's calls (`Fixtures.calls`).

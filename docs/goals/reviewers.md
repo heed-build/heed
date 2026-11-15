@@ -7,7 +7,7 @@ description: "Reviewers: agents that look at a goal's work in a worktree of thei
 Reviewers are agents that look at a goal's work and say what they would change before calling it good. Each keeps a
 score of how happy it is and why. `R` in Goals opens them; `R` again goes back to the overview.
 
-![Reviewers: the list, the one under the cursor, and the spawn panel](../images/shots/goals/reviewers.png)
+![Reviewers: eight reviewers with their scores, how many objections are open and when each looked, and the one under the cursor](../images/shots/goals/reviewers.png)
 
 The score is a prompt, not a gate: it tells you where to look first. It moves when objections are fixed, when you
 accept a risk, and when a reviewer looks again.

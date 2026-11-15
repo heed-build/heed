@@ -166,13 +166,13 @@ A session can grow past what it set out to do. heed notices when it has opened t
 (its own or a PR's), or its agent says it found work it did not start ("that's a change in docs-website", "a separate
 PR", "out of scope"). A quiet line at the foot of its panes says so:
 
-![A session growing into a goal: the line at the foot of its panes](../images/shots/sessions/growing.png)
+![The line at the foot of a session's panes: Growing into a goal, 3 PRs, a 2nd repo, found work it didn't start, and Make it a goal (gP)](../images/shots/sessions/growing.png)
 
 `gP` (or **Make it a goal** on the line, or right-click › **Make it a goal…**) shows what the goal would be: its
 statement from the session's prompt, the session's merged PRs counted as its first parts, done, and what the agent
 found, as planned parts. The session stays on the goal as its first part; nothing restarts.
 
-![Make it a goal: what the goal would be](../images/shots/sessions/make-it-a-goal.png)
+![Make it a goal: the statement, the merged PR counted as the first part, what the agent found, and the buttons Open the plan step, Not now and Cancel](../images/shots/sessions/make-it-a-goal.png)
 
 | Key | |
 |---|---|

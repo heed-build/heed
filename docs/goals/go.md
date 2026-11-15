@@ -8,6 +8,8 @@ The wizard's last two steps. How careful says what has to pass before a part mer
 once, when you are asked, what it may spend and who merges, then starts it. After Go the goal opens on
 [its page](split.md#the-goals-page).
 
+![The wizard on its Go step: the rail with five steps done, the five rows with their defaults, and what happens with them on the right](../images/shots/goals/go-scene.png)
+
 ## How careful
 
 Three levels, as cards. Each card shows what checks a part as glyphs (✓ CI, 👁 a reviewer, 👥 you, ? a stranger's
@@ -15,7 +17,7 @@ walk), what its reviews cost for this goal's parts, and who it suits. heed sugge
 riding on the goal (its profile: a spike, internal work, a product, or something other code depends on, and whether
 people use it).
 
-![How careful](../images/shots/goals/careful.png)
+![How careful: Quick, Standard and Thorough as cards with their checks, their review cost and who they suit, and heed's suggestion of Thorough with its reason](../images/shots/goals/careful.png)
 
 A level is a setting of what the goal already has, not a check of its own:
 
@@ -38,7 +40,7 @@ evaluators are the ones [Reviewers](reviewers.md) shows; change them there after
 
 Five rows, each with a default; the right side says what happens with them.
 
-![Go](../images/shots/goals/go.png)
+![Go: the five rows (who works, at once, ask me, budget, merge) with their defaults, what happens on the right, and the buttons Start and Save, start later](../images/shots/goals/go.png)
 
 | Row | Choices | Default |
 |---|---|---|
@@ -56,6 +58,8 @@ your agents, with a ring where heed knows what is left of one's limit.
 version, approved, and running: its lead starts and briefs, and the first parts start on their agents as helpers or
 terminals per Who works. A part on GitHub's Copilot agent works on GitHub either way. `S` saves it for later: the
 wizard waits at Go, and `↩` on the goal comes back to it.
+
+![The goal's next step on its page: the lead asks how editing works in the console, with the answers 1 inline, 2 side panel and i answer](../images/shots/goals/page-next.png)
 
 | Key | |
 |---|---|

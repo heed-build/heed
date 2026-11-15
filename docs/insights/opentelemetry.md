@@ -82,6 +82,12 @@ until then. `x` puts the banner away until heed starts again.
 | Spans | Newest first: time, agent, repo, session, span, its duration, wall time (with the wait for your OK before a run) and status. A wait heed sees from the hooks that no span has reported yet is on top, `waiting` |
 | Trace | The selected span's trace under the table: every span of its turn along the turn's time |
 
+![The six numbers: turns a minute, tool p95, tool errors, time blocked on you, tokens a minute and cost for the last hour, each with its line](../images/shots/history/telemetry-tiles.png)
+
+![Latency by tool, each agent's state across the last hour, and cost and tokens by model](../images/shots/history/telemetry-panels.png)
+
+![The selected span's trace under the table: the turn's model requests, reads, edit, the wait for your OK and the bash run along the turn's time](../images/shots/history/telemetry-trace.png)
+
 `j` `k` move through the spans and `↩` opens the span's session's trace on its turn. A line under the agents' states
 says what stood out: where the time waiting for you went, and the command that took the most tool time.
 
@@ -116,6 +122,8 @@ Above the turns: how long they took, the time spent waiting for your OK, the tim
 cached, and the cost the agent reported. Under them, the selected span in full (a run you approved says how long it
 waited for you first), and what heed noticed: the command that took most of the session's tool time, set against its
 runs in the repo's other sessions.
+
+![The selected span in full: the dotnet test run took 40.2 s and waited 30.2 s for your OK, and what heed noticed about it](../images/shots/history/trace-detail.png)
 
 ## Where it changes what heed shows
 

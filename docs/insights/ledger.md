@@ -10,6 +10,8 @@ History.
 
 ![The ledger: entries on the left, the selected one's summary, decisions, follow-ups and facts on the right](../images/shots/history/ledger.png)
 
+![The ledger's list: five entries newest first, each with its title, repo, date, outcome and the start of its summary](../images/shots/history/ledger-list.png)
+
 ## What an entry holds
 
 | Part | From |
@@ -23,6 +25,8 @@ History.
 The model reads the work's commits and diff against its base branch, its pull request (description, reviews, review
 threads), heed's timeline of the session, and the agent's last message. Your `summary_instructions` (Settings › Autopilot › Instructions,
 or per org and repo) are added to heed's prompt. Summaries and the ledger stay in `heed.sqlite` on this Mac.
+
+![An abandoned spike's entry: its summary, one follow-up, its facts with the agent time marked as an estimate, its files, and the keys](../images/shots/history/ledger-detail.png)
 
 ## When it is written
 
@@ -68,4 +72,3 @@ summary_sign_off = true        # or under [orgs.<name>] and [repos."org/name"]
 claude gets it as `--append-system-prompt`, codex as `developer_instructions` (`-c`); other agents are not asked.
 Settings › Autopilot › Instructions has the switch, and Orgs & repos › Instructions the per-org and per-repo ones.
 
-![An abandoned spike in full: its follow-up, and the agent time an estimate](../images/shots/history/ledger-detail.png)

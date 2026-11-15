@@ -72,7 +72,7 @@ Every repo against each capability: on (●), asks you first (◐) or off (○),
 why it cannot work, such as *auto-merge off on GitHub* for a repo set to `merge = "auto"` that does not allow it. The
 last column is the strongest thing heed saw that would help that repo.
 
-![Where: repos by capability, and the cell under the cursor](../images/shots/autopilot/where.png)
+![Where: every repo against each capability, each cell on, ask first or off, and the strongest help heed saw for each repo on the right](../images/shots/autopilot/where.png)
 
 `h` `j` `k` `l` move over the cells; the footer explains the one under the cursor. `y` turns it on, `a` makes it ask
 first, `x` turns it off, `C` shows its card. `↩` opens the repo in [Repos](../worktrees/repos.md), `M` sets up merging
@@ -89,6 +89,8 @@ between the tiles and `↩` opens the one under the cursor in a split in the PRs
 to the PRs.
 
 ![Now: the helpers at work above the PRs](../images/shots/autopilot/now-helpers.png)
+
+![The three helper tiles: Getting #2841 green asking to run dotnet test, Reviewing #2845 for you, and Resolving #412's conflict](../images/shots/autopilot/now-helpers-tiles.png)
 
 ![A helper opened from its tile](../images/shots/autopilot/now-helper-open.png)
 
@@ -110,7 +112,7 @@ merge queue and `gM` shows it.
 What heed did on its own, by day, newest first; each day says how many things, how many PRs merged and how many items
 an agent's push fixed. Each line is an outcome with its capability's icon, and its repo and PR on the right.
 
-![Done: what heed did this week, by day](../images/shots/autopilot/done.png)
+![Done: what heed did today and yesterday, one line each with its capability icon, and its repo and PR on the right](../images/shots/autopilot/done.png)
 
 `t` narrows it to one capability, `r` to one repo (the rail on the left counts each); `{` `}` move between days; `↩`
 opens the line's PR, or its session.

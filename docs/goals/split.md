@@ -9,7 +9,7 @@ The fourth step of [a new goal](first-goal.md). A cheap model call splits the ag
 done, and the context its agent starts from. heed then puts every part on one of **your agents**, and draws it all on
 one board.
 
-![Split: a complex goal's fifteen parts on five agents](../images/shots/goals/split.png)
+![Split: a complex goal's fifteen parts on five agents, with the lead's moves on top](../images/shots/goals/split.png)
 
 ## The board
 
@@ -62,7 +62,7 @@ Pointing at a part shows a one-line preview: its repo, estimate, what it waits f
 `↩` (or a click) folds it out: how it is done, its context as chips (`+ context` adds some), the agents who could do it
 with their fit (a click moves it there), a field to tell its agent something before it starts, and its actions.
 
-![A part folded out](../images/shots/goals/split-fold.png)
+![A part folded out: its done-when line, its context chips, the agents who could do it with their fit, a field to tell its agent something, and the actions Define, Agent, Split, Waits on, Size and Later](../images/shots/goals/split-fold.png)
 
 | Key | |
 |---|---|
@@ -92,7 +92,7 @@ with options; on the right, the part as it would be defined: the done-when lines
 after, new context (a decision becomes `decision: …`), and what that does to the rest of the plan ("Longer by 1 h 20:
 parts 9 and 12 move right; the goal ends at 21 h").
 
-![Defining a part with Codex](../images/shots/goals/split-define.png)
+![Defining a part with Codex: its conversation with the part's agent, and on the right the part as it would be defined](../images/shots/goals/split-define.png)
 
 | Key | |
 |---|---|
@@ -110,7 +110,7 @@ while they wait. Over it, the goal's way from plan to done (planned, panel, spli
 walked, done), and **one next step** for you: the oldest question the lead (or a worker through the lead) asks you,
 with its options. Under it: parts done, hours left, and what it spent so far.
 
-![The goal's page while it builds](../images/shots/goals/page-building.png)
+![The goal's page while it builds: the way from plan to done, the next step for you, the live board, and the count of parts done, hours left and spend](../images/shots/goals/page-building.png)
 
 | Key | |
 |---|---|

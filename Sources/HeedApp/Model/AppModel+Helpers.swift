@@ -511,7 +511,7 @@ extension AppModel {
         recordRun(id, outcome: nil)
         let client: ACPClient
         do {
-            var environment = ProcessInfo.processInfo.environment
+            var environment = GitEnvironment.scrubbed(ProcessInfo.processInfo.environment)
             environment["PATH"] = await ToolLocator.shared.executable(adapter.executable).pathVariable
             if !trusted {
                 let folder = RunFolder.path(run: "heed-helper-\(id)", root: NSTemporaryDirectory())

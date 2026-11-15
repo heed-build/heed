@@ -85,9 +85,8 @@ public enum ProcessRunner {
         process.executableURL = URL(fileURLWithPath: path)
         process.arguments = arguments
         if let directory { process.currentDirectoryURL = URL(fileURLWithPath: directory) }
-        if !variables.isEmpty {
-            process.environment = ProcessInfo.processInfo.environment.merging(variables) { _, new in new }
-        }
+        // Never a repository variable this process inherited (`GitEnvironment`).
+        process.environment = GitEnvironment.environment(ProcessInfo.processInfo.environment, variables)
         let stdout = Pipe()
         let stderr = Pipe()
         process.standardOutput = stdout

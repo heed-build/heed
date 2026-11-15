@@ -87,6 +87,7 @@ struct RemoteIntegrationTests {
         }
         let base = try await sh("echo $HOME") + "/heed-remove-\(UUID().uuidString.prefix(8))"
         defer { Task { _ = try? await sh("rm -rf \(base)") } }
+        GitEnvironment.isolate()
         _ = try await sh("""
         set -e; mkdir -p \(base); cd \(base); git init -q -b main repo; cd repo
         git config user.email t@t; git config user.name t; git commit -q --allow-empty -m a
@@ -122,6 +123,7 @@ struct RemoteIntegrationTests {
         let home = try await sh("echo $HOME")
         let base = "\(home)/heed-archive-\(UUID().uuidString.prefix(8))"
         defer { Task { _ = try? await sh("rm -rf \(base)") } }
+        GitEnvironment.isolate()
         _ = try await sh("""
         set -e; mkdir -p \(base); cd \(base); git init -q -b main repo; cd repo
         git config user.email t@t; git config user.name t; echo one > a.txt; git add .; git commit -qm a

@@ -198,6 +198,7 @@ struct RunGitTests {
         defer { try? FileManager.default.removeItem(atPath: base) }
         let remote = base + "/remote.git", clone = base + "/clone", main = base + "/wt/r/fix-a"
         try FileManager.default.createDirectory(atPath: base, withIntermediateDirectories: true)
+        GitEnvironment.isolate()
         _ = try await ProcessRunner.output("git", ["init", "-q", "--bare", "-b", "main", remote], caller: "test")
         _ = try await ProcessRunner.output("git", ["clone", "-q", remote, clone], caller: "test")
         for args in [

@@ -72,6 +72,7 @@ struct DiffParserTests {
         let path = FileManager.default.temporaryDirectory.appendingPathComponent("heed-diff-\(UUID().uuidString)").path
         defer { try? FileManager.default.removeItem(atPath: path) }
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
+        GitEnvironment.isolate()
         for args in [["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"]] {
             _ = try await ProcessRunner.output("git", ["-C", path] + args, caller: "test")
         }

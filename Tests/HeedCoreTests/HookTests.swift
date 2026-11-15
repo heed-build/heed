@@ -193,6 +193,7 @@ struct AgentIntegrationTests {
             try? FileManager.default.removeItem(atPath: worktree)
         }
         try FileManager.default.createDirectory(atPath: repo, withIntermediateDirectories: true)
+        GitEnvironment.isolate()
         for args in [
             ["init", "-q", "-b", "main"],
             ["config", "user.email", "t@t"],

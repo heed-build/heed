@@ -247,6 +247,7 @@ final class TempRepo {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         path = url.resolvingSymlinksInPath().path
+        GitEnvironment.isolate()
         try git("init", "-q")
         try git("config", "user.email", "t@example.com")
         try git("config", "user.name", "t")
@@ -264,6 +265,7 @@ final class TempRepo {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         process.arguments = ["-C", path] + arguments
+        process.environment = GitEnvironment.environment()
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         try process.run()

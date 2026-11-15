@@ -47,6 +47,7 @@ enum Live {
         for (name, text) in files {
             try text.write(toFile: (path as NSString).appendingPathComponent(name), atomically: true, encoding: .utf8)
         }
+        GitEnvironment.isolate()
         for args in [
             ["init", "-q", "-b", "main"], ["add", "."],
             [

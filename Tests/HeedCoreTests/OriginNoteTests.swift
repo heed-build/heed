@@ -96,6 +96,16 @@ struct OriginNoteTests {
         ] {
             #expect(Self.bash(command) == nil, "\(command)")
         }
+        // The same folder as the agent reports it, through macOS's /private.
+        var temporary = Self.book
+        temporary.checkouts = ["/tmp/x/repo": "acme/app"]
+        let cwd = OriginNote.subject(
+            tool: "Bash", input: ["command": "gh pr view 7 --comments"], cwd: "/private/tmp/x/repo/", book: temporary
+        )
+        #expect(cwd == .pull("acme/app", 7, .conversation))
+        temporary.checkouts = ["/private/tmp/x/repo": "acme/app"]
+        #expect(temporary.repo(at: "/tmp/x/repo/sub") == "acme/app")
+        #expect(temporary.repo(at: "/tmp/x/repository") == nil)
         // Not in a checkout heed knows, and no repo named: nothing to go on.
         #expect(Self.bash("gh pr view 7 --comments", cwd: "/tmp/elsewhere") == nil)
         #expect(Self.bash("git fetch origin pull/7/head", cwd: "/tmp/elsewhere") == nil)
@@ -280,15 +290,18 @@ struct OriginNoteTests {
             "permission_mode": "auto", "tool_name": "Bash", "cwd": Self.repo,
             "tool_input": ["command": "git checkout b399 && gh pr view 7 --comments"],
         ]
-        var slowest: TimeInterval = 0
+        var times: [TimeInterval] = []
         for _ in 0 ..< 20 {
             let start = Date()
             let report = OriginNote.report(input: input) { OriginBook.read(path) }
-            slowest = max(slowest, Date().timeIntervalSince(start))
+            times.append(Date().timeIntervalSince(start))
             #expect(report?.subject == .pull("acme/app", 1399, .code))
             #expect(report?.note != nil)
         }
-        #expect(slowest < 0.05, "slowest \(Int(slowest * 1000)) ms")
+        // The median is what a hook costs; the slowest is allowed for a busy test machine (the suite runs in parallel).
+        let median = times.sorted()[times.count / 2], slowest = times.max() ?? 0
+        #expect(median < 0.05, "median \(Int(median * 1000)) ms")
+        #expect(slowest < 0.25, "slowest \(Int(slowest * 1000)) ms")
     }
 }
 

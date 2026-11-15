@@ -85,9 +85,22 @@ public struct OriginBook: Codable, Hashable, Sendable {
     /// The repo of the checkout `cwd` is in (the deepest one that holds it).
     public func repo(at cwd: String?) -> String? {
         guard let cwd, !cwd.isEmpty else { return nil }
-        let path = cwd.hasSuffix("/") && cwd.count > 1 ? String(cwd.dropLast()) : cwd
-        return checkouts.filter { path == $0.key || path.hasPrefix($0.key.hasSuffix("/") ? $0.key : $0.key + "/") }
-            .max { $0.key.count < $1.key.count }?.value
+        let path = Self.plain(cwd)
+        return checkouts.map { (path: Self.plain($0.key), repo: $0.value) }
+            .filter { path == $0.path || path.hasPrefix($0.path + "/") }
+            .max { $0.path.count < $1.path.count }?.repo
+    }
+
+    /// `path` without a trailing `/`, and without the `/private` macOS puts in front of `/tmp`, `/var` and `/etc`
+    /// (an agent reports `/private/tmp/x` where heed may have kept `/tmp/x`).
+    static func plain(_ path: String) -> String {
+        var path = path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path
+        if ["/private/tmp", "/private/var", "/private/etc"]
+            .contains(where: { path == $0 || path.hasPrefix($0 + "/") })
+        {
+            path = String(path.dropFirst("/private".count))
+        }
+        return path
     }
 
     /// The PR in `slug` whose branch is `branch`.

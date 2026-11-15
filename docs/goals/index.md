@@ -176,9 +176,49 @@ found, as planned parts. The session stays on the goal as its first part; nothin
 
 | Key | |
 |---|---|
-| `↩` or `⌘↩` | Make the goal and open its plan step |
+| `↩` or `⌘↩` | Ask the agent for a handoff, then make the goal and open its plan step |
+| `s` | While it waits for the handoff: start without it |
 | `x` | Not now: the line goes for this session (`gP` still works) |
-| `⎋` | Close |
+| `⎋` | Close (while it waits: cancel, nothing is made) |
+
+### The handoff
+
+The session's first prompt is as old as the session, and the plan step would start from it alone. So `↩` first asks the
+session's agent for a **handoff**: a short markdown note with fixed headings, **Work** (what it is and its goal),
+**Done** (with the PRs), **Decisions** (and why), **Open** (open or found and not started), **Risks** and **Next**
+(the parts it would do next). The popover shows who heed is waiting for and the agent's live state:
+
+![Make it a goal, waiting: Asking claude for a handoff, claude is working, gives up after 3 min, with Start without it and Cancel](../images/shots/sessions/make-it-a-goal-waiting.png)
+
+heed asks the way it asks for anything else ([Messages to agents](../agents/messages.md)): through the agent's inbox
+where it has one (Claude's), which holds the ask until the agent reads it, else typed into its pane, and then only
+while the agent is idle or done and you are not typing there. A session you are typing in, or one that is working
+with no inbox, is never typed into: the ask waits, and the popover says why. The agent hands the handoff back with
+`heed goal handoff`, its markdown on standard input; heed reads it only while it is waiting and only from that
+session's own pane. A handoff heed cannot read (no `Work` heading, nothing beside it) is refused with why, and the
+agent can write it again.
+
+Then the goal is made as before, from the handoff: its **Work** is the goal's statement, what it left **Open** is
+what was found (planned parts), and the whole handoff is kept in `GOAL.md` as a **Handoff** section, so every agent
+on the goal reads it. The plan step starts from it: a card above the conversation shows it, `e` opens `GOAL.md` to
+edit it (the planner reads what you save on its next turn), and the [TL;DR](first-goal.md) says the goal started from
+a handoff and how much was done and open.
+
+![The plan step on a goal made with a handoff: its card above the planner's first question](../images/shots/goals/wizard-plan-handoff.png)
+
+It never holds the goal up for long. Without a handoff the goal is made from the session's prompt, exactly as it
+always was, with a note saying why:
+
+- `s` (**Start without it**): you do not want to wait.
+- Nothing came in `handoff_timeout` seconds (180): the note says the agent did not hand off in time, and what its last
+  unreadable try was.
+- The session has no agent pane running, its agent has exited, or it runs on another host: heed does not ask and says why.
+- `handoff_timeout = 0`: heed never asks.
+
+```toml
+[goals]
+handoff_timeout = 180
+```
 
 A chat, a session already on a goal and one you said not now for never show the line. A task that looks big before it
 starts gets the same offer in [Start work](../start-work/sizing.md).

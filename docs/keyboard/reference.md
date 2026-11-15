@@ -269,6 +269,7 @@ This page is generated from the code (`mise run shots`).
 | `goal.attach` `<goal>` |  | put the session or chat on a goal (no goal: the command line opens to pick one) |
 | `goal.promote` | `gP`, `<Esc>` (sessionspromote) | make the session a goal: what it becomes, its merged PRs done, then its plan step (again or ⎋: close) |
 | `goal.promote.go` | `<CR>` (sessionspromote), `<D-CR>` (sessionspromote) | Make it a goal: the goal made with the session on it as part 1, its plan step opens |
+| `goal.promote.skip` | `s` (sessionspromote) | Make it a goal: stop waiting for the agent's handoff and make the goal from the session's prompt |
 | `goal.promote.dismiss` | `x` (sessionspromote) | not now: the session's "growing into a goal" line goes away |
 | `goal.detach` | `x` (goaldoc), `x` (goalpage), `x` (goals) | take the session or chat off its goal |
 | `goal.archive` | `a` (goaldoc), `a` (goalpage), `a` (goals) | archive the goal (again: bring it back) |
@@ -502,6 +503,7 @@ This page is generated from the code (`mise run shots`).
 | `go.step` `<delta>` | `h` (wizardgo), `l` (wizardgo), `<Left>` (wizardgo), `<Right>` (wizardgo) | wizard: Go: the next (1) or previous (-1) option on the row |
 | `go.start` | `<D-CR>` (wizardgo) | wizard: Go: start it: the split becomes the swarm's approved plan, its first parts start, the goal's page shows |
 | `go.save` | `S` (wizardgo) | wizard: Go: save it, start later; the wizard waits at Go |
+| `wizard.handoff.edit` | `e` (wizardplan) | wizard: Plan: edit the session's handoff, which is GOAL.md's Handoff section (the wizard waits) |
 | `tldr.copy` | `y` (tldr) | TL;DR: copy it as markdown |
 | `tldr.act` | `d` (tldr) | TL;DR: do the first open point's action |
 | `split.fold` | `<CR>` (splitfold), `<Esc>` (splitfold), `<CR>` (wizardsplit) | Split: fold the part under the cursor out (again: in) |

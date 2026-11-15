@@ -422,6 +422,10 @@ reviewer_agent = ""
 # Past either, heed asks in Attention (y starts them, n drops them).
 spawn_concurrent = 2
 spawn_per_day = 6
+# Make it a goal (gP) asks the session's agent for a handoff first (what is done, decided, open and next), so the
+# goal's plan starts from it instead of the session's first prompt, and waits this many seconds for it. Without
+# one in time the goal starts as it always did, with a note. 0: never ask.
+handoff_timeout = 180
 # The GitHub mirror (docs: goals/github): a goal can follow along as a meta issue with a sub-issue per item, in a
 # tracker repo of its own (any repo you can triage, not necessarily one the work is in). heed writes there on its
 # own once a goal's mirror is on (one key, M); colleagues' changes come back as asks and proposals. tracker: the

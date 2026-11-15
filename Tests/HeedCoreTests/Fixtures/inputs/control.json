@@ -1,0 +1,84 @@
+{
+  "callers": [
+    {"name": "goal from outside, no session", "method": "goal", "token": "none", "expect": "outside"},
+    {"name": "goal naming a session without a token", "method": "goal", "session": "s1", "token": "none", "expect": "refused"},
+    {"name": "memory naming a session without a token", "method": "memory", "session": "s1", "token": "none", "expect": "refused"},
+    {"name": "permission naming a session without a token", "method": "permission", "session": "s1", "token": "none", "expect": "refused"},
+    {"name": "goal with its own token", "method": "goal", "session": "s1", "pane": "p1", "token": "s1/p1", "expect": "s1/p1"},
+    {"name": "goal with its token, claims left out", "method": "goal", "token": "s1/p1", "expect": "s1/p1"},
+    {"name": "goal with another session's token", "method": "goal", "session": "s1", "pane": "p1", "token": "s2/p2", "expect": "refused"},
+    {"name": "goal claiming another pane", "method": "goal", "session": "s1", "pane": "p9", "token": "s1/p1", "expect": "refused"},
+    {"name": "goal with a token signed by another key", "method": "goal", "session": "s1", "token": "other-key s1/p1", "expect": "refused"},
+    {"name": "goal with a made-up token", "method": "goal", "session": "s1", "token": "made.up.token", "expect": "refused"},
+    {"name": "goal with a token whose names were swapped", "method": "goal", "session": "s2", "token": "swapped s1/p1", "expect": "refused"},
+    {"name": "goal with an empty token", "method": "goal", "token": "", "expect": "refused"},
+    {"name": "goal with a token of two parts", "method": "goal", "token": "czE.cDE", "expect": "refused"},
+    {"name": "permission with another session's token", "method": "permission", "session": "s1", "token": "s2/p2", "expect": "refused"},
+    {"name": "send with a made-up token", "method": "send", "session": "s2", "token": "x.y.z", "expect": "refused"},
+    {"name": "send from outside", "method": "send", "session": "s2", "token": "none", "expect": "outside"},
+    {"name": "send with its own token names its target", "method": "send", "session": "s2", "token": "s1/p1", "expect": "s1/p1"}
+  ],
+  "sends": [
+    {"name": "outside to a session you started", "caller": "outside", "target": "mine", "expect": false},
+    {"name": "outside to a session nobody started over the socket", "caller": "outside", "target": "lead", "expect": false},
+    {"name": "outside to a session started from outside", "caller": "outside", "target": "editor", "expect": true},
+    {"name": "a pane to its own session", "caller": "w1", "target": "w1", "expect": true},
+    {"name": "a pane to a session on its goal", "caller": "w1", "target": "lead", "expect": true},
+    {"name": "a pane to a session on another goal", "caller": "w1", "target": "w2", "expect": false},
+    {"name": "a pane to a session it started", "caller": "w2", "target": "started", "expect": true},
+    {"name": "a pane to a session another pane started", "caller": "w1", "target": "started", "expect": false},
+    {"name": "a pane to a session started from outside", "caller": "w1", "target": "editor", "expect": false},
+    {"name": "a pane to a session on no goal", "caller": "w1", "target": "mine", "expect": false}
+  ],
+  "starts": [
+    {"name": "a prompt alone", "arguments": [], "refused": false},
+    {"name": "an option for the agent", "arguments": ["--dangerously-skip-permissions"], "refused": true},
+    {"name": "a model", "arguments": ["--model", "x"], "refused": true},
+    {"name": "an empty word", "arguments": [""], "refused": true}
+  ],
+  "startLines": [
+    {"name": "--arg on the command line", "words": ["start", "--arg", "--yolo", "go"], "refused": true},
+    {"name": "--arg last", "words": ["start", "go", "--arg"], "refused": true},
+    {"name": "a prompt that looks like an option", "words": ["start", "--", "go"], "refused": false}
+  ],
+  "approvals": [
+    {"name": "from outside heed's panes", "caller": "outside", "expect": "held"},
+    {"name": "from the lead", "caller": "lead-1", "expect": "refused"},
+    {"name": "from another session", "caller": "s2", "expect": "refused"},
+    {"name": "from a run", "caller": "outside", "fromRun": true, "expect": "refused"},
+    {"name": "from a worker", "caller": "lead-1", "worker": "a", "expect": "refused"}
+  ],
+  "hooks": [
+    {"name": "its own token", "session": "s1", "pane": "p1", "token": "s1/p1", "accepted": true},
+    {"name": "no token", "session": "s1", "pane": "p1", "token": "none", "accepted": false},
+    {"name": "another session's token", "session": "s1", "pane": "p1", "token": "s2/p1", "accepted": false},
+    {"name": "another pane's token", "session": "s1", "pane": "p1", "token": "s1/p2", "accepted": false},
+    {"name": "the session's token without the pane", "session": "s1", "pane": "p1", "token": "s1/", "accepted": false},
+    {"name": "a token signed by another key", "session": "s1", "pane": "p1", "token": "other-key s1/p1", "accepted": false},
+    {"name": "a token whose names were swapped", "session": "s2", "pane": "p1", "token": "swapped s1/p1", "accepted": false},
+    {"name": "a made-up token", "session": "s1", "pane": "p1", "token": "czE.cDE.AAAA", "accepted": false},
+    {"name": "an empty token", "session": "s1", "pane": "p1", "token": "", "accepted": false}
+  ],
+  "inboxes": [
+    {"path": "/tmp/cc-socks/123.sock", "accepted": true},
+    {"path": "/tmp/cc-socks-501/9-0123abcd.sock", "accepted": true},
+    {"path": "/tmp/cc-socks/../x/1.sock", "accepted": false},
+    {"path": "/tmp/cc-socks/../../Users/me/.ssh/agent/1.sock", "accepted": false},
+    {"path": "/tmp/x/../cc-socks/1.sock", "accepted": false},
+    {"path": "/tmp/cc-socks/./1.sock", "accepted": false},
+    {"path": "/tmp//cc-socks/1.sock", "accepted": false},
+    {"path": "cc-socks/1.sock", "accepted": false},
+    {"path": "/var/run/docker.sock", "accepted": false},
+    {"path": "/Users/me/.ssh/1.sock", "accepted": false},
+    {"path": "/tmp/cc-socks/agent.sock", "accepted": false},
+    {"path": "/tmp/cc-socks/1.sock/", "accepted": false},
+    {"path": "/tmp/cc-socks-x/1.sock", "accepted": false},
+    {"path": "/tmp/cc-socks-/1.sock", "accepted": false},
+    {"path": "/tmp/cc-socks-٥٠١/1.sock", "accepted": false},
+    {"path": "/tmp/cc-socks/1.sock\u0000x", "accepted": false},
+    {"path": "/tmp/cc-socks/1.sock\n", "accepted": false},
+    {"path": "/tmp/xcc-socks/1.sock", "accepted": false},
+    {"path": "/tmp/cc-socks/1.socket", "accepted": false},
+    {"path": "/tmp/cc-socks/١٢.sock", "accepted": false}
+  ]
+}

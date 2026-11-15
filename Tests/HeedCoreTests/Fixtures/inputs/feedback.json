@@ -1,0 +1,10 @@
+[
+  {"name": "a stranger", "author": "drive-by", "trust": "stranger", "queued": false},
+  {"name": "a bot", "author": "lint[bot]", "trust": "bot", "queued": false},
+  {"name": "a bot named like you", "author": "me[bot]", "trust": "bot", "queued": false},
+  {"name": "a stranger named like the owner", "author": "OWNER", "trust": "stranger", "queued": false},
+  {"name": "a stranger whose name holds yours", "author": "me-too", "trust": "stranger", "queued": false},
+  {"name": "a collaborator", "author": "mate", "trust": "collaborator", "queued": true},
+  {"name": "the owner", "author": "boss", "trust": "owner", "queued": true},
+  {"name": "you, in another case", "author": "ME", "trust": "stranger", "queued": true}
+]

@@ -410,6 +410,9 @@ final class AppModel {
     /// Answers to outward asks, by session, until the agent's call shows what ran.
     @ObservationIgnored var auditApprovals: [String: [(command: String, approval: AuditAction.Approval)]] = [:]
     @ObservationIgnored var auditReleaseTask: Task<Void, Never>?
+    /// The facts the hooks read to tell Claude's auto mode where a tool result came from (AppModel+Origins).
+    @ObservationIgnored let origins = OriginKeeper(path: OriginBook
+        .path(forSocket: HeedEnvironment.defaultSocketPath()))
     @ObservationIgnored var telemetryServer: TelemetryServer?
     /// The `[telemetry]` the receiver runs with now; nil before it was started.
     @ObservationIgnored var telemetrySettingsRunning: TelemetrySettings?
@@ -692,6 +695,7 @@ final class AppModel {
         }
         startLedger(log: log)
         startAudit(log: log)
+        noticeOrigins()
         startMindmap()
         startStandup()
         if !isFixture { await attention.open(beside: file) }
@@ -1308,6 +1312,7 @@ final class AppModel {
         settleApprovals(by: message)
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
         if case let .toolCall(call) = message.kind { auditToolCall(call, message: message, session: session) }
+        if case let .origin(report) = message.kind { noticeOrigin(report, message: message, session: session) }
         // A reviewer's hooks: its turn over ends it, as a run's does.
         if let pane = message.pane, reviewPanes.contains(pane) {
             guard let id = liveReviews.first(where: { $0.value.paneID == pane })?.key else { return }
@@ -1449,7 +1454,7 @@ final class AppModel {
         case let .lastMessage(text):
             guard text != session.lastMessage else { return }
             session.lastMessage = text
-        case .subagent, .subagentState, .subagentsEnded, .toolCall, .inbox:
+        case .subagent, .subagentState, .subagentsEnded, .toolCall, .inbox, .origin:
             return
         }
         commit(.sessionUpserted(session))
@@ -1592,6 +1597,8 @@ final class AppModel {
             noticeSessionPanel(before: before, after: after)
         }
         if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
+        if !replacingDomain, detailsChanged || githubChanged || after.repos != before.repos
+            || after.worktrees != before.worktrees { noticeOrigins() }
         if !replacingDomain, githubChanged { tickSwarms() }
         if !replacingDomain, sessionsChanged { noticeGoalAttach(before: before, after: after) }
     }

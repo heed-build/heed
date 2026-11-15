@@ -154,7 +154,9 @@ extension AppModel {
     func auditToolCall(_ call: ToolCall, message: HookMessage, session: Session) {
         // The cause its environment names, when it is one heed made for this session.
         let named = message.cause.flatMap { audit.cause($0) }.flatMap { $0.session == session.id ? $0 : nil }
-        let base = named ?? audit.cause(session: session.id, pane: message.pane)
+        // What heed last told auto mode in this pane comes first: it sits below that cause.
+        let told = audit.toldCause(message.pane ?? session.id).flatMap { $0.session == session.id ? $0 : nil }
+        let base = told ?? named ?? audit.cause(session: session.id, pane: message.pane)
         guard var action = AuditClassifier.action(
             call, at: message.sentAt, session: session.id, sessionTitle: session.title,
             agent: message.agent ?? session.agent, repo: session.repos.first?.slug, cause: base

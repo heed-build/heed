@@ -183,6 +183,8 @@ public struct Issue: Identifiable, Hashable, Sendable, Codable {
     public var body: String
     public var labels: [String]
     public var author: String?
+    /// Who the author is to the repo; nil when not known (caches from before heed asked, issues from elsewhere).
+    public var authorTrust: ExternalText.Trust?
     public var updatedAt: Date
     /// When it was opened; nil in caches from before heed asked.
     public var createdAt: Date?
@@ -191,6 +193,11 @@ public struct Issue: Identifiable, Hashable, Sendable, Codable {
     public var mentioned = false
 
     public var involvesYou: Bool { assigned || mentioned }
+
+    /// Its title and body as text from its author, for a prompt or the UI.
+    public var titleText: ExternalText { ExternalText(title, source: .issueTitle, author: by) }
+    public var bodyText: ExternalText { ExternalText(body, source: .issueBody, author: by) }
+    private var by: ExternalText.Author { ExternalText.Author(login: author, trust: authorTrust ?? .stranger) }
 
     public init(
         repo: Repo, number: Int, title: String, url: String, body: String, labels: [String], author: String?,

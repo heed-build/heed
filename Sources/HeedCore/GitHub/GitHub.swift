@@ -821,22 +821,23 @@ public enum GitHub {
     query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) {
       autoMergeAllowed squashMergeAllowed mergeCommitAllowed rebaseMergeAllowed viewerPermission
       pullRequest(number: $number) {
-      number title body author { login } baseRefName headRefName additions deletions
+      number title body author { login __typename } authorAssociation baseRefName headRefName additions deletions
       baseRef { refUpdateRule { requiresLinearHistory } }
       state isDraft mergeable mergeStateStatus reviewDecision
       autoMergeRequest { enabledAt mergeMethod } labels(first: 20) { nodes { name } }
       commits(last: 1) { totalCount nodes { commit { oid committedDate statusCheckRollup { contexts(first: 100) { nodes {
         __typename ... on CheckRun { name status conclusion startedAt title summary detailsUrl
-          isRequired(pullRequestNumber: $number) }
-        ... on StatusContext { context state description targetUrl isRequired(pullRequestNumber: $number) }
+          isRequired(pullRequestNumber: $number) checkSuite { app { slug } } }
+        ... on StatusContext { context state description targetUrl isRequired(pullRequestNumber: $number)
+          creator { login __typename } }
       } } } } } }
-      reviews(last: 30) { nodes { author { login } state submittedAt commit { oid } } }
+      reviews(last: 30) { nodes { author { login __typename } authorAssociation state submittedAt commit { oid } } }
       timelineItems(itemTypes: [CROSS_REFERENCED_EVENT], last: 20) { nodes { ... on CrossReferencedEvent {
         source { ... on PullRequest { number title state createdAt author { login } repository { nameWithOwner } } }
       } } }
       closingIssuesReferences(first: 10) { nodes { number repository { nameWithOwner } } }
       reviewThreads(first: 100) { nodes { id isResolved path line
-        comments(first: 30) { totalCount nodes { author { login } body diffHunk url } } } }
+        comments(first: 30) { totalCount nodes { author { login __typename } authorAssociation body diffHunk url } } } }
     } } }
     """
 
@@ -908,8 +909,8 @@ public enum GitHub {
     static let issueSearchQuery = """
     query($q: String!, $after: String) { search(query: $q, type: ISSUE, first: 50, after: $after) {
       issueCount pageInfo { hasNextPage endCursor } nodes { ... on Issue {
-      number title url bodyText updatedAt repository { nameWithOwner } author { login } labels(first: 10) { nodes { name } }
-      createdAt
+      number title url bodyText updatedAt repository { nameWithOwner } author { login __typename } authorAssociation
+      labels(first: 10) { nodes { name } } createdAt
     } } } }
     """
 
@@ -1132,7 +1133,11 @@ public enum GitHub {
             if context["__typename"] as? String == "StatusContext" {
                 guard ["FAILURE", "ERROR"].contains(context["state"] as? String ?? "") else { return nil }
                 return PullDetail.FailingCheck(
-                    name: context["context"] as? String ?? "status", summary: context["description"] as? String ?? "",
+                    name: context["context"] as? String ?? "status",
+                    summary: ExternalText(
+                        context["description"] as? String ?? "", source: .checkSummary,
+                        author: .github(context["creator"] as? [String: Any], association: nil)
+                    ),
                     url: context["targetUrl"] as? String
                 )
             }
@@ -1141,9 +1146,13 @@ public enum GitHub {
                   .contains(context["conclusion"] as? String ?? "")
             else { return nil }
             let summary = (context["title"] as? String) ?? (context["summary"] as? String) ?? ""
+            // A check run's text is its app's: a bot, named by the app's slug.
+            let app = ((context["checkSuite"] as? [String: Any])?["app"] as? [String: Any])?["slug"] as? String
             return PullDetail.FailingCheck(
                 name: context["name"] as? String ?? "check",
-                summary: summary.split(separator: "\n").first.map(String.init) ?? "",
+                summary: ExternalText(
+                    summary, source: .checkSummary, author: ExternalText.Author(login: app, trust: .bot)
+                ).firstLine(),
                 url: context["detailsUrl"] as? String
             )
         }
@@ -1153,12 +1162,14 @@ public enum GitHub {
             let comments = thread["comments"] as? [String: Any]
             let first = (comments?["nodes"] as? [[String: Any]])?.first
             let hunk = (first?["diffHunk"] as? String ?? "").split(separator: "\n", omittingEmptySubsequences: false)
+            let author = ExternalText.Author.github(
+                first?["author"] as? [String: Any], association: first?["authorAssociation"] as? String
+            )
             return ReviewThread(
                 id: id, isResolved: thread["isResolved"] as? Bool ?? false, path: thread["path"] as? String ?? "",
-                line: thread["line"] as? Int,
-                author: (first?["author"] as? [String: Any])?["login"] as? String ?? "ghost",
-                body: first?["body"] as? String ?? "", diff: hunk.suffix(6).map(String.init),
-                replies: max((comments?["totalCount"] as? Int ?? 1) - 1, 0), url: first?["url"] as? String
+                line: thread["line"] as? Int, author: author.login ?? "ghost", body: first?["body"] as? String ?? "",
+                diff: hunk.suffix(6).map(String.init), replies: max((comments?["totalCount"] as? Int ?? 1) - 1, 0),
+                url: first?["url"] as? String, trust: author.trust
             )
         }
         let reviewNodes = ((node["reviews"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? []
@@ -1168,7 +1179,10 @@ public enum GitHub {
             else { return nil }
             return PullDetail.Review(
                 author: author, state: state, submittedAt: date(review["submittedAt"] as? String),
-                commit: (review["commit"] as? [String: Any])?["oid"] as? String
+                commit: (review["commit"] as? [String: Any])?["oid"] as? String,
+                trust: ExternalText.Author.github(
+                    review["author"] as? [String: Any], association: review["authorAssociation"] as? String
+                ).trust
             )
         }
         let closes = (((node["closingIssuesReferences"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
@@ -1185,7 +1199,10 @@ public enum GitHub {
             additions: node["additions"] as? Int ?? 0, deletions: node["deletions"] as? Int ?? 0,
             commitCount: commits?["totalCount"] as? Int ?? 0, headSHA: commit?["oid"] as? String ?? "",
             reviews: reviews, threads: threads, failingChecks: failing, checks: checkSummary(contexts), closes: closes,
-            fetchedAt: now
+            fetchedAt: now,
+            authorTrust: ExternalText.Author.github(
+                node["author"] as? [String: Any], association: node["authorAssociation"] as? String
+            ).trust
         )
         detail.state = node["state"] as? String
         detail.isDraft = node["isDraft"] as? Bool
@@ -1241,13 +1258,17 @@ public enum GitHub {
             let labels = ((node["labels"] as? [String: Any])?["nodes"] as? [[String: Any]])?.compactMap {
                 $0["name"] as? String
             } ?? []
-            return Issue(
+            var issue = Issue(
                 repo: repo, number: number, title: node["title"] as? String ?? "", url: node["url"] as? String ?? "",
                 body: String((node["bodyText"] as? String ?? "").prefix(4000)), labels: labels,
                 author: (node["author"] as? [String: Any])?["login"] as? String,
                 updatedAt: date(node["updatedAt"] as? String),
                 createdAt: (node["createdAt"] as? String).map { date($0) }
             )
+            issue.authorTrust = ExternalText.Author.github(
+                node["author"] as? [String: Any], association: node["authorAssociation"] as? String
+            ).trust
+            return issue
         }
         return (issues, hiddenCount(json))
     }

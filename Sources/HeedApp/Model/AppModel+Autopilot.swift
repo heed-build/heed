@@ -41,7 +41,7 @@ extension AppModel {
             titles[pull.ref.description] = pull.title
         }
         for (key, detail) in pullDetails where titles[key] == nil {
-            titles[key] = detail.title
+            titles[key] = detail.title.display
         }
         let items = Dictionary(attentionEntries.map { ($0.id, $0.item) }) { first, _ in first }
         let catchUps = attention.catchUps.map { id, summary in

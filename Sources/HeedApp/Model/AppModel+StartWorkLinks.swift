@@ -51,7 +51,7 @@ extension AppModel {
             switch link.ref {
             case let .pull(ref):
                 if let known = github.pulls.first(where: { $0.ref == ref })?.title ?? pullDetails[ref.description]?
-                    .title
+                    .title.display
                 {
                     titles[link.url] = known
                 } else {
@@ -70,7 +70,7 @@ extension AppModel {
             var fetched: [String: String] = [:]
             for ref in pulls where fresh.contains(ref.description) {
                 if let detail = try? await GitHub
-                    .pullDetail(ref, caller: "work.start") { fetched[ref.url] = detail.title }
+                    .pullDetail(ref, caller: "work.start") { fetched[ref.url] = detail.title.display }
             }
             let asked = issues.filter { fresh.contains("\($0.repo.slug)#\($0.number)") }
             if let infos = try? await GitHub.issueInfo(asked, caller: "work.start") {

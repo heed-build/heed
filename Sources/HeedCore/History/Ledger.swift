@@ -246,13 +246,13 @@ public enum Ledger {
     /// What the model reads for `session`.
     public static func inputs(session: Session, git: String?, pulls: [PullDetail]) -> SummaryInputs {
         let pull = pulls.map { detail in
-            var lines = ["#\(detail.ref.number) \(detail.title) (\(detail.state?.lowercased() ?? "open"))"]
-            if !detail.body.isEmpty { lines.append(detail.body) }
+            var lines = ["#\(detail.ref.number) \(detail.title.display) (\(detail.state?.lowercased() ?? "open"))"]
+            if !detail.body.isEmpty { lines.append(detail.body.display) }
             lines += detail.reviews.compactMap { review in
                 review.state.isEmpty ? nil : "\(review.author): \(review.state.lowercased())"
             }
             lines += detail.threads.prefix(10)
-                .map { "- \($0.author) on \($0.path)\($0.isResolved ? " (resolved)" : ""): \($0.body)" }
+                .map { "- \($0.author) on \($0.path)\($0.isResolved ? " (resolved)" : ""): \($0.body.display)" }
             return lines.joined(separator: "\n")
         }.joined(separator: "\n\n")
         return SummaryInputs(

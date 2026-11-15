@@ -197,7 +197,7 @@ public struct AwaySummary: Equatable, Sendable {
     public static func events(from domain: Domain) -> [AwayEvent] {
         let viewer = domain.github.viewer
         func title(_ ref: PullRef) -> String? {
-            domain.pullDetails[ref.description]?.title ?? domain.github.pulls.first { $0.ref == ref }?.title
+            domain.pullDetails[ref.description]?.title.display ?? domain.github.pulls.first { $0.ref == ref }?.title
         }
         func subject(_ ref: PullRef) -> String { "\(ref.repo.name) #\(ref.number)" }
         var events: [AwayEvent] = []

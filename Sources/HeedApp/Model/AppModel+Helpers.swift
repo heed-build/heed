@@ -457,7 +457,8 @@ extension AppModel {
         let branch = "\(Runs.prefix)\(kind.slug)/\(prBranch)"
         let path = "\(root)/heed/\(ref.repo.name)/\(kind.slug)-\(prBranch.replacingOccurrences(of: "/", with: "-"))"
         var helper = HelperRun(
-            kind: kind, ref: ref, title: title ?? github.pull(ref)?.title ?? pullDetails[ref.description]?.title ?? "",
+            kind: kind, ref: ref,
+            title: title ?? github.pull(ref)?.title ?? pullDetails[ref.description]?.title.display ?? "",
             agent: adapter.agent, adapter: adapter.title, sessionID: sessionID, prBranch: prBranch, branch: branch,
             worktree: path, startedAt: Clock.now, cap: config.helpers.spendCap
         )

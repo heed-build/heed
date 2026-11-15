@@ -652,7 +652,7 @@ struct MergeQueueView: View {
                             PilotMark(status: model.pilotStatus(for: ref)).frame(width: 110, alignment: .leading)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(model.github.pull(ref)?.title ?? model.pullDetails[ref.description]?
-                                    .title ?? "#\(ref.number)")
+                                    .title.display ?? "#\(ref.number)")
                                     .font(Theme.ui(12.5))
                                     .lineLimit(1)
                                 if let swarm = model.swarmPulls[ref.description] { SwarmPullLine(pull: swarm) }

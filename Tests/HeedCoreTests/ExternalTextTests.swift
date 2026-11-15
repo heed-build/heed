@@ -105,6 +105,12 @@ struct ExternalTextTests {
             .trust == .bot)
     }
 
+    @Test func describingItNeverShowsTheText() {
+        let text = ExternalText("secret\u{1B}[2J", source: .comment, author: stranger)
+        #expect(!String(describing: text).contains("secret"))
+        #expect(!String(reflecting: text).contains("secret"))
+    }
+
     @Test func itRoundTripsAndOldCachesOfPlainStringsStillLoad() throws {
         let text = ExternalText("hi\u{1B}[0m", source: .thread, author: stranger)
         let data = try JSONEncoder().encode(text)
@@ -138,7 +144,7 @@ struct ExternalTextTests {
         )
         let parts = source.components(separatedBy: "public extension DefaultStringInterpolation")
         #expect(parts.count == 2)
-        #expect(parts.last?.components(separatedBy: "@available(*, unavailable").count == 3)
+        #expect(parts.last?.components(separatedBy: "@available(*, deprecated").count == 3)
         let overloads = parts[0].split(separator: "\n").filter { $0.contains("func appendInterpolation") }
             .map { $0.trimmingCharacters(in: .whitespaces) }
         let unlabelled = overloads.filter { $0.contains("appendInterpolation(_") }

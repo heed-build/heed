@@ -2318,7 +2318,7 @@ final class AppModel {
         TitleContext(
             lead: ref.repo.name,
             main: "#\(ref.number)",
-            detail: github.pull(ref)?.title ?? pullDetails[ref.description]?.title
+            detail: github.pull(ref)?.title ?? pullDetails[ref.description]?.title.display
         )
     }
 
@@ -5397,7 +5397,7 @@ final class AppModel {
         guard let ref = feedbackPull else { return }
         let detail = pullDetails[ref.description]
         let pipeline = feedback[ref.description]
-        var prompt = "Continue PR \(ref.repo.name)#\(ref.number): \(detail?.title ?? "")"
+        var prompt = "Continue PR \(ref.repo.name)#\(ref.number): \(detail?.title.display ?? "")"
         if let open = pipeline?.items.filter({ $0.status != .resolved }), !open.isEmpty {
             prompt += "\n" + open.map { "- " + $0.promptLine }.joined(separator: "\n")
         }

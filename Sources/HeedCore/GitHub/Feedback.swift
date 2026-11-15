@@ -4,8 +4,9 @@ import Foundation
 /// Fetched on demand and for PRs sessions track.
 public struct PullDetail: Hashable, Sendable, Codable {
     public var ref: PullRef
-    public var title: String
-    public var body: String
+    /// Its title and description, as its author wrote them.
+    public var title: ExternalText
+    public var body: ExternalText
     public var author: String?
     public var baseBranch: String
     public var headBranch: String
@@ -73,30 +74,61 @@ public struct PullDetail: Hashable, Sendable, Codable {
         public var submittedAt: Date?
         /// The commit it reviewed, so a review from before the last push does not count.
         public var commit: String?
+        /// Who the reviewer is to the repo, from GitHub's author association; `stranger` when not known.
+        public var trust: ExternalText.Trust
 
-        public init(author: String, state: String, submittedAt: Date? = nil, commit: String? = nil) {
+        public init(
+            author: String, state: String, submittedAt: Date? = nil, commit: String? = nil,
+            trust: ExternalText.Trust = .stranger
+        ) {
             self.author = author
             self.state = state
             self.submittedAt = submittedAt
             self.commit = commit
+            self.trust = trust
+        }
+
+        private enum CodingKeys: String, CodingKey { case author, state, submittedAt, commit, trust }
+
+        /// Caches from before the author association still load, as strangers until the next fetch.
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            author = try container.decode(String.self, forKey: .author)
+            state = try container.decode(String.self, forKey: .state)
+            submittedAt = try container.decodeIfPresent(Date.self, forKey: .submittedAt)
+            commit = try container.decodeIfPresent(String.self, forKey: .commit)
+            trust = try container.decodeIfPresent(ExternalText.Trust.self, forKey: .trust) ?? .stranger
         }
     }
 
     public struct FailingCheck: Hashable, Sendable, Codable {
         public var name: String
-        /// The check's title or summary, first line: `docs/redirects.md:41 line too long`.
-        public var summary: String
+        /// The check's title or summary, first line: `docs/redirects.md:41 line too long`, by the app that ran it.
+        public var summary: ExternalText
         public var url: String?
+
+        public init(name: String, summary: ExternalText, url: String?) {
+            self.name = name
+            self.summary = summary
+            self.url = url
+        }
+
+        /// A summary from an app heed does not know.
+        public init(name: String, summary: String, url: String?) {
+            self.init(name: name, summary: ExternalText(summary, source: .checkSummary, author: .unknown), url: url)
+        }
     }
 
     public init(
         ref: PullRef, title: String, body: String, author: String?, baseBranch: String, headBranch: String,
         additions: Int, deletions: Int, commitCount: Int, headSHA: String, reviews: [Review], threads: [ReviewThread],
-        failingChecks: [FailingCheck], checks: CheckSummary, closes: [PullRef], fetchedAt: Date
+        failingChecks: [FailingCheck], checks: CheckSummary, closes: [PullRef], fetchedAt: Date,
+        authorTrust: ExternalText.Trust = .stranger
     ) {
         self.ref = ref
-        self.title = title
-        self.body = body
+        let by = ExternalText.Author(login: author, trust: authorTrust)
+        self.title = ExternalText(title, source: .pullTitle, author: by)
+        self.body = ExternalText(body, source: .pullBody, author: by)
         self.author = author
         self.baseBranch = baseBranch
         self.headBranch = headBranch
@@ -130,7 +162,8 @@ public struct ReviewThread: Identifiable, Hashable, Sendable, Codable {
     public var path: String
     public var line: Int?
     public var author: String
-    public var body: String
+    /// The first comment, with who wrote it and who they are to the repo.
+    public var body: ExternalText
     /// The last lines of the diff hunk the thread is on.
     public var diff: [String]
     public var replies: Int
@@ -138,18 +171,21 @@ public struct ReviewThread: Identifiable, Hashable, Sendable, Codable {
 
     public init(
         id: String, isResolved: Bool, path: String, line: Int?, author: String, body: String, diff: [String],
-        replies: Int, url: String?
+        replies: Int, url: String?, trust: ExternalText.Trust = .stranger
     ) {
         self.id = id
         self.isResolved = isResolved
         self.path = path
         self.line = line
         self.author = author
-        self.body = body
+        self.body = ExternalText(body, source: .thread, author: ExternalText.Author(login: author, trust: trust))
         self.diff = diff
         self.replies = replies
         self.url = url
     }
+
+    /// Who wrote its first comment, to the repo.
+    public var trust: ExternalText.Trust { body.author.trust }
 
     /// `RedirectFile.cs:88`.
     public var location: String {
@@ -438,7 +474,8 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         let initial: FeedbackItem.Status = autoFeed == .auto ? .queued : .new
         for thread in detail.threads where !thread.isResolved && !items.contains(where: { $0.id == thread.id }) {
             items.append(FeedbackItem(
-                id: thread.id, kind: .review(location: thread.location, author: thread.author), text: thread.body,
+                id: thread.id, kind: .review(location: thread.location, author: thread.author),
+                text: thread.body.display,
                 status: initial
             ))
         }
@@ -459,7 +496,7 @@ public struct PullFeedback: Hashable, Sendable, Codable {
             items.append(FeedbackItem(
                 id: "check:\(check.name)",
                 kind: .check(name: check.name),
-                text: check.summary,
+                text: check.summary.display,
                 status: initial
             ))
         }

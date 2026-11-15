@@ -96,10 +96,14 @@ struct GitHubParsingTests {
         let json = """
         {"data":{"search":{"nodes":[{"number":94,"title":"Backpressure drops events","url":"https://github.com/o/r/issues/94",
           "bodyText":"Under burst load","updatedAt":"2026-10-01T00:00:00Z","repository":{"nameWithOwner":"o/r"},
-          "author":{"login":"me"},"labels":{"nodes":[{"name":"bug"}]}}]}}}
+          "author":{"login":"me"},"authorAssociation":"OWNER","labels":{"nodes":[{"name":"bug"}]}}]}}}
         """
         let (issues, hidden) = GitHub.parseIssueSearch(Data(json.utf8))
         #expect(hidden == 0)
+        #expect(issues.first?.authorTrust == .owner)
+        #expect(issues.first?.bodyText.author == ExternalText.Author(login: "me", trust: .owner))
+        #expect(issues.first?.titleText.source == .issueTitle)
+        #expect(GitHub.issueSearchQuery.contains("authorAssociation"))
         #expect(issues.first?.labels == ["bug"])
         #expect(issues.first?.id == "o/r#94")
     }
@@ -289,19 +293,39 @@ struct FeedbackTests {
         {"data":{"repository":{"pullRequest":{"number":2841,"title":"Fix","body":"Closes #2830","author":{"login":"you"},
           "baseRefName":"main","headRefName":"fix","additions":82,"deletions":4,
           "commits":{"totalCount":3,"nodes":[{"commit":{"oid":"abc","statusCheckRollup":{"contexts":{"nodes":[
-            {"__typename":"CheckRun","name":"lint","status":"COMPLETED","conclusion":"FAILURE","title":"docs/redirects.md:41 line too long\\nmore","summary":null,"detailsUrl":"u"}]}}}}]},
-          "reviews":{"nodes":[{"author":{"login":"rev"},"state":"CHANGES_REQUESTED"},{"author":{"login":"rev"},"state":"APPROVED"}]},
+            {"__typename":"CheckRun","name":"lint","status":"COMPLETED","conclusion":"FAILURE","title":"docs/redirects.md:41 line too long\\r\\nmore","summary":null,"detailsUrl":"u","checkSuite":{"app":{"slug":"github-actions"}}},
+            {"__typename":"StatusContext","context":"ci/old","state":"FAILURE","description":"broke","creator":{"login":"ci-bot[bot]","__typename":"Bot"}}]}}}}]},
+          "reviews":{"nodes":[{"author":{"login":"rev"},"state":"CHANGES_REQUESTED","authorAssociation":"MEMBER"},{"author":{"login":"rev"},"state":"APPROVED","authorAssociation":"MEMBER"},
+            {"author":{"login":"passer-by","__typename":"User"},"state":"APPROVED","authorAssociation":"NONE"}]},
           "closingIssuesReferences":{"nodes":[{"number":2830,"repository":{"nameWithOwner":"acme/docs-toolkit"}}]},
           "reviewThreads":{"nodes":[{"id":"T1","isResolved":false,"path":"src/RedirectFile.cs","line":88,
-            "comments":{"totalCount":2,"nodes":[{"author":{"login":"rev"},"body":"Case sensitive","diffHunk":"@@ -80,8 +80,8 @@\\n a\\n b\\n c\\n d\\n e\\n f\\n-g\\n+h","url":"x"}]}}]}}}}}
+            "comments":{"totalCount":2,"nodes":[{"author":{"login":"rev","__typename":"User"},"authorAssociation":"COLLABORATOR","body":"Case sensitive","diffHunk":"@@ -80,8 +80,8 @@\\n a\\n b\\n c\\n d\\n e\\n f\\n-g\\n+h","url":"x"}]}},
+            {"id":"T2","isResolved":false,"path":"a.cs","line":1,"comments":{"totalCount":1,"nodes":[{"author":{"login":"newcomer","__typename":"User"},"authorAssociation":"FIRST_TIME_CONTRIBUTOR","body":"hi","diffHunk":"","url":"y"}]}},
+            {"id":"T3","isResolved":false,"path":"a.cs","line":2,"comments":{"totalCount":1,"nodes":[{"author":{"login":"copilot-pull-request-reviewer","__typename":"Bot"},"authorAssociation":"CONTRIBUTOR","body":"nit","diffHunk":"","url":"z"}]}}]}}}}}
         """
         let detail = GitHub.parsePullDetail(Data(json.utf8), ref: ref, now: Date())
         #expect(detail?.headSHA == "abc")
-        #expect(detail?.failingChecks.first?.summary == "docs/redirects.md:41 line too long")
+        #expect(detail?.failingChecks.first?.summary.display == "docs/redirects.md:41 line too long")
+        #expect(detail?.failingChecks.first?.summary.author == ExternalText.Author(
+            login: "github-actions",
+            trust: .bot
+        ))
+        #expect(detail?.failingChecks.first?.summary.source == .checkSummary)
+        #expect(detail?.failingChecks.last?.summary.author == ExternalText.Author(login: "ci-bot[bot]", trust: .bot))
+        #expect(detail?.threads.map(\.trust) == [.collaborator, .stranger, .bot])
+        #expect(detail?.threads.first?.body.author.login == "rev")
+        #expect(detail?.threads.first?.body.source == .thread)
+        #expect(detail?.reviews.map(\.trust) == [.collaborator, .collaborator, .stranger])
+        #expect(detail?.title.author == ExternalText.Author(login: "you", trust: .stranger))
+        #expect(detail?.body.display == "Closes #2830")
         #expect(detail?.threads.first?.diff.count == 6)
         #expect(detail?.threads.first?.replies == 1)
         #expect(detail?.threads.first?.location == "RedirectFile.cs:88")
-        #expect(detail?.approvals == 1)
+        #expect(detail?.approvals == 2)
+        // Who wrote what is asked for the PR, its reviews and its threads' comments, and checks name their app.
+        #expect(GitHub.pullDetailQuery.components(separatedBy: "authorAssociation").count == 4)
+        #expect(GitHub.pullDetailQuery.components(separatedBy: "login __typename").count == 5)
+        #expect(GitHub.pullDetailQuery.contains("checkSuite { app { slug } }"))
         #expect(detail?.closes.first?.number == 2830)
     }
 }

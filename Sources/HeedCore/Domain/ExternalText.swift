@@ -220,6 +220,11 @@ public struct ExternalText: Hashable, Sendable {
     }
 }
 
+/// `String(describing:)` and `dump` show where it is from, never the text.
+extension ExternalText: CustomReflectable {
+    public var customMirror: Mirror { Mirror(self, children: ["source": source, "author": author]) }
+}
+
 extension ExternalText: Codable {
     private enum CodingKeys: String, CodingKey { case text, source, author }
 

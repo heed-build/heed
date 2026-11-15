@@ -433,7 +433,8 @@ struct ReaderView: View {
                                     VStack(alignment: .leading, spacing: 8) {
                                         Text("\(detail.author ?? "someone") opened this").font(Theme.ui(12))
                                             .foregroundStyle(Theme.fg3)
-                                        Text(detail.body.isEmpty ? "(no description)" : detail.body).font(Theme.ui(13))
+                                        Text(detail.body.isEmpty ? "(no description)" : detail.body.display)
+                                            .font(Theme.ui(13))
                                             .fixedSize(horizontal: false, vertical: true)
                                     }
                                 }
@@ -458,7 +459,7 @@ struct ReaderView: View {
         let conversation = model.conversation(ref.repo, ref.number)
         return ThreadHeader(
             repo: ref.repo, kind: .pr, number: ref.number,
-            title: conversation?.title ?? detail?.title ?? model.github.pull(ref)?.title ?? "",
+            title: conversation?.title ?? detail?.title.display ?? model.github.pull(ref)?.title ?? "",
             author: conversation?.author?.login ?? detail?.author, openedAt: conversation?.createdAt,
             chips: chips(ref, detail, conversation),
             actions: [
@@ -518,7 +519,7 @@ struct ReaderView: View {
             card {
                 HStack(spacing: 8) {
                     Text("\(check.name) failed").foregroundStyle(Theme.err)
-                    Text(check.summary).font(Theme.mono(12)).foregroundStyle(Theme.fg2).lineLimit(1)
+                    Text(check.summary.display).font(Theme.mono(12)).foregroundStyle(Theme.fg2).lineLimit(1)
                 }
                 .font(Theme.ui(12.5))
             }
@@ -556,7 +557,7 @@ struct ReaderView: View {
                 .padding(.vertical, 6)
                 .background(Theme.pane)
             }
-            Text(thread.body).font(Theme.ui(13)).padding(12).fixedSize(horizontal: false, vertical: true)
+            Text(thread.body.display).font(Theme.ui(13)).padding(12).fixedSize(horizontal: false, vertical: true)
         }
         .background(RoundedRectangle(cornerRadius: 8).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(queued ? Theme.fg2 : Theme.line))

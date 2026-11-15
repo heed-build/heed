@@ -162,11 +162,13 @@ public extension Sequence<Prompt> {
     }
 }
 
-/// Neither turns into a `String` by interpolation: `"\(text)"` would print the raw text with its fields.
+/// Neither should turn into a `String` by interpolation. Swift picks an unavailable overload last, so these are
+/// deprecated instead: the build warns, and the text that lands is the stripped `display` (or the rendered prompt),
+/// never the raw bytes.
 public extension DefaultStringInterpolation {
-    @available(*, unavailable, message: "use .display for the UI, or interpolate it into a Prompt")
-    mutating func appendInterpolation(_: ExternalText) {}
+    @available(*, deprecated, message: "use .display for the UI, or interpolate it into a Prompt")
+    mutating func appendInterpolation(_ text: ExternalText) { appendLiteral(text.display) }
 
-    @available(*, unavailable, message: "use .text where the prompt leaves heed")
-    mutating func appendInterpolation(_: Prompt) {}
+    @available(*, deprecated, message: "use .text where the prompt leaves heed")
+    mutating func appendInterpolation(_ prompt: Prompt) { appendLiteral(prompt.text) }
 }

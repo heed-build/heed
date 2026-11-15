@@ -131,9 +131,9 @@ public struct SelfReview: Hashable, Sendable, Codable {
         Look for bugs, missing tests, leftover debugging and anything the description promises that the diff does \
         not do.\(instructions.isEmpty ? "" : "\n\n" + instructions)
 
-        PR #\(detail.ref.number): \(detail.title)
+        PR #\(detail.ref.number): \(detail.title.display)
 
-        \(detail.body)
+        \(detail.body.display)
 
         \(cut)
         """

@@ -141,14 +141,14 @@ public enum MergeNow {
         case let .merge(method, skipping):
             return Prompt(
                 title: "Merge \(name) now?",
-                lines: [detail.title, "\(method) into \(base), \(commit)"]
+                lines: [detail.title.display, "\(method) into \(base), \(commit)"]
                     + (skipping.isEmpty ? ["Every requirement is met"] : lines(skipping, "Not met, merged anyway")),
                 accept: "Merge (\(method))", destructive: false
             )
         case let .force(method, bypassing, skipping):
             return Prompt(
                 title: "Force-merge \(name) with --admin?",
-                lines: [detail.title, "\(method) into \(base) with --admin, \(commit)"]
+                lines: [detail.title.display, "\(method) into \(base) with --admin, \(commit)"]
                     + lines(bypassing, "Bypassed") + lines(skipping, "Not met, merged anyway"),
                 accept: "Force merge", destructive: true
             )

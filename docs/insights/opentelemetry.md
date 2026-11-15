@@ -24,7 +24,7 @@ Every session heed starts with claude or codex is told to export to heed.
 | claude | `CLAUDE_CODE_ENABLE_TELEMETRY=1`, OTLP exporters for metrics, logs and traces (`CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1`), each signal's endpoint at `http://127.0.0.1:4318` with `http/json`, shorter export intervals so the view is live, and `OTEL_LOG_TOOL_DETAILS=1` so a span says which command or file |
 | codex | `-c otel.exporter=…`, `-c otel.trace_exporter=…` and `-c otel.metrics_exporter=…`, each `otlp-http` to `127.0.0.1` with `protocol = "json"`, for this run only |
 
-The variables are set on the agent's own command, so the pane's shell never has them. Settings › History ›
+The variables are set on the agent's own command, so the pane's shell never has them. Settings › Insights ›
 OpenTelemetry says, per agent, what heed does: "exporting to heed", "forwarding to <host> through heed", or "your own
 setup, heed not involved", with why. The pill at the end of Insights' tabs says whether the receiver is listening and
 how many agents sent anything in the last ten minutes.

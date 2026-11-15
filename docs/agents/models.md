@@ -6,7 +6,7 @@ description: The models and reasoning efforts Heed offers for each agent, where 
 
 Wherever Heed lets you choose what an agent runs on, it offers a list rather than a text field: Start work, the swarm
 form (the lead and each kind of worker), a handoff (`:agent.switch`), Settings › Agents (each agent's own model and
-effort on its Sessions tab, and the model for Heed's [model calls](model-calls.md) on its Model calls tab), Settings › Pilot
+effort on its Sessions tab, and the model for Heed's [model calls](model-calls.md) on its Model calls tab), Settings › Autopilot
 (the get it green run and the merge-conflict run, which is advanced) and Settings › Orgs & repos (the same, per org and
 repo). Searching Settings for `model` lists every one of them.
 
@@ -50,4 +50,4 @@ effort = "high"      # its reasoning effort
 A custom agent takes a model and an effort when it says how: `model_flag` and `effort_flag` (a flag the level
 follows, or arguments with `{level}` in them). See [Custom agents](custom-agents.md).
 
-![Settings › Pilot › Get it green: runs on codex with a listed model, conflicts on a custom id](../images/shots/agents/model-custom.png)
+![Settings › Autopilot › Get it green: runs on codex with a listed model, conflicts on a custom id](../images/shots/agents/model-custom.png)

@@ -6,7 +6,7 @@ import Foundation
 
 public extension SettingsPage {
     /// The sections the page shows, in order: what the tree lists under it and the page scrolls to. Pages split into
-    /// tabs or scopes (Agents, Pilot, Orgs & repos, Hosts) list none: their sections change with the tab.
+    /// tabs or scopes (Agents, Autopilot, Orgs & repos, Hosts) list none: their sections change with the tab.
     var sections: [String] {
         switch self {
         case .general: ["Sessions", "Outside the window"]
@@ -25,7 +25,7 @@ public extension SettingsPage {
         }
     }
 
-    /// The tabs the page splits into, in order (Agents' per agent, Pilot's).
+    /// The tabs the page splits into, in order (Agents' per agent, Autopilot's).
     var tabs: [SettingsTab] {
         switch self {
         case .agents: [.sessions, .modelCalls]
@@ -53,7 +53,7 @@ public extension SettingsPage {
         case .github: "How often heed asks gh."
         case .pilot: "What heed does with the PRs your sessions track: the defaults every PR starts from. Orgs and "
             + "repos override them in Orgs & repos."
-        case .orgsAndRepos: "Orgs and repos can override the defaults: color, setup, goal trackers, and every Pilot "
+        case .orgsAndRepos: "Orgs and repos can override the defaults: color, setup, goal trackers, and every Autopilot "
             + "setting. A repo takes its org's values unless it sets its own."
         case .attention: "What matters in Attention: rules that boost, lower, mute, pin or notify, and its summaries."
         case .hosts: "Machines heed drives over your own ssh, or over your tailnet."

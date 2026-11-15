@@ -48,7 +48,7 @@ struct TelemetryView: View {
     private func empty(_ browser: TelemetryBrowser) -> String {
         switch browser.receiver {
         case .off:
-            return "The receiver is off ([telemetry] enabled = false). Turn it on in Settings › History to see the "
+            return "The receiver is off ([telemetry] enabled = false). Turn it on in Settings › Insights to see the "
                 + "agents' own spans, latency, waits and cost here."
         case let .failed(reason):
             return "heed could not listen for telemetry: \(reason). Another collector may hold the port; set "

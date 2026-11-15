@@ -254,7 +254,7 @@ public struct SettingsEntry: Identifiable, Sendable {
     public let page: SettingsPage
     /// The section (card) on the page.
     public let section: String
-    /// The tab, on pages that split into tabs (Agents, Pilot, Orgs & repos).
+    /// The tab, on pages that split into tabs (Agents, Autopilot, Orgs & repos).
     public let tab: SettingsTab?
     public let label: String
     public let detail: String
@@ -384,9 +384,9 @@ public enum SettingsPage: String, CaseIterable, Sendable, Identifiable {
         case .decisions: "Decisions & Hunch"
         case .worktrees: "Worktrees"
         case .goals: "Goals"
-        case .history: "History"
+        case .history: "Insights"
         case .github: "GitHub"
-        case .pilot: "Pilot"
+        case .pilot: "Autopilot"
         case .orgsAndRepos: "Orgs & repos"
         case .attention: "Attention"
         case .hosts: "Hosts"
@@ -406,7 +406,7 @@ public enum SettingsPage: String, CaseIterable, Sendable, Identifiable {
     }
 }
 
-/// The tabs pages split into: an agent's Sessions and Model calls; the Pilot's and Orgs & repos' (`OverrideTab`).
+/// The tabs pages split into: an agent's Sessions and Model calls; the Autopilot's and Orgs & repos' (`OverrideTab`).
 public enum SettingsTab: String, CaseIterable, Sendable {
     case sessions, modelCalls
     case general, green, merged, reviews, instructions

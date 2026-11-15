@@ -32,9 +32,9 @@ A red `!` says `config.toml` has a value there heed refused.
 | | **Decisions & Hunch** | The decider and its **Test**, [finding new work's goal](../goals/attach.md) with its two thresholds and `attach.rules`, [Hunch](local-learning.md) (its model, what it keeps, learning from your corrections, how often the Mindmap placed work right) and [screen snapshots](../agents/screen-snapshots.md) |
 | **Work** | **Worktrees** | Where worktrees go, the repo roots, offering to trust repos for agents, what happens after [adding a repo](../worktrees/repos.md#add-or-clone), branch prefixes, Start work's [smart guesses](../start-work/repos.md#smart-guesses), the [cleanup](../worktrees/cleanup.md) settings, and how long [saved work](../worktrees/removing.md#saved-first) is kept |
 | | **Goals** | Telling agents their goal, [reviewers](../goals/reviewers.md) running on their own, items spawned, and the [GitHub mirror](../goals/github.md) |
-| | **History** | When the [ledger](../insights/ledger.md) writes a summary and what it includes, While you were away, the [Mindmap](../insights/mindmap.md), session memory, [standups](../insights/standup.md), and how long the [call log](../reference/call-log.md) keeps each kind of call |
+| | **Insights** | When the [ledger](../insights/ledger.md) writes a summary and what it includes, While you were away, the [Mindmap](../insights/mindmap.md), session memory, [standups](../insights/standup.md), and how long the [call log](../reference/call-log.md) keeps each kind of call |
 | **GitHub** | **GitHub** | The poll interval and the issues default |
-| | **Pilot** | The defaults every PR starts from, on four tabs: Get it green (with watching), Get it merged, Reviews, Instructions |
+| | **Autopilot** | The defaults every PR starts from, on four tabs: Get it green (with watching), Get it merged, Reviews, Instructions |
 | | **Orgs & repos** | Per org and per repo, over five tabs (see below) |
 | | **Attention** | The [rules](../github/attention-rules.md) in plain words, an editor that builds one, what an edit would change before you save it, the weights, and when [catch-up summaries](../github/attention.md#catch-up-summaries) are written |
 | **Machine** | **Hosts** | Every [host](../hosts/index.md) in `[hosts.<name>]` as `config.toml` has it |
@@ -77,7 +77,7 @@ shows: nothing set or broken is out of sight. The tree's counts include hidden s
 
 **Only modified** keeps what differs from heed's defaults, and what heed refused. The tree keeps the groups, pages and
 sections with a change; each page only its changed rows, with the default to compare and ↺; Agents and Orgs & repos
-only the agents, orgs and repos with one; and each tab strip (Agents, Pilot, Orgs & repos) only the tabs that hold one.
+only the agents, orgs and repos with one; and each tab strip (Agents, Autopilot, Orgs & repos) only the tabs that hold one.
 The page's line says how many, and **Reset all** puts all of them back: it asks first, lists the keys, then removes
 them from `config.toml`, as each row's ↺ would. With nothing changed anywhere, the page says so. Show advanced has no
 say while Only modified is on: every change shows, advanced or not.
@@ -157,7 +157,7 @@ The one under the cursor shows on the right with its evidence and what it joins;
 
 ![Settings › Personas](../images/shots/settings/personas.png)
 
-## Pilot
+## Autopilot
 
 The defaults every PR starts from, on the same tabs Orgs & repos has: **Get it green** (watching, whether and how get
 it green runs, the agents and models of its runs and of merge-conflict runs), **Get it merged** (whether and how PRs
@@ -200,7 +200,7 @@ as it is when you pick another org or repo, and when you quit and reopen heed.
 
 `:settings.open colors <tab>` opens the page on a tab (`general`, `green`, `merged`, `reviews`, `instructions`), and
 the links that lead here land on the right one: `:setup.edit` and the link under Goals › GitHub mirror on General, the
-link at the foot of Pilot on the tab it was on.
+link at the foot of Autopilot on the tab it was on.
 
 **Goals**, on General, holds the [goal tracker](../goals/github.md#the-tracker) a new goal from work in this org or
 repo mirrors to (`goals_tracker`), and whether it mirrors from the start (`goals_mirror`); their defaults are

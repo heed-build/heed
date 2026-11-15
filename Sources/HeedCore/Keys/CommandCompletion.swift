@@ -133,7 +133,7 @@ public enum CommandCompletions {
         case "settings.open": settingsSections.map { ($0, SettingsPage.named($0)?.title ?? "") }
             + OverrideTab.allCases.map { ("colors \($0.rawValue)", "Orgs & repos › \($0.title)") }
             + OverrideTab.allCases.map { ("orgs \($0.rawValue)", "Orgs & repos › \($0.title)") }
-            + SettingsPage.pilot.tabs.map { ("pilot \($0.commandName)", "Pilot › \($0.title)") }
+            + SettingsPage.pilot.tabs.map { ("pilot \($0.commandName)", "Autopilot › \($0.title)") }
             + SettingsPage.agents.tabs.map { ("agents \($0.commandName)", "Agents › \($0.title)") }
         case "settings.find": settingsLabels
         case "pilot.pause": pauseDurations.map { ($0.0, $0.1) }

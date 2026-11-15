@@ -41,7 +41,7 @@ struct TraceView: View {
     private func empty(_ browser: TelemetryBrowser) -> String {
         guard browser.trace != nil else { return "Reading the trace…" }
         return "No turns from this session's agent yet. heed starts claude and codex with their OpenTelemetry "
-            + "pointed at it (Settings › History); a session started before heed listened sends it once reopened."
+            + "pointed at it (Settings › Insights); a session started before heed listened sends it once reopened."
     }
 
     private func crumb(_ trace: SessionTrace?) -> some View {

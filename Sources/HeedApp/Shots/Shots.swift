@@ -502,7 +502,7 @@ enum Shots {
                 model.applyConfig(source: "[agents.claude]\nmodel = \"opus\"\neffort = \"high\"\n")
             }
         ),
-        // Settings › Pilot › Get it green: background runs on codex with a listed model and effort; conflicts on a
+        // Settings › Autopilot › Get it green: background runs on codex with a listed model and effort; conflicts on a
         // custom id.
         Shot(
             id: "agents/model-custom", subject: .settings(.pilot), size: CGSize(width: 1180, height: 1060),

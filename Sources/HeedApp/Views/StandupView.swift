@@ -34,7 +34,7 @@ struct StandupView: View {
                         .font(Theme.ui(12.5)).foregroundStyle(Theme.fg3).multilineTextAlignment(.center)
                         .frame(maxWidth: 440)
                     if !model.config.standup.enabled {
-                        // The switch is on Settings › History, under Standup.
+                        // The switch is on Settings › Insights, under Standup.
                         KeyHint("settings.open", ["history"], spacing: 8, label: "turn them on in Settings")
                             .padding(.top, 4)
                     }

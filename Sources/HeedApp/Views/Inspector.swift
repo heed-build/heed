@@ -497,6 +497,7 @@ private struct LinkCard: View {
         switch link {
         case let .pull(ref):
             VStack(alignment: .leading, spacing: 5) { pull(ref) }
+                .axID("pr-card-\(ref.number)")
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)

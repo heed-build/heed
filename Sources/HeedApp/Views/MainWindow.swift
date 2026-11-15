@@ -307,6 +307,7 @@ struct TitleBar: View {
                     count: badge(view),
                     key: compact ? nil : model.keyCap(for: view.tabCommand)
                 )
+                .axID("view-tab-\(view.rawValue)")
                 .onTapGesture { model.perform(CommandInvocation(name: view.tabCommand)) }
             }
         }
@@ -340,6 +341,7 @@ struct StatusBar: View {
                 .padding(.horizontal, 12)
                 .frame(maxHeight: .infinity)
                 .background(Theme.modeColor(model.mode))
+                .axID("status-mode")
             if let tutor = model.tutor { TutorPill(tutor: tutor) }
             if model.filtering {
                 filterLine

@@ -44,6 +44,10 @@ Heed finds the `tailscale` command on your PATH or inside the Tailscale app (Set
 | Tailscale SSH wants you to confirm | The machine's check mode wants you to confirm it is you: `↩` opens the page |
 | offline on your tailnet | Tailscale says the machine is offline; heed does not try ssh, and shows it stale |
 
+An offline machine shows grey in the list, and the check for an offline host says why:
+
+![The hosts dialog: the host ci selected, its check saying offline with the ssh timeout and when it was last seen, and build-mini on the tailnet shown offline](../images/shots/hosts/picker-offline.png)
+
 Over the tailnet the pane strip says how the link goes, with its latency: **direct · 12 ms** when traffic goes
 straight to the machine, **via relay fra · 48 ms** through one of Tailscale's relays (its region), or **via peer
 relay** through a machine of yours. A relay works, just slower; it usually turns direct once the two machines find

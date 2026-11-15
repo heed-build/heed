@@ -18,7 +18,9 @@ workers for you too: one that looks stuck is nudged, then helped, on its own.
 
 `W` on a goal (`:goal.agents`) opens its swarm's agents; `W` again goes back to the overview.
 
-![The agents pane, with a worker stuck on the same build error](../../images/shots/goals/swarm-agents.png)
+![The agents pane: the workers on the left, the one under the cursor in the middle, what changed and what needs you on the right](../../images/shots/goals/swarm-agents-scene.png)
+
+![The agents list: four workers with their state, their progress against the estimate, and 2.2 stuck while it waits for an answer](../../images/shots/goals/swarm-agents.png)
 
 | Where | What it shows |
 |---|---|
@@ -136,7 +138,7 @@ yet (it hands things over only when the agent is idle and you are not typing to 
 to the card it goes to and says what it is (`msg`, `ask`, `answer`, with a count when several go the same way). The
 goal's card stands for the lead, you, the controller and heed alike. While the window is open the dot pulses gently.
 
-![The map](../../images/shots/goals/swarm-map.png)
+![The map: the goal and its lead on the left, the tasks in two columns by phase, and the ask and msg dots on the lines between them](../../images/shots/goals/swarm-map.png)
 
 | Key | Does |
 |---|---|

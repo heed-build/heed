@@ -16,8 +16,18 @@ from anywhere). It has four parts.
 3. **The inspector**: the session's worktrees, pull requests and agent events. See [The inspector](inspector.md).
 4. **The status bar**: the mode, the branch and pane, and the keys that matter right now.
 
+![The sidebar: pinned sessions, then those that need you, stalled and watching](../images/shots/sessions/anatomy-sidebar.png)
+
+![The center: the selected session's agent pane and a shell beside it, each with its tab](../images/shots/sessions/anatomy-center.png)
+
+![The inspector: the session's summary, its goal, its three PRs with checks and review, its issues, loose ends, agent events and worktrees](../images/shots/sessions/anatomy-inspector.png)
+
+![The status bar: the mode, the branch and pane, and the keys that matter now](../images/shots/sessions/anatomy-status-bar.png)
+
 Across the top, the title bar names the views with their keys, shows what you are looking at in the middle, and counts
 the sessions waiting on you on the right.
+
+![The title bar: the views with their keys, the session in the middle, and the asks waiting on you on the right](../images/shots/sessions/anatomy-title-bar.png)
 
 ## In this section
 

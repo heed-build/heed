@@ -21,13 +21,17 @@ code before it asks: the worktrees of the sessions on the goal, and any repo you
 and search them; it cannot change a file, and nothing is kept in the agent's own history. A repo it could not read
 means it plans from your words alone.
 
+![The wizard on its Plan step: the rail on the left, heed's questions in the middle, and the plan building up on the right](../images/shots/goals/wizard-scene.png)
+
+![Plan: heed's questions one at a time, each with options, and the box to type your own answer](../images/shots/goals/wizard-plan.png)
+
 On the right, the plan builds up. Every version is saved as a new version of the goal's `GOAL.md` too: the summary
 as the goal, the out-of-scope list as **Not the goal**, your decisions in **Decisions**, and the steps, constraints,
 risks and who it is for in sections of their own. Under it, five meters say how complete the plan is: scope,
 constraints, risks, who it's for and out of scope, each scored by a cheap model after every answer. heed says when it
 thinks the plan is complete enough; **Good enough** (`⌘↩`) moves on whenever you like.
 
-![Plan: heed's questions, the plan in versions, the meters](../images/shots/goals/wizard-plan.png)
+![The five meters: scope 90, constraints 75, risks 50, who it's for 40 and out of scope 85](../images/shots/goals/wizard-meters.png)
 
 The line at the bottom right says what the step's calls cost so far, as the agents reported it; `≈` when part of it
 is an estimate or unknown.
@@ -52,7 +56,7 @@ words, and the chips at the top say why:
 `+` invites another: the built-in personas not on the panel, and the ones in your persona library. A cheap model
 reads for the whole panel in one call.
 
-![The panel: the Skeptic on top, each persona's verdict, quote and fix](../images/shots/goals/wizard-panel.png)
+![The panel: the Skeptic on top arguing for something smaller, six more personas each with a verdict, one quote and a fix, and the buttons Worth it, Go smaller, Talk to one and Don't do it](../images/shots/goals/wizard-panel.png)
 
 Then, for up to three rounds:
 
@@ -70,7 +74,7 @@ a **test**, a **CI step**, a **command**, or nothing yet. The meter on each row 
 is met: a real check fills it, a proposed one (a test that does not exist yet) half, and a line nothing checks is
 empty, or nearly, when its words cannot be checked ("fast", "nice", "robust" without a number).
 
-![Done looks like: the criteria, how each is checked, and replacements for the vague one](../images/shots/goals/wizard-done.png)
+![Done looks like: the statement and five criteria, each with how it is checked and a meter, the vague one marked nothing checks this yet, and the buttons Looks right and Define the vague one](../images/shots/goals/wizard-done.png)
 
 A criterion nothing checks gets measurable replacements on the right: `1` `2` `3` highlight one, `↩` uses it ("drop
 it" drops the criterion). `d` defines it with an agent: the same read-only agent as in Plan reads the repos and
@@ -106,7 +110,9 @@ does the first open point (define a vague criterion, back to the panel), `y` cop
 `T` or `⎋` closes it. A cheap model writes it from heed's facts; it is written again only when something it was
 written from changed, and until it is, heed's own words show.
 
-![The TL;DR over the wizard](../images/shots/goals/wizard-tldr.png)
+![The TL;DR on a goal's page: the six steps with what each has so far, what is settled, and what is still open](../images/shots/goals/wizard-tldr-page.png)
+
+![The TL;DR over the wizard at Go: each step with its summary, what is settled, what is open with a define link for each, and where the goal is going](../images/shots/goals/wizard-tldr.png)
 
 ## What it costs
 

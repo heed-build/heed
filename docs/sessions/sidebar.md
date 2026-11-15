@@ -58,6 +58,8 @@ how long, its agent and what it does now); it has no tab, so a click watches it 
 needs you first, amber only then, and a finished one until you have seen it. `gW` watches the one helper, or lists
 them when there are more; `gO` takes one over. Nothing is typed into the session.
 
+![The sidebar with a helper's row under the pinned session: helper getting #2841 green, 3 m 12 s, claude via ACP, wants to run dotnet test](../images/shots/sessions/helper-row.png)
+
 ![One helper on the session's PR: the line at the foot of its panes](../images/shots/sessions/helper-line.png)
 
 ![Watch it: the helper in a split under the session's panes](../images/shots/sessions/helper-watch.png)

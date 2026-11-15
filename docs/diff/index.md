@@ -34,7 +34,7 @@ commit, `⎋` to close, and the actions below the diff (`a`, `A`, `y`, `e`).
 `v` starts a selection on the line under the cursor, and `j` and `k` extend it. With the mouse, drag over the lines,
 or shift-click where the selection should end; a click on a hunk's header selects the whole hunk.
 
-![Three lines selected: the actions below say they act on them](../images/shots/diff/select.png)
+![Three lines selected in the unified diff: the footer's actions (note on these lines, ask about these lines, copy path:lines, open in editor) say they act on the selection](../images/shots/diff/select.png)
 
 While lines are selected, `a` writes a note on them (on the first of them), `A` asks the agent about them
 (`About path lines 77-78 …`), and `y` copies `path:first-last`. A right-click on a selected line offers the same, for

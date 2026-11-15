@@ -10,6 +10,10 @@ and so does your personal work; nothing from one ever shows in another's.
 
 ![Standup: the reports by date on the left, the one under the cursor in full](../images/shots/history/standup.png)
 
+![The reports by date: Tuesday 13 Oct with 3 answers and Monday 12 Oct with 1 answer](../images/shots/history/standup-list.png)
+
+![One report: the three questions with their answers, and the keys y, Y, t and S](../images/shots/history/standup-detail.png)
+
 ## When reports are written
 
 Off until you turn it on: each report is a cheap [model call](../agents/model-calls.md) per question, for every

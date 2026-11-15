@@ -10,6 +10,8 @@ the pieces of work, and you can group further yourself. `M` again goes back to t
 
 ![The Mindmap: what holds the node, the node among its siblings, what it holds, and the node in full](../images/shots/history/mindmap.png)
 
+![The Mindmap's columns: the path on the left, the area Docs in the middle and the two campaigns it holds on the right](../images/shots/history/mindmap-columns.png)
+
 ## One Mindmap per org
 
 Every GitHub org has its own Mindmap, and so does your personal work: repos under your own login, repos with no
@@ -26,6 +28,8 @@ repo goes with that repo's org. `[o` and `]o` switch between them; each lives in
 | Synopsis | A piece of work's ledger summary; above it, written from the synopses of what it holds |
 | Decisions | The ledger's decisions, with the work they came from. One rises to the node above when two of its children take it, or you pin it (`p`). One that later work went against is struck through |
 | Open | Follow-ups nobody did yet. Later work that does one closes it; `x` marks it done |
+
+![The area Docs in full: its facts, synopsis, two open items, what a session started here is told, and the keys](../images/shots/history/mindmap-detail.png)
 
 ## Loose ends
 
@@ -45,6 +49,8 @@ from what heed already knows:
 Each is worked out again when the ledger writes and when you open the Mindmap, so one goes away by itself when its
 fact does: the PR merges, the thread is resolved, CI goes green. `x` dismisses one for good. A session's brief and
 `heed memory show` list them with what is still open.
+
+![A campaign selected: Stop broken links shipping, its piece of work, and on the right its facts and its open items, one of them a review threads loose end](../images/shots/history/mindmap-inside.png)
 
 ## How work gets placed
 
@@ -70,6 +76,8 @@ shadow = false
 what was decided there and still stands, what was tried and dropped, what is still open, and its PRs. The detail
 pane shows that text under "A session started here is told". A session on a [goal](../goals/index.md) is told the
 same about the campaign most of the goal's work sits in. It comes from that org's Mindmap only.
+
+![A piece of work selected: Fix toc ordering with its facts, synopsis, decision and link, and the text a session started here is told](../images/shots/history/mindmap-work.png)
 
 claude gets it with `--append-system-prompt`, codex as `developer_instructions`; other agents are not told.
 

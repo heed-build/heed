@@ -21,7 +21,7 @@ More in [Start work](../start-work/index.md).
 The session's agent runs in a real terminal. Its state, here **working**, comes from the agent itself through hooks,
 and sorts the session in the sidebar.
 
-![A working session: the agent's output in the left pane, a shell beside it](../images/shots/getting-started/first-session-2-working.png)
+![A working session's panes: the agent's output in the left pane, marked working, and a shell beside it](../images/shots/getting-started/first-session-2-working.png)
 
 ## 3. It needs you
 
@@ -35,7 +35,7 @@ menu bar show how many are waiting. `ga` jumps to the next one.
 Press `i` to type into the agent: the pane taking your keys gets a white border. Answer, then `⇧⎋` to give the
 keyboard back to Heed. More in [Typing into agents](../sessions/typing-into-agents.md).
 
-![The agent pane in INSERT, outlined white](../images/shots/getting-started/first-session-4-insert.png)
+![The agent pane taking your keys, outlined white, with a shell beside it](../images/shots/getting-started/first-session-4-insert.png)
 
 ## 5. Review feedback goes back to the agent
 
@@ -50,7 +50,7 @@ overlay (`go`) and go back to the agent when it is idle. More in [Review feedbac
 When the PR is merged, the session moves to History, in Insights (`gh`, then `H`), with its outcome. Its prompt, its
 story and its agent session stay there, ready to reopen. More in [Insights](../insights/index.md).
 
-![History: closed sessions grouped by day, with their outcomes](../images/shots/getting-started/first-session-6-history.png)
+![History: closed sessions grouped by day, each with its PR, agent, time and outcome](../images/shots/getting-started/first-session-6-history.png)
 
 **Next:** let heed take the routine steps. [Autopilot](../autopilot/index.md) gets PRs green and merges them by your
 rules. A [goal](../goals/index.md) holds work that takes more than one session.

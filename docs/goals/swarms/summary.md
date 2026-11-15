@@ -13,7 +13,7 @@ When a swarm is done (every task merged, in merge order), heed writes its end-of
 and asks the lead to write its part. The summary is on the swarm's agents pane (`W`), on the goal's page, and in
 History's ledger; its decisions go into `GOAL.md`.
 
-![The end-of-build summary](../../images/shots/goals/swarm-summary.png)
+![The end-of-build summary: elapsed time, agent time, agents, plan versions and spend, the four merged PRs, who did what and when, the questions and what the agents ran into](../../images/shots/goals/swarm-summary.png)
 
 ## What is in it
 

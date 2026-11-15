@@ -12,7 +12,7 @@ reference for the swarm machinery Go runs.
 `S` on a goal opens its swarm: the plan on the left, and on the right what the lead asks, a change waiting for you,
 every version of the plan and the steering log.
 
-![A swarm's draft plan, with the lead's two questions](../../images/shots/goals/swarm-plan.png)
+![A swarm's draft plan v2 from the lead: five tasks in three phases with each task's agent and done-when, two open questions, the versions and the steering log](../../images/shots/goals/swarm-plan.png)
 
 ## The outline
 

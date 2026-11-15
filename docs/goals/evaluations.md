@@ -9,7 +9,7 @@ README, uses the CLI and does what the goal is about, timing each step and writi
 failed. Its score says how that went, so a re-walk after each fix shows whether the experience got better, not only
 whether the code passes. `X` in Goals opens them; `X` again goes back to the overview.
 
-![Evaluations: the DX evaluator's walk, its friction log, and the lens picker](../images/shots/goals/evaluations.png)
+![Evaluations: the DX evaluator's walk with its six steps, its friction log, and the lens picker](../images/shots/goals/evaluations.png)
 
 ## Lenses
 

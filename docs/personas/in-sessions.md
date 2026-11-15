@@ -13,12 +13,14 @@ someone to offer; heed's other built-ins join goal panels only. It is a default,
 show it, and turning one off writes the built-in's file saying so. An offer only asks: nothing is called until you
 say yes.
 
+![The Sessions view with a session that offers its panel: the faint persona stack on its row, and the offer at the foot of its panes](../images/shots/sessions/personas-scene.png)
+
 ![A session's row with the faint stack of the personas who may look](../images/shots/sessions/personas-quiet.png)
 
 At a **milestone**, a line at the foot of the session's panes offers a look: the tiles, what happened, and "Ask 3
 personas for a look?".
 
-![The offer at the session's foot after a lot got built](../images/shots/sessions/personas-offer.png)
+![The offer at the foot of the panes: three persona tiles, A lot got built, 14 files and +612 −88, and the buttons Yes (gL), Not now (x) and Never here](../images/shots/sessions/personas-offer.png)
 
 | Milestone | When | Default |
 |---|---|---|
@@ -38,7 +40,7 @@ the agent's last message and its diff against its base (bounded: every file keep
 room), and each gives a verdict (happy ✓, a concern ?, against ⇄), one line, and a fix when not happy. The line
 becomes the verdict: the counts and the top concern in a few words. `gL` opens it:
 
-![The panel's verdict, opened with gL](../images/shots/sessions/personas-verdict.png)
+![The panel's verdict, opened with gL: three personas with one line each, two happy and one concern, and the buttons Send to claude, Talk to one and Dismiss](../images/shots/sessions/personas-verdict.png)
 
 | Key | Does |
 |---|---|
@@ -52,7 +54,7 @@ becomes the verdict: the counts and the top concern in a few words. `gL` opens i
 while the panel looks. Everyone happy, it goes on at once to the [approvals](../autopilot/approvals.md), as it would have. A
 concern, and the line turns amber with how long it is held; `gL` shows what they said:
 
-![A PR held with a concern](../images/shots/sessions/personas-pr.png)
+![The panel's verdict on a PR held before it opens: Your team's style raises a concern, and the buttons are Let it open, Send the concern first and Hold the PR](../images/shots/sessions/personas-pr.png)
 
 | Key | Does |
 |---|---|

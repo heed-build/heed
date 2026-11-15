@@ -91,6 +91,10 @@ files it changed and what happens once it is done. The steer box is at the foot.
 What it asks is also in the approvals (`gy`), with every other agent's: answered there or here, it is answered once.
 | `⎋` | Close the split; the helper keeps working |
 
+`zo` zooms the split over the whole column:
+
+![A zoomed helper over Attention's reader: its plan, its story with two diffs, the permission it asks (Allow, Always, Deny), and its files and cost](../images/shots/attention/helper-zoom.png)
+
 ### The session's helper line
 
 However many helpers work on a session's PRs, the session gets one line for them at the foot of its panes. With

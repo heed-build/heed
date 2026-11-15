@@ -15,10 +15,10 @@ Personas read a plan and look in on a session, each from the view of one kind of
 - [Personas on a goal](goal-panels.md): the experts a goal needs, from its board.
 
 A **persona** is a kind of person heed asks for a view: the Skeptic who argues not to do it, the newcomer who only
-reads the docs, the maintainer who owns your docs site. **Settings › Personas** is the one library of them. Goal
-panels ([the new-goal wizard](../goals/index.md)'s step 2) seat their personas from it, Goals'
-[persona pane](goal-panels.md) copies from it, and the personas that join sessions look at a session's work at its
-milestones ([Personas in sessions](in-sessions.md)). `:personas.open` (or
+reads the docs, the maintainer who owns your docs site. **Settings › Personas** is the one library of personas. Goal
+panels ([the new-goal wizard](../goals/index.md)'s step 2) seat their personas from the library, Goals'
+[persona pane](goal-panels.md) copies from the library, and the personas that join sessions look at a session's work at
+its milestones ([Personas in sessions](in-sessions.md)). `:personas.open` (or
 `:settings.open personas`) opens it.
 
 ## The list
@@ -29,42 +29,42 @@ Every row is one persona:
 
 | Part | What it says |
 |---|---|
-| Tile | Its letter, in its tint: the same tint wherever heed draws it |
-| Name and who | The persona, and who it is in a few words |
-| The quote | The question it asks first |
+| Tile | The persona's letter, in its tint: the same tint wherever heed draws the persona |
+| Name and who | The persona's name, and who the persona is in a few words |
+| The quote | The question the persona asks first |
 | Source | A star for built in, a folder for from your repos, a bolt for learned, a person for yours |
-| Scope | Where it applies: everywhere, `org: acme`, or one repo (`acme/docs-website`) |
-| Bars | Its last seven verdicts on goal panels, newest right: its tint for happy, dimmed for a concern, red for not; empty slots until a panel has read a plan with it |
-| Switch | On or off. Off, it stays in the library and nothing asks it |
+| Scope | Where the persona applies: everywhere, `org: acme`, or one repo (`acme/docs-website`) |
+| Bars | The persona's last seven verdicts on goal panels, newest right: its tint for happy, dimmed for a concern, red for not; empty slots until a panel has read a plan with it |
+| Switch | On or off. Off, the persona stays in the library and nothing asks it |
 
 The built-ins are heed's panel personas: Skeptic, Purist, Scope keeper, UX, DX, Newcomer, Adversary, Operator,
-Accessibility, Security and Performance. They are always in the library. Turn one off, or edit it, and heed writes
-its file in the library saying so; your version is the one panels seat. The chips over the list filter by source.
+Accessibility, Security and Performance. They are always in the library. When you turn a built-in off or edit it, heed
+writes the built-in's file in the library saying so. Panels seat your version. The chips over the list filter by source.
 
-**Your team's style** shows only when the library has one: a persona whose source is `learned`, or one named "team
-style". heed does not learn one on its own yet, so it is there only when you add it.
+**Your team's style** shows only when the library has it: a persona whose source is `learned`, or one named "team
+style". heed does not learn this persona on its own yet, so it is there only when you add it.
 
 ## The persona under the cursor
 
-The right side says who they are, what they ask first, what they are skeptical about and what they may and may not do;
-the **evidence**, why this persona (for one from your repos: the CODEOWNERS line, the review comments, the required
-check that pointed at it); and what it **joins** on its own:
+The right side says who the persona is, what it asks first, what it is skeptical about and what it may and may not do.
+It also shows the **evidence**, which says why heed proposed this persona (for a persona from your repos: the CODEOWNERS
+line, the review comments, the required check that pointed at it). Last, it shows what the persona **joins** on its own:
 
 ![The persona under the cursor: who they are, what they ask first and are skeptical about, the evidence, and what it joins, with Try it on a PR, Edit and Share](../images/shots/settings/personas-detail.png)
 
 | Join | What it does |
 |---|---|
-| goal panels touching its scope | It sits on the panel of every goal whose repos are in its scope, with the built-ins the plan invites |
-| sessions in its scope: before a PR | It may look at sessions in its scope ([Personas in sessions](in-sessions.md)), first in line before a PR opens |
-| every session's plan | It may look at sessions in its scope, at every milestone |
+| goal panels touching its scope | The persona sits on the panel of every goal whose repos are in its scope, with the built-ins the plan invites |
+| sessions in its scope: before a PR | The persona may look at sessions in its scope ([Personas in sessions](in-sessions.md)), first in line before a PR opens |
+| every session's plan | The persona may look at sessions in its scope, at every milestone |
 
 | Key | Does |
 |---|---|
 | `j` `k` | The persona below or above |
-| `␣` | Turn it on or off |
-| `t` | **Try it on a PR**: a cheap model call reads a recent merged PR in its scope (its diff, through `gh pr diff`) as this persona and shows its verdict, its quote and the lines it points at; when review commented on the same files, it says so, else it shows what review actually said. `t` again tries the next PR |
-| `e` | Edit its file in place; `e` again, `⎋` or `⌘S` saves |
-| `p` | Share: its file on the pasteboard, to send to a teammate for their library |
+| `␣` | Turn the persona on or off |
+| `t` | **Try it on a PR**: a cheap model call reads a recent merged PR in its scope (its diff, through `gh pr diff`) as this persona and shows the persona's verdict, its quote and the lines it points at. When review commented on the same files, heed says so; otherwise heed shows what review actually said. `t` again tries the next PR |
+| `e` | Edit the persona's file in place; `e` again, `⎋` or `⌘S` saves |
+| `p` | Share: the persona's file on the pasteboard, to send to a teammate for their library |
 | `a` | Add a persona |
 | `s` | In sessions: when personas look at sessions (`s` or `⎋` back to the library) |
 
@@ -76,29 +76,29 @@ The personas that join sessions look at a session's work at its milestones: an o
 
 ## Where a persona applies
 
-A persona's scope walls it in. One from `acme`'s repos is never offered to work in another org: a goal panel seats it
-only when the goal's repos are in its scope, Goals' `:persona.use` only offers library personas on and in scope for
-the goal, and a goal's derivation copies a library file only when it is. A persona with no scope applies everywhere.
-heed proposes a persona only within the repos it read, so one drawn from an org's repos is scoped to that org or one
-of its repos, never everywhere.
+A persona's scope walls the persona in. heed never offers a persona from `acme`'s repos to work in another org. A goal
+panel seats the persona only when the goal's repos are in its scope. Goals' `:persona.use` offers only library personas
+on and in scope for the goal, and a goal's derivation copies a library file only when the persona is on and in scope.
+A persona with no scope applies everywhere. heed proposes a persona only within the repos it read, so a persona drawn
+from an org's repos is scoped to that org or one of its repos, never everywhere.
 
 ## Add a persona
 
 `a` opens **Add a persona**. heed picks up to three repos of the org you work in most (the session under the cursor's
-org, if any) and starts reading; click a repo to read it too or leave it out (one org at a time).
+org, if any) and starts reading. Click a repo to read it too or leave it out, one org at a time.
 
 ![Add a persona: acme's three repos read, five people proposed](../images/shots/settings/personas-add.png)
 
 For each repo heed reads, with `gh` and the checkout: README, CONTRIBUTING and `docs/`; CODEOWNERS and the last
 hundred review comments; issues and their labels; the required checks and CI workflows; and who merged the last forty
-PRs, in which folders. The left side counts each. All of it goes into a compact digest (at most 12,000 characters,
-each section cut to a few lines) that one cheap model call reads, through heed's [model calls](../agents/model-calls.md). It
-proposes the people the repos serve, each with its evidence and a strength from 0 to 100: how strongly the evidence
-points at them. A proposal without evidence is dropped; at most six show, strongest first, and the ones at 70 or more
-start picked.
+PRs, in which folders. The left side counts each. heed puts all of it into a compact digest (at most 12,000 characters,
+each section cut to a few lines). One cheap model call reads the digest, through heed's [model calls](../agents/model-calls.md). The
+model proposes the people the repos serve, each with its evidence and a strength from 0 to 100: how strongly the
+evidence points at that person. heed drops a proposal without evidence. At most six proposals show, strongest first, and
+the proposals at 70 or more start picked.
 
-When a proposal says the same as a persona you have (the model names it, or most of the words in who it is and what it
-asks first are the same), heed asks: **sharpen** that one (`s`: the proposal becomes, say, "Newcomer for acme", which
+When a proposal says the same as a persona you have (the model names that persona, or most of the words in who it is
+and what it asks first are the same), heed asks: **sharpen** the persona you have (`s`: the proposal becomes, say, "Newcomer for acme", which
 takes the Newcomer's seat on acme's panels) or **keep both** (`b`).
 
 | Key | Does |
@@ -112,10 +112,10 @@ takes the Newcomer's seat on acme's panels) or **keep both** (`b`).
 
 ## Define with an agent
 
-`⌘↩` opens one session per picked persona, over [ACP](../autopilot/helpers.md) with your helpers' agent, in the persona's repo. It
-reads and writes nothing: reading and searching go ahead, anything else is refused, as when defining a goal's part.
-It asks what it cannot tell from the repo, one question at a time with two or three answers (`1` `2` `3`, or `i` to
-type one), and builds the persona on the right as you go: what it added or changed since the proposal is marked.
+`⌘↩` opens one session per picked persona, over [ACP](../autopilot/helpers.md) with your helpers' agent, in the persona's repo. The
+agent reads and writes nothing: reading and searching go ahead, and heed refuses anything else, as when defining a goal's part.
+The agent asks what it cannot tell from the repo, one question at a time with two or three answers (`1` `2` `3`, or `i`
+to type one). The agent builds the persona on the right as you go, and marks what it added or changed since the proposal.
 
 ![Defining Docs-site maintainer: the conversation, the persona with its changes marked, and its try on a real PR](../images/shots/settings/personas-define.png)
 
@@ -145,6 +145,6 @@ evidence:
 - CI step: check-links, required
 ```
 
-`on: no` turns it off; `sharpens: newcomer` makes it a built-in's sharper version within its scope.
+`on: no` turns the persona off; `sharpens: newcomer` makes the persona a built-in's sharper version within its scope.
 
 **Next:** [Insights](../insights/index.md).

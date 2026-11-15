@@ -5,9 +5,9 @@ description: "Personas on a goal: the experts a goal needs, worked out from its 
 # Personas on a goal
 
 A persona is a kind of expert a goal needs in the room: a CI specialist, a performance engineer, someone who will read
-the docs cold. heed works out who from the goal's board (what is planned, what reviewers object to, what is unanswered,
-what is failing), says why each one is needed now, and shows how much of the related work someone with that view has
-looked at. `P` in Goals opens them; `P` again goes back to the overview.
+the docs cold. heed works out who is needed from the goal's board: what is planned, what reviewers object to, what is
+unanswered and what is failing. heed says why each persona is needed now. It also shows how much of the related work
+someone with that view has looked at. `P` in Goals opens the personas; `P` again goes back to the overview.
 
 ![Personas: who the goal needs, gaps first, and the one under the cursor](../images/shots/goals/personas.png)
 
@@ -17,36 +17,36 @@ looked at. `P` in Goals opens them; `P` again goes back to the overview.
 
 | Column | What it says |
 |---|---|
-| Persona | Its name, and when it is needed: now, soon or later |
+| Persona | The persona's name, and when the goal needs it: now, soon or later |
 | Why now | A sentence or two on why, from the board |
-| Coverage | The share of its items that a session, chat or review run with it has touched |
+| Coverage | The share of the persona's items that a session, chat or review run with that persona has touched |
 | State | `gap`, `active`, `consulted` or `not yet` |
 
 The states, in the order the list shows them:
 
-- **gap**: needed now, and nothing it is about has been looked at by it;
-- **active**: a session or chat with it is open, or its reviewer is running;
-- **consulted**: some of its items were looked at by it;
+- **gap**: needed now, and the persona has looked at nothing it is about;
+- **active**: a session or chat with the persona is open, or its reviewer is running;
+- **consulted**: the persona has looked at some of its items;
 - **not yet**: needed soon or later, and not looked at yet.
 
 Gaps come first, then sooner before later, then the least covered. Coverage counts an item when a session or chat
-started as the persona is linked to it, or a reviewer spawned from the persona (or a reviewer of the matching kind,
-such as the performance prober for a performance engineer) left evidence on it.
+started as the persona is linked to the item. It also counts an item when a reviewer spawned from the persona (or a
+reviewer of the matching kind, such as the performance prober for a performance engineer) left evidence on it.
 
 ## Where the list comes from
 
-A cheap model reads the goal's `GOAL.md` and its board and answers who is needed, when, why, and which items,
-objections, criteria and open questions asked for each. Evidence it names that is not on the board is dropped. It asks
-again when the board changes in a way that matters: an item added or done, an objection raised or fixed, a criterion
-met, a question answered, something failing. A burst of changes is one ask: heed waits until the board has been still
-for two minutes, and asks at most every fifteen. Each ask is one of the goal's model calls for the day, shared with the
-planner and the proposer. `r` asks now.
+A cheap model reads the goal's `GOAL.md` and its board. It answers who is needed, when, why, and which items,
+objections, criteria and open questions asked for each persona. heed drops any evidence the model names that is not on
+the board. heed asks the model again when the board changes in a way that matters: an item added or done, an objection
+raised or fixed, a criterion met, a question answered, something failing. A burst of changes is one ask: heed waits
+until the board has been still for two minutes, and asks at most every fifteen. Each ask is one of the goal's model
+calls for the day, shared with the planner and the proposer. `r` asks now.
 
 ## The persona's file
 
 Each persona is a plain file you can edit, share and reuse: `personas/<name>.md` in the goal's folder
-(`~/Library/Application Support/Heed/goals/<goal>/personas/`). heed writes it once, from the model's draft; after that
-it is yours, and a new derivation never writes over it.
+(`~/Library/Application Support/Heed/goals/<goal>/personas/`). heed writes the file once, from the model's draft. After
+that the file is yours, and a new derivation never writes over it.
 
 ![A persona's file and how to put it to work](../images/shots/goals/persona-file.png)
 
@@ -60,13 +60,13 @@ may not: edit code
 ```
 
 Lists are comma separated; questions end at their `?`. A value may go on over indented lines, or as `- ` lines under
-its key. Anything else in the file is kept as notes and passed on with the rest. `e` edits it in place; `e` again, `⎋`
-or `⌘S` saves it. A file that changes the name moves to the new name's file.
+its key. heed keeps anything else in the file as notes and passes the notes on with the rest. `e` edits the file in
+place; `e` again, `⎋` or `⌘S` saves the file. A file whose name changes moves to the new name's file.
 
 `p` copies (publishes) the persona into the shared library, `~/Library/Application Support/Heed/personas/`, and
-`:persona.use <name>` copies one from the library onto another goal. When the model names a persona the library has,
-the goal gets the library's file instead of a new draft. Only a library persona that is on and in scope for the goal's
-repos is offered or copied: one scoped to another org never is. The library is Settings ›
+`:persona.use <name>` copies a persona from the library onto another goal. When the model names a persona the library
+has, the goal gets the library's file instead of a new draft. heed offers or copies a library persona only when it is on
+and in scope for the goal's repos. A persona scoped to another org is never offered. The library is Settings ›
 [Personas](index.md), where you add personas from your repos and choose what they join.
 
 ## Putting one to work
@@ -77,17 +77,17 @@ repos is offered or copied: one scoped to another org never is. The library is S
 | `c` | A chat, seeded the same way |
 | `N` | A reviewer: read-only, in a worktree of its own, through the same machinery as the other [reviewers](../goals/reviewers.md) |
 
-The agent picker beside the keys chooses the agent for all three; the model picker applies to the reviewer (sessions
-and chats start on the agent's own model). A session or chat started from here goes on the goal before its agent
-starts, so it launches told about the goal (its `GOAL.md` pointer and heed's skills) like any session on one, and it
-counts as the persona's. A reviewer spawned from a persona shows under its name in Reviewers, scores like any other, and is told to
-review as that expert.
+The agent picker beside the keys chooses the agent for all three. The model picker applies to the reviewer; sessions
+and chats start on the agent's own model. A session or chat started from here goes on the goal before its agent starts.
+The agent therefore launches told about the goal (its `GOAL.md` pointer and heed's skills), like any session on a goal.
+heed counts the session or chat as the persona's. A reviewer spawned from a persona shows under the persona's name in
+Reviewers and scores like any other reviewer. heed tells the reviewer to review as that expert.
 
 Everything also takes the mouse: a click picks a persona, and a right-click offers what the keys do.
 
 ## On its own
 
 A **strong gap** (needed now, with evidence that asked for it, and nobody with that view has looked) is spawned as a
-reviewer without being asked, once per persona, while the goal's `reviewer_runs_per_day` lasts. Every other gap, and
-strong ones past the budget, is suggested instead: one Attention item per goal (`persona gap`), and ↩ on it opens the
-goal's personas. `auto_review = false` in `[goals]` turns the spawning off; the suggestions stay.
+reviewer without being asked, once per persona, while the goal's `reviewer_runs_per_day` lasts. heed suggests every
+other gap, and strong gaps past the budget, instead: one Attention item per goal (`persona gap`). ↩ on the item opens
+the goal's personas. `auto_review = false` in `[goals]` turns the spawning off; the suggestions stay.

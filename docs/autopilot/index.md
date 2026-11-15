@@ -8,8 +8,8 @@ Autopilot gets PRs green, merges them by your rules, answers permission asks wit
 
 ![Autopilot: the PRs heed is working on, and what it did this week](../images/shots/landing/green.png)
 
-`gw` opens **Autopilot**: the one place that shows what heed can do on your behalf, where each of those is on and
-where not, what heed is doing about it right now, and what it has done. Four views, each with its key, the same in all
+`gw` opens **Autopilot**. It is the one place that shows what heed can do on your behalf, where each capability is on and
+where not, what heed is doing about it right now, and what heed has done. Autopilot has four views, each with its key, the same in all
 four:
 
 | View | Key | Count on its tab |
@@ -19,11 +19,11 @@ four:
 | **Now** | `N` | PRs heed is working on or stopped on |
 | **Done** | `D` | what heed did this week |
 
-The strip's right side says how much heed took off your hands this week: the same number as Done's tab.
+The strip's right side says how much heed took off your hands this week. It is the same number as Done's tab.
 
 ![Autopilot's tab strip, and what heed did this week](../images/shots/autopilot/tabs.png)
 
-`view.watch` and `:watch`, from when this was the Watch view, open Autopilot too.
+`view.watch` and `:watch`, from when Autopilot was the Watch view, open Autopilot too.
 
 ## In this section
 
@@ -34,8 +34,8 @@ The strip's right side says how much heed took off your hands this week: the sam
 
 ## Can do
 
-A card for each thing heed does on its own once it is on. Each card has its icon, its key when it has one, one
-sentence, a bar for how much of it is on (an ask-first repo counts half), and how often it acted this week.
+A card for each thing heed does on its own once the capability is on. Each card has its icon, its key when it has one, one
+sentence, a bar for how much of the capability is on (an ask-first repo counts half), and how often heed acted this week.
 
 ![Can do: a card per capability, and the picked one's detail](../images/shots/autopilot/can-do.png)
 
@@ -51,43 +51,42 @@ sentence, a bar for how much of it is on (an ask-first repo counts half), and ho
 | **Continue** | types `continue_prompt` into agents resumed mid-turn | everywhere: `[sessions] continue_prompt` (empty: off) |
 | **Names** | names sessions from what they turn out to be about | everywhere: `[sessions] name_sessions` |
 
-`h` `j` `k` `l` move between cards. The picked card's detail says what changes with it (**without** and **with**), how
-it goes step by step, what it **never** does (its real limits: three rounds at most, never typing while you type, never
-removing unpushed work), which repos have it on, and, when heed has a number for it, where it would help: *docs-website:
+`h` `j` `k` `l` move between cards. The picked card's detail says what changes with the capability (**without** and **with**) and how
+it works step by step. It also says what heed **never** does (the real limits: three rounds at most, never typing while you type, never
+removing unpushed work) and which repos have the capability on. When heed has a number for it, the detail says where the capability would help: *docs-website:
 you sent 7 items to its agents by hand this week*.
 
-- `y` turns it on where it would help most: the repo that nudge names, else the first repo where it is off. A global one
+- `y` turns the capability on where it would help most: the repo that the nudge names, else the first repo where it is off. A global capability
   is simply turned on.
-- `Y` turns it on everywhere: the `[pilot]` default, with every org and repo override that says otherwise removed.
-- `x` turns a global one off. `↩` shows what it did (Done, narrowed to it); `S` opens its Settings page.
+- `Y` turns the capability on everywhere. It sets the `[pilot]` default and removes every org and repo override that says otherwise.
+- `x` turns a global capability off. `↩` shows what the capability did (Done, narrowed to it). `S` opens its Settings page.
 
-The keys write config.toml as Settings does (`[repos."acme/docs-website"] green = "auto"`); a capability with no
+The keys write config.toml as Settings does (`[repos."acme/docs-website"] green = "auto"`). A capability with no
 ask-first (Merge, Copilot, Reviewers, Goals) says so instead of writing anything.
 
 ![The Cleanup card's detail](../images/shots/autopilot/can-do-cleanup.png)
 
 ## Where
 
-Every repo against each capability: on (●), asks you first (◐) or off (○), and under it what it did there this week or
-why it cannot work, such as *auto-merge off on GitHub* for a repo set to `merge = "auto"` that does not allow it. The
+Every repo against each capability: on (●), asks you first (◐) or off (○). Under each mark, the cell says what the capability did in that repo this week, or why it cannot work there. An example is *auto-merge off on GitHub* for a repo set to `merge = "auto"` that does not allow auto-merge. The
 last column is the strongest thing heed saw that would help that repo.
 
 ![Where it's on, in a capability's detail: docs-toolkit and editor-rules on, ingest and markgraph asking first, docs-website off](../images/shots/autopilot/can-do-where.png)
 
 ![Where: every repo against each capability, each cell on, ask first or off, and the strongest help heed saw for each repo on the right](../images/shots/autopilot/where.png)
 
-`h` `j` `k` `l` move over the cells; the footer explains the one under the cursor. `y` turns it on, `a` makes it ask
-first, `x` turns it off, `C` shows its card. `↩` opens the repo in [Repos](../worktrees/repos.md), `M` sets up merging
-there. Cleanup, Goals and Summaries are set once for every repo, so their cells show the same value on every row.
+`h` `j` `k` `l` move over the cells, and the footer explains the cell under the cursor. `y` turns the capability on, `a` makes it ask
+first, `x` turns it off, and `C` shows its card. `↩` opens the repo in [Repos](../worktrees/repos.md), and `M` sets up merging
+in that repo. Cleanup, Goals and Summaries are set once for every repo, so their cells show the same value on every row.
 
 ![The footer for markgraph's merge cell](../images/shots/autopilot/where-merge.png)
 
 ## Now
 
 On top, the **helpers at work**: a live tile per [helper](helpers.md), each in its own worktree beside your
-sessions. A tile says what it is (*Getting #2841 green*), its repo, agent and age, what it does now, its plan as pips,
-the files it touched, its last tool calls, and what it asks you (`y` allows it once the helper is open). `h` `l` move
-between the tiles and `↩` opens the one under the cursor in a split in the PRs' place (`⎋` closes it); `j` `k` go back
+sessions. A tile says what the helper is doing (*Getting #2841 green*) and shows its repo, agent and age. It also shows what the helper does now, its plan as pips,
+the files it touched, its last tool calls, and what it asks you (`y` allows the request once the helper is open). `h` `l` move
+between the tiles. `↩` opens the tile under the cursor in a split in the PRs' place, and `⎋` closes the split. `j` `k` go back
 to the PRs.
 
 ![Now: the helpers at work above the PRs](../images/shots/autopilot/now-helpers.png)
@@ -96,7 +95,7 @@ to the PRs.
 
 ![A helper opened from its tile](../images/shots/autopilot/now-helper-open.png)
 
-Under them, what the pilot is doing, by card: **Stalled** first (heed stopped and says why, with the key out: `zr` one more round),
+Under the tiles, Now shows what the pilot is doing, by card. **Stalled** comes first (heed stopped and says why, with the key out: `zr` one more round),
 then **Green** (PRs being fixed, with the rounds used so far), **Merge** (PRs with merging on, with what the next run of
 their queue does), **Copilot** (PRs Copilot was asked about) and **Not watched**. Merged and closed PRs move to Done.
 
@@ -104,21 +103,21 @@ their queue does), **Copilot** (PRs Copilot was asked about) and **Not watched**
 
 ![Now: the PRs by card, the PR under the cursor, and what else is running](../images/shots/autopilot/now.png)
 
-The middle is the PR under the cursor: its green checklist, merge rules, items and timeline, described in
-[Get it green and merged](green-and-merged.md). On the right (`zi` hides it), the merge queues with their next run, what cleanup
+The middle shows the PR under the cursor: its green checklist, merge rules, items and timeline, described in
+[Get it green and merged](green-and-merged.md). The right side (`zi` hides it) shows the merge queues with their next run, what cleanup
 would remove next, summaries in flight, heed's goal asks, and the pilot's activity across PRs.
 
-The [pilot keys](green-and-merged.md#keys) work on the PR under the cursor, `↩` reads it, `A` asks Copilot about it, `R` runs its
-merge queue and `gM` shows it.
+The [pilot keys](green-and-merged.md#keys) work on the PR under the cursor. `↩` reads the PR, `A` asks Copilot about it, `R` runs its
+merge queue and `gM` shows the queue.
 
 ## Done
 
-What heed did on its own, by day, newest first; each day says how many things, how many PRs merged and how many items
+Done lists what heed did on its own, by day, newest first. Each day says how many things heed did, how many PRs it merged and how many items
 an agent's push fixed. Each line is an outcome with its capability's icon, and its repo and PR on the right.
 
 ![Done: what heed did today and yesterday, one line each with its capability icon, and its repo and PR on the right](../images/shots/autopilot/done.png)
 
-`t` narrows it to one capability, `r` to one repo (the rail on the left counts each); `{` `}` move between days; `↩`
+`t` narrows Done to one capability and `r` to one repo (the rail on the left counts each). `{` `}` move between days. `↩`
 opens the line's PR, or its session.
 
 ![Done narrowed to Merge](../images/shots/autopilot/done-merge.png)
@@ -128,8 +127,8 @@ opens the line's PR, or its session.
 Autopilot counts only what heed records:
 
 - **Green, Merge, Copilot, Reviewers**: the pilot's log, the same as Now's activity. What you did yourself (a send with
-  `s` in the PR overlay, a Copilot ask with `C`, `zv`) is marked *by you* there and is not counted as heed's; sends you
-  made by hand are what the Green nudge counts.
+  `s` in the PR overlay, a Copilot ask with `C`, `zv`) is marked *by you* there and is not counted as heed's. The Green nudge counts the sends you
+  made by hand.
 - **Goals**: heed's attach decisions that put something on a goal (Goals › Unassigned keeps them).
 - **Summaries**: the catch-up summaries Attention keeps, by when each was written (ahead of time and on open alike).
 - **Continue**: the line heed adds to a session's timeline when it types `continue_prompt`.

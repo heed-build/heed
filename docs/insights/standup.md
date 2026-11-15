@@ -16,8 +16,7 @@ and so does your personal work; nothing from one ever shows in another's.
 
 ## When reports are written
 
-Off until you turn it on: each report is a cheap [model call](../agents/model-calls.md) per question, for every
-Mindmap that had work since the last report.
+Standup is off until you turn it on. Each report costs one cheap [model call](../agents/model-calls.md) per question, for every Mindmap that had work since the last report.
 
 ```toml
 [standup]
@@ -42,8 +41,7 @@ standup_questions = ["What did I ship?", "What needs review?"]
 personal_questions = ["What did I learn?"]
 ```
 
-When a report is ready, heed posts a notification (outside [quiet hours](../github/attention.md)); Open goes to it.
-A report missed while the Mac slept, or heed was quit, is written once, when heed next looks. `S` writes one now for
+When a report is ready, heed posts a notification (outside [quiet hours](../github/attention.md)); Open goes to the report. When the Mac slept or heed was quit past a report's time, heed writes the missed report once, when heed next looks. `S` writes one now for
 the org shown.
 
 ## Keys

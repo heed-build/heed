@@ -19,16 +19,24 @@ public struct ToolCall: Codable, Hashable, Sendable {
     public var error: Bool
     /// The error's digest (`ErrorDigest`), when it failed and said why.
     public var digest: String?
+    /// A shell command that does something outside this Mac (a push, a GitHub write, a publish), whole: what Audit
+    /// shows. Nil for every other call.
+    public var command: String?
 
-    public init(tool: String, input: String? = nil, error: Bool = false, digest: String? = nil) {
+    public init(
+        tool: String, input: String? = nil, error: Bool = false, digest: String? = nil, command: String? = nil
+    ) {
         self.tool = tool
         self.input = input
         self.error = error
         self.digest = digest
+        self.command = command
     }
 
     /// Longest input kept.
     public static let inputLimit = 80
+    /// Longest outward command kept.
+    public static let commandLimit = 4000
 
     /// `Bash(dotnet test)`.
     public var label: String { input.map { "\(tool)(\($0))" } ?? tool }
@@ -46,9 +54,13 @@ public struct ToolCall: Codable, Hashable, Sendable {
             return trimmed.count > inputLimit ? String(trimmed.prefix(inputLimit - 1)) + "…" : trimmed
         }
         let failure = failure(input)
+        let outward = (args["command"] as? String).flatMap { text -> String? in
+            guard AuditClassifier.shellTools.contains(tool), AuditClassifier.isOutward(text) else { return nil }
+            return String(text.prefix(commandLimit))
+        }
         return ToolCall(
             tool: tool, input: short?.isEmpty == true ? nil : short, error: failure.failed,
-            digest: failure.text.flatMap(ErrorDigest.of)
+            digest: failure.text.flatMap(ErrorDigest.of), command: outward
         )
     }
 

@@ -747,6 +747,20 @@ public enum GitHub {
         try await pr(["comment", "\(ref.number)", "--body", body, "-R", ref.repo.slug], caller: caller)
     }
 
+    /// The repo's latest releases and deployments (read only), for Audit; none when gh cannot say.
+    public static func releases(_ repo: Repo, caller: String) async -> [GitHubRelease] {
+        var found: [GitHubRelease] = []
+        for kind in [GitHubRelease.Kind.release, .deployment] {
+            let path = "repos/\(repo.slug)/\(kind == .release ? "releases" : "deployments")?per_page=10"
+            guard let result = try? await gh(
+                ["api", path], operation: "GET \(kind.rawValue)s", timeout: .seconds(20), caller: caller,
+                items: { GitHubRelease.parse(Data($0.utf8), kind: kind, repo: repo.slug).count }
+            ), result.succeeded else { continue }
+            found += GitHubRelease.parse(Data(result.stdout.utf8), kind: kind, repo: repo.slug)
+        }
+        return found
+    }
+
     /// Whether GitHub has `repo` (read only, `gh repo view`): found as GitHub spells it, missing, or why it could not
     /// be asked.
     public static func lookUpRepo(_ repo: Repo, caller: String) async -> RepoEntry.Lookup {

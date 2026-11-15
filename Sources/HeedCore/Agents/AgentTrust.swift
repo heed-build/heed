@@ -294,6 +294,16 @@ public enum MiseTrust {
         )
     }
 
+    /// Takes back trust in the mise config of the repo at `root` (Audit's revoke).
+    public static func untrust(_ root: String) async throws {
+        _ = try await ProcessRunner.output(
+            "mise",
+            ["-C", root, "trust", "--untrust"],
+            timeout: .seconds(10),
+            caller: "trust.mise"
+        )
+    }
+
     /// A mise config sets environment variables: an `[env]` table (or `env.` keys).
     static func setsEnvironment(_ toml: String) -> Bool {
         toml.split(separator: "\n").contains { line in

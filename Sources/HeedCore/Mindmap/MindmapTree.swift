@@ -214,6 +214,15 @@ public struct MindmapTree: Hashable, Sendable {
         return count
     }
 
+    /// A kept decision taken back (Audit's revoke): sessions are no longer told it. False when it is not there.
+    @discardableResult
+    public mutating func dropDecision(_ text: String, in id: String, now: Date) -> Bool {
+        guard let index = nodes[id]?.decisions.firstIndex(where: { $0.text == text }) else { return false }
+        nodes[id]?.decisions.remove(at: index)
+        nodes[id]?.updatedAt = now
+        return true
+    }
+
     /// `p`: pins a decision so it shows on every node above it; again unpins.
     public mutating func togglePin(_ text: String, in id: String, now: Date) {
         guard let index = nodes[id]?.decisions.firstIndex(where: { $0.text == text }) else { return }

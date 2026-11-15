@@ -1,0 +1,27 @@
+#!/bin/bash
+# A stand-in for gh that answers what heed asks with a quiet account: no notifications, no pull requests. Every call
+# is appended to $DEMO_ROOT/gh-calls.log (so a spike can see which calls heed makes). world.sh points [tools] gh at it.
+# A beat that needs a pull request answers from $DEMO_ROOT/gh/<operation>.json when that file exists.
+root="${DEMO_ROOT:-/tmp/heed-demo}"
+mkdir -p "$root/gh"
+printf '%s\n' "$*" | cut -c1-240 >>"$root/gh-calls.log"
+case "$*" in
+  *"--version"*) echo "gh version 2.99.0 (demo)"; exit 0 ;;
+  "auth status"*|"auth token"*) echo "demo-token"; exit 0 ;;
+  *"api user --jq"*) echo "demo-user"; exit 0 ;;
+  *"user/orgs"*) echo "acme"; exit 0 ;;
+  *"api user/teams"*|*"api notifications"*) echo "[]"; exit 0 ;;
+  *graphql*)
+    case "$*" in
+      *"on PullRequest"*) op=pulls ;;
+      *"on Issue"*) op=issues ;;
+      *) op=other ;;
+    esac
+    # graphql-pulls.json: {"data":{"search":{"issueCount":1,"nodes":[{number,title,url,isDraft,state,headRefName,updatedAt,
+    # repository{nameWithOwner},reviewDecision,reviewThreads,commits}]}}}: the shape of GitHub.pullSearchQuery.
+    if [ -f "$root/gh/graphql-$op.json" ]; then cat "$root/gh/graphql-$op.json"; exit 0; fi
+    echo '{"data":{"rateLimit":{"cost":1,"remaining":4999},"search":{"issueCount":0,"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}'
+    exit 0 ;;
+esac
+echo "gh (demo): not scripted: $*" >&2
+exit 1

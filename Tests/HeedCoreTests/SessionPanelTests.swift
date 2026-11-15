@@ -281,6 +281,178 @@ struct SessionLookTests {
         #expect(happy.message == nil)
     }
 
+    // MARK: The full reasoning
+
+    static let detailed = """
+    {"verdicts": [
+      {"persona": "your-team-s-style", "verdict": "concern", "headline": "Name the test after the behaviour.",
+       "reasoning": "tests/RedirectBug2841Tests.cs:14 is named after a ticket.\\n\\nEvery other class describes what it checks.",
+       "change": "Rename it to AnchorLookupTests.", "fix": "rename the test class"},
+      {"persona": "Docs-site maintainer", "verdict": "happy", "headline": "Server rules only.",
+       "reason": ["One hop each.", "No script."], "would_change_my_mind": "A chain of redirects.", "fix": null},
+      {"persona": "skeptic", "verdict": "ok", "quote": "Scope stayed small.", "reasoning": "null", "change": "none"}
+    ]}
+    """
+
+    @Test func theParserReadsHeadlineReasoningAndWhatWouldChangeItsMind() {
+        let verdicts = PanelVerdict.parse(Self.detailed, seats: Self.seats)
+        #expect(verdicts.count == 3)
+        let style = verdicts[0]
+        #expect(style.quote == "Name the test after the behaviour.")
+        #expect(style
+            .reasoning ==
+            "tests/RedirectBug2841Tests.cs:14 is named after a ticket.\n\nEvery other class describes what it checks.")
+        #expect(style.change == "Rename it to AnchorLookupTests.")
+        #expect(style.fix == "rename the test class")
+        #expect(style.hasDetail)
+        // Other names for the same fields, a list read as its items, and a list is joined.
+        #expect(verdicts[1].reasoning == "One hop each. No script.")
+        #expect(verdicts[1].change == "A chain of redirects.")
+        // An old one-line verdict (quote only), and the words null and none, carry no detail.
+        #expect(verdicts[2].quote == "Scope stayed small.")
+        #expect(verdicts[2].reasoning == nil && verdicts[2].change == nil && !verdicts[2].hasDetail)
+    }
+
+    @Test func aVerdictWithoutAHeadlineLeadsWithTheReasoningsFirstSentence() {
+        let text = #"{"verdicts": [{"persona": "skeptic", "verdict": "concern", "reasoning": "Scope grew. It touches the theme too."}]}"#
+        let verdict = PanelVerdict.parse(text, seats: Self.seats).first
+        #expect(verdict?.quote == "Scope grew.")
+        #expect(verdict?.reasoning == "Scope grew. It touches the theme too.")
+    }
+
+    @Test func anOldLookStillDecodesAndReads() throws {
+        // A look saved before reasoning and tiers existed: no such keys at all.
+        let old = """
+        {"milestone": {"kind": "built", "key": "k", "at": 0}, "seats": [], "at": 0, "seconds": 5, "sent": false,
+         "verdicts": [{"seat": "skeptic", "kind": "concern", "quote": "Too big.", "fix": "split it"}]}
+        """
+        let look = try JSONDecoder().decode(SessionLook.self, from: Data(old.utf8))
+        #expect(look.verdicts[0].reasoning == nil && look.tier == nil)
+        #expect(look.topLine?.hasSuffix("split it") == true)
+        #expect(look.message?.contains("(concern): Too big.") == true)
+        let round = try JSONDecoder().decode(SessionLook.self, from: JSONEncoder().encode(Self.look(detailed: true)))
+        #expect(round == Self.look(detailed: true))
+    }
+
+    static func look(detailed: Bool) -> SessionLook {
+        SessionLook(
+            milestone: SessionMilestone(kind: .built, key: "k", at: start), seats: seats,
+            verdicts: PanelVerdict.parse(detailed ? Self.detailed : answer, seats: seats), at: start,
+            model: "sonnet", seconds: 9, dollars: 0.011, tier: .standard
+        )
+    }
+
+    @Test func sendingCarriesTheFullReasoningOfOneOrOfAll() {
+        let look = Self.look(detailed: true)
+        let one = look.message(seat: "your-team-s-style")
+        #expect(one?.hasPrefix("From heed, one persona on the panel looked at your work (a lot got built):") == true)
+        #expect(one?.contains("Your team's style (concern): Name the test after the behaviour.") == true)
+        #expect(one?.contains("  tests/RedirectBug2841Tests.cs:14 is named after a ticket.") == true)
+        #expect(one?.contains("What would change their mind: Rename it to AnchorLookupTests.") == true)
+        #expect(one?.contains("Suggested: rename the test class.") == true)
+        #expect(one?.contains("Docs-site") == false)
+        // A happy persona's, when asked for by name.
+        #expect(look.message(seat: "docs-site-maintainer")?.contains("One hop each. No script.") == true)
+        // The default is the worried ones; everyone adds the happy.
+        #expect(look.message?.contains("Docs-site") == false && look.message?.contains("Your team") == true)
+        let all = look.message(everyone: true)
+        #expect(all?.contains("Docs-site maintainer (happy)") == true && all?.contains("One hop each.") == true)
+        #expect(all?.contains("Skeptic (happy)") == true)
+        #expect(look.message(seat: "nobody") == nil)
+    }
+
+    @Test func theLookPromptAsksForTheFullReasoning() {
+        let system = SessionLookPrompt.system
+        for word in ["headline", "reasoning", "change", "fix", "naming the files and lines"] {
+            #expect(system.contains(word), "\(word)")
+        }
+    }
+
+    // MARK: The model tier
+
+    private actor Seen {
+        var requests: [LLMRequest] = []
+        var reads: [(system: String, repos: [String])] = []
+        func add(_ request: LLMRequest) { requests.append(request) }
+        func add(system: String, repos: [String]) { reads.append((system, repos)) }
+    }
+
+    private static func calls(_ seen: Seen, reads: Bool = true) -> SessionLookCalls {
+        let run: SessionLookCalls.Run = { request in
+            await seen.add(request)
+            return LLMResponse(text: detailed, agent: "claude", model: "sonnet", cost: 0.01, duration: 4)
+        }
+        guard reads else { return SessionLookCalls(run: run) }
+        let read: SessionLookCalls.Read = { system, _, repos in
+            await seen.add(system: system, repos: repos)
+            return PlanTalker.Answer(text: detailed, model: "opus", dollars: 0.09)
+        }
+        return SessionLookCalls(run: run, read: read)
+    }
+
+    private func look(_ calls: SessionLookCalls, tier: LLMTier, repos: [String] = ["/w/docs-toolkit"]) async throws
+        -> SessionLook
+    {
+        try await calls.look(
+            milestone: SessionMilestone(kind: .asked, key: "k", at: start), task: "t", lastTurn: nil, diff: "d",
+            stat: nil, seats: Self.seats, now: start, tier: tier, repos: repos
+        )
+    }
+
+    @Test(arguments: [LLMTier.cheap, .standard])
+    func aCheapOrStandardLookIsAModelCallWithToolsOff(tier: LLMTier) async throws {
+        let seen = Seen()
+        let look = try await look(Self.calls(seen), tier: tier)
+        let requests = await seen.requests
+        #expect(requests.map(\.tier) == [tier] && requests.first?.caller == "sessions.panel")
+        #expect(await seen.reads.isEmpty)
+        #expect(look.tier == tier && look.model == "sonnet" && look.dollars == 0.01)
+    }
+
+    @Test func aStrongLookRunsHeadlessAndReadOnlyInTheWorktree() async throws {
+        let seen = Seen()
+        let look = try await look(Self.calls(seen), tier: .strong)
+        #expect(await seen.requests.isEmpty)
+        let reads = await seen.reads
+        #expect(reads.count == 1 && reads[0].repos == ["/w/docs-toolkit"])
+        #expect(reads[0].system.contains("You may read and search the files in your working directory"))
+        #expect(look.tier == .strong && look.model == "opus" && look.dollars == 0.09)
+        #expect(look.verdicts.first?.reasoning != nil)
+    }
+
+    @Test func aStrongLookThatCannotReadFallsBackToStandard() async throws {
+        // No worktree (a remote session), or no agent that can run headless: a standard call, and the look says so.
+        for (reads, repos) in [(true, [String]()), (false, ["/w/x"])] {
+            let seen = Seen()
+            let look = try await look(Self.calls(seen, reads: reads), tier: .strong, repos: repos)
+            #expect(await seen.requests.map(\.tier) == [.standard])
+            #expect(look.tier == .standard)
+        }
+        // The same when the run answers that it cannot.
+        let seen = Seen()
+        let calls = SessionLookCalls(
+            run: { request in
+                await seen.add(request)
+                return LLMResponse(text: Self.detailed, agent: "claude", model: "sonnet", duration: 1)
+            },
+            read: { _, _, _ in nil }
+        )
+        #expect(try await look(calls, tier: .strong).tier == .standard)
+    }
+
+    @Test func aChatReplyRunsAtTheSameTier() async throws {
+        let look = Self.look(detailed: true)
+        let chat = PersonaChat(seat: Self.seats[0])
+        let seen = Seen()
+        _ = try await Self.calls(seen).reply(chat, look: look, task: "t", tier: .standard, repos: ["/w"])
+        #expect(await seen.requests.map(\.tier) == [.standard])
+        #expect(await seen.requests.first?.call.prompt
+            .contains("Your reasoning: tests/RedirectBug2841Tests.cs:14") == true)
+        #expect(await seen.requests.first?.call.prompt.contains("What would change your mind: Rename it") == true)
+        _ = try await Self.calls(seen).reply(chat, look: look, task: "t", tier: .strong, repos: ["/w"])
+        #expect(await seen.reads.count == 1)
+    }
+
     @Test func anUnreadableAnswerIsAnError() async {
         let calls = SessionLookCalls { _ in LLMResponse(text: "I think it looks fine", agent: "claude") }
         await #expect(throws: LLMError.self) {
@@ -417,6 +589,22 @@ struct SessionPanelConfigTests {
         #expect(config.personas.offers == .look)
         #expect(config.personas.holdSeconds == 60)
         #expect(config.personas.builtLines == 300)
+    }
+
+    @Test func theLookModelDefaultsToStandardAndReads() throws {
+        #expect(SessionPanelSettings().lookModel == .standard)
+        #expect(HeedConfig.default.personas.lookModel == .standard)
+        for tier in LLMTier.allCases {
+            let decoded = ConfigLoader.decode("[personas]\nlook_model = \"\(tier.rawValue)\"\n")
+            #expect(decoded.problems.isEmpty)
+            #expect(decoded.config?.personas.lookModel == tier)
+        }
+        let wrong = ConfigLoader.decode("[personas]\nlook_model = \"huge\"\n")
+        #expect(wrong.config?.personas.lookModel ?? .standard == .standard)
+        #expect(wrong.problems.map(\.path) == ["personas.look_model"])
+        // It is in the Settings catalog, with its help, on the page it belongs to.
+        let entry = try #require(SettingsCatalog.entries.first { $0.id == "personas.look_model" })
+        #expect(entry.page == .personas && entry.section == "In sessions" && entry.detail.contains("strong"))
     }
 
     @Test func aWrongOffersIsAProblem() {

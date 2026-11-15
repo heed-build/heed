@@ -3247,7 +3247,8 @@ final class AppModel {
              "personas.next", "personas.save", "personas.close":
             _ = performPersonas(command)
         case "panel.ask", "panel.notnow", "panel.never", "panel.send", "panel.talk", "panel.say", "panel.dismiss",
-             "panel.close", "panel.row", "panel.pr", "personas.sessions", "personas.signal", "personas.signal.toggle":
+             "panel.close", "panel.row", "panel.pr", "panel.open", "personas.sessions", "personas.signal",
+             "personas.signal.toggle":
             _ = performSessionPanel(command)
         default:
             flash = "\(command.name): not built yet"

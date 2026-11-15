@@ -323,15 +323,29 @@ public struct PanelVerdict: Hashable, Sendable, Codable {
     public var quote: String
     /// What it would change, short ("go smaller: link checker only"); nil when it would change nothing.
     public var fix: String?
+    /// The session panel's fuller read: why it says so, in a few sentences naming files and lines. nil for a one-line
+    /// verdict (the goal panel's, or a look made before heed asked for more); `quote` is then all there is.
+    public var reasoning: String?
+    /// What would change its mind.
+    public var change: String?
 
-    public init(seat: String, kind: Kind, quote: String, fix: String? = nil) {
+    public init(
+        seat: String, kind: Kind, quote: String, fix: String? = nil, reasoning: String? = nil, change: String? = nil
+    ) {
         self.seat = seat
         self.kind = kind
         self.quote = quote
         self.fix = fix
+        self.reasoning = reasoning
+        self.change = change
     }
 
+    /// There is more to read than the one line.
+    public var hasDetail: Bool { reasoning != nil || change != nil }
+
     /// The panel's answer: `{"verdicts": [{"persona": "skeptic", "verdict": "not", "quote": "...", "fix": "..."}]}`.
+    /// The session panel asks for more per persona: `headline` (the one line, read as the quote too), `reasoning` and
+    /// `change` (what would change its mind). Every one is read under its likely names, a list as its items joined.
     /// Personas are matched by id or name; one not on the panel, or a verdict heed cannot read, is left out.
     public static func parse(_ text: String, seats: [PanelSeat]) -> [PanelVerdict] {
         guard let data = LLMDialect.jsonObject(in: text),
@@ -347,13 +361,45 @@ public struct PanelVerdict: Hashable, Sendable, Codable {
                 !result.contains(where: { $0.seat == seat.id }),
                 let kind = Kind(word: (row["verdict"] ?? row["kind"]) as? String ?? "")
             else { continue }
-            let quote = GoalDoc.oneLine(row["quote"] as? String ?? "")
+            let quote = GoalDoc.oneLine(Self.field(row, ["headline", "quote", "summary"]) ?? "")
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\"“”"))
-            let fix = (row["fix"] as? String).map(GoalDoc.oneLine).flatMap { $0.isEmpty || $0 == "null" ? nil : $0 }
-            result.append(PanelVerdict(seat: seat.id, kind: kind, quote: quote, fix: fix))
+            let fix = Self.field(row, ["fix"]).map(GoalDoc.oneLine).flatMap { $0.isEmpty || $0 == "null" ? nil : $0 }
+            let reasoning = Self.field(row, ["reasoning", "reason", "why", "details", "detail", "explanation"])
+            let change = Self.field(row, [
+                "change", "change_my_mind", "changeMyMind", "would_change_my_mind", "wouldChangeMyMind", "mind",
+                "would_change", "wouldChange",
+            ])
+            let detail = reasoning.flatMap(Self.prose)
+            result.append(PanelVerdict(
+                seat: seat.id, kind: kind, quote: quote.isEmpty ? detail.map(Self.firstSentence) ?? "" : quote,
+                fix: fix, reasoning: detail, change: change.flatMap(Self.prose)
+            ))
         }
         // In the panel's order.
         return seats.compactMap { seat in result.first { $0.seat == seat.id } }
+    }
+
+    /// The first of `names` the row has as text: a string, or a list of strings joined by spaces.
+    private static func field(_ row: [String: Any], _ names: [String]) -> String? {
+        for name in names {
+            if let text = row[name] as? String { return text }
+            if let list = row[name] as? [String] { return list.joined(separator: " ") }
+        }
+        return nil
+    }
+
+    /// The text up to its first full stop, for a verdict that gave no headline.
+    static func firstSentence(_ text: String) -> String {
+        let line = GoalDoc.oneLine(text)
+        guard let end = line.range(of: ". ")?.lowerBound else { return line }
+        return String(line[..<end]) + "."
+    }
+
+    /// Prose to keep: whitespace tidied (paragraphs kept), nil when empty or the word "null".
+    static func prose(_ text: String) -> String? {
+        let paragraphs = text.components(separatedBy: "\n\n").map(GoalDoc.oneLine).filter { !$0.isEmpty }
+        let joined = paragraphs.joined(separator: "\n\n")
+        return joined.isEmpty || joined.lowercased() == "null" || joined.lowercased() == "none" ? nil : joined
     }
 }
 

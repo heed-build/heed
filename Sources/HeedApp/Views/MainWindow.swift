@@ -554,9 +554,12 @@ struct StatusBar: View {
         case .normal where model.panelPopoverScope == "sessionspanelpr":
             "\(key("panel.pr open", in: "sessionspanelpr")) let it open · "
                 + "\(key("panel.pr concern", in: "sessionspanelpr")) send the concern first · "
-                + "\(key("panel.pr hold", in: "sessionspanelpr")) hold the PR"
+                + "\(key("panel.pr hold", in: "sessionspanelpr")) hold the PR · "
+                + "\(key("panel.open", in: "sessionspanelpr")) read it"
         case .normal where model.panelPopoverScope == "sessionspanel":
-            "\(key("panel.send", in: "sessionspanel")) send to \(model.currentSession?.agent ?? "the agent") · "
+            "\(key("panel.open", in: "sessionspanel")) read it · "
+                + "\(key("panel.send", in: "sessionspanel")) send this one to \(model.currentSession?.agent ?? "the agent") · "
+                + "\(key("panel.send all", in: "sessionspanel")) send all · "
                 + "\(key("panel.talk", in: "sessionspanel")) talk to one · "
                 + "\(key("panel.dismiss", in: "sessionspanel")) dismiss"
         case .normal where model.panelOfferScope != nil && model.helperScope == nil:

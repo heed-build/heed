@@ -150,6 +150,7 @@ struct Sidebar: View {
                                         hidesRepo: list.view.grouping == .repo && session.involvedRepos.count == 1,
                                         kind: model.kind(of: session)
                                     )
+                                    .axID("session-row-\(index + 1)")
                                     .contentShape(Rectangle())
                                     .onTapGesture { model.clickSession(session.id) }
                                     .simultaneousGesture(TapGesture(count: 2).onEnded {

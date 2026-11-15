@@ -89,6 +89,7 @@ struct PaneBar<Trailing: View>: View {
                     title: tab.title, active: active == tab.id, count: tab.count > 0 ? "\(tab.count)" : nil,
                     key: keys && tab.showsKey ? model.keyText(for: tab.command, in: scope) : nil
                 )
+                .axID("pane-tab-\(tab.id)")
                 .onTapGesture { select(tab) }
                 .help(Commands.spec(tab.command)?.summary ?? tab.title)
             }

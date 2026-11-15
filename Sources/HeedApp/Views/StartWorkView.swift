@@ -29,6 +29,7 @@ struct StartWorkView: View {
                         dialog(form, promptCap: max(96, min(320, geometry.size.height * 0.35)))
                             .frame(width: min(780, max(geometry.size.width - 48, 360)))
                             .shotRegion(.dialog)
+                            .axID("start-work")
                             .padding(.vertical, 24)
                             .frame(maxWidth: .infinity, minHeight: geometry.size.height)
                             .contentShape(Rectangle())
@@ -207,6 +208,7 @@ struct StartWorkView: View {
                         focused: form.field == .repo && form.repoCursor == index,
                         org: guess.repo.repo
                     )
+                    .axID("start-work-repo-\(index + 1)")
                     .onTapGesture { model.clickStartWork { $0.pickRepo(at: index) } }
                 }
                 // Typed repos that are not on this Mac yet: cloned when the work starts; a click drops one.
@@ -292,6 +294,7 @@ struct StartWorkView: View {
         .frame(maxWidth: 460, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 6).fill(Theme.pane))
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.fg2))
+        .axID("start-work-prompt")
     }
 
     private func worktreeField(_ form: StartWorkForm) -> some View {
@@ -390,6 +393,7 @@ struct StartWorkView: View {
                     agent?.name ?? "none, shell only", selected: index == form.agentIndex,
                     focused: form.field == .agent && index == form.agentIndex
                 )
+                .axID("start-work-agent-\(index + 1)")
                 .onTapGesture { model.clickStartWork { $0.pickAgent(at: index) } }
             }
         }
@@ -565,6 +569,7 @@ struct StartWorkView: View {
             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.inverse))
             .contentShape(Rectangle())
             .onTapGesture { model.startWorkClicked() }
+            .axID("start-work-start")
             .opacity(model.startingWork ? 0.5 : 1)
             .disabled(model.startingWork)
         }

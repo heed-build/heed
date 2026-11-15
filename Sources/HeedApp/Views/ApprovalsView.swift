@@ -19,6 +19,7 @@ struct ApprovalsView: View {
                     VStack(spacing: 0) {
                         ForEach(Array(visible(groups, selected: selected)), id: \.element.id) { index, group in
                             ApprovalRow(group: group, selected: group.id == selected?.id)
+                                .axID("approval-row-\(index + 1)")
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     model.approvals.cursor = index
@@ -31,7 +32,7 @@ struct ApprovalsView: View {
                     .clipped()
                     .background(Theme.bg2)
                     Theme.line.frame(width: 1)
-                    if let selected { ApprovalDetail(group: selected) } else { Spacer() }
+                    if let selected { ApprovalDetail(group: selected).axID("approval-detail") } else { Spacer() }
                 }
                 .frame(height: 360)
                 Theme.line.frame(height: 1)
@@ -43,6 +44,7 @@ struct ApprovalsView: View {
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
             .shadow(color: .black.opacity(0.5), radius: 30)
             .shotRegion(.dialog)
+            .axID("approvals")
         }
     }
 
@@ -194,6 +196,7 @@ private struct ApprovalButton: View {
         .padding(.vertical, 7)
         .background(RoundedRectangle(cornerRadius: 6).fill(primary ? Theme.inverse : Color.clear))
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(primary ? Color.clear : Theme.line))
+        .axID("approval-button-\(command.split(separator: ".").dropFirst().joined(separator: "-"))")
     }
 }
 
@@ -241,6 +244,7 @@ struct ApprovalPill: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
         .background(Capsule().fill(Theme.block))
+        .axID("approvals-pill")
         .help("Agents waiting for your OK: \(model.keyText(for: "approvals.open")) answers them in one place")
     }
 }

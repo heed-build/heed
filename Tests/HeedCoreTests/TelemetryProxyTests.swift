@@ -93,11 +93,46 @@ struct TelemetryProxyTests {
         #expect(TelemetryExport.forwardRoute(path: "/forward/codex/v1/spans") == nil)
     }
 
-    @Test func theShellProbeNeverReadsHeaders() {
-        #expect(TelemetryExport.shellProbe.contains("grep -v '_HEADERS='"))
+    @Test func theShellProbeReadsHeaderNamesNeverTheirValues() throws {
         let env = TelemetryExport
-            .environment(fromProbe: "OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer x\nOTEL_A=1\n")
-        #expect(env == ["OTEL_A": "1"])
+            .environment(fromProbe: "OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer x,api-key=y==\nOTEL_A=1\n")
+        #expect(env == ["OTEL_A": "1", "OTEL_EXPORTER_OTLP_HEADERS": "api-key,authorization"])
+
+        // The probe itself, in a shell with headers set: names come back, values do not.
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", TelemetryExport.shellProbe]
+        process.environment = [
+            "PATH": "/usr/bin:/bin", "OTEL_LOGS_EXPORTER": "otlp",
+            "OTEL_EXPORTER_OTLP_HEADERS": "Authorization=Basic dXNlcjpw==,api-key=secret-one",
+            "OTEL_EXPORTER_OTLP_LOGS_HEADERS": "x-team=secret-two",
+        ]
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try process.run()
+        process.waitUntilExit()
+        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        #expect(!output.contains("secret") && !output.contains("dXNlcjpw"))
+        let read = TelemetryExport.environment(fromProbe: output)
+        #expect(read["OTEL_EXPORTER_OTLP_HEADERS"] == "api-key,authorization")
+        #expect(read["OTEL_EXPORTER_OTLP_LOGS_HEADERS"] == "x-team")
+        #expect(read["OTEL_LOGS_EXPORTER"] == "otlp")
+    }
+
+    @Test func aForwardKnowsTheHeadersYourSetupSends() {
+        let claude = Self.decide(shell: [
+            "CLAUDE_CODE_ENABLE_TELEMETRY": "1", "OTEL_METRICS_EXPORTER": "otlp", "OTEL_LOGS_EXPORTER": "otlp",
+            "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otel.example.com", "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+            "OTEL_EXPORTER_OTLP_HEADERS": "Authorization,api-key", "OTEL_EXPORTER_OTLP_LOGS_HEADERS": "x-team",
+        ], claude: #"{"env":{"OTEL_EXPORTER_OTLP_METRICS_HEADERS":"x-org=acme"}}"#)
+        #expect(claude.forwardHeaders["claude"]?[.logs] == ["authorization", "api-key", "x-team"])
+        #expect(claude.forwardHeaders["claude"]?[.metrics] == ["authorization", "api-key", "x-org"])
+        let codex = Self.decide(codex: """
+        [otel]
+        exporter = { otlp-http = { endpoint = "https://otel.example.com/v1/logs", protocol = "binary", headers = { "X-Api-Key" = "secret" } } }
+        """)
+        #expect(codex.forwardHeaders["codex"]?[.logs] == ["x-api-key"])
+        #expect(TelemetryExport.headerNames(" a = 1 ,B=2=3,,") == ["a", "b"])
     }
 
     // MARK: Passing it on
@@ -145,10 +180,13 @@ struct TelemetryProxyTests {
             headers: [
                 "content-type": "application/x-protobuf", "content-encoding": "gzip", "authorization": "Bearer secret",
                 "host": "127.0.0.1:4999", "content-length": "\(body.count)", "connection": "keep-alive",
+                "cookie": "a=b", "x-other": "1", "user-agent": "agent/1",
             ],
             body: body
         )
-        forwarder.enqueue(.from(request, to: URL(string: "https://otel.example.com/v1/traces")!))
+        forwarder.enqueue(.from(
+            request, to: URL(string: "https://otel.example.com/v1/traces")!, keeping: ["authorization", "host"]
+        ))
         await forwarder.flushed()
         let seen = try #require(upstream.seen.withLock { $0.first })
         #expect(seen.url?.absoluteString == "https://otel.example.com/v1/traces")
@@ -158,7 +196,13 @@ struct TelemetryProxyTests {
         #expect(seen.value(forHTTPHeaderField: "Content-Type") == "application/x-protobuf")
         #expect(seen.value(forHTTPHeaderField: "Content-Encoding") == "gzip")
         #expect(seen.value(forHTTPHeaderField: "Connection") == nil)
+        // Only the body's headers and the ones your setup names go on: never a connection's, even when named.
         #expect(seen.value(forHTTPHeaderField: "Host") == nil)
+        #expect(seen.value(forHTTPHeaderField: "Cookie") == nil)
+        #expect(seen.value(forHTTPHeaderField: "X-Other") == nil)
+        #expect(seen.value(forHTTPHeaderField: "User-Agent") == nil)
+        let unnamed = ForwardedRequest.from(request, to: URL(string: "https://otel.example.com/v1/traces")!)
+        #expect(Set(unnamed.headers.keys) == ["content-type", "content-encoding"])
         let stats = forwarder.stats()["otel.example.com"]
         #expect(stats?.forwarded == 1)
         #expect(stats?.pending == 0)
@@ -204,11 +248,15 @@ struct TelemetryProxyTests {
         let server = TelemetryServer(port: port, forwarder: TelemetryForwarder(send: upstream.send))
         try server.start()
         defer { server.stop() }
-        server.setRoutes(["claude": [.logs: URL(string: "https://otel.example.com/v1/logs")!]])
+        server.setRoutes(
+            ["claude": [.logs: URL(string: "https://otel.example.com/v1/logs")!]],
+            headers: ["claude": [.logs: ["authorization"]]]
+        )
         var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/forward/claude/v1/logs")!)
         request.httpMethod = "POST"
         request.setValue("application/x-protobuf", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer secret", forHTTPHeaderField: "Authorization")
+        request.setValue("1", forHTTPHeaderField: "X-Other")
         let body = try TelemetryTests.payload("claude-logs", "pb")
         request.httpBody = body
         let (_, response) = try await URLSession.shared.data(for: request)
@@ -220,6 +268,7 @@ struct TelemetryProxyTests {
         let seen = try #require(upstream.seen.withLock { $0.first })
         #expect(seen.httpBody == body)
         #expect(seen.value(forHTTPHeaderField: "Authorization") == "Bearer secret")
+        #expect(seen.value(forHTTPHeaderField: "X-Other") == nil)
     }
 
     // MARK: Reading protobuf

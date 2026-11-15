@@ -126,10 +126,42 @@ public enum OTLPHTTP {
         }
     }
 
+    /// The OTLP/HTTP content type a request says it carries: `application/json` or `application/x-protobuf`, with at
+    /// most a `charset` parameter. Nil for anything else, a missing header included.
+    public enum Body: Equatable, Sendable {
+        case json, protobuf
+
+        public init?(contentType: String?) {
+            guard let contentType else { return nil }
+            let parts = contentType.lowercased().split(separator: ";", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            guard parts.dropFirst().allSatisfy({ $0.hasPrefix("charset=") && $0.count > "charset=".count })
+            else { return nil }
+            switch parts.first {
+            case "application/json": self = .json
+            case "application/x-protobuf": self = .protobuf
+            default: return nil
+            }
+        }
+    }
+
+    /// Whether `request` comes from a program on this Mac talking to heed's own address: no `Origin` (only a browser
+    /// page sends one), and a `Host` that is `127.0.0.1` or `localhost` on `port`.
+    public static func fromLocalProgram(_ request: HTTPRequest, port: Int) -> Bool {
+        guard request.headers["origin"] == nil, let host = request.headers["host"]?.lowercased() else { return false }
+        return host == "127.0.0.1:\(port)" || host == "localhost:\(port)"
+    }
+
     /// The reply to `request`: OTLP/HTTP, JSON or protobuf, gzip or not, posted to `/v1/<signal>` or to a forward
     /// path (`/forward/<agent>/v1/<signal>`), is read and answered with an empty success. A forward path's request
-    /// is passed on as it is, whether heed could read it or not; `routes` says where.
-    public static func handle(_ request: HTTPRequest, routes: [String: [OTLPSignal: URL]] = [:]) -> Reply {
+    /// is passed on as it is, whether heed could read it or not; `routes` says where. With `port`, only a program on
+    /// this Mac addressing heed on that port is answered (`fromLocalProgram`); anything else is refused.
+    public static func handle(
+        _ request: HTTPRequest, routes: [String: [OTLPSignal: URL]] = [:], port: Int? = nil
+    ) -> Reply {
+        if let port, !fromLocalProgram(request, port: port) {
+            return Reply(status: 403, body: #"{"message":"heed takes exports from programs on this Mac only"}"#)
+        }
         if request.method == "GET" { return Reply(status: 200, body: #"{"heed":"otlp"}"#) }
         guard request.method == "POST" else { return Reply(status: 405, body: #"{"message":"POST only"}"#) }
         let route = TelemetryExport.forwardRoute(path: request.path)
@@ -138,16 +170,14 @@ public enum OTLPHTTP {
             return Reply(status: 404, body: #"{"message":"heed forwards nothing for this agent now"}"#)
         }
         let signal = route?.signal ?? OTLPSignal(path: request.path)
-        let type = (request.headers["content-type"] ?? "application/json").lowercased()
-        let protobuf = type.contains("protobuf")
+        guard let type = Body(contentType: request.headers["content-type"]) else {
+            return Reply(status: 415, body: #"{"message":"heed takes OTLP/HTTP, JSON or protobuf"}"#)
+        }
+        let protobuf = type == .protobuf
         var reply = Reply(
             status: 200, body: protobuf ? "" : "{}",
             contentType: protobuf ? "application/x-protobuf" : "application/json", forward: forward
         )
-        guard protobuf || type.contains("json") else {
-            if forward != nil { return reply }
-            return Reply(status: 415, body: #"{"message":"heed takes OTLP/HTTP, JSON or protobuf"}"#)
-        }
         var body = request.body
         if request.headers["content-encoding"]?.lowercased() == "gzip" {
             guard let inflated = Gzip.inflate(body) else {
@@ -176,6 +206,7 @@ public enum OTLPHTTP {
         let reason = switch reply.status {
         case 200: "OK"
         case 400: "Bad Request"
+        case 403: "Forbidden"
         case 404: "Not Found"
         case 405: "Method Not Allowed"
         case 413: "Payload Too Large"
@@ -223,6 +254,8 @@ public final class TelemetryServer: @unchecked Sendable {
     /// Every request as it arrived, before it is read (tests).
     var tap: (@Sendable (HTTPRequest) -> Void)?
     private var routes: [String: [OTLPSignal: URL]] = [:]
+    /// The headers of your setup a forward passes on, by agent and signal (names only).
+    private var forwardHeaders: [String: [OTLPSignal: Set<String>]] = [:]
 
     private let continuation: AsyncStream<TelemetryRecords>.Continuation
     private let queue = DispatchQueue(label: "heed.telemetry")
@@ -273,16 +306,23 @@ public final class TelemetryServer: @unchecked Sendable {
         }
     }
 
-    /// Where each agent's forwarded signals go, from now on.
-    public func setRoutes(_ routes: [String: [OTLPSignal: URL]]) {
-        queue.sync { self.routes = routes }
+    /// Where each agent's forwarded signals go, from now on, and which of the request's headers go with them (the
+    /// ones your setup sets; see `ForwardedRequest.from`).
+    public func setRoutes(_ routes: [String: [OTLPSignal: URL]], headers: [String: [OTLPSignal: Set<String>]] = [:]) {
+        queue.sync {
+            self.routes = routes
+            forwardHeaders = headers
+        }
     }
 
     /// Adds forwards, keeping the ones there were (panes started with them still send to them).
-    public func addRoutes(_ routes: [String: [OTLPSignal: URL]]) {
+    public func addRoutes(_ routes: [String: [OTLPSignal: URL]], headers: [String: [OTLPSignal: Set<String>]] = [:]) {
         queue.sync {
             for (agent, signals) in routes {
                 self.routes[agent, default: [:]].merge(signals) { _, new in new }
+            }
+            for (agent, signals) in headers {
+                forwardHeaders[agent, default: [:]].merge(signals) { old, new in old.union(new) }
             }
         }
     }
@@ -334,9 +374,13 @@ public final class TelemetryServer: @unchecked Sendable {
             clients[fd]?.1 = reader
             for request in requests {
                 tap?(request)
-                let reply = OTLPHTTP.handle(request, routes: routes)
+                let reply = OTLPHTTP.handle(request, routes: routes, port: port)
                 // Passed on first: your collector's copy never waits on heed's reading of it.
-                if let upstream = reply.forward { forwarder.enqueue(.from(request, to: upstream)) }
+                if let upstream = reply.forward {
+                    let route = TelemetryExport.forwardRoute(path: request.path)
+                    let names = route.flatMap { forwardHeaders[$0.agent]?[$0.signal] } ?? []
+                    forwarder.enqueue(.from(request, to: upstream, keeping: names))
+                }
                 if let records = reply.records, !records.isEmpty { continuation.yield(records) }
                 send(OTLPHTTP.response(reply), to: fd)
             }

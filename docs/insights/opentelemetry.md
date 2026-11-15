@@ -54,8 +54,15 @@ endpoint on port 4317, Codex's `otlp-grpc`), when Claude Code's telemetry is set
 
 Your headers carry your credentials. The agent sends them with each export, as it always did; heed passes them on and
 never writes them anywhere: not to disk, not to the call log, not to Settings, which shows the collector's host only.
-It reads your shell for the telemetry variables only, headers filtered out before it sees a line
-(`env | grep -E '^(OTEL_|CLAUDE_CODE_ENABLE_TELEMETRY|…)' | grep -v '_HEADERS='`), once when the receiver starts.
+It reads your shell for the telemetry variables only, once when the receiver starts, and of `OTEL_EXPORTER_OTLP_HEADERS`
+and the per-signal `_HEADERS` only the header names (`api-key,authorization`): values are cut off in your shell, before
+heed sees a line. A forward carries the export's `Content-Type` and `Content-Encoding` and the headers your setup names
+there (in your shell, heed's environment, the `env` of `~/.claude/settings.json`, or Codex's `headers`); any other
+header of the request stays with heed.
+
+The receiver answers programs on this Mac only: a request with an `Origin` (which only a browser page sends), or with a
+`Host` other than `127.0.0.1` or `localhost` on its port, is refused with 403, and a body that is not exactly
+`application/json` or `application/x-protobuf` (a `charset` aside) with 415.
 
 heed answers the agent at once and passes the export on in the background, one at a time and in order. While your
 collector is down (no answer, 408, 429, 5xx) heed holds what arrives, up to 512 exports or 32 MB, and tries again with

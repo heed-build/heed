@@ -90,7 +90,7 @@ extension AppModel {
             integration.telemetry = export
             telemetry.setExport(export)
             // Forwards only ever add while the receiver runs: a pane started with one keeps it.
-            server.addRoutes(export.routes)
+            server.addRoutes(export.routes, headers: export.forwardHeaders)
         }
     }
 

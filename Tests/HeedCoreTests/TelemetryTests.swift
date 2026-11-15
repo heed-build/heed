@@ -461,6 +461,70 @@ struct TelemetryTests {
         #expect(inflated.status == 200)
     }
 
+    @Test func onlyExactOTLPContentTypesAreTaken() throws {
+        let logs = try Self.payload("claude-logs")
+        func status(_ type: String?) -> Int {
+            OTLPHTTP.handle(HTTPRequest(
+                method: "POST", path: "/v1/logs", headers: type.map { ["content-type": $0] } ?? [:], body: logs
+            )).status
+        }
+        #expect(status("application/json") == 200)
+        #expect(status("Application/JSON; charset=utf-8") == 200)
+        #expect(status("application/x-protobuf; charset=binary") != 415)
+        for type in [
+            nil, "", "text/plain", "text/json", "application/jsonx", "application/json-seq", "application/ld+json",
+            "application/protobuf", "application/x-protobuf2", "application/json; boundary=x", "application/json;",
+            "multipart/form-data; type=application/json", "application/x-www-form-urlencoded",
+        ] {
+            #expect(status(type) == 415, "\(type ?? "none")")
+        }
+        // A forward with a body of another type is not passed on either.
+        let forward = OTLPHTTP.handle(
+            HTTPRequest(
+                method: "POST",
+                path: "/forward/codex/v1/logs",
+                headers: ["content-type": "text/plain"],
+                body: logs
+            ),
+            routes: ["codex": [.logs: URL(string: "https://otel.example.com/v1/logs")!]]
+        )
+        #expect(forward.status == 415 && forward.forward == nil)
+    }
+
+    @Test func onlyProgramsOnThisMacAddressingHeedAreAnswered() throws {
+        let logs = try Self.payload("claude-logs")
+        func status(_ headers: [String: String], method: String = "POST") -> Int {
+            OTLPHTTP.handle(HTTPRequest(
+                method: method, path: "/v1/logs",
+                headers: headers.merging(["content-type": "application/json"]) { a, _ in a },
+                body: logs
+            ), port: 4999).status
+        }
+        #expect(status(["host": "127.0.0.1:4999"]) == 200)
+        #expect(status(["host": "localhost:4999"]) == 200)
+        #expect(status([:]) == 403)
+        #expect(status(["host": "127.0.0.1"]) == 403)
+        #expect(status(["host": "127.0.0.1:4998"]) == 403)
+        #expect(status(["host": "example.com:4999"]) == 403)
+        #expect(status(["host": "127.0.0.1:4999", "origin": "http://127.0.0.1:4999"]) == 403)
+        #expect(status(["host": "127.0.0.1:4999", "origin": "null"]) == 403)
+        #expect(status(["host": "example.com:4999"], method: "GET") == 403)
+    }
+
+    @Test func serverRefusesABrowserPage() async throws {
+        let port = Int.random(in: 40000 ... 60000)
+        let live = TelemetryServer(port: port)
+        try live.start()
+        defer { live.stop() }
+        var request = URLRequest(url: URL(string: "http://127.0.0.1:\(port)/v1/logs")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("https://example.com", forHTTPHeaderField: "Origin")
+        request.httpBody = try Self.payload("claude-logs")
+        let (_, response) = try await URLSession.shared.data(for: request)
+        #expect((response as? HTTPURLResponse)?.statusCode == 403)
+    }
+
     @Test func serverTakesAnExportOnLoopback() async throws {
         let port = Int.random(in: 40000 ... 60000)
         let live = TelemetryServer(port: port)

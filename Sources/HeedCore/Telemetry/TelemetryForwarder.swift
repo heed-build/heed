@@ -12,10 +12,13 @@ public struct TelemetryUpstream: Hashable, Sendable {
 
     public var url: URL
     public var wire: Wire
+    /// The names of the headers your setup sends with it (lowercased; never their values): the ones heed passes on.
+    public var headers: Set<String>
 
-    public init(url: URL, wire: Wire) {
+    public init(url: URL, wire: Wire, headers: Set<String> = []) {
         self.url = url
         self.wire = wire
+        self.headers = headers
     }
 
     /// What Settings and the banner show: the host, never a path's secrets or a header.
@@ -35,16 +38,22 @@ public struct ForwardedRequest: Sendable {
         self.headers = headers
     }
 
-    /// Headers that belong to one connection, not to the request: never passed on.
+    /// Headers that belong to one connection, not to the request: never passed on, even when your setup names one.
     static let hopByHop: Set<String> = [
         "host", "content-length", "connection", "keep-alive", "transfer-encoding", "te", "trailer", "upgrade",
         "proxy-connection", "proxy-authorization", "expect",
     ]
 
-    /// The request as an agent sent it to heed, for `upstream`.
-    public static func from(_ request: HTTPRequest, to upstream: URL) -> ForwardedRequest {
-        ForwardedRequest(
-            url: upstream, body: request.body, headers: request.headers.filter { !hopByHop.contains($0.key) }
+    /// What the body needs to be read upstream: always passed on.
+    static let body: Set<String> = ["content-type", "content-encoding"]
+
+    /// The request as an agent sent it to heed, for `upstream`: its body as it came, with the body's own headers and
+    /// the headers your setup names (`keeping`, lowercased: `OTEL_EXPORTER_OTLP_HEADERS`, Codex's `headers`). No other
+    /// header of the request goes on.
+    public static func from(_ request: HTTPRequest, to upstream: URL, keeping: Set<String> = []) -> ForwardedRequest {
+        let keep = body.union(keeping.map { $0.lowercased() }).subtracting(hopByHop)
+        return ForwardedRequest(
+            url: upstream, body: request.body, headers: request.headers.filter { keep.contains($0.key.lowercased()) }
         )
     }
 }

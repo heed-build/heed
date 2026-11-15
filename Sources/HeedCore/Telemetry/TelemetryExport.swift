@@ -54,6 +54,24 @@ public struct TelemetryExport: Hashable, Sendable {
         })
     }
 
+    /// The names of the headers each forward passes on: agent → signal → the names your setup sends.
+    public var forwardHeaders: [String: [OTLPSignal: Set<String>]] {
+        Dictionary(uniqueKeysWithValues: Self.agents.compactMap { agent in
+            let upstreams = upstreams(agent)
+            return upstreams.isEmpty ? nil : (agent, upstreams.mapValues(\.headers))
+        })
+    }
+
+    /// The header names in an OTLP headers value (`api-key=x,Authorization=Bearer y`: `api-key`, `authorization`).
+    /// A value that already holds only names (`api-key,authorization`) reads the same.
+    public static func headerNames(_ value: String) -> Set<String> {
+        Set(value.split(separator: ",").compactMap { part in
+            let name = part.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false).first
+                .map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
+            return name.isEmpty ? nil : name
+        })
+    }
+
     /// Whether heed sits between any agent and your collector (the OpenTelemetry tab says so).
     public var proxying: Bool { !routes.isEmpty }
 
@@ -92,8 +110,11 @@ public struct TelemetryExport: Hashable, Sendable {
         } else if let name = claudeOwn.first(where: { !(shell[$0] ?? "").isEmpty || !(process[$0] ?? "").isEmpty }) {
             let place = (shell[name] ?? "").isEmpty ? "heed's environment" : "your shell"
             if settings.proxy {
-                // Your shell's values win over heed's environment in a pane, as they do here.
-                export.modes["claude"] = claudeMode(process.merging(shell) { _, shell in shell }, heed: own)
+                // Your shell's values win over heed's environment in a pane, as they do here; Claude Code's settings
+                // can add headers.
+                let env = process.merging(shell) { _, shell in shell }
+                    .merging(claudeSettingsHeaders(claudeSettings)) { _, settings in settings }
+                export.modes["claude"] = claudeMode(env, heed: own)
             } else {
                 export.modes["claude"] = .own("\(name) is set in \(place)")
             }
@@ -135,7 +156,11 @@ public struct TelemetryExport: Hashable, Sendable {
                 return .own("it exports over gRPC to \(host), which heed does not forward")
             }
             if url.hasPrefix(heed) { continue }
-            upstreams[signal] = TelemetryUpstream(url: parsed, wire: wire == "http/json" ? .json : .protobuf)
+            let headers = headerNames(env["OTEL_EXPORTER_OTLP_\(upper)_HEADERS"] ?? "")
+                .union(headerNames(env["OTEL_EXPORTER_OTLP_HEADERS"] ?? ""))
+            upstreams[signal] = TelemetryUpstream(
+                url: parsed, wire: wire == "http/json" ? .json : .protobuf, headers: headers
+            )
         }
         return upstreams.isEmpty ? .heed : .forward(upstreams)
     }
@@ -168,7 +193,8 @@ public struct TelemetryExport: Hashable, Sendable {
             if endpoint.hasPrefix(heed) { continue }
             upstreams[signal] = TelemetryUpstream(
                 url: url,
-                wire: http["protocol"]?.string == "json" ? .json : .protobuf
+                wire: http["protocol"]?.string == "json" ? .json : .protobuf,
+                headers: Set((http["headers"]?.table?.keys ?? []).map { $0.lowercased() })
             )
         }
         guard any else { return nil }
@@ -183,22 +209,42 @@ public struct TelemetryExport: Hashable, Sendable {
         return env.keys.sorted()
     }
 
+    /// The `*_HEADERS` variables of a Claude Code settings file's `env`, as header names only.
+    static func claudeSettingsHeaders(_ text: String?) -> [String: String] {
+        guard let data = text?.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let env = object["env"] as? [String: Any] else { return [:] }
+        return env.reduce(into: [:]) { out, entry in
+            guard entry.key.hasPrefix("OTEL_EXPORTER_OTLP_"), entry.key.hasSuffix("_HEADERS"),
+                  let value = entry.value as? String else { return }
+            out[entry.key] = headerNames(value).sorted().joined(separator: ",")
+        }
+    }
+
     /// What your login shell is asked, to see what it sets: only the variables that matter here, so nothing else of
     /// your environment is read (or reaches the call log).
-    /// Headers are filtered out before heed reads a line: heed never needs them (an agent sends them with each
-    /// export) and never holds them.
+    /// Of a `*_HEADERS` variable only the header names come back (`OTEL_EXPORTER_OTLP_HEADERS=api-key,authorization`):
+    /// heed passes those headers on to your collector and nothing else, and never holds their values (an agent sends
+    /// them with each export).
     public static let shellProbe =
         "env | grep -E '^(OTEL_|CLAUDE_CODE_ENABLE_TELEMETRY|CLAUDE_CODE_ENHANCED_TELEMETRY_BETA|"
-            + "ENABLE_ENHANCED_TELEMETRY_BETA)' | grep -v '_HEADERS='; true"
+            + "ENABLE_ENHANCED_TELEMETRY_BETA)' | grep -v '_HEADERS='; "
+            + "env | awk '/^OTEL_EXPORTER_OTLP_([A-Z]+_)?HEADERS=/ { i = index($0, \"=\"); "
+            + "c = split(substr($0, i + 1), p, \",\"); s = \"\"; "
+            + "for (j = 1; j <= c; j++) { k = p[j]; sub(/=.*/, \"\", k); s = s (j > 1 ? \",\" : \"\") k }; "
+            + "print substr($0, 1, i - 1) \"=\" s }'; true"
 
-    /// `NAME=value` lines as a dictionary; other lines (a greeting an interactive shell printed) are skipped.
+    /// `NAME=value` lines as a dictionary; other lines (a greeting an interactive shell printed) are skipped. A
+    /// `*_HEADERS` line keeps only its header names, whatever the line held.
     public static func environment(fromProbe text: String) -> [String: String] {
         var out: [String: String] = [:]
         for line in text.split(separator: "\n") {
-            guard let equals = line.firstIndex(of: "="), !line[..<equals].hasSuffix("_HEADERS"),
+            guard let equals = line.firstIndex(of: "="),
                   line.hasPrefix("OTEL_") || line.hasPrefix("CLAUDE_CODE_") || line.hasPrefix("ENABLE_ENHANCED")
             else { continue }
-            out[String(line[..<equals])] = String(line[line.index(after: equals)...])
+            let name = String(line[..<equals])
+            let value = String(line[line.index(after: equals)...])
+            out[name] = name.hasSuffix("_HEADERS") ? headerNames(value).sorted().joined(separator: ",") : value
         }
         return out
     }

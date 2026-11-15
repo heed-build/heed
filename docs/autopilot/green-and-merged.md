@@ -152,6 +152,12 @@ A **trusted reviewer** (`trusted_reviewers`, e.g. `copilot-pull-request-reviewer
 commit in three cases. The reviewer approved the commit, or left a comment review none of whose threads is still open.
 Otherwise the reviewer left no review at all, but every gate check, its review check among them, passed on that commit.
 
+When a bot reviews a repo's PRs (GitHub says it is a bot, its login ends in `[bot]`, or it is Copilot's reviewer) and
+is not in that repo's `trusted_reviewers`, the **Merge** section of a PR heed merges asks in Now:
+*copilot-pull-request-reviewer reviews here: trust its approvals?* **trust** (`:pilot.reviewers.trust`) adds it to
+`trusted_reviewers` under `[repos."org/name"]`, as `name[bot]` for a bot; **dismiss** (`:pilot.reviewers.dismiss`)
+stops asking about it for that repo. heed never adds one by itself. `zv` mentions the first one too.
+
 #### Gate checks by app
 
 A gate check is a check's name and the app that reported the check. `"github-actions:ci/test"` names the app; a bare

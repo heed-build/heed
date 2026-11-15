@@ -308,6 +308,45 @@ struct HeedMergeTests {
             == "changes requested, no reason given")
     }
 
+    @Test func botsThatReviewHereAreSuggested() {
+        let repo = ref.repo
+        func reviewed(_ reviews: [PullDetail.Review], in other: Repo? = nil) -> PullDetail {
+            var detail = detail(reviews: reviews)
+            if let other { detail.ref = PullRef(repo: other, number: 1) }
+            return detail
+        }
+        let details = [
+            reviewed([
+                .init(author: "copilot-pull-request-reviewer", state: "COMMENTED", trust: .bot),
+                .init(author: "alice", state: "APPROVED", trust: .collaborator),
+                .init(author: "eve", state: "APPROVED", trust: .stranger),
+            ]),
+            reviewed([.init(author: "review-owl", state: "APPROVED", trust: .bot)]),
+            reviewed([.init(author: "elsewhere", state: "APPROVED", trust: .bot)], in: Repo(org: "o", name: "x")),
+        ]
+        let all = ReviewerSuggestion.suggest(repo: repo, details: details, trusted: [], dismissed: [])
+        #expect(all.map(\.login) == ["copilot-pull-request-reviewer", "review-owl"])
+        #expect(all[0].text == "copilot-pull-request-reviewer reviews here: trust its approvals?")
+        #expect(all[0].accepted(["alice"]) == ["alice", "copilot-pull-request-reviewer[bot]"])
+        // Trusted already, or dismissed: not asked.
+        let trusted = ReviewerSuggestion.suggest(
+            repo: repo, details: details, trusted: ["copilot-pull-request-reviewer"], dismissed: [all[1].id]
+        )
+        #expect(trusted.isEmpty)
+        #expect(all[1].id == "globex/heed|review-owl")
+        // The entry it writes makes its approval count.
+        var settings = PilotSettings()
+        settings.trustedReviewers = all[1].accepted([])
+        #expect(blocker(detail(reviews: [approval("review-owl", trust: .bot)]), settings) == nil)
+        // Accepting writes the repo's list, which the fake world applies as reading config.toml back would.
+        var config = HeedConfig.default
+        AutopilotSwitch.apply(
+            [.init(["repos", repo.slug, "trusted_reviewers"], .array(all[1].accepted([]).map(TOMLValue.string)))],
+            to: &config
+        )
+        #expect(config.pilot.resolve(repo).trustedReviewers == ["review-owl[bot]"])
+    }
+
     @Test func theCommentSaysWhy() {
         let verdict = HeedMerge.verdict(detail(), settings: PilotSettings(), selfReview: nil, now: now)
         let comment = HeedMerge.comment(verdict, method: "squash")

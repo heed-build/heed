@@ -122,6 +122,8 @@ public enum MenuBar {
         "command.submit": "a key of the command line itself",
         "command.complete": "a key of the command line itself",
         "command.complete.prev": "a key of the command line itself",
+        "pilot.reviewers.trust": "the suggestion's trust hint under a PR's merge rules in Now",
+        "pilot.reviewers.dismiss": "the suggestion's dismiss hint under a PR's merge rules in Now",
         "feedback.mode": "pilot.green's former name; PR has Get it green",
         "feedback.watch": "pilot.watch's former name; PR has Watch",
         "app.quit": "the app menu's Quit Heed (⌘Q)",

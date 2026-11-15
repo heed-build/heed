@@ -563,6 +563,15 @@ private struct MergeSection: View {
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
+                    // Bots reviewing here whose approvals do not count yet: asked, never added by heed.
+                    ForEach(model.reviewerSuggestions(for: ref.repo)) { suggestion in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(suggestion.text).font(Theme.ui(12.5)).foregroundStyle(Theme.fg2)
+                                .fixedSize(horizontal: false, vertical: true)
+                            KeyHint("pilot.reviewers.trust", [suggestion.login], target: .pull(ref), label: "trust")
+                            KeyHint("pilot.reviewers.dismiss", [suggestion.login], target: .pull(ref), label: "dismiss")
+                        }
+                    }
                 } else if let detail {
                     line(
                         "Auto-merge",

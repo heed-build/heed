@@ -179,6 +179,7 @@ public enum AutopilotSwitch {
         case "copilot_conflicts": overrides.copilotConflicts = value?.bool
         case "copilot_comments": overrides.copilotComments = value?.bool
         case "reviewers": overrides.reviewers = value?.array?.compactMap(\.string)
+        case "trusted_reviewers": overrides.trustedReviewers = value?.array?.compactMap(\.string)
         default: break
         }
     }
@@ -191,6 +192,7 @@ public enum AutopilotSwitch {
         case "copilot_conflicts": defaults.copilotConflicts = value?.bool ?? false
         case "copilot_comments": defaults.copilotComments = value?.bool ?? false
         case "reviewers": defaults.reviewers = value?.array?.compactMap(\.string) ?? []
+        case "trusted_reviewers": defaults.trustedReviewers = value?.array?.compactMap(\.string) ?? []
         default: break
         }
     }

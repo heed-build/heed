@@ -990,6 +990,18 @@ public enum Commands {
             .selection
         ),
         .init("pilot.reviewers", "ask the PR's configured reviewers ([pilot] reviewers) to review it", .selection),
+        .init(
+            "pilot.reviewers.trust",
+            "trust a bot that reviews the PR's repo: add it to the repo's trusted_reviewers (no name: the first heed suggests)",
+            .selection,
+            arguments: "[login]"
+        ),
+        .init(
+            "pilot.reviewers.dismiss",
+            "stop suggesting a bot that reviews the PR's repo for trusted_reviewers (no name: the first heed suggests)",
+            .selection,
+            arguments: "[login]"
+        ),
         .init("pilot.merge", "get it merged for the PR (or the picked PRs): off or auto", .selection),
         .init(
             "pilot.merge.now",

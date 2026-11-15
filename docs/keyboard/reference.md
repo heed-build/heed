@@ -439,6 +439,8 @@ This page is generated from the code (`mise run shots`).
 | `pilot.retry` | `zr` | one more round of get it green for a stalled PR (or the picked PRs) |
 | `pilot.copilot` | `C` (pr), `A` (watch), `A` (watchhelper) | ask GitHub's Copilot coding agent to resolve the PR's conflicts and address its comments |
 | `pilot.reviewers` | `zv` | ask the PR's configured reviewers ([pilot] reviewers) to review it |
+| `pilot.reviewers.trust` `[login]` |  | trust a bot that reviews the PR's repo: add it to the repo's trusted_reviewers (no name: the first heed suggests) |
+| `pilot.reviewers.dismiss` `[login]` |  | stop suggesting a bot that reviews the PR's repo for trusted_reviewers (no name: the first heed suggests) |
 | `pilot.merge` | `zm` | get it merged for the PR (or the picked PRs): off or auto |
 | `pilot.merge.now` | `zM` | merge the PR now; past unmet required reviews or checks with --admin when you are an admin (merge_now, force_merge) |
 | `pilot.merge.setup` |  | set up get it merged for the PR's repo |

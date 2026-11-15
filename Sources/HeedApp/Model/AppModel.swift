@@ -479,6 +479,17 @@ final class AppModel {
     private(set) var diffLoading = false
     private var diffTask: Task<Void, Never>?
 
+    /// Bots you said not to suggest for `trusted_reviewers` (`ReviewerSuggestion.id`): kept per Mac.
+    var dismissedReviewerSuggestions = Set(UserDefaults.standard
+        .stringArray(forKey: "dismissedReviewerSuggestions") ?? [])
+    {
+        didSet {
+            if !isFixture {
+                UserDefaults.standard.set(dismissedReviewerSuggestions.sorted(), forKey: "dismissedReviewerSuggestions")
+            }
+        }
+    }
+
     /// Pane collapse state is a UI preference, not domain: kept in UserDefaults.
     private(set) var inspectorVisible = UserDefaults.standard.object(forKey: "inspectorVisible") as? Bool ?? true {
         didSet { if !isFixture { UserDefaults.standard.set(inspectorVisible, forKey: "inspectorVisible") } }
@@ -3111,6 +3122,8 @@ final class AppModel {
         case "pilot.reviewers":
             let refs = pilotTargets
             if refs.isEmpty { flash = noOpenPR } else { Task { await requestReviews(refs, byHand: true) } }
+        case "pilot.reviewers.trust": trustSuggestedReviewer(command.arguments.first)
+        case "pilot.reviewers.dismiss": dismissSuggestedReviewer(command.arguments.first)
         case "merge.run": runMergeCommand(command.arguments.first)
         case "merge.queue": showMergeQueue(command.arguments.first)
         case "feedback.dismiss": dismissItem()
@@ -6673,6 +6686,9 @@ final class AppModel {
         if byHand {
             flash = asked > 0 ? "asked for reviews on \(asked) PR\(asked == 1 ? "" : "s")"
                 : "no one to ask: [pilot] reviewers names who, and each is asked once"
+            if let repo = refs.first?.repo, let suggestion = reviewerSuggestions(for: repo).first {
+                flash = (flash ?? "") + " · \(suggestion.text) (:pilot.reviewers.trust, :pilot.reviewers.dismiss)"
+            }
         }
     }
 

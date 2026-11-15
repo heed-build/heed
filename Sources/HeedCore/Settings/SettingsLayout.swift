@@ -16,7 +16,7 @@ public extension SettingsPage {
         case .modelCalls: ["Set up", "Model calls", "Limits", "Usage", "Reminder"]
         case .decisions: ["Decisions", "Finding new work's goal", "Hunch", "Local decisions"]
         case .worktrees: ["Worktrees", "Branch names", "Start work", "Cleanup", "Saved work"]
-        case .goals: ["Agents", "Reviewers", "Items", "GitHub mirror"]
+        case .goals: ["Agents", "Reviewers", "Items", "From a session", "GitHub mirror"]
         case .history: ["Ledger", "While you were away", "Mindmap", "Memory", "Standup", "OpenTelemetry", "Call log"]
         case .github: ["GitHub"]
         case .attention: ["Rules", "Try before you save", "Summaries", "Weights"]

@@ -240,6 +240,9 @@ public struct GoalSettings: Equatable, Sendable {
     public var spawnPerDay = 6
     /// The GitHub mirror's defaults for new goals (`GoalMirrorSettings`).
     public var mirror = GoalMirrorSettings()
+    /// Make it a goal asks the session's agent for a handoff and waits this many seconds for it (`HandoffAsk`);
+    /// 0: never asks, the goal starts from the session's prompt alone.
+    public var handoffTimeout = 180
 
     public init(tellAgents: Bool = true, attach: AttachSettings = AttachSettings()) {
         self.tellAgents = tellAgents

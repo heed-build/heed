@@ -16,6 +16,8 @@ public struct GoalCommand: Codable, Equatable, Sendable {
         case reviewRequest = "review request"
         case planPropose = "plan propose", planShow = "plan show", planApprove = "plan approve"
         case ask
+        /// `heed goal handoff`: the handoff heed asked this session's agent for, on stdin (`--file -`).
+        case handoff
         /// `heed swarm send|note|answer`.
         case swarmSend = "swarm send", swarmNote = "swarm note", swarmAnswer = "swarm answer"
         /// `heed swarm summary`: the lead's end-of-build summary.
@@ -144,6 +146,10 @@ public enum GoalCommandLine {
       source remove <id>                     take a source off (its items stay, marked as having left it)
     Scope (waits for you as a proposal, like edits in the Goals view)
       propose <section> <text>               section: goal, not-the-goal, done-when, question, decision
+    Handoff
+      handoff [--file <path|->]              the handoff heed asked for when the owner makes this session a goal:
+                                             markdown on stdin with ## Work, Done, Decisions, Open, Risks and Next
+                                             headings (only when heed asked; the goal need not exist yet)
     Work
       item spawn <id> [--agent <name>] [--background]
                                              start a session on the item, on this goal (capped per goal per day)
@@ -297,6 +303,7 @@ public enum GoalCommandLine {
         case "attach": verb = .attach
         case "propose": verb = .propose
         case "ask": verb = .ask
+        case "handoff": verb = .handoff
         case "item", "decision", "question", "criterion", "link", "review", "plan", "source":
             guard let second = args.first else { throw usageError("\(first) needs a command") }
             args.removeFirst()
@@ -323,6 +330,7 @@ public enum GoalCommandLine {
         case .linkPR: ["--item"]
         case .sourceAdd: ["--rule"]
         case .planPropose: ["--note", "--file"]
+        case .handoff: ["--file"]
         case .ask: ["--option", "--effect", "--to", "--timeout", "--id", "--no-wait"]
         default: []
         }
@@ -372,6 +380,9 @@ public enum GoalCommandLine {
             command.text = text
         case .swarmSend, .swarmNote, .swarmAnswer, .swarmSummary:
             throw usageError("\(verb.rawValue) is heed \(verb.rawValue): heed swarm --help")
+        case .handoff:
+            guard args.isEmpty else { throw usageError("handoff takes no words: the markdown is on stdin, or --file") }
+            command.file = options["--file"] ?? "-"
         case .attach:
             guard args.count <= 1 else { throw usageError("attach takes one goal") }
             command.subject = args.first

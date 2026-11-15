@@ -125,6 +125,7 @@ public struct TLDRInputs: Hashable, Sendable {
             detail: [
                 wizard.plan.versions.last.map { "v\($0.number)" }, wizard.model(for: .plan),
                 heedTurns > 0 ? plural(heedTurns, "turn") : nil,
+                SessionHandoff.read(from: doc) == nil ? nil : "from a handoff",
             ].compactMap(\.self).joined(separator: " · ")
         ))
         let panel = wizard.panel
@@ -175,6 +176,10 @@ public struct TLDRInputs: Hashable, Sendable {
         ))
 
         var settled: [String] = []
+        // A goal made from a session starts from what its agent handed over: what it says is done and open.
+        if let handoff = SessionHandoff.read(from: doc) {
+            settled.append(handoffLine(handoff))
+        }
         if let plan, !plan.summary.isEmpty { settled.append(plan.summary) }
         settled += (plan?.decisions ?? []) + (doc?.decisions.filter { $0.source != "plan" }.map(\.text) ?? [])
         if !criteria.isEmpty {
@@ -217,6 +222,20 @@ public struct TLDRInputs: Hashable, Sendable {
             open: Array(open.prefix(5)), going: going(wizard, care: care, fleet: fleet, now: now),
             fingerprint: wizard.fingerprint + "@\(goalVersion)", completed: wizard.completed.count
         )
+    }
+
+    /// The settled fact for a handoff: "From the session's handoff: 3 done, 2 open, 2 risks."
+    static func handoffLine(_ handoff: SessionHandoff) -> String {
+        let parts = [
+            handoff.doneCount > 0 ? "\(handoff.doneCount) done" : nil,
+            handoff.openCount > 0 ? "\(handoff.openCount) open" : nil,
+            SessionHandoff.items(handoff.risks).isEmpty ? nil : plural(
+                SessionHandoff.items(handoff.risks).count,
+                "risk"
+            ),
+            SessionHandoff.items(handoff.next).isEmpty ? nil : "\(SessionHandoff.items(handoff.next).count) next",
+        ].compactMap(\.self)
+        return "Started from the session's handoff" + (parts.isEmpty ? "." : ": " + parts.joined(separator: ", ") + ".")
     }
 
     /// Where it's going, once the split exists: Go's forecast (hours at the chosen pace, the extra and the reviews,

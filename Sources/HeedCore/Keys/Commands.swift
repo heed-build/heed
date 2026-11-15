@@ -552,6 +552,11 @@ public enum Commands {
             "goal.promote.go", "Make it a goal: the goal made with the session on it as part 1, its plan step opens",
             .selection
         ),
+        .init(
+            "goal.promote.skip",
+            "Make it a goal: stop waiting for the agent's handoff and make the goal from the session's prompt",
+            .selection
+        ),
         .init("goal.promote.dismiss", "not now: the session's \"growing into a goal\" line goes away", .selection),
         .init("goal.detach", "take the session or chat off its goal", .selection),
         .init("goal.archive", "archive the goal (again: bring it back)", .selection),

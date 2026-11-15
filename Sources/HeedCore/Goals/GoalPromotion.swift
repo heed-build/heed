@@ -168,13 +168,32 @@ public struct GoalPromotion: Hashable, Sendable {
     public var statement: String
     public var done: [Part]
     public var found: [String]
+    /// What the session's agent handed over (`HandoffAsk`); nil when it was not asked, did not answer or was skipped.
+    public var handoff: SessionHandoff?
 
-    public init(session: String, title: String, statement: String, done: [Part] = [], found: [String] = []) {
+    public init(
+        session: String, title: String, statement: String, done: [Part] = [], found: [String] = [],
+        handoff: SessionHandoff? = nil
+    ) {
         self.session = session
         self.title = title
         self.statement = statement
         self.done = done
         self.found = found
+        self.handoff = handoff
+    }
+
+    /// The promotion with the agent's handoff in it: the statement is what the agent says the work is (the session's
+    /// first prompt is as old as the session), and what it left open is what was found, in its words.
+    public func handingOff(_ handoff: SessionHandoff) -> GoalPromotion {
+        var promotion = self
+        promotion.handoff = handoff
+        let work = Self.firstParagraph(handoff.work)
+        if !work.isEmpty { promotion.statement = GoalDoc.oneLine(work) }
+        let open = SessionHandoff.items(handoff.open).map(GoalDoc.oneLine).filter { !$0.isEmpty }.prefix(3)
+            .map { $0.count > 80 ? String($0.prefix(79)) + "…" : $0 }
+        if !open.isEmpty { promotion.found = Array(open) }
+        return promotion
     }
 
     /// The draft for `session`: its title and prompt, its merged PRs (titled where known) and what was found.
@@ -221,6 +240,11 @@ public extension GoalOps {
     @discardableResult
     func promote(_ promotion: GoalPromotion, kind: GoalLink.Kind = .session, now: Date) throws -> HeedGoal {
         let goal = try create(title: promotion.title, statement: promotion.statement, now: now)
+        // The handoff goes into GOAL.md as its own section: visible, editable, read by every agent on the goal.
+        if let handoff = promotion.handoff {
+            let doc = try handoff.apply(to: GoalDoc.parse(text(of: goal.id)))
+            try save(goal: goal.id, text: doc.render(), note: "handoff from the session", author: .heed, now: now)
+        }
         try attach(GoalLink(goal: goal.id, kind: kind, target: promotion.session, at: now))
         for part in promotion.done {
             let item = try addItem(

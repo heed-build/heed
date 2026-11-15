@@ -930,6 +930,9 @@ public enum ConfigLoader {
         }
         if let count = integer(["goals", "spawn_concurrent"], range: 0 ... 20) { config.goals.spawnConcurrent = count }
         if let count = integer(["goals", "spawn_per_day"], range: 0 ... 100) { config.goals.spawnPerDay = count }
+        if let seconds = integer(["goals", "handoff_timeout"], range: 0 ... 3600) {
+            config.goals.handoffTimeout = seconds
+        }
         if let flag = bool(["goals", "auto_review"]) { config.goals.autoReview = flag }
         if let name = string(["goals", "reviewer_agent"]) { config.goals.reviewerAgent = name }
         if let tracker = string(["goals", "tracker"]) { config.goals.mirror.tracker = tracker }
@@ -1411,6 +1414,10 @@ public enum ConfigLoader {
     # Past either, heed asks in Attention (y starts them, n drops them).
     spawn_concurrent = 2
     spawn_per_day = 6
+    # Make it a goal (gP) asks the session's agent for a handoff first (what is done, decided, open and next), so the
+    # goal's plan starts from it instead of the session's first prompt, and waits this many seconds for it. Without
+    # one in time the goal starts as it always did, with a note. 0: never ask.
+    handoff_timeout = 180
     # The GitHub mirror (docs: goals/github): a goal can follow along as a meta issue with a sub-issue per item, in a
     # tracker repo of its own (any repo you can triage, not necessarily one the work is in). heed writes there on its
     # own once a goal's mirror is on (one key, M); colleagues' changes come back as asks and proposals. tracker: the

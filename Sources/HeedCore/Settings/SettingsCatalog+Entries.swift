@@ -449,6 +449,13 @@ extension SettingsCatalog {
             since: "0.19.0"
         ) { .integer($0.goals.spawnPerDay) },
         global(
+            "goals.handoff_timeout", .goals, "From a session", "Wait for a handoff",
+            "Make it a goal asks the session's agent for a handoff (what is done, decided, open and next) before the "
+                + "plan step opens, and waits this many seconds. Without one the goal starts from the session's "
+                + "prompt, with a note. 0: never ask.",
+            since: "0.46.0"
+        ) { .integer($0.goals.handoffTimeout) },
+        global(
             "goals.tracker", .goals, "GitHub mirror", "Tracker on GitHub",
             "Where a new goal mirrors to, as org/name: a meta issue and a sub-issue per item, in any repo you can "
                 + "triage. Orgs and repos set their own in Orgs & repos.",

@@ -72,10 +72,21 @@ public enum PlanTalk {
 
     /// The turn's input: the goal, the plan as it stands, the conversation so far, and what to do next.
     public static func prompt(
-        title: String, statement: String, turns: [PlanTurn], plan: WizardPlan?, repos: [String], weakest: String?
+        title: String, statement: String, turns: [PlanTurn], plan: WizardPlan?, repos: [String], weakest: String?,
+        handoff: String? = nil
     ) -> String {
         var parts = ["# The ask", "Title: \(title)"]
         if !statement.isEmpty { parts.append(statement) }
+        // What the session that did the work so far handed over: context to build on, not another ask.
+        if let handoff, !handoff.isEmpty {
+            parts += [
+                "", "# Handoff from the session that has been doing this work",
+                "Its agent wrote this when the work became a goal: what is done (do not plan it again), what was "
+                    + "decided and why (keep it unless the conversation says otherwise), what is open, the risks and "
+                    + "the parts it would do next.",
+                handoff,
+            ]
+        }
         if !repos.isEmpty { parts += ["", "# Repositories (your working directories)", repos.joined(separator: "\n")] }
         if let plan {
             parts += ["", "# The plan so far", render(plan)]
@@ -283,12 +294,12 @@ public struct PlanTalker: Sendable {
     }
 
     public func turn(
-        title: String, statement: String, conversation: PlanConversation, repos: [String]
+        title: String, statement: String, conversation: PlanConversation, repos: [String], handoff: String? = nil
     ) async throws -> PlanTurnResult {
         let weakest = conversation.completeness.map { $0.weakest.gap }
         let prompt = PlanTalk.prompt(
             title: title, statement: statement, turns: conversation.turns, plan: conversation.current, repos: repos,
-            weakest: weakest
+            weakest: weakest, handoff: handoff
         )
         let answer = try await read(system: PlanTalk.system, prompt: prompt, repos: repos)
         guard let reply = PlanTalk.parse(answer.text, fallbackTitle: conversation.current?.title ?? title) else {

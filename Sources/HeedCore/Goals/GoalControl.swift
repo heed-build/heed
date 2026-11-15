@@ -338,6 +338,11 @@ public enum GoalControl {
             }
             return .reply(GoalReply("read", message: GoalRow.table(rows), goals: rows))
         }
+        if command.verb == .handoff {
+            return .reply(
+                .refused("heed is not waiting for a handoff here: it asks when the owner makes a session a goal")
+            )
+        }
         if command.verb == .attach {
             guard let caller else {
                 return .reply(GoalReply(
@@ -496,6 +501,8 @@ public enum GoalControl {
             return .app(.review(goal: goal.id, kind: command.subject ?? ""), goal: goal)
         case .sourceAdd, .sourceList, .sourceRemove:
             return try await .reply(sources(command, goal: goal, caller: caller, ops: ops, now: now))
+        case .handoff:
+            return .reply(.refused("a handoff is answered where heed asked for it"))
         case .planShow, .planPropose, .planApprove, .ask, .swarmSend, .swarmNote, .swarmAnswer, .swarmSummary:
             return try await .reply(SwarmControl.run(command, goal: goal, caller: caller, ops: ops, now: now))
         }

@@ -336,6 +336,14 @@ public enum Overrides {
             { .list($0.trustedReviewers) }
         ),
         pilot(
+            "trusted_authors",
+            "Trusted authors",
+            "Get it merged: whose PRs heed merges besides collaborators (bots).",
+            .list,
+            { $0.trustedAuthors.map(OverrideValue.list) },
+            { .list($0.trustedAuthors) }
+        ),
+        pilot(
             "gate_checks",
             "Gate checks",
             "heed merges: checks that must have passed.",
@@ -454,7 +462,7 @@ public enum Overrides {
         ("Get it merged", .merged, ["merge", "merge_method", "update_branches", "admin_merge"]),
         ("Before heed merges", .merged, ["quiet_minutes", "gate_checks", "hold_labels"]),
         ("Merging by hand", .merged, ["merge_now", "force_merge"]),
-        ("Reviewers", .reviews, ["reviewers", "trusted_reviewers", "self_review"]),
+        ("Reviewers", .reviews, ["reviewers", "trusted_reviewers", "trusted_authors", "self_review"]),
         ("Copilot", .reviews, ["copilot_comments", "copilot_conflicts"]),
         ("Extra instructions", .instructions, [
             "green_instructions", "review_instructions", "start_instructions", "summary_instructions",

@@ -11,7 +11,7 @@ struct MergeQueueTests {
         methods: [String]? = ["squash", "merge", "rebase"], prState: String = "OPEN"
     ) -> PullDetail {
         var detail = PullDetail(
-            ref: PullRef(repo: repo, number: number), title: "t", body: "", author: nil, baseBranch: "main",
+            ref: PullRef(repo: repo, number: number), title: "t", body: "", author: "me", baseBranch: "main",
             headBranch: "b", additions: 0, deletions: 0, commitCount: 1, headSHA: "a1", reviews: [],
             threads: (0 ..< threads).map {
                 ReviewThread(
@@ -23,7 +23,7 @@ struct MergeQueueTests {
             checks: CheckSummary(
                 passed: 2, failed: failing.count, pending: pending.count, failedNames: failing, pendingNames: pending
             ),
-            closes: [], fetchedAt: Date()
+            closes: [], fetchedAt: Date(), authorTrust: .collaborator
         )
         detail.state = prState
         detail.isDraft = false

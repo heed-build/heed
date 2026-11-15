@@ -70,9 +70,13 @@ public struct PilotSettings: Hashable, Sendable {
     // The merge rules for `merge = "heed"`.
     /// No new commit or review for this long before heed merges.
     public var quietMinutes = 5
-    /// AI reviewers (logins) whose review counts as one after the last push (see `HeedMerge`).
+    /// Reviewers (logins, usually bots) whose review counts as one after the last push, besides people who can write
+    /// to the repo (see `HeedMerge`). `name[bot]` matches only a bot of that name.
     public var trustedReviewers: [String] = []
-    /// Checks that must have passed on the head commit, required by GitHub or not (an AI review's check, say).
+    /// Authors heed merges PRs of besides the owner and collaborators: bots such as `dependabot[bot]`.
+    public var trustedAuthors: [String] = []
+    /// Checks that must have passed on the head commit, required by GitHub or not (an AI review's check, say), each
+    /// from its app (`GateCheck`).
     public var gateChecks: [String] = []
     /// Labels that hold a PR back.
     public var holdLabels = ["hold", "do-not-merge", "wip"]
@@ -155,6 +159,7 @@ public struct PilotOverrides: Hashable, Sendable {
     public var reviewers: [String]?
     public var quietMinutes: Int?
     public var trustedReviewers: [String]?
+    public var trustedAuthors: [String]?
     public var gateChecks: [String]?
     public var holdLabels: [String]?
     public var selfReview: String?
@@ -195,7 +200,9 @@ public struct PilotOverrides: Hashable, Sendable {
     public var isEmpty: Bool {
         watch == nil && green == nil && maxRounds == nil && merge == nil && mergeMethod == nil && updateBranches == nil
             && copilotConflicts == nil && copilotComments == nil && reviewers == nil && quietMinutes == nil
-            && trustedReviewers == nil && gateChecks == nil && holdLabels == nil && selfReview == nil && adminMerge ==
+            && trustedReviewers == nil && trustedAuthors == nil && gateChecks == nil && holdLabels == nil &&
+            selfReview ==
+            nil && adminMerge ==
             nil && agent == nil && model == nil
             && greenInstructions == nil && reviewInstructions == nil && startInstructions == nil && runIn == nil
             && summaryInstructions == nil && summarySignOff == nil
@@ -234,6 +241,7 @@ public struct PilotRules: Hashable, Sendable {
         settings.reviewers = repoLevel.reviewers ?? orgLevel.reviewers ?? defaults.reviewers
         settings.quietMinutes = repoLevel.quietMinutes ?? orgLevel.quietMinutes ?? defaults.quietMinutes
         settings.trustedReviewers = repoLevel.trustedReviewers ?? orgLevel.trustedReviewers ?? defaults.trustedReviewers
+        settings.trustedAuthors = repoLevel.trustedAuthors ?? orgLevel.trustedAuthors ?? defaults.trustedAuthors
         settings.gateChecks = repoLevel.gateChecks ?? orgLevel.gateChecks ?? defaults.gateChecks
         settings.holdLabels = repoLevel.holdLabels ?? orgLevel.holdLabels ?? defaults.holdLabels
         settings.selfReview = repoLevel.selfReview ?? orgLevel.selfReview ?? defaults.selfReview

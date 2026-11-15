@@ -97,6 +97,8 @@ public struct SampledPull: Hashable, Sendable {
     public var title: String
     public var author: String
     public var authorIsBot: Bool
+    /// Who the author is to the repo, from GitHub's author association.
+    public var authorTrust: ExternalText.Trust
     public var mergedBy: String?
     public var createdAt: Date
     public var mergedAt: Date
@@ -118,6 +120,8 @@ public struct SampledPull: Hashable, Sendable {
     public var headSHA: String
     public var headCommittedAt: Date?
     public var passedChecks: [String]
+    /// The same, with the app that reported each.
+    public var passedRuns: [PullDetail.CheckOrigin]
     public var failedChecks: [String]
     public var pendingChecks: [String]
 
@@ -127,8 +131,12 @@ public struct SampledPull: Hashable, Sendable {
         labelsSeen: [String] = [], parents: Int? = 1, commits: Int = 1, autoMerge: Bool = false,
         mergeQueue: Bool = false, reviews: [PullDetail.Review] = [], botReviewers: Set<String> = [],
         threads: [ReviewThread] = [], headSHA: String = "", headCommittedAt: Date? = nil, passedChecks: [String] = [],
-        failedChecks: [String] = [], pendingChecks: [String] = []
+        failedChecks: [String] = [], pendingChecks: [String] = [], authorTrust: ExternalText.Trust? = nil,
+        passedRuns: [PullDetail.CheckOrigin]? = nil
     ) {
+        self.authorTrust = authorTrust ?? (authorIsBot ? .bot : .stranger)
+        // Unsaid: reported by GitHub Actions.
+        self.passedRuns = passedRuns ?? passedChecks.map { PullDetail.CheckOrigin(name: $0, app: GateCheck.defaultApp) }
         self.number = number
         self.title = title
         self.author = author

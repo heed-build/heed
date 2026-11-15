@@ -765,7 +765,8 @@ public enum Fixtures {
             author: "you", baseBranch: "main", headBranch: "fix-anchors-redirects", additions: 82, deletions: 4,
             commitCount: 3, headSHA: "a91e3d0",
             reviews: [PullDetail.Review(
-                author: "reviewer", state: "CHANGES_REQUESTED", submittedAt: Clock.now.addingTimeInterval(-686 * 60)
+                author: "reviewer", state: "CHANGES_REQUESTED", submittedAt: Clock.now.addingTimeInterval(-686 * 60),
+                trust: .collaborator
             )],
             threads: [
                 ReviewThread(
@@ -789,7 +790,7 @@ public enum Fixtures {
                 url: nil
             )],
             checks: CheckSummary(passed: 3, failed: 1, pending: 1, failedNames: ["lint"]),
-            closes: [PullRef(repo: docsToolkit, number: 2830)], fetchedAt: Clock.now
+            closes: [PullRef(repo: docsToolkit, number: 2830)], fetchedAt: Clock.now, authorTrust: .owner
         )
         detail.state = "OPEN"
         detail.isDraft = false
@@ -823,8 +824,8 @@ public enum Fixtures {
             var detail = PullDetail(
                 ref: PullRef(repo: repo, number: number), title: title, body: "", author: "you", baseBranch: "main",
                 headBranch: branch, additions: 20, deletions: 3, commitCount: 1, headSHA: "b\(number)",
-                reviews: review.map { [PullDetail.Review(author: "reviewer", state: $0)] } ?? [], threads: [],
-                failingChecks: [], checks: checks, closes: [], fetchedAt: Clock.now
+                reviews: review.map { [PullDetail.Review(author: "reviewer", state: $0, trust: .collaborator)] } ?? [],
+                threads: [], failingChecks: [], checks: checks, closes: [], fetchedAt: Clock.now, authorTrust: .owner
             )
             detail.state = "OPEN"
             detail.isDraft = false

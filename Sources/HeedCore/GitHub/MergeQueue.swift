@@ -95,6 +95,10 @@ public enum MergeQueue {
         if let held = entry.held {
             return detail.autoMergeEnabled == true ? .disableAutoMerge(reason: held) : .hold(held)
         }
+        // Only PRs opened by people who can write to the repo, or by trusted_authors, whichever mode: anyone else's
+        // is merged by hand (zM). GitHub's auto-merge is left as it is.
+        let author = HeedMerge.author(detail, settings: entry.settings)
+        if !author.trusted { return .hold("Author: \(author.text)") }
         if entry.mode == .heed { return heedAction(entry) }
         if detail.repoAllowsAutoMerge == false {
             return .hold("the repo does not allow auto-merge (Settings → General → Allow auto-merge)")

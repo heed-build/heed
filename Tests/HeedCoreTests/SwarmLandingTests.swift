@@ -367,7 +367,7 @@ struct SwarmLandingQueueTests {
             ref: PullRef(repo: repo, number: number), title: "", body: "", author: nil, baseBranch: "main",
             headBranch: "b\(number)", additions: 0, deletions: 0, commitCount: 1, headSHA: "s\(number)",
             reviews: [], threads: [], failingChecks: [], checks: CheckSummary(passed: 2), closes: [],
-            fetchedAt: now
+            fetchedAt: now, authorTrust: .owner
         )
         detail.state = "OPEN"
         detail.isDraft = false

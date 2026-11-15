@@ -117,7 +117,10 @@ struct OverridesTests {
         #expect(Overrides.keys(for: repo, on: .general, in: config).map(\.id)
             == ["color", "setup", "goals_tracker", "goals_mirror", "watch"])
         #expect(Overrides.keys(for: repo, on: .reviews, in: config).map(\.id)
-            == ["reviewers", "trusted_reviewers", "self_review", "copilot_comments", "copilot_conflicts"])
+            == [
+                "reviewers", "trusted_reviewers", "trusted_authors", "self_review", "copilot_comments",
+                "copilot_conflicts",
+            ])
         // An org has no admin merge, so its merged tab is one shorter.
         #expect(Overrides.keys(for: .org("acme"), on: .merged, in: config).count
             == Overrides.keys(for: repo, on: .merged, in: config).count - 1)
@@ -161,6 +164,6 @@ struct OverridesTests {
         #expect(Overrides.keys(for: docs, on: .general, in: config, onlyOverridden: true).map(\.id) == ["color"])
         // Inherited from the org is not overridden here.
         #expect(Overrides.keys(for: docs, on: .reviews, in: config, onlyOverridden: true).isEmpty)
-        #expect(Overrides.keys(for: docs, on: .reviews, in: config).count == 5)
+        #expect(Overrides.keys(for: docs, on: .reviews, in: config).count == 6)
     }
 }

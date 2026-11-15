@@ -391,6 +391,7 @@ public enum ConfigLoader {
             )
             overrides.quietMinutes = integer(base + ["quiet_minutes"], range: 0 ... 1440)
             overrides.trustedReviewers = strings(base + ["trusted_reviewers"])
+            overrides.trustedAuthors = strings(base + ["trusted_authors"])
             overrides.gateChecks = strings(base + ["gate_checks"])
             overrides.holdLabels = strings(base + ["hold_labels"])
             overrides.selfReview = string(base + ["self_review"]).map { $0.trimmingCharacters(in: .whitespaces) }
@@ -457,6 +458,7 @@ public enum ConfigLoader {
         if let list = pilotDefaults.reviewers { config.pilot.defaults.reviewers = list }
         if let minutes = pilotDefaults.quietMinutes { config.pilot.defaults.quietMinutes = minutes }
         if let list = pilotDefaults.trustedReviewers { config.pilot.defaults.trustedReviewers = list }
+        if let list = pilotDefaults.trustedAuthors { config.pilot.defaults.trustedAuthors = list }
         if let list = pilotDefaults.gateChecks { config.pilot.defaults.gateChecks = list }
         if let list = pilotDefaults.holdLabels { config.pilot.defaults.holdLabels = list }
         if let command = pilotDefaults.selfReview { config.pilot.defaults.selfReview = command.isEmpty ? nil : command }
@@ -1131,8 +1133,9 @@ public enum ConfigLoader {
     pause = "1h"
     # Get it merged: off; auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
     # requirements are met); or heed (heed merges it itself once the rules below hold). Per org and per repo too, and M
-    # cycles one PR.
+    # cycles one PR. Either way only PRs opened by the repo's owner, a collaborator, or one of trusted_authors.
     merge = "off"
+    trusted_authors = []      # e.g. ["dependabot[bot]", "renovate[bot]"]
     # squash, merge or rebase; unset takes the first the repo allows, in that order.
     # merge_method = "squash"
     # How often a repo's merge queue runs (15m, 1h, ...), or manual (only :merge.run).
@@ -1146,13 +1149,15 @@ public enum ConfigLoader {
     copilot_comments = false
     # Who heed asks to review a PR once it is open and not a draft, once per PR: logins, "org/team", or "copilot".
     reviewers = []
-    # merge = "heed" merges a PR when it is green, reviewed after its last push (a human approval, or a trusted AI
-    # reviewer's), quiet for quiet_minutes, its gate_checks passed, without a hold label, and, with self_review set,
-    # approved by that command. Each per org and per repo too.
+    # merge = "heed" merges a PR when it is green, reviewed after its last push (an approval from someone who can write
+    # to the repo, or a trusted reviewer's), quiet for quiet_minutes, its gate_checks passed, without a hold label,
+    # and, with self_review set, approved by that command. Each per org and per repo too.
     quiet_minutes = 5
-    # AI reviewers whose review counts: an approval, a comment review with none of its threads open, or no review at
-    # all once its review check (named in gate_checks) passed on the head commit.
+    # Reviewers (usually AI) whose review counts: an approval, a comment review with none of its threads open, or no
+    # review at all once its review check (named in gate_checks) passed on the head commit. "name[bot]" is only a bot.
     trusted_reviewers = []    # e.g. ["copilot-pull-request-reviewer"]
+    # Checks by name, each from the app that reported it on the base branch (github-actions when none did), or named
+    # as "app:name", e.g. "github-actions:test". A check of the same name from another app does not count.
     gate_checks = []
     hold_labels = ["hold", "do-not-merge", "wip"]
     # A command that reads the prompt and the PR's diff on stdin and answers APPROVE, or REQUEST_CHANGES: <why>.

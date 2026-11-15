@@ -822,7 +822,9 @@ public enum GitHub {
       autoMergeAllowed squashMergeAllowed mergeCommitAllowed rebaseMergeAllowed viewerPermission
       pullRequest(number: $number) {
       number title body author { login __typename } authorAssociation baseRefName headRefName additions deletions
-      baseRef { refUpdateRule { requiresLinearHistory } }
+      baseRef { refUpdateRule { requiresLinearHistory } target { ... on Commit { statusCheckRollup {
+        contexts(first: 100) { nodes { __typename ... on CheckRun { name checkSuite { app { slug } } }
+          ... on StatusContext { context creator { login } } } } } } } }
       state isDraft mergeable mergeStateStatus reviewDecision
       autoMergeRequest { enabledAt mergeMethod } labels(first: 20) { nodes { name } }
       commits(last: 1) { totalCount nodes { commit { oid committedDate statusCheckRollup { contexts(first: 100) { nodes {
@@ -1073,7 +1075,8 @@ public enum GitHub {
     static func latest(_ contexts: [[String: Any]]) -> [[String: Any]] {
         var newest: [String: Int] = [:]
         for (index, context) in contexts.enumerated() where context["__typename"] as? String == "CheckRun" {
-            let name = context["name"] as? String ?? ""
+            // The newest run per name and app: a check of the same name from another app is a check of its own.
+            let name = (context["name"] as? String ?? "") + "\u{0}" + (checkApp(context) ?? "")
             if let seen = newest[name],
                (contexts[seen]["startedAt"] as? String ?? "") > (context["startedAt"] as? String ?? "")
             {
@@ -1085,6 +1088,19 @@ public enum GitHub {
         return contexts.enumerated().filter { index, context in
             context["__typename"] as? String != "CheckRun" || kept.contains(index)
         }.map(\.element)
+    }
+
+    /// Who reported a check: a check run's app slug, a status's creator.
+    static func checkApp(_ context: [String: Any]) -> String? {
+        if context["__typename"] as? String == "StatusContext" {
+            return (context["creator"] as? [String: Any])?["login"] as? String
+        }
+        return ((context["checkSuite"] as? [String: Any])?["app"] as? [String: Any])?["slug"] as? String
+    }
+
+    static func checkOrigin(_ context: [String: Any]) -> PullDetail.CheckOrigin? {
+        guard let name = (context["name"] ?? context["context"]) as? String else { return nil }
+        return PullDetail.CheckOrigin(name: name, app: checkApp(context))
     }
 
     static func checkSummary(_ contexts: [[String: Any]]) -> CheckSummary {
@@ -1240,11 +1256,16 @@ public enum GitHub {
                 createdAt: (source["createdAt"] as? String).map { date($0) }
             )
         }
-        detail.passedChecks = contexts.filter { context in
+        let passed = contexts.filter { context in
             context["__typename"] as? String == "StatusContext" ? context["state"] as? String == "SUCCESS"
                 : context["status"] as? String == "COMPLETED"
                 && ["SUCCESS", "NEUTRAL", "SKIPPED"].contains(context["conclusion"] as? String ?? "")
-        }.compactMap { ($0["name"] ?? $0["context"]) as? String }
+        }
+        detail.passedChecks = passed.compactMap { ($0["name"] ?? $0["context"]) as? String }
+        detail.passedRuns = passed.compactMap(checkOrigin)
+        let baseRollup = (((node["baseRef"] as? [String: Any])?["target"] as? [String: Any])?["statusCheckRollup"]
+            as? [String: Any])?["contexts"] as? [String: Any]
+        detail.baseChecks = ((baseRollup?["nodes"] as? [[String: Any]]) ?? []).compactMap(checkOrigin)
         return detail
     }
 

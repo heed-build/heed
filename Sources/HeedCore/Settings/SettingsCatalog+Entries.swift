@@ -799,9 +799,16 @@ extension SettingsCatalog {
                 level: .advanced, since: "0.2.0"
             ) { .integer($0.quietMinutes) },
             entry(
-                "gate_checks", "Gate checks", "heed merges: checks that must have passed, required by GitHub or not.",
-                level: .advanced, since: "0.2.0", example: "gate_checks = [\"build\"]"
+                "gate_checks", "Gate checks",
+                "heed merges: checks that must have passed, required by GitHub or not, each from its app "
+                    + "(app:name, or the app that reports it on the base branch).",
+                level: .advanced, since: "0.2.0", example: "gate_checks = [\"github-actions:build\"]"
             ) { .list($0.gateChecks) },
+            entry(
+                "trusted_authors", "Trusted authors",
+                "Get it merged: whose PRs heed merges besides the owner and collaborators, such as dependabot[bot].",
+                level: .advanced, since: "0.45.0", example: "trusted_authors = [\"dependabot[bot]\"]"
+            ) { .list($0.trustedAuthors) },
             entry(
                 "hold_labels", "Hold labels", "heed merges: a PR with one of these labels waits.", level: .advanced,
                 since: "0.2.0"
@@ -825,7 +832,8 @@ extension SettingsCatalog {
             ) { .list($0.reviewers) },
             entry(
                 "trusted_reviewers", "Trusted AI reviewers",
-                "heed merges: their review on the last push counts, as an approval does. Comma separated logins.",
+                "heed merges: their review on the last push counts, as a collaborator's approval does. Comma "
+                    + "separated logins.",
                 level: .advanced, since: "0.2.0", example: "trusted_reviewers = [\"copilot-pull-request-reviewer\"]"
             ) { .list($0.trustedReviewers) },
             entry(
@@ -956,7 +964,9 @@ extension SettingsCatalog {
     static let overrideEntries: [SettingsEntry] = {
         let advanced: Set = [
             "max_rounds", "quiet_minutes", "gate_checks", "hold_labels", "update_branches", "merge_method",
-            "merge_agent", "merge_model", "merge_effort", "self_review", "trusted_reviewers", "admin_merge", "setup",
+            "merge_agent", "merge_model", "merge_effort", "self_review", "trusted_reviewers", "trusted_authors",
+            "admin_merge",
+            "setup",
         ]
         let since: [String: String] = [
             "color": "0.1.0", "setup": "0.10.0", "goals_tracker": "0.19.0",
@@ -964,6 +974,7 @@ extension SettingsCatalog {
             "merge_model": "0.9.6", "merge_effort": "0.32.0", "run_in": "0.9.6", "merge_now": "0.14.0",
             "force_merge": "0.14.0", "green_instructions": "0.9.5", "review_instructions": "0.9.5",
             "start_instructions": "0.9.5", "summary_instructions": "0.11.4", "summary_sign_off": "0.12.0",
+            "trusted_authors": "0.45.0",
         ]
         let examples: [String: String] = [
             "color": "color = \"teal\"", "setup": "setup = [\"pnpm install\"]",
@@ -972,7 +983,8 @@ extension SettingsCatalog {
             "merge_model": "merge_model = \"haiku\"", "merge_effort": "merge_effort = \"low\"",
             "merge_method": "merge_method = \"squash\"", "reviewers": "reviewers = [\"copilot\"]",
             "trusted_reviewers": "trusted_reviewers = [\"copilot-pull-request-reviewer\"]",
-            "gate_checks": "gate_checks = [\"build\"]", "self_review": "self_review = \"claude -p\"",
+            "trusted_authors": "trusted_authors = [\"dependabot[bot]\"]",
+            "gate_checks": "gate_checks = [\"github-actions:build\"]", "self_review": "self_review = \"claude -p\"",
             "green_instructions": "green_instructions = \"Resolve the threads your changes addressed.\"",
             "review_instructions": "review_instructions = \"Flag any change to the public API.\"",
             "start_instructions": "start_instructions = \"Open a draft PR early.\"",

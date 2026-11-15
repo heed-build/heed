@@ -48,6 +48,23 @@ public struct PullDetail: Hashable, Sendable, Codable {
     public var headCommittedAt: Date?
     /// The checks that passed on the head commit, by name.
     public var passedChecks: [String]?
+    /// The same, with the app that reported each: what gate checks match (`GateCheck`). nil in details cached before
+    /// it, where no gate check counts until the next fetch.
+    public var passedRuns: [CheckOrigin]?
+    /// The checks reported on the base branch's latest commit, passed or not, with their apps: the app a bare gate
+    /// check name binds to.
+    public var baseChecks: [CheckOrigin]?
+
+    /// A check's name and the app that reported it: a check run's app slug, a status's creator.
+    public struct CheckOrigin: Hashable, Sendable, Codable {
+        public var name: String
+        public var app: String?
+
+        public init(name: String, app: String?) {
+            self.name = name
+            self.app = app
+        }
+    }
 
     /// PRs that mention this one (GitHub's cross-references), for follow-ups and companion changes.
     public var references: [Reference]?
@@ -145,6 +162,9 @@ public struct PullDetail: Hashable, Sendable, Codable {
     }
 
     public var approvals: Int { latestReviews.count { $0.state == "APPROVED" } }
+
+    /// Who opened it, to the repo.
+    public var authorTrust: ExternalText.Trust { title.author.trust }
 
     /// The last review per reviewer.
     public var latestReviews: [Review] {

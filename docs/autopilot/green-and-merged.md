@@ -99,12 +99,25 @@ queue goes through the queue's PRs, oldest first:
 | fails a green rule | holds the PR, and turns auto-merge off if it was on: GitHub might merge what the rule catches |
 | is paused | holds the PR |
 | is a swarm's PR whose task waits for one not merged yet | holds the PR, and turns auto-merge off if it was on |
+| was opened by someone who can't write to the repo | holds the PR: see [Which PRs heed merges](#which-prs-heed-merges) |
 
 A swarm's PRs go through in the swarm's merge order instead, in the places they hold among the other PRs
 ([Landing](../goals/swarms/landing.md)).
 
 GitHub does the merging, so the repo has to allow auto-merge (Settings ▸ General ▸ Allow auto-merge). The queue says so
 when the repo does not. heed merges only PRs your sessions track.
+
+### Which PRs heed merges
+
+heed merges on its own, with `auto` or `heed`, only PRs opened by the repo's owner or a collaborator (GitHub's
+`OWNER`, `MEMBER` and `COLLABORATOR`: people who can write to the repo), and by the logins in `trusted_authors`, such as
+`["dependabot[bot]", "renovate[bot]"]` (empty by default). The rule holds however the PR came to be tracked: a
+session's own, `heed pr add`, or a goal's item source. heed holds anyone else's PR with the reason (`@x isn't a
+collaborator: heed doesn't merge it on its own`), leaves GitHub's auto-merge as it is, and merge now (`zM`) still
+merges the PR by hand.
+
+A login ending in `[bot]` names only the bot of that name, never a person with the same login; without the suffix
+it matches either. This holds for `trusted_reviewers` too.
 
 A queue runs every hour (`merge_schedule`), when merging is turned on, when one of its PRs turns green, and after one of
 its PRs merges, so heed brings the other PRs up to date. `R` in Now runs the PR's queue now, and `:merge.run all` runs
@@ -122,15 +135,35 @@ once every rule holds. A run checks the rules again on the PR as it is then, and
 | Rule | Holds when |
 |---|---|
 | Green | every [green rule](#green) holds |
-| Reviewed after push | a human approved the head commit, or a trusted AI reviewer reviewed it (below) |
+| Author | the PR was opened by the owner, a collaborator, or one of `trusted_authors` ([above](#which-prs-heed-merges)) |
+| Reviewed after push | someone who can write to the repo approved the head commit, or a trusted reviewer reviewed it (below) |
 | Quiet | no new commit or review for `quiet_minutes` (5) |
-| Gate checks | every check named in `gate_checks` passed on the head commit, required by GitHub or not |
+| Gate checks | every check named in `gate_checks` passed on the head commit, from its app, required by GitHub or not (below) |
 | No hold label | none of `hold_labels` (`hold`, `do-not-merge`, `wip`) is on the PR |
 | Self-review | with `self_review` set: the command approved the diff of the head commit |
 
-A **trusted AI reviewer** (`trusted_reviewers`, e.g. `copilot-pull-request-reviewer`) counts as a review of the head
-commit in three cases. The reviewer approved the commit, or left a comment review none of whose threads is still open. Otherwise the reviewer left no review
-at all, but its review check, named in `gate_checks`, passed on that commit.
+#### Who counts as a reviewer
+
+An approval of the head commit counts when the reviewer can write to the repo (owner, member or collaborator), or is
+one of `trusted_reviewers`. Anyone else's approval is shown and does not count: the rule says `@x approved abc1234, but
+isn't a collaborator`, or for a bot, `but isn't in trusted_reviewers`.
+
+A **trusted reviewer** (`trusted_reviewers`, e.g. `copilot-pull-request-reviewer`) counts as a review of the head
+commit in three cases. The reviewer approved the commit, or left a comment review none of whose threads is still open.
+Otherwise the reviewer left no review at all, but every gate check, its review check among them, passed on that commit.
+
+#### Gate checks by app
+
+A gate check is a check's name and the app that reported the check. `"github-actions:ci/test"` names the app; a bare
+`"ci/test"` takes the app that reports a check of that name on the base branch's latest commit, or `github-actions`
+when no app does there. A check of the same name from another app neither passes nor fails the gate. heed reads the
+part before the first `:` as an app when the part looks like one (lowercase letters, digits and `-`), so a check named
+`lint:docs` is written `"github-actions:lint:docs"`.
+
+On a PR heed does not merge on its own ([above](#which-prs-heed-merges)) no gate check counts: the checks on such a PR
+can run workflow files the PR itself changes.
+
+#### The self-review
 
 The **self-review** is a command you choose, such as `claude -p`. heed passes the command a prompt with the PR's
 description and diff (`gh pr diff`, nothing is checked out) on stdin, in an empty folder of its own. For `claude` heed
@@ -142,7 +175,7 @@ per head commit.
 
 After merging, heed comments on the PR with each rule and what heed found. When GitHub refuses the merge (branch
 protection), heed holds the PR with GitHub's reason. `admin_merge = true` under `[repos."org/name"]`, and only there, retries
-with `--admin`.
+with `--admin`, and only when every rule above held on the commit heed merges.
 
 ![A PR heed merges: the rules, and the one holding it](../images/shots/watch/heed.png)
 
@@ -357,7 +390,8 @@ copilot_comments = false   # Copilot addresses review comments
 reviewers = []             # e.g. ["copilot", "alice", "acme/docs-team"]
 quiet_minutes = 5          # merge = "heed": the rules
 trusted_reviewers = []     # e.g. ["copilot-pull-request-reviewer"]
-gate_checks = []
+trusted_authors = []       # whose PRs are merged besides collaborators, e.g. ["dependabot[bot]"]
+gate_checks = []           # e.g. ["github-actions:test"], or "test" from the app the base branch has it from
 hold_labels = ["hold", "do-not-merge", "wip"]
 # self_review = "claude -p"
 # merge_method = "squash"  # unset: the first of squash, merge, rebase the repo allows

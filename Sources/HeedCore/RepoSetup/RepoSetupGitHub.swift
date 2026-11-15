@@ -200,13 +200,13 @@ public extension GitHub {
                      orderBy: { field: UPDATED_AT, direction: DESC }) {
           nodes {
             number title createdAt mergedAt
-            author { __typename login }
+            author { __typename login } authorAssociation
             mergedBy { login }
             labels(first: 20) { nodes { name } }
             mergeCommit { parents { totalCount } }
             commits(last: 1) { totalCount nodes { commit { oid committedDate statusCheckRollup { contexts(first: 50) {
-              nodes { __typename ... on CheckRun { name status conclusion startedAt }
-                      ... on StatusContext { context state } } } } } } }
+              nodes { __typename ... on CheckRun { name status conclusion startedAt checkSuite { app { slug } } }
+                      ... on StatusContext { context state creator { login } } } } } } } }
             timelineItems(first: 50, itemTypes: [LABELED_EVENT, UNLABELED_EVENT, AUTO_MERGE_ENABLED_EVENT,
                                                  ADDED_TO_MERGE_QUEUE_EVENT, MERGED_EVENT]) {
               nodes { __typename ... on LabeledEvent { createdAt label { name } }
@@ -214,7 +214,8 @@ public extension GitHub {
                       ... on AutoMergeEnabledEvent { createdAt } ... on AddedToMergeQueueEvent { createdAt }
                       ... on MergedEvent { createdAt } }
             }
-            reviews(last: 20) { nodes { author { __typename login } state submittedAt commit { oid } } }
+            reviews(last: 20) { nodes { author { __typename login } authorAssociation state submittedAt
+              commit { oid } } }
             reviewThreads(first: 50) { nodes { isResolved comments(first: 1) { nodes { author { login } path } } } }
           }
         }
@@ -247,20 +248,25 @@ public extension GitHub {
             "nodes"
         ] as? [[String: Any]]) ?? [])
         var passed: [String] = []
+        var passedRuns: [PullDetail.CheckOrigin] = []
         var failed: [String] = []
         var pending: [String] = []
         for context in contexts {
             let name = (context["name"] ?? context["context"]) as? String ?? "check"
+            func pass() {
+                passed.append(name)
+                passedRuns.append(PullDetail.CheckOrigin(name: name, app: GitHub.checkApp(context)))
+            }
             if context["__typename"] as? String == "StatusContext" {
                 switch context["state"] as? String {
-                case "SUCCESS": passed.append(name)
+                case "SUCCESS": pass()
                 case "FAILURE", "ERROR": failed.append(name)
                 default: pending.append(name)
                 }
             } else if context["status"] as? String != "COMPLETED" {
                 pending.append(name)
             } else if ["SUCCESS", "NEUTRAL", "SKIPPED"].contains(context["conclusion"] as? String ?? "") {
-                passed.append(name)
+                pass()
             } else {
                 failed.append(name)
             }
@@ -304,7 +310,10 @@ public extension GitHub {
                 if isBot(reviewer) { bots.insert(login) }
                 return PullDetail.Review(
                     author: login, state: state, submittedAt: date(review["submittedAt"] as? String),
-                    commit: (review["commit"] as? [String: Any])?["oid"] as? String
+                    commit: (review["commit"] as? [String: Any])?["oid"] as? String,
+                    trust: ExternalText.Trust.from(
+                        association: review["authorAssociation"] as? String, isBot: isBot(reviewer)
+                    )
                 )
             }
         let threads = (((node["reviewThreads"] as? [String: Any])?["nodes"] as? [[String: Any]]) ?? [])
@@ -328,7 +337,12 @@ public extension GitHub {
             mergeQueue: events.contains { $0.kind == "AddedToMergeQueueEvent" }, reviews: reviews, botReviewers: bots,
             threads: threads, headSHA: commit?["oid"] as? String ?? "",
             headCommittedAt: (commit?["committedDate"] as? String).map { date($0) }, passedChecks: passed,
-            failedChecks: failed, pendingChecks: pending
+            failedChecks: failed, pendingChecks: pending,
+            authorTrust: ExternalText.Trust.from(
+                association: node["authorAssociation"] as? String,
+                isBot: isBot(author)
+            ),
+            passedRuns: passedRuns
         )
     }
 

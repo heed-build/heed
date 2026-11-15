@@ -197,7 +197,7 @@ extension SwarmFixtures {
                 ref: ref, title: task.title, body: "", author: "you",
                 baseBranch: stacked ? branch("heading-ids") : "main", headBranch: branch(task.slug), additions: 40,
                 deletions: 6, commitCount: 2, headSHA: "c\(task.number)", reviews: [], threads: [],
-                failingChecks: [], checks: checks, closes: [], fetchedAt: now
+                failingChecks: [], checks: checks, closes: [], fetchedAt: now, authorTrust: .owner
             )
             detail.state = "OPEN"
             detail.isDraft = false

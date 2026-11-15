@@ -17,13 +17,20 @@ struct RepoSetupTests {
     ) -> SampledPull {
         let merged = now.addingTimeInterval(-Double(number) * 3600)
         let head = "head\(number)"
+        // Reviewers can write to the repo, and the bots are bots, unless a review says otherwise.
+        let reviews = (reviews ?? [.init(author: "olek", state: "APPROVED", submittedAt: merged - 300, commit: head)])
+            .map { review in
+                var review = review
+                if review.trust == .stranger { review.trust = bots.contains(review.author) ? .bot : .collaborator }
+                return review
+            }
         return SampledPull(
             number: number, title: "PR \(number)", author: author, mergedBy: author,
             createdAt: merged.addingTimeInterval(-86400), mergedAt: merged, labels: labels, removedBeforeMerge: removed,
             parents: parents, autoMerge: autoMerge,
-            reviews: reviews ?? [.init(author: "olek", state: "APPROVED", submittedAt: merged - 300, commit: head)],
-            botReviewers: bots, headSHA: head, headCommittedAt: merged.addingTimeInterval(-committed * 60),
-            passedChecks: passed, failedChecks: failed
+            reviews: reviews, botReviewers: bots, headSHA: head,
+            headCommittedAt: merged.addingTimeInterval(-committed * 60), passedChecks: passed, failedChecks: failed,
+            authorTrust: .collaborator
         )
     }
 
@@ -93,13 +100,13 @@ struct RepoSetupTests {
         let json = """
         {"data":{"repository":{"pullRequests":{"nodes":[{
           "number":77,"title":"Wave the flag","createdAt":"2030-01-01T10:00:00Z","mergedAt":"2030-01-02T10:00:00Z",
-          "author":{"__typename":"User","login":"ines"},"mergedBy":{"login":"olek"},
+          "author":{"__typename":"User","login":"ines"},"authorAssociation":"MEMBER","mergedBy":{"login":"olek"},
           "labels":{"nodes":[{"name":"docs"},{"name":"released"}]},
           "mergeCommit":{"parents":{"totalCount":2}},
           "commits":{"totalCount":4,"nodes":[{"commit":{"oid":"abc123","committedDate":"2030-01-02T09:30:00Z",
             "statusCheckRollup":{"contexts":{"nodes":[
-              {"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2030-01-02T09:31:00Z"},
-              {"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"2030-01-02T09:40:00Z"},
+              {"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"FAILURE","startedAt":"2030-01-02T09:31:00Z","checkSuite":{"app":{"slug":"github-actions"}}},
+              {"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"2030-01-02T09:40:00Z","checkSuite":{"app":{"slug":"github-actions"}}},
               {"__typename":"CheckRun","name":"draft","status":"COMPLETED","conclusion":"SKIPPED","startedAt":"2030-01-02T09:31:00Z"},
               {"__typename":"CheckRun","name":"e2e","status":"IN_PROGRESS","conclusion":null,"startedAt":"2030-01-02T09:31:00Z"},
               {"__typename":"StatusContext","context":"license/cla","state":"FAILURE"}]}}}}]},
@@ -113,7 +120,8 @@ struct RepoSetupTests {
           "reviews":{"nodes":[
             {"author":{"__typename":"Bot","login":"copilot-pull-request-reviewer"},"state":"COMMENTED",
              "submittedAt":"2030-01-02T09:35:00Z","commit":{"oid":"abc123"}},
-            {"author":{"__typename":"User","login":"olek"},"state":"APPROVED","submittedAt":"2030-01-02T09:50:00Z",
+            {"author":{"__typename":"User","login":"olek"},"authorAssociation":"COLLABORATOR","state":"APPROVED",
+             "submittedAt":"2030-01-02T09:50:00Z",
              "commit":{"oid":"abc123"}},
             {"author":null,"state":"COMMENTED","submittedAt":"2030-01-02T09:51:00Z","commit":null}]},
           "reviewThreads":{"nodes":[{"isResolved":false,"comments":{"nodes":[{"author":{"login":"olek"},"path":"a.md"}]}}]}
@@ -132,6 +140,10 @@ struct RepoSetupTests {
         #expect(pull.pendingChecks == ["e2e"])
         #expect(pull.reviews.map(\.author) == ["copilot-pull-request-reviewer", "olek"])
         #expect(pull.botReviewers == ["copilot-pull-request-reviewer"])
+        // Who they are to the repo, and which app reported each check, for the merge rules' replay.
+        #expect(pull.authorTrust == .collaborator)
+        #expect(pull.reviews.map(\.trust) == [.bot, .collaborator])
+        #expect(pull.passedRuns.map(\.app) == ["github-actions", nil])
         #expect(pull.humanApproved)
         #expect(pull.threads.map(\.isResolved) == [false] && pull.threads.first?.author == "olek")
         #expect(pull.headSHA == "abc123")
@@ -721,7 +733,8 @@ struct RepoSetupTests {
         let validation = try #require(wizard.validation)
         #expect(validation.replayed == 30)
         #expect(validation.summary
-            == "5 of 30 would be held: 4 no review of the last push, 1 gate checks not passed.")
+            ==
+            "8 of 30 would be held: 4 no review of the last push, 3 not by a collaborator, 1 gate checks not passed.")
         _ = wizard.handle(KeyStroke("BS"))
         #expect(wizard.step == .propose)
         _ = wizard.handle(KeyStroke("CR"))

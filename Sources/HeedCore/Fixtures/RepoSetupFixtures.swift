@@ -22,20 +22,22 @@ public enum RepoSetupFixtures {
             if index % 3 != 2 {
                 bots.insert(reviewer)
                 reviews.append(.init(
-                    author: reviewer, state: "COMMENTED", submittedAt: committed.addingTimeInterval(120), commit: head
+                    author: reviewer, state: "COMMENTED", submittedAt: committed.addingTimeInterval(120), commit: head,
+                    trust: .bot
                 ))
             }
             // Most are approved on their head commit; a few only before their last push, one never.
             let approver = people[(index + 1) % people.count]
             if index % 11 == 4 {
                 reviews.append(.init(
-                    author: approver, state: "APPROVED", submittedAt: committed.addingTimeInterval(-600), commit: "0ld"
+                    author: approver, state: "APPROVED", submittedAt: committed.addingTimeInterval(-600), commit: "0ld",
+                    trust: .collaborator
                 ))
             } else if index != 17 {
                 reviews.append(.init(
                     author: approver, state: "APPROVED",
                     submittedAt: merged.addingTimeInterval(-Double(4 + index % 5 * 3) * 60),
-                    commit: head
+                    commit: head, trust: .collaborator
                 ))
             }
             var passed = ["build", "lint"]
@@ -49,7 +51,8 @@ public enum RepoSetupFixtures {
                 removedBeforeMerge: index == 3 || index == 12 ? ["wip"] : index == 8 || index == 21 ? ["needs-design"] :
                     [],
                 parents: 1, commits: 1 + index % 4, reviews: reviews, botReviewers: bots, headSHA: head,
-                headCommittedAt: committed, passedChecks: passed
+                headCommittedAt: committed, passedChecks: passed,
+                authorTrust: author.hasSuffix("[bot]") ? .bot : .collaborator
             ))
         }
         let failures: [CIHistory.Failure] =

@@ -92,7 +92,7 @@ public struct RepoSetupValidation: Hashable, Sendable {
                 passed: pull.passedChecks.count, failed: pull.failedChecks.count, pending: pull.pendingChecks.count,
                 failedNames: pull.failedChecks, pendingNames: pull.pendingChecks
             ),
-            closes: [], fetchedAt: pull.mergedAt
+            closes: [], fetchedAt: pull.mergedAt, authorTrust: pull.authorTrust
         )
         detail.state = "OPEN"
         detail.isDraft = false
@@ -104,6 +104,9 @@ public struct RepoSetupValidation: Hashable, Sendable {
         detail.labels = pull.labels.filter { label in !pull.removedBeforeMerge.contains(label) }
         detail.headCommittedAt = pull.headCommittedAt
         detail.passedChecks = pull.passedChecks
+        detail.passedRuns = pull.passedRuns
+        // The base branch then is not sampled: a bare gate check binds to the app that reported it on the PR.
+        detail.baseChecks = pull.passedRuns
         detail.repoMergeMethods = settings.methods
         detail.repoAllowsAutoMerge = settings.autoMergeAllowed
         return detail
@@ -121,6 +124,7 @@ public struct RepoSetupValidation: Hashable, Sendable {
             default: what
             }
         case "Reviewed after push": return "no review of the last push"
+        case "Author": return "not by a collaborator"
         case "No hold label": return "a hold label (\(rule.detail.replacingOccurrences(of: "labelled ", with: "")))"
         case "Gate checks": return "gate checks not passed"
         case "Quiet": return "not quiet yet"

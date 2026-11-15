@@ -16,6 +16,8 @@ public enum HeedMerge {
         } else {
             rule("Green", .pass, "every green rule holds")
         }
+        let author = author(detail, settings: settings)
+        rule("Author", author.trusted ? .pass : .fail, author.text)
         let review = reviewed(detail, settings: settings)
         rule("Reviewed after push", review.state, review.text)
         let last = ([detail.headCommittedAt] + detail.reviews.map(\.submittedAt)).compactMap(\.self).max()
@@ -29,20 +31,8 @@ public enum HeedMerge {
                 settings.quietMinutes == 0 ? "no quiet window" : "nothing new for \(settings.quietMinutes)m"
             )
         }
-        if settings.gateChecks.isEmpty {
-            rule("Gate checks", .pass, "none named")
-        } else {
-            let failed = settings.gateChecks.filter { name in detail.failingChecks.contains { $0.name == name } }
-            let passed = Set(detail.passedChecks ?? [])
-            let missing = settings.gateChecks.filter { !passed.contains($0) && !failed.contains($0) }
-            if !failed.isEmpty {
-                rule("Gate checks", .fail, "\(failed.joined(separator: ", ")) failed")
-            } else if !missing.isEmpty {
-                rule("Gate checks", .wait, "\(missing.joined(separator: ", ")) not passed on \(short) yet")
-            } else {
-                rule("Gate checks", .pass, "\(settings.gateChecks.joined(separator: ", ")) passed")
-            }
-        }
+        let gates = gateChecks(detail, settings: settings)
+        rule("Gate checks", gates.state, gates.text)
         let holds = Set(settings.holdLabels.map { $0.lowercased() })
         if let label = (detail.labels ?? []).first(where: { holds.contains($0.lowercased()) }) {
             rule("No hold label", .fail, "labelled \(label)")
@@ -63,36 +53,96 @@ public enum HeedMerge {
         return GreenVerdict(rules: rules)
     }
 
-    /// A review on the head commit: a human approval, or a trusted AI reviewer's. An AI reviewer counts when it
-    /// approved, when it left a comment review none of whose threads is open, or when it left no review at all but its
-    /// review check (one of `gate_checks`) passed on the head commit.
+    /// Whether heed merges this PR on its own: its author is the repo's owner or a collaborator (people who can write
+    /// to it), or one of `trusted_authors`. Anyone else's PR is merged by hand (`zM`) only.
+    public static func author(
+        _ detail: PullDetail, settings: PilotSettings
+    ) -> (trusted: Bool, text: String) {
+        let who = detail.author.map { "@" + $0 } ?? "someone"
+        switch detail.authorTrust {
+        case .owner: return (true, "opened by \(who), the repo's owner")
+        case .collaborator: return (true, "opened by \(who), who can write to the repo")
+        case .bot, .stranger:
+            let isBot = detail.authorTrust == .bot
+            if let login = detail.author,
+               settings.trustedAuthors.contains(where: { listed($0, login: login, isBot: isBot) })
+            {
+                return (true, "opened by \(who), one of trusted_authors")
+            }
+            let why = isBot ? "\(who) isn't in trusted_authors" : "\(who) isn't a collaborator"
+            return (false, "\(why): heed doesn't merge it on its own; merge it by hand (zM)")
+        }
+    }
+
+    /// Whether `entry` (from `trusted_reviewers` or `trusted_authors`) names `login`: compared without case and
+    /// GitHub's `[bot]` suffix, and an entry ending in `[bot]` names only a bot.
+    public static func listed(_ entry: String, login: String, isBot: Bool) -> Bool {
+        if entry.lowercased().hasSuffix("[bot]"), !isBot { return false }
+        return GateCheck.normalize(entry) == GateCheck.normalize(login)
+    }
+
+    /// `gate_checks`, each from its app (`GateCheck`). On a PR heed would not merge on its own (see `author`) none
+    /// counts: its checks run what the PR itself changes.
+    static func gateChecks(
+        _ detail: PullDetail, settings: PilotSettings
+    ) -> (state: GreenVerdict.Rule.State, text: String) {
+        guard !settings.gateChecks.isEmpty else { return (.pass, "none named") }
+        let short = String(detail.headSHA.prefix(7))
+        guard author(detail, settings: settings).trusted else {
+            return (.fail, "not counted on a PR heed doesn't merge on its own (see Author)")
+        }
+        var failed: [String] = []
+        var missing: [String] = []
+        var passed: [String] = []
+        for gate in settings.gateChecks.map(GateCheck.init) {
+            switch gate.state(on: detail) {
+            case .failed: failed.append(gate.entry)
+            case .missing:
+                let apps = gate.apps(on: detail).sorted().joined(separator: " or ")
+                missing.append("\(gate.name) (from \(apps))")
+            case let .passed(app): passed.append("\(gate.name) (\(app))")
+            }
+        }
+        if !failed.isEmpty { return (.fail, "\(failed.joined(separator: ", ")) failed") }
+        if !missing.isEmpty { return (.wait, "\(missing.joined(separator: ", ")) not passed on \(short) yet") }
+        return (.pass, "\(passed.joined(separator: ", ")) passed")
+    }
+
+    /// A review on the head commit: an approval from someone who can write to the repo, or a trusted reviewer's
+    /// (`trusted_reviewers`). A trusted reviewer counts when it approved, when it left a comment review none of whose
+    /// threads is open, or when it left no review at all but every gate check passed on the head commit (its review
+    /// check among them). Anyone else's approval is shown and does not count.
     static func reviewed(
         _ detail: PullDetail,
         settings: PilotSettings
     ) -> (state: GreenVerdict.Rule.State, text: String) {
         let head = detail.headSHA
         let short = String(head.prefix(7))
-        let trusted = Set(settings.trustedReviewers.map { $0.lowercased() })
         let onHead = detail.reviews.filter { $0.commit == head }
-        if let human = onHead.first(where: { $0.state == "APPROVED" && !trusted.contains($0.author.lowercased()) }) {
-            return (.pass, "approved by @\(human.author) on \(short)")
+        func trusted(_ review: PullDetail.Review) -> Bool {
+            settings.trustedReviewers.contains { listed($0, login: review.author, isBot: review.trust == .bot) }
+        }
+        let approvals = onHead.filter { $0.state == "APPROVED" }
+        if let approval = approvals.first(where: { $0.trust.isCollaborator || trusted($0) }) {
+            return (.pass, "approved by @\(approval.author) on \(short)")
         }
         for reviewer in settings.trustedReviewers {
-            let theirs = onHead.filter { $0.author.lowercased() == reviewer.lowercased() }
-            if theirs.contains(where: { $0.state == "APPROVED" }) {
-                return (.pass, "approved by @\(reviewer) on \(short)")
+            let theirs = onHead.filter { listed(reviewer, login: $0.author, isBot: $0.trust == .bot) }
+            let open = detail.threads.contains { thread in
+                !thread.isResolved && listed(reviewer, login: thread.author, isBot: thread.trust == .bot)
             }
-            let open = detail.threads.contains { !$0.isResolved && $0.author.lowercased() == reviewer.lowercased() }
             if theirs.contains(where: { $0.state == "COMMENTED" }), !open {
-                return (.pass, "@\(reviewer) reviewed \(short) with nothing left open")
+                return (.pass, "@\(theirs[0].author) reviewed \(short) with nothing left open")
             }
-            if theirs.isEmpty, !settings.gateChecks.isEmpty,
-               Set(settings.gateChecks).isSubset(of: Set(detail.passedChecks ?? []))
-            {
+            if theirs.isEmpty, !settings.gateChecks.isEmpty, gateChecks(detail, settings: settings).state == .pass {
                 return (.pass, "@\(reviewer)'s review check passed on \(short) without comments")
             }
         }
-        if detail.reviews.contains(where: { $0.state == "APPROVED" }) {
+        if let outside = approvals.first {
+            let why = outside.trust == .bot ? "isn't in trusted_reviewers" : "isn't a collaborator"
+            return (.wait, "@\(outside.author) approved \(short), but \(why)")
+        }
+        if detail.reviews.contains(where: { $0.state == "APPROVED" && ($0.trust.isCollaborator || trusted($0)) }) {
             return (.wait, "approved before the last push; waiting for a review of \(short)")
         }
         return (.wait, "waiting for a review of \(short)")

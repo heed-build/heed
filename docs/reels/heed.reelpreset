@@ -1,0 +1,17 @@
+# What every heed film shares: the branded intro and outro (brand/), the web profile (landing page clips: small and
+# muted-friendly), and a calm zoom. Each reel Imports it; where the videos go is the reel's Output and scripts/reels.sh.
+
+Set IntroBackground //docs/reels/brand/intro.mov
+Set OutroBackground //docs/reels/brand/outro.mov
+Set ZoomEasing smooth
+Set ZoomDuration 700ms
+Set Subtitles off
+Set KeyBadges on
+Set Profiles web
+
+# Landing page clips: 1440 wide, small enough to load with the page, no GIF.
+Profile web
+  Set VideoWidth 1440
+  Set Quality 55
+  Set MaxSize 8MB
+  Set Formats mp4

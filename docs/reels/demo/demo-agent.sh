@@ -13,6 +13,8 @@ SPEED="${DEMO_SPEED:-1}"
 SID="demo-$$"
 CWD="$(pwd)"
 HEED="${HEED_BIN:-heed}"
+DEMO_ROOT="${DEMO_ROOT:-/tmp/heed-demo}"
+PR_URL="https://github.com/acme/docs-toolkit/pull/42"
 
 pause() { sleep "$(awk -v s="$1" -v k="$SPEED" 'BEGIN { printf "%.2f", s * k }')"; }
 
@@ -84,10 +86,23 @@ turn() { # <prompt>
     'Bash(git push -u origin fix/broken-anchors)' 'Push the branch to origin'; then
     printf '  \033[2mTo github.com:acme/docs-toolkit.git\n   * [new branch]      fix/broken-anchors -> fix/broken-anchors\033[0m\n'
     pause 0.8
-    finish "Fixed the three broken anchors in docs/guide/install.md and pushed fix/broken-anchors. Ready for review."
+    open_pr
+    finish "Fixed the three broken anchors in docs/guide/install.md and opened $PR_URL.
+heed-summary: Fixed three install-guide links that pointed at a renamed anchor, and opened acme/docs-toolkit#42 for review."
   else
     finish "I did not push. The three anchors are fixed locally on fix/broken-anchors; tell me when to push."
   fi
+}
+
+# gh pr create: heed reads the PR's url from the tool's output and tracks it. The fake gh then has the PR open.
+open_pr() {
+  local cmd='gh pr create --title \"Fix the broken anchors in the install guide\" --fill'
+  hook PreToolUse ",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$cmd\"}"
+  printf '\n\033[1;32m●\033[0m \033[1mBash(gh pr create --fill)\033[0m\n'
+  pause 1.2
+  mkdir -p "$DEMO_ROOT/gh" && printf opened >"$DEMO_ROOT/gh/state"
+  printf '  \033[2m%s\033[0m\n' "$PR_URL"
+  hook PostToolUse ",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$cmd\"},\"tool_response\":{\"stdout\":\"$PR_URL\\n\"}"
 }
 
 clear
@@ -96,15 +111,20 @@ hook SessionStart ',"source":"startup"'
 printf '\n\033[1m>\033[0m %s\n' "$PROMPT"
 turn "$PROMPT"
 
-# Then wait at the prompt, as an agent does: heed types review comments and answers here.
+# Then wait at the prompt, as an agent does: heed types review feedback and answers here.
 while true; do
   printf '\n\033[1m> \033[0m'
   IFS= read -r line || break
+  # heed may send several lines at once; take them as one message
+  while IFS= read -r -t 1 more; do line="$line $more"; done
   [ -n "$line" ] || continue
   hook UserPromptSubmit ",\"prompt\":\"$(esc "$line")\""
   pause 0.8
-  say "Looking at that."
+  say "Reading the review comment on docs/guide/install.md."
   pause 1
-  tool_use Edit '{"file_path":"docs/guide/install.md"}' 'Update(docs/guide/install.md)' 1.2
-  finish "Done: $line"
+  tool_use Edit '{"file_path":"docs/guide/install.md","old_string":"#getting-started","new_string":"#get-started"}' \
+    'Update(docs/guide/install.md)' 1.2
+  tool_use Bash '{"command":"git push"}' 'Bash(git push)' 1
+  finish "Pointed the link at #get-started and pushed; the review thread is addressed.
+heed-summary: Fixed three install-guide links that pointed at a renamed anchor, answered the review, and pushed; acme/docs-toolkit#42 is waiting on checks."
 done

@@ -1,0 +1,74 @@
+# The landing page's hero clip: a thought, an agent at work, a permission answered, a pull request that is reviewed,
+# fixed, goes green and merges, and what heed remembers. All of it on a throwaway world (demo/): invented names, a
+# scripted agent, a fake gh. Needs a Heed.app (HEED_APP, default build/Heed.app) with the accessibility ids.
+# Record: mise run reels hero. It takes the mouse and keyboard.
+Import heed.reelpreset
+
+# The terminal builds the world, starts heed on it and plays the cues. It is not shown.
+Screen terminal as term
+  Set Columns 110
+  Set WorkingDirectory //
+  Set WaitTimeout 3m
+  Type@0ms "docs/reels/demo/world.sh /tmp/heed-demo >/dev/null && docs/reels/demo/launch.sh ${HEED_APP:-build/Heed.app} /tmp/heed-demo >/dev/null && . /tmp/heed-demo/env.sh && clear"
+  Key return
+  Wait exit as launched
+  Wait for answered
+  Wait for opened
+  Sleep 3s
+  Type "cue pr review"
+  Key return as review
+  Wait exit
+  Sleep 9s
+  Type "cue pr red"
+  Key return as red
+  Wait exit
+  Sleep 6s
+  Type "cue pr green"
+  Key return as green
+  Wait exit
+
+# heed itself, driven with real keys.
+Attach net.nullean.heed.demo as app
+  Wait #view-tab-sessions as shown
+  Sleep 1s
+  Key o
+  Wait #start-work-prompt as thought
+  Type "Fix the broken anchors in the install guide"
+  Sleep 1.5s as picks
+  Key cmd+return as started
+  Wait #approvals-pill as blocked
+  Sleep 2s
+  Key g
+  Key y
+  Wait #approval-detail
+  Sleep 2s
+  Key y as answered
+  Wait #pr-card-42 as opened
+  Sleep 5s
+  Wait for green
+  Wait "merged" as merged
+  Sleep 3s
+
+Output out/hero.mp4
+Set Layout app
+Set Size 1440x900
+Intro@crossfade,ease-out,400ms 1.5s
+Outro@fade,500ms 2s
+
+Hide
+Wait for shown
+Show
+Caption "Have a thought? Start typing."
+Wait for picks
+Caption "heed picks the repo, the worktree and the agent."
+Wait for blocked
+Caption "When the agent needs a yes, it is one key."
+Wait for opened
+Caption "The pull request is opened, and heed keeps an eye on it."
+Wait for review
+Caption "A review goes back to the agent that wrote the code."
+Wait for green
+Caption "Until the checks are green."
+Wait for merged
+Caption "Merged. heed remembers it, so you don't have to."
+Wait for merged to end

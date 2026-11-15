@@ -9,3 +9,6 @@ mise.local.toml
 .claude/worktrees/
 dist/
 .artifacts/
+docs/reels/out/
+docs/reels/.reel/
+docs/reels/*/.reel/

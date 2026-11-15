@@ -1,0 +1,25 @@
+#!/bin/bash
+# What a film's cues call: moves the fake world along between beats, from any shell. Needs env.sh sourced (world.sh
+# writes it: DEMO_ROOT, CFFIXED_USER_HOME and heed on PATH).
+#
+#   cue pr <none|opened|review|red|green|merged>   the pull request's beat in the fake gh
+#   cue state                                      the pull request's beat now
+#   cue wait <state> [seconds]                     until the demo session is in a state (working, blocked, done, needs you)
+#   cue say <text>                                 prints a marker line for a reel to Wait on
+#   cue send <text>                                types a message to the demo session's agent, as a review comment would arrive
+set -u
+root="${DEMO_ROOT:-/tmp/heed-demo}"
+case "${1:-}" in
+  pr)    mkdir -p "$root/gh"; printf '%s' "$2" >"$root/gh/state"; echo "cue: pull request is $2" ;;
+  state) cat "$root/gh/state" 2>/dev/null || echo none ;;
+  wait)
+    deadline=$((SECONDS + ${3:-60}))
+    while [ $SECONDS -lt $deadline ]; do
+      heed sessions 2>/dev/null | awk -F'\t' -v s="$2" '$2 == s { found = 1 } END { exit !found }' && { echo "cue: session is $2"; exit 0; }
+      sleep 0.5
+    done
+    echo "cue: no session in '$2' after ${3:-60}s" >&2; exit 1 ;;
+  say)   shift; echo "cue: $*" ;;
+  send)  shift; id="$(heed sessions | head -1 | cut -f1)"; heed send "$id" "$*" ;;
+  *)     sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+esac

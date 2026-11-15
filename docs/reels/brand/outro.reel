@@ -1,0 +1,6 @@
+# heed's outro sting (about 2 s): "You lead. heed follows through." and the brew line. Recorded once into outro.mov.
+# Re-record with: mise run reels brand/outro
+Open outro.html
+Output outro.mov
+Set Viewport 1920x1080
+Sleep 2.1s

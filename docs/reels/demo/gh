@@ -1,27 +1,101 @@
 #!/bin/bash
-# A stand-in for gh that answers what heed asks with a quiet account: no notifications, no pull requests. Every call
-# is appended to $DEMO_ROOT/gh-calls.log (so a spike can see which calls heed makes). world.sh points [tools] gh at it.
-# A beat that needs a pull request answers from $DEMO_ROOT/gh/<operation>.json when that file exists.
+# A stand-in for gh that plays one invented pull request through its life, for filming heed. Every call is appended to
+# $DEMO_ROOT/gh-calls.log. The pull request (acme/docs-toolkit#42) is in the beat named in $DEMO_ROOT/gh/state, which
+# `cue pr <beat>` writes, and `gh pr merge` moves to merged (the write path flipping the state):
+#
+#   none      no pull request
+#   opened    open, checks running
+#   review    open, a reviewer asked for changes (one unresolved thread), checks running
+#   red       the author fixed the thread; the build check failed
+#   green     all checks passed, approved
+#   merged    merged (no longer in the open search; a tracked pull request still answers)
+#
+# The JSON has the shapes GitHub.pullSearchQuery, trackedPullsQuery and pullDetailQuery ask for
+# (Sources/HeedCore/GitHub/GitHub.swift); what heed does not ask for is not here. Anything else answers an empty account.
 root="${DEMO_ROOT:-/tmp/heed-demo}"
 mkdir -p "$root/gh"
 printf '%s\n' "$*" | cut -c1-240 >>"$root/gh-calls.log"
+state="$(cat "$root/gh/state" 2>/dev/null || echo none)"
+
+now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+earlier="$(date -u -v-3M +%Y-%m-%dT%H:%M:%SZ)"
+slug="acme/docs-toolkit"
+url="https://github.com/$slug/pull/42"
+title="Fix the broken anchors in the install guide"
+
+# checks (the rollup's contexts) for the beat
+case "$state" in
+  opened | review) build='{"__typename":"CheckRun","name":"build","status":"IN_PROGRESS","conclusion":null,"startedAt":"'$earlier'"}'
+                   links='{"__typename":"CheckRun","name":"links","status":"IN_PROGRESS","conclusion":null,"startedAt":"'$earlier'"}' ;;
+  red)   build='{"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"FAILURE","startedAt":"'$earlier'","title":"1 broken link","summary":"docs/guide/install.md: #get-started not found","detailsUrl":"https://github.com/'$slug'/actions/runs/101/job/202"}'
+         links='{"__typename":"CheckRun","name":"links","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"'$earlier'"}' ;;
+  green | merged) build='{"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"'$earlier'"}'
+         links='{"__typename":"CheckRun","name":"links","status":"COMPLETED","conclusion":"SUCCESS","startedAt":"'$earlier'"}' ;;
+esac
+contexts="[]"
+[ -n "${build:-}" ] && contexts="[$build,$links]"
+
+pr_state=OPEN; decision=null; threads='[]'; reviews='[]'; mstate=BLOCKED
+case "$state" in
+  review) decision='"CHANGES_REQUESTED"'
+          threads='[{"isResolved":false}]'
+          reviews='[{"author":{"login":"grace-reviewer"},"state":"CHANGES_REQUESTED","submittedAt":"'$now'","commit":{"oid":"abc1234"}}]' ;;
+  red)    decision='"CHANGES_REQUESTED"'
+          threads='[{"isResolved":true}]'
+          reviews='[{"author":{"login":"grace-reviewer"},"state":"CHANGES_REQUESTED","submittedAt":"'$earlier'","commit":{"oid":"abc1234"}}]' ;;
+  green)  decision='"APPROVED"'; mstate=CLEAN
+          threads='[{"isResolved":true}]'
+          reviews='[{"author":{"login":"grace-reviewer"},"state":"APPROVED","submittedAt":"'$now'","commit":{"oid":"def5678"}}]' ;;
+  merged) decision='"APPROVED"'; pr_state=MERGED; mstate=CLEAN
+          threads='[{"isResolved":true}]'
+          reviews='[{"author":{"login":"grace-reviewer"},"state":"APPROVED","submittedAt":"'$earlier'","commit":{"oid":"def5678"}}]' ;;
+esac
+
+# the pull request as pullFields asks for it
+node() {
+  printf '{"number":42,"title":"%s","url":"%s","isDraft":false,"state":"%s","headRefName":"fix/broken-anchors","updatedAt":"%s","repository":{"nameWithOwner":"%s"},"reviewDecision":%s,"reviewThreads":{"nodes":%s},"commits":{"nodes":[{"commit":{"statusCheckRollup":{"contexts":{"nodes":%s}}}}]}}' \
+    "$title" "$url" "$pr_state" "$now" "$slug" "$decision" "$threads" "$contexts"
+}
+
+# the reader's view (pullDetailQuery)
+detail() {
+  local thread_nodes='[]'
+  case "$state" in
+    review) thread_nodes='[{"id":"T1","isResolved":false,"path":"docs/guide/install.md","line":5,"comments":{"totalCount":1,"nodes":[{"author":{"login":"grace-reviewer"},"body":"This link should point at #get-started, not the old anchor.","diffHunk":"@@ -3,3 +3,3 @@\n-See [getting started](#getting-started).\n+See [getting started](#get-started).","url":"'$url'#discussion_r1"}]}}]' ;;
+    red | green | merged) thread_nodes='[{"id":"T1","isResolved":true,"path":"docs/guide/install.md","line":5,"comments":{"totalCount":2,"nodes":[{"author":{"login":"grace-reviewer"},"body":"This link should point at #get-started, not the old anchor.","diffHunk":"@@ -3,3 +3,3 @@\n-See [getting started](#getting-started).\n+See [getting started](#get-started).","url":"'$url'#discussion_r1"}]}}]' ;;
+  esac
+  printf '{"data":{"rateLimit":{"cost":1,"remaining":4990},"repository":{"autoMergeAllowed":true,"squashMergeAllowed":true,"mergeCommitAllowed":false,"rebaseMergeAllowed":false,"viewerPermission":"WRITE","pullRequest":{"number":42,"title":"%s","body":"Three links pointed at an anchor that was renamed.","author":{"login":"ada-example"},"baseRefName":"main","headRefName":"fix/broken-anchors","additions":3,"deletions":3,"baseRef":{"refUpdateRule":{"requiresLinearHistory":false}},"state":"%s","isDraft":false,"mergeable":"MERGEABLE","mergeStateStatus":"%s","reviewDecision":%s,"autoMergeRequest":null,"labels":{"nodes":[{"name":"docs"}]},"commits":{"totalCount":1,"nodes":[{"commit":{"oid":"def5678","committedDate":"%s","statusCheckRollup":{"contexts":{"nodes":%s}}}}]},"reviews":{"nodes":%s},"timelineItems":{"nodes":[]},"closingIssuesReferences":{"nodes":[]},"reviewThreads":{"nodes":%s}}}}}' \
+    "$title" "$pr_state" "$mstate" "$decision" "$earlier" "$contexts" "$reviews" "$thread_nodes"
+}
+
+empty_search='{"data":{"rateLimit":{"cost":1,"remaining":4999},"search":{"issueCount":0,"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}'
+
 case "$*" in
   *"--version"*) echo "gh version 2.99.0 (demo)"; exit 0 ;;
-  "auth status"*|"auth token"*) echo "demo-token"; exit 0 ;;
-  *"api user --jq"*) echo "demo-user"; exit 0 ;;
+  "auth status"* | "auth token"*) echo "demo-token"; exit 0 ;;
+  *"api user --jq"*) echo "ada-example"; exit 0 ;;
   *"user/orgs"*) echo "acme"; exit 0 ;;
-  *"api user/teams"*|*"api notifications"*) echo "[]"; exit 0 ;;
+  *"api user/teams"* | *"api notifications"*) echo "[]"; exit 0 ;;
+  "pr merge"*)
+    # the write path: a merge moves the beat to merged
+    echo merged >"$root/gh/state"
+    echo "✓ Squashed and merged pull request #42 ($title)"; exit 0 ;;
+  "pr diff"*) printf -- '--- a/docs/guide/install.md\n+++ b/docs/guide/install.md\n@@ -3,3 +3,3 @@\n-See [getting started](#getting-started).\n+See [getting started](#get-started).\n'; exit 0 ;;
+  "pr "*) exit 0 ;;
   *graphql*)
     case "$*" in
-      *"on PullRequest"*) op=pulls ;;
-      *"on Issue"*) op=issues ;;
-      *) op=other ;;
+      *"on PullRequest"*)
+        if [ "$state" = none ] || [ "$state" = merged ]; then echo "$empty_search"; else
+          printf '{"data":{"rateLimit":{"cost":1,"remaining":4999},"search":{"issueCount":1,"nodes":[%s]}}}' "$(node)"; fi
+        exit 0 ;;
+      *"pullRequest(number: 42)"*"statusCheckRollup"* | *"p0: repository"*)
+        if [ "$state" = none ]; then echo '{"data":{"p0":{"pullRequest":null}}}'; else
+          printf '{"data":{"rateLimit":{"cost":1,"remaining":4999},"p0":{"pullRequest":%s}}}' "$(node)"; fi
+        exit 0 ;;
+      *"timelineItems"*) detail; exit 0 ;;
+      *"on Issue"*) echo "$empty_search"; exit 0 ;;
     esac
-    # graphql-pulls.json: {"data":{"search":{"issueCount":1,"nodes":[{number,title,url,isDraft,state,headRefName,updatedAt,
-    # repository{nameWithOwner},reviewDecision,reviewThreads,commits}]}}}: the shape of GitHub.pullSearchQuery.
-    if [ -f "$root/gh/graphql-$op.json" ]; then cat "$root/gh/graphql-$op.json"; exit 0; fi
-    echo '{"data":{"rateLimit":{"cost":1,"remaining":4999},"search":{"issueCount":0,"pageInfo":{"hasNextPage":false,"endCursor":null},"nodes":[]}}}'
-    exit 0 ;;
+    echo '{"data":{"rateLimit":{"cost":1,"remaining":4999}}}'; exit 0 ;;
 esac
 echo "gh (demo): not scripted: $*" >&2
 exit 1

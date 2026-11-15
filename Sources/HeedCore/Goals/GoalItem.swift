@@ -502,7 +502,7 @@ public enum BoardDrag {
 
 public extension GoalItem {
     /// What Start work opens with for this item: the item, its goal, and where the goal is written down.
-    /// A PR a source found starts a review of it; an issue, work on it.
+    /// A PR a source found starts a review of it, drafted for you to post; an issue, work on it.
     func workPrompt(goal: String, doc path: String) -> String {
         let tail = "This is one item of the goal \(goal); its GOAL.md is \(path)."
         if let sourced, let ref = PullRef(slug: sourced.ref) {
@@ -510,11 +510,20 @@ public extension GoalItem {
                 let by = sourced.author.map { " by @\($0)" } ?? ""
                 return "Review PR \(ref) “\(title)”\(by): \(sourced.url)\n\n"
                     + "Check it out with `gh pr checkout \(ref.number) --repo \(ref.repo.slug)`, read the change, and "
-                    + "leave your review on GitHub: approve, request changes or comment.\n\n\(tail)"
+                    + "draft your review for the user: do not post it, approve or comment on GitHub yourself; the user "
+                    + "reads your draft and posts it.\n\n" + HelperPrompt.signOffReview + "\n\n\(tail)"
             }
             return "\(title)\n\nIssue \(sourced.ref): \(sourced.url)\n\n\(tail)"
         }
         let what = kind == .question ? "Find out: \(title)" : title
         return "\(what)\n\n\(tail)"
+    }
+
+    /// Whether the item's PR or issue is someone else's: a source found it and it is not by you (`viewer`). A spawn on
+    /// it runs sandboxed. Unknown authors count as someone else.
+    func fromSomeoneElse(viewer: String?) -> Bool {
+        guard let sourced else { return false }
+        guard let author = sourced.author, let viewer else { return true }
+        return author.lowercased() != viewer.lowercased()
     }
 }

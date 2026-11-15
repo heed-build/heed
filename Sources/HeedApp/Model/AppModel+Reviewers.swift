@@ -420,22 +420,39 @@ extension AppModel {
         let changed = [trigger.text]
         let reviewer = state.config
         let known = state.objections
-        let prompt: (String) -> String = { worktree in
+        let sandboxed = RunSandbox.isSandboxed(agent: agentName)
+        let prompt: (String) -> String = { folder in
             ReviewRun.prompt(
-                config: reviewer, goalTitle: goal.title, doc: doc, bar: bar, changed: changed, worktree: worktree,
-                known: known
+                config: reviewer, goalTitle: goal.title, doc: doc, bar: bar, changed: changed, folder: folder,
+                known: known, sandboxed: sandboxed
             )
         }
+        let viewer = github.viewer
         let start = ReviewRunStart(
             id: runID, reviewer: state.id, trigger: trigger, basis: basis, agent: agentName, model: model
         )
         goals.run { ops in try await ops.runStarted(start, goal: goal.id, now: Clock.now, table: table) }
         Task {
+            // A run with no sandbox starts on its own only on your work; on someone else's PR, when you ask.
+            let trusted: Bool? = if let pull = target.pull, !sandboxed, trigger != .manual {
+                await PullTrustBook.shared.resolve(pull, viewer: viewer) { ref in
+                    try await GitHub.pullAuthorship(ref, caller: "goals.review")
+                }
+            } else {
+                nil
+            }
+            if let held = ReviewRun.held(agent: agentName, trigger: trigger, target: target, trusted: trusted) {
+                let result = ReviewResult(run: runID, reviewer: state.id, basis: basis, report: nil, failure: held)
+                goals.run { ops in try await ops.reviewEnded(result, goal: goal.id, now: Clock.now, table: table) }
+                return
+            }
+            if !sandboxed,
+               trigger == .manual { say("\(state.config.title): " + RunSandbox.unsandboxedNote(agent: agentName)) }
             let failure: String? = if let host {
                 await startReviewRun(
                     runID: runID, goal: goal.id, reviewer: state.id, session: host.id, record: target.record,
                     branch: target.branch, repo: target.repo, agentName: agentName, model: model, basis: basis,
-                    prompt: prompt
+                    pull: target.pull, prompt: prompt
                 )
             } else {
                 await runHeadlessReview(
@@ -463,34 +480,46 @@ extension AppModel {
         let runBranch = ReviewRun.branch(goal: goal, reviewer: reviewer)
         let worktree: String
         do {
-            worktree = try await Git.addRunWorktree(
+            worktree = try await reviewWorktree(
                 target.record, path: ReviewRun.worktreePath(
                     root: root,
                     repo: target.repo,
                     goal: goal,
                     reviewer: reviewer
                 ),
-                branch: target.branch, runBranch: runBranch
+                branch: target.branch, pull: target.pull, runBranch: runBranch
             )
         } catch {
             return "could not make its worktree: \(error)"
         }
+        await RunFolder.clearLeftovers(in: worktree, on: .local)
+        let folder: String
+        do {
+            folder = try await RunFolder.make(run: runID, on: .local)
+        } catch {
+            await Git.removeWorktree(target.record, path: worktree, branch: runBranch)
+            return "could not make its run folder: \(error)"
+        }
         guard let words = ReviewRun.headless(
-            agent: agent.name, command: agent.command, prompt: prompt(worktree), model: model, worktree: worktree
+            agent: agent.name, command: agent.command, prompt: prompt(folder), model: model, worktree: worktree,
+            folder: folder
         ) else {
             await Git.removeWorktree(target.record, path: worktree, branch: runBranch)
+            RunFolder.remove(folder)
             return "\(agent.name) runs only in a tab: open a session on the goal, or set [goals] reviewer_agent"
         }
-        try? FileManager.default.createDirectory(atPath: worktree + "/.heed", withIntermediateDirectories: true)
         let (path, pathVariable) = await ToolLocator.shared.executable(words[0])
+        let line = RunSandbox.environment(present: Array(ProcessInfo.processInfo.environment.keys), folder: folder)
+            + [path ?? words[0]] + words.dropFirst()
+        let started = Date()
         let result = try? await ProcessRunner.run(
-            path ?? words[0], Array(words.dropFirst()), in: worktree, environment: ["PATH": pathVariable],
+            line[0], Array(line.dropFirst()), in: worktree, environment: ["PATH": pathVariable],
             timeout: .seconds(Int64(ReviewRun.timeout)), caller: "goals.review"
         )
-        let file = FileManager.default.contents(atPath: ReviewRun.reportPath(worktree: worktree))
-        let last = (try? String(contentsOfFile: ReviewRun.lastMessagePath(worktree: worktree), encoding: .utf8))
-            ?? result?.stdout
+        let file = RunFolder.read(ReviewRun.reportPath(folder: folder), started: started)
+        let last = RunFolder.readText(ReviewRun.lastMessagePath(folder: folder), started: started) ?? result?.stdout
         await Git.removeWorktree(target.record, path: worktree, branch: runBranch)
+        RunFolder.remove(folder)
         let read = ReviewRun.read(file: file, lastMessage: last)
         let failure = result == nil ? "it did not finish in \(Int(ReviewRun.timeout / 60)) minutes" : read.failure
         await finishReview(
@@ -498,6 +527,17 @@ extension AppModel {
             failure: read.report == nil ? failure : nil
         )
         return nil
+    }
+
+    /// A reviewer's worktree: at the PR's head as GitHub has it when it reviews a PR (a fork's too), else at the
+    /// branch.
+    func reviewWorktree(
+        _ record: RepoRecord, path: String, branch: String, pull: PullRef?, runBranch: String
+    ) async throws -> String {
+        if let pull {
+            return try await Git.addPullWorktree(record, path: path, number: pull.number, runBranch: runBranch)
+        }
+        return try await Git.addRunWorktree(record, path: path, branch: branch, runBranch: runBranch)
     }
 
     /// A reviewer run ended: its objections matched to the ones before (by id and words, then a cheap model for

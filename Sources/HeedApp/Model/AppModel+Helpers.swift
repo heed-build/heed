@@ -403,20 +403,25 @@ extension AppModel {
         guard !isFixture else { return flash = "fixture: no IO (a review helper would start)" }
         flash = "starting a review helper on #\(ref.number)…"
         let instructions = pilotSettings(for: ref).reviewInstructions
+        let viewer = github.viewer
         Task {
             do {
                 let pull = try await GitHub.pullForReview(ref, caller: "helper.review")
+                if let authorship = pull.authorship { PullTrustBook.shared.record(authorship, for: ref) }
+                // From someone outside the repo: none of your files or setup, and its code is read, not run.
+                let trusted = pull.authorship?.trusted(viewer: viewer) ?? false
                 _ = await startHelper(
                     .review,
                     ref: ref,
                     title: pull.title.isEmpty ? title : pull.title,
                     headBranch: pull.head,
                     items: [],
-                    sessionID: nil
+                    sessionID: nil,
+                    trusted: trusted
                 ) { branch, prBranch in
                     HelperPrompt.review(
                         ref: ref, title: pull.title, body: pull.body, base: pull.base, branch: branch,
-                        prBranch: prBranch, instructions: instructions
+                        prBranch: prBranch, instructions: instructions, runTests: trusted
                     )
                 }
             } catch {
@@ -430,7 +435,7 @@ extension AppModel {
     /// logged, and kept on the helper).
     func startHelper(
         _ kind: HelperKind, ref: PullRef, title: String? = nil, headBranch: String? = nil, items: [FeedbackItem],
-        sessionID: String?, prompt: @escaping (_ branch: String, _ prBranch: String) -> String
+        sessionID: String?, trusted: Bool = true, prompt: @escaping (_ branch: String, _ prBranch: String) -> String
     ) async -> String? {
         let availability = await helperAvailability()
         guard case let .ready(adapter, executable) = availability else {
@@ -475,13 +480,22 @@ extension AppModel {
         }
         let worktree: String
         do {
-            worktree = try await Git.addRunWorktree(record, path: path, branch: prBranch, runBranch: branch)
+            // A review reads the PR's code as GitHub has it (a fork's too); other helpers push to its branch.
+            worktree = kind == .review
+                ? try await Git.addPullWorktree(record, path: path, number: ref.number, runBranch: branch)
+                : try await Git.addRunWorktree(record, path: path, branch: prBranch, runBranch: branch)
         } catch {
             return fail("could not make its worktree: \(error)")
         }
         helpers.update(id) { $0.worktree = worktree }
-        _ = await WorktreeInclude.copy(from: record.path, to: worktree)
-        for command in settings.setup.commands(for: ref.repo) ?? [] {
+        let setup = HelperSetup.steps(trusted: trusted, commands: settings.setup.commands(for: ref.repo) ?? [])
+        if setup.copyIncludes { _ = await WorktreeInclude.copy(from: record.path, to: worktree) }
+        if !trusted {
+            helpers.update(id) {
+                $0.append(.note("from someone outside the repo: no .worktreeinclude files, no setup"), at: Clock.now)
+            }
+        }
+        for command in setup.commands {
             helpers.update(id) { $0.append(.note("setting up: \(command)"), at: Clock.now) }
             let result = try? await ProcessRunner.run(
                 "/bin/sh", ["-c", command], in: worktree, timeout: .seconds(600), caller: "helper.setup"
@@ -494,6 +508,11 @@ extension AppModel {
         do {
             var environment = ProcessInfo.processInfo.environment
             environment["PATH"] = await ToolLocator.shared.executable(adapter.executable).pathVariable
+            if !trusted {
+                let folder = RunFolder.path(run: "heed-helper-\(id)", root: NSTemporaryDirectory())
+                try? RunFolder.prepare(folder)
+                environment = HelperSetup.environment(environment, folder: folder)
+            }
             let transport = try ACPProcessTransport(
                 executable: executable, arguments: adapter.arguments, directory: worktree, environment: environment
             )

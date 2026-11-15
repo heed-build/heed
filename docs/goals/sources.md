@@ -89,9 +89,10 @@ alone decide. heed reads each `GOAL.md` version once, and never proposes for a g
 
 ## Starting work on an item
 
-`s` (or `o`) on a card from a PR source starts a **review** of that PR: Start work opens in the PR's repo with a prompt
-to check it out and review it on GitHub, and the session tracks the PR, so its state shows there. On an issue, it
-starts work on the issue. `↩` opens the PR in heed's reader, or the issue in your browser.
+`s` (or `o`) on a card from a PR source starts a **review** of that PR with heed's [review
+helper](../autopilot/helpers.md): it drafts the review in heed, and nothing is posted until you read it and press `⌘↩`.
+A session an agent spawns on such a card (`heed goal item spawn`) is told the same: draft the review and post nothing.
+On an issue, `s` starts work on the issue. `↩` opens the PR in heed's reader, or the issue in your browser.
 
 ## Agents
 

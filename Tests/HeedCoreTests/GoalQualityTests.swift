@@ -440,13 +440,29 @@ struct ReviewPlannerTests {
 }
 
 struct ReviewRunTests {
-    @Test func agentsAreKeptFromChangingTheWork() {
-        let claude = ReviewRun.restrictions(agent: "claude")
-        #expect(Set(claude).isSuperset(of: ["--disallowedTools", "Edit", "Write", "NotebookEdit", "Bash(git push:*)"]))
+    @Test func agentsAreKeptFromChangingTheWork() throws {
+        let claude = ReviewRun.restrictions(agent: "claude", worktree: "/wt/r", folder: "/runs/1")
+        #expect(Set(claude).isSuperset(of: [
+            "--disallowedTools", "Edit", "Write", "NotebookEdit", "Bash(git push:*)", "Bash(gh:*)", "WebFetch",
+        ]))
         // A non-variadic flag last, so a prompt after the tool lists is not read as a tool.
         #expect(Array(claude.suffix(2)) == ["--permission-mode", "dontAsk"])
-        #expect(ReviewRun.restrictions(agent: "codex") == ["--sandbox", "workspace-write"])
-        #expect(ReviewRun.restrictions(agent: "cursor").isEmpty)
+        // Its shell in Claude's sandbox: no network, writes to the worktree and the run's folder only.
+        let settings = try #require(claude.firstIndex(of: "--settings").map { claude[$0 + 1] })
+        let sandbox = try #require(
+            (JSONSerialization.jsonObject(with: Data(settings.utf8)) as? [String: Any])?["sandbox"] as? [String: Any]
+        )
+        #expect(sandbox["enabled"] as? Bool == true && sandbox["allowUnsandboxedCommands"] as? Bool == false)
+        #expect((sandbox["network"] as? [String: Any])?["allowedDomains"] as? [String] == [])
+        #expect((sandbox["filesystem"] as? [String: Any])?["allowWrite"] as? [String] == ["//wt/r", "//runs/1"])
+        // None of the worktree's own settings or MCP servers.
+        #expect(claude.contains("--strict-mcp-config"))
+        #expect(claude.firstIndex(of: "--setting-sources").map { claude[$0 + 1] } == "user")
+        #expect(ReviewRun.restrictions(agent: "codex", worktree: "/wt/r", folder: "/runs/1") == [
+            "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=false", "--add-dir",
+            "/runs/1",
+        ])
+        #expect(ReviewRun.restrictions(agent: "cursor", worktree: "/wt/r", folder: "/runs/1").isEmpty)
     }
 
     @Test func runBranchesAreSweptLikeOtherRunBranches() {
@@ -454,13 +470,13 @@ struct ReviewRunTests {
         #expect(branch == "heed/review/faster-search-implementation")
         #expect(ReviewRun.isReviewBranch(branch))
         #expect(Runs.isRunBranch(branch))
-        #expect(ReviewRun.reportPath(worktree: "/wt/x") == "/wt/x/.heed/review.json")
+        #expect(ReviewRun.reportPath(folder: "/runs/1") == "/runs/1/review.json")
     }
 
     @Test func thePromptCarriesTheGoalTheBarWhatChangedAndWhereToWrite() {
         let prompt = ReviewRun.prompt(
             config: ReviewerConfig(id: "implementation", kind: .implementation), goalTitle: "Faster search",
-            doc: "# Faster search\n\n## Goal\nQuick.", bar: 7.5, changed: ["acme/x#1 changed"], worktree: "/wt/r",
+            doc: "# Faster search\n\n## Goal\nQuick.", bar: 7.5, changed: ["acme/x#1 changed"], folder: "/runs/1",
             known: [
                 objection("Index grows", .med), objection("Old thing", .low, .fixed),
                 objection("Format", .low, .acceptedRisk),
@@ -472,7 +488,9 @@ struct ReviewRunTests {
         #expect(prompt.contains("- [med] Index grows"))
         #expect(prompt.contains("- [low] Format (accepted)"))
         #expect(!prompt.contains("Old thing"))
-        #expect(prompt.contains("/wt/r/.heed/review.json"))
+        #expect(prompt.contains("/runs/1/review.json"))
+        #expect(!prompt.contains(".heed/review.json"))
+        #expect(prompt.contains("sandbox") && prompt.contains("has no network"))
         #expect(prompt.contains("never edit files, commit or push"))
     }
 }
@@ -810,7 +828,7 @@ struct ReviewPlaceTests {
             pulls: [.init(ref: ref, headBranch: "fix-a", open: true)], sessions: [], worktrees: [], repos: [clone],
             branches: []
         )
-        #expect(place == .target(ReviewTarget(record: clone, branch: "fix-a", repo: repo, host: nil)))
+        #expect(place == .target(ReviewTarget(record: clone, branch: "fix-a", repo: repo, host: nil, pull: ref)))
     }
 
     @Test func anOpenSessionOnTheGoalHostsItInATab() {
@@ -841,7 +859,7 @@ struct ReviewPlaceTests {
             repos: [clone], branches: []
         )
         // This Mac's clone, and no tab: the session is on another machine.
-        #expect(place == .target(ReviewTarget(record: clone, branch: "fix-a", repo: repo, host: nil)))
+        #expect(place == .target(ReviewTarget(record: clone, branch: "fix-a", repo: repo, host: nil, pull: ref)))
     }
 
     @Test func noCloneOnThisMacIsANoteNotARun() {
@@ -857,25 +875,27 @@ struct ReviewPlaceTests {
 
     @Test func headlessCommandsLimitTheAgentAndEndWithItsReview() {
         let claude = ReviewRun.headless(
-            agent: "claude", command: "claude --verbose", prompt: "P", model: "haiku", worktree: "/wt/r"
+            agent: "claude", command: "claude --verbose", prompt: "P", model: "haiku", worktree: "/wt/r",
+            folder: "/runs/1"
         )
         #expect(claude?.prefix(4) == ["claude", "--verbose", "-p", "P"])
         #expect(claude?.contains("dontAsk") == true)
         #expect(claude?.suffix(2) == ["--model", "haiku"])
-        let codex = ReviewRun.headless(agent: "codex", command: "codex", prompt: "P", model: nil, worktree: "/wt/r")
+        let codex = ReviewRun.headless(
+            agent: "codex", command: "codex", prompt: "P", model: nil, worktree: "/wt/r", folder: "/runs/1"
+        )
         #expect(codex == [
-            "codex",
-            "exec",
-            "--sandbox",
-            "workspace-write",
-            "-C",
-            "/wt/r",
-            "-o",
-            "/wt/r/.heed/last-message.txt",
-            "P",
+            "codex", "exec", "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=false",
+            "--add-dir", "/runs/1", "-C", "/wt/r", "-o", "/runs/1/last-message.txt", "P",
         ])
-        #expect(ReviewRun.headless(agent: "cursor", command: "cursor-agent", prompt: "P", model: nil, worktree: "/w")
-            == nil)
+        #expect(ReviewRun.headless(
+            agent: "cursor",
+            command: "cursor-agent",
+            prompt: "P",
+            model: nil,
+            worktree: "/w",
+            folder: "/r"
+        ) == nil)
     }
 
     @Test func theReviewIsTheFileElseTheLastMessage() {

@@ -124,6 +124,17 @@ extension AppModel {
                 "no repo on this Mac to start \(item.id) in: spawn from a session on the goal", goal: goal.id
             )
         }
+        // On someone else's issue or PR, a spawn runs in the background, sandboxed.
+        if item.fromSomeoneElse(viewer: github.viewer) {
+            guard RunSandbox.isSandboxed(agent: agent.name) else {
+                return .refused(
+                    RunSandbox.unsandboxedNote(agent: agent.name)
+                        + ": a spawn on someone else's issue or PR runs sandboxed (use claude or codex)",
+                    goal: goal.id
+                )
+            }
+            return await startSpawnRun(spawn, item: item, goal: goal, agent: agent, record: records[0], sandboxed: true)
+        }
         return spawn.background
             ? await startSpawnRun(spawn, item: item, goal: goal, agent: agent, record: records[0])
             : await startSpawnSession(spawn, item: item, goal: goal, agent: agent, records: records)
@@ -209,7 +220,8 @@ extension AppModel {
     /// A background run on the item: its agent headless in a worktree of its own (kept when it ends), told about the
     /// goal like a session; its end is evidence on the item.
     private func startSpawnRun(
-        _ spawn: GoalSpawn, item: GoalItem, goal: HeedGoal, agent: AgentProfile, record: RepoRecord
+        _ spawn: GoalSpawn, item: GoalItem, goal: HeedGoal, agent: AgentProfile, record: RepoRecord,
+        sandboxed: Bool = false
     ) async -> GoalReply {
         let pointer = GoalPointer.text(title: goal.title, path: goals.files.doc(goal.id).path)
         let told = config.goals.tellAgents
@@ -230,11 +242,21 @@ extension AppModel {
         } catch {
             return .refused("could not make its worktree: \(error)", goal: goal.id)
         }
-        let words = GoalSpawnRun.headless(
-            agent: agent.name, command: agent.command, prompt: spawnPrompt(item, goal: goal), worktree: worktree,
-            instructions: told
-        ) ?? probe
         let runID = UUID().uuidString.lowercased()
+        var folder: String?
+        if sandboxed {
+            do {
+                folder = try await RunFolder.make(run: runID, on: .local)
+            } catch {
+                return .refused("could not make its run folder: \(error)", goal: goal.id)
+            }
+        }
+        let prompt = spawnPrompt(item, goal: goal) +
+            (folder.map { "\n\n" + GoalSpawnRun.sandboxNote(folder: $0) } ?? "")
+        let words = GoalSpawnRun.headless(
+            agent: agent.name, command: agent.command, prompt: prompt, worktree: worktree, instructions: told,
+            sandbox: folder
+        ) ?? probe
         let ref = "run:\(runID)"
         let now = Clock.now
         let started = GoalSpawnCap.started(spawn, ref: ref, title: GoalSpawnRun.branch(item: item), now: now)
@@ -250,8 +272,13 @@ extension AppModel {
         let helpers = Helper.path.map { ($0 as NSString).deletingLastPathComponent }
         Task {
             let (found, pathVariable) = await ToolLocator.shared.executable(words[0])
+            // A sandboxed spawn starts with no logins (`RunSandbox.environment`).
+            let line = (folder.map {
+                RunSandbox.environment(present: Array(ProcessInfo.processInfo.environment.keys), folder: $0)
+            } ?? []) + [found ?? words[0]] + words.dropFirst()
+            defer { if let folder { RunFolder.remove(folder) } }
             let result = try? await ProcessRunner.run(
-                found ?? words[0], Array(words.dropFirst()), in: worktree,
+                line[0], Array(line.dropFirst()), in: worktree,
                 environment: [
                     "PATH": [helpers, pathVariable].compactMap(\.self).joined(separator: ":"),
                     GoalCommandLine.goalVariable: goal.id,

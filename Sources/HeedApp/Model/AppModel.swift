@@ -1869,6 +1869,8 @@ final class AppModel {
         let basis: ReviewBasis
         let startedAt: Date
         var worked = false
+        /// The run's own folder, where it writes its review (`RunFolder`).
+        var folder = ""
     }
 
     private(set) var liveReviews: [String: LiveReview] = [:]
@@ -5990,10 +5992,16 @@ final class AppModel {
         } catch {
             return fail("could not make its worktree: \(error)")
         }
-        // Set up like any new worktree: `.worktreeinclude` files from the main checkout, the approved setup in its
-        // pane.
+        // Set up like any new worktree: `.worktreeinclude` files from the main checkout (not for a PR from someone
+        // outside the repo), the approved setup in its pane.
         let checkout = repos.first { $0.repo == ref.repo && $0.location == record.location }?.path ?? record.path
-        await WorktreeInclude.copy(from: checkout, to: worktree, on: record.location)
+        let viewer = github.viewer
+        let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer) { ref in
+            try await GitHub.pullAuthorship(ref, caller: "pilot.author")
+        }
+        if HelperSetup.steps(trusted: trusted, commands: []).copyIncludes {
+            await WorktreeInclude.copy(from: checkout, to: worktree, on: record.location)
+        }
         let setup = settings.setup.commands(for: ref.repo) ?? []
         guard var layout = layouts[session.id] else { return fail("the session is gone") }
         let files: IntegrationFiles? = if let host = session.host {
@@ -6090,7 +6098,8 @@ final class AppModel {
     /// (`ReviewRun.restrictions`). Nothing takes your focus. Returns nil when it started, else why it could not.
     func startReviewRun(
         runID: String, goal: String, reviewer: String, session sessionID: String, record: RepoRecord, branch: String,
-        repo: Repo, agentName: String, model: String?, basis: ReviewBasis, prompt: (String) -> String
+        repo: Repo, agentName: String, model: String?, basis: ReviewBasis, pull: PullRef? = nil,
+        prompt: (String) -> String
     ) async -> String? {
         guard let session = sessions.first(where: { $0.id == sessionID }) else { return "its session is gone" }
         guard let agent = settings.agent(agentName) else { return "no agent \(agentName)" }
@@ -6098,15 +6107,24 @@ final class AppModel {
         let runBranch = ReviewRun.branch(goal: goal, reviewer: reviewer)
         let worktree: String
         do {
-            worktree = try await Git.addRunWorktree(
+            worktree = try await reviewWorktree(
                 record, path: ReviewRun.worktreePath(root: root, repo: repo, goal: goal, reviewer: reviewer),
-                branch: branch, runBranch: runBranch
+                branch: branch, pull: pull, runBranch: runBranch
             )
         } catch {
             return "could not make its worktree: \(error)"
         }
+        await RunFolder.clearLeftovers(in: worktree, on: record.location)
+        let folder: String
+        do {
+            folder = try await RunFolder.make(run: runID, on: record.location)
+        } catch {
+            await Git.removeWorktree(record, path: worktree, branch: runBranch)
+            return "could not make its run folder: \(error)"
+        }
         guard var layout = layouts[session.id] else {
             await Git.removeWorktree(record, path: worktree, branch: runBranch)
+            await RunFolder.discard(folder, on: record.location)
             return "its session is gone"
         }
         let files: IntegrationFiles? = if let host = session.host {
@@ -6118,14 +6136,18 @@ final class AppModel {
             try? AgentIntegration.installCursorHooks(worktree: worktree, heed: heed)
         }
         let agentSession = UUID().uuidString.lowercased()
+        // claude takes one --settings: heed's hooks ride in the run's sandbox settings.
+        let integrationArguments = files
+            .map { AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: $0) } ?? []
+        let sandboxed = RunSandbox.isSandboxed(agent: agent.name)
+        let present = record.location.isLocal ? Array(ProcessInfo.processInfo.environment.keys) : []
         let command = agent.launchCommand(
-            prompt: prompt(worktree),
-            extraArguments: ReviewRun.restrictions(agent: agent.name)
-                +
-                (files
-                    .map { AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: $0) } ?? []),
+            prompt: prompt(folder),
+            extraArguments: ReviewRun.restrictions(
+                agent: agent.name, worktree: worktree, folder: folder, hooks: files != nil
+            ) + (agent.name == "claude" ? RunSandbox.withoutSettings(integrationArguments) : integrationArguments),
             environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:],
-            model: model
+            model: model, prefix: sandboxed ? RunSandbox.environment(present: present, folder: folder) : []
         )
         let title = "review: " + (ReviewerKind(rawValue: reviewer.split(separator: "-").first.map(String.init) ?? "")
             .map { $0.short.lowercased() } ?? reviewer)
@@ -6138,7 +6160,8 @@ final class AppModel {
         commit(.layoutChanged(session: session.id, layout))
         liveReviews[runID] = LiveReview(
             runID: runID, goal: goal, reviewer: reviewer, sessionID: session.id, tabID: tab.id, paneID: pane.id,
-            agent: agent.name, record: record, worktree: worktree, branch: runBranch, basis: basis, startedAt: Date()
+            agent: agent.name, record: record, worktree: worktree, branch: runBranch, basis: basis, startedAt: Date(),
+            folder: folder
         )
         runStates[pane.id] = .working
         reviewPanes.insert(pane.id)
@@ -6160,15 +6183,18 @@ final class AppModel {
             commit(.layoutChanged(session: live.sessionID, layout))
         }
         Task {
-            let data: Data? = if forced == nil {
-                try? await ProcessRunner.output(
-                    on: live.record.location, "cat", [ReviewRun.reportPath(worktree: live.worktree)],
-                    caller: "goals.review"
-                ).data(using: .utf8)
-            } else {
+            // The run's own folder is new for each run, so whatever is in it, the run wrote.
+            let report = ReviewRun.reportPath(folder: live.folder)
+            let data: Data? = if forced != nil {
                 nil
+            } else if live.record.location.isLocal {
+                RunFolder.read(report, started: live.startedAt)
+            } else {
+                try? await ProcessRunner.output(on: live.record.location, "cat", [report], caller: "goals.review")
+                    .data(using: .utf8)
             }
             await Git.removeWorktree(live.record, path: live.worktree, branch: live.branch)
+            await RunFolder.discard(live.folder, on: live.record.location)
             let read = ReviewRun.read(data)
             await finishReview(
                 goal: live.goal, reviewer: live.reviewer, runID: live.runID, basis: live.basis, report: read.report,
@@ -6345,6 +6371,27 @@ final class AppModel {
             }
             return
         }
+        // On its own, a run starts only on a PR from you or someone who can write to the repo.
+        if !isFixture {
+            switch Runs.ownStart(explicit: explicit, trusted: PullTrustBook.shared.trusted(
+                ref,
+                viewer: github.viewer
+            )) {
+            case .go: break
+            case .hold:
+                logPilot(ref, .waiting, Runs.heldForAuthor)
+                return
+            case .ask:
+                let viewer = github.viewer
+                Task {
+                    let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer) { ref in
+                        try await GitHub.pullAuthorship(ref, caller: "pilot.author")
+                    }
+                    if trusted { deliver(ref, explicit: false) } else { logPilot(ref, .waiting, Runs.heldForAuthor) }
+                }
+                return
+            }
+        }
         // A helper (the default): an agent over ACP in its own worktree, drawn in heed. It needs no session; the one
         // that tracks the PR is told, never typed into. A swarm PR's feedback goes to its own runs, as before.
         if !isFixture, pilotSettings(for: ref).runIn == .helper, swarmPulls[ref.description] == nil {
@@ -6419,11 +6466,17 @@ final class AppModel {
         let queued = pipeline.queued
         let kind: HelperKind = Runs.goal(for: pilotStatus(for: ref)) == .merged ? .conflict : .green
         let sessionID = sessions.first { $0.trackedPRs.contains(ref) }?.id
+        let viewer = github.viewer
         Task {
             defer { startingRuns.remove(ref.description) }
-            guard let target = await startHelper(kind, ref: ref, items: queued, sessionID: sessionID, prompt: {
-                HelperPrompt.green(feedback: prompt, branch: $0, prBranch: $1)
-            }), var pipeline = feedback[ref.description] else { return }
+            let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer) { ref in
+                try await GitHub.pullAuthorship(ref, caller: "pilot.author")
+            }
+            guard let target = await startHelper(
+                kind, ref: ref, items: queued, sessionID: sessionID, trusted: trusted, prompt: {
+                    HelperPrompt.green(feedback: prompt, branch: $0, prBranch: $1)
+                }
+            ), var pipeline = feedback[ref.description] else { return }
             if let sessionID, var session = sessions.first(where: { $0.id == sessionID }) {
                 markSent(ref, pipeline: &pipeline, session: &session, to: target, byYou: explicit)
             } else {

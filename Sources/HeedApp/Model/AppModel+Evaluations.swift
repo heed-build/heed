@@ -301,22 +301,34 @@ extension AppModel {
         } catch {
             return (nil, "could not clone \(source.text): \(error)")
         }
-        let prompt = EvaluationRun.prompt(lens: lens, steps: steps, clone: clone, known: known)
+        await RunFolder.clearLeftovers(in: clone, on: .local)
+        let report: String
+        do {
+            report = try await RunFolder.make(run: runID, on: .local)
+        } catch {
+            return (nil, "could not make its run folder: \(error)")
+        }
+        defer { RunFolder.remove(report) }
+        let prompt = EvaluationRun.prompt(
+            lens: lens, steps: steps, clone: clone, folder: report, known: known,
+            network: EvaluationRun.network(agent: agent.name)
+        )
         guard let words = EvaluationRun.headless(
-            agent: agent.name, command: agent.command, prompt: prompt, model: model, clone: clone
+            agent: agent.name, command: agent.command, prompt: prompt, model: model, clone: clone, folder: report
         ) else {
             return (nil, "walks run headless: \(agent.name) has no headless mode, set [goals] reviewer_agent")
         }
-        try? FileManager.default.createDirectory(atPath: clone + "/.heed", withIntermediateDirectories: true)
         let (path, pathVariable) = await ToolLocator.shared.executable(words[0])
+        let line = RunSandbox.environment(present: Array(ProcessInfo.processInfo.environment.keys), folder: report)
+            + [path ?? words[0]] + words.dropFirst()
         let started = Date()
         let result = try? await ProcessRunner.run(
-            path ?? words[0], Array(words.dropFirst()), in: clone, environment: ["PATH": pathVariable],
+            line[0], Array(line.dropFirst()), in: clone, environment: ["PATH": pathVariable],
             timeout: .seconds(Int64(EvaluationRun.timeout)), caller: "goals.walk"
         )
         let measured = Date().timeIntervalSince(started)
-        let file = FileManager.default.contents(atPath: EvaluationRun.reportPath(clone: clone))
-        let last = (try? String(contentsOfFile: EvaluationRun.lastMessagePath(clone: clone), encoding: .utf8))
+        let file = RunFolder.read(EvaluationRun.reportPath(folder: report), started: started)
+        let last = RunFolder.readText(EvaluationRun.lastMessagePath(folder: report), started: started)
             ?? result?.stdout
         let read = EvaluationRun.read(
             file: file, lastMessage: last, lens: lens, draftVersion: draftVersion, measured: measured,

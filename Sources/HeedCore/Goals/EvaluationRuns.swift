@@ -191,38 +191,42 @@ public enum EvaluationRun {
         return commands
     }
 
-    /// Where it writes its walk, in the clone.
-    public static func reportPath(clone: String) -> String { "\(clone)/.heed/\(EvaluationWalk.fileName)" }
+    /// Where it writes its walk: the run's own folder (`RunFolder`), outside the clone.
+    public static func reportPath(folder: String) -> String { "\(folder)/\(EvaluationWalk.fileName)" }
 
-    public static func lastMessagePath(clone: String) -> String { "\(clone)/.heed/last-message.txt" }
+    public static func lastMessagePath(folder: String) -> String { "\(folder)/last-message.txt" }
 
-    /// What keeps a walk from pushing: claude may edit (a stranger changes config, makes a change and rebuilds; the
-    /// clone is thrown away) but not push or commit, and asks nobody (`dontAsk`); codex writes only inside the clone,
-    /// with no network for its commands. Others: the disposable clone and its push URL are the guard.
-    public static func restrictions(agent: String) -> [String] {
+    /// What keeps a walk from pushing and from reaching past its clone (`RunSandbox`): claude may edit (a stranger
+    /// changes config, makes a change and rebuilds; the clone is thrown away) but not push, commit or use gh, its shell
+    /// sandboxed with writes only to the clone and the run's folder and the network only to package registries, and
+    /// it asks nobody (`dontAsk`); codex writes only inside the clone and the run's folder, with no network.
+    public static func restrictions(agent: String, clone: String, folder: String) -> [String] {
         switch agent {
         case "claude":
-            [
-                "--allowedTools", "Bash", "Read", "Grep", "Glob", "Edit", "Write",
-                "--disallowedTools", "Bash(git push:*)", "Bash(git commit:*)", "Bash(gh:*)",
-                "--permission-mode", "dontAsk",
-            ]
-        case "codex": ["--sandbox", "workspace-write"]
+            RunSandbox.claude(
+                allowed: ["Bash", "Read", "Grep", "Glob", "Edit", "Write"], denied: [], worktree: clone,
+                folder: folder, network: .packages
+            )
+        case "codex": RunSandbox.codex(folder: folder)
         default: []
         }
     }
 
+    /// What a walk of `agent` may reach: package registries for claude, nothing for codex (its sandbox has no list).
+    public static func network(agent: String) -> RunSandbox.Network { agent == "claude" ? .packages : .none }
+
     /// The headless command line of a walk, in the clone; nil for agents with no headless mode.
-    public static func headless(agent: String, command: String, prompt: String, model: String?, clone: String)
-        -> [String]?
-    {
+    public static func headless(
+        agent: String, command: String, prompt: String, model: String?, clone: String, folder: String
+    ) -> [String]? {
         let command = command.split(separator: " ").map(String.init)
+        let limits = restrictions(agent: agent, clone: clone, folder: folder)
         switch agent {
         case "claude":
-            return command + ["-p", prompt] + restrictions(agent: agent) + (model.map { ["--model", $0] } ?? [])
+            return command + ["-p", prompt] + limits + (model.map { ["--model", $0] } ?? [])
         case "codex":
-            return command + ["exec"] + restrictions(agent: agent)
-                + ["-C", clone, "-o", lastMessagePath(clone: clone)] + (model.map { ["-m", $0] } ?? []) + [prompt]
+            return command + ["exec"] + limits
+                + ["-C", clone, "-o", lastMessagePath(folder: folder)] + (model.map { ["-m", $0] } ?? []) + [prompt]
         default:
             return nil
         }
@@ -231,7 +235,10 @@ public enum EvaluationRun {
     /// The prompt: the stranger it plays, what it may use, the steps (from the draft), how to time them and how to
     /// write `evaluation.json`. Not the goal's GOAL.md: a stranger knows only the task. Findings from before are listed
     /// so that one met again is worded the same.
-    public static func prompt(lens: EvaluationLens, steps: [String], clone: String, known: [Objection]) -> String {
+    public static func prompt(
+        lens: EvaluationLens, steps: [String], clone: String, folder: String, known: [Objection],
+        network: RunSandbox.Network = .packages
+    ) -> String {
         var lines = [
             "You are a stranger evaluating a project you have never seen. \(lens.persona)",
             "",
@@ -239,7 +246,7 @@ public enum EvaluationRun {
                 + (lens == .docsWalk ? "the docs in the repository (start at the README), "
                     : "the README (and the pages it links), the CLI's own help and output, ")
                 + "never the source code to work out how something works. Never push or commit; this clone is "
-                + "removed when you are done.",
+                + "removed when you are done. " + RunSandbox.note(folder: folder, network: network),
             "",
             "Walk these steps, in order, as a newcomer would (the walk is about \(lens.focus)):",
         ]
@@ -261,8 +268,8 @@ public enum EvaluationRun {
         }
         lines += [
             "",
-            "When you are done, write the walk as JSON to \(reportPath(clone: clone)) (make the folder; use the shell, "
-                + "e.g. a heredoc) and stop. The shape: {\"summary\": \"how it went, in a sentence or two\", "
+            "When you are done, write the walk as JSON to \(reportPath(folder: folder)) (the folder is there; use the "
+                + "shell, e.g. a heredoc) and stop. The shape: {\"summary\": \"how it went, in a sentence or two\", "
                 + "\"steps\": [{\"title\": \"the step\", \"outcome\": \"ok|confusing|stalled|failed\", \"seconds\": "
                 + "<how long it took>, \"note\": \"what happened\"}], \"friction\": [{\"severity\": \"high|med|low\", "
                 + "\"step\": <its number>, \"area\": \"a word or two\", \"finding\": \"one sentence\", "

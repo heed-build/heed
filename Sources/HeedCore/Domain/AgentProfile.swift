@@ -60,12 +60,14 @@ public struct AgentProfile: Identifiable, Hashable, Sendable, Codable {
     /// The command line that starts the agent on `prompt`, run by your login shell as the pane's process
     /// (`PaneLaunch`). The agent is called by its `command` as configured, never a resolved path, so an alias or
     /// function of that name in your shell applies. The prompt is `"$HEED_PROMPT"` on the line, never the text itself.
+    /// `prefix`: words before the command (a sandboxed run's `/usr/bin/env -u …`).
     public func launchCommand(
         prompt text: String, planFirst: Bool = false, extraArguments: [String] = [],
         environment: [String: String] = [:],
-        model: String? = nil, effort: String? = nil
+        model: String? = nil, effort: String? = nil, prefix: [String] = []
     ) -> ShellCommand {
-        var words: [ShellCommand.Word] = [.raw(command)] + extraArguments.map(ShellCommand.Word.text)
+        var words: [ShellCommand.Word] = prefix.map(ShellCommand.Word.text) + [.raw(command)]
+            + extraArguments.map(ShellCommand.Word.text)
         words += modelWords(model: model, effort: effort)
         if planFirst, let planArguments { words.append(.raw(planArguments)) }
         let agent = ShellCommand.Simple(environment: Self.assignments(environment), words: words)

@@ -482,21 +482,24 @@ struct EvaluationRunTests {
     @Test func theStrangerGetsTheStepsNotTheGoal() {
         let prompt = EvaluationRun.prompt(
             lens: .dxFirstRun, steps: ["Read the README", "Install it"], clone: "/tmp/heed-walk-x/search",
-            known: [friction("Flags overlap", .med), friction("Gone", .low, .fixed)]
+            folder: "/runs/2", known: [friction("Flags overlap", .med), friction("Gone", .low, .fixed)]
         )
         #expect(prompt.contains("1. Read the README\n2. Install it"))
         #expect(prompt.contains("no prior context"))
         #expect(prompt.contains("README"))
-        #expect(prompt.contains("/tmp/heed-walk-x/search/.heed/evaluation.json"))
+        #expect(prompt.contains("/runs/2/evaluation.json"))
+        #expect(!prompt.contains(".heed/evaluation.json"))
+        #expect(prompt.contains("reaches only package registries"))
         #expect(prompt.contains("- [med] Flags overlap"))
         #expect(!prompt.contains("Gone"))
         #expect(prompt.contains("Never push"))
-        #expect(EvaluationRun.prompt(lens: .docsWalk, steps: ["a"], clone: "/c", known: []).contains("the docs in"))
+        #expect(EvaluationRun.prompt(lens: .docsWalk, steps: ["a"], clone: "/c", folder: "/r", known: [])
+            .contains("the docs in"))
     }
 
     @Test func walksRunHeadlessAndCannotPush() throws {
         let claude = try #require(EvaluationRun.headless(
-            agent: "claude", command: "claude", prompt: "walk", model: "haiku", clone: "/c"
+            agent: "claude", command: "claude", prompt: "walk", model: "haiku", clone: "/c", folder: "/runs/2"
         ))
         #expect(claude.prefix(3) == ["claude", "-p", "walk"])
         #expect(claude.contains("Bash(git push:*)"))
@@ -505,21 +508,22 @@ struct EvaluationRunTests {
         let mode = try #require(claude.firstIndex(of: "--permission-mode"))
         #expect(claude[mode + 1] == "dontAsk")
         let codex = try #require(EvaluationRun.headless(
-            agent: "codex", command: "codex", prompt: "walk", model: nil, clone: "/c"
+            agent: "codex", command: "codex", prompt: "walk", model: nil, clone: "/c", folder: "/runs/2"
         ))
         #expect(codex == [
-            "codex",
-            "exec",
-            "--sandbox",
-            "workspace-write",
-            "-C",
-            "/c",
-            "-o",
-            "/c/.heed/last-message.txt",
-            "walk",
+            "codex", "exec", "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=false",
+            "--add-dir", "/runs/2", "-C", "/c", "-o", "/runs/2/last-message.txt", "walk",
         ])
-        #expect(EvaluationRun.headless(agent: "cursor", command: "cursor-agent", prompt: "w", model: nil, clone: "/c")
-            == nil)
+        #expect(claude.contains("Bash(gh:*)") && claude.contains("--strict-mcp-config"))
+        #expect(EvaluationRun.network(agent: "claude") == .packages && EvaluationRun.network(agent: "codex") == .none)
+        #expect(EvaluationRun.headless(
+            agent: "cursor",
+            command: "cursor-agent",
+            prompt: "w",
+            model: nil,
+            clone: "/c",
+            folder: "/r"
+        ) == nil)
     }
 }
 

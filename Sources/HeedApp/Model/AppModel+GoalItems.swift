@@ -150,8 +150,12 @@ extension AppModel {
         guard let item = goalItemSubject, let goal = goals.snapshot.goal(item.goal) else {
             return say("no card here: B shows the board")
         }
+        // A PR a source found: heed's review helper drafts the review, and ⌘↩ posts it once you have read it.
+        if let sourced = item.sourced, sourced.kind == .pr, let ref = PullRef(slug: sourced.ref) {
+            return startReview(ref, title: item.title)
+        }
         goals.startingItem = item
-        // A PR or issue a source found: Start work in its repo; a PR starts a review of it.
+        // An issue a source found: Start work in its repo.
         let context = item.sourced.flatMap { PullRef(slug: $0.ref) }.flatMap { ref in
             repos.contains { $0.repo == ref.repo }
                 ? StartContext(repos: [ref.repo.slug], label: "\(ref.repo.name)#\(ref.number)") : nil

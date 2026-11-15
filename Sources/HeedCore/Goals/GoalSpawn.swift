@@ -57,19 +57,36 @@ public enum GoalSpawnRun {
     /// The words that run `agent` headless on `prompt` in `worktree`; nil for agents that only run in a pane.
     /// Edits are allowed (the worktree is the run's own); claude's shell is limited to `heed goal` and git status, so
     /// a run that needs more stops and says so instead of acting unattended.
+    /// `sandbox`: the run's folder, for a spawn on someone else's issue or PR (`GoalItem.fromSomeoneElse`): its shell
+    /// sandboxed with no network and writes only to its worktree and that folder (`RunSandbox`); the same tools.
     public static func headless(
-        agent: String, command: String, prompt: String, worktree: String, instructions: [String]
+        agent: String, command: String, prompt: String, worktree: String, instructions: [String],
+        sandbox folder: String? = nil
     ) -> [String]? {
         let command = command.split(separator: " ").map(String.init)
+        let shell = ["Bash(heed goal *)", "Bash(git status *)", "Bash(git diff *)"]
         switch agent {
         case "claude":
+            if let folder {
+                return command + ["-p", prompt] + instructions + RunSandbox.claude(
+                    allowed: shell + ["Read", "Grep", "Glob", "Edit", "Write"], denied: [], worktree: worktree,
+                    folder: folder, network: .none, mode: "acceptEdits", autoAllow: false
+                )
+            }
             return command + ["-p", prompt, "--permission-mode", "acceptEdits"] + instructions
-                + ["--allowedTools", "Bash(heed goal *)", "Bash(git status *)", "Bash(git diff *)"]
+                + ["--allowedTools"] + shell
         case "codex":
-            return command + ["exec", "--sandbox", "workspace-write", "-C", worktree] + instructions + [prompt]
+            return command + ["exec"] + (folder.map(RunSandbox.codex) ?? ["--sandbox", "workspace-write"])
+                + ["-C", worktree] + instructions + [prompt]
         default:
             return nil
         }
+    }
+
+    /// What a sandboxed spawn is told besides its item.
+    public static func sandboxNote(folder: String) -> String {
+        RunSandbox.note(folder: folder, network: .none)
+            + " heed goal cannot reach heed from the sandbox: your work stays on your branch for the user to look at."
     }
 
     /// `<root>/heed/<repo>/spawn-<goal>-<item slug>`.

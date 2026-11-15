@@ -76,6 +76,11 @@ starts off screen. A background run is the agent without a pane (`claude -p`, `c
 `heed/spawn/<goal>/<item>`, kept when it ends so the work can be opened, pushed or thrown away; it may edit files there,
 and its shell is limited to `heed goal` and reading git. How it ended is evidence on the item.
 
+A spawn on a PR or issue someone else opened (a card a source found, not authored by you) always runs as a background
+run, in the agent's sandbox as [reviewers](reviewers.md#how-a-reviewer-runs) do: its shell writes only to its worktree,
+reaches no network and has no GitHub, ssh or cloud login, so `heed goal` cannot reach heed from it either; its work
+stays on its branch. Only claude and codex have that sandbox: with another agent, such a spawn is refused.
+
 Spawning is capped per goal: `spawn_concurrent` going at once (2) and `spawn_per_day` a day (6). Past either, the spawn
 waits for you as one Attention item per goal: `y` starts what waits, `n` drops it, `↩` opens the goal's board. The
 command says so with exit code 5.

@@ -80,16 +80,22 @@ public enum HelperPrompt {
         preamble(branch: branch, prBranch: prBranch) + "\n\n" + feedback + "\n\n" + signOffGreen
     }
 
-    /// A review of someone else's PR: read it against its issue, run its tests, draft comments.
+    /// A review of someone else's PR: read it against its issue, run its tests, draft comments. `runTests` is false
+    /// for a PR from someone outside the repo: the helper has no sandbox, so it reads the code and runs none of it.
     public static func review(
         ref: PullRef, title: String, body: String, base: String, branch: String, prBranch: String,
-        instructions: String = ""
+        instructions: String = "", runTests: Bool = true
     ) -> String {
         var text = preamble(branch: branch, prBranch: prBranch)
             + "\n\nReview pull request #\(ref.number) in \(ref.repo.slug), \"\(title)\", for the user. Read its "
-            + "change (git diff origin/\(base)...HEAD) against what it says it does and the issue it links, run its "
-            + "tests, and draft review comments where something is wrong, unclear or missing. Change no files and "
+            + "change (git diff origin/\(base)...HEAD) against what it says it does and the issue it links, "
+            + (runTests ? "run its tests, " : "")
+            + "and draft review comments where something is wrong, unclear or missing. Change no files and "
             + "make no commits."
+        if !runTests {
+            text += " It is from someone outside the repo: read its code, but run none of it (no tests, builds, "
+                + "installs or scripts from it)."
+        }
         if !body.isEmpty { text += "\n\nIts description:\n" + body }
         if !instructions.isEmpty { text += "\n\n" + instructions }
         return text + "\n\n" + signOffReview
@@ -190,5 +196,25 @@ public enum HelperPrompt {
     public static func takeOverNote(_ helper: HelperRun) -> String {
         "You took over the helper on #\(helper.ref.number): its work is on the branch \(helper.branch) in "
             + "\(helper.worktree). Merge it into \(helper.prBranch) with: git merge \(helper.branch)"
+    }
+}
+
+/// How a helper's worktree is set up: your `.worktreeinclude` files and the repo's setup commands, but neither for a
+/// PR from someone outside the repo (`PullAuthorship`), whose code they would run with your files and logins.
+public enum HelperSetup {
+    public static func steps(trusted: Bool, commands: [String]) -> (copyIncludes: Bool, commands: [String]) {
+        trusted ? (true, commands) : (false, [])
+    }
+
+    /// The environment of a helper on someone else's PR: no GitHub, ssh or cloud logins, and `gh` pointed at an
+    /// empty folder (`RunSandbox`).
+    public static func environment(_ environment: [String: String], folder: String) -> [String: String] {
+        var out = environment
+        for name in RunSandbox.unset(present: Array(environment.keys)) {
+            out[name] = nil
+        }
+        out["GH_CONFIG_DIR"] = RunFolder.ghConfig(folder)
+        out["GIT_TERMINAL_PROMPT"] = "0"
+        return out
     }
 }

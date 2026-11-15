@@ -54,11 +54,18 @@ spend_cap = 0.5      # dollars a helper may spend; 0: no cap
 
 - **Where:** a worktree of its own (`<worktree_root>/heed/<repo>/get-it-green-<branch>`) on a branch of its own
   (`heed/get-it-green/<branch>`, `heed/get-it-merged/…` for a conflict, `heed/review/…` for a review), made from the
-  PR's branch. Never your worktree. The repo's approved [setup](../worktrees/setup.md) runs in it first.
+  PR's branch (a review: the PR's head as GitHub has it, `refs/pull/<n>/head`, so a fork's PR has its own code). Never
+  your worktree. Your `.worktreeinclude` files are copied in and the repo's approved
+  [setup](../worktrees/setup.md) runs in it first, except on a PR from someone outside the repo.
 - **What it is told:** the PR's feedback, as get it green sends it (each failing check with the failed step's log, each
   review comment), or for a review the PR's description and how to read its change; that it works only in its
   worktree, commits but does not push, posts nothing, and ends with a few `heed-` lines saying what it did and the
   replies it drafted. `green_instructions` and `review_instructions` are added as for other runs.
+- **Someone outside the repo:** on a PR from anyone but you, the repo's owner, a member or a collaborator, or from a
+  fork (`gh pr view --json author,authorAssociation,isCrossRepository`), a helper gets none of your
+  `.worktreeinclude` files and runs no setup, starts with no GitHub, ssh or cloud login (`GH_TOKEN`, `SSH_AUTH_SOCK`,
+  `AWS_*` and the like unset, `gh` logged out), and a review is told to read the code and run none of it: a helper has
+  no sandbox, so it does not run a stranger's tests. Get it green starts no run on such a PR on its own; you send it.
 - **How long:** until its turn ends, you stop it, it reaches `[helpers] spend_cap` (from the cost the agent reports;
   an agent that reports none is held to `run_timeout` only), or it runs past `[pilot] run_timeout`.
 

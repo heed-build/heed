@@ -446,7 +446,7 @@ struct PersonaSpawnTests {
         #expect(config.title == "Cache and CI specialist")
         let prompt = ReviewRun.prompt(
             config: config, goalTitle: "Faster builds", doc: "# Faster builds", bar: nil, changed: [],
-            worktree: "/tmp/w", known: []
+            folder: "/tmp/run", known: []
         )
         #expect(prompt.hasPrefix("You review the goal \"Faster builds\" as Cache and CI specialist"))
         #expect(prompt.contains("Who you are:\nYou are Cache and CI specialist."))
@@ -456,7 +456,7 @@ struct PersonaSpawnTests {
         // A reviewer without a persona reads as before.
         let plain = ReviewRun.prompt(
             config: ReviewerConfig(id: "custom", kind: .custom, instructions: "Look at caches."),
-            goalTitle: "Faster builds", doc: "", bar: nil, changed: [], worktree: "/tmp/w", known: []
+            goalTitle: "Faster builds", doc: "", bar: nil, changed: [], folder: "/tmp/run", known: []
         )
         #expect(plain.hasPrefix("You are the custom reviewer"))
         #expect(plain.contains("Instructions:\nLook at caches."))

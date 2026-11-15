@@ -168,6 +168,25 @@ public enum Runs {
             + "git push origin HEAD:\(prBranch)\nThen stop: this worktree is removed when you are done.\n\n" + feedback
     }
 
+    /// Whether a run may start on its own (autopilot's auto-feed, not you sending it): on a PR from you or someone
+    /// who can write to the repo (`PullAuthorship`), yes; on anyone else's, it waits for you to send it; while heed
+    /// does not know yet, it asks first.
+    public enum OwnStart: Equatable, Sendable {
+        case go, ask, hold
+    }
+
+    public static func ownStart(explicit: Bool, trusted: Bool?) -> OwnStart {
+        if explicit { return .go }
+        switch trusted {
+        case true?: return .go
+        case false?: return .hold
+        case nil: return .ask
+        }
+    }
+
+    /// The line the PR's log says when a run waits for you.
+    public static let heldForAuthor = "from someone outside the repo: runs on it start only when you send them"
+
     /// A run is done when its agent finishes its turn (after having worked) or exits.
     public static func ended(_ state: AgentState, worked: Bool) -> Bool {
         switch state {

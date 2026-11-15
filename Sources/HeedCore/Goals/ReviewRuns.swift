@@ -157,47 +157,32 @@ public enum ReviewRun {
     /// A reviewer run still working after this long is stopped.
     public static let timeout: TimeInterval = 30 * 60
 
-    /// Where it writes its review, in its worktree.
-    public static func reportPath(worktree: String) -> String { "\(worktree)/.heed/\(ReviewReport.fileName)" }
+    /// Where it writes its review: in the run's own folder (`RunFolder`), outside its worktree.
+    public static func reportPath(folder: String) -> String { "\(folder)/\(ReviewReport.fileName)" }
 
-    /// The arguments that keep an agent from changing the work, where its CLI has them (both checked against the
-    /// installed CLIs' `--help`):
-    /// - claude: its read tools and Bash allowed, `--disallowedTools` for its edit tools and for git commit and push
-    ///   through Bash (a deny wins over the allow), and `--permission-mode dontAsk`: nobody is there to answer, so
-    ///   anything else is refused rather than asked. Bash stays, for tests and benchmarks and to write the review;
-    ///   the disposable worktree catches what a shell could still change. The mode also ends the variadic tool lists,
-    ///   so the prompt after them stays the prompt.
-    /// - codex: `--sandbox workspace-write`, which keeps writes inside the worktree and has no network, so it cannot
-    ///   push. Not `read-only`: that would keep it from writing its review.
-    /// - others: none; the disposable worktree (removed when the run ends, never pushed) is the guard.
-    public static func restrictions(agent: String) -> [String] {
+    /// The arguments that keep an agent from changing the work and from reaching past its worktree (`RunSandbox`):
+    /// - claude: its read tools and Bash allowed, its edit tools denied, its shell sandboxed with no network and
+    ///   writes only to the worktree and the run's folder (Bash stays, for tests and benchmarks and to write the
+    ///   review), and `--permission-mode dontAsk`: nobody is there to answer, so anything else is refused rather than
+    ///   asked. `hooks`: heed's hooks folded into its settings, for a run in a tab.
+    /// - codex: `--sandbox workspace-write` with no network, the run's folder writable for its review.
+    /// - others: none; heed says so, and does not start them on its own on someone else's PR.
+    public static func restrictions(agent: String, worktree: String, folder: String, hooks: Bool = false) -> [String] {
         switch agent {
         case "claude":
-            [
-                "--allowedTools",
-                "Bash",
-                "Read",
-                "Grep",
-                "Glob",
-                "--disallowedTools",
-                "Edit",
-                "Write",
-                "NotebookEdit",
-                "MultiEdit",
-                "Bash(git push:*)",
-                "Bash(git commit:*)",
-                "--permission-mode",
-                "dontAsk",
-            ]
-        case "codex": ["--sandbox", "workspace-write"]
+            RunSandbox.claude(
+                allowed: ["Bash", "Read", "Grep", "Glob"], denied: ["Edit", "Write", "NotebookEdit", "MultiEdit"],
+                worktree: worktree, folder: folder, network: .none, hooks: hooks
+            )
+        case "codex": RunSandbox.codex(folder: folder)
         default: []
         }
     }
 
     /// The prompt: who it is, the goal, its bar, what changed, and how to write `review.json`.
     public static func prompt(
-        config: ReviewerConfig, goalTitle: String, doc: String, bar: Double?, changed: [String], worktree: String,
-        known: [Objection]
+        config: ReviewerConfig, goalTitle: String, doc: String, bar: Double?, changed: [String], folder: String,
+        known: [Objection], sandboxed: Bool = true
     ) -> String {
         var lines: [String] = []
         if let persona = config.persona {
@@ -217,6 +202,7 @@ public enum ReviewRun {
             "You are in a worktree of your own at the goal's work. Read, run tests and benchmarks, but never edit "
                 + "files, commit or push: this worktree is removed when you are done.",
         ]
+        if sandboxed { lines.append(RunSandbox.note(folder: folder, network: .none)) }
         if let bar {
             lines.append("The bar for this goal is \(GoalBarTable.number(bar)) out of 10: object to what keeps the "
                 + "work under it, not to everything that could be better.")
@@ -230,7 +216,7 @@ public enum ReviewRun {
         }
         lines += ["", "The goal (GOAL.md):", "", doc, ""]
         lines.append(
-            "When you are done, write your review as JSON to \(reportPath(worktree: worktree)) (make the folder; use "
+            "When you are done, write your review as JSON to \(reportPath(folder: folder)) (the folder is there; use "
                 + "the shell, e.g. a heredoc) and stop. The shape: {\"summary\": \"how happy you are and why, in a "
                 + "sentence or two\", \"objections\": [{\"severity\": \"high|med|low\", \"text\": \"one sentence\", "
                 + "\"evidence\": \"what shows it\", \"file\": \"path\"}], \"ran\": [\"commands you ran\"], "
@@ -255,12 +241,15 @@ public struct ReviewTarget: Hashable, Sendable {
     public var branch: String
     public var repo: Repo
     public var host: String?
+    /// The PR it reviews, when it is one: who it is from decides whether a run without a sandbox may start on it.
+    public var pull: PullRef?
 
-    public init(record: RepoRecord, branch: String, repo: Repo, host: String? = nil) {
+    public init(record: RepoRecord, branch: String, repo: Repo, host: String? = nil, pull: PullRef? = nil) {
         self.record = record
         self.branch = branch
         self.repo = repo
         self.host = host
+        self.pull = pull
     }
 }
 
@@ -323,7 +312,8 @@ public extension ReviewRun {
                 continue
             }
             return .target(ReviewTarget(
-                record: found, branch: head, repo: pull.ref.repo, host: host(for: found, preferring: session)
+                record: found, branch: head, repo: pull.ref.repo, host: host(for: found, preferring: session),
+                pull: pull.ref
             ))
         }
         for session in sessions {
@@ -347,30 +337,42 @@ public extension ReviewRun {
         return missing.map(ReviewPlace.noClone) ?? .nothing
     }
 
-    /// Where a headless run's last message goes.
-    static func lastMessagePath(worktree: String) -> String { "\(worktree)/.heed/last-message.txt" }
+    /// Where a headless run's last message goes: the run's own folder.
+    static func lastMessagePath(folder: String) -> String { "\(folder)/last-message.txt" }
 
     /// The command line of a headless reviewer (no tab, no session): claude `-p` with its tools limited and no one
     /// to ask (`dontAsk`), codex `exec` in its sandbox with its last message to a file. Nil for agents with no such
     /// mode: they need a session's tab. The first word is the executable, then the command's own fixed arguments.
-    static func headless(agent: String, command: String, prompt: String, model: String?, worktree: String)
-        -> [String]?
-    {
+    static func headless(
+        agent: String, command: String, prompt: String, model: String?, worktree: String, folder: String
+    ) -> [String]? {
         let command = command.split(separator: " ").map(String.init)
+        let limits = restrictions(agent: agent, worktree: worktree, folder: folder)
         switch agent {
         case "claude":
-            return command + ["-p", prompt] + restrictions(agent: agent) + (model.map { ["--model", $0] } ?? [])
+            return command + ["-p", prompt] + limits + (model.map { ["--model", $0] } ?? [])
         case "codex":
-            return command + ["exec"] + restrictions(agent: agent) + [
+            return command + ["exec"] + limits + [
                 "-C",
                 worktree,
                 "-o",
-                lastMessagePath(worktree: worktree),
+                lastMessagePath(folder: folder),
             ]
                 + (model.map { ["-m", $0] } ?? []) + [prompt]
         default:
             return nil
         }
+    }
+
+    /// Whether a run of `agent` may start for `trigger` on `target`: a run with no sandbox starts on its own only on
+    /// your work (a PR from you or someone who can write to the repo, or a branch of yours); you can always start it.
+    /// Nil when it may, else why not.
+    static func held(agent: String, trigger: ReviewTrigger, target: ReviewTarget, trusted: Bool?) -> String? {
+        guard !RunSandbox.isSandboxed(agent: agent), trigger != .manual, target.pull != nil, trusted != true else {
+            return nil
+        }
+        return "\(RunSandbox.unsandboxedNote(agent: agent)), and \(target.pull!) is from someone outside the repo: "
+            + "it runs only when you re-check it"
     }
 
     /// The review a run left: its `review.json`, else the JSON in its last message (headless runs end with it).

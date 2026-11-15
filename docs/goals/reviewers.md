@@ -60,15 +60,19 @@ docs-reader = "cheap"
 ## How a reviewer runs
 
 A reviewer needs no session of yours. It gets a worktree of its own on `heed/review/<goal>-<reviewer>`, started from
-your clone of the repo on this Mac: at the head of the goal's open PR, else at a branch the goal's work is on (an open
+your clone of the repo on this Mac: at the head of the goal's open PR (fetched from `refs/pull/<n>/head`, so a PR from a
+fork works too), else at a branch the goal's work is on (an open
 session's, or a closed one's from the ledger). When a session on the goal is open, the reviewer runs in a tab there,
 like get it green, so you can watch it; otherwise it runs headless (claude `-p`, codex `exec`). The worktree and branch
 are removed when it ends; cleanup removes any left behind. A run still going after 30 minutes is stopped.
 When the work is in a repo with no clone on this Mac, Attention says so (`reviewers blocked`) instead.
 
 It is told the goal (its `GOAL.md`), its bar, what changed since its last review and the objections it raised before,
-and writes its review to `.heed/review.json` in its worktree, ending its reply with the same JSON (a headless run's
-reply is read when the file is missing):
+and writes its review to `review.json` in a folder of the run's own, outside its worktree
+(`~/Library/Application Support/Heed/runs/<run>`, or `~/.heed/runs/<run>` on a host), ending its reply with the same
+JSON (a headless run's reply is read when the file is missing). The folder is new for each run and heed reads only what
+changed in it after the run started, so a `.heed/review.json` a branch carries is never taken for the review; heed
+removes those from the worktree before the run starts.
 
 ```json
 {
@@ -79,16 +83,29 @@ reply is read when the file is missing):
 }
 ```
 
-Reviewers never edit your code or push:
+Reviewers run the PR's code (its tests and benchmarks), so they run in the agent's own sandbox, without your logins:
 
-- claude runs with `--allowedTools Bash Read Grep Glob`, `--disallowedTools Edit Write NotebookEdit MultiEdit
-  "Bash(git push:*)" "Bash(git commit:*)"` and `--permission-mode dontAsk`: nobody is there to answer, so anything
-  else is refused, not asked. It writes its review through the shell.
-- codex runs with `--sandbox workspace-write`: writes stay inside its worktree and it has no network, so it cannot
-  push. (Not `read-only`, which would keep it from writing its review.)
-- Other agents have no such switch; the worktree of their own, removed when they end and never pushed, is the guard.
+- claude runs with `--allowedTools Bash Read Grep Glob`, its edit tools, `WebFetch`, `WebSearch`, `gh`,
+  `git commit` and `git push` in `--disallowedTools`, and `--permission-mode dontAsk`: nobody is there to answer, so
+  anything else is refused, not asked. Its shell runs in Claude Code's sandbox (`--settings` with `sandbox.enabled`,
+  `failIfUnavailable`, and `allowUnsandboxedCommands` off): it writes only to its worktree and the run's folder, reaches
+  no network, and cannot read `~/.ssh`, `~/.config/gh`, `~/.aws` and other credential folders. It reads only your user
+  settings (`--setting-sources user`), none from the worktree, and no MCP servers (`--strict-mcp-config`).
+- codex runs with `--sandbox workspace-write` and `sandbox_workspace_write.network_access=false`, the run's folder added
+  with `--add-dir`: writes stay inside its worktree and that folder, and it has no network.
+- Both start with no GitHub, ssh or cloud login: `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `SSH_AUTH_SOCK`,
+  `AWS_*`, `GOOGLE_*`, `AZURE_*` and other variables that look like a secret are unset, and `GH_CONFIG_DIR` points at an
+  empty folder, so `gh` is not logged in. The agent's own key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) stays, and so does
+  the cloud it runs on when you set `CLAUDE_CODE_USE_BEDROCK` or `CLAUDE_CODE_USE_VERTEX`.
+- Other agents have no sandbox heed can ask for. Their worktree of their own, removed when they end and never pushed,
+  is the only guard, so heed starts them on its own only on your work: on a PR from someone outside the repo (not you,
+  the owner, a member or a collaborator, or from a fork), the reviewer records that it waits for you, and `r` runs it.
   They have no headless mode heed knows either, so they review only in a session's tab; set `reviewer_agent` to
   claude or codex for goals with no session open.
+
+What a sandboxed review cannot do: download anything (a test that fetches packages, a benchmark that pulls a dataset),
+write outside its worktree (a cache in your home folder, the repo's shared `.git` folder, so it cannot commit), or use a
+login. A step that needs one fails, and the reviewer is told to say so in its review rather than retry it.
 
 ## Objections across re-checks
 

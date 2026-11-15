@@ -229,6 +229,41 @@ public enum Git {
         return top.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// The git words that fetch a PR's head from GitHub's own ref for it (`refs/pull/<n>/head`), which holds the PR's
+    /// code whether it is on a branch of the repo or of a fork.
+    public static func pullFetchArguments(clone: String, number: Int) -> [String] {
+        ["-C", clone, "fetch", "--quiet", "origin", "+refs/pull/\(number)/head"]
+    }
+
+    /// A run's worktree at a PR's head as GitHub has it (`refs/pull/<n>/head`, fetched), on its own branch
+    /// `runBranch`, tracking nothing: a review reads it and pushes nowhere. Returns its real path.
+    public static func addPullWorktree(
+        _ record: RepoRecord, path: String, number: Int, runBranch: String
+    ) async throws -> String {
+        let location = record.location
+        _ = try await ProcessRunner.output(
+            on: location, "git", pullFetchArguments(clone: record.path, number: number), timeout: .seconds(60),
+            caller: "git.addPullWorktree"
+        )
+        let head = try await ProcessRunner.output(
+            on: location, "git", ["-C", record.path, "rev-parse", "FETCH_HEAD"], caller: "git.addPullWorktree"
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        let parent = (path as NSString).deletingLastPathComponent
+        if location.isLocal {
+            try FileManager.default.createDirectory(atPath: parent, withIntermediateDirectories: true)
+        } else {
+            _ = try await ProcessRunner.output(on: location, "mkdir", ["-p", parent], caller: "git.addPullWorktree")
+        }
+        _ = try await ProcessRunner.output(
+            on: location, "git", ["-C", record.path, "worktree", "add", "-B", runBranch, path, head],
+            caller: "git.addPullWorktree"
+        )
+        let top = try await ProcessRunner.output(
+            on: location, "git", ["-C", path, "rev-parse", "--show-toplevel"], caller: "git.addPullWorktree"
+        )
+        return top.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// Removes a worktree heed made for itself (a run's), changes and all, and its branch. Nothing is archived
     /// (`Archive`): a run's work is on the pull request's branch, and `RunCleanup` keeps a leftover that has any other.
     public static func removeWorktree(_ record: RepoRecord, path: String, branch: String? = nil) async {

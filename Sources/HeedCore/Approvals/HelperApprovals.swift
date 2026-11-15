@@ -4,11 +4,20 @@ import Foundation
 /// truth: the queue reads its asks from the live helpers (`ApprovalQueue.helperAsks`), and an answer from the queue or
 /// from the helper's split settles the same request once (`HelperRun.settle`), so the other place follows.
 public extension HelperPermission {
+    /// Whether it releases, publishes or deploys (`npm publish`, `gh release create`, ...): asked each time.
+    var publishes: Bool {
+        (command ?? call?.command).map(PermissionRisk.publishes) ?? false
+    }
+
+    /// Whether heed offers the agent's allow always: when the agent offers one, and never for a publish.
+    var offersAlways: Bool { option(.allowAlways) != nil && !publishes }
+
     /// The option of the agent's that `answer` stands for: allow is its allow once; allow always its allow always
-    /// (else allow once); deny its reject once (else reject always). Nil when the agent offered no such option.
+    /// (else allow once, and always allow once for a publish); deny its reject once (else reject always). Nil when the
+    /// agent offered no such option.
     func option(for answer: PermissionAnswer) -> ACPPermissionRequest.Option? {
         switch answer.decision {
-        case .allow: answer.always ? option(.allowAlways) ?? option(.allowOnce) : option(.allowOnce)
+        case .allow: option(answer.always && offersAlways ? .allowAlways : .allowOnce)
         case .deny: option(.rejectOnce) ?? option(.rejectAlways)
         case .pass: nil
         }

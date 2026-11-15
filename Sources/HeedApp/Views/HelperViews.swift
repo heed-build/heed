@@ -369,7 +369,7 @@ private struct PermissionCard: View {
                 if permission.option(.allowOnce) != nil {
                     CommandButton(label: "Allow", command: "helper.allow", scope: scope, primary: true)
                 }
-                if permission.option(.allowAlways) != nil {
+                if permission.offersAlways {
                     CommandButton(label: "Always", command: "helper.allow.always", scope: scope)
                 }
                 CommandButton(label: "Deny", command: "helper.deny", scope: scope)

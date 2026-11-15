@@ -67,6 +67,17 @@ struct HelperApprovalTests {
         #expect(PermissionRisk.tags(for: page, roots: ["/wt/h"]).contains(.network))
     }
 
+    @Test func aHelpersPublishIsAllowedOnceEvenWhenAlwaysIsAsked() throws {
+        let call = ACPToolCall(id: "t", title: "publish", kind: .execute, command: "cargo publish")
+        let run = asking(call)
+        let permission = try #require(run.permission)
+        #expect(permission.publishes && !permission.offersAlways)
+        #expect(permission.option(for: PermissionAnswer(.allow, always: true))?.id == "once")
+        let groups = ApprovalQueue().groups(helpers: ApprovalQueue.helperAsks([run])) { _ in ["/wt/h"] }
+        #expect(!groups[0].canAlways)
+        #expect(try #require(asking().permission).offersAlways)
+    }
+
     @Test func answersMapToTheAgentsOwnOptions() throws {
         let permission = try #require(asking().permission)
         #expect(permission.option(for: PermissionAnswer(.allow))?.id == "once")

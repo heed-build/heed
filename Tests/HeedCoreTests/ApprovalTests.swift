@@ -126,6 +126,86 @@ struct PermissionRiskTests {
         #expect(tags("cargo test") == [])
     }
 
+    @Test func readOnlyIsNotGivenToWhatRunsOrWritesSomething() {
+        // Programs that run another command, and quoted scripts, are never read only.
+        for command in [
+            "env ls", "env PAGER=x git log", "xargs cat", "nice ls", "time git status", "timeout 5 cat a", "sudo cat a",
+            "nohup ls", "watch ls", "command ls", "sh -c 'ls'", "bash -c \"git status\"", "bash -lc ls", "eval ls",
+            "exec ls", "source x.sh", ". ./x.sh", "less README.md", "more README.md",
+        ] {
+            #expect(!tags(command).contains(.readOnly), "\(command)")
+        }
+        #expect(tags("command -v git") == [.readOnly])
+        // Options that write or run.
+        for command in [
+            "awk '{print > \"out\"}' f", "awk '{print >> \"out\"}' f", "awk '{system(\"rm x\")}' f",
+            "awk '{print | \"sh\"}' f", "awk '{getline l < \"/etc/x\"}' f", "awk -f prog.awk f",
+            "rg --pre ./x foo", "rg --pre=./x foo", "rg --pre-glob '*.pdf' foo", "fd -x rm", "fd -X rm", "fd --exec rm",
+            "fd -tfx rm", "find . -exec rm {} +", "find . -execdir rm {} +", "find . -ok rm {} +", "find . -delete",
+            "find . -fprint out", "find . -fls out", "find . -fprintf out x", "sort -o out f", "sort -uo out f",
+            "sort --output=out f", "sort --compress-program=x f", "git diff --output=out", "git diff --output out",
+            "git log -p --ext-diff", "git -c core.pager=x log", "git grep -O foo", "git grep --open-files-in-pager foo",
+            "git reflog expire --all", "sed -i '' s/a/b/ f", "sed -i.bak s/a/b/ f", "sed -Ei s/a/b/ f",
+            "sed --in-place s/a/b/ f", "sed 'w out' f", "sed 's/a/b/w out' f", "sed 's/a/b/e' f", "sed -n '1e ls' f",
+            "sed -f script.sed f", "sed '1a text' f", "tree -o out", "uniq a b", "date 0101000026", "file -C",
+            "gh pr checkout 12", "gh repo clone o/r", "gh run download 1", "/tmp/x/cat a", "./cat a",
+            "PAGER=x git log", "GIT_EXTERNAL_DIFF=x git diff",
+        ] {
+            #expect(!tags(command).contains(.readOnly), "\(command)")
+        }
+        // What still reads.
+        for command in [
+            "awk '{print $1}' f", "rg foo src", "fd swift", "find . -name '*.swift'", "sort -u f", "sort -k2 -n f",
+            "git diff HEAD~1", "git -C sub log", "git --no-pager log", "sed -n '1,20p' f", "sed 's/a/b/g' f",
+            "sed -e 's/a/b/' -e '/x/d' f", "tree -L 2", "uniq -c f", "date +%s", "LC_ALL=C sort f", "/usr/bin/grep x f",
+            "file a", "git reflog", "gh release list",
+        ] {
+            #expect(tags(command).contains(.readOnly), "\(command)")
+        }
+    }
+
+    @Test func pathsThatClimbOutOfTheWorktree() {
+        #expect(tags("cat ../../etc/hosts") == [.outsideWorktree, .readOnly])
+        #expect(tags("ls src/../../x") == [.outsideWorktree, .readOnly])
+        #expect(tags("rg foo --glob=../x") == [.outsideWorktree, .readOnly])
+        #expect(tags("cat src/../README.md") == [.readOnly])
+        #expect(tags("cat ../repo/README.md") == [.readOnly])
+        #expect(tags("ls ..", cwd: "/w/repo/src") == [.readOnly])
+        #expect(tags("ls ..") == [.outsideWorktree, .readOnly])
+    }
+
+    @Test func releasesPublishesAndDeploys() {
+        for command in [
+            "npm publish", "pnpm -r publish --access public", "yarn npm publish", "yarn publish", "bun publish",
+            "cargo publish", "dotnet nuget push x.nupkg", "gem push x.gem", "twine upload dist/*", "poetry publish",
+            "uv publish", "swift package-registry publish", "gh release create v1", "gh release upload v1 a.zip",
+            "gh release edit v1 --draft=false", "git push --tags", "git push origin --follow-tags",
+            "git push origin refs/tags/v1", "git push origin tag v1", "git push origin HEAD:refs/tags/v1",
+            "docker push ghcr.io/o/i", "podman push i", "docker image push i", "docker buildx build --push .",
+            "fly deploy", "flyctl deploy", "vercel --prod", "vercel deploy", "netlify deploy --prod",
+            "kubectl apply -f k",
+            "kubectl rollout restart deploy/x", "helm upgrade x c", "helm install x c", "terraform apply", "tofu apply",
+            "gh workflow run release.yml", "brew bump-formula-pr x", "mise run release", "mise run publish:npm",
+            "npm run release", "make deploy", "just release", "sudo npm publish", "env A=1 cargo publish",
+            "bash -c 'npm publish'", "timeout 60 docker push i", "cd pkg && npm publish",
+        ] {
+            #expect(tags(command).contains(.publishes), "\(command)")
+            #expect(PermissionRisk.publishes(command), "\(command)")
+        }
+        for command in [
+            "npm install", "npm run build", "cargo build", "git push origin main", "git tag v1", "docker build .",
+            "docker pull i", "kubectl get pods", "kubectl rollout status deploy/x", "helm list", "terraform plan",
+            "gh release view v1", "gh release list", "gh workflow list", "vercel", "mise run test", "make",
+            "brew install x",
+            "echo npm publish", "make releases-notes",
+        ] {
+            #expect(!tags(command).contains(.publishes), "\(command)")
+        }
+        // Worst first, and still with the tags it had.
+        #expect(tags("gh release create v1") == [.publishes, .writesGitHub, .network])
+        #expect(PermissionRisk.tags(forCommand: "git push --tags") == [.publishes, .writesGitHub, .network])
+    }
+
     @Test func networkAndGitHubWrites() {
         #expect(tags("curl -sI https://example.com") == [.network])
         #expect(tags("git push origin main") == [.writesGitHub, .network])
@@ -266,6 +346,23 @@ struct ApprovalQueueTests {
         #expect(groups.first?.tags == [.outsideWorktree])
         #expect(groups.contains { $0.tags == [.writesGitHub, .network] && !$0.answerable })
         #expect(groups.filter(\.safeRead).count == 1)
+    }
+}
+
+struct PublishAskTests {
+    @Test func alwaysIsNeverOfferedForAPublish() {
+        func group(_ command: String) -> ApprovalGroup {
+            let ask = PermissionAsk(
+                id: command, session: "s1", agent: "claude", tool: "Bash", command: command, askedAt: Date(),
+                rules: [PermissionRule(toolName: "Bash", ruleContent: command)]
+            )
+            return ApprovalQueue(asks: [ask]).groups { _ in ["/w/repo"] }[0]
+        }
+        #expect(group("npm test").canAlways)
+        let publish = group("npm publish")
+        #expect(publish.tags.first == .publishes)
+        #expect(!publish.canAlways)
+        #expect(publish.answerable)
     }
 }
 

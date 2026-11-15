@@ -145,8 +145,9 @@ public struct ApprovalGroup: Identifiable, Equatable, Sendable {
     /// Read only, and inside the worktree: what `r` allows.
     public var safeRead: Bool { tags.contains(.readOnly) && !tags.contains(.outsideWorktree) }
     /// "Always" can be sent: Claude asks that offered a rule to save, and helper asks whose agent offered allow always.
+    /// Never for a release, publish or deploy: each one is asked.
     public var canAlways: Bool {
-        answerable && asks.allSatisfy {
+        answerable && !tags.contains(.publishes) && asks.allSatisfy {
             $0.channel == .helper ? $0.offersAlways : $0.agent == "claude" && !$0.rules.isEmpty
         }
     }

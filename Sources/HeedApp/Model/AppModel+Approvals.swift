@@ -223,6 +223,10 @@ extension AppModel {
         case "approvals.always":
             guard let group = selectedApproval else { return true }
             guard group.canAlways else {
+                if group.tags.contains(.publishes) {
+                    flash = "a release, publish or deploy is asked every time: y allows this one"
+                    return true
+                }
                 if group.first.channel == .helper {
                     flash = "the helper's agent offered no always for this one: y allows it once"
                     return true

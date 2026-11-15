@@ -51,10 +51,19 @@ words show it.
 
 | Tag | When |
 |---|---|
-| outside worktree | a file, a `cd`, or an absolute or `~` path that is in none of the session's worktrees |
+| publishes | a release, publish or deploy: `npm`/`pnpm`/`yarn`/`bun publish`, `cargo publish`, `dotnet nuget push`, `gem push`, `twine upload`, `poetry`/`uv publish`, `swift package-registry publish`, `gh release create`/`upload`/`edit`, `gh workflow run`, `git push --tags` or a tag ref, `docker`/`podman push`, `fly deploy`, `vercel deploy` or `--prod`, `netlify deploy`, `kubectl apply`/`rollout`, `helm upgrade`/`install`, `terraform apply`, `brew bump-*`, and a task named `release`, `publish` or `deploy` (`mise run release`, `npm run publish`, `make deploy`) |
+| outside worktree | a file, a `cd`, an absolute or `~` path, or a relative one that climbs out (`../x`), that is in none of the session's worktrees |
 | writes GitHub | `git push`; `gh pr`, `gh issue`, `gh release`, `gh repo` and others but their `view`, `list`, `diff`, `checks`, `status`; `gh api` with a method other than GET or with fields; GitHub MCP tools that create, update, merge, comment or close |
 | network | `curl`, `wget`, `ssh` and the like, `git push`/`pull`/`fetch`/`clone`, any `gh`, package installs, web fetch and search |
 | read only | every part of the command (split at `&&`, `\|\|`, `;`, `\|`) is a known reader (`ls`, `cat`, `rg`, `git log`/`status`/`diff`/`show`, `find` without `-delete` or `-exec`, `sed` without `-i`, ...), with no redirect into a file and no `$(...)`; and the Read, Glob and Grep tools |
+
+Read only is given only when heed understands every word. These are never read only: a command run by another
+(`env`, `xargs`, `sudo`, `time`, `timeout`, `nice`, `nohup`, `watch`), a script in quotes (`sh -c '...'`, `bash -c`,
+`eval`), `less` and `more`, a variable set in front (`PAGER=... git log`; a locale or `TZ` is fine), a program run by
+its path outside the system's folders, and the options of a reader that write or run something: `awk` with
+`system(`, a pipe, `>` or `getline`; `rg --pre`; `fd -x`; `find -exec`, `-delete` or `-fprint`; `sort -o`;
+`git diff --output` or `--ext-diff`, and `git -c`; `sed -i`, `sed -f`, or a `w` or `e` command. The tags of a
+command another runs still count: `sudo npm publish` publishes.
 
 `r` allows read-only requests only when they are inside their worktree: a read of `~/.ssh` is left for you.
 
@@ -127,6 +136,9 @@ heed within wait_seconds"), and the [call log](../reference/call-log.md) records
 project's `.claude/settings.local.json`, where Claude writes it itself: the next identical call is not asked again in
 that repo. It is offered only for Claude requests that came with such a rule. Codex takes no rules from a hook (it
 refuses one), so `a` is not offered there; neither is it for agents answered in their pane.
+
+A request tagged **publishes** never offers `a`, from a hook or a helper: each release, publish or deploy is asked,
+and `y` allows that one.
 
 ## Many agents, and auto modes
 

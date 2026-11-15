@@ -200,13 +200,13 @@ private struct ApprovalButton: View {
     }
 }
 
-/// A risk tag: red for what reaches outside, amber for the network and GitHub, green for read only.
+/// A risk tag: red for what reaches outside or ships, amber for the network and GitHub, green for read only.
 struct RiskTag: View {
     let tag: PermissionRisk
 
     var body: some View {
         let color: Color = switch tag {
-        case .outsideWorktree: Theme.err
+        case .publishes, .outsideWorktree: Theme.err
         case .writesGitHub, .network: Theme.block
         case .readOnly: Theme.done
         }

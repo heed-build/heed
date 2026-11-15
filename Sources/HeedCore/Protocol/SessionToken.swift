@@ -3,10 +3,10 @@ import Foundation
 
 /// Who a pane's processes are, as heed vouches for them: each pane gets a token in its environment
 /// (`HEED_SESSION_TOKEN`) that names its session and pane and carries heed's signature over both. Every hook message
-/// and
-/// control request from a pane carries it, and heed takes the session and pane from the token, never from what the
-/// request says: a process speaks for the pane it was started in, and no other. The signing key is heed's own, kept
-/// beside its sockets, so a pane heed started before a restart (a zmx session it reattaches) is still known after.
+/// and control request from a pane carries it, and heed takes the session and pane from the token, never from what
+/// the request says: a process speaks for the pane it was started in, and no other. The signing key is heed's own and
+/// kept (`SessionKeyStorage`), so a pane heed started before a restart (a zmx session it reattaches) is still known
+/// after.
 public struct SessionKeys: Sendable {
     private let key: SymmetricKey
 
@@ -27,17 +27,7 @@ public struct SessionKeys: Sendable {
 
     /// The key in `file`, made (32 random bytes, mode 0600) the first time. A file that is not a key is replaced.
     public static func load(from file: URL = defaultFile()) throws -> SessionKeys {
-        if let data = try? Data(contentsOf: file), data.count == 32 { return SessionKeys(key: data) }
-        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let data = SymmetricKey(size: .bits256).withUnsafeBytes { Data($0) }
-        let temporary = file.appendingPathExtension("tmp")
-        FileManager.default.createFile(atPath: temporary.path, contents: nil, attributes: [.posixPermissions: 0o600])
-        let handle = try FileHandle(forWritingTo: temporary)
-        try handle.write(contentsOf: data)
-        try handle.close()
-        _ = try FileManager.default.replaceItemAt(file, withItemAt: temporary)
-        chmod(file.path, 0o600)
-        return SessionKeys(key: data)
+        try SessionKeyStorage.load(signing: .adHoc, keychain: FileKeyStore(url: file), file: FileKeyStore(url: file))
     }
 
     /// The token for `pane` of `session`: `<session>.<pane>.<signature>`, the first two base64url.

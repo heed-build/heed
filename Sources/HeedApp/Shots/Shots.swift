@@ -439,6 +439,7 @@ enum Shots {
         ),
         Shot(id: "landing/m-brief", chrome: false, keys: "ghM", crop: .mindmapDetail, cropPadding: 0),
         Shot(id: "landing/t-wt", chrome: false, keys: "gr", crop: .worktreeTable, cropPadding: 0),
+        Shot(id: "landing/t-zmx", chrome: false, crop: .dialog, prepare: { $0.showFirstRun(report: firstRunReport) }),
         Shot(id: "landing/t-anywhere", subject: .panel, size: CGSize(width: 1100, height: 820), keys: "o" + prompt),
         Shot(
             id: "landing/t-guesses",

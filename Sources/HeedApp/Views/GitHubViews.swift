@@ -165,6 +165,7 @@ private struct PullRow: View {
         .padding(.horizontal, 16)
         .frame(height: 56)
         .background(isPicked ? Theme.block.opacity(0.18) : index == cursor ? Theme.bg3 : .clear)
+        .shotRegion(.prRow, item: "\(pull.ref.number)")
     }
 
     private var reviewText: String {

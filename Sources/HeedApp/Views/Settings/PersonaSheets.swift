@@ -18,6 +18,7 @@ struct AddPersonaSheet: View {
             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            .shotRegion(.settingsSection, item: "add")
         }
     }
 }
@@ -265,6 +266,7 @@ struct DefinePersonaSheet: View {
             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.bg2))
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            .shotRegion(.settingsSection, item: "define")
         }
     }
 }

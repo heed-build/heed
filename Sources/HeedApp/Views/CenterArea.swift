@@ -41,21 +41,24 @@ struct CenterArea: View {
                 let helpers = model.helperLine(for: session)
                 let panel = model.view == .sessions ? model.panelLine(for: session) : nil
                 let growth = model.view == .sessions ? model.goalGrowth(for: session) : nil
-                ForEach(
-                    SessionFoot.order(helpers: helpers, panel: panel?.urgency, growth: growth != nil), id: \.self
-                ) { line in
-                    switch line {
-                    case .helpers:
-                        if let helpers {
-                            if model.helpers.listOpen { SessionHelperList(line: helpers) }
-                            SessionHelperLineView(line: helpers).id(session.id)
+                VStack(spacing: 0) {
+                    ForEach(
+                        SessionFoot.order(helpers: helpers, panel: panel?.urgency, growth: growth != nil), id: \.self
+                    ) { line in
+                        switch line {
+                        case .helpers:
+                            if let helpers {
+                                if model.helpers.listOpen { SessionHelperList(line: helpers) }
+                                SessionHelperLineView(line: helpers).id(session.id)
+                            }
+                        case .panel:
+                            if let panel { SessionPanelLineView(session: session, line: panel).id(session.id) }
+                        case .growth:
+                            if let growth { GrowthLine(growth: growth).id(session.id) }
                         }
-                    case .panel:
-                        if let panel { SessionPanelLineView(session: session, line: panel).id(session.id) }
-                    case .growth:
-                        if let growth { GrowthLine(growth: growth).id(session.id) }
                     }
                 }
+                .shotRegion(.sessionFoot)
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -449,6 +452,7 @@ private struct RemotePaneStrip: View {
         .frame(height: 22)
         .background(palette.swatch.opacity(0.10))
         .overlay(alignment: .bottom) { palette.swatch.opacity(0.35).frame(height: 1) }
+        .shotRegion(.hostStrip)
     }
 
     private var link: (String, Color) {

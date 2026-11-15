@@ -440,6 +440,7 @@ struct SessionRow: View {
         .overlay(alignment: .topLeading) {
             if let hint { HintBadge(label: hint).padding(.leading, 8).padding(.top, 8) }
         }
+        .shotRegion(.sessionRow, item: session.id)
     }
 
     /// `claude · model-a · ctx 38% · 2 subagents`, the percentage amber once the context is 80% full. The default

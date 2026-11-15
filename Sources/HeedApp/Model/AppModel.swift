@@ -241,6 +241,8 @@ final class AppModel {
     private(set) var firstRun: FirstRunReport?
     /// Where git and gh were found, and the search path every command and pane runs with.
     private(set) var tools: ToolReport?
+    /// Screenshots: what Settings › Tools found.
+    func setToolsForShots(_ report: ToolReport) { tools = report }
     /// zmx on this Mac, as last checked (Settings › General shows it); nil until tools are detected. Set by tool
     /// detection, and by shots that show a Mac without it.
     var zmxHealth: ZmxHealth?

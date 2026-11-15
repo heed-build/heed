@@ -10,7 +10,9 @@ enum Shots {
         hosts +
         github +
         worktrees
-        + diff + history + goals + log + keyboard + outside + configuration + personaShots
+        + diff + history + goals + log + keyboard + outside + configuration + personaShots + settingsCrops +
+        modelCards +
+        elements
 
     /// Types a sentence (spaces become <Space>).
     static func typed(_ text: String) -> String {
@@ -524,6 +526,7 @@ enum Shots {
         // custom id.
         Shot(
             id: "agents/model-custom", subject: .settings(.pilot), size: CGSize(width: 1180, height: 1060),
+            crop: .settingsSection, cropPadding: 8, item: "Get it green",
             prepare: { model in
                 model.applyConfig(source: """
                 [pilot]
@@ -886,11 +889,29 @@ enum Shots {
         Shot(id: "history/mindmap-columns", keys: "ghM", crop: .mindmapColumns, cropPadding: 0),
         Shot(id: "history/mindmap-work", keys: "ghMljl"),
         Shot(id: "history/standup", keys: "ghU"),
-        Shot(id: "history/standup-detail", keys: "ghU", crop: .standupDetail, cropPadding: 0),
-        Shot(id: "history/standup-list", keys: "ghU", crop: .standupList, cropPadding: 0),
+        Shot(
+            id: "history/standup-detail",
+            size: CGSize(width: 1440, height: 480),
+            keys: "ghU",
+            crop: .standupDetail,
+            cropPadding: 0
+        ),
+        Shot(
+            id: "history/standup-list",
+            size: CGSize(width: 1440, height: 560),
+            keys: "ghU",
+            crop: .standupList,
+            cropPadding: 0
+        ),
         Shot(id: "history/mindmap-inside", keys: "ghMjl"),
         Shot(id: "history/ledger", keys: "ghL"),
-        Shot(id: "history/ledger-list", keys: "ghL", crop: .ledgerList, cropPadding: 0),
+        Shot(
+            id: "history/ledger-list",
+            size: CGSize(width: 1440, height: 520),
+            keys: "ghL",
+            crop: .ledgerList,
+            cropPadding: 0
+        ),
         // OpenTelemetry (T): the agents' own spans as an observability view, the wait going on now on top.
         Shot(id: "history/telemetry", size: CGSize(width: 1600, height: 1000), keys: "ghT"),
         // The span query: only bash calls that failed.
@@ -984,7 +1005,7 @@ enum Shots {
     static let goals: [Shot] = wizard + [
         Shot(id: "goals/goals", keys: "gG"),
         // The goal with three versions: what is on it, its PRs and where its work was left.
-        Shot(id: "goals/overview", keys: "gGj<Tab>", crop: .goalsOverview, cropPadding: 0),
+        Shot(id: "goals/overview", keys: "gG", crop: .goalsOverview, cropPadding: 0),
         Shot(id: "goals/doc", keys: "gGjE"),
         // New goal from the session under the cursor: its title and prompt filled in.
         Shot(id: "goals/new", crop: .goalForm, cropPadding: 24, prepare: { model in
@@ -992,10 +1013,10 @@ enum Shots {
             model.goals.form?.statement = "Every editor rule passes the 0.17 spec tests, and the suite runs on each PR."
         }),
         // The goal's items by stage, filled by evidence; its board; the changes to GOAL.md the work suggests.
-        Shot(id: "goals/matrix", keys: "gGj", crop: .goalMatrix, cropPadding: 8),
+        Shot(id: "goals/matrix", keys: "gG", crop: .goalMatrix, cropPadding: 8),
         // The pane switcher above every pane of a goal, and how far the goal is.
         Shot(id: "goals/pane-tabs", keys: "gGjB", crop: .goalPaneBar, cropPadding: 0),
-        Shot(id: "goals/progress", keys: "gGj", crop: .goalLeft, cropPadding: 8),
+        Shot(id: "goals/progress", keys: "gG", crop: .goalLeft, cropPadding: 8),
         // A new goal: its overview with the next-steps card, its GOAL.md looking unfinished, and sharpened.
         Shot(id: "goals/guided", keys: "gG:goal.new<Space>Faster<Space>search<CR>"),
         Shot(
@@ -1022,9 +1043,20 @@ enum Shots {
         // Reviewers (R): the implementation reviewer under the cursor, its objections and why its score is what it is.
         Shot(id: "goals/reviewers", keys: "gGjR<Tab>j", crop: .goalReviewerList, cropPadding: 0),
         Shot(id: "goals/reviewer-detail", keys: "gGjR<Tab>j<Tab>", crop: .goalReviewerDetail, cropPadding: 8),
-        Shot(id: "goals/how-happy", keys: "gGj", crop: .goalHappy, cropPadding: 8),
+        Shot(id: "goals/how-happy", keys: "gG", crop: .goalHappy, cropPadding: 8),
         // The goal mirrored to GitHub: its tracker, meta issue, last sync and a colleague's change waiting.
-        Shot(id: "goals/mirror", keys: "gGj", crop: .goalMirror, cropPadding: 8),
+        // The anchors goal, mirrored, without the swarm's board that would make its overview a page.
+        Shot(
+            id: "goals/mirror",
+            size: CGSize(width: 1440, height: 1300),
+            keys: "gGj",
+            crop: .goalMirror,
+            cropPadding: 8,
+            prepare: { model in
+                model.goals.boards = [:]
+                model.goals.board = nil
+            }
+        ),
         // Item sources: a goal reviewing an invented repo's open PRs, one item per PR, each done once you reviewed it;
         // the board they make; and a goal heed read as a set of issues, its proposed source waiting for y.
         Shot(id: "goals/sources", keys: "gGk", crop: .goalSources, cropPadding: 8, prepare: {
@@ -1118,9 +1150,16 @@ enum Shots {
             $0.loadRunningSwarmFixture(.running)
             $0.shotTaskRegions = ["validator-speed": .swarmTask]
         }),
-        Shot(id: "goals/swarm-goal-running", keys: "gGj", crop: .goalSwarm, cropPadding: 8, prepare: {
-            $0.loadRunningSwarmFixture(.running)
-        }),
+        Shot(
+            id: "goals/swarm-goal-running",
+            size: CGSize(width: 1440, height: 640),
+            keys: "gGj",
+            crop: .goalPage,
+            cropPadding: 8,
+            prepare: {
+                $0.loadRunningSwarmFixture(.running)
+            }
+        ),
         // The same swarm at its 4 h limit: paused, the plan pane says so, and Needs you asks for more.
         Shot(id: "goals/swarm-limit", keys: "gGjS", crop: .swarmLimit, cropPadding: 8, prepare: {
             $0.loadRunningSwarmFixture(.pausedAtLimit)
@@ -1150,9 +1189,16 @@ enum Shots {
         ),
         // Done: every task merged, the stacked PRs moved to main first; the goal page says the goal stays open.
         Shot(id: "goals/swarm-done", keys: "gGjS", prepare: { $0.loadRunningSwarmFixture(.done) }),
-        Shot(id: "goals/swarm-goal-done", keys: "gGj", crop: .goalSwarm, cropPadding: 8, prepare: {
-            $0.loadRunningSwarmFixture(.done)
-        }),
+        Shot(
+            id: "goals/swarm-goal-done",
+            size: CGSize(width: 1440, height: 640),
+            keys: "gGj",
+            crop: .goalPage,
+            cropPadding: 8,
+            prepare: {
+                $0.loadRunningSwarmFixture(.done)
+            }
+        ),
         // Steering: the running anchors swarm's questions in Needs you (one with the controller's suggestion), its
         // steering log with the controller's answer you overruled, and one task's agent-to-agent log.
         Shot(id: "goals/swarm-needs-you", keys: "gm/asks:<CR>", prepare: { $0.loadSteeringFixture() }),
@@ -1265,6 +1311,7 @@ enum Shots {
         ),
         Shot(
             id: "settings/personas-add", subject: .settings(.personas), size: CGSize(width: 1440, height: 900),
+            crop: .settingsSection, cropPadding: 0, item: "add",
             prepare: { model in
                 model.loadPersonaLibraryFixture()
                 model.personaUI.adding = Shots.addingPersonas()
@@ -1272,6 +1319,7 @@ enum Shots {
         ),
         Shot(
             id: "settings/personas-define", subject: .settings(.personas), size: CGSize(width: 1440, height: 900),
+            crop: .settingsSection, cropPadding: 0, item: "define",
             prepare: { model in
                 model.loadPersonaLibraryFixture()
                 model.personaUI.adding = Shots.addingPersonas()
@@ -1313,6 +1361,7 @@ enum Shots {
                 width: 1080,
                 height: 760
             ),
+            crop: .settingsTabs, cropPadding: 0,
             prepare: { model in
                 model.settingsFolded = [.group(.agents), .group(.github), .group(.machine)]
                 model.applyConfig(source: Shots.modifiedConfig)
@@ -1328,7 +1377,7 @@ enum Shots {
         // one kept at its default and one set.
         Shot(
             id: "configuration/configure-gaps", subject: .settings(.notifications),
-            size: CGSize(width: 1080, height: 980),
+            size: CGSize(width: 1080, height: 980), crop: .dialog, cropPadding: 12,
             prepare: { model in
                 model.zmxHealth = ZmxHealth(path: nil)
                 var draft = ConfigureDraft(step: .gaps, profile: .focus)
@@ -1340,7 +1389,7 @@ enum Shots {
         // Step 3: the keys Apply writes, and what is decided without a write.
         Shot(
             id: "configuration/configure-review", subject: .settings(.notifications),
-            size: CGSize(width: 1080, height: 820),
+            size: CGSize(width: 1080, height: 820), crop: .dialog, cropPadding: 12,
             prepare: { model in
                 var draft = ConfigureDraft(step: .review, profile: .focus)
                 draft.keepDefault("notifications.enabled")
@@ -1354,12 +1403,13 @@ enum Shots {
                 width: 1080,
                 height: 1000
             ),
+            crop: .settingsSection, cropPadding: 8, item: "Limits",
             prepare: { $0.applyConfig(source: Shots.modifiedConfig) }
         ),
         // Only modified: the tree keeps the pages with changes, Notifications only its changed rows, one refused.
         Shot(
             id: "configuration/settings-modified", subject: .settings(.notifications),
-            size: CGSize(width: 1080, height: 760),
+            size: CGSize(width: 1080, height: 620), crop: .settingsTabs, cropPadding: 0,
             prepare: { model in
                 model.applyConfig(source: Shots.modifiedConfig)
                 model.settingsFilter.onlyModified = true
@@ -1369,7 +1419,7 @@ enum Shots {
         // model, changed, with its mark), advanced ones tagged, a key match saying its key.
         Shot(
             id: "configuration/settings-search", subject: .settings(.notifications),
-            size: CGSize(width: 1080, height: 1300),
+            size: CGSize(width: 1080, height: 620), crop: .settingsTabs, cropPadding: 0,
             prepare: { model in
                 model.applyConfig(source: Shots.modifiedConfig)
                 model.settingsQuery = "model"
@@ -1378,11 +1428,13 @@ enum Shots {
         // Notifications with three settings changed, one of them refused.
         Shot(
             id: "configuration/modified", subject: .settings(.notifications), size: CGSize(width: 1080, height: 860),
+            crop: .settingsSection, cropPadding: 8, item: "Sessions",
             prepare: { $0.applyConfig(source: Shots.modifiedConfig) }
         ),
         // Agents: each with what it is and how many settings it changes; claude's Sessions tab.
         Shot(
             id: "configuration/agents", subject: .settings(.agents), size: CGSize(width: 1180, height: 1120),
+            crop: .settingsSection, cropPadding: 8, item: "list",
             prepare: { $0.applyConfig(source: Shots.modifiedConfig) }
         ),
         // History with advanced settings shown, tall enough for the call log's retention at its foot.
@@ -1394,12 +1446,19 @@ enum Shots {
         // tab: tall enough for the whole page (the window scrolls it), and nothing may be clipped at the side.
         Shot(
             id: "configuration/orgs-repos", subject: .settings(.orgsAndRepos), size: CGSize(width: 1180, height: 1000),
+            crop: .settingsSection, cropPadding: 8, item: "list",
             prepare: { $0.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit")) }
         ),
     ] + OverrideTab.allCases.dropFirst().map { tab in
         Shot(
             id: "configuration/orgs-repos-\(tab.rawValue)", subject: .settings(.orgsAndRepos),
-            size: CGSize(width: 1180, height: 1100),
+            size: CGSize(width: 1180, height: 1100), crop: .settingsSection, cropPadding: 8,
+            item: [
+                OverrideTab.green: "Get it green",
+                .merged: "Get it merged",
+                .reviews: "Reviewers",
+                .instructions: "Extra instructions",
+            ][tab],
             prepare: { model in
                 model.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit"))
                 model.orgRepoTab = tab
@@ -1410,7 +1469,7 @@ enum Shots {
         // holding an override, each tab its overridden rows.
         Shot(
             id: "configuration/orgs-repos-only-modified", subject: .settings(.orgsAndRepos),
-            size: CGSize(width: 1180, height: 900),
+            size: CGSize(width: 1180, height: 900), crop: .settingsSection, cropPadding: 8, item: "list",
             prepare: { model in
                 model.settingsScope = .repo(Repo(org: "acme", name: "docs-toolkit"))
                 model.orgRepoTab = .merged
@@ -1429,7 +1488,10 @@ enum Shots {
                 model.settingsFilter.showAdvanced = true
             }
         ),
-        Shot(id: "configuration/settings-hosts", subject: .settings(.hosts), size: CGSize(width: 1080, height: 900)),
+        Shot(
+            id: "configuration/settings-hosts", subject: .settings(.hosts), size: CGSize(width: 1080, height: 900),
+            crop: .settingsSection, cropPadding: 8, item: "@devbox"
+        ),
         // Settings › Model calls as a first launch finds it: nothing chosen, the one-click setup on top.
         Shot(
             id: "configuration/inference-not-configured", subject: .settings(.modelCalls),
@@ -1506,7 +1568,7 @@ enum Shots {
         // The editor at work: a repo typed without its org is caught before the rule can be added.
         Shot(
             id: "configuration/attention-rule-editor", subject: .settings(.attention),
-            size: CGSize(width: 1300, height: 1120),
+            size: CGSize(width: 1300, height: 1120), crop: .settingsSection, cropPadding: 8, item: "Rules",
             prepare: { model in
                 model.attention.ruleDraftSeed = ["mention user:me boost 3", "author bot:dependabot ignore"]
                 model.attention.ruleFormSeed = AttentionRuleForm(
@@ -1518,7 +1580,13 @@ enum Shots {
 
     static let outside: [Shot] = [
         Shot(id: "outside/menu-bar", subject: .menuBar, size: CGSize(width: 520, height: 34)),
-        Shot(id: "outside/menu", subject: .menu, size: CGSize(width: 620, height: 380)),
+        Shot(
+            id: "outside/menu",
+            subject: .menu,
+            size: CGSize(width: 620, height: 380),
+            crop: .menuBarMenu,
+            cropPadding: 20
+        ),
         Shot(id: "outside/dock", subject: .dock, size: CGSize(width: 420, height: 130), crop: .picker, cropPadding: 30),
     ]
 }

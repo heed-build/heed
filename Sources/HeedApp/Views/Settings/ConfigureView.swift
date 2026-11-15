@@ -40,6 +40,7 @@ struct ConfigureView: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
         .shadow(color: .black.opacity(0.5), radius: 30)
+        .shotRegion(.dialog)
         .onExitCommand { model.configure = nil }
     }
 

@@ -15,6 +15,16 @@ struct Shot {
         case menu
         /// The Dock icon with its badge.
         case dock
+        /// A session's right-click menu, drawn from its entries.
+        case sessionMenu(String)
+        /// A PR's right-click menu in the PRs view.
+        case pullMenu(PullRef)
+        /// One of the menu bar's menus (File, Session, PR), drawn from the entries it is built from.
+        case appMenu(String)
+        /// Sparkle's update window.
+        case updatePrompt
+        /// A notification banner.
+        case banner(title: String, body: String, actions: [String])
         /// The Settings window, open on a section.
         case settings(SettingsView.Section = .general)
         /// The nudge the shot put up (`model.nudge`), alone: its rows are Settings' native controls, drawn through
@@ -37,6 +47,8 @@ struct Shot {
     var cropPadding: CGFloat = 16
     /// Regions kept bright and outlined; the rest is dimmed.
     var highlight: [ShotRegion] = []
+    /// Which one of a repeated element the regions name (`ShotMode.item`): a section's title, a setting's key.
+    var item: String?
     /// Anything keys cannot reach (a state to set up), run before the keys.
     var prepare: (@MainActor (AppModel) -> Void)?
     /// The fake world drawn (`Fixtures.named`): `main`, or `empty` for what a first launch shows.
@@ -96,6 +108,7 @@ enum ShotRunner {
     }
 
     static func render(_ shot: Shot, into directory: URL) async throws {
+        ShotMode.item = shot.item
         let model = AppModel(domain: Fixtures.named(shot.fixture) ?? Fixtures.main, isFixture: true)
         shot.prepare?(model)
         for stroke in (try? KeyNotation.parse(shot.keys)) ?? [] {
@@ -113,14 +126,18 @@ enum ShotRunner {
         // Settings is all native controls, which ImageRenderer cannot draw: render it through AppKit instead, in a
         // window that is never shown.
         if case let .settings(section) = shot.subject {
-            try write(
-                hostedImage(
-                    SettingsView(section: section).environment(model).environment(\.colorScheme, .dark),
-                    size: shot.size
-                ),
-                shot: shot,
-                into: directory
-            )
+            // Only a shot that crops or highlights needs the regions' frames; the others are drawn bare, as they were.
+            guard shot.crop != nil || !shot.highlight.isEmpty else {
+                let bare = SettingsView(section: section).environment(model).environment(\.colorScheme, .dark)
+                try await write(hostedImage(bare, size: shot.size, settle: false), shot: shot, into: directory)
+                return
+            }
+            let frames = ShotFrames()
+            let view = ShotFrame(highlight: shot.highlight, frames: frames) { SettingsView(section: section) }
+                .environment(model).environment(\.colorScheme, .dark)
+            var image = try await hostedImage(view, size: shot.size, settle: true)
+            if let crop = shot.crop { image = try cropped(image, to: crop, frames: frames, shot: shot) }
+            try write(image, shot: shot, into: directory)
             return
         }
         if case .nudge = shot.subject, let nudge = model.nudge {
@@ -150,20 +167,20 @@ enum ShotRunner {
             drawn = rasterize(again)
         }
         guard var image = drawn else { throw Failure(description: "nothing rendered") }
-        if let crop = shot.crop {
-            guard let rect = frames.rects[crop] else { throw Failure(description: "region \(crop) not on screen") }
-            let padded = rect.insetBy(dx: -shot.cropPadding, dy: -shot.cropPadding)
-                .intersection(CGRect(origin: .zero, size: shot.size))
-            let pixels = CGRect(
-                x: padded.minX * 2,
-                y: padded.minY * 2,
-                width: padded.width * 2,
-                height: padded.height * 2
-            )
-            guard let cropped = image.cropping(to: pixels.integral) else { throw Failure(description: "crop failed") }
-            image = cropped
-        }
+        if let crop = shot.crop { image = try cropped(image, to: crop, frames: frames, shot: shot) }
         try write(image, shot: shot, into: directory)
+    }
+
+    /// `image` (drawn at 2x) cut to `region`'s frame, with the shot's padding.
+    private static func cropped(_ image: CGImage, to region: ShotRegion, frames: ShotFrames, shot: Shot) throws
+        -> CGImage
+    {
+        guard let rect = frames.rects[region] else { throw Failure(description: "region \(region) not on screen") }
+        let padded = rect.insetBy(dx: -shot.cropPadding, dy: -shot.cropPadding)
+            .intersection(CGRect(origin: .zero, size: shot.size))
+        let pixels = CGRect(x: padded.minX * 2, y: padded.minY * 2, width: padded.width * 2, height: padded.height * 2)
+        guard let cut = image.cropping(to: pixels.integral) else { throw Failure(description: "crop failed") }
+        return cut
     }
 
     /// Draws at 2x into a bitmap of our own, with glyphs on whole pixels: CoreText's subpixel glyph cache otherwise
@@ -185,13 +202,19 @@ enum ShotRunner {
         return image
     }
 
-    private static func hostedImage(_ view: some View, size: CGSize) throws -> CGImage {
+    private static func hostedImage(_ view: some View, size: CGSize, settle: Bool) async throws -> CGImage {
         let hosting = NSHostingView(rootView: view.frame(width: size.width, height: size.height))
         hosting.frame = NSRect(origin: .zero, size: size)
         let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .darkAqua)
         window.contentView = hosting
+        // Laid out around a turn of the run loop: the regions' frames arrive after the first layout.
         hosting.layoutSubtreeIfNeeded()
+        // Only a cropped shot needs them; waiting also makes the scrollers show, which the full shots never had.
+        if settle {
+            try? await Task.sleep(for: .milliseconds(50))
+            hosting.layoutSubtreeIfNeeded()
+        }
         guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else {
             throw Failure(description: "no bitmap")
         }
@@ -235,7 +258,7 @@ enum ShotRunner {
     }
 
     @ViewBuilder
-    private static func subject(_ shot: Shot, model _: AppModel) -> some View {
+    private static func subject(_ shot: Shot, model: AppModel) -> some View {
         switch shot.subject {
         case .window where shot.chrome: WindowChrome { MainWindow() }
         case .window: MainWindow()
@@ -243,6 +266,14 @@ enum ShotRunner {
         case .menuBar: MenuBarMock()
         case .menu: MenuMock()
         case .dock: DockMock()
+        case let .sessionMenu(id): ContextMenuMock(entries: model.sessionMenu(id))
+        case let .pullMenu(ref): ContextMenuMock(entries: model.pullMenu(ref, place: .prs))
+        case .updatePrompt: UpdatePromptMock()
+        case let .appMenu(title):
+            ContextMenuMock(
+                entries: MenuBar.menus(model.menuBarFacts()).first { $0.title == title }?.entries ?? [], menuBar: true
+            )
+        case let .banner(title, body, actions): NotificationBannerMock(title: title, body_: body, actions: actions)
         case .settings, .nudge: EmptyView()
         }
     }

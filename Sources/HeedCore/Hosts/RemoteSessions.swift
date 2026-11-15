@@ -85,7 +85,7 @@ public enum HostSetup {
             heedBinary: "\(home)/.heed/bin/heed-hook"
         )
         let files = [
-            "~/.heed/claude-hooks.json": AgentIntegration.claudeSettingsJSON(),
+            "~/.heed/claude-hooks.json": AgentIntegration.claudeSettingsJSON(heed: integration.heedBinary),
             "~/.heed/heed-pi.js": AgentIntegration.piExtensionSource,
             "~/.heed/heed-opencode.js": AgentIntegration.opencodePluginSource,
         ]

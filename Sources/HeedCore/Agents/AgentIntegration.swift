@@ -12,7 +12,7 @@ public enum AgentIntegration {
     ) -> [String] {
         var args: [String] = switch agent.name {
         case "claude": ["--settings", files.claudeSettings]
-        case "codex": codexArguments(heed: files.heedBinary)
+        case "codex": codexArguments(heed: files.heedBinary, sockets: files.sockets)
         case "pi": ["-e", files.piExtension]
         default: []
         }
@@ -54,9 +54,9 @@ public enum AgentIntegration {
 
     /// Hooks for one run, as `-c` config layers (the user's own hooks still run alongside). Non-managed hooks need
     /// trust; the bypass flag trusts exactly these, for this run.
-    static func codexArguments(heed: String) -> [String] {
+    static func codexArguments(heed: String, sockets: HookSockets? = nil) -> [String] {
         ["--dangerously-bypass-hook-trust"] + codexEvents.flatMap { event in
-            let command = TOMLValue.quote("\(ShellQuote.quote(heed)) hook codex \(event)")
+            let command = TOMLValue.quote(hookCommand(heed: heed, sockets: sockets, agent: "codex", event: event))
             return [
                 "-c",
                 "hooks.\(event)=[{hooks=[{type=\"command\",command=\(command),timeout=\(hookTimeout(event))}]}]",
@@ -410,14 +410,26 @@ public enum AgentIntegration {
         ("SubagentStart", nil), ("SubagentStop", nil),
     ]
 
-    /// The `--settings` JSON: every event runs `heed hook claude <event>`, which reads the hook's JSON on stdin.
-    /// `$HEED_BIN` is set in every Heed pane; outside one the hook is a no-op.
-    public static func claudeSettingsJSON() -> String {
+    /// A hook's command line: heed's own `heed` (an absolute path, or `true` when the app has none) and, on this Mac,
+    /// heed's sockets, written into the line rather than read from the pane's environment, which a repo's config can
+    /// change. Outside a heed pane the hook does nothing (no `HEED_SESSION_ID`).
+    public static func hookCommand(heed: String, sockets: HookSockets?, agent: String, event: String) -> String {
+        let prefix = sockets.map {
+            "\(HeedEnvironment.socket)=\(ShellQuote.quote($0.hooks)) "
+                + "\(HeedControl.socketVariable)=\(ShellQuote.quote($0.control)) "
+        } ?? ""
+        return prefix + "\(ShellQuote.quote(heed)) hook \(agent) \(event)"
+    }
+
+    /// The `--settings` JSON: every event runs `heed hook claude <event>`, which reads the hook's JSON on stdin, with
+    /// `heed` and the sockets as `hookCommand` writes them.
+    public static func claudeSettingsJSON(heed: String = "true", sockets: HookSockets? = nil) -> String {
         var hooks: [String: Any] = [:]
         for (event, matcher) in claudeEvents {
             var entry: [String: Any] = [
                 "hooks": [[
-                    "type": "command", "command": "\"${HEED_BIN:-true}\" hook claude \(event)",
+                    "type": "command",
+                    "command": hookCommand(heed: heed, sockets: sockets, agent: "claude", event: event),
                     "timeout": hookTimeout(event),
                 ]],
             ]
@@ -586,8 +598,12 @@ public struct IntegrationFiles: Hashable, Sendable {
     /// Where the agents' OpenTelemetry goes: heed's receiver on this Mac, once it listens; nil on a host, or when the
     /// receiver is off.
     public var telemetry: TelemetryExport?
+    /// heed's sockets, written into the hooks' command lines (`AgentIntegration.hookCommand`); nil on a host, where
+    /// hooks write to the event log.
+    public var sockets: HookSockets?
 
-    public init(directory: URL, heedBinary: String = "heed", version: String = "dev") {
+    public init(directory: URL, heedBinary: String = "heed", version: String = "dev", sockets: HookSockets? = nil) {
+        self.sockets = sockets
         claudeSettings = directory.appendingPathComponent("claude-hooks.json").path
         piExtension = directory.appendingPathComponent("heed-pi.js").path
         opencodePlugin = directory.appendingPathComponent("heed-opencode.js").path
@@ -600,14 +616,14 @@ public struct IntegrationFiles: Hashable, Sendable {
         IntegrationFiles(
             directory: FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent("Heed"),
-            heedBinary: heedBinary, version: version
+            heedBinary: heedBinary, version: version, sockets: .default
         )
     }
 
     /// Writes the files if their content changed. Called off the main actor at launch.
     public func write() throws {
         let files = [
-            (claudeSettings, AgentIntegration.claudeSettingsJSON()),
+            (claudeSettings, AgentIntegration.claudeSettingsJSON(heed: heedBinary, sockets: sockets)),
             (piExtension, AgentIntegration.piExtensionSource),
             (opencodePlugin, AgentIntegration.opencodePluginSource),
         ]
@@ -622,5 +638,20 @@ public struct IntegrationFiles: Hashable, Sendable {
             }
         }
         try HeedPlugin.write(to: URL(fileURLWithPath: plugin, isDirectory: true), version: version)
+    }
+}
+
+/// heed's two sockets on this Mac, as a hook's command line names them.
+public struct HookSockets: Hashable, Sendable {
+    public var hooks: String
+    public var control: String
+
+    public init(hooks: String, control: String) {
+        self.hooks = hooks
+        self.control = control
+    }
+
+    public static var `default`: HookSockets {
+        HookSockets(hooks: HeedEnvironment.defaultSocketPath(), control: HeedControl.defaultSocketPath())
     }
 }

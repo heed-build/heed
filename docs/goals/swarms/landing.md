@@ -13,7 +13,7 @@ Once every task has its pull request, a swarm is **landing**. Its PRs merge in a
 for merges first, and otherwise the plan's order. heed shows that order everywhere the swarm's PRs are, holds a PR
 back while what it waits for is unmerged, moves a stacked PR on once the PR it stacks on merged, and ends the swarm
 once every task merged. The merging itself is the pilot's: each PR merges by its
-[get it merged](../../github/watch.md) setting (the swarm's, when you gave it one), and a swarm never merges anything
+[get it merged](../../autopilot/green-and-merged.md) setting (the swarm's, when you gave it one), and a swarm never merges anything
 to main on its own.
 
 ![A landing swarm: the merge order on the right, the two PRs stacked on #412 held after it](../../images/shots/goals/swarm-landing.png)

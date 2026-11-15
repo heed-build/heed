@@ -4,7 +4,7 @@ description: "Long-running work: goals that sessions, chats and PRs belong to, e
 
 # Goals
 
-A goal is work that outlives one session: a feature, a migration, a cleanup. Sessions, chats and their PRs belong to
+A goal holds work that outlives one session, and heed splits it across your agents. A goal is a feature, a migration or a cleanup. Sessions, chats and their PRs belong to
 it, and its `GOAL.md` says what the goal is, what it is not, when it is done, what is still open and what was decided.
 `gG` (or `:goals`) opens Goals.
 
@@ -80,7 +80,7 @@ bars ([Quality bars](quality.md)). It shows `–` until there is something to co
 | `y` | Yes to the item source heed proposes for the goal ([Item sources](sources.md)) |
 | `R` | The goal's reviewers and quality bars ([Reviewers](reviewers.md)); again, the overview |
 | `r` | Re-check: every reviewer the goal needs looks again |
-| `P` | Who the goal needs ([Personas](personas.md)); again, the overview |
+| `P` | Who the goal needs ([Personas](../personas/goal-panels.md)); again, the overview |
 | `X` | Stranger walks of the goal, their friction logs and scores ([Evaluations](evaluations.md)); again, the overview |
 | `M` | Mirror the goal to GitHub for colleagues to follow; again, stop ([GitHub mirror](github.md)) |
 | `S` | The goal's swarm: its plan, the lead's questions, versions and steering ([Swarms](swarms/index.md)); again, the overview |
@@ -195,3 +195,21 @@ config.toml, or in Settings › Goals.
 [goals]
 tell_agents = true
 ```
+
+## In this section
+
+- [Your first goal](first-goal.md): the new-goal wizard, from the plan to the panel and what done looks like.
+- [Split it across your agents](split.md): parts, one agent each, on one board.
+- [How careful, and go](go.md): the quality machinery to use, and starting the work.
+- [Items and the board](items.md): where items come from, and the stages evidence fills.
+- [Item sources](sources.md): items from a GitHub query, one per PR or issue.
+- [How work finds its goal](attach.md): sessions and chats put on their goal by themselves.
+- [Quality bars](quality.md): how good each part must be, and when a goal is done.
+- [Reviewers](reviewers.md): agents that score a goal's work without editing it.
+- [Evaluations](evaluations.md): evaluators walk a goal's task as a stranger would.
+- [Agents keep the goal](cli.md): `heed goal` for agents, and a swarm's lead.
+- [GitHub mirror](github.md): a goal followed on GitHub, one issue per item.
+- [Lanes and swarms (reference)](swarms/index.md): the machinery behind a goal worked by several agents.
+- [Personas](../personas/index.md): the experts a goal's panel seats, and the personas that look in on sessions.
+
+**Next:** [Personas](../personas/index.md).

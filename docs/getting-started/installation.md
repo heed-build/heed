@@ -44,3 +44,5 @@ mise run bundle     # release build: build/Heed.app
 ```
 
 Move `build/Heed.app` to `/Applications` and open it.
+
+**Next:** [The first run](first-run.md).

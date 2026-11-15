@@ -5,6 +5,11 @@ description: The coding agents Heed runs, and how each one tells Heed what it is
 
 # Agents
 
+heed starts each agent the way that agent expects, and learns its state through the channel it offers. This section
+is the plumbing. You can use heed without reading it.
+
+![Agents: each one wired up the way it actually works](../images/shots/landing/agents.png)
+
 Heed runs coding agents in real terminals and keeps track of what each is doing. Six are built in; any other command
 line agent can be added.
 
@@ -35,6 +40,11 @@ line run by `sh`, then the pane is handed to it.
 
 What an agent cannot report, Heed [reads from its screen](screen-reading.md). Each agent's command, prompt delivery,
 plan and resume arguments can be changed, and new agents added: see [Custom agents](custom-agents.md).
+
+Three pages that used to live here moved to [Autopilot](../autopilot/index.md): [Approvals](../autopilot/approvals.md),
+[Helpers](../autopilot/helpers.md) and the persona library, now [Personas](../personas/index.md).
+
+## In this section
 
 - [Hooks](hooks.md): what Heed passes to each agent, and why your own agent config never changes.
 - [How Heed talks to agents](messages.md): Claude's inbox, codex's queue, and when Heed types instead.

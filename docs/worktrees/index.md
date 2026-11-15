@@ -1,11 +1,11 @@
 ---
-navigation_title: Worktrees
+navigation_title: Repos
 description: The Repos view, every worktree of every repo, and how they come and go.
 ---
 
-# Worktrees
+# Repos
 
-`gr` opens Repos. On the left, every repo Heed knows; on the right, cleanup up top, the repo you picked, and its
+Every task gets its own worktree, and Repos lists all of them, across every repo. `gr` opens it. On the left, every repo heed knows. On the right, cleanup is up top, then the repo you picked and its
 worktrees.
 
 ![Repos: the repo column, cleanup, the picked repo's card, and its worktrees](../images/shots/worktrees/repos.png)
@@ -29,7 +29,7 @@ touched it. A worktree with no session says so, and `↩` [imports](importing.md
 | `o` | Start work in the repo under the cursor |
 | `dd` | [Remove](removing.md) the worktree (asks first) |
 | `v` | Select rows, then `d` remove, `y` copy paths, `o` open or import |
-| `M` | [Set up](../github/repo-setup.md) get it merged and get it green for the repo |
+| `M` | [Set up](../autopilot/repo-setup.md) get it merged and get it green for the repo |
 | `S` | The repo's detected [setup](setup.md): approve, edit or never |
 | `gR` `⌘O` | The repo on GitHub; its folder in Finder |
 | `gC` | [Clean up worktrees](cleanup.md) now (asks first) |
@@ -42,9 +42,12 @@ folder), so `code` does not match every worktree under `~/code`. What matched is
 
 ![Repos filtered by fix: the matches marked in branch and path](../images/shots/worktrees/repos-filtered.png)
 
-- [Repos](repos.md): the repo column and card, adding or cloning a repo, where repos come from, their order and
-  colours.
-- [Setting up](setup.md): setup commands, `.worktreeinclude`, and trusting a repo for agents.
-- [Importing](importing.md): worktrees made outside Heed, and any path.
-- [Removing](removing.md): what is removed, and what never is.
-- [Cleanup](cleanup.md): removing idle worktrees automatically.
+## In this section
+
+- [Repos and their cards](repos.md): add or clone a repo, and where heed finds repos.
+- [Setup](setup.md): what a new worktree gets before its agent starts.
+- [Importing](importing.md): bring worktrees made outside heed in as sessions.
+- [Removing](removing.md): remove a worktree by hand, and what heed never removes.
+- [Cleanup](cleanup.md): remove worktrees nobody has touched for a while.
+
+**Next:** [Diff](../diff/index.md).

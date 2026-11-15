@@ -42,3 +42,9 @@ all of them; a right-click anywhere else moves the cursor there first. `⎋` dro
 closes the overlay.
 
 Selecting works in the unified view; the split view is for reading.
+
+## In this section
+
+- [Reviewing changes](reviewing.md): the split view, and notes to the agent on a hunk.
+
+**Next:** [Hosts](../hosts/index.md).

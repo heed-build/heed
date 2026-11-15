@@ -41,13 +41,16 @@ keyboard back to Heed. More in [Typing into agents](../sessions/typing-into-agen
 
 When the agent opens a pull request, the session tracks it. Review comments and failing checks queue up in the PR
 overlay (`go`) and go back to the agent when it is idle. More in [Review feedback](../github/review-feedback.md);
-[Autopilot](../github/autopilot.md) (`gw`) shows what heed can do with them on its own, and where that is on.
+[Autopilot](../autopilot/index.md) (`gw`) shows what heed can do with them on its own, and where that is on.
 
 ![The PR overlay: two items queued for the agent, the prompt that will be sent](../images/shots/getting-started/first-session-5-feedback.png)
 
 ## 6. Done
 
-When the pull request is merged, the session moves to History, in Insights (`gh`, then `D`), with its outcome. Its
-prompt, its story and agent session stay there, ready to reopen. More in [Insights](../history/index.md).
+When the PR is merged, the session moves to History, in Insights (`gh`, then `H`), with its outcome. Its prompt, its
+story and its agent session stay there, ready to reopen. More in [Insights](../insights/index.md).
 
 ![History: closed sessions grouped by day, with their outcomes](../images/shots/getting-started/first-session-6-history.png)
+
+**Next:** let heed take the routine steps. [Autopilot](../autopilot/index.md) gets PRs green and merges them by your
+rules. A [goal](../goals/index.md) holds work that takes more than one session.

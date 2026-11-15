@@ -6,7 +6,7 @@ description: What a new worktree gets before its agent starts, the setup command
 
 A fresh worktree has the repo's tracked files and nothing else: no `node_modules`, no `.env`, no tools installed. Heed
 sets every worktree it makes up the same way, for sessions from Start work and for get it green's
-[background runs](../github/watch.md#runs) alike.
+[background runs](../autopilot/green-and-merged.md#runs) alike.
 
 ## Setup commands
 

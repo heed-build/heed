@@ -5,7 +5,8 @@ description: The Sessions view, part by part.
 
 # Sessions
 
-The Sessions view is where Heed opens (`gs` from anywhere). It has four parts.
+Every agent you run is a session, and the Sessions view shows all of them at once. The view is where heed opens (`gs`
+from anywhere). It has four parts.
 
 ![The Sessions view with its sidebar, center and inspector highlighted](../images/shots/sessions/anatomy.png)
 
@@ -20,6 +21,17 @@ the sessions waiting on you on the right.
 
 ## In this section
 
-- [The sidebar](sidebar.md) · [Moving around](moving-around.md) · [Typing into agents](typing-into-agents.md)
-- [Panes and tabs](panes-and-tabs.md) · [The inspector](inspector.md)
-- [Pin, park, close, delete](pin-park-close-delete.md) · [Resuming sessions](resume.md) · [Handing off](handoff.md) · [Chats](chats.md) · [Agents that outlive Heed](zmx.md) · [Filtering](filtering.md)
+- [The sidebar](sidebar.md): every session, grouped by what it needs from you.
+- [Moving around](moving-around.md): `j` and `k`, counts, pins and the jump to the next session that needs you.
+- [Typing into agents](typing-into-agents.md): INSERT mode, and getting the keyboard back.
+- [Panes and tabs](panes-and-tabs.md): split, move, zoom and close panes and tabs.
+- [The inspector](inspector.md): a session's PRs, issues and what heed learned around it.
+- [Pin, park, close, delete](pin-park-close-delete.md): what each one keeps.
+- [Resuming sessions](resume.md): how sessions come back when heed starts.
+- [Handing off](handoff.md): give a session to another agent when one hits its limit.
+- [Chats](chats.md): sessions with no repo, for talking to an agent.
+- [Away](away.md): what happened while you were gone.
+- [Agents that outlive heed](zmx.md): zmx keeps agents running when heed quits.
+- [Filtering](filtering.md): narrow the list with `/`.
+
+**Next:** [Repos](../worktrees/index.md).

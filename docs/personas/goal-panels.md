@@ -1,8 +1,8 @@
 ---
-description: "Personas: the experts a goal needs, worked out from its board, with why now, the evidence that asked for them, and how much of their work they have looked at."
+description: "Personas on a goal: the experts a goal needs, worked out from its board, with why now, the evidence that asked for them, and how much of their work they have looked at."
 ---
 
-# Personas
+# Personas on a goal
 
 A persona is a kind of expert a goal needs in the room: a CI specialist, a performance engineer, someone who will read
 the docs cold. heed works out who from the goal's board (what is planned, what reviewers object to, what is unanswered,
@@ -67,7 +67,7 @@ or `⌘S` saves it. A file that changes the name moves to the new name's file.
 `:persona.use <name>` copies one from the library onto another goal. When the model names a persona the library has,
 the goal gets the library's file instead of a new draft. Only a library persona that is on and in scope for the goal's
 repos is offered or copied: one scoped to another org never is. The library is Settings ›
-[Personas](../agents/personas.md), where you add personas from your repos and choose what they join.
+[Personas](index.md), where you add personas from your repos and choose what they join.
 
 ## Putting one to work
 
@@ -75,7 +75,7 @@ repos is offered or copied: one scoped to another org never is. The library is S
 |---|---|
 | `s` | A session: Start work, filled in with the persona, the goal and the evidence |
 | `c` | A chat, seeded the same way |
-| `N` | A reviewer: read-only, in a worktree of its own, through the same machinery as the other [reviewers](reviewers.md) |
+| `N` | A reviewer: read-only, in a worktree of its own, through the same machinery as the other [reviewers](../goals/reviewers.md) |
 
 The agent picker beside the keys chooses the agent for all three; the model picker applies to the reviewer (sessions
 and chats start on the agent's own model). A session or chat started from here goes on the goal before its agent

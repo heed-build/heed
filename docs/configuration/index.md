@@ -5,6 +5,10 @@ description: config.toml, Settings, and how changes apply.
 
 # Configuration
 
+One file holds every setting, and the Settings window edits it for you.
+
+![Settings: the window that edits config.toml](../images/shots/configuration/settings.png)
+
 Everything Heed can be told lives in one file, `~/.config/heed/config.toml` (or `$XDG_CONFIG_HOME/heed/config.toml`).
 Heed writes it with comments the first time it opens, showing every key with its default.
 
@@ -16,6 +20,8 @@ Heed writes it with comments the first time it opens, showing every key with its
 ![A config problem reported in the status bar](../images/shots/configuration/problem.png)
 
 - [Settings](settings.md): the Settings window, section by section.
+- [Configure…](configure.md): set heed up in three steps: a profile, the gaps and a review.
+- [What's new and nudges](whats-new.md): what heed shows after an update, and how to turn it off.
 - [Inference & decisions](inference.md): which agent takes Heed's model calls, what answers its decisions, and the
   reminder on launch until they are set up.
 - [Local learning](local-learning.md): how Hunch learns from your corrections, on this Mac only.

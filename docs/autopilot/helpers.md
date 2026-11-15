@@ -62,7 +62,7 @@ spend_cap = 0.5      # dollars a helper may spend; 0: no cap
 - **How long:** until its turn ends, you stop it, it reaches `[helpers] spend_cap` (from the cost the agent reports;
   an agent that reports none is held to `run_timeout` only), or it runs past `[pilot] run_timeout`.
 
-Get it green runs as helpers by default (`[pilot] run_in = "helper"`). See [Runs](../github/watch.md#runs) for the
+Get it green runs as helpers by default (`[pilot] run_in = "helper"`). See [Runs](green-and-merged.md#runs) for the
 other two ways, a background tab or the session's own agent, which stay for agents without an ACP adapter.
 
 ## Where you see it
@@ -138,7 +138,7 @@ verdict).
 
 Once it pushed, your session is told in words: *heed pushed a3f9c1d to fix-anchors-redirects: lint fix + a
 301-chain test. Pull before your next change.* The note is always on the session's helper line, and it reaches the
-agent through its own [channel](messages.md) when it has one (Claude's inbox, codex's queue). It is never typed: an
+agent through its own [channel](../agents/messages.md) when it has one (Claude's inbox, codex's queue). It is never typed: an
 agent without a channel gets the line only, and the helper's row in the list (`gW`) says which it was. Either way the
 session's events record it. With get it green on **Auto** for the repo (Autopilot's **Always**), heed pushes and
 replies as soon as a helper is done and has changed something.

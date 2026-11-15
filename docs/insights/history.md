@@ -1,27 +1,8 @@
 ---
-navigation_title: Insights
-description: What your work amounted to and what ended, with its story; a dashboard, History, the ledger, the Mindmap, standups and the agents' own OpenTelemetry.
+description: "History: the sessions and chats that ended, by day, each with its story; filters, every event, and reopening."
 ---
 
-# Insights
-
-`gh` opens Insights on its [dashboard](dashboard.md): what shipped this week, agent time set against the week before,
-your bests and the goals that moved. A strip of tabs under the title bar names every Insights view with its key and how
-much is in each: Dashboard `D`, History `H`, Ledger `L`, Mindmap `M`, Standup `U` and OpenTelemetry `T`. The same keys
-work in every one of them; a view's own key again comes back to the dashboard, and a click on a tab opens it.
-
-![Insights' tabs: Dashboard, History, Ledger, Mindmap, Standup and OpenTelemetry, each with its key](../images/shots/history/pane-tabs.png)
-
-| View | |
-|---|---|
-| [Dashboard](dashboard.md) | Where `gh` opens: the range in numbers, what shipped, bests, agent time, goals |
-| History | The work that ended, by day, each with its story (below) |
-| [Ledger](ledger.md) | A short summary of each piece of work, kept after its worktree is gone |
-| [Mindmap](mindmap.md) | The work grouped into campaigns, one Mindmap per org |
-| [Standup](standup.md) | Your own questions answered from each Mindmap, on the days you choose |
-| [OpenTelemetry](opentelemetry.md) | The agents' own spans: latency by tool, waits for your OK, cost by model, and each session's trace |
-
-## History
+# History
 
 `H` (or `:history`, `history.list`) shows History: the sessions and chats that ended, grouped by day,
 newest first, each day's header saying what it came to (`2 merged · 1 abandoned · 2 questions answered`).
@@ -48,7 +29,7 @@ session id, the story and the agent's last message; the transcript belongs to th
 
 ![A piece of work in full: its prompt, what happened, the ledger's summary and the resume command](../images/shots/history/detail.png)
 
-### Filters
+## Filters
 
 The column on the left narrows the list, and a click on any of it does what its key does.
 
@@ -68,7 +49,7 @@ The column on the left narrows the list, and a click on any of it does what its 
 Each takes a name on the command line too: `:history.outcome merged`, `:timeline.kind worktrees`,
 `:timeline.repo docs-toolkit`, `:timeline.where devbox`, `all` to go back.
 
-### Every event
+## Every event
 
 `e` unfolds every event of the last 30 days as its own line, on one vertical rule per day: what the timeline was
 (`:timeline` and `history.timeline` open History this way). `e` again folds them back into their work.

@@ -21,7 +21,7 @@ A [chat](../sessions/chats.md) is a session with no repo: its agent works in a f
 has no pull requests.
 
 Heed keeps a record of each session (its prompt, timeline, outcome and the agent's last message); the agent keeps its
-own transcript. The [ledger](../history/ledger.md) keeps a short summary of the work after its worktree is gone.
+own transcript. The [ledger](../insights/ledger.md) keeps a short summary of the work after its worktree is gone.
 
 Closing a session keeps its worktree; deleting it removes the worktree too, after saving any work not pushed. Either
-way it moves to [History](../history/index.md), where it can be reopened.
+way it moves to [History](../insights/index.md), where it can be reopened.

@@ -37,7 +37,7 @@ A small goal uses the same board: three parts on two agents, and a light lead.
 ## Who should do it
 
 Under the board, the part under the cursor and the agents who could do it, best fit first. **Fit** comes from heed's
-records ([the ledger](../history/ledger.md)): an agent's PRs in the part's repo, how many merged, and how many it left
+records ([the ledger](../insights/ledger.md)): an agent's PRs in the part's repo, how many merged, and how many it left
 (abandoned or closed). An agent new to the repo borrows half its record elsewhere; Copilot needs a repo to open its PR
 in. Each card shows the fit as a meter with its score, the merged PRs there, the quota ring (when known), the extra
 cost, and one reason (`PR only`, `already on 1 and 3`, `shares the lead's window`). **This plan uses** shows each
@@ -85,7 +85,7 @@ with their fit (a click moves it there), a field to tell its agent something bef
 
 ## Define a part with its agent
 
-`d` opens a split under the board: an [ACP](../agents/helpers.md) session with the part's agent (else your helpers'
+`d` opens a split under the board: an [ACP](../autopilot/helpers.md) session with the part's agent (else your helpers'
 agent) in the part's repo, which **reads the repo and writes nothing**: heed allows its read and search tool calls,
 refuses every edit, delete, move or command, and serves no file or terminal methods. It asks one question at a time
 with options; on the right, the part as it would be defined: the done-when lines it adds, the estimate before and

@@ -29,7 +29,7 @@ big it got, how long since you last touched it, and its pin key (`'1`).
 named by heed; else what its PR's title says in conventional-commit style (`fix(nav): …`); else its branch's prefix.
 `K` (`:session.kind docs`) changes it. The three bars are its size against where its branch left the base, committed
 or not: one under 100 lines, three past 800 lines or 20 files. Heed measures it for open sessions' worktrees, again
-each time their agent finishes a turn. The same badges show on the session's [Mindmap](../history/mindmap.md) card. Below that, the agent's
+each time their agent finishes a turn. The same badges show on the session's [Mindmap](../insights/mindmap.md) card. Below that, the agent's
 line: its model (shortened: `model-a · ctx 38%`) and, while it works, how full its context is, in amber from 80%; when
 it is not working, what it waits on. The agent's name shows only when it is not your default agent. At the end of the
 agent's line sit what the session holds: `↑2` in amber for commits not pushed, `~3` for files not committed (summed
@@ -42,17 +42,17 @@ finishes its first turn, and again when it opens a PR, from what it is doing now
 Mac has it, else a model call (at most 40 a day). A new name shows in heed's blue until the cursor has been on the row,
 and the session's timeline keeps the old one. Heed renames a session at most six times, so a title settles. `R` (or
 `:session.rename Your title`) gives it your title, which heed keeps; `:session.autoname` hands it back. Your title is
-on its [Mindmap](../history/mindmap.md) card too. `[sessions] name_sessions = false` turns naming off.
+on its [Mindmap](../insights/mindmap.md) card too. `[sessions] name_sessions = false` turns naming off.
 
 **How long you have been away.** The age on a row (`48m`, `3h`, `2d`) is the time since you last typed in the session
 or went into it, not since its agent last did something. It shows from 15 minutes, in grey, then amber past an hour
 and rust past a day.
 
-A session with a get it green or get it merged [run](../github/watch.md#runs) working gets a second row under it, in
+A session with a get it green or get it merged [run](../autopilot/green-and-merged.md#runs) working gets a second row under it, in
 any group: `↳`, the goal and PR (`get it green #412`), how long it has run, then its agent and model and the last line
 of its screen. Click it to go to the run's tab. The rail leaves it out.
 
-A [helper](../agents/helpers.md) on one of the session's PRs gets the same kind of row (`↳ helper getting #2841 green`,
+A [helper](../autopilot/helpers.md) on one of the session's PRs gets the same kind of row (`↳ helper getting #2841 green`,
 how long, its agent and what it does now); it has no tab, so a click watches it in a split under the session's panes
 (`gW`). The session itself gets one line at the foot of its panes for all the helpers on its PRs, however many: what
 needs you first, amber only then, and a finished one until you have seen it. `gW` watches the one helper, or lists
@@ -63,7 +63,7 @@ them when there are more; `gO` takes one over. Nothing is typed into the session
 ![Watch it: the helper in a split under the session's panes](../images/shots/sessions/helper-watch.png)
 
 Click a session to select it; double-click it (or press `↩`) to type into its agent (INSERT). Rows in the other lists (Attention,
-Watch, Repos, History and the rest) take clicks the same way: a click moves the cursor there, a double-click opens the
+Autopilot, Repos, Insights and the rest) take clicks the same way: a click moves the cursor there, a double-click opens the
 row as `↩` does. A right-click opens a menu of what you can do with it, each item with its key
 ([right-click](../keyboard/mouse.md)).
 
@@ -97,7 +97,7 @@ is a command too, with a key in the sidebar:
 
 | | Key | Choices |
 |---|---|---|
-| Group | `zG` (`:sessions.group repo`) | **status** (the groups above), **campaign** (the [Mindmap](../history/mindmap.md) campaign the work is in, Unplaced for the rest), **repo** (each session's first repo), **none** |
+| Group | `zG` (`:sessions.group repo`) | **status** (the groups above), **campaign** (the [Mindmap](../insights/mindmap.md) campaign the work is in, Unplaced for the rest), **repo** (each session's first repo), **none** |
 | Sort | `T` (`:sessions.sort idle`) | **attention** (as they came, Parked last touched first), **you, recent first**, **idle longest**, **started** (newest first), **size** (most lines changed first) |
 | Rows | `zR` (`:sessions.rows one`) | **two lines**, or **one line** each: the state, the repo's mark and the title alone; the cursor's row in full |
 
@@ -113,7 +113,7 @@ Grouped by repo, a row leaves out the repo its header names. The choice is kept 
 
 A session whose work is done with leaves its group for **Can close** at the bottom: every PR it tracks merged or
 closed, nothing in its worktrees not pushed or not committed, its agent neither working nor waiting on you, and no
-follow-up left open in its [ledger](../history/ledger.md) entry. A pinned session, or one that needs you, stays where
+follow-up left open in its [ledger](../insights/ledger.md) entry. A pinned session, or one that needs you, stays where
 it is. Heed never closes anything itself: `X` (`:sessions.close.ready`) closes everything in the band after one
 confirmation, each to History as merged or closed, and `R` in History reopens one.
 

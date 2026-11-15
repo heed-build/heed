@@ -4,6 +4,10 @@ description: "Autopilot: what heed can do on its own, where it is on, what it is
 
 # Autopilot
 
+Autopilot gets PRs green, merges them by your rules, answers permission asks with one key and tidies up afterwards.
+
+![Autopilot: the PRs heed is working on, and what it did this week](../images/shots/landing/green.png)
+
 `gw` opens **Autopilot**: the one place that shows what heed can do on your behalf, where each of those is on and
 where not, what heed is doing about it right now, and what it has done. Four views, each with its key, the same in all
 four:
@@ -21,6 +25,13 @@ The strip's right side says how much heed took off your hands this week: the sam
 
 `view.watch` and `:watch`, from when this was the Watch view, open Autopilot too.
 
+## In this section
+
+- [Get it green and merged](green-and-merged.md): the rules, the merge queue, runs, and stalled and paused PRs.
+- [Setting up a repo](repo-setup.md): heed reads a repo's history and proposes its merge and green settings.
+- [Approvals](approvals.md) (`gy`): one place to answer what every agent asks permission for.
+- [Helpers](helpers.md): agents heed starts for one PR, in a split beside your session.
+
 ## Can do
 
 A card for each thing heed does on its own once it is on. Each card has its icon, its key when it has one, one
@@ -30,8 +41,8 @@ sentence, a bar for how much of it is on (an ask-first repo counts half), and ho
 
 | Card | What it does | Set where |
 |---|---|---|
-| **Green** | review comments and failing checks go to the PR's agent; heed checks again after each push | per repo: `green` (`off`, `ask`, `auto`), see [Get it green](watch.md#green) |
-| **Merge** | merges green PRs, by GitHub's auto-merge or heed's own rules | per repo: `merge` (`off`, `auto`, `heed`), see [Get it merged](watch.md#get-it-merged) |
+| **Green** | review comments and failing checks go to the PR's agent; heed checks again after each push | per repo: `green` (`off`, `ask`, `auto`), see [Get it green](green-and-merged.md#green) |
+| **Merge** | merges green PRs, by GitHub's auto-merge or heed's own rules | per repo: `merge` (`off`, `auto`, `heed`), see [Get it merged](green-and-merged.md#get-it-merged) |
 | **Copilot** | hands conflicts and review comments to GitHub's Copilot coding agent | per repo: `copilot_conflicts`, `copilot_comments` |
 | **Reviewers** | asks the reviewers you name once a PR is ready | per repo: `reviewers` |
 | **Cleanup** | removes worktrees idle for `idle_days` whose work is pushed | everywhere: `[cleanup] enabled`, see [Cleanup](../worktrees/cleanup.md) |
@@ -71,7 +82,7 @@ there. Cleanup, Goals and Summaries are set once for every repo, so their cells 
 
 ## Now
 
-On top, the **helpers at work**: a live tile per [helper](../agents/helpers.md), each in its own worktree beside your
+On top, the **helpers at work**: a live tile per [helper](helpers.md), each in its own worktree beside your
 sessions. A tile says what it is (*Getting #2841 green*), its repo, agent and age, what it does now, its plan as pips,
 the files it touched, its last tool calls, and what it asks you (`y` allows it once the helper is open). `h` `l` move
 between the tiles and `↩` opens the one under the cursor in a split in the PRs' place (`⎋` closes it); `j` `k` go back
@@ -88,10 +99,10 @@ their queue does), **Copilot** (PRs Copilot was asked about) and **Not watched**
 ![Now: the PRs by card, the PR under the cursor, and what else is running](../images/shots/autopilot/now.png)
 
 The middle is the PR under the cursor: its green checklist, merge rules, items and timeline, described in
-[Get it green and merged](watch.md). On the right (`zi` hides it), the merge queues with their next run, what cleanup
+[Get it green and merged](green-and-merged.md). On the right (`zi` hides it), the merge queues with their next run, what cleanup
 would remove next, summaries in flight, heed's goal asks, and the pilot's activity across PRs.
 
-The [pilot keys](watch.md#keys) work on the PR under the cursor, `↩` reads it, `A` asks Copilot about it, `R` runs its
+The [pilot keys](green-and-merged.md#keys) work on the PR under the cursor, `↩` reads it, `A` asks Copilot about it, `R` runs its
 merge queue and `gM` shows it.
 
 ## Done
@@ -121,3 +132,5 @@ Autopilot counts only what heed records:
   remove instead of a count.
 
 A week is the last seven days. The pilot's log keeps at least the last 14 days.
+
+**Next:** [Goals](../goals/index.md).

@@ -71,8 +71,28 @@ chip picks it as `space` would (a repo, `other repo…`, the chat chip, an agent
 switch flips it; clicking a row of the repo search adds that repo. Clicking a field's label moves there. Clicking
 outside the dialog cancels it, as it does for the [floating panel](from-anywhere.md).
 
+## Again
+
+`O` opens Start work with the prompt of the session you are on, ready to change and start again: a second attempt,
+another agent, another repo. In [History](../insights/history.md), `O` does the same for a closed session.
+
+![Start work opened from a closed session's prompt](../images/shots/start-work/again.png)
+
+To pick up the same session where it stopped instead, reopen it from History with `R`.
+
 ## Other ways in
 
 - [From anywhere](from-anywhere.md): `⌃⌥Space` opens it over any app.
 - [From GitHub](from-github.md): `s` on Attention items starts a session from them.
-- [Starting again](again.md): `O` starts from a previous session's prompt.
+- [Starting again](#again): `O` starts from a previous session's prompt.
+
+## In this section
+
+- [Bigger than one session](sizing.md): heed sizes a long prompt and offers a goal.
+- [Guessing the repo](repos.md): how heed picks the repo, and how to pick another.
+- [Branch names](branch-names.md): how heed names the branch and the worktree.
+- [Agent and options](agent-and-options.md): the agent, and the options that change how a session starts.
+- [From anywhere](from-anywhere.md): a global shortcut opens Start work over any app.
+- [From GitHub](from-github.md): start a session from Attention items.
+
+**Next:** [Sessions](../sessions/index.md).

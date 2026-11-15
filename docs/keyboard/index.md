@@ -5,6 +5,10 @@ description: "How keys work in Heed: modes, sequences, counts and the hint panel
 
 # Keyboard
 
+Every action in heed is a key or two, and the mouse works everywhere too.
+
+![Keys: the hints at the bottom of the window follow the view you are in](../images/shots/landing/keys.png)
+
 Everything in Heed is a key or two away, in [modes](../concepts/modes.md) like vim's. In NORMAL every key is a command;
 in INSERT your keys go to the focused terminal.
 
@@ -45,5 +49,11 @@ matter in the view you are in, and `?` shows every command: its key where you ar
 
 ## In this section
 
-- [Views](views.md) · [Hints](hints.md) · [The command line](command-line.md) · [Selecting](visual.md)
-- [Mac shortcuts](mac-shortcuts.md) · [The mouse, the menu bar and right-click](mouse.md) · [Customizing keys](customizing.md) · [Key reference](reference.md)
+- [Views](views.md): switching between heed's views.
+- [Hints](hints.md): jump to anything on screen by label with `f`.
+- [The command line](command-line.md): run any command by name.
+- [Selecting rows](visual.md): select several rows, then act on all of them.
+- [Mac shortcuts](mac-shortcuts.md): the standard Mac shortcuts, and why they always work.
+- [The menu bar and the mouse](mouse.md): every item is a command, with its key beside it.
+- [Customizing keys](customizing.md): change bindings in `config.toml`, per mode and per view.
+- [Every key](reference.md): every command and its default keys, generated from the code.

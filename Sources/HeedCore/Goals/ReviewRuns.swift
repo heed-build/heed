@@ -171,7 +171,7 @@ public enum ReviewRun {
         switch agent {
         case "claude":
             RunSandbox.claude(
-                allowed: ["Bash", "Read", "Grep", "Glob"], denied: ["Edit", "Write", "NotebookEdit", "MultiEdit"],
+                allowed: ["Bash", "Read", "Grep", "Glob"], denied: ["Edit", "Write", "NotebookEdit"],
                 worktree: worktree, folder: folder, network: .none, hooks: hooks
             )
         case "codex": RunSandbox.codex(folder: folder)

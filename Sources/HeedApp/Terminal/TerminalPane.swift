@@ -100,6 +100,25 @@ final class TerminalSurfaces {
     /// PATH for new panes: the detected search path (an app opened from Finder has a minimal one).
     var searchPath = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"
 
+    /// At launch, from when the cached sessions are drawn until the search path, zmx and its live sessions are known:
+    /// the panes drawn meanwhile, whose terminals are made once `releasePanes()` says so. Nil once released.
+    private var held: [String: (pane: PaneSpec, sessionID: String)]?
+
+    /// Panes drawn from now on wait for `releasePanes()` before their terminal is made.
+    func holdPanes() {
+        if held == nil { held = [:] }
+    }
+
+    /// Makes the terminals of the panes drawn while held, as they would have been made when drawn.
+    func releasePanes() {
+        guard let waiting = held else { return }
+        held = nil
+        for (id, item) in waiting {
+            guard let host = hosts[id], views[id] == nil else { continue }
+            host.show(makeTerminal(for: item.pane, sessionID: item.sessionID))
+        }
+    }
+
     func view(for pane: PaneSpec, sessionID: String) -> NSView {
         if let host = hosts[pane.id] {
             host.removeFromSuperview()
@@ -107,7 +126,11 @@ final class TerminalSurfaces {
         }
         let host = PaneHost()
         hosts[pane.id] = host
-        host.show(makeTerminal(for: pane, sessionID: sessionID))
+        if held != nil {
+            held?[pane.id] = (pane, sessionID)
+        } else {
+            host.show(makeTerminal(for: pane, sessionID: sessionID))
+        }
         wireExits()
         return host
     }
@@ -270,6 +293,7 @@ final class TerminalSurfaces {
     /// A pane closed for good (closed, its session closed or deleted, its worktree swept): its terminal goes, and with
     /// zmx its session too, so nothing is left running.
     func close(paneID: String) {
+        held?[paneID] = nil
         views.removeValue(forKey: paneID)?.removeFromSuperview()
         hosts.removeValue(forKey: paneID)?.removeFromSuperview()
         guard let location = paneLocations.removeValue(forKey: paneID) else { return }

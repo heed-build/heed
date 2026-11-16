@@ -98,7 +98,12 @@ extension AppModel {
 
     /// What Attention has of each source, against what GitHub says: the line at the foot of the list.
     var attentionCoverage: AttentionCoverage {
-        AttentionCoverage.of(github: attentionGitHub, entries: attentionEntries, now: Clock.now)
+        // The newest sync's fetches: a sync that brought nothing new still says when it fetched.
+        AttentionCoverage.of(
+            github: attentionGitHub.freshened(by: githubStamp),
+            entries: attentionEntries,
+            now: Clock.now
+        )
     }
 
     /// The row under the cursor.

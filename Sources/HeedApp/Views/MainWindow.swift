@@ -254,7 +254,7 @@ struct TitleBar: View {
                     Text("syncing…")
                 } else if model.github.status.isOffline {
                     Text("offline").foregroundStyle(Theme.block)
-                } else if let synced = model.github.syncedAt {
+                } else if let synced = model.githubNow.syncedAt {
                     if case let .partial(hidden, _) = model.github.status {
                         Text("synced \(Clock.relative(synced)) · \(hidden) hidden")
                             .help("Items in orgs the gh token is not authorized for (SAML).")

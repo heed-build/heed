@@ -269,8 +269,29 @@ public actor LLMRunner {
         }
     }
 
+    /// `seedSpend` from the rows `load` reads, without waiting for them: launch goes on while the call log is read. A
+    /// call that gets a slot, and `spentToday`, wait for the rows first, so the daily cap counts them all and no
+    /// call made from now on is in them.
+    public func seedSpend(loading load: @escaping @Sendable () async -> [LoggedCall]) {
+        seeding = Task { await load() }
+    }
+
+    /// The rows `seedSpend(loading:)` is reading, until they are counted.
+    private var seeding: Task<[LoggedCall], Never>?
+
+    /// Counts the rows being read, once they are read.
+    private func seeded() async {
+        guard let task = seeding else { return }
+        let calls = await task.value
+        // Another call waiting on the same rows counted them already.
+        guard seeding == task else { return }
+        seeding = nil
+        seedSpend(from: calls)
+    }
+
     /// Calls and known dollars per agent today.
-    public func spentToday() -> [String: (calls: Int, dollars: Double)] {
+    public func spentToday() async -> [String: (calls: Int, dollars: Double)] {
+        if seeding != nil { await seeded() }
         rollDay()
         return spend
     }
@@ -388,6 +409,7 @@ public actor LLMRunner {
     private func queued(_ request: LLMRequest, ticket: Int?) async throws -> LLMResponse {
         await acquire(ticket)
         defer { release() }
+        if seeding != nil { await seeded() }
         return try await pickAndRun(request)
     }
 

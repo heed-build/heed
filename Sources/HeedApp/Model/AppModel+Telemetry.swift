@@ -141,26 +141,26 @@ extension AppModel {
         guard !touched.isEmpty else { return }
         let since = sessions.filter { touched.contains($0.id) }.map(\.createdAt).min()
             ?? Date().addingTimeInterval(-86400)
-        let costs = await Task.detached(priority: .utility) { () -> [String: Double] in
-            let perf = Perf.begin("telemetry.costs")
-            defer { perf.end() }
-            guard let all = try? await store.records(since: since, limit: 200_000) else { return [:] }
-            return TelemetryResolve.costs(all, context: context)
-        }.value
+        // The store keeps running totals: only the touched sessions' own records are summed.
+        let costs = await Perf.measure("telemetry.costs") {
+            await (try? store.costs(of: touched, since: since, context: context)) ?? [:]
+        }
         applyTelemetryCosts(costs.filter { touched.contains($0.key) })
     }
 
     /// The cost the agents' telemetry reports wins over the hooks' and any estimate (`UsageSettings.cost`); it only
-    /// grows, so a pruned store never lowers what was shown.
+    /// grows, so a pruned store never lowers what was shown. Every session it raises is committed at once.
     func applyTelemetryCosts(_ costs: [String: Double]) {
+        var changes: [DomainChange] = []
         for (id, cost) in costs {
             guard var session = sessions.first(where: { $0.id == id }) else { continue }
             var usage = session.usage ?? AgentUsage()
             guard cost > (usage.telemetryCostUSD ?? 0) + 0.000_001 else { continue }
             usage.telemetryCostUSD = cost
             session.usage = usage
-            commit(.sessionUpserted(session))
+            changes.append(.sessionUpserted(session))
         }
+        commit(changes)
     }
 
     // MARK: Commands

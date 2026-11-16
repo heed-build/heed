@@ -40,9 +40,9 @@
 
 - `Perf` (`Sources/HeedCore/Store/Perf.swift`) puts os_signpost intervals on the hot paths, subsystem `build.heed.app`,
   category `perf`: `commit`, `rebuildList`, `readScreens`, `attentionEntries`, `audit.refilter`, `domain.flush`,
-  `telemetry.costs`, and startup up to the cached domain (`start.toCache`, inside it `start.callLog`,
-  `start.detectTools`, `start.llm`, `start.telemetry`, `start.loadDomain`, `start.openLog`, `start.adopt`,
-  `start.livePanes`, `start.replace`). Add one with `let perf = Perf.begin("name")` and `defer { perf.end() }`; while
+  `telemetry.costs`, and startup: up to the cached domain drawn (`start.toCache`, inside it `start.callLog`,
+  `start.loadDomain`, `start.openLog`, `start.adopt`, `start.replace`), and up to the panes' terminals made
+  (`start.toPanes`, inside it also `start.detectTools`, `start.llm`, `start.telemetry`, `start.livePanes`). Add one with `let perf = Perf.begin("name")` and `defer { perf.end() }`; while
   nothing records, it costs one `isEnabled` check.
 - To record them: Instruments' Logging template (or Time Profiler or SwiftUI with the os_signpost instrument added),
   filtered to subsystem `build.heed.app`; or, beside the CPU samples,

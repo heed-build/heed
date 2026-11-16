@@ -307,6 +307,65 @@ struct OriginNoteTests {
         #expect(reads.withLock { $0 } == 1)
         #expect(report?.subject == .pull("acme/app", 1399, .code))
         #expect(report?.note != nil)
+        // A call that cannot be about GitHub does not read it at all.
+        var other = Self.fullBookCall
+        other["tool_input"] = ["command": "ls"]
+        #expect(OriginNote.report(input: other) {
+            reads.withLock { $0 += 1 }
+            return OriginBook.read(path)
+        } == nil)
+        #expect(reads.withLock { $0 } == 1)
+    }
+
+    /// The hook tells calls that cannot be about GitHub from their text, and does not read the book for them.
+    @Test func aCallNotAboutGitHubDoesNotReadTheBook() {
+        let reads = Mutex(0)
+        func report(_ tool: String, _ input: [String: Any]) -> OriginReport? {
+            OriginNote.report(input: [
+                "permission_mode": "auto", "tool_name": tool, "cwd": Self.repo, "tool_input": input,
+            ]) {
+                reads.withLock { $0 += 1 }
+                return Self.book
+            }
+        }
+        #expect(report("Bash", ["command": "ls"]) == nil)
+        #expect(report("Bash", ["command": "swift build && ./run.sh | tee out.log"]) == nil)
+        #expect(report("WebFetch", ["url": "https://example.com/docs"]) == nil)
+        #expect(reads.withLock { $0 } == 0)
+        #expect(report("Bash", ["command": "'g'h pr view 7"])?.subject == .pull("acme/app", 7, .conversation))
+        #expect(reads.withLock { $0 } == 1)
+    }
+
+    /// The text check never skips a call heed would report: every call here that has a subject passes it.
+    @Test func theTextCheckNeverSkipsACallThatBringsGitHubIn() {
+        let commands = [
+            "gh pr view 7 --comments", "'g'h pr view 7", "g\\h pr view 7", "\"gh\" pr diff 7", "/opt/bin/gh pr view 8",
+            "env A=1 gh pr checkout 7", "command gh issue view 3", "cd /tmp; gh pr view 7 -R acme/app",
+            "git fetch origin pull/7/head", "g'i't checkout patch-1", "git -C . switch carol/tidy",
+            "curl -s https://api.github.com/repos/acme/app/pulls/7", "wget https://github.com/acme/app/pull/7.diff",
+            "xh https://patch-diff.githubusercontent.com/raw/acme/app/pull/7.diff", "gh run view 99 --log",
+            "gh api repos/{owner}/{repo}/issues/3", "ls", "echo hi", "make test",
+        ]
+        let found = commands.filter { Self.bash($0) != nil }
+        #expect(found.count == 16, "\(found)")
+        for command in found {
+            #expect(OriginNote.mayBringGitHub(tool: "Bash", input: ["command": command]), "\(command)")
+        }
+        let urls = [
+            "https://github.com/acme/app/pull/7", "https://GitHub.com/acme/app/issues/3",
+            "https://%67ithub.com/acme/app/pull/7",
+            "https://api.github.com/repos/acme/app/pulls/7", "https://gist.github.com/someone/abc",
+            "https://example.com",
+        ]
+        let fetched = urls
+            .filter { OriginNote.subject(tool: "WebFetch", input: ["url": $0], cwd: nil, book: Self.book) != nil }
+        #expect(fetched.count >= 4, "\(fetched)")
+        for url in fetched {
+            #expect(OriginNote.mayBringGitHub(tool: "WebFetch", input: ["url": url]), "\(url)")
+        }
+        #expect(!OriginNote.mayBringGitHub(tool: "Bash", input: ["command": "ls -la"]))
+        #expect(!OriginNote.mayBringGitHub(tool: "WebFetch", input: ["url": "https://example.com"]))
+        #expect(OriginNote.mayBringGitHub(tool: "WebFetch", input: ["url": "https://ｇithub.com/acme/app/pull/7"]))
     }
 }
 
@@ -439,5 +498,54 @@ struct OriginBookTests {
         // A gist has nothing to ask.
         #expect(await keeper.warm(OriginSubject(kind: .gist, owner: "x", content: .code), hadNote: false, fetch: fetch)
             == false)
+    }
+
+    @Test func theBookKeepsAtMostItsLimitOfCheckouts() {
+        let repo = Repo(org: "acme", name: "app")
+        let checkouts = (0 ..< OriginBook.checkoutLimit + 100).map { (path: "/wt/w\($0)", repo: repo) }
+        let book = OriginBook.project(
+            viewer: nil,
+            checkouts: checkouts + [(path: "/wt/w0", repo: repo)],
+            details: [],
+            issues: []
+        )
+        #expect(book.checkouts.count == OriginBook.checkoutLimit)
+        #expect(book.checkouts["/wt/w0"] == "acme/app")
+        #expect(book.checkouts["/wt/w\(OriginBook.checkoutLimit - 1)"] == "acme/app")
+        #expect(book.checkouts["/wt/w\(OriginBook.checkoutLimit)"] == nil)
+    }
+
+    @Test func theNewestOfferedIsTakenOnceAndADrainEndsWhenNothingIsLeft() throws {
+        let latest = Latest<Int>()
+        #expect(latest.offer(1))
+        #expect(!latest.offer(2))
+        #expect(!latest.offer(3))
+        let taken = try #require(latest.take())
+        #expect(taken.0 == 3 && taken.1 == 3)
+        #expect(latest.take() == nil)
+        #expect(latest.offer(4))
+        #expect(latest.stamp() == 5)
+        #expect(latest.take()?.1 == 5)
+    }
+
+    @Test func anOlderSnapshotNeverOverwritesANewerOne() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("keeper-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let path = folder.appendingPathComponent("origins.json").path
+        let keeper = OriginKeeper(path: path, authorship: { _ in nil })
+        func snapshot(_ viewer: String) -> OriginKeeper.Snapshot {
+            .init(viewer: viewer, checkouts: [], details: [], issues: [])
+        }
+        await keeper.update(snapshot("newer"), generation: 2)
+        await keeper.update(snapshot("older"), generation: 1)
+        #expect(OriginBook.read(path).viewer == "newer")
+        #expect(await keeper.projections == 1)
+        // Submitted in order, applied in order: whatever was applied, the last one submitted is the one written.
+        for index in 0 ..< 20 {
+            keeper.submit(snapshot("v\(index)"))
+        }
+        await keeper.drain()
+        #expect(OriginBook.read(path).viewer == "v19")
+        #expect(await keeper.projections <= 21)
     }
 }

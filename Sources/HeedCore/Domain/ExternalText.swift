@@ -79,19 +79,32 @@ public struct ExternalText: Hashable, Sendable {
     private let raw: String
     public let source: Source
     public let author: Author
+    /// For the UI: control characters, ANSI and OSC escapes, bidi overrides and zero-width characters stripped, and
+    /// every line break (`\r\n`, `\r`, U+2028) a `\n`. Stripped once, here: views read it on every redraw. It shares
+    /// `raw`'s storage when stripping changed nothing.
+    public let display: String
 
     public init(_ text: String, source: Source, author: Author) {
         raw = text
         self.source = source
         self.author = author
+        let stripped = Self.strip(text)
+        display = stripped.unicodeScalars.elementsEqual(text.unicodeScalars) ? text : stripped
+    }
+
+    /// Equal by what was written, where and by whom, as before `display` was kept: it follows from `raw`.
+    public static func == (lhs: ExternalText, rhs: ExternalText) -> Bool {
+        lhs.raw == rhs.raw && lhs.source == rhs.source && lhs.author == rhs.author
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(raw)
+        hasher.combine(source)
+        hasher.combine(author)
     }
 
     /// Nothing, from nobody: for a missing title or body.
     public static func empty(_ source: Source) -> ExternalText { ExternalText("", source: source, author: .unknown) }
-
-    /// For the UI: control characters, ANSI and OSC escapes, bidi overrides and zero-width characters stripped, and
-    /// every line break (`\r\n`, `\r`, U+2028) a `\n`.
-    public var display: String { Self.strip(raw) }
 
     /// For a prompt: stripped as `display`, then fenced so its content cannot end the fence (see `Prompt`).
     public var fenced: Prompt { Prompt(self) }

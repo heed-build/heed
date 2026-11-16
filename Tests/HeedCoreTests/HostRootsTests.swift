@@ -82,10 +82,9 @@ struct HostRootsTests {
     }
 
     /// The way it reaches a host whose login shell is fish: the quoted line ssh hands to it.
-    @Test func theProbeRunsFromFish() async throws {
-        let fish = ["/opt/homebrew/bin/fish", "/usr/local/bin/fish", "/usr/bin/fish"]
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
-        guard let fish else { return }
+    @Test(.enabled(if: installedFish != nil, "needs fish in /opt/homebrew/bin, /usr/local/bin or /usr/bin"))
+    func theProbeRunsFromFish() async throws {
+        let fish = try #require(installedFish)
         let home = try makeHome()
         defer { try? FileManager.default.removeItem(at: home) }
         let line = Remote.shellLine(["sh", "-c", ProjectFolders.script])
@@ -249,3 +248,7 @@ struct HostRootsTests {
         #expect(chooser.editing == .worktreeRoot("~/code/wt"))
     }
 }
+
+/// fish where a host or this Mac has it, for the test that runs the probe through it.
+private let installedFish = ["/opt/homebrew/bin/fish", "/usr/local/bin/fish", "/usr/bin/fish"]
+    .first { FileManager.default.isExecutableFile(atPath: $0) }

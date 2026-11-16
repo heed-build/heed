@@ -2,17 +2,17 @@ import Foundation
 @testable import HeedCore
 import Testing
 
+private var sshTestSetup: (dir: String, target: String)? {
+    let env = ProcessInfo.processInfo.environment
+    guard let dir = env["HEED_SSH_TEST"], let target = env["HEED_SSH_TEST_TARGET"] else { return nil }
+    return (dir, target)
+}
+
 /// Against a real ssh host, when one is set up: HEED_SSH_TEST=<dir> with `id` (a key the host accepts) and
 /// `known_hosts`, and HEED_SSH_TEST_TARGET (e.g. ssh://dev@127.0.0.1:2222) for a host with ~/code/docs-toolkit (origin
-/// acme/docs-toolkit) and a worktree ~/code/wt/flake-hunt. Skipped otherwise.
-@Suite(.serialized)
+/// acme/docs-toolkit) and a worktree ~/code/wt/flake-hunt. Skipped (and reported as skipped) otherwise.
+@Suite(.serialized, .enabled(if: sshTestSetup != nil, "needs HEED_SSH_TEST and HEED_SSH_TEST_TARGET"))
 struct RemoteIntegrationTests {
-    private var setup: (dir: String, target: String)? {
-        let env = ProcessInfo.processInfo.environment
-        guard let dir = env["HEED_SSH_TEST"], let target = env["HEED_SSH_TEST_TARGET"] else { return nil }
-        return (dir, target)
-    }
-
     private func configure(_ setup: (dir: String, target: String), knownHosts: String? = nil, key: String? = nil) {
         Remote.setTargets(["box": setup.target])
         Remote.setExtraOptions([
@@ -23,7 +23,7 @@ struct RemoteIntegrationTests {
     }
 
     @Test func checksScanAndListAHost() async throws {
-        guard let setup else { return }
+        let setup = try #require(sshTestSetup)
         configure(setup)
         defer { Remote.setExtraOptions([]); Remote.setTargets([:]) }
         guard case let .connected(info) = await HostProbe.check("box") else {
@@ -47,7 +47,7 @@ struct RemoteIntegrationTests {
     }
 
     @Test func startsWorkOnAHost() async throws {
-        guard let setup else { return }
+        let setup = try #require(sshTestSetup)
         configure(setup)
         defer { Remote.setExtraOptions([]); Remote.setTargets([:]) }
         let records = await RemoteScan.scan(HostConfig(name: "box"))
@@ -77,7 +77,7 @@ struct RemoteIntegrationTests {
     }
 
     @Test func removesAWorktreeOnAHost() async throws {
-        guard let setup else { return }
+        let setup = try #require(sshTestSetup)
         configure(setup)
         defer { Remote.setExtraOptions([]); Remote.setTargets([:]) }
         let box = Location.host("box")
@@ -112,7 +112,7 @@ struct RemoteIntegrationTests {
     }
 
     @Test func reopenBringsBackAWorktreeOnItsHostFromItsArchive() async throws {
-        guard let setup else { return }
+        let setup = try #require(sshTestSetup)
         configure(setup)
         defer { Remote.setExtraOptions([]); Remote.setTargets([:]) }
         let box = Location.host("box")
@@ -159,8 +159,8 @@ struct RemoteIntegrationTests {
         #expect(pane?.location == box && pane?.directory == worktree.path)
     }
 
-    @Test func failuresAreNamed() async {
-        guard let setup else { return }
+    @Test func failuresAreNamed() async throws {
+        let setup = try #require(sshTestSetup)
         let empty = setup.dir + "/empty_known_hosts"
         FileManager.default.createFile(atPath: empty, contents: Data())
         configure(setup, knownHosts: empty)

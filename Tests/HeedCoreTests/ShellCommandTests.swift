@@ -200,8 +200,9 @@ struct ShellCommandTests {
     }
 
     /// The test above would catch heed typing sh syntax into fish.
-    @Test func fishNeedsItsOwnSyntax() async throws {
-        guard let fish = shells.first(where: { $0.kind == .fish }) else { return }
+    @Test(.enabled(if: shells.contains { $0.kind == .fish }, "needs fish installed"))
+    func fishNeedsItsOwnSyntax() async throws {
+        let fish = try #require(shells.first { $0.kind == .fish })
         let bin = try stubs()
         defer { try? FileManager.default.removeItem(atPath: bin) }
         let line = stub.launchCommand(prompt: .owner(prompt)).posix

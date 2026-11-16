@@ -4,8 +4,8 @@ import Testing
 
 /// A headless review run as heed launches it (`ReviewRun.headless` with the run's folder, behind
 /// `RunSandbox.environment`), against real Claude Code on haiku in a throwaway repo: the agent is asked to reach the
-/// network, write outside its worktree and use gh, and to write inside its worktree and its run folder. Only the last
-/// two may work. What each command printed is kept in the capture folder.
+/// network, write outside its worktree, use gh and read a variable it was started with, and to write inside its
+/// worktree and its run folder. Only the last two may work. What each command printed is kept in the capture folder.
 @Suite(.enabled(if: Live.enabled, "live: HEED_LIVE=1 calls a model"), .serialized)
 struct LiveSandboxTests {
     @Test(.timeLimit(.minutes(5))) func aReviewRunsShellIsSandboxed() async throws {
@@ -25,6 +25,8 @@ struct LiveSandboxTests {
             "touch \(outside) > touch.out 2>&1; echo \"exit $?\" >> touch.out",
             // Through env, which the `Bash(gh:*)` deny does not match: gh runs, and has no login.
             "/usr/bin/env gh auth status > gh.out 2>&1; echo \"exit $?\" >> gh.out",
+            // Set where the run starts, like a variable your shell config exports: the run's environment drops it.
+            "echo \"probe=${LIVE_PROBE_KEY:-none}\" > env.out",
             "echo hi > inside.txt",
             "echo hi > \(folder)/report.txt",
         ]
@@ -37,26 +39,19 @@ struct LiveSandboxTests {
             agent: "claude", command: "claude", prompt: .owner(prompt), model: Live.model, worktree: worktree,
             folder: folder
         ))
-        // The test runner's own Claude Code and heed variables go too, as for every live check.
-        let own = ProcessInfo.processInfo.environment.keys.filter {
-            ($0.hasPrefix("CLAUDE") && !$0.hasSuffix("_TOKEN")) || $0.hasPrefix("HEED_") || $0.hasPrefix("OTEL_")
-        }
+        // The run starts from an empty environment, so the test runner's own Claude Code and heed variables go too.
         let claude = try Live.which("claude")
-        let line: [String] = RunSandbox.environment(
-            present: Array(ProcessInfo.processInfo.environment.keys),
-            folder: folder
-        )
-        .flatMap { $0 == "/usr/bin/env" ? ["/usr/bin/env"] + own.sorted().flatMap { ["-u", $0] } : [$0] }
-        + [claude] + words.dropFirst()
+        let line = RunSandbox.environment(agent: "claude", folder: folder) + [claude] + words.dropFirst()
         let result = try await ProcessRunner.run(
-            line[0], Array(line.dropFirst()), in: worktree, timeout: .seconds(240), caller: "live.sandbox"
+            line[0], Array(line.dropFirst()), in: worktree, environment: ["LIVE_PROBE_KEY": "set"],
+            timeout: .seconds(240), caller: "live.sandbox"
         )
         func read(_ name: String) -> String {
             (try? String(contentsOfFile: "\(worktree)/\(name)", encoding: .utf8)) ?? "(none)"
         }
         Live.keep(
             "sandbox.out",
-            ["curl.out", "touch.out", "gh.out"].map { "--- \($0)\n" + read($0) }.joined(separator: "\n")
+            ["curl.out", "touch.out", "gh.out", "env.out"].map { "--- \($0)\n" + read($0) }.joined(separator: "\n")
                 + "\n--- stdout\n" + result.stdout + "\n--- stderr\n" + result.stderr
         )
         // It ran the commands, inside the worktree and the run's folder.
@@ -70,5 +65,7 @@ struct LiveSandboxTests {
         // gh either was refused outright or ran with no login.
         #expect(read("gh.out") == "(none)" || (read("gh.out").contains("exit ") && !read("gh.out").contains("exit 0")))
         #expect(!read("gh.out").contains("Logged in"))
+        // Nothing it was not given: the probe never reached it.
+        #expect(!read("env.out").contains("probe=set"))
     }
 }

@@ -51,28 +51,128 @@ struct RunFolderTests {
 }
 
 struct RunSandboxTests {
-    @Test func aRunHasNoLogins() {
-        let present = [
-            "PATH", "HOME", "GH_TOKEN", "AWS_REGION", "AZURE_SUBSCRIPTION", "MY_SERVICE_TOKEN", "DB_PASSWORD",
-            "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "OPENAI_API_KEY", "HEED_SESSION_ID", "LANG",
-        ]
-        let unset = Set(RunSandbox.unset(present: present))
-        #expect(unset.isSuperset(of: [
-            "GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "SSH_AUTH_SOCK", "AWS_REGION", "AZURE_SUBSCRIPTION",
-            "MY_SERVICE_TOKEN", "DB_PASSWORD", "AWS_SECRET_ACCESS_KEY",
-        ]))
-        #expect(unset.isDisjoint(with: [
-            "PATH", "HOME", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "OPENAI_API_KEY", "HEED_SESSION_ID", "LANG",
-        ]))
-        // The cloud the agent itself runs on stays.
-        let bedrock = RunSandbox.unset(present: ["CLAUDE_CODE_USE_BEDROCK", "AWS_PROFILE", "GH_TOKEN"])
-        #expect(!bedrock.contains("AWS_PROFILE") && bedrock.contains("GH_TOKEN"))
-        let words = RunSandbox.environment(present: present, folder: "/runs/1")
-        #expect(words.first == "/usr/bin/env")
-        #expect(zip(words, words.dropFirst()).contains { $0 == "-u" && $1 == "GH_TOKEN" })
-        #expect(zip(words, words.dropFirst()).contains { $0 == "-u" && $1 == "SSH_AUTH_SOCK" })
-        #expect(words.contains("GH_CONFIG_DIR=/runs/1/gh") && words.contains("GIT_TERMINAL_PROMPT=0"))
-        #expect(!words.contains { $0.contains("ANTHROPIC") })
+    /// What `words` followed by `/usr/bin/env` print when started with exactly `environment`: the run's environment.
+    private func runEnvironment(_ words: [String], _ environment: [String: String]) throws -> [String: String] {
+        try printed(words[0], Array(words.dropFirst()) + ["/usr/bin/env"], environment)
+    }
+
+    private func printed(_ executable: String, _ arguments: [String], _ environment: [String: String]) throws
+        -> [String: String]
+    {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.environment = environment
+        let out = Pipe()
+        process.standardOutput = out
+        try process.run()
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        var printed: [String: String] = [:]
+        for line in String(decoding: data, as: UTF8.self).split(separator: "\n") {
+            guard let equals = line.firstIndex(of: "=") else { continue }
+            printed[String(line[..<equals])] = String(line[line.index(after: equals)...])
+        }
+        return printed
+    }
+
+    /// What a shell config could export besides the basics: logins of all kinds and other agents' keys. `USER` is the
+    /// account's, as fish sets it however it started.
+    private let shell: [String: String] = [
+        "PATH": "/usr/bin:/bin", "HOME": "/Users/me", "USER": NSUserName(), "LOGNAME": "me", "SHELL": "/bin/zsh",
+        "TMPDIR": "/tmp/me", "TERM": "xterm-ghostty", "LANG": "en_US.UTF-8", "LC_ALL": "C",
+        "HEED_SESSION_ID": "s1", "HEED_PANE_ID": "p1", "HEED_SESSION_TOKEN": "t1",
+        "ANTHROPIC_API_KEY": "sk-ant", "CLAUDE_CODE_OAUTH_TOKEN": "oauth", "OPENAI_API_KEY": "sk-openai",
+        "CODEX_HOME": "/Users/me/.codex", "GEMINI_API_KEY": "g", "FOO_KEY": "f", "DATABASE_URL": "postgres://x",
+        "KUBECONFIG": "/k", "GIT_ASKPASS": "/a", "SSH_ASKPASS": "/a", "SSH_AUTH_SOCK": "/s", "GH_TOKEN": "gh",
+        "AWS_PROFILE": "prod", "NPM_TOKEN": "n", "MY_SERVICE_TOKEN": "m", "HEED_PROMPT": "p",
+    ]
+
+    private let base: [String: String] = [
+        "PATH": "/usr/bin:/bin", "HOME": "/Users/me", "USER": NSUserName(), "LOGNAME": "me", "SHELL": "/bin/zsh",
+        "TMPDIR": "/tmp/me", "TERM": "xterm-ghostty", "LANG": "en_US.UTF-8", "LC_ALL": "C",
+        "HEED_SESSION_ID": "s1", "HEED_PANE_ID": "p1", "HEED_SESSION_TOKEN": "t1",
+        "GH_CONFIG_DIR": "/runs/1/gh", "GIT_TERMINAL_PROMPT": "0",
+    ]
+
+    @Test func aClaudeRunStartsEmptyAndGetsBackOnlyWhatItNeeds() throws {
+        let got = try runEnvironment(RunSandbox.environment(agent: "claude", folder: "/runs/1"), shell)
+        #expect(got == base.merging(["ANTHROPIC_API_KEY": "sk-ant", "CLAUDE_CODE_OAUTH_TOKEN": "oauth"]) { $1 })
+        #expect(got["FOO_KEY"] == nil && got["DATABASE_URL"] == nil && got["OPENAI_API_KEY"] == nil)
+    }
+
+    @Test func aCodexRunGetsCodexsOwnKeyAndNotClaudes() throws {
+        let got = try runEnvironment(RunSandbox.environment(agent: "codex", folder: "/runs/1"), shell)
+        #expect(got == base.merging(["OPENAI_API_KEY": "sk-openai", "CODEX_HOME": "/Users/me/.codex"]) { $1 })
+    }
+
+    @Test func theCloudClaudeRunsOnStaysOnlyWhenItIsOn() throws {
+        let words = RunSandbox.environment(agent: "claude", folder: "/runs/1")
+        #expect(try runEnvironment(words, shell)["AWS_PROFILE"] == nil)
+        let bedrock = try runEnvironment(words, shell.merging(["CLAUDE_CODE_USE_BEDROCK": "1"]) { $1 })
+        #expect(bedrock["AWS_PROFILE"] == "prod" && bedrock["CLAUDE_CODE_USE_BEDROCK"] == "1")
+        #expect(bedrock["GH_TOKEN"] == nil)
+        #expect(try runEnvironment(RunSandbox.environment(agent: "codex", folder: "/r"), shell.merging([
+            "CLAUDE_CODE_USE_BEDROCK": "1",
+        ]) { $1 })["AWS_PROFILE"] == nil)
+    }
+
+    @Test func valuesArriveAsTheyAreAndOnlyShellNamesAreKept() throws {
+        let odd = #"a b 'c' "d" $HOME `x` \e"#
+        let got = try runEnvironment(
+            RunSandbox.environment(agent: "claude", folder: "/runs/it's here", keeping: ["OTEL_X", "BAD NAME", "A;B"]),
+            ["PATH": odd, "SHELL": "/bin/zsh", "TERM": "dumb", "OTEL_X": "1", "BAD NAME": "x"]
+        )
+        #expect(got == [
+            "PATH": odd, "SHELL": "/bin/zsh", "TERM": "dumb", "OTEL_X": "1", "GH_CONFIG_DIR": "/runs/it's here/gh",
+            "GIT_TERMINAL_PROMPT": "0",
+        ])
+        #expect(!RunSandbox.keptNames(agent: "claude", extra: ["BAD NAME", "A;B", "1X"]).contains { $0.contains(" ") })
+        #expect(!RunSandbox.keptNames(agent: "claude", extra: ["A;B", "1X"]).contains("A;B"))
+        #expect(!RunSandbox.keptNames(agent: "claude", extra: ["1X"]).contains("1X"))
+    }
+
+    /// (sh fills in `PATH`, `SHELL` and `TERM` when they are not set, so each check sets them.)
+    @Test func aHostsRunFolderIsUnderTheHostsHome() throws {
+        let script = RunSandbox.environmentScript(agent: "claude", folder: RunFolder.hostPath(run: "r1"))
+        #expect(script.contains(#"GH_CONFIG_DIR="$HOME"/.heed/runs/r1/gh"#))
+        let got = try runEnvironment(
+            RunSandbox.environment(agent: "claude", folder: RunFolder.hostPath(run: "r1")),
+            ["HOME": "/home/me", "PATH": "/bin", "SHELL": "/bin/sh", "TERM": "dumb"]
+        )
+        #expect(got == [
+            "HOME": "/home/me", "PATH": "/bin", "SHELL": "/bin/sh", "TERM": "dumb",
+            "GH_CONFIG_DIR": "/home/me/.heed/runs/r1/gh", "GIT_TERMINAL_PROMPT": "0",
+        ])
+    }
+
+    /// A run in a tab: the line runs in the pane's shell, which has what your shell config exported.
+    @Test func aRunInATabDropsWhatYourShellExported() throws {
+        let agent = AgentProfile(name: "claude", command: "/usr/bin/env")
+        let command = agent.launchCommand(
+            prompt: "", environment: ["OTEL_LOGS_EXPORTER": "otlp"],
+            prefix: RunSandbox.environment(agent: "claude", folder: "/runs/1", keeping: ["OTEL_LOGS_EXPORTER"])
+        )
+        let posix = try printed("/bin/sh", ["-c", command.rendered(for: .posix)], shell)
+        #expect(posix == base.merging([
+            "ANTHROPIC_API_KEY": "sk-ant", "CLAUDE_CODE_OAUTH_TOKEN": "oauth", "OTEL_LOGS_EXPORTER": "otlp",
+        ]) { $1 })
+        let fish = "/opt/homebrew/bin/fish"
+        if FileManager.default.isExecutableFile(atPath: fish) {
+            #expect(try printed(fish, ["--no-config", "-c", command.rendered(for: .fish)], shell) == posix)
+        }
+    }
+
+    @Test func codexsProfileWritesOnlyWhereTheRunMayAndReadsNoLogins() throws {
+        let words = RunSandbox.codex(folder: "/runs/1")
+        #expect(!words.contains("--sandbox") && !words.contains("--add-dir"))
+        #expect(words.contains(#"default_permissions="heed-run""#))
+        #expect(words.contains(#"permissions.heed-run.extends=":workspace""#))
+        #expect(words.contains("permissions.heed-run.network.enabled=false"))
+        let filesystem = try #require(words.first { $0.hasPrefix("permissions.heed-run.filesystem=") })
+        #expect(filesystem.contains(#""~/.ssh"="none""#) && filesystem.contains(#""~/.config/gh"="none""#))
+        #expect(filesystem.contains(#""/runs/1"="write""#))
+        #expect(stride(from: 0, to: words.count, by: 2).allSatisfy { words[$0] == "-c" })
     }
 
     @Test func claudesSandboxKeepsItInItsWorktreeAndOffTheNetwork() throws {
@@ -207,11 +307,15 @@ struct HelperIsolationTests {
         #expect(HelperSetup.steps(trusted: true, commands: ["npm ci"]) == (true, ["npm ci"]))
         #expect(HelperSetup.steps(trusted: false, commands: ["npm ci"]) == (false, []))
         let environment = HelperSetup.environment(
-            ["PATH": "/bin", "GH_TOKEN": "t", "SSH_AUTH_SOCK": "/s", "ANTHROPIC_API_KEY": "k"], folder: "/tmp/h"
+            [
+                "PATH": "/bin", "GH_TOKEN": "t", "SSH_AUTH_SOCK": "/s", "ANTHROPIC_API_KEY": "k", "OPENAI_API_KEY": "o",
+                "DATABASE_URL": "d", "FOO_KEY": "f",
+            ],
+            agent: "claude", folder: "/tmp/h"
         )
-        #expect(environment["GH_TOKEN"] == nil && environment["SSH_AUTH_SOCK"] == nil)
-        #expect(environment["PATH"] == "/bin" && environment["ANTHROPIC_API_KEY"] == "k")
-        #expect(environment["GH_CONFIG_DIR"] == "/tmp/h/gh")
+        #expect(environment == [
+            "PATH": "/bin", "ANTHROPIC_API_KEY": "k", "GH_CONFIG_DIR": "/tmp/h/gh", "GIT_TERMINAL_PROMPT": "0",
+        ])
     }
 
     @Test func itsPromptAsksToRunTestsOnlyOnYourWork() {
@@ -273,10 +377,7 @@ struct GoalRunIsolationTests {
         let codex = GoalSpawnRun.headless(
             agent: "codex", command: "codex", prompt: "do it", worktree: "/w", instructions: [], sandbox: "/runs/3"
         )
-        #expect(codex == [
-            "codex", "exec", "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=false",
-            "--add-dir", "/runs/3", "-C", "/w", "do it",
-        ])
+        #expect(codex == ["codex", "exec"] + RunSandbox.codex(folder: "/runs/3") + ["-C", "/w", "do it"])
         #expect(GoalSpawnRun.sandboxNote(folder: "/runs/3").contains("heed goal cannot reach heed"))
     }
 }

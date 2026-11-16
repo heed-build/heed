@@ -50,8 +50,8 @@ lives in a temp folder of its own, its push URL points nowhere, the agent may no
 removed when the walk ends. A walk still going after 45 minutes is stopped. An agent with no headless mode cannot walk;
 set `[goals] reviewer_agent` to one that has.
 
-A walk runs in the agent's sandbox, as [reviewers](reviewers.md#how-a-reviewer-runs) do, with no GitHub, ssh or cloud
-login: claude's shell writes only to the clone and the run's folder and reaches only package registries (npm, PyPI,
+A walk runs in the agent's sandbox, as [reviewers](reviewers.md#how-a-reviewer-runs) do, from an empty environment
+with no GitHub, ssh or cloud login: claude's shell writes only to the clone and the run's folder and reaches only package registries (npm, PyPI,
 crates.io, the Go proxy, NuGet, RubyGems, Maven Central, Homebrew's API and GitHub's package hosts), so an install step
 a newcomer would run works; codex's sandbox has no list, so a codex walk has no network at all. A step that needs more
 fails, and the evaluator says so in the walk.

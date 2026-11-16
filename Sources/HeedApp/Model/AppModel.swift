@@ -6244,15 +6244,18 @@ final class AppModel {
         let integrationArguments = files
             .map { AgentIntegration.launchArguments(agent: agent, sessionID: agentSession, files: $0) } ?? []
         let sandboxed = RunSandbox.isSandboxed(agent: agent.name)
-        let present = record.location.isLocal ? Array(ProcessInfo.processInfo.environment.keys) : []
         let reviewPrompt = prompt(folder)
+        let launchEnvironment = files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:]
+        // The run's environment is chosen in the pane's shell (on the host for a host's run), after your shell config.
         let command = agent.launchCommand(
             prompt: reviewPrompt,
             extraArguments: ReviewRun.restrictions(
                 agent: agent.name, worktree: worktree, folder: folder, hooks: files != nil
             ) + (agent.name == "claude" ? RunSandbox.withoutSettings(integrationArguments) : integrationArguments),
-            environment: files.map { AgentIntegration.launchEnvironment(agent: agent, files: $0) } ?? [:],
-            model: model, prefix: sandboxed ? RunSandbox.environment(present: present, folder: folder) : []
+            environment: launchEnvironment, model: model,
+            prefix: sandboxed
+                ? RunSandbox.environment(agent: agent.name, folder: folder, keeping: Array(launchEnvironment.keys))
+                : []
         )
         let title = "review: " + (ReviewerKind(rawValue: reviewer.split(separator: "-").first.map(String.init) ?? "")
             .map { $0.short.lowercased() } ?? reviewer)

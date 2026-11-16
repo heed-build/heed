@@ -91,12 +91,28 @@ Reviewers run the PR's code (its tests and benchmarks), so they run in the agent
   `failIfUnavailable`, and `allowUnsandboxedCommands` off): it writes only to its worktree and the run's folder, reaches
   no network, and cannot read `~/.ssh`, `~/.config/gh`, `~/.aws` and other credential folders. It reads only your user
   settings (`--setting-sources user`), none from the worktree, and no MCP servers (`--strict-mcp-config`).
-- codex runs with `--sandbox workspace-write` and `sandbox_workspace_write.network_access=false`, the run's folder added
-  with `--add-dir`: writes stay inside its worktree and that folder, and it has no network.
-- Both start with no GitHub, ssh or cloud login: `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `SSH_AUTH_SOCK`,
-  `AWS_*`, `GOOGLE_*`, `AZURE_*` and other variables that look like a secret are unset, and `GH_CONFIG_DIR` points at an
-  empty folder, so `gh` is not logged in. The agent's own key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) stays, and so does
-  the cloud it runs on when you set `CLAUDE_CODE_USE_BEDROCK` or `CLAUDE_CODE_USE_VERTEX`.
+- codex runs in a permissions profile of heed's, set with `-c` (`default_permissions = "heed-run"`, extending codex's
+  `:workspace`): writes stay inside its worktree, the run's folder and the temp folders, the same credential folders are
+  unreadable (`"~/.ssh" = "none"` and so on), and it has no network (`network.enabled = false`). There is no
+  `--sandbox` flag on the line: codex takes the flag over a profile. codex still reads anything else your user can, and
+  it starts the MCP servers in your codex config.
+- Both start from an empty environment and get back only what they need. The line starts with
+  `/bin/sh -c '… exec /usr/bin/env -i …' sh`, which runs where the agent does: in the tab's shell for a review in a
+  tab, so what your shell config exports is dropped too, and on the host for a host's run. What comes back, when set:
+  `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, `TERM`, `TERMINFO`, `COLORTERM`, `LANG` and `LC_*`; heed's own
+  `HEED_SESSION_ID`, `HEED_PANE_ID`, `HEED_SESSION_TOKEN`, `HEED_SOCKET`, `HEED_BIN`, `HEED_CONTROL` and `HEED_GOAL`, so
+  its hooks still reach heed; and the running agent's own login and config, no other agent's: for claude
+  `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_CUSTOM_HEADERS`,
+  `CLAUDE_CODE_OAUTH_TOKEN` and `CLAUDE_CONFIG_DIR`, plus the variables of the cloud it runs on when
+  `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX` or `CLAUDE_CODE_USE_FOUNDRY` is set (for Bedrock `AWS_REGION`,
+  `AWS_PROFILE`, the AWS keys and the like); for codex `OPENAI_API_KEY`, `CODEX_API_KEY`, `OPENAI_BASE_URL` and
+  `CODEX_HOME`. Then `GH_CONFIG_DIR` points at an empty folder, so `gh` is not logged in, and `GIT_TERMINAL_PROMPT=0`.
+  Everything else is gone: `GH_TOKEN`, `SSH_AUTH_SOCK`, `GIT_ASKPASS`, `KUBECONFIG`, `DATABASE_URL`, any `*_KEY`, and
+  your own `CLAUDE_CODE_*` settings too.
+- The keychain: claude's sandbox lets its shell reach the macOS keychain service (Claude Code's fixed sandbox profile
+  allows it, and its settings can add services but not take one away), so the keychain command-line tool works in a
+  claude run; an item that trusts only the app that saved it still asks you first. codex's sandbox does not reach the
+  keychain service.
 - Other agents have no sandbox heed can ask for. Their worktree of their own, removed when they end and never pushed,
   is the only guard, so heed starts them on its own only on your work: on a PR from someone outside the repo (not you,
   the owner, a member or a collaborator, or from a fork), the reviewer records that it waits for you, and `r` runs it.

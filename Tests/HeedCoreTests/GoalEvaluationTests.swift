@@ -510,10 +510,8 @@ struct EvaluationRunTests {
         let codex = try #require(EvaluationRun.headless(
             agent: "codex", command: "codex", prompt: "walk", model: nil, clone: "/c", folder: "/runs/2"
         ))
-        #expect(codex == [
-            "codex", "exec", "--sandbox", "workspace-write", "-c", "sandbox_workspace_write.network_access=false",
-            "--add-dir", "/runs/2", "-C", "/c", "-o", "/runs/2/last-message.txt", "walk",
-        ])
+        #expect(codex == ["codex", "exec"] + RunSandbox.codex(folder: "/runs/2")
+            + ["-C", "/c", "-o", "/runs/2/last-message.txt", "walk"])
         #expect(claude.contains("Bash(gh:*)") && claude.contains("--strict-mcp-config"))
         #expect(EvaluationRun.network(agent: "claude") == .packages && EvaluationRun.network(agent: "codex") == .none)
         #expect(EvaluationRun.headless(

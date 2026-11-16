@@ -516,7 +516,7 @@ extension AppModel {
             if !trusted {
                 let folder = RunFolder.path(run: "heed-helper-\(id)", root: NSTemporaryDirectory())
                 try? RunFolder.prepare(folder)
-                environment = HelperSetup.environment(environment, folder: folder)
+                environment = HelperSetup.environment(environment, agent: adapter.agent, folder: folder)
             }
             let transport = try ACPProcessTransport(
                 executable: executable, arguments: adapter.arguments, directory: worktree, environment: environment

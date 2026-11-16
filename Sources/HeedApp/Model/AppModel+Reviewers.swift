@@ -509,7 +509,7 @@ extension AppModel {
             return "\(agent.name) runs only in a tab: open a session on the goal, or set [goals] reviewer_agent"
         }
         let (path, pathVariable) = await ToolLocator.shared.executable(words[0])
-        let line = RunSandbox.environment(present: Array(ProcessInfo.processInfo.environment.keys), folder: folder)
+        let line = RunSandbox.environment(agent: agent.name, folder: folder)
             + [path ?? words[0]] + words.dropFirst()
         let started = Date()
         let result = try? await ProcessRunner.run(

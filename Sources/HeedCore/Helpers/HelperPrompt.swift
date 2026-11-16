@@ -206,15 +206,9 @@ public enum HelperSetup {
         trusted ? (true, commands) : (false, [])
     }
 
-    /// The environment of a helper on someone else's PR: no GitHub, ssh or cloud logins, and `gh` pointed at an
-    /// empty folder (`RunSandbox`).
-    public static func environment(_ environment: [String: String], folder: String) -> [String: String] {
-        var out = environment
-        for name in RunSandbox.unset(present: Array(environment.keys)) {
-            out[name] = nil
-        }
-        out["GH_CONFIG_DIR"] = RunFolder.ghConfig(folder)
-        out["GIT_TERMINAL_PROMPT"] = "0"
-        return out
+    /// The environment of a helper of `agent` on someone else's PR: only what `RunSandbox.kept` keeps (no GitHub, ssh
+    /// or cloud logins), and `gh` pointed at an empty folder.
+    public static func environment(_ environment: [String: String], agent: String, folder: String) -> [String: String] {
+        RunSandbox.kept(environment, agent: agent, folder: folder)
     }
 }

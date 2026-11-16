@@ -277,10 +277,9 @@ extension AppModel {
         let helpers = Helper.path.map { ($0 as NSString).deletingLastPathComponent }
         Task {
             let (found, pathVariable) = await ToolLocator.shared.executable(words[0])
-            // A sandboxed spawn starts with no logins (`RunSandbox.environment`).
-            let line = (folder.map {
-                RunSandbox.environment(present: Array(ProcessInfo.processInfo.environment.keys), folder: $0)
-            } ?? []) + [found ?? words[0]] + words.dropFirst()
+            // A sandboxed spawn starts from an empty environment (`RunSandbox.environment`).
+            let line = (folder.map { RunSandbox.environment(agent: agent.name, folder: $0) } ?? [])
+                + [found ?? words[0]] + words.dropFirst()
             defer { if let folder { RunFolder.remove(folder) } }
             let result = try? await ProcessRunner.run(
                 line[0], Array(line.dropFirst()), in: worktree,

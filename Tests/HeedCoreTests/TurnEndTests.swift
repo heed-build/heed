@@ -64,6 +64,52 @@ struct TurnEndTests {
         #expect(!TurnEnd.asksYou(long))
     }
 
+    /// Last words of any size get the answer their end gives: one line with no sentence end, thousands of lines, a long
+    /// line ending in a question or a sign-off, options under a long lead.
+    @Test func longLastWordsAreReadByTheirEnd() {
+        let letters = String(repeating: "abcdefghij", count: 5000)
+        #expect(!TurnEnd.asksYou(letters))
+        #expect(TurnEnd.asksYou(letters + " should i push it"))
+        #expect(!TurnEnd.asksYou(letters + " anything else?"))
+        let log = (1 ... 2000).map { "Line \($0) of the log" }.joined(separator: "\n")
+        #expect(!TurnEnd.asksYou(log))
+        #expect(TurnEnd.asksYou(log + "\nWant me to open a PR"))
+        #expect(!TurnEnd.asksYou(log + "\nLet me know if you need anything else!"))
+        let long = String(repeating: "word ", count: 800)
+        #expect(TurnEnd.asksYou(long + "ready to merge?"))
+        #expect(!TurnEnd.asksYou(long + "merged."))
+        #expect(TurnEnd.asksYou(letters + " which do you prefer:\n1. Rebase\n2. Merge"))
+        #expect(!TurnEnd.asksYou(letters + " the options were:\n1. Rebase\n2. Merge"))
+    }
+
+    /// A sign-off goes as the sentence it is in, with the marks that end it: what removing the sentence pattern
+    /// (`[^.!?\n]*` closer `[^.!?\n]*[.!?]*`) leaves.
+    @Test(arguments: [
+        "Done. Let me know if you need anything else!",
+        "Hope this helps! Should I push?",
+        "Should I squash these? Anything else?! Happy to help.",
+        "what's next... i'll wait",
+        "anything elsewhere is fine. Glad to help",
+        "Done!? Feel free to ask. Any more questions? Merged.",
+        "...anything else",
+        "Pushed; what would you like me to work on next, the docs",
+        "Hope this helps\r\n?? Merged.",
+    ])
+    func signOffsGoBySentence(_ line: String) {
+        let sentence = [
+            #"[^.!?\n]*\b(anything else|any other questions|any (further |more |other )?questions|anything further)\b[^.!?\n]*[.!?]*"#,
+            #"[^.!?\n]*\b(hope (this|that|it) helps|happy to help|glad (i could|to) help|feel free to (ask|reach out|let me know))\b[^.!?\n]*[.!?]*"#,
+            #"[^.!?\n]*\blet me know if (you )?(need|have|want|run into|hit|see)( any)? (anything|any|further|more|other|questions|issues|problems|help|changes|tweaks|adjustments)\b[^.!?\n]*[.!?]*"#,
+            #"[^.!?\n]*\bwhat (would you like|do you want)( me)? to (do|work on|tackle) next\b[^.!?\n]*[.!?]*"#,
+            #"[^.!?\n]*\bwhat('s| is) next\b[^.!?\n]*[.!?]*"#,
+        ]
+        let lowered = TurnEnd.normalized(line)
+        let expected = sentence
+            .reduce(lowered) { $0.replacingOccurrences(of: $1, with: "", options: .regularExpression) }
+            .trimmingCharacters(in: .whitespaces)
+        #expect(TurnEnd.withoutClosers(lowered) == expected)
+    }
+
     @Test func trailingCodeBlocksAreDropped() {
         #expect(TurnEnd.withoutTrailingCode("Apply this?\n```\na\n```\n\n~~~\nb\n~~~") == "Apply this?")
         #expect(TurnEnd.withoutTrailingCode("no fence") == "no fence")

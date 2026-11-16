@@ -21,6 +21,9 @@
 - `mise run live` (`HEED_LIVE=1`) runs the live checks in `Tests/HeedCoreTests/Live`: helpers, approvals, the goal wizard and
   OpenTelemetry against real Claude Code on haiku, in throwaway repos. They call a model, so `mise run test` and CI skip
   them; turn what they capture into a scrubbed fixture under `Fixtures/live` when the agents change.
+- `mise run bench` (`HEED_BENCH=1`) runs `Tests/HeedCoreTests/Bench`: timings, in a release build, one at a time. A test in
+  the suite never asserts a duration (the suite runs in parallel on loaded machines); it checks what a cost comes from
+  (reads, sizes, counts) and the timing goes to a bench.
 - `mise run test` and `mise run lint` before committing. Core logic goes in `HeedCore` with tests; the app layer
   stays thin.
 - Text other people wrote (PR and issue text, comments, checks) is `ExternalText`, and what leaves heed for an agent

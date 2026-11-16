@@ -45,6 +45,8 @@ struct UnusualTextTests {
     /// The UI shows no escapes, controls, bidi or invisible characters, and what is text stays as it was.
     @Test(arguments: TextCase.all) func displayShowsOnlyText(_ input: TextCase) {
         let text = input.external
+        // A known fence id: a random one could itself contain a piece that must be dropped ("201", "1049").
+        let prompt = Prompt(text).rendered(nonce: "n7f3a1c0")
         #expect(UnusualInputs.hidden(in: text.display) == [])
         #expect(!text.display.contains("\u{1B}") && !text.display.contains("\r"))
         for line in text.lines {
@@ -54,11 +56,11 @@ struct UnusualTextTests {
         #expect(UnusualInputs.hidden(in: text.firstLine(limit: 80).display) == [])
         for piece in input.drop ?? [] {
             #expect(!text.display.contains(piece), "\(piece)")
-            #expect(!Prompt(text).text.contains(piece), "\(piece)")
+            #expect(!prompt.contains(piece), "\(piece)")
         }
         for piece in input.keep ?? [] {
             #expect(text.display.contains(piece), "\(piece.unicodeScalars.map { String($0.value, radix: 16) })")
-            #expect(Prompt(text).text.contains(piece))
+            #expect(prompt.contains(piece))
         }
     }
 

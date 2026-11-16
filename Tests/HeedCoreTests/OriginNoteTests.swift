@@ -1,5 +1,6 @@
 import Foundation
 @testable import HeedCore
+import Synchronization
 import Testing
 
 /// What heed tells Claude's auto mode about where a tool result came from (`OriginNote`).
@@ -268,11 +269,8 @@ struct OriginNoteTests {
         #expect(try HookMessage.decode(line: line).kind == .origin(report))
     }
 
-    /// The hook reads the book from disk and builds the note on every Bash call in auto mode: that has to stay well
-    /// inside a hook's budget, with the book at its size limit.
-    @Test func theHookStaysFast() throws {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("origin-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: folder) }
+    /// The book at its size limit: every pull it keeps, with a full set of participants, and 500 checkouts.
+    static var fullBook: OriginBook {
         var book = Self.book
         for index in 0 ..< OriginBook.limit {
             book.pulls["acme/app#\(1000 + index)"] = .init(
@@ -284,24 +282,31 @@ struct OriginNoteTests {
         for index in 0 ..< 500 {
             book.checkouts["/Users/me/wt/app/w\(index)"] = "acme/app"
         }
+        return book
+    }
+
+    static var fullBookCall: [String: Any] { [
+        "permission_mode": "auto", "tool_name": "Bash", "cwd": repo,
+        "tool_input": ["command": "git checkout b399 && gh pr view 7 --comments"],
+    ] }
+
+    /// The hook reads the book from disk and builds the note on every Bash call in auto mode. What it costs is the
+    /// read: once per call, and a book that stays small at its size limit. (`mise run bench` times it.)
+    @Test func theHookReadsTheBookOnceAndItStaysSmall() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("origin-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
         let path = OriginBook.path(forSocket: folder.appendingPathComponent("heed.sock").path)
-        try book.write(to: path)
-        let input: [String: Any] = [
-            "permission_mode": "auto", "tool_name": "Bash", "cwd": Self.repo,
-            "tool_input": ["command": "git checkout b399 && gh pr view 7 --comments"],
-        ]
-        var times: [TimeInterval] = []
-        for _ in 0 ..< 20 {
-            let start = Date()
-            let report = OriginNote.report(input: input) { OriginBook.read(path) }
-            times.append(Date().timeIntervalSince(start))
-            #expect(report?.subject == .pull("acme/app", 1399, .code))
-            #expect(report?.note != nil)
+        try Self.fullBook.write(to: path)
+        let size = try #require(try FileManager.default.attributesOfItem(atPath: path)[.size] as? Int)
+        #expect(size < 512_000, "\(size) bytes")
+        let reads = Mutex(0)
+        let report = OriginNote.report(input: Self.fullBookCall) {
+            reads.withLock { $0 += 1 }
+            return OriginBook.read(path)
         }
-        // The median is what a hook costs; the slowest is allowed for a busy test machine (the suite runs in parallel).
-        let median = times.sorted()[times.count / 2], slowest = times.max() ?? 0
-        #expect(median < 0.05, "median \(Int(median * 1000)) ms")
-        #expect(slowest < 0.25, "slowest \(Int(slowest * 1000)) ms")
+        #expect(reads.withLock { $0 } == 1)
+        #expect(report?.subject == .pull("acme/app", 1399, .code))
+        #expect(report?.note != nil)
     }
 }
 

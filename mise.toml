@@ -40,6 +40,10 @@ run = "scripts/text-check.sh"
 description = "The live checks: heed's helper, approvals, OpenTelemetry and the goal wizard against real Claude Code on haiku (calls a model)"
 run = "swift build --product heed && HEED_LIVE=1 swift test --filter HeedCoreTests.Live"
 
+[tasks.bench]
+description = "Timings kept out of the test suite (a hook's budget and the like): a release build, one at a time"
+run = "HEED_BENCH=1 swift test -c release -Xswiftc -enable-testing --no-parallel --filter Bench"
+
 [tasks.fmt]
 description = "Format Swift sources"
 run = "swiftformat Sources Tests Package.swift"

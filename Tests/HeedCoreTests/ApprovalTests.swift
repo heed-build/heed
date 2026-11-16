@@ -1,5 +1,6 @@
 import Foundation
 @testable import HeedCore
+import Synchronization
 import Testing
 
 struct PermissionAskTests {
@@ -445,25 +446,31 @@ struct PermissionHookTests {
     @Test func aSlowAnswerTimesOutAndTheServerHearsTheHookLeft() async throws {
         let path = Self.path()
         let gone = Gone()
+        let clock = ManualClock()
+        let asked = Mutex(false)
+        let answered = Mutex(false)
+        // Heed answers only after ten real seconds, a hang guard: a hook that ignored its ceiling would get this
+        // answer.
         let server = ControlServer(path: path) { _ in
-            try? await Task.sleep(for: .seconds(3))
+            asked.withLock { $0 = true }
+            try? await Task.sleep(for: .seconds(10))
+            answered.withLock { $0 = true }
             return ControlReply(permission: PermissionAnswer(.allow), permissionID: "ask-1")
         }
         server.permissionGone = { id in gone.add(id) }
         try server.start()
         defer { server.stop() }
         let ask = ask
-        // Timed on the hook's own thread: how long the hook took, not how long the test took to be resumed.
-        let (answer, took) = try await onThread {
-            let started = ContinuousClock.now
-            let answer = PermissionHook.wait(for: ask, socket: path, ceiling: 0.3)
-            return (answer, ContinuousClock.now - started)
+        let hook = Task {
+            try await onThread { PermissionHook.wait(for: ask, socket: path, ceiling: 0.3, clock: clock) }
         }
+        try await waitUntil { asked.withLock { $0 } }
+        // The ceiling is reached because time moved to it, not because the machine was quick or slow.
+        clock.advance(by: .milliseconds(300))
+        let answer = try await finished(hook)
         #expect(answer == .pass)
-        // The hook gave up at its ceiling, a hard deadline, well before the server's 3 s answer.
-        #expect(took < .milliseconds(800))
-        try await Task.sleep(for: .milliseconds(200))
-        #expect(gone.ids == ["ask-1"])
+        #expect(!answered.withLock { $0 }, "the hook waited for heed's answer past its ceiling")
+        try await waitUntil { gone.ids == ["ask-1"] }
     }
 
     @Test func waitIsConfiguredWithinItsCeiling() {

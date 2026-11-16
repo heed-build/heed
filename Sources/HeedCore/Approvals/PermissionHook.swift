@@ -45,15 +45,19 @@ public enum PermissionHook {
 
     /// Sends `ask` to heed and waits for the answer; `.pass` on anything but an answer to this ask. When the hook
     /// gives up on its own (no receipt, its ceiling, heed gone), it tells heed why, so heed can show it.
+    ///
+    /// Every wait (`ceiling`, `receiptWait`, `rejoinWait`) runs out on `clock`, real time unless a test passes its own.
     public static func wait(
         for ask: PermissionAsk, token: String? = nil, socket: String = HeedControl.socketPath(),
-        ceiling: TimeInterval = ceiling, receiptWait: TimeInterval = receiptWait, rejoinWait: TimeInterval = rejoinWait
+        ceiling: TimeInterval = ceiling, receiptWait: TimeInterval = receiptWait, rejoinWait: TimeInterval = rejoinWait,
+        clock: any _Concurrency.Clock<Duration> = ContinuousClock()
     ) -> PermissionAnswer {
         let outcome = exchange(
-            ask, token: token, socket: socket, ceiling: ceiling, receiptWait: receiptWait, rejoinWait: rejoinWait
+            ask, token: token, socket: socket, ceiling: ceiling, receiptWait: receiptWait, rejoinWait: rejoinWait,
+            clock: clock
         )
         if let fallback = outcome.fallback, fallback != .notRunning {
-            report(fallback, for: ask, token: token, socket: socket)
+            report(fallback, for: ask, token: token, socket: socket, clock: clock)
         }
         return outcome.answer
     }
@@ -61,34 +65,47 @@ public enum PermissionHook {
     /// The round trip itself, never longer than `ceiling` all told: connect, send the ask, wait for heed's receipt
     /// (up to `receiptWait`), then for the answer. A connection that drops after a receipt is made again and the same
     /// ask re-sent (heed keeps answers by ask id, so it is neither asked twice nor answered twice), for up to
-    /// `rejoinWait` after the drop.
+    /// `rejoinWait` after the drop. The waits run out on `clock`; the pauses between tries to reconnect are real time.
+    /// `received` hears each receipt as the hook takes it: from then on only the ceiling (or a drop) ends the wait.
     public static func exchange(
         _ ask: PermissionAsk, token: String? = nil, socket: String, ceiling: TimeInterval,
-        receiptWait: TimeInterval = receiptWait, rejoinWait: TimeInterval = rejoinWait
+        receiptWait: TimeInterval = receiptWait, rejoinWait: TimeInterval = rejoinWait,
+        clock: any _Concurrency.Clock<Duration> = ContinuousClock(), received: (@Sendable () -> Void)? = nil
     ) -> (answer: PermissionAnswer, fallback: PermissionFallback?) {
-        let clock = ContinuousClock()
-        let deadline = clock.now + .seconds(ceiling)
+        exchange(
+            ask, token: token, socket: socket, ceiling: ceiling, receiptWait: receiptWait, rejoinWait: rejoinWait,
+            on: clock, received: received
+        )
+    }
+
+    private static func exchange<C: _Concurrency.Clock>(
+        _ ask: PermissionAsk, token: String?, socket: String, ceiling: TimeInterval,
+        receiptWait: TimeInterval, rejoinWait: TimeInterval, on clock: C, received onReceipt: (@Sendable () -> Void)?
+    ) -> (answer: PermissionAnswer, fallback: PermissionFallback?) where C.Duration == Duration {
+        let deadline = clock.now.advanced(by: .seconds(ceiling))
         let request = ControlRequest(
             method: .permission, session: ask.session, pane: ask.pane, permission: ask, token: token
         )
         // Set when a connection that had a receipt dropped: the rejoin window runs from then.
-        var lostAt: ContinuousClock.Instant?
+        var lostAt: C.Instant?
         while true {
-            let window = lostAt.map { $0 + .seconds(rejoinWait) } ?? clock.now + .seconds(receiptWait)
+            let window = lostAt.map { $0.advanced(by: .seconds(rejoinWait)) }
+                ?? clock.now.advanced(by: .seconds(receiptWait))
             let receiptBy = min(window, deadline)
             guard clock.now < receiptBy else {
                 return (.pass, lostAt == nil ? .noReceipt : clock.now >= deadline ? .ceiling : .lostHeed)
             }
             var received = false
             do {
-                let client = try ControlClient(path: socket, deadline: receiptBy)
+                let client = try ControlClient(path: socket, deadline: Deadline(receiptBy, on: clock))
                 let id = try client.send(request)
                 while true {
                     let reply = try client.next()
                     if reply.received == ask.id, !received {
                         received = true
                         lostAt = nil
-                        client.deadline = deadline
+                        client.deadline = Deadline(deadline, on: clock)
+                        onReceipt?()
                     }
                     guard reply.id == id else { continue }
                     guard reply.ok, reply.permissionID == ask.id, let answer = reply.permission else { return (
@@ -115,8 +132,11 @@ public enum PermissionHook {
 
     /// Tells heed this ask fell back to the agent's pane, and why: one line on a new connection, never waited on for
     /// more than a moment.
-    static func report(_ fallback: PermissionFallback, for ask: PermissionAsk, token: String?, socket: String) {
-        let deadline = ContinuousClock.now + .milliseconds(500)
+    static func report(
+        _ fallback: PermissionFallback, for ask: PermissionAsk, token: String?, socket: String,
+        clock: any _Concurrency.Clock<Duration>
+    ) {
+        let deadline = Deadline.after(.milliseconds(500), on: clock)
         guard let client = try? ControlClient(path: socket, deadline: deadline) else { return }
         _ = try? client.send(ControlRequest(
             method: .permission, session: ask.session, pane: ask.pane, permission: ask, fallback: fallback,

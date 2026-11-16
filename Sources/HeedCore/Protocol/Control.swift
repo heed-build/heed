@@ -406,26 +406,26 @@ public final class ControlServer: @unchecked Sendable {
 
 /// A blocking client for one-shot requests (`heed sessions`), watches (`heed watch`) and a permission hook's wait. With
 /// a `deadline`, nothing it does (connecting, writing, each read, however the reply comes in pieces) goes past it: it
-/// throws `timedOut` there.
+/// throws `timedOut` there. The deadline is read off its own clock, so a test's manual clock can make it pass.
 public final class ControlClient {
     private let fd: Int32
     private var pending = Data()
     private var nextID = 1
     /// When every call gives up; nil waits as long as heed takes.
-    public var deadline: ContinuousClock.Instant?
+    public var deadline: Deadline?
 
-    public init(path: String = HeedControl.socketPath(), deadline: ContinuousClock.Instant? = nil) throws {
+    public init(path: String = HeedControl.socketPath(), deadline: Deadline? = nil) throws {
         self.deadline = deadline
         // A refusal while the socket is there is a full backlog (heed busy accepting a burst), not heed gone: with a
         // deadline, try again (on a fresh socket) for a moment.
-        let retryUntil = deadline.map { min($0, ContinuousClock.now + .milliseconds(500)) }
+        let retryUntil = deadline.map { $0.capped(at: .milliseconds(500)) }
         while true {
             let (fd, code) = try Self.connect(path, deadline: deadline)
             if let fd {
                 self.fd = fd
                 return
             }
-            guard code == ECONNREFUSED, let retryUntil, ContinuousClock.now < retryUntil,
+            guard code == ECONNREFUSED, let retryUntil, !retryUntil.hasPassed,
                   FileManager.default.fileExists(atPath: path)
             else { throw ControlClientError.notRunning(path, code) }
             Thread.sleep(forTimeInterval: 0.01)
@@ -434,7 +434,7 @@ public final class ControlClient {
 
     /// A connected, non-blocking socket, or the errno that refused it.
     private static func connect(
-        _ path: String, deadline: ContinuousClock.Instant?
+        _ path: String, deadline: Deadline?
     ) throws -> (fd: Int32?, code: Int32) {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw HookServerError.system("socket", errno) }
@@ -524,13 +524,14 @@ public final class ControlClient {
     }
 
     /// Waits until `fd` is ready for `events`, or throws `timedOut` at `deadline`.
-    private static func wait(_ fd: Int32, for events: Int16, until deadline: ContinuousClock.Instant?) throws {
+    private static func wait(_ fd: Int32, for events: Int16, until deadline: Deadline?) throws {
         while true {
             var timeout: Int32 = -1
             if let deadline {
-                let left = ContinuousClock.now.duration(to: deadline)
+                let left = deadline.remaining
                 guard left > .zero else { throw ControlClientError.timedOut }
-                let (seconds, attoseconds) = left.components
+                // The time left, or a slice of it on a clock the poll cannot see; a poll that times out looks again.
+                let (seconds, attoseconds) = (deadline.slice.map { min($0, left) } ?? left).components
                 // Rounded up, so a poll never wakes just before the deadline and spins.
                 let milliseconds = seconds * 1000 + (attoseconds + 999_999_999_999_999) / 1_000_000_000_000_000
                 timeout = Int32(clamping: milliseconds)

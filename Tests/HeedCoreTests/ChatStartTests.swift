@@ -107,12 +107,7 @@ struct ChatStartTests {
 
     @Test func startingAScratchChatMakesItsFolderAndAnAgentPaneThere() async throws {
         let root = NSTemporaryDirectory() + "heed-chats-\(UUID().uuidString)"
-        let saved = Chats.localRoot
-        Chats.localRoot = root
-        defer {
-            Chats.localRoot = saved
-            try? FileManager.default.removeItem(atPath: root)
-        }
+        defer { try? FileManager.default.removeItem(atPath: root) }
         try FileManager.default.createDirectory(atPath: root + "/2026-10-21-cron", withIntermediateDirectories: true)
         var plan = StartWorkPlan(
             prompt: "What cron line runs at nine?", repos: [], name: "", agent: AgentProfile.builtIn.first,
@@ -120,7 +115,12 @@ struct ChatStartTests {
         )
         plan.chat = ChatPlan(kind: .scratch, name: "2026-10-21-cron")
         plan.shellSplit = true
-        let changes = try await StartWork.execute(plan, settings: .default)
+        // Chats go under `root` for this test's task only: suites running beside it keep the real root.
+        let changes = try await HeedContext.with {
+            $0.chatsRoot = root
+        } operation: {
+            try await StartWork.execute(plan, settings: .default)
+        }
         let domain = Domain().applying(changes)
         let session = try #require(domain.session("c"))
         // The name was taken, so it gets the next free one.

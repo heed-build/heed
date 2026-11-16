@@ -158,10 +158,9 @@ public struct StartWorkForm: Sendable {
     /// What the cursor was on when Start work opened.
     private let context: StartContext?
     private let prefixes: BranchPrefixes
-    private let sessionID = StartWorkForm.newSessionID()
-
-    /// Makes the new session's id; screenshots pin it so the command preview never changes between runs.
-    public nonisolated(unsafe) static var newSessionID: () -> String = { UUID().uuidString.lowercased() }
+    /// The new session's id (`HeedContext.newSessionID`): screenshots pin it so the command preview never changes
+    /// between runs.
+    private let sessionID = HeedContext.current.newSessionID()
     private let integration: IntegrationFiles?
     /// The agents' hook files on each host (under its ~/.heed), for work started there.
     private let hostIntegrations: [String: IntegrationFiles]

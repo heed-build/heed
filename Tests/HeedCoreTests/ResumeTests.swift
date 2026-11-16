@@ -160,7 +160,6 @@ struct HistoryTests {
             try? FileManager.default.removeItem(atPath: root)
         }
         try FileManager.default.createDirectory(atPath: repoPath, withIntermediateDirectories: true)
-        GitEnvironment.isolate()
         for args in [
             ["init", "-q", "-b", "main"],
             ["config", "user.email", "t@t"],

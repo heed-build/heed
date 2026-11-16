@@ -19,26 +19,24 @@ struct GitEnvironmentTests {
         defer { try? FileManager.default.removeItem(atPath: base) }
         let bare = base + "/outer.git", repo = base + "/repo"
         try FileManager.default.createDirectory(atPath: repo, withIntermediateDirectories: true)
-        GitEnvironment.isolate()
         _ = try await ProcessRunner.output("git", ["init", "-q", "--bare", "-b", "main", bare], caller: "test")
         let before = try await snapshot(bare)
 
-        // As `git rebase --exec` would leave them for the commands it runs.
-        setenv("GIT_DIR", bare, 1)
-        setenv("GIT_INDEX_FILE", bare + "/index", 1)
-        setenv("GIT_WORK_TREE", base, 1)
-        defer {
-            for name in ["GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"] {
-                unsetenv(name)
-            }
-        }
+        // As `git rebase --exec` would leave them for the commands it runs: handed to this test's commands only, so
+        // the suites running beside it never see them.
+        var inherited = ProcessInfo.processInfo.environment
+        inherited["GIT_DIR"] = bare
+        inherited["GIT_INDEX_FILE"] = bare + "/index"
+        inherited["GIT_WORK_TREE"] = base
         try "a\n".write(toFile: repo + "/a.txt", atomically: true, encoding: .utf8)
-        for args in [
-            ["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["add", "."], ["commit", "-qm", "a"],
-            ["branch", "side"], ["worktree", "add", "-q", base + "/linked", "-b", "f"],
-            ["init", "-q", "--bare", base + "/other.git"],
-        ] {
-            _ = try await ProcessRunner.output("git", ["-C", repo] + args, caller: "test")
+        try await GitEnvironment.$inheritedOverride.withValue(inherited) {
+            for args in [
+                ["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["add", "."], ["commit", "-qm", "a"],
+                ["branch", "side"], ["worktree", "add", "-q", base + "/linked", "-b", "f"],
+                ["init", "-q", "--bare", base + "/other.git"],
+            ] {
+                _ = try await ProcessRunner.output("git", ["-C", repo] + args, caller: "test")
+            }
         }
 
         #expect(try await snapshot(bare) == before)

@@ -186,7 +186,10 @@ struct ACPClientTests {
         await client.start()
         agent.write(#"{"jsonrpc":"2.0","id":3,"method":"fs/read_text_file","params":{"path":"/etc/hosts"}}"#)
         await client.cancel(sessionID: "s1")
-        try await Task.sleep(for: .milliseconds(50))
+        try await waitFor("the refusal and the cancel were never written") {
+            let sent = agent.sent
+            return sent.contains { $0["error"] != nil } && sent.contains { $0["method"]?.string == "session/cancel" }
+        }
         let sent = agent.sent
         let refusal = try #require(sent.first { $0["error"] != nil })
         #expect(refusal["id"]?.int == 3 && refusal["error"]?["code"]?.int == -32601)
@@ -200,7 +203,10 @@ struct ACPClientTests {
         await client.start()
         var events = client.events.makeAsyncIterator()
         let answer = Task { try await client.newSession(cwd: "/tmp") }
-        try await Task.sleep(for: .milliseconds(30))
+        // The request is on the wire, so the agent goes away with it waiting.
+        try await waitFor("session/new was never sent") {
+            agent.sent.contains { $0["method"]?.string == "session/new" }
+        }
         agent.end()
         await #expect(throws: ACPError.closed("exit status 1")) { try await answer.value }
         #expect(await events.next() == .closed("exit status 1"))
@@ -380,8 +386,9 @@ struct HelperMailTests {
         #expect(HelperMail.route(.asking, urgent: true, connected: true) == .steerNow)
         #expect(HelperMail.outcome(.steerNow) == .delivered(.acp))
         await client.cancel(sessionID: "s1")
-        try await Task.sleep(for: .milliseconds(20))
-        #expect(agent.sent.contains { $0["method"]?.string == "session/cancel" })
+        try await waitFor("session/cancel was never sent") {
+            agent.sent.contains { $0["method"]?.string == "session/cancel" }
+        }
     }
 
     @Test func mailWaitsForAHelperThatIsStartingOrGone() {

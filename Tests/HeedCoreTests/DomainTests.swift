@@ -238,8 +238,8 @@ struct DomainChangeTests {
 }
 
 struct GitIntegrationTests {
-    private func makeRepo() async throws -> String {
-        let path = FileManager.default.temporaryDirectory.appendingPathComponent("heed-repo-\(UUID().uuidString)").path
+    private func makeRepo(in parent: URL = FileManager.default.temporaryDirectory) async throws -> String {
+        let path = parent.appendingPathComponent("heed-repo-\(UUID().uuidString)").path
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
         GitEnvironment.isolate()
         for args in [
@@ -298,12 +298,30 @@ struct GitIntegrationTests {
         }
     }
 
+    /// What something the command started writes after the command exited still arrives, while its pipes are open.
+    @Test func outputAfterTheExitIsKept() async throws {
+        let result = try await ProcessRunner.run(
+            "/bin/sh", ["-c", "(sleep 0.1; echo late) & echo early"], caller: "test"
+        )
+        #expect(result.stdout == "early\nlate\n")
+    }
+
+    /// Something the command started that keeps its pipes open is not waited for: the result comes back without it.
+    /// The time limit ends a run that waits for the background sleep.
+    @Test(.timeLimit(.minutes(1))) func aChildHoldingThePipesIsNotWaitedFor() async throws {
+        let result = try await ProcessRunner.run("/bin/sh", ["-c", "sleep 90 & echo $!"], caller: "test")
+        let child = try #require(Int32(result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)))
+        kill(child, SIGTERM)
+        #expect(result.succeeded)
+    }
+
     @Test func scannerFindsMainCheckoutsOnly() async throws {
-        let path = try await makeRepo()
-        defer { try? FileManager.default.removeItem(atPath: path) }
-        let parent = (path as NSString).deletingLastPathComponent
-        let found = RepoScanner.candidates(in: parent, depth: 1)
-        #expect(found.contains(path))
+        // A folder of its own to scan: the shared temporary directory holds every other test's folders.
+        let parent = FileManager.default.temporaryDirectory.appendingPathComponent("heed-scan-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: parent) }
+        let path = try await makeRepo(in: parent)
+        let found = RepoScanner.candidates(in: parent.path, depth: 1)
+        #expect(found == [path])
     }
 }
 

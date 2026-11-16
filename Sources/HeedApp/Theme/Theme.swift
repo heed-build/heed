@@ -266,6 +266,7 @@ extension NSColor {
 enum AppearanceControl {
     private static let key = "appearance"
     private static var observation: NSKeyValueObservation?
+    private static var darkTerminal = UserDefaults.standard.bool(forKey: "darkTerminal")
 
     /// At launch, before any window: the last choice.
     static func applyStored() {
@@ -277,8 +278,12 @@ enum AppearanceControl {
         }
     }
 
-    static func apply(_ appearance: Appearance, remember: Bool = true) {
-        if remember { UserDefaults.standard.set(appearance.rawValue, forKey: key) }
+    static func apply(_ appearance: Appearance, darkTerminal: Bool = false, remember: Bool = true) {
+        if remember {
+            UserDefaults.standard.set(appearance.rawValue, forKey: key)
+            UserDefaults.standard.set(darkTerminal, forKey: "darkTerminal")
+        }
+        self.darkTerminal = darkTerminal
         set(appearance)
     }
 
@@ -292,7 +297,7 @@ enum AppearanceControl {
     }
 
     private static func syncTerminals() {
-        let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let dark = darkTerminal || NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         #if HEED_GHOSTTY
             GhosttyRuntime.setAppearance(dark: dark)
         #endif

@@ -89,6 +89,11 @@ extension SettingsCatalog {
             since: "0.46.0", example: "appearance = \"system\""
         ) { .text($0.appearance.rawValue) },
         global(
+            "ui.dark_terminal", .general, "Appearance", "Always dark terminals",
+            "Terminal panes stay dark when heed is light, as most terminal programs expect.",
+            since: "0.46.0"
+        ) { .bool($0.darkTerminal) },
+        global(
             "sessions.default_agent", .general, "Sessions", "Default agent",
             "The agent Start work picks when nothing else does.", since: "0.1.0"
         ) { .text($0.work.defaultAgent) },

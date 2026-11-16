@@ -15,6 +15,8 @@ public struct HeedConfig: Equatable, Sendable {
     public var showDockState = true
     /// `[ui] appearance`: heed's colours, light, dark, or whichever macOS is using.
     public var appearance = Appearance.system
+    /// `[ui] dark_terminal`: terminal panes stay dark when the rest of heed is light.
+    public var darkTerminal = false
     /// `[notifications]`: a macOS notification when a session starts needing you.
     public var notifications = NotificationSettings()
     /// `[approvals]`: how long an agent's permission hook waits for your answer in heed.
@@ -105,6 +107,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.showMenuBarItem == rhs.showMenuBarItem,
             lhs.showDockState == rhs.showDockState,
             lhs.appearance == rhs.appearance,
+            lhs.darkTerminal == rhs.darkTerminal,
             lhs.notifications == rhs.notifications,
             lhs.approvals == rhs.approvals,
             lhs.attention == rhs.attention,
@@ -714,6 +717,7 @@ public enum ConfigLoader {
         // [ui]
         if let flag = bool(["ui", "menu_bar"]) { config.showMenuBarItem = flag }
         if let flag = bool(["ui", "dock_state"]) { config.showDockState = flag }
+        if let flag = bool(["ui", "dark_terminal"]) { config.darkTerminal = flag }
         if let text = string(["ui", "appearance"]) {
             if let appearance = Appearance(rawValue: text.lowercased()) {
                 config.appearance = appearance

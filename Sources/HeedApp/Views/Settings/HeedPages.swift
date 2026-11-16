@@ -15,6 +15,9 @@ struct GeneralPage: View {
                     options: Appearance.allCases.map { ($0, $0.rawValue.capitalized) }, name: \.rawValue
                 )
             }
+            SettingRow("ui.dark_terminal") {
+                ConfigSwitch(path: ["ui", "dark_terminal"], isOn: model.config.darkTerminal)
+            }
         }
         SettingsCard(title: "Sessions") {
             SettingRow("sessions.default_agent") {

@@ -392,7 +392,7 @@ enum Shots {
         model.agentPresence.tracking = true
         let ids = model.sessions.map(\.id)
         for session in model.sessions {
-            model.conversationOnDisk[session.id] = true
+            model.conversationChecks.set(session.id, exists: true)
             let panes = model.layouts[session.id]?.tabs.flatMap(\.tree.panes).map(\.id) ?? []
             if [ids.first, ids.dropFirst(2).first].contains(session.id) { continue }
             for pane in panes {
@@ -425,7 +425,7 @@ enum Shots {
             now: Clock.now
         )
         ask?.delivered(.delivered(.claudeInbox))
-        model.promotionHandoff = ask
+        if let ask { model.promotionFlow?.ask(ask) }
     }
 
     static func withChats(_ model: AppModel) {

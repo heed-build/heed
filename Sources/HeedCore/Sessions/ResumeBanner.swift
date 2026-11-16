@@ -66,4 +66,15 @@ public enum ResumeBanner {
         guard !agentPanes.contains(where: { presence.isRunning($0.id) }) else { return nil }
         return Offer(sessionID: session.id, agent: agent.name, conversation: conversation)
     }
+
+    /// The offer as the app asks it: the conversation as last checked (`ConversationCheck.onDisk`).
+    public static func offer(
+        session: Session, layout: SessionLayout?, agent: AgentProfile?, presence: AgentPresence,
+        conversation: ConversationCheck
+    ) -> Offer? {
+        offer(
+            session: session, layout: layout, agent: agent, presence: presence,
+            conversationOnDisk: conversation.onDisk
+        )
+    }
 }

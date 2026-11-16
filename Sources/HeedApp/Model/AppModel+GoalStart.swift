@@ -134,7 +134,7 @@ extension AppModel {
             )
         }
         guard let ask = handoffAsk(for: promotion) else { return makeGoal(from: promotion, note: nil) }
-        promotionHandoff = ask
+        promotionFlow?.ask(ask)
         if ask.isOpen { runHandoffAsk() } else { resolveHandoff() }
     }
 
@@ -162,7 +162,7 @@ extension AppModel {
                 if promotionHandoff?.unsent == true { await deliverHandoffAsk() }
                 guard var ask = promotionHandoff, ask.isOpen else { return }
                 ask.tick(now: Clock.now)
-                if ask != promotionHandoff { promotionHandoff = ask }
+                if ask != promotionHandoff { setHandoff(ask) }
                 if !ask.isOpen { return resolveHandoff() }
                 try? await Task.sleep(for: .seconds(1))
             }
@@ -177,7 +177,7 @@ extension AppModel {
               TerminalSurfaces.shared.hasTerminal(paneID: pane)
         else {
             ask.delivered(.failed("its agent isn't running (no agent pane)"))
-            promotionHandoff = ask
+            setHandoff(ask)
             return
         }
         let route = HandoffAsk.route(
@@ -186,13 +186,17 @@ extension AppModel {
         )
         if case let .wait(why) = route {
             ask.delivered(.waiting(why))
-            if ask != promotionHandoff { promotionHandoff = ask }
+            if ask != promotionHandoff { setHandoff(ask) }
             return
         }
         let outcome = await notify(session: session.id, text: SessionHandoff.ask)
-        guard var after = promotionHandoff, after.session == ask.session else { return }
-        after.delivered(outcome)
-        promotionHandoff = after
+        // Only to the ask it was sent for: not to a newer one for the same session, made after this one closed.
+        promotionFlow?.updateAsk(ask.id) { $0.delivered(outcome) }
+    }
+
+    /// The ask changed: kept only while it is still the one the popover waits for.
+    private func setHandoff(_ ask: HandoffAsk) {
+        promotionFlow?.updateAsk(ask.id) { $0 = ask }
     }
 
     /// `heed goal handoff` from the session's pane: the handoff the ask was waiting for. One heed cannot read is
@@ -206,10 +210,10 @@ extension AppModel {
         }
         switch ask.receive(text) {
         case let .failure(problem):
-            promotionHandoff = ask
+            setHandoff(ask)
             return .refused("that handoff was not readable: \(problem). Write it again and run heed goal handoff")
         case .success:
-            promotionHandoff = ask
+            setHandoff(ask)
             resolveHandoff()
             return GoalReply("handoff", message: "heed has it: the goal is made from it, nothing more to do here")
         }
@@ -219,7 +223,7 @@ extension AppModel {
     func skipHandoff() {
         guard var ask = promotionHandoff, ask.isOpen else { return say("not waiting for a handoff") }
         ask.skip()
-        promotionHandoff = ask
+        setHandoff(ask)
         resolveHandoff()
     }
 
@@ -239,7 +243,6 @@ extension AppModel {
     func endHandoffAsk() {
         handoffTask?.cancel()
         handoffTask = nil
-        if promotionHandoff != nil { promotionHandoff = nil }
     }
 
     private func makeGoal(from promotion: GoalPromotion, note: String?) {

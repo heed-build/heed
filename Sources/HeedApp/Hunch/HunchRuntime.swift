@@ -67,6 +67,8 @@ actor HunchRuntime {
                 progress(Double(step.step) / Double(max(1, step.steps)))
             }
             let after = try await Self.score(model.evaluate(held))
+            // Stopped while scoring: the head in use is put back, never the new one.
+            try Task.checkCancellation()
             let verdict = HunchAdopt.verdict(before: before, after: after)
             if verdict == .adopt {
                 try FileManager.default.createDirectory(

@@ -225,15 +225,30 @@ final class AppModel {
     /// Sizes Start work's longer prompts (`[start_work] size_check`); nil while sizing is off or cannot run.
     @ObservationIgnored var startWorkSizer: TaskSizeScheduler?
     /// Make it a goal's popover on a growing session (`goal.promote`); nil while closed.
-    var goalPromotion: GoalPromotion? {
+    /// The popover and the handoff it waits for, in one value (`PromotionFlow`): there is no handoff without it.
+    var promotionFlow: PromotionFlow? {
         didSet {
-            updateScope()
-            if goalPromotion == nil { endHandoffAsk() }
+            if promotionFlow?.promotion != oldValue?.promotion { updateScope() }
+            // The popover is gone or done: nobody waits for a handoff any more.
+            if promotionFlow?.handoff == nil, oldValue?.handoff != nil { endHandoffAsk() }
+        }
+    }
+
+    /// What the popover would make; setting one for another session starts over (no ask), nil closes it.
+    var goalPromotion: GoalPromotion? {
+        get { promotionFlow?.promotion }
+        set {
+            guard let newValue else { return promotionFlow = nil }
+            if promotionFlow?.session == newValue.session {
+                promotionFlow?.edit { $0 = newValue }
+            } else {
+                promotionFlow = PromotionFlow(newValue)
+            }
         }
     }
 
     /// Make it a goal asking the session's agent for a handoff, while the popover waits for it; nil otherwise.
-    var promotionHandoff: HandoffAsk?
+    var promotionHandoff: HandoffAsk? { promotionFlow?.handoff }
     @ObservationIgnored var handoffTask: Task<Void, Never>?
     /// Sessions whose "growing into a goal" line was put away (`x`): kept in UserDefaults, except in the fake world.
     var promotionsSetAside: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "promotionsSetAside") ?? [])
@@ -336,7 +351,7 @@ final class AppModel {
     // The resume banner (ResumeBanner): which panes have an agent running, whether each session's agent still has
     // its conversation (checked off the main actor), and the sessions whose banner you dismissed until heed restarts.
     var agentPresence = AgentPresence()
-    var conversationOnDisk: [String: Bool] = [:]
+    var conversationChecks = ConversationChecks()
     var resumeBannerDismissed: Set<String> = []
     /// What Settings says when the session key could not be read or kept this run (`SessionKeyRead`); nil when it was.
     var sessionKeyNotice: String?
@@ -1562,7 +1577,7 @@ final class AppModel {
             Task { await refreshIssueInfo(force: [issue]) }
         case let .agentSession(id, _):
             session.agentSessionID = id
-            conversationOnDisk[session.id] = nil
+            conversationChecks.forget(session.id)
             checkConversations(of: [session.id])
         case let .notify(text):
             flash = "\(session.title): \(text)"

@@ -196,12 +196,12 @@ final class AppModel {
     /// What detection found per agent, for Settings › Agents.
     var llmStatuses: [LLMAgentStatus] = []
     /// Settings' Test per agent: running, or how the last one ended.
-    var llmTests: [String: LLMTest] = [:]
+    var llmTests: [String: TestRun<AgentTestAnswer>] = [:]
     /// Settings › Model calls (AppModel+Inference): whether Apple's on-device model can run here, the last
     /// tests (kept between launches), the decision test running, and the title bar reminder hidden for this launch.
     var localModel = LocalModel.unsupported
     var setupTests = SetupTests() { didSet { saveSetupTests() } }
-    var decisionTest: DecisionTest?
+    var decisionTest: TestRun<DecisionTestAnswer>?
     var inferenceReminderHidden = false
     /// Screenshots show the setup reminder only where a shot asks for it.
     var inferenceReminderInShots = false
@@ -463,10 +463,10 @@ final class AppModel {
 
     /// The readers' threads, body and comments as GitHub renders them, by `ThreadConversation.key`: fetched when a
     /// reader or Attention's detail opens one, kept in memory for the session (AppModel+Threads).
-    var conversations: [String: ThreadConversation] = [:]
-    /// Why a thread's conversation did not load, by key, until it does.
-    var conversationErrors: [String: String] = [:]
-    var conversationsLoading: Set<String> = []
+    /// Each is loading (what was fetched before stays on screen), loaded, or failed with why until it loads again.
+    var threads: [String: Load<ThreadConversation>] = [:]
+    /// The fetch a reader started for a thread, by key, while it runs: a summary awaits it instead of fetching again.
+    @ObservationIgnored var threadFetches: [String: (token: LoadToken, task: Task<ThreadConversation, Error>)] = [:]
     /// The PR the overlay shows (one of the current session's).
     private(set) var overlayPull: PullRef?
     private(set) var feedbackCursor = 0
@@ -495,8 +495,11 @@ final class AppModel {
 
     // Diff overlay
     private(set) var diffScope: DiffScope = .all
-    private(set) var diffFiles: [FileDiff] = []
-    private(set) var diffCommits: [CommitSummary] = []
+    /// The current session's diff: its files and commits, kept on screen while a new scope loads.
+    private(set) var diffLoad: Load<DiffContent> = .idle
+    var diffFiles: [FileDiff] { diffLoad.value?.files ?? [] }
+    var diffCommits: [CommitSummary] { diffLoad.value?.commits ?? [] }
+    var diffLoading: Bool { diffLoad.isLoading }
     /// The file, the row and the selection: keys and clicks move it through `DiffCursor`'s functions.
     private(set) var diffCursor = DiffCursor()
     var diffFileIndex: Int { diffCursor.file }
@@ -506,7 +509,6 @@ final class AppModel {
     private(set) var diffNote: HunkNoteDraft?
     /// Sessions whose queued notes you asked to send while their agent was busy: they go once it is idle.
     private var pendingNotes: Set<String> = []
-    private(set) var diffLoading = false
     private var diffTask: Task<Void, Never>?
 
     /// Bots you said not to suggest for `trusted_reviewers` (`ReviewerSuggestion.id`): kept per Mac.
@@ -638,7 +640,7 @@ final class AppModel {
             tailnet = Fixtures.tailnet
             tailscalePath = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
             issueInfo = Fixtures.issueInfo
-            conversations = Fixtures.conversations
+            threads = Fixtures.conversations.mapValues { .loaded($0) }
             llmStatuses = Self.fixtureLLMStatuses
             localModel = .available
             for (id, live) in Fixtures.subagents {
@@ -941,7 +943,10 @@ final class AppModel {
     // MARK: GitHub
 
     private var githubTask: Task<Void, Never>?
+    /// A fetch from GitHub is running (the status bar's "syncing…").
     private(set) var syncing = false
+    /// One sync at a time; an ask made meanwhile runs after it instead of being dropped.
+    private var syncQueue = SyncQueue()
 
     private var syncSchedule = SyncSchedule()
 
@@ -971,10 +976,21 @@ final class AppModel {
     }
 
     /// `force` (gr refresh, :github.sync, signing in): every part. Otherwise what is due; `parts` asks for some now.
+    /// Asked while a sync runs, it runs once that one ends (asks made meanwhile merged into one).
     func syncGitHub(force: Bool = true, parts wanted: Set<GitHubPart> = []) async {
-        guard !isFixture, !syncing else { return }
+        guard !isFixture, var request = syncQueue.ask(SyncRequest(force: force, parts: wanted)) else { return }
+        while true {
+            await runSync(request)
+            guard let next = syncQueue.finished() else { return }
+            request = next
+        }
+    }
+
+    private func runSync(_ request: SyncRequest) async {
         syncSchedule.front = TimeInterval(config.githubPollSeconds)
-        let parts = wanted.isEmpty ? syncSchedule.due(now: Date(), front: frontParts, force: force) : wanted
+        let schedule = syncSchedule
+        let front = frontParts
+        let parts = request.parts { force in schedule.due(now: Date(), front: front, force: force) }
         guard !parts.isEmpty else {
             await refreshWatchedDetails()
             return
@@ -985,7 +1001,7 @@ final class AppModel {
         let tracked = Array(Set(sessions.flatMap(\.trackedPRs)))
         do {
             let state = try await GitHub.sync(
-                parts: parts, tracked: tracked, previous: previous, refreshTeams: force && wanted.isEmpty,
+                parts: parts, tracked: tracked, previous: previous, refreshTeams: request.refreshesTeams,
                 maxAgeDays: config.attention.maxAgeDays, caller: "github.sync"
             )
             syncSchedule.fetched(parts, at: Date())
@@ -7186,16 +7202,16 @@ final class AppModel {
         let targets = worktrees.filter { session.owns($0) }
             .map { worktree in (worktree, repos.first { $0.repo == worktree.repo }?.defaultBranch ?? "main") }
         guard !targets.isEmpty, !isFixture else {
-            diffFiles = isFixture ? Fixtures.diff : []
-            diffCommits = isFixture ? Fixtures.diffCommits : []
+            diffTask?.cancel()
+            diffLoad = .loaded(isFixture ? DiffContent(files: Fixtures.diff, commits: Fixtures.diffCommits) : .empty)
             if !isFixture { flash = "no worktree for \(session.branch) yet" }
             return
         }
         let scope = diffScope
-        diffLoading = true
         diffTask?.cancel()
+        // A load replaced by this one may still finish: its token is no longer current, so it changes nothing.
+        let token = diffLoad.start()
         diffTask = Task {
-            defer { diffLoading = false }
             var files: [FileDiff] = []
             for (worktree, base) in targets {
                 if let diff = try? await Git.diff(at: worktree.path, scope: scope, base: base, repo: worktree.repo) {
@@ -7203,9 +7219,11 @@ final class AppModel {
                 }
             }
             let commits = await (try? Git.commits(at: targets[0].0.path, base: targets[0].1)) ?? []
-            guard !Task.isCancelled else { return }
-            diffFiles = files
-            diffCommits = commits
+            guard !Task.isCancelled else {
+                diffLoad.abandon(token)
+                return
+            }
+            guard diffLoad.finish(token, with: DiffContent(files: files, commits: commits)) else { return }
             diffCursor.reset(in: files)
             leaveDiffVisual()
         }

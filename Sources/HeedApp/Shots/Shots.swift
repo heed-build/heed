@@ -569,7 +569,12 @@ enum Shots {
             id: "agents/model-calls", subject: .settings(.agents), size: CGSize(width: 1180, height: 720),
             prepare: { model in
                 model.agentTab = .modelCalls
-                model.llmTests["claude"] = LLMTest(answer: "Hello!", model: "claude-haiku", seconds: 2.9, cost: 0.00026)
+                model.llmTests["claude"] = .passed(AgentTestAnswer(
+                    text: "Hello!",
+                    model: "claude-haiku",
+                    seconds: 2.9,
+                    cost: 0.00026
+                ))
             }
         ),
         // Settings › Agents › claude › Sessions: its own model and effort for its sessions, picked from its list.
@@ -1580,10 +1585,10 @@ enum Shots {
             size: CGSize(width: 1180, height: 1080),
             prepare: { model in
                 model.applyConfig(source: "[llm]\nagent = \"claude\"\n[decisions]\ndecider = \"local\"\n")
-                model.llmTests["claude"] = LLMTest(
-                    answer: "Hello there!", model: "claude-haiku", seconds: 2.4, cost: 0.00031
-                )
-                model.decisionTest = DecisionTest(answer: "done (confidence 90%)", seconds: 0.6)
+                model.llmTests["claude"] = .passed(AgentTestAnswer(
+                    text: "Hello there!", model: "claude-haiku", seconds: 2.4, cost: 0.00031
+                ))
+                model.decisionTest = .passed(DecisionTestAnswer(text: "done (confidence 90%)", seconds: 0.6))
             }
         ),
         // The title bar's reminder while model calls and decisions are not set up.

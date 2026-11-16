@@ -1,16 +1,6 @@
 import Foundation
 import HeedCore
 
-/// How Settings' Test of one agent went.
-struct LLMTest: Equatable {
-    var running = false
-    var answer: String?
-    var error: String?
-    var model: String?
-    var seconds: Double?
-    var cost: Double?
-}
-
 /// heed's own model calls (`[llm]`, `LLMRunner`): configured from config.toml, told which agents are rate limited in
 /// a session, and seeded with today's spend from the call log. Features call `runLLM`, never the runner directly.
 extension AppModel {
@@ -94,8 +84,14 @@ extension AppModel {
 
     /// Settings' Test: one tiny call to `agent` alone, never cached, shown with its answer and timing.
     func testLLM(agent: String) {
-        guard !isFixture, llmTests[agent]?.running != true else { return }
-        llmTests[agent] = LLMTest(running: true)
+        runAgentTest(agent)
+    }
+
+    /// The one test call behind Settings › Agents' Test and Settings › Model calls' (`setupSubject`: the `[llm]
+    /// agent` value tested there, whose result is also kept between launches). Not while that agent's test runs.
+    func runAgentTest(_ agent: String, setupSubject: String? = nil) {
+        guard !isFixture, TestRun.canStart(over: llmTests[agent]) else { return }
+        llmTests[agent] = .running
         let request = LLMRequest(
             call: LLMCall(
                 system: "You check that a connection works. Reply in at most five words.",
@@ -106,12 +102,23 @@ extension AppModel {
         Task {
             do {
                 let response = try await runLLM(request)
-                llmTests[agent] = LLMTest(
-                    answer: response.text.trimmingCharacters(in: .whitespacesAndNewlines), model: response.model,
+                let answer = AgentTestAnswer(
+                    text: response.text.trimmingCharacters(in: .whitespacesAndNewlines), model: response.model,
                     seconds: response.duration, cost: response.cost
                 )
+                llmTests[agent] = .passed(answer)
+                if let setupSubject {
+                    setupTests.inference = SetupTest(
+                        subject: setupSubject, ok: true, detail: answer.text, seconds: response.duration, at: Clock.now
+                    )
+                }
             } catch {
-                llmTests[agent] = LLMTest(error: "\(error)")
+                llmTests[agent] = .failed("\(error)")
+                if let setupSubject {
+                    setupTests.inference = SetupTest(
+                        subject: setupSubject, ok: false, detail: "\(error)", at: Clock.now
+                    )
+                }
             }
             await refreshLLMStatuses()
         }

@@ -349,27 +349,17 @@ private struct InferenceTestResult: View {
     var body: some View {
         let test = agent.flatMap { model.llmTests[$0] }
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Button(test?.running == true ? "Testing…" : "Test") { model.testInference() }
-                .disabled(test?.running == true || agent == nil)
-            if let test, !test.running {
-                if let error = test.error {
-                    Text(error).font(Theme.ui(12)).foregroundStyle(Theme.err)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text(Self.summary(test)).font(Theme.mono(12))
-                }
+            Button(test?.isRunning == true ? "Testing…" : "Test") { model.testInference() }
+                .disabled(test?.isRunning == true || agent == nil)
+            if let error = test?.error {
+                Text(error).font(Theme.ui(12)).foregroundStyle(Theme.err)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if let answer = test?.answer {
+                Text(answer.summary).font(Theme.mono(12))
             } else if let last, test == nil {
                 SetupLastTest(test: last)
             }
         }
-    }
-
-    static func summary(_ test: LLMTest) -> String {
-        var parts = ["“\(test.answer ?? "")”"]
-        if let model = test.model { parts.append(model) }
-        if let seconds = test.seconds { parts.append(String(format: "%.1fs", seconds)) }
-        if let cost = test.cost { parts.append(cost < 0.01 ? String(format: "$%.4f", cost) : AgentUsage.dollars(cost)) }
-        return parts.joined(separator: " · ")
     }
 }
 
@@ -380,17 +370,13 @@ private struct DecisionTestResult: View {
     var body: some View {
         let test = model.decisionTest
         HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Button(test?.running == true ? "Testing…" : "Test") { model.testDecision() }
-                .disabled(test?.running == true)
-            if let test, !test.running {
-                if let error = test.error {
-                    Text(error).font(Theme.ui(12)).foregroundStyle(Theme.err)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text(([test.answer ?? ""] + (test.seconds.map { [String(format: "%.1fs", $0)] } ?? []))
-                        .joined(separator: " · "))
-                        .font(Theme.mono(12))
-                }
+            Button(test?.isRunning == true ? "Testing…" : "Test") { model.testDecision() }
+                .disabled(test?.isRunning == true)
+            if let error = test?.error {
+                Text(error).font(Theme.ui(12)).foregroundStyle(Theme.err)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if let answer = test?.answer {
+                Text(answer.summary).font(Theme.mono(12))
             } else if let last, test == nil {
                 SetupLastTest(test: last)
             }

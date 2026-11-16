@@ -369,10 +369,10 @@ struct IssueReaderView: View {
             Text(issue.body.isEmpty ? "Not assigned to you, so only its title is synced." : issue.body)
                 .font(Theme.ui(13)).foregroundStyle(issue.body.isEmpty ? Theme.fg3 : Theme.fg)
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-            if let error = model.conversationErrors[key] {
+            if let error = model.threads[key]?.error {
                 Text("Could not load the thread: \(error). gB opens it on GitHub.").font(Theme.ui(12))
                     .foregroundStyle(Theme.err)
-            } else if model.conversationsLoading.contains(key) {
+            } else if model.threads[key]?.isLoading == true {
                 Text("Loading the thread…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
             }
         }

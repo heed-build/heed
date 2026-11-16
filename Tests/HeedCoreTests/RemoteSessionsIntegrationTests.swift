@@ -13,10 +13,7 @@ private var zmxHostSetup: (dir: String, target: String, tarballs: String)? {
 /// in for you installing zmx on the host, into ~/.local/bin as heed's instructions say.
 @Suite(
     .serialized,
-    .enabled(
-        if: zmxHostSetup != nil,
-        "needs HEED_SSH_TEST, HEED_SSH_TEST_TARGET and HEED_ZMX_TARBALLS"
-    )
+    .enabled(if: zmxHostSetup != nil, "needs HEED_SSH_TEST, HEED_SSH_TEST_TARGET and HEED_ZMX_TARBALLS")
 )
 struct RemoteSessionsIntegrationTests {
     @Test func installHooksAndEventsComeBack() async throws {

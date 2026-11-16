@@ -10,7 +10,7 @@ private var sshTestSetup: (dir: String, target: String)? {
 
 /// Against a real ssh host, when one is set up: HEED_SSH_TEST=<dir> with `id` (a key the host accepts) and
 /// `known_hosts`, and HEED_SSH_TEST_TARGET (e.g. ssh://dev@127.0.0.1:2222) for a host with ~/code/docs-toolkit (origin
-/// acme/docs-toolkit) and a worktree ~/code/wt/flake-hunt. Skipped (and reported as skipped) otherwise.
+/// acme/docs-toolkit) and a worktree ~/code/wt/flake-hunt. Skipped otherwise.
 @Suite(.serialized, .enabled(if: sshTestSetup != nil, "needs HEED_SSH_TEST and HEED_SSH_TEST_TARGET"))
 struct RemoteIntegrationTests {
     /// Runs `operation` with "box" routed to the test host, through the throwaway key and known_hosts, for this test's

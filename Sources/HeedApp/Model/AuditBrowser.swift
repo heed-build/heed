@@ -26,6 +26,13 @@ final class AuditBrowser {
     private(set) var startedAt: Date
     @ObservationIgnored private var search = ""
     @ObservationIgnored private(set) var log: EventLog?
+    /// Writes to the log in order (`AuditWriter`).
+    @ObservationIgnored private var writer: AuditWriter?
+    /// Rows recorded but not in the log yet, and why: shown under the header until they are written.
+    private(set) var writeStatus = AuditWriter.Status.saved
+    /// Until the log is read, records wait in `buffered` (and show), and are written once it is.
+    @ObservationIgnored private var loading: Bool
+    @ObservationIgnored private var buffered: [(causes: [String], record: AuditRecord)] = []
     /// Causes in the log (or about to be): one is written the first time a row names it.
     @ObservationIgnored private var written: Set<String> = []
     /// Causes made this run that nothing has named yet: a key press that changes nothing outside is never written.
@@ -38,6 +45,7 @@ final class AuditBrowser {
     @ObservationIgnored private var toldCauses: [String: String] = [:]
 
     init(fixture: Bool, now: Date = Clock.now) {
+        loading = !fixture
         startedAt = fixture ? now.addingTimeInterval(-30 * 86400)
             : UserDefaults.standard.object(forKey: "audit.startedAt") as? Date ?? now
         if fixture {
@@ -55,33 +63,38 @@ final class AuditBrowser {
     /// What the tab says: actions in the last 7 days.
     func weekCount(now: Date = Clock.now) -> Int { book.count(since: now.addingTimeInterval(-7 * 86400)) }
 
-    /// Reads what the log keeps, prunes what is past a year, and lists the rules already in `roots`' settings.
+    /// Reads what the log keeps, prunes what is past a year, and lists the rules already in `roots`' settings. What is
+    /// recorded until the log is read waits, and is written once after it, so a cause the log has is not written again.
     func attach(log: EventLog?, roots: @escaping @Sendable () async -> [String]) {
         self.log = log
-        guard let log else { return }
+        guard let log else { return adopt(AuditBook(), before: []) }
+        writer = AuditWriter(log: log) { [weak self] status in
+            await MainActor.run { self?.writeStatus = status }
+        }
         Task { [weak self] in
             await log.pruneAudit(now: Date())
-            guard let (records, broken) = try? await log.audit() else { return }
-            let book = AuditBook(records, broken: broken)
+            let loaded = await (try? log.audit()).map { AuditBook($0.records, broken: $0.broken) } ?? AuditBook()
             let paths = await roots()
-            let known = book.grantIdentities
+            let known = loaded.grantIdentities
             let before = await Task.detached { AlwaysRules.beforeAudit(roots: paths, known: known) }.value
-            self?.adopt(book, before: before)
+            self?.adopt(loaded, before: before)
         }
     }
 
     private func adopt(_ loaded: AuditBook, before: [AuditGrant]) {
-        // What was recorded while the log was being read stays.
-        var merged = loaded
-        let fresh = book.actions.filter { action in !loaded.actions.contains { $0.id == action.id } }
-        merged.apply(book.causes.values.map(AuditRecord.cause) + fresh.map(AuditRecord.action)
-            + book.grants.map(AuditRecord.grant))
         written.formUnion(loaded.causes.keys)
         for cause in loaded.causes.values {
             if let session = cause.session, sessionCauses[session] == nil { sessionCauses[session] = cause.id }
         }
-        book = merged
+        book = loaded
         self.before = before
+        loading = false
+        // What was recorded while the log was being read, in order, as if it came now.
+        let waiting = buffered
+        buffered = []
+        for (causes, record) in waiting {
+            append(causes, record)
+        }
         refilter()
     }
 
@@ -160,10 +173,15 @@ final class AuditBrowser {
     }
 
     private func append(_ causes: [String], _ record: AuditRecord) {
+        if loading {
+            buffered.append((causes, record))
+            book.apply(causes.compactMap { cause($0) }.map(AuditRecord.cause) + [record])
+            return refilter()
+        }
         let records = causes.flatMap(chainRecords) + [record]
         book.apply(records)
         refilter()
-        if let log { Task { await log.appendAudit(records) } }
+        writer?.append(records)
     }
 
     /// `d` on `grant` was confirmed: false while a try is under way, or once it is taken back.
@@ -173,8 +191,9 @@ final class AuditBrowser {
         return true
     }
 
-    /// The whole record as stored, for the export.
+    /// The whole record as stored, for the export, once what is queued is written.
     func exportText() async -> String? {
+        await writer?.flush()
         guard let log, let rows = try? await log.auditRows() else { return nil }
         return AuditChain.exportLines(rows)
     }

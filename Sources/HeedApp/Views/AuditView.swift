@@ -14,6 +14,7 @@ struct AuditView: View {
                 VStack(spacing: 0) {
                     header
                     if let broken = audit.book.broken { ChainWarning(broken: broken) }
+                    if audit.writeStatus.unsaved > 0 { UnsavedWarning(status: audit.writeStatus) }
                     switch audit.section {
                     case .actions:
                         ListBody(
@@ -115,6 +116,26 @@ private struct ChainWarning: View {
         HStack(spacing: 8) {
             Image(systemName: "link").font(.system(size: 10)).foregroundStyle(Theme.block)
             Text("The record's chain breaks at row \(broken.seq): \(broken.reason).")
+                .font(Theme.ui(11.5)).foregroundStyle(Theme.fg2)
+                .lineLimit(2)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 7)
+        .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+    }
+}
+
+/// Rows recorded this run that are not in `heed.sqlite` yet: they show, and are written with the next one.
+private struct UnsavedWarning: View {
+    let status: AuditWriter.Status
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "externaldrive.badge.exclamationmark").font(.system(size: 10))
+                .foregroundStyle(Theme.block)
+            Text("\(status.unsaved) row\(status.unsaved == 1 ? "" : "s") not in the record yet: "
+                + "\(status.problem ?? "the write failed"). heed tries again with the next one.")
                 .font(Theme.ui(11.5)).foregroundStyle(Theme.fg2)
                 .lineLimit(2)
             Spacer(minLength: 0)

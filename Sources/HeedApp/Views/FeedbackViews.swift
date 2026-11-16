@@ -9,7 +9,7 @@ struct PullOverlayView: View {
         if model.feedbackPull != nil || model.notesSession != nil {
             GeometryReader { geometry in
                 HStack(spacing: 0) {
-                    Color.black.opacity(0.45).frame(width: min(330, geometry.size.width * 0.25))
+                    Theme.scrim.opacity(0.45).frame(width: min(330, geometry.size.width * 0.25))
                     VStack(spacing: 0) {
                         tabs(current: model.feedbackPull, wide: geometry.size.width > 1100)
                         if let ref = model.feedbackPull {
@@ -57,7 +57,7 @@ struct PullOverlayView: View {
                             // A click goes to the tab as h and l would, counted.
                             .contentShape(Rectangle())
                             .pointerStyle(.link)
-                            .onTapGesture {
+                            .tap {
                                 let from = tabs.firstIndex(of: current) ?? 0
                                 if let step = Clicks.tabStep(from: from, to: index, count: tabs.count) {
                                     model.clickHint(step)

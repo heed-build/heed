@@ -9,7 +9,7 @@ struct ResumeView: View {
         if let form = model.resume {
             GeometryReader { geometry in
                 ZStack {
-                    Color.black.opacity(0.6)
+                    Theme.scrim.opacity(0.6)
                     ListScroll {
                         dialog(form)
                             .frame(width: min(1060, max(geometry.size.width - 48, 360)))
@@ -43,7 +43,7 @@ struct ResumeView: View {
             ForEach(Array(form.candidates.enumerated()), id: \.element.id) { index, candidate in
                 row(candidate, selected: form.selected.contains(candidate.id), focused: index == form.cursor)
                     .contentShape(Rectangle())
-                    .onTapGesture { model.clickResume(row: index) }
+                    .tap { model.clickResume(row: index) }
                     .pointerStyle(.link)
                     .help(form.selected.contains(candidate.id) ? "Leave this session closed" : "Resume this session")
             }
@@ -80,7 +80,7 @@ struct ResumeView: View {
                     Text("toggle").foregroundStyle(Theme.fg3)
                 }
                 .clickable()
-                .onTapGesture { model.press([KeyStroke("Space")]) }
+                .tap { model.press([KeyStroke("Space")]) }
                 .help("Tick or untick the highlighted session")
                 KeyCap(text: "j k")
                 Text("move").foregroundStyle(Theme.fg3)
@@ -94,7 +94,7 @@ struct ResumeView: View {
                 .padding(.vertical, 8)
                 .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
                 .contentShape(Rectangle())
-                .onTapGesture { model.press([.escape]) }
+                .tap { model.press([.escape]) }
                 .pointerStyle(.link)
                 .help("Start without resuming anything")
                 HStack(spacing: 6) {
@@ -107,7 +107,7 @@ struct ResumeView: View {
                 .padding(.vertical, 8)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.inverse))
                 .contentShape(Rectangle())
-                .onTapGesture { model.press([KeyStroke("CR")]) }
+                .tap { model.press([KeyStroke("CR")]) }
                 .pointerStyle(.link)
                 .help("Resume the ticked sessions")
             }

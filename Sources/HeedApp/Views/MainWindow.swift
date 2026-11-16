@@ -313,7 +313,7 @@ struct TitleBar: View {
                     key: compact ? nil : model.keyCap(for: view.tabCommand)
                 )
                 .axID("view-tab-\(view.rawValue)")
-                .onTapGesture { model.perform(CommandInvocation(name: view.tabCommand)) }
+                .tap { model.perform(CommandInvocation(name: view.tabCommand)) }
             }
         }
     }
@@ -805,7 +805,7 @@ extension CommandLineView {
         .contentShape(Rectangle())
         .pointerStyle(.link)
         .onTapGesture(count: 2) { model.clickCompletion(match, run: true) }
-        .onTapGesture { model.clickCompletion(match) }
+        .tap { model.clickCompletion(match) }
     }
 }
 
@@ -816,7 +816,7 @@ struct ConfirmationView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.5)
+            Theme.scrim.opacity(0.5)
             VStack(alignment: .leading, spacing: 14) {
                 Text(confirmation.title).font(Theme.ui(15, weight: .semibold))
                     .fixedSize(horizontal: false, vertical: true)
@@ -864,7 +864,7 @@ struct ConfirmationView: View {
                         .background(RoundedRectangle(cornerRadius: 6)
                             .strokeBorder(alternative.destructive ? Theme.err.opacity(0.6) : Theme.line))
                         .contentShape(Rectangle())
-                        .onTapGesture { model.chooseAlternative(alternative.key) }
+                        .tap { model.chooseAlternative(alternative.key) }
                     }
                     HStack(spacing: 6) {
                         Text(confirmation.accept).fontWeight(.semibold)
@@ -876,7 +876,7 @@ struct ConfirmationView: View {
                     .background(RoundedRectangle(cornerRadius: 6)
                         .fill(confirmation.destructive ? Theme.err : Theme.inverse))
                     .contentShape(Rectangle())
-                    .onTapGesture { model.acceptConfirmation() }
+                    .tap { model.acceptConfirmation() }
                 }
                 .font(Theme.ui(12.5))
             }
@@ -897,7 +897,7 @@ struct ImportPickerView: View {
     var body: some View {
         let matches = picker.matches
         ZStack {
-            Color.black.opacity(0.5)
+            Theme.scrim.opacity(0.5)
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Import a worktree").font(Theme.ui(15, weight: .semibold))
@@ -945,7 +945,7 @@ struct ImportPickerView: View {
                                 .padding(.vertical, 9)
                                 .background(index == picker.cursor ? Theme.bg3 : .clear)
                                 .contentShape(Rectangle())
-                                .onTapGesture { model.pickImport(worktree) }
+                                .tap { model.pickImport(worktree) }
                                 .id(index)
                             }
                         }
@@ -992,7 +992,7 @@ struct TaskPickerView: View {
         let picker = state.picker
         let matches = picker.matches
         ZStack {
-            Color.black.opacity(0.5).onTapGesture { model.cancelTaskPicker() }
+            Theme.scrim.opacity(0.5).onTapGesture { model.cancelTaskPicker() }
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Run a task").font(Theme.ui(15, weight: .semibold))
@@ -1033,7 +1033,7 @@ struct TaskPickerView: View {
                                     if index == picker.cursor { Theme.block.frame(width: 2) }
                                 }
                                 .contentShape(Rectangle())
-                                .onTapGesture { model.pickTask(task) }
+                                .tap { model.pickTask(task) }
                                 .id(index)
                             }
                         }
@@ -1075,7 +1075,7 @@ struct PathImportView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.5)
+            Theme.scrim.opacity(0.5)
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Import a path").font(Theme.ui(15, weight: .semibold))
@@ -1164,12 +1164,12 @@ private struct TutorReminderView: View {
                     if let key = model.keyLabel(for: "tutor") { KeyCap(text: key) }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoverButtonStyle())
             .help("Start the lesson")
             Button { model.hideTutorReminder() } label: {
                 Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoverButtonStyle())
             .help("Stop reminding me (:tutor.hide)")
         }
         .foregroundStyle(Theme.block)
@@ -1191,7 +1191,7 @@ struct HostsPickerView: View {
         let matches = picker.matches
         let selected = matches.indices.contains(picker.cursor) ? matches[picker.cursor] : nil
         ZStack {
-            Color.black.opacity(0.5)
+            Theme.scrim.opacity(0.5)
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Hosts").font(Theme.ui(15, weight: .semibold))
@@ -1259,7 +1259,7 @@ struct HostsPickerView: View {
                                 if index == picker.cursor { Theme.block.frame(width: 2) }
                             }
                             .contentShape(Rectangle())
-                            .onTapGesture { model.pickHost(row) }
+                            .tap { model.pickHost(row) }
                         }
                     }
                     .frame(width: 330, alignment: .leading)
@@ -1419,7 +1419,7 @@ struct HostRootsView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.5)
+            Theme.scrim.opacity(0.5)
                 .onTapGesture { model.cancelHostRootsChooser() }
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -1574,7 +1574,7 @@ struct LinkPickerView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.5)
+            Theme.scrim.opacity(0.5)
                 .onTapGesture { model.cancelLinkPicker() }
             VStack(alignment: .leading, spacing: 0) {
                 Text(picker.title).font(Theme.ui(15, weight: .semibold)).padding(18)
@@ -1599,7 +1599,7 @@ struct LinkPickerView: View {
                     .background(index == picker.cursor ? Theme.bg3 : .clear)
                     .overlay(alignment: .leading) { if index == picker.cursor { Theme.block.frame(width: 2) } }
                     .contentShape(Rectangle())
-                    .onTapGesture { model.open(link, browser: true) }
+                    .tap { model.open(link, browser: true) }
                 }
                 HStack(spacing: 14) {
                     hint("1–9", "open")

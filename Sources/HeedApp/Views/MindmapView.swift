@@ -64,7 +64,7 @@ struct MindmapView: View {
                         }
                         ForEach(path, id: \.id) { node in
                             MindmapCard(node: node, tree: tree, style: .path).wireAnchor(node.id)
-                                .onTapGesture { model.mindmap.focus = node.id }
+                                .tap { model.mindmap.focus = node.id }
                         }
                     }
                     column(
@@ -75,14 +75,14 @@ struct MindmapView: View {
                         ForEach(siblings, id: \.id) { node in
                             MindmapCard(node: node, tree: tree, style: node.id == focus?.id ? .focus : .sibling)
                                 .wireAnchor(node.id)
-                                .onTapGesture { model.mindmap.focus = node.id }
+                                .tap { model.mindmap.focus = node.id }
                         }
                     }
                     column("Inside", count: inside.count, width: 300) {
                         ForEach(inside, id: \.id) { node in
                             MindmapCard(node: node, tree: tree, style: .inside, depth: mindmap.depth - 1)
                                 .wireAnchor(node.id)
-                                .onTapGesture { model.mindmap.focus = node.id }
+                                .tap { model.mindmap.focus = node.id }
                         }
                     }
                     Spacer(minLength: 0)
@@ -105,7 +105,7 @@ struct MindmapView: View {
         HStack(spacing: 6) {
             ForEach(model.mindmap.instances, id: \.self) { instance in
                 TabLabel(title: MindmapInstance.title(instance), active: instance == model.mindmap.instance)
-                    .onTapGesture {
+                    .tap {
                         model.mindmap.instance = instance
                         model.mindmap.focus = nil
                     }
@@ -315,7 +315,7 @@ private struct MindmapDetail: View {
                                 Text(tree[link.target]?.title ?? link.target).font(Theme.ui(12.5)).lineLimit(1)
                             }
                             .contentShape(Rectangle())
-                            .onTapGesture { model.mindmap.focus = link.target }
+                            .tap { model.mindmap.focus = link.target }
                         }
                     }
                 }
@@ -472,10 +472,10 @@ private struct MindmapJudge: View {
             }
             Image(systemName: "checkmark")
                 .help("heed put it in the right place (\(model.keyText(for: "mindmap.accept", in: "mindmap")))")
-                .onTapGesture { model.judgeMindmap(node.id, keep: true) }
+                .tap { model.judgeMindmap(node.id, keep: true) }
             Image(systemName: "arrow.turn.up.right")
                 .help("move it somewhere else (\(model.keyText(for: "mindmap.move", in: "mindmap")))")
-                .onTapGesture { model.judgeMindmap(node.id, keep: false) }
+                .tap { model.judgeMindmap(node.id, keep: false) }
         }
         .font(Theme.ui(10.5))
         .foregroundStyle(hovered ? Theme.fg2 : Theme.fg3.opacity(0.7))

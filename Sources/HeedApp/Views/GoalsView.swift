@@ -16,7 +16,7 @@ struct GoalsView: View {
                 list
             }
             if let goal = goals.wizard.tldr {
-                Color.black.opacity(0.55).ignoresSafeArea()
+                Theme.scrim.opacity(0.55).ignoresSafeArea()
                     .onTapGesture { model.perform(CommandInvocation(name: "goal.tldr")) }
                 WizardTLDRView(goal: goal).padding(.horizontal, 32).padding(.top, 60)
             }
@@ -110,7 +110,7 @@ private struct GoalList: View {
                         )
                         .hint(goals.focus == .goals ? model.hintLabel(for: .row(.goals, index)) : nil)
                         .contentShape(Rectangle())
-                        .onTapGesture { model.clickGoal(index) }
+                        .tap { model.clickGoal(index) }
                         .simultaneousGesture(TapGesture(count: 2).onEnded { model.clickGoal(index, open: true) })
                         .rightClickMenu {
                             guard model.clicksReachLists else { return false }
@@ -356,7 +356,7 @@ private struct OnTheGoal: View {
                     .overlay(alignment: .leading) { if isCursor { Theme.block.frame(width: 2) } }
                     .hint(goals.focus == .links ? model.hintLabel(for: .row(.goals, index)) : nil)
                     .contentShape(Rectangle())
-                    .onTapGesture { model.clickGoalLink(index) }
+                    .tap { model.clickGoalLink(index) }
                     .simultaneousGesture(TapGesture(count: 2).onEnded { model.clickGoalLink(index, open: true) })
                     .rightClickMenu {
                         guard model.clicksReachLists else { return false }
@@ -601,7 +601,7 @@ struct GoalFormView: View {
         let notes = form?.notes ?? []
         let tried = form?.tried == true
         ZStack {
-            Color.black.opacity(0.45)
+            Theme.scrim.opacity(0.45)
             VStack(alignment: .leading, spacing: 14) {
                 Text("New goal").font(Theme.ui(16, weight: .semibold))
                 if let id = form?.session, let session = model.sessions.first(where: { $0.id == id }) {
@@ -668,7 +668,7 @@ struct GoalFormView: View {
                         Text("mirror it").font(Theme.ui(12.5))
                     }
                     .clickable()
-                    .onTapGesture { model.goals.form?.mirror.toggle() }
+                    .tap { model.goals.form?.mirror.toggle() }
                     .help(
                         "Make its issues on GitHub now, and keep them up to date (\(model.keyText(for: "goal.mirror", in: "goals")) on the goal does it later)"
                     )

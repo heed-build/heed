@@ -18,7 +18,7 @@ struct NudgeView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black.opacity(0.45).onTapGesture { model.closeNudge(seen: false) }
+                Theme.scrim.opacity(0.45).tap { model.closeNudge(seen: false) }
                 // The list scrolls only past what the window has room for.
                 NudgeCard(nudge: nudge, cap: max(geometry.size.height - 320, 240))
                     .frame(width: min(640, max(geometry.size.width - 48, 360)))
@@ -316,7 +316,7 @@ private struct NudgeButton: View {
         .background(RoundedRectangle(cornerRadius: 6).fill(primary ? Theme.inverse : .clear))
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(primary ? .clear : Theme.line))
         .contentShape(Rectangle())
-        .onTapGesture(perform: action)
+        .tap(action)
         .pointerStyle(.link)
         .help(help)
         .fixedSize()
@@ -337,12 +337,12 @@ struct NudgePillView: View {
                 Text(compact ? "\(count) to look at" : "\(count) setting\(count == 1 ? "" : "s") worth a look")
                     .fixedSize()
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoverButtonStyle())
             .help("Go through them (:settings.configure)")
             Button { model.hideNudgePill(always: false) } label: {
                 Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoverButtonStyle())
             .help("Hide until the next launch (:nudges.hide; :nudges.hide always for good)")
         }
         .foregroundStyle(tint)

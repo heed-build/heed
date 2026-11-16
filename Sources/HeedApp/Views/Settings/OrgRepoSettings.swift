@@ -257,7 +257,7 @@ private struct OverrideTabStrip: View {
                         count: count > 0 ? "● \(count)" : nil
                     )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverButtonStyle())
                 .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
                 .help(
                     "\(tab.title): \(count == 0 ? "no" : "\(count)") override\(count == 1 ? "" : "s") here (⌘\(index + 1))"
@@ -368,7 +368,7 @@ private struct OverrideRow: View {
         } label: {
             Image(systemName: "arrow.uturn.backward").font(.system(size: 11))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverButtonStyle())
         .foregroundStyle(own ? Theme.fg2 : Theme.fg3.opacity(0.3))
         .disabled(!own)
         .help(own ? "Use the inherited value" : "Not overridden here")
@@ -451,7 +451,7 @@ private struct OverrideRow: View {
                         .frame(width: 14, height: 14)
                         .overlay(Circle().strokeBorder(Theme.fg, lineWidth: current == palette.rawValue ? 2 : 0)
                             .padding(-3))
-                        .onTapGesture { model.setConfig(path, .string(palette.rawValue)) }
+                        .tap { model.setConfig(path, .string(palette.rawValue)) }
                 }
             }
         }

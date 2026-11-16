@@ -130,7 +130,7 @@ struct Inspector: View {
     private func linkRow(_ link: SessionLink, session: Session) -> some View {
         LinkCard(session: session, link: link)
             .contentShape(Rectangle())
-            .onTapGesture { model.open(link, browser: true) }
+            .tap { model.open(link, browser: true) }
             .help("\(link.url)\nClick opens it on GitHub; right-click for more")
             .rightClickMenu { model.rightClickNamed() } _: { menu(for: link) }
     }
@@ -163,7 +163,7 @@ struct Inspector: View {
                             .padding(.horizontal, 7).padding(.vertical, 1)
                             .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Theme.line))
                             .contentShape(Rectangle())
-                            .onTapGesture { model.tackle(loose.map(\.item), in: session) }
+                            .tap { model.tackle(loose.map(\.item), in: session) }
                             .help("Hand every loose end to \(session.agent) in one prompt")
                     }
                     CappedScroll(cap: Self.lines(3)) {
@@ -214,7 +214,7 @@ struct Inspector: View {
         }
         .frame(height: 22, alignment: .leading)
         .contentShape(Rectangle())
-        .onTapGesture { model.tackle([item], in: session) }
+        .tap { model.tackle([item], in: session) }
         .help("\(item.text)\nClick hands it to \(session.agent); right-click to mark it done")
         .rightClickMenu { model.rightClickNamed() } _: {
             [
@@ -239,7 +239,7 @@ struct Inspector: View {
                 .font(Theme.mono(10.5)).foregroundStyle(Theme.block.opacity(0.8)).lineLimit(1).padding(.leading, 16)
         }
         .contentShape(Rectangle())
-        .onTapGesture { model.select(sessionID: other.id) }
+        .tap { model.select(sessionID: other.id) }
         .help(files.joined(separator: "\n"))
         .rightClickMenu { model.rightClickNamed() } _: {
             [.header(other.title), .item(MenuItem(
@@ -267,7 +267,7 @@ struct Inspector: View {
                         }
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture { model.copyPath(worktree.path) }
+                    .tap { model.copyPath(worktree.path) }
                     .help(
                         "\(worktree.path)\(worktree.status?.upstream.map { "\n↥ \($0)" } ?? "")\n"
                             + "Click copies it; right-click opens a shell there"
@@ -372,7 +372,7 @@ struct Inspector: View {
                     .font(Theme.ui(11.5, weight: .medium))
                     .foregroundStyle(Theme.busy)
                     .contentShape(Rectangle())
-                    .onTapGesture {
+                    .tap {
                         if let url = URL(string: IssueLinks.compareURL(repo: repo, branch: session.branch)) {
                             NSWorkspace.shared.open(url)
                         }
@@ -549,7 +549,7 @@ private struct LinkCard: View {
             )
             .contentShape(Rectangle())
             // Its tab, not the PR overlay the rest of the card opens.
-            .onTapGesture { model.open(run: run) }
+            .tap { model.open(run: run) }
             .help("Go to the run's tab")
         }
     }
@@ -729,7 +729,7 @@ struct RunReaderView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.5).onTapGesture { model.runReader = nil }
+            Theme.scrim.opacity(0.5).tap { model.runReader = nil }
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
                     Text(verbatim: "\(run.goal.rawValue) · \(run.ref.repo.name) #\(run.ref.number)")
@@ -819,7 +819,7 @@ private struct AgentEventsLine: View {
                 }
             }
             .contentShape(Rectangle())
-            .onTapGesture { open.toggle() }
+            .tap { open.toggle() }
             if open {
                 UsageLine(session: session)
                 ForEach(subagents) { subagent in
@@ -945,7 +945,7 @@ private struct PullCardRows: View {
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(tint.opacity(0.3)))
         .contentShape(Rectangle())
         // Its own action rather than the card's (which opens GitHub): the PR view, or merging.
-        .onTapGesture {
+        .tap {
             if good {
                 model.perform(CommandInvocation(name: "pilot.merge.now", target: .pull(pull.ref)))
             } else {
@@ -1017,7 +1017,7 @@ private struct RunBlocks: View {
                 RoundedRectangle(cornerRadius: 2).fill(Self.tint(run.outcome)).frame(width: 11, height: 7)
                     .padding(.vertical, 4)
                     .contentShape(Rectangle())
-                    .onTapGesture { model.open(run: run) }
+                    .tap { model.open(run: run) }
                     .help("\(run.goal.rawValue) · \(run.agent) · \(run.outcome?.text ?? "running") · "
                         + Ages.short(run.startedAt) + " ago\nClick to open it")
             }

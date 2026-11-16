@@ -112,9 +112,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_: Notification) {
-        // Heed's palette is dark only. Without this, anything left to the system colours (a Text with no style, native
-        // controls, Settings) follows macOS and turns black on the dark panels in light mode.
-        NSApp.appearance = NSAppearance(named: .darkAqua)
+        // The app's appearance is set, rather than left to macOS: anything left to the system colours (a Text with no
+        // style, native controls, Settings) must agree with Heed's own palette, or it turns black on dark panels.
+        // The docs' screenshots are always dark.
+        if ShotRunner.requested || TutorCheck.requested || WorldSeed.requested {
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        } else if let forced = ProcessInfo.processInfo.environment["HEED_APPEARANCE"]
+            .flatMap(Appearance.init(rawValue:))
+        {
+            // For snapshots: `HEED_FIXTURE=main HEED_APPEARANCE=light HEED_SNAPSHOT=out.png`.
+            AppearanceControl.apply(forced, remember: false)
+        } else {
+            AppearanceControl.applyStored()
+        }
         // HEED_SHOTS: render the docs' screenshots from the fake world, then quit; nothing else starts.
         if TutorCheck.requested {
             NSApp.setActivationPolicy(.accessory)
@@ -165,7 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ?? NSApp.windows.first
         else { return }
         window.identifier = AppModel.mainWindowID
-        window.backgroundColor = NSColor(red: 0.067, green: 0.071, blue: 0.078, alpha: 1)
+        window.backgroundColor = NSColor(Theme.bg)
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = false
         Snapshot.runIfRequested(window: window, host: host)

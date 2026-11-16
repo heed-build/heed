@@ -132,7 +132,7 @@ private struct TabStrip: View {
                 .background(GeometryReader { geometry in
                     Color.clear.preference(key: TabWidths.self, value: [tab.id: geometry.size.width])
                 })
-                .onTapGesture { model.selectTab(index) }
+                .tap { model.selectTab(index) }
                 .rightClickMenu { model.rightClickTab(index) } _: { model.tabMenu(tab.id) }
                 // Dragged along the strip, the tab follows the pointer and the others make room; let go, it moves.
                 .offset(x: dragIndex == index ? dragging?.offset ?? 0 : dragIndex.flatMap { from in
@@ -159,7 +159,7 @@ private struct TabStrip: View {
             Text("+").font(Theme.mono(13)).foregroundStyle(Theme.fg3).padding(.horizontal, 14)
                 .frame(height: 36)
                 .contentShape(Rectangle())
-                .onTapGesture { model.perform(CommandInvocation(name: "tab.new")) }
+                .tap { model.perform(CommandInvocation(name: "tab.new")) }
                 .help("New tab (:tab.new)")
             Spacer()
             HStack(spacing: 10) {
@@ -230,7 +230,7 @@ private struct TabCloseButton: View {
             .background(RoundedRectangle(cornerRadius: 4).fill(hovering ? Theme.bg3 : .clear))
             .contentShape(Rectangle())
             .onHover { hovering = $0 }
-            .onTapGesture(perform: action)
+            .tap(action)
             .help("Close tab (:tab.close)")
     }
 }
@@ -428,7 +428,7 @@ final class DividerHandleView: NSView {
 
     override func draw(_: NSRect) {
         guard hovering || start != nil else { return }
-        NSColor.white.withAlphaComponent(start != nil ? 0.35 : 0.2).setFill()
+        NSColor.labelColor.withAlphaComponent(start != nil ? 0.35 : 0.2).setFill()
         let line = axis == .horizontal
             ? NSRect(x: bounds.midX - 1, y: 0, width: 2, height: bounds.height)
             : NSRect(x: 0, y: bounds.midY - 1, width: bounds.width, height: 2)
@@ -529,7 +529,7 @@ private struct PaneView: View {
         // White only on the pane your keys go to (INSERT); in NORMAL no pane takes input, so the focused one is quiet.
         .overlay {
             if active, model.mode == .insert {
-                Rectangle().strokeBorder(Color.white, lineWidth: 1.5)
+                Rectangle().strokeBorder(Theme.fg, lineWidth: 1.5)
             } else if active {
                 Rectangle().strokeBorder(Theme.paneActive.opacity(0.3), lineWidth: 1)
             }

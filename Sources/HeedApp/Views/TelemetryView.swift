@@ -216,7 +216,7 @@ private struct FilterBar: View {
 // MARK: Tiles and panels
 
 enum TelemetryColors {
-    static let read = Color(hex: 0x56C2D6)
+    static let read = Color.adaptive(0x56C2D6)
 
     static func lane(_ lane: String) -> Color {
         switch lane {

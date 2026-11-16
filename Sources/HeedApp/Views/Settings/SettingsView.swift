@@ -416,7 +416,7 @@ struct SettingsSidebar: View {
         .background(RoundedRectangle(cornerRadius: 5).fill(background(node)))
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(isCursor ? Theme.keyCapBorder : .clear))
         .contentShape(Rectangle())
-        .onTapGesture {
+        .tap {
             if let search {
                 // Searching, a page moves the search's cursor to its first match; groups stay open.
                 guard !node.isGroup, let page = node.page, search.count(page) > 0 else { return }
@@ -482,7 +482,7 @@ private struct ConfigureButton: View {
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.keyCapBorder))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverButtonStyle())
         .help("A profile, then the settings still worth deciding, then the changes to apply (:settings.configure)")
     }
 }

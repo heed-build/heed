@@ -137,7 +137,7 @@ struct AutopilotCanDoView: View {
                                 summary: model.autopilotSummary(capability), week: week[capability] ?? 0,
                                 nudge: AutopilotNudges.best(capability, in: nudges)
                             )
-                            .onTapGesture { model.clickAutopilotCard(capability) }
+                            .tap { model.clickAutopilotCard(capability) }
                         }
                     }
                     .padding(20)
@@ -437,7 +437,7 @@ struct AutopilotWhereView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(picked ? Theme.fg : .clear))
                             .contentShape(Rectangle())
-                            .onTapGesture { model.clickAutopilotCell(row: row, column: column) }
+                            .tap { model.clickAutopilotCell(row: row, column: column) }
                     }
                     Text(AutopilotNudges.couldHelp(repo.slug, in: nudges)?.short ?? "")
                         .font(Theme.ui(12)).foregroundStyle(Theme.block)
@@ -557,7 +557,7 @@ struct AutopilotDoneView: View {
                                         let line = starts[index] + offset
                                         DoneRow(entry: entry, selected: line == cursor)
                                             .id(entry.id)
-                                            .onTapGesture { model.clickRow(.autopilotDone, line) }
+                                            .tap { model.clickRow(.autopilotDone, line) }
                                     }
                                 }
                             }

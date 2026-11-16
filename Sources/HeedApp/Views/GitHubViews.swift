@@ -188,7 +188,7 @@ private struct PullRow: View {
 struct CheckBar: View {
     let checks: CheckSummary
 
-    private static let skippedColor = Color(hex: 0x3A4047)
+    private static let skippedColor = Color(dark: 0x3A4047, light: 0xC3C8CE)
     private static let gap: CGFloat = 2
     private static let thinnest: CGFloat = 3
 
@@ -413,7 +413,7 @@ struct FilterPill: View {
                 if !text.isEmpty {
                     Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.fg3)
                         .contentShape(Rectangle())
-                        .onTapGesture { model.clearFilter(view) }
+                        .tap { model.clearFilter(view) }
                 }
             }
             .padding(.horizontal, 9)
@@ -481,7 +481,7 @@ struct ListBody<Row: View>: View {
                             row(index)
                                 .hint(hintView.flatMap { model.hintLabel(for: .row($0, index)) })
                                 .contentShape(Rectangle())
-                                .onTapGesture { if let hintView { model.clickRow(hintView, index) } }
+                                .tap { if let hintView { model.clickRow(hintView, index) } }
                                 .simultaneousGesture(TapGesture(count: 2).onEnded {
                                     if let hintView { model.clickRow(hintView, index, open: true) }
                                 })

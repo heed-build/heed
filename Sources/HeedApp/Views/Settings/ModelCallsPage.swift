@@ -427,12 +427,12 @@ struct InferenceReminderView: View {
                     if let key = model.keyLabel(for: "inference.setup") { KeyCap(text: key) }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoverButtonStyle())
             .help("Open Settings › Model calls (:inference.setup)")
             Button { model.hideInferenceReminder(always: false) } label: {
                 Image(systemName: "xmark").font(.system(size: 9, weight: .semibold))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoverButtonStyle())
             .help("Hide until the next launch (:inference.hide; :inference.hide always for good)")
         }
         .foregroundStyle(tint)

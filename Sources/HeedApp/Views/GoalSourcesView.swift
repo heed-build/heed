@@ -117,7 +117,7 @@ struct SourceFormView: View {
         let what = parsed.map { ItemSourceQuery.what($0.query) } ?? .pulls
         let rule = form?.rule ?? parsed?.rule ?? .merged
         ZStack {
-            Color.black.opacity(0.45)
+            Theme.scrim.opacity(0.45)
             VStack(alignment: .leading, spacing: 12) {
                 Text(form?.editing == nil ? "New source" : "Change \(form?.editing ?? "")")
                     .font(Theme.ui(16, weight: .semibold))
@@ -147,7 +147,7 @@ struct SourceFormView: View {
                             .padding(.horizontal, 8).padding(.vertical, 3)
                             .background(RoundedRectangle(cornerRadius: 5).fill(picked ? Theme.block : Theme.bg3))
                             .clickable()
-                            .onTapGesture { model.goals.sourceForm?.rule = each }
+                            .tap { model.goals.sourceForm?.rule = each }
                     }
                 }
                 FieldNoteView(note: notes.note(for: "rule", tried: tried))

@@ -220,7 +220,7 @@ private struct AgentList: View {
                         )
                         .hint(goals.focus == .agents ? model.hintLabel(for: .row(.goals, index)) : nil)
                         .contentShape(Rectangle())
-                        .onTapGesture { model.clickAgent(index) }
+                        .tap { model.clickAgent(index) }
                         .simultaneousGesture(TapGesture(count: 2).onEnded {
                             model.clickAgent(index)
                             model.perform(CommandInvocation(name: "swarm.task.open"))

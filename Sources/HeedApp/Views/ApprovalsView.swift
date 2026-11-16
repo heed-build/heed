@@ -10,7 +10,7 @@ struct ApprovalsView: View {
         let groups = model.approvalGroups
         let selected = model.selectedApproval
         ZStack {
-            Color.black.opacity(0.5)
+            Theme.scrim.opacity(0.5)
             VStack(spacing: 0) {
                 header(groups.count)
                 Theme.line.frame(height: 1)
@@ -21,7 +21,7 @@ struct ApprovalsView: View {
                             ApprovalRow(group: group, selected: group.id == selected?.id)
                                 .axID("approval-row-\(index + 1)")
                                 .contentShape(Rectangle())
-                                .onTapGesture {
+                                .tap {
                                     model.approvals.cursor = index
                                 }
                         }
@@ -289,7 +289,7 @@ struct ApprovalStrip: View {
             .padding(.horizontal, 8).padding(.vertical, 2)
             .background(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
             .contentShape(Rectangle())
-            .onTapGesture(perform: action)
+            .tap(action)
     }
 }
 

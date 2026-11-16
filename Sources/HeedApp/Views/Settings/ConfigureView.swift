@@ -23,7 +23,7 @@ struct ConfigureView: View {
                 Button { model.configure = nil } label: {
                     Image(systemName: "xmark").font(.system(size: 11, weight: .semibold))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverButtonStyle())
                 .foregroundStyle(Theme.fg3)
                 .help("Close; nothing is written (esc)")
             }
@@ -125,7 +125,7 @@ private struct StepStrip: View {
                         .background(Capsule().fill(on ? Theme.selected : .clear))
                         .overlay(Capsule().strokeBorder(on ? Theme.fg2 : Theme.line))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverButtonStyle())
             }
         }
     }
@@ -165,7 +165,7 @@ private struct ProfileStep: View {
                     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(on ? Theme.fg2 : Theme.line))
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverButtonStyle())
             }
         }
     }

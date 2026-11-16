@@ -34,7 +34,7 @@ struct HelpOverlay: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.55)
+            Theme.scrim.opacity(0.55)
             helpCard.shotRegion(.help)
         }
     }
@@ -143,7 +143,7 @@ struct HelpOverlay: View {
                     .frame(height: 20)
                     // A click runs it, as its key would (one that needs an argument opens `:` with it typed).
                     .clickable()
-                    .onTapGesture { model.clickHelpRow(row.name) }
+                    .tap { model.clickHelpRow(row.name) }
                     .help(Clicks.help(CommandInvocation(name: row.name)))
                 }
                 Spacer().frame(height: 10)

@@ -22,7 +22,7 @@ struct TutorBanner: View {
             Spacer()
             Text(":q leave")
                 .contentShape(Rectangle())
-                .onTapGesture { model.perform(CommandInvocation(name: "tutor.exit")) }
+                .tap { model.perform(CommandInvocation(name: "tutor.exit")) }
         }
         .font(Theme.mono(12, weight: .medium))
         .foregroundStyle(Theme.ink)
@@ -88,7 +88,7 @@ private struct Spotlight: View {
                 path.addRoundedRect(in: hole, cornerSize: CGSize(width: 8, height: 8))
                 if let keepLit { path.addRect(keepLit) }
             }
-            .fill(Color.black.opacity(0.55), style: FillStyle(eoFill: true))
+            .fill(Theme.scrim.opacity(0.55), style: FillStyle(eoFill: true))
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(amber, lineWidth: 1.5)
                 .frame(width: hole.width, height: hole.height)
@@ -207,7 +207,7 @@ struct TutorCard: View {
     private func footerCommand(_ label: String, _ command: String) -> some View {
         Text(label)
             .contentShape(Rectangle())
-            .onTapGesture { model.perform(CommandInvocation(name: command)) }
+            .tap { model.perform(CommandInvocation(name: command)) }
     }
 }
 
@@ -301,7 +301,7 @@ struct TutorPickerView: View {
         let done = model.tutorRecord.done
         let progress = model.tutorRecord
         ZStack {
-            Color.black.opacity(0.5)
+            Theme.scrim.opacity(0.5)
             VStack(alignment: .leading, spacing: 0) {
                 Text(": tutor▌").font(Theme.mono(13)).padding(.horizontal, 18).padding(.vertical, 14)
                 Theme.line.frame(height: 1)
@@ -378,7 +378,7 @@ struct TutorPickerView: View {
         .background(selected ? Theme.bg3 : .clear)
         .overlay(alignment: .leading) { if selected { amber.frame(width: 2) } }
         .contentShape(Rectangle())
-        .onTapGesture { model.pickTutorRow(index) }
+        .tap { model.pickTutorRow(index) }
     }
 
     private func title(index: Int, lesson: TutorLesson?, replay: Bool) -> String {

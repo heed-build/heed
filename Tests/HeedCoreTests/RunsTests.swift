@@ -169,8 +169,7 @@ struct RunsTests {
             prBranch: "b", branch: "heed/get-it-green/b", worktree: "/wt", startSHA: "a"
         )
         domain.apply(.runUpdated(run))
-        run.endedAt = Date()
-        run.outcome = .pushed(1)
+        run.end(.pushed(1), at: Date())
         domain.apply(.runUpdated(run))
         #expect(domain.runs.count == 1 && domain.runs[0].outcome == .pushed(1))
         let data = try JSONEncoder().encode(domain)

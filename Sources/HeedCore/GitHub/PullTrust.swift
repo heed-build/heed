@@ -261,6 +261,17 @@ public final class WriteAccessBook: Sendable {
     }
 }
 
+public extension PullTrustBook {
+    /// Whether `ref` is trusted, asking GitHub who it is from (`GitHub.pullAuthorship`) when heed does not know yet:
+    /// the one way the app finds out before a run, helper or reviewer starts on a PR. `caller` names the ask in the
+    /// call log.
+    func resolveOnGitHub(_ ref: PullRef, viewer: String?, trustedAuthors: [String], caller: String) async -> Bool {
+        await resolve(ref, viewer: viewer, trustedAuthors: trustedAuthors) { ref in
+            try await GitHub.pullAuthorship(ref, caller: caller)
+        }
+    }
+}
+
 public extension GitHub {
     /// Who a PR is from: `gh pr view --json author,authorAssociation,isCrossRepository`, and for an organisation
     /// member, their permission on the repo (`canWrite`, through `WriteAccessBook.shared`).

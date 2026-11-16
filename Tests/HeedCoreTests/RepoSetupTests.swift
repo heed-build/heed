@@ -337,7 +337,7 @@ struct RepoSetupTests {
             ref: PullRef(repo: repo, number: 1), sessionID: "s", goal: goal, agent: agent, model: model,
             startedAt: now, items: 1, prBranch: "b", branch: "heed/b", worktree: "/tmp/b", startSHA: nil
         )
-        run.outcome = outcome
+        if let outcome { run.end(outcome, at: now) }
         return run
     }
 

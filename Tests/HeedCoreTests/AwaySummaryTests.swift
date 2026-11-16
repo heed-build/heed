@@ -116,8 +116,7 @@ struct AwaySummaryTests {
             ref: ref, sessionID: "s", goal: .green, agent: "codex", model: nil, startedAt: date(13, 7, 0), items: 1,
             prBranch: "fix", branch: "heed/get-it-green/fix", worktree: "/wt", startSHA: nil
         )
-        run.endedAt = date(13, 7, 6)
-        run.outcome = .pushed(2)
+        run.end(.pushed(2), at: date(13, 7, 6))
         domain.runs = [run]
         var done = Session(
             id: "s", title: "Bump", repos: [ref.repo], branch: "bump-tests", agent: "claude",

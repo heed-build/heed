@@ -69,19 +69,95 @@ public struct AuditGrant: Codable, Hashable, Sendable, Identifiable {
     public var identity: String { "\(kind.rawValue)\u{0}\(subject)\u{0}\(scope)" }
 }
 
-/// A grant taken back, in Audit. The grant is kept with it, so one listed as "before Audit" (never recorded) shows
-/// what went.
+/// A grant taken back in Audit, or a try that failed. The grant is kept with it, so one listed as "before Audit" (never
+/// recorded) shows what went.
 public struct AuditRevocation: Codable, Hashable, Sendable {
     public var grant: AuditGrant
     public var at: Date
     public var cause: String?
     /// What heed did, or why it could not.
     public var result: String
+    /// heed could not take the grant back: it still stands, and `d` tries again. Rows written before this was kept
+    /// have none, and read as taken back, as they did then.
+    public var failed: Bool
 
-    public init(grant: AuditGrant, at: Date, cause: String? = nil, result: String) {
+    public init(grant: AuditGrant, at: Date, cause: String? = nil, result: String, failed: Bool = false) {
         self.grant = grant
         self.at = at
         self.cause = cause
         self.result = result
+        self.failed = failed
+    }
+
+    /// The record of a try: what heed did, or why it could not.
+    public init(grant: AuditGrant, at: Date, cause: String? = nil, outcome: Result<String, AuditRevokeFailure>) {
+        switch outcome {
+        case let .success(result): self.init(grant: grant, at: at, cause: cause, result: result)
+        case let .failure(failure):
+            self.init(grant: grant, at: at, cause: cause, result: failure.message, failed: true)
+        }
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        grant = try container.decode(AuditGrant.self, forKey: .grant)
+        at = try container.decode(Date.self, forKey: .at)
+        cause = try container.decodeIfPresent(String.self, forKey: .cause)
+        result = try container.decode(String.self, forKey: .result)
+        failed = try container.decodeIfPresent(Bool.self, forKey: .failed) ?? false
+    }
+}
+
+/// Why a grant could not be taken back, in a few words.
+public struct AuditRevokeFailure: Error, Hashable, Sendable {
+    public var message: String
+
+    public init(_ message: String) { self.message = message }
+}
+
+/// Where a grant stands: given, being taken back (`d` was confirmed and heed is at it), taken back, or a try that
+/// failed, which leaves it standing and can be tried again.
+public enum GrantState: Hashable, Sendable {
+    case standing
+    case revoking(since: Date)
+    case revoked(AuditRevocation)
+    case failed(AuditRevocation)
+
+    public enum Event: Hashable, Sendable {
+        case revokeStarted(at: Date)
+        case revokeFinished(AuditRevocation)
+    }
+
+    /// The state after `event`. Starting again while one try is under way, or once the grant is taken back, changes
+    /// nothing.
+    public func reduce(_ event: Event) -> GrantState {
+        switch (self, event) {
+        case let (.standing, .revokeStarted(at)), let (.failed, .revokeStarted(at)): .revoking(since: at)
+        case (.revoking, .revokeStarted), (.revoked, .revokeStarted): self
+        case let (_, .revokeFinished(revocation)):
+            if revocation.failed { .failed(revocation) } else { .revoked(revocation) }
+        }
+    }
+
+    /// Whether `d` starts a try.
+    public var canRevoke: Bool {
+        switch self {
+        case .standing, .failed: true
+        case .revoking, .revoked: false
+        }
+    }
+
+    /// The grant was taken back.
+    public var isRevoked: Bool {
+        if case .revoked = self { return true }
+        return false
+    }
+
+    /// The last try's record, taken back or failed.
+    public var revocation: AuditRevocation? {
+        switch self {
+        case let .revoked(revocation), let .failed(revocation): revocation
+        case .standing, .revoking: nil
+        }
     }
 }

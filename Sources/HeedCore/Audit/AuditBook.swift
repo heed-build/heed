@@ -6,8 +6,8 @@ public struct AuditBook: Hashable, Sendable {
     public private(set) var causes: [String: Cause] = [:]
     public private(set) var actions: [AuditAction] = []
     public private(set) var grants: [AuditGrant] = []
-    /// By grant id.
-    public private(set) var revoked: [String: AuditRevocation] = [:]
+    /// By grant id: where each grant that was revoked, or is being, stands. Absent is standing.
+    public private(set) var grantStates: [String: GrantState] = [:]
     /// Where the record's chain stopped holding, when it did.
     public var broken: AuditChain.Break?
 
@@ -25,10 +25,29 @@ public struct AuditBook: Hashable, Sendable {
                 actions.append(action)
                 added = true
             case let .grant(grant): grants.append(grant)
-            case let .revoke(revocation): revoked[revocation.grant.id] = revocation
+            case let .revoke(revocation): update(revocation.grant.id, .revokeFinished(revocation))
             }
         }
         if added { actions.sort { $0.at != $1.at ? $0.at > $1.at : $0.id > $1.id } }
+    }
+
+    /// `d` on `grant` was confirmed: false (nothing changes) while a try is under way or once it is taken back.
+    public mutating func startRevoke(_ grant: AuditGrant, at: Date) -> Bool {
+        let before = grantState(grant)
+        guard before.canRevoke else { return false }
+        grantStates[grant.id] = before.reduce(.revokeStarted(at: at))
+        return true
+    }
+
+    private mutating func update(_ id: String, _ event: GrantState.Event) {
+        grantStates[id] = (grantStates[id] ?? .standing).reduce(event)
+    }
+
+    /// Where `grant` stands. A revocation from before it was given (the same rule found in a file again) is not its.
+    public func grantState(_ grant: AuditGrant) -> GrantState {
+        guard let state = grantStates[grant.id] else { return .standing }
+        if let revocation = state.revocation, revocation.at < grant.at { return .standing }
+        return state
     }
 
     /// One action, as its row and detail show it.
@@ -70,9 +89,15 @@ public struct AuditBook: Hashable, Sendable {
     /// A grant and whether it stands.
     public struct GrantRow: Hashable, Sendable, Identifiable {
         public var grant: AuditGrant
-        public var revoked: AuditRevocation?
+        public var state: GrantState
         public var chain: [Cause]
         public var id: String { grant.id }
+
+        public init(grant: AuditGrant, state: GrantState = .standing, chain: [Cause] = []) {
+            self.grant = grant
+            self.state = state
+            self.chain = chain
+        }
     }
 
     /// The grants recorded, newest first, then `before` (found in files, not recorded), each once; a later grant of
@@ -87,8 +112,7 @@ public struct AuditBook: Hashable, Sendable {
         let older = before.filter { !known.contains($0.identity) }
             .sorted { $0.scope != $1.scope ? $0.scope < $1.scope : $0.subject < $1.subject }
         return (recorded + older).map { grant in
-            let revocation = revoked[grant.id].flatMap { $0.at >= grant.at ? $0 : nil }
-            return GrantRow(grant: grant, revoked: revocation, chain: Cause.chain(grant.cause, in: causes))
+            GrantRow(grant: grant, state: grantState(grant), chain: Cause.chain(grant.cause, in: causes))
         }
     }
 

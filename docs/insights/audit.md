@@ -100,8 +100,10 @@ A push you denied shows as held, struck through.
 Each grant says when, why and by which cause. Audit records grants from the time it started. Always rules already in
 the `settings.local.json` of the repos and worktrees heed knows are listed too, marked "before Audit".
 
-`d` revokes the grant under the cursor (`audit.revoke`), after you confirm. The grant stays in the list, marked
-revoked, with what heed did.
+`d` revokes the grant under the cursor (`audit.revoke`), after you confirm. While heed is at it, the grant is marked
+revoking, and `d` again does nothing. When it is done, the grant stays in the list, marked revoked, with what heed did.
+When heed could not take it back (a file it cannot write, `mise` failing), the grant is marked not revoked with the
+reason, still stands, and `d` tries again.
 
 ## The record
 

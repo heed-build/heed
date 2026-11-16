@@ -166,6 +166,13 @@ final class AuditBrowser {
         if let log { Task { await log.appendAudit(records) } }
     }
 
+    /// `d` on `grant` was confirmed: false while a try is under way, or once it is taken back.
+    func startRevoke(_ grant: AuditGrant) -> Bool {
+        guard book.startRevoke(grant, at: Clock.now) else { return false }
+        refilter()
+        return true
+    }
+
     /// The whole record as stored, for the export.
     func exportText() async -> String? {
         guard let log, let rows = try? await log.auditRows() else { return nil }

@@ -614,9 +614,9 @@ private struct AttentionReader: View {
                             }
                         }
                     }
-                    if let error = model.conversationErrors[key] {
+                    if let error = model.threads[key]?.error {
                         Text("Could not load the thread: \(error)").font(Theme.ui(12)).foregroundStyle(Theme.block)
-                    } else if model.conversationsLoading.contains(key) {
+                    } else if model.threads[key]?.isLoading == true {
                         Text("Loading the thread…").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                     }
                 }

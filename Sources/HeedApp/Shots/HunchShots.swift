@@ -10,7 +10,12 @@ enum HunchShots {
 
     static func prepare(_ model: AppModel, _ state: State) {
         model.applyConfig(source: "[llm]\nagent = \"claude\"\n[decisions]\ndecider = \"hunch\"\n")
-        model.llmTests["claude"] = LLMTest(answer: "Hello there!", model: "claude-haiku", seconds: 2.4, cost: 0.00031)
+        model.llmTests["claude"] = .passed(AgentTestAnswer(
+            text: "Hello there!",
+            model: "claude-haiku",
+            seconds: 2.4,
+            cost: 0.00031
+        ))
         let hunch = model.hunch
         let english = hunch.catalogue.first { $0.id == "english" }
         let total = english?.totalSize ?? 0
@@ -38,7 +43,7 @@ enum HunchShots {
                 usage: HunchDiskUsage(checkpoints: size, examples: 1_240_000, heads: 52_480_000),
                 note: "next run after 20 new examples (6 so far)"
             )
-            model.decisionTest = DecisionTest(answer: "done (confidence 93%)", seconds: 0.04)
+            model.decisionTest = .passed(DecisionTestAnswer(text: "done (confidence 93%)", seconds: 0.04))
             model.screenReadings["fixture-pane"] = HunchScreen.Reading(
                 state: .waiting, confidence: 0.87, at: now.addingTimeInterval(-120)
             )

@@ -273,3 +273,16 @@ public extension Git {
         return "HEAD"
     }
 }
+
+/// What the diff overlay shows of a session: its files, and the commits on its branch.
+public struct DiffContent: Hashable, Sendable {
+    public var files: [FileDiff]
+    public var commits: [CommitSummary]
+
+    public init(files: [FileDiff], commits: [CommitSummary]) {
+        self.files = files
+        self.commits = commits
+    }
+
+    public static let empty = DiffContent(files: [], commits: [])
+}

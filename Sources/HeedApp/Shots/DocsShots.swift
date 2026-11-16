@@ -80,7 +80,12 @@ extension Shots {
             crop: .settingsSection, cropPadding: 8, item: "Model calls",
             prepare: { model in
                 model.agentTab = .modelCalls
-                model.llmTests["claude"] = LLMTest(answer: "Hello!", model: "claude-haiku", seconds: 2.9, cost: 0.00026)
+                model.llmTests["claude"] = .passed(AgentTestAnswer(
+                    text: "Hello!",
+                    model: "claude-haiku",
+                    seconds: 2.9,
+                    cost: 0.00026
+                ))
             }
         ),
         Shot(

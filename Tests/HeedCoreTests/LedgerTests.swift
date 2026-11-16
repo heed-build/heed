@@ -160,26 +160,55 @@ struct LedgerTests {
         #expect(Ledger.idle(sessions: [quiet], entries: [:], settings: off, now: now).isEmpty)
     }
 
-    @Test func removalWaitsForTheSummaryButNotForever() async {
+    @Test func removalWaitsForTheSummary() async {
         let order = Mutex<[String]>([])
-        await Ledger.summarizeThenRemove(timeout: .seconds(5)) {
+        await Ledger.summarizeThenRemove(timeout: .seconds(30)) {
             try? await Task.sleep(for: .milliseconds(50))
             order.withLock { $0.append("summary") }
         } remove: {
             order.withLock { $0.append("remove") }
         }
         #expect(order.withLock { $0 } == ["summary", "remove"])
+    }
 
-        let slow = Mutex<[String]>([])
-        let started = Date()
-        await Ledger.summarizeThenRemove(timeout: .milliseconds(100)) {
-            try? await Task.sleep(for: .seconds(5))
-            slow.withLock { $0.append("summary") }
-        } remove: {
-            slow.withLock { $0.append("remove") }
+    /// The wait giving up is a signal the test sends, not a duration it measures: a clock here would be asserting on
+    /// how
+    /// quickly a loaded machine schedules a task, which is not what removal promises.
+    @Test func removalDoesNotWaitForeverOnASummaryThatNeverComes() async {
+        let order = Mutex<[String]>([])
+        let giveUp = Mutex<(@Sendable () -> Void)?>(nil)
+        let (armed, armedSignal) = AsyncStream<Void>.makeStream()
+        let removal = Task {
+            await Ledger.summarizeThenRemove(armTimer: { fire in
+                giveUp.withLock { $0 = fire }
+                armedSignal.yield()
+            }, summarize: {
+                // Stands in for a model that never answers; if removal waited on it, "summary" would land first.
+                try? await Task.sleep(for: .seconds(60))
+                order.withLock { $0.append("summary") }
+            }, remove: {
+                order.withLock { $0.append("remove") }
+            })
         }
-        #expect(slow.withLock { $0 } == ["remove"])
-        #expect(Date().timeIntervalSince(started) < 2)
+        for await _ in armed {
+            break
+        }
+        #expect(order.withLock { $0 }.isEmpty, "removal went ahead before the wait gave up")
+        giveUp.withLock { $0 }?()
+        await removal.value
+        #expect(order.withLock { $0 } == ["remove"])
+    }
+
+    @Test func theRealTimerGivesUpTheWait() async {
+        // Only that the default timer fires and ends the wait; how soon is the machine's business.
+        let order = Mutex<[String]>([])
+        await Ledger.summarizeThenRemove(timeout: .milliseconds(20)) {
+            try? await Task.sleep(for: .seconds(60))
+            order.withLock { $0.append("summary") }
+        } remove: {
+            order.withLock { $0.append("remove") }
+        }
+        #expect(order.withLock { $0 } == ["remove"])
     }
 
     @Test func settingsDecode() {

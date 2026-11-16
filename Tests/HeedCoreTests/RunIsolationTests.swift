@@ -237,15 +237,141 @@ struct PullTrustTests {
         func pull(_ author: String?, _ association: String?, fork: Bool = false) -> PullAuthorship {
             PullAuthorship(author: author, association: association, crossRepository: fork)
         }
-        #expect(pull("me", "CONTRIBUTOR", fork: true).trusted(viewer: "Me"))
-        #expect(pull("ann", "OWNER").trusted(viewer: "me"))
-        #expect(pull("ann", "member").trusted(viewer: "me"))
-        #expect(pull("ann", "COLLABORATOR").trusted(viewer: nil))
-        #expect(!pull("ann", "COLLABORATOR", fork: true).trusted(viewer: "me"))
-        #expect(!pull("ann", "CONTRIBUTOR").trusted(viewer: "me"))
-        #expect(!pull("ann", "FIRST_TIME_CONTRIBUTOR").trusted(viewer: "me"))
-        #expect(!pull("ann", "NONE").trusted(viewer: "me"))
-        #expect(!pull(nil, nil).trusted(viewer: "me"))
+        func trusted(_ pull: PullAuthorship, viewer: String?, authors: [String] = []) -> Bool {
+            pull.trusted(viewer: viewer, trustedAuthors: authors)
+        }
+        #expect(trusted(pull("me", "CONTRIBUTOR", fork: true), viewer: "Me"))
+        #expect(trusted(pull("ann", "OWNER"), viewer: "me"))
+        #expect(trusted(pull("ann", "COLLABORATOR"), viewer: nil))
+        #expect(!trusted(pull("ann", "COLLABORATOR", fork: true), viewer: "me"))
+        #expect(!trusted(pull("ann", "CONTRIBUTOR"), viewer: "me"))
+        #expect(!trusted(pull("ann", "FIRST_TIME_CONTRIBUTOR"), viewer: "me"))
+        #expect(!trusted(pull("ann", "NONE"), viewer: "me"))
+        #expect(!trusted(pull(nil, nil), viewer: "me"))
+        // An organisation member only with write access, and never from a fork.
+        var member = pull("ann", "member")
+        #expect(!trusted(member, viewer: "me") && member.needsPermission)
+        member.canWrite = false
+        #expect(!trusted(member, viewer: "me") && !member.needsPermission)
+        member.canWrite = true
+        #expect(trusted(member, viewer: "me"))
+        member.crossRepository = true
+        #expect(!trusted(member, viewer: "me"))
+        // trusted_authors, as for a merge, and not from a fork.
+        #expect(trusted(pull("dependabot[bot]", "NONE"), viewer: "me", authors: ["dependabot"]))
+        #expect(!trusted(pull("dependabot[bot]", "NONE", fork: true), viewer: "me", authors: ["dependabot"]))
+    }
+
+    @Test func theBookForgetsAfterItsLifetimeAndMembersAreAskedAbout() async {
+        let clock = Mutex(Date(timeIntervalSince1970: 0))
+        let book = PullTrustBook(ttl: 600) { clock.withLock { $0 } }
+        book.record(PullAuthorship(author: "ann", association: "OWNER", crossRepository: false), for: ref)
+        #expect(book.trusted(ref, viewer: "me", trustedAuthors: []) == true)
+        clock.withLock { $0 += 599 }
+        #expect(book.trusted(ref, viewer: "me", trustedAuthors: []) == true)
+        clock.withLock { $0 += 2 }
+        #expect(book.trusted(ref, viewer: "me", trustedAuthors: []) == nil)
+        // A member whose permission was not asked about is not known yet: resolve asks.
+        book.record(PullAuthorship(author: "ann", association: "MEMBER", crossRepository: false), for: ref)
+        #expect(book.trusted(ref, viewer: "me", trustedAuthors: []) == nil)
+        let resolved = await book.resolve(ref, viewer: "me", trustedAuthors: []) { _ in
+            PullAuthorship(author: "ann", association: "MEMBER", crossRepository: false, canWrite: true)
+        }
+        #expect(resolved && book.trusted(ref, viewer: "me", trustedAuthors: []) == true)
+        // A sync's detail replaces what the book knew.
+        var detail = PullDetail(
+            ref: ref, title: "t", body: "", author: "ann", baseBranch: "main", headBranch: "b", additions: 0,
+            deletions: 0, commitCount: 1, headSHA: "abc", reviews: [], threads: [], failingChecks: [],
+            checks: CheckSummary(), closes: [], fetchedAt: .now, authorTrust: .member
+        )
+        detail.writers = []
+        book.record(PullAuthorship(detail), for: ref)
+        #expect(book.trusted(ref, viewer: "me", trustedAuthors: []) == false)
+        book.forget()
+        #expect(book.authorship(ref) == nil)
+    }
+
+    @Test func writeAccessIsAskedOncePerLifetimeAndAFailureIsNotKept() async {
+        let clock = Mutex(Date(timeIntervalSince1970: 0))
+        let book = WriteAccessBook(ttl: 600) { clock.withLock { $0 } }
+        let asked = Mutex<[String]>([])
+        let repo = ref.repo
+        @Sendable func fetch(_: Repo, _ login: String) async throws -> Bool {
+            asked.withLock { $0.append(login) }
+            if login == "offline" { throw GitHub.Failure(description: "offline") }
+            return login == "mia"
+        }
+        #expect(await book.writers(among: ["Mia", "bo", "mia", "offline"], in: repo, fetch: fetch) == ["mia"])
+        #expect(asked.withLock { $0 }.sorted() == ["bo", "mia", "offline"])
+        #expect(book.canWrite(repo, "MIA") == true && book.canWrite(repo, "bo") == false)
+        #expect(book.canWrite(repo, "offline") == nil)
+        _ = await book.resolve(repo, "mia", fetch: fetch)
+        #expect(asked.withLock { $0 }.count == 3)
+        clock.withLock { $0 += 601 }
+        #expect(book.canWrite(repo, "mia") == nil)
+        _ = await book.resolve(repo, "mia", fetch: fetch)
+        #expect(asked.withLock { $0 }.count == 4)
+        // Another repo is another question.
+        #expect(book.canWrite(Repo(org: "acme", name: "other"), "mia") == nil)
+    }
+
+    @Test func ghsPermissionAnswerIsRead() async throws {
+        #expect(RepoPermission.canWrite(#"{"permission": "write", "role_name": "write"}"#) == true)
+        #expect(RepoPermission.canWrite(#"{"permission": "admin", "role_name": "admin"}"#) == true)
+        #expect(RepoPermission.canWrite(#"{"permission": "write", "role_name": "maintain"}"#) == true)
+        #expect(RepoPermission.canWrite(#"{"permission": "read", "role_name": "triage"}"#) == false)
+        #expect(RepoPermission.canWrite(#"{"permission": "none", "role_name": "read"}"#) == false)
+        #expect(RepoPermission.canWrite(#"{"message": "Not Found"}"#) == nil)
+        // Through a stand-in gh, which is asked about the login on the repo.
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-perm-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let args = dir.appendingPathComponent("args")
+        let script = dir.appendingPathComponent("gh")
+        try """
+        #!/bin/sh
+        printf '%s\\n' "$@" > '\(args.path)'
+        echo '{"permission": "read", "role_name": "read"}'
+        """.write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let answer = try await GitHub.$executable.withValue(script.path) {
+            try await GitHub.canWrite(ref.repo, login: "mia", caller: "test")
+        }
+        #expect(!answer)
+        #expect(try String(contentsOf: args, encoding: .utf8) ==
+            "api\nrepos/acme/widgets/collaborators/mia/permission\n")
+        // A login GitHub would not allow is not asked about.
+        try FileManager.default.removeItem(at: args)
+        let odd = try await GitHub.$executable.withValue(script.path) {
+            try await GitHub.canWrite(ref.repo, login: "../../x", caller: "test")
+        }
+        #expect(!odd && !FileManager.default.fileExists(atPath: args.path))
+    }
+
+    @Test func aFetchedPRCarriesItsMembersWriteAccess() async {
+        var detail = PullDetail(
+            ref: ref, title: "t", body: "", author: "ann", baseBranch: "main", headBranch: "b", additions: 0,
+            deletions: 0, commitCount: 1, headSHA: "abc",
+            reviews: [
+                .init(author: "Mia", state: "APPROVED", commit: "abc", trust: .member),
+                .init(author: "olek", state: "APPROVED", commit: "abc", trust: .collaborator),
+            ],
+            threads: [ReviewThread(
+                id: "T", isResolved: false, path: "f", line: 1, author: "bo", body: "x", diff: [], replies: 0, url: nil,
+                trust: .member
+            )],
+            failingChecks: [], checks: CheckSummary(), closes: [], fetchedAt: .now, authorTrust: .member
+        )
+        #expect(detail.memberLogins == ["ann", "Mia", "bo"])
+        let asked = Mutex<[String]>([])
+        detail = await GitHub.withWriters(detail, book: WriteAccessBook()) { _, login in
+            asked.withLock { $0.append(login) }
+            return login != "bo"
+        }
+        #expect(asked.withLock { $0 }.sorted() == ["ann", "bo", "mia"])
+        #expect(detail.writers == ["ann", "mia"])
+        #expect(detail.canWrite("MIA", trust: .member) && !detail.canWrite("bo", trust: .member))
+        #expect(detail.canWrite("olek", trust: .collaborator) && !detail.canWrite("x", trust: .stranger))
     }
 
     @Test func ghsAnswerIsRead() throws {
@@ -261,22 +387,22 @@ struct PullTrustTests {
     @Test func theBookAsksOnceAndKeepsNoFailure() async {
         let book = PullTrustBook()
         let asked = Mutex(0)
-        #expect(book.trusted(ref, viewer: "me") == nil)
-        let failed = await book.resolve(ref, viewer: "me") { _ in
+        #expect(book.trusted(ref, viewer: "me", trustedAuthors: []) == nil)
+        let failed = await book.resolve(ref, viewer: "me", trustedAuthors: []) { _ in
             asked.withLock { $0 += 1 }
             throw GitHub.Failure(description: "offline")
         }
-        #expect(!failed && book.trusted(ref, viewer: "me") == nil)
-        let first = await book.resolve(ref, viewer: "me") { _ in
+        #expect(!failed && book.trusted(ref, viewer: "me", trustedAuthors: []) == nil)
+        let first = await book.resolve(ref, viewer: "me", trustedAuthors: []) { _ in
             asked.withLock { $0 += 1 }
             return PullAuthorship(author: "ann", association: "NONE", crossRepository: true)
         }
-        let again = await book.resolve(ref, viewer: "me") { _ in
+        let again = await book.resolve(ref, viewer: "me", trustedAuthors: []) { _ in
             asked.withLock { $0 += 1 }
             return PullAuthorship(author: "ann", association: "OWNER", crossRepository: false)
         }
         #expect(!first && !again && asked.withLock { $0 } == 2)
-        #expect(book.trusted(ref, viewer: "ann") == true)
+        #expect(book.trusted(ref, viewer: "ann", trustedAuthors: []) == true)
     }
 
     @Test func runsStartOnTheirOwnOnlyOnTrustedPRs() {

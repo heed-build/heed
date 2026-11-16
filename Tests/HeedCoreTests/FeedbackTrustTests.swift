@@ -35,6 +35,20 @@ struct FeedbackTrustTests {
         #expect(!prompt.contains("Do stranger") && !prompt.contains("Do bot"))
     }
 
+    @Test func anOrganisationMembersCommentQueuesOnlyWithWriteAccess() {
+        var unchecked = PullFeedback(ref: ref, autoFeed: .auto)
+        unchecked.merge(detail([thread("m", by: "Mate", .member)]))
+        #expect(unchecked.items.map(\.status) == [.new])
+        #expect(unchecked.items[0].outsideNote
+            == "not sent automatically: @Mate is an organisation member gh hasn't said can write to the repo")
+        var checked = PullFeedback(ref: ref, autoFeed: .auto)
+        var writes = detail([thread("m", by: "Mate", .member)])
+        writes.writers = ["mate"]
+        checked.merge(writes)
+        #expect(checked.items.map(\.status) == [.queued])
+        #expect(checked.items[0].outsideNote == nil && !checked.items[0].fromOutside)
+    }
+
     @Test func aStrangersCommentSaysWhyItWaitsAndGoesWhenYouQueueIt() throws {
         var pipeline = PullFeedback(ref: ref, autoFeed: .auto)
         pipeline.merge(detail([thread("s", by: "drive-by", .stranger), thread("b", by: "lint[bot]", .bot)]))

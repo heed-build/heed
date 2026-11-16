@@ -141,7 +141,7 @@ struct RepoSetupTests {
         #expect(pull.reviews.map(\.author) == ["copilot-pull-request-reviewer", "olek"])
         #expect(pull.botReviewers == ["copilot-pull-request-reviewer"])
         // Who they are to the repo, and which app reported each check, for the merge rules' replay.
-        #expect(pull.authorTrust == .collaborator)
+        #expect(pull.authorTrust == .member)
         #expect(pull.reviews.map(\.trust) == [.bot, .collaborator])
         #expect(pull.passedRuns.map(\.app) == ["github-actions", nil])
         #expect(pull.humanApproved)

@@ -65,7 +65,7 @@ The detail shows:
   heed (an Always rule, the agent's own mode);
 - whose text or approval it rests on: the text that reached the prompt heed built for that session or run (a review
   comment, a PR's body, a check's output), or the approvals an Autopilot merge went on, with how far heed trusts each
-  author: owner, collaborator (who can write to the repo), bot or stranger.
+  author: owner, collaborator (who can write to the repo), organisation member, bot or stranger.
 
 A push you denied shows as held, struck through.
 

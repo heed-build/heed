@@ -22,15 +22,19 @@ public struct ExternalText: Hashable, Sendable {
     public enum Trust: String, Hashable, Sendable, Codable, CaseIterable {
         /// The repo's owner, or you.
         case owner
-        /// A member of the repo's organisation or a collaborator on it (`MEMBER`, `COLLABORATOR`): people who can
-        /// write to it.
+        /// A collaborator on the repo (`COLLABORATOR`): someone it gave write access to.
         case collaborator
+        /// A member of the organisation that owns the repo (`MEMBER`). Membership alone says nothing about write
+        /// access: Autopilot counts a member as someone who can write only once `gh` says their permission on the
+        /// repo is write, maintain or admin (`PullTrust`).
+        case member
         /// A GitHub App or a `[bot]` account.
         case bot
         /// Anyone else: `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, `FIRST_TIMER`, `NONE`, or not known.
         case stranger
 
-        /// Owner and collaborators: their review comments go to an agent on their own; the rest wait for you.
+        /// Owner and collaborators, who can write to the repo by their association alone: their review comments go
+        /// to an agent on their own; the rest wait for you (a member's too, until heed has checked their permission).
         public var isCollaborator: Bool { self == .owner || self == .collaborator }
 
         /// GitHub's `authorAssociation`, and whether the author is a bot (`__typename` `Bot`, or a `[bot]` login).
@@ -38,7 +42,8 @@ public struct ExternalText: Hashable, Sendable {
             if isBot { return .bot }
             switch association?.uppercased() {
             case "OWNER": return .owner
-            case "MEMBER", "COLLABORATOR": return .collaborator
+            case "COLLABORATOR": return .collaborator
+            case "MEMBER": return .member
             default: return .stranger
             }
         }

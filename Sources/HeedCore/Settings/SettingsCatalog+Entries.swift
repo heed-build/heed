@@ -851,7 +851,8 @@ extension SettingsCatalog {
             ) { .list($0.trustedReviewers) },
             entry(
                 "self_review", "Self-review",
-                "heed merges: a command that reads the diff on stdin and answers APPROVE (e.g. claude -p). Empty: none.",
+                "heed merges: a command that reads the diff on stdin and answers APPROVE (e.g. claude -p), run with "
+                    + "its tools off, so claude or pi. Empty: none.",
                 level: .advanced, since: "0.2.0", example: "self_review = \"claude -p\""
             ) { $0.selfReview.map(SettingValue.text) },
             entry(

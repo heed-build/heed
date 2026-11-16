@@ -15,12 +15,15 @@ public enum MergeQueue {
         /// Why it may not merge yet whatever its rules say: a swarm PR whose blockers have not merged
         /// (`SwarmLanding.hold`).
         public let held: String?
+        /// Your login: a PR of yours is trusted from any branch (`PullTrust`).
+        public let viewer: String?
 
         public init(
             ref: PullRef, detail: PullDetail, settings: PilotSettings, paused: Bool, mode: MergeMode = .auto,
-            selfReview: SelfReview? = nil, now: Date = Date(), held: String? = nil
+            selfReview: SelfReview? = nil, now: Date = Date(), held: String? = nil, viewer: String? = nil
         ) {
             self.held = held
+            self.viewer = viewer
             self.ref = ref
             self.detail = detail
             self.settings = settings
@@ -95,9 +98,9 @@ public enum MergeQueue {
         if let held = entry.held {
             return detail.autoMergeEnabled == true ? .disableAutoMerge(reason: held) : .hold(held)
         }
-        // Only PRs opened by people who can write to the repo, or by trusted_authors, whichever mode: anyone else's
-        // is merged by hand (zM). GitHub's auto-merge is left as it is.
-        let author = HeedMerge.author(detail, settings: entry.settings)
+        // Only PRs heed trusts (`PullTrust`: yours, or on a branch of the repo by people who can write to it or by
+        // trusted_authors), whichever mode: anyone else's is merged by hand (zM). GitHub's auto-merge is left as it is.
+        let author = HeedMerge.author(detail, settings: entry.settings, viewer: entry.viewer)
         if !author.trusted { return .hold("Author: \(author.text)") }
         if entry.mode == .heed { return heedAction(entry) }
         if detail.repoAllowsAutoMerge == false {
@@ -133,7 +136,9 @@ extension MergeQueue {
         if detail.mergeState == "BEHIND", entry.settings.updateBranches { return .updateBranch }
         // heed decides when; GitHub's auto-merge would decide for it.
         if detail.autoMergeEnabled == true { return .disableAutoMerge(reason: "heed merges this PR itself") }
-        let verdict = HeedMerge.verdict(detail, settings: entry.settings, selfReview: entry.selfReview, now: entry.now)
+        let verdict = HeedMerge.verdict(
+            detail, settings: entry.settings, selfReview: entry.selfReview, now: entry.now, viewer: entry.viewer
+        )
         if verdict.isGreen { return .merge(method: method, admin: entry.settings.adminMerge) }
         let others = verdict.rules.filter { $0.name != "Self-review" }
         if others.allSatisfy({ $0.state == .pass }), verdict.blocker?.state == .wait { return .selfReview }

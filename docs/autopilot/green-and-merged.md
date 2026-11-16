@@ -109,12 +109,25 @@ when the repo does not. heed merges only PRs your sessions track.
 
 ### Which PRs heed merges
 
-heed merges on its own, with `auto` or `heed`, only PRs opened by the repo's owner or a collaborator (GitHub's
-`OWNER`, `MEMBER` and `COLLABORATOR`: people who can write to the repo), and by the logins in `trusted_authors`, such as
-`["dependabot[bot]", "renovate[bot]"]` (empty by default). The rule holds however the PR came to be tracked: a
-session's own, `heed pr add`, or a goal's item source. heed holds anyone else's PR with the reason (`@x isn't a
-collaborator: heed doesn't merge it on its own`), leaves GitHub's auto-merge as it is, and merge now (`zM`) still
-merges the PR by hand.
+heed merges on its own, with `auto` or `heed`, only PRs it trusts:
+
+- yours, from any branch;
+- on a branch of the repo itself, a PR opened by someone who can write to the repo, or by one of the logins in
+  `trusted_authors`, such as `["dependabot[bot]", "renovate[bot]"]` (empty by default).
+
+Someone can write to the repo when GitHub says they are its owner or a collaborator (`OWNER`, `COLLABORATOR`), or
+when they are a member of the organisation that owns it (`MEMBER`) and
+`gh api repos/{owner}/{repo}/collaborators/{login}/permission` says write, maintain or admin. Being a member alone
+does not count: organisation members can have read access only. heed asks about a member when it fetches the PR and
+keeps the answer for ten minutes; until gh answers, or when gh cannot, the member counts as someone who can't write.
+
+A PR from a fork is never merged on its own unless it is yours, whoever opened it: anyone the fork's owner lets push
+to the fork can change the PR. The same rule decides which PRs heed's runs start on by themselves
+([helpers](helpers.md)), so a PR heed would not merge is also one it does not run your setup on.
+
+The rule holds however the PR came to be tracked: a session's own, `heed pr add`, or a goal's item source. heed holds
+anyone else's PR with the reason (`@x isn't a collaborator: heed doesn't merge it on its own`, `@x opened it from a
+fork: …`), leaves GitHub's auto-merge as it is, and merge now (`zM`) still merges the PR by hand.
 
 A login ending in `[bot]` names only the bot of that name, never a person with the same login; without the suffix
 it matches either. This holds for `trusted_reviewers` too.
@@ -135,18 +148,21 @@ once every rule holds. A run checks the rules again on the PR as it is then, and
 | Rule | Holds when |
 |---|---|
 | Green | every [green rule](#green) holds |
-| Author | the PR was opened by the owner, a collaborator, or one of `trusted_authors` ([above](#which-prs-heed-merges)) |
+| Author | the PR is yours, or from a branch of the repo by someone who can write to it or one of `trusted_authors` ([above](#which-prs-heed-merges)) |
 | Reviewed after push | someone who can write to the repo approved the head commit, or a trusted reviewer reviewed it (below) |
 | Quiet | no new commit or review for `quiet_minutes` (5) |
 | Gate checks | every check named in `gate_checks` passed on the head commit, from its app, required by GitHub or not (below) |
 | No hold label | none of `hold_labels` (`hold`, `do-not-merge`, `wip`) is on the PR |
-| Self-review | with `self_review` set: the command approved the diff of the head commit |
+| Self-review | with `self_review` set: the command approved the diff of the head commit, run with its tools off |
 
 #### Who counts as a reviewer
 
-An approval of the head commit counts when the reviewer can write to the repo (owner, member or collaborator), or is
-one of `trusted_reviewers`. Anyone else's approval is shown and does not count: the rule says `@x approved abc1234, but
-isn't a collaborator`, or for a bot, `but isn't in trusted_reviewers`.
+An approval of the head commit counts when the reviewer can write to the repo (the owner, a collaborator, or an
+organisation member gh says has write access, [as above](#which-prs-heed-merges)), or is one of `trusted_reviewers`.
+A member listed in `trusted_reviewers` counts as configured, without the permission check. Anyone else's approval is
+shown and does not count: the rule says `@x approved abc1234, but isn't a collaborator`, for a member without write
+access `but is an organisation member gh hasn't said can write to the repo`, or for a bot, `but isn't in
+trusted_reviewers`.
 
 A **trusted reviewer** (`trusted_reviewers`, e.g. `copilot-pull-request-reviewer`) counts as a review of the head
 commit in three cases. The reviewer approved the commit, or left a comment review none of whose threads is still open.
@@ -174,9 +190,17 @@ can run workflow files the PR itself changes.
 #### The self-review
 
 The **self-review** is a command you choose, such as `claude -p`. heed passes the command a prompt with the PR's
-description and diff (`gh pr diff`, nothing is checked out) on stdin, in an empty folder of its own. For `claude` heed
-turns the agent's tools off (`--tools '' --strict-mcp-config`), and for `pi` too (`--no-tools`); a command that names
-`--tools` itself, and any other command, runs as written. The first line of the answer, with markdown such as `**` or
+description and diff on stdin, in an empty folder of its own. The diff is of the head commit the verdict is recorded
+for (`gh api repos/{owner}/{repo}/compare/{base}...{head}`, nothing is checked out), so the commit the self-review
+approved is the one heed merges (`--match-head-commit`).
+
+The command runs with its agent's tools off: for `claude` heed adds `--tools '' --strict-mcp-config`, and for `pi`
+`--no-tools --no-extensions --no-mcp`. heed finds the agent after a leading `env`, `NAME=value` assignments, and a
+package runner (`npx`, `bunx`, `pnpx` or `pnpm dlx`) running `@anthropic-ai/claude-code`, so
+`env CLAUDE_CONFIG_DIR=~/.claude-review claude -p` works. A command that names `--tools` itself runs as written. Any
+other command, codex among them (its read-only sandbox still runs shell commands), does not run: the Self-review rule
+fails with `not run:` and the reason, in the Watch view and the merge queue's log, and the PR waits until
+`self_review` names claude or pi. The first line of the answer, with markdown such as `**` or
 `#` trimmed, must be exactly `APPROVE` to merge. `REQUEST_CHANGES: <why>` holds the PR with that reason, and any other
 line holds the PR as a refusal that quotes the line. The self-review runs last, once every other rule holds, and once
 per head commit.

@@ -316,7 +316,8 @@ struct FeedbackTests {
         #expect(detail?.threads.map(\.trust) == [.collaborator, .stranger, .bot])
         #expect(detail?.threads.first?.body.author.login == "rev")
         #expect(detail?.threads.first?.body.source == .thread)
-        #expect(detail?.reviews.map(\.trust) == [.collaborator, .collaborator, .stranger])
+        // MEMBER is a member of the org, kept apart from a collaborator.
+        #expect(detail?.reviews.map(\.trust) == [.member, .member, .stranger])
         #expect(detail?.title.author == ExternalText.Author(login: "you", trust: .stranger))
         #expect(detail?.body.display == "Closes #2830")
         #expect(detail?.threads.first?.diff.count == 6)

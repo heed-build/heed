@@ -3,8 +3,9 @@ import Foundation
 /// `merge = "heed"`: the rules a PR meets before heed merges it itself, checked again just before it does. The same
 /// shape as the green verdict, so the Watch view lists them the same way.
 public enum HeedMerge {
+    /// `viewer` is your login: a PR of yours is trusted from any branch (`PullTrust`).
     public static func verdict(
-        _ detail: PullDetail, settings: PilotSettings, selfReview: SelfReview?, now: Date
+        _ detail: PullDetail, settings: PilotSettings, selfReview: SelfReview?, now: Date, viewer: String? = nil
     ) -> GreenVerdict {
         var rules: [GreenVerdict.Rule] = []
         func rule(_ name: String, _ state: GreenVerdict.Rule.State, _ text: String) {
@@ -16,9 +17,9 @@ public enum HeedMerge {
         } else {
             rule("Green", .pass, "every green rule holds")
         }
-        let author = author(detail, settings: settings)
+        let author = author(detail, settings: settings, viewer: viewer)
         rule("Author", author.trusted ? .pass : .fail, author.text)
-        let review = reviewed(detail, settings: settings)
+        let review = reviewed(detail, settings: settings, viewer: viewer)
         rule("Reviewed after push", review.state, review.text)
         let last = ([detail.headCommittedAt] + detail.reviews.map(\.submittedAt)).compactMap(\.self).max()
         let quiet = TimeInterval(settings.quietMinutes * 60)
@@ -31,7 +32,7 @@ public enum HeedMerge {
                 settings.quietMinutes == 0 ? "no quiet window" : "nothing new for \(settings.quietMinutes)m"
             )
         }
-        let gates = gateChecks(detail, settings: settings)
+        let gates = gateChecks(detail, settings: settings, viewer: viewer)
         rule("Gate checks", gates.state, gates.text)
         let holds = Set(settings.holdLabels.map { $0.lowercased() })
         if let label = (detail.labels ?? []).first(where: { holds.contains($0.lowercased()) }) {
@@ -39,8 +40,10 @@ public enum HeedMerge {
         } else {
             rule("No hold label", .pass, "none")
         }
-        if settings.selfReview != nil {
-            if let selfReview, selfReview.sha == detail.headSHA {
+        if let command = settings.selfReview {
+            if case let .refused(reason) = SelfReview.toolless(command) {
+                rule("Self-review", .fail, "not run: \(reason)")
+            } else if let selfReview, selfReview.sha == detail.headSHA {
                 rule(
                     "Self-review",
                     selfReview.approved ? .pass : .fail,
@@ -53,25 +56,21 @@ public enum HeedMerge {
         return GreenVerdict(rules: rules)
     }
 
-    /// Whether heed merges this PR on its own: its author is the repo's owner or a collaborator (people who can write
-    /// to it), or one of `trusted_authors`. Anyone else's PR is merged by hand (`zM`) only.
+    /// Whether heed merges this PR on its own: `PullTrust.author`, the same rule heed's runs follow. Yours; or, on a
+    /// branch of the repo, opened by someone who can write to it or by one of `trusted_authors`. Anyone else's PR,
+    /// and any PR from a fork but yours, is merged by hand (`zM`) only.
     public static func author(
-        _ detail: PullDetail, settings: PilotSettings
+        _ detail: PullDetail, settings: PilotSettings, viewer: String? = nil
     ) -> (trusted: Bool, text: String) {
-        let who = detail.author.map { "@" + $0 } ?? "someone"
-        switch detail.authorTrust {
-        case .owner: return (true, "opened by \(who), the repo's owner")
-        case .collaborator: return (true, "opened by \(who), who can write to the repo")
-        case .bot, .stranger:
-            let isBot = detail.authorTrust == .bot
-            if let login = detail.author,
-               settings.trustedAuthors.contains(where: { listed($0, login: login, isBot: isBot) })
-            {
-                return (true, "opened by \(who), one of trusted_authors")
-            }
-            let why = isBot ? "\(who) isn't in trusted_authors" : "\(who) isn't a collaborator"
-            return (false, "\(why): heed doesn't merge it on its own; merge it by hand (zM)")
-        }
+        let trust = detail.authorTrust
+        let verdict = PullTrust.author(
+            login: detail.author, trust: trust, fork: detail.crossRepository, viewer: viewer,
+            canWrite: trust == .member ? detail.author.flatMap { login in
+                detail.writers.map { $0.contains(login.lowercased()) }
+            } : nil,
+            trustedAuthors: settings.trustedAuthors
+        )
+        return (verdict.trusted, verdict.text)
     }
 
     /// Whether `entry` (from `trusted_reviewers` or `trusted_authors`) names `login`: compared without case and
@@ -84,11 +83,11 @@ public enum HeedMerge {
     /// `gate_checks`, each from its app (`GateCheck`). On a PR heed would not merge on its own (see `author`) none
     /// counts: its checks run what the PR itself changes.
     static func gateChecks(
-        _ detail: PullDetail, settings: PilotSettings
+        _ detail: PullDetail, settings: PilotSettings, viewer: String? = nil
     ) -> (state: GreenVerdict.Rule.State, text: String) {
         guard !settings.gateChecks.isEmpty else { return (.pass, "none named") }
         let short = String(detail.headSHA.prefix(7))
-        guard author(detail, settings: settings).trusted else {
+        guard author(detail, settings: settings, viewer: viewer).trusted else {
             return (.fail, "not counted on a PR heed doesn't merge on its own (see Author)")
         }
         var failed: [String] = []
@@ -108,13 +107,15 @@ public enum HeedMerge {
         return (.pass, "\(passed.joined(separator: ", ")) passed")
     }
 
-    /// A review on the head commit: an approval from someone who can write to the repo, or a trusted reviewer's
-    /// (`trusted_reviewers`). A trusted reviewer counts when it approved, when it left a comment review none of whose
+    /// A review on the head commit: an approval from someone who can write to the repo (`PullTrust.canWrite`: an
+    /// organisation member counts only once `gh` said they can), or a trusted reviewer's (`trusted_reviewers`). A
+    /// trusted reviewer counts when it approved, when it left a comment review none of whose
     /// threads is open, or when it left no review at all but every gate check passed on the head commit (its review
     /// check among them). Anyone else's approval is shown and does not count.
     static func reviewed(
         _ detail: PullDetail,
-        settings: PilotSettings
+        settings: PilotSettings,
+        viewer: String? = nil
     ) -> (state: GreenVerdict.Rule.State, text: String) {
         let head = detail.headSHA
         let short = String(head.prefix(7))
@@ -122,8 +123,11 @@ public enum HeedMerge {
         func trusted(_ review: PullDetail.Review) -> Bool {
             settings.trustedReviewers.contains { listed($0, login: review.author, isBot: review.trust == .bot) }
         }
+        func counts(_ review: PullDetail.Review) -> Bool {
+            detail.canWrite(review.author, trust: review.trust) || trusted(review)
+        }
         let approvals = onHead.filter { $0.state == "APPROVED" }
-        if let approval = approvals.first(where: { $0.trust.isCollaborator || trusted($0) }) {
+        if let approval = approvals.first(where: counts) {
             return (.pass, "approved by @\(approval.author) on \(short)")
         }
         for reviewer in settings.trustedReviewers {
@@ -134,15 +138,21 @@ public enum HeedMerge {
             if theirs.contains(where: { $0.state == "COMMENTED" }), !open {
                 return (.pass, "@\(theirs[0].author) reviewed \(short) with nothing left open")
             }
-            if theirs.isEmpty, !settings.gateChecks.isEmpty, gateChecks(detail, settings: settings).state == .pass {
+            if theirs.isEmpty, !settings.gateChecks.isEmpty,
+               gateChecks(detail, settings: settings, viewer: viewer).state == .pass
+            {
                 return (.pass, "@\(reviewer)'s review check passed on \(short) without comments")
             }
         }
         if let outside = approvals.first {
-            let why = outside.trust == .bot ? "isn't in trusted_reviewers" : "isn't a collaborator"
+            let why = switch outside.trust {
+            case .bot: "isn't in trusted_reviewers"
+            case .member: "is an organisation member gh hasn't said can write to the repo"
+            default: "isn't a collaborator"
+            }
             return (.wait, "@\(outside.author) approved \(short), but \(why)")
         }
-        if detail.reviews.contains(where: { $0.state == "APPROVED" && ($0.trust.isCollaborator || trusted($0)) }) {
+        if detail.reviews.contains(where: { $0.state == "APPROVED" && counts($0) }) {
             return (.wait, "approved before the last push; waiting for a review of \(short)")
         }
         return (.wait, "waiting for a review of \(short)")
@@ -205,10 +215,49 @@ public struct SelfReview: Hashable, Sendable, Codable {
         """
     }
 
+    /// The self-review of exactly the head commit it is stamped with (`detail.headSHA`): the diff is asked for that
+    /// commit (`diff(base, head)`, `GitHub.compareDiff`), not for whatever the PR's head is by then, so what was
+    /// approved is what `--match-head-commit` merges. A command heed cannot turn the tools off for does not run.
+    public static func review(
+        _ detail: PullDetail, command: String, instructions: String, now: Date,
+        diff: @Sendable (_ base: String, _ head: String) async throws -> String,
+        run: @Sendable (_ command: String, _ prompt: Prompt) async throws -> String = {
+            try await SelfReview.run($0, prompt: $1)
+        }
+    ) async -> SelfReview {
+        let sha = detail.headSHA
+        if case let .refused(reason) = toolless(command) {
+            return SelfReview(sha: sha, approved: false, summary: "not run: \(reason)", at: now)
+        }
+        guard !sha.isEmpty else {
+            return SelfReview(sha: sha, approved: false, summary: "not run: the head commit isn't known", at: now)
+        }
+        do {
+            let diff = try await diff(detail.baseBranch, sha)
+            let output = try await run(command, prompt(detail, diff: diff, instructions: instructions))
+            return parse(output, sha: sha, at: now)
+        } catch {
+            return SelfReview(sha: sha, approved: false, summary: "the self-review failed: \(error)", at: now)
+        }
+    }
+
+    /// Why a self-review command does not run.
+    public struct Refused: Error, CustomStringConvertible {
+        public let description: String
+    }
+
     /// Runs the `self_review` command with the prompt on stdin (through the shell, so `claude -p` and pipes work),
-    /// with the PATH tool detection found, in an empty folder of its own, with its agent's tools off (`noTools`), for
-    /// up to ten minutes.
+    /// with the PATH tool detection found, in an empty folder of its own, with its agent's tools off (`toolless`), for
+    /// up to ten minutes. A command heed cannot turn the tools off for throws `Refused` and does not run.
     public static func run(_ command: String, prompt: Prompt) async throws -> String {
+        switch toolless(command) {
+        case let .refused(reason): throw Refused(description: reason)
+        case let .run(line, locate): return try await execute(line, locate: locate, prompt: prompt)
+        }
+    }
+
+    /// `line` through `/bin/sh -c` with the prompt on stdin, in an empty folder, with PATH from where `locate` is.
+    static func execute(_ line: String, locate: String, prompt: Prompt) async throws -> String {
         let scratch = FileManager.default.temporaryDirectory
             .appendingPathComponent("heed-self-review-\(UUID().uuidString)", isDirectory: true)
         let work = scratch.appendingPathComponent("work", isDirectory: true)
@@ -216,38 +265,110 @@ public struct SelfReview: Hashable, Sendable, Codable {
         defer { try? FileManager.default.removeItem(at: scratch) }
         let file = scratch.appendingPathComponent("prompt.txt")
         try prompt.text.write(to: file, atomically: true, encoding: .utf8)
-        let tool = String(command.split(separator: " ").first ?? "")
-        let path = await ToolLocator.shared.executable(tool).pathVariable
+        let path = await ToolLocator.shared.executable(locate).pathVariable
         let result = try await ProcessRunner.run(
-            "/bin/sh", ["-c", "\(noTools(command)) < \(ShellQuote.quote(file.path))"], in: work.path,
+            "/bin/sh", ["-c", "\(line) < \(ShellQuote.quote(file.path))"], in: work.path,
             environment: ["PATH": path], timeout: .seconds(600), caller: "merge.command"
         )
         guard result.succeeded else {
-            throw ProcessError(command: command, result: result, reason: "exit \(result.status)")
+            throw ProcessError(command: line, result: result, reason: "exit \(result.status)")
         }
         return result.stdout
     }
 
+    /// What heed runs for a `self_review` command: the command with its agent's tools off, or why it does not run.
+    public enum Toolless: Hashable, Sendable {
+        /// The line to run, and the program whose folder goes on PATH.
+        case run(String, locate: String)
+        case refused(String)
+    }
+
     /// The command with its agent's tools turned off, the flags `LLMDialect` uses for the same agent, right after the
-    /// executable: `claude` gets `--tools '' --strict-mcp-config`, `pi` `--no-tools --no-extensions --no-mcp`. A
-    /// command that names its tools itself, and any other command, runs as written.
-    public static func noTools(_ command: String) -> String {
+    /// agent's executable: `claude` gets `--tools '' --strict-mcp-config`, `pi` `--no-tools --no-extensions --no-mcp`.
+    /// heed reads past a leading `env`, `NAME=value` assignments and a package runner (`npx`, `bunx`, `pnpx`,
+    /// `pnpm dlx`, with `-y`/`--yes`) running `@anthropic-ai/claude-code` to find the agent. A command that
+    /// names its tools itself runs as written. Any other command does not run: heed cannot tell it has no tools
+    /// (codex's read-only sandbox still runs shell commands, for one).
+    public static func toolless(_ command: String) -> Toolless {
         let trimmed = command.trimmingCharacters(in: .whitespaces)
-        let space = trimmed.firstIndex(of: " ") ?? trimmed.endIndex
-        let executable = String(trimmed[..<space])
-        let rest = String(trimmed[space...])
+        var tokens: [(text: String, range: Range<String.Index>)] = []
+        var index = trimmed.startIndex
+        while index < trimmed.endIndex {
+            guard !trimmed[index].isWhitespace else {
+                index = trimmed.index(after: index)
+                continue
+            }
+            let start = index
+            while index < trimmed.endIndex, !trimmed[index].isWhitespace {
+                index = trimmed.index(after: index)
+            }
+            tokens.append((String(trimmed[start ..< index]), start ..< index))
+        }
+        guard !tokens.isEmpty else { return .refused("self_review is empty") }
+        func unknown(_ what: String) -> Toolless {
+            .refused("heed knows no way to turn the tools off for \(what); use claude or pi in self_review")
+        }
+        let plain =
+            CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-./@=:+,")
+        var at = 0
+        if tokens[at].text == "env" {
+            at += 1
+            if at < tokens.count, tokens[at].text.hasPrefix("-") { return unknown("`env \(tokens[at].text)`") }
+        }
+        while at < tokens.count, tokens[at].text.range(of: #"^[A-Za-z_][A-Za-z0-9_]*="#, options: .regularExpression)
+            != nil
+        {
+            guard tokens[at].text.unicodeScalars.allSatisfy(plain.contains) else {
+                return unknown("an assignment heed can't read (`\(tokens[at].text)`)")
+            }
+            at += 1
+        }
+        guard at < tokens.count else { return .refused("self_review names no command") }
+        let runners: Set = ["npx", "bunx", "pnpx"]
+        // The program found on PATH: the runner, else the agent itself.
+        var runner: String?
+        let pnpmDlx = tokens[at].text == "pnpm" && tokens.dropFirst(at + 1).first?.text == "dlx"
+        if runners.contains(tokens[at].text) || pnpmDlx {
+            runner = tokens[at].text
+            at += pnpmDlx ? 2 : 1
+            while at < tokens.count, ["-y", "--yes", "-q", "--quiet"].contains(tokens[at].text) {
+                at += 1
+            }
+            guard at < tokens.count else { return .refused("self_review names no command after the runner") }
+        }
+        let token = tokens[at]
+        guard token.text.unicodeScalars.allSatisfy(plain.contains) else { return unknown("`\(token.text)`") }
+        // After a runner, a package (its version cut off); else a program, by name or path.
+        let name = if runner != nil {
+            token.text.range(of: #"^(@[^/@]+/)?[^@]+"#, options: .regularExpression).map { String(token.text[$0]) }
+                ?? token.text
+        } else {
+            (token.text as NSString).lastPathComponent
+        }
+        // After a runner only Claude Code's own package is clear: `npx claude` would fetch whatever npm calls that.
+        let agent: String? = switch (name, runner != nil) {
+        case ("@anthropic-ai/claude-code", true), ("claude", false): "claude"
+        case ("pi", false): "pi"
+        default: nil
+        }
+        let locate = runner ?? token.text
+        let rest = String(trimmed[token.range.upperBound...])
+        let head = String(trimmed[..<token.range.upperBound])
         let flags: String
-        switch (executable as NSString).lastPathComponent {
+        switch agent {
         case "claude":
-            guard !rest.contains("--tools") else { return command }
+            guard !rest.contains("--tools") else { return .run(command, locate: locate) }
             flags = " --tools '' --strict-mcp-config"
         case "pi":
-            guard !rest.contains("--no-tools"), !rest.contains("--tools") else { return command }
+            guard !rest.contains("--no-tools"), !rest.contains("--tools") else {
+                return .run(command, locate: locate)
+            }
             flags = " --no-tools --no-extensions --no-mcp"
         default:
-            return command
+            return name == "codex" ? .refused("codex has no flag that turns its tools off; use claude or pi in "
+                + "self_review") : unknown("`\(name)`")
         }
-        return executable + flags + rest
+        return .run(head + flags + rest, locate: locate)
     }
 
     /// The first non-empty line, markdown emphasis and headings trimmed, is the verdict: exactly `APPROVE` approves,

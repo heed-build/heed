@@ -54,6 +54,11 @@ public struct PullDetail: Hashable, Sendable, Codable {
     /// The checks reported on the base branch's latest commit, passed or not, with their apps: the app a bare gate
     /// check name binds to.
     public var baseChecks: [CheckOrigin]?
+    /// From a fork (`isCrossRepository`); nil in details cached before heed asked, which count as from a fork.
+    public var crossRepository: Bool?
+    /// The organisation members on it (`memberLogins`) whose permission on the repo `gh` said is write, maintain or
+    /// admin when it was fetched, lowercased; nil when heed did not ask, and then no member counts as able to write.
+    public var writers: [String]?
 
     /// A check's name and the app that reported it: a check run's app slug, a status's creator.
     public struct CheckOrigin: Hashable, Sendable, Codable {
@@ -140,9 +145,10 @@ public struct PullDetail: Hashable, Sendable, Codable {
         ref: PullRef, title: String, body: String, author: String?, baseBranch: String, headBranch: String,
         additions: Int, deletions: Int, commitCount: Int, headSHA: String, reviews: [Review], threads: [ReviewThread],
         failingChecks: [FailingCheck], checks: CheckSummary, closes: [PullRef], fetchedAt: Date,
-        authorTrust: ExternalText.Trust = .stranger
+        authorTrust: ExternalText.Trust = .stranger, crossRepository: Bool? = false
     ) {
         self.ref = ref
+        self.crossRepository = crossRepository
         let by = ExternalText.Author(login: author, trust: authorTrust)
         self.title = ExternalText(title, source: .pullTitle, author: by)
         self.body = ExternalText(body, source: .pullBody, author: by)
@@ -165,6 +171,21 @@ public struct PullDetail: Hashable, Sendable, Codable {
 
     /// Who opened it, to the repo.
     public var authorTrust: ExternalText.Trust { title.author.trust }
+
+    /// The organisation members (`MEMBER`) who opened it, reviewed it or started a thread on it: the logins whose
+    /// permission heed asks about.
+    public var memberLogins: [String] {
+        let people = [(author, authorTrust)] + reviews.map { ($0.author, $0.trust) } + threads.map { (
+            $0.author,
+            $0.trust
+        ) }
+        return people.compactMap { $0.1 == .member ? $0.0 : nil }
+    }
+
+    /// Whether `login` (with its association) can write to the repo (`PullTrust.canWrite`).
+    public func canWrite(_ login: String?, trust: ExternalText.Trust) -> Bool {
+        PullTrust.canWrite(trust, verified: login.flatMap { login in writers.map { $0.contains(login.lowercased()) } })
+    }
 
     /// The last review per reviewer.
     public var latestReviews: [Review] {
@@ -275,7 +296,9 @@ public struct FeedbackItem: Identifiable, Hashable, Sendable, Codable {
         guard fromOutside, status == .new else { return nil }
         let who = text.author.handle
         return "not sent automatically: " +
-            (text.author.trust == .bot ? "\(who) is a bot" : "\(who) isn't a collaborator")
+            (text.author.trust == .bot ? "\(who) is a bot"
+                : text.author.trust == .member ? "\(who) is an organisation member gh hasn't said can write to the repo"
+                : "\(who) isn't a collaborator")
     }
 
     /// The most hunk lines a note keeps (and its prompt quotes): the ones around the line it is on.
@@ -520,7 +543,9 @@ public struct PullFeedback: Hashable, Sendable, Codable {
         let initial: FeedbackItem.Status = autoFeed == .auto ? .queued : .new
         for thread in detail.threads where !thread.isResolved && !items.contains(where: { $0.id == thread.id }) {
             let yours = viewer.map { $0.lowercased() == thread.author.lowercased() } ?? false
-            let body = yours ? thread.body.trusted(.owner) : thread.body
+            // An organisation member gh said can write counts as a collaborator here, as yours count as the owner.
+            let writes = thread.trust == .member && detail.canWrite(thread.author, trust: .member)
+            let body = yours ? thread.body.trusted(.owner) : writes ? thread.body.trusted(.collaborator) : thread.body
             let status: FeedbackItem.Status = body.author.trust.isCollaborator ? initial : .new
             items.append(FeedbackItem(
                 id: thread.id, kind: .review(location: thread.location, author: thread.author), text: body,

@@ -407,12 +407,16 @@ extension AppModel {
         flash = "starting a review helper on #\(ref.number)…"
         let instructions = pilotSettings(for: ref).reviewInstructions
         let viewer = github.viewer
+        let trustedAuthors = pilotSettings(for: ref).trustedAuthors
         Task {
             do {
                 let pull = try await GitHub.pullForReview(ref, caller: "helper.review")
                 if let authorship = pull.authorship { PullTrustBook.shared.record(authorship, for: ref) }
-                // From someone outside the repo: none of your files or setup, and its code is read, not run.
-                let trusted = pull.authorship?.trusted(viewer: viewer) ?? false
+                // From someone outside the repo: none of your files or setup, and its code is read, not run. An
+                // organisation member's permission is asked for when gh's answer did not carry it.
+                let trusted = pull.authorship == nil ? false : await PullTrustBook.shared.resolve(
+                    ref, viewer: viewer, trustedAuthors: trustedAuthors
+                ) { ref in try await GitHub.pullAuthorship(ref, caller: "helper.review") }
                 _ = await startHelper(
                     .review,
                     ref: ref,

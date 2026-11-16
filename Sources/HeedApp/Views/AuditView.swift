@@ -170,6 +170,7 @@ struct TrustChip: View {
         case .stranger: Theme.err
         case .bot: Theme.block
         case .collaborator: Theme.done
+        case .member: Theme.block
         case .owner: Theme.fg3
         }
     }

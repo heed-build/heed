@@ -5522,6 +5522,8 @@ final class AppModel {
                 commit(.feedbackChanged(pipeline))
             }
             commit(.pullDetailFetched(detail))
+            // A sync replaces what heed knew of who the PR is from.
+            PullTrustBook.shared.record(PullAuthorship(detail), for: ref)
             trackLinked(detail)
             let fixed = feedback[ref.description]?.items
                 .filter { before.contains($0.id) && $0.status == .resolved } ?? []
@@ -6007,7 +6009,7 @@ final class AppModel {
         guard let detail = pullDetails[ref.description] else { return [] }
         let merge = pilot(for: ref).merge == .heed ? HeedMerge.verdict(
             detail, settings: pilotSettings(for: ref), selfReview: feedback[ref.description]?.selfReview,
-            now: Clock.now
+            now: Clock.now, viewer: github.viewer
         ) : nil
         return PilotPlan.holds(GreenVerdict.of(detail), merge: merge)
     }
@@ -6098,7 +6100,8 @@ final class AppModel {
         // outside the repo), the approved setup in its pane.
         let checkout = repos.first { $0.repo == ref.repo && $0.location == record.location }?.path ?? record.path
         let viewer = github.viewer
-        let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer) { ref in
+        let trustedAuthors = pilotSettings(for: ref).trustedAuthors
+        let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer, trustedAuthors: trustedAuthors) { ref in
             try await GitHub.pullAuthorship(ref, caller: "pilot.author")
         }
         if HelperSetup.steps(trusted: trusted, commands: []).copyIncludes {
@@ -6490,9 +6493,9 @@ final class AppModel {
         }
         // On its own, a run starts only on a PR from you or someone who can write to the repo.
         if !isFixture {
+            let trustedAuthors = pilotSettings(for: ref).trustedAuthors
             switch Runs.ownStart(explicit: explicit, trusted: PullTrustBook.shared.trusted(
-                ref,
-                viewer: github.viewer
+                ref, viewer: github.viewer, trustedAuthors: trustedAuthors
             )) {
             case .go: break
             case .hold:
@@ -6501,7 +6504,11 @@ final class AppModel {
             case .ask:
                 let viewer = github.viewer
                 Task {
-                    let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer) { ref in
+                    let trusted = await PullTrustBook.shared.resolve(
+                        ref,
+                        viewer: viewer,
+                        trustedAuthors: trustedAuthors
+                    ) { ref in
                         try await GitHub.pullAuthorship(ref, caller: "pilot.author")
                     }
                     if trusted { deliver(ref, explicit: false) } else { logPilot(ref, .waiting, Runs.heldForAuthor) }
@@ -6584,11 +6591,13 @@ final class AppModel {
         let kind: HelperKind = Runs.goal(for: pilotStatus(for: ref)) == .merged ? .conflict : .green
         let sessionID = sessions.first { $0.trackedPRs.contains(ref) }?.id
         let viewer = github.viewer
+        let trustedAuthors = pilotSettings(for: ref).trustedAuthors
         Task {
             defer { startingRuns.remove(ref.description) }
-            let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer) { ref in
-                try await GitHub.pullAuthorship(ref, caller: "pilot.author")
-            }
+            let trusted = await PullTrustBook.shared
+                .resolve(ref, viewer: viewer, trustedAuthors: trustedAuthors) { ref in
+                    try await GitHub.pullAuthorship(ref, caller: "pilot.author")
+                }
             guard let target = await startHelper(
                 kind, ref: ref, items: queued, sessionID: sessionID, trusted: trusted, prompt: {
                     HelperPrompt.green(feedback: prompt, branch: $0, prBranch: $1)
@@ -6825,7 +6834,7 @@ final class AppModel {
             ref: ref, detail: detail, settings: pilotSettings(for: ref),
             paused: feedback[ref.description]?.isPaused(Clock.now) == true, mode: pilot(for: ref).merge,
             selfReview: feedback[ref.description]?.selfReview, now: Clock.now,
-            held: swarmPulls[ref.description]?.hold
+            held: swarmPulls[ref.description]?.hold, viewer: github.viewer
         )
     }
 
@@ -6930,8 +6939,11 @@ final class AppModel {
             for ref in refs {
                 if !isFixture, let detail = try? await GitHub.pullDetail(ref, caller: "mergeQueue.run") {
                     commit(.pullDetailFetched(detail))
+                    PullTrustBook.shared.record(PullAuthorship(detail), for: ref)
                     details[ref] = detail
-                } else if let detail = pullDetails[ref.description] {
+                } else if isFixture, let detail = pullDetails[ref.description] {
+                    // The fake world has no gh. Live, a PR whose details could not be fetched sits this run out:
+                    // who may merge it is decided on fresh details, never on ones cached before the rules changed.
                     details[ref] = detail
                 }
             }
@@ -6989,7 +7001,9 @@ final class AppModel {
                     guard let detail = details[ref] else { break }
                     let review = await runSelfReview(ref, detail)
                     guard review.approved else {
-                        record(ref, .held, "self-review asked for changes", review.summary)
+                        let what = review.summary.hasPrefix("not run:") ? "self-review not run"
+                            : "self-review asked for changes"
+                        record(ref, .held, what, review.summary)
                         break
                     }
                     record(ref, nil, "self-review approved", String(detail.headSHA.prefix(7)))
@@ -7021,7 +7035,8 @@ final class AppModel {
     ) async {
         guard let detail = details[ref] else { return }
         let verdict = HeedMerge.verdict(
-            detail, settings: pilotSettings(for: ref), selfReview: feedback[ref.description]?.selfReview, now: Clock.now
+            detail, settings: pilotSettings(for: ref), selfReview: feedback[ref.description]?.selfReview,
+            now: Clock.now, viewer: github.viewer
         )
         let adminRetry: Bool
         switch HeedMerge.attempt(verdict, adminMerge: admin) {
@@ -7074,20 +7089,14 @@ final class AppModel {
         guard let command = pilotSettings(for: ref).selfReview else {
             return SelfReview(sha: detail.headSHA, approved: false, summary: "no self_review command", at: Clock.now)
         }
-        let review: SelfReview
-        if isFixture {
-            review = SelfReview(sha: detail.headSHA, approved: true, summary: "approved", at: Clock.now)
+        let review: SelfReview = if isFixture {
+            SelfReview(sha: detail.headSHA, approved: true, summary: "approved", at: Clock.now)
         } else {
-            do {
-                let diff = try await GitHub.diff(ref, caller: "pilot.selfReview")
-                let output = try await SelfReview.run(command, prompt: SelfReview.prompt(
-                    detail, diff: diff, instructions: pilotSettings(for: ref).reviewInstructions
-                ))
-                review = SelfReview.parse(output, sha: detail.headSHA, at: Clock.now)
-            } catch {
-                review = SelfReview(
-                    sha: detail.headSHA, approved: false, summary: "the self-review failed: \(error)", at: Clock.now
-                )
+            // The diff of the very commit the verdict is stamped with, which the merge then names.
+            await SelfReview.review(
+                detail, command: command, instructions: pilotSettings(for: ref).reviewInstructions, now: Clock.now
+            ) { base, head in
+                try await GitHub.compareDiff(ref.repo, base: base, head: head, caller: "pilot.selfReview")
             }
         }
         if var pipeline = feedback[ref.description] {

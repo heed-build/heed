@@ -393,7 +393,7 @@ struct OriginBookTests {
         #expect(item.author == .init(login: "stranger", trust: .stranger))
         #expect(item.fork == true && item.headBranch == "patch-1")
         #expect(item.participants == [
-            .init(login: "eve", trust: .stranger), .init(login: "carol", trust: .collaborator),
+            .init(login: "eve", trust: .stranger), .init(login: "carol", trust: .member),
             .init(login: "renovate", trust: .bot),
         ])
         let issue = #"{"data":{"repository":{"issueOrPullRequest":{"__typename":"Issue","author":{"login":"o"},"authorAssociation":"OWNER","comments":{"nodes":[]}}}}}"#

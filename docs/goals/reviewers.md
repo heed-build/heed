@@ -114,8 +114,9 @@ Reviewers run the PR's code (its tests and benchmarks), so they run in the agent
   claude run; an item that trusts only the app that saved it still asks you first. codex's sandbox does not reach the
   keychain service.
 - Other agents have no sandbox heed can ask for. Their worktree of their own, removed when they end and never pushed,
-  is the only guard, so heed starts them on its own only on your work: on a PR from someone outside the repo (not you,
-  the owner, a member or a collaborator, or from a fork), the reviewer records that it waits for you, and `r` runs it.
+  is the only guard, so heed starts them on its own only on your work: on a PR heed does not trust (see
+  [which PRs heed merges](../autopilot/green-and-merged.md#which-prs-heed-merges): a fork's but yours, or one by
+  someone who can't write to the repo), the reviewer records that it waits for you, and `r` runs it.
   They have no headless mode heed knows either, so they review only in a session's tab; set `reviewer_agent` to
   claude or codex for goals with no session open.
 

@@ -122,13 +122,14 @@ public struct Cause: Codable, Hashable, Sendable, Identifiable {
 }
 
 public extension ExternalText.Trust {
-    /// Least trusted first: stranger, bot, collaborator, owner.
+    /// Least trusted first: stranger, bot, member, collaborator, owner.
     var rank: Int {
         switch self {
         case .stranger: 0
         case .bot: 1
-        case .collaborator: 2
-        case .owner: 3
+        case .member: 2
+        case .collaborator: 3
+        case .owner: 4
         }
     }
 }

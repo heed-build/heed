@@ -546,6 +546,7 @@ public struct OriginNote: Hashable, Sendable {
         return switch author.trust {
         case .owner: "\(handle) (the repo's owner or the user)"
         case .collaborator: "\(handle) (a collaborator\(place))"
+        case .member: "\(handle) (a member of the organisation\(repo.map { " that owns \($0)" } ?? ""))"
         case .bot: "\(handle) (a bot)"
         case .stranger: "\(handle) (not a collaborator\(place))"
         }

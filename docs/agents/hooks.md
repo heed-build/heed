@@ -129,7 +129,7 @@ The calls heed recognises:
 | `WebFetch` or `curl` of a github.com PR, issue or gist | the same, or a gist by someone else |
 
 The note says only what heed already knows: the repo, the number, who opened it and who else wrote on it, who each of
-them is to the repo (owner, collaborator, bot, or not a collaborator) and whether a PR's code is from a fork. It never
+them is to the repo (owner, collaborator, organisation member, bot, or not a collaborator) and whether a PR's code is from a fork. It never
 carries the content itself or anything those people wrote, and logins keep only the characters a login can have. heed
 sends no note when it does not know who wrote the content, or when everyone who did can write to the repo (and a PR's
 code is not from a fork). The note stays under 900 characters; Claude Code keeps 2,000 per tool call.

@@ -100,7 +100,7 @@ struct ExternalTextTests {
 
     @Test func trustFollowsTheAssociationAndBotsAreBots() {
         #expect(ExternalText.Trust.from(association: "OWNER", isBot: false) == .owner)
-        #expect(ExternalText.Trust.from(association: "MEMBER", isBot: false) == .collaborator)
+        #expect(ExternalText.Trust.from(association: "MEMBER", isBot: false) == .member)
         #expect(ExternalText.Trust.from(association: "COLLABORATOR", isBot: false) == .collaborator)
         for association in ["CONTRIBUTOR", "FIRST_TIME_CONTRIBUTOR", "FIRST_TIMER", "NONE", nil] {
             #expect(ExternalText.Trust.from(association: association, isBot: false) == .stranger)

@@ -160,7 +160,8 @@ run_timeout = "30m"
 pause = "1h"
 # Get it merged: off; auto (heed turns on GitHub's auto-merge for a PR, and GitHub merges it once its own
 # requirements are met); or heed (heed merges it itself once the rules below hold). Per org and per repo too, and M
-# cycles one PR. Either way only PRs opened by the repo's owner, a collaborator, or one of trusted_authors.
+# cycles one PR. Either way only yours, and PRs from a branch of the repo itself (not a fork) opened by someone who
+# can write to it (the owner, a collaborator, or an org member gh says has write access) or by one of trusted_authors.
 merge = "off"
 trusted_authors = []      # e.g. ["dependabot[bot]", "renovate[bot]"]
 # squash, merge or rebase; unset takes the first the repo allows, in that order.
@@ -187,7 +188,8 @@ trusted_reviewers = []    # e.g. ["copilot-pull-request-reviewer"]
 # as "app:name", e.g. "github-actions:test". A check of the same name from another app does not count.
 gate_checks = []
 hold_labels = ["hold", "do-not-merge", "wip"]
-# A command that reads the prompt and the PR's diff on stdin and answers APPROVE, or REQUEST_CHANGES: <why>.
+# A command that reads the prompt and the PR's diff on stdin and answers APPROVE, or REQUEST_CHANGES: <why>. It runs
+# with its tools off: claude or pi, after env, NAME=value or npx @anthropic-ai/claude-code. Anything else holds the PR.
 # self_review = "claude -p"
 # [repos."org/name"] admin_merge = true retries a refused merge with --admin, bypassing branch protection. Repo only,
 # and only heed's own merges (merge = "heed"); merging now by hand follows force_merge below.

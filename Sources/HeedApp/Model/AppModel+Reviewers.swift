@@ -428,6 +428,7 @@ extension AppModel {
             )
         }
         let viewer = github.viewer
+        let trustedAuthors = target.pull.map { pilotSettings(for: $0).trustedAuthors } ?? []
         let start = ReviewRunStart(
             id: runID, reviewer: state.id, trigger: trigger, basis: basis, agent: agentName, model: model
         )
@@ -435,7 +436,7 @@ extension AppModel {
         Task {
             // A run with no sandbox starts on its own only on your work; on someone else's PR, when you ask.
             let trusted: Bool? = if let pull = target.pull, !sandboxed, trigger != .manual {
-                await PullTrustBook.shared.resolve(pull, viewer: viewer) { ref in
+                await PullTrustBook.shared.resolve(pull, viewer: viewer, trustedAuthors: trustedAuthors) { ref in
                     try await GitHub.pullAuthorship(ref, caller: "goals.review")
                 }
             } else {

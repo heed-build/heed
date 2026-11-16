@@ -550,7 +550,8 @@ private struct MergeSection: View {
                 if mode == .heed, let detail {
                     let verdict = HeedMerge.verdict(
                         detail, settings: model.pilotSettings(for: ref),
-                        selfReview: model.feedback[ref.description]?.selfReview, now: Clock.now
+                        selfReview: model.feedback[ref.description]?.selfReview, now: Clock.now,
+                        viewer: model.github.viewer
                     )
                     ForEach(verdict.rules) { rule in
                         HStack(alignment: .firstTextBaseline, spacing: 8) {

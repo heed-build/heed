@@ -49,7 +49,16 @@ public extension GitHub {
             mergedPullsQuery, operation: "mergedPulls",
             variables: variables.merging(["base": settings.defaultBranch]) { $1 }, caller: caller
         ))
-        let pulls = parseMergedPulls(pullsData)
+        var pulls = parseMergedPulls(pullsData)
+        // Organisation members count as able to write only once gh says so, as for a merge (`PullTrust`).
+        let members = Set(pulls.flatMap(\.memberLogins).map { $0.lowercased() })
+        calls += members.count { WriteAccessBook.shared.canWrite(repo, $0) == nil }
+        let writers = await WriteAccessBook.shared.writers(among: Array(members), in: repo) { repo, login in
+            try await canWrite(repo, login: login, caller: caller)
+        }
+        for index in pulls.indices {
+            pulls[index].writers = writers
+        }
         await progress(.pulls, true)
         await progress(.runs, false)
         let runsData = await rest(
@@ -199,7 +208,7 @@ public extension GitHub {
         pullRequests(states: MERGED, baseRefName: $base, first: \(sampledPulls),
                      orderBy: { field: UPDATED_AT, direction: DESC }) {
           nodes {
-            number title createdAt mergedAt
+            number title createdAt mergedAt isCrossRepository
             author { __typename login } authorAssociation
             mergedBy { login }
             labels(first: 20) { nodes { name } }
@@ -327,7 +336,7 @@ public extension GitHub {
                 )
             }
         let parents = ((node["mergeCommit"] as? [String: Any])?["parents"] as? [String: Any])?["totalCount"] as? Int
-        return SampledPull(
+        var pull = SampledPull(
             number: number, title: node["title"] as? String ?? "", author: author?["login"] as? String ?? "ghost",
             authorIsBot: isBot(author), mergedBy: (node["mergedBy"] as? [String: Any])?["login"] as? String,
             createdAt: date(node["createdAt"] as? String), mergedAt: mergedAt, labels: labels,
@@ -344,6 +353,8 @@ public extension GitHub {
             ),
             passedRuns: passedRuns
         )
+        pull.crossRepository = node["isCrossRepository"] as? Bool ?? false
+        return pull
     }
 
     // MARK: CI

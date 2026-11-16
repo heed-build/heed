@@ -653,7 +653,8 @@ public enum GitHub {
         guard let detail = parsePullDetail(data, ref: ref, now: now) else {
             throw Failure(description: "\(ref) is not visible to gh")
         }
-        return detail
+        // Organisation members count as able to write only once gh says so (`PullTrust`).
+        return await withWriters(detail) { repo, login in try await canWrite(repo, login: login, caller: caller) }
     }
 
     /// The Actions job behind a check's details URL (`…/actions/runs/123/job/456` → `456`); nil for other checks.
@@ -740,6 +741,23 @@ public enum GitHub {
         )
         guard result.succeeded else { throw Failure(description: Self.explain(result)) }
         return result.stdout
+    }
+
+    /// The diff of `head` (a commit) against where it left `base` (a branch): what a PR whose head is that commit
+    /// changes, however the PR's head has moved since. `gh api repos/{owner}/{repo}/compare/{base}...{head}` as a diff.
+    public static func compareDiff(_ repo: Repo, base: String, head: String, caller: String) async throws -> String {
+        let result = try await gh(
+            compareDiffArguments(repo, base: base, head: head), operation: "GET compare", timeout: .seconds(60),
+            caller: caller
+        )
+        guard result.succeeded else { throw Failure(description: Self.explain(result)) }
+        return result.stdout
+    }
+
+    static func compareDiffArguments(_ repo: Repo, base: String, head: String) -> [String] {
+        let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "?#"))
+        let encoded = base.addingPercentEncoding(withAllowedCharacters: allowed) ?? base
+        return ["api", "-H", "Accept: application/vnd.github.diff", "repos/\(repo.slug)/compare/\(encoded)...\(head)"]
     }
 
     /// `gh pr comment`.
@@ -835,7 +853,8 @@ public enum GitHub {
     query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) {
       autoMergeAllowed squashMergeAllowed mergeCommitAllowed rebaseMergeAllowed viewerPermission
       pullRequest(number: $number) {
-      number title body author { login __typename } authorAssociation baseRefName headRefName additions deletions
+      number title body author { login __typename } authorAssociation isCrossRepository baseRefName headRefName
+      additions deletions
       baseRef { refUpdateRule { requiresLinearHistory } target { ... on Commit { statusCheckRollup {
         contexts(first: 100) { nodes { __typename ... on CheckRun { name checkSuite { app { slug } } }
           ... on StatusContext { context creator { login } } } } } } } }
@@ -1235,6 +1254,7 @@ public enum GitHub {
             ).trust
         )
         detail.state = node["state"] as? String
+        detail.crossRepository = node["isCrossRepository"] as? Bool
         detail.isDraft = node["isDraft"] as? Bool
         detail.mergeable = node["mergeable"] as? String
         detail.mergeState = node["mergeStateStatus"] as? String

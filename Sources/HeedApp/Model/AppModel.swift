@@ -2166,7 +2166,8 @@ final class AppModel {
 
     /// A dialog, overlay or typing that a question of heed's own must not cut into.
     var busy: Bool {
-        mode != .normal || confirmation != nil || importPicker != nil || taskPicker != nil || hostsPicker != nil
+        mode != .normal || confirmation != nil || importPicker != nil || agentImport != nil || taskPicker != nil
+            || hostsPicker != nil
             || linkPicker != nil || pathImport != nil || startWork != nil || resume != nil || firstRun != nil
             || hostRootsChooser != nil || awaySummary != nil || runReader != nil || pilotExplain != nil
             || overlay != nil || filtering || tutor != nil || repoSetup != nil || nudge != nil || addRepoDialog != nil
@@ -2546,6 +2547,10 @@ final class AppModel {
             answerImportPicker(stroke)
             return true
         }
+        if agentImport != nil {
+            answerAgentImport(stroke)
+            return true
+        }
         if taskPicker != nil {
             answerTaskPicker(stroke)
             return true
@@ -2765,6 +2770,7 @@ final class AppModel {
         case "session.close": confirmClose()
         case "session.delete": confirmDelete()
         case "session.import.path": openPathImport()
+        case "session.import.agent": openAgentImport()
         case "session.import":
             if command.arguments.isEmpty {
                 openImportPicker()
@@ -4313,6 +4319,25 @@ final class AppModel {
     /// `I` in Sessions: pick a worktree without a session (main checkouts included) to import.
     private(set) var importPicker: Typeahead<Worktree>?
 
+    /// `Ia` in Sessions: pick any agent session kept on this Mac to import and resume (`AppModel+AgentImport`).
+    var agentImport: Typeahead<Import.AgentSession>?
+
+    private func answerAgentImport(_ stroke: KeyStroke) {
+        guard var picker = agentImport else { return }
+        if let text = pasted(stroke) {
+            picker.paste(text)
+            agentImport = picker
+            return
+        }
+        switch picker.handle(stroke) {
+        case .handled: agentImport = picker
+        case .cancel: agentImport = nil
+        case let .picked(agentSession):
+            agentImport = nil
+            importAgentSession(agentSession)
+        }
+    }
+
     // MARK: Import a path
 
     /// `P` in Sessions: a path typed with directory completion, previewed as it changes, imported with ↩.
@@ -4585,15 +4610,18 @@ final class AppModel {
         flash = "looking for agent sessions…"
         Task {
             let found = await Task.detached(priority: .userInitiated) {
-                missing.map { ($0, Import.claudeSessions(directory: $0.path).first) }
+                let newest = Import.newestSessions(for: missing.map(\.path))
+                return missing.map { ($0, newest[$0.path]) }
             }.value
             flash = nil
             let lines = found.map { worktree, agentSession -> String in
                 let name = "\(worktree.repo.name)/\(worktree.branch ?? worktree.head)"
-                guard let agentSession else { return "\(name): starts \(defaultAgent?.name ?? "a shell") fresh" }
+                guard let agentSession, settings.agent(agentSession.agent) != nil else {
+                    return "\(name): starts \(defaultAgent?.name ?? "a shell") fresh"
+                }
                 let age = agentSession.modified.formatted(.relative(presentation: .named))
                 let prompt = agentSession.prompt.map { " · “\($0.prefix(50))”" } ?? ""
-                return "\(name): resumes the claude session from \(age)\(prompt)"
+                return "\(name): resumes the \(agentSession.agent) session from \(age)\(prompt)"
             }
             ask(Confirmation(
                 title: found
@@ -4606,10 +4634,21 @@ final class AppModel {
     }
 
     private func importWorktrees(_ found: [(Worktree, Import.AgentSession?)], defaultAgent: AgentProfile?) {
+        commitImported(found.map { worktree, agentSession in
+            // A session of an agent not in your config starts your default agent fresh, never resumes under another.
+            if let agentSession, let agent = settings.agent(agentSession.agent) {
+                return Import.session(for: worktree, agent: agent, resume: agentSession, integration: integration)
+            }
+            return Import.session(for: worktree, agent: defaultAgent, resume: nil, integration: integration)
+        })
+        flash = "imported \(found.count) session\(found.count == 1 ? "" : "s")"
+    }
+
+    /// Commits imported sessions, one list of changes each: their agent panes start at once, the first is selected
+    /// and you are typing into its agent.
+    func commitImported(_ imports: [[DomainChange]]) {
         var firstID: String?
-        for (worktree, agentSession) in found {
-            let agent = agentSession.flatMap { settings.agent($0.agent) } ?? defaultAgent
-            let changes = Import.session(for: worktree, agent: agent, resume: agentSession, integration: integration)
+        for changes in imports {
             for case let .layoutChanged(_, layout) in changes {
                 for pane in layout.tabs.flatMap(\.tree.panes) where pane.command != nil {
                     TerminalSurfaces.shared.autostartPanes.insert(pane.id)
@@ -4624,7 +4663,6 @@ final class AppModel {
         if let firstID { select(sessionID: firstID) }
         if let tab = currentTab, let agent = tab.tree.panes.first(where: { $0.role == .agent }) { focusPane(agent.id) }
         enterInsert()
-        flash = "imported \(found.count) session\(found.count == 1 ? "" : "s")"
     }
 
     /// " · saves 2 unpushed commits as heed/archive/x" for a removal with work that exists nowhere else.
@@ -7494,7 +7532,7 @@ final class AppModel {
     /// The global shortcut: Start work in a panel over whatever app is in front. Pressing it again brings the panel
     /// back; a dialog already open in the main window moves to the panel.
     func openStandaloneStartWork() {
-        guard confirmation == nil, importPicker == nil else { return }
+        guard confirmation == nil, importPicker == nil, agentImport == nil else { return }
         if startWork == nil {
             // Called from another app: what heed's cursor is on says nothing about this work.
             openStartWork(prompt: "", fromCursor: false)
@@ -8520,6 +8558,7 @@ final class AppModel {
         startWork = nil
         confirmation = nil
         importPicker = nil
+        agentImport = nil
         overlay = nil
         reader = nil
         issueReader = nil
@@ -8635,7 +8674,7 @@ final class AppModel {
         state.confirmationOpen = confirmation != nil
         state.repoSetupOpen = repoSetup != nil
         state.repoSetupStep = repoSetup?.step.rawValue ?? 0
-        state.importOpen = importPicker != nil || pathImport != nil
+        state.importOpen = importPicker != nil || pathImport != nil || agentImport != nil
         state.addRepoOpen = addRepoDialog != nil
         state.addRepoPicked = addRepoDialog?.picked.count ?? 0
         state.reposFocus = reposFocus.rawValue
@@ -8814,8 +8853,8 @@ final class AppModel {
     /// Whether a click on a list may act: not while a dialog or form has the keyboard.
     var clicksReachLists: Bool {
         startWork == nil && confirmation == nil && resume == nil && firstRun == nil && importPicker == nil
-            && pathImport == nil && tutorPicker == nil && awaySummary == nil && repoSetup == nil && nudge == nil
-            && addRepoDialog == nil
+            && agentImport == nil && pathImport == nil && tutorPicker == nil && awaySummary == nil
+            && repoSetup == nil && nudge == nil && addRepoDialog == nil
     }
 
     /// A click on a session in the sidebar or the rail selects it; a double-click also types into its agent pane.

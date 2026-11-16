@@ -37,6 +37,10 @@ decided on top of the brief, and the build order. Keep it true to `Sources/`.
 - **Resume**: claude `--resume <id>` (its session file under `~/.claude/projects/<cwd, / and . as ->/` tells whether
   it still exists), codex `resume <id>`, cursor `--resume <id>`, pi and opencode `--session <id>`; gemini starts fresh
   until verified. Resumed agent panes start at launch even off screen.
+- **Import an agent session** (`Ia`): sessions found on disk, claude's (`~/.claude/projects/*/<id>.jsonl`, folder from
+  its lines' `cwd`) and codex's (`~/.codex/sessions/<yyyy>/<mm>/<dd>/rollout-<time>-<id>.jsonl`: `session_meta`'s
+  `id` and `cwd`, the prompt the first user `input_text` that is not `<…>` context or `# AGENTS.md`; checked against
+  codex 0.162 rollouts on 2026-11-16). Each is resumed where it ran: its worktree, its repo (added), or a chat.
 - **heed's own model calls**: no API key. `LLMRunner` calls the agent CLIs you are logged in to, headless, on their
   cheapest model, taking turns, with daily caps and a backoff; `Summarizer` and `Decider` sit on it. A decision is
   never acted on where it cannot be undone. Every call, model call and decision is a row in the call log.

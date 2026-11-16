@@ -45,6 +45,7 @@ public enum Commands {
             arguments: "[path]"
         ),
         .init("session.import.path", "import the worktree at a path (any repo, anywhere)", .move),
+        .init("session.import.agent", "import an agent session (Claude Code, codex; any folder) and resume it", .move),
         .init("session.pin", "pin / unpin session", .move),
         .init(
             "session.rename",

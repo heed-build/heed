@@ -820,6 +820,7 @@ enum Shots {
         // Typing narrows by repo, branch or the path below its root, and marks what matched.
         Shot(id: "worktrees/import-worktree-filtered", keys: "Iwgantt", crop: .picker),
         Shot(id: "worktrees/import-path", keys: "Ip" + "code/wt/docs-toolkit/toc", crop: .picker),
+        Shot(id: "worktrees/import-agent", keys: "Ia", crop: .picker),
         Shot(id: "worktrees/remove", keys: "gr4jvjd", crop: .confirm),
         Shot(id: "worktrees/cleanup-off", keys: "gr", crop: .cleanupBar),
         Shot(id: "worktrees/cleanup", keys: "gr", crop: .cleanupBar, prepare: { model in

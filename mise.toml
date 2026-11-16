@@ -30,7 +30,7 @@ run = "open $BUILD_DIR/Heed.app"
 
 [tasks.test]
 description = "Swift Testing suite"
-run = "swift test --quiet"
+run = "swift test"
 
 [tasks.text-check]
 description = "Fail when other people's text or a Prompt is interpolated into a plain String (rebuilds heed's sources; CI runs it)"

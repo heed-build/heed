@@ -41,8 +41,14 @@ description = "The live checks: heed's helper, approvals, OpenTelemetry and the 
 run = "swift build --product heed && HEED_LIVE=1 swift test --filter HeedCoreTests.Live"
 
 [tasks.bench]
-description = "Timings kept out of the test suite (a hook's budget and the like): a release build, one at a time"
-run = "HEED_BENCH=1 swift test -c release -Xswiftc -enable-testing --no-parallel --filter Bench"
+description = "Timings kept out of the test suite (a hook's budget and the like): optimized, one at a time"
+# Only the test product (HeedCore and its tests), not the app and MLX. A debug build with -O: optimized and testable,
+# compiled file by file (no whole-module optimization), so it builds in parallel and incrementally. Its own scratch
+# path, so `mise run test` and `mise run bench` do not rebuild each other's.
+run = [
+  "swift build --scratch-path .build/bench -Xswiftc -O --product HeedPackageTests",
+  "HEED_BENCH=1 swift test --scratch-path .build/bench --skip-build --no-parallel --filter Bench",
+]
 
 [tasks.fmt]
 description = "Format Swift sources"

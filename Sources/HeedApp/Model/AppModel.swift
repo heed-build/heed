@@ -683,24 +683,29 @@ final class AppModel {
 
     /// Starts from the cache, then refreshes from git. The window is already up showing whatever the cache holds.
     func start(cache file: URL) async {
-        await startCallLog(beside: file)
+        // Signposts (`Perf`): each wait before the cached domain is drawn, and the whole of it.
+        let toCache = Perf.begin("start.toCache")
+        await Perf.measure("start.callLog") { await startCallLog(beside: file) }
         startConfig()
         Notifier.shared.attach(self)
-        if !isFixture { await detectTools() }
-        await startLLM()
+        if !isFixture { await Perf.measure("start.detectTools") { await detectTools() } }
+        await Perf.measure("start.llm") { await startLLM() }
         startHooks()
-        await startTelemetry(beside: file)
+        await Perf.measure("start.telemetry") { await startTelemetry(beside: file) }
         let integration = integration
         Task.detached(priority: .utility) {
             do { try integration.write() } catch { NSLog("heed: could not write hook files: \(error)") }
         }
-        let loaded = await DomainStore.load(from: file)
+        let loaded = await Perf.measure("start.loadDomain") { await DomainStore.load(from: file) }
         // History and timelines live in the event log, beside the domain file; without it they stay in that file.
-        let log = await EventLog.open(at: file.deletingLastPathComponent().appendingPathComponent("heed.sqlite"))
-        let cached = await log?.adopt(loaded) ?? loaded
+        let log = await Perf.measure("start.openLog") {
+            await EventLog.open(at: file.deletingLastPathComponent().appendingPathComponent("heed.sqlite"))
+        }
+        let cached = await Perf.measure("start.adopt") { await log?.adopt(loaded) ?? loaded }
         // Before any pane is drawn: which panes still have a live zmx session to reattach to.
-        await TerminalSurfaces.shared.refreshLivePanes()
-        replace(with: cached)
+        await Perf.measure("start.livePanes") { await TerminalSurfaces.shared.refreshLivePanes() }
+        Perf.measure("start.replace") { replace(with: cached) }
+        toCache.end()
         loadAvatars()
         store = DomainStore(domain: cached, file: file, log: log)
         eventLog = log
@@ -762,6 +767,8 @@ final class AppModel {
     var lastHookAt: [String: Date] = [:]
 
     private func readScreens() async {
+        let perf = Perf.begin("readScreens")
+        defer { perf.end() }
         // Each live run's last line, for the sidebar and the PR card; set only when it changed.
         let now = Date()
         for (id, live) in liveRuns {
@@ -1523,6 +1530,8 @@ final class AppModel {
     }
 
     private func rebuildList() {
+        let perf = Perf.begin("rebuildList")
+        defer { perf.end() }
         // The selection is a session, not a row. A session moving between groups (parked to working, say) reorders
         // the list; the cursor follows the session it was on, so what you look at and type into never changes under
         // you. Read before the rebuild: `currentSession` still indexes the old list here.
@@ -1588,6 +1597,8 @@ final class AppModel {
     /// The one way the domain changes. Only properties that actually changed are written, so only their readers redraw.
     func commit(_ changes: [DomainChange]) {
         guard !changes.isEmpty else { return }
+        let perf = Perf.begin("commit")
+        defer { perf.end() }
         let before = currentDomain
         let after = before.applying(changes)
         let historyChanged = after.history != before.history

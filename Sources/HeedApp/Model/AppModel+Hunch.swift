@@ -67,11 +67,11 @@ extension AppModel {
     func retrainHunch() {
         guard !isFixture else { return flash = "fixtures train nothing" }
         guard hunch.status.modelReady else { return flash = "Hunch has no model yet (:hunch.download)" }
-        guard hunch.trainTask == nil else { return flash = "Hunch is already learning" }
+        guard !hunch.run.isActive else { return flash = "Hunch is already learning" }
         Task {
             await harvestHunchExamples()
             hunch.trainIfDue(asked: true) { MacConditions.now }
-            flash = hunch.trainTask != nil ? "Hunch is learning from your corrections" : (hunch.note ?? "not now")
+            flash = hunch.run.isActive ? "Hunch is learning from your corrections" : (hunch.note ?? "not now")
         }
     }
 
@@ -101,7 +101,7 @@ extension AppModel {
                         lastHarvest = Date()
                     }
                     hunch.trainIfDue(asked: false) { MacConditions.now }
-                } else if hunch.trainTask != nil {
+                } else if hunch.run.isActive {
                     hunch.stopTraining("stopped: learning is off")
                 }
                 try? await Task.sleep(for: .seconds(600))

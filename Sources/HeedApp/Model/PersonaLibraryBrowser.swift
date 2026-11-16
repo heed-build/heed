@@ -51,11 +51,8 @@ final class PersonaLibraryBrowser {
     var answering: String?
     /// Verdict history drawn instead of the wizards' (the fake world's).
     var fixtureVerdicts: [String: [PanelVerdict.Kind]]?
-    @ObservationIgnored var defineClient: ACPClient?
-    @ObservationIgnored var defineSession: String?
-    @ObservationIgnored var defineBuffer = ""
-    @ObservationIgnored var definePaths: [String] = []
-    @ObservationIgnored var defineRoot: String?
+    /// The conversation with the agent defining the persona that shows (one at a time).
+    @ObservationIgnored var defineConversation: AgentConversation?
 
     /// The key scope the Settings window reads: the sheet on top, else the list.
     var scope: String {

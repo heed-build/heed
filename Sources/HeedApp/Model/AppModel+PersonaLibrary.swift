@@ -435,40 +435,24 @@ extension AppModel {
         guard let directory else {
             return personaDefineFailed("\(definition.repo ?? "its repo") is not cloned on this Mac")
         }
-        let id = definition.id
         let prompt = PersonaDefinition.prompt(definition.start, repo: definition.repo)
-        let ui = personaUI
-        ui.defineRoot = directory
-        ui.definePaths = []
-        ui.editCurrent { $0.working = true }
-        Task {
-            let (path, pathVariable) = await ToolLocator.shared.executable(adapter.executable)
-            guard let path else {
-                return personaDefineFailed("\(adapter.executable) is not installed" +
-                    (adapter.install.map { ": \($0)" } ?? ""))
-            }
-            var environment = ProcessInfo.processInfo.environment
-            environment["PATH"] = pathVariable
-            do {
-                let transport = try ACPProcessTransport(
-                    executable: path, arguments: adapter.arguments, directory: directory, environment: environment
-                )
-                let client = ACPClient(transport: transport)
-                ui.defineClient = client
-                await client.start()
-                Task { [weak self] in
-                    for await event in client.events {
-                        self?.personaDefineEvent(event, client: client)
-                    }
-                }
-                _ = try await client.initialize(clientVersion: appVersion)
-                ui.defineSession = try await client.newSession(cwd: directory)
-                guard ui.current?.id == id else { return }
-                personaDefineTurn(prompt)
-            } catch {
-                personaDefineFailed("\(error)")
-            }
+        personaUI.editCurrent { $0.working = true }
+        openAgentConversation(
+            \.personaUI.defineConversation, adapter: adapter, directory: directory, handlers: personaHandlers
+        ) { [weak self] in
+            self?.personaDefineTurn(prompt)
         }
+    }
+
+    private var personaHandlers: ConversationHandlers {
+        ConversationHandlers(
+            failed: { [weak self] why in self?.personaDefineFailed(why) },
+            reads: { [weak self] paths, root in
+                let reads = PartDefinition.reads(paths, root: root, limit: 4)
+                self?.personaUI.editCurrent { $0.reads = reads }
+            },
+            cost: { [weak self] cost in self?.personaUI.editCurrent { $0.cost = cost } }
+        )
     }
 
     private func personaDefineFailed(_ why: String) {
@@ -486,48 +470,17 @@ extension AppModel {
             return
         }
         let ui = personaUI
-        guard let client = ui.defineClient, let session = ui.defineSession, let id = ui.current?.id else { return }
-        ui.defineBuffer = ""
-        ui.editCurrent { $0.working = true }
+        guard let id = ui.current?.id else { return }
         let started = Clock.now
-        Task {
-            do {
-                _ = try await client.prompt(sessionID: session, text: .owner(text))
-                let reply = ui.defineBuffer
-                ui.edit(id: id) { definition in
-                    definition.received(reply)
-                    definition.working = false
-                    definition.seconds += Clock.now.timeIntervalSince(started)
-                }
-            } catch {
-                personaDefineFailed("\(error)")
+        let slot: ConversationSlot = \.personaUI.defineConversation
+        let began = agentConversationTurn(slot, text: text, handlers: personaHandlers) { reply in
+            ui.edit(id: id) { definition in
+                definition.received(reply)
+                definition.working = false
+                definition.seconds += Clock.now.timeIntervalSince(started)
             }
         }
-    }
-
-    private func personaDefineEvent(_ event: ACPEvent, client: ACPClient) {
-        let ui = personaUI
-        guard ui.defineClient === client else { return }
-        switch event {
-        case let .update(_, update):
-            switch update {
-            case let .agentMessage(chunk): ui.defineBuffer += chunk
-            case let .toolCall(call), let .toolCallUpdate(call):
-                if [.read, .search].contains(call.kind ?? .other), let paths = call.paths, !paths.isEmpty {
-                    ui.definePaths += paths
-                    let reads = PartDefinition.reads(ui.definePaths, root: ui.defineRoot, limit: 4)
-                    ui.editCurrent { $0.reads = reads }
-                }
-            case let .usage(_, _, cost, _): if let cost { ui.editCurrent { $0.cost = cost } }
-            default: break
-            }
-        case let .permission(requestID, _, request):
-            // Reading goes ahead; anything that would change something is refused, as when defining a part.
-            Task { await client.answerPermission(requestID, optionID: DefinePolicy.answer(request)) }
-        case let .closed(reason):
-            if ui.current?
-                .working == true { personaDefineFailed("the agent exited" + (reason.map { ": \($0)" } ?? "")) }
-        }
+        if began { ui.editCurrent { $0.working = true } }
     }
 
     /// The answer field's text, sent.
@@ -547,12 +500,7 @@ extension AppModel {
     }
 
     private func endPersonaSession() {
-        personaUI.defineSession = nil
-        personaUI.definePaths = []
-        if let client = personaUI.defineClient {
-            personaUI.defineClient = nil
-            Task { await client.close() }
-        }
+        closeAgentConversation(\.personaUI.defineConversation)
     }
 
     /// `personas.next`: on to the next picked persona (its own session).

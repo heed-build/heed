@@ -81,6 +81,8 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
     case unknownAddress(String)
     /// An item source cannot be added or changed like that: why.
     case source(String)
+    /// Discarding would not do what was asked for (the goal gained or lost an attachment since): what it would do.
+    case discardChanged(GoalDiscard.Outcome)
 
     public var description: String {
         switch self {
@@ -101,6 +103,8 @@ public enum GoalOpError: Error, Equatable, CustomStringConvertible {
         case let .noTask(id): "no task \(id) in the plan"
         case let .notYours(id, whose): "question \(id) is not yours to answer: it waits for \(whose)"
         case let .source(why): why
+        case let .discardChanged(outcome):
+            "the goal changed since you were asked: discarding it now would \(outcome == .delete ? "delete" : "archive") it; ask again"
         case let .unknownAddress(word):
             "no one called \(word): a task's number (2.1) or id, lead, or @all (heed goal plan show lists the tasks)"
         }

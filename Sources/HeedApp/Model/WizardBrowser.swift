@@ -49,6 +49,10 @@ final class WizardBrowser {
     var busy: [String: String] = [:]
     /// The last thing that went wrong, by goal.
     var problem: [String: String] = [:]
+    /// What runs in the background per goal (a plan turn, or discarding it), and the plan turns' tasks: discarding
+    /// cancels the turn, and a reply that comes after is dropped.
+    @ObservationIgnored var activity: [String: WizardActivity] = [:]
+    @ObservationIgnored var planTurns: [UUID: Task<Void, Never>] = [:]
     /// The goal whose TL;DR shows.
     var tldr: String?
     /// TL;DRs of goals that never went through the wizard, by goal (not kept across launches).
@@ -72,12 +76,8 @@ final class WizardBrowser {
     var defining: PartDefinition?
     /// Definitions put off with Later, by part: `d` comes back to them.
     var parkedDefinitions: [String: PartDefinition] = [:]
-    /// The defining agent's connection, its session, the reply it streams, what it read and where.
-    @ObservationIgnored var defineClient: ACPClient?
-    @ObservationIgnored var defineSession: String?
-    @ObservationIgnored var defineBuffer = ""
-    @ObservationIgnored var definePaths: [String] = []
-    @ObservationIgnored var defineRoot: String?
+    /// The conversation with the defining agent: its client, phase, the reply it streams and what it read.
+    @ObservationIgnored var defineConversation: AgentConversation?
     /// Go: the row under the cursor (Who works … Merge).
     var goRow = 0
     /// The goal's page: the part under its cursor and whether it is folded out.

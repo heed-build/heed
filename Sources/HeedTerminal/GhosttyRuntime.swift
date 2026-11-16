@@ -15,8 +15,8 @@ public final class GhosttyRuntime {
     /// libghostty may still read it from a surface mid-frame, and it is a few kilobytes.
     private var config: ghostty_config_t?
     /// Whether panes are drawn in the dark scheme; set (`setAppearance`) before the first surface opens.
-    private nonisolated(unsafe) static var isDark = true
-    private nonisolated(unsafe) static var started = false
+    private static var isDark = true
+    private static var started = false
     private var tickScheduled = false
 
     /// Called when a surface's process ends and Ghostty asks to close it (`processAlive` false), or the user closed it.

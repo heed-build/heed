@@ -11,8 +11,7 @@ private struct FakeCLI {
     let path: String
 
     init() throws {
-        folder = FileManager.default.temporaryDirectory.appendingPathComponent("heed-fake-llm-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        folder = try Scratch.folder("heed-fake-llm")
         path = folder.appendingPathComponent("agent").path
         let script = #"""
         #!/bin/sh
@@ -197,6 +196,7 @@ private final class TestClock: Sendable {
     func advance(_ seconds: TimeInterval) { value.withLock { $0 += seconds } }
 }
 
+@Suite(.scratch)
 struct LLMRunnerTests {
     private static let start = ISO8601DateFormatter().date(from: "2026-10-22T09:00:00Z")!
 
@@ -218,8 +218,7 @@ struct LLMRunnerTests {
     }
 
     private func log() throws -> CallLog {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("heed-llm-log-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let folder = try Scratch.folder("heed-llm-log")
         return try CallLog(
             store: CallStore(path: folder.appendingPathComponent("log.sqlite").path),
             delay: .seconds(60)
@@ -315,7 +314,9 @@ struct LLMRunnerTests {
             #expect(response.agent == "cursor")
         }
         #expect(fakes[0].calls.isEmpty)
-        #expect(try await rows(log).allSatisfy { $0.detail["skipped"] == "claude: off" })
+        let logged = try await rows(log)
+        #expect(logged.count == 3)
+        #expect(logged.allSatisfy { $0.detail["skipped"] == "claude: off" })
     }
 
     @Test func customAgentsTakeNoPart() async throws {

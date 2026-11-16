@@ -263,7 +263,7 @@ struct SwarmRemoteWorkerTests {
         #expect(!made.reused)
         #expect(made.base == "main")
         let calls = fake.recorded
-        #expect(calls.allSatisfy { $0.host == "devbox" })
+        #expect(!calls.isEmpty && calls.allSatisfy { $0.host == "devbox" })
         // heed's files first: the hook, heed's `heed` for `heed goal`, the agents' hook settings.
         let writes = calls.prefix { $0.line.first == "sh" }
         let written = writes.compactMap { $0.line.last }
@@ -297,7 +297,7 @@ struct SwarmRemoteWorkerTests {
         #expect(made.base == "swarm/g/spike")
         #expect(made.path == "/home/you/code/wt/heed/docs-toolkit/swarm-g-profile")
         #expect(!fake.recorded.contains { $0.line.contains("worktree") })
-        #expect(fake.recorded.allSatisfy { $0.host == "devbox" })
+        #expect(!fake.recorded.isEmpty && fake.recorded.allSatisfy { $0.host == "devbox" })
     }
 
     @Test func aHostThatRefusesTheFilesStopsTheStart() async {

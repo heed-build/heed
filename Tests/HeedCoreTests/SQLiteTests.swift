@@ -2,10 +2,10 @@ import Foundation
 @testable import HeedCore
 import Testing
 
+@Suite(.scratch)
 struct SQLiteTests {
     private func folder() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-sqlite-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        let url = try Scratch.folder("heed-sqlite")
         return url
     }
 

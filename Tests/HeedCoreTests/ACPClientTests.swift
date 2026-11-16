@@ -233,10 +233,10 @@ struct ACPClientTests {
 }
 
 /// The same client over a real process: a shell script that speaks just enough ACP, answering in order.
+@Suite(.scratch)
 struct ACPProcessTests {
     @Test func aRealProcessIsSpokenToOverItsStdio() async throws {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("heed-acp-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let directory = try Scratch.folder("heed-acp")
         defer { try? FileManager.default.removeItem(at: directory) }
         let script = directory.appendingPathComponent("fake-agent")
         // Reads a line per request and answers it by its known id (heed numbers requests from 0); notes on stderr.
@@ -288,9 +288,7 @@ struct ACPProcessTests {
     }
 
     private func temporaryDirectory() throws -> URL {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("heed-acp-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory
+        try Scratch.folder("heed-acp")
     }
 
     /// The test process ignores SIGPIPE before any test runs (`HeedTestProcess`), as the app and the CLI do.

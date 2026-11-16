@@ -162,7 +162,8 @@ struct GoalControlTests {
         #expect(item.source != .you)
         let source = try await reply(run("source add prs acme/web --goal \(goal.id)", ops, caller: nil))
         #expect(source?.sources?.first.map { _ in true } == true)
-        #expect(try await ops.snapshot().sources(of: goal.id).sources.allSatisfy { $0.origin == .agent })
+        let sources = try await ops.snapshot().sources(of: goal.id).sources
+        #expect(!sources.isEmpty && sources.allSatisfy { $0.origin == .agent })
     }
 
     @Test func recordsApplyAndScopeWaits() async throws {

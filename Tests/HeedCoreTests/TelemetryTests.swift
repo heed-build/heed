@@ -217,7 +217,7 @@ struct TelemetryTests {
         #expect(board.tiles.first { $0.id == "blocked" }?.value == "30 s")
         #expect(board.tiles.first { $0.id == "cost" }?.value == AgentUsage.dollars(0.5))
         #expect(board.models.first?.model == "claude-opus-4-5")
-        #expect(board.rows.allSatisfy { $0.span.start >= Self.now.addingTimeInterval(-3600) })
+        #expect(!board.rows.isEmpty && board.rows.allSatisfy { $0.span.start >= Self.now.addingTimeInterval(-3600) })
         #expect(board.rows.first?.title == "Fix broken anchors")
         #expect(board.rows.first?.repo == "docs-toolkit")
         #expect(board.states.first?.states.contains(.blocked) == true)

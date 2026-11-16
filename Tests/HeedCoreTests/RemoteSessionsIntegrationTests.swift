@@ -2,19 +2,25 @@ import Foundation
 @testable import HeedCore
 import Testing
 
+private var zmxHostSetup: (dir: String, target: String, tarballs: String)? {
+    let env = ProcessInfo.processInfo.environment
+    guard let dir = env["HEED_SSH_TEST"], let target = env["HEED_SSH_TEST_TARGET"],
+          let tarballs = env["HEED_ZMX_TARBALLS"] else { return nil }
+    return (dir, target, tarballs)
+}
+
 /// Against a real host (see RemoteIntegrationTests). HEED_ZMX_TARBALLS (a folder with zmx-<platform>.tar.gz) stands
 /// in for you installing zmx on the host, into ~/.local/bin as heed's instructions say.
-@Suite(.serialized)
+@Suite(
+    .serialized,
+    .enabled(
+        if: zmxHostSetup != nil,
+        "needs HEED_SSH_TEST, HEED_SSH_TEST_TARGET and HEED_ZMX_TARBALLS"
+    )
+)
 struct RemoteSessionsIntegrationTests {
-    private var setup: (dir: String, target: String, tarballs: String)? {
-        let env = ProcessInfo.processInfo.environment
-        guard let dir = env["HEED_SSH_TEST"], let target = env["HEED_SSH_TEST_TARGET"],
-              let tarballs = env["HEED_ZMX_TARBALLS"] else { return nil }
-        return (dir, target, tarballs)
-    }
-
     @Test func installHooksAndEventsComeBack() async throws {
-        guard let setup else { return }
+        let setup = try #require(zmxHostSetup)
         Remote.setTargets(["box": setup.target])
         Remote.setExtraOptions([
             "-o", "UserKnownHostsFile=\(setup.dir)/known_hosts", "-o", "IdentityFile=\(setup.dir)/id",

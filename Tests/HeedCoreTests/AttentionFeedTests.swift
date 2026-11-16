@@ -253,12 +253,12 @@ struct ThreadDetailParsingTests {
     }
 }
 
+@Suite(.scratch)
 struct AttentionStoreTests {
     private let now = Date(timeIntervalSince1970: 2_000_000_000)
 
     private func file() throws -> String {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-attention-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dir = try Scratch.folder("heed-attention")
         return dir.appendingPathComponent("attention.sqlite").path
     }
 

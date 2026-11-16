@@ -33,16 +33,12 @@ struct ZmxTests {
         #expect(problems.map(\.path) == ["sessions.persist"])
     }
 
-    @Test func killAndListAgainstTheRealBinaryWhenThere() async throws {
-        // Runs against a zmx you installed (on PATH, or HEED_ZMX), when there is one.
-        let candidates = [
-            ProcessInfo.processInfo.environment["HEED_ZMX"],
-            "/opt/homebrew/bin/zmx",
-            "/usr/local/bin/zmx",
-        ]
-        guard let zmx = candidates.compactMap(\.self).first(where: { FileManager.default.isExecutableFile(atPath: $0) })
-        else { return }
+    /// Runs against a zmx you installed (HEED_ZMX, or in /opt/homebrew/bin or /usr/local/bin), when there is one.
+    @Test(.enabled(if: installedZmx != nil, "needs zmx (HEED_ZMX, or in /opt/homebrew/bin or /usr/local/bin)"))
+    func killAndListAgainstTheRealBinaryWhenThere() async throws {
+        let zmx = try #require(installedZmx)
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-zmx-\(UUID().uuidString)").path
+        defer { try? FileManager.default.removeItem(atPath: dir) }
         let env = Zmx.environment(socketDirectory: dir)
         _ = try await ProcessRunner.run(
             zmx,
@@ -54,6 +50,11 @@ struct ZmxTests {
         #expect(await Zmx.livePanes(zmx: zmx, socketDirectory: dir).isEmpty)
     }
 }
+
+/// zmx as you installed it, for the test against the real binary.
+private let installedZmx = [
+    ProcessInfo.processInfo.environment["HEED_ZMX"], "/opt/homebrew/bin/zmx", "/usr/local/bin/zmx",
+].compactMap(\.self).first { FileManager.default.isExecutableFile(atPath: $0) }
 
 struct ZmxInstallTests {
     @Test func instructionsForEachMachine() {

@@ -6,80 +6,105 @@ import Testing
 struct PermissionRoundTripTests {
     private static func path() -> String { "/tmp/heed-trip-\(UUID().uuidString.prefix(8)).sock" }
 
-    /// Blocks the calling thread until `condition` holds; for code that runs on its own thread.
-    private static func block(until condition: () -> Bool) throws {
-        let until = ContinuousClock.now + .seconds(30)
-        while !condition() {
-            guard ContinuousClock.now < until else { throw BlockTimeout() }
-            Thread.sleep(forTimeInterval: 0.005)
-        }
-    }
-
-    private struct BlockTimeout: Error {}
-
     private static func ask(_ id: String = "ask-1") -> PermissionAsk {
         PermissionAsk(id: id, session: "s1", agent: "claude", tool: "Bash", command: "npm test", askedAt: Date())
     }
 
+    // Every wait the hook has (receipt window, ceiling, rejoin window) runs on a manual clock here: a window closes
+    // because the test moved time past it, never because a loaded machine was slow. The sockets are real.
+
     @Test func aReceiptKeepsTheHookWaitingPastTheReceiptWindow() async throws {
         let path = Self.path()
+        let clock = ManualClock()
+        let release = Box(false)
         let heed = FakeHeed { _ in
-            try? await Task.sleep(for: .milliseconds(600))
+            while !release.value {
+                try? await Task.sleep(for: .milliseconds(5))
+            }
             return PermissionAnswer(.allow)
         }
         let server = heed.server(path)
         try server.start()
         defer { server.stop() }
-        let outcome = try await onThread {
-            PermissionHook.exchange(Self.ask(), socket: path, ceiling: 5, receiptWait: 0.2)
+        let receipts = Box(0)
+        let hook = Task {
+            try await onThread {
+                PermissionHook.exchange(
+                    Self.ask(), socket: path, ceiling: 5, receiptWait: 0.2, clock: clock,
+                    received: { receipts.update { $0 += 1 } }
+                )
+            }
         }
+        try await waitUntil { receipts.value == 1 }
+        // Well past the receipt window, inside the ceiling: the receipt is what keeps the hook waiting. Heed answers
+        // only once the hook has looked at the clock since, so a hook still on its receipt window has given up by then.
+        clock.advance(by: .seconds(2))
+        let seen = clock.reads
+        try await waitUntil { clock.reads > seen }
+        release.update { $0 = true }
+        let outcome = try await finished(hook)
         #expect(outcome.answer == PermissionAnswer(.allow))
         #expect(outcome.fallback == nil)
     }
 
-    @Test func noReceiptPassesAtOnceAndTellsHeedWhy() async throws {
+    @Test func noReceiptPassesWhenTheWindowClosesAndTellsHeedWhy() async throws {
         let path = Self.path()
+        let clock = ManualClock()
         let notices = Box<[PermissionFallback]>([])
-        // A heed too busy to queue the ask: it never sends a receipt.
+        let asked = Box(0)
+        let answered = Box(false)
+        // A heed too busy to queue the ask: it never sends a receipt, and answers only long after (ten real seconds, a
+        // hang guard: a hook that ignored its receipt window would get this answer instead of passing).
         let server = ControlServer(path: path) { request in
             if let fallback = request.fallback {
                 notices.update { $0.append(fallback) }
                 return ControlReply()
             }
-            try? await Task.sleep(for: .seconds(3))
+            asked.update { $0 += 1 }
+            try? await Task.sleep(for: .seconds(10))
+            answered.update { $0 = true }
             return ControlReply(permission: PermissionAnswer(.allow), permissionID: "ask-1")
         }
         try server.start()
         defer { server.stop() }
         let ask = Self.ask()
-        let (answer, took) = try await onThread {
-            let started = ContinuousClock.now
-            let answer = PermissionHook.wait(for: ask, socket: path, ceiling: 5, receiptWait: 0.2)
-            return (answer, ContinuousClock.now - started)
+        let hook = Task {
+            try await onThread {
+                PermissionHook.wait(for: ask, socket: path, ceiling: 5, receiptWait: 0.2, clock: clock)
+            }
         }
+        try await waitUntil { asked.value == 1 }
+        clock.advance(by: .milliseconds(200))
+        let answer = try await finished(hook)
         #expect(answer == .pass)
-        #expect(took < .milliseconds(900))
-        try await eventually { notices.value == [.noReceipt] }
+        #expect(!answered.value, "the hook waited for heed's answer instead of its receipt window")
+        try await waitUntil { notices.value == [.noReceipt] }
     }
 
     @Test func theCeilingHoldsAgainstAReplyThatTricklesIn() async throws {
         // A server that sends a byte at a time and never a whole line: a per-read timeout would wait for ever.
         let path = Self.path()
+        let clock = ManualClock()
         let trickle = try Trickle(path: path)
         defer { trickle.stop() }
         let ask = Self.ask()
-        let (outcome, took) = try await onThread {
-            let started = ContinuousClock.now
-            let outcome = PermissionHook.exchange(ask, socket: path, ceiling: 0.3, receiptWait: 0.3)
-            return (outcome, ContinuousClock.now - started)
+        let hook = Task {
+            try await onThread {
+                PermissionHook.exchange(ask, socket: path, ceiling: 0.3, receiptWait: 0.3, clock: clock)
+            }
         }
+        // A few bytes in, the ceiling passes: the hook gives up mid-line. Had it not, the trickle closes after ten
+        // real seconds (a hang guard) and the hook would see a dropped connection, not its ceiling.
+        try await waitUntil { trickle.sent.value >= 3 }
+        clock.advance(by: .milliseconds(300))
+        let outcome = try await finished(hook)
         #expect(outcome.answer == .pass)
         #expect(outcome.fallback == .ceiling)
-        #expect(took < .milliseconds(600))
     }
 
     @Test func aHookRejoinsAHeedThatRestartedAndGetsItsAnswer() async throws {
         let path = Self.path()
+        let clock = ManualClock()
         let first = FakeHeed { _ in nil }
         let second = FakeHeed { _ in PermissionAnswer(.deny, message: "after the restart") }
         let before = first.server(path)
@@ -87,25 +112,23 @@ struct PermissionRoundTripTests {
         try before.start()
         defer { after.stop() }
         let ask = Self.ask()
-        let hook = Task { try await onThread { PermissionHook.exchange(ask, socket: path, ceiling: 5) } }
-        // The restart runs on its own thread, not on the cooperative pool: the hook's ceiling is wall-clock, and on a
-        // loaded machine (a whole suite of tests holding the pool) a `Task.sleep` here can resume past it, which is
-        // the test being late rather than heed losing the ask.
-        try await onThread {
-            // Heed goes away with the ask received (its receipt written: `queued` rises before that), and comes back a
-            // moment later.
-            try Self.block(until: { first.receipted.value == 1 })
-            before.stop()
-            Thread.sleep(forTimeInterval: 0.3)
-            try after.start()
-        }
-        let outcome = try await hook.value
+        // The rejoin window and the ceiling are on the manual clock, which never moves here: however long the restart
+        // takes a loaded machine, the hook is still trying when heed comes back.
+        let hook = Task { try await onThread { PermissionHook.exchange(ask, socket: path, ceiling: 5, clock: clock) } }
+        // Heed goes away with the ask received (its receipt written: `queued` rises before that), and comes back a
+        // moment later.
+        try await waitUntil { first.receipted.value == 1 }
+        before.stop()
+        try await Task.sleep(for: .milliseconds(300))
+        try after.start()
+        let outcome = try await finished(hook)
         #expect(outcome.answer == PermissionAnswer(.deny, message: "after the restart"), "\(outcome)")
         #expect(second.queued.value == 1)
     }
 
     @Test func theSameAskTwiceIsQueuedOnceAndAnsweredOnce() async throws {
         let path = Self.path()
+        let clock = ManualClock()
         let answers = Box(0)
         let heed = FakeHeed { _ in
             try? await Task.sleep(for: .milliseconds(200))
@@ -116,12 +139,12 @@ struct PermissionRoundTripTests {
         try server.start()
         defer { server.stop() }
         let ask = Self.ask()
-        async let one = onThread { PermissionHook.exchange(ask, socket: path, ceiling: 5) }
-        async let two = onThread { PermissionHook.exchange(ask, socket: path, ceiling: 5) }
+        async let one = onThread { PermissionHook.exchange(ask, socket: path, ceiling: 5, clock: clock) }
+        async let two = onThread { PermissionHook.exchange(ask, socket: path, ceiling: 5, clock: clock) }
         let both = try await [one.answer, two.answer]
         #expect(both == [PermissionAnswer(.allow, always: true), PermissionAnswer(.allow, always: true)])
         // Asked again after the answer: the same answer, at once, and still one entry in the queue.
-        let again = try await onThread { PermissionHook.exchange(ask, socket: path, ceiling: 5) }
+        let again = try await onThread { PermissionHook.exchange(ask, socket: path, ceiling: 5, clock: clock) }
         #expect(again.answer == PermissionAnswer(.allow, always: true), "\(again)")
         #expect(heed.queued.value == 1)
         #expect(answers.value == 1)
@@ -129,6 +152,7 @@ struct PermissionRoundTripTests {
 
     @Test func manyAsksAtOnceAreEachAnsweredAndASlowOneHoldsNoneUp() async throws {
         let path = Self.path()
+        let clock = ManualClock()
         let heed = FakeHeed { ask in
             // One ask nobody answers: it must not hold up the others' replies.
             if ask.id == "slow" { return nil }
@@ -138,59 +162,84 @@ struct PermissionRoundTripTests {
         let server = heed.server(path)
         try server.start()
         defer { server.stop() }
-        let slow = Task { try await onThread { PermissionHook.exchange(Self.ask("slow"), socket: path, ceiling: 4) } }
-        try await eventually { heed.queued.value == 1 }
-        let started = ContinuousClock.now
-        let answers = try await withThrowingTaskGroup(of: (String, PermissionAnswer).self) { group in
-            for index in 0 ..< 40 {
-                group.addTask {
-                    let id = "ask-\(index)"
-                    return try await (
-                        id,
-                        onThread { PermissionHook.exchange(Self.ask(id), socket: path, ceiling: 5) }
-                            .answer
-                    )
-                }
+        let slowDone = Box(false)
+        let slowReceipt = Box(false)
+        let slow = Task {
+            try await onThread {
+                defer { slowDone.update { $0 = true } }
+                return PermissionHook.exchange(
+                    Self.ask("slow"), socket: path, ceiling: 4, clock: clock,
+                    received: { slowReceipt.update { $0 = true } }
+                )
             }
-            return try await group.reduce(into: [:]) { $0[$1.0] = $1.1 }
         }
-        // Held up behind the unanswered ask, they would take its whole 4 s; a loaded CI machine needs more than 1 s.
-        #expect(ContinuousClock.now - started < .seconds(3))
+        try await waitUntil { slowReceipt.value }
+        let asks = Task {
+            try await withThrowingTaskGroup(of: (String, PermissionAnswer).self) { group in
+                for index in 0 ..< 40 {
+                    group.addTask {
+                        let id = "ask-\(index)"
+                        let outcome = try await onThread {
+                            PermissionHook.exchange(Self.ask(id), socket: path, ceiling: 5, clock: clock)
+                        }
+                        return (id, outcome.answer)
+                    }
+                }
+                return try await group.reduce(into: [:]) { $0[$1.0] = $1.1 }
+            }
+        }
+        // Held up behind the slow ask they would never be answered, as its ceiling never comes on its own.
+        let answers = try await finished(asks)
+        // All forty answered while the slow ask still waits: time has not moved, so nothing could have been held up
+        // until its ceiling.
+        #expect(!slowDone.value)
         #expect(answers.count == 40)
         #expect(answers.allSatisfy { $0.value == PermissionAnswer(.deny, message: $0.key) })
         #expect(heed.queued.value == 41)
-        let late = try await slow.value
+        clock.advance(by: .seconds(4))
+        let late = try await finished(slow)
         #expect(late.answer == .pass)
         #expect(late.fallback == .ceiling)
     }
 
     @Test func anAnswerIsNotHeldBackByABusyCooperativePool() async throws {
         // Many tasks queued at the default priority (as a loaded machine, or a test run, has): heed's reply is its
-        // own high-priority task, so it does not wait behind them.
+        // own high-priority task, so it does not wait behind them. Checked as an order, not a time: the answer is in
+        // before half the queued work has run.
         let path = Self.path()
+        let clock = ManualClock()
         let server = ControlServer(path: path) { request in
-            try? await Task.sleep(for: .milliseconds(20))
-            return ControlReply(permission: PermissionAnswer(.deny), permissionID: request.permission?.id)
+            ControlReply(permission: PermissionAnswer(.deny), permissionID: request.permission?.id)
         }
         try server.start()
         defer { server.stop() }
+        let total = ProcessInfo.processInfo.activeProcessorCount * 150
+        let queued = Box(0)
+        let finished = Box(0)
         let busy = Task(priority: .medium) {
             await withTaskGroup(of: Void.self) { group in
-                for _ in 0 ..< ProcessInfo.processInfo.activeProcessorCount * 150 {
-                    group.addTask(priority: .medium) { spin(.milliseconds(3)) }
+                for _ in 0 ..< total {
+                    group.addTask(priority: .medium) {
+                        spin(.milliseconds(3))
+                        finished.update { $0 += 1 }
+                    }
+                    queued.update { $0 += 1 }
                 }
             }
         }
         defer { busy.cancel() }
         let ask = Self.ask()
-        let (outcome, took) = try await onThread {
-            Thread.sleep(forTimeInterval: 0.05)
-            let started = ContinuousClock.now
-            let outcome = PermissionHook.exchange(ask, socket: path, ceiling: 1, receiptWait: 1)
-            return (outcome, ContinuousClock.now - started)
+        // Waited for on a thread of its own: a wait on the pool would itself be queued behind the busy tasks.
+        let (outcome, finishedThen) = try await onThread {
+            let guardUntil = ContinuousClock.now + .seconds(10)
+            while queued.value < total, ContinuousClock.now < guardUntil {
+                Thread.sleep(forTimeInterval: 0.001)
+            }
+            let outcome = PermissionHook.exchange(ask, socket: path, ceiling: 1, receiptWait: 1, clock: clock)
+            return (outcome, finished.value)
         }
         #expect(outcome.answer == PermissionAnswer(.deny))
-        #expect(took < .milliseconds(500))
+        #expect(finishedThen < total / 2, "\(finishedThen) of \(total) busy tasks ran before heed's answer")
         await busy.value
     }
 }
@@ -313,11 +362,13 @@ private final class FakeHeed: Sendable {
     }
 }
 
-/// A socket that accepts and then sends a byte every 20 ms, never a newline, for two seconds.
+/// A socket that accepts and then sends a byte every 20 ms, never a newline, for ten seconds at most.
 private final class Trickle: @unchecked Sendable {
     private let listener: Int32
     private let path: String
     private let stopped = Box(false)
+    /// Bytes written so far.
+    let sent = Box(0)
 
     init(path: String) throws {
         self.path = path
@@ -335,9 +386,10 @@ private final class Trickle: @unchecked Sendable {
             var on: Int32 = 1
             setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
             var byte: UInt8 = 0x7B
-            // For two seconds at most: a client that waits for the line fails rather than hangs.
-            let until = Date().addingTimeInterval(2)
+            // For ten seconds at most, a hang guard: a client that waits for the line fails rather than hangs.
+            let until = Date().addingTimeInterval(10)
             while !stopped.value, Date() < until, write(fd, &byte, 1) == 1 {
+                sent.update { $0 += 1 }
                 Thread.sleep(forTimeInterval: 0.02)
             }
             close(fd)
@@ -362,17 +414,6 @@ private final class Box<Value: Sendable>: @unchecked Sendable {
 private func spin(_ duration: Duration) {
     let until = ContinuousClock.now + duration
     while ContinuousClock.now < until {}
-}
-
-private func eventually(_ condition: @escaping @Sendable () -> Bool) async throws {
-    let until = ContinuousClock.now + .seconds(3)
-    while !condition() {
-        guard ContinuousClock.now < until else {
-            Issue.record("condition never held")
-            return
-        }
-        try await Task.sleep(for: .milliseconds(10))
-    }
 }
 
 private func onThread<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {

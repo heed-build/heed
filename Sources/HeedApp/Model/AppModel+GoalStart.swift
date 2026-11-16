@@ -121,10 +121,128 @@ extension AppModel {
         }
     }
 
-    /// `goal.promote.go`: the goal made with the session on it (its merged PRs done, what it found planned), and its
-    /// plan step opens. The session goes on as it was.
+    /// `goal.promote.go`: asks the session's agent for a handoff (what is done, decided, open, risky and next), then
+    /// makes the goal with the session on it (its merged PRs done, what was open planned) and opens its plan step,
+    /// which starts from the handoff. Where there is nobody to ask, asking is off, or the agent does not answer in
+    /// time (`[goals] handoff_timeout`), it makes the goal from the session's prompt as it always did, with a note.
+    /// The session goes on as it was.
     func confirmPromotion() {
         guard let promotion = goalPromotion else { return say("gP first: what the goal would be") }
+        if let ask = promotionHandoff, ask.isOpen {
+            return say(
+                "asking \(ask.agent) for a handoff: \(keyText(for: "goal.promote.skip", asIn: "sessionspromote")) starts without it"
+            )
+        }
+        guard let ask = handoffAsk(for: promotion) else { return makeGoal(from: promotion, note: nil) }
+        promotionHandoff = ask
+        if ask.isOpen { runHandoffAsk() } else { resolveHandoff() }
+    }
+
+    /// The ask for the promotion's session; nil where it is not made (off, or the fake world and the tutor, which
+    /// never message agents).
+    private func handoffAsk(for promotion: GoalPromotion) -> HandoffAsk? {
+        guard !isFixture, tutor == nil, let session = sessions.first(where: { $0.id == promotion.session }) else {
+            return nil
+        }
+        let pane = layouts[session.id].flatMap { agentPane(in: $0)?.1 }
+        return HandoffAsk.begin(
+            session: session.id, agent: session.agent, state: session.state.state,
+            hasAgentPane: pane.map { TerminalSurfaces.shared.hasTerminal(paneID: $0) } ?? false, host: session.host,
+            timeout: TimeInterval(config.goals.handoffTimeout), now: Clock.now
+        )
+    }
+
+    /// Tries to deliver the ask every second (it waits while the agent works or you type there, and never types into
+    /// a busy session: `HandoffAsk.route`), and gives up when the time is up.
+    private func runHandoffAsk() {
+        handoffTask?.cancel()
+        handoffTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self, promotionHandoff?.isOpen == true else { return }
+                if promotionHandoff?.unsent == true { await deliverHandoffAsk() }
+                guard var ask = promotionHandoff, ask.isOpen else { return }
+                ask.tick(now: Clock.now)
+                if ask != promotionHandoff { promotionHandoff = ask }
+                if !ask.isOpen { return resolveHandoff() }
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+    }
+
+    private func deliverHandoffAsk() async {
+        guard var ask = promotionHandoff, ask.unsent,
+              let session = sessions.first(where: { $0.id == ask.session })
+        else { return }
+        guard let pane = layouts[session.id].flatMap({ agentPane(in: $0)?.1 }),
+              TerminalSurfaces.shared.hasTerminal(paneID: pane)
+        else {
+            ask.delivered(.failed("its agent isn't running (no agent pane)"))
+            promotionHandoff = ask
+            return
+        }
+        let route = HandoffAsk.route(
+            state: session.state.state, lastTyped: lastTyped[session.id], inbox: inbox(forPane: pane),
+            settings: settings.channels, now: Clock.now
+        )
+        if case let .wait(why) = route {
+            ask.delivered(.waiting(why))
+            if ask != promotionHandoff { promotionHandoff = ask }
+            return
+        }
+        let outcome = await notify(session: session.id, text: SessionHandoff.ask)
+        guard var after = promotionHandoff, after.session == ask.session else { return }
+        after.delivered(outcome)
+        promotionHandoff = after
+    }
+
+    /// `heed goal handoff` from the session's pane: the handoff the ask was waiting for. One heed cannot read is
+    /// refused with why, so the agent can write it again while there is time.
+    func receiveHandoff(_ text: String, from session: String?) -> GoalReply {
+        guard let session, var ask = promotionHandoff, ask.session == session, ask.isOpen else {
+            return .refused(
+                "heed is not waiting for a handoff from this session: it asks when the owner makes it a goal, and "
+                    + "stops waiting after a while (heed goal --help)"
+            )
+        }
+        switch ask.receive(text) {
+        case let .failure(problem):
+            promotionHandoff = ask
+            return .refused("that handoff was not readable: \(problem). Write it again and run heed goal handoff")
+        case .success:
+            promotionHandoff = ask
+            resolveHandoff()
+            return GoalReply("handoff", message: "heed has it: the goal is made from it, nothing more to do here")
+        }
+    }
+
+    /// `goal.promote.skip`: stop waiting; the goal is made from the session's prompt.
+    func skipHandoff() {
+        guard var ask = promotionHandoff, ask.isOpen else { return say("not waiting for a handoff") }
+        ask.skip()
+        promotionHandoff = ask
+        resolveHandoff()
+    }
+
+    /// The ask is over: the goal is made with the handoff, or without it (and why).
+    private func resolveHandoff() {
+        guard let ask = promotionHandoff, let resolution = ask.resolution, var promotion = goalPromotion else { return }
+        var note: String?
+        switch resolution {
+        case let .handoff(handoff): promotion = promotion.handingOff(handoff)
+        case let .without(why): note = why
+        }
+        goalPromotion = nil
+        makeGoal(from: promotion, note: note)
+    }
+
+    /// The popover is gone or done: nobody waits for a handoff any more.
+    func endHandoffAsk() {
+        handoffTask?.cancel()
+        handoffTask = nil
+        if promotionHandoff != nil { promotionHandoff = nil }
+    }
+
+    private func makeGoal(from promotion: GoalPromotion, note: String?) {
         goalPromotion = nil
         let now = Clock.now
         goals.run { ops in
@@ -136,7 +254,11 @@ extension AppModel {
                 view = .goals
                 goals.point(to: goal.id)
                 goals.show(.overview)
-                say("\(goal.title) is a goal, this session its first part")
+                say(
+                    "\(goal.title) is a goal, this session its first part"
+                        + (promotion.handoff != nil ? ", the plan starts from its handoff" : "")
+                        + (note.map { ": " + $0 } ?? "")
+                )
                 openGoalWizard(goal.id)
             case let .failure(error): say("no goal made: \(error)")
             }

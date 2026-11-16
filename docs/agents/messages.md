@@ -6,7 +6,8 @@ description: How heed hands an agent what it sends it (feedback, notes, the cont
 
 Heed sends agents things on your behalf: a PR's feedback with `run_in = "session"`, a session's notes on its diff, the
 continue prompt after a resume, items added from GitHub (`a`), loose ends from the inspector, `heed send`, a swarm's
-messages and answers, and a nudge to a swarm's lead. Each one goes the best way the agent offers:
+messages and answers, a nudge to a swarm's lead, and the ask for a [handoff](../goals/index.md#the-handoff) when you
+make a session a goal. Each one goes the best way the agent offers:
 
 | Agent | How | When |
 |---|---|---|

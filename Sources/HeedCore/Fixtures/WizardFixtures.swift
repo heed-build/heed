@@ -19,6 +19,60 @@ public enum WizardFixtures {
         )
     }
 
+    /// What the session behind the goal handed over, as its agent wrote it.
+    public static let handoff = SessionHandoff.parse("""
+    ## Work
+
+    Anchors in redirected docs links must survive page moves. The session fixed the toolkit's redirect map and the \
+    slug function behind it.
+
+    ## Done
+
+    - Redirects resolve for moved pages (acme/docs-toolkit#12)
+    - Anchor fixtures for the sample pages (acme/docs-toolkit#14)
+    - Slug function shared by redirects and headings (acme/docs-toolkit#15)
+
+    ## Decisions
+
+    - Keep one slug function in the toolkit: the website's copy has drifted twice.
+    - Warn first and fail later: about 12 pages break the build today.
+
+    ## Open
+
+    - The website vendors its own slug code, so its old links still break
+    - A sample site should prove both ends
+
+    ## Risks
+
+    - Old links in the wild stay broken until the website updates.
+
+    ## Next
+
+    1. Delete the website's slug copy
+    2. Add the sample-site proof
+    3. Turn the warning into a failure
+    """)
+
+    /// The wizard of a goal just made from a session with a handoff: the planner's first question builds on it.
+    public static func handoffWizard(now: Date = Clock.now) -> GoalWizard {
+        var wizard = GoalWizard(goal: goalID, at: now.addingTimeInterval(-60))
+        wizard.plan.turns = [
+            PlanTurn(role: .you, text: "Anchors survive page moves: " + (handoff?.work ?? ask)),
+            PlanTurn(
+                role: .heed,
+                text: "The session already shipped the redirects and kept one slug function. What is left is the "
+                    + "website's own copy: delete it, or keep it and sync?",
+                options: ["delete it", "keep and sync", "ask its owners"], model: "opus"
+            ),
+        ]
+        wizard.plan.add(plan(3), goalVersion: 1)
+        wizard.plan.completeness = Completeness([
+            .scope: 80, .constraints: 60, .risks: 70, .audience: 30, .outOfScope: 70,
+        ])
+        wizard.spent(WizardCost(step: .plan, agent: "claude", model: "opus", dollars: 0.05))
+        return wizard
+    }
+
     /// The plan at version `number` (1…5).
     static func plan(_ number: Int) -> WizardPlan {
         var plan = WizardPlan(

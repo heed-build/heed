@@ -6,6 +6,11 @@ import HeedCore
 extension AppModel {
     func controlGoal(_ request: ControlRequest) async -> ControlReply {
         guard let command = request.goal else { return .failure("goal needs a command") }
+        // The handoff heed asked this session for: no goal exists yet, so it never goes through the goal's ops.
+        if command.verb == .handoff { return ControlReply(goal: receiveHandoff(
+            command.text ?? "",
+            from: request.session
+        )) }
         var asked = request.session.flatMap { id in
             sessions.first { $0.id == id } ?? history.first { $0.id == id }?.session
         }.map(GoalCaller.init)

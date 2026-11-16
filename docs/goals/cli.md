@@ -62,6 +62,7 @@ A goal that is a set of PRs or issues on GitHub gets its items from a query ([It
 |---|---|
 | `item spawn <id> [--agent <name>] [--background]` | Start work on the item: a session, as Start work would make it, on the goal and the item and told about the goal; or, with `--background`, a background run |
 | `review request <kind>` | The goal's reviewer of that kind (`implementation`, `security`, `docs-reader`, …) looks again, within the day's reviewer budget |
+| `handoff [--file <path\|->]` | The [handoff](index.md#the-handoff) heed asked this session's agent for when you made it a goal: markdown on stdin with `## Work`, `Done`, `Decisions`, `Open`, `Risks` and `Next` headings. Only while heed is waiting for it; the goal need not exist yet. Exit 1 says why a handoff was not readable |
 | `list` | Every goal: id, status, criteria met, items, score, title; `*` marks the session's |
 | `show` | `GOAL.md`, the items with their stages and columns, the quality bars and scores, what waits for you |
 

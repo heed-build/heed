@@ -101,11 +101,12 @@ public enum DefaultKeys {
         // the row, gO takes it over, x takes a finished one off the line, ⎋ (or gW) closes it.
         "sessionshelpers": laid(menu + [("x", "helper.dismiss")], over: sessions),
         // gP on a session growing into a goal: Make it a goal's popover over the line. ↩ or ⌘↩ makes it, x: not now
-        // (the line goes for this session), ⎋ closes.
+        // (the line goes for this session), ⎋ closes. While it waits for the agent's handoff, s starts without it.
         "sessionspromote": laid(
             [
                 ("<CR>", "goal.promote.go"),
                 ("<D-CR>", "goal.promote.go"),
+                ("s", "goal.promote.skip"),
                 ("x", "goal.promote.dismiss"),
                 ("<Esc>", "goal.promote"),
             ],

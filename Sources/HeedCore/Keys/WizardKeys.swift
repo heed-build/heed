@@ -74,6 +74,11 @@ public enum WizardKeys {
             .selection
         ),
         .init("go.save", "wizard: Go: save it, start later; the wizard waits at Go", .selection),
+        .init(
+            "wizard.handoff.edit",
+            "wizard: Plan: edit the session's handoff, which is GOAL.md's Handoff section (the wizard waits)",
+            .selection
+        ),
         .init("tldr.copy", "TL;DR: copy it as markdown", .selection),
         .init("tldr.act", "TL;DR: do the first open point's action", .selection),
     ] + SplitKeys.commands
@@ -99,7 +104,10 @@ public enum WizardKeys {
 
     public static let scoped: [String: [(String, String)]] = [
         // Plan: 1 2 3 pick heed's option, i types an answer, ⌘↩ good enough.
-        "wizardplan": shared + [("i", "wizard.answer")] + (1 ... 9).map { ("\($0)", "wizard.pick \($0)") },
+        "wizardplan": shared + [("i", "wizard.answer"), ("e", "wizard.handoff.edit")] + (1 ... 9).map { (
+            "\($0)",
+            "wizard.pick \($0)"
+        ) },
         // Panel: ⌘↩ worth it, take the fixes; - go smaller; i talk to one; x don't do it; + invite another.
         "wizardpanel": shared + [
             ("-", "wizard.smaller"), ("i", "wizard.talk"), ("x", "wizard.drop"), ("+", "wizard.invite"),

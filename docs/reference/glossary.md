@@ -27,6 +27,7 @@ Each term means one thing, everywhere in the docs. The page that explains a term
 | **Item** | One piece of a goal's work, on a board. Evidence moves it through its stages. [Items and the board](../goals/items.md) |
 | **Lane** | One task's row in a swarm's plan and summary: the worker that runs it, its waits and its stuck stretches. [The summary](../goals/swarms/summary.md) |
 | **Swarm** | A goal worked by several agents at once, with a lead that keeps the plan. [Lanes and swarms](../goals/swarms/index.md) |
+| **Handoff** | The note a session's agent writes when you make its work a goal: what is done, decided, open, risky and next. The plan step starts from it. [From a session](../goals/index.md#the-handoff) |
 | **Lead** | The agent that drafts a swarm's plan and keeps it. [A swarm's lead](../goals/cli.md#a-swarms-lead) |
 | **Persona** | A kind of person heed asks for a view: the Skeptic, the newcomer, the maintainer of your docs site. [Personas](../personas/index.md) |
 | **Panel** | The personas that read a goal's plan in the wizard, each giving a verdict. [Your first goal](../goals/first-goal.md) |

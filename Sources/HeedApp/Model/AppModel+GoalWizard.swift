@@ -27,6 +27,7 @@ extension AppModel {
         case "wizard.invite.pick": pickInvite()
         case "wizard.use": useReplacement()
         case "wizard.define": defineCriterion(words.first.flatMap(Int.init))
+        case "wizard.handoff.edit": editHandoff()
         case "careful.details": openLaterStep()
         case "tldr.copy": copyTLDR()
         case "tldr.act": actOnTLDR()
@@ -242,11 +243,12 @@ extension AppModel {
         let statement = goals.snapshot.docs[goal]?.goal ?? ""
         let repos = planRepos(goal)
         let conversation = wizard.plan
+        let handoff = SessionHandoff.read(from: goals.snapshot.docs[goal])?.promptText
         busy(goal, "heed is thinking")
         Task {
             do {
                 let result = try await talker.turn(
-                    title: title, statement: statement, conversation: conversation, repos: repos
+                    title: title, statement: statement, conversation: conversation, repos: repos, handoff: handoff
                 )
                 await planTurnDone(goal, result)
             } catch {
@@ -310,6 +312,18 @@ extension AppModel {
         default:
             break
         }
+    }
+
+    /// `wizard.handoff.edit`: the session's handoff is GOAL.md's Handoff section, so GOAL.md opens in its editor; the
+    /// wizard waits where it is, and the planner reads whatever you save on its next turn.
+    func editHandoff() {
+        guard let wizard = goals.wizard.current,
+              SessionHandoff.read(from: goals.snapshot.docs[wizard.goal]) != nil
+        else {
+            return say("no handoff on this goal")
+        }
+        leaveWizard()
+        editGoal()
     }
 
     /// `wizard.answer`: type an answer (Plan) or a message (talking to one persona).
@@ -846,6 +860,23 @@ extension AppModel {
     // MARK: The fake world
 
     /// Shots: the designs' goal in the wizard at `step`, open.
+    /// A goal made from a session with a handoff, at the Plan step: its card above the planner's first question.
+    func loadHandoffFixture() {
+        guard isFixture, let handoff = WizardFixtures.handoff else { return }
+        var fixture = WizardFixtures.goal()
+        let doc = handoff.apply(to: GoalDoc.parse(fixture.versions[0].text))
+        fixture.versions[0].text = doc.render()
+        goals.loadWizardFixture(fixture, wizard: WizardFixtures.handoffWizard())
+        var snapshot = goals.snapshot
+        snapshot.docs[fixture.goal.id] = doc
+        goals.apply(snapshot)
+        view = .goals
+        goals.point(to: fixture.goal.id)
+        goals.wizard.open = fixture.goal.id
+        goals.wizard.resetCursors()
+        updateScope()
+    }
+
     func loadWizardFixture(_ step: WizardStep) {
         guard isFixture else { return }
         let fixture = WizardFixtures.goal()

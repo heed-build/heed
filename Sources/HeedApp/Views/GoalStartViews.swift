@@ -165,7 +165,8 @@ struct GrowthLine: View {
 }
 
 /// Make it a goal's popover over the line: the goal statement, the merged PRs as done parts, what was found, and that
-/// the session stays as part 1. ↩ or ⌘↩ opens the plan step, x is not now, ⎋ closes.
+/// the session stays as part 1. ↩ or ⌘↩ asks the agent for a handoff and opens the plan step (s, while it waits, starts
+/// without the handoff), x is not now, ⎋ closes.
 struct PromotionPopover: View {
     @Environment(AppModel.self) private var model
     let promotion: GoalPromotion
@@ -180,12 +181,21 @@ struct PromotionPopover: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            HStack(spacing: 8) {
-                button("Open the plan step", primary: true, command: "goal.promote.go")
-                button("Not now", command: "goal.promote.dismiss")
-                button("Cancel", command: "goal.promote")
+            if let ask = model.promotionHandoff, ask.isOpen, ask.session == promotion.session {
+                waiting(ask)
+                HStack(spacing: 8) {
+                    button("Start without it", primary: true, command: "goal.promote.skip")
+                    button("Cancel", command: "goal.promote")
+                }
+                .padding(.top, 2)
+            } else {
+                HStack(spacing: 8) {
+                    button("Open the plan step", primary: true, command: "goal.promote.go")
+                    button("Not now", command: "goal.promote.dismiss")
+                    button("Cancel", command: "goal.promote")
+                }
+                .padding(.top, 2)
             }
-            .padding(.top, 2)
         }
         .padding(18)
         .frame(width: 440, alignment: .leading)
@@ -193,6 +203,25 @@ struct PromotionPopover: View {
         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
         .shadow(color: .black.opacity(0.45), radius: 18)
         .shotRegion(.promotion)
+    }
+
+    /// While the agent is asked for its handoff: the ask, the agent's live state, and what is holding it up.
+    private func waiting(_ ask: HandoffAsk) -> some View {
+        let state = model.sessions.first { $0.id == ask.session }?.state.state ?? .idle
+        return HStack(alignment: .top, spacing: 12) {
+            StateGlyph(state: state, size: 12).frame(width: 14, height: 18)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(ask.headline).font(Theme.ui(12.5, weight: .semibold)).foregroundStyle(Theme.fg)
+                Text("\(ask.agent) is \(state.rawValue) · \(ask.detail)")
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("gives up after \(PilotDuration.text(ask.timeout)) and starts from the session's prompt")
+                    .font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg3.opacity(0.6)))
     }
 
     @ViewBuilder private func glyph(_ glyph: GoalPromotion.Glyph) -> some View {

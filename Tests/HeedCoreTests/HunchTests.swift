@@ -162,6 +162,7 @@ struct HunchRoutingTests {
     @Test func hunchDecisionsWriteDecideRowsWithTheModelTheyUsed() async throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("heed-hunch-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
         let log = try CallLog(
             store: CallStore(path: folder.appendingPathComponent("log.sqlite").path), delay: .seconds(60)
         )

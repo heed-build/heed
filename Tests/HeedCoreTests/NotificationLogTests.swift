@@ -59,6 +59,7 @@ struct NotificationLogTests {
     @Test func theStoreWritesThemToTheLog() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-notify-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
         let log = try EventLog(path: dir.appendingPathComponent("heed.sqlite").path)
         let store = DomainStore(file: dir.appendingPathComponent("domain.json"), log: log)
         let entry = Notices.Entry(id: "s1", title: "Docs", agent: "claude", state: .blocked, reason: "Bash(ls)")

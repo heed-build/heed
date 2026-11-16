@@ -20,6 +20,7 @@ private final class FakeModel: Sendable {
     }
 }
 
+@Suite(.scratch)
 struct DeciderTests {
     private let questions: [String: Question] = [
         "next": .choice(instructions: "What happens next?", options: ["merge", "fix", "wait"]),
@@ -28,8 +29,7 @@ struct DeciderTests {
     ]
 
     private func log() throws -> CallLog {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("heed-decide-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let folder = try Scratch.folder("heed-decide")
         return try CallLog(
             store: CallStore(path: folder.appendingPathComponent("log.sqlite").path),
             delay: .seconds(60)

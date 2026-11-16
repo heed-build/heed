@@ -344,6 +344,7 @@ struct AttentionSummariesTests {
     @Test func catchUpsAreKeptAndPruned() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-summaries-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
         let store = try AttentionStore(path: dir.appendingPathComponent("attention.sqlite").path)
         let written = summary(covers: 10)
         try await store.record([item("acme/docs#41")], now: now)

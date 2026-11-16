@@ -364,10 +364,10 @@ struct ItemSourceDetectTests {
 }
 
 /// The gh adapter: one search per source, lookups by number, a `github` row per call.
+@Suite(.scratch)
 struct GitHubSourcesTests {
     private func fakeGh() throws -> (path: String, args: URL, dir: URL) {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-sources-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let dir = try Scratch.folder("heed-sources")
         let args = dir.appendingPathComponent("args")
         let script = dir.appendingPathComponent("gh")
         try """

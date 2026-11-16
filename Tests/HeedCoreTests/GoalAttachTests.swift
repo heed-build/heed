@@ -444,9 +444,10 @@ struct GoalAttacherTests {
     }
 }
 
+@Suite(.scratch)
 struct AttachOpsTests {
     private func ops() throws -> (GoalOps, URL) {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("heed-attach-\(UUID().uuidString)")
+        let root = try Scratch.folder("heed-attach")
         return try (GoalOps(path: ":memory:", files: GoalFiles(root: root)), root)
     }
 

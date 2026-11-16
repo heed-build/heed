@@ -2,10 +2,10 @@ import Foundation
 @testable import HeedCore
 import Testing
 
+@Suite(.scratch)
 struct HookSpoolTests {
     private func spool() throws -> String {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-spool-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        let url = try Scratch.folder("heed-spool")
         return HookSpool.path(forSocket: url.appendingPathComponent("heed.sock").path)
     }
 

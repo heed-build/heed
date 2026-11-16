@@ -184,8 +184,7 @@ private struct StandInGh {
     let path: String
 
     init() throws {
-        dir = FileManager.default.temporaryDirectory.appendingPathComponent("heed-teams-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        dir = try Scratch.folder("heed-teams")
         let script = dir.appendingPathComponent("gh")
         try #"""
         #!/bin/sh
@@ -247,7 +246,7 @@ private struct StandInGh {
 
 /// Serialized: each test spawns several stand-in gh processes, and a fork while another test is writing its own
 /// stand-in script can leave that script busy (ETXTBSY) when it runs.
-@Suite(.serialized) struct TeamAttributionTests {
+@Suite(.serialized, .scratch) struct TeamAttributionTests {
     private let now = Date(timeIntervalSince1970: 2_000_000_000)
     private let docs = Repo(org: "acme", name: "docs")
 

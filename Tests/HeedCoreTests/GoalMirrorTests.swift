@@ -615,10 +615,10 @@ struct TrackerCheckTests {
 }
 
 /// The gh adapter: argument shapes as GitHub's REST docs give them, and a `github` row per call, writes as writes.
+@Suite(.scratch)
 struct GitHubMirrorTests {
     private func folder() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("heed-mirror-\(UUID().uuidString)")
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        let url = try Scratch.folder("heed-mirror")
         return url
     }
 

@@ -120,13 +120,13 @@ struct Sidebar: View {
                             VStack(alignment: .leading, spacing: 0) {
                                 groupHeader(section, pins: list.pins.count)
                                 ForEach(section.sessions) { session in
-                                    let index = list.ordered.firstIndex(of: session) ?? 0
+                                    let index = list.index(of: session.id) ?? 0
                                     let group = list.groups[session.id] ?? .working
                                     SessionRow(
                                         session: session,
                                         number: list.lineNumber(of: index, cursor: model.cursor),
                                         isCursor: index == model.cursor,
-                                        pinNumber: list.pins.firstIndex(of: session).map { $0 + 1 },
+                                        pinNumber: list.pinIndex(of: session.id).map { $0 + 1 },
                                         hint: model.hintLabel(for: .session(session.id)),
                                         pilot: model.pilotStatus(of: session),
                                         readyToMerge: session.trackedPRs.contains(where: model.readyToMerge),
@@ -711,7 +711,7 @@ struct SessionRail: View {
                                 .padding(.horizontal, 4)
                                 .background(RoundedRectangle(cornerRadius: 4).fill(isCursor ? Theme.inverse : .clear))
                             StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
-                            if let pin = list.pins.firstIndex(of: session) {
+                            if let pin = list.pinIndex(of: session.id) {
                                 Text("'\(pin + 1)").font(Theme.mono(9)).foregroundStyle(Theme.fg3)
                             }
                         }

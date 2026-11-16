@@ -27,6 +27,11 @@ public struct AgentPresence: Equatable, Sendable {
         if state == .exited { live.remove(pane) } else { live.insert(pane) }
     }
 
+    /// Whether `observed(state, in: pane)` would change anything.
+    public func changes(observing state: AgentState, in pane: String) -> Bool {
+        live.contains(pane) == (state == .exited)
+    }
+
     public mutating func forget(_ pane: String) { live.remove(pane) }
 }
 

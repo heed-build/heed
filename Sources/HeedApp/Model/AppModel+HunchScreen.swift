@@ -49,11 +49,12 @@ extension AppModel {
         return true
     }
 
-    /// Each live swarm worker whose hooks say working: its pane to Hunch, when due.
-    func readWorkerPanesWithHunch(now: Date) {
+    /// Each live swarm worker whose hooks say working: its pane to Hunch, when due. `screen` reads a pane (once a
+    /// tick).
+    func readWorkerPanesWithHunch(now: Date, screen: (String) -> String?) {
         guard hunchReadsScreens else { return }
         for live in liveWorkers.values where runStates[live.paneID] == .working {
-            guard let text = TerminalSurfaces.shared.visibleText(paneID: live.paneID) else { continue }
+            guard let text = screen(live.paneID) else { continue }
             readWithHunch(pane: live.paneID, text: text, subject: "task:\(live.task)", now: now)
         }
     }

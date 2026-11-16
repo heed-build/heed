@@ -766,40 +766,51 @@ final class AppModel {
 
     // MARK: Domain
 
-    /// Starts from the cache, then refreshes from git. The window is already up showing whatever the cache holds.
+    /// Starts from the cache, then refreshes from git. The cache is read while the call log opens, and drawn as soon
+    /// as config.toml is read. A pane drawn before the tools and zmx's live sessions are known waits for them for its
+    /// terminal (`TerminalSurfaces.holdPanes`); telemetry opens, and today's model spend is read, meanwhile.
     func start(cache file: URL) async {
         // Signposts (`Perf`): each wait before the cached domain is drawn, and the whole of it.
         let toCache = Perf.begin("start.toCache")
+        let toPanes = Perf.begin("start.toPanes")
+        TerminalSurfaces.shared.holdPanes()
+        let loading = Task.detached(priority: .userInitiated) { () -> (Domain, EventLog?) in
+            let loaded = await Perf.measure("start.loadDomain") { await DomainStore.load(from: file) }
+            // History and timelines live in the event log, beside the domain file; without it they stay in that file.
+            let log = await Perf.measure("start.openLog") {
+                await EventLog.open(at: file.deletingLastPathComponent().appendingPathComponent("heed.sqlite"))
+            }
+            let cached = await Perf.measure("start.adopt") { await log?.adopt(loaded) ?? loaded }
+            return (cached, log)
+        }
         await Perf.measure("start.callLog") { await startCallLog(beside: file) }
         noteSessionKey()
         startConfig()
         Notifier.shared.attach(self)
-        if !isFixture { await Perf.measure("start.detectTools") { await detectTools() } }
-        await Perf.measure("start.llm") { await startLLM() }
-        startHooks()
-        await Perf.measure("start.telemetry") { await startTelemetry(beside: file) }
-        let integration = integration
-        Task.detached(priority: .utility) {
-            do { try integration.write() } catch { NSLog("heed: could not write hook files: \(error)") }
-        }
-        let loaded = await Perf.measure("start.loadDomain") { await DomainStore.load(from: file) }
-        // History and timelines live in the event log, beside the domain file; without it they stay in that file.
-        let log = await Perf.measure("start.openLog") {
-            await EventLog.open(at: file.deletingLastPathComponent().appendingPathComponent("heed.sqlite"))
-        }
-        let cached = await Perf.measure("start.adopt") { await log?.adopt(loaded) ?? loaded }
-        // Before any pane is drawn: which panes still have a live zmx session to reattach to.
-        await Perf.measure("start.livePanes") { await TerminalSurfaces.shared.refreshLivePanes() }
+        let (cached, log) = await loading.value
         Perf.measure("start.replace") { replace(with: cached) }
         toCache.end()
-        loadAvatars()
         store = DomainStore(domain: cached, file: file, log: log)
         eventLog = log
-        pruneScreenSnapshots()
         historyBrowser.attach(log: log) { [weak self] in self?.currentDomain ?? .empty }
         dashboard.attach(log: log) { [weak self] in self?.currentDomain ?? .empty } goals: { [weak self] in
             self?.dashboardGoals ?? .init()
         }
+        let telemetryStarted = Task { await Perf.measure("start.telemetry") { await startTelemetry(beside: file) } }
+        if !isFixture { await Perf.measure("start.detectTools") { await detectTools() } }
+        await Perf.measure("start.llm") { await startLLM() }
+        startHooks()
+        await telemetryStarted.value
+        let integration = integration
+        Task.detached(priority: .utility) {
+            do { try integration.write() } catch { NSLog("heed: could not write hook files: \(error)") }
+        }
+        // Before any pane's terminal is made: which panes still have a live zmx session to reattach to.
+        await Perf.measure("start.livePanes") { await TerminalSurfaces.shared.refreshLivePanes() }
+        TerminalSurfaces.shared.releasePanes()
+        toPanes.end()
+        loadAvatars()
+        pruneScreenSnapshots()
         startLedger(log: log)
         startAudit(log: log)
         noticeOrigins()
@@ -851,14 +862,24 @@ final class AppModel {
     /// Turns that went quiet without their end hook (cursor), and when each pane's hooks last spoke.
     var quietTurns = QuietTurn()
     var lastHookAt: [String: Date] = [:]
+    /// Each agent's patterns compiled once, and each pane's last guess with the screen it was made from.
+    @ObservationIgnored var screenGuesser = ScreenGuesser()
 
     private func readScreens() async {
         let perf = Perf.begin("readScreens")
         defer { perf.end() }
+        // Each pane is read at most once a tick, and only once the cheap checks say it is needed.
+        var read: [String: String?] = [:]
+        func screen(_ pane: String) -> String? {
+            if let known = read[pane] { return known }
+            let text = TerminalSurfaces.shared.visibleText(paneID: pane)
+            read[pane] = .some(text)
+            return text
+        }
         // Each live run's last line, for the sidebar and the PR card; set only when it changed.
         let now = Date()
         for (id, live) in liveRuns {
-            let text = TerminalSurfaces.shared.visibleText(paneID: live.paneID)
+            let text = screen(live.paneID)
             let line = text.flatMap(Runs.lastLine)
             if runLastLines[id] != line { runLastLines[id] = line }
             // A run whose end hook never came (cursor, codex): done once it has worked and gone quiet.
@@ -873,8 +894,8 @@ final class AppModel {
             }
         }
         for (id, live) in liveReviews {
-            guard let text = TerminalSurfaces.shared.visibleText(paneID: live.paneID), live.worked,
-                  runStates[live.paneID] == .working, QuietTurn.applies(to: live.agent),
+            guard live.worked, runStates[live.paneID] == .working, QuietTurn.applies(to: live.agent),
+                  let text = screen(live.paneID),
                   quietTurns.isQuiet(
                       pane: live.paneID, text: text, lastHook: lastHookAt[live.paneID], now: now,
                       after: QuietTurn.runAfter
@@ -883,13 +904,13 @@ final class AppModel {
             runStates[live.paneID] = .done
             endReviewRun(id)
         }
-        readWorkerScreens(now: now)
-        readWorkerPanesWithHunch(now: now)
+        readWorkerScreens(now: now, screen: screen)
+        readWorkerPanesWithHunch(now: now, screen: screen)
         // A session left working without its end hook (cursor, codex): done (guessed) once quiet.
         var quiet: [DomainChange] = []
         for session in sessions where QuietTurn.applies(to: session.agent) && session.state.state == .working {
             guard let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout),
-                  let text = TerminalSurfaces.shared.visibleText(paneID: paneID),
+                  let text = screen(paneID),
                   quietTurns.isQuiet(pane: paneID, text: text, lastHook: lastHookAt[paneID], now: now)
             else { continue }
             var updated = session
@@ -900,28 +921,43 @@ final class AppModel {
         }
         commit(quiet)
         sampleWorkingScreens(now: now)
-        var work: [(String, String, ScreenGuess.Patterns, Set<AgentState>)] = []
+        // A pane whose screen and agent did not change since the last tick keeps its last guess; only the others are
+        // matched, off the main actor.
+        var order: [(id: String, reported: Set<AgentState>)] = []
         var panes: [String: String] = [:]
+        var known: [String: AgentState?] = [:]
+        var work: [(id: String, pane: String, text: String, agent: AgentProfile, compiled: ScreenGuess.Compiled)] = []
         for session in sessions {
             guard let agent = settings.agent(session.agent) else { continue }
             let reported = ScreenGuess.reported(by: agent.name)
             guard reported.count < 7, let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout),
-                  let text = TerminalSurfaces.shared.visibleText(paneID: paneID)
+                  let text = screen(paneID)
             else { continue }
-            work.append((session.id, text, ScreenGuess.patterns(for: agent), reported))
+            order.append((session.id, reported))
             panes[session.id] = paneID
+            if let remembered = screenGuesser.remembered(pane: paneID, text: text, agent: agent) {
+                known[session.id] = remembered
+            } else {
+                work.append((session.id, paneID, text, agent, screenGuesser.compiled(for: agent)))
+            }
             readWithHunch(pane: paneID, text: text, subject: session.id, now: now)
         }
-        guard !work.isEmpty else { return }
-        let guesses = await Task.detached(priority: .utility) {
-            work.map { id, text, patterns, reported -> (String, AgentState?, Set<AgentState>) in
-                // Only states the agent cannot report are guessed, so such a guess may replace a reported state.
-                let state = ScreenGuess.guess(text, patterns: patterns)
-                return (id, state.flatMap { reported.contains($0) ? nil : $0 }, reported)
+        screenGuesser.keep(only: Set(panes.values))
+        guard !order.isEmpty else { return }
+        if !work.isEmpty {
+            let matching = work.map { ($0.text, $0.compiled) }
+            let fresh = await Task.detached(priority: .utility) {
+                matching.map { text, compiled in ScreenGuess.guess(text, compiled: compiled) }
+            }.value
+            for (item, guess) in zip(work, fresh) {
+                screenGuesser.remember(pane: item.pane, text: item.text, agent: item.agent, guess: guess)
+                known[item.id] = .some(guess)
             }
-        }.value
+        }
         var changes: [DomainChange] = []
-        for (id, patternGuess, reported) in guesses {
+        for (id, reported) in order {
+            // Only states the agent cannot report are guessed, so such a guess may replace a reported state.
+            let patternGuess = (known[id] ?? nil).flatMap { reported.contains($0) ? nil : $0 }
             guard var session = sessions.first(where: { $0.id == id }) else { continue }
             // Where the patterns see nothing, Hunch's reading of the pane (when it reads screens) may.
             let reading = panes[id].flatMap(hunchReading(pane:)).flatMap { $0.counts ? $0 : nil }
@@ -1028,6 +1064,12 @@ final class AppModel {
     private(set) var syncing = false
     /// One sync at a time; an ask made meanwhile runs after it instead of being dropped.
     private var syncQueue = SyncQueue()
+    /// The stamp of the newest sync that brought no new data. `github` keeps the stamp of the sync that last changed
+    /// its data, so such a sync changes nothing drawn from the data; what shows when it synced reads `githubNow`.
+    private(set) var githubStamp: GitHubSyncStamp?
+
+    /// `github` with the newest sync stamp: when it last synced, and what each source's last fetch brought.
+    var githubNow: GitHubState { github.freshened(by: githubStamp) }
 
     private var syncSchedule = SyncSchedule()
 
@@ -1078,7 +1120,7 @@ final class AppModel {
         }
         syncing = true
         defer { syncing = false }
-        let previous = github
+        let previous = githubNow
         let tracked = Array(Set(sessions.flatMap(\.trackedPRs)))
         do {
             let state = try await GitHub.sync(
@@ -1086,7 +1128,15 @@ final class AppModel {
                 maxAgeDays: config.attention.maxAgeDays, caller: "github.sync"
             )
             syncSchedule.fetched(parts, at: Date())
-            commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))
+            let pullChanges = PullTracking.changes(sessions: sessions, pulls: state.pulls)
+            if state.sameData(as: github) {
+                // Nothing new: only the stamp moves. It is saved as every sync is, and the domain is left alone.
+                githubStamp = state.stamp
+                if let store { Task { await store.apply([.githubSynced(state)]) } }
+                commit(pullChanges)
+            } else {
+                commit([.githubSynced(state)] + pullChanges)
+            }
             await refreshWatchedDetails()
             await refreshIssueInfo()
             await attentionSynced()
@@ -1101,7 +1151,7 @@ final class AppModel {
 
     /// Switching to a view whose data is older than a poll fetches it right away instead of on the next tick.
     private func viewChangedForSync() {
-        guard !isFixture, github.syncedAt != nil else { return }
+        guard !isFixture, githubNow.syncedAt != nil else { return }
         let due = syncSchedule.due(now: Date(), front: frontParts).intersection(frontParts)
         if !due.isEmpty { Task { await syncGitHub(parts: due) } }
     }

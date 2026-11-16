@@ -24,7 +24,7 @@ struct AttentionView: View {
             HStack(alignment: .top, spacing: 0) {
                 VStack(spacing: 0) {
                     AttentionTabs().shotRegion(.attentionTabs)
-                    SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
+                    SyncBanner(status: model.github.status, syncedAt: model.githubNow.syncedAt)
                     if let note = model.github.teams.note { TeamsNote(text: note) }
                     // In the space left above the coverage line, however long the list.
                     Color.clear.overlay(alignment: .top) {

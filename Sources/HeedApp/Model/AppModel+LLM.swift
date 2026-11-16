@@ -17,18 +17,20 @@ extension AppModel {
         }
     }
 
-    /// On launch: today's spend from the call log, so a restart does not reset the daily cap. Fixtures never detect or
-    /// call anything (their login states are made up, `fixtureLLMStatuses`).
+    /// On launch: today's spend from the call log, so a restart does not reset the daily cap. The log is read while
+    /// launch goes on; the runner's first call waits for it (`LLMRunner.seedSpend(loading:)`). Fixtures never detect
+    /// or call anything (their login states are made up, `fixtureLLMStatuses`).
     func startLLM() async {
         guard !isFixture else { return }
         await llm.configure(agents: config.work.agents, settings: config.llm, prices: config.usage.prices)
         if let log = CallLog.active {
-            await log.flush()
-            var filter = CallFilter()
-            filter.kinds = [.llm]
-            filter.limit = 100_000
-            let calls = await (try? log.store.calls(filter)) ?? []
-            await llm.seedSpend(from: calls)
+            await llm.seedSpend {
+                await log.flush()
+                var filter = CallFilter()
+                filter.kinds = [.llm]
+                filter.limit = 100_000
+                return await (try? log.store.calls(filter)) ?? []
+            }
         }
     }
 

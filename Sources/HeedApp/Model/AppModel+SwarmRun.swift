@@ -329,11 +329,12 @@ extension AppModel {
         }
     }
 
-    /// Workers whose end hook never comes (cursor, codex): over once they worked and went quiet.
-    func readWorkerScreens(now: Date) {
+    /// Workers whose end hook never comes (cursor, codex): over once they worked and went quiet. `screen` reads a
+    /// pane (once a tick).
+    func readWorkerScreens(now: Date, screen: (String) -> String?) {
         for (id, live) in liveWorkers {
-            guard let text = TerminalSurfaces.shared.visibleText(paneID: live.paneID), live.worked,
-                  runStates[live.paneID] == .working, QuietTurn.applies(to: live.agent),
+            guard live.worked, runStates[live.paneID] == .working, QuietTurn.applies(to: live.agent),
+                  let text = screen(live.paneID),
                   quietTurns.isQuiet(
                       pane: live.paneID, text: text, lastHook: lastHookAt[live.paneID], now: now,
                       after: QuietTurn.runAfter

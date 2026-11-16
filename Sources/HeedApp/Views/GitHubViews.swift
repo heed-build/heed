@@ -77,7 +77,7 @@ struct PullRequestsView: View {
                     .padding(.horizontal, 16)
                     .frame(height: 44)
                     .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
-                    SyncBanner(status: model.github.status, syncedAt: model.github.syncedAt)
+                    SyncBanner(status: model.github.status, syncedAt: model.githubNow.syncedAt)
                     ListBody(
                         count: rows.count,
                         cursor: cursor,

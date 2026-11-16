@@ -25,6 +25,13 @@ public struct TelemetrySettings: Equatable, Sendable {
 /// pruning it never touches either. One actor owns the connection; nothing here runs on the main actor.
 public actor TelemetryStore {
     private let database: SQLiteDatabase
+    /// The sessions' reported costs, read from the store once and then kept up to date by each insert; read again
+    /// after a prune took records away.
+    private var costTotals: TelemetryCosts?
+    /// How many times the costs were read from the store.
+    public private(set) var costReads = 0
+    /// The spans the costs are read from at most, newest first (as `records(since:limit:)` reads them).
+    public static let costLimit = 200_000
 
     public init(path: String) throws {
         database = try SQLiteDatabase(path: path)
@@ -85,6 +92,7 @@ public actor TelemetryStore {
                     try usage.run()
                 }
             }
+            costTotals?.add(records)
         } catch {
             NSLog("heed: could not keep telemetry: \(error)")
         }
@@ -104,6 +112,16 @@ public actor TelemetryStore {
             "SELECT body FROM usage WHERE at >= ? ORDER BY at", [SQLiteValue(since)]
         ) { $0[0].data.flatMap { try? decoder.decode(AgentUsageSample.self, from: $0) } }.compactMap(\.self)
         return TelemetryRecords(spans: spans, prompts: prompts, usage: usage)
+    }
+
+    /// What each of `sessions` cost by its agent's own report (`TelemetryResolve.costs`), over what ended or happened
+    /// since `since`, in the context of now. The store is read for it once; after that, from what each insert added.
+    public func costs(of sessions: Set<String>, since: Date, context: TelemetryContext) throws -> [String: Double] {
+        if costTotals == nil {
+            costTotals = try TelemetryCosts(records(since: .distantPast, limit: Self.costLimit))
+            costReads += 1
+        }
+        return costTotals?.costs(of: sessions, since: since, context: context) ?? [:]
     }
 
     /// Drops what is older than `days`, then the oldest past `maxRows` in each table. Returns how many went.
@@ -131,6 +149,8 @@ public actor TelemetryStore {
         } catch {
             NSLog("heed: could not prune telemetry: \(error)")
         }
+        // What went is out of the costs too: they are read again when next asked.
+        if removed > 0 { costTotals = nil }
         return removed
     }
 

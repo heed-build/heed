@@ -623,6 +623,51 @@ struct LLMRunnerTests {
         await #expect(throws: LLMError.self) { try await runner.run(ask("b")) }
     }
 
+    /// Launch hands the runner a read of the call log and goes on; the first call waits for the read, so the cap
+    /// counts what it found.
+    @Test(.timeLimit(.minutes(1))) func spendReadDuringLaunchCountsBeforeTheFirstCall() async throws {
+        let fake = FakeAgent()
+        var settings = LLMSettings()
+        settings.dailyCalls = 2
+        let runner = runner([fake.agent("claude")], answeredBy: [fake], settings: settings)
+        let today = (1 ... 2).map { minutes in
+            LoggedCall(
+                at: Self.start.addingTimeInterval(Double(-60 * minutes)), kind: .llm, caller: "x", command: "c",
+                duration: 1, exitCode: 0, agent: "claude"
+            )
+        }
+        let gate = Gate()
+        await runner.seedSpend {
+            // Still reading when seedSpend returned: launch does not wait for it.
+            await gate.wait()
+            return today
+        }
+        let call = Task { try await runner.run(ask("a")) }
+        await gate.open()
+        await #expect(throws: LLMError.self) { try await call.value }
+        #expect(fake.calls.isEmpty)
+        #expect(await runner.spentToday()["claude"]?.calls == 2)
+    }
+
+    /// Opens once; whoever waits before then waits until it does.
+    private actor Gate {
+        private var opened = false
+        private var waiting: [CheckedContinuation<Void, Never>] = []
+
+        func wait() async {
+            guard !opened else { return }
+            await withCheckedContinuation { waiting.append($0) }
+        }
+
+        func open() {
+            opened = true
+            for continuation in waiting {
+                continuation.resume()
+            }
+            waiting = []
+        }
+    }
+
     @Test func costsAreEstimatedFromPricesWhenNotReported() async throws {
         let fake = FakeAgent()
         let runner = runner(

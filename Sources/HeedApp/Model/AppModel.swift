@@ -346,6 +346,8 @@ final class AppModel {
     var agentPresence = AgentPresence()
     var conversationOnDisk: [String: Bool] = [:]
     var resumeBannerDismissed: Set<String> = []
+    /// What Settings says when the session key could not be read or kept this run (`SessionKeyRead`); nil when it was.
+    var sessionKeyNotice: String?
 
     /// Resumed sessions that were mid-turn: they get the continue prompt once their agent reports idle.
     private var pendingContinue: Set<String> = []
@@ -686,6 +688,7 @@ final class AppModel {
         // Signposts (`Perf`): each wait before the cached domain is drawn, and the whole of it.
         let toCache = Perf.begin("start.toCache")
         await Perf.measure("start.callLog") { await startCallLog(beside: file) }
+        noteSessionKey()
         startConfig()
         Notifier.shared.attach(self)
         if !isFixture { await Perf.measure("start.detectTools") { await detectTools() } }
@@ -1081,8 +1084,9 @@ final class AppModel {
         resume = form
     }
 
-    /// Starts each chosen session's agent pane on its resume (or fresh) command, now, even off screen.
-    func resumeSessions(_ chosen: [ResumeCandidate]) {
+    /// Starts each chosen session's agent pane on its resume (or fresh) command, now, even off screen. `restarting`
+    /// (`session.reconnect`): the pane's process ends first, its zmx session too, whether or not it still runs.
+    func resumeSessions(_ chosen: [ResumeCandidate], restarting: Bool = false) {
         guard !isFixture else {
             flash = "fixture: no IO"
             return
@@ -1092,19 +1096,28 @@ final class AppModel {
             else { continue }
             guard let (tabIndex, paneID) = agentPane(in: layout) else { continue }
             layout.tabs[tabIndex].tree = layout.tabs[tabIndex].tree.updating(paneID) { $0.command = candidate.command }
-            session.record(candidate.startsFresh ? "relaunched · started fresh" : "resumed after restart")
-            session.state = ObservedState(.idle, source: .guessed, reason: "resuming")
+            session.record(
+                restarting ?
+                    (candidate.startsFresh ? "restarted to reconnect · started fresh" : "restarted to reconnect")
+                    : candidate.startsFresh ? "relaunched · started fresh" : "resumed after restart"
+            )
+            session.state = ObservedState(.idle, source: .guessed, reason: restarting ? "reconnecting" : "resuming")
             commit([.layoutChanged(session: session.id, layout), .sessionUpserted(session)])
             TerminalSurfaces.shared.autostartPanes.insert(paneID)
             agentPresence.started(paneID)
             if let pane = layout.tabs[tabIndex].tree.panes.first(where: { $0.id == paneID }) {
-                TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
+                if restarting {
+                    TerminalSurfaces.shared.restart(pane, sessionID: session.id)
+                } else {
+                    TerminalSurfaces.shared.prepare(pane, sessionID: session.id)
+                }
             }
-            if candidate.mode == .resumeThenContinue, !settings.continuePrompt.isEmpty {
+            // A restarted agent's last state is one heed did not hear: nothing says it was mid-turn.
+            if !restarting, candidate.mode == .resumeThenContinue, !settings.continuePrompt.isEmpty {
                 pendingContinue.insert(session.id)
             }
         }
-        if !chosen.isEmpty { flash = "resumed \(chosen.count) session\(chosen.count == 1 ? "" : "s")" }
+        if !chosen.isEmpty, !restarting { flash = "resumed \(chosen.count) session\(chosen.count == 1 ? "" : "s")" }
     }
 
     /// The pane the agent runs in: the first `.agent` pane, else the first pane. A run's tab is never it.
@@ -1328,10 +1341,35 @@ final class AppModel {
         }
     }
 
+    /// A hook message heed did not take: still not taken, but a session heed has, from its agent pane, says so
+    /// (`Unheard`), so it is not filed by a state its agent stopped reporting. Kept for this run only, never committed.
+    private func noteUnheard(_ message: HookMessage) {
+        guard let reason = Unheard.reason(
+            token: message.token, session: message.session, pane: message.pane, keys: PaneTokens.keys
+        ), let index = sessions.firstIndex(where: { $0.id == message.session }) else { return }
+        if let pane = message.pane, retiredPanes.contains(pane) { return }
+        let agentPane = layouts[message.session].flatMap { agentPane(in: $0)?.1 }
+        guard let unheard = Unheard.noting(
+            reason, pane: message.pane, agentPane: agentPane, on: sessions[index].unheard, at: Clock.now
+        ) else { return }
+        sessions[index].unheard = unheard
+    }
+
+    /// A message heed took: its pane is heard again.
+    private func heard(_ message: HookMessage) {
+        guard let index = sessions.firstIndex(where: { $0.id == message.session }),
+              let unheard = sessions[index].unheard,
+              Unheard.heard(pane: message.pane, on: unheard) == nil else { return }
+        sessions[index].unheard = nil
+    }
+
     /// One message from an agent's hook, applied to its session. Only from the pane it says it is from: its token
     /// must be heed's for that session and pane (`SessionKeys`).
     func receive(_ message: HookMessage) {
-        guard PaneTokens.keys.verifies(message.token, session: message.session, pane: message.pane) else { return }
+        guard PaneTokens.keys.verifies(message.token, session: message.session, pane: message.pane) else {
+            return noteUnheard(message)
+        }
+        heard(message)
         // The agent a handoff stopped, on its way out: the session is the new agent's now.
         if let pane = message.pane, retiredPanes.contains(pane) { return }
         if let pane = message.pane {
@@ -2818,6 +2856,7 @@ final class AppModel {
             )
         case "agent.resume": resumeAgent(command.target, fresh: false)
         case "agent.fresh": resumeAgent(command.target, fresh: true)
+        case "session.reconnect": reconnect(command.target)
         case "agent.resume.dismiss": dismissResumeBanner(command.target)
         case "work.again": openStartWork(prompt: currentSession?.prompt ?? "", chat: currentSession?.isChat == true)
         case "chat.promote": promoteChat()
@@ -7927,6 +7966,8 @@ final class AppModel {
         session.agent = agent.name
         session.agentSessionID = AgentIntegration.preassignedSessionID(agent: agent, sessionID: agentSession)
         session.usage = nil
+        // The new pane has this run's token.
+        session.unheard = nil
         session.state = ObservedState(.idle, source: .guessed, reason: "handed off")
         session.activity = "starting"
         session.lastActivity = Clock.now

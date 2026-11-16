@@ -201,3 +201,36 @@ struct ResumeBannerStrip: View {
         .fixedSize()
     }
 }
+
+/// The quiet strip across the top of a session's panes when heed can't hear its agent pane (`Unheard`): what is
+/// wrong, why on hover, and the key that restarts the agent so it reports again. Grey, not a colour: nothing is
+/// broken in the work, and heed asks for nothing urgent.
+struct UnheardStrip: View {
+    @Environment(AppModel.self) private var model
+    let session: String
+    let unheard: Unheard
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Text("heed can't hear this pane — restart it to reconnect")
+                .font(Theme.ui(12.5)).foregroundStyle(Theme.fg2).lineLimit(1)
+                .layoutPriority(1)
+                .help(
+                    "Since \(unheard.firstSeen.formatted(date: .omitted, time: .shortened)): "
+                        + "\(unheard.count) hook message\(unheard.count == 1 ? "" : "s") heed did not take"
+                )
+            KeyHint("session.reconnect", target: .session(session), scope: "sessions", spacing: 6) {
+                Text("Restart").font(Theme.ui(12, weight: .semibold)).foregroundStyle(Theme.fg).fixedSize()
+            }
+            .fixedSize()
+            Spacer(minLength: 8)
+            Text(unheard.reason.text).font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 30)
+        .background(Theme.bg2)
+        .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+        .shotRegion(.unheardBanner)
+    }
+}

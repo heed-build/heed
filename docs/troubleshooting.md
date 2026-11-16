@@ -81,6 +81,21 @@ Exit code 3: Heed is not running, or the shell is on a host, where the control s
 the session is on no goal; `heed goal attach <goal>` puts it on one, or pass `--goal`. See
 [Agents keep the goal](goals/cli.md).
 
+## A session says "heed can't hear this pane"
+
+Its agent's hooks report without the pane's token (`HEED_SESSION_TOKEN`), or with one this Heed cannot check, so Heed
+does not take what they say. It happens to agents in panes an older Heed started: a zmx session Heed reattached, or an
+agent resumed in it. Heed files the session under Working, since its pane is still sending, and the strip over its
+panes says so. `gk` (`:session.reconnect`, or **Restart to reconnect** in its right-click menu) restarts the agent
+after you confirm: the pane's process and its zmx session end, and the agent resumes its conversation in a new
+terminal that has the token. New sessions are not affected. See [Hooks](agents/hooks.md#inside-a-pane).
+
+![A session Heed can't hear: its row in Working, and the strip over its panes with Restart](images/shots/sessions/unheard.png)
+
+If Settings also says "Session key couldn't be read", Heed could not read the key it signs tokens with (the login
+Keychain was locked or refused, or the key file could not be read), and is using one for this run only: panes started
+now are heard until Heed restarts, then need `gk` too. The call log has the error under `session.key`.
+
 ## A key does nothing
 
 The status bar says what Heed made of it ("gq is not bound"). Check `config.toml` for a binding that was refused (the

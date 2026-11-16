@@ -364,7 +364,9 @@ public enum DefaultKeys {
         ("dd", "session.delete"), ("Iw", "session.import"), ("Ip", "session.import.path"),
         ("<CR>", "session.agent"), ("T", "sessions.sort"),
         // The banner over a session whose agent is not running: pick its conversation up, start over, or leave it.
-        ("gu", "agent.resume"), ("gf", "agent.fresh"), ("gq", "agent.resume.dismiss"), ("zG", "sessions.group"), (
+        ("gu", "agent.resume"), ("gf", "agent.fresh"), ("gq", "agent.resume.dismiss"),
+        // A session heed cannot hear: restart its agent in a pane with this run's token.
+        ("gk", "session.reconnect"), ("zG", "sessions.group"), (
             "zR",
             "sessions.rows"
         ),

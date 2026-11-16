@@ -205,6 +205,26 @@ final class TerminalSurfaces {
         }
     }
 
+    /// Restarts a pane's process (`session.reconnect`): its terminal and its zmx session (here or on its host) end,
+    /// whatever runs in them, then a new terminal runs the pane's command with this run's environment and token. Off
+    /// screen it starts at once, as `prepare` does.
+    func restart(_ pane: PaneSpec, sessionID: String) {
+        let host = hosts[pane.id]
+        // Out of `views` first: the old terminal ending is not the pane ending.
+        views.removeValue(forKey: pane.id)
+        let end = endSession(paneID: pane.id, location: paneLocations[pane.id] ?? pane.location)
+        Task { @MainActor in
+            await end()
+            if let host {
+                // Closed meanwhile: nothing to start.
+                guard hosts[pane.id] === host else { return }
+                host.show(makeTerminal(for: pane, sessionID: sessionID))
+            } else {
+                _ = view(for: pane, sessionID: sessionID)
+            }
+        }
+    }
+
     /// Ends a pane's zmx session, here or on its host, if it has one; the returned work does it.
     private func endSession(paneID: String, location: Location) -> @Sendable () async -> Void {
         if let host = location.hostName {

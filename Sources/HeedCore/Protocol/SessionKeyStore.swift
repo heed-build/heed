@@ -47,23 +47,83 @@ public enum SessionKeyStorage {
     public static func load(
         signing: SigningKind, keychain: SessionKeyStore, file: SessionKeyStore
     ) throws -> SessionKeys {
+        try read(signing: signing, keychain: keychain, file: file).keys
+    }
+
+    /// As `load`, and why the key is this run's only when it is (nil when it is kept): panes started with it may not
+    /// be heard after a restart. A Keychain that cannot be read keeps the key it has: heed uses the file's key, else
+    /// one for this run, and writes nothing over it.
+    public static func read(
+        signing: SigningKind, keychain: SessionKeyStore, file: SessionKeyStore
+    ) throws -> (keys: SessionKeys, unkept: String?) {
         func valid(_ data: Data?) -> Data? { data?.count == 32 ? data : nil }
         func fresh() -> Data { SymmetricKey(size: .bits256).withUnsafeBytes { Data($0) } }
         guard signing == .developerID else {
-            if let key = try valid(file.read()) { return SessionKeys(key: key) }
+            if let key = try valid(file.read()) { return (SessionKeys(key: key), nil) }
             let key = fresh()
             try file.write(key)
-            return SessionKeys(key: key)
+            return (SessionKeys(key: key), nil)
         }
-        if let key = try? valid(keychain.read()) {
+        let kept: Data?
+        do {
+            kept = try keychain.read()
+        } catch {
+            // Not the kept key, whichever is used: the Keychain's may be readable again after a restart.
+            return (SessionKeys(key: (try? valid(file.read())) ?? fresh()), "\(error)")
+        }
+        if let key = valid(kept) {
             // A file left by an earlier move that could not remove it.
             if (try? file.read()) != nil { try? file.delete() }
-            return SessionKeys(key: key)
+            return (SessionKeys(key: key), nil)
         }
-        let key = (try? valid(file.read())) ?? fresh()
-        guard (try? keychain.write(key)) != nil else { return SessionKeys(key: key) }
+        let inFile = try? valid(file.read())
+        let key = inFile ?? fresh()
+        do {
+            try keychain.write(key)
+        } catch {
+            // The file keeps a key it had; a new one is kept nowhere.
+            return (SessionKeys(key: key), inFile == nil ? "\(error)" : nil)
+        }
         try? file.delete()
-        return SessionKeys(key: key)
+        return (SessionKeys(key: key), nil)
+    }
+}
+
+/// The session key as heed read it at launch: the key, and why it is this run's only when it is. Reading never
+/// fails: a key that cannot be read or kept gives way to one for this run, and `problem` says why, for Settings and
+/// the call log.
+public struct SessionKeyRead: Sendable {
+    public let keys: SessionKeys
+    /// Nil when the key is kept, so panes started now are heard after a restart.
+    public let problem: String?
+
+    public init(keys: SessionKeys, problem: String?) {
+        self.keys = keys
+        self.problem = problem
+    }
+
+    public static func load(signing: SigningKind, keychain: SessionKeyStore, file: SessionKeyStore) -> SessionKeyRead {
+        do {
+            let (keys, unkept) = try SessionKeyStorage.read(signing: signing, keychain: keychain, file: file)
+            return SessionKeyRead(keys: keys, problem: unkept)
+        } catch {
+            return SessionKeyRead(keys: .ephemeral(), problem: "\(error)")
+        }
+    }
+
+    /// What Settings says while the key is this run's only.
+    public var notice: String? {
+        problem.map { "Session key couldn't be read: \($0); panes started this run won't be heard after a restart" }
+    }
+
+    /// The call log's row for the problem; nil without one.
+    public func logged(signing: SigningKind, at date: Date) -> LoggedCall? {
+        guard let problem else { return nil }
+        return LoggedCall(
+            at: date, kind: .shell, caller: "session.key",
+            command: signing == .developerID ? "read the session key (login Keychain)" : "read the session key (file)",
+            duration: 0, failed: true, stderr: problem
+        )
     }
 }
 

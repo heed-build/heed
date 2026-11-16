@@ -207,9 +207,8 @@ final class AppModel {
     var inferenceReminderInShots = false
     /// Swarm tasks a shot crops to, by slug: the shot says which, so views never name fixture data.
     var shotTaskRegions: [String: ShotRegion] = [:]
-    /// heed's own nudges (AppModel+Nudges): the one shown, the title bar pill hidden for this launch, what's new put
-    /// off with Not now, and config.toml written this launch.
-    var nudge: NudgeDialog?
+    /// heed's own nudges (AppModel+Nudges): the title bar pill hidden for this launch, what's new put off with Not
+    /// now, and config.toml written this launch. The nudge shown is a dialog (AppModel+Modal).
     var nudgePillHidden = false
     var nudgePillInShots = false
     var whatsNewPostponed = false
@@ -250,8 +249,6 @@ final class AppModel {
     private var sweepTask: Task<Void, Never>?
     /// Results of pinned tasks by pane: the exit code of the last run.
     private(set) var taskResults: [String: Int] = [:]
-    /// The first-run screen, while shown.
-    private(set) var firstRun: FirstRunReport?
     /// Where git and gh were found, and the search path every command and pane runs with.
     private(set) var tools: ToolReport?
     /// Screenshots: what Settings › Tools found.
@@ -335,11 +332,6 @@ final class AppModel {
     }
 
     private(set) var picked: [AppView: Set<String>] = [:]
-
-    // Resume on launch
-    private(set) var resume: ResumeForm? {
-        didSet { if resume == nil, oldValue != nil { showPendingAwaySummary() } }
-    }
 
     // The resume banner (ResumeBanner): which panes have an agent running, whether each session's agent still has
     // its conversation (checked off the main actor), and the sessions whose banner you dismissed until heed restarts.
@@ -571,23 +563,68 @@ final class AppModel {
     func say(_ message: String) { flash = message }
     private(set) var hintText = ""
     private var hintThenInsert = false
-    /// The Start work dialog, while open. Set from AppModel+StartWorkSmarts too (the model's advice).
-    var startWork: StartWorkForm? {
-        didSet {
-            if startWork == nil, startWorkStandalone {
-                startWorkStandalone = false
-                StartWorkPanelController.shared.close()
-            }
-            adviseStartWork()
-            sizeStartWork()
+    /// The dialogs open over the window, one of each kind at most (AppModel+Modal: each has its own accessor, and
+    /// `dialogOpen` says whether any is).
+    var dialogs = DialogStack<Modal.Kind, Modal>()
+
+    // The dialogs whose setters stay private to this file (the others are in AppModel+Modal).
+
+    /// The first-run screen, while shown.
+    private(set) var firstRun: FirstRunReport? {
+        get { if case let .firstRun(value) = dialogs[.firstRun] { value } else { nil } }
+        set { setDialog(.firstRun, newValue.map(Modal.firstRun)) }
+    }
+
+    /// The resume dialog on launch; closing it shows an away summary that waited for it.
+    private(set) var resume: ResumeForm? {
+        get { if case let .resume(value) = dialogs[.resume] { value } else { nil } }
+        set {
+            let wasOpen = resume != nil
+            setDialog(.resume, newValue.map(Modal.resume))
+            if newValue == nil, wasOpen { showPendingAwaySummary() }
         }
     }
 
-    /// The Start work dialog is showing in its own panel over other apps (`[keys] global_start_work`).
-    private(set) var startWorkStandalone = false
-    /// Why the last start failed, shown in the dialog (the standalone panel has no status bar).
-    private(set) var startWorkError: String?
-    private(set) var startingWork = false
+    private(set) var hostsPicker: Typeahead<HostRow>? {
+        get { if case let .hostsPicker(value) = dialogs[.hostsPicker] { value } else { nil } }
+        set { setDialog(.hostsPicker, newValue.map(Modal.hostsPicker)) }
+    }
+
+    /// `gB` / `gR` with more than one place to go.
+    private(set) var linkPicker: LinkPicker? {
+        get { if case let .linkPicker(value) = dialogs[.linkPicker] { value } else { nil } }
+        set { setDialog(.linkPicker, newValue.map(Modal.linkPicker)) }
+    }
+
+    /// "Where are your projects on @host?", while it shows.
+    private(set) var hostRootsChooser: HostRootsChooser? {
+        get { if case let .hostRootsChooser(value) = dialogs[.hostRootsChooser] { value } else { nil } }
+        set { setDialog(.hostRootsChooser, newValue.map(Modal.hostRootsChooser)) }
+    }
+
+    /// A question waiting for y / n (`ask`).
+    private(set) var confirmation: Confirmation? {
+        get { if case let .confirmation(value) = dialogs[.confirmation] { value } else { nil } }
+        set { setDialog(.confirmation, newValue.map(Modal.confirmation)) }
+    }
+
+    /// `I` in Sessions: pick a worktree without a session (main checkouts included) to import.
+    private(set) var importPicker: Typeahead<Worktree>? {
+        get { if case let .importPicker(value) = dialogs[.importPicker] { value } else { nil } }
+        set { setDialog(.importPicker, newValue.map(Modal.importPicker)) }
+    }
+
+    /// `P` in Sessions, while it shows.
+    private(set) var pathImport: PathImport? {
+        get { if case let .pathImport(value) = dialogs[.pathImport] { value } else { nil } }
+        set { setDialog(.pathImport, newValue.map(Modal.pathImport)) }
+    }
+
+    private(set) var taskPicker: TaskPickerState? {
+        get { if case let .taskPicker(value) = dialogs[.taskPicker] { value } else { nil } }
+        set { setDialog(.taskPicker, newValue.map(Modal.taskPicker)) }
+    }
+
     /// What heed found out about repos typed into a form (`RepoEntry`): GitHub's answer for a slug, or what is
     /// checked out at a path. Kept for the run, so typing a repo again asks nothing.
     var repoLookups: [String: RepoEntry.Lookup] = [:]
@@ -1904,9 +1941,6 @@ final class AppModel {
         var id: String { (machine == nil ? "" : "tailnet:") + name }
     }
 
-    private(set) var hostsPicker: Typeahead<HostRow>?
-    /// `gB` / `gR` with more than one place to go.
-    private(set) var linkPicker: LinkPicker?
     /// The get it green / get it merged runs running now, by run id: their tab, pane and worktree. In memory only.
     struct LiveRun: Equatable {
         let runID: String
@@ -2034,17 +2068,8 @@ final class AppModel {
     private(set) var runs: [PilotRun] = []
     /// Work saved from removed worktrees, as each repo last listed it (the domain's): what the sweep's retention reads.
     private(set) var archives: [ArchiveRef] = []
-    /// The run the reader shows (`↩` on a Runs row).
-    var runReader: PilotRun?
-    /// While you were away (`summary`), while it shows.
-    var awaySummary: AwaySummary?
     /// Since when the summary that opened on its own goes back, while it waits for the resume dialog to close.
     var pendingAwaySince: Date?
-    /// The PR `pilot.why` explains: what heed will do for it and what holds it back.
-    var pilotExplain: PullRef?
-    /// The setup wizard for a repo's get it merged and get it green (`repo.setup`), while it shows
-    /// (AppModel+RepoSetup).
-    var repoSetup: RepoSetupWizard?
     @ObservationIgnored var repoSetupTask: Task<Void, Never>?
     /// What GitHub said about each repo's merge settings, by slug, from the wizard's samples and PR details.
     var repoMergeSettings: [String: RepoMergeSettings] = [:]
@@ -2160,8 +2185,6 @@ final class AppModel {
 
     // MARK: Where a host's projects are (host.roots)
 
-    /// "Where are your projects on @host?", while it shows.
-    private(set) var hostRootsChooser: HostRootsChooser?
     /// How many repos the last scan found on each host that answered.
     private(set) var hostRepoCounts: [String: Int] = [:]
 
@@ -4005,14 +4028,16 @@ final class AppModel {
         var onCancel: (@MainActor () -> Void)?
     }
 
-    private(set) var confirmation: Confirmation?
-
+    /// Asks; a question still open is replaced, and counts as cancelled (its `onCancel` runs), so whatever waited on
+    /// its answer (a start waiting on trust) is not left waiting.
     func ask(_ confirmation: Confirmation) {
         if mode == .insert {
             engine.enter(.normal)
             modeChanged(from: .insert)
         }
+        let replaced = self.confirmation
         self.confirmation = confirmation
+        replaced?.onCancel?()
     }
 
     private func answerConfirmation(_ stroke: KeyStroke) {
@@ -4322,9 +4347,6 @@ final class AppModel {
 
     // MARK: Import picker
 
-    /// `I` in Sessions: pick a worktree without a session (main checkouts included) to import.
-    private(set) var importPicker: Typeahead<Worktree>?
-
     // MARK: Import a path
 
     /// `P` in Sessions: a path typed with directory completion, previewed as it changes, imported with ↩.
@@ -4344,10 +4366,6 @@ final class AppModel {
         var importable = false
     }
 
-    private(set) var pathImport: PathImport?
-
-    /// Repos › Add or clone (`a`, `:repo.add`): the field, the lists, what is picked; nil when closed.
-    var addRepoDialog: AddRepoForm?
     /// The dialog's lookups and folder completions: a newer keystroke cancels the older.
     @ObservationIgnored var addRepoFieldTask: Task<Void, Never>?
     /// What `gh repo list` last answered, loaded from the caches folder on first use.
@@ -7523,7 +7541,7 @@ final class AppModel {
             // Called from another app: what heed's cursor is on says nothing about this work.
             openStartWork(prompt: "", fromCursor: false)
         }
-        startWorkStandalone = true
+        startWorkSession?.presentation = .standalone
         StartWorkPanelController.shared.show(model: self)
     }
 
@@ -7537,7 +7555,7 @@ final class AppModel {
         prompt: String, fromCursor: Bool = true, chat: Bool = false, promotion: Promotion? = nil,
         context given: StartContext? = nil
     ) {
-        startWorkError = nil
+        startWorkSession?.clearFailure()
         let context = given ?? (fromCursor ? startContext : nil)
         if view == .history { view = .sessions }
         var form = StartWorkForm(
@@ -7736,17 +7754,26 @@ final class AppModel {
         var hostFiles: [String: String] = [:]
         if let host {
             guard let onHost = hostAgentFiles(host) else {
-                startWorkError = "@\(host) does not answer: gH shows why"
+                startWorkSession?.fail("@\(host) does not answer: gH shows why")
                 return
             }
             hostFiles = onHost.files
         }
-        startingWork = true
         // The standalone panel cannot show the offer: it waits for a start from the window.
-        guard !startWorkStandalone else { return launch(plan, hostFiles: hostFiles) }
+        guard !startWorkStandalone else {
+            startWorkSession?.launch()
+            return launch(plan, hostFiles: hostFiles)
+        }
+        guard let start = startWorkSession?.awaitTrust() else { return }
         Task {
-            guard let offer = await trustOffer(for: plan) else { return launch(plan, hostFiles: hostFiles) }
-            offerTrust(offer) { [weak self] in self?.launch(plan, hostFiles: hostFiles) }
+            // Answered either way (a replaced question counts as Not now), the start goes on: unless it is no longer
+            // the one waiting, as when the dialog was closed meanwhile.
+            let go: @MainActor () -> Void = { [weak self] in
+                guard let self, startWorkSession?.trustAnswered(start) == true else { return }
+                launch(plan, hostFiles: hostFiles)
+            }
+            guard let offer = await trustOffer(for: plan) else { return go() }
+            offerTrust(offer, then: go)
         }
     }
 
@@ -7755,9 +7782,7 @@ final class AppModel {
         let host = plan.location.hostName
         let settings = settings
         let hosts = config.hosts
-        startingWork = true
         Task {
-            defer { startingWork = false }
             do {
                 if let host {
                     flash = "setting up @\(host)…"
@@ -7795,7 +7820,7 @@ final class AppModel {
                 proposeSetup(for: plan.repos)
             } catch {
                 flash = "start work failed: \(error)"
-                startWorkError = "start failed: \(error)"
+                startWorkSession?.fail("start failed: \(error)")
             }
         }
     }
@@ -8149,8 +8174,6 @@ final class AppModel {
         var loading: Bool
         var sessionID: String
     }
-
-    private(set) var taskPicker: TaskPickerState?
 
     /// The worktree a session's tasks run in, and where: its first repo's.
     private func taskWorktree(of session: Session) -> (path: String, location: Location, pinned: [TaskSpec])? {
@@ -8830,16 +8853,14 @@ final class AppModel {
     /// Clicking into a terminal means typing there: focus that pane and enter INSERT. Without this a click left
     /// NORMAL on, and the next letters ran as commands (x closes the session).
     func clickedPane(_ paneID: String) {
-        guard startWork == nil, resume == nil, firstRun == nil, nudge == nil, !filtering else { return }
+        guard !dialogOpen, !filtering else { return }
         if currentTab?.focused != paneID { focusPane(paneID) }
         enterInsert()
     }
 
     /// Whether a click on a list may act: not while a dialog or form has the keyboard.
     var clicksReachLists: Bool {
-        startWork == nil && confirmation == nil && resume == nil && firstRun == nil && importPicker == nil
-            && pathImport == nil && tutorPicker == nil && awaySummary == nil && repoSetup == nil && nudge == nil
-            && addRepoDialog == nil
+        !dialogOpen
     }
 
     /// A click on a session in the sidebar or the rail selects it; a double-click also types into its agent pane.

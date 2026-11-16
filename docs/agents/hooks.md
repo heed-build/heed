@@ -221,4 +221,8 @@ Every pane gets the session's id, the socket's path, its own pane id and its tok
 takes a hook's message only with the token of the pane it names, so a hook reports for its own pane and no other. The
 hook commands heed hands Claude Code and Codex name the helper by its path and heed's sockets in the command line,
 so nothing in a repo's environment changes where they report. Run outside a Heed pane, the hook does nothing.
+
+A pane an older Heed started (a zmx session reattached after an update) has no token, so Heed does not take its
+hooks. The strip over the session's panes says "heed can't hear this pane", its row "can't hear it", and `gk`
+restarts its agent in a pane that has one. See [Troubleshooting](../troubleshooting.md).
 See [The heed CLI](../reference/cli.md).

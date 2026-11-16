@@ -190,9 +190,10 @@ public enum GitHub {
             .sorted { $0.updatedAt == $1.updatedAt ? $0.id < $1.id : $0.updatedAt > $1.updatedAt }
     }
 
-    /// The search for your open PRs, with the age cap's `updated:>=` when there is one.
-    static func pullSearchText(maxAgeDays: Int, now: Date) -> String {
-        searchText("is:open is:pr author:@me archived:false", maxAgeDays: maxAgeDays, now: now)
+    /// The search for your open PRs. It never carries the age cap: these PRs also feed sessions' rails, goals and
+    /// the pilot, so an old open PR of yours must still be fetched. Attention drops it from its feed by age itself.
+    static func pullSearchText(maxAgeDays _: Int, now _: Date) -> String {
+        "is:open is:pr author:@me archived:false"
     }
 
     static func searchText(_ base: String, maxAgeDays: Int, now: Date) -> String {

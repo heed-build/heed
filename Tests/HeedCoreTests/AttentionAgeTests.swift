@@ -30,8 +30,8 @@ struct AttentionAgeTests {
     @Test func theSearchesCarryTheCutOffDay() {
         // 60 days before 2033-05-18 is 2033-03-19.
         #expect(AttentionAge.qualifier(days: 60, now: now) == "updated:>=2033-03-19")
-        #expect(GitHub.pullSearchText(maxAgeDays: 60, now: now)
-            == "is:open is:pr author:@me archived:false updated:>=2033-03-19")
+        // Your own open PRs are never capped at GitHub: sessions, goals and the pilot need them however old.
+        #expect(GitHub.pullSearchText(maxAgeDays: 60, now: now) == "is:open is:pr author:@me archived:false")
         #expect(GitHub.issueSearchBase(maxAgeDays: 60, now: now)
             == "is:open is:issue archived:false updated:>=2033-03-19")
         #expect(AttentionAge.qualifier(days: 1, now: now) == "updated:>=2033-05-17")

@@ -50,15 +50,17 @@ extension AppModel {
     }
 
     var attentionEntries: [AttentionEntry] {
-        let days = config.attention.maxAgeDays
-        return AttentionRanking.entries(
-            live: attentionItems,
-            stored: AttentionAge.apply(
-                to: attention.stored.map(\.item), days: days, now: Clock.now, exempt: attentionAgeExempt
-            ),
-            rules: config.attention.parsedRules,
-            marks: attention.marks, viewer: github.viewer, now: Clock.now
-        )
+        Perf.measure("attentionEntries") {
+            let days = config.attention.maxAgeDays
+            return AttentionRanking.entries(
+                live: attentionItems,
+                stored: AttentionAge.apply(
+                    to: attention.stored.map(\.item), days: days, now: Clock.now, exempt: attentionAgeExempt
+                ),
+                rules: config.attention.parsedRules,
+                marks: attention.marks, viewer: github.viewer, now: Clock.now
+            )
+        }
     }
 
     /// What the tab lists, in its sections: the tab, the sort, and `/`.

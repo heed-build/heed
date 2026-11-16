@@ -2,7 +2,7 @@ import Foundation
 @testable import HeedCore
 import Testing
 
-/// Timings that matter but would make the suite flaky: `mise run bench` runs them, in a release build and one at a
+/// Timings that matter but would make the suite flaky: `mise run bench` runs them, in an optimized build and one at a
 /// time. `mise run test` and CI skip them.
 enum Bench {
     static var enabled: Bool { ProcessInfo.processInfo.environment["HEED_BENCH"] == "1" }

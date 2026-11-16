@@ -111,6 +111,8 @@ public actor DomainStore {
     public func flush() {
         writeScheduled = false
         guard let file else { return }
+        let perf = Perf.begin("domain.flush")
+        defer { perf.end() }
         let cached = CachedDomain(version: CachedDomain.currentVersion, domain: log == nil ? domain : domain.leavingLog)
         do {
             try FileManager.default.createDirectory(

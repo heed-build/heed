@@ -235,6 +235,8 @@ final class AuditBrowser {
     }
 
     private func refilter() {
+        let perf = Perf.begin("audit.refilter")
+        defer { perf.end() }
         let current = selected?.id
         let fresh = book.rows.filter { row in
             FilterQuery.matches(

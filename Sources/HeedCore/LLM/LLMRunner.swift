@@ -142,10 +142,29 @@ public actor LLMRunner {
     /// How a bare command name becomes an executable, and the PATH to run it with.
     public typealias Resolve = @Sendable (String) async -> (path: String?, pathVariable: String)
 
+    /// One command the runner runs: a detection check or a model call.
+    public struct Command: Sendable {
+        public var path: String
+        public var arguments: [String]
+        public var directory: String
+        public var environment: [String: String]
+        public var timeout: Duration
+        /// A file fed to the command's stdin.
+        public var input: URL?
+        /// Logged as a shell call by this caller (detection); nil for a model call, which the runner logs itself as an
+        /// `llm` row.
+        public var caller: String?
+    }
+
+    /// How a command runs and what it printed: through `ProcessRunner` (`process`), unless the runner was given
+    /// another way.
+    public typealias Execute = @Sendable (Command) async throws -> ProcessResult
+
     private var agents: [AgentProfile]
     private var settings: LLMSettings
     private var prices: UsagePrices
     private let resolve: Resolve
+    private let execute: Execute
     private let now: @Sendable () -> Date
     private let calendar: Calendar
 
@@ -179,15 +198,30 @@ public actor LLMRunner {
     public init(
         agents: [AgentProfile] = AgentProfile.builtIn, settings: LLMSettings = LLMSettings(),
         prices: UsagePrices = UsagePrices(),
-        resolve: Resolve? = nil,
+        resolve: Resolve? = nil, execute: @escaping Execute = LLMRunner.process,
         calendar: Calendar = .current, now: @escaping @Sendable () -> Date = { Date() }
     ) {
         self.agents = agents
         self.settings = settings
         self.prices = prices
         self.resolve = resolve ?? { name in await ToolLocator.shared.executable(name) }
+        self.execute = execute
         self.calendar = calendar
         self.now = now
+    }
+
+    /// Runs `command` as a process: logged as a shell call when it names a caller, else left to the runner's own row.
+    public static func process(_ command: Command) async throws -> ProcessResult {
+        if let caller = command.caller {
+            return try await ProcessRunner.run(
+                command.path, command.arguments, in: command.directory, environment: command.environment,
+                timeout: command.timeout, input: command.input, caller: caller
+            )
+        }
+        return try await ProcessRunner.execute(
+            command.path, command.arguments, in: command.directory, environment: command.environment,
+            timeout: command.timeout, input: command.input
+        )
     }
 
     // MARK: State from outside
@@ -284,10 +318,10 @@ public actor LLMRunner {
             )
         }
         func run(_ arguments: [String]) async -> ProcessResult? {
-            try? await ProcessRunner.run(
-                path, arguments, in: NSTemporaryDirectory(), environment: ["PATH": pathVariable],
-                timeout: .seconds(20), caller: "llm.detect"
-            )
+            try? await execute(Command(
+                path: path, arguments: arguments, directory: NSTemporaryDirectory(),
+                environment: ["PATH": pathVariable], timeout: .seconds(20), caller: "llm.detect"
+            ))
         }
         var login = LLMAgentStatus.Login.unknown
         var loginOutput = ""
@@ -523,10 +557,10 @@ public actor LLMRunner {
         var result: ProcessResult?
         var failure: String?
         do {
-            result = try await ProcessRunner.execute(
-                path, invocation.arguments, in: scratch.path, environment: ["PATH": pathVariable],
-                timeout: .seconds(settings.timeoutSeconds), input: input
-            )
+            result = try await execute(Command(
+                path: path, arguments: invocation.arguments, directory: scratch.path,
+                environment: ["PATH": pathVariable], timeout: .seconds(settings.timeoutSeconds), input: input
+            ))
         } catch let error as ProcessError {
             result = error.result
             failure = error.reason

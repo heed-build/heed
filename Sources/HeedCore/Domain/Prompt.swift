@@ -238,10 +238,12 @@ public struct Prompt: Hashable, Sendable, ExpressibleByStringInterpolation {
             + "source=\"\(text.source.rawValue)\" id=\"\(nonce)\">" + defuse(text.display) + "</external \(nonce)>"
     }
 
+    /// `<external` or `</external`, however spaced or cased: compiled once, not for every fence.
+    private static let fenceTag = try? NSRegularExpression(pattern: "<(\\s*/?\\s*external)", options: .caseInsensitive)
+
     /// `<external` and `</external`, however spaced or cased, made harmless: the `<` becomes `‹`.
     static func defuse(_ text: String) -> String {
-        guard let pattern = try? NSRegularExpression(pattern: "<(\\s*/?\\s*external)", options: .caseInsensitive)
-        else { return text }
+        guard let pattern = fenceTag else { return text }
         let range = NSRange(text.startIndex..., in: text)
         return pattern.stringByReplacingMatches(in: text, range: range, withTemplate: "‹$1")
     }

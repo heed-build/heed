@@ -17,6 +17,8 @@ final class AuditBrowser {
     /// `book`'s rows that `/` leaves, newest first.
     private(set) var rows: [AuditBook.Row] = []
     private(set) var grantRows: [AuditBook.GrantRow] = []
+    /// The grants that still stand, `/` or not: what the section toggle counts.
+    private(set) var standingGrants = 0
     private(set) var cursor = 0
     private(set) var grantCursor = 0
     private(set) var section = Section.actions
@@ -175,19 +177,17 @@ final class AuditBrowser {
     private func append(_ causes: [String], _ record: AuditRecord) {
         if loading {
             buffered.append((causes, record))
-            book.apply(causes.compactMap { cause($0) }.map(AuditRecord.cause) + [record])
-            return refilter()
+            return follow(book.apply(causes.compactMap { cause($0) }.map(AuditRecord.cause) + [record]))
         }
         let records = causes.flatMap(chainRecords) + [record]
-        book.apply(records)
-        refilter()
+        follow(book.apply(records))
         writer?.append(records)
     }
 
     /// `d` on `grant` was confirmed: false while a try is under way, or once it is taken back.
     func startRevoke(_ grant: AuditGrant) -> Bool {
         guard book.startRevoke(grant, at: Clock.now) else { return false }
-        refilter()
+        refilterGrants()
         return true
     }
 
@@ -237,23 +237,54 @@ final class AuditBrowser {
     private func refilter() {
         let perf = Perf.begin("audit.refilter")
         defer { perf.end() }
-        let current = selected?.id
-        let fresh = book.rows.filter { row in
-            FilterQuery.matches(
-                search,
-                [
-                    row.action.what, row.action.command, row.action.tag.rawValue, row.action.repo ?? "",
-                    row.action.sessionTitle ?? "", row.action.agent ?? "", row.trigger,
-                ] + row.authors.compactMap(\.login)
-            )
+        refilterActions()
+        refilterGrants()
+    }
+
+    /// What `book` changed, in the lists: a row added is inserted in its place when `/` leaves it, the rest stay as
+    /// they are; only rows built again are filtered again.
+    private func follow(_ change: AuditBook.Change) {
+        let perf = Perf.begin("audit.follow")
+        defer { perf.end() }
+        if change.rebuilt {
+            refilterActions()
+        } else {
+            for row in change.inserted where matches(row) {
+                let index = AuditBook.insertionIndex(of: row.action, in: rows)
+                // The row under the cursor stays under it, as when the list is filtered again.
+                if !rows.isEmpty, index <= cursor { cursor += 1 }
+                rows.insert(row, at: index)
+            }
         }
+        if change.grants { refilterGrants() }
+    }
+
+    private func matches(_ row: AuditBook.Row) -> Bool {
+        FilterQuery.matches(
+            search,
+            [
+                row.action.what, row.action.command, row.action.tag.rawValue, row.action.repo ?? "",
+                row.action.sessionTitle ?? "", row.action.agent ?? "", row.trigger,
+            ] + row.authors.compactMap(\.login)
+        )
+    }
+
+    private func refilterActions() {
+        let current = selected?.id
+        let fresh = book.rows.filter(matches)
         if fresh != rows { rows = fresh }
         if let current, let index = rows.firstIndex(where: { $0.id == current }) {
             cursor = index
         } else {
             cursor = min(cursor, max(rows.count - 1, 0))
         }
-        let grants = book.grantRows(before: before).filter { row in
+    }
+
+    private func refilterGrants() {
+        let all = book.grantRows(before: before)
+        let standing = all.count { !$0.state.isRevoked }
+        if standing != standingGrants { standingGrants = standing }
+        let grants = all.filter { row in
             FilterQuery.matches(search, [row.grant.subject, row.grant.scope, row.grant.kind.label, row.grant.why])
         }
         if grants != grantRows { grantRows = grants }

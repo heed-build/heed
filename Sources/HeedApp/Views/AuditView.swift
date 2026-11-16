@@ -90,7 +90,7 @@ private struct SectionToggle: View {
             item("Actions", count: model.audit.weekCount(), suffix: "in 7 days", lit: section == .actions)
             item(
                 "Grants",
-                count: model.audit.book.grantRows(before: model.audit.before).count { !$0.state.isRevoked },
+                count: model.audit.standingGrants,
                 suffix: "standing",
                 lit: section == .grants
             )

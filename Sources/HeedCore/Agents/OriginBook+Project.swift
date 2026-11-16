@@ -4,13 +4,13 @@ public extension OriginBook {
     /// The book from what heed already holds: your login, the local checkouts and worktrees, the PRs it has details
     /// of (their author, reviewers and threads, the runs of their checks, and from `authorship` whether they are from
     /// a fork), the issues it lists, and what it asked GitHub for (`fetched`, which wins). At most `limit` PRs and
-    /// issues: the ones fetched or seen last.
+    /// issues: the ones fetched or seen last, and at most `checkoutLimit` checkouts: the first ones listed.
     static func project(
         viewer: String?, checkouts: [(path: String, repo: Repo)], details: [PullDetail], issues: [Issue],
         authorship: (PullRef) -> PullAuthorship? = { _ in nil }, fetched: [String: Item] = [:]
     ) -> OriginBook {
         var book = OriginBook(viewer: viewer)
-        for checkout in checkouts {
+        for checkout in checkouts where book.checkouts[checkout.path] != nil || book.checkouts.count < checkoutLimit {
             book.checkouts[checkout.path] = checkout.repo.slug
         }
         var seen: [String: Date] = [:]

@@ -1,7 +1,8 @@
 import Foundation
 
 /// What Audit shows, from its records: the ledger of outward actions newest first, each with its cause chain, and the
-/// grants with whether each still stands.
+/// grants with whether each still stands. The rows are kept, not built on each read: a record that adds an action
+/// inserts its row in place, and the rows are only built again when a cause one of them already shows changes.
 public struct AuditBook: Hashable, Sendable {
     public private(set) var causes: [String: Cause] = [:]
     public private(set) var actions: [AuditAction] = []
@@ -10,25 +11,142 @@ public struct AuditBook: Hashable, Sendable {
     public private(set) var grantStates: [String: GrantState] = [:]
     /// Where the record's chain stopped holding, when it did.
     public var broken: AuditChain.Break?
+    /// One per action, in the same order: newest first.
+    public private(set) var rows: [Row] = []
+    /// Rows seen on GitHub already recorded, by their key.
+    public private(set) var outsideKeys: Set<String> = []
+    /// Every cause id a row's or a grant's chain reads, the one it stopped at for want of a cause included: a change
+    /// to any other cause cannot change a chain.
+    private var chained: Set<String> = []
+    /// How many rows were built, ever: what a test checks to see an action recorded did not build the others again.
+    private(set) var rowsBuilt = 0
+
+    /// More actions than this in one `apply` are sorted in whole rather than inserted one by one.
+    static let insertLimit = 16
 
     public init(_ records: [AuditRecord] = [], broken: AuditChain.Break? = nil) {
         self.broken = broken
         apply(records)
     }
 
-    public mutating func apply(_ records: [AuditRecord]) {
-        var added = false
+    /// What one `apply` changed, for a list that shows the rows.
+    public struct Change: Hashable, Sendable {
+        /// The rows added, each already at its place in `rows`; empty when `rebuilt`.
+        public var inserted: [Row] = []
+        /// Every row was built again: a list showing them is filtered again.
+        public var rebuilt = false
+        /// A grant, a revocation or a cause a grant's chain reads changed.
+        public var grants = false
+    }
+
+    @discardableResult
+    public mutating func apply(_ records: [AuditRecord]) -> Change {
+        var change = Change()
+        var stale = false
+        var added: [AuditAction] = []
+        var given: [AuditGrant] = []
         for record in records {
             switch record {
-            case let .cause(cause): causes[cause.id] = cause
+            case let .cause(cause):
+                guard causes[cause.id] != cause else { continue }
+                causes[cause.id] = cause
+                if chained.contains(cause.id) { stale = true }
             case let .action(action):
-                actions.append(action)
-                added = true
-            case let .grant(grant): grants.append(grant)
-            case let .revoke(revocation): update(revocation.grant.id, .revokeFinished(revocation))
+                added.append(action)
+            case let .grant(grant):
+                grants.append(grant)
+                given.append(grant)
+                change.grants = true
+            case let .revoke(revocation):
+                update(revocation.grant.id, .revokeFinished(revocation))
+                change.grants = true
             }
         }
-        if added { actions.sort { $0.at != $1.at ? $0.at > $1.at : $0.id > $1.id } }
+        if stale || added.count > Self.insertLimit {
+            actions += added
+            if !added.isEmpty { actions.sort(by: Self.newestFirst) }
+            rebuild()
+            change.rebuilt = true
+            change.grants = change.grants || stale
+            return change
+        }
+        for action in added {
+            let index = Self.insertionIndex(of: action, in: actions)
+            let row = row(for: action)
+            actions.insert(action, at: index)
+            rows.insert(row, at: index)
+            change.inserted.append(row)
+        }
+        for grant in given {
+            track(grant.cause)
+        }
+        return change
+    }
+
+    /// Newest first; the same time, the larger id first.
+    static func newestFirst(_ lhs: AuditAction, _ rhs: AuditAction) -> Bool {
+        lhs.at != rhs.at ? lhs.at > rhs.at : lhs.id > rhs.id
+    }
+
+    /// Where `action` goes in `sorted` (`newestFirst`): after any it does not come before, as a stable sort puts it.
+    static func insertionIndex(of action: AuditAction, in sorted: [AuditAction]) -> Int {
+        insertionIndex(of: action, count: sorted.count) { sorted[$0] }
+    }
+
+    /// Where a row for `action` goes in `rows`, newest first, as `insertionIndex(of:in:)`: for a list of some of them.
+    public static func insertionIndex(of action: AuditAction, in rows: [Row]) -> Int {
+        insertionIndex(of: action, count: rows.count) { rows[$0].action }
+    }
+
+    private static func insertionIndex(of action: AuditAction, count: Int, at: (Int) -> AuditAction) -> Int {
+        var low = 0, high = count
+        while low < high {
+            let middle = (low + high) / 2
+            if newestFirst(action, at(middle)) { high = middle } else { low = middle + 1 }
+        }
+        return low
+    }
+
+    private mutating func rebuild() {
+        chained = []
+        rows = actions.map { row(for: $0) }
+        outsideKeys = Set(actions.compactMap(\.key))
+        for grant in grants {
+            track(grant.cause)
+        }
+    }
+
+    private mutating func row(for action: AuditAction) -> Row {
+        let chain = track(action.cause)
+        if let key = action.key { outsideKeys.insert(key) }
+        rowsBuilt += 1
+        return Row(action: action, chain: chain, authors: Cause.authors(of: chain))
+    }
+
+    /// `id`'s chain, its causes and where it stopped noted in `chained`.
+    @discardableResult
+    private mutating func track(_ id: String?) -> [Cause] {
+        let chain = Cause.chain(id, in: causes)
+        for cause in chain {
+            chained.insert(cause.id)
+        }
+        // The root's parent, or `id` itself, is where it stopped: missing, or a loop back into the chain.
+        if let stop = chain.isEmpty ? id : chain[0].parent { chained.insert(stop) }
+        return chain
+    }
+
+    /// Equal by the records, as before the rows were kept: they follow from them.
+    public static func == (lhs: AuditBook, rhs: AuditBook) -> Bool {
+        lhs.causes == rhs.causes && lhs.actions == rhs.actions && lhs.grants == rhs.grants
+            && lhs.grantStates == rhs.grantStates && lhs.broken == rhs.broken
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(causes)
+        hasher.combine(actions)
+        hasher.combine(grants)
+        hasher.combine(grantStates)
+        hasher.combine(broken)
     }
 
     /// `d` on `grant` was confirmed: false (nothing changes) while a try is under way or once it is taken back.
@@ -72,19 +190,16 @@ public struct AuditBook: Hashable, Sendable {
         public var worstTrust: ExternalText.Trust? { authors.first.map(\.trust) }
     }
 
-    /// Newest first.
-    public var rows: [Row] {
-        actions.map { action in
-            let chain = Cause.chain(action.cause, in: causes)
-            return Row(action: action, chain: chain, authors: Cause.authors(of: chain))
+    /// Actions since `since`: what the tab's count says (the last 7 days). The actions are newest first, so it is the
+    /// length of the run of those at or after `since`.
+    public func count(since: Date) -> Int {
+        var low = 0, high = actions.count
+        while low < high {
+            let middle = (low + high) / 2
+            if actions[middle].at >= since { low = middle + 1 } else { high = middle }
         }
+        return low
     }
-
-    /// Actions since `since`: what the tab's count says (the last 7 days).
-    public func count(since: Date) -> Int { actions.count { $0.at >= since } }
-
-    /// Rows seen on GitHub already recorded, by their key.
-    public var outsideKeys: Set<String> { Set(actions.compactMap(\.key)) }
 
     /// A grant and whether it stands.
     public struct GrantRow: Hashable, Sendable, Identifiable {

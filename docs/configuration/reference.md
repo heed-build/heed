@@ -261,6 +261,9 @@ quiet = ""
 # did), written by heed's model calls ([llm]). "ahead": for every thread in For you's New, newest first, within
 # the daily cap, and on open for the rest; "open": only when you open a thread; "off": none.
 summaries = "ahead"
+# GitHub items (PRs, issues, notifications) not updated within this many days are left out of Attention, and not
+# asked of GitHub either. 0 shows everything. Sessions' PRs and issues, goals' and the ones the pilot watches stay.
+max_age_days = 60
 
 [summary]
 # While you were away: what still waits on you, then what merged, how background runs ended, which agents

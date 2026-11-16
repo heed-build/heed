@@ -92,6 +92,14 @@ struct AttentionRuleSettings: View {
                 PageLink(page: .modelCalls)
             }
         }
+        SettingsCard(title: "Age") {
+            SettingRow("attention.max_age_days", unit: "days") {
+                NumberField(
+                    path: ["attention", "max_age_days"], value: model.config.attention.maxAgeDays, unit: "days",
+                    range: 0 ... AttentionAge.maxDays
+                )
+            }
+        }
         SettingsCard(title: "Weights", bare: true) {
             VStack(alignment: .leading, spacing: 5) {
                 weight("boost 3", "top of the feed when sorted by weight; notifies")

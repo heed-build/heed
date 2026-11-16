@@ -27,16 +27,22 @@ public enum GitHub {
         tracked: [PullRef],
         previous: GitHubState,
         refreshTeams: Bool = false,
+        maxAgeDays: Int = 0,
         now: Date = Date(),
         caller: String
     ) async throws -> GitHubState {
         let full = parts == Set(GitHubPart.allCases)
         async let viewer = fetch(full || previous.viewer == nil) { try await viewer(caller: caller) }
         async let inbox = fetch(parts.contains(.inbox)) { try await notifications(
-            previous: previous.inbox, lastFetch: previous.fetches.notifications?.at, now: now, caller: caller
+            previous: previous.inbox, lastFetch: previous.fetches.notifications?.at, maxAgeDays: maxAgeDays, now: now,
+            caller: caller
         ) }
-        async let pulls = fetch(parts.contains(.pulls)) { try await pullRequests(tracked: tracked, caller: caller) }
-        async let issues = fetch(parts.contains(.issues)) { try await self.issues(caller: caller) }
+        async let pulls = fetch(parts.contains(.pulls)) { try await pullRequests(
+            tracked: tracked, maxAgeDays: maxAgeDays, now: now, caller: caller
+        ) }
+        async let issues = fetch(parts.contains(.issues)) { try await self.issues(
+            maxAgeDays: maxAgeDays, now: now, caller: caller
+        ) }
         let login = try await viewer ?? previous.viewer
         let fetchedInbox = try await inbox
         let fetchedPulls = try await pulls
@@ -98,15 +104,18 @@ public enum GitHub {
 
     /// The notifications, merged into `previous`: every unread one (each page, up to the cap), and the threads
     /// updated since the last fetch, read or not (`all=true&since=`), so a thread read elsewhere stays, unread false,
-    /// instead of vanishing. Read threads older than Attention's 30 days drop out.
+    /// instead of vanishing. Read threads older than Attention's 30 days drop out. With `maxAgeDays` (`[attention]
+    /// max_age_days`, 0 for no cap) neither read goes back past it: unread ones pass `since=` too.
     public static func notifications(
-        previous: [InboxItem] = [], lastFetch: Date? = nil, now: Date = Date(), caller: String
+        previous: [InboxItem] = [], lastFetch: Date? = nil, maxAgeDays: Int = 0, now: Date = Date(), caller: String
     ) async throws -> Fetched<[InboxItem]> {
+        let unreadPath = notificationsPath(unreadSince: AttentionAge.since(days: maxAgeDays, now: now))
         let unread = try await pages(cap: notificationCap) { page in
-            try await notificationPage("notifications?per_page=50&page=\(page)", page: page, caller: caller)
+            try await notificationPage("\(unreadPath)&page=\(page)", page: page, caller: caller)
         }
-        let since = (lastFetch?.addingTimeInterval(-sinceMargin) ?? now.addingTimeInterval(-firstReadWindow))
-            .formatted(.iso8601)
+        var sinceDate = lastFetch?.addingTimeInterval(-sinceMargin) ?? now.addingTimeInterval(-firstReadWindow)
+        if let cutoff = AttentionAge.cutoff(days: maxAgeDays, now: now) { sinceDate = max(sinceDate, cutoff) }
+        let since = sinceDate.formatted(.iso8601)
         let recent = try await pages(cap: notificationCap) { page in
             try await notificationPage(
                 "notifications?all=true&since=\(since)&per_page=50&page=\(page)", page: page, caller: caller
@@ -123,6 +132,11 @@ public enum GitHub {
             at: now
         )
         return Fetched(value: inbox, hidden: 0, fetches: GitHubFetches(notifications: fetch))
+    }
+
+    /// The unread read's path up to the page number: with `unreadSince`, only threads updated since then.
+    static func notificationsPath(unreadSince: String?) -> String {
+        "notifications?" + (unreadSince.map { "since=\($0)&" } ?? "") + "per_page=50"
     }
 
     private static func notificationPage(_ path: String, page: Int, caller: String) async throws -> [InboxItem] {
@@ -176,10 +190,21 @@ public enum GitHub {
             .sorted { $0.updatedAt == $1.updatedAt ? $0.id < $1.id : $0.updatedAt > $1.updatedAt }
     }
 
-    public static func pullRequests(tracked: [PullRef], caller: String) async throws -> Fetched<[PullRequest]> {
+    /// The search for your open PRs, with the age cap's `updated:>=` when there is one.
+    static func pullSearchText(maxAgeDays: Int, now: Date) -> String {
+        searchText("is:open is:pr author:@me archived:false", maxAgeDays: maxAgeDays, now: now)
+    }
+
+    static func searchText(_ base: String, maxAgeDays: Int, now: Date) -> String {
+        AttentionAge.qualifier(days: maxAgeDays, now: now).map { "\(base) \($0)" } ?? base
+    }
+
+    public static func pullRequests(
+        tracked: [PullRef], maxAgeDays: Int = 0, now: Date = Date(), caller: String
+    ) async throws -> Fetched<[PullRequest]> {
         let mine = try await graphql(
             pullSearchQuery, operation: "pullSearch",
-            variables: ["q": "is:open is:pr author:@me archived:false"],
+            variables: ["q": pullSearchText(maxAgeDays: maxAgeDays, now: now)],
             caller: caller
         )
         var (pulls, hidden) = parsePullSearch(mine)
@@ -209,18 +234,23 @@ public enum GitHub {
     public static let issueSearchCap = 200
 
     /// Issues assigned to you or mentioning you, anywhere.
-    public static func issues(caller: String) async throws -> Fetched<[Issue]> {
-        let base = "is:open is:issue archived:false"
+    public static func issues(
+        maxAgeDays: Int = 0, now: Date = Date(), caller: String
+    ) async throws -> Fetched<[Issue]> {
+        let base = issueSearchBase(maxAgeDays: maxAgeDays, now: now)
         async let assigned = search("\(base) assignee:@me", caller: caller)
         async let mentioned = search("\(base) mentions:@me", caller: caller)
         let mine = try await assigned
         let mentions = try await mentioned
         let merged = mergeIssues(assigned: mine.issues, mentioned: mentions.issues)
-        let now = Date()
         return Fetched(
             value: merged, hidden: mine.hidden + mentions.hidden,
             fetches: GitHubFetches(mentions: mentions.fetch(at: now), assigned: mine.fetch(at: now))
         )
+    }
+
+    static func issueSearchBase(maxAgeDays: Int, now: Date) -> String {
+        searchText("is:open is:issue archived:false", maxAgeDays: maxAgeDays, now: now)
     }
 
     struct SearchResult {

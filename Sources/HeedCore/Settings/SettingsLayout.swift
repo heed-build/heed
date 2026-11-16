@@ -19,7 +19,7 @@ public extension SettingsPage {
         case .goals: ["Agents", "Reviewers", "Items", "From a session", "GitHub mirror"]
         case .history: ["Ledger", "While you were away", "Mindmap", "Memory", "Standup", "OpenTelemetry", "Call log"]
         case .github: ["GitHub"]
-        case .attention: ["Rules", "Try before you save", "Summaries", "Weights"]
+        case .attention: ["Rules", "Try before you save", "Summaries", "Age", "Weights"]
         case .tools: ["Found", "Tools"]
         case .keys: ["Modes", "Global shortcuts", "Bindings"]
         }

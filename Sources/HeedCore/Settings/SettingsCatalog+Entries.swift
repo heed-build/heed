@@ -643,6 +643,12 @@ extension SettingsCatalog {
                 + "open one; Off: none.",
             since: "0.39.0"
         ) { .text($0.attention.summaries.rawValue) },
+        global(
+            "attention.max_age_days", .attention, "Age", "Oldest GitHub item",
+            "Attention leaves out GitHub items not updated in this many days. 0 shows everything. Sessions' PRs and "
+                + "issues, goals' and the ones the pilot watches stay.",
+            level: .advanced, since: "0.46.0"
+        ) { .integer($0.attention.maxAgeDays) },
     ]
 
     static let tools: [SettingsEntry] = [

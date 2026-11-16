@@ -86,6 +86,20 @@ public final class GhosttyRuntime {
         """
     }
 
+    private static func writeOverrides() -> String? {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Heed")
+        let file = support.appendingPathComponent("ghostty-panes.conf")
+        do {
+            try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+            try overrides(dark: isDark).write(to: file, atomically: true, encoding: .utf8)
+            return file.path
+        } catch {
+            NSLog("heed: could not write \(file.path): \(error)")
+            return nil
+        }
+    }
+
     /// Switches every pane between the dark and the light look. Before the first pane opens it only records the
     /// choice, which the config then starts from.
     public static func setAppearance(dark: Bool) {

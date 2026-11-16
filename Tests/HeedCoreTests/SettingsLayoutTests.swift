@@ -128,10 +128,10 @@ struct SettingsLayoutTests {
     @Test func arrowsMoveAndShowThePageTheyReach() {
         var tree = SettingsTree(page: .general)
         var cursor = SettingsNode.page(.general)
-        // General's two sections come first.
+        // General's three sections come first.
         cursor = tree.move(cursor, by: 1)
-        #expect(cursor == .section(.general, "Sessions"))
-        cursor = tree.move(cursor, by: 2)
+        #expect(cursor == .section(.general, "Appearance"))
+        cursor = tree.move(cursor, by: 3)
         #expect(cursor == .page(.notifications))
         #expect(tree.page == .notifications)
         // Notifications' sections now show under it.
@@ -165,7 +165,7 @@ struct SettingsLayoutTests {
         #expect(cursor == .page(.general))
         #expect(tree.page == .general)
         cursor = tree.right(cursor)
-        #expect(cursor == .section(.general, "Sessions"))
+        #expect(cursor == .section(.general, "Appearance"))
         #expect(tree.right(cursor) == cursor)
         // → on a folded page unfolds it.
         var folded = SettingsTree(page: .general, folded: [.page(.general)])

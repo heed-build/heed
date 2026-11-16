@@ -331,8 +331,11 @@ struct SessionRow: View {
                 .background(RoundedRectangle(cornerRadius: 4).fill(isCursor ? Theme.inverse : .clear))
                 .frame(width: 22, alignment: .trailing)
                 .padding(.top, 1)
-            StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
-                .padding(.top, 2)
+            // Unheard: the state is the last one heed heard, so it draws as a guess.
+            StateGlyph(
+                state: session.state.state, guessed: session.state.source == .guessed || session.unheard != nil
+            )
+            .padding(.top, 2)
             VStack(alignment: .leading, spacing: 4) {
                 // The title has its line to itself, so it reads; what the session holds goes on the line under it.
                 HStack(spacing: 6) {
@@ -389,7 +392,8 @@ struct SessionRow: View {
                     // whatever the state says. How long you have been away sits at its end.
                     // The agent's line gives way to the marks at its end.
                     HStack(spacing: 6) {
-                        (agentless ? Text("agent not running · resume") : agentLine)
+                        (session.unheard != nil ? unheardLine
+                            : agentless ? Text("agent not running · resume") : agentLine)
                             .font(Theme.ui(11.5))
                             .foregroundStyle(Theme.fg3)
                             .lineLimit(1)
@@ -469,6 +473,12 @@ struct SessionRow: View {
             text = Text("\(text) · \(part)")
         }
         return text
+    }
+
+    /// Its agent pane sends what heed can't take: the line says so, short enough to stay whole beside the marks, and
+    /// the key that restarts it (the strip over its panes says the rest).
+    private var unheardLine: Text {
+        Text("can't hear it · \(model.keyText(for: "session.reconnect", asIn: "sessions"))")
     }
 
     /// How long since you touched it: nothing under 15 minutes, then quiet grey, amber past an hour, rust past a day.

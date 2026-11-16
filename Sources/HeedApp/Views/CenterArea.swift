@@ -9,8 +9,11 @@ struct CenterArea: View {
     var body: some View {
         VStack(spacing: 0) {
             TabStrip().shotRegion(.tabStrip)
-            // Its agent is not running, and its conversation can be picked up again.
-            if let session = model.currentSession, let offer = model.resumeBanner(for: session) {
+            // heed can't hear its agent pane: restarting it reconnects. Otherwise its agent is not running, and its
+            // conversation can be picked up again.
+            if let session = model.currentSession, let unheard = session.unheard {
+                UnheardStrip(session: session.id, unheard: unheard).id(session.id)
+            } else if let session = model.currentSession, let offer = model.resumeBanner(for: session) {
                 ResumeBannerStrip(offer: offer).id(session.id)
             }
             GeometryReader { geometry in

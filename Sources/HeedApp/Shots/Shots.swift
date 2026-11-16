@@ -302,6 +302,10 @@ enum Shots {
         // pick its conversation up again, and the row says so.
         Shot(id: "sessions/resume-later", prepare: resumeLater),
         Shot(id: "sessions/resume-banner", crop: .resumeBanner, cropPadding: 0, prepare: resumeLater),
+        // A pane an older heed started reports without a token: heed takes none of it, files the session under Working
+        // instead of by its stale state, and the row and the strip over its panes say gk restarts it.
+        Shot(id: "sessions/unheard", prepare: unheardPane),
+        Shot(id: "sessions/unheard-banner", crop: .unheardBanner, cropPadding: 0, prepare: unheardPane),
         Shot(id: "sessions/growing", crop: .growthLine, cropPadding: 0, prepare: growingSession),
         Shot(id: "sessions/make-it-a-goal", keys: "gP", crop: .promotion, cropPadding: 0, prepare: growingSession),
         // ↩ on it asks the agent for a handoff first and waits, with the agent's live state; s starts without it.
@@ -396,6 +400,17 @@ enum Shots {
             }
         }
         if let first = ids.first { model.select(sessionID: first) }
+    }
+
+    /// An idle session whose agent pane sends hook messages without a token, as one an older heed started does.
+    static func unheardPane(_ model: AppModel) {
+        // Idle, so its stale state would file it under Parked; heed is not acting on its PR.
+        guard let session = model.sessions.first(where: { $0.id == "s6" }),
+              let layout = model.layouts[session.id], let (_, pane) = model.agentPane(in: layout) else { return }
+        for kind in [HookMessage.Kind.state(.working, reason: nil), .state(.working, reason: "running tests")] {
+            model.receive(HookMessage(session: session.id, pane: pane, kind: kind, agent: session.agent))
+        }
+        model.select(sessionID: session.id)
     }
 
     /// Make it a goal after ↩: the agent asked for its handoff, working, so the ask waits for it to be readable.

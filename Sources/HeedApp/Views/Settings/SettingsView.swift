@@ -80,6 +80,16 @@ struct SettingsView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .background(RoundedRectangle(cornerRadius: 6).fill(Theme.err.opacity(0.1)))
                             }
+                            // The session key, as read at launch: one heed could not read or keep is this run's only.
+                            if let notice = model.sessionKeyNotice {
+                                Label(notice, systemImage: "exclamationmark.triangle.fill")
+                                    .font(Theme.ui(12))
+                                    .foregroundStyle(Theme.block)
+                                    .textSelection(.enabled)
+                                    .padding(10)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(RoundedRectangle(cornerRadius: 6).fill(Theme.block.opacity(0.1)))
+                            }
                             if let search {
                                 SettingsSearchPane(search: search).id("top")
                                     .environment(\.settingsMarkedRow, resultCursor)

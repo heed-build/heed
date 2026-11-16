@@ -7,6 +7,8 @@ struct HeedApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     init() {
+        // Before any agent is started: one that exits while heed writes to it is a failed write, not a crash.
+        BrokenPipe.ignore()
         LaunchGuard.check()
     }
 

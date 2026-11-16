@@ -119,6 +119,9 @@ public struct Session: Identifiable, Hashable, Sendable, Codable {
     public var titleSeen = true
     /// How often heed has named it (`SessionNaming.perSession` at most).
     public var namings = 0
+    /// Its agent pane sends hook messages heed does not take (`Unheard`); nil while heed hears it. Not kept: the next
+    /// message after a relaunch says it again.
+    public var unheard: Unheard?
 
     /// The chat's folder; nil for a session in worktrees.
     public var chat: ChatFolder? {
@@ -300,15 +303,18 @@ public enum SessionGroup: String, CaseIterable, Sendable {
 
     /// Pinned, then what needs you, then what you parked; then chats, which have no PRs for the pilot; then stalled,
     /// then watching (heed is driving, the session is not yours); then the agent's state decides, working or parked.
+    /// A session heed cannot hear (`Session.unheard`) has no state to decide by: what it last reported is stale, so
+    /// it neither needs you nor is parked by it. Its pane is sending, so its agent runs: Working, where its row says
+    /// so and how to reconnect it.
     public static func of(_ session: Session, pilot: SessionPilot = SessionPilot()) -> SessionGroup {
+        let state: AgentState? = session.unheard == nil ? session.state.state : nil
         if session.pinned { return .pinned }
-        if session.state.state.needsYou || pilot.status?.needsYou == true || pilot.helperNeedsYou { return .needsYou }
+        if state?.needsYou == true || pilot.status?.needsYou == true || pilot.helperNeedsYou { return .needsYou }
         if session.parked { return .parked }
         if session.isChat { return .chats }
         if case .stalled = pilot.status { return .stalled }
         if pilot.acting, !pilot.yours { return .watching }
-        if session.parked || session.state.state == .done || session.state.state == .idle
-            || session.state.state == .exited { return .parked }
+        if let state, [.done, .idle, .exited].contains(state) { return .parked }
         return .working
     }
 }

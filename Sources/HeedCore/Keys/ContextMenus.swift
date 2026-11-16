@@ -100,6 +100,8 @@ public enum ContextMenus {
         public var hasPrompt = false
         /// Its agent is not running and could be resumed: the banner over its panes (`ResumeBanner`).
         public var agentless = false
+        /// heed can't hear its agent pane (`Unheard`): restarting it reconnects (`session.reconnect`).
+        public var unheard = false
         /// The agents it can be handed to (`agent.switch`): every configured one but its own.
         public var handoffAgents: [String] = []
         /// A chat: no repo, worktree or branch, so nothing that reads one (diff, PRs, the pilot, the repo) applies.
@@ -169,6 +171,7 @@ public enum ContextMenus {
         if facts.agentless {
             menu.section([item("Resume its agent", "agent.resume"), item("Start its agent fresh", "agent.fresh")])
         }
+        if facts.unheard { menu.section([item("Restart to reconnect", "session.reconnect")]) }
         menu.section([
             item(facts.pinned ? "Unpin" : "Pin", "session.pin"),
             item(facts.parked ? "Unpark" : "Park", "session.park"),

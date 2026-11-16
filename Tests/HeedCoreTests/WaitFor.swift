@@ -1,7 +1,8 @@
 import Foundation
 import Testing
 
-/// Waits for `condition` to hold and returns as soon as it does: the replacement for a fixed `Task.sleep` followed by an
+/// Waits for `condition` to hold and returns as soon as it does: the replacement for a fixed `Task.sleep` followed by
+/// an
 /// assertion, which is a guess at how long a loaded machine takes. The deadline is generous because it is only ever
 /// reached when the behaviour is broken, and then it fails the test with `message`.
 func waitFor(

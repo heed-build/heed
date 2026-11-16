@@ -202,7 +202,9 @@ struct ACPClientTests {
         let client = ACPClient(transport: agent)
         await client.start()
         var events = client.events.makeAsyncIterator()
-        let answer = Task { try await client.newSession(cwd: "/tmp") }
+        // The request's own 60 s deadline is not what this test is about, and a suite holding the pool can be late to
+        // notice the request went out by longer than that; the agent going away is what ends it.
+        let answer = Task { try await client.newSession(cwd: "/tmp", timeout: .seconds(3600)) }
         // The request is on the wire, so the agent goes away with it waiting.
         try await waitFor("session/new was never sent") {
             agent.sent.contains { $0["method"]?.string == "session/new" }

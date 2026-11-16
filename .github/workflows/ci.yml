@@ -73,8 +73,9 @@ jobs:
           done
           ls build/Heed.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate >/dev/null
 
+      # The script `mise run tutor-check` runs, without its bundle step: it fails when the app prints no summary line.
       - name: Tutor check
-        run: HEED_TUTOR_CHECK=1 build/Heed.app/Contents/MacOS/Heed
+        run: scripts/tutor-check.sh
 
       - name: Save .build
         if: github.ref == 'refs/heads/main'

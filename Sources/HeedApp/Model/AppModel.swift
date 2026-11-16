@@ -6273,8 +6273,7 @@ final class AppModel {
                 ref: ref, sessionID: sessionID, goal: goal, agent: agentName, model: model,
                 startedAt: Date(), items: items, prBranch: "", branch: "", worktree: "", startSHA: nil
             )
-            run.endedAt = Date()
-            run.outcome = .failed(reason)
+            run.end(.failed(reason), at: Date())
             commit(.runUpdated(run))
             logPilot(ref, .helperDone, "\(goal.rawValue) run could not start: \(reason)")
             return nil
@@ -6314,9 +6313,9 @@ final class AppModel {
         let checkout = repos.first { $0.repo == ref.repo && $0.location == record.location }?.path ?? record.path
         let viewer = github.viewer
         let trustedAuthors = pilotSettings(for: ref).trustedAuthors
-        let trusted = await PullTrustBook.shared.resolve(ref, viewer: viewer, trustedAuthors: trustedAuthors) { ref in
-            try await GitHub.pullAuthorship(ref, caller: "pilot.author")
-        }
+        let trusted = await PullTrustBook.shared.resolveOnGitHub(
+            ref, viewer: viewer, trustedAuthors: trustedAuthors, caller: "pilot.author"
+        )
         if HelperSetup.steps(trusted: trusted, commands: []).copyIncludes {
             await WorktreeInclude.copy(from: checkout, to: worktree, on: record.location)
         }
@@ -6377,6 +6376,11 @@ final class AppModel {
     /// one (timed out, stopped); otherwise it is what the remote branch shows.
     private func endRun(_ id: String, outcome forced: PilotRun.Outcome? = nil) {
         guard let live = liveRuns.removeValue(forKey: id) else { return }
+        // Still the PR's run until its end is read: the next round waits for it (`deliver`).
+        if var run = runs.first(where: { $0.id == id }), run.state == .running {
+            run.beginEnding()
+            commit(.runUpdated(run))
+        }
         runLastLines[id] = nil
         quietTurns.forget(pane: live.paneID)
         lastHookAt[live.paneID] = nil
@@ -6400,8 +6404,7 @@ final class AppModel {
             await Git.removeWorktree(live.record, path: live.worktree, branch: live.branch)
             if let main = live.mainPath { await Git.fastForwardIfClean(at: main, on: live.record.location) }
             guard var run = runs.first(where: { $0.id == id }) else { return }
-            run.endedAt = Date()
-            run.outcome = forced ?? Runs.outcome(before: before, after: after, commits: count)
+            run.end(forced ?? Runs.outcome(before: before, after: after, commits: count), at: Date())
             run.screen = screen
             commit(.runUpdated(run))
             logPilot(live.ref, .helperDone, "\(run.goal.rawValue) run: \(run.outcome?.text ?? "ended")")
@@ -6552,8 +6555,7 @@ final class AppModel {
     private func interruptRuns() {
         let open = runs.filter(\.isRunning)
         for var run in open {
-            run.endedAt = Date()
-            run.outcome = .interrupted
+            run.end(.interrupted, at: Date())
             commit(.runUpdated(run))
         }
     }
@@ -6684,7 +6686,8 @@ final class AppModel {
             state: pullState(ref), effective: pilot(for: ref), roundsExhausted: pipeline?.roundsExhausted ?? false,
             paused: pipeline?.isPaused(Clock.now) ?? false, isFixture: isFixture, tutor: tutor != nil,
             runIn: pullSettings.runIn, swarm: swarmPull != nil, hasSession: session != nil,
-            runWorking: liveRun(for: ref) != nil || startingRuns.contains(ref.description),
+            runWorking: liveRun(for: ref) != nil || startingRuns.contains(ref.description)
+                || runs.contains(where: { $0.ref == ref && $0.isEnding }),
             needsHandback: !SwarmHandback.needs(pipeline?.items ?? []).isEmpty,
             trusted: { [github] in
                 PullTrustBook.shared.trusted(ref, viewer: github.viewer, trustedAuthors: pullSettings.trustedAuthors)
@@ -6718,13 +6721,9 @@ final class AppModel {
             let viewer = github.viewer
             let trustedAuthors = pullSettings.trustedAuthors
             Task {
-                let trusted = await PullTrustBook.shared.resolve(
-                    ref,
-                    viewer: viewer,
-                    trustedAuthors: trustedAuthors
-                ) { ref in
-                    try await GitHub.pullAuthorship(ref, caller: "pilot.author")
-                }
+                let trusted = await PullTrustBook.shared.resolveOnGitHub(
+                    ref, viewer: viewer, trustedAuthors: trustedAuthors, caller: "pilot.author"
+                )
                 if trusted { deliver(ref, explicit: false) } else { logPilot(ref, .waiting, Runs.heldForAuthor) }
             }
         case .helper:
@@ -6794,10 +6793,9 @@ final class AppModel {
         let trustedAuthors = pilotSettings(for: ref).trustedAuthors
         Task {
             defer { startingRuns.remove(ref.description) }
-            let trusted = await PullTrustBook.shared
-                .resolve(ref, viewer: viewer, trustedAuthors: trustedAuthors) { ref in
-                    try await GitHub.pullAuthorship(ref, caller: "pilot.author")
-                }
+            let trusted = await PullTrustBook.shared.resolveOnGitHub(
+                ref, viewer: viewer, trustedAuthors: trustedAuthors, caller: "pilot.author"
+            )
             guard let target = await startHelper(
                 kind, ref: ref, items: queued, sessionID: sessionID, trusted: trusted, prompt: {
                     HelperPrompt.green(feedback: prompt, branch: $0, prBranch: $1)

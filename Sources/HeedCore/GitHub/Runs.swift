@@ -44,8 +44,9 @@ public struct PilotRun: Identifiable, Hashable, Sendable, Codable {
     public let agent: String
     public let model: String?
     public let startedAt: Date
-    public var endedAt: Date?
-    public var outcome: Outcome?
+    /// Where it is: running, ending (its tab closed, what it pushed still being read), or ended with how it went.
+    /// Its end is set once: a late one (a timeout after it ended) changes nothing.
+    public private(set) var state: State
     /// Feedback items it was sent.
     public let items: Int
     /// The PR's branch, the run's own branch and its worktree.
@@ -76,12 +77,102 @@ public struct PilotRun: Identifiable, Hashable, Sendable, Codable {
         self.branch = branch
         self.worktree = worktree
         self.startSHA = startSHA
+        state = .running
     }
 
+    public enum State: Hashable, Sendable {
+        case running
+        /// Its tab is closed and heed reads what it pushed: still the PR's run, so the next round waits for it.
+        case ending
+        case ended(Outcome, at: Date)
+    }
+
+    /// Its tab closed and its end is being read. Only from running.
+    public mutating func beginEnding() {
+        guard state == .running else { return }
+        state = .ending
+    }
+
+    /// It ended, and how. Only the first end counts.
+    public mutating func end(_ outcome: Outcome, at time: Date) {
+        guard !isEnded else { return }
+        state = .ended(outcome, at: time)
+    }
+
+    public var endedAt: Date? {
+        if case let .ended(_, at) = state { return at }
+        return nil
+    }
+
+    public var outcome: Outcome? {
+        if case let .ended(outcome, _) = state { return outcome }
+        return nil
+    }
+
+    public var isEnding: Bool { state == .ending }
+    private var isEnded: Bool { endedAt != nil }
+
+    /// Not ended yet: working, or ending.
     public var isRunning: Bool { endedAt == nil }
 
     /// How many the domain keeps, newest first.
     public static let keep = 200
+}
+
+public extension PilotRun {
+    private enum CodingKeys: String, CodingKey {
+        case id, ref, sessionID, goal, agent, model, startedAt, endedAt, outcome, ending, items, prBranch, branch
+        case worktree, startSHA, screen, usage
+    }
+
+    /// Stored as it always was (`endedAt` and `outcome` side by side), with `ending` while it ends. An end with no
+    /// outcome (never written so) reads as interrupted.
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(String.self, forKey: .id)
+        ref = try values.decode(PullRef.self, forKey: .ref)
+        sessionID = try values.decode(String.self, forKey: .sessionID)
+        goal = try values.decode(RunGoal.self, forKey: .goal)
+        agent = try values.decode(String.self, forKey: .agent)
+        model = try values.decodeIfPresent(String.self, forKey: .model)
+        startedAt = try values.decode(Date.self, forKey: .startedAt)
+        items = try values.decode(Int.self, forKey: .items)
+        prBranch = try values.decode(String.self, forKey: .prBranch)
+        branch = try values.decode(String.self, forKey: .branch)
+        worktree = try values.decode(String.self, forKey: .worktree)
+        startSHA = try values.decodeIfPresent(String.self, forKey: .startSHA)
+        screen = try values.decodeIfPresent(String.self, forKey: .screen)
+        usage = try values.decodeIfPresent(AgentUsage.self, forKey: .usage)
+        if let endedAt = try values.decodeIfPresent(Date.self, forKey: .endedAt) {
+            let outcome = try values.decodeIfPresent(Outcome.self, forKey: .outcome)
+            state = .ended(outcome ?? .interrupted, at: endedAt)
+        } else if try values.decodeIfPresent(Bool.self, forKey: .ending) == true {
+            state = .ending
+        } else {
+            state = .running
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(id, forKey: .id)
+        try values.encode(ref, forKey: .ref)
+        try values.encode(sessionID, forKey: .sessionID)
+        try values.encode(goal, forKey: .goal)
+        try values.encode(agent, forKey: .agent)
+        try values.encodeIfPresent(model, forKey: .model)
+        try values.encode(startedAt, forKey: .startedAt)
+        try values.encodeIfPresent(endedAt, forKey: .endedAt)
+        try values.encodeIfPresent(outcome, forKey: .outcome)
+        if isEnding { try values.encode(true, forKey: .ending) }
+        try values.encode(items, forKey: .items)
+        try values.encode(prBranch, forKey: .prBranch)
+        try values.encode(branch, forKey: .branch)
+        try values.encode(worktree, forKey: .worktree)
+        try values.encodeIfPresent(startSHA, forKey: .startSHA)
+        try values.encodeIfPresent(screen, forKey: .screen)
+        try values.encodeIfPresent(usage, forKey: .usage)
+    }
 }
 
 public enum Runs {

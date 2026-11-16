@@ -436,9 +436,9 @@ extension AppModel {
         Task {
             // A run with no sandbox starts on its own only on your work; on someone else's PR, when you ask.
             let trusted: Bool? = if let pull = target.pull, !sandboxed, trigger != .manual {
-                await PullTrustBook.shared.resolve(pull, viewer: viewer, trustedAuthors: trustedAuthors) { ref in
-                    try await GitHub.pullAuthorship(ref, caller: "goals.review")
-                }
+                await PullTrustBook.shared.resolveOnGitHub(
+                    pull, viewer: viewer, trustedAuthors: trustedAuthors, caller: "goals.review"
+                )
             } else {
                 nil
             }

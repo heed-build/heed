@@ -60,11 +60,7 @@ final class HelpersModel {
     /// Feedback items each get it green helper was sent, for mapping its replies to threads.
     @ObservationIgnored var items: [String: [FeedbackItem]] = [:]
 
-    enum CancelReason: Equatable {
-        case pause
-        case steer(String)
-        case stop(String)
-    }
+    typealias CancelReason = HelperRun.Cancel
 
     /// What heed told a session about a helper, and how it got there.
     struct SessionNotice: Equatable {
@@ -83,6 +79,17 @@ final class HelpersModel {
     func update(_ id: String, _ edit: (inout HelperRun) -> Void) {
         guard let index = runs.firstIndex(where: { $0.id == id }) else { return }
         edit(&runs[index])
+    }
+
+    /// One event of a helper's life (`HelperRun.apply`): what the app does next, or nil when it no longer applies
+    /// (or there is no such helper).
+    func apply(_ id: String, _ event: HelperRun.Event, at time: Date) -> [HelperRun.Effect]? {
+        guard let index = runs.firstIndex(where: { $0.id == id }) else { return nil }
+        // Unchanged when it does not apply: the run is not written, so nothing observing it redraws.
+        var run = runs[index]
+        guard let effects = run.apply(event, at: time) else { return nil }
+        runs[index] = run
+        return effects
     }
 
     /// The helper on a PR that is not closed out yet: live, or waiting for your close-out.

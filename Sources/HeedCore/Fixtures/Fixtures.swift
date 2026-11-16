@@ -507,8 +507,7 @@ public enum Fixtures {
                 worktree: "~/code/wt/heed/\(ref.repo.name)/get-it-green-\(branch)", startSHA: nil
             )
             if let minutes {
-                run.endedAt = ago(started - minutes)
-                run.outcome = outcome
+                run.end(outcome ?? .interrupted, at: ago(started - minutes))
                 run.screen = screen
             }
             run.usage = usage

@@ -551,7 +551,8 @@ struct AttachOpsTests {
         #expect(goal.title == "Table widths" && snapshot.goal(goal.id)?.version == 2)
         #expect(snapshot.docs[goal.id]?.doneWhen.map(\.text) == ["fits"])
         #expect(snapshot.links(of: goal.id).map(\.origin) == [.asked, .asked, .asked])
-        #expect(try await ops.decisions().allSatisfy { $0.state == .clustered })
+        let decisions = try await ops.decisions()
+        #expect(decisions.count == 3 && decisions.allSatisfy { $0.state == .clustered })
     }
 
     @Test func attachingFindsTheItemTheWorkIsOn() async throws {

@@ -423,7 +423,7 @@ struct RepoOrderTests {
         let old = StartWork.guessRepos(
             for: "tidy", in: repos, lastWorked: ["a/two": now.addingTimeInterval(-86400 * 30)], now: now
         )
-        #expect(old.allSatisfy { $0.confidence == 0 })
+        #expect(old.count == 3 && old.allSatisfy { $0.confidence == 0 })
         #expect(old.first?.repo.id == "a/two")
         // A repo the prompt names still wins.
         let named = StartWork.guessRepos(for: "fix one", in: repos, lastWorked: lastWorked, now: now)
@@ -474,6 +474,6 @@ struct RepoOrderTests {
         #expect(guesses.first { $0.repo.id == "acme/docs" }.map { $0.confidence < 80 } == true)
         #expect(guesses.first { $0.repo.id == "acme/docs-eng-team" }.map { $0.confidence < 80 } == true)
         let reference = StartWork.guessRepos(for: "Fixes acme/docs-eng-team#1025", in: repos)
-        #expect(reference.allSatisfy { $0.confidence < 80 })
+        #expect(reference.count == 3 && reference.allSatisfy { $0.confidence < 80 })
     }
 }

@@ -184,7 +184,9 @@ struct LLMRunnerTests {
             #expect(response.agent == "cursor")
         }
         #expect(fakes[0].calls.isEmpty)
-        #expect(try await rows(log).allSatisfy { $0.detail["skipped"] == "claude: off" })
+        let logged = try await rows(log)
+        #expect(logged.count == 3)
+        #expect(logged.allSatisfy { $0.detail["skipped"] == "claude: off" })
     }
 
     @Test func customAgentsTakeNoPart() async throws {

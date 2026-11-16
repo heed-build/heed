@@ -219,24 +219,29 @@ struct UnusualRunFolderTests {
         return folder
     }
 
-    @Test func aReportTheBranchCarriesIsNotRead() throws {
+    @Test func aReportTheBranchCarriesIsNotRead() async throws {
         let root = try scratch()
         defer { try? FileManager.default.removeItem(at: root) }
         let worktree = root.appendingPathComponent("work").path
         let folder = root.appendingPathComponent("run").path
         try FileManager.default.createDirectory(atPath: worktree + "/.heed", withIntermediateDirectories: true)
+        let started = Date()
+        // The branch's reports are as fresh as the run's own would be: only where heed reads from keeps them out.
         for name in RunFolder.worktreeLeftovers {
             try report.write(to: URL(fileURLWithPath: "\(worktree)/.heed/\(name)"))
         }
+        let leftovers = RunFolder.leftovers(in: worktree)
+        #expect(leftovers.sorted() == RunFolder.worktreeLeftovers.map { "\(worktree)/.heed/\($0)" }.sorted())
+        let carried = try #require(leftovers.first { $0.hasSuffix("/review.json") })
+        #expect(ReviewRun.read(file: RunFolder.read(carried, started: started), lastMessage: nil).report != nil)
         try RunFolder.prepare(folder)
-        let started = Date()
         // Where the run's report is read from is the run's folder, never the worktree.
         let path = ReviewRun.reportPath(folder: folder)
-        #expect(!path.hasPrefix(worktree))
-        #expect(RunFolder.leftovers(in: worktree).allSatisfy { !$0.hasPrefix(folder) })
+        #expect(!path.hasPrefix(worktree) && !leftovers.contains(path))
         #expect(ReviewRun.read(file: RunFolder.read(path, started: started), lastMessage: nil).report == nil)
-        #expect(RunFolder.leftovers(in: worktree).sorted()
-            == RunFolder.worktreeLeftovers.map { "\(worktree)/.heed/\($0)" }.sorted())
+        // And before the run starts, what the branch carries is gone from the worktree.
+        await RunFolder.clearLeftovers(in: worktree, on: .local)
+        #expect(leftovers.allSatisfy { !FileManager.default.fileExists(atPath: $0) })
     }
 
     @Test func aReportFromBeforeTheRunIsNotRead() throws {

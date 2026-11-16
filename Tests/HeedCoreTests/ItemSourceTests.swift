@@ -185,6 +185,7 @@ struct ItemSourceSyncTests {
         // The same PRs by merged: open ones wait to land in Verify.
         let merging = try await synced([pull(1), pull(2, review: .commented)], rule: .merged)
         let other = try await merging.snapshot()
+        #expect(other.items.count == 2)
         #expect(other.items.allSatisfy { Board.column($0, evidence: other.evidence) == .verify })
     }
 

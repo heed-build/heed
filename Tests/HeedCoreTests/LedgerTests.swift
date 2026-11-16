@@ -244,7 +244,6 @@ struct LedgerGitTests {
         }
         try FileManager.default.createDirectory(atPath: base, withIntermediateDirectories: true)
         try "a\n".write(toFile: base + "/a.txt", atomically: true, encoding: .utf8)
-        GitEnvironment.isolate()
         for args in [
             ["init", "-q", "-b", "main"],
             ["config", "user.email", "t@t"],

@@ -241,7 +241,6 @@ struct GitIntegrationTests {
     private func makeRepo(in parent: URL = FileManager.default.temporaryDirectory) async throws -> String {
         let path = parent.appendingPathComponent("heed-repo-\(UUID().uuidString)").path
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
-        GitEnvironment.isolate()
         for args in [
             ["init", "-q", "-b", "main"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
             ["commit", "-q", "--allow-empty", "-m", "first"],

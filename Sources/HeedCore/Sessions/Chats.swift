@@ -2,10 +2,9 @@ import Foundation
 
 /// Where chats live and how their scratch folders are named.
 public enum Chats {
-    /// Scratch folders on this Mac: `~/Library/Application Support/Heed/chats`. Tests point it elsewhere.
-    public nonisolated(unsafe) static var localRoot: String = FileManager.default
-        .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("Heed/chats").path
+    /// Scratch folders on this Mac: `~/Library/Application Support/Heed/chats` (`HeedContext.chatsRoot`; tests
+    /// point it elsewhere for their task).
+    public static var localRoot: String { HeedContext.current.chatsRoot }
 
     /// Scratch folders on a host: under `~/.heed`, the only place heed writes there.
     public static let hostRoot = "~/.heed/chats"

@@ -16,3 +16,21 @@ disabled_rules:
 excluded:
   - build
   - "**/.build"
+custom_rules:
+  # Shared mutable statics make what code does depend on who set them last, and tests running in parallel see each
+  # other's values. Pass the value in, or use a @TaskLocal (scoped to a task tree) or a Mutex the app sets. One that
+  # must stay takes `// swiftlint:disable:next no_unsafe_static_var` with the reason.
+  no_unsafe_static_var:
+    name: "No nonisolated(unsafe) static var"
+    included: ".*/Sources/.*\\.swift"
+    regex: "nonisolated\\(unsafe\\)(\\s+\\w+)*\\s+(static|class)\\s+var\\b|\\b(static|class)(\\s+\\w+)*\\s+nonisolated\\(unsafe\\)(\\s+\\w+)*\\s+var\\b"
+    message: "Shared mutable state: pass the value in, or use @TaskLocal or a Mutex"
+    severity: error
+  # Tests run in parallel in one process: a test changes what it needs for its own task (`HeedContext.with`,
+  # `Remote.with`, the `$…` task locals), never the process's.
+  tests_change_no_process_state:
+    name: "Tests change no process-wide state"
+    included: ".*/Tests/.*\\.swift"
+    regex: "HeedContext\\.pinProcess|\\b(setenv|unsetenv|putenv)\\(|Remote\\.setRoutes|AuditTap\\.install|CallLog\\.install"
+    message: "Process-wide state seen by every test running in parallel: scope it to this test's task instead"
+    severity: error

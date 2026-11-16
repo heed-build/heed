@@ -1,5 +1,4 @@
 import Foundation
-import Synchronization
 
 /// The environment the commands heed runs get. Variables that point git at a repository (`GIT_DIR` and its kin) are
 /// never passed on: heed always names the repo it means (`git -C`), and one inherited from whatever started heed (a
@@ -16,28 +15,16 @@ public enum GitEnvironment {
         environment.filter { !repositoryVariables.contains($0.key) }
     }
 
-    private static let overrides = Mutex<[String: String]>([:])
+    /// The environment commands inherit: this process's, or for one task and the tasks it starts the one a test
+    /// hands in (as `git rebase --exec` would leave it), so the test never changes the process's own.
+    @TaskLocal static var inheritedOverride: [String: String]?
 
-    /// From now on, every command reads no system or global git config and commits as a fixed author: for tests'
-    /// throwaway repos, so neither your config nor your signing setup reaches them. Idempotent.
-    public static func isolate() {
-        overrides.withLock { overrides in
-            guard overrides.isEmpty else { return }
-            let global = FileManager.default.temporaryDirectory
-                .appendingPathComponent("heed-gitconfig-\(UUID().uuidString)")
-            FileManager.default.createFile(atPath: global.path, contents: Data())
-            overrides = [
-                "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": global.path,
-                "GIT_AUTHOR_NAME": "heed test", "GIT_AUTHOR_EMAIL": "test@heed.invalid",
-                "GIT_COMMITTER_NAME": "heed test", "GIT_COMMITTER_EMAIL": "test@heed.invalid",
-            ]
-        }
-    }
+    public static var inherited: [String: String] { inheritedOverride ?? ProcessInfo.processInfo.environment }
 
-    /// What a command runs with: this process's environment scrubbed, the isolation when on, then `variables`.
+    /// What a command runs with: the inherited environment scrubbed, then `variables`.
     public static func environment(
-        _ parent: [String: String] = ProcessInfo.processInfo.environment, _ variables: [String: String] = [:]
+        _ parent: [String: String] = inherited, _ variables: [String: String] = [:]
     ) -> [String: String] {
-        scrubbed(parent).merging(overrides.withLock { $0 }) { _, new in new }.merging(variables) { _, new in new }
+        scrubbed(parent).merging(variables) { _, new in new }
     }
 }

@@ -49,7 +49,14 @@ extension AppModel {
         )
     }
 
+    /// Every Attention entry, ranked: kept until something it reads changes (`Derived`), since the title bar's badge,
+    /// the counts, the coverage line and the list all read it on every redraw.
     var attentionEntries: [AttentionEntry] {
+        _ = attentionEntriesGeneration
+        return attentionEntriesKept.value(now: Clock.now) { attentionEntriesNow }
+    }
+
+    private var attentionEntriesNow: [AttentionEntry] {
         Perf.measure("attentionEntries") {
             let days = config.attention.maxAgeDays
             return AttentionRanking.entries(
@@ -65,6 +72,11 @@ extension AppModel {
 
     /// What the tab lists, in its sections: the tab, the sort, and `/`.
     var attentionListing: AttentionListing {
+        _ = attentionListingGeneration
+        return attentionListingKept.value(now: Clock.now) { attentionListingNow }
+    }
+
+    private var attentionListingNow: AttentionListing {
         let text = filter(for: .attention)
         let entries = attentionEntries.filter { entry in
             let item = entry.item

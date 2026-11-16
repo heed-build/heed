@@ -151,10 +151,9 @@ final class AppModel {
     // Domain
     private(set) var sessions: [Session] = [] {
         didSet {
-            rebuildList()
-            if filters[.repos] != nil { rebuildWorktreeRows() }
-            updateOutsideWindow()
-            noteStateChanges(from: oldValue)
+            trackedRefs = Set(sessions.flatMap(\.trackedPRs))
+            if sessionsBefore == nil { sessionsBefore = oldValue }
+            listRebuild.request()
         }
     }
 
@@ -168,18 +167,48 @@ final class AppModel {
     }
 
     // What the pilot knows decides Watching and Stalled in the sidebar, so each change rebuilds the list.
-    private(set) var github = GitHubState() { didSet { rebuildList() } }
+    private(set) var github = GitHubState() { didSet { listRebuild.request() } }
     private(set) var pullDetails: [String: PullDetail] = [:] {
         didSet {
-            rebuildList()
+            listRebuild.request()
             // Reviewers' faces for the PR cards.
             if !isFixture { Avatars.shared.load(pullDetails.values.flatMap { $0.reviews.map(\.author) }) }
         }
     }
 
-    private(set) var feedback: [String: PullFeedback] = [:] { didSet { rebuildList() } }
+    private(set) var feedback: [String: PullFeedback] = [:] { didSet { listRebuild.request() } }
     /// What the pilot noticed and did, newest first.
-    private(set) var pilotLog: [PilotEvent] = [] { didSet { rebuildList() } }
+    private(set) var pilotLog: [PilotEvent] = [] { didSet { listRebuild.request() } }
+    /// The sidebar's rebuild: at once when one of its inputs changes on its own, once per `commit` however many of
+    /// them it writes.
+    @ObservationIgnored lazy var listRebuild = Coalesced { [unowned self] in
+        rebuildList()
+        guard let old = sessionsBefore else { return }
+        sessionsBefore = nil
+        if filters[.repos] != nil { rebuildWorktreeRows() }
+        updateOutsideWindow()
+        noteStateChanges(from: old)
+    }
+
+    /// The sessions as they were before the writes the next rebuild covers: what changed state is news.
+    @ObservationIgnored private var sessionsBefore: [Session]?
+    /// Every PR some session tracks, kept with `sessions`: whether a PR has a session is asked per PR per rebuild.
+    @ObservationIgnored private var trackedRefs: Set<PullRef> = []
+    /// Move on when an input of a kept derived value (`Derived`) changes: its readers read the counter too, so they
+    /// redraw. One counter per value, so one value's change never writes the counter it is being read through.
+    private(set) var attentionEntriesGeneration = 0
+    private(set) var attentionListingGeneration = 0
+    /// Attention's entries and its listing, worked out once per change of what they read (AppModel+Attention).
+    @ObservationIgnored lazy var attentionEntriesKept = Derived<[AttentionEntry]> { [unowned self] in
+        attentionEntriesGeneration &+= 1
+    }
+
+    @ObservationIgnored lazy var attentionListingKept = Derived<AttentionListing> { [unowned self] in
+        attentionListingGeneration &+= 1
+    }
+
+    /// Each PR's pilot state and each session's, while one rebuild of the list asks for them more than once.
+    @ObservationIgnored private var pilotMemo: PilotMemo?
     private(set) var mergeRuns: [String: [MergeRun]] = [:]
     private(set) var registeredWorktrees: Set<String> = []
     private(set) var list = SessionList([])
@@ -905,7 +934,7 @@ final class AppModel {
             let previous = session.state
             session.state = next
             if next.state == .exited { setSubagents(nil, of: id) }
-            if let pane = panes[id] { agentPresence.observed(next.state, in: pane) }
+            if let pane = panes[id] { observePresence(next.state, in: pane) }
             if next.state == .exited { checkConversations(of: [id]) }
             session.activity = "\(next.state.rawValue) · " + (next.reason == Self.fromHunch ? "Hunch" : "guessed")
             changes.append(.sessionUpserted(session))
@@ -1479,9 +1508,12 @@ final class AppModel {
             default: nil
             }
             if let state = reported {
+                // Only a run's state decides the sidebar (asking or blocked is Needs you): the next tool of a working
+                // turn leaves it as it was.
+                let changed = runStates[pane] != state
                 runStates[pane] = state
                 if state == .working { liveRuns[id]?.worked = true }
-                rebuildList()
+                if changed { rebuildList() }
                 if let live = liveRuns[id], Runs.ended(state, worked: live.worked) { endRun(id) }
             }
             return
@@ -1627,7 +1659,12 @@ final class AppModel {
         // the list; the cursor follows the session it was on, so what you look at and type into never changes under
         // you. Read before the rebuild: `currentSession` still indexes the old list here.
         rebuildingList = true
-        defer { rebuildingList = false }
+        // One rebuild asks for a PR's pilot state from each of its sessions' rows, sizes and close checks: once each.
+        pilotMemo = PilotMemo()
+        defer {
+            rebuildingList = false
+            pilotMemo = nil
+        }
         let selected = currentSession?.id
         let hold = currentSession.flatMap { session in
             list.group(of: session.id).map {
@@ -1644,7 +1681,7 @@ final class AppModel {
         }, pilot: sessionPilot, hold: hold, view: sessionsView, campaign: campaign(of:), size: { [unowned self] in
             pendingChanges(of: $0).lines ?? 0
         }, closable: { [unowned self] in closeReadiness(of: $0) != nil })
-        if let selected, let index = list.ordered.firstIndex(where: { $0.id == selected }) {
+        if let selected, let index = list.index(of: selected) {
             cursor = index
         } else {
             cursor = min(cursor, max(list.ordered.count - 1, 0))
@@ -1660,6 +1697,11 @@ final class AppModel {
             replacingDomain = false
             noteOtherNeeds(seen: true)
         }
+        listRebuild.batch { replaceParts(with: domain) }
+        cursor = min(cursor, max(list.ordered.count - 1, 0))
+    }
+
+    private func replaceParts(with domain: Domain) {
         sessions = domain.sessions
         // Helper tabs do not come back: a PR that still needs work gets a fresh one on its next round.
         layouts = isFixture ? domain.layouts : domain.layouts.mapValues { layout in
@@ -1682,7 +1724,6 @@ final class AppModel {
         runs = domain.runs
         archives = domain.archives
         registeredWorktrees = domain.registeredWorktrees
-        cursor = min(cursor, max(list.ordered.count - 1, 0))
     }
 
     /// The one way the domain changes. Only properties that actually changed are written, so only their readers redraw.
@@ -1696,6 +1737,47 @@ final class AppModel {
         let githubChanged = after.github != before.github
         let detailsChanged = after.pullDetails != before.pullDetails
         let sessionsChanged = after.sessions != before.sessions
+        // The next tool of a working turn: only what an agent is doing changed. What the notices below look for (a
+        // PR, a title, a turn's end, a new session) cannot have.
+        let activityOnly = sessionsChanged && !historyChanged && !githubChanged && !detailsChanged
+            && after.feedback == before.feedback && Self.onlyActivity(changes, before: before, after: after)
+        listRebuild.batch {
+            write(after, over: before, changed: (historyChanged, githubChanged, detailsChanged, sessionsChanged))
+        }
+        if let store { Task { await store.apply(changes) } }
+        if !replacingDomain, !activityOnly, historyChanged || githubChanged || detailsChanged || sessionsChanged {
+            noticeLedger(before: before, after: after)
+        }
+        if !replacingDomain, !activityOnly, sessionsChanged || githubChanged {
+            noticeNaming(before: before, after: after)
+        }
+        if !replacingDomain, !activityOnly, sessionsChanged { noticeTurnEnds(before: before, after: after) }
+        if !replacingDomain, !activityOnly, sessionsChanged { noticeAuditSessions(before: before, after: after) }
+        if !replacingDomain, sessionsChanged || after.worktrees != before.worktrees {
+            noticeSessionPanel(before: before, after: after)
+        }
+        if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
+        if !replacingDomain, detailsChanged || githubChanged || after.repos != before.repos
+            || after.worktrees != before.worktrees { noticeOrigins() }
+        if !replacingDomain, githubChanged { tickSwarms() }
+        if !replacingDomain, !activityOnly, sessionsChanged { noticeGoalAttach(before: before, after: after) }
+    }
+
+    /// Whether every change is a session that was there and changed only in what its agent is doing.
+    private static func onlyActivity(_ changes: [DomainChange], before: Domain, after: Domain) -> Bool {
+        changes.allSatisfy { change in
+            guard case let .sessionUpserted(session) = change, let old = before.session(session.id),
+                  let new = after.session(session.id) else { return false }
+            return new.changedOnlyActivity(from: old)
+        }
+    }
+
+    /// The parts of `after` that differ from `before`, each written once, so only their readers redraw.
+    private func write(
+        _ after: Domain, over before: Domain,
+        changed: (history: Bool, github: Bool, details: Bool, sessions: Bool)
+    ) {
+        let (historyChanged, githubChanged, detailsChanged, sessionsChanged) = changed
         if historyChanged { history = after.history }
         if githubChanged { github = after.github }
         if after.repos != before.repos || after.github.pulls != before.github.pulls { loadAvatars() }
@@ -1713,21 +1795,6 @@ final class AppModel {
         if after.layouts != before.layouts { layouts = after.layouts }
         if after.repos != before.repos { repos = after.repos }
         if after.worktrees != before.worktrees { worktrees = after.worktrees }
-        if let store { Task { await store.apply(changes) } }
-        if !replacingDomain, historyChanged || githubChanged || detailsChanged || sessionsChanged {
-            noticeLedger(before: before, after: after)
-        }
-        if !replacingDomain, sessionsChanged || githubChanged { noticeNaming(before: before, after: after) }
-        if !replacingDomain, sessionsChanged { noticeTurnEnds(before: before, after: after) }
-        if !replacingDomain, sessionsChanged { noticeAuditSessions(before: before, after: after) }
-        if !replacingDomain, sessionsChanged || after.worktrees != before.worktrees {
-            noticeSessionPanel(before: before, after: after)
-        }
-        if !replacingDomain, githubChanged || sessionsChanged { noticeGoalPulls() }
-        if !replacingDomain, detailsChanged || githubChanged || after.repos != before.repos
-            || after.worktrees != before.worktrees { noticeOrigins() }
-        if !replacingDomain, githubChanged { tickSwarms() }
-        if !replacingDomain, sessionsChanged { noticeGoalAttach(before: before, after: after) }
     }
 
     func commit(_ change: DomainChange) { commit([change]) }
@@ -3690,7 +3757,7 @@ final class AppModel {
     }
 
     func select(sessionID: String) {
-        if let index = list.ordered.firstIndex(where: { $0.id == sessionID }) { setCursor(index) }
+        if let index = list.index(of: sessionID) { setCursor(index) }
     }
 
     /// The summary's keys: j/k over what waits on you, ↩ goes to that session, ⎋ closes.
@@ -5734,11 +5801,13 @@ final class AppModel {
     }
 
     func pilotStatus(for ref: PullRef) -> PilotStatus {
-        PilotStatus.of(
+        if let known = pilotMemo?.pulls[ref] { return known }
+        let status = PilotStatus.of(
             pull: github.pull(ref), pipeline: feedback[ref.description], settings: pilotSettings(for: ref),
-            hasSession: sessions.contains { $0.trackedPRs.contains(ref) }, detail: pullDetails[ref.description],
-            now: Clock.now
+            hasSession: trackedRefs.contains(ref), detail: pullDetails[ref.description], now: Clock.now
         )
+        pilotMemo?.pulls[ref] = status
+        return status
     }
 
     /// Every PR a session tracks, most urgent group first, then most recently updated; narrowed by `/`.
@@ -5822,6 +5891,14 @@ final class AppModel {
     func sessionPilot(_ session: Session) -> SessionPilot {
         let refs = session.trackedPRs
         guard !refs.isEmpty else { return SessionPilot() }
+        if let known = pilotMemo?.sessions[session.id] { return known }
+        let pilot = sessionPilotNow(session)
+        pilotMemo?.sessions[session.id] = pilot
+        return pilot
+    }
+
+    private func sessionPilotNow(_ session: Session) -> SessionPilot {
+        let refs = session.trackedPRs
         let acting = refs.contains { pilotStatus(for: $0).heedActing(pilot(for: $0)) }
         // The log is newest first.
         let lastAction = pilotLog.first { refs.contains($0.ref) && PilotEvent.actions.contains($0.kind) }?.at
@@ -9105,4 +9182,10 @@ enum HintTarget: Hashable {
 extension String {
     /// Nil for "", so an optional detail stays out.
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+/// What one rebuild of the sidebar already worked out: each PR's pilot state, each session's.
+private struct PilotMemo {
+    var pulls: [PullRef: PilotStatus] = [:]
+    var sessions: [String: SessionPilot] = [:]
 }

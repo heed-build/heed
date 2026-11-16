@@ -19,8 +19,9 @@ struct DomainMirrorTests {
             return source[start.upperBound ..< stop.lowerBound]
         }
         let current = try body(after: "var currentDomain: Domain {", until: "\n    }")
-        let replace = try body(after: "private func replace(with domain: Domain) {", until: "\n    }\n")
-        let commit = try body(after: "func commit(_ changes: [DomainChange]) {", until: "\n    }\n")
+        let replace = try body(after: "private func replaceParts(with domain: Domain) {", until: "\n    }\n")
+        // `commit` writes each part through `write(_:over:changed:)`, inside one rebuild of the sidebar.
+        let commit = try body(after: "private func write(", until: "\n    }\n")
         let parts = Mirror(reflecting: Domain()).children.compactMap(\.label)
         #expect(parts.contains("archives"))
         for part in parts {

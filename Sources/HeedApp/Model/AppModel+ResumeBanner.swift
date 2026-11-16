@@ -30,15 +30,22 @@ extension AppModel {
         }
     }
 
+    /// What a hook or the screen says of a pane's agent, written only when it changes who runs: every hook says it,
+    /// and each write would redraw what reads `agentPresence`.
+    func observePresence(_ state: AgentState, in pane: String) {
+        guard agentPresence.changes(observing: state, in: pane) else { return }
+        agentPresence.observed(state, in: pane)
+    }
+
     /// What a hook said about a pane's agent: it is there, or it is gone.
     func noteAgent(_ kind: HookMessage.Kind, pane: String?, session: Session) {
         guard let pane else { return }
         switch kind {
         case let .state(state, _), let .guess(state, _):
-            agentPresence.observed(state, in: pane)
+            observePresence(state, in: pane)
             if state == .exited { checkConversations(of: [session.id]) }
         case .atPrompt:
-            agentPresence.observed(.idle, in: pane)
+            observePresence(.idle, in: pane)
         default:
             break
         }

@@ -2,7 +2,7 @@ import HeedCore
 import SwiftUI
 
 /// A goal's tint where Sessions points into Goals: the sizing card and the growing session's line.
-private let goalTint = Color(hex: 0xC9E27A)
+private let goalTint = Color.adaptive(0xC9E27A)
 
 // MARK: Start work's sizing card
 
@@ -21,7 +21,7 @@ struct SizeCard: View {
                 Spacer(minLength: 8)
                 if let call = sizing.callLabel {
                     HStack(spacing: 6) {
-                        Circle().fill(Color(hex: 0x5CC8E0)).frame(width: 6, height: 6)
+                        Circle().fill(Color.adaptive(0x5CC8E0)).frame(width: 6, height: 6)
                         Text(call)
                     }
                     .font(Theme.mono(11.5)).foregroundStyle(Theme.fg3).lineLimit(1)
@@ -50,7 +50,7 @@ struct SizeCard: View {
             }
             .font(Theme.mono(11)).foregroundStyle(Theme.fg3)
             .contentShape(Rectangle())
-            .onTapGesture { model.clickHint(CommandInvocation(name: "settings.open")) }
+            .tap { model.clickHint(CommandInvocation(name: "settings.open")) }
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 16)
@@ -113,7 +113,7 @@ struct SizeCard: View {
         .background(RoundedRectangle(cornerRadius: 5).fill(suggested ? goalTint.opacity(0.08) : .clear))
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(suggested ? goalTint.opacity(0.55) : .clear))
         .contentShape(Rectangle())
-        .onTapGesture { model.clickStartWorkKey(stroke) }
+        .tap { model.clickStartWorkKey(stroke) }
     }
 }
 

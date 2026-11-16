@@ -80,7 +80,7 @@ struct ScopeList: View {
         .background(RoundedRectangle(cornerRadius: 5).fill(selected == item.id ? Theme.bg3 : .clear))
         .contentShape(Rectangle())
         .help(item.help ?? item.title)
-        .onTapGesture { select(item.id) }
+        .tap { select(item.id) }
     }
 }
 
@@ -101,7 +101,7 @@ struct SettingsTabStrip: View {
                     Button { pick(tab) } label: {
                         TabLabel(title: tab.title, active: current == tab, count: count > 0 ? "● \(count)" : nil)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(HoverButtonStyle())
                     .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
                     .help("\(tab.title): \(count == 0 ? "nothing" : "\(count)") modified (⌘\(index + 1))")
                 }

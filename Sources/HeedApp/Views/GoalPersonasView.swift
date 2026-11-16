@@ -82,7 +82,7 @@ private struct PersonaTable: View {
                             .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
                             .hint(goals.focus == .personas ? model.hintLabel(for: .row(.goals, index)) : nil)
                             .contentShape(Rectangle())
-                            .onTapGesture { model.clickPersona(index) }
+                            .tap { model.clickPersona(index) }
                             .rightClickMenu {
                                 guard model.clicksReachLists else { return false }
                                 model.clickPersona(index)

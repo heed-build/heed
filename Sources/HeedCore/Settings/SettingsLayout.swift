@@ -9,7 +9,7 @@ public extension SettingsPage {
     /// tabs or scopes (Agents, Autopilot, Orgs & repos, Hosts) list none: their sections change with the tab.
     var sections: [String] {
         switch self {
-        case .general: ["Sessions", "Outside the window"]
+        case .general: ["Appearance", "Sessions", "Outside the window"]
         case .notifications: ["Sessions", "Approvals", "Attention", "Quiet hours", "Nudges"]
         case .updates: ["Updates"]
         case .agents, .personas, .pilot, .orgsAndRepos, .hosts: []

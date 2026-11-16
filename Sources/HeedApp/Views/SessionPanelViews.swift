@@ -352,7 +352,7 @@ struct SessionPanelPopover: View {
         .padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: 4).fill(cursor ? Theme.selected.opacity(0.7) : .clear))
         .contentShape(Rectangle())
-        .onTapGesture {
+        .tap {
             // A click reads the persona; a click on the one being read folds it.
             if cursor { model.sessionPanel.expanded.toggle() } else {
                 model.sessionPanel.row = index
@@ -540,7 +540,7 @@ struct PersonasInSessions: View {
                         .padding(.horizontal, 12).frame(height: 26)
                         .background(RoundedRectangle(cornerRadius: 4).fill(on ? Theme.inverse : .clear))
                         .contentShape(Rectangle())
-                        .onTapGesture { model.setConfig(["personas", "offers"], .string(offers.rawValue)) }
+                        .tap { model.setConfig(["personas", "offers"], .string(offers.rawValue)) }
                 }
             }
             .padding(3)
@@ -555,7 +555,7 @@ struct PersonasInSessions: View {
                         .padding(.horizontal, 12).frame(height: 26)
                         .background(RoundedRectangle(cornerRadius: 4).fill(on ? Theme.inverse : .clear))
                         .contentShape(Rectangle())
-                        .onTapGesture { model.setConfig(["personas", "look_model"], .string(tier.rawValue)) }
+                        .tap { model.setConfig(["personas", "look_model"], .string(tier.rawValue)) }
                 }
             }
             .padding(3)
@@ -633,6 +633,6 @@ struct PersonasInSessions: View {
         .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(cursor ? Theme.paneActive : .clear))
         .contentShape(Rectangle())
-        .onTapGesture { model.personaUI.signal = index }
+        .tap { model.personaUI.signal = index }
     }
 }

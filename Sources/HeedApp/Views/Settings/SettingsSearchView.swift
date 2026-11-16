@@ -303,7 +303,7 @@ struct SettingsBreadcrumb: View {
             .font(Theme.ui(12))
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverButtonStyle())
         .help("Open it on its page")
     }
 }

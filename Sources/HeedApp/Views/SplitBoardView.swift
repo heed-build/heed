@@ -5,12 +5,12 @@ import SwiftUI
 enum AgentLook {
     static func tint(_ id: String) -> Color {
         switch id {
-        case "claude": Color(hex: 0xD9A47A)
-        case "codex": Color(hex: 0x7FD3B0)
-        case AgentFleet.copilot: Color(hex: 0x8FB7F5)
-        case "gemini": Color(hex: 0xA9A3F2)
-        case "cursor": Color(hex: 0xC8CDD3)
-        case "opencode": Color(hex: 0xE8C27A)
+        case "claude": Color.adaptive(0xD9A47A)
+        case "codex": Color.adaptive(0x7FD3B0)
+        case AgentFleet.copilot: Color.adaptive(0x8FB7F5)
+        case "gemini": Color.adaptive(0xA9A3F2)
+        case "cursor": Color.adaptive(0xC8CDD3)
+        case "opencode": Color.adaptive(0xE8C27A)
         default: OrgPalette.automatic(for: id).swatch
         }
     }
@@ -437,7 +437,7 @@ struct SplitBoardView<Fold: View>: View {
         .onHover { inside in
             if inside { hover = part.id } else if hover == part.id { hover = nil }
         }
-        .onTapGesture { model.clickSplitPart(part.id, live: live) }
+        .tap { model.clickSplitPart(part.id, live: live) }
         .gesture(live ? nil : DragGesture(minimumDistance: 6)
             .onChanged { dragging = (part.id, $0.translation) }
             .onEnded { value in

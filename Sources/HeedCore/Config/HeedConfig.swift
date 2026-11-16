@@ -13,6 +13,8 @@ public struct HeedConfig: Equatable, Sendable {
     /// `[ui]`: Heed outside its window.
     public var showMenuBarItem = true
     public var showDockState = true
+    /// `[ui] appearance`: heed's colours, light, dark, or whichever macOS is using.
+    public var appearance = Appearance.system
     /// `[notifications]`: a macOS notification when a session starts needing you.
     public var notifications = NotificationSettings()
     /// `[approvals]`: how long an agent's permission hook waits for your answer in heed.
@@ -102,6 +104,7 @@ public struct HeedConfig: Equatable, Sendable {
             lhs.globalActivate == rhs.globalActivate,
             lhs.showMenuBarItem == rhs.showMenuBarItem,
             lhs.showDockState == rhs.showDockState,
+            lhs.appearance == rhs.appearance,
             lhs.notifications == rhs.notifications,
             lhs.approvals == rhs.approvals,
             lhs.attention == rhs.attention,
@@ -711,6 +714,13 @@ public enum ConfigLoader {
         // [ui]
         if let flag = bool(["ui", "menu_bar"]) { config.showMenuBarItem = flag }
         if let flag = bool(["ui", "dock_state"]) { config.showDockState = flag }
+        if let text = string(["ui", "appearance"]) {
+            if let appearance = Appearance(rawValue: text.lowercased()) {
+                config.appearance = appearance
+            } else {
+                problems.append(ConfigProblem(path: "ui.appearance", message: "expected system, light or dark"))
+            }
+        }
         // [notifications]
         if let flag = bool(["notifications", "enabled"]) { config.notifications.enabled = flag }
         if let flag = bool(["notifications", "asking"]) { config.notifications.asking = flag }
@@ -1527,6 +1537,11 @@ public enum ConfigLoader {
     # "gC" = ""
     # "<C-j>" = "row.next"
     """
+}
+
+/// `[ui] appearance`: which colours heed draws in.
+public enum Appearance: String, CaseIterable, Sendable {
+    case system, light, dark
 }
 
 /// `[updates]`.

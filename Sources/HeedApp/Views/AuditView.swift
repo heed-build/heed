@@ -97,7 +97,7 @@ private struct SectionToggle: View {
             KeyCap(text: model.keyText(for: "audit.grants", in: "audit"))
         }
         .contentShape(Rectangle())
-        .onTapGesture { model.perform(CommandInvocation(name: "audit.grants")) }
+        .tap { model.perform(CommandInvocation(name: "audit.grants")) }
     }
 
     private func item(_ title: String, count: Int, suffix: String, lit: Bool) -> some View {

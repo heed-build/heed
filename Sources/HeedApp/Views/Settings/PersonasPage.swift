@@ -109,16 +109,17 @@ struct PersonasPage: View {
 func personaTint(_ id: String) -> Color {
     switch id {
     case "skeptic", "security": return Theme.err
-    case "ux", "operator": return Color(hex: 0x4FB8B0)
+    case "ux", "operator": return Color.adaptive(0x4FB8B0)
     case "dx", "performance": return Theme.busy
     case "purist", "accessibility": return Theme.ask
     case "adversary": return Theme.block
-    case "newcomer": return Color(hex: 0xC6E07A)
-    case "scope-keeper": return Color(hex: 0xE59A6B)
+    case "newcomer": return Color.adaptive(0xC6E07A)
+    case "scope-keeper": return Color.adaptive(0xE59A6B)
     default:
         let palette = [
-            Theme.block, Color(hex: 0x4FB8B0), Color(hex: 0xC6E07A), Color(hex: 0x8FA8F5), Color(hex: 0xF28FB0),
-            Theme.ask, Color(hex: 0xE59A6B),
+            Theme.block, Color.adaptive(0x4FB8B0), Color.adaptive(0xC6E07A), Color.adaptive(0x8FA8F5),
+            Color.adaptive(0xF28FB0),
+            Theme.ask, Color.adaptive(0xE59A6B),
         ]
         let sum = id.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
         return palette[sum % palette.count]
@@ -241,7 +242,7 @@ private struct PersonaFilters: View {
                     .padding(.horizontal, 9).padding(.vertical, 4)
                     .background(RoundedRectangle(cornerRadius: 3).fill(on ? Theme.inverse : Theme.chip))
                     .contentShape(Rectangle())
-                    .onTapGesture {
+                    .tap {
                         model.personaUI.filter = source
                         model.personaUI.setCursor(0, count: model.personaRows.count)
                     }
@@ -296,7 +297,7 @@ private struct PersonaRow: View {
         .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(cursor ? Theme.paneActive : .clear, lineWidth: 1.5))
         .contentShape(Rectangle())
-        .onTapGesture { model.clickLibraryPersona(entry.id) }
+        .tap { model.clickLibraryPersona(entry.id) }
         .shotRegion(.settingsRow, item: entry.id)
     }
 }
@@ -674,7 +675,7 @@ struct SheetButton: View {
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(primary ? .clear : Theme.keyCapBorder))
         .fixedSize()
         .contentShape(Rectangle())
-        .onTapGesture { model.perform(invocation) }
+        .tap { model.perform(invocation) }
         .pointerStyle(.link)
         .help(Clicks.help(invocation))
     }

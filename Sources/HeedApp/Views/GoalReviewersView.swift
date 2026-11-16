@@ -70,7 +70,7 @@ private struct ReviewerList: View {
                             }
                             .hint(goals.focus == .reviewers ? model.hintLabel(for: .row(.goals, index)) : nil)
                             .contentShape(Rectangle())
-                            .onTapGesture { model.clickReviewer(index) }
+                            .tap { model.clickReviewer(index) }
                             .rightClickMenu {
                                 guard model.clicksReachLists else { return false }
                                 model.clickReviewer(index)
@@ -191,7 +191,7 @@ private struct ReviewerDetail: View {
                         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
                         .hint(goals.focus == .objections ? model.hintLabel(for: .row(.goals, index)) : nil)
                         .contentShape(Rectangle())
-                        .onTapGesture { model.clickObjection(index) }
+                        .tap { model.clickObjection(index) }
                         .rightClickMenu {
                             guard model.clicksReachLists else { return false }
                             model.clickObjection(index)
@@ -327,7 +327,7 @@ private struct SpawnPanel: View {
                             .foregroundStyle(spawn.instructions.isEmpty ? Theme.fg3 : Theme.fg)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
-                            .onTapGesture {
+                            .tap {
                                 model.goals.spawnTyping = true
                                 model.textInputActive = true
                             }
@@ -358,7 +358,7 @@ private struct SpawnPanel: View {
                             .foregroundStyle(spawn.policy == policy ? Theme.fg : Theme.fg2)
                     }
                     .clickable()
-                    .onTapGesture { model.goals.spawn.policy = policy }
+                    .tap { model.goals.spawn.policy = policy }
                 }
             }
             SectionHeader(title: "Runs as")
@@ -418,7 +418,7 @@ private struct Chip: View {
             .background(RoundedRectangle(cornerRadius: 12).fill(on ? Theme.inverse : .clear))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(on ? .clear : Theme.line))
             .clickable()
-            .onTapGesture(perform: action)
+            .tap(action)
     }
 }
 
@@ -506,7 +506,7 @@ struct HowHappy: View {
                     ReviewerRow(reviewer: reviewer)
                         .contentShape(Rectangle())
                         .clickable()
-                        .onTapGesture {
+                        .tap {
                             model.toggleGoalReviewers()
                             model.goals.point(reviewer: reviewer.id)
                             model.goals.setFocus(.reviewers)

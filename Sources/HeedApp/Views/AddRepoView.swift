@@ -9,7 +9,7 @@ struct AddRepoView: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.5)
+            Theme.scrim.opacity(0.5)
             VStack(alignment: .leading, spacing: 14) {
                 Text("Add or clone a repo").font(Theme.ui(16, weight: .semibold))
                 field
@@ -62,7 +62,7 @@ struct AddRepoView: View {
                     .background(Capsule().fill(current ? Theme.inverse : .clear))
                     .overlay(Capsule().strokeBorder(current ? .clear : Theme.line))
                     .contentShape(Capsule())
-                    .onTapGesture { model.editAddRepo { $0.select(tab: index) } }
+                    .tap { model.editAddRepo { $0.select(tab: index) } }
             }
             Spacer(minLength: 8)
             KeyCap(text: "⇥")
@@ -101,7 +101,7 @@ struct AddRepoView: View {
                                 query: form.query
                             )
                             .contentShape(Rectangle())
-                            .onTapGesture { model.editAddRepo { $0.moveCursor(to: index) } }
+                            .tap { model.editAddRepo { $0.moveCursor(to: index) } }
                         }
                     }
                 }
@@ -130,7 +130,7 @@ struct AddRepoView: View {
                 .padding(.vertical, 5)
                 .background(RoundedRectangle(cornerRadius: 6).fill(index == form.candidate ? Theme.bg3 : .clear))
                 .contentShape(Rectangle())
-                .onTapGesture { model.editAddRepo { $0.setQuery(Paths.abbreviate(path) + "/") } }
+                .tap { model.editAddRepo { $0.setQuery(Paths.abbreviate(path) + "/") } }
             }
             if form.candidates.isEmpty, form.folderNote == nil {
                 Text("Type a path: ~/ completes with ⇥.").font(Theme.ui(12)).foregroundStyle(Theme.fg3)
@@ -194,7 +194,7 @@ private struct AddRepoRow: View {
                 .font(.system(size: 14)).foregroundStyle(picked ? Theme.fg : Theme.fg3)
                 .frame(width: 30)
                 .contentShape(Rectangle())
-                .onTapGesture { model.editAddRepo { $0.toggle(listing.repo) } }
+                .tap { model.editAddRepo { $0.toggle(listing.repo) } }
             OrgTile(org: listing.repo.org, color: listing.repo.color, size: 16).frame(width: 32, alignment: .leading)
             HStack(spacing: 0) {
                 Highlighted(text: listing.repo.slug, query: query, mark: Theme.fg).font(Theme.mono(13))

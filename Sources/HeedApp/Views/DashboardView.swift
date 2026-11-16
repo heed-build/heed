@@ -253,7 +253,7 @@ private struct ShippedPanel: View {
                         card(shipped[index], isCursor: index == cursor)
                             .hint(model.hintLabel(for: .row(.dashboard, index)))
                             .contentShape(Rectangle())
-                            .onTapGesture { model.clickRow(.dashboard, index) }
+                            .tap { model.clickRow(.dashboard, index) }
                             // A double-click reads the PR, as ↩ does here.
                             .simultaneousGesture(TapGesture(count: 2).onEnded {
                                 model.clickRow(.dashboard, index, open: true)

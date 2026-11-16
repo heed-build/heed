@@ -200,6 +200,69 @@ extension View {
     func clickable() -> some View { modifier(Clickable()) }
 }
 
+extension View {
+    /// A click target: runs `action` on a tap, and says it can with the pointing hand and a faint wash under the
+    /// pointer. Use it where `.onTapGesture` would stand for a button, a row or a chip; not on a backdrop or a field.
+    func tap(_ action: @escaping () -> Void) -> some View { modifier(Tappable(action: action)) }
+
+    /// A list row: a strong fill while it is the selected one, a lighter one under the pointer, and the pointing
+    /// hand, so a row reads as something to click before it is clicked.
+    func rowHover(selected: Bool) -> some View { modifier(RowHover(selected: selected)) }
+}
+
+/// A button with no chrome of its own that still reads as one: a faint wash under the pointer, dimmed while pressed,
+/// and the pointing hand.
+struct HoverButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Hovering(configuration: configuration)
+    }
+
+    private struct Hovering: View {
+        let configuration: ButtonStyleConfiguration
+        @State private var hovering = false
+        @Environment(\.isEnabled) private var enabled
+
+        var body: some View {
+            configuration.label
+                .contentShape(Rectangle())
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Theme.fg.opacity(enabled && hovering ? 0.08 : 0)).allowsHitTesting(false)
+                )
+                .opacity(configuration.isPressed ? 0.6 : 1)
+                .onHover { hovering = $0 }
+                .pointerStyle(enabled ? .link : nil)
+        }
+    }
+}
+
+private struct Tappable: ViewModifier {
+    let action: () -> Void
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .overlay(RoundedRectangle(cornerRadius: 4).fill(Theme.fg.opacity(hovering ? 0.08 : 0))
+                .allowsHitTesting(false))
+            .onHover { hovering = $0 }
+            .pointerStyle(.link)
+            .onTapGesture(perform: action)
+    }
+}
+
+private struct RowHover: ViewModifier {
+    let selected: Bool
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        content
+            .background(selected ? Theme.selected : hovering ? Theme.bg3 : .clear)
+            .onHover { hovering = $0 }
+            .pointerStyle(.link)
+    }
+}
+
 private struct Clickable: ViewModifier {
     @State private var hovering = false
 

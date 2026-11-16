@@ -813,7 +813,7 @@ private struct AttentionDetail: View {
                                 action("pilot.merge.now", "merge now", item: item.id)
                                 Text("set up merging").font(Theme.ui(12)).foregroundStyle(Theme.fg2).underline()
                                     .contentShape(Rectangle())
-                                    .onTapGesture { model.perform(CommandInvocation(name: "pilot.merge.setup")) }
+                                    .tap { model.perform(CommandInvocation(name: "pilot.merge.setup")) }
                             }
                         }
                         if item.kind == .pr || item.kind == .issue { action(

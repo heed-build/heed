@@ -69,7 +69,7 @@ struct HelperGlyph: View {
         switch kind {
         case .green: Theme.busy
         case .conflict: Theme.ask
-        case .review: Color(hex: 0x5BC8D8)
+        case .review: Color.adaptive(0x5BC8D8)
         case .part: Theme.done
         }
     }

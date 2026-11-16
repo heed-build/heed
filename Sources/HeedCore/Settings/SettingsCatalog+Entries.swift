@@ -84,6 +84,11 @@ extension SettingsCatalog {
 
     static let general: [SettingsEntry] = [
         global(
+            "ui.appearance", .general, "Appearance", "Theme",
+            "Light, Dark, or System, which follows macOS and changes with it. Terminal panes follow too.",
+            since: "0.46.0", example: "appearance = \"system\""
+        ) { .text($0.appearance.rawValue) },
+        global(
             "sessions.default_agent", .general, "Sessions", "Default agent",
             "The agent Start work picks when nothing else does.", since: "0.1.0"
         ) { .text($0.work.defaultAgent) },

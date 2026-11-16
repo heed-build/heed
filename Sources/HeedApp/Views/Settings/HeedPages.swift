@@ -8,6 +8,14 @@ struct GeneralPage: View {
 
     var body: some View {
         let work = model.config.work
+        SettingsCard(title: "Appearance") {
+            SettingRow("ui.appearance") {
+                SegmentedChoice(
+                    path: ["ui", "appearance"], value: model.config.appearance,
+                    options: Appearance.allCases.map { ($0, $0.rawValue.capitalized) }, name: \.rawValue
+                )
+            }
+        }
         SettingsCard(title: "Sessions") {
             SettingRow("sessions.default_agent") {
                 Picker("", selection: Binding(

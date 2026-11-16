@@ -165,7 +165,7 @@ struct Sidebar: View {
                                     if let run = model.workingRun(for: session) {
                                         RunChildRow(run: run, lastLine: model.lastLine(of: run))
                                             .contentShape(Rectangle())
-                                            .onTapGesture { model.open(run: run) }
+                                            .tap { model.open(run: run) }
                                             .help("Go to the run's tab")
                                     } else if let helper = model.sessionHelper(for: session) {
                                         // A helper on its PR: no tab of its own; a click watches it under the panes.
@@ -323,9 +323,12 @@ struct SessionRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
+            // The selected row's number is a filled cap, like a key: the one mark that survives a glance.
             Text("\(number)")
                 .font(Theme.mono(11, weight: isCursor ? .bold : .regular))
-                .foregroundStyle(isCursor ? Theme.fg : Theme.fg3)
+                .foregroundStyle(isCursor ? Theme.ink : Theme.fg3)
+                .padding(.horizontal, 4)
+                .background(RoundedRectangle(cornerRadius: 4).fill(isCursor ? Theme.inverse : .clear))
                 .frame(width: 22, alignment: .trailing)
                 .padding(.top, 1)
             StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
@@ -423,7 +426,7 @@ struct SessionRow: View {
         .padding(.vertical, compact ? 6 : 9)
         // Watching asks to be left be: a little quieter than what is yours; a parked one among live work more so.
         .opacity(quiet && !isCursor ? 0.6 : compact ? 0.8 : 1)
-        .background(isCursor ? Theme.bg3 : .clear)
+        .rowHover(selected: isCursor)
         // A session on a host gets a rail in the host's colour: dashed while the link is down, dimmed when offline.
         .overlay(alignment: .leading) {
             if let host = session.host {
@@ -694,7 +697,9 @@ struct SessionRail: View {
                         VStack(spacing: 4) {
                             Text("\(list.lineNumber(of: index, cursor: model.cursor))")
                                 .font(Theme.mono(10, weight: isCursor ? .bold : .regular))
-                                .foregroundStyle(isCursor ? Theme.fg : Theme.fg3)
+                                .foregroundStyle(isCursor ? Theme.ink : Theme.fg3)
+                                .padding(.horizontal, 4)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(isCursor ? Theme.inverse : .clear))
                             StateGlyph(state: session.state.state, guessed: session.state.source == .guessed)
                             if let pin = list.pins.firstIndex(of: session) {
                                 Text("'\(pin + 1)").font(Theme.mono(9)).foregroundStyle(Theme.fg3)
@@ -702,7 +707,7 @@ struct SessionRail: View {
                         }
                         .frame(width: 44)
                         .padding(.vertical, 8)
-                        .background(isCursor ? Theme.bg3 : .clear)
+                        .rowHover(selected: isCursor)
                         .overlay(alignment: .topLeading) {
                             if let hint = model.hintLabel(for: .session(session.id)) { HintBadge(label: hint) }
                         }
@@ -738,7 +743,7 @@ struct CollapseButton: View {
                 .frame(width: 22, height: 18)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverButtonStyle())
         .help("collapse / expand (\(key))")
     }
 }

@@ -115,7 +115,7 @@ struct ThreadConversationView<Between: View>: View {
                 }
                 .foregroundStyle(Theme.fg2)
                 .clickable()
-                .onTapGesture { unfolded = true }
+                .tap { unfolded = true }
                 .help("Show the comments you read")
             }
             ForEach(Array(comments.enumerated()), id: \.element.id) { index, comment in

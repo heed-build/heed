@@ -1183,6 +1183,7 @@ final class AppModel {
         updateScope()
         keyProblems = built.problems
         Palette.shared.apply(decoded)
+        if !isFixture { AppearanceControl.apply(decoded.appearance) }
         if !isFixture {
             let shortcuts: [(GlobalHotKey.Name, String, () -> Void)] = [
                 (.startWork, decoded.globalStartWork, { [weak self] in self?.openStandaloneStartWork() }),

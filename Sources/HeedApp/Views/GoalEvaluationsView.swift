@@ -209,7 +209,7 @@ private struct FrictionLog: View {
                         .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
                         .hint(goals.focus == .friction ? model.hintLabel(for: .row(.goals, index)) : nil)
                         .contentShape(Rectangle())
-                        .onTapGesture { model.clickFriction(index) }
+                        .tap { model.clickFriction(index) }
                         .rightClickMenu {
                             guard model.clicksReachLists else { return false }
                             model.clickFriction(index)
@@ -296,7 +296,7 @@ private struct LensPicker: View {
                 }
                 .contentShape(Rectangle())
                 .clickable()
-                .onTapGesture { model.clickLens(evaluation.lens) }
+                .tap { model.clickLens(evaluation.lens) }
                 .rightClickMenu {
                     guard model.clicksReachLists else { return false }
                     model.clickLens(evaluation.lens)

@@ -329,7 +329,7 @@ struct SettingRow<Control: View>: View {
         } label: {
             Image(systemName: "arrow.uturn.backward").font(.system(size: 11))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoverButtonStyle())
         .foregroundStyle(canReset ? Theme.fg2 : Theme.fg3.opacity(0.3))
         .disabled(!canReset)
         .help(canReset ? "Back to heed's default" : "At heed's default")
@@ -565,7 +565,7 @@ struct ChipToggles: View {
                         .background(RoundedRectangle(cornerRadius: 5).fill(on ? Theme.selected : .clear))
                         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(on ? Theme.keyCapBorder : Theme.line))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoverButtonStyle())
             }
         }
     }

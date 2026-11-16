@@ -9,7 +9,7 @@ struct AwaySummaryView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black.opacity(0.45).onTapGesture { model.awaySummary = nil }
+                Theme.scrim.opacity(0.45).tap { model.awaySummary = nil }
                 dialog
                     .frame(width: min(640, max(geometry.size.width - 48, 360)))
                     .frame(maxHeight: max(geometry.size.height - 120, 240))
@@ -62,7 +62,7 @@ struct AwaySummaryView: View {
                 .padding(.vertical, 4)
                 .background(RoundedRectangle(cornerRadius: 5).fill(index == summary.cursor ? Theme.bg3 : .clear))
                 .contentShape(Rectangle())
-                .onTapGesture { model.openAwaySession(item.id) }
+                .tap { model.openAwaySession(item.id) }
             }
         }
         .padding(8)

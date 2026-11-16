@@ -624,12 +624,12 @@ private struct WizardPanelStep: View {
 private func seatTint(_ id: String) -> Color {
     switch id {
     case "skeptic", "security": Theme.err
-    case "ux", "operator": Color(hex: 0x4FB8B0)
+    case "ux", "operator": Color.adaptive(0x4FB8B0)
     case "dx", "performance": Theme.busy
     case "purist", "accessibility": Theme.ask
     case "adversary": Theme.block
     case "newcomer": Theme.done
-    case "scope-keeper": Color(hex: 0xE59A6B)
+    case "scope-keeper": Color.adaptive(0xE59A6B)
     default: Theme.fg2
     }
 }
@@ -681,7 +681,7 @@ private struct SeatCard: View {
             lineWidth: cursor ? 1.5 : 1
         ))
         .contentShape(Rectangle())
-        .onTapGesture { model.goals.wizard.row = row }
+        .tap { model.goals.wizard.row = row }
     }
 }
 
@@ -756,7 +756,7 @@ private struct InvitePicker: View {
                 .background(RoundedRectangle(cornerRadius: 4)
                     .fill(index == model.goals.wizard.inviteRow ? Theme.selected : .clear))
                 .contentShape(Rectangle())
-                .onTapGesture {
+                .tap {
                     model.goals.wizard.inviteRow = index
                     model.perform(CommandInvocation(name: "wizard.invite.pick"))
                 }
@@ -903,7 +903,7 @@ private struct CriterionRow: View {
         .background(RoundedRectangle(cornerRadius: 5).fill(Theme.bg2))
         .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(cursor ? Theme.fg : .clear, lineWidth: 1))
         .contentShape(Rectangle())
-        .onTapGesture {
+        .tap {
             model.goals.wizard.row = row
             model.goals.wizard.pick = 0
         }
@@ -956,7 +956,7 @@ private struct ReplacementSide: View {
                     .overlay(RoundedRectangle(cornerRadius: 4)
                         .strokeBorder(highlighted ? Theme.done.opacity(0.7) : .clear))
                     .contentShape(Rectangle())
-                    .onTapGesture {
+                    .tap {
                         model.perform(CommandInvocation(name: "wizard.pick", arguments: [String(index + 1)]))
                     }
                 }

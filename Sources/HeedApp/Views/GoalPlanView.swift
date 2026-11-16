@@ -229,7 +229,7 @@ private struct PlanOutline: View {
         .shotRegion(model.shotTaskRegions[task.slug])
         .hint(goals.focus == .tasks ? model.hintLabel(for: .row(.goals, row)) : nil)
         .contentShape(Rectangle())
-        .onTapGesture { model.clickPlanTask(row) }
+        .tap { model.clickPlanTask(row) }
         .simultaneousGesture(TapGesture(count: 2)
             .onEnded { model.clickPlanTask(row, edit: true) })
         .rightClickMenu {
@@ -535,7 +535,7 @@ struct SwarmQuestionView: View {
                                 }
                             }
                             .clickable()
-                            .onTapGesture { model.answerSwarm([option], question: question.id) }
+                            .tap { model.answerSwarm([option], question: question.id) }
                             .help("Answer: \(option)")
                         }
                     }
@@ -701,7 +701,7 @@ private struct PlanVersions: View {
                     }
                     .hint(goals.focus == .versions ? model.hintLabel(for: .row(.goals, index)) : nil)
                     .contentShape(Rectangle())
-                    .onTapGesture { model.clickPlanVersion(index) }
+                    .tap { model.clickPlanVersion(index) }
                     .rightClickMenu {
                         guard model.clicksReachLists else { return false }
                         model.clickPlanVersion(index)
@@ -808,7 +808,7 @@ private struct SteeringLog: View {
                     .overlay(alignment: .leading) { if isCursor { Theme.block.frame(width: 2) } }
                     .hint(full && goals.focus == .steering ? model.hintLabel(for: .row(.goals, index)) : nil)
                     .contentShape(Rectangle())
-                    .onTapGesture { model.clickSteer(index) }
+                    .tap { model.clickSteer(index) }
                     .rightClickMenu {
                         guard model.clicksReachLists else { return false }
                         model.clickSteer(index)
@@ -1136,7 +1136,7 @@ struct SwarmFormView: View {
         let form = model.goals.swarmForm ?? SwarmForm()
         let notes = model.swarmFormNotes(form)
         ZStack {
-            Color.black.opacity(0.45)
+            Theme.scrim.opacity(0.45)
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(form.goal == nil ? "New swarm" : "Swarm this goal").font(Theme.ui(16, weight: .semibold))
@@ -1179,7 +1179,7 @@ struct SwarmFormView: View {
                             .background(RoundedRectangle(cornerRadius: 4).fill(picked ? Theme.chip : .clear))
                             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
                             .clickable()
-                            .onTapGesture { toggleRepo(slug) }
+                            .tap { toggleRepo(slug) }
                     }
                     if model.swarmRepoChoices.isEmpty {
                         Text(
@@ -1235,11 +1235,11 @@ struct SwarmFormView: View {
                             model.goals.swarmForm?.workers[index].count = min(max(count + delta, 1), 9)
                         }
                         Text("remove").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3).clickable()
-                            .onTapGesture { model.goals.swarmForm?.workers.remove(at: index) }
+                            .tap { model.goals.swarmForm?.workers.remove(at: index) }
                     }
                 }
                 Text("+ add workers").font(Theme.ui(12)).foregroundStyle(Theme.fg2).clickable()
-                    .onTapGesture {
+                    .tap {
                         model.goals.swarmForm?.workers
                             .append(SwarmSettings.Worker(agent: model.swarmAgents.first ?? "claude"))
                     }
@@ -1255,7 +1255,7 @@ struct SwarmFormView: View {
                                 .foregroundStyle(form.autonomy == autonomy ? Theme.fg : Theme.fg2)
                         }
                         .clickable()
-                        .onTapGesture { model.goals.swarmForm?.autonomy = autonomy }
+                        .tap { model.goals.swarmForm?.autonomy = autonomy }
                     }
                 }
                 SectionHeader(title: "Limits")
@@ -1285,7 +1285,7 @@ struct SwarmFormView: View {
                             .background(RoundedRectangle(cornerRadius: 4).fill(picked ? Theme.chip : .clear))
                             .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Theme.line))
                             .clickable()
-                            .onTapGesture { model.goals.swarmForm?.merge = merge }
+                            .tap { model.goals.swarmForm?.merge = merge }
                     }
                 }
                 Text("Its PRs merge in merge order either way; nothing reaches the default branch unless this or the "
@@ -1315,7 +1315,7 @@ struct SwarmFormView: View {
             .overlay(RoundedRectangle(cornerRadius: 4)
                 .strokeBorder(picked ? (palette?.swatch.opacity(0.6) ?? Theme.line) : Theme.line))
             .clickable()
-            .onTapGesture {
+            .tap {
                 model.perform(CommandInvocation(name: "swarm.host", arguments: [place.hostName ?? SwarmPlace.local]))
             }
             .help(place.hostName
@@ -1359,7 +1359,7 @@ struct SwarmFormView: View {
     private func agentChip(_ agent: String, set: @escaping (String) -> Void) -> some View {
         DropdownChip(text: agent, size: .small)
             .clickable()
-            .onTapGesture {
+            .tap {
                 let agents = model.swarmAgents
                 guard !agents.isEmpty else { return }
                 let index = agents.firstIndex(of: agent) ?? -1
@@ -1464,7 +1464,7 @@ private struct MergeOrder: View {
                         Text(row.state.rawValue).font(Theme.mono(10.5)).foregroundStyle(color(row.state))
                     }
                     .contentShape(Rectangle())
-                    .onTapGesture { model.clickPlanTaskID(row.id) }
+                    .tap { model.clickPlanTaskID(row.id) }
                 }
             }
             Text(

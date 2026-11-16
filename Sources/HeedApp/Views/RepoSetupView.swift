@@ -11,7 +11,7 @@ struct RepoSetupView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black.opacity(0.5).onTapGesture { model.closeRepoSetup() }
+                Theme.scrim.opacity(0.5).tap { model.closeRepoSetup() }
                 dialog.frame(maxHeight: max(geometry.size.height - 120, 300))
             }
         }
@@ -62,7 +62,7 @@ struct RepoSetupView: View {
                     .padding(.vertical, 5)
                     .background(RoundedRectangle(cornerRadius: 6).fill(current ? Theme.bg3 : .clear))
                     .contentShape(Rectangle())
-                    .onTapGesture { model.repoSetupGo(step) }
+                    .tap { model.repoSetupGo(step) }
                     if step != .write { Text("›").foregroundStyle(Theme.fg3) }
                 }
             }
@@ -88,7 +88,7 @@ struct RepoSetupView: View {
             .background(RoundedRectangle(cornerRadius: 6).fill(Theme.inverse))
             .opacity(wizard.sample == nil ? 0.4 : 1)
             .contentShape(Rectangle())
-            .onTapGesture { model.repoSetupNext() }
+            .tap { model.repoSetupNext() }
         }
         .font(Theme.ui(12.5))
         .padding(14)
@@ -104,7 +104,7 @@ struct RepoSetupView: View {
         .padding(.vertical, 7)
         .background(RoundedRectangle(cornerRadius: 6).strokeBorder(Theme.line))
         .contentShape(Rectangle())
-        .onTapGesture(perform: action)
+        .tap(action)
     }
 
     private var hint: String {
@@ -229,7 +229,7 @@ private struct ProposeStepView: View {
         .background(isCursor ? Theme.bg3 : .clear)
         .overlay(alignment: .leading) { if isCursor { Theme.block.frame(width: 2) } }
         .contentShape(Rectangle())
-        .onTapGesture { model.repoSetupPoint(index) }
+        .tap { model.repoSetupPoint(index) }
     }
 
     private func fieldView(_ field: SetupField, position: Int, row: Int) -> some View {
@@ -250,7 +250,7 @@ private struct ProposeStepView: View {
                                 .foregroundStyle(chosen ? Theme.ink : Theme.fg2)
                                 .padding(.horizontal, 7).padding(.vertical, 2)
                                 .background(RoundedRectangle(cornerRadius: 4).fill(chosen ? Theme.inverse : Theme.chip))
-                                .onTapGesture { model.repoSetupChoose(field: position, choice: choice) }
+                                .tap { model.repoSetupChoose(field: position, choice: choice) }
                         }
                     }
                 }
@@ -269,7 +269,7 @@ private struct ProposeStepView: View {
             .font(.system(size: 12)).foregroundStyle(on ? Theme.done : Theme.fg3)
             .frame(width: 16)
             .contentShape(Rectangle())
-            .onTapGesture { model.repoSetupToggle(row) }
+            .tap { model.repoSetupToggle(row) }
     }
 }
 
@@ -309,7 +309,7 @@ private struct ValidateStepView: View {
                         Spacer(minLength: 8)
                         if let fix {
                             Text("open in GitHub ↗").font(Theme.ui(11.5)).foregroundStyle(Theme.busy)
-                                .onTapGesture { model.repoSetupOpenFix(fix) }
+                                .tap { model.repoSetupOpenFix(fix) }
                         }
                     }
                     .padding(.vertical, 4).padding(.horizontal, 8)

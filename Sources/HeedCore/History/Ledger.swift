@@ -362,8 +362,14 @@ public enum Ledger {
 
     /// Runs `summarize`, then `remove` once it finished or `timeout` passed, whichever is first: a removal never
     /// waits on a model for long, and never starts before the summary had its chance.
+    ///
+    /// The timeout is armed on a dispatch queue, not slept on the cooperative pool: on a pool that is full of other
+    /// work a `Task.sleep` resumes late, and a deadline that lags is a removal that waits on a model for as long as the
+    /// pool is busy. `armTimer` replaces that timer, handing over the callback that gives up the wait, so a test can
+    /// fire it itself instead of measuring the clock.
     public static func summarizeThenRemove(
         timeout: Duration = removalWait,
+        armTimer: (@Sendable (_ giveUp: @escaping @Sendable () -> Void) -> Void)? = nil,
         summarize: @escaping @Sendable () async -> Void,
         remove: @Sendable () async -> Void
     ) async {
@@ -373,9 +379,14 @@ public enum Ledger {
             await summarize()
             signal.yield()
         }
-        Task {
-            try? await Task.sleep(for: timeout)
-            signal.yield()
+        let giveUp: @Sendable () -> Void = { signal.yield() }
+        if let armTimer {
+            armTimer(giveUp)
+        } else {
+            let (seconds, attoseconds) = timeout.components
+            let nanoseconds = max(0, seconds) * 1_000_000_000 + attoseconds / 1_000_000_000
+            DispatchQueue.global(qos: .userInitiated)
+                .asyncAfter(deadline: .now() + .nanoseconds(Int(nanoseconds)), execute: giveUp)
         }
         for await _ in done {
             break

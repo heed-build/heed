@@ -1513,12 +1513,16 @@ final class AppModel {
     /// One message from an agent's hook, applied to its session. Only from the pane it says it is from: its token
     /// must be heed's for that session and pane (`SessionKeys`).
     func receive(_ message: HookMessage) {
-        guard PaneTokens.keys.verifies(message.token, session: message.session, pane: message.pane) else {
-            return noteUnheard(message)
-        }
+        let route = HookRouter.route(
+            verified: PaneTokens.keys.verifies(message.token, session: message.session, pane: message.pane),
+            pane: message.pane,
+            panes: HookRouter.Panes(
+                retired: retiredPanes, reviews: reviewPanes, workers: workerPanes, runs: runPanes
+            )
+        )
+        if route == .unheard { return noteUnheard(message) }
         heard(message)
-        // The agent a handoff stopped, on its way out: the session is the new agent's now.
-        if let pane = message.pane, retiredPanes.contains(pane) { return }
+        if route == .retired { return }
         if let pane = message.pane {
             lastHookAt[pane] = message.sentAt
             noteInbox(message, pane: pane)
@@ -1527,65 +1531,17 @@ final class AppModel {
         guard var session = sessions.first(where: { $0.id == message.session }) else { return }
         if case let .toolCall(call) = message.kind { auditToolCall(call, message: message, session: session) }
         if case let .origin(report) = message.kind { noticeOrigin(report, message: message, session: session) }
-        // A reviewer's hooks: its turn over ends it, as a run's does.
-        if let pane = message.pane, reviewPanes.contains(pane) {
-            guard let id = liveReviews.first(where: { $0.value.paneID == pane })?.key else { return }
-            if case let .taskExit(code) = message.kind,
-               code != 0 { return endReviewRun(id, failure: "it did not start") }
-            let reported: AgentState? = switch message.kind {
-            case let .state(state, _): state
-            case .guess: .done
-            case .atPrompt: .idle
-            default: nil
-            }
-            if let state = reported {
-                runStates[pane] = state
-                if state == .working { liveReviews[id]?.worked = true }
-                if let live = liveReviews[id], Runs.ended(state, worked: live.worked) { endReviewRun(id) }
-            }
-            return
-        }
-        // A swarm worker's hooks: its own state and usage, as a run's.
-        if let pane = message.pane, workerPanes.contains(pane) { return receiveWorker(message, pane: pane) }
-        // A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it;
-        // asking or blocked shows the session in Needs you (through `sessionPilot`).
-        if let pane = message.pane, runPanes.contains(pane) {
-            // Its agent's last words (the exit as its tab closes) come after the run ended: nobody's news.
-            guard let id = liveRuns.first(where: { $0.value.paneID == pane })?.key else { return }
-            // A run's pane reports an exit code only when its setup failed: the agent never started.
-            if case let .taskExit(code) = message.kind, code != 0, let live = liveRuns[id] {
-                let setup = settings.setup.commands(for: live.ref.repo) ?? []
-                return endRun(id, outcome: .failed(WorktreeSetup.failureReason(setup)))
-            }
-            // What its agent used goes on the run's record, not the session's.
-            if case let .usage(report) = message.kind, var run = runs.first(where: { $0.id == id }) {
-                let usage = (run.usage ?? AgentUsage()).applying(report)
-                guard usage != run.usage else { return }
-                run.usage = usage
-                commit(.runUpdated(run))
-                return
-            }
-            // A run's turn is over when it ends, question or not: nobody is there to answer it.
-            let reported: AgentState? = switch message.kind {
-            case let .state(state, _): state
-            case .guess: .done
-            case .atPrompt: .idle
-            default: nil
-            }
-            if let state = reported {
-                // Only a run's state decides the sidebar (asking or blocked is Needs you): the next tool of a working
-                // turn leaves it as it was.
-                let changed = runStates[pane] != state
-                runStates[pane] = state
-                if state == .working { liveRuns[id]?.worked = true }
-                if changed { rebuildList() }
-                if let live = liveRuns[id], Runs.ended(state, worked: live.worked) { endRun(id) }
-            }
-            return
+        switch route {
+        case let .review(pane): return receiveReview(message, pane: pane)
+        case let .worker(pane): return receiveWorker(message, pane: pane)
+        case let .run(pane): return receiveRun(message, pane: pane)
+        case .unheard, .retired, .session: break
         }
         // Another agent took over the pane (you quit one and started another there): the session follows it, so its
         // screen is read and its turns judged as that agent's.
-        if let agent = message.agent, agent != session.agent, settings.agent(agent) != nil {
+        if let agent = HookRouter.takeover(
+            by: message.agent, current: session.agent, known: { self.settings.agent($0) != nil }
+        ) {
             session.agent = agent
             session.record("\(agent) took over in its pane")
             commit(.sessionUpserted(session))
@@ -1594,22 +1550,10 @@ final class AppModel {
         noteAgent(kind, pane: message.pane, session: session)
         switch kind {
         case .state, .guess, .atPrompt:
-            var next: ObservedState = switch kind {
-            case let .state(state, reason): session.state.accepting(ObservedState(state, reason: reason))
-            case let .guess(state, reason): session.state.guessing(state, reason: reason)
-            default: session.state.atPrompt()
-            }
-            // What the session kept is not news: an idle prompt over a finished turn, cursor's done after the reply
-            // that asked you. A report that changes nothing (the next tool of a working turn) still is.
-            switch kind {
-            case let .state(state, _) where state != next.state: return
-            case .guess where next == session.state, .atPrompt where next == session.state: return
-            default: break
-            }
-            // Rate limited, with its reset known (the hook sends usage first): say when it lifts.
-            if case .state(.limited, _) = kind, let resets = session.usage?.resetText(now: message.sentAt) {
-                next.reason = "\(next.reason ?? "rate limited") · \(resets)"
-            }
+            guard let turn = HookRouter.session(
+                kind, current: session.state, resets: session.usage?.resetText(now: message.sentAt)
+            ) else { return }
+            let next = turn.state
             let state = next.state, reason = next.reason
             let previous = session.state
             session.state = next
@@ -1619,7 +1563,7 @@ final class AppModel {
             events[session.id] = AgentEvent.log(
                 events[session.id] ?? [], adding: AgentEvent(at: message.sentAt, state: state, reason: reason)
             )
-            if state == .idle || state == .done {
+            if turn.settles {
                 let waiting = pendingDelivery.filter { session.trackedPRs.contains($0) }
                 let notes = pendingNotes.contains(session.id)
                 let id = session.id
@@ -1630,7 +1574,7 @@ final class AppModel {
                     if notes { self.deliverNotes(id, explicit: false) }
                 }
             }
-            if state == .idle, pendingContinue.remove(session.id) != nil,
+            if turn.continues, pendingContinue.remove(session.id) != nil,
                let layout = layouts[session.id], let (_, paneID) = agentPane(in: layout)
             {
                 // Typed as soon as it is idle, as it always was (no typing grace), unless its channel takes it.
@@ -1678,6 +1622,48 @@ final class AppModel {
             return
         }
         commit(.sessionUpserted(session))
+    }
+
+    /// A reviewer's hooks: its turn over ends it, as a run's does.
+    private func receiveReview(_ message: HookMessage, pane: String) {
+        guard let id = liveReviews.first(where: { $0.value.paneID == pane })?.key, let live = liveReviews[id] else {
+            return
+        }
+        switch HookRouter.review(message.kind, worked: live.worked) {
+        case .ignore: return
+        case .didNotStart: return endReviewRun(id, failure: "it did not start")
+        case let .turn(turn):
+            runStates[pane] = turn.state
+            if turn.state == .working { liveReviews[id]?.worked = true }
+            if turn.ended { endReviewRun(id) }
+        }
+    }
+
+    /// A run's hooks: its own state, not the session's. Its turn over (idle after working, or exited) ends it, question
+    /// or not: nobody is there to answer it. Asking or blocked shows the session in Needs you (through
+    /// `sessionPilot`).
+    private func receiveRun(_ message: HookMessage, pane: String) {
+        // Its agent's last words (the exit as its tab closes) come after the run ended: nobody's news.
+        guard let id = liveRuns.first(where: { $0.value.paneID == pane })?.key, let live = liveRuns[id] else { return }
+        let record = runs.first(where: { $0.id == id })
+        switch HookRouter.run(message.kind, worked: live.worked, recorded: record.map(\.usage)) {
+        case .ignore: return
+        case .setupFailed:
+            let setup = settings.setup.commands(for: live.ref.repo) ?? []
+            endRun(id, outcome: .failed(WorktreeSetup.failureReason(setup)))
+        case let .usage(usage):
+            guard var run = record else { return }
+            run.usage = usage
+            commit(.runUpdated(run))
+        case let .turn(turn):
+            // Only a run's state decides the sidebar (asking or blocked is Needs you): the next tool of a working turn
+            // leaves it as it was.
+            let changed = runStates[pane] != turn.state
+            runStates[pane] = turn.state
+            if turn.state == .working { liveRuns[id]?.worked = true }
+            if changed { rebuildList() }
+            if turn.ended { endRun(id) }
+        }
     }
 
     /// Keeps the session's subagents up to date from one message, and says what is left of it for the session's own
@@ -6688,115 +6674,102 @@ final class AppModel {
 
     /// Sends a PR's queued feedback to a run of its own (one per PR at a time), when delivery allows.
     func deliver(_ ref: PullRef, explicit: Bool) {
-        guard let pipeline = feedback[ref.description],
-              let prompt = pipeline.prompt(instructions: pilotSettings(for: ref).greenInstructions)
-        else {
+        let pullSettings = pilotSettings(for: ref)
+        let pipeline = feedback[ref.description]
+        let prompt = pipeline?.prompt(instructions: pullSettings.greenInstructions)
+        let session = sessions.first { $0.trackedPRs.contains(ref) }
+        let swarmPull = swarmPulls[ref.description]
+        let decision = FeedbackDelivery.decide(FeedbackDelivery.Facts(
+            explicit: explicit, queued: prompt != nil, causedByPullEvent: Cause.current?.trigger == .pullEvent,
+            state: pullState(ref), effective: pilot(for: ref), roundsExhausted: pipeline?.roundsExhausted ?? false,
+            paused: pipeline?.isPaused(Clock.now) ?? false, isFixture: isFixture, tutor: tutor != nil,
+            runIn: pullSettings.runIn, swarm: swarmPull != nil, hasSession: session != nil,
+            runWorking: liveRun(for: ref) != nil || startingRuns.contains(ref.description),
+            needsHandback: !SwarmHandback.needs(pipeline?.items ?? []).isEmpty,
+            trusted: { [github] in
+                PullTrustBook.shared.trusted(ref, viewer: github.viewer, trustedAuthors: pullSettings.trustedAuthors)
+            },
+            handback: { swarmPull.map { self.handbackRoute($0) } ?? .pilot("") }
+        ))
+        guard let pipeline, let prompt else {
             if explicit { flash = "nothing queued (space queues an item)" }
             return
         }
-        // Audit: feedback heed sends on its own is caused by what arrived on the PR.
-        if !explicit, Cause.current?.trigger != .pullEvent {
+        switch decision {
+        case .nothingQueued:
+            return
+        case .attributeCause:
+            // Audit: feedback heed sends on its own is caused by what arrived on the PR.
             let items = pipeline.queued.count
             return withCause(
                 .pullEvent, "\(items) new item\(items == 1 ? "" : "s") of feedback on #\(ref.number)",
-                session: sessions.first { $0.trackedPRs.contains(ref) }, authors: prompt.authors
+                session: session, authors: prompt.authors
             ) { deliver(ref, explicit: explicit) }
-        }
-        // A merged or closed PR has nothing left to fix.
-        if let state = pullState(ref), state != .open {
+        case let .finished(state):
             pendingDelivery.remove(ref)
             if explicit { flash = "#\(ref.number) is \(state == .merged ? "merged" : "closed"): nothing to send" }
-            return
-        }
-        let effective = pilot(for: ref)
-        guard explicit || (effective.green == .auto && effective.watching && !pipeline.roundsExhausted
-            && !pipeline.isPaused(Clock.now))
-        else {
-            if pipeline.roundsExhausted, effective.green == .auto {
-                flash = "auto-feed stopped on #\(ref.number): \(pipeline.maxRounds) rounds without a new approval"
-                logPilot(ref, .stuck, "\(pipeline.maxRounds) rounds without a new approval: stopped sending")
-            }
-            return
-        }
-        // On its own, a run starts only on a PR from you or someone who can write to the repo.
-        if !isFixture {
-            let trustedAuthors = pilotSettings(for: ref).trustedAuthors
-            switch Runs.ownStart(explicit: explicit, trusted: PullTrustBook.shared.trusted(
-                ref, viewer: github.viewer, trustedAuthors: trustedAuthors
-            )) {
-            case .go: break
-            case .hold:
-                logPilot(ref, .waiting, Runs.heldForAuthor)
-                return
-            case .ask:
-                let viewer = github.viewer
-                Task {
-                    let trusted = await PullTrustBook.shared.resolve(
-                        ref,
-                        viewer: viewer,
-                        trustedAuthors: trustedAuthors
-                    ) { ref in
-                        try await GitHub.pullAuthorship(ref, caller: "pilot.author")
-                    }
-                    if trusted { deliver(ref, explicit: false) } else { logPilot(ref, .waiting, Runs.heldForAuthor) }
+        case let .held(stuck):
+            guard stuck else { return }
+            flash = "auto-feed stopped on #\(ref.number): \(pipeline.maxRounds) rounds without a new approval"
+            logPilot(ref, .stuck, "\(pipeline.maxRounds) rounds without a new approval: stopped sending")
+        case .heldForAuthor:
+            logPilot(ref, .waiting, Runs.heldForAuthor)
+        case .resolveTrust:
+            let viewer = github.viewer
+            let trustedAuthors = pullSettings.trustedAuthors
+            Task {
+                let trusted = await PullTrustBook.shared.resolve(
+                    ref,
+                    viewer: viewer,
+                    trustedAuthors: trustedAuthors
+                ) { ref in
+                    try await GitHub.pullAuthorship(ref, caller: "pilot.author")
                 }
-                return
+                if trusted { deliver(ref, explicit: false) } else { logPilot(ref, .waiting, Runs.heldForAuthor) }
             }
-        }
-        // A helper (the default): an agent over ACP in its own worktree, drawn in heed. It needs no session; the one
-        // that tracks the PR is told, never typed into. A swarm PR's feedback goes to its own runs, as before.
-        if !isFixture, pilotSettings(for: ref).runIn == .helper, swarmPulls[ref.description] == nil {
-            return deliverToHelper(ref, prompt: prompt, explicit: explicit)
-        }
-        guard let session = sessions.first(where: { $0.trackedPRs.contains(ref) }) else {
+        case .helper:
+            // An agent over ACP in its own worktree, drawn in heed. It needs no session; the one that tracks the PR is
+            // told, never typed into.
+            deliverToHelper(ref, prompt: prompt, explicit: explicit)
+        case .noSession:
             if explicit { flash = "no session tracks #\(ref.number)" }
-            return
-        }
-        guard !isFixture else {
-            if tutor != nil {
+        case let .fixture(tutor):
+            if tutor {
                 updateFeedback { $0.markSent(at: pullDetails[ref.description]?.headSHA) }
                 flash = "sent (tutor: nothing was typed)"
             } else {
                 flash = "fixture: no IO"
             }
-            return
-        }
-        // A swarm PR's session is the lead's: its feedback goes to a run of its own, never typed to the lead.
-        if pilotSettings(for: ref).runIn == .session, swarmPulls[ref.description] == nil {
+        case .inSession:
+            // A swarm PR's session is the lead's: its feedback goes to a run of its own, never typed to the lead.
+            guard let session else { return }
             deliverInSession(ref, prompt: prompt, explicit: explicit, session: session)
-            return
-        }
-        // One run per PR at a time: the next round waits for it to end.
-        if liveRun(for: ref) != nil || startingRuns.contains(ref.description) {
+        case .waitForRun:
             pendingDelivery.insert(ref)
             if explicit { flash = "a run is working on #\(ref.number); this goes once it ends" }
             logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: a run is working on it")
-            return
-        }
-        // A swarm PR's conflict or rebase goes back to its task's own worker, when that worker can take it.
-        if let pull = swarmPulls[ref.description], !SwarmHandback.needs(pipeline.items).isEmpty {
-            switch handbackRoute(pull) {
-            case let .worker(worker):
-                return returnToWorker(ref, pull: pull, worker: worker, items: pipeline.queued, session: session.id)
-            case let .wait(why):
-                pendingDelivery.insert(ref)
-                if explicit { flash = "#\(ref.number) waits: \(why)" }
-                logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(why)")
-                return
-            case let .pilot(why):
-                noteHandbackToPilot(pull, items: pipeline.queued, why: why)
+        case let .returnToWorker(worker):
+            // A swarm PR's conflict or rebase goes back to its task's own worker.
+            guard let swarmPull, let session else { return }
+            returnToWorker(ref, pull: swarmPull, worker: worker, items: pipeline.queued, session: session.id)
+        case let .waitForWorker(why):
+            pendingDelivery.insert(ref)
+            if explicit { flash = "#\(ref.number) waits: \(why)" }
+            logPilot(ref, .waiting, "\(pipeline.queued.count) queued, held: \(why)")
+        case let .startRun(handback):
+            guard let session else { return }
+            if let handback, let swarmPull { noteHandbackToPilot(swarmPull, items: pipeline.queued, why: handback) }
+            startingRuns.insert(ref.description)
+            let items = pipeline.queued.count
+            let sessionID = session.id
+            Task {
+                defer { startingRuns.remove(ref.description) }
+                guard let target = await startRun(ref, prompt: prompt, items: items, sessionID: sessionID),
+                      var pipeline = feedback[ref.description],
+                      var session = sessions.first(where: { $0.id == sessionID })
+                else { return }
+                markSent(ref, pipeline: &pipeline, session: &session, to: target, byYou: explicit)
             }
-        }
-        startingRuns.insert(ref.description)
-        let items = pipeline.queued.count
-        let sessionID = session.id
-        Task {
-            defer { startingRuns.remove(ref.description) }
-            guard let target = await startRun(ref, prompt: prompt, items: items, sessionID: sessionID),
-                  var pipeline = feedback[ref.description],
-                  var session = sessions.first(where: { $0.id == sessionID })
-            else { return }
-            markSent(ref, pipeline: &pipeline, session: &session, to: target, byYou: explicit)
         }
     }
 

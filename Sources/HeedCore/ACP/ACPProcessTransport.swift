@@ -51,7 +51,13 @@ public final class ACPProcessTransport: ACPTransport, @unchecked Sendable {
         let data = Data((line + "\n").utf8)
         let handle = input.fileHandleForWriting
         guard isRunning else { throw ACPError.closed(currentReason()) }
-        try handle.write(contentsOf: data)
+        // It can exit, or close its stdin, between that check and this write: with SIGPIPE ignored (`BrokenPipe`) the
+        // write fails with EPIPE, which is the agent going away like any other.
+        do {
+            try handle.write(contentsOf: data)
+        } catch {
+            throw ACPError.closed(currentReason() ?? "it stopped reading its input")
+        }
     }
 
     public func closedReason() async -> String? { currentReason() }

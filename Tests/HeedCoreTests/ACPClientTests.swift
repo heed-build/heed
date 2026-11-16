@@ -265,6 +265,61 @@ struct ACPProcessTests {
         }
         #expect(reason?.contains("bye") == true)
     }
+
+    /// An agent at `directory/name` running `body`, started; its first line read, so it is past whatever came before.
+    private func agent(_ body: String, in directory: URL) async throws -> ACPProcessTransport {
+        let script = directory.appendingPathComponent("fake-agent")
+        try "#!/bin/sh\n\(body)\n".write(to: script, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: script.path)
+        let transport = try ACPProcessTransport(
+            executable: script.path, arguments: [], directory: directory.path, environment: ["PATH": "/usr/bin:/bin"]
+        )
+        var lines = transport.lines.makeAsyncIterator()
+        #expect(await lines.next() == "ready")
+        return transport
+    }
+
+    private func temporaryDirectory() throws -> URL {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("heed-acp-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory
+    }
+
+    /// The test process ignores SIGPIPE before any test runs (`HeedTestProcess`), as the app and the CLI do.
+    @Test func theTestProcessIgnoresBrokenPipes() {
+        #expect(BrokenPipe.isIgnored)
+    }
+
+    /// Still running, but its stdin closed: a write to it fails with EPIPE every time, so this is the write after the
+    /// running check, which SIGPIPE used to turn into a crash of the whole process.
+    @Test func sendingToAnAgentThatClosedItsInputSaysItClosed() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let transport = try await agent("exec 0<&-\necho ready\nsleep 30", in: directory)
+        defer { Task { await transport.close() } }
+        await #expect {
+            try await transport.send(#"{"jsonrpc":"2.0","id":0,"method":"initialize"}"#)
+        } throws: { error in
+            guard case let .closed(reason)? = error as? ACPError else { return false }
+            return reason != nil
+        }
+    }
+
+    /// Gone without reading a line: every send says so, whether it finds the agent ended or its pipe broken.
+    @Test func sendingToAnAgentThatExitedSaysItClosed() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let transport = try await agent("echo ready\nexit 3", in: directory)
+        for _ in 0 ..< 50 {
+            await #expect {
+                try await transport.send(#"{"jsonrpc":"2.0","id":0,"method":"initialize"}"#)
+            } throws: { error in
+                guard case .closed? = error as? ACPError else { return false }
+                return true
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+    }
 }
 
 /// A part's helper over ACP: its model as a session config option, and mail routed as `HelperMail` says, against the

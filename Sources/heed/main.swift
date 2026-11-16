@@ -6,6 +6,16 @@
 import Foundation
 import HeedCore
 
+// Before anything is written: a reader that has gone (an app that quit, `heed watch | head`) is a failed write here,
+// not a signal that ends the process (`BrokenPipe`).
+BrokenPipe.ignore()
+
+/// Writes to stdout or stderr. False when its reader has gone; `FileHandle.write(_:)` would raise instead.
+@discardableResult
+func emit(_ data: Data, to handle: FileHandle = .standardError) -> Bool {
+    (try? handle.write(contentsOf: data)) != nil
+}
+
 let environment = ProcessInfo.processInfo.environment
 let arguments = Array(CommandLine.arguments.dropFirst())
 
@@ -21,14 +31,14 @@ if arguments.first == "goal" || arguments.first == "swarm" {
     do {
         request = try GoalCommandLine.request(arguments, environment: environment)
     } catch {
-        FileHandle.standardError.write(Data("\(error)\n".utf8))
+        emit(Data("\(error)\n".utf8))
         exit(GoalExit.usage.rawValue)
     }
     var reply: ControlReply
     do {
         reply = try ControlClient().call(request)
     } catch {
-        FileHandle.standardError.write(Data("heed \(arguments[0]): \(error)\n".utf8))
+        emit(Data("heed \(arguments[0]): \(error)\n".utf8))
         exit(GoalExit.unreachable.rawValue)
     }
     // `ask` waits for its answer: a new connection per read, so a heed that restarts meanwhile is found again.
@@ -38,7 +48,7 @@ if arguments.first == "goal" || arguments.first == "swarm" {
     )
     let result = GoalCommandLine.finish(reply, json: request.goal?.json == true)
     if let out = result.out { print(out) }
-    if let err = result.err { FileHandle.standardError.write(Data((err + "\n").utf8)) }
+    if let err = result.err { emit(Data((err + "\n").utf8)) }
     exit(result.code)
 }
 
@@ -51,13 +61,13 @@ if arguments.first == "memory" {
     do {
         let reply = try ControlClient().call(MemoryCommandLine.request(arguments, environment: environment))
         guard reply.ok else {
-            FileHandle.standardError.write(Data("heed memory: \(reply.error ?? "failed")\n".utf8))
+            emit(Data("heed memory: \(reply.error ?? "failed")\n".utf8))
             exit(1)
         }
         print(reply.memory ?? "")
         exit(0)
     } catch {
-        FileHandle.standardError.write(Data("\(error)\n".utf8))
+        emit(Data("\(error)\n".utf8))
         exit(2)
     }
 }
@@ -71,7 +81,7 @@ if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
         let client = try ControlClient()
         let reply = try client.call(request)
         guard reply.ok else {
-            FileHandle.standardError.write(Data("heed \(verb): \(reply.error ?? "failed")\n".utf8))
+            emit(Data("heed \(verb): \(reply.error ?? "failed")\n".utf8))
             exit(1)
         }
         switch request.method {
@@ -80,16 +90,17 @@ if let verb = arguments.first, ControlCommandLine.verbs.contains(verb) {
             if !table.isEmpty { print(table) }
         case .watch:
             setvbuf(stdout, nil, _IOLBF, 0)
-            try FileHandle.standardOutput.write(ControlCoding.line(reply))
+            // Until whatever reads it goes away (`heed watch | head`): that ends the watch, quietly.
+            guard try emit(ControlCoding.line(reply), to: .standardOutput) else { exit(0) }
             while true {
-                try FileHandle.standardOutput.write(ControlCoding.line(client.next()))
+                guard try emit(ControlCoding.line(client.next()), to: .standardOutput) else { exit(0) }
             }
         case .start, .send, .show, .goal, .memory, .permission:
             print(reply.session ?? "")
         }
         exit(0)
     } catch {
-        FileHandle.standardError.write(Data("\(error)\n".utf8))
+        emit(Data("\(error)\n".utf8))
         exit(2)
     }
 }
@@ -132,7 +143,7 @@ if arguments.first == "cleanup" {
     }
     let path = arguments.dropFirst(2).first ?? FileManager.default.currentDirectoryPath
     guard let record = await Git.record(at: path) else {
-        FileHandle.standardError.write(Data("heed cleanup runs: no git repo at \(path)\n".utf8))
+        emit(Data("heed cleanup runs: no git repo at \(path)\n".utf8))
         exit(2)
     }
     let leftovers = await RunCleanup.clean(record, live: [], untouchedFor: 3600)
@@ -152,7 +163,7 @@ do {
         return data
     }
 } catch {
-    FileHandle.standardError.write(Data("\(error)\n".utf8))
+    emit(Data("\(error)\n".utf8))
     exit(2)
 }
 
@@ -182,6 +193,9 @@ func send(_ data: Data, to path: String) -> Bool {
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)
     guard fd >= 0 else { return false }
     defer { close(fd) }
+    // An app that closes the connection first fails the write, rather than raising SIGPIPE.
+    var on: Int32 = 1
+    setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
     var timeout = timeval(tv_sec: 0, tv_usec: 300_000)
     setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, socklen_t(MemoryLayout<timeval>.size))
     var address = sockaddr_un()
@@ -205,17 +219,17 @@ let data = lines.reduce(Data(), +)
 if !lines.isEmpty, !send(data, to: socketPath) {
     let spool = HookSpool.path(forSocket: socketPath)
     let outcome = HookSpool.append(data, to: spool) ? "kept in \(spool) for its next launch" : "message dropped"
-    FileHandle.standardError.write(Data("heed: app not reachable at \(socketPath), \(outcome)\n".utf8))
+    emit(Data("heed: app not reachable at \(socketPath), \(outcome)\n".utf8))
 }
 
-if let note = origin?.note { FileHandle.standardOutput.write(OriginNote.hookOutput(note)) }
+if let note = origin?.note { emit(OriginNote.hookOutput(note), to: .standardOutput) }
 
 // The ask goes to heed's queue, and this hook waits for your answer there; a pass prints nothing, so the agent asks.
 if permissionHook, let input = hookInput,
    let ask = PermissionHook.ask(arguments, input: input, environment: environment),
    let output = PermissionHook.output(PermissionHook.wait(for: ask, token: token), for: ask)
 {
-    FileHandle.standardOutput.write(output)
+    emit(output, to: .standardOutput)
 }
 
 exit(0)

@@ -11,7 +11,11 @@ var targets: [Target] = [
     .target(name: "HeedCore"),
     .executableTarget(name: "heed", dependencies: ["HeedCore"]),
     // Fixtures: files in the shapes older builds wrote (a domain.json), for migration tests.
-    .testTarget(name: "HeedCoreTests", dependencies: ["HeedCore"], resources: [.copy("Fixtures")]),
+    // Ignores SIGPIPE in the test process before any test runs, as the app and the CLI do in main.
+    .target(name: "HeedTestProcess", path: "Tests/HeedTestProcess"),
+    .testTarget(
+        name: "HeedCoreTests", dependencies: ["HeedCore", "HeedTestProcess"], resources: [.copy("Fixtures")]
+    ),
 ]
 var appDependencies: [Target.Dependency] = [
     "HeedCore", .product(name: "Sparkle", package: "Sparkle"), .product(name: "Hunch", package: "hunch"),

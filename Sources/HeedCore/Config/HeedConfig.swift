@@ -754,6 +754,15 @@ public enum ConfigLoader {
                 ))
             }
         }
+        if let value = root.value(at: ["attention", "max_age_days"]) {
+            if let days = value.integer, days >= 0 {
+                config.attention.maxAgeDays = min(days, AttentionAge.maxDays)
+            } else {
+                problems.append(ConfigProblem(
+                    path: "attention.max_age_days", message: "expected a number of days, 0 or more (0: no cap)"
+                ))
+            }
+        }
         // [summary]
         if let hours = integer(["summary", "away_hours"], range: 0 ... 720) { config.summaryAwayHours = hours }
         if let names = strings(["summary", "when"]) {
@@ -1253,6 +1262,9 @@ public enum ConfigLoader {
     # did), written by heed's model calls ([llm]). "ahead": for every thread in For you's New, newest first, within
     # the daily cap, and on open for the rest; "open": only when you open a thread; "off": none.
     summaries = "ahead"
+    # GitHub items (PRs, issues, notifications) not updated within this many days are left out of Attention, and not
+    # asked of GitHub either. 0 shows everything. Sessions' PRs and issues, goals' and the ones the pilot watches stay.
+    max_age_days = 60
 
     [summary]
     # While you were away: what still waits on you, then what merged, how background runs ended, which agents

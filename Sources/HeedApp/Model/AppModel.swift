@@ -976,7 +976,7 @@ final class AppModel {
         do {
             let state = try await GitHub.sync(
                 parts: parts, tracked: tracked, previous: previous, refreshTeams: force && wanted.isEmpty,
-                caller: "github.sync"
+                maxAgeDays: config.attention.maxAgeDays, caller: "github.sync"
             )
             syncSchedule.fetched(parts, at: Date())
             commit([.githubSynced(state)] + PullTracking.changes(sessions: sessions, pulls: state.pulls))

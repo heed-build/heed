@@ -53,9 +53,9 @@ public extension Fixtures {
         return [
             old(docsToolkit, 1204, "Assembler: support versioned nav", opened: 410, updated: 0.2),
             old(docsToolkit, 1388, "Broken anchors after a heading is renamed", opened: 330, updated: 41),
-            old(guides, 51, "Style guide: one word for sign in", opened: 600, updated: 120),
-            old(guides, 58, "Screenshots go stale after each release", opened: 520, updated: 200),
-            old(markgraph, 7, "Theme tokens for diagrams", opened: 700, updated: 300),
+            old(guides, 51, "Style guide: one word for sign in", opened: 600, updated: 20),
+            old(guides, 58, "Screenshots go stale after each release", opened: 520, updated: 33),
+            old(markgraph, 7, "Theme tokens for diagrams", opened: 700, updated: 48),
             old(ingest, 40, "Retry budget per stage", opened: 250, updated: 30, assigned: true),
         ]
     }()

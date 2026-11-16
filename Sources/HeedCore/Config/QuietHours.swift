@@ -50,11 +50,17 @@ public struct AttentionSettings: Equatable, Sendable {
     public var rules: [String]
     /// `[attention] summaries`: ahead (New's threads before you open them, and the rest on open), open, or off.
     public var summaries: AttentionSummaryMode
+    /// `[attention] max_age_days`: GitHub items not updated for this many days are left out of Attention; 0 is no cap.
+    public var maxAgeDays: Int
 
-    public init(quiet: QuietHours? = nil, rules: [String] = [], summaries: AttentionSummaryMode = .ahead) {
+    public init(
+        quiet: QuietHours? = nil, rules: [String] = [], summaries: AttentionSummaryMode = .ahead,
+        maxAgeDays: Int = AttentionAge.defaultDays
+    ) {
         self.quiet = quiet
         self.rules = rules
         self.summaries = summaries
+        self.maxAgeDays = maxAgeDays
     }
 
     /// The rules, parsed; lines that do not parse are left out and reported.

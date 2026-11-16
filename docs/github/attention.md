@@ -93,6 +93,15 @@ last one, read or not, so a thread you read elsewhere stays with what it was ins
 kept for 30 days. The issue searches (`mentions:@me`, `assignee:@me`) read up to 200 issues each, newest update
 first.
 
+### How old
+
+Attention leaves out GitHub items not updated in the last two months (`[attention] max_age_days = 60`; 0 shows
+everything). The cut-off goes to GitHub too, so fewer calls are spent: the pull and issue searches carry
+`updated:>=` the cut-off's date, and the notification reads pass `since=`. Items cached from before it drop out as
+well. What you are in stays whatever its age: PRs and issues a session tracks or links, those a goal links or draws
+its items from, and PRs the pilot watches. Agents and goals are not GitHub's and are never cut. It is an advanced
+setting: Settings › Attention shows it with Show advanced.
+
 ### Mentioned before
 
 An open issue the search finds mentioning you, opened more than 14 days ago, with no notification about the mention,

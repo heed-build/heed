@@ -29,14 +29,34 @@ extension AppModel {
         let titles = Dictionary(goals.snapshot.goals.map { ($0.id, $0.title) }) { first, _ in first }
         return AttentionFeed.items(
             github: state, sessions: sessions, details: attention.details, pilotDriving: pilotDriving,
-            readyToMerge: readyToMergeRefs, goals: GoalNotice.of(goals.snapshot)
+            readyToMerge: readyToMergeRefs, goals: GoalNotice.of(goals.snapshot),
+            maxAgeDays: config.attention.maxAgeDays, exempt: attentionAgeExempt
         ) + GoalAttachAsks.items(goals.attach.asks, titles: titles).map(\.item) + goalAttentionItems
             + goalMirrorAttention
     }
 
+    /// The threads `[attention] max_age_days` leaves alone: a session's PRs and issues, a goal's (PR links, items
+    /// sourced from a PR or issue), and the PRs the pilot watches.
+    var attentionAgeExempt: Set<String> {
+        let snapshot = goals.snapshot
+        let sourced = snapshot.items.compactMap(\.sourced)
+        return AttentionAge.exempt(
+            sessions: sessions,
+            goalPulls: snapshot.links.filter { $0.kind == .pr }.map(\.target) + sourced.filter { $0.kind == .pr }
+                .map(\.ref),
+            goalIssues: sourced.filter { $0.kind == .issue }.map(\.ref),
+            watched: feedback.values.filter(\.watching).map(\.ref)
+        )
+    }
+
     var attentionEntries: [AttentionEntry] {
-        AttentionRanking.entries(
-            live: attentionItems, stored: attention.stored.map(\.item), rules: config.attention.parsedRules,
+        let days = config.attention.maxAgeDays
+        return AttentionRanking.entries(
+            live: attentionItems,
+            stored: AttentionAge.apply(
+                to: attention.stored.map(\.item), days: days, now: Clock.now, exempt: attentionAgeExempt
+            ),
+            rules: config.attention.parsedRules,
             marks: attention.marks, viewer: github.viewer, now: Clock.now
         )
     }

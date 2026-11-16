@@ -162,7 +162,7 @@ struct RemoteIntegrationTests {
         }
     }
 
-    @Test func failuresAreNamed() async {
+    @Test func failuresAreNamed() async throws {
         let setup = try #require(sshTestSetup)
         let empty = setup.dir + "/empty_known_hosts"
         FileManager.default.createFile(atPath: empty, contents: Data())

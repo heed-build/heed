@@ -12,6 +12,7 @@ extension AppModel {
         case nudge(NudgeDialog)
         case confirmation(Confirmation)
         case importPicker(Typeahead<Worktree>)
+        case agentImport(Typeahead<Import.AgentSession>)
         case taskPicker(TaskPickerState)
         case hostsPicker(Typeahead<HostRow>)
         case hostRootsChooser(HostRootsChooser)
@@ -24,7 +25,8 @@ extension AppModel {
         case addRepo(AddRepoForm)
 
         enum Kind: Hashable, Sendable, CaseIterable {
-            case startWork, resume, firstRun, nudge, confirmation, importPicker, taskPicker, hostsPicker
+            case startWork, resume, firstRun, nudge, confirmation, importPicker, agentImport, taskPicker
+            case hostsPicker
             case hostRootsChooser, linkPicker, runReader, pilotExplain, awaySummary, repoSetup, pathImport, addRepo
         }
 
@@ -36,6 +38,7 @@ extension AppModel {
             case .nudge: .nudge
             case .confirmation: .confirmation
             case .importPicker: .importPicker
+            case .agentImport: .agentImport
             case .taskPicker: .taskPicker
             case .hostsPicker: .hostsPicker
             case .hostRootsChooser: .hostRootsChooser

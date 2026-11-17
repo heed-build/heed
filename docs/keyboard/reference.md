@@ -30,6 +30,7 @@ This page is generated from the code (`mise run shots`).
 | `session.delete` | `dd` (sessions), `dd` (sessionshelper), `dd` (sessionshelpers), `dd` (sessionsoffer), `dd` (sessionspanel), `dd` (sessionspanelchat), `dd` (sessionspanelpr), `dd` (sessionspromote) | delete session and its worktrees (asks first) |
 | `session.import` `[path]` | `Iw` (sessions), `Iw` (sessionshelper), `Iw` (sessionshelpers), `Iw` (sessionsoffer), `Iw` (sessionspanel), `Iw` (sessionspanelchat), `Iw` (sessionspanelpr), `Iw` (sessionspromote) | import a worktree Heed does not manage yet as a session |
 | `session.import.path` | `Ip` (sessions), `Ip` (sessionshelper), `Ip` (sessionshelpers), `Ip` (sessionsoffer), `Ip` (sessionspanel), `Ip` (sessionspanelchat), `Ip` (sessionspanelpr), `Ip` (sessionspromote) | import the worktree at a path (any repo, anywhere) |
+| `session.import.agent` | `Ia` (sessions), `Ia` (sessionshelper), `Ia` (sessionshelpers), `Ia` (sessionsoffer), `Ia` (sessionspanel), `Ia` (sessionspanelchat), `Ia` (sessionspanelpr), `Ia` (sessionspromote) | import an agent session (Claude Code, codex; any folder) and resume it |
 | `session.pin` | `m` | pin / unpin session |
 | `session.rename` `[title]` | `R` (sessions), `R` (sessionshelper), `R` (sessionshelpers), `R` (sessionsoffer), `R` (sessionspanel), `R` (sessionspanelchat), `R` (sessionspanelpr), `R` (sessionspromote) | give the session your title, which heed keeps (no title: the command line opens with it) |
 | `session.autoname` |  | let heed name the session again, from what it is doing |

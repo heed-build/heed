@@ -123,6 +123,148 @@ struct ImportTests {
         #expect(freshSession.title == "fix/loop")
         #expect(freshLayout.tabs[0].tree.panes[0].command?.posix == "claude")
     }
+
+    /// Writes `transcript` as `<id>.jsonl` into the project folder of `directory` under `home`, modified at `modified`.
+    private func write(
+        _ transcript: String, id: String, directory: String, home: String, modified: Date
+    ) throws {
+        let project = "\(home)/.claude/projects/\(AgentIntegration.claudeProjectFolder(directory))"
+        try FileManager.default.createDirectory(atPath: project, withIntermediateDirectories: true)
+        let file = "\(project)/\(id).jsonl"
+        try transcript.write(toFile: file, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: file)
+    }
+
+    private func transcript(_ prompt: String, cwd: String) -> String {
+        """
+        {"type":"permission-mode","permissionMode":"default","sessionId":"x"}
+        {"type":"user","cwd":"\(cwd)","message":{"role":"user","content":"\(prompt)"}}
+        """
+    }
+
+    @Test func listsEveryClaudeSessionNewestFirstWithTheFolderItRanIn() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+        let now = Date()
+        // The project folder's name loses the `_` and `.`; the transcript's cwd keeps them.
+        try write(
+            transcript("Fix the loop", cwd: "/wt/docs/fix_loop.v2"), id: "old", directory: "/wt/docs/fix_loop.v2",
+            home: home, modified: now.addingTimeInterval(-600)
+        )
+        try write(
+            transcript("Sort my notes", cwd: "/Users/me/notes"), id: "new", directory: "/Users/me/notes", home: home,
+            modified: now
+        )
+        try write(
+            transcript("Already in heed", cwd: "/wt/a"), id: "known", directory: "/wt/a", home: home, modified: now
+        )
+        try write(
+            #"{"type":"user","cwd":"/wt/b","message":{"role":"user","content":"<command-name>/clear</command-name>"}}"#,
+            id: "empty", directory: "/wt/b", home: home, modified: now
+        )
+        // A subagent's transcript, in a folder of its own: not a session to import.
+        let subagents = "\(home)/.claude/projects/\(AgentIntegration.claudeProjectFolder("/Users/me/notes"))/new/subagents"
+        try FileManager.default.createDirectory(atPath: subagents, withIntermediateDirectories: true)
+        try transcript("A subagent", cwd: "/Users/me/notes")
+            .write(toFile: "\(subagents)/agent-1.jsonl", atomically: true, encoding: .utf8)
+        let found = Import.allClaudeSessions(home: home, excluding: ["known"])
+        #expect(found.map(\.id) == ["new", "old"])
+        #expect(found.map(\.directory) == ["/Users/me/notes", "/wt/docs/fix_loop.v2"])
+        #expect(found.map(\.prompt) == ["Sort my notes", "Fix the loop"])
+        #expect(Import.allClaudeSessions(home: home, limit: 1).map(\.id).count <= 1)
+        #expect(Import.allClaudeSessions(home: "/nowhere").isEmpty)
+    }
+
+    /// A codex rollout as codex writes it: its `session_meta`, the context codex adds as user turns, then the prompt.
+    private func writeRollout(
+        id: String, cwd: String, prompt: String?, home: String, day: String = "2026/10/16", modified: Date
+    ) throws {
+        let folder = "\(home)/.codex/sessions/\(day)"
+        try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+        let turn = { (role: String, text: String) in
+            #"{"type":"response_item","payload":{"type":"message","role":"\#(role)","content":"#
+                + #"[{"type":"input_text","text":"\#(text)"}]}}"#
+        }
+        let rollout = [
+            #"{"type":"session_meta","payload":{"id":"\#(id)","cwd":"\#(cwd)","source":"cli","base_instructions":{}}}"#,
+            #"{"type":"event_msg","payload":{"type":"task_started"}}"#,
+            turn("developer", "be nice"),
+            turn("user", "# AGENTS.md instructions for \(cwd)"),
+            turn("user", "<environment_context>x</environment_context>"),
+            prompt.map { turn("user", $0) } ?? "",
+        ].joined(separator: "\n")
+        let file = "\(folder)/rollout-2026-10-16T15-12-54-\(id).jsonl"
+        try rollout.write(toFile: file, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: file)
+    }
+
+    @Test func listsCodexSessionsWithTheirFolderAndFirstTypedPrompt() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+        let now = Date()
+        let older = "01a13eef-69cc-72b1-8cdb-8669eda9e2be"
+        let newer = "01a144d8-174f-7753-8563-979eb88117a2"
+        let known = "01a143cb-1eed-77a0-925e-df568e46ed3c"
+        let untyped = "01a09b2f-d881-7a81-bb52-edea7e521a52"
+        try writeRollout(
+            id: older, cwd: "/wt/docs/fix_loop", prompt: "Fix the loop", home: home, day: "2026/10/15",
+            modified: now.addingTimeInterval(-600)
+        )
+        try writeRollout(id: newer, cwd: "/Users/me/notes", prompt: "Sort my notes", home: home, modified: now)
+        try writeRollout(id: known, cwd: "/wt/a", prompt: "Already in heed", home: home, modified: now)
+        try writeRollout(id: untyped, cwd: "/wt/b", prompt: nil, home: home, modified: now)
+        let found = Import.allCodexSessions(home: home, excluding: [known])
+        #expect(found.map(\.id) == [newer, older])
+        #expect(found.allSatisfy { $0.agent == "codex" })
+        #expect(found.map(\.directory) == ["/Users/me/notes", "/wt/docs/fix_loop"])
+        #expect(found.map(\.prompt) == ["Sort my notes", "Fix the loop"])
+    }
+
+    @Test func allSessionsMixesAgentsNewestFirstAndAWorktreeGetsItsNewest() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).path
+        let now = Date()
+        try write(
+            transcript("Claude, older", cwd: "/wt/docs/fix"), id: "claude-1", directory: "/wt/docs/fix", home: home,
+            modified: now.addingTimeInterval(-600)
+        )
+        let codex = "01a144d8-174f-7753-8563-979eb88117a2"
+        try writeRollout(id: codex, cwd: "/wt/docs/fix", prompt: "Codex, newer", home: home, modified: now)
+        #expect(Import.allSessions(home: home).map(\.agent) == ["codex", "claude"])
+        #expect(Import.allSessions(home: home, excluding: [codex]).map(\.id) == ["claude-1"])
+        let newest = Import.newestSessions(for: ["/wt/docs/fix", "/wt/other"], home: home)
+        #expect(newest["/wt/docs/fix"]?.id == codex)
+        #expect(newest["/wt/other"] == nil)
+    }
+
+    @Test func aCodexSessionResumesWithCodex() {
+        let codex = AgentProfile.builtIn.first { $0.name == "codex" }!
+        let found = Import.AgentSession(
+            agent: "codex", id: "01a1", modified: Date(), prompt: "Sort my notes", directory: "/Users/me/notes"
+        )
+        let changes = Import.chatSession(folder: "/Users/me/notes", agent: codex, resume: found, integration: nil)
+        guard case let .layoutChanged(_, layout) = changes[1] else {
+            Issue.record("expected a layout")
+            return
+        }
+        #expect(layout.tabs[0].tree.panes[0].command?.posix == "codex resume 01a1")
+    }
+
+    @Test func aSessionOutsideAnyRepoBecomesAChatThatResumesIt() {
+        let claude = AgentProfile.builtIn[0]
+        let found = Import.AgentSession(
+            agent: "claude", id: "abc-123", modified: Date(), prompt: "Sort my notes\ninto themes",
+            directory: "/Users/me/notes"
+        )
+        let changes = Import.chatSession(folder: "/Users/me/notes", agent: claude, resume: found, integration: nil)
+        guard case let .sessionUpserted(session) = changes[0], case let .layoutChanged(_, layout) = changes[1] else {
+            Issue.record("expected a session and a layout")
+            return
+        }
+        #expect(session.title == "Sort my notes")
+        #expect(session.agentSessionID == "abc-123")
+        #expect(session.repos.isEmpty)
+        #expect(session.workspace == .chat(ChatFolder(.folder, path: "/Users/me/notes")))
+        #expect(layout.tabs[0].tree.panes[0].command?.posix == "claude --resume abc-123")
+        #expect(layout.tabs[0].tree.panes[0].directory == "/Users/me/notes")
+    }
 }
 
 @Suite(.scratch)

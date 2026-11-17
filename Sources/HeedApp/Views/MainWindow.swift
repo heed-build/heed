@@ -117,6 +117,7 @@ struct MainWindow: View {
         }
         .overlay {
             if let picker = model.importPicker { ImportPickerView(picker: picker) }
+            if let picker = model.agentImport { AgentImportView(picker: picker) }
             if let state = model.taskPicker { TaskPickerView(state: state) }
             if let picker = model.hostsPicker { HostsPickerView(picker: picker) }
             if let chooser = model.hostRootsChooser { HostRootsView(chooser: chooser) }
@@ -524,7 +525,8 @@ struct StatusBar: View {
                 .joined(separator: " · ")
                 + " · ⎋ \(model.confirmation?.cancel.lowercased() ?? "cancel")"
         case .normal where model.confirmation != nil: "y or ↩ confirm · n, ⎋ or q cancel"
-        case .normal where model.importPicker != nil: "type to filter · ⌃n ⌃p move · ↩ import · ⎋ cancel"
+        case .normal where model.importPicker != nil || model.agentImport != nil:
+            "type to filter · ⌃n ⌃p move · ↩ import · ⎋ cancel"
         case .normal where model.hostRootsChooser?.editing != nil: "type a folder under ~ · ⌃w up a folder · ↩ done · ⎋ back"
         case .normal where model.hostRootsChooser != nil: "j k move · space pick · a add a folder · w worktrees · ↩ save · ⎋ skip"
         case .normal where model.pathImport != nil: "⇥ complete · ⌃n ⌃p choose · ⌃w up a folder · ↩ import · ⎋ cancel"
@@ -902,7 +904,7 @@ struct ImportPickerView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Import a worktree").font(Theme.ui(15, weight: .semibold))
                     Text(
-                        "Worktrees of your repos that Heed does not manage yet. Importing resumes the agent session kept there, else starts the agent fresh. Elsewhere on disk? \(model.keyText(for: "session.import.path", in: "sessions")) imports a path."
+                        "Worktrees of your repos that Heed does not manage yet. Importing resumes the agent session kept there, else starts the agent fresh. Elsewhere on disk? \(model.keyText(for: "session.import.path", in: "sessions")) imports a path; \(model.keyText(for: "session.import.agent", in: "sessions")) picks one agent session."
                     )
                     .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
                 }
@@ -980,6 +982,98 @@ struct ImportPickerView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.5), radius: 30).shotRegion(.picker)
         }
+    }
+}
+
+/// `Ia`: the agent sessions (Claude Code, codex) kept on this Mac that heed does not have, newest first, narrowed by
+/// typing; ↩ imports one where it ran and resumes it.
+struct AgentImportView: View {
+    @Environment(AppModel.self) private var model
+    let picker: Typeahead<Import.AgentSession>
+
+    var body: some View {
+        let matches = picker.matches
+        ZStack {
+            Color.black.opacity(0.5)
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Import an agent session").font(Theme.ui(15, weight: .semibold))
+                    Text(
+                        "Claude Code and codex sessions heed does not have yet, from any folder. Importing resumes it where it ran: on its worktree, in its repo (added if new), or as a chat in its folder."
+                    )
+                    .font(Theme.ui(12)).foregroundStyle(Theme.fg3)
+                }
+                .padding(18)
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(Theme.fg3)
+                    CaretText(input: picker.input).font(Theme.mono(12.5))
+                    Spacer()
+                    Text("\(matches.count) of \(picker.items.count)").font(Theme.mono(11)).foregroundStyle(Theme.fg3)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+                .overlay(alignment: .bottom) { Theme.line.frame(height: 1) }
+                ScrollViewReader { proxy in
+                    ListScroll {
+                        ListStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(matches.enumerated()), id: \.element.id) { index, session in
+                                // The first prompt, its age, and below it the folder it ran in.
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 10) {
+                                        if let worktree = worktree(for: session) {
+                                            RepoChip(repo: worktree.repo, highlight: picker.query).fixedSize()
+                                        }
+                                        Highlighted(
+                                            text: session.prompt?.split(separator: "\n").first.map(String.init) ?? "",
+                                            query: picker.query
+                                        )
+                                        .font(Theme.mono(12.5))
+                                        .lineLimit(1)
+                                        Spacer(minLength: 0)
+                                        Highlighted(text: session.agent, query: picker.query)
+                                            .font(Theme.mono(11)).foregroundStyle(Theme.fg2).fixedSize()
+                                        Text(session.modified.formatted(.relative(presentation: .named)))
+                                            .font(Theme.ui(11)).foregroundStyle(Theme.fg3).fixedSize()
+                                    }
+                                    if let directory = session.directory {
+                                        WorktreePath(
+                                            path: directory, roots: model.settings.pathRoots, query: picker.query
+                                        )
+                                    }
+                                }
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 9)
+                                .background(index == picker.cursor ? Theme.bg3 : .clear)
+                                .contentShape(Rectangle())
+                                .onTapGesture { model.pickAgentImport(session) }
+                                .id(index)
+                            }
+                        }
+                    }
+                    .onChange(of: picker.cursor) { proxy.scrollTo(picker.cursor) }
+                }
+                .frame(maxHeight: 380)
+                HStack {
+                    Text("⌃n ⌃p move · ↩ import · ⎋ cancel").font(Theme.ui(11.5)).foregroundStyle(Theme.fg3)
+                    Spacer()
+                }
+                .padding(14)
+                .overlay(alignment: .top) { Theme.line.frame(height: 1) }
+            }
+            .frame(width: 640)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Theme.bg2))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Theme.line))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.5), radius: 30).shotRegion(.picker)
+        }
+    }
+
+    /// The worktree heed knows that the session ran in, for its repo chip.
+    private func worktree(for session: Import.AgentSession) -> Worktree? {
+        guard let directory = session.directory else { return nil }
+        return model.worktrees.first { $0.location.isLocal && $0.path == directory }
     }
 }
 

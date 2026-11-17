@@ -317,6 +317,7 @@ public enum MenuBar {
                 .separator,
                 item("Import a worktree…", "session.import"),
                 item("Import a worktree by path…", "session.import.path"),
+                item("Import an agent session…", "session.import.agent"),
                 item("Add or clone a repo…", "repo.add"),
                 item("Show the repo in Finder", "repo.reveal"),
                 .separator,
